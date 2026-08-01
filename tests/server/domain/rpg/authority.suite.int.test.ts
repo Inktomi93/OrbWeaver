@@ -18,6 +18,10 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
+/** The actor the two op-shaped actor verbs are probed against (the authority gate fires before the target is
+ *  ever resolved, so the game need not carry the row). */
+const CAST_REF = { kind: "cast", castKey: "mira" } as const;
+
 /** Seed a game whose roster has a host + a member; return the harness with membership programmed. */
 async function seedGameWithRoster(): Promise<{ chatId: ChatId; h: ReturnType<typeof makeRpgService> }> {
   const chatId = await seedChat(db, "a");
@@ -63,6 +67,22 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
     const { chatId, h } = await seedGameWithRoster();
     await expect(h.service.editSnapshot({ principal: principal("member"), chatId, patch: { location: "x" } })).rejects.toThrow(DomainForbiddenError);
     await expect(h.service.editSnapshot({ principal: principal("ghost"), chatId, patch: { location: "x" } })).rejects.toThrow(DomainNotFoundError);
+  });
+
+  // R1 — the op-shaped actor door + its removal gesture. The member-own-volatile arm stays DEFERRED (the
+  // doorway is `assertOwnUserRef` on `targetRef`, `verbs/patch-actor.ts` header): a member gets a FORBIDDEN
+  // here, which is a refusal, not a lie about the plane.
+  test("patchActor", async () => {
+    const { chatId, h } = await seedGameWithRoster();
+    const ops = [{ op: "setStatus", status: "x" }] as const;
+    await expect(h.service.patchActor({ principal: principal("member"), chatId, targetRef: CAST_REF, ops: [...ops] })).rejects.toThrow(DomainForbiddenError);
+    await expect(h.service.patchActor({ principal: principal("ghost"), chatId, targetRef: CAST_REF, ops: [...ops] })).rejects.toThrow(DomainNotFoundError);
+  });
+
+  test("dismissActor", async () => {
+    const { chatId, h } = await seedGameWithRoster();
+    await expect(h.service.dismissActor({ principal: principal("member"), chatId, targetRef: CAST_REF })).rejects.toThrow(DomainForbiddenError);
+    await expect(h.service.dismissActor({ principal: principal("ghost"), chatId, targetRef: CAST_REF })).rejects.toThrow(DomainNotFoundError);
   });
 });
 

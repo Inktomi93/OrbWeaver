@@ -22,6 +22,7 @@ import type {
   RpgConfigView,
   RpgDeliveryPath,
   RpgExtractionMode,
+  RpgFieldLocks,
   RpgFoldFallbackReason,
   RpgGameView,
   RpgJournalEntryView,
@@ -54,10 +55,12 @@ import type {
   DeleteJournalEntryParams,
   DeleteQuestParams,
   DetachDanglingPointerParams,
+  DismissActorParams,
   EditJournalEntryParams,
   EditSnapshotParams,
   ListCheckpointsParams,
   ListJournalParams,
+  PatchActorParams,
   PatchSheetParams,
   PopulateFromCharacterParams,
   ReadGameParams,
@@ -69,7 +72,7 @@ import type {
   UpdateConfigParams,
   UpsertQuestParams,
 } from "./params";
-import type { CreateGameResult, EditSnapshotResult, RollDiceResult } from "./results";
+import type { CreateGameResult, HandDoorResult, RollDiceResult } from "./results";
 
 export type RpgGameRow = typeof rpgGames.$inferSelect;
 export type NewRpgGame = typeof rpgGames.$inferInsert;
@@ -404,6 +407,10 @@ export interface RpgIdMints {
   readonly journal: () => RpgJournalId;
   readonly checkpoint: () => RpgCheckpointId;
   readonly quest: () => RpgQuestId;
+  /** An inventory item's blob-internal id (no table, no FK — the `quest` posture). The HAND door mints through
+   *  here for the same reason the model path does (`applyUpdateInventory`'s injected `mintItemId`): a test
+   *  supplies stable ids, and an item's identity is never client-named. */
+  readonly item: () => string;
 }
 
 /** The DI bundle every rpg verb closes over, assembled at the composition root (`context.ts` builds it; its
@@ -548,6 +555,21 @@ export interface HandEditLocks {
  *  (the validation precedes `postNarratorMessage`, or a refused edit would leave a blank anchor behind). */
 export type HandEditResult = { readonly ok: true; readonly snapshotId: RpgSnapshotId } | { readonly ok: false; readonly reason: string };
 
+/** What a READ-MODIFY-WRITE hand door (`writeHandState`) sees of the resolved head: the state its next state is
+ *  derived FROM, and the locks currently stamped on it (a removal gesture releases the pins its element carried
+ *  — `dismissActor`). Read INSIDE the write's own head resolve, which is the whole point: no client image can
+ *  go stale between the panel's read and the human's click. */
+export interface HandStateHead {
+  readonly state: RpgSnapshotState;
+  readonly locks: RpgFieldLocks | null;
+}
+
+/** What such a door derives: the next WHOLE state + its lock delta, or an errors-as-data refusal (an op naming
+ *  a datum the head does not carry) raised BEFORE anything durable happens. */
+export type HandStateWrite =
+  | { readonly ok: true; readonly state: RpgSnapshotState; readonly locks?: HandEditLocks }
+  | { readonly ok: false; readonly reason: string };
+
 // ── the verb surface (§4.4) ─────────────────────────────────────────────────────────────────────────────
 
 /** The rpg service — the lite verb surface (§4.4). Authority resolves through `ctx.getMembership`: host-gated
@@ -568,7 +590,15 @@ export interface RpgService {
    *  snapshot (clone-forward), auto-locking touched fields. Returns the ERRORS-AS-DATA verdict: an unknown
    *  plane or a value the write-boundary parse refuses comes back as `{ok:false, reason}` — never a silent
    *  no-op, never a wire reject (`contracts/rpg/inputs.ts`). */
-  readonly editSnapshot: (params: EditSnapshotParams) => Promise<EditSnapshotResult>;
+  readonly editSnapshot: (params: EditSnapshotParams) => Promise<HandDoorResult>;
+  /** Host. THE op-shaped hand door for one actor's volatile row (R1): per-field ops applied IN ORDER against
+   *  the TRUE resolved head (read-modify-write — no client image, so no stale-image clobber), each stamping
+   *  its own FINE lock path. Replaces `editSnapshot`'s `actorState` image, which that verb now refuses.
+   *  Errors-as-data: an op naming an item/condition the actor does not carry comes back as `{ok:false, reason}`. */
+  readonly patchActor: (params: PatchActorParams) => Promise<HandDoorResult>;
+  /** Host. THE removal gesture for the actor plane (R1): drops the actor's state row + scene-presence row and
+   *  releases every lock at/below its path. Errors-as-data when the game carries no such actor. */
+  readonly dismissActor: (params: DismissActorParams) => Promise<HandDoorResult>;
   /** Host. Snapshot-plane quest write (clone-forward + `quests.<id>` lock). Returns the quest id. */
   readonly upsertQuest: (params: UpsertQuestParams) => Promise<RpgQuestId>;
   readonly deleteQuest: (params: DeleteQuestParams) => Promise<void>;

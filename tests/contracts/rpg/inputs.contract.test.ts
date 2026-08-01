@@ -6,7 +6,9 @@
 import {
   RPG_STEERING_NOTE_MAX,
   rpgCreateGameInputSchema,
+  rpgDismissActorInputSchema,
   rpgListJournalInputSchema,
+  rpgPatchActorInputSchema,
   rpgPatchSheetInputSchema,
   rpgUpdateConfigInputSchema,
   rpgUpsertQuestInputSchema,
@@ -57,4 +59,26 @@ test("listJournal: the paging knobs are optional and bounded (limit ≥ 1, offse
   expect(rpgListJournalInputSchema.safeParse({ chatId: CHAT_ID, limit: 20, offset: 40 }).success).toBe(true);
   expect(rpgListJournalInputSchema.safeParse({ chatId: CHAT_ID, limit: 0 }).success).toBe(false);
   expect(rpgListJournalInputSchema.safeParse({ chatId: CHAT_ID, offset: -1 }).success).toBe(false);
+});
+
+// ── R1: the op-shaped actor door ─────────────────────────────────────────────────────────────────────────
+
+test("patchActor: the target rides the DERIVED actor union and an EMPTY op list is refused at the wire", () => {
+  const ok = rpgPatchActorInputSchema.safeParse({
+    chatId: CHAT_ID,
+    targetRef: { kind: "cast", castKey: "mira" },
+    ops: [{ op: "setTracker", key: "trust", value: { value: 4 } }],
+  });
+  expect(ok.success).toBe(true);
+  // A call that names no op is a write that means nothing — refused here rather than committing a no-op
+  // snapshot (which on a committed head would mint a blank state-anchor slot for an unchanged state).
+  expect(rpgPatchActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "cast", castKey: "mira" }, ops: [] }).success).toBe(false);
+  expect(rpgPatchActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "npc", npcId: "x" }, ops: [{ op: "setStatus", status: "" }] }).success).toBe(
+    false,
+  );
+});
+
+test("dismissActor: chatId + the derived actor ref, nothing else", () => {
+  expect(rpgDismissActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "cast", castKey: "mira" } }).success).toBe(true);
+  expect(rpgDismissActorInputSchema.safeParse({ chatId: CHAT_ID }).success).toBe(false);
 });
