@@ -10,6 +10,13 @@ export interface ListRowProps {
    * native `title=` attribute and — when `clickable` — the row's accessible name.
    */
   title: string;
+  /**
+   * The UNABBREVIATED title, for the native `title=` tooltip only — pass it when `title` is a deliberate
+   * short form (a nav row whose full section name does not fit its column). Defaults to `title`. It never
+   * touches the accessible name, which stays the VISIBLE `title` (WCAG 2.5.3 label-in-name: a spoken name
+   * that doesn't contain the read label breaks voice control).
+   */
+  fullTitle?: string;
   /** Optional secondary line (subtitle/meta — one slot, caller's call which it means). */
   subtitle?: string;
   /**
@@ -112,6 +119,7 @@ function ListRowContent({
   slots,
   leading,
   title,
+  fullTitle,
   subtitle,
   subtitleReveal,
   meta,
@@ -121,6 +129,7 @@ function ListRowContent({
   slots: Slots;
   leading: ReactNode;
   title: string;
+  fullTitle: string | undefined;
   subtitle: string | undefined;
   subtitleReveal: string | undefined;
   meta: string | undefined;
@@ -140,7 +149,7 @@ function ListRowContent({
       )}
       <span className={slots.content()} data-slot="list-row-content">
         <span className={slots.titleRow()} data-slot="list-row-title-row">
-          <span aria-hidden={true} className={slots.title()} data-slot="list-row-title" title={title}>
+          <span aria-hidden={true} className={slots.title()} data-slot="list-row-title" title={fullTitle ?? title}>
             {title}
           </span>
           {markers === undefined ? null : (
@@ -250,6 +259,7 @@ function useCollapsedBelow(ref: RefObject<HTMLElement | null>, threshold: number
 export function ListRow({
   leading,
   title,
+  fullTitle,
   subtitle,
   subtitleReveal,
   subtitleWrap = false,
@@ -290,6 +300,7 @@ export function ListRow({
         slots={slots}
       >
         <ListRowContent
+          fullTitle={fullTitle}
           ids={{ subtitleId, metaId, markersId }}
           leading={leading}
           markers={markers}

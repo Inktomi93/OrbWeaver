@@ -159,6 +159,20 @@ test("expanded exposes aria-expanded and never aria-current", async ({ mount, pa
   await expect(row).not.toHaveAttribute("aria-current", "true");
 });
 
+// `fullTitle` is the ABBREVIATION arm: the row reads short (a nav column too narrow for the real name) but
+// hovering recovers the full string. It moves the native tooltip ONLY — the accessible name stays the
+// VISIBLE title, or voice control would fail on the words the user can actually read (WCAG 2.5.3).
+test("fullTitle sets the native tooltip while the accessible name stays the visible title", async ({ mount, page }) => {
+  await mount(<ListRow clickable={true} fullTitle="Message details & actions" title="Message details" />);
+  await expect(page.getByRole("button", { name: "Message details", exact: true })).toBeVisible();
+  await expect(page.locator('[data-slot="list-row-title"]')).toHaveAttribute("title", "Message details & actions");
+});
+
+test("without fullTitle the tooltip is the title itself", async ({ mount, page }) => {
+  await mount(<ListRow clickable={true} title="Elara" />);
+  await expect(page.locator('[data-slot="list-row-title"]')).toHaveAttribute("title", "Elara");
+});
+
 test("disabled removes the row from tab order and marks aria-disabled", async ({ mount, page }) => {
   const clicks: string[] = [];
   await mount(

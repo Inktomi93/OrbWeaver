@@ -361,13 +361,17 @@ export function SettingsShell(): ReactElement {
                         {isActive && subs.length > 0 ? (
                           <Stack className="ps-(--spacing-section)" gap="field">
                             {subs.map((sub) => (
+                              // The nav row renders `navLabel` when the section declares one — a name too long
+                              // for the 220px column is ABBREVIATED here, never renamed at its heading. The
+                              // full `label` rides `fullTitle` so hovering recovers it.
                               <ListRow
                                 key={sub.id}
                                 clickable={true}
                                 {...(erroredSubIds.has(sub.id) ? { meta: SAVE_FAILED_MARKER } : {})}
+                                fullTitle={sub.label}
                                 onClick={(): void => selectSub(pane.id, sub.id)}
                                 selected={activeSub === sub.id}
-                                title={sub.label}
+                                title={sub.navLabel ?? sub.label}
                               />
                             ))}
                           </Stack>
