@@ -25,7 +25,8 @@
 // `…inventory` lock path (#10 — the same grammar the conditions plane uses: the model writes this plane, so a
 // hand edit pins it, visibly, with a Release on the section).
 
-import type { RpgActorView, RpgInventoryItem, RpgTrackerView } from "@orb/contracts/rpg";
+import type { RpgActorOp, RpgActorView, RpgInventoryItem, RpgTrackerView } from "@orb/contracts/rpg";
+import { rpgActorLockBase } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Coins, Icon, LayoutGrid, List, Plus } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -36,9 +37,8 @@ import { AddRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useInventoryDiff } from "../hooks/use-inventory-diff";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useEditSnapshot } from "../hooks/use-rpg-mutations";
+import { useEditSnapshot, usePatchActor } from "../hooks/use-rpg-mutations";
 import { actorKey } from "../lib/actor-key";
-import { actorLockBase, actorStatePatch } from "../lib/volatile-patch";
 import { RpgFieldLock } from "./rpg-field-lock";
 import { Kicker } from "./rpg-kicker";
 import type { PackEdit } from "./rpg-pack-rows";
@@ -71,6 +71,7 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const editSnapshot = useEditSnapshot({ trpc, invalidation });
+  const patchActor = usePatchActor({ trpc, invalidation });
   const fallback = viewerActor(state.tracker.actors, state.viewerUserId);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -82,10 +83,10 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
   // The ephemeral "last change" line (§12.2.8) — a client-side diff, no TurnRef, cleared on reload.
   const lastChange = useInventoryDiff(items);
 
-  const edit = state.canEditShared && actor !== undefined ? buildPackEdit(state, actor, editSnapshot) : undefined;
+  const edit = state.canEditShared && actor !== undefined ? buildPackEdit(state, actor, patchActor) : undefined;
   // The #10 hand-lock pin for the pack plane: present only when the host pinned it by editing (the same
   // grammar the conditions plane uses — a hand edit stops the story writing here until it is released).
-  const lockPath = actor === undefined ? null : `${actorLockBase(actor.actorRef)}.inventory`;
+  const lockPath = actor === undefined ? null : `${rpgActorLockBase(actor.actorRef)}.inventory`;
   const release =
     edit === undefined || lockPath === null || !state.tracker.lockedPaths.includes(lockPath)
       ? undefined
@@ -174,33 +175,21 @@ function LastChangeLine({ lastChange }: { readonly lastChange: string | null }):
   );
 }
 
-/** Build the host's pack writers (RV-5 + #37c) — every one is the whole-`actorState` overlay the rest of the
- *  panel uses. The ICON pick stamps NO lock (the model can't write `icon`, so there is nothing to pin —
- *  `lockPaths: []` skips the coarse default); the DATA writes (add/patch/remove) stamp the actor's
- *  `…inventory` path, so the pin + Release on the Pack section says the story stopped owning this plane. */
-function buildPackEdit(state: RpgPanelState, actor: RpgActorView, editSnapshot: ReturnType<typeof useEditSnapshot>): PackEdit {
-  const lockPath = `${actorLockBase(actor.actorRef)}.inventory`;
-  const write = (mutate: (items: readonly RpgInventoryItem[]) => readonly RpgInventoryItem[]): void =>
-    editSnapshot.mutate({
-      chatId: state.chatId,
-      patch: actorStatePatch(state.tracker, actor.actorRef, (v) => ({ ...v, inventory: [...mutate(v.inventory)] })),
-      lockPaths: [lockPath],
-    });
+/** Build the host's pack writers (RV-5 + #37c) — every one is a `patchActor` OP on the actor's pack (R1: the
+ *  panel names the gesture, the server applies it to the true head and derives the lock path). The ICON pick
+ *  rides `autoLock:false` — the model cannot write `icon`, so there is no story write to stop and a pin there
+ *  would only be one the host has to release; the DATA ops (add/patch/remove) stamp the actor's `…inventory`
+ *  path, so the pin + Release on the Pack section says the story stopped owning this plane. */
+function buildPackEdit(state: RpgPanelState, actor: RpgActorView, patchActor: ReturnType<typeof usePatchActor>): PackEdit {
+  const write = (op: RpgActorOp, autoLock = true): void =>
+    patchActor.mutate({ chatId: state.chatId, targetRef: actor.actorRef, ops: [op], ...(autoLock ? {} : { autoLock: false }) });
   return {
-    onPickIcon: (itemId, icon): void =>
-      editSnapshot.mutate({
-        chatId: state.chatId,
-        patch: actorStatePatch(state.tracker, actor.actorRef, (v) => ({
-          ...v,
-          inventory: v.inventory.map((it) => (it.id === itemId ? { ...it, icon } : it)),
-        })),
-        lockPaths: [],
-      }),
-    onPatchItem: (itemId, patch): void => write((items) => items.map((it) => (it.id === itemId ? { ...it, ...patch } : it))),
-    onRemoveItem: (itemId): void => write((items) => items.filter((it) => it.id !== itemId)),
-    // The item id is a blob-internal string (never a db row id) — minted client-side like every other
-    // hand-authored blob row (the `regex.scripts[].id` precedent).
-    onAddItem: (name): void => write((items) => [...items, { id: globalThis.crypto.randomUUID(), name, description: "", quantity: 1, location: "", type: "" }]),
+    onPickIcon: (id, icon): void => write({ op: "patchItem", id, patch: { icon } }, false),
+    onPatchItem: (id, patch): void => write({ op: "patchItem", id, patch }),
+    onRemoveItem: (id): void => write({ op: "removeItem", id }),
+    // The item id is a blob-internal string the SERVER mints (the model applier's own `mintItemId` seam) — a
+    // hand caller never names an item's identity.
+    onAddItem: (name): void => write({ op: "addItem", item: { name } }),
   };
 }
 

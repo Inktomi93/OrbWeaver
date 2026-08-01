@@ -250,6 +250,8 @@ function stubTakeover(
     "rpg.getGame": () => opts.game ?? gameView(readOnly),
     "rpg.getTrackerView": () => opts.tracker ?? trackerView(readOnly),
     "rpg.editSnapshot": () => undefined,
+    "rpg.patchActor": () => undefined,
+    "rpg.dismissActor": () => undefined,
     "rpg.patchSheet": () => undefined,
     "rpg.populateFromCharacter": () => undefined,
     "rpg.updateConfig": () => undefined,
@@ -370,7 +372,7 @@ test("a tab body renders real tracker data (Status: roster row + pool meters + c
   await expect(component.getByText("poisoned")).toBeVisible();
 });
 
-test("an editable pool value fires the editSnapshot mutation (host, writable) — the mutation COUNT", async ({ mount, page }) => {
+test("an editable pool value fires the patchActor mutation (host, writable) — the mutation COUNT", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
@@ -385,8 +387,10 @@ test("an editable pool value fires the editSnapshot mutation (host, writable) �
   await vitality.fill("18");
   await vitality.blur();
 
-  // Assert the MUTATION fired (the count), not the UI reaction (the save-catch could hide a throw).
-  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  // Assert the MUTATION fired (the count), not the UI reaction (the save-catch could hide a throw). The
+  // per-actor plane is op-shaped (R1), so the roster's tracker edit rides `patchActor`, never `editSnapshot`.
+  await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBe(0);
 });
 
 test("read-only trackers: the pill shows BUT the host still hand-edits (D108 — trackersReadOnly gates the MODEL write path only)", async ({ mount, page }) => {
@@ -461,12 +465,13 @@ const SERA_VOLATILE = {
 };
 const TRUST_METER = { ...VITALITY, key: "trust", label: "Trust", appliesTo: "npcs", max: 10, sort: 0, pinned: false };
 
-// The plane-loss defect: the Scene cast edit built its `actorState` overlay from the ROSTER half of the view
-// only, so a `cast:` target was never "found" and an EMPTY volatile got minted — authoring `hp: null`,
-// `inventory: []`, `wallet: []`, `status: ""` over the NPC's real row. Those are AUTHORED values, so the
-// server's additive keyed-plane policy (b962df48) cannot save them: it preserves rows a write OMITS, never
-// fields it NAMES. The receipt is the WIRE payload, not a UI reaction.
-test("editing a cast NPC's tracker sends her EXISTING hp/inventory/wallet/status on the wire (no empty-row mint)", async ({ mount, page }) => {
+// The plane-loss defect, killed STRUCTURALLY (R1). The Scene cast edit used to build a whole-`actorState`
+// IMAGE from the ROSTER half of the view only, so a `cast:` target was never "found" and an EMPTY volatile got
+// minted — authoring `hp: null`, `inventory: []`, `wallet: []`, `status: ""` over the NPC's real row (AUTHORED
+// values the server's additive policy cannot save: it preserves rows a write OMITS, never fields it NAMES).
+// The op door cannot express that mistake: the wire payload carries the ONE datum the human touched and names
+// no sibling plane at all. The receipt is the WIRE payload, not a UI reaction.
+test("editing a cast NPC's tracker sends ONE op naming only that datum (her other planes are unmentionable)", async ({ mount, page }) => {
   const trpc = await stubTakeover(page, {
     tracker: {
       ...(trackerView(false) as Record<string, unknown>),
@@ -484,18 +489,17 @@ test("editing a cast NPC's tracker sends her EXISTING hp/inventory/wallet/status
   await trust.fill("5");
   await trust.blur();
 
-  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
-  const input = trpc.lastInput("rpg.editSnapshot") as { readonly patch: { readonly actorState: readonly Record<string, unknown>[] } };
-  const sera = input.patch.actorState.find((a) => (a["actorRef"] as { castKey?: string } | undefined)?.castKey === "sera");
+  await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  const input = trpc.lastInput("rpg.patchActor") as { readonly targetRef: Record<string, unknown>; readonly ops: readonly Record<string, unknown>[] };
 
-  // The edited reading landed…
-  expect(sera?.["trackerValues"]).toMatchObject({ trust: { value: 5 } });
-  // …and every sibling plane the empty mint used to clear rode along with it.
-  expect(sera?.["hp"]).toEqual({ value: 9, max: 14 });
-  expect(sera?.["inventory"]).toEqual(SERA_VOLATILE.inventory);
-  expect(sera?.["wallet"]).toEqual([{ name: "gold", amount: 40 }]);
-  expect(sera?.["status"]).toBe("guarding the stair");
-  expect(sera?.["conditions"]).toEqual(SERA_VOLATILE.conditions);
+  // The call addresses HER, by ref — no image, no roster half, nothing to be partial about.
+  expect(input.targetRef).toEqual({ kind: "cast", castKey: "sera" });
+  expect(input.ops).toEqual([{ op: "setTracker", key: "trust", value: { value: 5 } }]);
+  // The planes the empty mint used to clear are not on the wire AT ALL — the server keeps them by construction.
+  const wire = JSON.stringify(input);
+  for (const plane of ["hp", "inventory", "wallet", "status", "conditions"]) {
+    expect(wire).not.toContain(plane);
+  }
 });
 
 test("the host New-quest affordance fires upsertQuest (create) — the mutation COUNT", async ({ mount, page }) => {
@@ -672,8 +676,9 @@ test("P5: the ACT RAIL renders the snapshot plot plane (current act embered; nul
 });
 
 // The per-carrier ceiling (owner amendment 2026-07-31): the max on a character's row is THAT CHARACTER's,
-// stored as an override on their value plane (`editSnapshot`), never the game-wide def (`updateConfig`).
-test("a tracker max edit writes THIS CHARACTER's ceiling override (editSnapshot, never updateConfig) + drags the reading", async ({ mount, page }) => {
+// stored as an override on their value plane (`patchActor`'s `setTracker`), never the game-wide def
+// (`updateConfig`).
+test("a tracker max edit writes THIS CHARACTER's ceiling override (patchActor, never updateConfig) + drags the reading", async ({ mount, page }) => {
   const trpc = await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
@@ -689,13 +694,13 @@ test("a tracker max edit writes THIS CHARACTER's ceiling override (editSnapshot,
   await maxField.blur();
 
   // ONE write, on the actor's own value plane — the def (updateConfig) is untouched.
-  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   await expect.poll(() => trpc.count("rpg.updateConfig"), { intervals: [20, 50, 100] }).toBe(0);
   // 20 ≠ the def's 30 ⇒ a genuine override is STORED, and because it is below the reading (24) the value is
   // dragged down in the SAME commit (never a silent truncate).
   await expect
-    .poll(() => trpc.lastInput("rpg.editSnapshot"), { intervals: [20, 50, 100] })
-    .toMatchObject({ patch: { actorState: [{ trackerValues: { vitality: { max: 20, value: 20 } } }] } });
+    .poll(() => trpc.lastInput("rpg.patchActor"), { intervals: [20, 50, 100] })
+    .toMatchObject({ ops: [{ op: "setTracker", key: "vitality", value: { max: 20, value: 20 } }] });
   await expect(component.getByText("Vitality 24 → 20 — ceiling lowered")).toBeVisible();
 });
 
@@ -721,8 +726,8 @@ test("typing the game DEFAULT back into a character's ceiling CLEARS the overrid
   await maxField.fill("30");
   await maxField.blur();
   await expect
-    .poll(() => trpc.lastInput("rpg.editSnapshot"), { intervals: [20, 50, 100] })
-    .toMatchObject({ patch: { actorState: [{ trackerValues: { vitality: { max: null } } }] } });
+    .poll(() => trpc.lastInput("rpg.patchActor"), { intervals: [20, 50, 100] })
+    .toMatchObject({ ops: [{ op: "setTracker", key: "vitality", value: { max: null } }] });
 });
 
 test("the Scene CHOICE echo renders the transcript's LIVE :::choices (info-blue; send-mode line) and a pick fires chat.send", async ({ mount, page }) => {
@@ -1117,7 +1122,7 @@ test("Status: expanding a roster entry TAKES OVER the panel with the character �
   await expect(component.locator('[data-slot="rpg-character-detail"]')).toHaveCount(0);
 });
 
-test("Status takeover: a sheet edit fires patchSheet and a tracker edit fires editSnapshot — the mutation COUNTs", async ({ mount, page }) => {
+test("Status takeover: a sheet edit fires patchSheet and a tracker edit fires patchActor — the mutation COUNTs", async ({ mount, page }) => {
   const trpc = await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
@@ -1130,12 +1135,22 @@ test("Status takeover: a sheet edit fires patchSheet and a tracker edit fires ed
   await attr.blur();
   await expect.poll(() => trpc.count("rpg.patchSheet"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 
-  // A tracker READING on the same surface writes through editSnapshot (the volatile plane).
+  // A tracker READING on the same surface writes through patchActor (the op-shaped volatile plane).
   await component.getByRole("button", { name: "Vitality value" }).click();
   const vit = component.getByRole("textbox", { name: "Vitality value" });
   await vit.fill("18");
   await vit.blur();
-  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+
+  // The PURSE is the takeover's other volatile plane, and it rides the named-amount op (an upsert server-side)
+  // — the wire carries the slot name + its new amount, nothing about the actor's other slots or planes.
+  await component.getByRole("button", { name: "gold amount" }).click();
+  const coin = component.getByRole("textbox", { name: "gold amount" });
+  await coin.fill("140");
+  await coin.blur();
+  await expect
+    .poll(() => trpc.lastInput("rpg.patchActor"), { intervals: [20, 50, 100] })
+    .toMatchObject({ ops: [{ op: "setWalletAmount", name: "gold", amount: 140 }] });
 });
 
 // The takeover on a MOBILE-width panel (the build-time verification the unification §3 asks for): the panel
@@ -1223,7 +1238,7 @@ test("RV-4/RV-12: the GM stat profile adds, renames and GLOSSES attributes — e
 
 // RV-5 — the pack had NO add/edit at all, and `location` (stored, and asked of the model in the extraction
 // guidance) never reached a surface. The list view is the edit view.
-test("RV-5: the pack adds an item and edits its LOCATION in place — the editSnapshot writes + the lock path", async ({ mount, page }) => {
+test("RV-5: the pack adds an item and edits its LOCATION in place — the patchActor ops + the lock derivation", async ({ mount, page }) => {
   const trpc = await stubTakeover(page, { tracker: richTracker() });
   const component = await mount(<RpgTakeoverStory />);
   await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
@@ -1231,7 +1246,9 @@ test("RV-5: the pack adds an item and edits its LOCATION in place — the editSn
   // ADD (a name is required first — no "Item 3" orphans).
   await component.getByRole("textbox", { name: "New item name" }).fill("Rope");
   await component.getByRole("button", { name: "Add item" }).click();
-  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBe(1);
+  // The item's ID is not on the wire — identity is server-minted (the model applier's own seam).
+  await expect.poll(() => trpc.lastInput("rpg.patchActor"), { intervals: [20, 50, 100] }).toMatchObject({ ops: [{ op: "addItem", item: { name: "Rope" } }] });
 
   // EDIT — the list lens carries every datum, `location` included.
   await component.getByRole("button", { name: "Show as a list" }).click();
@@ -1241,11 +1258,12 @@ test("RV-5: the pack adds an item and edits its LOCATION in place — the editSn
   const location = component.getByRole("textbox", { name: "Bone key location" });
   await location.fill("sewn into the lining");
   await location.blur();
-  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBe(2);
-  // The hand edit PINS the plane it touched (#10) — the pack's Release lives on the section kicker.
-  await expect
-    .poll(() => trpc.lastInput("rpg.editSnapshot"), { intervals: [20, 50, 100] })
-    .toMatchObject({ lockPaths: ["actorState.character:character_ct_mara.inventory"] });
+  await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBe(2);
+  // The panel names the OP, not the lock path: the pin (`…inventory`, whose Release lives on the section
+  // kicker) is DERIVED server-side per op (R1), so a client can no longer claim a path it didn't edit.
+  const input = trpc.lastInput("rpg.patchActor") as { readonly ops: readonly Record<string, unknown>[]; readonly autoLock?: boolean };
+  expect(input.ops).toEqual([{ op: "patchItem", id: "item_ct_key", patch: { location: "sewn into the lining" } }]);
+  expect(input.autoLock).toBeUndefined();
 });
 
 // R4c — the journal `label` was write-only rot: model-writable, stored, returned on the view, rendered NOWHERE
@@ -1318,17 +1336,17 @@ test("clicking a GRID tile edits that item in place — the same click-to-edit g
   const location = page.getByRole("textbox", { name: "Bone key location" });
   await location.fill("sewn into the lining");
   await location.blur();
-  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBe(1);
-  // The hand edit PINS the plane it touched (#10) — the grid writes the same lock path the list row does.
+  await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBe(1);
+  // The grid writes the SAME op the list row does (one authoring home, one write path).
   await expect
-    .poll(() => trpc.lastInput("rpg.editSnapshot"), { intervals: [20, 50, 100] })
-    .toMatchObject({ lockPaths: ["actorState.character:character_ct_mara.inventory"] });
+    .poll(() => trpc.lastInput("rpg.patchActor"), { intervals: [20, 50, 100] })
+    .toMatchObject({ ops: [{ op: "patchItem", patch: { location: "sewn into the lining" } }] });
 
   await editor.getByRole("button", { name: "Bone key quantity" }).click();
   const quantity = page.getByRole("textbox", { name: "Bone key quantity" });
   await quantity.fill("4");
   await quantity.blur();
-  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBe(2);
+  await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBe(2);
 });
 
 // The P4 card knobs were STORED, wired into the reminder + the §4.8 lenient wrap, and had NO editor —

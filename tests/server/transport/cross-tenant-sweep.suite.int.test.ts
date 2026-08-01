@@ -814,6 +814,13 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.rpg.patchSheet({ chatId: i.chatId, actorRef: { kind: "user", userId: OWNER_USER_ID }, patch: { className: "hacked" } }),
   },
   { path: "rpg.editSnapshot", call: (c, i) => c.rpg.editSnapshot({ chatId: i.chatId, patch: { location: "hacked" } }) },
+  // R1 — the op-shaped actor door + its removal gesture: chatId-scoped hand writes, so a stranger passing a
+  // foreign chatId must see the SAME leak-free NOT_FOUND every other rpg verb collapses to.
+  {
+    path: "rpg.patchActor",
+    call: (c, i) => c.rpg.patchActor({ chatId: i.chatId, targetRef: { kind: "cast", castKey: "mira" }, ops: [{ op: "setStatus", status: "hacked" }] }),
+  },
+  { path: "rpg.dismissActor", call: (c, i) => c.rpg.dismissActor({ chatId: i.chatId, targetRef: { kind: "cast", castKey: "mira" } }) },
   { path: "rpg.upsertQuest", call: (c, i) => c.rpg.upsertQuest({ chatId: i.chatId, questId: i.rpgQuestId, name: "hacked" }) },
   { path: "rpg.deleteQuest", call: (c, i) => c.rpg.deleteQuest({ chatId: i.chatId, questId: i.rpgQuestId }) },
   { path: "rpg.addJournalEntry", call: (c, i) => c.rpg.addJournalEntry({ chatId: i.chatId, type: "note", title: "hacked", content: "hacked" }) },

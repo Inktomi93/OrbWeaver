@@ -1,10 +1,15 @@
 // domain/rpg/snapshot-edit — the shared hand-edit machinery over the CURRENT resolved snapshot (rpg-design/05
 // §4.4). A domain-root I/O-wrapping helper (the `turn-staging.ts`/`guard.ts` I/O-root precedent — it awaits
 // the db + can't live in zero-I/O `substrate/`, and verb-to-verb VALUE imports are banned).
-// editSnapshot / upsertQuest / deleteQuest all write the swipe-volatile plane by hand; they share ONE
-// mechanism: resolve the current snapshot (the resolution-ladder head), overlay the patch (hand-always-wins),
-// AUTO-LOCK every touched field (manual-edit-wins — a later model tool write can never overwrite it), and
-// persist. TWO write targets by head state:
+// editSnapshot / upsertQuest / deleteQuest / patchActor / dismissActor all write the swipe-volatile plane by
+// hand; they share ONE mechanism: resolve the current snapshot (the resolution-ladder head), produce the next
+// state, AUTO-LOCK every touched field (manual-edit-wins — a later model tool write can never overwrite it),
+// and persist. TWO DOORS onto that one mechanism:
+//   • `applyHandEdit(patch)` — the IMAGE door ([merge-clear] overlay, hand-always-wins via `fieldLocks: null`).
+//   • `writeHandState(derive)` — the READ-MODIFY-WRITE door (R1): the caller derives the next state from the
+//     head INSIDE the write's own resolve, so an op-shaped verb never carries a client image that can go
+//     stale (the stale-image clobber class, `substrate/actor-ops.ts`). `applyHandEdit` is now a thin arm of it.
+// TWO write targets by head state:
 //   • UNcommitted head (this turn's draft) ⇒ write IN PLACE on the live variant (swipe-consistent).
 //   • COMMITTED head, OR a turnless game (no snapshot rows — the no-born-seed ruling) ⇒ CLONE FORWARD onto a
 //     fresh narrator slot (`postNarratorMessage`), born committed. An in-place write on a committed snapshot
@@ -18,7 +23,7 @@
 import type { RpgFieldLocks, RpgSnapshotState } from "@orb/contracts/rpg";
 import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import type { MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
-import type { HandEditLocks, HandEditResult, RpgContext, RpgGameRow } from "./contract/service";
+import type { HandEditLocks, HandEditResult, HandStateHead, HandStateWrite, RpgContext, RpgGameRow } from "./contract/service";
 import { snapshotRowToState } from "./contract/service";
 import { insertSnapshot, resolveSnapshotBeforeSlot, resolveSnapshotForTurn, updateSnapshotState } from "./persistence/snapshots";
 import { defaultSnapshotState } from "./substrate/default-state";
@@ -86,9 +91,31 @@ function toColumns(state: RpgSnapshotState): StateColumns {
  *  is the reachable case, and the merge-clear contract is right to write it: it is the CONTRACT, not the merge,
  *  that says which leaves clear. The refusal returns as data (never a wire reject — `inputs.ts`) and nothing is
  *  written, so the caller learns WHY instead of watching a value snap back. */
-export async function applyHandEdit(ctx: RpgContext, game: RpgGameRow, patch: Record<string, unknown>, locks: HandEditLocks = {}): Promise<HandEditResult> {
+export function applyHandEdit(ctx: RpgContext, game: RpgGameRow, patch: Record<string, unknown>, locks: HandEditLocks = {}): Promise<HandEditResult> {
+  return writeHandState(ctx, game, (head) => ({
+    ok: true,
+    state: applyLockedPatch(head.state as unknown as Record<string, unknown>, patch, null) as unknown as RpgSnapshotState,
+    locks,
+  }));
+}
+
+/** THE READ-MODIFY-WRITE hand door (R1) — the same resolve, parse, lock-delta and clone-forward tail as
+ *  `applyHandEdit`, but the caller DERIVES the next state from the head instead of handing in an image.
+ *  This is what makes an op-shaped write clobber-free: the row an op is applied to is read INSIDE the same
+ *  head resolve that the write commits against, so a model flush that landed after the panel's read is the
+ *  base the op builds on — it can no longer be overwritten field-by-field by a client image read a beat ago
+ *  (`substrate/actor-ops.ts` header — the stale-image clobber class). `derive` also sees the head's LOCKS, so
+ *  a removal gesture can release exactly the pins its element carried (`dismissActor`, the `deleteQuest`
+ *  symmetric-lock precedent), and it may REFUSE as data (an op naming a datum the head does not carry) before
+ *  anything durable happens — no row, no slot, no locks. */
+export async function writeHandState(ctx: RpgContext, game: RpgGameRow, derive: (head: HandStateHead) => HandStateWrite): Promise<HandEditResult> {
   const head = await resolveHead(ctx, game);
-  const nextState = applyLockedPatch(head.state as unknown as Record<string, unknown>, patch, null) as unknown as RpgSnapshotState;
+  const derived = derive({ state: head.state, locks: head.locks });
+  if (!derived.ok) {
+    return { ok: false, reason: derived.reason };
+  }
+  const nextState = derived.state;
+  const locks = derived.locks ?? {};
   const parsed = rpgSnapshotStateSchema.safeParse(nextState);
   if (!parsed.success) {
     // Refused BEFORE the clone-forward's `postNarratorMessage` — a rejected edit leaves no blank anchor slot.

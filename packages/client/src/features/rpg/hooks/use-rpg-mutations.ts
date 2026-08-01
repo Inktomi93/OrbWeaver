@@ -23,11 +23,24 @@ export const usePatchSheet = createEntityMutation<inferInput<Trpc["rpg"]["patchS
   errorToast: "Couldn't save the sheet.",
 });
 
-/** `rpg.editSnapshot` — the hand-edit door for the swipe-volatile plane (pools, wallet, ambient, widget
- *  values). Host-only in v1. The `patch` is a partial snapshot-state overlay under the [merge-clear]
- *  contract. Repaints the whole tracker view (every plane reads the resolved-current snapshot). */
+/** `rpg.editSnapshot` — the hand-edit door for the IMAGE-honest snapshot planes (ambient, game trackers,
+ *  plot, cast, beats) AND the lock-release channel (`patch:{}` + `releaseLocks`). Host-only in v1. The
+ *  per-actor volatile plane is NOT here any more — it is op-shaped through `usePatchActor` (R1), and a patch
+ *  naming `actorState` comes back refused. Repaints the whole tracker view. */
 export const useEditSnapshot = createEntityMutation<inferInput<Trpc["rpg"]["editSnapshot"]>, unknown>({
   options: (trpc) => trpc.rpg.editSnapshot.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't save the change.",
+});
+
+/** `rpg.patchActor` — THE op-shaped hand door for one actor's volatile row (R1): the panel sends the OPS it
+ *  performed (`setTracker`, `addCondition`, `addItem`, `setWalletAmount`, …) and the server applies them
+ *  against the true resolved head. It replaced the whole-`actorState` IMAGE this panel used to build from its
+ *  own projections — an image that could only ever be partial (the offstage rows are in no projection) and
+ *  that clobbered any model flush landing between the panel's read and the click. The FINE lock paths are
+ *  derived server-side per op, so a call site names ops, never lock paths. Repaints the tracker view. */
+export const usePatchActor = createEntityMutation<inferInput<Trpc["rpg"]["patchActor"]>, unknown>({
+  options: (trpc) => trpc.rpg.patchActor.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId })],
   errorToast: "Couldn't save the change.",
 });

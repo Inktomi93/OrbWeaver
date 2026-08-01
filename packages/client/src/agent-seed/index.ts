@@ -1,6 +1,6 @@
 // The dev-only rpg game-seeder implementation (`__orb.seed`). Lives at the composition tier — sibling to
 // main.tsx, NOT under features/ — because it drives the app's REAL `rpg.*` wire verbs (createGame,
-// patchSheet, editSnapshot, upsertQuest, updateConfig, addJournalEntry) against a FRESH character+chat it
+// patchSheet, editSnapshot, patchActor, upsertQuest, updateConfig, addJournalEntry) against a FRESH character+chat it
 // creates itself, so an audit/demo/live-verify pass stands up a fully-populated game in ONE call instead of
 // hand-rolling tRPC seeders every time. Every write is the EXACT verb the real UI would call (the same wire
 // schemas `use-rpg-mutations` rides) — never a parallel mutation path or a raw insert.
@@ -12,8 +12,11 @@
 //
 // PLANE MAP (which verb owns which datum):
 //   • sheet identity (className/attributes/maxHp/level/tracker grants) → `patchSheet` (the `character` ref)
-//   • swipe-volatile plane (hp, tracker readings, inventory, wallet, presentCharacters+relationships,
-//     plot, scene ambient, recentEvents) → `editSnapshot` (the [merge-clear] overlay)
+//   • the SCENE half of the swipe-volatile plane (presentCharacters+relationships, plot, ambient,
+//     recentEvents, game trackers) → `editSnapshot` (the [merge-clear] overlay)
+//   • the per-ACTOR half (hp, tracker readings, inventory, wallet, status) → `patchActor` (R1: the plane is
+//     op-shaped now — `editSnapshot` refuses an `actorState` image, so the seed authors the same ops the
+//     panel's own edit affordances send)
 //   • the quest plane (with objectives) → `upsertQuest` (the dedicated hand arm — mints stable objective ids)
 //   • the config plane (the TRACKER defs + relationship hints) → `updateConfig`
 //   • the journal archive → `addJournalEntry`
@@ -22,7 +25,7 @@
 // it is never attached to `__orb` in prod. In dev single-user mode the owner auto-resolves, so these wire
 // calls run as the host (able to create games + write every plane).
 
-import type { RpgStatProfile } from "@orb/contracts/rpg";
+import type { RpgActorOp, RpgActorRef, RpgStatProfile } from "@orb/contracts/rpg";
 import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -140,31 +143,39 @@ const PRESENT_CHARACTERS = [
   },
 ];
 
-/** The player's inventory items (volatile plane; stable ids for per-element lock addressing). */
-const PLAYER_INVENTORY = [
+/** The player's inventory items, as `patchActor` ADD ops (the item id is minted server-side — a hand caller
+ *  never names an item's identity, exactly as the model applier never does). */
+const PLAYER_ITEM_OPS: readonly RpgActorOp[] = [
   {
-    id: "itm-sword",
-    name: "Ashfall Longsword",
-    description: "a heirloom blade that hums faintly near old magic",
-    quantity: 1,
-    location: "sheathed",
-    type: "weapon",
+    op: "addItem",
+    item: {
+      name: "Ashfall Longsword",
+      description: "a heirloom blade that hums faintly near old magic",
+      quantity: 1,
+      location: "sheathed",
+      type: "weapon",
+    },
   },
-  { id: "itm-potions", name: "Elixir of Mending", description: "restores vigor; bitter as regret", quantity: 3, location: "belt pouch", type: "consumable" },
   {
-    id: "itm-key",
-    name: "Tarnished Vault Key",
-    description: "cold to the touch, etched with the sigil of House Vane",
-    quantity: 1,
-    location: "inner pocket",
-    type: "key",
+    op: "addItem",
+    item: { name: "Elixir of Mending", description: "restores vigor; bitter as regret", quantity: 3, location: "belt pouch", type: "consumable" },
+  },
+  {
+    op: "addItem",
+    item: {
+      name: "Tarnished Vault Key",
+      description: "cold to the touch, etched with the sigil of House Vane",
+      quantity: 1,
+      location: "inner pocket",
+      type: "key",
+    },
   },
 ];
 
-/** The player's wallet (stored named-amount slots). */
-const PLAYER_WALLET = [
-  { name: "gold", amount: 214 },
-  { name: "silver", amount: 47 },
+/** The player's wallet (stored named-amount slots) as SET ops — `setWalletAmount` upserts the slot. */
+const PLAYER_WALLET_OPS: readonly RpgActorOp[] = [
+  { op: "setWalletAmount", name: "gold", amount: 214 },
+  { op: "setWalletAmount", name: "silver", amount: 47 },
 ];
 
 /** The plot plane (snapshot-resident P5 datum): a story title + acts, current act embered. */
@@ -231,34 +242,30 @@ const D20_ATTRIBUTES: Readonly<Record<string, number>> = { str: 15, dex: 13, con
 const PLAYER_LEVEL = 4;
 const PLAYER_MAX_HP = 38;
 
-/** The player's TRACKER readings (volatile) — keyed by tracker `key`, TOTAL values (`{value,max,items}`
- *  whole, because the snapshot merge recurses into them). Partially spent, for a lived-in look. */
-const PLAYER_TRACKER_VALUES = {
-  mana: { value: 28, items: null },
-  focus: { value: 20, items: null },
-  grit: { value: 6, items: null },
-};
+/** The player's TRACKER readings (volatile) — keyed by tracker `key`, one `setTracker` op each (the server
+ *  keeps each written value TOTAL). Partially spent, for a lived-in look. */
+const PLAYER_TRACKER_OPS: readonly RpgActorOp[] = [
+  { op: "setTracker", key: "mana", value: { value: 28 } },
+  { op: "setTracker", key: "focus", value: { value: 20 } },
+  { op: "setTracker", key: "grit", value: { value: 6 } },
+];
 
 /** The scene cast's own volatile rows — a `cast:<key>` actor per present NPC, carrying THEIR tracker
  *  readings. Cast members read from the SAME per-actor plane roster members do (one value home, D108 #2). */
-const CAST_ACTOR_STATE = [
+const CAST_ACTOR_OPS: readonly { readonly castKey: string; readonly ops: readonly RpgActorOp[] }[] = [
   {
-    actorRef: { kind: "cast" as const, castKey: "mira" },
-    hp: null,
-    trackerValues: { trust: { value: 62, items: null }, role: { value: "sellsword escort", max: null, items: null } },
-    conditions: [],
-    inventory: [],
-    wallet: [],
-    status: "",
+    castKey: "mira",
+    ops: [
+      { op: "setTracker", key: "trust", value: { value: 62 } },
+      { op: "setTracker", key: "role", value: { value: "sellsword escort" } },
+    ],
   },
   {
-    actorRef: { kind: "cast" as const, castKey: "corvin" },
-    hp: null,
-    trackerValues: { trust: { value: 18, items: null }, role: { value: "rival arcanist", max: null, items: null } },
-    conditions: [],
-    inventory: [],
-    wallet: [],
-    status: "",
+    castKey: "corvin",
+    ops: [
+      { op: "setTracker", key: "trust", value: { value: 18 } },
+      { op: "setTracker", key: "role", value: { value: "rival arcanist" } },
+    ],
   },
 ];
 
@@ -320,8 +327,8 @@ export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
       },
     });
 
-    // 5) The swipe-volatile plane in one overlay: scene ambient, the player's live actor state (hp/pools/
-    //    inventory/wallet), the present cast (relationships + custom fields), and the plot spine.
+    // 5) The SCENE half of the swipe-volatile plane in one overlay: ambient, the present cast (relationships
+    //    + guides), the plot spine, the game-subject tracker.
     await client.rpg.editSnapshot.mutate({
       chatId,
       patch: {
@@ -333,20 +340,29 @@ export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
         presentCharacters: PRESENT_CHARACTERS,
         plot: PLOT,
         trackerValues: { alarm: { value: 15, items: null } },
-        actorState: [
-          ...CAST_ACTOR_STATE,
-          {
-            actorRef: playerRef,
-            hp: { value: 31, max: PLAYER_MAX_HP },
-            trackerValues: PLAYER_TRACKER_VALUES,
-            conditions: [],
-            inventory: PLAYER_INVENTORY,
-            wallet: PLAYER_WALLET,
-            status: "on edge",
-          },
-        ],
       },
     });
+
+    // 5b) The per-ACTOR half through the op door (R1 — `editSnapshot` refuses an `actorState` image). One call
+    //     per actor, SEQUENTIAL for the same reason the quests are: each write reads and rewrites the current
+    //     snapshot head, so parallel calls would race on it.
+    const actorWrites: readonly { readonly targetRef: RpgActorRef; readonly ops: readonly RpgActorOp[] }[] = [
+      {
+        targetRef: playerRef,
+        ops: [
+          { op: "setHp", hp: { value: 31, max: PLAYER_MAX_HP } },
+          ...PLAYER_TRACKER_OPS,
+          ...PLAYER_ITEM_OPS,
+          ...PLAYER_WALLET_OPS,
+          { op: "setStatus", status: "on edge" },
+        ],
+      },
+      ...CAST_ACTOR_OPS.map((c) => ({ targetRef: { kind: "cast", castKey: c.castKey } as const, ops: c.ops })),
+    ];
+    await actorWrites.reduce<Promise<unknown>>(
+      (chain, write) => chain.then(() => client.rpg.patchActor.mutate({ chatId, targetRef: write.targetRef, ops: [...write.ops] })),
+      Promise.resolve(),
+    );
 
     // 6) The quest plane (dedicated verb — mints stable objective ids). Each upsert reads+rewrites the
     //    current snapshot head, so they run SEQUENTIALLY (a promise chain, not Promise.all — parallel writes

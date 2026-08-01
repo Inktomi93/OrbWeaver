@@ -55,6 +55,7 @@ import {
   listCheckpoints,
   listJournal,
   mintFreshCharacter,
+  patchActor,
   patchSheet,
   removeCharacter,
   restoreCheckpoint,
@@ -187,38 +188,26 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
       weather: { type: "snow", label: "bitter cold" },
       recentEvents: ["Stepped into the freezing night market"],
     });
-    // Actor volatile plane: HP / trackers / wallet / inventory / conditions / status — all first-class in lite.
-    await editSnapshot(chatId, {
-      actorState: [
-        {
-          actorRef: ref,
-          hp: { value: 12, max: 20 },
-          trackerValues: { mana: { value: 3, items: null } },
-          wallet: [{ name: "gold", amount: 45 }],
-          inventory: [{ id: "i1", name: "Iron Dagger", quantity: 2 }],
-          conditions: [{ name: "Chilled", stat: null, modifier: 0, turnsLeft: null }],
-          status: "shivering",
-        },
-      ],
-    });
+    // Actor volatile plane: HP / trackers / wallet / inventory / conditions / status — all first-class in lite,
+    // and all through the OP door (R1: `editSnapshot` refuses an `actorState` image; the panel sends these
+    // exact ops).
+    await patchActor(chatId, ref, [
+      { op: "setHp", hp: { value: 12, max: 20 } },
+      { op: "setTracker", key: "mana", value: { value: 3 } },
+      { op: "setWalletAmount", name: "gold", amount: 45 },
+      { op: "addItem", item: { name: "Iron Dagger", quantity: 2 } },
+      { op: "addCondition", condition: { name: "Chilled" } },
+      { op: "setStatus", status: "shivering" },
+    ]);
     // Present cast + mood + RELATIONSHIP (custom + hint). Her TRACKED values ride the per-actor plane under
     // her `cast:` ref — the same one home a party member's use (there is no second cast-value store).
     await editSnapshot(chatId, {
       presentCharacters: [{ key: "mira", name: "Mira", emoji: "🗡️", mood: "wary", relationship: { kind: "custom", label: "vassal" } }],
     });
-    await editSnapshot(chatId, {
-      actorState: [
-        {
-          actorRef: { kind: "cast", castKey: "mira" },
-          hp: null,
-          trackerValues: { trust: { value: 4, items: null }, secret: { value: "knows the password", items: null } },
-          conditions: [],
-          inventory: [],
-          wallet: [],
-          status: "",
-        },
-      ],
-    });
+    await patchActor(chatId, { kind: "cast", castKey: "mira" }, [
+      { op: "setTracker", key: "trust", value: { value: 4 } },
+      { op: "setTracker", key: "secret", value: { value: "knows the password" } },
+    ]);
     // LEVEL (hand-only plane, §2.6 — patchSheet is its ONLY door) + className.
     await patchSheet(chatId, ref, { level: 5, className: "Ranger" });
     // Quest plane (goal + n/m objectives).
@@ -358,9 +347,7 @@ test("rpg-lite: a hand edit auto-locks (canon wins) and the delta reaches the ne
     // value: the hand editor is the authority a lock protects, so the human re-edit ALWAYS wins (the lock
     // blocks a later TOOL write, never the human). This proves the lock exists without a model in the loop:
     // we assert the value the human last wrote is canon.
-    await editSnapshot(chatId, {
-      actorState: [{ actorRef: ref, hp: { value: 8, max: 20 }, trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" }],
-    });
+    await patchActor(chatId, ref, [{ op: "setHp", hp: { value: 8, max: 20 } }]);
     const pinned = await characterActor(chatId, characterId);
     expect(pinned.volatile?.hp).toEqual({ value: 8, max: 20 });
 
@@ -525,20 +512,11 @@ test("rpg-lite: the tracker view is swipe-consistent — every plane resolves fr
   const { chatId, characterId, cleanup } = await seedGame("e2e-rpg-swipe");
   try {
     const ref = characterRef(await getTrackerView(chatId), characterId);
-    await editSnapshot(chatId, {
-      location: "The Glass Bridge",
-      actorState: [
-        {
-          actorRef: ref,
-          hp: { value: 15, max: 15 },
-          trackerValues: { focus: { value: 2, items: null } },
-          conditions: [],
-          inventory: [],
-          wallet: [],
-          status: "",
-        },
-      ],
-    });
+    await editSnapshot(chatId, { location: "The Glass Bridge" });
+    await patchActor(chatId, ref, [
+      { op: "setHp", hp: { value: 15, max: 15 } },
+      { op: "setTracker", key: "focus", value: { value: 2 } },
+    ]);
     // Every plane reads the SAME resolved-current snapshot, so two back-to-back reads are byte-identical (no
     // per-plane drift — the swipe-consistency contract the CP-4 panel relies on to re-resolve as one).
     const a = await getTrackerView(chatId);

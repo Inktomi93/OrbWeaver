@@ -11,7 +11,8 @@
 import type { RpgQuestId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { rpgActorVolatileSchema } from "./actor";
+import type { RpgActorRef } from "./actor";
+import { actorRefKey, rpgActorVolatileSchema } from "./actor";
 import { rpgClockTimeSchema, rpgWeatherSchema } from "./ambient";
 import { RPG_QUEST_STATUSES, RPG_RELATIONSHIP_KINDS } from "./enums";
 import { rpgTrackerValuesSchema } from "./tracker";
@@ -143,3 +144,23 @@ export type RpgSnapshotState = z.infer<typeof rpgSnapshotStateSchema>;
 export const RPG_SNAPSHOT_STATE_PLANES: ReadonlySet<string> = new Set(
   Object.keys(rpgSnapshotStateSchema.shape).filter((key) => key !== ("fieldLocks" satisfies keyof RpgSnapshotState)),
 );
+
+/** THE OP-SHAPED PLANES — state planes that LEFT the `editSnapshot` image vocabulary (R1, the actor-state
+ *  review §5): `actorState` is authored per-FIELD through `rpg.patchActor` and removed through
+ *  `rpg.dismissActor`. An image over this plane is unauthorable by construction — the client sees it only in
+ *  projections (roster half + `castVolatile`, never the offstage rows), so every image it could build was
+ *  partial, and the additive merge policy was the only thing standing between a hand click and data loss.
+ *  `editSnapshot` refuses these keys as DATA, naming the verb that owns them. */
+export const RPG_OP_SHAPED_PLANES: ReadonlySet<string> = new Set<string>(["actorState" satisfies keyof RpgSnapshotState]);
+
+/** The planes an `editSnapshot` patch may still address — the state planes MINUS the op-shaped ones. Derived,
+ *  so a plane that grows a verb door leaves this set by editing ONE line above. */
+export const RPG_HAND_PATCH_PLANES: ReadonlySet<string> = new Set([...RPG_SNAPSHOT_STATE_PLANES].filter((key) => !RPG_OP_SHAPED_PLANES.has(key)));
+
+/** The #10 per-field lock-path BASE for one actor's volatile row — `actorState.<actorRefKey>`. The fine paths
+ *  append the op's field (`.status`, `.trackerValues.<key>`, `.wallet.<name>`, …). ONE home for a grammar with
+ *  two readers: the server stamps these paths (the `patchActor` auto-lock) and the panel reads them back to
+ *  render the pin + its Release. The plane segment is pinned to the state key by `satisfies`. */
+export function rpgActorLockBase(ref: RpgActorRef): string {
+  return `${"actorState" satisfies keyof RpgSnapshotState}.${actorRefKey(ref)}`;
+}
