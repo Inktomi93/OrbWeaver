@@ -8,7 +8,7 @@ import type { AgentSdkModel, ChatApi, CredentialSource, EffortLevel, ModelCapabi
 import { EFFORT_LEVELS } from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
 import { env } from "#foundation/env";
-import { getChatModel } from "./chat-models";
+import { CLAUDE_CAPABILITY_FLOOR, getChatModel } from "./chat-models";
 import type { MODEL_FAMILIES } from "./model-family";
 import { detectModelFamily } from "./model-family";
 import { resolveAgentSdkAlias } from "./resolve-agent-sdk-alias";
@@ -214,6 +214,21 @@ function synthesizeInput(inputModalities: readonly string[] | undefined, outputM
   };
 }
 
+/** The two axes OR UNDER-advertises: `tools` / `structured_outputs` when the catalog lists them, else the
+ *  Claude family FLOOR for a RECOGNIZED-but-uncurated Claude. This arm runs only after `getChatModel` missed,
+ *  so an anthropic-family id here is a Claude NEWER than the shortlist — and OR's catalog omits
+ *  `structured_outputs` for Claude entries (the reason `claude-sonnet-4-6` had to be hand-curated,
+ *  chat-models.ts), which reads as "no structured output" ⇒ an rpg game on it degrades to trackers-readonly.
+ *  The floor only ever ADDS. `input` is deliberately NOT floored: OR really does publish modalities, and
+ *  advertised truth outranks an id-derived guess (R1). */
+function synthesizeToolAxes(family: Family, supported: ReadonlySet<string>): { tools: boolean; structured: boolean } {
+  const claude = family === "anthropic";
+  return {
+    tools: supported.has("tools") || (claude && CLAUDE_CAPABILITY_FLOOR.parallelTools),
+    structured: supported.has("structured_outputs") || (claude && CLAUDE_CAPABILITY_FLOOR.structuredOutput),
+  };
+}
+
 /** `turns` is family-gated: anthropic ⇒ explicit-cache turns; every other family ⇒ NON_CACHING_TURNS. */
 function synthesizeOpenRouter(model: string, wireShape: WireShape, entry: OrEntryInput | undefined): ModelCapability {
   const family = detectModelFamily(model);
@@ -230,16 +245,17 @@ function synthesizeOpenRouter(model: string, wireShape: WireShape, entry: OrEntr
   const sampling = synthesizeSampling(supported);
   const verbosity = family === "openai" && supported.has("verbosity") ? (["low", "medium", "high"] as const) : undefined;
   const input = synthesizeInput(entry?.inputModalities, entry?.outputModalities);
+  const gapped = synthesizeToolAxes(family, supported);
   return {
     reasoning: synthesizeReasoning(family, entry?.reasoning),
     sampling,
     ...(verbosity ? { verbosity: [...verbosity] } : {}),
     ...(input !== undefined ? { input } : {}),
     ...(entry?.isModerated === true ? { moderated: true } : {}),
-    ...(supported.has("tools") ? { tools: { parallel: true } } : {}),
+    ...(gapped.tools ? { tools: { parallel: true } } : {}),
     output: {
       maxTokens: { min: MIN_OUTPUT, max: outputMax },
-      ...(supported.has("structured_outputs") ? { structured: true } : {}),
+      ...(gapped.structured ? { structured: true } : {}),
     },
     context: { window, ...(advertisedWindow === null ? { windowEstimated: true } : {}) },
     turns: family === "anthropic" ? synthesizeAnthropicTurns(model, wireShape) : { ...NON_CACHING_TURNS },
@@ -319,9 +335,18 @@ export function resolveModelCapability(
       if (daemon !== undefined) {
         return { ...daemon.capability, turns: synthesizeAnthropicTurns(model, wireShape) };
       }
-      // No curated match and no daemon row: a conservative no-reasoning profile, not synthesis. Its window is
-      // the blanket default — a GUESS (nothing advertised it), so it is marked as one.
-      return staticProfile(OR_DEFAULT_WINDOW, false, false, true);
+      // No curated match and no daemon row (a COLD agent-sdk snapshot): a conservative no-reasoning profile,
+      // not synthesis. The window stays the blanket default — a GUESS (nothing advertised it), marked as one.
+      // A RECOGNIZED Claude id still inherits the family FLOOR though: whether the daemon snapshot happens to
+      // be warm must not change what the model can DO (the same cold-cache-degrades-capability class the OR
+      // catalog taught). A bare alias ("sonnet") or any non-anthropic id can't be recognized to a family —
+      // can't recognize, can't floor — and keeps the flagless profile.
+      const claude = detectModelFamily(model) === "anthropic";
+      return {
+        ...staticProfile(OR_DEFAULT_WINDOW, false, claude && CLAUDE_CAPABILITY_FLOOR.structuredOutput, true),
+        ...(claude && CLAUDE_CAPABILITY_FLOOR.vision ? { input: { vision: true } } : {}),
+        ...(claude && CLAUDE_CAPABILITY_FLOOR.parallelTools ? { tools: { parallel: true } } : {}),
+      };
     }
     case "openrouter":
       return synthesizeOpenRouter(model, wireShape, caches?.orEntry);

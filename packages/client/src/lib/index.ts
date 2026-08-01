@@ -50,6 +50,7 @@ export type { Notify } from "./notify";
 export { bindNotify, notify } from "./notify";
 export { perfMark, perfMeasure } from "./perf-marks";
 export { isProbeMode } from "./probe-mode";
+export { PROMPT_MACRO_SUGGESTIONS } from "./prompt-macros";
 export type { ContributorRegistry, Registry } from "./registry";
 export { createContributorRegistry, createRegistry } from "./registry";
 export * from "./registry-contracts";

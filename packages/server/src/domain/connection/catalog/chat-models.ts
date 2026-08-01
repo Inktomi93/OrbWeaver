@@ -82,10 +82,11 @@ export const CHAT_MODELS: readonly CuratedChatModel[] = [
       sampling: {},
       input: { vision: true },
       tools: { parallel: true },
-      // structured: true is the load-bearing flag — Sonnet 4.6 supports structured output (Anthropic
-      // native + the Claude-via-OR path), but OpenRouter's catalog doesn't advertise `structured_outputs`
-      // for it, so absent this curated entry `getChatModel` misses and the OR-synthesis leaves it unset →
-      // an rpg game on this model wrongly resolves trackers-readonly (no extraction). See getChatModel.
+      // structured: true — Sonnet 4.6 supports structured output (Anthropic native + the Claude-via-OR
+      // path) while OpenRouter's catalog does NOT advertise `structured_outputs` for it. Curating the entry
+      // was the original fix for exactly one model; the general one is `CLAUDE_CAPABILITY_FLOOR` below,
+      // which the OR synthesis applies to every RECOGNIZED-but-uncurated Claude. This entry still carries
+      // its own bounds/reasoning truth.
       output: { maxTokens: { min: MIN_OUTPUT, max: CLAUDE_MAX_OUTPUT }, structured: true },
       context: { window: CLAUDE_CONTEXT_WINDOW, supports1M: false },
     },
@@ -104,6 +105,20 @@ export const CHAT_MODELS: readonly CuratedChatModel[] = [
     },
   },
 ] as const;
+
+/** The Claude-family capability FLOOR, DERIVED from the table above (never a second hand-kept list): the
+ *  axes EVERY curated entry declares. A Claude id the shortlist doesn't carry is a Claude NEWER than every
+ *  entry here, and Claude capability does not regress across versions — so what all of these do, it does.
+ *  The uncurated-Claude fallbacks (`resolve-agent-sdk-alias`, the OR synthesis in `resolve-model-capability`)
+ *  read this instead of synthesizing a flagless profile; without it a brand-new Claude resolved as
+ *  tool-less + structured-output-less (newer read as LESS capable), which is exactly what makes an rpg game
+ *  on it fall back to trackers-readonly (`domain/rpg/substrate/readonly-axis`). Applies to RECOGNIZED
+ *  Claude ids only (`detectModelFamily(id) === "anthropic"`); an unrecognized id claims nothing. */
+export const CLAUDE_CAPABILITY_FLOOR = {
+  parallelTools: CHAT_MODELS.every((entry) => entry.capability.tools?.parallel === true),
+  structuredOutput: CHAT_MODELS.every((entry) => entry.capability.output.structured === true),
+  vision: CHAT_MODELS.every((entry) => entry.capability.input?.vision === true),
+} as const;
 
 /** Brand guard — is `id` a curated Claude-shortlist id? */
 export function isChatModelId(id: string): id is ChatModelId {

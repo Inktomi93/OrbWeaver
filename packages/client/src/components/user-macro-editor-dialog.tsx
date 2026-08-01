@@ -1,24 +1,43 @@
-// The User-macro editor Dialog (WAVE MU, §12A.5) — binds `userMacros[i].*` on the direct-bind form:
-// name · description · template body · declared args (name/type/optional/default) · typed inputs (#24:
-// kind + per-kind knobs) · per-macro strict. The dialog is controlled by the tab (open when an index is
-// targeted); closing just drops the local target — the variable-editor idiom, no bespoke machinery.
-// A name colliding with a BUILT-IN macro is linted here (registration REFUSES it — never a silent
-// shadow, §12A.5); the lint makes the refusal visible at authoring time.
+// The shared User-macro editor Dialog (WAVE MU, §12A.5) — binds `userMacros[index].*` on ANY direct-bind or
+// autosave form whose values carry a `userMacros: UserMacroSpec[]` array: name · description · template body ·
+// declared args (name/type/optional/default) · typed inputs (#24: kind + per-kind knobs) · per-macro strict.
+// The dialog is controlled by its host (open when an index is targeted); closing just drops the local target —
+// the variable-editor idiom, no bespoke machinery.
+//
+// OWNER RULING #20 gave user macros TWO authoring homes — the preset's `promptConfig.userMacros` and a GAME's
+// `config.userMacros` — so this anatomy has two consumers (preset's Macros tab, the rpg GM console's Game
+// macros section) and lives client-shared, NOT in either feature (a feature-to-feature import is a sideways
+// import, and a forked twin would drift from the ONE `UserMacroSpec` schema both write). Same homing as
+// `RegexEditorDialog`: client-shared rather than `@orb/ui`, because it composes the form factory's bound
+// fields. Generic over the form value shape — both homes hold the array at `userMacros`, so the field paths
+// are identical.
+//
+// A name colliding with a BUILT-IN macro is linted here (registration REFUSES it — never a silent shadow,
+// §12A.5); the lint makes the refusal visible at authoring time. A name colliding across the two AUTHORING
+// homes is a different rule (the game SHADOWS the preset — it resolves, it is not refused) and is glossed by
+// the consumer that knows about the other home, not here.
 
-import type { PromptConfig, UserMacroSpec } from "@orb/contracts/preset";
-import { createDefaultRegistry } from "@orb/kit/macro";
+import type { UserMacroSpec } from "@orb/contracts/preset";
+import type { MacroArgType, UserMacroInputKind } from "@orb/kit/macro";
+import { createDefaultRegistry, MACRO_ARG_TYPES, USER_MACRO_INPUT_KINDS } from "@orb/kit/macro";
 import { Button } from "@orb/ui/button";
 import { DialogClose } from "@orb/ui/dialog";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
+import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { FormDialog } from "#components";
 import type { AppFormInstance } from "#forms";
-import { MACRO_ARG_TYPE_ITEMS, USER_MACRO_INPUT_KIND_ITEMS } from "../lib/preset-nav";
-import { PRESET_PROMPT_MACROS } from "../lib/preset-prompt-macros";
+import { FormDialog } from "./form-dialog";
 
-type AppForm = AppFormInstance<PromptConfig>;
+/** The minimal form value shape the dialog binds — any editor form carrying a `userMacros` array. */
+export interface UserMacrosFormValues {
+  readonly userMacros: UserMacroSpec[];
+}
+
+// The form the dialog binds — a direct-bind form OR the autosave factory's reset-less form (the dialog never
+// calls `reset`, so it accepts the wider shape; the RegexEditorDialog precedent).
+type UserMacroEditorForm = Omit<AppFormInstance<UserMacrosFormValues>, "reset">;
 
 /** One declared arg / one typed input — the schema doesn't export the element types, so derive them. */
 type UserMacroArg = UserMacroSpec["args"][number];
@@ -29,19 +48,47 @@ type UserMacroInputOption = UserMacroInput["options"][number];
  *  the form's typed DeepKeys union. */
 type InputBase = `userMacros[${number}].inputs[${number}]`;
 
+// ── the editor's own select vocabularies (WAVE MU) — derived from the kit tuples, never re-spelled ──
+
+const USER_MACRO_INPUT_KIND_LABELS: Record<UserMacroInputKind, string> = {
+  "single-select": "Single select — pick one option",
+  "boolean-toggle": "Toggle — on/off",
+  "multi-select": "Multi select — pick several, joined",
+  "random-pick": "Random pick — draw one from your pool each turn",
+};
+const USER_MACRO_INPUT_KIND_ITEMS: SelectItems<string> = USER_MACRO_INPUT_KINDS.map((value) => ({
+  value,
+  label: USER_MACRO_INPUT_KIND_LABELS[value],
+}));
+
+const MACRO_ARG_TYPE_LABELS: Record<MacroArgType, string> = {
+  string: "Text",
+  number: "Number",
+  boolean: "Boolean",
+};
+const MACRO_ARG_TYPE_ITEMS: SelectItems<string> = MACRO_ARG_TYPES.map((value) => ({ value, label: MACRO_ARG_TYPE_LABELS[value] }));
+
 // The builtin name set the collision lint checks against — module-level, built once (the same names
 // `registerUserMacros` refuses; the lint is the authoring-time mirror of that refusal).
 const BUILTIN_REGISTRY = createDefaultRegistry();
 
 export interface UserMacroEditorDialogProps {
-  readonly form: AppForm;
+  readonly form: UserMacroEditorForm;
   /** The macro index this dialog edits (`userMacros[index].*`). */
   readonly index: number;
   readonly onClose: () => void;
+  /**
+   * The `{{ }}` completion catalog the template body offers (`PROMPT_MACRO_SUGGESTIONS` at both call sites).
+   * Spelled STRUCTURALLY rather than as `@orb/ui/macro-textarea`'s `MacroSuggestion`: that type is re-exported
+   * from a browser `.tsx`, and importing it here (even type-only) drags the component into the DOM-LESS type
+   * programs that reach this shared module through the `#components` barrel, where it fails for want of
+   * lib.dom. This shape is a subset of `MacroSuggestion`, so the hand-off to `MacroField` still typechecks.
+   */
+  readonly suggestions: readonly { readonly name: string; readonly category?: string; readonly description?: string }[];
 }
 
-/** The user-macro editor — bound to `userMacros[index].*`; closes via the tab's `onClose`. */
-export function UserMacroEditorDialog({ form, index, onClose }: UserMacroEditorDialogProps): ReactElement {
+/** The user-macro editor — bound to `userMacros[index].*`; closes via the caller's `onClose`. */
+export function UserMacroEditorDialog({ form, index, onClose, suggestions }: UserMacroEditorDialogProps): ReactElement {
   return (
     <FormDialog
       open={true}
@@ -73,7 +120,7 @@ export function UserMacroEditorDialog({ form, index, onClose }: UserMacroEditorD
             <field.MacroField
               label="Template"
               description="The body this macro expands to. Reference args and inputs by name ({{argname}}); a block body lands as {{content}}."
-              suggestions={PRESET_PROMPT_MACROS}
+              suggestions={suggestions}
               rows={4}
             />
           )}
@@ -102,7 +149,7 @@ function makeArg(): UserMacroArg {
 }
 
 /** The declared-args list — the SAME arg contract builtins declare; enforced at render by checkMacroArgs. */
-function ArgList({ form, index }: { readonly form: AppForm; readonly index: number }): ReactElement {
+function ArgList({ form, index }: { readonly form: UserMacroEditorForm; readonly index: number }): ReactElement {
   const argsName = `userMacros[${index}].args` as const;
   return (
     <Section heading="Arguments">
@@ -168,7 +215,7 @@ function makeInput(): UserMacroInput {
 }
 
 /** The typed-inputs list (#24) — each input is a per-user, per-turn control; the kind picks the knobs. */
-function InputList({ form, index }: { readonly form: AppForm; readonly index: number }): ReactElement {
+function InputList({ form, index }: { readonly form: UserMacroEditorForm; readonly index: number }): ReactElement {
   const inputsName = `userMacros[${index}].inputs` as const;
   return (
     <Section heading="Inputs">
@@ -217,7 +264,7 @@ function InputEditor({
   kind,
   onRemove,
 }: {
-  readonly form: AppForm;
+  readonly form: UserMacroEditorForm;
   readonly macroIndex: number;
   readonly inputIndex: number;
   readonly kind: UserMacroInput["kind"];
@@ -253,7 +300,7 @@ function InputKindKnobs({
   base,
   kind,
 }: {
-  readonly form: AppForm;
+  readonly form: UserMacroEditorForm;
   readonly base: InputBase;
   readonly kind: UserMacroInput["kind"];
 }): ReactElement | null {
@@ -298,7 +345,7 @@ function InputOptionList({
   macroIndex,
   inputIndex,
 }: {
-  readonly form: AppForm;
+  readonly form: UserMacroEditorForm;
   readonly base: InputBase;
   readonly macroIndex: number;
   readonly inputIndex: number;

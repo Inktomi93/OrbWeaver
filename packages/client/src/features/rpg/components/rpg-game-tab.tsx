@@ -35,6 +35,7 @@ import { useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations"
 import { mintDefKey } from "../lib/mint-key";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
+import { RpgGameMacros } from "./rpg-game-macros";
 import { GmConsoleScalars } from "./rpg-gm-scalars";
 import { RpgHintMapEditor } from "./rpg-hint-map-editor";
 import { Kicker } from "./rpg-kicker";
@@ -327,12 +328,15 @@ function GmConsole({ state }: { readonly state: RpgPanelState }): ReactElement {
       {/* Section order: Stat profile (the sheet vocabulary) → TRACKERS (the unified def surface that absorbed
           the Sheet tab's pool defs, the old cast-field schemas, and the band-pin section) → the two gloss maps
           (relationship labels, then journal types — same block, same gesture) → the scalar form (Play style →
-          Immersive cards → Hidden channels → Prompt budget → Steering note → Delivery model → Extraction depth). */}
+          Immersive cards → Hidden channels → Prompt budget → Steering note → Delivery model → Extraction depth)
+          → GAME MACROS (WAVE MU — the game half of the two authoring homes; its own autosave boundary because
+          it owns a structural array). */}
       <RpgStatProfileEditor chatId={state.chatId} config={config} />
       <TrackersEditor chatId={state.chatId} config={config} />
       <RelationshipHintsEditor chatId={state.chatId} config={config} />
       <JournalTypeHintsEditor chatId={state.chatId} config={config} />
       <GmConsoleScalars chatId={state.chatId} config={config} />
+      <RpgGameMacros chatId={state.chatId} config={config} />
       <ResyncControl chatId={state.chatId} />
       {/* The graduate doorway — the omitted full-only arms all point here (§4 "Graduate to full"). */}
       <RpgDoorwayLine>Full mode adds skills, combat, sessions, and the map arc — coming with the full graft.</RpgDoorwayLine>
