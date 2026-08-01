@@ -7,8 +7,8 @@
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { Context, PresenceRegistry, RateLimitGate, Services } from "@orb/server/transport/trpc";
-import { createCaller } from "@orb/server/transport/trpc";
+import type { Context, PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "@orb/server/transport/trpc";
+import { createCaller, createSocketRegistry } from "@orb/server/transport/trpc";
 
 /** A minimal Principal carrying the given role; `via` defaults to header (no CSRF surface). */
 export function principal(role: UserRole, overrides: Partial<Principal> = {}): Principal {
@@ -34,6 +34,13 @@ export const inertPresence: PresenceRegistry = {
   read: (userId) => ({ userId, online: true, lastSeenAt: null }),
 };
 
+/** A FRESH socket registry per context (SSE-1) — the multiplexed-socket cells. Per-context so a router test
+ *  drives an isolated socket world; the clock is fixed because reap is the only time-sensitive behavior and
+ *  it has its own slice test. */
+function inertSockets(): SocketRegistry {
+  return createSocketRegistry(() => 0);
+}
+
 /** A rate-limit gate that rejects with the given error (to prove the middleware wires the injected gate). */
 export function denyRateLimit(error: Error): RateLimitGate {
   return { enforce: () => Promise.reject(error) };
@@ -46,6 +53,8 @@ export function makeContext(parts: {
   services?: { [K in keyof Services]?: Partial<Services[K]> };
   rateLimit?: RateLimitGate;
   presence?: PresenceRegistry;
+  /** The multiplexed-socket cells; a fresh isolated registry per context unless the test supplies one. */
+  sockets?: SocketRegistry;
   /** Defaults TRUE (multi-human capable) so the multi-human surfaces stay reachable; the PD-106 belt
    *  tests set it FALSE to exercise the 404 refusal. */
   multiHumanCapable?: boolean;
@@ -58,6 +67,7 @@ export function makeContext(parts: {
     services: (parts.services ?? {}) as any as Services,
     rateLimit: parts.rateLimit ?? allowAll,
     presence: parts.presence ?? inertPresence,
+    sockets: parts.sockets ?? inertSockets(),
     multiHumanCapable: parts.multiHumanCapable ?? true,
     csrfHeaderPresent: parts.csrfHeaderPresent ?? false,
     clientIp: parts.clientIp ?? "127.0.0.1",

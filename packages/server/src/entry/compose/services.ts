@@ -72,6 +72,8 @@ import { publishChatEvent, publishUserEvent } from "../../transport/trpc";
 import type { Services } from "../../transport/trpc/context";
 import type { PresenceRegistry } from "../../transport/trpc/presence-registry";
 import { createPresenceRegistry } from "../../transport/trpc/presence-registry";
+import type { SocketRegistry } from "../../transport/trpc/stream/socket-registry";
+import { createSocketRegistry } from "../../transport/trpc/stream/socket-registry";
 import { createHostPrincipalResolver } from "../auth";
 import type { DefaultPersonaSeeder } from "../boot";
 import type { ImportWorldInfoPort } from "../import";
@@ -175,6 +177,8 @@ export interface ServicesResult {
    *  (the `automation` router — the §A8 rule/budget/fire lifecycle surface). */
   readonly automation: AutomationService;
   readonly presence: PresenceRegistry;
+  /** The multiplexed-socket cells (SSE-1) — one per tab; composed here so its reap clock is the injected one. */
+  readonly sockets: SocketRegistry;
   readonly sessions: SessionsService;
   readonly embeddings: EmbeddingsService;
   readonly indexer: EmbeddingsIndexer;
@@ -216,6 +220,7 @@ export interface ServicesResult {
 export async function createServices(deps: ServicesDeps): Promise<ServicesResult> {
   const { db, now } = deps;
   const presence = createPresenceRegistry(now);
+  const sockets = createSocketRegistry(now);
 
   const audit = (entry: AuditEntry, at: number): Promise<void> => logAudit(db, entry, at);
   const newUserId = (): UserId => newId<UserId>();
@@ -672,6 +677,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     services,
     automation,
     presence,
+    sockets,
     sessions,
     embeddings,
     indexer,

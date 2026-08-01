@@ -328,6 +328,7 @@ export function createLifecycle(): Lifecycle {
       services: built.services,
       rateLimit: createRateLimitGate({ db, now, resolveRateLimits: () => built.services.settings.getEffectiveConfig().rateLimits }),
       presence: built.presence,
+      sockets: built.sockets,
       assets: built.assets,
       cas: createCas(env.ASSETS_DIR),
       character: built.services.character,

@@ -1,6 +1,5 @@
 // transport/trpc/routers/rpg — the rpg-game transport surface. Thin: validate → `ctx.services.rpg.<verb>`
-// ({ principal: ctx.auth, ...input }) — the `chat.ts` router shape. W1c-a landed the `stream` subscription
-// (the feature-root rpg bus's transport half, rpg-design/05 §4.9); W2 exposes the FULL verb surface.
+// ({ principal: ctx.auth, ...input }) — the `chat.ts` router shape. W2 exposes the FULL verb surface.
 //
 // AUTHZ IS ENTIRELY INSIDE THE VERBS (never a router-tier gate). rpg has NO `ownerId` — a game's authority
 // derives `rpg_games.chatId → chat_participants` (D18/D20), resolved by the injected `getMembership` op at
@@ -14,29 +13,15 @@
 // Wire input schemas are DERIVED from `@orb/contracts/rpg` (`inputs.ts` — the actor/tracker shapes + enums are
 // reused, never re-spelled at the transport edge, §5.5); the router only wires them to the verbs.
 //
-// `stream` — the per-game LIVE event subscription the client's tracker/journal invalidation tails. LIVE-ONLY:
-// no `lastEventId`, no durable replay (the rpg bus has no durable half — `domain/rpg/bus.ts`); it attaches the
-// process-local channel for the input `chatId` and relays. The client gap-heals every (re)connect with a
-// blanket invalidate (the `use-user-bus.ts` posture), so a dropped tick costs one refetch.
-//
-// AUTHZ: rpg has NO `ownerId` — a game's authority derives `rpg_games.chatId → chat_participants` (D18/D20).
-// So the stream gates on CHAT MEMBERSHIP, reusing chat's member-scoped `chatEventBounds` attach probe (a
-// `null`/NOT_FOUND return = not a member / no chat ⇒ withhold-not-throw: attach silently, relay nothing until
-// seated). The channel key is the input `chatId`, but a non-member never receives an event because the gate
-// runs before the relay loop AND per-yield (a kicked member stops receiving).
-//
-// WRAPPED IN `withSubscriptionErrors`, like every other stream (the `automation.stream` precedent: no durable
-// resume, so each yield carries a per-stream ORDINAL as its tracked id — tracked purely so the error frame and
-// the events share one envelope shape, which is what the client's discriminant narrowing needs). The old note
-// here claimed the wrap was unnecessary because "nothing throws a DomainError mid-stream" — that reasoning was
-// wrong twice over: the per-yield `chatEventBounds` probe is a live DB read on every relayed event (it can
-// throw anything the chat service throws, not just the NOT_FOUND it catches), and the 2026-08-01 zombie-sub
-// investigation showed the COST of being wrong: an unwrapped subscription throw becomes a RETRYABLE tRPC 500,
-// which `httpSubscriptionLink` does not report as an error — it reconnects every ~3s forever, re-running the
-// generator, while NOT ONE client callback fires. A typed terminal frame is the only failure the client can see.
+// The per-game LIVE event stream used to live here as `stream`. It FOLDED into the multiplexed socket at
+// SSE-1 S1: it is now the `rpg` ROOM (`transport/trpc/stream/sources/rpg.ts`), which carries the SAME
+// chat-membership authority verbatim — accept-always at attach (withhold-not-throw: a game may be born while
+// a client is attached), then the `chatEventBounds` probe re-run PER YIELD so a kicked member stops
+// receiving. It gained per-room fault isolation on the way: a throw from that probe is now a `roomFailed`
+// control frame on a surviving socket instead of a terminal frame that ends the stream. This is also the
+// stream whose third-always-on-connection cost caused the measured 2026-08-01 starvation incident; at one
+// socket per tab that class no longer exists.
 
-import type { Principal } from "@orb/contracts/identity";
-import type { RpgBusEvent } from "@orb/contracts/rpg";
 import {
   rpgAddJournalEntryInputSchema,
   rpgCreateCheckpointInputSchema,
@@ -54,18 +39,7 @@ import {
   rpgUpdateConfigInputSchema,
   rpgUpsertQuestInputSchema,
 } from "@orb/contracts/rpg";
-import { DomainNotFoundError } from "@orb/kit/errors";
-import type { ChatId } from "@orb/kit/ids";
-import { brandedId } from "@orb/kit/ids";
-import type { TrackedEnvelope } from "@trpc/server";
-import { tracked } from "@trpc/server";
-import { z } from "zod";
-import type { ChatService } from "#domain/chat";
-import { subscribeRpgEvents } from "#domain/rpg";
-import { withSubscriptionErrors } from "../subscriptions";
 import { authedProcedure, t } from "../trpc";
-
-const streamSchema = z.object({ chatId: brandedId<ChatId>() });
 
 export const rpgRouter = t.router({
   // ── writes (host-gated shared planes + member own-row writes; authz INSIDE each verb) ──────────────────
@@ -125,51 +99,4 @@ export const rpgRouter = t.router({
   // §3.6 HOST-reveal read — the eye + standing-lie inventory (host-gated; leak-free NOT_FOUND for a member INSIDE the verb).
   revealHidden: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.revealHidden({ principal: ctx.auth, ...input })),
   listCheckpoints: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.listCheckpoints({ principal: ctx.auth, ...input })),
-
-  // The per-game live event stream (see the file header for the shape + the chat-membership gate).
-  stream: authedProcedure.input(streamSchema).subscription(({ ctx, input, signal }) =>
-    withSubscriptionErrors(
-      rpgEventStream({
-        chat: ctx.services.chat,
-        principal: ctx.auth,
-        chatId: input.chatId,
-        signal: signal ?? new AbortController().signal,
-      }),
-    ),
-  ),
 });
-
-/** Is the caller a present member of `chatId`? Reuses chat's member-scoped attach probe (rpg authority derives
- *  through the chat FK chain). `false` on the withhold-not-throw NOT_FOUND (no chat / not a member). */
-async function isChatMember(chat: ChatService, principal: Principal, chatId: ChatId): Promise<boolean> {
-  try {
-    await chat.chatEventBounds({ principal, chatId });
-    return true;
-  } catch (err) {
-    if (err instanceof DomainNotFoundError) {
-      return false;
-    }
-    throw err;
-  }
-}
-
-/** The live-only per-game event generator. Attach the live listener FIRST (`on()` buffers from this point) so
- *  the gate→relay gap loses nothing; then gate membership per-yield so a kicked member stops receiving. The
- *  tracked id is a per-stream ORDINAL, never a durable cursor (there is no durable rpg log to resume from) —
- *  it exists so every yield, including `withSubscriptionErrors`' terminal frame, is one envelope shape. */
-async function* rpgEventStream(args: {
-  readonly chat: ChatService;
-  readonly principal: Principal;
-  readonly chatId: ChatId;
-  readonly signal: AbortSignal;
-}): AsyncGenerator<TrackedEnvelope<RpgBusEvent>> {
-  const { chat, principal, chatId, signal } = args;
-  const live = subscribeRpgEvents(chatId, signal);
-  let seq = 0;
-  for await (const event of live) {
-    if (await isChatMember(chat, principal, chatId)) {
-      seq += 1;
-      yield tracked(String(seq), event);
-    }
-  }
-}

@@ -9,6 +9,8 @@ import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 
 import type { TRPCError } from "@trpc/server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
@@ -21,7 +23,7 @@ import { env } from "#foundation/env";
 import { observability, observabilityErrorHandler, registerDebugRoutes } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
 import { clientIp, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
-import type { PresenceRegistry, RateLimitGate, Services } from "../transport/trpc";
+import type { PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "../transport/trpc";
 import { appRouter, createContext } from "../transport/trpc";
 import type { AuthSeam } from "./auth";
 import type { AuthSessionsPort, BlobAssetsPort, BlobCasPort, LocalAuthenticator, OidcRoutesDeps, UploadAssetsPort } from "./http";
@@ -99,6 +101,8 @@ export interface AppDeps {
   readonly services: Services;
   readonly rateLimit: RateLimitGate;
   readonly presence: PresenceRegistry;
+  /** The multiplexed-socket cells (SSE-1) — read by the `stream` router and the /api/_debug counter. */
+  readonly sockets: SocketRegistry;
 
   /** The single assets handle serves the blob owner-gate + the upload `store` + the import avatar-store + the
    *  BYO pose byte-ingest. */
@@ -215,6 +219,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
           services: deps.services,
           rateLimit: deps.rateLimit,
           presence: deps.presence,
+          sockets: deps.sockets,
           multiHumanCapable: MULTI_HUMAN_CAPABLE[env.AUTH_MODE](deps.services.settings.getEffectiveConfig()),
           csrfHeaderPresent: hasCsrfHeader(c.req.raw.headers),
           clientIp: clientIp(c),
@@ -273,6 +278,9 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
 
   registerDebugRoutes(plain, {
     db: deps.db,
+    // The multiplexed-socket counter (SSE-1 §12) — the starvation regression pin. Injected as data because
+    // foundation sits BELOW transport in the tier list and may not import it.
+    sockets: { liveSocketCount: (userId) => deps.sockets.liveSocketCount(userId === undefined ? undefined : castId<UserId>(userId)) },
     auth: { expectedToken: env.DEBUG_TOKEN, adminAuth: { isAdmin: deps.seam.isAdmin } },
   });
 

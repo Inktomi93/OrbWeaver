@@ -771,6 +771,18 @@ const PROBES: readonly Probe[] = [
   //    A's row (the W1b IDOR class — the post-sweep integrity re-read below proves nothing mutated). `createGame`
   //    gates on the STRANGER's OWN membership directly (the game row doesn't exist yet): a non-member gets the
   //    SAME leak-free NOT_FOUND collapse (never a distinguishable BAD_REQUEST that would confirm A's chat is real). ──
+  // ── stream (SSE-1): the multiplexed socket's two MUTATIONS. A stranger passing owner A's chatId inside a
+  //    room ref must never learn anything: `attach` on a chat-scoped room is ACCEPT-ALWAYS by design
+  //    (withhold-not-throw — a game/chat room is legitimately attachable before it exists, and refusing would
+  //    be an existence oracle), so the leak-free outcome here is a marker-free `void`, and the actual data
+  //    gate is the room source's per-yield membership probe (proven in routers/stream.test.ts: a non-member
+  //    attaches and receives NOTHING). `detach` is idempotent and touches only the caller's own socket cell.
+  //    A room whose per-proc subscription has not folded yet (chat/notifications/automation) refuses with the
+  //    same leak-free NOT_FOUND. The socketId here is the STRANGER's own — a foreign one is refused before
+  //    any room is recorded (stream/socket-registry.test.ts). ──
+  { path: "stream.attach", call: (c, i) => c.stream.attach({ socketId: "socket_sweep_probe", ref: { channel: "rpg", chatId: i.chatId } }) },
+  { path: "stream.detach", call: (c, i) => c.stream.detach({ socketId: "socket_sweep_probe", ref: { channel: "rpg", chatId: i.chatId } }) },
+
   { path: "rpg.createGame", call: (c, i) => c.rpg.createGame({ chatId: i.chatId, mode: "lite" }) },
   { path: "rpg.updateConfig", call: (c, i) => c.rpg.updateConfig({ chatId: i.chatId, patch: { steeringNote: "hacked" } }) },
   {
@@ -878,7 +890,6 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "settings.listThemes": "self-scoped: owned ∪ seeds",
   "settings.createTheme": "self-scoped",
   "sessions.me": "self-scoped: projects the caller's own Principal",
-  "sessions.streamUserEvents": "self-scoped: channel key is the caller's own userId",
   "search.fields": "self-scoped: ownerId = principal.userId (index corpus = owner's cards; query text, no id)",
   "search.suggest": "self-scoped: ownerId = principal.userId (index corpus = owner's cards; query text, no id)",
   // Takes ids inside `scope`, but EVERY scope is owner-belted in the dispatch (digest scans carry the
@@ -926,8 +937,13 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "notifications.dismiss": "self-scoped by principal.userId (inbox scoped inside the verb)",
   "notifications.notifications": "subscription: self-scoped per-user channel",
   "chat.streamMessages": "subscription: non-member WITHHOLDS (yields nothing), not a NOT_FOUND throw — covered by chat.int durable-replay",
-  "rpg.stream":
-    "subscription: authz per-yield via chat membership (chatEventBounds — rpg has no ownerId, authority is chat-FK-derived, D18/D20); a non-member WITHHOLDS (yields nothing), covered by the rpg bus stream tests",
+  // The multiplexed socket (SSE-1). `attach`/`detach` are ordinary mutations and ARE probed below. `connect`
+  // is the one EventSource and NEVER TERMINATES, so the sweep's drain would hang on it — the exemption is the
+  // same one every other subscription here carries. Its cross-tenant teeth are a dedicated unit test: a
+  // foreign socketId is refused in the RESOLVER (before any frame) with the leak-free NOT_FOUND —
+  // tests/server/transport/trpc/stream/socket-registry.test.ts + routers/stream.test.ts.
+  "stream.connect":
+    "subscription: never terminates (undrainable here); the foreign-socketId NOT_FOUND refusal is unit-tested in stream/socket-registry.test.ts + routers/stream.test.ts",
   "automation.stream":
     "subscription: the visibility gate is resolveStreamAuthority (throws AutomationChatNotFound → NOT_FOUND on first pull for a non-present member, before any bus tail) AND narrows a non-host member to the room-visible quickReplySurfaced only — the membership gate is the loadCallerRole present-member read, covered by the automation.stream visibility unit test",
   // Stats — every verb scopes on ctx.auth.userId (single-owner); no cross-tenant id but `character` (probed).

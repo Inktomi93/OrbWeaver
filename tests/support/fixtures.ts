@@ -84,7 +84,8 @@ async function seedCallerPrincipal(db: Db, spec: { readonly id: UserId; readonly
 }
 
 /** A caller over the composed graph — the REAL ladder + routers, no HTTP (createCaller is the
- *  sanctioned tRPC seam). `presence` is the app's own registry so ctx and chat share one instance. */
+ *  sanctioned tRPC seam). `presence` + `sockets` are the app's OWN registries so ctx and the domain share
+ *  one instance each (the cross-tenant sweep probes `stream.attach` through this caller). */
 async function callerFor(app: ServicesResult, auth: Principal | null): Promise<AppCaller> {
   const transport = await import("@orb/server/transport/trpc");
   return transport.createCaller(
@@ -93,6 +94,7 @@ async function callerFor(app: ServicesResult, auth: Principal | null): Promise<A
       services: app.services,
       rateLimit: ALLOW_ALL_RATE_LIMIT,
       presence: app.presence,
+      sockets: app.sockets,
       multiHumanCapable: true,
       csrfHeaderPresent: false,
       clientIp: "127.0.0.1",

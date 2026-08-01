@@ -6,8 +6,18 @@ export type { AuthMe } from "./auth-bootstrap";
 export { AUTH_ME_KEY, fetchAuthMe, login, logout } from "./auth-bootstrap";
 export type { AuthConfig } from "./auth-config";
 export { AUTH_CONFIG_KEY, fetchAuthConfig, useAuthConfig, useExternalMediaBlocked, useUploadCaps } from "./auth-config";
-export type { ChatBusDeps, RpgBusDeps, UserBusDeps } from "./bus/index";
-export { applyChatBusEvent, markTurnStopping, useChatBus, useChatBusDeps, useRpgBus, useUserBus } from "./bus/index";
+export type { BusRoomHandlers, ChatBusDeps, RoomSubscriber, RoomTransport, RpgBusDeps, UserBusDeps } from "./bus/index";
+export {
+  applyChatBusEvent,
+  createRoomRegistry,
+  markTurnStopping,
+  useBusRoom,
+  useChatBus,
+  useChatBusDeps,
+  useOrbSocket,
+  useRpgBus,
+  useUserBus,
+} from "./bus/index";
 export type {
   CollectionSelection,
   CollectionSurface,

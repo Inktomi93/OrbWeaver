@@ -54,14 +54,16 @@ export type StreamChannel = StreamRoomRef["channel"];
  *  would drag it into the `bus-definition-belts` gate's producer/consumer belt demand. */
 export const STREAM_CHANNELS = ["user", "notifications", "chat", "rpg", "automation"] as const satisfies readonly StreamChannel[];
 
-/** The ONE routing key — the server registry's map key AND the client handler-registry key. Total: a new
- *  chat-scoped channel falls into the `chatId` arm (and fails `tsc` if its ref carries no `chatId`), a new
- *  self-scoped channel must be named here. */
-export function roomKey(ref: StreamRoomRef): string {
-  if (ref.channel === "user" || ref.channel === "notifications") {
-    return ref.channel;
+/** The ONE routing key — the server registry's map key AND the client handler-registry key. Accepts a ROOM
+ *  REF or a DATA FRAME: both carry the same routing fields, and a delivered frame has to resolve to the same
+ *  key its subscriber attached under, so the projection must not exist twice. Total: a new chat-scoped
+ *  channel falls into the `chatId` arm (and fails `tsc` if it carries no `chatId`), a new self-scoped
+ *  channel must be named here. */
+export function roomKey(addressed: StreamRoomRef | StreamDataFrame): string {
+  if (addressed.channel === "user" || addressed.channel === "notifications") {
+    return addressed.channel;
   }
-  return `${ref.channel}:${ref.chatId}`;
+  return `${addressed.channel}:${addressed.chatId}`;
 }
 
 /** A DATA frame — one room's bus event, nested verbatim under `event`. The `seq` on `chat`/`notifications`
