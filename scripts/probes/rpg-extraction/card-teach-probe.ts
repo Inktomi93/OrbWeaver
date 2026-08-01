@@ -173,7 +173,8 @@ function armReminder(teach: string, beats: readonly string[]): string {
       {
         actorRef: { kind: "cast", castKey: "vex" },
         name: "Vex",
-        sheet: { className: "scavenger", attributes: {}, maxHp: null, level: 2, trackerGrants: [], trackerRevokes: [] },
+        // `flavor: ""` (RV-11's new sheet field) — empty renders no line, so the probe's prompt is unchanged.
+        sheet: { className: "scavenger", attributes: {}, maxHp: null, flavor: "", level: 2, trackerGrants: [], trackerRevokes: [] },
         trackers: [
           TRACKERS[0] as RpgTrackerDef,
           rpgTrackerDefSchema.parse({ key: "Stamina", label: "Stamina", shape: "meter", write: "delta", subject: "actor", max: 14 }),

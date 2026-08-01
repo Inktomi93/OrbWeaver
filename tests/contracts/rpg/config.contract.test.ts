@@ -18,6 +18,16 @@ test("an empty config parses to the born-default (freeform profile, empty steeri
   expect(config.lite.steeringNote).toBe("");
 });
 
+// The delivery-model axis is CLOSED at two members (owner ruling 2026-08-01 — the third was deleted whole,
+// pre-launch NO-LEGACY): the blob is born folded, and the schema REFUSES a mode outside the tuple. The
+// stored-value heal for a blob written before the deletion lives at rpg's parse-on-read seam, not here — the
+// contract stays strict so the write door (`updateConfig`) can never accept a retired mode.
+test("extractionMode is born `folded` and the schema refuses a mode outside the closed axis", () => {
+  expect(rpgGameConfigSchema.parse({}).extractionMode).toBe("folded");
+  expect(rpgGameConfigSchema.parse({ extractionMode: "cheap" }).extractionMode).toBe("cheap");
+  expect(rpgGameConfigSchema.safeParse({ extractionMode: "a-mode-that-no-longer-exists" }).success).toBe(false);
+});
+
 // §1.3: the extraction-depth knobs self-heal on a pre-redesign blob — window context (the ratified default),
 // the 4k token budget, reconcile-every-10. Additive defaulted, no version stamp (the extractionMode precedent).
 test("the §1.3 extraction-depth knobs self-heal to their defaults on a pre-redesign blob", () => {

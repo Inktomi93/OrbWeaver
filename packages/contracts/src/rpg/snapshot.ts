@@ -88,6 +88,16 @@ export const rpgPresentCharacterSchema = z.object({
 });
 export type RpgPresentCharacter = z.infer<typeof rpgPresentCharacterSchema>;
 
+/** The PERSISTENT per-character guides (RV-11) — the three prose fields the extraction round is asked for on
+ *  every beat (`extraction-prompt.ts`: "appearance + outfit (when described), thoughts"). They are STANDING
+ *  state, not a per-beat observation: a character's look and dress persist until the story changes them, and
+ *  `thoughts` is the character's unspoken inner state (GM flavor — never dialogue). Named ONCE here because
+ *  both readers walk the same three fields in the same order: the steering reminder's cast continuation lines
+ *  (`substrate/reminder.ts`) and the Scene tab's cast card (`CastGuides`). `satisfies` pins them to the schema
+ *  above — renaming a field without updating this tuple fails `tsc` here, not at a call site. */
+export const RPG_CAST_GUIDE_FIELDS = ["appearance", "outfit", "thoughts"] as const satisfies readonly (keyof RpgPresentCharacter)[];
+export type RpgCastGuideField = (typeof RPG_CAST_GUIDE_FIELDS)[number];
+
 /** The manual-edit-wins lock record — a presence-key set (`Record<path, true>`). Only `editSnapshot`
  *  writes it (auto-locking touched fields); tools HONOR it (the merge drops locked paths); it carries
  *  forward on clone-forward. Per-quest paths are `quests.<id>`. */

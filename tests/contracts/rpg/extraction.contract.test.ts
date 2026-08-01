@@ -1,4 +1,4 @@
-// @orb/contracts/rpg/extraction — the reliable-mode structured-output schema (rpg-design/05 §4.6). Pins: it
+// @orb/contracts/rpg/extraction — the structured-output extraction schema (rpg-design/05 §4.6). Pins: it
 // PROJECTS to JSON Schema without throwing (the `output_config.format` path — the same [tool-schema-no-branded-
 // transform] class the tools pin), it DERIVES from the same tool arg shapes (the shared-plane proof — a party
 // entry parses exactly like `update_party` args), and an empty object is a valid "nothing changed" extraction.
@@ -69,7 +69,7 @@ test("LEVEL is UNREACHABLE from the model (§2.6 hand-only) — absent from the 
 });
 
 test("PLOT is MODEL-REACHABLE via scene.plot (P5) — present in the projected schema as the flat patch shape", () => {
-  // Schema-string PRESENCE is the proof the reliable path can write the plane (the same lens that proves
+  // Schema-string PRESENCE is the proof the structured path can write the plane (the same lens that proves
   // level's absence): the extraction derives from `update_scene` args, so the plot patch rides for free.
   const schemaJson = JSON.stringify(projectJsonSchema(rpgExtractionSchema));
   expect(schemaJson).toContain('"plot"');

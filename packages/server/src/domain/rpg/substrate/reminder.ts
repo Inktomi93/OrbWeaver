@@ -4,14 +4,16 @@
 // §3.3), delivered as ONE depth-0 `role:"system"` injection.
 //
 // Assembly order (§4.7 + the §2.7 delta insert): (1) the STATE BLOCK — the two VOCABULARY lines (trackers,
-// attributes) then the readings per entity, label-as-mini-prompt throughout (each roster actor, each cast row,
-// the game-subject trackers, the ambient line, active quests + open objectives, the recent journal beats);
+// attributes) then the readings per entity, label-as-mini-prompt throughout (each roster actor + its sheet
+// flavor prose, each cast row
+// + that member's standing appearance/outfit/thoughts guides, the game-subject trackers, the ambient line,
+// active quests + open objectives, the recent journal beats);
 // (2) the DELTA BLOCK — the prev→current snapshot diff (`delta.ts`), rendered BEFORE the license so "let the
 // change land in the fiction" has its referent (always on, omitted on no-change); (3) the STEERING LICENSE (the versioned constant below — values visibly shape behaviour,
 // acknowledge changes, never recite the numbers); (4) `config.lite.steeringNote` — the always-wins user slot, LAST.
 //
 // NO tool-update guidance here (owner ruling 2026-07-27): the character turn is ALWAYS tool-less prose — state
-// is captured by a DEDICATED post-commit round (`runToolRound`/`runExtraction`), so this reminder never asks the
+// is captured by a DEDICATED post-commit round (`runToolRound`), so this reminder never asks the
 // character turn to call a tool. The "call every applicable tool" checklist now lives in the TOOL ROUND's own
 // prompt (`toolRoundSystem`, entry/compose/rpg.ts), where the tools actually fire. This reminder injects the
 // tracked state as FLAVOR the character reacts off — steering, not writing.
@@ -39,7 +41,16 @@ import type {
   RpgTrackerView,
   RpgWeather,
 } from "@orb/contracts/rpg";
-import { attributeGloss, attributeReading, rpgWeatherText, sortTrackers, timeOfDayAtHour, trackerReading, trackerVocabulary } from "@orb/contracts/rpg";
+import {
+  attributeGloss,
+  attributeReading,
+  RPG_CAST_GUIDE_FIELDS,
+  rpgWeatherText,
+  sortTrackers,
+  timeOfDayAtHour,
+  trackerReading,
+  trackerVocabulary,
+} from "@orb/contracts/rpg";
 import { resolveGuidedInstruction } from "@orb/kit/guided";
 import { createNamesOnlyRegistry } from "@orb/kit/macro";
 import type { LiteReminderInput } from "../contract/params";
@@ -203,7 +214,14 @@ function actorLine(actor: RpgTrackerView["actors"][number], attrDefs: readonly R
   if (actor.volatile !== null) {
     segs.push(...volatileSegs(actor.volatile));
   }
-  return `- ${segs.join(" — ")}`;
+  const head = `- ${segs.join(" — ")}`;
+  // The sheet's host-authored FLAVOR prose — the SAME dead-write class as the cast guides (RV-11): the
+  // takeover writes it through `patchSheet` and it reached the model nowhere, so the party line taught the
+  // character's numbers and none of who they are. A CONTINUATION line for the same reason the guides get
+  // one (prose with no length contract does not belong mid-`—`-chain); empty ⇒ omitted, and no header teach
+  // is owed — unlike `thoughts`, standing character prose carries no rule the turn could break.
+  const flavor = actor.sheet.flavor.trim();
+  return flavor === "" ? head : `${head}\n  flavor: ${flavor}`;
 }
 
 /** The steering display of a present character's relationship (§2.1) — the bare kind, or a custom `label` glossed
@@ -216,6 +234,34 @@ function relationshipSeg(rel: RpgRelationship, hints: Readonly<Record<string, st
     return hint !== undefined && hint !== "" ? `${label} (${hint})` : label;
   }
   return rel.kind === "neutral" ? null : rel.kind;
+}
+
+/** The `Present:` section header when at least one cast member carries a GUIDE — the label-as-mini-prompt
+ *  that teaches the three continuation labels ONCE (the `Trackers:`/`Attributes:` vocabulary rule: meaning
+ *  once, readings N times). It says the two things the character turn can get wrong: the look/dress are
+ *  STANDING (re-inventing them every beat is the failure RV-11 names), and `thoughts` is inner state the
+ *  player never hears (the model must not voice it as dialogue). */
+const RPG_CAST_GUIDE_HEADER =
+  "Present (appearance/outfit are standing — describe them consistently, not re-invented; thoughts are UNSPOKEN inner state, never said aloud):";
+
+/** A cast member's persistent GUIDES as CONTINUATION lines under its one-liner (the {@link questLine}
+ *  objective precedent), never more ` — ` segs: these are model-authored PROSE with no length contract, and a
+ *  sentence wedged mid-chain buries the short steering readings behind it. Written richly by the extraction
+ *  round every beat and read by NOTHING until now (RV-11) — so the character turn re-described a face it had
+ *  already fixed. Empty/absent ⇒ the line is OMITTED (token-lean: a guide nobody wrote costs nothing, and the
+ *  header teach only ships when one exists). */
+function guideLines(cast: RpgTrackerView["cast"][number]): string[] {
+  return RPG_CAST_GUIDE_FIELDS.flatMap((field) => {
+    const text = cast[field]?.trim() ?? "";
+    return text === "" ? [] : [`  ${field}: ${text}`];
+  });
+}
+
+/** The `Present:` header — the guide TEACH only when a guide actually exists, so a game whose cast carries
+ *  none gets the byte-identical bare label it always had (the no-phantom-teaching rule the feature-gated
+ *  teaching blocks follow). */
+function castHeader(cast: RpgTrackerView["cast"]): string {
+  return cast.some((c) => guideLines(c).length > 0) ? RPG_CAST_GUIDE_HEADER : "Present:";
 }
 
 function castLine(cast: RpgTrackerView["cast"][number], trackers: readonly RpgTrackerEntry[], hints: Readonly<Record<string, string>>): string {
@@ -232,7 +278,9 @@ function castLine(cast: RpgTrackerView["cast"][number], trackers: readonly RpgTr
   for (const entry of trackers) {
     segs.push(trackerReading(entry.def, entry.value ?? undefined) ?? entry.def.label);
   }
-  return `- ${segs.join(" — ")}`;
+  const head = `- ${segs.join(" — ")}`;
+  const guides = guideLines(cast);
+  return guides.length === 0 ? head : `${head}\n${guides.join("\n")}`;
 }
 
 /** A GAME-subject tracker's line — the SAME reading every other tracker surface renders. A tracker with no
@@ -328,7 +376,7 @@ export function buildLiteReminder(input: LiteReminderInput): string {
     stateLines.push(...view.actors.map((a) => actorLine(a, attrDefs)));
   }
   if (view.cast.length > 0) {
-    stateLines.push("Present:");
+    stateLines.push(castHeader(view.cast));
     stateLines.push(...view.cast.map((c) => castLine(c, view.castTrackers[c.key] ?? [], input.features.relationshipHints)));
   }
   if (view.gameTrackers.length > 0) {

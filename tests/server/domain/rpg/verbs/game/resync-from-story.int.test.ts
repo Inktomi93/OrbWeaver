@@ -30,7 +30,7 @@ test("HOST rebuild: a drifted state + resync → corrected (born-committed on a 
   };
   const { chatId, gameId, h } = await seedLiteGame(db, {
     resyncDelta,
-    extractionDelta: { statePatch: { location: "the STALE dungeon" }, journal: [] },
+    toolRoundDelta: { statePatch: { location: "the STALE dungeon" }, journal: [] },
     // A non-empty deep window the injected op returns (the story the rebuild reads).
     canonWindow: [{ role: "assistant", speakerName: "GM", content: "The throne room glitters.", tokens: 6 }],
   });

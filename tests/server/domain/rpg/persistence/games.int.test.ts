@@ -60,4 +60,18 @@ describe("parse-on-read corruption belt", () => {
       .where(eq(rpgGames.id, id));
     await expect(findGameById(db, id)).rejects.toThrow(CORRUPT_RE);
   });
+
+  test("a RETIRED delivery mode is HEALED to the born default on read — the row still opens", async () => {
+    // Pre-launch NO-LEGACY (owner ruling 2026-08-01): a delivery mode was deleted whole, and a game blob written
+    // while it existed must not hard-throw the whole room for a knob. The heal is scoped to that ONE field.
+    const chatId = await seedChat(db, "a");
+    const id = castId<RpgGameId>("rpg_game_g1");
+    await insertGame(db, { id, chatId, mode: "lite", status: "active", config: liteConfig(), createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+    await db
+      .update(rpgGames)
+      .set({ config: { ...liteConfig(), extractionMode: "a-mode-that-no-longer-exists" } as never }) // FABRICATION-OK: retired-value probe — a blob written before the mode was deleted
+      .where(eq(rpgGames.id, id));
+
+    expect((await findGameById(db, id))?.config.extractionMode).toBe("folded");
+  });
 });

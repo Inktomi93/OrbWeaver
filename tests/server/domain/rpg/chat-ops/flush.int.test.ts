@@ -1,7 +1,8 @@
 // tests/server/domain/rpg/chat-ops/flush — the turn-completion FLUSH + the delivery-mode branch (rpg-design/05
-// §2.4-2.5 + §4.6). Both modes funnel through the accumulator: cheap = the mid-turn staged writes are taken +
-// written; reliable = the injected `runExtraction` op stages its delta first, THEN take + write. Journal entries
-// stamp the committed `{variantId, sourceMessageId}`. A turn that staged nothing writes no snapshot.
+// §2.4-2.5 + §4.6). Both modes funnel through the accumulator: `cheap` = the injected `runToolRound` op stages
+// its delta first, THEN take + write; `folded` = the character turn's own calls are folded instead (and fall back
+// to that same round). Journal entries stamp the committed `{variantId, sourceMessageId}`. A turn that staged
+// nothing writes no snapshot.
 //
 // The flush READ-BACK regressions (stickler F1/F2) live here too — the flush IS the write→read seam, and the
 // tools int suite only asserts `staging.peek()` (the accumulator), never a durable flush + a `getTrackerView`
@@ -34,7 +35,7 @@ function exec(chatId: ChatId, turnId: ChatTurnId): ToolExecutionContext {
 
 test("cheap mode: the dedicated TOOL ROUND is called, its delta is staged + flushed (owner ruling 2026-07-27)", async () => {
   const db = await freshDb();
-  // Cheap mode now runs a DEDICATED tool round post-commit (symmetric with reliable's extraction) — the
+  // Cheap mode runs a DEDICATED tool round post-commit — the
   // parallel tool calls fold to a delta the flush stages + writes, NOT mid-turn-staged tools on the char turn.
   const toolRoundDelta = { statePatch: { location: "the cave mouth" }, journal: [] };
   const { chatId, gameId, h } = await seedLiteGame(db, { toolRoundDelta });
@@ -44,9 +45,9 @@ test("cheap mode: the dedicated TOOL ROUND is called, its delta is staged + flus
 
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
 
-  // The tool-round op fired with the committed identifiers; the extraction op did NOT (the cheap arm).
+  // The tool-round op fired with the committed identifiers; nothing was folded (the cheap arm never folds).
   expect(h.fakes.toolRoundCalls).toEqual([{ chatId, messageId, variantId, reconcile: false }]);
-  expect(h.fakes.extractionCalls).toHaveLength(0);
+  expect(h.fakes.foldCalls).toHaveLength(0);
   const snap = await findSnapshotByVariant(db, variantId);
   expect(snap?.location).toBe("the cave mouth");
   expect(snap?.committed).toBe(0); // born uncommitted — the next user send locks it in
@@ -57,40 +58,40 @@ test("cheap mode: the dedicated TOOL ROUND is called, its delta is staged + flus
 
 test("F2 (readonly gate): a turn connection without the mode's writer capability fires NO round and writes nothing", async () => {
   const db = await freshDb();
-  // Reliable mode needs `output.structured`. A turn connection whose capability LACKS it is readonly
-  // (manual-steering) — the flush must skip the round (no `runExtraction` call, no per-turn failing spend) and
+  // Both surviving modes need `tools`. A turn connection whose capability LACKS them is readonly
+  // (manual-steering) — the flush must skip the round (no `runToolRound` call, no per-turn failing spend) and
   // write no snapshot. The verdict reads THIS connection (F1 — never a re-resolve of the global default).
-  const extractionDelta = { statePatch: { location: "unreachable" }, journal: [] };
-  const { chatId, h } = await seedLiteGame(db, { extractionDelta });
-  await pinExtractionMode(h, chatId, "reliable");
+  const toolRoundDelta = { statePatch: { location: "unreachable" }, journal: [] };
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta });
+  await pinExtractionMode(h, chatId, "cheap");
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   h.fakes.busEvents.length = 0;
 
   const readonlyConn = turnConnection({
-    connection: makeResolvedConnection({ capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 } } }) }), // structured ABSENT
+    connection: makeResolvedConnection({ capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } }) }), // tools ABSENT
   });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, readonlyConn);
 
-  expect(h.fakes.extractionCalls).toHaveLength(0); // the round was gated OUT before any model call
+  expect(h.fakes.toolRoundCalls).toHaveLength(0); // the round was gated OUT before any model call
   expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
   expect(h.fakes.busEvents).toEqual([]);
 });
 
-test("reliable mode: runExtraction is called, its delta is staged + flushed", async () => {
+test("the post-commit round's JOURNAL entries flush stamped with the committed variant (+ both bus emits)", async () => {
   const db = await freshDb();
-  const extractionDelta = {
+  const toolRoundDelta = {
     statePatch: { location: "the obsidian tower" },
     journal: [{ type: "location", label: "", title: "Arrival", content: "They reached the tower." }],
   };
-  const { chatId, h } = await seedLiteGame(db, { extractionDelta });
-  await pinExtractionMode(h, chatId, "reliable");
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta });
+  await pinExtractionMode(h, chatId, "cheap");
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   h.fakes.busEvents.length = 0; // drop the createGame emit — assert the flush emits alone
 
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
 
-  // The extraction op fired with the committed identifiers.
-  expect(h.fakes.extractionCalls).toEqual([{ chatId, messageId, variantId, reconcile: false }]);
+  // The round fired with the committed identifiers.
+  expect(h.fakes.toolRoundCalls).toEqual([{ chatId, messageId, variantId, reconcile: false }]);
   // Its state delta landed on the committed variant's snapshot.
   const snap = await findSnapshotByVariant(db, variantId);
   expect(snap?.location).toBe("the obsidian tower");
@@ -108,7 +109,7 @@ test("reliable mode: runExtraction is called, its delta is staged + flushed", as
 
 test("a turn that staged nothing writes NO snapshot (byte-identical non-writing turn)", async () => {
   const db = await freshDb();
-  // Empty extraction delta (the default) + reliable mode → nothing to write.
+  // Empty round delta (the default) → nothing to write.
   const { chatId, h } = await seedLiteGame(db);
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   h.fakes.busEvents.length = 0; // drop the createGame emit — a non-writing flush must add nothing
@@ -185,13 +186,13 @@ test("F1 (structural backstop): a would-be-INVALID staged state DROPS the whole 
   expect(h.fakes.flushDrops[0]?.reason).toMatch(POOLS_MAX_RE);
 });
 
-test("reliable ROUND-TRIP (the exec's replayed output): extraction JSON → delta → flush → getTrackerView reads it back", async () => {
+test("ROUND-TRIP (the exec's replayed output): extraction JSON → delta → flush → getTrackerView reads it back", async () => {
   const db = await freshDb();
-  // The EXACT captured reliable extraction the exec replayed (a schema-valid, enum-constrained, applicable delta
+  // The EXACT captured extraction the exec replayed (a schema-valid, enum-constrained, applicable delta
   // the F1 diagnosis said was silently dropped): a scene write + a party status on the player + a journal beat.
   // This pins the FULL round-trip lands (no silent write-boundary drop for a legitimate extraction).
   const player: RpgRosterActor = { actorRef: { kind: "user", userId: castId("user_host") }, name: "You" };
-  const extractionDelta = extractionToStateDelta(
+  const toolRoundDelta = extractionToStateDelta(
     defaultSnapshotState(),
     {
       party: [{ targetRef: "player", status: "Bleeding (Critical)" }],
@@ -206,8 +207,8 @@ test("reliable ROUND-TRIP (the exec's replayed output): extraction JSON → delt
     { item: () => "item_x", quest: () => castId<RpgQuestId>("q_x"), objective: () => "obj_x" },
     buildRosterRefIndex([player]),
   );
-  const { chatId, h } = await seedLiteGame(db, { roster: [player], extractionDelta });
-  await pinExtractionMode(h, chatId, "reliable");
+  const { chatId, h } = await seedLiteGame(db, { roster: [player], toolRoundDelta });
+  await pinExtractionMode(h, chatId, "cheap");
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
@@ -229,21 +230,21 @@ test("reliable ROUND-TRIP (the exec's replayed output): extraction JSON → delt
 
 test("FLUSH BARRIER: a fast re-send BLOCKS on the prior in-flight flush, then assembles off FRESH state (not stale)", async () => {
   const db = await freshDb();
-  // Turn 1's extraction writes a beat + a location. The barrier must make turn 2's gather WAIT for that flush
+  // Turn 1's round writes a beat + a location. The barrier must make turn 2's gather WAIT for that flush
   // before it reads state — otherwise turn 2 assembles its reminder off the STALE (pre-flush) empty state (the
   // exec's live-confirmed race: ex2 read beats:0 while ex1's flush was in flight, now that the state round is a
   // real 0.8-2.9s call).
-  const extractionDelta = {
+  const toolRoundDelta = {
     statePatch: { location: "the sunken cathedral" },
     journal: [{ type: "location", label: "", title: "Descent", content: "They descended into the cathedral." }],
   };
-  const { chatId, h } = await seedLiteGame(db, { extractionDelta });
-  await pinExtractionMode(h, chatId, "reliable");
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta });
+  await pinExtractionMode(h, chatId, "cheap");
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
-  // HOLD turn 1's flush in-flight: the extraction gate blocks until we release it.
+  // HOLD turn 1's flush in-flight: the state-round gate blocks until we release it.
   let releaseFlush = (): void => undefined;
-  h.fakes.extractionGate = new Promise<void>((resolve) => {
+  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseFlush = resolve;
   });
 
@@ -278,13 +279,13 @@ test("FLUSH BARRIER: register is SYNCHRONOUS — an IMMEDIATE re-send (no await 
   // scripted immediate re-send beat the await → `awaitInFlight` saw NO entry → assembled stale. The fix
   // registers synchronously at the top. This pins the timing: kick off the gather in the SAME synchronous block
   // as onTurnCompleted (before onTurnCompleted's internal game-lookup await resolves) and it MUST still block.
-  const extractionDelta = { statePatch: { location: "the drowned crypt" }, journal: [] };
-  const { chatId, h } = await seedLiteGame(db, { extractionDelta });
-  await pinExtractionMode(h, chatId, "reliable");
+  const toolRoundDelta = { statePatch: { location: "the drowned crypt" }, journal: [] };
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta });
+  await pinExtractionMode(h, chatId, "cheap");
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
   let releaseFlush = (): void => undefined;
-  h.fakes.extractionGate = new Promise<void>((resolve) => {
+  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
     releaseFlush = resolve;
   });
 
@@ -350,20 +351,20 @@ test("F2: update_inventory on a ROSTER user surfaces its wallet under the roster
 //    ordinal is `count(prior snapshots) + 1`, so a reconcile fires on ordinal N, 2N, 3N…. createGame writes NO
 //    born snapshot, so beat 1 = ordinal 1.
 
-/** Drive one beat: a fresh assistant slot + a non-empty extraction delta so the flush WRITES a snapshot (each
+/** Drive one beat: a fresh assistant slot + a non-empty round delta so the flush WRITES a snapshot (each
  *  written snapshot advances the beat counter). Returns the `reconcile` flag the round was called with. */
 async function driveReconcileBeat(h: Awaited<ReturnType<typeof seedLiteGame>>["h"], chatId: ChatId, seq: number): Promise<boolean> {
   const turnId = castId<ChatTurnId>(`chat_turn_beat_${seq}`);
   const { messageId, variantId } = await seedMessage(h.ctx.db, chatId, seq, { role: "assistant" });
-  const before = h.fakes.extractionCalls.length;
+  const before = h.fakes.toolRoundCalls.length;
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, turnId, turnConnection());
-  return h.fakes.extractionCalls[before]?.reconcile ?? false;
+  return h.fakes.toolRoundCalls[before]?.reconcile ?? false;
 }
 
 test("reconcile cadence N=2: fires on beats 2 and 4, incremental on beats 1 and 3", async () => {
   const db = await freshDb();
-  const { chatId, h } = await seedLiteGame(db, { extractionDelta: { statePatch: { location: "somewhere" }, journal: [] } });
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "reliable", patch: { reconcileEveryBeats: 2 } });
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta: { statePatch: { location: "somewhere" }, journal: [] } });
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap", patch: { reconcileEveryBeats: 2 } });
 
   expect(await driveReconcileBeat(h, chatId, 1)).toBe(false); // ordinal 1: 1 % 2 !== 0 → incremental
   expect(await driveReconcileBeat(h, chatId, 2)).toBe(true); //  ordinal 2: 2 % 2 === 0 → RECONCILE
@@ -373,8 +374,8 @@ test("reconcile cadence N=2: fires on beats 2 and 4, incremental on beats 1 and 
 
 test("reconcile cadence N=0: NEVER fires (opt-out) — every beat is incremental", async () => {
   const db = await freshDb();
-  const { chatId, h } = await seedLiteGame(db, { extractionDelta: { statePatch: { location: "somewhere" }, journal: [] } });
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "reliable", patch: { reconcileEveryBeats: 0 } });
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta: { statePatch: { location: "somewhere" }, journal: [] } });
+  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap", patch: { reconcileEveryBeats: 0 } });
 
   // Beats are SEQUENTIAL (each writes a snapshot that advances the counter) — one at a time, never Promise.all.
   expect(await driveReconcileBeat(h, chatId, 1)).toBe(false);
@@ -393,9 +394,9 @@ test("reconcile cadence: cheap mode honors it too (the TOOL ROUND receives recon
   const { messageId: m2, variantId: v2 } = await seedMessage(db, chatId, 2, { role: "assistant" });
   await h.chatOps.onTurnCompleted(chatId, m2, v2, castId<ChatTurnId>("chat_turn_cheap_2"), turnConnection());
 
-  // The tool round (not the extraction) carried the cadence: beat 1 incremental, beat 2 reconcile.
+  // The tool round carried the cadence: beat 1 incremental, beat 2 reconcile — and nothing was folded.
   expect(h.fakes.toolRoundCalls.map((c) => c.reconcile)).toEqual([false, true]);
-  expect(h.fakes.extractionCalls).toHaveLength(0);
+  expect(h.fakes.foldCalls).toHaveLength(0);
 });
 
 // ── R1: the FOLDED delivery fork ──────────────────────────────────────────────────────────────────
@@ -418,10 +419,9 @@ test("R1 folded: the turn's OWN tool calls are folded — ZERO post-commit model
 
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ terminalToolCalls: FOLDED_CALLS }));
 
-  // The fold ran with the turn's own calls — and NEITHER dedicated round fired. That pair of assertions IS R1.
+  // The fold ran with the turn's own calls — and NO dedicated round fired. That pair of assertions IS R1.
   expect(h.fakes.foldCalls).toEqual([{ chatId, variantId, reconcile: false, toolCalls: FOLDED_CALLS }]);
   expect(h.fakes.toolRoundCalls).toHaveLength(0);
-  expect(h.fakes.extractionCalls).toHaveLength(0);
   // The delta landed through the SAME staging → flush tail as any round's.
   const snap = await findSnapshotByVariant(db, variantId);
   expect(snap?.location).toBe("the ford");
@@ -445,7 +445,6 @@ test("R1 folded: ZERO tool calls is a clean no-change beat — the fold runs, no
   expect(h.fakes.foldCalls).toHaveLength(1);
   expect(h.fakes.foldCalls[0]?.toolCalls).toEqual([]);
   expect(h.fakes.toolRoundCalls).toHaveLength(0);
-  expect(h.fakes.extractionCalls).toHaveLength(0);
   expect(h.fakes.stateRoundPaths[0]?.path).toBe("folded");
   // Nothing staged ⇒ the byte-identical non-writing turn (no redundant clone-forward snapshot, no emit).
   expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
@@ -522,36 +521,25 @@ test("R1 folded: the readonly gate still wins — a tools-incapable connection f
   expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
 });
 
-test("R1 regression pin: cheap + reliable IGNORE a populated terminal channel (the not-folded paths unchanged)", async () => {
+test("R1 regression pin: CHEAP IGNORES a populated terminal channel (the host's opt-out arm is unchanged)", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db, {
     toolRoundDelta: { statePatch: { location: "round-wrote-this" }, journal: [] },
-    extractionDelta: { statePatch: { location: "extraction-wrote-this" }, journal: [] },
     foldedDelta: { statePatch: { location: "fold-wrote-this" }, journal: [] },
   });
   const withCalls = turnConnection({ terminalToolCalls: FOLDED_CALLS });
 
-  // reliable (the host's opt-out from the born fold) — the structured round runs; the terminal channel is not
-  // its business, even when the character turn co-emitted one.
-  await pinExtractionMode(h, chatId, "reliable");
-  const { messageId: m1, variantId: v1 } = await seedMessage(db, chatId, 1, { role: "assistant" });
-  await h.chatOps.onTurnCompleted(chatId, m1, v1, castId<ChatTurnId>("chat_turn_pin_1"), withCalls);
-  expect(h.fakes.extractionCalls).toHaveLength(1);
-  expect(h.fakes.foldCalls).toHaveLength(0);
-  expect((await findSnapshotByVariant(db, v1))?.location).toBe("extraction-wrote-this");
-
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });
-  const { messageId: m2, variantId: v2 } = await seedMessage(db, chatId, 2, { role: "assistant" });
-  await h.chatOps.onTurnCompleted(chatId, m2, v2, castId<ChatTurnId>("chat_turn_pin_2"), withCalls);
+  // cheap (the host's opt-out from the born fold) — the dedicated round runs; the terminal channel is not its
+  // business, even when the character turn co-emitted one.
+  await pinExtractionMode(h, chatId, "cheap");
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, castId<ChatTurnId>("chat_turn_pin_1"), withCalls);
   expect(h.fakes.toolRoundCalls).toHaveLength(1);
   expect(h.fakes.foldCalls).toHaveLength(0);
-  expect((await findSnapshotByVariant(db, v2))?.location).toBe("round-wrote-this");
+  expect((await findSnapshotByVariant(db, variantId))?.location).toBe("round-wrote-this");
 
-  // Both non-folded flushes named their own vehicle, with no fallback (nothing was downgraded).
-  expect(h.fakes.stateRoundPaths).toEqual([
-    { chatId, mode: "reliable", path: "structured", fallbackReason: null },
-    { chatId, mode: "cheap", path: "tool-round", fallbackReason: null },
-  ]);
+  // The flush named its own vehicle, with no fallback (nothing was downgraded — cheap never folds by design).
+  expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "cheap", path: "tool-round", fallbackReason: null }]);
 });
 
 test("R1 folded: the reconcile cadence still fires on the Nth beat (the fold carries it, not a round)", async () => {

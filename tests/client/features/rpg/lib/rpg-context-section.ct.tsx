@@ -30,8 +30,8 @@ function gameChat(): unknown {
 }
 
 // A `rpg.getGame` stub — the lite mode trim + the read-only flag (the CP pill gate) + the delivery-model
-// knob (the freshness-indicator driver). Defaults `reliable` (the create default) unless overridden.
-function gameView(trackersReadOnly: boolean, extractionMode: RpgExtractionMode = "reliable"): unknown {
+// knob (the freshness-indicator driver). Defaults `cheap` (the two-call arm — the lagging label) unless overridden.
+function gameView(trackersReadOnly: boolean, extractionMode: RpgExtractionMode = "cheap"): unknown {
   return {
     id: GAME_ID,
     chatId: "chat_ct_keystone",
@@ -89,7 +89,7 @@ function trackerView(trackersReadOnly: boolean): unknown {
       {
         actorRef: { kind: "character", characterId: "character_ct_mara" },
         name: "Mara",
-        sheet: { className: "Warden", attributes: {}, maxHp: null, level: null, trackerGrants: [], trackerRevokes: [] },
+        sheet: { className: "Warden", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
         // The trackers this actor CARRIES, resolved server-side (the one carrier predicate) and paired with
         // the readings on its volatile row — the panel renders exactly these, never a re-derivation.
         trackers: [VITALITY, RESOLVE],
@@ -109,8 +109,12 @@ function trackerView(trackersReadOnly: boolean): unknown {
         key: "sera",
         name: "Sera",
         characterId: undefined,
-        emoji: "",
+        emoji: "🕯️",
         mood: "guarded",
+        // RV-11 — the standing guides the extraction round writes every beat. `outfit` is deliberately
+        // UNWRITTEN here: the Scene cast card must show the two that exist and no line at all for the third.
+        appearance: "tall, silver-haired, a burn scar down one forearm",
+        thoughts: "weighing whether to trust you with the key",
         relationship: { kind: "ally", label: "" },
       },
     ],
@@ -163,7 +167,7 @@ function configView(): unknown {
     },
     steeringNote: "Keep the tone grim.",
     gmPresetId: null,
-    extractionMode: "reliable",
+    extractionMode: "cheap",
     trackers: [
       {
         key: "trust",
@@ -333,7 +337,7 @@ test("a tab body renders real tracker data (Status: roster row + pool meters + c
   // The band's when-line shows the model's weather LABEL, not the canonical bin name it renders the sky from.
   await expect(component.getByText("steady rain on the shutters", { exact: false })).toBeVisible();
   await expect(component.getByText("Vitality 24/30")).toBeVisible();
-  // The freshness indicator rides the same band — the getGame stub defaults `reliable` with no live turn,
+  // The freshness indicator rides the same band — the getGame stub defaults `cheap` with no live turn,
   // so the accepted one-beat-lag label is surfaced (the honest freshness posture, in real panel geometry).
   await expect(component.getByText("As of last beat")).toBeVisible();
   // The roster row: name + className + the pool MeterRow value text + the condition chip.
@@ -390,6 +394,31 @@ test("a hand-locked field shows the pin; ONE click releases — the mutation fir
   const pin = component.locator('[data-slot="ambient-strip"]').getByRole("button", { name: "Pinned by hand — click to release to the model" });
   await expect(pin).toBeVisible();
   await pin.click();
+  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+});
+
+// RV-11 — the Scene cast card reads the standing guides. The extraction round wrote appearance/outfit/thoughts
+// on every beat into a plane NOTHING projected; this proves the panel end of the wire (the reminder is the
+// model end) and that an unwritten guide contributes no line at all.
+test("RV-11: the Scene cast card shows the standing guides, omits the unwritten one, and an edit fires editSnapshot", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+
+  const card = component.locator('[data-slot="cast-card"]');
+  // The model-written emoji leads the name — the same written-never-rendered class the guides are in.
+  await expect(card).toContainText("🕯️");
+  await expect(card).toContainText("tall, silver-haired, a burn scar down one forearm");
+  await expect(card).toContainText("weighing whether to trust you with the key");
+  // The stub leaves `outfit` unwritten — no label, no placeholder, no line.
+  await expect(card.locator('[data-slot="cast-guides"]')).not.toContainText("outfit");
+
+  // The host may correct what the story wrote: the guides ride the SAME `presentCharacters` overlay the mood
+  // does, so the receipt is the editSnapshot mutation COUNT ([[assert-the-mutation-fired]]).
+  await card.getByRole("button", { name: "Sera appearance" }).click();
+  const field = component.getByRole("textbox", { name: "Sera appearance" });
+  await field.fill("shaven-headed, a fresh scar");
+  await field.blur();
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
 });
 
@@ -899,7 +928,7 @@ function d20Game(): unknown {
     mode: "lite",
     status: "active",
     trackersReadOnly: false,
-    extractionMode: "reliable",
+    extractionMode: "cheap",
     publicConfig: {
       statProfile: {
         attributes: [{ key: "str", label: "STR", hint: "raw physical power" }],
@@ -927,7 +956,16 @@ function richTracker(): unknown {
       {
         actorRef: { kind: "character", characterId: "character_ct_mara" },
         name: "Mara",
-        sheet: { className: "Warden", attributes: { str: 14 }, maxHp: null, level: 3, trackerGrants: [], trackerRevokes: [] },
+        // `flavor` (RV-11) — host-written sheet prose that reached no reader until the takeover grew its gloss line.
+        sheet: {
+          className: "Warden",
+          attributes: { str: 14 },
+          maxHp: null,
+          flavor: "Sworn to a house that no longer exists.",
+          level: 3,
+          trackerGrants: [],
+          trackerRevokes: [],
+        },
         trackers: [VITALITY, RESOLVE],
         volatile: {
           actorRef: { kind: "character", characterId: "character_ct_mara" },
@@ -986,6 +1024,9 @@ test("Status: expanding a roster entry TAKES OVER the panel with the character �
   // The Sheet-tab inventory of planes, all present on the character: title, level, wallet, the attribute
   // value under its profile label, and this actor's live tracker readings + conditions.
   await expect(detail.getByRole("button", { name: "Mara title" })).toContainText("Warden");
+  // RV-11 — the sheet's FLAVOR prose, the gloss line under the name (written by patchSheet, read by nobody
+  // until now). Editable here (host), so it is the click-to-edit rest button carrying the text.
+  await expect(detail.getByRole("button", { name: "Mara flavor" })).toContainText("Sworn to a house that no longer exists.");
   await expect(detail.getByRole("button", { name: "Level value" })).toContainText("3");
   await expect(detail.getByRole("button", { name: "gold amount" })).toContainText("128");
   await expect(detail.getByRole("button", { name: "STR value" })).toContainText("14");

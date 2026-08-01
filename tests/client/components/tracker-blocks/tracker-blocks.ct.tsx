@@ -219,6 +219,60 @@ test("CastCard: a long model-authored mood WRAPS instead of overflowing the card
   expect(box.x).toBeGreaterThanOrEqual(badge.x + badge.width);
 });
 
+// RV-11 — the standing guides. They were written richly by the extraction round every beat and rendered
+// NOWHERE; these pin the three contracts of the read side: shown when written, ABSENT when not, and the
+// unspoken one reads in its own (italic) voice.
+test("CastCard guides: appearance/outfit/thoughts render as quiet lines, and an unwritten one is ABSENT", async ({ mount }) => {
+  const component = await mount(<CastCard name="Sera" emoji="🕯️" mood="guarded" appearance="tall, silver-haired" thoughts="weighing whether to trust you" />);
+  // The model-written cast emoji leads the name (same written-never-rendered class as the guides).
+  await expect(component).toContainText("🕯️");
+  await expect(component).toContainText("tall, silver-haired");
+  await expect(component).toContainText("weighing whether to trust you");
+  // The unwritten guide contributes NO line — not a label, not a "none" placeholder.
+  await expect(component).not.toContainText("outfit");
+  // `thoughts` is inner state, not dialogue — it carries the overheard italic voice the other two don't.
+  await expect(component.getByText("weighing whether to trust you")).toHaveCSS("font-style", "italic");
+  await expect(component.getByText("tall, silver-haired")).toHaveCSS("font-style", "normal");
+});
+
+test("CastCard guides: long model-authored guide prose WRAPS instead of widening the card", async ({ mount, page }) => {
+  // Same class as the mood/beat overflow (owner scrollbar report 08-01): guides are model prose with no
+  // length contract. Geometry assertion — a text assertion stays green straight through an overflow.
+  const longOutfit = "a burnt-hem travelling coat stitched with cooling runes over a mail shirt she has not taken off in nine days";
+  await mount(
+    <div style={{ width: 280 }}>
+      <CastCard name="Sera" outfit={longOutfit} />
+    </div>,
+  );
+  const overflow = await page.evaluate(() => document.body.scrollWidth - document.body.clientWidth);
+  expect(overflow).toBe(0);
+  const box = await page.getByText(longOutfit).boundingBox();
+  if (box === null) {
+    throw new Error("guide line has no box");
+  }
+  expect(box.height).toBeGreaterThan(30); // wrapped past a single ~20px line
+});
+
+test("CastCard guides editable: click-to-edit commits with (field, value)", async ({ mount, page }) => {
+  let captured: [string, string] = ["", ""];
+  await mount(
+    <CastCard
+      name="Sera"
+      appearance="tall, silver-haired"
+      onEditGuide={(guide, next): void => {
+        captured = [guide, next];
+      }}
+    />,
+  );
+  // Display-at-rest like every other value in the kit: no input until the value is clicked.
+  await expect(page.locator("[data-slot=tracker-value-edit]")).toHaveCount(0);
+  await page.getByRole("button", { name: "Sera appearance" }).click();
+  const field = page.getByRole("textbox", { name: "Sera appearance" });
+  await field.fill("shaven-headed, a fresh scar");
+  await field.blur();
+  expect(captured).toEqual(["appearance", "shaven-headed, a fresh scar"]);
+});
+
 test("CastCard editable: clicking a field's rest value reveals the editor; onEditField fires with (name, value)", async ({ mount, page }) => {
   let captured: [string, string] = ["", ""];
   await mount(

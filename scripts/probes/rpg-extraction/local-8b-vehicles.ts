@@ -1,4 +1,10 @@
-// §4f/§4g — the LOCAL 8B on the CURRENT extraction surface: folded vs cheap vs reliable.
+// §4f/§4g — the LOCAL 8B on the CURRENT extraction surface: folded vs cheap vs structured.
+//
+// HISTORICAL NOTE (2026-08-01): the third arm used to be the app's `reliable` DELIVERY MODE. That mode was
+// DELETED whole (owner ruling — it measured worst on the exact field its schema guardrail existed to secure).
+// The arm survives here as `structured` because the schema VEHICLE still ships (the agent-sdk degrade + the
+// host resync) and this harness measures backend enforcement classes, not product knobs. Result files under
+// this directory are historical records and keep the old arm name.
 //
 // WHY A NEW HARNESS AND NOT `run-coverage.mjs`: that one froze the pre-unification wire (`poolDeltas`,
 // `set_widget_value`, `presentUpsert.customFields`) into a captured `real-cheap-toolround.json`, so it can no
@@ -14,12 +20,12 @@
 // THE THREE ARMS ARE THREE ENFORCEMENT CLASSES ON THIS BACKEND (§4f), not one mechanism three ways:
 //   folded   — tools + tool_choice:"auto"     → vLLM 0.22.1 compiles NO grammar (utils.py:252-253)
 //   cheap    — tools + tool_choice:"required" → grammar over the tool union (utils.py:250-251)
-//   reliable — response_format json_schema    → grammar over the whole extraction (protocol.py:588)
+//   structured — response_format json_schema  → grammar over the whole extraction (protocol.py:588)
 // So `enumViolations` is a first-class column: non-zero is EXPECTED on folded and would be a finding on the
 // other two.
 //
 // Run:  node_modules/.bin/tsx scripts/probes/rpg-extraction/local-8b-vehicles.ts
-// Env:  SPIKE_ARMS=folded,cheap,reliable · SPIKE_RUNS=3 · SPIKE_OUT=v2 · SPIKE_ENDPOINT · SPIKE_MODEL
+// Env:  SPIKE_ARMS=folded,cheap,structured · SPIKE_RUNS=3 · SPIKE_OUT=v2 · SPIKE_ENDPOINT · SPIKE_MODEL
 // Cost: $0 (local gen engine). Writes per-run JSON + a SUMMARY.md under SPIKE_OUT.
 
 import fs from "node:fs";
@@ -67,7 +73,7 @@ const OUT = path.join(DIR, process.env["SPIKE_OUT"] ?? "v2");
 const ENDPOINT = process.env["SPIKE_ENDPOINT"] ?? "http://127.0.0.1:8703/v1/chat/completions";
 const MODEL = process.env["SPIKE_MODEL"] ?? "Qwen/Qwen3-VL-8B-Instruct";
 const RUNS = Number.parseInt(process.env["SPIKE_RUNS"] ?? "3", 10);
-const ARMS = (process.env["SPIKE_ARMS"] ?? "folded,cheap,reliable").split(",").map((s) => s.trim());
+const ARMS = (process.env["SPIKE_ARMS"] ?? "folded,cheap,structured").split(",").map((s) => s.trim());
 
 const PLAYER_REF = "player";
 const PLAYER_NAME = "Rook";
@@ -272,7 +278,7 @@ const TOOL_ROUND_BASE =
   "no_changes and nothing else. Do not narrate.";
 
 /** MIRROR of `toolRoundSystem` / `extractionSystem` (compose/rpg.ts:641 / :213). */
-function roundSystem(kind: "cheap" | "reliable", config: RpgGameConfig, refs: ExtractionRefs): string {
+function roundSystem(kind: "cheap" | "structured", config: RpgGameConfig, refs: ExtractionRefs): string {
   const head = kind === "cheap" ? TOOL_ROUND_BASE : EXTRACTION_SYSTEM_HEADER;
   return [head, composePlaneTeaching({ config, refs }), refEnumerationLines(refs)].join("\n\n");
 }
@@ -286,7 +292,9 @@ function trackerView(state: RpgSnapshotState, config: RpgGameConfig): RpgTracker
   const actors: RpgActorView[] = ROSTER.map((r) => ({
     actorRef: r.actorRef,
     name: r.name,
-    sheet: { className: "courier", attributes: {}, maxHp: null, level: 3, trackerGrants: [], trackerRevokes: [] },
+    // `flavor: ""` deliberately (RV-11 added the field + its reminder line): an empty flavor renders NOTHING,
+    // so this probe's measured prompt stays byte-identical to the runs it is compared against.
+    sheet: { className: "courier", attributes: {}, maxHp: null, flavor: "", level: 3, trackerGrants: [], trackerRevokes: [] },
     volatile: volatileByKey.get(`user:${PLAYER_USER}`) ?? null,
     trackers: trackersForCarrier(defs, { actorKey: `user:${PLAYER_USER}`, name: r.name, kind: "party", grants: [], revokes: [] }),
   }));
@@ -553,7 +561,7 @@ function rawFromCalls(calls: readonly WireCall[]): Record<string, Args[]> {
   return out;
 }
 
-/** The RAW args off a reliable payload (pre-salvage). */
+/** The RAW args off a structured payload (pre-salvage). */
 function rawFromPayload(value: unknown): Record<string, Args[]> {
   const out: Record<string, Args[]> = {};
   if (value === null || typeof value !== "object") {
@@ -672,7 +680,7 @@ async function runGame(arm: string, runIndex: number): Promise<{ turns: TurnRow[
       latency = n.latencyMs;
       const userPrompt = extractionUserPrompt(history, state, narrative, config.extractionWindowTokens);
       const roundMessages: WireMessage[] = [
-        { role: "system", content: roundSystem(arm === "cheap" ? "cheap" : "reliable", config, refs) },
+        { role: "system", content: roundSystem(arm === "cheap" ? "cheap" : "structured", config, refs) },
         { role: "user", content: userPrompt },
       ];
       if (arm === "cheap") {
@@ -784,7 +792,7 @@ async function main(): Promise<void> {
   const cfg = gameConfig();
   fs.writeFileSync(
     path.join(OUT, "wire-surface.json"),
-    JSON.stringify({ refs: refsFor(seed, cfg), tools: wireTools(refsFor(seed, cfg), cfg), reliableSchema: cleanJsonSchema(constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refsFor(seed, cfg))) }, null, 2),
+    JSON.stringify({ refs: refsFor(seed, cfg), tools: wireTools(refsFor(seed, cfg), cfg), structuredSchema: cleanJsonSchema(constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refsFor(seed, cfg))) }, null, 2),
   );
   const summary: Record<string, { totals: Record<string, number> }[]> = {};
   for (const arm of ARMS) {

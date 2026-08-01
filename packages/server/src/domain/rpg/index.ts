@@ -38,13 +38,13 @@ export { createRpgService } from "./service";
 export { createRpgStagingStore } from "./staging";
 // The pure honest-arms derivation (§4.6) — W1c wires it with the connection resolve + game config into the
 // `RpgResolveStateDelivery` injected op (the mode→axis mapping stays rpg's law).
-export { deriveTrackersReadOnly } from "./substrate/readonly-axis";
+export { deriveTrackersReadOnly, hasStructuredWriter } from "./substrate/readonly-axis";
 // The 7 cheap-mode state tool defs (§4.5) — a factory closing over `RpgContext`; W1c-b registers them into the
 // ONE `toolUse` registry at compose (the imagery precedent).
 export { rpgToolDefinitions } from "./tools";
 export type { ExtractionMints, RosterRefIndex } from "./tools/apply";
-// The reliable-mode extraction fold (§4.6) — converts a parsed `RpgExtraction` (arrays of cheap-mode tool args)
-// into the `RpgStateDelta` the accumulator flushes. W1c-b's `runExtraction` impl consumes it; the SAME appliers
+// The extraction fold (§4.6) — converts a parsed `RpgExtraction` (arrays of cheap-mode tool args)
+// into the `RpgStateDelta` the accumulator flushes. Every vehicle's impl consumes it; the SAME appliers
 // the cheap-mode tools use (the shared-plane proof). Deterministic — the caller injects the id mints.
 // `ghostTargetRefs` is the R5 guard's ONE predicate: the fold drops on it, and the compose observability logs
 // the same list (so a "dropped" warning can never disagree with what actually applied); `reachableActorRefs` is

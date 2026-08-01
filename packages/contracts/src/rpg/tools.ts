@@ -192,7 +192,7 @@ export type UpsertQuestArgs = z.infer<typeof upsertQuestArgsSchema>;
  *  `title` is OPTIONAL + DERIVED-when-absent (the small-model-robust arm — ruling #10 graceful-degrade). WHY:
  *  the projected json_schema DOES mark `title` required, but xgrammar/some backends do NOT enforce `required`
  *  on NESTED ARRAY ITEMS (only at the top level) — LIVE-MEASURED 2026-07-27: an 8B dropped `journal[].title`
- *  in 5/8 reliable extractions, failing the whole `safeParse` (`path:["journal",0,"title"]`) and silently
+ *  in 5/8 structured extractions, failing the whole `safeParse` (`path:["journal",0,"title"]`) and silently
  *  dropping the ENTIRE turn's state. Making `title` optional means a title-less entry PARSES; `journalTitleFor`
  *  derives a title from the content head when the model omitted it.
  *

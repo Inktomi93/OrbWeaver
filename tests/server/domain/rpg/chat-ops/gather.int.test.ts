@@ -160,9 +160,9 @@ test("the gather does NOT grant the steeringNote full macro power — {{random}}
   expect(reminder).toContain("{{setvar::x::1}}"); // variable — NOT executed
 });
 
-test("reliable mode: the char turn is tool-less, guidance omitted (state round fires post-turn)", async () => {
+test("a BORN game's char turn carries no registry tools + no write guidance (the state round writes, not the reminder)", async () => {
   const db = await freshDb();
-  const { chatId, h } = await seedLiteGame(db); // seedLiteGame defaults to reliable
+  const { chatId, h } = await seedLiteGame(db); // born folded — its write surface is the terminal channel, never `tools`
   const out = await h.chatOps.gatherTurnContext(chatId, undefined, false);
   expect(out?.tools).toEqual([]);
   expect(out?.injections[0]?.content).not.toContain("update_party");
@@ -310,14 +310,12 @@ test("R1 folded: the gather mounts the terminal tools — registry `tools` stays
   expect(out?.injections[0]?.content).not.toContain("RECONCILE");
 });
 
-test("R1: reliable + cheap contribute NO terminal tools (byte-identical to before the fold)", async () => {
+test("R1: the CHEAP opt-out contributes NO terminal tools (byte-identical to before the fold)", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);
   // A FRESH game is BORN folded (owner ruling 2026-08-01), so the fold is what a new room gets with no config.
   expect((await h.chatOps.gatherTurnContext(chatId, undefined, false))?.terminalTools).toBeDefined();
-  // …and each two-call opt-out mounts NOTHING — the mode, not the capability, decides the vehicle.
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "reliable" });
-  expect((await h.chatOps.gatherTurnContext(chatId, undefined, false))?.terminalTools).toBeUndefined();
+  // …and the two-call opt-out mounts NOTHING — the mode, not the capability, decides the vehicle.
   await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });
   expect((await h.chatOps.gatherTurnContext(chatId, undefined, false))?.terminalTools).toBeUndefined();
   expect(h.fakes.foldedToolBuilds).toHaveLength(1); // consulted for the born-folded gather ONLY
@@ -350,14 +348,12 @@ test("R1 folded + foldGuarded: the mount is WITHHELD — the local engine's turn
   expect(out?.injections).toHaveLength(1);
 });
 
-test("the fold guard governs ONLY folded — an explicit cheap/reliable game on the same wire is untouched", async () => {
+test("the fold guard governs ONLY folded — an explicit cheap game on the same wire is untouched", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db, { foldGuarded: true });
-  // Neither opt-out mounted terminal tools before the guard existed and neither does now; their post-commit
-  // rounds are the host's deliberate lever and the guard never re-routes them.
+  // The opt-out mounted no terminal tools before the guard existed and does not now; its post-commit round is
+  // the host's deliberate lever and the guard never re-routes it.
   await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });
-  expect((await h.chatOps.gatherTurnContext(chatId, undefined, false))?.terminalTools).toBeUndefined();
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "reliable" });
   expect((await h.chatOps.gatherTurnContext(chatId, undefined, false))?.terminalTools).toBeUndefined();
   expect(h.fakes.foldedToolBuilds).toHaveLength(0);
 });

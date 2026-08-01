@@ -43,7 +43,7 @@ export interface WireCapture {
   readonly chatId?: string | undefined;
   /** The axis the request rode: "agent-sdk" (SDK-input shape) | "chat-completions"/"responses"
    *  (openai-compat body shape) | "summarize" (the chatless summarization role) | "structured" (the chatless
-   *  schema-constrained-generation role — the rpg reliable extraction / the split-out structured surface; both
+   *  schema-constrained-generation role — the rpg structured extraction / the split-out structured surface; both
    *  vLLM + OR capture their per-item bodies under the summarize/structured tag matching the role served). */
   readonly api: string;
   readonly backend: string;

@@ -120,7 +120,7 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
   // THREW at resolveChat, `deriveTrackersReadOnly` returned readonly-by-construction, and every rpg-lite game
   // was born read-only OOTB (the state round never fired). The seed is now the LIVE local wire
   // chat-completions × vllm: it must resolve WITHOUT throwing to a real capability that carries a model WRITE
-  // PATH — `output.structured` (reliable-mode extraction) AND `tools` (cheap-mode round) — so lite is writable.
+  // PATH — `tools` (the state round / the fold) AND `output.structured` (the resync) — so lite is writable.
   test("the fresh-DB local default (chat-completions × vllm) resolves live + carries the rpg-lite write path (structured + tools)", async () => {
     const h = makeConnHarness(await freshDb());
     h.setRoleDefaults({ chat: { api: "chat-completions", source: "vllm" } });
@@ -130,8 +130,8 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
 
     expect(conn.api).toBe("chat-completions");
     expect(conn.credential.source).toBe("vllm");
-    // The write path both rpg-lite modes gate on (deriveTrackersReadOnly): reliable needs `output.structured`,
-    // cheap needs `tools`. Present ⇒ the lite game is born WRITABLE (never the retired-route readonly).
+    // The write path rpg-lite gates on (deriveTrackersReadOnly): both modes need `tools`; the host resync
+    // needs `output.structured`. Present ⇒ the lite game is born WRITABLE (never the retired-route readonly).
     expect(conn.capability.output.structured).toBe(true);
     expect(conn.capability.tools).not.toBeUndefined();
   });
@@ -268,9 +268,9 @@ describe("resolveChatCapability — the end-to-end chat-role descriptor", () => 
 
     expect(resolved.capability.output.structured).toBe(true);
     expect(resolved.capability.tools).toBeDefined();
-    // The RPG reliable-mode extraction gate: a structured-capable host is NOT trackers-readonly (extraction
-    // runs). Cold cache used to yield structured:undefined ⇒ readonly true ⇒ the empty-rpg-panel bug.
-    expect(deriveTrackersReadOnly("reliable", resolved.capability)).toBe(false);
+    // The RPG state-round gate: a tool-capable host is NOT trackers-readonly (the round runs). Cold cache used
+    // to yield an empty capability ⇒ readonly true ⇒ the empty-rpg-panel bug.
+    expect(deriveTrackersReadOnly("folded", resolved.capability)).toBe(false);
   });
 });
 

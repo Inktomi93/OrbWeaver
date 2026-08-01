@@ -22,7 +22,7 @@ function gameView(behavior: RpgCyoaChoiceBehavior): unknown {
     mode: "lite",
     status: "active",
     trackersReadOnly: false,
-    extractionMode: "reliable",
+    extractionMode: "cheap",
     publicConfig: { statProfile: { attributes: [] }, immersiveHtml: true, cyoa: true, cyoaChoiceBehavior: behavior, plotProgression: true },
   };
 }

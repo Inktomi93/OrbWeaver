@@ -15,7 +15,7 @@
 //   • views.ts    — the CP read-view projections (getGame/getTrackerView/getConfigView, §4.8)
 //   • inputs.ts   — the transport WIRE input schemas for the `rpg.*` verb procs (W2 — derived, chatId-scoped)
 //   • tools.ts    — the 7 cheap-mode D48 tool ARG schemas (projection-clean, §4.5)
-//   • extraction.ts — the reliable-mode structured-output schema, DERIVED from the tool args (§4.6)
+//   • extraction.ts — the structured-output extraction schema, DERIVED from the tool args (§4.6)
 //   • extraction-prompt.ts — the per-plane PROMPT-FRAGMENT REGISTRY both system prompts compose from (§1.6)
 //   • bus.ts      — the feature-root rpg bus event union + its `RPG_BUS_EVENT_TYPES` coverage belt (§4.9)
 //

@@ -10,7 +10,7 @@
 // of the roster, and the breadcrumb (a real ≥44px-on-coarse button) is the only way back — it never opens a
 // second navigation layer to fight the shell drawer, so the sanctioned modal fallback is not needed.
 //
-// EDIT authz mirrors the verbs: `patchSheet` (title/level/attributes) — host any actor, a member their OWN
+// EDIT authz mirrors the verbs: `patchSheet` (title/flavor/level/attributes) — host any actor, a member their OWN
 // `user` ref, cast actors carry no sheet; `editSnapshot` (wallet + every volatile plane) — `canEditShared`
 // (host, D108: NOT gated by `trackersReadOnly` — that gates the MODEL write path only). Tracker DEFS are not
 // authored here: they home ONCE in `config.trackers` on the Game tab (the whole point of the unification),
@@ -60,6 +60,34 @@ function SheetLevel({ level, onEditLevel }: { readonly level: number | null; rea
         const n = Number.parseInt(trimmed, 10);
         onEditLevel(trimmed === "" || Number.isNaN(n) ? null : Math.max(0, n));
       }}
+    />
+  );
+}
+
+/** The sheet's FLAVOR prose (RV-11) — a quiet gloss line under the name: who this character is, in the
+ *  host's own words. `patchSheet` has always written it and nothing ever read it back. Click-to-edit for
+ *  whoever may write the sheet; read-only + empty ⇒ nothing at all (a per-character line nobody wrote is not
+ *  a missing feature, so it gets no "none yet" placeholder). Wraps — it is free prose, not a reading. */
+function SheetFlavor({ actor, onEditFlavor }: { readonly actor: RpgActorView; readonly onEditFlavor?: (next: string) => void }): ReactElement | null {
+  if (onEditFlavor === undefined) {
+    if (actor.sheet.flavor === "") {
+      return null;
+    }
+    return (
+      <Text as="span" size="label" tone="muted" className="min-w-0 break-words">
+        {actor.sheet.flavor}
+      </Text>
+    );
+  }
+  return (
+    <TrackerValue
+      ariaLabel={`${actor.name} flavor`}
+      display={actor.sheet.flavor}
+      placeholder="a line about who they are…"
+      tone="muted"
+      onEdit={onEditFlavor}
+      wrap={true}
+      className="!w-auto min-w-0 max-w-full field-sizing-content"
     />
   );
 }
@@ -185,8 +213,8 @@ function AttributeGrid({
   );
 }
 
-/** The IDENTITY block — portrait · name + title · the status line · level + wallet. The sheet planes
- *  (title/level) and the volatile planes (status/wallet) sit on one line because that is how a character reads;
+/** The IDENTITY block — portrait · name + title · the flavor gloss · the status line · level + wallet. The
+ *  sheet planes (title/flavor/level) and the volatile planes (status/wallet) sit on one line because that is how a character reads;
  *  their WRITE doors differ (patchSheet vs editSnapshot), which is why each callback is separate and each is
  *  omitted when the viewer may not make that write (PERMISSION-omit, never a disabled twin). */
 function IdentityBlock({
@@ -195,6 +223,7 @@ function IdentityBlock({
   lockedPaths,
   edit,
   onEditTitle,
+  onEditFlavor,
   onEditLevel,
   onEditCoin,
   onReleaseCoin,
@@ -204,6 +233,7 @@ function IdentityBlock({
   readonly lockedPaths: readonly string[];
   readonly edit?: ActorEdit;
   readonly onEditTitle?: (next: string) => void;
+  readonly onEditFlavor?: (next: string) => void;
   readonly onEditLevel?: (next: number | null) => void;
   readonly onEditCoin?: (name: string, next: number) => void;
   readonly onReleaseCoin?: (name: string) => void;
@@ -220,6 +250,8 @@ function IdentityBlock({
           </Text>
           <SheetTitle actor={actor} {...(onEditTitle === undefined ? {} : { onEditTitle })} />
         </Row>
+        {/* Flavor sits with the identity, ABOVE the volatile status line: who they are, then how they are. */}
+        <SheetFlavor actor={actor} {...(onEditFlavor === undefined ? {} : { onEditFlavor })} />
         <StatusLine status={actor.volatile?.status ?? ""} {...(edit === undefined ? {} : { edit })} />
         <Row gap="field" align="center" className="flex-wrap">
           <SheetLevel level={actor.sheet.level} {...(onEditLevel === undefined ? {} : { onEditLevel })} />
@@ -311,6 +343,9 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
     ? {
         onEditTitle: (next: string): void => {
           patchSheet.mutate({ chatId, actorRef: actor.actorRef, patch: { className: next.trim() } });
+        },
+        onEditFlavor: (next: string): void => {
+          patchSheet.mutate({ chatId, actorRef: actor.actorRef, patch: { flavor: next.trim() } });
         },
         onEditLevel: (next: number | null): void => {
           patchSheet.mutate({ chatId, actorRef: actor.actorRef, patch: { level: next } });

@@ -10,7 +10,8 @@
 //   • folded   — needs `capability.tools` too (the R1 fold mounts the SAME tools on the character turn; a
 //                connection that cannot carry wire `tools[]` on a chat turn falls back to cheap's post-commit
 //                round, which needs the identical capability — so ONE verdict covers both delivery shapes).
-//   • reliable — needs `capability.output.structured` (a dedicated structured-output extraction round).
+// (The third mode, a dedicated structured-output round, was DELETED 2026-08-01 — owner ruling; the structured
+// WRITE PATH itself survives as the agent-sdk degrade + the host resync, whose gate is `hasStructuredWriter`.)
 // ABSENT (or an unresolved capability) ⇒ readonly = manual-steering: the model gets NO write path, the host
 // hand-edits every plane, and those hand values STILL steer via the gather injection (not inert). A caller warns
 // on this verdict; the derivation itself is silent truth.
@@ -22,7 +23,6 @@ import type { RpgExtractionMode } from "@orb/contracts/rpg";
  *  without a row is a tsc error (§5.5 string-union dispatch discipline), so the honest-arms verdict can never
  *  silently inherit another mode's answer. */
 const HAS_WRITE_PATH: Readonly<Record<RpgExtractionMode, (capability: ModelCapability) => boolean>> = {
-  reliable: (capability) => capability.output.structured === true,
   cheap: (capability) => capability.tools !== undefined,
   folded: (capability) => capability.tools !== undefined,
 };
@@ -32,4 +32,12 @@ const HAS_WRITE_PATH: Readonly<Record<RpgExtractionMode, (capability: ModelCapab
  *  write path exists. */
 export function deriveTrackersReadOnly(mode: RpgExtractionMode, capability: ModelCapability | null): boolean {
   return capability === null || !HAS_WRITE_PATH[mode](capability);
+}
+
+/** Does this connection have the STRUCTURED-OUTPUT write path? The gate for the two vehicles that are NOT a
+ *  per-turn delivery mode and therefore key on capability alone, not on the host's knob: the host `resyncFromStory`
+ *  rebuild, and the agent-sdk degrade a tool-vehicle mode falls into when the wire carries no `tools[]`. Same
+ *  fail-closed contract as `deriveTrackersReadOnly` — an unresolved capability has no write path. */
+export function hasStructuredWriter(capability: ModelCapability | null): boolean {
+  return capability !== null && capability.output.structured === true;
 }

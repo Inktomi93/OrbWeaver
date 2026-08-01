@@ -73,7 +73,7 @@ export interface SummarizeRequest extends RoleRequestCommon {
 
 /** The `structured` role's request — the one-shot SCHEMA-CONSTRAINED generation PRIMITIVE (owner ruling
  *  2026-07-27, split out of `summarize`). Same batch shape as summarize (reuse: single → `[item]`), but
- *  `responseFormat` is REQUIRED — this role EXISTS to produce schema-conforming JSON. Consumers: rpg reliable
+ *  `responseFormat` is REQUIRED — this role EXISTS to produce schema-conforming JSON. Consumers: the rpg structured
  *  extraction, discovery analyze/distill narratives, capability probes — anything that summarizes NOTHING but
  *  needs constrained output. Backends realize it over the SAME chat-completion core `summarize` uses, with
  *  `response_format` on the wire (vLLM guided decoding / OR strict json_schema). The result reuses
