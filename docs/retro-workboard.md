@@ -96,8 +96,14 @@ FLIGHT** (workloads fold — event union homes in contracts first; ratchet close
 chat.impersonateStream only; close-out D-entry stays with the orchestrator) · **FLAKE-CHASE LANE
 IN FLIGHT**: check-gates "unfired" flaked in TWO sessions (217s contended run; Lockfile gate) —
 suspect shared reports/ contention across concurrent worktree checks; reproduce → structural fix
-or ruled-out writeup · HUD H2+H3 (voice pass + waystone compact + budget CT; snap/
-side-eye at the combined window AFTER merge) · ~~density S2~~ MERGED (`c3e15ac1` + baseline regen on merged tree: ui internally conformant
+or ruled-out writeup · ~~HUD H2+H3~~ MERGED (`bda7ae4b` + baseline regen 174/1076: admin-rail kicker voice; two-way
+selection echo; host-only crown [NEEDS RATIFICATION: additive ContextTabDef.crown field — shaped
+like strip, decision-5 argument]; waystone compact DERIVED from clock===null [no compact prop —
+gate-RED; meter unset variant instead, strictly stronger]; band 54.9% of chrome vs F6's 68%,
+chrome 28.7% of pane ≤30% rule; computed-value CTs throughout). H4 close-out remains. **PRESET
+REDESIGN STICKLER DISPATCHED** (owner 08-02: current pane "feels wrong… ST params are crunchy" —
+spec draft + HTML mocks + primitives inventory; composes-with-config-rail-riff stated, not
+decided; mockup-first loop) · ~~density S2~~ MERGED (`c3e15ac1` + baseline regen on merged tree: ui internally conformant
 0 rows [5 primitives dropped rounded-card→base/control per D6]; A6 gate arm live both directions
 [foreign data-slot RED born-sealed; unmapped tiers.css slot RED]; found+fixed the A2 paired-tag
 self-match defect [every paired box was its own ancestor — baseline was inflated]; 176/1080.
