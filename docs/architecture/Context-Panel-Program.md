@@ -61,7 +61,7 @@ CP-4's scene banner is a NEW `header`-slot component, not a resurrection).
 
 ### 3.1 One block kit, three mounts — the anti-duplication ruling
 
-The cohesion game plan (`docs/design/rpg-lite-and-full-cohesion-game-plan.md`) and D101 make trackers
+The cohesion game plan (`docs/history/design/rpg-lite-and-full-cohesion-game-plan.md`) and D101 make trackers
 ONE concept that surfaces at three escalation rungs. The rule: **one component family (the block
 kit), mounted in different tab sets — never re-implemented per rung.**
 

@@ -11,6 +11,17 @@ updated: 2026-07-22
 > is decided. Each item is tagged by evidence level:
 > **\[MEASURED]** proven this session by a live spike · **\[CODE]** read directly from the tree ·
 > **\[STATED]** reported by the owner, not yet code-verified this pass.
+>
+> **STILL LIVE (docs-hygiene pass, 2026-08-02).** Kept here, not archived — most sections still
+> describe the tree. What HAS been answered since, so nobody re-files it:
+> **§7 workloads god-domain → ANSWERED by D117** (`Core-Path-Registry.md`) — the junk drawer is gone
+> (58→30 files, 8 owner-domain `workload-contributions.ts` factories assembled at
+> `entry/compose/workload-contributions.ts`; the 13 `Workload<X>Env` bundles died with it). §7's
+> import/export split partially followed it (databank + import re-homed in stage D).
+> **§7 settings god-feature → IN PROGRESS**, not answered: the settings-SECTION contribution seam
+> landed and the SET-SEAMS program (`docs/design/set-seams-spec.md`) owns the rest — S1-S6 are still
+> open on the board, so the pain stands until its S6 seal.
+> Everything else (§1-§6, §8, §9) is unaudited by that pass — treat as stated.
 
 ---
 
