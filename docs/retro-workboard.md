@@ -62,7 +62,7 @@ model-writable but read by NEITHER surface — render-capped, or make unwritable
 QUEUED: the macro/CEL feed is a THIRD model-facing surface** (macro-view.ts carries NO volatile
 state for any carrier — same drift class; extend the suite's matrix to it + fix, ~a lane). **THEN:** re-verify both fix-alls → SSE S3-S5 +
 close-out ledger → HUD H2-H3 → SET-SEAMS S1-seal → PROSE-1 S1+ (app-tier; after SET-SEAMS S1
-merges) → density S2/S6 (+S3 post-HUD) → #16/D22 live probes → **DATABANK LAST, alone**.
+merges) → density S2/S6 (+S3 post-HUD) → #16/D22 live probes → **DATABANK LAST, alone — HARD PRECONDITIONS: SET-SEAMS through S6 + workloads stage-E complete (owner, 08-02)**.
 Owed to owner: verify:push when quiesced (his earlier run hit contention+stale-port, both
 resolved); the E2E_LIVE specs on the next push window.
 
@@ -211,9 +211,18 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    streaming) · inventory-grid tile design vs mock (owner eyeball) · QUOTE-1 hue taste check (new
    amber/apricot/ink dialogue colors) · scene-cards lightbox lacks a render policy (external images
    paint in transcript, not archive) · Status max-edit UX · icon-only meta-tabs at narrow widths.
-5. **SET-SEAMS** — approved-to-build; §10 fully ruled (features/tag + features/regex = **D114** ·
-   system→admin merge at stage 4 · sub-deep-links IN program · Q3/Q5/Q6 as recommended). Stage 0
-   mechanism is the hard barrier.
+5. **SET-SEAMS — S0 MERGED; the FULL remaining ladder (spec §8; S1-S4 SERIALIZE on main.tsx;
+   ALL of it lands BEFORE DATABANK):**
+   - [x] S0 mechanism (registry, owns+partition pin, save-status seam, body union)
+   - [ ] S1 appearance — 8-way split, AppearanceForm deleted (LANE IN FLIGHT)
+   - [ ] S2 chat-behavior — two sections → chat; pane → {kind:"sections"}
+   - [ ] S3 workloads + admin panes → sections mode
+   - [ ] S4 system/AppSettings — per-section baselines + AdminOverrideField (Q2 ruled)
+   - [ ] S5 O3 amendment — features/tag + features/regex mint + pane move (ruled, D114)
+   - [ ] S6 SEAL — delete SETTINGS_SECTION_ANCHORS, make*Pane factories, emptied shells,
+     OWN_SUBCATEGORIES; gates updated. NOT DONE until S6 — half-migration is banned.
+   §10 fully ruled (system→admin merge at stage 4 · sub-deep-links IN program · Q3/Q5/Q6 as
+   recommended).
 6. **DENSITY PASS** — approved-to-build; §7 all ten ruled (incl. D6 rounded-card demotion + D7
    Card.padding retirement). **QUEUE-ORDER TENSION (side-eye, 08-01 overnight): the projection
    pane's mock look is UNREACHABLE until density S5 retunes ListRow's instrument scale** (title
@@ -226,8 +235,19 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    and the smallest spacing token (field=6px). S1's `--spacing-tight` (4px) + `--radius-inset`
    make mock-tight chips ON-TOKEN — fold chip tightening into the S1/S3 sweep, don't pre-solve.
    Card.padding retirement). S0 computed-value probe FIRST; S3 waits for the panel to stop moving.
-7. **WORKLOADS JUNK-DRAWER EXIT** — investigation ready
-   (`docs/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md`).
+7. **WORKLOADS EXIT — STAGES A-D MERGED (D117); the FULL remaining stage-E ladder (report §3.3+§5-E;
+   LANE IN FLIGHT; ALL of it lands BEFORE DATABANK — the interactive lane is what makes
+   databank-ingest jump the queue):**
+   - [ ] two-lane worker + workloads.lane column (kills the §2 head-block)
+   - [ ] durable progress column (heartbeat-piggybacked upsert; ring stays)
+   - [ ] poison-row visible surface (toView {params:null, poison:true} + proven-to-fail test)
+   - [ ] residuals: dead subscribeWorkloadEvents export · AGENTS.md:226 indexer drift ·
+     client lane-aware pane grouping
+   - [ ] Q4 (OWNER RULED 08-02: YES) — direct stats mutation + wired client affordance +
+     sweep classification + auth test
+   - [ ] post-merge: STICKLER the stage-E diff (engine + db baseline touch)
+   Serde/import-export: verified CLEAN (§4) — stage D killed the entanglement; nothing remains.
+   (`docs/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md`)
 
 ### OWNER DECISIONS — ALL RULED (2026-08-01 evening; none pending)
 
