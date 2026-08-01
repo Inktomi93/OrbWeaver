@@ -11,10 +11,10 @@
 // (int 1..20 — the true enforcement is the verb's re-validate; these bound the input for UX).
 
 import type { ChatId } from "@orb/kit/ids";
-import { Input } from "@orb/ui/input";
+import { NumberField } from "@orb/ui/number-field";
 import { SettingRow } from "@orb/ui/setting-row";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import type { ChangeEvent, ReactElement } from "react";
+import type { ReactElement } from "react";
 import { useId } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { useSetToolRecurseLimit } from "../hooks/use-context-panel-mutations";
@@ -39,10 +39,9 @@ export function ToolRecurseControl({ chatId }: ToolRecurseControlProps): ReactEl
 
   // Unset ⇒ show the engine default; a NaN/empty input is dropped (never a wipe-triggering write).
   const current = chat.toolRecurseLimit ?? TOOL_RECURSE_DEFAULT;
-  const onChange = (e: ChangeEvent<HTMLInputElement>): void => {
-    const n = Number(e.target.value);
-    if (Number.isInteger(n) && n >= TOOL_RECURSE_MIN && n <= TOOL_RECURSE_MAX) {
-      setLimit.mutate({ chatId, limit: n });
+  const onValueChange = (next: number | null): void => {
+    if (next !== null && Number.isInteger(next) && next >= TOOL_RECURSE_MIN && next <= TOOL_RECURSE_MAX) {
+      setLimit.mutate({ chatId, limit: next });
     }
   };
 
@@ -52,7 +51,7 @@ export function ToolRecurseControl({ chatId }: ToolRecurseControlProps): ReactEl
       label="Tool rounds per turn"
       description="How many times one reply may loop back after using tools — not a cap on tool calls. A round can carry several tool calls; higher allows deeper multi-step work before the assistant must answer."
     >
-      <Input id={id} type="number" min={TOOL_RECURSE_MIN} max={TOOL_RECURSE_MAX} value={String(current)} onChange={onChange} />
+      <NumberField id={id} min={TOOL_RECURSE_MIN} max={TOOL_RECURSE_MAX} value={current} onValueChange={onValueChange} />
     </SettingRow>
   );
 }

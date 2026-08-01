@@ -217,7 +217,7 @@ function SystemTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
             value={draft[knob.id] ?? ""}
             onChange={(next): void => setDraft((d) => ({ ...d, [knob.id]: next }))}
             overridden={knob.overridden(overrides)}
-            floorLabel={String(knob.read(resolved))}
+            floorValue={knob.read(resolved)}
             min={knob.min}
             {...(knob.max === undefined ? {} : { max: knob.max })}
             step={knob.step}
