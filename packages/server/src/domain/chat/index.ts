@@ -22,6 +22,7 @@ export type {
   ExtractQuietResult,
   ForkGameArgs,
   ForkGameResult,
+  GatherTurnContextArgs,
   GeneratePictureOp,
   GetMembership,
   GetPendingUserText,

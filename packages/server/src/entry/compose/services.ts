@@ -498,9 +498,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     startGame: (chatId, params) => rpgOps().startGame(chatId, params),
     resolvePresetOverride: (chatId) => rpgOps().resolvePresetOverride(chatId),
     resolveUserMacros: (chatId) => rpgOps().resolveUserMacros(chatId),
-    // Rest-forwarded: the contract is 5-positional (chatId, pendingUserText, respondsToLatestUserTurn,
-    // steerIdentity, regenSlotMessageId) and a pure delegate has no business re-spelling it.
-    gatherTurnContext: (...args) => rpgOps().gatherTurnContext(...args),
+    gatherTurnContext: (args) => rpgOps().gatherTurnContext(args),
     markDicePreRollEligible: (turnId) => rpgOps().markDicePreRollEligible(turnId),
     onUserCommit: (chatId, messageId) => rpgOps().onUserCommit(chatId, messageId),
     // biome-ignore lint/complexity/useMaxParams: mirrors the injected `ChatRpgOps.onTurnCompleted` contract signature (positional delegate).

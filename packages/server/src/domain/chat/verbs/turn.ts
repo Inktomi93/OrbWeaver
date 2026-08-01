@@ -494,15 +494,15 @@ async function buildTurnContext(
   // Threaded so rpg renders the steeringNote's macros (guided-safe) instead of shipping literal braces.
   const rpg =
     ctx.rpg !== null
-      ? await ctx.rpg.gatherTurnContext(
-          args.chatId,
-          args.pendingUserText,
-          args.respondsToLatestUserTurn ?? false,
-          { user: foreign.personas.active?.name, char: args.castCharForHostRow },
+      ? await ctx.rpg.gatherTurnContext({
+          chatId: args.chatId,
+          pendingUserText: args.pendingUserText,
+          respondsToLatestUserTurn: args.respondsToLatestUserTurn ?? false,
+          steerIdentity: { user: foreign.personas.active?.name, char: args.castCharForHostRow },
           // The swipe/reroll target (VER-1b): rpg resolves the turn's tracked state as of BEFORE this slot, the
           // same cut this turn's canon context takes, so a reroll is never told the abandoned variant's beats.
-          args.regenSlotMessageId,
-        )
+          regenSlotMessageId: args.regenSlotMessageId,
+        })
       : null;
   // The chat-crew director's GATHER (chat-crew-design/04 §1): the current guidance as ONE injection. Null op /
   // director off / no pass ⇒ null ⇒ a byte-identical non-crew turn (the byte-identity contract test pins it).
