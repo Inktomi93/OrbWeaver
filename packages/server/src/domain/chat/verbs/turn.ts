@@ -12,7 +12,8 @@ import type { AssembleContext, ChatBusEvent, ChatInjection, GroupConfig, Message
 import { AUTOMATION_DEPTH_HARD_CAP, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { GenerationType, GuidedImpersonatePerson, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
-import { DEFAULT_FORMAT_STRINGS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import { legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
@@ -159,7 +160,12 @@ const nudgeOf = (
   assembleContext: AssembleContext,
   key: "continueNudge" | "impersonateNudge" | "responseNudge",
   opts: { readonly person?: GuidedImpersonatePerson | undefined; readonly registry?: MacroRegistry | undefined } = {},
-): string => resolveNudgeText(assembleContext, assembleContext.promptConfig.formatStrings?.[key] ?? DEFAULT_FORMAT_STRINGS[key], opts);
+): string => {
+  // PROSE-1 §4.6: the override STORAGE is still `formatStrings.<key>`; the two rungs (override else shipped
+  // default) funnel through the ONE prose resolver so precedence can't drift from the registry.
+  const id = PRESET_FORMAT_SLOT_IDS[key];
+  return resolveNudgeText(assembleContext, resolveProseText(id, legacyProseOverrides(id, assembleContext.promptConfig.formatStrings?.[key])), opts);
+};
 
 /** The roster-derived turn substrate: the host, the AI-driven candidates (character + agent — arbitration),
  *  their display names, the character cast ids (WI/memory), and the present personas. */

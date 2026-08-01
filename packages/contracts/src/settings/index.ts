@@ -11,7 +11,8 @@ import { chatApiSchema, openRouterProviderRoutingSchema } from "#connection";
 import { credentialSourceSchema } from "#credentials";
 import { chunkParamsSchema, databankRetrievalSettingsSchema } from "#databank";
 import type { ExtractionMode, MultimodalCaptionMode } from "#imagery";
-import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES } from "#imagery";
+import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
+import { legacyProseOverrides, resolveProseText } from "#prose";
 import { regexScriptSchema } from "#regex";
 import { MEMORY_RETRIEVAL_MODES } from "#search";
 // BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS` / `BackgroundImageKind`) is homed in
@@ -592,14 +593,19 @@ export type ImagerySettings = z.infer<typeof imagerySchema>;
 /** Resolve the extraction instruction for a mode: the user's per-mode override ⊕ the shipped
  *  `@orb/contracts/imagery` catalog default. Unset ⇒ byte-identical to the shipped default (the
  *  default-identity discipline). The ONE resolver both the compose op + the tests read (never a re-spelled
- *  fallback that could drift from the catalog). */
+ *  fallback that could drift from the catalog).
+ *
+ *  PROSE-1 §4.6: the STORAGE is unchanged (`imagery.templates.<mode>`, a bare string) — the two rungs are
+ *  funnelled through `resolveProse` so precedence and the staleness signal come from ONE place. */
 export function resolveImageryTemplate(imagery: ImagerySettings, mode: ExtractionMode): string {
-  return imagery.templates[mode] ?? DEFAULT_PROMPT_TEMPLATES[mode];
+  const id = IMAGERY_TEMPLATE_SLOT_IDS[mode];
+  return resolveProseText(id, legacyProseOverrides(id, imagery.templates[mode]));
 }
 
 /** Resolve the multimodal caption instruction for a mode: the user's override ⊕ the shipped catalog default. */
 export function resolveImageryCaption(imagery: ImagerySettings, mode: MultimodalCaptionMode): string {
-  return imagery.captions[mode] ?? DEFAULT_CAPTION_INSTRUCTIONS[mode];
+  const id = IMAGERY_CAPTION_SLOT_IDS[mode];
+  return resolveProseText(id, legacyProseOverrides(id, imagery.captions[mode]));
 }
 
 const personaSchema = z

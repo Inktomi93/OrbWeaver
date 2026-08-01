@@ -7,7 +7,8 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { AssembleCharacter, AssembleContext, AssemblePersona, AssembleWorldEntry, ChatInjection, RoomOverrides, SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
-import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
+import { DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS } from "@orb/contracts/preset";
+import { legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
 import type { RegexScript } from "@orb/contracts/regex";
 import { GUIDED_GAME_STEERS } from "@orb/kit/guided";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
@@ -705,7 +706,11 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
   }
 
   // BUILD — WI to injections (render once + keyword match), unified into one list, one budget pass.
-  const wiFormat = input.promptConfig.formatStrings?.wiFormat ?? DEFAULT_FORMAT_STRINGS.wiFormat;
+  // PROSE-1 §4.6: storage unchanged (`formatStrings.wiFormat`), the two rungs run through the ONE resolver.
+  const wiFormat = resolveProseText(
+    PRESET_FORMAT_SLOT_IDS.wiFormat,
+    legacyProseOverrides(PRESET_FORMAT_SLOT_IDS.wiFormat, input.promptConfig.formatStrings?.wiFormat),
+  );
   const names = [...cast.map((c) => c.name), input.personas.anchor?.name, input.personas.active?.name].filter(
     (n): n is string => typeof n === "string" && n.length > 0,
   );

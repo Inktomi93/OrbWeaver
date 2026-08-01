@@ -1,6 +1,10 @@
 // @orb/contracts/preset — generation config: the `PromptConfig` blob, its lift chain, user-intent
 // generation knobs, guided-actions config, custom parameters, the macro catalog, and ST/neo preset serde.
 // preset = GENERATION config, NOT the connection (`{api, source, model}` is `contracts/connection`'s axis).
+//
+// Sibling module (D15 directory-module law: internals flat, this index re-exports):
+//   • prose.ts — the per-PRESET PROSE-1 slot table; the ONE home for the BYTES of every guided-action
+//     template + format string this file's schema defaults read.
 
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { UserMacroDef, UserMacroInputValue } from "@orb/kit/macro";
@@ -12,6 +16,9 @@ import type { EffortLevel as ModelEffortLevel } from "#connection";
 import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, roleHandlingSchema, VERBOSITY_LEVELS } from "#connection";
 import { regexScriptSchema } from "#regex";
 import { defineVersionedConfig } from "#versioned-config";
+import { PRESET_PROSE_SLOTS } from "./prose";
+
+export * from "./prose";
 
 const MAX_NAME_LENGTH = 200;
 const MIN_ID_LENGTH = 1;
@@ -279,24 +286,23 @@ export const GUIDED_IMPERSONATE_PERSONS = ["first", "second", "third"] as const 
 export type GuidedImpersonatePerson = (typeof GUIDED_IMPERSONATE_PERSONS)[number];
 export const guidedActionKindSchema = z.enum(GUIDED_ACTION_KINDS);
 
-const OPENING_DEFAULT_PROMPT =
-  "[Open the scene: write your first message to me, in character — set the scene and greet me as {{char}} would. Stay fully in character. {{input}}]";
-const CONTINUE_DEFAULT_PROMPT = "[Take the following into special consideration while continuing your previous message: {{input}}]";
-const RESPONSE_DEFAULT_PROMPT = "[Take the following into special consideration for your next message: {{input}}]";
-const IMPERSONATE_DEFAULT_PROMPT =
-  "[Forget all other previous instructions. For this turn only, write in the {{person}}-person perspective AS {{user}} (not {{char}}). Limit yourself strictly to {{user}}'s voice and actions; do NOT narrate {{char}}'s reaction or the surrounding scene. Guidance: {{input}}]";
-const REWRITE_DEFAULT_PROMPT =
-  "[OOC: Answer me out of character. Don't continue the RP. Instead, rewrite {{char}}'s last response to reflect the following: {{input}}. Don't make any other changes besides this.]";
+// The guided-action default TEMPLATES are PROSE-1 slots — the bytes are authored once in `./prose` (census
+// rows 38-44) and read here, so the shipped default, the registry row and the editor's ghosted placeholder
+// can never disagree. Revising one is a `text` + `version` edit in `./prose`, gated by `prose-baseline.json`.
+//
 // Greeting studio (audit §3) — the guided-action machinery pointed at a BASE greeting text (the card's own
 // opening), NOT a chat turn. `greeting_rewrite` carries `{{base}}` — the existing greeting text, spliced
 // (ZWSP-neutralized, other-author content) by the same guided-only pre-substitution as `{{person}}`
 // (@orb/kit/guided). Keep-close prose adapted from the source's editIntros.editExisting (verbatim
 // sanctioned). `greeting_new` writes fresh from the instructions (editIntros.makeNew). Both resolve
 // {{char}}/{{user}} through the normal macro engine, so the templates read naturally in the card editor.
-const GREETING_REWRITE_DEFAULT_PROMPT =
-  "Revise the existing greeting for {{char}} using ONLY the requested adjustments below.\n\nRequested adjustments: {{input}}\n\nOriginal greeting:\n{{base}}\n\nRules:\n- Keep the greeting content, structure, formatting, links, and length as close as possible unless a requested adjustment requires a specific change.\n- Do NOT add new story events, new actions, or extra continuation text.\n- Do NOT expand the greeting.\n- Return ONLY the revised greeting text — no commentary, no quotes.";
-const GREETING_NEW_DEFAULT_PROMPT =
-  "Write a single opening greeting for {{char}}, in character, based on the following requirements: {{input}}\n\nRules:\n- Set the scene and greet {{user}} as {{char}} would.\n- Output ONLY the greeting text — no commentary, no quotes.\n- Do NOT continue beyond the greeting or add extra sections or explanations.";
+const OPENING_DEFAULT_PROMPT = PRESET_PROSE_SLOTS["preset.guided.opening"].text;
+const CONTINUE_DEFAULT_PROMPT = PRESET_PROSE_SLOTS["preset.guided.continue"].text;
+const RESPONSE_DEFAULT_PROMPT = PRESET_PROSE_SLOTS["preset.guided.response"].text;
+const IMPERSONATE_DEFAULT_PROMPT = PRESET_PROSE_SLOTS["preset.guided.impersonate"].text;
+const REWRITE_DEFAULT_PROMPT = PRESET_PROSE_SLOTS["preset.guided.rewrite"].text;
+const GREETING_REWRITE_DEFAULT_PROMPT = PRESET_PROSE_SLOTS["preset.guided.greetingRewrite"].text;
+const GREETING_NEW_DEFAULT_PROMPT = PRESET_PROSE_SLOTS["preset.guided.greetingNew"].text;
 
 const GUIDED_DEFAULT_ROLE: MessageRole = "system";
 
@@ -636,25 +642,19 @@ const templatedMarkerSection = z.object({
 export const promptSectionSchema = z.union([literalSection, plainMarkerSection, templatedMarkerSection]);
 export type PromptSection = z.infer<typeof promptSectionSchema>;
 
-/** Hard-coded defaults the assembler uses when a preset doesn't supply a `formatStrings.<key>`. */
+/** The FALLBACK the assembler uses when a preset doesn't supply a `formatStrings.<key>` — one PROSE-1 slot
+ *  each (census rows 45-48), so the bytes are authored once in `./prose`. The KEYS are the editable/importable
+ *  format-string vocabulary (the ST import mapper + the `knob-wire-coverage` arm-E reader both key off this
+ *  literal); the VALUES are read from the registry.
+ *
+ *  `impersonateNudge` is the measured voice-lock (`./prose` carries the measurement + the IMP-1 probe-harness
+ *  note); `responseNudge` fires only when a Response lands on an ASSISTANT tail; macros are RENDERED on the
+ *  `nudgeOf` path (turn.ts `resolveNudgeText`). */
 export const DEFAULT_FORMAT_STRINGS = {
-  continueNudge:
-    "[OOC: Continue your previous response exactly where it left off. Pick up mid-sentence if needed. Do NOT restate the existing text, do NOT rephrase, do NOT add a preamble or recap. Output ONLY the continuation, starting from where your previous reply ended.]",
-  // The trailing user-turn nudge that steers an unsteered `impersonate` (the model writes the user's next
-  // line). A STRONG voice-lock WITH macros: the "Ignore all previous instructions" lead + an explicit
-  // write-only-{{user}}/never-{{char}} constraint held the user's voice 6/6 on the weak 8B at full production
-  // sampling (temp 0.7, presence_penalty 1.5) — the weak former baseline (`write as the user`) let the 8B
-  // ramble back into the character's voice. Macros are RENDERED on the `nudgeOf` path (turn.ts `resolveNudgeText`):
-  // `{{user}}`→persona name, `{{char}}`→character name, `{{person}}`→the picked perspective (defaulting first
-  // when unsteered). Mirrors the steered `IMPERSONATE_DEFAULT_PROMPT`.
-  impersonateNudge:
-    "[Ignore all previous instructions. For this message only, write in the {{person}}-person perspective AS {{user}} (not {{char}}). Write ONLY {{user}}'s single next message, in {{user}}'s own voice. Do NOT write, voice, narrate, or roleplay {{char}}, {{char}}'s dialogue or actions, or the surrounding scene. Write only {{user}}'s reply, then stop.]",
-  // The trailing user-turn nudge that steers a `generate` (the wand's Response icon / empty-send-generate)
-  // when it fires on an ASSISTANT tail — a reply after the model's own last message needs SOMETHING to
-  // respond to, else it is rudderless (a Response right after a USER message needs no nudge — the user
-  // message is the prompt). The engine appends it ONLY when the tail is assistant (see `createGenerate`).
-  responseNudge: "[Continue the scene: write the next reply, moving the story forward from where it stands. Do not restate or recap.]",
-  wiFormat: "{{entry}}",
+  continueNudge: PRESET_PROSE_SLOTS["preset.format.continueNudge"].text,
+  impersonateNudge: PRESET_PROSE_SLOTS["preset.format.impersonateNudge"].text,
+  responseNudge: PRESET_PROSE_SLOTS["preset.format.responseNudge"].text,
+  wiFormat: PRESET_PROSE_SLOTS["preset.format.wiFormat"].text,
 } as const;
 
 /** Default `/compact` steering (RP-tuned vs the SDK's generic coding-agent summary). */
