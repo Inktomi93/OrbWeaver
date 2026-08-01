@@ -39,6 +39,14 @@ type Waiver =
 // that mounts the real parent and drives this sub-part through it; that CT must exist (verified below).
 const WAIVERS: Readonly<Record<string, Waiver>> = {
   // Sub-parts driven through a parent's real CT.
+  "chat-list-row": {
+    coveredBy: "chat-list-surface",
+    why: "the row is the list surface's split-out unit (projection L0); chat-list-surface.ct drives portrait/snippet/star/game-marker arms and the RowToggleAction star mutation on real rows.",
+  },
+  "chats-with-character-pane": {
+    coveredBy: "characters-list-pane",
+    why: "the pane is Arm A's projection body, mounted only through the characters list pane's modal swap; characters-list-pane.ct drives the swap, the projection rows, and back-focus through it.",
+  },
   "assembly-preview-diagnostics": {
     coveredBy: "assembly-preview-panel",
     why: "the Diagnostics drawer is the panel's split-out half (component-size cap); assembly-preview-panel.ct drives the drawer's BUILD + SHAPE traces and collapsed-by-default arm.",
