@@ -105,7 +105,7 @@ function BrowseRows({
     return (
       <Stack align="center" className="p-block" gap="field">
         <Icon icon={Library} size="lg" />
-        <Text tone="muted">No characters match — distill your library, or loosen the filters.</Text>
+        <Text>No characters match — distill your library, or loosen the filters.</Text>
       </Stack>
     );
   }

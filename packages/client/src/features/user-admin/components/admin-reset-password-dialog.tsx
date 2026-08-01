@@ -76,12 +76,12 @@ function ResetPasswordBody({ userId, onDone }: { readonly userId: UserId; readon
         />
       </Field>
       {showTooShort ? (
-        <Text size="label" tone="destructive">
+        <Text voice="label" className="text-destructive">
           Password must be at least {ADMIN_MIN_PASSWORD_LENGTH} characters.
         </Text>
       ) : null}
       {!showTooShort && resetPassword.error !== null ? (
-        <Text size="label" tone="destructive">
+        <Text voice="label" className="text-destructive">
           Couldn't reset the password — try again.
         </Text>
       ) : null}

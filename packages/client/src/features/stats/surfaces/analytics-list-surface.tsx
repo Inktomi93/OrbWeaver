@@ -61,11 +61,7 @@ function LeaderboardRows({ sort }: { readonly sort: SortId }): ReactElement {
   const { data: rows } = useSuspenseQuery(trpc.stats.leaderboard.queryOptions({ sort }));
 
   if (rows.length === 0) {
-    return (
-      <Text size="micro" tone="muted">
-        No characters have any rolled-up activity yet.
-      </Text>
-    );
+    return <Text voice="gloss">No characters have any rolled-up activity yet.</Text>;
   }
 
   return (
@@ -78,14 +74,14 @@ function LeaderboardRows({ sort }: { readonly sort: SortId }): ReactElement {
           selected={selectedId === row.characterId}
           onClick={(): void => selectAnalyticsCharacter(row.characterId)}
           leading={
-            <Text size="micro" tone="muted" className="font-mono tabular-nums">
+            <Text voice="gloss" className="font-mono tabular-nums">
               {index + 1}
             </Text>
           }
           title={row.name}
           subtitle={`${formatCompact(row.assistantTurns)} replies · ${formatDurationMs(row.totalGenTimeMs)}`}
           actions={
-            <Text size="micro" tone="muted" className="whitespace-nowrap font-mono">
+            <Text voice="gloss" className="whitespace-nowrap font-mono">
               {formatCompact(row.tokensOut)} tok
             </Text>
           }

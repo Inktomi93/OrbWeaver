@@ -287,12 +287,8 @@ export function SettingsShell(): ReactElement {
                   <CommandEmpty>{`No settings match “${query.trim()}”.`}</CommandEmpty>
                   {searchEntries.map((entry) => (
                     <CommandItem key={entry.id} keywords={[...entry.keywords]} onSelect={(): void => jumpToEntry(entry)} value={entry.id}>
-                      <Text size="body">{entry.label}</Text>
-                      {entry.label === entry.categoryLabel ? null : (
-                        <Text size="micro" tone="muted">
-                          {entry.categoryLabel}
-                        </Text>
-                      )}
+                      <Text>{entry.label}</Text>
+                      {entry.label === entry.categoryLabel ? null : <Text voice="gloss">{entry.categoryLabel}</Text>}
                     </CommandItem>
                   ))}
                 </CommandList>
@@ -309,9 +305,7 @@ export function SettingsShell(): ReactElement {
             >
               {SETTINGS_GROUPS.map((group) => (
                 <Stack key={group} gap="row">
-                  <Text size="micro" weight="semibold" tone="muted" transform="caps">
-                    {SETTINGS_GROUP_LABELS[group]}
-                  </Text>
+                  <Text voice="kicker">{SETTINGS_GROUP_LABELS[group]}</Text>
                   {categoryIdsForGroup(visiblePanes, group).map((pane) => {
                     const isActive = active === pane.id;
                     const subs = subcategoriesFor(pane);

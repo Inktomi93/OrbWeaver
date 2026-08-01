@@ -103,7 +103,7 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
       <PopoverTrigger
         render={
           <Button intent="secondary" size="sm" aria-label={ariaLabel} className="min-w-0 flex-1 justify-start">
-            <Text as="span" size="body" tone={value === "" ? "muted" : "default"} className="truncate">
+            <Text as="span" className={value === "" ? "truncate text-muted-foreground" : "truncate text-foreground"}>
               {triggerLabel}
             </Text>
             <Icon icon={ChevronDown} size="sm" className="ms-auto shrink-0" />
@@ -130,9 +130,7 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
           {view.curatedFallback ? (
             <Row gap="field" align="center" className="border-b border-border px-block py-field" data-testid={testId("modelPickerCuratedNotice")}>
               <Icon icon={AlertTriangle} size="xs" className="shrink-0 text-muted-foreground" />
-              <Text size="micro" tone="muted">
-                {CURATED_FALLBACK_NOTICE}
-              </Text>
+              <Text voice="gloss">{CURATED_FALLBACK_NOTICE}</Text>
             </Row>
           ) : null}
 
@@ -166,26 +164,20 @@ export function ModelPicker(props: ModelPickerProps): ReactElement {
 
             {view.overflow > 0 ? (
               <Row align="center" className="px-block py-field">
-                <Text size="micro" tone="muted">
-                  {`+${view.overflow} more — keep typing to narrow`}
-                </Text>
+                <Text voice="gloss">{`+${view.overflow} more — keep typing to narrow`}</Text>
               </Row>
             ) : null}
 
             {view.allowsFreeText ? (
               <CommandItem value={`__free-text__${query}`} keywords={[query]} disabled={query.trim() === ""} onSelect={(): void => commit(query)}>
-                <Text size="body">{query.trim() === "" ? "Type a model id to use it" : `Use “${query.trim()}” as typed`}</Text>
+                <Text>{query.trim() === "" ? "Type a model id to use it" : `Use “${query.trim()}” as typed`}</Text>
               </CommandItem>
             ) : null}
           </CommandList>
 
           <Row gap="field" align="center" justify="between" className="border-t border-border px-block py-field">
-            <Text size="micro" tone="muted">
-              {footerSyncedLabel(result?.fetchedAt ?? null, view.allowsFreeText, view.curatedFallback)}
-            </Text>
-            <Text size="micro" tone="muted">
-              {`${view.pool.length} model${view.pool.length === 1 ? "" : "s"}`}
-            </Text>
+            <Text voice="gloss">{footerSyncedLabel(result?.fetchedAt ?? null, view.allowsFreeText, view.curatedFallback)}</Text>
+            <Text voice="gloss">{`${view.pool.length} model${view.pool.length === 1 ? "" : "s"}`}</Text>
           </Row>
         </Command>
       </PopoverPopup>
@@ -257,7 +249,7 @@ function ModelItem({
     <CommandItem value={entry.id} keywords={[entry.label]} data-active={active ? true : undefined} onSelect={(): void => onSelect(entry.id)}>
       <Stack gap="field" className="min-w-0 flex-1">
         <Row gap="field" align="center" className="min-w-0">
-          <Text as="span" size="body" weight="medium" className="truncate">
+          <Text as="span" className="truncate font-medium">
             {entry.label}
           </Text>
           {hasVision(entry) ? (
@@ -272,11 +264,11 @@ function ModelItem({
           ) : null}
         </Row>
         {entry.detail !== undefined ? (
-          <Text as="span" size="micro" tone="muted" className="truncate">
+          <Text as="span" voice="gloss" className="truncate">
             {entry.detail}
           </Text>
         ) : (
-          <Text as="span" size="micro" tone="muted" className="truncate font-mono">
+          <Text as="span" voice="gloss" className="truncate font-mono">
             {entry.id}
           </Text>
         )}
@@ -284,12 +276,12 @@ function ModelItem({
       {context !== null || price !== null ? (
         <Stack gap="field" align="end" className="shrink-0">
           {context !== null ? (
-            <Text as="span" size="micro" tone="muted" className="font-mono">
+            <Text as="span" voice="gloss" className="font-mono">
               {context}
             </Text>
           ) : null}
           {price !== null ? (
-            <Text as="span" size="micro" tone="muted" className="font-mono">
+            <Text as="span" voice="gloss" className="font-mono">
               {price}
             </Text>
           ) : null}

@@ -134,7 +134,7 @@ function TagBehaviorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; 
           checked={tag.isHiddenOnCard}
           onCheckedChange={(next): void => patchStyle({ isHiddenOnCard: next })}
         />
-        <Text as="span" size="micro" tone="muted">
+        <Text as="span" voice="gloss">
           Hide chip on cards
         </Text>
       </Row>
