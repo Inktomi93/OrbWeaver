@@ -5,6 +5,8 @@ import {
   createHiddenSpanStreamScrubber,
   DIRECTIVE_FENCE_NAMES,
   HIDDEN_TAGS,
+  PREVIEW_MAX_CHARS,
+  projectBodyForPreview,
   projectBodyForSummary,
   scanGhostContent,
   stripHiddenSpans,
@@ -581,5 +583,43 @@ describe("scanGhostContent — the §4.5 forming-card ghost scan (P4)", () => {
   test("a non-card directive open (:::choices) stays text in the ghost", () => {
     const text = ":::choices\n1. Run.\n";
     expect(scanGhostContent(text)).toEqual([{ kind: "text", text }]);
+  });
+});
+
+// The PREVIEW plane (`ChatSummary.lastMessagePreview`): one line of plain prose, hidden-safe, capped.
+describe("projectBodyForPreview", () => {
+  test("markdown is FLATTENED to one line — headings, emphasis, lists, quotes, fences, links", () => {
+    const body = "# The Gate\n\n> The door **gives way**.\n- `iron` hinges\n\n```ts\nconst x = 1;\n```\nAsh on the [wind](https://example.test/ash).";
+    expect(projectBodyForPreview(body)).toBe("The Gate The door gives way. iron hinges const x = 1; Ash on the wind.");
+  });
+
+  test("HIDDEN-class spans are dropped — a preview is a durable, member-reachable artifact", () => {
+    const body = 'She smiles. <lie character="Aria" type="claim" truth="she has the key" reason="cover"/> The room waits.';
+    const preview = projectBodyForPreview(body);
+    expect(preview).toBe("She smiles. The room waits.");
+    expect(preview).not.toContain("she has the key");
+  });
+
+  test("structured spans carry no glanceable prose — card / choices / image / unknown-directive drop out", () => {
+    expect(projectBodyForPreview(':::card title="Ashfell Night Market"\n<div>stalls</div>\n:::\nYou step out.')).toBe("You step out.");
+    expect(projectBodyForPreview("Pick one.\n:::choices\n1. Run.\n:::")).toBe("Pick one.");
+    expect(projectBodyForPreview("![a portrait](asset:asset_1)\nShe waits.")).toBe("She waits.");
+    expect(projectBodyForPreview('<gmnote to="self" text="not prose"/>\nShe waits.')).toBe("She waits.");
+  });
+
+  test("an all-structure or empty body previews as the EMPTY string (the caller decides what that means)", () => {
+    expect(projectBodyForPreview("")).toBe("");
+    expect(projectBodyForPreview('<lie character="Aria" truth="x"/>')).toBe("");
+    // The rpg state-anchor slot: an empty body that must never read as a beat.
+    expect(projectBodyForPreview("   \n\n  ")).toBe("");
+  });
+
+  test("the cap is a CHARACTER budget including the ellipsis — never a longer string than asked for", () => {
+    const long = "a".repeat(300);
+    expect(projectBodyForPreview(long)).toHaveLength(PREVIEW_MAX_CHARS);
+    expect(projectBodyForPreview(long).endsWith("…")).toBe(true);
+    // At/below the cap nothing is appended (the common short line is byte-identical).
+    expect(projectBodyForPreview("a".repeat(PREVIEW_MAX_CHARS))).toBe("a".repeat(PREVIEW_MAX_CHARS));
+    expect(projectBodyForPreview("one two three", 8)).toBe("one two…");
   });
 });

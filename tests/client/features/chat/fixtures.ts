@@ -99,6 +99,10 @@ export interface ChatSummaryFixture {
   readonly messageCount: number;
   readonly participantNames: readonly string[];
   readonly participantCharacterIds: readonly string[];
+  /** The server-resolved scent line (null = nothing this caller may see). */
+  readonly lastMessagePreview: string | null;
+  /** The rpg game marker (`metadata.rpg` presence). */
+  readonly isGame: boolean;
   readonly viewerRole: ParticipantRole;
   readonly createdAt: number;
   readonly updatedAt: number;
@@ -116,6 +120,8 @@ export function makeChatSummary(overrides: Partial<ChatSummaryFixture> = {}): Ch
     messageCount: 4,
     participantNames: ["Aria Nightshade"],
     participantCharacterIds: [],
+    lastMessagePreview: null,
+    isGame: false,
     viewerRole: "host",
     createdAt: FROZEN_AT,
     updatedAt: FROZEN_AT,

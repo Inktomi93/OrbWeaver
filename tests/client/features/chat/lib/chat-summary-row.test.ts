@@ -22,6 +22,8 @@ function makeSummary(overrides: Partial<SummaryItem>): SummaryItem {
     messageCount: 0,
     participantNames: [],
     participantCharacterIds: [],
+    lastMessagePreview: null,
+    isGame: false,
     viewerRole: "host",
     createdAt: 1,
     updatedAt: 2,
@@ -65,6 +67,27 @@ test("chatSummaryRowView: untitled AND participant-less → 'Untitled chat' / 'N
   const view = chatSummaryRowView(makeSummary({ title: null, participantNames: [] }));
   expect(view.title).toBe("Untitled chat");
   expect(view.subtitle).toBe("No characters");
+});
+
+test("chatSummaryRowView: the server-resolved scent line WINS the subtitle over the identity line", () => {
+  const view = chatSummaryRowView(
+    makeSummary({ title: "The Weave", participantNames: ["You", "JFC"], messageCount: 3, lastMessagePreview: "the door gives way" }),
+  );
+  expect(view.title).toBe("The Weave");
+  expect(view.subtitle).toBe("the door gives way");
+});
+
+test("chatSummaryRowView: a names-derived title still shows the scent line, not the message count", () => {
+  const view = chatSummaryRowView(makeSummary({ title: "", participantNames: ["You", "JFC"], messageCount: 3, lastMessagePreview: "ash on the wind" }));
+  expect(view.title).toBe("You, JFC");
+  expect(view.subtitle).toBe("ash on the wind");
+});
+
+test("chatSummaryRowView: NO preview (empty chat / clamped viewer) falls back to the identity line", () => {
+  // The member-visibility arm as the client sees it: the server withheld the preview, so the row must show
+  // the identity line rather than a blank second line.
+  const clamped = chatSummaryRowView(makeSummary({ title: "The Weave", participantNames: ["You", "JFC"], messageCount: 9, lastMessagePreview: null }));
+  expect(clamped.subtitle).toBe("You, JFC");
 });
 
 test("chatSummaryRowView: `when` prefers lastMessageAt, falling back to updatedAt", () => {

@@ -13,7 +13,7 @@ import type { Db } from "@orb/db";
 import { characterBooks, chatParticipants, chats as chatsTable, messages, personas as personasTable, worldBooks, worldEntries } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
@@ -145,6 +145,82 @@ describe("read — listings (membership-scoped, D18)", () => {
     // includeArchived widens the archive filter only — a temporary chat never surfaces in the library.
     const all = await listChats({ principal: principal(me), includeArchived: true });
     expect(all.map((c) => c.id)).toEqual([normal]);
+  });
+
+  // ── the two SCENT fields (the list row's second line + the game marker) ──────────────────────────────
+  test("listChats: lastMessagePreview is the NEWEST visible body, markdown-flattened + hidden-span stripped", async () => {
+    const me = await seedUser(db, "me");
+    const chatId = await seedRoom("scent", me);
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: me, content: "an older beat" });
+    await seedMessage(db, chatId, 2, {
+      role: "assistant",
+      content:
+        '# The Gate\n\nThe door **gives way**.\n<lie character="Aria" type="claim" truth="she has the key" reason="cover"/>\nAsh on the [wind](https://example.test/ash).',
+    });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const preview = (await listChats({ principal: principal(me) }))[0]?.lastMessagePreview;
+
+    expect(preview).toBe("The Gate The door gives way. Ash on the wind.");
+    // The §3.6 class: a lie's TRUTH is never list chrome, for ANY viewer (the strip is unconditional).
+    expect(preview).not.toContain("she has the key");
+  });
+
+  test("listChats: an EMPTY chat and an rpg STATE-ANCHOR-only chat both preview as null", async () => {
+    const me = await seedUser(db, "me");
+    const empty = await seedRoom("empty", me);
+    const anchorOnly = await seedRoom("anchoronly", me);
+    // A state-anchor slot is an EMPTY-body assistant row — durable canon no reader sees.
+    await seedMessage(db, anchorOnly, 1, { role: "assistant", content: "" });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const byId = new Map((await listChats({ principal: principal(me) })).map((c) => [c.id, c.lastMessagePreview]));
+
+    expect(byId.get(empty)).toBeNull();
+    expect(byId.get(anchorOnly)).toBeNull();
+  });
+
+  test("listChats: the D16 floor clamps the preview PER-CALLER — a from-join member below it sees NOTHING", async () => {
+    const host = await seedUser(db, "host");
+    const clamped = await seedUser(db, "clamped");
+    const unclamped = await seedUser(db, "unclamped");
+    const chatId = await seedRoom("clamp", host);
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "the pre-join secret" });
+    // `from-join` with a joinSeq ABOVE the newest row: the member's whole readable window is empty.
+    await seedParticipant(db, { chatId, key: "clamp_m1", userId: clamped, role: "member", joinSeq: 2, joinHistoryVisibility: "from-join" });
+    // `from-join` AT the newest row (the floor is inclusive) — they DO see it.
+    await seedParticipant(db, { chatId, key: "clamp_m2", userId: unclamped, role: "member", joinSeq: 1, joinHistoryVisibility: "from-join" });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const previewFor = async (userId: UserId): Promise<string | null | undefined> =>
+      (await listChats({ principal: principal(userId) })).find((c) => c.id === chatId)?.lastMessagePreview;
+
+    expect(await previewFor(host)).toBe("the pre-join secret");
+    expect(await previewFor(clamped)).toBeNull();
+    expect(await previewFor(unclamped)).toBe("the pre-join secret");
+  });
+
+  test("listChats: isGame marks a LIVE game only (no pointer / a disengaged pointer are both false)", async () => {
+    const me = await seedUser(db, "me");
+    const plain = await seedChat(db, "plain");
+    const game = await seedChat(db, "game", { metadata: { rpg: { gameId: mintTypeId(ID_PREFIX.rpgGame), engaged: true } } });
+    const off = await seedChat(db, "off", { metadata: { rpg: { gameId: mintTypeId(ID_PREFIX.rpgGame), engaged: false } } });
+    await Promise.all(
+      (
+        [
+          ["p", plain],
+          ["g", game],
+          ["o", off],
+        ] as const
+      ).map(([key, chatId]) => seedParticipant(db, { chatId, key, userId: me, role: "host" })),
+    );
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const byId = new Map((await listChats({ principal: principal(me) })).map((c) => [c.id, c.isGame]));
+
+    expect(byId.get(game)).toBe(true);
+    expect(byId.get(plain)).toBe(false);
+    expect(byId.get(off)).toBe(false);
   });
 });
 

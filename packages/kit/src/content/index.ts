@@ -940,3 +940,55 @@ export function projectBodyForSummary(content: string): string {
     })
     .join("");
 }
+
+/** The default preview width — one truncated list-row line (`ChatSummary.lastMessagePreview`). */
+export const PREVIEW_MAX_CHARS = 120;
+
+/** The truncation marker: a single-char ellipsis, so the budget stays a character count. */
+const PREVIEW_ELLIPSIS = "…";
+
+/** Markdown INLINE emphasis / inline-code markers (asterisk, underscore, tilde, backtick). Dropped whole
+ *  (the wrapped text survives): a glance line reads the words, never the syntax. */
+const PREVIEW_INLINE_MARKERS_RE = /[*_~`]+/g;
+
+/** A markdown LINK / image ref (`[label](target)`, a leading `!` for an image) — collapsed to its label, so
+ *  a preview never spends its 120 chars on a URL. Nested brackets are not matched (a degrade, not a parse:
+ *  the leftover literal is still plain text). */
+const PREVIEW_LINK_RE = /!?\[([^\]]*)\]\([^)]*\)/g;
+
+/** A line's leading BLOCK markers — heading, quote, bullet, ordered-list — plus the markdown code-fence
+ *  OPEN/CLOSE line itself (triple-backtick + its language tag, which carries no prose; the fenced body is
+ *  kept, since a code block a character actually wrote is still what was last said). */
+const PREVIEW_BLOCK_PREFIX_RE = /^[ \t]*(?:```[^\n]*|>+|#{1,6}|[-*+]|\d+[.)])[ \t]*/gm;
+
+/** Any whitespace run (incl. the newlines a body is full of) — collapsed to ONE space: the preview is a
+ *  SINGLE line, so a multi-paragraph body must not smuggle its layout into a one-line slot. */
+const PREVIEW_WHITESPACE_RE = /\s+/g;
+
+/**
+ * The PREVIEW-plane body projection: a message body → ONE line of plain text, capped at `maxChars`.
+ *
+ * Structure comes off the SAME tokenizer every other projection uses (never a hand-rolled markdown parse of
+ * the span grammar): only `text` spans survive — HIDDEN-class spans are dropped (the §3.6 trust boundary: a
+ * preview is a durable, member-reachable artifact, exactly the class `projectBodyForSummary` fail-closes on,
+ * so the strip here is UNCONDITIONAL rather than viewer-dependent), and `image` / `card` / `choices` /
+ * `unknown-directive` spans carry no glanceable prose (a `[card: …]` stub or a raw fence would spend the whole
+ * line on chrome). What remains is markdown-FLATTENED — inline emphasis/code markers dropped, links collapsed
+ * to their label, leading block markers and code-fence lines removed, every whitespace run collapsed to one
+ * space — then trimmed and truncated with a single-char ellipsis. Empty (a body that was all structure, or an
+ * empty/state-anchor slot) ⇒ `""`; the caller decides what an empty preview means.
+ */
+export function projectBodyForPreview(content: string, maxChars: number = PREVIEW_MAX_CHARS): string {
+  // COMMITTED: a preview only ever reads finalized canon, and an EOF-closed card is strictly safer — an
+  // unterminated card blob collapses to a dropped span instead of leaking its raw markup into the line.
+  const prose = tokenizeContent(content, { committed: true })
+    .map((s) => (s.kind === "text" ? s.text : ""))
+    .join("");
+  const flat = prose
+    .replace(PREVIEW_LINK_RE, "$1")
+    .replace(PREVIEW_BLOCK_PREFIX_RE, "")
+    .replace(PREVIEW_INLINE_MARKERS_RE, "")
+    .replace(PREVIEW_WHITESPACE_RE, " ")
+    .trim();
+  return flat.length <= maxChars ? flat : `${flat.slice(0, maxChars - 1).trimEnd()}${PREVIEW_ELLIPSIS}`;
+}
