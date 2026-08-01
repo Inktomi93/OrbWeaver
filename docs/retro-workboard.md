@@ -31,6 +31,16 @@ still holds `24989143` (midday 08-01); EVERYTHING since — the whole evening + 
 commits/merges — is LOCAL awaiting the per-push owner word. **Stack:** dev on :5173 serves the
 fully-polished tree; engines adopt-only.
 
+**⚠ SECURITY LANDING (08-02): the COLD-SCRUBBER LEAK fixed on main** (`ed2aafc5` merged, check
+12/12) — a mid-slot reconnect leaked hidden-span TAILS to members (member-triggerable: the
+withheld ghost's stall is an oracle; close/reopen delivered the tail). Fix = producer-side
+`memberText` stamp before the durable append; all read seams stateless; fail-closed on undefined.
+**MERGE-ORDER CONSEQUENCE: the S2 branch must merge main AGAIN post-stickler-verdict and
+reconcile its moved room source** (its pump-scoped deltaScrubbers machinery DELETES — the stamp
+makes the two-room-isolation property hold by construction); its security tests re-run; THEN S2
+merges. `scrubStreamReplayForMember` (unwired token log) still cold-starts — cited, needs the
+same class of fix IF ever wired.
+
 **▶▶▶ LIVE STATE (08-02 midday — compact-safety snapshot):** main @ `13963039`+ (SET-SEAMS S0 +
 HUD-1 ledger amendments merged; ~190 commits past origin `24989143`, NO pushes). **IN FLIGHT:**
 HUD-H1 fix-all (all side-eye findings P0→P3 incl. the shell ≤1024px dead toggle) · density-S5
