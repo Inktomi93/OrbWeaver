@@ -300,8 +300,16 @@ test("Effects renders switch rows; toggling a surface patches blurSurfaces", asy
   // Not a toggle-group option (the old ugly control) — a proper switch.
   await expect(page.getByRole("switch", { name: "Prose shadow" })).toBeVisible();
 
+  // `panels` ships ON (DEFAULT_BLUR_SURFACES, owner ruling 2026-08-02) so its switch seeds CHECKED and a
+  // click REMOVES membership; `messages` ships off, so its click ADDS. Both directions prove the binding.
+  await expect(panels).toBeChecked();
   await panels.click();
-  await expect.poll(() => lastPatch(trpc)?.["blurSurfaces"], { intervals: [20, 50, 100] }).toContain("panels");
+  await expect.poll(() => lastPatch(trpc)?.["blurSurfaces"], { intervals: [20, 50, 100] }).not.toContain("panels");
+
+  const messages = page.getByRole("switch", { name: "Messages (reading surface — use sparingly)" });
+  await expect(messages).not.toBeChecked();
+  await messages.click();
+  await expect.poll(() => lastPatch(trpc)?.["blurSurfaces"], { intervals: [20, 50, 100] }).toContain("messages");
 });
 
 // UIP-404 row grammar (owner items 6+7): form fields render horizontal — label+description LEFT, control

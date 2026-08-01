@@ -659,8 +659,10 @@ const BACKGROUND_BLUR_DEFAULT = 0;
 
 export const BLUR_SURFACES = ["panels", "composer", "messages", "modals"] as const;
 export type BlurSurface = (typeof BLUR_SURFACES)[number];
-// `messages` deliberately excluded from the default set — Reading-Surface rule forbids blur behind
-// long reading text by default; a user may still opt it in.
+// The SHIPPED default of `appearance.blurSurfaces` (owner ruling 2026-08-02 — glass is on by default on
+// the three chrome surfaces; it is also the `.catch` self-heal target, matching the sibling knobs).
+// `messages` deliberately excluded — the Reading-Surface rule forbids blur behind long reading text by
+// default; a user may still opt it in, and an explicitly-stored `[]` is a real opt-out that survives.
 export const DEFAULT_BLUR_SURFACES: readonly BlurSurface[] = ["panels", "composer", "modals"];
 
 // `asset` = an own-upload background (PD-131): the picked file is stored as a `background` AssetKind and
@@ -741,7 +743,10 @@ const appearanceSchema = z
     // ST parity: imported cards carry their structure in quoted speech, which ST colors — default ON is
     // the ST-expat expectation. Paints the theme's `dialogueColor` (per-character themeOverride wins).
     colorQuotedSpeech: z.boolean().catch(true).default(true),
-    blurSurfaces: z.array(z.enum(BLUR_SURFACES)).catch([]).default([]),
+    blurSurfaces: z
+      .array(z.enum(BLUR_SURFACES))
+      .catch([...DEFAULT_BLUR_SURFACES])
+      .default([...DEFAULT_BLUR_SURFACES]),
     shadowEffects: z.boolean().catch(false).default(false),
     surfaceTexture: z.enum(SURFACE_TEXTURES).catch("none").default("none"),
     reducedMotion: z.boolean().catch(false).default(false),

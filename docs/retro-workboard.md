@@ -366,6 +366,14 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
 
 ### SMALLS / HYGIENE
 
+<<<<<<< HEAD
+- ~~SMALLS LANE~~ MERGED: blur ON by default (`96c6df7d` — .catch+.default, explicit-[] survival
+  pinned, CT toggle test corrected both directions; contracts audit ARCHIVED) · w4 emit order
+  (`5272120b` — rpg-fire now precedes turnCompleted, probe-proven; report annotated, NOT archived:
+  F5's §10.1a economics pointer comment in compose/rpg.ts never landed — one line, security-
+  executor-owned file, route on next security batch). NEW VERIFY-SMALL: contracts F7 residue —
+  credentials.ts:3-7 comment says 5 providers incl. google_vertex, CRED_PROVIDERS has 4, and the
+  google_vertex providerMetadataSchema arm survives; disposition (archived doc carries it).
 - **ORPHAN-FIX LANES IN FLIGHT (08-02, owner: "handle all found open items"; BLUR RULED = schema
   defaults to DEFAULT_BLUR_SURFACES, ON for the 3 surfaces):** lane 1 = blur default + archive
   contracts audit + w4 emit-order patch · lane 2 = fork variables synthetic baseline (floor-
@@ -373,17 +381,28 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   empty the gate debt baseline. Merge each on report.
 - **ORPHANED OPEN ITEMS boarded from the archive sweep (08-02):** w4-my-lane S1 — `fireRpgTurnCompleted`
   still AFTER the turnCompleted emit (`engine.ts:1238`; report carries the exact patch, option 1) ·
+=======
+- **ORPHANED OPEN ITEMS boarded from the archive sweep (08-02):** ~~w4-my-lane S1~~ APPLIED 08-02
+  (`5272120b`, option 1 + an ordering pin; that report stays OPEN only for F5's compose-header pointer) ·
+>>>>>>> wt/agent-ad26533e40c9eaccf
   join-history ruling #8/F6 — floored fork's variable carry (`fork.ts:383`). SEVERITY NARROWED
   (owner + code, 08-02): fork is gated host-or-sole-present-human, floor is OPT-IN — the leak path
   needs floored member → becomes sole human → forks. Kept because fork's own §3.6 strip already
   covers content+reasoning on exactly this path; VARIABLES are the one missed plane, + the
   no-baseline divergence half is floor-independent. Small consistency fix, low priority. ·
+<<<<<<< HEAD
   contracts-audit F6 — `DEFAULT_BLUR_SURFACES` (3 members, zero consumers) vs schema default `[]`
   (two-line fix; closing it archives that whole audit) · ~~Button wrap variant~~ MERGED (size="wrap" arm — size axis stays the SOLE box owner; debt
   baseline terminal {}; rendered-proofed). NEW SMALL flagged by its sweep: 10 call sites use
   `!h-auto min-h-0 !py-0` (deliberate sub-touch-target text-height inline buttons, deterministic
   via !important, NOT the gate's hazard class) — candidate "inline" Button arm to retire the
   !important family; needs a side-eye pass; separate ticket.
+=======
+  ~~contracts-audit F6~~ CLOSED 08-02 (owner ruling: the schema DEFAULTS to `DEFAULT_BLUR_SURFACES`,
+  blur ships ON for panels/composer/modals; audit archived to `docs/history/reviews/stickler/`) ·
+  Button wrap/multiline size variant
+  (clears ui-size-via-variant's 2 debt rows).
+>>>>>>> wt/agent-ad26533e40c9eaccf
 
 - Macro feed (`chat-ops/macro-view.ts`) cast projection does NOT carry the new guide fields
   (appearance/outfit/thoughts) — RV-11 lane left it deliberately. Decide: should user macros be able
