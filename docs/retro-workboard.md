@@ -118,8 +118,14 @@ ChatContext.resolveChatProse op; rows 76/79 ride to S4 [label-only rows — rule
 yields slots for its substitution-free clauses]; "prose" NOT yet in USER_SETTINGS_SECTIONS —
 CORRECT per D107 arm B: the section tuple is the EDITOR's door, register it in the same commit
 as the S2 Prose settings section; integrator fixed the flagged pre-existing lifecycle healthz
-red [second missed site]). OWNER RULINGS: theme-radius narrowing FINE as-is · NumberField =
-embrace textbox, bounds via derived description — SEAL+SWEEP LANE IN FLIGHT. Merge each on
+red [second missed site]). OWNER RULINGS: theme-radius narrowing FINE as-is · ~~NumberField~~ MERGED (`210aef87`: seal derives locale-formatted bounds description [sr-only,
+composes with Field ids for free]; two Root-spread footguns fixed [aria-label/describedby parked
+on the wrapper div — touch-target CT had been labeling the void]; inputMode NOT set — lib already
+narrows per-platform [iOS negative-entry]; sweep premise FALSE: all 5 CTs were green against
+REAL native spinbuttons — TWO numeric-control families coexist [@orb/ui/number-field=textbox vs
+Input type=number=spinbutton]; only the 2 absence-assertions re-keyed). OWNER DESIGN CALL
+boarded: 4 feature sites render raw Input type=number [admin-override-field, engine-launch-config,
+tool-recurse-control] — no steppers/scrub/seal; migrate to NumberField or keep native? Merge each on
 report; check after each merge.
 
 ~~DOCS-ARCHIVE~~ **MERGED (`b1839031`)**: docs/history/ minted (sibling of architecture/history);
