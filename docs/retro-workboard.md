@@ -376,7 +376,7 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   iteration (the probe's fixture set is the harness — long-scene 3/3 reproduces), model choice,
   or a review-UI tell ("this reads like {{char}} — regenerate?") can move it. Folds naturally
   into PROSE-1 (the impersonate nudge becomes editable data there — iterate it against the probe).
-- **IMP-2** — visible Stop/cancel during impersonate (the unsubscribe handle IS the lever, nothing
+- **IMP-2 LANE IN FLIGHT (08-02)** — visible Stop/cancel during impersonate (the unsubscribe handle IS the lever, nothing
   renders it; guided icons show a misleading wait reason meanwhile).
 - **QUOTE-1 follow-up** — greeting-preview surfaces (greeting studio / facet editor /
   character-greeting-preview) render through the seal but don't get the dialogue tint (need the
