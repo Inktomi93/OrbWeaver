@@ -133,7 +133,7 @@ function WalletChip({
           <Text as="span" voice="gloss">
             {coin.name}
           </Text>
-          {locked === true && onRelease !== undefined ? <RpgFieldLock onRelease={onRelease} /> : null}
+          {locked === true && onRelease !== undefined ? <RpgFieldLock field={`the ${coin.name} purse`} onRelease={onRelease} /> : null}
         </Row>
       )}
     </Badge>

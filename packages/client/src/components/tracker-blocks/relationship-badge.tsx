@@ -32,7 +32,7 @@ export function RelationshipBadge({ relationship }: { readonly relationship: Rpg
     // so the badge yields width to the name (which is `shrink-0` in CastCard), and carry the full text on
     // `title` for hover. `min-w-0` lets the truncating child actually shrink inside the flex badge.
     return (
-      <Badge tone="soft" size="sm" intent="neutral" data-slot="relationship-badge" className="min-w-0 max-w-control-col" title={label}>
+      <Badge tone="soft" size="sm" intent="neutral" data-slot="relationship-badge" className="min-w-0 max-w-(--width-control-col)" title={label}>
         <Text as="span" size="micro" weight="medium" className="truncate">
           {label}
         </Text>
