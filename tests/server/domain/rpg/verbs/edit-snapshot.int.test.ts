@@ -75,6 +75,23 @@ describe("editSnapshot on a turnless game", () => {
     expect(snap?.fieldLocks?.["actorState"]).toBeUndefined();
   });
 
+  test("a per-actor hand edit never wipes the actors it did not name (the multi-edit clone-forward chain)", async () => {
+    // The e2e-caught defect (rpg-lite-loop SPEC 1): each committed hand edit clones forward onto a fresh
+    // narrator anchor, and the SECOND edit named only `mira` — so the keyed-array merge dropped `thorn`'s
+    // whole volatile row and the panel read back a hero with no HP. A hand editor writes the actors it can
+    // SEE (the client's `actorStatePatch` builds off the roster-only tracker view, which carries no `cast:`
+    // rows at all), so an unnamed actor is IGNORANCE, never a removal.
+    const { chatId, game, service } = await seedGame();
+    await service.editSnapshot({ principal: principal("host"), chatId, patch: { actorState: [actorWithWallet("thorn", 45, 3)] } });
+    await service.editSnapshot({ principal: principal("host"), chatId, patch: { actorState: [actorWithWallet("mira", 0, 4)] } });
+
+    const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
+    const byKey = new Map((snap?.actorState ?? []).map((a) => [a.actorRef.kind === "cast" ? a.actorRef.castKey : "", a]));
+    expect(byKey.get("thorn")?.wallet).toEqual([{ name: "gold", amount: 45 }]);
+    expect(byKey.get("thorn")?.trackerValues["focus"]?.value).toBe(3);
+    expect(byKey.get("mira")?.trackerValues["focus"]?.value).toBe(4);
+  });
+
   test("releaseLocks clears a fine path stamped earlier (release-only call, empty patch)", async () => {
     const { chatId, game, service } = await seedGame();
     await service.editSnapshot({
