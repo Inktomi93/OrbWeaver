@@ -118,7 +118,12 @@ claude.ai/code/artifact/40d785d1-100a-4ffb-882a-3e72a9a7ac35; params-deck + acti
 same URLs. Owner's two bars met. MOCK FEEDBACK RULED (08-02, round 3 in flight): output+context tokens =
 KnobRow SLIDERS (typeable, ghost arm, capability-fed ranges) · section editor's fused depth·order
 SPLITS — DEPTH moves to DELIVERY beside SPOKEN-AS ("depth goes near whatever role it goes in as"),
-ORDER stays in Placement. D1-D7 rulings still open. [round-1 note: (a) PER-VIEW
+ORDER stays in Placement. **OWNER APPROVED THE REDESIGN (08-02) — D1-D7 as recommended.** Round 3 also re-verifies §13
+into the definitive primitives table (EXISTS/VARIANT/COMPOSITE/MINT — incl. whether a Slider
+primitive exists AT ALL for the large-range token knobs; each MINT gets an anatomy sketch) —
+that table is the build lanes' dispatch input. PRESET-1 BUILD queues after round 3 lands +
+databank-precedence check (owner's standing order: databank LAST alone — PRESET-1 slots BEFORE
+it unless owner reorders; it's pre-databank UI work like the rest). [round-1 note: (a) PER-VIEW
 CONTEXT definition (static Assembly readout insufficient — each of the 5 views + list-only state
 gets its eye, argued per-view, elements name the decision they inform; mocks updated) · (b) one-home audit — both delivered above.] OWNER DECISIONS D1-D7 await (all with recs: inline-activate amend, CONTEXT readout, flatten,
 ghost-effective, build resolver, maxBudgetUsd verify-then-decide, customParameters row).
