@@ -192,6 +192,16 @@ integrity strip-diff audit caught a perl brace-eat DELETION before commit; teach
 body voice; SIDE-EYE ITEM: theme-editor preview bubbles now 2px tighter than the real transcript
 bubble they mimic [cross-feature import banned — needs a ruling or a shared token]). SIDE-EYE #1
 NOW DISPATCHABLE.
+**ACTOR-STATE MODEL STICKLER IN FLIGHT (owner-ordered 08-02 — "bandaid or clean?" + "NPCs come
+and go, is that modeled?"):** design-level review of the whole seam that ate 3 defects in a day —
+the actor taxonomy (roster humans/characters vs transient cast NPCs; TWO volatile homes
+actorState/castVolatile — why?; presence/departure semantics; the unread-castVolatile tell),
+the write model (partial array-images + per-plane omission policy vs an op-shaped write contract
+[upsert/remove ops] — weighed against xgrammar parseability + D112 fold), the locks:null dual-job
+split, gameplay fit (mid-scene entry w/ state, leave-and-return, NPC→roster promotion). VERDICT:
+coherent-as-is w/ receipts, or a spec-grade reshape proposal. Report →
+docs/reviews/stickler/2026-08-02-actor-state-model.md. The three fixes STAND meanwhile (correct
+for their bugs; the review judges the SHAPE).
 ~~SE-E~~ MERGED (`ad60f455`) — deeper than the P3: `ambient` is a VIEW key not a state plane;
 the verb merged it, toColumns dropped it, stamped a JUNK fieldLock, emitted the event, and minted
 a BLANK anchor slot — all silently. PLUS the hand path had NO F1 write-boundary parse (latent
