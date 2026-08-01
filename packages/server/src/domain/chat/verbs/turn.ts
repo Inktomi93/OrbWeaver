@@ -17,6 +17,7 @@ import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
+import { foreignLabelStops } from "@orb/kit/speaker-label";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { getLog } from "#foundation/observability";
 import type { WireTool } from "#infra/providers";
@@ -1795,16 +1796,27 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
     // name into the generation = a cross-tenant identity read. Mirrors the send/impersonate ownership belt; an
     // omitted id falls back to the caller's OWN active persona (server-derived, trusted — no check).
     await assertPersonaOwnedIfExplicit(ctx, principal.userId, chatId, personaId);
-    const { identity, connection, assembleContext, memoryConfig, memoryRecall, chatBehavior, attachedToolNames, macroRegistry, userMacroDraws, cardKeepLastX } =
-      await resolveTurnBase(ctx, deps, {
-        principal,
-        chatId,
-        kind: "impersonate",
-        anchorPersonaId: membership.chat.anchorPersonaId,
-        // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back.
-        triggerPersonaId: personaId !== undefined ? personaId : membership.activePersonaId,
-        guided,
-      });
+    const {
+      room,
+      identity,
+      connection,
+      assembleContext,
+      memoryConfig,
+      memoryRecall,
+      chatBehavior,
+      attachedToolNames,
+      macroRegistry,
+      userMacroDraws,
+      cardKeepLastX,
+    } = await resolveTurnBase(ctx, deps, {
+      principal,
+      chatId,
+      kind: "impersonate",
+      anchorPersonaId: membership.chat.anchorPersonaId,
+      // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back.
+      triggerPersonaId: personaId !== undefined ? personaId : membership.activePersonaId,
+      guided,
+    });
     // The non-persisting generation: same assemble ctx + impersonateNudge + steer a real turn builds, run
     // through the engine's generate-only path (no lock, no canon write, no bus emit). Each text delta is pushed
     // onto the bridge and yielded to the transport AS IT ARRIVES (progressive composer fill). The engine pays
@@ -1820,7 +1832,12 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
           runAsUserId: identity.runAsUserId,
           kind: "impersonate",
           intent: intent ?? {},
-          extraStopSequences: chatBehavior.customStoppingStrings,
+          // IMP-1 layer 2a — the CHAR-NAME STOP set. An impersonate draft is the USER's line, so a `\nSeren:`
+          // is the model rolling on into the cast's lines; cut it at the wire (ST's `getStoppingStrings`
+          // group arm, script.js:3010-3029 — one stop per present member). Measured need: the voice-lock
+          // nudge alone leaves 28% character bleed on the local 8B (scripts/probes/impersonate). Rides the
+          // host's own custom stops; a stop-less model drops them capability-gated + loud (resolveChat).
+          extraStopSequences: [...chatBehavior.customStoppingStrings, ...foreignLabelStops(room.castNames.map((c) => c.name))],
           memoryConfig,
           ...(memoryRecall !== null ? { memoryRecall } : {}),
           attachedToolNames,
