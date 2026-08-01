@@ -6,7 +6,16 @@ import { createHash } from "node:crypto";
 import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES, IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "@orb/contracts/imagery";
 import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS, PRESET_GUIDED_SLOT_IDS } from "@orb/contracts/preset";
 import type { ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
-import { legacyProseOverrides, PROSE_HOMES, PROSE_MACRO_MODES, PROSE_SLOT_IDS, PROSE_SLOTS, resolveProse, resolveProseText } from "@orb/contracts/prose";
+import {
+  legacyProseOverrides,
+  PROSE_HOMES,
+  PROSE_MACRO_MODES,
+  PROSE_SLOT_IDS,
+  PROSE_SLOTS,
+  resolveProse,
+  resolveProseText,
+  USER_PROSE_SLOT_IDS,
+} from "@orb/contracts/prose";
 import baseline from "../../../packages/contracts/src/prose/prose-baseline.json" with { type: "json" };
 import { expect, test } from "../../support/fixtures";
 
@@ -289,5 +298,26 @@ test("adapted imagery slots are byte-identical to the shipped catalog", () => {
   }
   for (const [mode, id] of Object.entries(IMAGERY_CAPTION_SLOT_IDS)) {
     expect(resolveProseText(id, {})).toBe(DEFAULT_CAPTION_INSTRUCTIONS[mode as keyof typeof DEFAULT_CAPTION_INSTRUCTIONS]);
+  }
+});
+
+// ── The editable cohort (S2) — what the Prose settings section offers a host ─────────────────────────
+test('USER_PROSE_SLOT_IDS is every `home:"user"` slot whose override is stored in `UserSettings.prose`', () => {
+  // DERIVED, never hand-listed: the day a user-home table row lands, the editor offers it. The six
+  // legacy-adapted imagery fields are excluded because their override storage is `UserSettings.imagery`
+  // (§4.6 — adapt, never duplicate), and a second door would write bytes the resolver never reads.
+  const legacy = new Set<ProseSlotId>([...Object.values(IMAGERY_TEMPLATE_SLOT_IDS), ...Object.values(IMAGERY_CAPTION_SLOT_IDS)]);
+  const expected = PROSE_SLOT_IDS.filter((id) => PROSE_SLOTS[id].home === "user" && !legacy.has(id));
+  expect(USER_PROSE_SLOT_IDS).toStrictEqual(expected);
+  expect(USER_PROSE_SLOT_IDS.some((id) => legacy.has(id))).toBe(false);
+  expect(USER_PROSE_SLOT_IDS).toContain("imagery.negative.base");
+});
+
+test("no editable slot id NESTS inside another — the settings key-partition would throw at the door", () => {
+  // `UserSettings.prose` keys ARE slot ids, so the section claims dotted keys. The partition's nesting arm
+  // reads `a.b` beside `a.b.c` as a parent/child pair (it is one, for every other namespace), which would
+  // throw at composition-root init — a white screen at boot. Keep ids sibling-shaped.
+  for (const id of USER_PROSE_SLOT_IDS) {
+    expect(USER_PROSE_SLOT_IDS.filter((other) => other.startsWith(`${id}.`))).toStrictEqual([]);
   }
 });

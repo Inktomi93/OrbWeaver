@@ -13,6 +13,7 @@ import {
   databankSettingsSection,
   imageryTemplatesSection,
   memorySettingsSection,
+  proseSettingsSection,
 } from "@orb/client/features/chat";
 import {
   adminCatalogSection,
@@ -243,6 +244,7 @@ test("the real door's settings-section claims partition cleanly against DEFAULT_
     worldInfoSettingsSection,
     databankSettingsSection,
     imageryTemplatesSection,
+    proseSettingsSection,
     mediaTrustSection,
     computeSection,
     sharedAccessSection,

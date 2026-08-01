@@ -26,10 +26,10 @@
 import { AUTOMATION_PROSE_SLOTS } from "#automation";
 import { CHAT_PROSE_SLOTS } from "#chat";
 import { DISCOVERY_PROSE_SLOTS } from "#discovery";
-import { IMAGERY_PROSE_SLOTS } from "#imagery";
+import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_PROSE_SLOTS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
 import { PRESET_PROSE_SLOTS } from "#preset";
 import type { ProseOverrides, ProseResolution, ProseSlotDef, ProseSlotId } from "#prose-slot";
-import { proseOverrideFromLegacy } from "#prose-slot";
+import { PROSE_SLOT_IDS, proseOverrideFromLegacy } from "#prose-slot";
 
 export * from "#prose-slot";
 
@@ -42,6 +42,22 @@ export const PROSE_SLOTS: Record<ProseSlotId, ProseSlotDef> = {
   ...AUTOMATION_PROSE_SLOTS,
   ...DISCOVERY_PROSE_SLOTS,
 };
+
+/** The legacy-adapted user slots (§4.6): their override is the pre-PROSE-1 `UserSettings.imagery.*` string
+ *  field, NOT a `UserSettings.prose` row, and their editor is the Image-prompts section. Adapted, never
+ *  duplicated — so the prose editor must not offer them a second door into a storage they don't use. */
+const LEGACY_ADAPTED_USER_SLOT_IDS: ReadonlySet<ProseSlotId> = new Set<ProseSlotId>([
+  ...Object.values(IMAGERY_TEMPLATE_SLOT_IDS),
+  ...Object.values(IMAGERY_CAPTION_SLOT_IDS),
+]);
+
+/** The slots a host edits in the Prose settings section — every `home:"user"` slot whose override is stored
+ *  in `UserSettings.prose`. DERIVED from the registry, never hand-listed: a new user-home slot table row
+ *  reaches the editor the same commit it lands, so the "authored but unreachable" class (the row-27 disease
+ *  this program exists to kill) cannot re-form on the client side either. */
+export const USER_PROSE_SLOT_IDS: readonly ProseSlotId[] = PROSE_SLOT_IDS.filter(
+  (id) => PROSE_SLOTS[id].home === "user" && !LEGACY_ADAPTED_USER_SLOT_IDS.has(id),
+);
 
 /** Host edit BEATS shipped default, two rungs, no cascade (PROSE-1 §4.3). The ONE place the precedence rule
  *  lives — every home's resolver funnels here so precedence and staleness can never drift apart. */

@@ -365,10 +365,10 @@ test("ActivePresetConfig mirrors PromptConfig (the FE-layer round-trip read)", (
   expectTypeOf<PromptConfig["params"]["maxContextTokens"]>().toExtend<ActivePresetConfig["params"]["maxContextTokens"]>();
 });
 
-/** The blob keys that are NOT registered `USER_SETTINGS_SECTIONS` members: the version stamp, and `prose`
- *  (deliberately unregistered until its edit surface lands — see the tuple's own comment). A key that
- *  appears in the blob without joining the tuple reds the settings pins, which is how this was found. */
-type NonSectionKeys = "schemaVersion" | "prose";
+/** The blob keys that are NOT registered `USER_SETTINGS_SECTIONS` members: the version stamp only (`prose`
+ *  joined the tuple with its edit surface at PROSE-1 S2). A key that appears in the blob without joining the
+ *  tuple reds the settings pins, which is how this was found. */
+type NonSectionKeys = "schemaVersion";
 
 /** Every key the settings blob may carry, DERIVED from the homed section tuple (never a second spelling of
  *  the axis — `no-inline-union-redecl` is the enforcer) plus the two non-section keys above. */

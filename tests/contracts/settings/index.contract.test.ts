@@ -237,6 +237,14 @@ test("USER_SETTINGS_SECTIONS includes persona (section-patchable via updateUserS
   expect(USER_SETTINGS_SECTIONS).toContain("persona");
 });
 
+test("USER_SETTINGS_SECTIONS includes prose — the PROSE-1 S2 editor's door, landed WITH its writer (D107 arm B)", () => {
+  expect(USER_SETTINGS_SECTIONS).toContain("prose");
+  // A section-patch merges per key, and a prose key is a slot id: a patched slot must not disturb a sibling.
+  const merged = parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, prose: { "chat.arbiter.system": { text: "mine", baseVersion: 1 } } });
+  expect(merged.prose["chat.arbiter.system"]).toEqual({ text: "mine", baseVersion: 1 });
+  expect(merged.prose["chat.compaction.system"]).toBeUndefined();
+});
+
 // ── chat (PD-146) — the client-honored send/continue/stream behavior namespace ──
 
 test("UserSettings.chat reads the PD-146 defaults from an empty blob (Enter sends, smooth-stream off)", () => {
