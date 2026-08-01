@@ -6,7 +6,16 @@
 import type { ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import type { RpgActorVolatile, RpgBusEvent, RpgExtractionMode, RpgGameConfig, RpgQuest, RpgSnapshotState, RpgToolCall } from "@orb/contracts/rpg";
+import type {
+  RpgActorVolatile,
+  RpgBusEvent,
+  RpgExtraction,
+  RpgExtractionMode,
+  RpgGameConfig,
+  RpgQuest,
+  RpgSnapshotState,
+  RpgToolCall,
+} from "@orb/contracts/rpg";
 import { RPG_PROFILE_FREEFORM, RPG_RECENT_BEATS_KEEP_DEFAULT } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { presets, rpgGames } from "@orb/db";
@@ -25,6 +34,7 @@ import type {
   RpgStateDelta,
 } from "../../../../packages/server/src/domain/rpg/index";
 import { createRpgChatOps, createRpgFlushBarrier, createRpgService, createRpgStagingStore } from "../../../../packages/server/src/domain/rpg/index";
+import { buildRosterRefIndex, extractionToStateDelta } from "../../../../packages/server/src/domain/rpg/tools/apply";
 import { makeModelCapability, makeResolvedConnection } from "../../../support/factories/resolved-connection";
 import { FROZEN_AT, seedChat, seedMessage, seedUser } from "../chat/_support";
 
@@ -181,6 +191,13 @@ export interface RpgFakes {
   /** The cheap-mode tool-round fake return — the DEDICATED post-commit round `cheap` runs and a non-folding
    *  `folded` turn falls back to (W1c supplies the real one; here it's programmable). Default: empty = no-op. */
   toolRoundDelta: RpgStateDelta;
+  /** The MODEL'S OWN OUTPUT for the next beats — one `RpgExtraction` per flush, consumed head-first. When the
+   *  queue has an entry the post-commit round folds it through the REAL applier (`extractionToStateDelta`) over
+   *  the round's REAL `baseState`, so a test drives state exactly as a live turn does (schema shape → applier →
+   *  accumulator merge → write boundary) instead of hand-shaping a `statePatch` literal — the hand-built-view
+   *  class of gap this seam exists to make unreachable. Empty ⇒ `toolRoundDelta` (the byte-identical old path).
+   *  Mints are stable counters (determinism). */
+  extractions: RpgExtraction[];
   /** R1 — the `foldTurnToolCalls` fake return (the folded path's delta; NO model call in the real impl). */
   foldedDelta: RpgStateDelta;
   /** R1 — the wire tools the `buildFoldedTurn` fake mounts + its reconcile note. Default: one tool, no note. */
@@ -283,6 +300,7 @@ export function makeRpgService(
     foldGuarded: over.foldGuarded ?? false,
     dice: [...(over.dice ?? [])],
     toolRoundDelta: over.toolRoundDelta ?? { statePatch: {}, journal: [] },
+    extractions: [],
     foldedDelta: over.foldedDelta ?? { statePatch: {}, journal: [] },
     foldedTools: over.foldedTools ?? [{ name: "update_scene", description: "the scene", parameters: { type: "object" } }],
     ...(over.foldedToolsThrow !== undefined ? { foldedToolsThrow: over.foldedToolsThrow } : {}),
@@ -320,6 +338,10 @@ export function makeRpgService(
     return { messageId, variantId };
   };
   const resolveRoster: RpgResolveRoster = () => Promise.resolve(fakes.roster);
+  let extractionMintSeq = 0;
+  let itemSeq = 0;
+  let questSeq = 0;
+  let objectiveSeq = 0;
   const runToolRound: RpgRunToolRound = async (input) => {
     fakes.toolRoundCalls.push({ chatId: input.chatId, messageId: input.messageId, variantId: input.variantId, reconcile: input.reconcile });
     // The flush-barrier race test HOLDS the round in-flight via this gate (a slow dedicated state round is the
@@ -327,7 +349,20 @@ export function makeRpgService(
     if (fakes.stateRoundGate !== undefined) {
       await fakes.stateRoundGate;
     }
-    return fakes.toolRoundDelta;
+    const extraction = fakes.extractions.shift();
+    if (extraction === undefined) {
+      return fakes.toolRoundDelta;
+    }
+    // The REAL fold: the model's structured output applied over the round's REAL base by the production
+    // applier — the same call `runStateRound` makes in `entry/compose/rpg.ts`.
+    extractionMintSeq += 1;
+    const n = extractionMintSeq;
+    return extractionToStateDelta(
+      input.baseState,
+      extraction,
+      { item: () => `item_${n}_${itemSeq++}`, quest: () => castId<RpgQuestId>(`q_${n}_${questSeq++}`), objective: () => `obj_${n}_${objectiveSeq++}` },
+      buildRosterRefIndex(fakes.roster),
+    );
   };
   // R1 — the folded pair. NEITHER makes a model call in the real impl, which is the whole point: a test that
   // sees a `foldCall` and NO `toolRoundCall` has proven the second call is gone.
