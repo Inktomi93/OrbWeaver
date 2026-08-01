@@ -174,11 +174,15 @@ export async function gatherTurnContext(
   // tree so `{{expr::rpg.…}}` reads state on a game turn. A READ mirror, never a write. The delta context mirrors
   // the reminder's (same rosterNames/castFields/relationshipHints) so the `{{rpgDelta}}` macro == the reminder's
   // delta block. Full-mode macros (`rpgMap`/`rpgMorale`/…) are ABSENT from the map ⇒ they resolve "" (honest empty).
+  // `dateMode` + `statProfile` are handed in for the same reason `buildLiteReminder` gets them: the feed composes
+  // the REMINDER'S line builders, so the host's date ruling + attribute vocabulary govern both surfaces alike.
   const feed = buildRpgMacroFeed({
     view,
     prevSnapshot,
     curSnapshot,
     deltaContext: { rosterNames, trackerDefs: game.config.trackers, relationshipHints: game.config.features.relationshipHints },
+    dateMode: game.config.dateMode,
+    statProfile: game.config.statProfile,
   });
   // `cardKeepLastX` (M2, parity-plus §3.5) rides the structural gather contract to the engine's wire seam.
   // `tools: []` in EVERY mode — the fold does not use the tool-use registry (a registry tool would be executed
