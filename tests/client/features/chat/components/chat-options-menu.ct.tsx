@@ -23,14 +23,17 @@ import { CHAT_ID } from "../fixtures";
 // Leave (all in the Members tab); the turn actions live on the WAND (#41). "Turn on RPG" is the #40
 // RPG-overlay toggle (a submenu trigger — same role=menuitem surface) — LIVE on a draft too (enabling
 // the overlay is a PRE-CANON decision: the first send mints the game before the opening turn).
-const FULL_ITEM_SET = ["New chat with same cast", "Turn on RPG", "Select messages…", "Rename", "Download transcript", "Close chat", "Delete chat"];
+const FULL_ITEM_SET = ["New chat with same cast", "Turn on RPG", "Select messages…", "Rename", "Close chat", "Delete chat"];
 
 // The items DISABLED on a draft (everything that needs a committed server row / canon), each with a reason.
-const DRAFT_DISABLED = ["Select messages…", "Rename", "Download transcript", "Delete chat"];
+const DRAFT_DISABLED = ["Select messages…", "Rename", "Delete chat"];
 // The items that stay LIVE on a draft (canon-less: cast-based new-chat + navigation + the overlay stage).
 const DRAFT_ENABLED = ["New chat with same cast", "Turn on RPG", "Close chat"];
 // The unlock-condition reason must NAME when it becomes available, not just say "unavailable".
 const UNLOCK_REASON = /send/u;
+// The lifecycle-placement ABSENCE pins: no download/export item may exist in the ROOM menu.
+const ANY_TRANSCRIPT = /transcript/u;
+const ANY_EXPORT = /export/iu;
 const FIRST_SEND_UNLOCK = /send the first message/u;
 
 test("#8: a DRAFT renders the IDENTICAL item set — nothing hidden, canon-requiring items disabled", async ({ mount, page }) => {
@@ -68,7 +71,18 @@ test("#8: a COMMITTED chat's row actions are ENABLED (there IS a server row) —
   await component.getByRole("button", { name: "Chat options" }).click();
 
   await expect(page.getByRole("menuitem", { name: "Rename", exact: true })).toBeEnabled();
-  await expect(page.getByRole("menuitem", { name: "Download transcript", exact: true })).toBeEnabled();
+});
+
+// The lifecycle one-home ruling: import/export live on the LIST side (band ghost + row kebab). The ROOM
+// carries no import/export chrome — this pins the ABSENCE, so a re-scattered download can't land quietly.
+test("lifecycle placement: the room ⋯ menu offers NO transcript download (its one home is the list row kebab)", async ({ mount, page }) => {
+  await routeTrpc(page, {});
+  const component = await mount(<ChatOptionsMenuStory withCast={true} />);
+  await component.getByRole("button", { name: "Chat options" }).click();
+
+  await expect(page.getByRole("menuitem", { name: "Rename", exact: true })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: ANY_TRANSCRIPT })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: ANY_EXPORT })).toHaveCount(0);
 });
 
 test("#8: a DRAFT-disabled item is not activatable (Playwright refuses to click a disabled menu item)", async ({ mount, page }) => {

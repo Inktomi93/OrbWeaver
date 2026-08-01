@@ -245,9 +245,9 @@ test("D2 the bulk Tag action opens a picker and applies a tag to the selection",
 test("D4 the create dialog gates Create on BOTH name and description, with the requirement shown", async ({ mount, page }) => {
   await routeThree(page);
   const component = await mount(<CharacterLibrarySurfaceStory />);
-  await component.getByRole("button", { name: "New or import a character" }).click();
-  // The Menu popup + the create Dialog are portaled outside the mount root — query them via `page`.
-  await page.getByRole("menuitem", { name: "New character" }).click();
+  // The band's ONE primary opens the create dialog directly (the ratified band anatomy — no split menu).
+  // The Dialog is portaled outside the mount root — query its fields via `page`.
+  await component.getByRole("button", { name: "New", exact: true }).click();
 
   const create = page.getByRole("button", { name: "Create", exact: true });
   await expect(create).toBeDisabled();
@@ -296,16 +296,15 @@ test("⑪ with no stored pageSize, the request falls to the schema default (30)"
 
 // ── The card-import DROP path (the owner-reported P1) ──────────────────────────────────────────────
 // Dropping a character card onto "Import card" used to do nothing at all: zero requests, no error. These
-// drive the real product path (+ menu → Import card → DROP) and assert the multipart POST fires, and that
+// drive the real product path (the band's Import ghost → DROP) and assert the multipart POST fires, and that
 // a card the server can't read gets a LOUD toast naming why instead of a fabricated "Card imported."
 // `notify` is unbound in CT so it falls through to the console seam (success→info, error→error).
 
 const A_DROPPED_CARD = { name: "villain.png", mimeType: "image/png", content: "PNG" };
 
-/** Open the create menu's "Import card" dialog and return its dropzone. */
+/** Open the band's Import dialog (the ghost beside New — import's ONE home) and return its dropzone. */
 async function openImportDialog(page: Page): Promise<Locator> {
-  await page.getByRole("button", { name: "New or import a character" }).click();
-  await page.getByRole("menuitem", { name: "Import card" }).click();
+  await page.getByRole("button", { name: "Import a character card" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
   return dialog.locator('[data-slot="file-dropzone"]');

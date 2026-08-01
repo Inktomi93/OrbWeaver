@@ -1,7 +1,7 @@
 // The §4.6 bulk selection bar — tag / archive / delete the selected characters (the bulk verbs). Lives in a
 // COMPONENT (not the surface) so its interior Dialogs are legal: a surface renders no outer
 // Dialog/Sheet/Drawer (client-structure surface-purity), but a component owning its own interior
-// Dialog/AlertDialog is fine (the persona-panel-row / character-create-menu precedent). The Tag action's
+// Dialog/AlertDialog is fine (the persona-panel-row / character-create-actions precedent). The Tag action's
 // `bulkAddCardTag` takes a `tagName`, so the entry doubles as attach-existing or create-and-attach. Delete
 // is a hard, undo-less server verb (`bulk-remove`) → it is gated behind an AlertDialog confirm stating the
 // count (§13.8 R4 / FINAL-Character §11.1 — destructive confirms are the one legal INTERRUPT modal).

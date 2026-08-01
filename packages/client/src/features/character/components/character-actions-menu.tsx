@@ -1,10 +1,14 @@
-// The CONTEXT Actions menu — the persistent options menu above the CONTEXT tab strip: Duplicate · Export
-// card · Convert to persona · Set as welcome greeter · Delete. All immediate identity gestures. Duplicate
-// and Delete sit behind a `ConfirmDialog` interrupt, opened via controlled state outside the Menu (a menu
-// item closes the menu on click).
+// The CONTEXT Actions menu — the persistent options menu above the CONTEXT tab strip: Duplicate · Convert
+// to persona · Set as welcome greeter · Delete. All immediate identity gestures. Duplicate and Delete sit
+// behind a `ConfirmDialog` interrupt, opened via controlled state outside the Menu (a menu item closes the
+// menu on click).
+//
+// EXPORT IS DELIBERATELY ABSENT: card export homes on the character LIST row kebab, its ONE home (the
+// ratified lifecycle placement — import on the list band, export on the row kebab, no lifecycle chrome in
+// the editor).
 
 import type { CharacterId } from "@orb/kit/ids";
-import { MenuItem, MenuLinkItem } from "@orb/ui/menu";
+import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, RowActionsMenu } from "#components";
@@ -51,9 +55,6 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
         }}
       >
         <MenuItem onClick={(): void => setDuplicateOpen(true)}>Duplicate</MenuItem>
-        <MenuLinkItem href={`/api/export/character/${characterId}`} download={true}>
-          Export card
-        </MenuLinkItem>
         <MenuItem onClick={(): void => convert.mutate({ characterId, swapMacros: true })}>Convert to persona</MenuItem>
         <MenuItem
           onClick={(): void =>

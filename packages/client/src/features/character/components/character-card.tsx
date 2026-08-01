@@ -13,11 +13,15 @@ import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
-import { Archive, Copy, Icon, MessagesSquare, Star } from "@orb/ui/icons";
+import { Archive, Copy, Download, Icon, MessagesSquare, Star } from "@orb/ui/icons";
 import { ListRow } from "@orb/ui/list-row";
-import { MenuItem } from "@orb/ui/menu";
+import { MenuItem, MenuLinkItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { ROW_REVEAL, RowActionsMenu, RowToggleAction } from "#components";
+
+/** The owner-gated card download route (`GET /api/export/character/:characterId`) — export's ONE home is
+ *  this row's kebab (import is the list band's ghost; the editor carries no lifecycle chrome). */
+const EXPORT_CHARACTER_PATH = "/api/export/character/";
 
 export interface CharacterCardItem {
   readonly id: string;
@@ -179,6 +183,10 @@ function NormalRowActions({
           <Icon icon={Copy} size="sm" />
           Duplicate
         </MenuItem>
+        <MenuLinkItem download={true} href={`${EXPORT_CHARACTER_PATH}${character.id}`}>
+          <Icon icon={Download} size="sm" />
+          Export card
+        </MenuLinkItem>
       </RowActionsMenu>
     </>
   );

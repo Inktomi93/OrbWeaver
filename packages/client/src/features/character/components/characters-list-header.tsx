@@ -2,7 +2,7 @@
 // and the close of the A1/N2 gap: characters passed no `listHeader` at all, so its title + create lived in
 // the in-surface toolbar while every other section had migrated to the band.
 //
-//   PICKER (no selection)     — `CHARACTERS` + the ONE primary: create (the landed create/import menu).
+//   PICKER (no selection)     — `CHARACTERS` + the ONE primary: New, with Import beside it as the band ghost.
 //   PROJECTION (her selected) — back chevron + `CHATS · <name>` + the ONE primary: New chat.
 //
 // The band swaps on the SAME selection read the pane does (D9): the band is the panel's chrome VOICE, and
@@ -22,7 +22,7 @@ import { ListPaneHeader } from "#components";
 import { useTRPC } from "#data";
 import { clearCharacterSelection, useSelectedCharacterId } from "#state";
 import { startChatWithCharacter } from "../lib/character-chat-intents";
-import { CharacterCreateMenu } from "./character-create-menu";
+import { CharacterCreateActions } from "./character-create-actions";
 
 export function CharactersListHeader(): ReactElement {
   const selectedId = useSelectedCharacterId();
@@ -32,7 +32,7 @@ export function CharactersListHeader(): ReactElement {
 /** Role 1 — the library picker's band. No count: `character.list` is keyset-PAGED, so any number here would
  *  be "loaded so far", and a census that silently means something else is worse than none. */
 function PickerBand(): ReactElement {
-  return <ListPaneHeader action={<CharacterCreateMenu />} title="Characters" />;
+  return <ListPaneHeader action={<CharacterCreateActions />} title="Characters" />;
 }
 
 /** Role 2 — her history's band. The name resolves off the SAME `character.get` cache the editor beside it

@@ -41,7 +41,7 @@ import { CharacterBulkBar } from "../components/character-bulk-bar";
 import type { CharacterCardItem } from "../components/character-card";
 import { CharacterCardTile } from "../components/character-card";
 import { CharacterCategorizedList } from "../components/character-categorized-list";
-import { CharacterCreateMenu } from "../components/character-create-menu";
+import { CharacterCreateButton } from "../components/character-create-actions";
 import { CharacterFilterChips } from "../components/character-filter-chips";
 import { CharacterLibraryToolbar } from "../components/character-library-toolbar";
 import { useDuplicateCharacter, useRemoveCharacter } from "../hooks/use-character-context-mutations";
@@ -315,7 +315,7 @@ function CharacterLibraryBody({
   if (isEmpty) {
     return (
       <EmptyState
-        action={<CharacterCreateMenu />}
+        action={<CharacterCreateButton />}
         description="Weave your first one to begin."
         icon={<Icon icon={Users} size="lg" />}
         title="No characters yet"

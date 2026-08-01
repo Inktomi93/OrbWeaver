@@ -31,6 +31,8 @@ export type { BundleImportStarted } from "./import-bundle";
 export { importBundle } from "./import-bundle";
 export type { CardImportResult } from "./import-characters";
 export { importCharacters } from "./import-characters";
+export type { ChatImportResult } from "./import-chats";
+export { importChats } from "./import-chats";
 export type { TreeImportStarted } from "./import-tree";
 export { importTree, relativePathOf } from "./import-tree";
 export type { InvalidateFilter, Invalidation } from "./invalidation";

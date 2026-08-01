@@ -160,7 +160,25 @@ test("the per-row kebab opens the actions menu", async ({ mount, page }) => {
   await expect(page.getByRole("menuitem", { name: "Rename" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Star" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Archive" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Export transcript" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Delete" })).toBeVisible();
+});
+
+// The lifecycle one-home ruling: EXPORT homes on the row kebab (import is the band's ghost; the room
+// carries no lifecycle chrome). Both formats the host-gated route serves are plain download links — a
+// non-host member's GET 404s at the verb, so the item can't leak a plane the requester can't already read.
+test("§12 export homes on the row kebab — both formats link to the host-gated download route", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [ADVENTURE] });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await component.locator(LIST_ROW_ROOT, { hasText: "A grand adventure" }).hover();
+  await component.getByRole("button", { name: ADVENTURE_MENU }).click();
+  await page.getByRole("menuitem", { name: "Export transcript" }).click();
+
+  const jsonl = page.getByRole("menuitem", { name: "Chat file (.jsonl)" });
+  await expect(jsonl).toHaveAttribute("href", "/api/export/chat/chat_adventure");
+  await expect(jsonl).toHaveAttribute("download", "");
+  await expect(page.getByRole("menuitem", { name: "Plain text (.txt)" })).toHaveAttribute("href", "/api/export/chat/chat_adventure?format=txt");
 });
 
 test("a chat with a portrait-owning participant renders the REAL portrait; the others keep the initials blob (F7)", async ({ mount, page }) => {

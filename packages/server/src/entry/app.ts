@@ -34,6 +34,7 @@ import {
   registerExport,
   registerHealthz,
   registerImportBundle,
+  registerImportChat,
   registerImportTree,
   registerJoin,
   registerSpa,
@@ -252,6 +253,7 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     workloads: deps.services.workloads,
     ...(env.IMPORT_STAGING_DIR !== undefined ? { stagingDir: env.IMPORT_STAGING_DIR } : {}),
   });
+  registerImportChat(app, { registry: deps.portability });
   registerImportTree(app, {
     workloads: deps.services.workloads,
     registry: deps.portability,
