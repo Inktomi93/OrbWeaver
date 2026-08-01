@@ -1,0 +1,72 @@
+{
+  "slots": {
+    "preset.guided.opening": {
+      "version": 1,
+      "sha256": "e444cda2be03061e04abb68eb8d8b9b51e576ef330b5ccfd3123d989d7a97fa1"
+    },
+    "preset.guided.continue": {
+      "version": 1,
+      "sha256": "bde17c68284fd3979c93ca7e3f1493a75a73fb8b9f2bccd1d9a48ba2d1e8b931"
+    },
+    "preset.guided.response": {
+      "version": 1,
+      "sha256": "206bc5fa9f1e4d8519d2d5256d4cc99ecd1524e18dbfac42de4602bf950d919a"
+    },
+    "preset.guided.impersonate": {
+      "version": 1,
+      "sha256": "c5c31daa4fad91bde4208ade961093155d91c9797516f596fc1a21e7540d6b20"
+    },
+    "preset.guided.rewrite": {
+      "version": 1,
+      "sha256": "f043758acd3020b3686e4912a3f1f2cdef7150d75068153626c4f2b1b54a46de"
+    },
+    "preset.guided.greetingRewrite": {
+      "version": 1,
+      "sha256": "32dfcc0124e6448e3b7e55643e947742eace047f837d6a7933f9ed887d451cbb"
+    },
+    "preset.guided.greetingNew": {
+      "version": 1,
+      "sha256": "411e1d4538644b5b5a48d6cf9389c00b05e42c6c08c3fb32bb6594385772f9e0"
+    },
+    "preset.format.continueNudge": {
+      "version": 1,
+      "sha256": "9cd8b4689684c1d0b655ae884ddd532898543e3f9888105d8aad10a1145a50c0"
+    },
+    "preset.format.impersonateNudge": {
+      "version": 1,
+      "sha256": "9651ac78c00a606fe57b6597916ac88963484e75dd17d426f3f45a2df819d160"
+    },
+    "preset.format.responseNudge": {
+      "version": 1,
+      "sha256": "11cb55af76d11b8122c372f81799a306e5be322addd4d50d95055c537bec9a91"
+    },
+    "preset.format.wiFormat": {
+      "version": 1,
+      "sha256": "eee65f3e08de9cb55308fa46b25f2a3049186e91054979400cae68591be54717"
+    },
+    "imagery.template.character": {
+      "version": 1,
+      "sha256": "afbdc4416d5a8eb201e5ef8941620343847cca285da3b71e7d8bb0ec3d25d713"
+    },
+    "imagery.template.face": {
+      "version": 1,
+      "sha256": "9622bc94b89a1e0c23ddee99d1435c2d15891771d1e3767865fed4b72e73e1a4"
+    },
+    "imagery.template.scenario": {
+      "version": 1,
+      "sha256": "8c78875062a9af9a7c10181c806536675870cf4069de1f2e4849b629d3c91cb9"
+    },
+    "imagery.template.background": {
+      "version": 1,
+      "sha256": "2f8630fb5de1ec4abdefb7b5b46019a62df41efee8577d9bf52969b7778fc233"
+    },
+    "imagery.caption.characterMultimodal": {
+      "version": 1,
+      "sha256": "6e6ac4144a7eec8fc4d894f6b3b3bba1efffe9082ddb282fe1e8b86f6acb0143"
+    },
+    "imagery.caption.faceMultimodal": {
+      "version": 1,
+      "sha256": "cd3aabe6ca5c34c306d53ece026c593ef27fa86992a3d6c2fff7dfb6a16834ad"
+    }
+  }
+}

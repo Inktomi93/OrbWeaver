@@ -18,7 +18,7 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
-import { uploadAsset, useInvalidation } from "#data";
+import { useInvalidation, useUploadAsset } from "#data";
 import type { AppFormInstance } from "#forms";
 import { notify } from "#lib";
 import { toggleSpoilerBlur, useSpoilerBlur } from "#state";
@@ -110,13 +110,14 @@ export function CharacterHeroBand({
  *  square (stickler 2026-08-01 F2). */
 function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; readonly trpc: Trpc }): ReactElement {
   const invalidation = useInvalidation();
+  const upload = useUploadAsset();
   const update = useUpdateCharacter({ trpc, invalidation });
   const [previewHash, setPreviewHash] = useState<string | null>(detail.avatarHash);
   const [confirming, setConfirming] = useState(false);
 
   const onFile = async (file: File): Promise<void> => {
     try {
-      const stored = await uploadAsset(file, "avatar");
+      const stored = await upload(file, "avatar");
       update.mutate({ characterId: detail.id, input: { avatarAssetId: stored.assetId } });
       setPreviewHash(stored.hash);
       // A static ring flash, no keyframe (reduced-motion-safe by construction); clears itself shortly after.

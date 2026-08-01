@@ -122,32 +122,17 @@ const STATIC: Record<string, string> = {
   "discovery.modelRouting": "the model-routing summary (same surface) — a stats/discovery rollup written by the same passes.",
   "search.similarArt":
     "input-keyed (characterId) cosine over image vectors (features/discovery/surfaces/corpus-dossier-surface.tsx) — the vectors are rewritten only by the image-embed pass, which announces nothing (the analytics class above).",
-};
 
-const DEFERRED: Record<string, string> = {
-  // Turn ECONOMICS rollups. A driver DOES exist in principle — turn completion fans `chatsChanged` on the user
-  // bus — but hanging the analytics reads on it would refetch a 5-panel dashboard on EVERY commit, so the
-  // shape of the row (a stats-scoped bus member, or a route-gated invalidate) is unresolved. Today: an open
-  // Analytics route shows numbers frozen at mount, and a re-open inside gcTime shows numbers up to 5 min old.
-  // Remediation for all twelve: decide the stats freshness signal when Analytics is next touched, then delete
-  // these entries (they go stale-RED the moment a row lands).
-  "stats.overview": "the Analytics overview totals (features/stats/surfaces/analytics-overview-surface.tsx) — stale until remount after gcTime.",
-  "stats.freshness": "the corpus-freshness panel (same surface) — same.",
-  "stats.wrapped": "the wrapped/highlights panel (same surface) — same.",
-  "stats.momentum": "the momentum panel (same surface) — same.",
-  "stats.leaderboard": "the leaderboard (features/stats/components/analytics-list-header.tsx + the list surface) — same.",
-  "stats.byModel": "the per-model economics table (features/stats/components/analytics-models-tab.tsx) — same.",
-  "stats.latency": "the latency distribution (analytics-models-tab.tsx + analytics-character-surface.tsx) — same.",
-  "stats.character": "one character's economics (features/stats/surfaces/analytics-character-surface.tsx) — same.",
-  "stats.personaUsage": "per-persona usage (features/stats/components/analytics-personas-tab.tsx) — same.",
-  "stats.timeseries": "the time-series chart (features/stats/components/analytics-time-tab.tsx) — same.",
-  "stats.temporal": "the temporal breakdown (same tab) — same.",
-  "stats.activityHeatmap": "the activity heatmap (same tab) — same.",
-
-  // The owned-asset picker in the character gallery dialog (features/chat/anchors/character-gallery-dialog.tsx).
+  // ── the upload seam: a RAW multipart POST, so its freshness lives outside the seam (blind spot 4) ────────
   "assets.listOwned":
-    "the upload seam is a RAW multipart POST (data/upload-asset.ts) that invalidates nothing, so an asset uploaded elsewhere in the session (avatar/persona/background pickers) is missing from this list until gcTime evicts it. Remediation: route the upload seam's success through invalidation.invalidateFilters([trpc.assets.listOwned.pathFilter()]).",
+    "driven by the upload front door `useUploadAsset` (data/use-upload-asset.ts) — every completed upload calls invalidation.invalidateFilters([trpc.assets.listOwned.pathFilter()]). The upload route is a raw multipart POST, not a tRPC mutation, so it can carry no `invalidates` and no bus event announces it; the hook IS the driver, and every feature upload (character/persona avatars, backgrounds, chat attachments) goes through it. Proven by tests/client/data/use-upload-asset.ct.tsx (the mounted listOwned read refetches after an upload).",
 };
+
+// Empty today — every founding deferral was resolved 2026-08-01 (the twelve `stats.*` reads gained the
+// `chatsChanged` row; `assets.listOwned` gained its upload-seam driver and moved to STATIC above). The lane
+// stays: this is where a key with a REAL freshness debt gets tracked with its remediation, rather than being
+// laundered into STATIC (which asserts the key is fine as-is).
+const DEFERRED: Record<string, string> = {};
 
 // ── the seam, found BY SYMBOL (never by path) ────────────────────────────────────────────────────────────
 const SEAM_FACTORY = "createInvalidation";
@@ -424,13 +409,15 @@ export const gate: GateDescriptor = {
     },
     {
       // STALE: a cited key that GAINED its row. A synthetic tree cannot inject into this module's own maps, so
-      // the proof BORROWS a live DEFERRED key — `stats.overview` — and gives it a row. NEXT PRUNER: if the
-      // stats deferrals are resolved, repoint this fixture at another SURVIVING registry key (else the
-      // stale-bite proof goes vacuous — it would expect a finding and get none).
+      // the proof BORROWS a live registry key — `notifications.list` (STATIC: SSE-driven) — and gives it a
+      // row. NEXT PRUNER: if that entry is ever deleted, repoint this fixture at another SURVIVING registry
+      // key (else the stale-bite proof goes vacuous — it would expect a finding and get none). It must NOT be
+      // a REAL_TREE_SENTINELS key: a sentinel in the synthetic tree activates the ORPHAN arm and buries this
+      // finding under 40 orphan reports.
       files: {
         "packages/client/src/data/invalidation.ts":
-          "export interface Invalidation { readonly invalidate: () => void }\nexport function createInvalidation(trpc: Trpc) {\n  return [trpc.stats.overview.pathFilter()];\n}\n",
-        "packages/client/src/features/x/components/x.tsx": "export const q = trpc.stats.overview.queryOptions({});\n",
+          "export interface Invalidation { readonly invalidate: () => void }\nexport function createInvalidation(trpc: Trpc) {\n  return [trpc.notifications.list.pathFilter()];\n}\n",
+        "packages/client/src/features/x/components/x.tsx": "export const q = trpc.notifications.list.queryOptions({});\n",
       },
       expect: { messageIncludes: "GAINED an invalidation row" },
       why: "the ratchet's other direction: a cited key that gains a seam row must RED its now-lying registry entry",

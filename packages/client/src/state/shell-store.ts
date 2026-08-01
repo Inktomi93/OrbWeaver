@@ -284,11 +284,19 @@ export function resolvePanelMode(
   return resolved;
 }
 
-/** Is a section's LIST panel currently docked — the narrow #state projection a section definition reads
- *  instead of `useShellLayout` (client-features-no-cross bars a feature from importing the app-shell
- *  hook). Routes through the SAME `resolvePanelMode` algebra `useShellLayout` uses, so the two can never
- *  disagree (the M10 correction bug: `showRecents` broke in the 48–64rem regime when this read only
- *  `mobileViewport`). */
+/** Is a section's LIST panel currently docked — the narrow #state projection a section body reads instead of
+ *  `useShellLayout` (client-features-no-cross bars a feature from importing the app-shell hook, so this tier
+ *  is the ONLY legal way for a feature to ask). Routes through the SAME `resolvePanelMode` algebra
+ *  `useShellLayout` uses, so the two can never disagree (the M10 correction bug: `showRecents` broke in the
+ *  48–64rem regime when this read only `mobileViewport`).
+ *
+ *  LIVENESS (swept 2026-08-01): ZERO feature consumers today. Its one caller was the chat landing's
+ *  `showRecents` — "when the Chats LIST is docked it already IS the recents finder, so don't duplicate it" —
+ *  and H2 (`3f54a4d3`) retired the landing's recents entirely (home tiles own them now). KEPT, not deleted:
+ *  the superseded thing was that ONE de-duplication, not this projection. It is the seam's only sanctioned
+ *  answer to "is my list pane visible", and the alternative — a feature recomposing it from
+ *  `usePanelOverride` + the viewport reads — is exactly the hand-copied mirror that produced the M10 bug.
+ *  Its CTs (tests/client/state/shell-store.ct.tsx) pin the shared algebra, so it cannot rot silently. */
 export function useListDocked(section: SectionId, ownDefault: PanelMode): boolean {
   const isMobile = useShellStore((s) => s.mobileViewport);
   const isNarrow = useShellStore((s) => s.narrowViewport);

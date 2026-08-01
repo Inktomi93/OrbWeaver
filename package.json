@@ -42,6 +42,7 @@
     "typecheck": "pnpm -r exec node $PWD/scripts/ts7.cjs --checkers 8 --noEmit --pretty false",
     "typecheck:graph": "node scripts/ts7.cjs --checkers 8 --noEmit --pretty false -p tsconfig.json",
     "typecheck:tests-dom": "node scripts/ts7.cjs --checkers 8 --noEmit --pretty false -p tsconfig.tests-dom.json",
+    "prose:baseline": "tsx scripts/check/gen-prose-baseline.ts",
     "check:tests-membership": "tsx scripts/verify/tests-type-membership.ts",
     "check:tests-execution-membership": "tsx scripts/verify/tests-execution-membership.ts",
     "lint": "biome check . --diagnostic-level=error --reporter=concise",

@@ -1,5 +1,5 @@
 // The own-upload background control (PD-131). Reuses the avatar-upload MECHANISM — `<FileDropzone>` picker
-// + `<Avatar>` preview + the ONE `uploadAsset` seam (bound to the `background` AssetKind) — but hands the
+// + `<Avatar>` preview + the ONE `useUploadAsset` seam (bound to the `background` AssetKind) — but hands the
 // caller a whole `BackgroundLibraryEntry` (BG-D) rather than the bare `StoredAsset`: the appearance form
 // appends it to `appearance.backgroundLibrary` AND selects it live (assetId — GC roots by it · assetHash —
 // the sync URL resolver reads it · mime — BG-V's `<video>` layer branch). A bound single-field avatar widget
@@ -7,7 +7,7 @@
 // SAVES to the library exactly like the URL twin (`ExternalBackgroundField`), so both ways in feed the one
 // library the carried-background picker and `/setbackground <name>` read.
 //
-// The entry is minted HERE because the two halves live in different places: `uploadAsset` returns the stored
+// The entry is minted HERE because the two halves live in different places: the upload returns the stored
 // id/hash, while `mime` + the display `name` are only on the picked `File`. `entryId` is a client-minted
 // blob-row id (`crypto.randomUUID()` — the documented shape for this field, the `regex.scripts[].id`
 // precedent); `provenanceUrl` stays absent — an own-upload was never fetched from anywhere.
@@ -22,7 +22,7 @@ import { Icon, ImagePlus } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { uploadAsset, useUploadCaps } from "#data";
+import { useUploadAsset, useUploadCaps } from "#data";
 
 /** A human name for the entry, from the file name minus its extension (the server `deriveName` twin for the
  *  URL arm — same fallback, so a library row reads the same whichever way it came in). */
@@ -40,11 +40,12 @@ export interface BackgroundUploadFieldProps {
   readonly onUploaded: (entry: BackgroundLibraryEntry) => void;
 }
 
-/** Pick → `uploadAsset(file, "background")` → hand a ready `BackgroundLibraryEntry` up. Upload failure
+/** Pick → `upload(file, "background")` → hand a ready `BackgroundLibraryEntry` up. Upload failure
  *  surfaces inline in the `Field` error slot; the dropzone's `loading`/`success` states cover the in-flight UX. */
 export function BackgroundUploadField({ currentHash, onUploaded }: BackgroundUploadFieldProps): ReactElement {
   // Client-side pre-check ceiling — the SERVED image cap; the server re-caps + magic-checks regardless.
   const maxBackgroundBytes = useUploadCaps().image;
+  const upload = useUploadAsset();
   const [previewHash, setPreviewHash] = useState<string>(currentHash);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -58,7 +59,7 @@ export function BackgroundUploadField({ currentHash, onUploaded }: BackgroundUpl
     setLoading(true);
     setUploadError(null);
     try {
-      const stored = await uploadAsset(file, "background");
+      const stored = await upload(file, "background");
       onUploaded({
         entryId: globalThis.crypto.randomUUID(),
         assetId: stored.assetId,
