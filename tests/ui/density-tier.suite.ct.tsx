@@ -16,6 +16,7 @@
 // regression (the Waystone lesson). One `mount()` per test — a second throws.
 import { Card } from "@orb/ui/card";
 import { Surface } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 
@@ -147,4 +148,85 @@ test("D9: the user-pref density axis re-binds the SAME spacing vars a tier step 
   });
   expect(await computedPx(card, "paddingTop")).toBe(3);
   expect(before).not.toBe(3);
+});
+
+test("VOICE: each of the four voices resolves its own type step, and BEATS the size default it overrides", async ({ mount }) => {
+  // The merge-order risk this pins: `defaultVariants` always supplies size/weight/tone, so a voice's own
+  // font-size/leading/tracking/weight must WIN. `datum` is the sharpest probe — it overrides the family
+  // (mono), the size (label), AND the leading, so a regression in the tv key order or in the registered
+  // tailwind-merge class groups shows up here as body-sized sans text.
+  const voices = await mount(
+    <div>
+      <Text data-testid="kicker" voice="kicker">
+        Roster
+      </Text>
+      <Text data-testid="label" voice="label">
+        Vitality
+      </Text>
+      <Text data-testid="datum" voice="datum">
+        42/60
+      </Text>
+      <Text data-testid="gloss" voice="gloss">
+        she has not slept
+      </Text>
+    </div>,
+  );
+  const resolved = await voices.evaluate((root) => {
+    const probe = root.ownerDocument.createElement("div");
+    root.ownerDocument.body.append(probe);
+    const px = (value: string): string => {
+      probe.style.fontSize = value;
+      return getComputedStyle(probe).fontSize;
+    };
+    const out = { micro: px("var(--text-micro)"), label: px("var(--text-label)"), body: px("var(--text-body)") };
+    probe.remove();
+    return out;
+  });
+  const read = (testid: string): Promise<{ size: string; family: string; weight: string; transform: string }> =>
+    voices.getByTestId(testid).evaluate((el) => {
+      const style = getComputedStyle(el);
+      return { size: style.fontSize, family: style.fontFamily, weight: style.fontWeight, transform: style.textTransform };
+    });
+
+  const kicker = await read("kicker");
+  expect(kicker.size).toBe(resolved.micro);
+  expect(kicker.transform).toBe("uppercase");
+
+  const label = await read("label");
+  expect(label.size).toBe(resolved.label);
+  expect(label.weight).toBe("500");
+
+  const datum = await read("datum");
+  expect(datum.size).toBe(resolved.label);
+  expect(datum.size).not.toBe(resolved.body); // the size default did NOT leak through
+  expect(datum.family).toContain("Mono");
+
+  const gloss = await read("gloss");
+  expect(gloss.size).toBe(resolved.micro);
+});
+
+test("CD3: exactly ONE focal element at rest in a surface (accent fill or elevation shadow)", async ({ mount }) => {
+  // The Waystone hierarchy lesson generalized (density-pass-spec.md §3.2 CD3): everything around the one
+  // bold thing is deliberately quiet. Counted from COMPUTED style over the whole subtree — an authored-class
+  // audit cannot see a second focal element that arrives through a variant or a nested primitive.
+  const surface = await mount(
+    <Surface tier="instrument">
+      <Card>Quiet island</Card>
+      <Card>Another quiet island</Card>
+      <Card elevated={true}>The one focal island</Card>
+    </Surface>,
+  );
+  const focalCount = await surface.evaluate((root) => {
+    const probe = root.ownerDocument.createElement("div");
+    probe.style.backgroundColor = "var(--color-primary)";
+    root.ownerDocument.body.append(probe);
+    const accent = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    const nodes = [...root.querySelectorAll<HTMLElement>("*")];
+    return nodes.filter((node) => {
+      const style = getComputedStyle(node);
+      return style.boxShadow !== "none" || style.backgroundColor === accent;
+    }).length;
+  });
+  expect(focalCount).toBe(1);
 });
