@@ -67,8 +67,10 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
 3. **HUD-HOME** (owner-ruled 2026-08-01, from the stickler visual audit F6,
    `docs/reviews/stickler/2026-08-01-visual-blech-audit.md`): **the pre-HUD chrome seams in the
    CONTEXT panel get YEETED — the context panel (where the rpg game lives in lite mode) IS the
-   HUD's home** (its own takeover-region contract, not rented shell seams; owner corrected
-   "content"→"context" 2026-08-01). Spec-first: the takeover contract, the fate of the meta tabs
+   HUD's home** (owner lean refined same evening: the panel wholesale IS the HUD when a game is
+   active — not a region inside a generic panel; detail rulings deferred to when the program is
+   reached — "I'll probably focus on more when we get there"). Spec draft in flight centers that
+   arm; its owner-decisions section is where the deferred calls land. Spec-first: the takeover contract, the fate of the meta tabs
    under HUD ownership (lean: they fold into the HUD's own grammar as its admin voice — F6's
    state-vs-admin split is real), the bracket strips' replacement, the reclaimed ~400px dead zone,
    waystone breathing room. Fixes F6's four legibility defects at the seam level instead of
@@ -120,15 +122,16 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
   commits. F6→HUD-HOME (queue 3) · F8→density S3 receipt. Residue: ChatSummary last-message
   snippet field (build small) · transcript 1920 gutter verify (may be reading-measure by design) ·
   roster placeholders re-check post-merge · Members tab capture needs the multi-user e2e stack.
-- **POPULATE-FROM-CHARACTER** (shape ruled: per-character button, roster card/takeover, button-only) —
-  host-invoked one-shot extraction round over the character card + opening filling born state
-  (level/title/wallet/inventory/background-implied quests); the ONLY sanctioned doorway for
-  hand-only fields. Dispatch AFTER the reliable-deletion lane lands (extraction-pipeline overlap).
-- **agent-sdk terminal tools** — the fold on the everyday Claude-runtime wire (OR×auto×Claude +
-  max-pro-sub currently run the loud fallback EVERY turn). The real fix; raises EFF-3 urgency.
-- **EFF-3** — degrade-warnings client surface + effective-delivery freshness (the D112 (4) "Live
-  while rounding" gap is now the DEFAULT-path experience on both guarded wires) + GM-tab
-  recommend-don't-force notes (thinking-off; "cheap recommended for local models").
+- ~~POPULATE-FROM-CHARACTER~~ **BUILT + merged 08-01 evening (D115 minted)** — separate schema
+  root, live planes structurally empty, fill-only sheet, host-gated, canPopulate verdict.
+  REMAINING: one live-model smoke on a hosted wire (owner's next dogfood click).
+- **agent-sdk terminal tools** — the fold on the agent-sdk wire (max-pro-sub + OR×protocol-auto
+  Claude skin run the loud fallback every turn). Lane dispatched 08-01 evening. PRIORITY NOTE
+  (owner 08-01): the owner mains OR chat-complete + local vLLM — folded already works natively on
+  both daily paths; this closes the remaining arm, it is NOT the everyday default.
+- **EFF-3** — degrade-warnings client surface + effective-delivery freshness + GM-tab
+  recommend-don't-force notes (thinking-off; "cheap recommended for local models"). Urgency
+  demoted with the above — the guarded-wire degrade is off the owner's daily paths.
 - **Per-actor tracker grant/revoke EDITOR** (`sheet.trackerGrants`/`trackerRevokes` — RV re-audit
   2026-08-01): the fields exist and gate NPC tracker applicability, but NO client editor exists
   (`rpg-game-tab.tsx:42-44` documents the gap). The "keep explicit-list-only" NPC-grants ruling
@@ -160,7 +163,12 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
 - **DRAFT-CAST** — DraftGreetingThread uses seed.characterIds only; commit unions
   addedCharacterIds — a panel-added character shows no greeting row pre-commit (cheap union fix).
 - **#24 MU-picks pane** (server half `chat.setUserMacroValues` exists) ·
-  **`chat.setChatDocumentVisibility` wire** (D85) · **AU-10** background-library manage UI ·
+  **DATABANK CLIENT SURFACE** (re-classified from "setChatDocumentVisibility wire" — verified
+  2026-08-01: ZERO client callers of the whole databank router; the settings pane is retrieval
+  knobs only; legacy-main's DBK-E context tab was never ported. This is a BUILD-SURFACE feature
+  (library list + per-chat attach rack + active-docs read + the D85 visibility toggle), not a
+  wire small. AU8's "WIRE · M" row underestimates it — re-check sibling databank rows before
+  dispatch) · **AU-10** background-library manage UI ·
   MP footer "from config" untrue on curated fallback · `resolveAgentSdkAlias` unreachable-branch look.
 - **VER-1c** — custom-byo `role:"tool"` wire still drops `isError` silently (OR-4's unbuilt sibling).
 - **Preset multi-tab fork idempotency** — two tabs editing the built-in can still mint two forks (no
@@ -173,6 +181,16 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
 - Macro feed (`chat-ops/macro-view.ts`) cast projection does NOT carry the new guide fields
   (appearance/outfit/thoughts) — RV-11 lane left it deliberately. Decide: should user macros be able
   to bind cast guides via celBindings? If yes, thread them; if no, note the asymmetry in the file.
+- **PRESET-PANE FOREVER-SKELETON** (found by Lane B, PRE-EXISTING — reproduced with their change
+  reverted): the presets LIST pane hangs on "Loading your presets…" forever on a fresh-DB stage at
+  HEAD; `preset.list` returns 1 row in 41ms, zero pending queries, yet the LibrarySurfaceShell
+  fallback never resolves (Characters list, same shell family, works). Data/composition-path
+  specific — the F5 CT passes on stubbed mounts. Suspects: suspense boundary /
+  [[ct-suspense-needs-production-boundary]] class live, or socket-count starvation
+  [[sse-per-origin-connection-budget]]. Diagnose against the live stage.
+- Chat-row rpg/game marker SKIPPED by Lane B (correctly): `ChatSummary` carries no rpg pointer and
+  rpgRouter has no list-games query — needs a contract field; fold into the ChatSummary
+  last-message-snippet field work (one migration, both markers).
 - BUS-FLAP: chat open does subscribe→unsubscribe→subscribe on the chat bus (live-observed).
 - BOOT-4X: user-bus connect gap-heal double-fetches 4 roots on every page load ("by design" — evaluate).
 - VERIFY-BURST: re-drive the invalidation lane's 3 recorded snap commands against merged code,
