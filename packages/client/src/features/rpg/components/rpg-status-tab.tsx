@@ -68,7 +68,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
   // One patch-and-mutate for a target actor's volatile (whole-array overlay, keyed server-side by
   // `actorRefKey`). Every write stamps its FINE lock path (#10 — `lockSub` appends to the actor's base).
   const patch = (ref: RpgActorRef, lockSub: string, mutate: (v: ActorVolatile) => ActorVolatile): void =>
-    editSnapshot.mutate({ chatId, patch: actorStatePatch(tracker.actors, ref, mutate), lockPaths: [`${actorLockBase(ref)}${lockSub}`] });
+    editSnapshot.mutate({ chatId, patch: actorStatePatch(tracker, ref, mutate), lockPaths: [`${actorLockBase(ref)}${lockSub}`] });
 
   const editFor = (actor: RpgActorView): ActorEdit | undefined => {
     if (!canEditShared) {

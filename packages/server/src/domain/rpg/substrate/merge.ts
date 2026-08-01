@@ -81,8 +81,8 @@ interface KeyedPlane {
  *  routinely author less than the whole array:
  *    • the tool/extraction appliers only ever map-or-append over the base (`withActor`, tools/apply.ts);
  *    • the HAND door writes with `fieldLocks: null` (hand-always-wins) — which also disables the element-lock
- *      removal defense — and its client builds the overlay from the tracker view's `actors`, which carries the
- *      ROSTER half of the plane only (a `cast:` NPC's volatile row lives under `castVolatile`).
+ *      removal defense — and its client sends the ROSTER half of the plane plus the ONE actor it is editing
+ *      (a `cast:` NPC's row is projected separately, under the tracker view's `castVolatile`).
  *  So a host editing one party member's HP used to DELETE every scene NPC's tracked state, and two
  *  back-to-back per-actor hand edits erased the first (the e2e-caught hand-plane loss). An actor is an
  *  identity, not list content: it leaves the plane by a real gesture, never by going unmentioned.
