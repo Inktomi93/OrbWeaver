@@ -15,6 +15,7 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { FROZEN_AT_MS } from "../../../../support/clock";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { CharactersListPaneStory, CharactersScreenStory } from "../_ct-stories";
 import { makeCharacterDetail, makeCharacterSummary } from "../fixtures";
@@ -33,6 +34,10 @@ const SETTINGS = { userId: "user_ct_pane", schemaVersion: 1, config: DEFAULT_USE
  *  is the full `CharacterDetail` (the editor's form seeds every field off it). */
 const AZARAEL_DETAIL = makeCharacterDetail({ id: AZARAEL, handle: "azarael", name: "Azarael" });
 
+/** The row's cast as the SERVER now sends it (NR4): the viewer's own seat is suppressed while another seat
+ *  remains, so a fixture that lists the viewer ("Alex") is not the wire shape any more. */
+const CAST_BY_SEAT: Record<string, string> = { [AZARAEL]: "Azarael", [SERA]: "Sera" };
+
 function chat(fields: { id: string; title: string; seats: readonly string[]; lastMessageAt: number }): Record<string, unknown> {
   return {
     id: fields.id,
@@ -42,7 +47,7 @@ function chat(fields: { id: string; title: string; seats: readonly string[]; las
     parentChatId: null,
     lastMessageAt: fields.lastMessageAt,
     messageCount: 3,
-    participantNames: ["Alex"],
+    participantNames: fields.seats.map((seat) => CAST_BY_SEAT[seat] ?? seat),
     participantCharacterIds: fields.seats,
     lastMessagePreview: null,
     isGame: false,
@@ -62,6 +67,15 @@ const CHATS = [HER_NEWEST, NOT_HERS, HER_DEPARTED];
 const ROW_TITLE = '[data-slot="list-row-title"]';
 const LIST_ROW_ROOT = '[data-slot="list-row-root"]';
 const AVATAR_STACK = '[data-slot="avatar-stack-root"]';
+/** Every per-row kebab, by the shape of its name ("Chat actions for <subject>"). */
+const ANY_ROW_MENU = /^Chat actions for /;
+/** The identity gloss's two shapes: the RECENCY line that survived, and the census that must not return. */
+const RECENCY_GLOSS = /^last /;
+const CENSUS_GLOSS = /\d+ chats? · last /;
+const NO_CHATS_YET = /no chats yet/i;
+/** The page clock the stamp tests pin — never an ambient wall-clock read (test-determinism gate). */
+const FROZEN_NOW = FROZEN_AT_MS;
+const HOUR_MS = 3_600_000;
 
 function routeAll(page: Parameters<typeof routeTrpc>[0], chats: readonly Record<string, unknown>[]): ReturnType<typeof routeTrpc> {
   return routeTrpc(page, {
@@ -188,14 +202,57 @@ test.describe("§3.7 the focus owner is decided by the selection INTENT (LIST + 
   });
 });
 
-test("a character with no chats gets an empty state that teaches AND acts", async ({ mount, page }) => {
+// P2c: this pane is the collision case — every row can be titled "Azarael", and the newest few share a
+// stamp, so the per-row qualifier produced N identical accessible names. The escalation is resolved across
+// the LIST, so the rendered names are distinct.
+test("same-titled rows whose stamps ALSO collide still expose distinct action names", async ({ mount, page }) => {
+  // The stamp is clock-relative, so the page clock is pinned: both rows land in the SAME "1h" bucket, which
+  // is exactly the collision (a minute apart, indistinguishable on screen).
+  await page.clock.setFixedTime(FROZEN_NOW);
+  const twins = [
+    chat({ id: "chat_ct_twin_a", title: "Azarael", seats: [AZARAEL], lastMessageAt: FROZEN_NOW - HOUR_MS }),
+    chat({ id: "chat_ct_twin_b", title: "Azarael", seats: [AZARAEL], lastMessageAt: FROZEN_NOW - HOUR_MS - 60_000 }),
+  ];
+  await routeAll(page, twins);
+  const component = await mount(<CharactersListPaneStory selectedCharacterId={AZARAEL} />);
+  await expect(component.locator(ROW_TITLE)).toHaveText(["Azarael", "Azarael"]);
+
+  // Both rows render "1h" — the stamp alone can no longer tell their actions apart, so the names escalate.
+  const names = await page.getByRole("button", { name: ANY_ROW_MENU }).evaluateAll((els) => els.map((el) => el.getAttribute("aria-label") ?? ""));
+  expect(names).toHaveLength(2);
+  expect(new Set(names).size).toBe(2);
+});
+
+// NR2: the empty pane used to say it THREE times — "no chats yet" in the identity gloss, "No chats yet" in
+// the empty state, and two competing New-chat primaries (the band's + the empty state's). One statement now.
+test("an EMPTY projection is ONE statement with ONE primary — and the empty state still acts", async ({ mount, page }) => {
   await routeAll(page, [NOT_HERS]);
   const component = await mount(<CharactersListPaneStory selectedCharacterId={AZARAEL} />);
 
-  // The identity gloss says "no chats yet" too, so pin the EMPTY-STATE title by its slot.
   await expect(component.locator('[data-slot="empty-state-title"]')).toHaveText("No chats yet");
   await expect(component.getByText("No chats with Azarael yet — start the first one.")).toBeVisible();
-  // Empty is never a dead end: its own action (distinct from the band's) fires the same store write.
-  await component.getByLabel("Chats with Azarael").getByRole("button", { name: "New chat", exact: true }).click();
+  // The identity gloss no longer repeats it — the empty state's title is the ONE place it is said (the
+  // gloss drops entirely when there is nothing to count, so there is no second "no chats yet" anywhere).
+  await expect(component.getByText(NO_CHATS_YET)).toHaveCount(1);
+  // ONE primary in the LIST region: the band's. The empty state keeps its action, demoted to secondary.
+  // `data-cta` is the primary CTA's own marker (the accent ring keys off it), so this is the rendered tell,
+  // not a class check: exactly one New-chat in the whole LIST region carries it, and it is the band's.
+  const paneAction = component.getByLabel("Chats with Azarael").getByRole("button", { name: "New chat", exact: true });
+  await expect(paneAction).not.toHaveAttribute("data-cta", "");
+  await expect(page.getByTestId("list-band").getByRole("button", { name: "New chat", exact: true })).toHaveAttribute("data-cta", "");
+  // Demoted is not disarmed: it still fires the same store write (empty is never a dead end).
+  await paneAction.click();
   await expect(component.getByTestId("draft-cast")).toHaveText(AZARAEL);
+});
+
+// NR5: the pane BELOW the identity row is the census, so the gloss doesn't repeat the count — it carries the
+// one thing the rows don't state at a glance (recency).
+test("the identity gloss is RECENCY only — the rows below it are the census", async ({ mount, page }) => {
+  await routeAll(page, CHATS);
+  const component = await mount(<CharactersListPaneStory selectedCharacterId={AZARAEL} />);
+  await expect(component.getByText("Winter court")).toBeVisible();
+
+  await expect(component.getByText(RECENCY_GLOSS)).toBeVisible();
+  // Not "2 chats · last …": the count is the editor hero's job (CONTENT tier, no list under it).
+  await expect(component.getByText(CENSUS_GLOSS)).toHaveCount(0);
 });

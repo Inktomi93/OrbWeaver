@@ -25,7 +25,7 @@ import type { CharacterChatsProjectionView } from "#lib";
 import { chatsWithCharacter } from "#lib";
 import { selectChatFromList, setActiveSection, useActiveChatId } from "#state";
 import { useChatPortraitMap } from "../hooks/use-chat-portrait-map";
-import { chatPortraits } from "../lib/chat-summary-row";
+import { chatPortraits, chatRowQualifiers } from "../lib/chat-summary-row";
 import { filterChats } from "../lib/filter-chats";
 import { ChatListRow } from "./chat-list-row";
 
@@ -62,9 +62,14 @@ function ProjectionBody({ characterId, characterName, onNewChat }: CharacterChat
     return (
       // Scale is the primitive's own business (side-eye P2f): `EmptyState` drops a type step by CONTAINER
       // QUERY inside a ~307px LIST pane, so this call site says WHAT to teach and nothing about how big.
+      //
+      // ONE PRIMARY PER REGION (side-eye NR2): the LIST band directly above this pane already carries the
+      // "New chat" primary for this mode, so the empty state's own action demotes to secondary — the empty
+      // state still ACTS (never a dead end), it just stops competing with the band for the same intent. The
+      // identity row above drops its "no chats yet" gloss for the same reason: this pane already says it.
       <EmptyState
         action={
-          <Button intent="primary" onClick={onNewChat} size="sm">
+          <Button intent="secondary" onClick={onNewChat} size="sm">
             <Icon icon={Plus} size="sm" />
             New chat
           </Button>
@@ -77,6 +82,7 @@ function ProjectionBody({ characterId, characterName, onNewChat }: CharacterChat
   }
 
   const filtered = filterChats(projected, deferredQuery);
+  const qualifiers = chatRowQualifiers(filtered);
   return (
     <Stack className="h-full min-h-0" gap="block">
       {projected.length > SEARCH_THRESHOLD ? (
@@ -97,7 +103,7 @@ function ProjectionBody({ characterId, characterName, onNewChat }: CharacterChat
         <Stack aria-label={`Chats with ${characterName}`} className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="row" role="list">
           {/* Server order, verbatim (D4): the star is a MARKER, not a sort key — a projection ordered
               differently from the chats pane would read as a second, disagreeing list. */}
-          {filtered.map((chat) => (
+          {filtered.map((chat, index) => (
             <ChatListRow
               chat={chat}
               key={chat.id}
@@ -106,6 +112,9 @@ function ProjectionBody({ characterId, characterName, onNewChat }: CharacterChat
                 setActiveSection("chats");
               }}
               portraits={chatPortraits(chat.participantCharacterIds, characterById)}
+              // This pane is THE collision case (side-eye P2c): every row can be titled "Azarael", and the
+              // newest few share a stamp — so the disambiguator is resolved across the list, not per row.
+              qualifier={qualifiers[index]}
               selected={chat.id === activeChatId}
             />
           ))}

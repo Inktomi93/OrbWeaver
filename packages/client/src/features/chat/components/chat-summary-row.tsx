@@ -45,6 +45,10 @@ interface ChatSummaryRowProps {
    *  co-exist). Omitted (the landing "Recent chats" strip, which has no row-action grammar) leaves the ★ a
    *  plain always-visible marker. */
   readonly onToggleStar?: ((next: boolean) => void) | undefined;
+  /** The subject this row's ACTIONS name ("Star …") — supplied by the list pane, which resolves it across
+   *  the whole list so same-named rows can't share one accessible name (`rowQualifiers`). Falls back to the
+   *  row's own title + shown stamp for a caller with no list context. */
+  readonly actionName?: string;
   /** Row root className (the chats-list `group` hover-reveal root). */
   readonly className?: string;
 }
@@ -122,9 +126,18 @@ function rowMarkers({
 
 /** One chat-summary row: portrait/initials avatar · title · participants subtitle · relative-time stamp ·
  *  star + archived markers, plus an optional trailing `menu`. The clickable body calls `onSelect(chat.id)`. */
-export function ChatSummaryRow({ chat, onSelect, selected = false, portraits = [], menu, onToggleStar, className }: ChatSummaryRowProps): ReactElement {
+export function ChatSummaryRow({
+  chat,
+  onSelect,
+  selected = false,
+  portraits = [],
+  menu,
+  onToggleStar,
+  actionName,
+  className,
+}: ChatSummaryRowProps): ReactElement {
   const { title, subtitle, when } = chatSummaryRowView(chat);
-  const rowName = chatRowActionName(title, timeLib.formatRelativeCompact(when));
+  const rowName = actionName ?? chatRowActionName(title, timeLib.formatRelativeCompact(when));
   const markers = rowMarkers({ chat, interactive: onToggleStar !== undefined });
   // The trailing cluster is now CONTROLS ONLY (the markers moved to the title line), so every one of its
   // members is hover-revealed and the float is unconditional — the text column keeps the row's full width at

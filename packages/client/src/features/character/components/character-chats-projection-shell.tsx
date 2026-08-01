@@ -68,8 +68,12 @@ export function CharacterChatsProjectionShell({ characterId, chatsProjection }: 
   );
 }
 
-/** Portrait · name · the gloss census (`7 chats · last 2h ago`). The count rides the ONE projection
- *  predicate, so the gloss, the hero's "N chats" and the rows below can never disagree. */
+/** Portrait · name · the RECENCY gloss (`last 2h ago`).
+ *
+ *  NOT a census (side-eye NR5/NR2): the pane directly below this row IS the census — printing "7 chats"
+ *  over seven visible rows, or "no chats yet" over an empty state that says exactly that, is the same
+ *  statement twice. Recency is the one thing the rows don't state at a glance, so it is what survives; the
+ *  editor hero's "N chats ›" keeps the count, which is CONTENT tier and has no list under it. */
 function IdentityRow({
   characterId,
   name,
@@ -83,10 +87,7 @@ function IdentityRow({
   const { data: chats } = useQuery(trpc.chat.listChats.queryOptions({}));
   const projected = chatsWithCharacter(chats ?? [], characterId);
   const newest = projected[0];
-  const gloss =
-    projected.length === 0
-      ? "no chats yet"
-      : `${projected.length} ${projected.length === 1 ? "chat" : "chats"} · last ${timeLib.formatRelative(newest?.lastMessageAt ?? newest?.updatedAt ?? 0)}`;
+  const gloss = newest === undefined ? null : `last ${timeLib.formatRelative(newest.lastMessageAt ?? newest.updatedAt)}`;
   const avatarSrc = avatarHash === null ? {} : { src: blobUrl(avatarHash) };
 
   return (
@@ -101,9 +102,11 @@ function IdentityRow({
         <Text className="truncate" size="title" weight="semibold">
           {name}
         </Text>
-        <Text className="font-mono" size="micro" tone="muted">
-          {gloss}
-        </Text>
+        {gloss === null ? null : (
+          <Text className="font-mono" size="micro" tone="muted">
+            {gloss}
+          </Text>
+        )}
       </Stack>
     </Row>
   );

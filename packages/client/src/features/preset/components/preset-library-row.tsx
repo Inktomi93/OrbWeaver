@@ -25,6 +25,9 @@ interface PresetRowItem {
 export interface PresetLibraryRowProps {
   readonly preset: PresetRowItem;
   readonly selected: boolean;
+  /** The row's action-name DISAMBIGUATOR, resolved by the surface across the whole list (`rowQualifiers`) —
+   *  the edit stamp this row shows, escalated where forks collided on it too (side-eye P2c). */
+  readonly qualifier: string;
   /** The row is the ACTIVE-for-generation preset (`preset.id === seeds.defaultPresetId`) — passive marker. */
   readonly active: boolean;
   readonly onSelect: (id: PresetId) => void;
@@ -34,7 +37,7 @@ export interface PresetLibraryRowProps {
 }
 
 /** A single preset library row (its Rename/Duplicate/Delete menu + delete-confirm come from LibraryRow). */
-export function PresetLibraryRow({ preset, selected, active, onSelect, onDelete, onDuplicate, onRename }: PresetLibraryRowProps): ReactElement {
+export function PresetLibraryRow({ preset, selected, active, qualifier, onSelect, onDelete, onDuplicate, onRename }: PresetLibraryRowProps): ReactElement {
   let leading: ReactNode;
   if (active) {
     leading = <ActiveMarker />;
@@ -61,8 +64,9 @@ export function PresetLibraryRow({ preset, selected, active, onSelect, onDelete,
               inlineVerb: "duplicate",
               name: preset.name,
               // Nine forks share the name "Default (edited)" — the edit stamp the subtitle already shows is
-              // what tells their ACTION names apart too (side-eye P3a).
-              qualifier: timeLib.formatRelative(preset.updatedAt),
+              // what tells their ACTION names apart too (side-eye P3a), escalated by the SURFACE where the
+              // stamp collided as well (P2c).
+              qualifier,
               onRename: (): void => onRename(preset.id),
               onDuplicate: (): void => onDuplicate(preset.id),
               onDelete: (): void => onDelete(preset.id),
