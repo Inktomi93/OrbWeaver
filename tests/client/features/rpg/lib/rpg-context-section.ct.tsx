@@ -1466,3 +1466,60 @@ test("WAVE MU: a MEMBER never reaches the macro editor — the whole crown conso
   await expect(component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" })).toHaveCount(0);
   await expect(component.locator('[data-slot="rpg-game-macros"]')).toHaveCount(0);
 });
+
+// ── HUD-1: the pane IS the HUD ───────────────────────────────────────────────────────────────────────
+// The claim is over the WHOLE pane, so the assertions below are about OWNERSHIP and GEOMETRY, not content:
+// the shell's band is empty (the claimant paints its own top edge), the shell's `.ctx-tab-strip` never
+// renders, and the HUD spends its own vertical budget (§7.1 — the dead-zone rule).
+
+test("HUD-1: the rpg HUD CLAIMS the pane — the shell's band is empty and its generic strip never renders", async ({ mount, page }) => {
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  await expect(component.getByRole("tablist", { name: "Game" })).toBeVisible();
+
+  // The claimant renders inside the single-writer region host…
+  await expect(component.locator("[data-context-region]")).toHaveCount(1);
+  // …the shell's band slot has NO content (D66 A1 suspended for a claimed pane — the HUD owns the top edge)…
+  await expect(component.locator(".shell-panel-header")).toBeEmpty();
+  // …and no shell-owned strip exists in the pane at all: the HUD draws its own rails.
+  await expect(component.locator(".ctx-tab-strip")).toHaveCount(0);
+});
+
+test("HUD-1 §7.2: every rail cell shows its CAPTION, not a nameless glyph, at the real panel width", async ({ mount, page }) => {
+  // F6 defect 2: the shared strip's container-query reveal can never fire at the widths the shell gives
+  // this panel, so the game rail was icon-only permanently. The HUD's cells carry the word unconditionally.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  const inventory = component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" });
+
+  await expect(inventory).toContainText("Inventory");
+  await expect(inventory.locator("svg")).toBeVisible();
+});
+
+test("HUD-1 §7.1: a SHORT body leaves no dead zone — the admin rail rides up under the viewport, still at the pane's foot", async ({ mount, page }) => {
+  // The dead-zone rule: the viewport is `flex: 0 1 auto`, NOT `flex-1`, so a short body takes its NATURAL
+  // height and the rail follows it immediately instead of being flung to the bottom of a ~400px void. The
+  // relation is asserted against the measured gap between them, never a hardcoded px.
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  const region = component.locator("[data-context-region]");
+  await expect(region).toBeVisible();
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" }).click();
+  // Settle the swap BEFORE measuring — geometry read mid-transition is the DEF-14 flake class.
+  await expect(component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Journal" })).toHaveAttribute("aria-selected", "true");
+  await expect(component.locator('[data-slot="tabs-panel"]:visible')).toBeVisible();
+
+  const viewportBox = await component.locator('[data-slot="tabs-panel"]:visible').boundingBox();
+  const railBox = await component.getByRole("tablist", { name: "Chat" }).boundingBox();
+  const regionBox = await region.boundingBox();
+  if (viewportBox === null || railBox === null || regionBox === null) {
+    throw new Error("expected the viewport, the admin rail and the region to be laid out");
+  }
+
+  // The rail starts within one row-gap of where the body ends — the column is packed, not spread.
+  const gap = railBox.y - (viewportBox.y + viewportBox.height);
+  expect(gap).toBeGreaterThanOrEqual(0);
+  expect(gap).toBeLessThan(viewportBox.height);
+  // …and it stays INSIDE the pane, at its foot — never pushed off, never floating mid-pane.
+  expect(railBox.y + railBox.height).toBeLessThanOrEqual(regionBox.y + regionBox.height + 1);
+});

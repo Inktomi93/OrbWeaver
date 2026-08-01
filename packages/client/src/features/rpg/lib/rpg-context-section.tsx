@@ -1,6 +1,6 @@
 // The rpg CONTEXT-panel SECTION contribution (panel-redesign DESIGN.md §4; client-architecture-lockdown
 // §6c) — the FIRST real `chatContextContributors` consumer + rpg's registered definition (the
-// feature-owns-definition anchor). The TOP-strip game tabs (§4.2 bracket): Status · Inventory · Scene ·
+// feature-owns-definition anchor). The GAME-rail tabs (HUD-1 §4): Status · Inventory · Scene ·
 // Quests · Journal (Quests + Journal are LIVE lite tabs — real data planes, the owner correction) + the
 // PHASE-locked Map (visible, `disabledReason` — "the promise visible, the gate honest"; 5 live + 1 locked).
 // **Sheet is NOT a tab** (the tracked-field unification §3): Status is the only list of people and expanding
@@ -10,28 +10,20 @@
 // and assembles the result into `createContributorRegistry("chat-context", …)`, which flows to chat's
 // `defineContextTabs` `contributors` arm (one-directional flow; `client-features-no-cross` enforces it).
 //
-// SELF-CONTAINED cross-domain read (lockdown §12 matrix — a feature reads ANOTHER domain's server entity via
-// a CACHE-FIRST `trpc.*` read, never by importing that feature or widening its projection): the takeover
-// APPLICABILITY gate (§4.1 — game-ness) reads the rpg POINTER off `chat.getChat` CACHE-FIRST. `chat` already
-// holds that query (`useChatContextState` suspense-fetches it), so `getQueryData` is a pure cache read, no
-// round-trip; and because chats' own `useResolved` subscribes to that query, `when` re-evaluates when it
-// settles. The door injects the `queryClient` + `trpc` proxy (both singletons it already owns), so this stays
-// a plain function `when` (no hooks) while still reading `#data`'s cross-domain channel — never chat's client.
+// The APPLICABILITY gate (game-ness) is `rpg-game-chat.ts` — ONE predicate shared with the whole-pane HUD
+// CLAIM (`rpg-hud-region.tsx`), so a claimed pane and its tabs appear and disappear together. These defs own
+// the tabs; the HUD owns the ARRANGEMENT (band, rails, viewport) and the BAND identity, which is why no tab
+// here reaches for the shell's `.shell-panel-header` slot any more (HUD-1 §5.1 — that channel is deleted).
 
-import { isRpgEngaged } from "@orb/contracts/rpg";
 import { Backpack, BookOpen, Crown, Drama, Flag, HeartPulse, MapIcon } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
-import type { QueryClient } from "@tanstack/react-query";
-import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
-import type { Trpc } from "#data";
-import { peekQueryData, QueryBoundary } from "#data";
+import { QueryBoundary } from "#data";
 import type { ChatContextState, CommittedChatContext, ContextTabDef } from "#lib";
 import { RpgErrorState } from "../components/rpg-error-state";
 import { RpgGameDoor } from "../components/rpg-game-door";
 import { RpgGameTab } from "../components/rpg-game-tab";
 import { RpgGameTabBody } from "../components/rpg-game-tab-body";
-import { RpgHeaderBand } from "../components/rpg-header-band";
 import { RpgInventoryTab } from "../components/rpg-inventory-tab";
 import { RpgJournalTab } from "../components/rpg-journal-tab";
 import { RpgMapTab } from "../components/rpg-map-tab";
@@ -39,41 +31,19 @@ import { RpgQuestsTab } from "../components/rpg-quests-tab";
 import { RpgSceneTab } from "../components/rpg-scene-tab";
 import { RpgStatusTab } from "../components/rpg-status-tab";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
+import type { RpgContextTabsDeps } from "./rpg-game-chat";
+import { makeIsGameChat, peekChatDetail } from "./rpg-game-chat";
 
-type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
-
-/** The door-injected cross-domain read channel — the singleton `queryClient` + `trpc` proxy `main.tsx` owns,
- *  so `when` reads `chat.getChat` cache-first WITHOUT a hook and WITHOUT importing chat's client (§12). */
-export interface RpgContextTabsDeps {
-  readonly trpc: Trpc;
-  readonly queryClient: QueryClient;
-}
-
-/** Build the four lite game-tab contributions, bound to the door's cross-domain read channel. */
+/** Build the lite game-tab contributions, bound to the door's cross-domain read channel. */
 export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTabDef<ChatContextState>[] {
-  /** Is this a game chat? The takeover APPLICABILITY gate (§4.1) — a committed chat whose CACHED `getChat`
-   *  carries a non-null rpg pointer (a pure cache read off chat's own query; `undefined` while uncached ⇒
-   *  false, re-evaluated when the query settles). */
-  const isGameChat = (s: ChatContextState): s is CommittedChatContext => {
-    if (s.phase !== "committed") {
-      return false;
-    }
-    const detail = peekQueryData<ChatDetail>(deps.queryClient, deps.trpc.chat.getChat.queryKey({ chatId: s.chatId }));
-    // #40 — a DISENGAGED game (pointer engaged:false) clears the whole takeover (tabs + band), exactly
-    // like a non-game chat; the Game meta tab below stays as the re-enable door.
-    return detail !== undefined && isRpgEngaged(detail.rpg ?? null);
-  };
+  // THE game-ness gate — the SAME predicate the whole-pane HUD claim reads (`rpg-game-chat.ts`), so the
+  // tabs and the claim can never disagree about whether this chat is a game.
+  const isGameChat = makeIsGameChat(deps);
 
   /** Is this a game chat the viewer HOSTS? The crown GM-console gate (§4 "Game" — host-only). Reads the
    *  same cached `getChat` for `viewerIsHost`; a member never sees the tab (PERMISSION-omit) and the
    *  server verb is a second host gate. */
-  const isHostGameChat = (s: ChatContextState): boolean => {
-    if (!isGameChat(s)) {
-      return false;
-    }
-    const detail = peekQueryData<ChatDetail>(deps.queryClient, deps.trpc.chat.getChat.queryKey({ chatId: s.chatId }));
-    return detail?.viewerIsHost === true;
-  };
+  const isHostGameChat = (s: ChatContextState): boolean => isGameChat(s) && peekChatDetail(deps, s)?.viewerIsHost === true;
 
   /** The Game meta tab's #40 gate: EVERY committed chat the viewer hosts (game or not) — the tab is the
    *  FRONT DOOR (start a game / resume a paused one / the GM console). PERMISSION-omit for members. */
@@ -81,8 +51,7 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
     if (s.phase !== "committed") {
       return false;
     }
-    const detail = peekQueryData<ChatDetail>(deps.queryClient, deps.trpc.chat.getChat.queryKey({ chatId: s.chatId }));
-    return detail?.viewerIsHost === true;
+    return peekChatDetail(deps, s)?.viewerIsHost === true;
   };
 
   const gameTab =
@@ -113,18 +82,6 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       // declared-order first (Context-Panel-Program §4.1). A stored prior selection still wins.
       defaultTab: isGameChat,
       body: gameTab("Status", (state) => <RpgStatusTab state={state} />),
-      // The scene banner + pool orbs ride the `.shell-panel-header` BAND slot ABOVE both strips (§4.2/§4.11
-      // #3), NOT a tab body — supplied on this (always-present) game tab via the W3c header-contributor seam,
-      // gated on the SAME `isGameChat` `when` (a game chat with no game clears the whole takeover, band too).
-      // The band is DECORATION over the same reads the body owns: on error it collapses to nothing (its own
-      // boundary, `renderError → null`) so the body's `RpgErrorState` is the SINGLE announced failure surface
-      // (FIX 3 — never a second generic "Couldn't load this." block beside it).
-      header: (s) =>
-        isGameChat(s) ? (
-          <QueryBoundary fallback={null} renderError={(): null => null}>
-            <RpgHeaderBand chatId={s.chatId} />
-          </QueryBoundary>
-        ) : null,
     },
     {
       id: "rpg.inventory",

@@ -337,20 +337,20 @@ export function ContextTabStripStory({ width, showTrackers = false, withIconless
   );
 }
 
-// ── The two-strip bracket (context-tabs-panel.tsx, Context-Panel-Program §4.2/§4.6 — W3a) ────────────
-// A synthetic GAME+META tab set proves the generic bracket: two `.ctx-tab-strip` TabsLists (one root, one
-// selection crossing both), the §4.6 badge (dot + count, never on the active tab), and the §4.6 PHASE
-// disable-with-reason (aria-disabled + title, focusable-discoverable). No rpg import — the mechanism is
-// generic (W3b/W3c graft the real rpg tabs). A meta-only variant re-proves the single-strip backward-compat.
+// ── Tab STATES in the generic (unclaimed) panel — the §4.6 badge + PHASE-disable vocabulary ──────────
+// The two-strip bracket is DELETED (HUD-1 §5.1): a bracket is a claimant's own arrangement, and a claimant
+// now owns the whole pane instead of renting slots here. What survives is the state vocabulary the generic
+// panel still owns — the badge (dot + count, never on the active tab) and disable-with-reason (aria-disabled
+// + title, focusable-discoverable). The set deliberately MIXES `strip` values: rail membership is a
+// claimant's vocabulary, so the generic panel must IGNORE it and render ONE strip carrying every tab.
 
-const CTX_BRACKET_TABS: readonly ResolvedContextTab[] = [
-  // GAME strip (state, above the viewport).
+const CTX_TAB_STATE_TABS: readonly ResolvedContextTab[] = [
   resolvedTab({ id: "rpg.status", label: "Status", icon: Gauge, node: <div data-testid="ctx-body-status">status</div>, strip: "game" }),
-  // A game tab carrying a boolean badge (the 6px changed-dot).
+  // A tab carrying a boolean badge (the 6px changed-dot).
   resolvedTab({ id: "rpg.scene", label: "Scene", icon: Drama, node: <div data-testid="ctx-body-scene">scene</div>, strip: "game", badge: true }),
-  // A game tab carrying a COUNT badge (pending-proposals idiom).
+  // A tab carrying a COUNT badge (the pending-proposals idiom).
   resolvedTab({ id: "rpg.game", label: "Game", icon: Crown, node: <div data-testid="ctx-body-game">game</div>, strip: "game", badge: 3 }),
-  // A PHASE-disabled game tab (the OSRS locked-tab pattern — the Map/MA-3 shape).
+  // A PHASE-disabled tab (the locked-tab pattern — the Map/MA-3 shape).
   resolvedTab({
     id: "rpg.map",
     label: "Map",
@@ -359,16 +359,15 @@ const CTX_BRACKET_TABS: readonly ResolvedContextTab[] = [
     strip: "game",
     disabledReason: "Maps unlock with the map arc (MA-3)",
   }),
-  // META strip (administration, below the viewport).
   resolvedTab({ id: "members", label: "Members", icon: Users, node: <div data-testid="ctx-body-members">members</div>, strip: "meta" }),
   resolvedTab({ id: "settings", label: "Settings", icon: Settings, node: <div data-testid="ctx-body-settings">settings</div>, strip: "meta" }),
 ];
 
-/** The bracket at a fixed width — two strips, one selection, badges + a disabled tab. */
-export function ContextBracketStory({ width = 291 }: { readonly width?: number }): ReactElement {
+/** The generic panel at a fixed width — ONE strip over a mixed-`strip` set, badges + a disabled tab. */
+export function ContextTabStatesStory({ width = 291 }: { readonly width?: number }): ReactElement {
   return (
     <div style={{ width }} data-testid="ctx-strip-container">
-      <ContextTabsPanel tabs={CTX_BRACKET_TABS} />
+      <ContextTabsPanel tabs={CTX_TAB_STATE_TABS} />
     </div>
   );
 }
