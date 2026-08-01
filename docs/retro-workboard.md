@@ -543,6 +543,17 @@ Still open: #16 engine auto-sleep/wake live pass · D22 member-tiers (multi-user
 
 ### DISCUSSION PILE (owner, no build)
 
+☰ **CONFIG-RAIL RIFF (owner, 08-02, explicitly "just riffing" — no build):** presets/tags/
+world-info/regex are COLLECTIONS of editable objects getting modal treatment while characters get
+library treatment — a CONFIGURATION rail glyph (list = the collections + maybe the settings
+categories as singleton-anchor rows; content pane = real per-object editors, no popups) applies
+the library pattern to config objects; one rich glyph beats three anemic ones. COMPOSES with
+in-flight work: SET-SEAMS S6 makes sections portable (relocation = door-assembly edit, not
+migration); S5 mints tag/regex as contributions; projection grammar handles mixed-kind lists.
+BOUNDARY to keep: user-tier config vs room-tier overrides stay distinct surfaces. Sibling of the
+characters+chats rail-merge fork below — same instinct (fewer, richer rail sections). Owner also
+re-stated: "still not set on presets being their own thing." Rule by feel post-SET-SEAMS-seal.
+
 ☰ **AGENT-1 — agent-sdk FIRST-CLASS for rpg-lite (owner interest 08-02; scoped, NOT dispatched —
 new scope beyond the databank mandate).** Plumbing is ~complete (terminal tools · stateful tools ·
 session resume w/ seed-frames+divergence · compaction envs · firewall · catalog). Remaining arms:
