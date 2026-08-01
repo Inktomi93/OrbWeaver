@@ -100,11 +100,13 @@ test("a section's save carries none of its siblings' keys and never re-fires or 
   expect("streamScrollMode" in handlingPatch).toBe(false);
   expect(Object.keys(handlingPatch).sort()).toStrictEqual([
     "autoContinue",
+    "autoContinueRounds",
     "autoSwipe",
     "continueOnSend",
     "customStoppingStrings",
     "enterSends",
     "generateOnEmptySend",
+    "tempChatTtlHours",
   ]);
 
   // …and B neither re-saved nor lost its value (no reseed churn — §2.2's projection-equality property).
