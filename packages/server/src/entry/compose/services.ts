@@ -362,11 +362,13 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // buildChatService.
   const chatBus = createChatBus({ db, now, newEventId: minter(ID_PREFIX.chatEvent) });
   const emitChatEvent = async (event: ChatBusEvent): Promise<void> => {
-    const seq = await chatBus.emit(event);
+    const logged = await chatBus.emit(event);
     // `null` ⇒ the durable append was dropped + reported (bus.ts FLAG[emit-is-total], e.g. the chat was
     // deleted mid-turn). Durable-first means an un-logged event is never fanned — it has no replay cursor.
-    if (seq !== null) {
-      publishChatEvent({ seq, event });
+    // The fan carries `logged.event`, not the caller's — the bus stamped the §3.6 member projection onto it,
+    // and the live path must deliver byte-for-byte what the durable replay will.
+    if (logged !== null) {
+      publishChatEvent(logged);
     }
   };
 
