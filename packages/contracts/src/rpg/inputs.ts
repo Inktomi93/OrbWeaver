@@ -15,6 +15,7 @@
 import type { ChatId, PresetId, RpgCheckpointId, RpgJournalId, RpgQuestId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
+import { MAX_USER_MACROS, userMacroSchema } from "#preset";
 import { rpgActorRefSchema } from "./actor";
 import {
   RPG_DATE_MODES,
@@ -84,6 +85,10 @@ export const rpgUpdateConfigInputSchema = z.object({
       extractionContext: z.enum(RPG_EXTRACTION_CONTEXTS).optional(),
       extractionWindowTokens: z.number().int().min(RPG_EXTRACTION_WINDOW_TOKENS_MIN).max(RPG_EXTRACTION_WINDOW_TOKENS_MAX).optional(),
       reconcileEveryBeats: z.number().int().min(0).max(RPG_RECONCILE_EVERY_BEATS_MAX).optional(),
+      // WAVE MU (owner ruling #20's game half): the GAME's authored user macros — the whole set in ONE write
+      // (whole-list replace, the `trackers` semantics). Omit keeps the current set. The turn registers these
+      // BESIDE the preset's, the game winning a name clash (`shadowPresetUserMacros`).
+      userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).optional(),
     })
     .optional(),
   gmPresetId: brandedId<PresetId>().nullable().optional(),
