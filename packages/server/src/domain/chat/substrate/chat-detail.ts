@@ -17,6 +17,7 @@ interface ChatDetailRow {
   readonly title: string | null;
   readonly star: boolean;
   readonly archived: boolean;
+  readonly temporary: boolean;
   readonly parentChatId: ChatId | null;
   readonly forkedAt: number | null;
   readonly anchorPersonaId: PersonaId | null;
@@ -62,6 +63,7 @@ export function toChatDetail({
     title: chat.title,
     star: chat.star,
     archived: chat.archived,
+    temporary: chat.temporary,
     parentChatId: chat.parentChatId,
     forkedAt: chat.forkedAt,
     anchorPersonaId: chat.anchorPersonaId,

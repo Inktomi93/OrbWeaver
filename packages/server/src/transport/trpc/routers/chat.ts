@@ -91,6 +91,10 @@ const startChatSchema = z.object({
   groupConfig: groupConfigSchema.optional(),
   roomOverrides: roomOverridesSchema.optional(),
   injections: z.array(chatInjectionInputSchema).optional(),
+  // ST "Temporary Chat" (PD-65) — born ephemeral: persisted so turns can run, hidden from `listChats`
+  // ALWAYS, swept by `reapTemporaryChats` once past the caller's own TTL. Creation-only BY DESIGN (a fork
+  // is born non-temporary; no verb updates the column), so this is the ONE place the flag can be set.
+  temporary: z.boolean().optional(),
   // The composer wand's degenerate "Guide the opening" (a draft chat has no committed turn to steer
   // yet — its guided input rides the founding `generate` opening instead; ignored by every other
   // `opening` policy). The DERIVED `guidedSteerSchema` (F6) — the transport trust boundary; a garbage
@@ -579,6 +583,12 @@ export const chatRouter = t.router({
     .input(setChatAnchorPersonaSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setChatAnchorPersona({ principal: ctx.auth, ...input })),
   delete: authedProcedure.input(deleteChatSchema).mutation(({ ctx, input }) => ctx.services.chat.delete({ principal: ctx.auth, ...input })),
+  // Temp-chat maintenance (PD-65): sweep the CALLER's OWN expired temporary chats, on the CALLER's own
+  // `chat.tempChatTtlHours`. Input-less and per-caller-scoped INSIDE the verb (it deletes only chats the
+  // caller presently HOSTS), so there is no id to leak and nothing to cross-tenant probe — the client
+  // fires it fire-and-forget on home mount (owner decision H5; a workloads runner would add scheduling
+  // for one indexed delete).
+  reapTemporaryChats: authedProcedure.mutation(({ ctx }) => ctx.services.chat.reapTemporaryChats({ principal: ctx.auth })),
   // Generate image(s) in a chat (the I5 mode picker + /imagine surface). mode/prompt/n/size map onto
   // `chat.generateImage` → `imagery.generatePicture` (an absent `size` falls to the leaf's `defaultSizeFor`).
   generateImage: authedProcedure.input(generatePictureRequestSchema.extend({ chatId: brandedId<ChatId>() })).mutation(({ ctx, input }) =>
