@@ -17,6 +17,8 @@ export type { LibraryRowActions, LibraryRowProps } from "./library-row";
 export { LibraryRow } from "./library-row";
 export type { LibraryListLayoutProps, LibrarySurfaceShellProps } from "./library-surface";
 export { LibraryListLayout, LibrarySurfaceShell } from "./library-surface";
+export type { ListPaneHeaderBack, ListPaneHeaderProps } from "./list-pane-header";
+export { ListPaneHeader } from "./list-pane-header";
 export type { RegexEditorDialogProps, RegexScriptsFormValues } from "./regex-editor-dialog";
 export { RegexEditorDialog } from "./regex-editor-dialog";
 export type { RelationManagerItem, RelationManagerSectionProps } from "./relation-manager-section";
