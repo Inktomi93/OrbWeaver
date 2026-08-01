@@ -50,6 +50,20 @@ describe("resolveContextTabs", () => {
     ]);
   });
 
+  test("carries the host-only `crown` flag through, defaulted to false (HUD-1 §4)", () => {
+    // A PRESENTATION flag declared by each tab's owner, exactly like `strip`: it exists so a claimant can
+    // paint host-only cells without carrying a list of foreign tab ids. Absent must mean false, not
+    // undefined — the renderer branches on it and an untouched section never spells it.
+    const spec: ContextTabsSpec<State> = {
+      useContextState: () => ({ n: 1 }),
+      tabs: [tab("a"), { id: "b", label: "b", crown: true, body: (s) => s.n }],
+    };
+    expect(resolveContextTabs(spec, { n: 1 }).tabs.map((t) => ({ id: t.id, crown: t.crown }))).toEqual([
+      { id: "a", crown: false },
+      { id: "b", crown: true },
+    ]);
+  });
+
   test("binds actions against the same state", () => {
     const spec: ContextTabsSpec<State> = {
       useContextState: () => ({ n: 5 }),
