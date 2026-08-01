@@ -12,6 +12,7 @@ import {
   useInvalidation,
   useOnlineStatus,
   useTRPC,
+  useUploadAsset,
   useViewer,
 } from "@orb/client/data";
 import type { ChatBusEvent } from "@orb/contracts/chat";
@@ -150,6 +151,46 @@ export function InvalidationStory({ chatId }: { readonly chatId: ChatId }): Reac
     <CtDataProviders>
       <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
         <InvalidationReader chatId={chatId} />
+      </QueryBoundary>
+    </CtDataProviders>
+  );
+}
+
+// ── useUploadAsset — the upload front door bound to its freshness consequence (data/use-upload-asset.ts).
+//    The upload route is a RAW multipart POST with no `invalidates` and no bus event, so before the hook a
+//    completed upload was invisible to `assets.listOwned` (the gallery dialog's owned-asset picker) until
+//    gcTime evicted it. The probe mounts that read ACTIVE, so a reached invalidate is a real wire refetch
+//    routeTrpc counts — never a silent stale-mark that would pass with the hook removed. ─────────────────
+
+function UploadAssetProbe(): ReactElement {
+  const trpc = useTRPC();
+  const upload = useUploadAsset();
+  const owned = useSuspenseQuery(trpc.assets.listOwned.queryOptions({ limit: 20 }));
+  const [state, setState] = useState("idle");
+  return (
+    <div>
+      <p data-testid="owned-count">{`rows=${owned.data.length}`}</p>
+      <p data-testid="upload-state">{state}</p>
+      <button
+        type="button"
+        onClick={(): void => {
+          void upload(new File(["x"], "pic.png", { type: "image/png" }), "avatar").then(
+            (stored) => setState(`stored:${stored.hash}`),
+            (error: unknown) => setState(`failed:${String(error)}`),
+          );
+        }}
+      >
+        upload
+      </button>
+    </div>
+  );
+}
+
+export function UploadAssetStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
+        <UploadAssetProbe />
       </QueryBoundary>
     </CtDataProviders>
   );

@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog } from "#components";
 import type { Trpc } from "#data";
-import { uploadAsset, useInvalidation, useTRPC } from "#data";
+import { useInvalidation, useTRPC, useUploadAsset } from "#data";
 import { notify } from "#lib";
 import { useUpdatePersona } from "../hooks/use-persona-mutations";
 import { PersonaEditor } from "./persona-editor";
@@ -51,6 +51,7 @@ export function PersonaPanelRow({
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const update = useUpdatePersona({ trpc, invalidation });
+  const upload = useUploadAsset();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState(persona.name);
@@ -68,7 +69,7 @@ export function PersonaPanelRow({
 
   const onAvatarFile = async (file: File): Promise<void> => {
     try {
-      const stored = await uploadAsset(file, "avatar");
+      const stored = await upload(file, "avatar");
       update.mutate({ personaId: persona.id, input: { avatarAssetId: stored.assetId } });
     } catch {
       notify.error("Couldn't upload the avatar.");
