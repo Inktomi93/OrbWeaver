@@ -86,6 +86,12 @@ resolved); the E2E_LIVE specs on the next push window.
   park-skip corner fixed; live security specs green on its stacks. STICKLER PASS 3 dispatched
   (scoped to the barrier); MERGE on its verdict.
 
+**GATES LANE IN FLIGHT (`a96553c78956cf920`, max-effort Fable, the owner's pre-compact ask):**
+three session-earned gates — `ui-size-via-variant` (the 3× tailwind-merge size-override class) ·
+the `pre-merge-commit` hook (merges skipped checks; main went red twice) · `scrubber-home`
+(security: scrubber construction outside the producer stamp = RED). Merge on its report; probe
+receipts required.
+
 **ORCHESTRATION GOTCHAS THIS SESSION PAID FOR (obey):** pass `isolation:"worktree"` on EVERY
 concurrent Agent dispatch (never implied) · the snap stage is a GLOBAL port singleton — exactly
 ONE lane holds it at a time (two side-eyes double-booked once; one must wait) · merge commits SKIP
