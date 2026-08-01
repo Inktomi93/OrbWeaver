@@ -16,8 +16,8 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { CharactersListPaneStory } from "../_ct-stories";
-import { makeCharacterSummary } from "../fixtures";
+import { CharactersListPaneStory, CharactersScreenStory } from "../_ct-stories";
+import { makeCharacterDetail, makeCharacterSummary } from "../fixtures";
 
 const AZARAEL = "char_ct_azarael0001";
 const SERA = "char_ct_sera00000001";
@@ -29,8 +29,9 @@ const CHARACTER_PAGE = {
 
 const SETTINGS = { userId: "user_ct_pane", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 
-/** `character.get` is the band + identity-row read; the editor beside the pane suspends on the same key. */
-const AZARAEL_DETAIL = { ...makeCharacterSummary({ id: AZARAEL, name: "Azarael" }), description: "", personality: "", scenario: "", greetings: [] };
+/** `character.get` is the band + identity-row read; the COMPOSED story's editor reads the same key, so this
+ *  is the full `CharacterDetail` (the editor's form seeds every field off it). */
+const AZARAEL_DETAIL = makeCharacterDetail({ id: AZARAEL, handle: "azarael", name: "Azarael" });
 
 function chat(fields: { id: string; title: string; seats: readonly string[]; lastMessageAt: number }): Record<string, unknown> {
   return {
@@ -66,6 +67,7 @@ function routeAll(page: Parameters<typeof routeTrpc>[0], chats: readonly Record<
   return routeTrpc(page, {
     "character.list": () => CHARACTER_PAGE,
     "character.get": () => AZARAEL_DETAIL,
+    "character.update": () => AZARAEL_DETAIL,
     "chat.listChats": () => chats,
     "settings.getUserSettings": () => SETTINGS,
   });
@@ -142,29 +144,48 @@ test("back deselects AND restores focus to her row in the library (§3.7 — nev
   await expect(component.getByRole("button", { name: "Azarael", exact: true })).toBeFocused();
 });
 
-// §3.7's forward half — the mirror of the back-focus test above. Entering the projection is a pane SWAP,
-// and the click that triggers it UNMOUNTS the row the user pressed, so `document.activeElement` is already
-// `<body>` by the time the new pane mounts: a guarded "only steal focus if something was focused" hook
-// reads that as a cold page load and silently skips (side-eye P1-1). Behavioural, not a class check.
-test("selecting a character moves focus INTO the projection (§3.7 — never left on <body>)", async ({ mount, page }) => {
-  await routeAll(page, CHATS);
-  const component = await mount(<CharactersListPaneStory />);
+// §3.7's forward half — the mirror of the back-focus test above, and it must be COMPOSED (side-eye P1,
+// round 2). One selection mounts TWO focus-managing surfaces: this pane and the CONTENT editor beside it.
+// A pane mounted alone proves nothing — the round-1 unconditional mount-focus passed in isolation while,
+// in the real composition, it un-jammed the editor's `useFocusOnMount` guard (activeElement was no longer
+// `<body>`) and the editor took the focus straight back. So the owner is decided by the selection INTENT,
+// and both arms are asserted through the SAME composed mount.
+test.describe("§3.7 the focus owner is decided by the selection INTENT (LIST + CONTENT composed)", () => {
+  /** Where focus actually landed — polled, since both surfaces take it in mount effects. */
+  function focusRegion(page: Parameters<typeof routeTrpc>[0]): Promise<{ onBody: boolean; inProjection: boolean; inContent: boolean }> {
+    return page.evaluate(() => {
+      const active = document.activeElement;
+      const pane = document.querySelector('[data-slot="character-chats-projection"]');
+      const content = document.querySelector('[data-testid="content-region"]');
+      const holds = (region: Element | null): boolean => region !== null && active !== null && region.contains(active);
+      return { onBody: active === document.body, inProjection: holds(pane), inContent: holds(content) };
+    });
+  }
 
-  await component.getByRole("button", { name: "Azarael", exact: true }).click();
-  await expect(component.getByText("Winter court")).toBeVisible();
+  test("a pick FROM THE PICKER lands focus in the projection — the pane the click just transformed", async ({ mount, page }) => {
+    await routeAll(page, CHATS);
+    const component = await mount(<CharactersScreenStory deepLinkCharacterId={AZARAEL} />);
 
-  // Polled: focus lands in a mount effect, so a single snapshot samples the transition and flakes.
-  await expect
-    .poll(
-      () =>
-        page.evaluate(() => {
-          const active = document.activeElement;
-          const pane = document.querySelector('[data-slot="character-chats-projection"]');
-          return { onBody: active === document.body, inside: pane !== null && active !== null && pane.contains(active) };
-        }),
-      { intervals: [20, 50, 100] },
-    )
-    .toEqual({ onBody: false, inside: true });
+    await component.getByRole("button", { name: "Azarael", exact: true }).click();
+    await expect(component.getByText("Winter court")).toBeVisible();
+    // The editor is mounted and settled beside it — this is exactly the composition that used to steal back.
+    await expect(component.getByRole("textbox", { name: "Name" })).toHaveValue("Azarael");
+
+    await expect.poll(() => focusRegion(page), { intervals: [20, 50, 100, 200] }).toEqual({ onBody: false, inProjection: true, inContent: false });
+  });
+
+  test("a NON-picker entry (deep link / agent nav) leaves focus with the CONTENT editor", async ({ mount, page }) => {
+    await routeAll(page, CHATS);
+    const component = await mount(<CharactersScreenStory deepLinkCharacterId={AZARAEL} />);
+
+    // Pressing a real control is the hook's own navigation discriminator (activeElement is not <body>), so
+    // this is the arm where the editor legitimately claims focus — and the projection must not contest it.
+    await component.getByTestId("deep-link").click();
+    await expect(component.getByText("Winter court")).toBeVisible();
+    await expect(component.getByRole("textbox", { name: "Name" })).toHaveValue("Azarael");
+
+    await expect.poll(() => focusRegion(page), { intervals: [20, 50, 100, 200] }).toEqual({ onBody: false, inProjection: false, inContent: true });
+  });
 });
 
 test("a character with no chats gets an empty state that teaches AND acts", async ({ mount, page }) => {

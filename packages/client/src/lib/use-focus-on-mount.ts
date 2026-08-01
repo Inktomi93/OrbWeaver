@@ -21,12 +21,19 @@ const browserDocument = (globalThis as { document?: MinimalDocument }).document;
  *  focused the content anchor on the section change first), so `activeElement` is a real element ⇒ we DO
  *  move focus into the new surface. The `<body>`/null check is the exact initial-load ⇄ navigation
  *  discriminator, with no timing flag. */
-export function useFocusOnMount(ref: RefObject<{ readonly focus: () => void } | null>): void {
+/** @param enabled - `false` stands the surface DOWN — another surface owns focus for this mount by an
+ *  explicit INTENT decision (the character screen's LIST projection: a selection made from the list picker
+ *  focuses the pane the user just transformed, so the CONTENT editor mounting beside it must not take it
+ *  back). Defaults to `true`, so every other caller is unchanged. */
+export function useFocusOnMount(ref: RefObject<{ readonly focus: () => void } | null>, enabled = true): void {
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
     const active = browserDocument?.activeElement;
     if (active === null || active === undefined || active === browserDocument?.body) {
       return;
     }
     ref.current?.focus();
-  }, [ref]);
+  }, [ref, enabled]);
 }

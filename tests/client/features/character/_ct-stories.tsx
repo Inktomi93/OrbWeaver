@@ -307,3 +307,52 @@ export function CharactersListPaneStory({ selectedCharacterId }: CharactersListP
     </CtDataProviders>
   );
 }
+
+// ── The COMPOSED characters screen: LIST pane + CONTENT editor, the two focus-managing surfaces one
+// selection mounts (list-pane-projection §3.7 — the P1 focus race). Mounting the pane ALONE cannot see the
+// defect: the editor's own `useFocusOnMount` is what takes the focus back, and it only exists in this
+// composition. Both regions come from the REAL section registry, exactly as the shell renders them.
+
+/** The characters section's LIST (band + pane) beside its CONTENT (the editor), plus a NON-picker entry
+ *  into the same selection — a deep link / agent nav, which must leave focus with the editor. */
+function CharactersScreenHarness(): ReactElement {
+  const registry = useSectionRegistry();
+  const definition = registry.get("characters");
+  const list = definition.list;
+  const content = definition.content;
+  if (typeof list !== "function" || typeof content !== "function") {
+    throw new Error("ct-stories: the characters section has no list pane or content body");
+  }
+  return (
+    <div style={{ display: "flex", height: 560 }}>
+      <div style={{ width: 320 }}>
+        <div data-testid="list-band">{definition.listHeader?.()}</div>
+        {list()}
+      </div>
+      <div data-testid="content-region" style={{ flex: 1, minWidth: 0 }}>
+        {content()}
+      </div>
+    </div>
+  );
+}
+
+export interface CharactersScreenStoryProps {
+  /** The character a NON-picker entry (the "deep link" button) selects — the CONTENT-owned focus arm. */
+  readonly deepLinkCharacterId: string;
+}
+
+/** LIST + CONTENT together, with a deep-link control the CT can press to enter the same selection WITHOUT
+ *  the picker (the two focus arms differ only by that intent). */
+export function CharactersScreenStory({ deepLinkCharacterId }: CharactersScreenStoryProps): ReactElement {
+  useEffect(() => (): void => clearCharacterSelection(), []);
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <button data-testid="deep-link" onClick={(): void => selectCharacter(castId<CharacterId>(deepLinkCharacterId))} type="button">
+          Open via deep link
+        </button>
+        <CharactersScreenHarness />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}

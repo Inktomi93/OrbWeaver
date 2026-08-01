@@ -46,8 +46,10 @@ export {
 export {
   clearCharacterFacet,
   clearCharacterSelection,
+  listProjectionOwnsFocus,
   selectCharacter,
   selectCharacterFacet,
+  selectCharacterFromPicker,
   useSelectedCharacterFacetId,
   useSelectedCharacterId,
 } from "./character-selection-store";
