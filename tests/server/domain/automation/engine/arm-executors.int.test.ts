@@ -8,6 +8,8 @@
 import type { AutomationAction, AutomationBusEvent, AutomationCelEnv, TriggerFact } from "@orb/contracts/automation";
 import { automationActionSchema } from "@orb/contracts/automation";
 import type { NotificationEvent } from "@orb/contracts/notifications";
+import type { ProseOverrides } from "@orb/contracts/prose";
+import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { chatBooks, worldBooks, worldEntries } from "@orb/db";
@@ -68,6 +70,8 @@ interface BgOverrides {
   /** BG-F — force the chat-background write to REJECT (models the verb's host-authority refusal on a lost-
    *  authority race), so the arm's typed-`arm_error` mapping is exercised. */
   readonly setChatBackgroundThrows?: Error;
+  /** PROSE-1 census 91 — the ROOM HOST's prose overrides the quiet pick's two authored clauses resolve under. */
+  readonly prose?: ProseOverrides;
 }
 
 /** 1.6 — trigger_turn harness overrides: the canned `requestTurn` result (reply count), or a forced REJECT
@@ -92,6 +96,7 @@ function makeHarness(
       resolveViewerVisibility: () => Promise.resolve(null),
       readVariables: () => Promise.resolve({}),
       readChoicePicks: () => Promise.resolve({}),
+      resolveChatProse: () => Promise.resolve(bg.prose ?? {}),
       applyVariableOps: (chatId, varOps) => {
         captured.varOps.push({ chatId, ops: varOps });
         return Promise.resolve();
@@ -485,6 +490,31 @@ test("set_chat_background: the quiet pick is sent the candidate NAMES and its ch
   expect(captured.quietPrompts[0]).toContain("Dusk Harbor");
   // The model's pick matched a choice and was written as the chat background (host-scoped, author = host).
   expect(captured.setBackgrounds).toEqual([{ authorUserId: host, chatId, background: BG_BOB }]);
+});
+
+// PROSE-1 census 91 — the pick's task lead + reply contract are per-USER slots resolved against the ROOM HOST.
+test("set_chat_background: the quiet pick frames the candidates with the shipped prose clauses", async () => {
+  const { db, host, chatId } = await setup();
+  const { dispatch, captured } = makeHarness(db, undefined, { choices: AUTOBG_CHOICES, quietReply: "Dusk Harbor" });
+  await dispatch({ type: "set_chat_background" }, makeFrame({ chatId, authorUserId: host }));
+  expect(captured.quietPrompts[0]?.startsWith(`${PROSE_SLOTS["automation.autobg.task"].text}\n\n`)).toBe(true);
+  expect(captured.quietPrompts[0]?.endsWith(`\n\n${PROSE_SLOTS["automation.autobg.reply"].text}`)).toBe(true);
+});
+
+test("set_chat_background: a host's prose overrides REPLACE both clauses, keeping the candidate frame", async () => {
+  const { db, host, chatId } = await setup();
+  const { dispatch, captured } = makeHarness(db, undefined, {
+    choices: AUTOBG_CHOICES,
+    quietReply: "Dusk Harbor",
+    prose: {
+      "automation.autobg.task": { text: "PICK A MOOD.", baseVersion: 1 },
+      "automation.autobg.reply": { text: "NAME ONLY.", baseVersion: 1 },
+    },
+  });
+  await dispatch({ type: "set_chat_background" }, makeFrame({ chatId, authorUserId: host }));
+  expect(captured.quietPrompts[0]?.startsWith("PICK A MOOD.\n\n")).toBe(true);
+  expect(captured.quietPrompts[0]?.endsWith("\n\nNAME ONLY.")).toBe(true);
+  expect(captured.quietPrompts[0]).toContain("Available backgrounds: Dawn Meadow, Dusk Harbor");
 });
 
 test("set_chat_background: the name match is case/space-insensitive", async () => {

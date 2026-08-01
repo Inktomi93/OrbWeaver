@@ -17,6 +17,8 @@
 
 import type { SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
+import type { ProseOverrides } from "@orb/contracts/prose";
+import { resolveProseText } from "@orb/contracts/prose";
 import type { SummarizeOptions } from "@orb/contracts/role-clients";
 import type { ArbiterCandidate, CastName, SmartArbitrationResult } from "../contract/arbitration";
 import type { SummarizeOp } from "../contract/context";
@@ -37,6 +39,9 @@ interface SmartArbitrateParams {
   readonly lastSpeaker: SpeakerRef | null;
   /** The injected PRNG (D46) — drives the `natural` fallback's weighted pick. */
   readonly rng: () => number;
+  /** The ROOM HOST's prose overrides (PROSE-1 census row 75, `chat.arbiter.system`), resolved by the caller
+   *  off `ctx.resolveChatProse`. Empty ⇒ the shipped director prompt, byte-identical. */
+  readonly prose: ProseOverrides;
   /** The resolved side-gen sampling options (the `arbiter` floor ← the chat host's preset params), mapped to
    *  the summarize seam's `{temperature, maxTokens}` at compose. A tiny output budget — we want a name, not
    *  prose — but a user's preset params can now widen it. Absent knobs fall to the runner default. */
@@ -52,11 +57,6 @@ interface SmartArbitrateParams {
 /** The cancelled arbitration: no speaker, no degrade. Frozen + module-level — every abort arm returns the
  *  same value, and the invariant (`aborted ⇒ [] + degraded:false`) is stated once, here, not per return. */
 const CANCELLED: SmartArbitrationResult = Object.freeze({ speakers: [], degraded: false, aborted: true });
-
-const SYSTEM_PROMPT =
-  "You are a turn director for a multi-character roleplay. Read the recent conversation and the list of " +
-  "characters who may speak next, then choose the single character who should speak next. Respond with " +
-  "ONLY that character's exact name from the list — no punctuation, no explanation.";
 
 /**
  * The 7b smart arbitration. Returns the ONE chosen next speaker (a single-element array) with
@@ -104,7 +104,7 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
   );
   let reply: string;
   try {
-    const result = await params.summarize([{ systemPrompt: SYSTEM_PROMPT, userPrompt }], {
+    const result = await params.summarize([{ systemPrompt: resolveProseText("chat.arbiter.system", params.prose), userPrompt }], {
       ...params.sampling,
       ...(params.signal !== undefined ? { signal: params.signal } : {}),
     });

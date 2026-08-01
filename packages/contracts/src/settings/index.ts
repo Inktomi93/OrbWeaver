@@ -12,7 +12,7 @@ import { credentialSourceSchema } from "#credentials";
 import { chunkParamsSchema, databankRetrievalSettingsSchema } from "#databank";
 import type { ExtractionMode, MultimodalCaptionMode } from "#imagery";
 import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
-import { legacyProseOverrides, resolveProseText } from "#prose";
+import { legacyProseOverrides, proseOverridesSchema, resolveProseText } from "#prose";
 import { regexScriptSchema } from "#regex";
 import { MEMORY_RETRIEVAL_MODES } from "#search";
 // BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS` / `BackgroundImageKind`) is homed in
@@ -388,7 +388,7 @@ const roleDefaultsSchema = z
   })
   .prefault({});
 
-export const USER_SETTINGS_SCHEMA_VERSION = 6;
+export const USER_SETTINGS_SCHEMA_VERSION = 7;
 
 const SCAN_DEPTH_MIN = 1;
 const SCAN_DEPTH_MAX = 200;
@@ -832,6 +832,12 @@ export const userSettingsSchema = z.object({
   chat: chatSchema,
   library: librarySchema,
   imagery: imagerySchema,
+  // PROSE-1 §4.2 — the per-USER prose-slot overrides (`home: "user"` slots only). Keyed by the closed
+  // `ProseSlotId` vocabulary, so a RETIRED slot id in a stored blob is stripped at the parse seam rather
+  // than failing the whole section. Empty ⇒ every slot resolves to its shipped default, byte-identical.
+  // The pre-PROSE-1 `imagery.templates/.captions` fields keep their own storage (§4.6: adapt, never
+  // duplicate) and are NOT mirrored here.
+  prose: proseOverridesSchema,
   persona: personaSchema,
   groupDefaults: groupConfigSchema.catch(DEFAULT_GROUP_CONFIG).default(DEFAULT_GROUP_CONFIG),
   onboarding: onboardingSchema,
@@ -854,6 +860,10 @@ export const USER_SETTINGS_SECTIONS = [
   "chat",
   "library",
   "imagery",
+  // NOTE: `prose` is deliberately NOT a section-patch target yet. The D107 `knob-wire-coverage` arm B REDs a
+  // `USER_SETTINGS_SECTIONS` member with no reachable write path, and the prose EDIT SURFACE (PROSE-1 §5) is
+  // not in this stage — registering the door before its writer would be a dead switch. It lands in the same
+  // commit as the settings Prose section.
   "persona",
 
   "groupDefaults",
@@ -946,6 +956,10 @@ const USER_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => R
   // an old blob has no imagery key, which reads back as `.prefault({})` (every override absent ⇒ the shipped
   // `@orb/contracts/imagery` catalog default, byte-identical). Carry every namespace through untouched.
   5: (c) => ({ ...c }),
+  // v6→v7: the `prose` section (PROSE-1 S1 — the app-tier prose-slot overrides) is purely ADDITIVE. An old
+  // blob has no prose key, which reads back as `.prefault({})` ⇒ every slot resolves to its shipped default,
+  // byte-identical to pre-PROSE-1. Carry every namespace through untouched (the v4→v5/v5→v6 shape).
+  6: (c) => ({ ...c }),
 };
 
 export const userSettingsConfig = defineVersionedConfig<UserSettings>({
