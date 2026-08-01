@@ -100,7 +100,11 @@ duplication owner call — DESIGN §2 mandates
   verify the wire enforces budgets, then editor-or-delete; roundtrip helper grew dotted paths).
   V2 scope = P3-P5: readouts + section-editor consolidation [bridge+inspector die] + list
   projection + Actions rebuild + DELIVERY cluster + rest-of-surface density shrink.
-· nav-label `a512a625a8eb468a4` — SettingsSubcategory.navLabel split ("Message details").
+· ~~nav-label~~ MERGED (`a89b3cb1`, unhooked): navLabel ?? label; the CT SWEEP found TWO clipping
+  rows empirically (Message details + Message handling — proven red-first); search matches both
+  names (non-substring fixture pins the wiring); ListRow.fullTitle prop (tooltip full, a11y name
+  stays VISIBLE text — WCAG label-in-name); clipping now REDs automatically via
+  readClippedNavLabels. The nav/heading split is a real contract.
 
 **THEN, IN ORDER:** batch `pnpm check` → **R1** (op-shaped patchActor + dismissActor — the
 APPROVED actor-state program's first stage; supersedes volatile-patch.ts) → V2 preset views
