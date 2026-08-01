@@ -10,7 +10,7 @@ import type { ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characters, chatInjections, chats, messages, messageVariants } from "@orb/db";
-import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { asc, eq } from "drizzle-orm";
@@ -428,6 +428,153 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       .from(chats)
       .where(eq(chats.id, castId(chat.id)));
     expect(forkRow?.summary).toBe("the pre-join story");
+  });
+
+  // D79 ruling #8 (F6) — THE FLOORED FORK'S VARIABLE CARRY. The runtime variable state is DERIVED by folding
+  // the seq-ordered chain (slot deltas ∪ standalone out-of-turn batches), so a floored fork that copies only
+  // `seq >= floor` slots must reconstitute the invisible prefix — else its fold silently diverges from the
+  // room's real state (F6a) — WITHOUT carrying the pre-floor batches verbatim (F6b: an overwritten pre-floor
+  // value is one the forker could never read, and it resurfaces in the room they now host). The shape is the
+  // variables twin of the compaction checkpoint: invisible history collapses into ONE present-state baseline
+  // batch stamped at the floor. See `verbs/fork.ts::buildForkStandaloneDeltas`.
+  describe("D79 #8 — the variable-carry baseline (invisible history collapses to present state)", () => {
+    const setOp = (key: string, value: string): VarOp[] => [{ op: "set", key, value }];
+
+    /** The source chat's variable-plane fixture, shared by the three arms so they differ ONLY in the forker's
+     *  floor. Four slots + three standalone batches, with the pre-floor batch value (`old-crown`) OVERWRITTEN
+     *  above it (the F6b leak carrier) and two ABOVE-floor `inc`s (the ops that make a naive
+     *  fold-at-the-fork-point baseline double-count). True fold at head: hp 12, secret daylight, relic
+     *  new-crown, note "-post". */
+    async function seedVariableChain(chatId: ChatId): Promise<void> {
+      const delta = async (seq: number, ops: VarOp[]): Promise<void> => {
+        const { variantId } = await seedMessage(db, chatId, seq, { role: "assistant", content: `body-${seq}` });
+        await db.update(messageVariants).set({ variableDelta: ops }).where(eq(messageVariants.id, variantId));
+      };
+      await delta(1, [
+        { op: "set", key: "hp", value: "10" },
+        { op: "set", key: "secret", value: "moonlight" },
+      ]);
+      await delta(2, setOp("secret", "daylight"));
+      await delta(3, [{ op: "inc", key: "hp" }]);
+      await delta(4, [{ op: "inc", key: "hp" }]);
+      await db
+        .update(chats)
+        .set({
+          standaloneVariableDeltas: [
+            { seq: 1, delta: setOp("relic", "old-crown") },
+            { seq: 2, delta: setOp("relic", "new-crown") },
+            { seq: 4, delta: [{ op: "add", key: "note", value: "-post" }] },
+          ],
+          // The source's live cache = the true fold of that chain (what `applyStandaloneVariableOps` / the turn
+          // commit would have written). The fork's own fold is asserted against THIS, not a re-spelled literal.
+          runtimeVariables: { hp: "12", secret: "daylight", relic: "new-crown", note: "-post" },
+        })
+        .where(eq(chats.id, chatId));
+    }
+
+    async function forkRow(chatId: string): Promise<{ runtime: unknown; standalone: unknown }> {
+      const [row] = await db
+        .select({ runtime: chats.runtimeVariables, standalone: chats.standaloneVariableDeltas })
+        .from(chats)
+        .where(eq(chats.id, castId(chatId)));
+      return { runtime: row?.runtime ?? null, standalone: row?.standalone ?? null };
+    }
+
+    test("a HOST fork is unchanged: every standalone batch carries VERBATIM, no baseline is minted", async () => {
+      const host = await seedUser(db, "vb_host");
+      const chatId = await seedChat(db, "vb_host_src");
+      await seedParticipant(db, { chatId, key: "vb_h", userId: host, role: "host" });
+      await seedVariableChain(chatId);
+
+      const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+      const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+
+      const row = await forkRow(chat.id);
+      // Byte-identical log (no baseline row, original seq stamps intact) and the source's true fold.
+      expect(row.standalone).toEqual([
+        { seq: 1, delta: setOp("relic", "old-crown") },
+        { seq: 2, delta: setOp("relic", "new-crown") },
+        { seq: 4, delta: [{ op: "add", key: "note", value: "-post" }] },
+      ]);
+      expect(row.runtime).toEqual({ hp: "12", secret: "daylight", relic: "new-crown", note: "-post" });
+    });
+
+    test("an UNFLOORED (`full`) sole-human fork carries verbatim too — the fork's state equals the source's", async () => {
+      const member = await seedUser(db, "vb_full_member");
+      const chatId = await seedChat(db, "vb_full_src");
+      // `full` visibility ⇒ NO_HISTORY_FLOOR; sole present human ⇒ the fork gate's solo arm allows it.
+      await seedParticipant(db, { chatId, key: "vb_f", userId: member, role: "member", joinSeq: 3, joinHistoryVisibility: "full" });
+      await seedVariableChain(chatId);
+
+      const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+      const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+
+      const [srcRow] = await db.select({ runtime: chats.runtimeVariables, standalone: chats.standaloneVariableDeltas }).from(chats).where(eq(chats.id, chatId));
+      const row = await forkRow(chat.id);
+      expect(row.standalone).toEqual(srcRow?.standalone);
+      expect(row.runtime).toEqual(srcRow?.runtime);
+    });
+
+    test("a FLOORED sole-human fork: state equals the source's, via ONE baseline batch — no pre-floor value, no pre-floor stamp", async () => {
+      const member = await seedUser(db, "vb_floor_member");
+      const chatId = await seedChat(db, "vb_floor_src");
+      await seedVariableChain(chatId);
+      // Joined at seq 3 with the opt-in restriction; sole present human (the host left without a handoff) ⇒
+      // the fork is allowed via the solo arm, and the copy floor is seq 3.
+      await seedParticipant(db, { chatId, key: "vb_c", userId: member, role: "member", joinSeq: 3, joinHistoryVisibility: "from-join" });
+
+      const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+      const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+
+      const [srcRow] = await db.select({ runtime: chats.runtimeVariables }).from(chats).where(eq(chats.id, chatId));
+      const row = await forkRow(chat.id);
+      // (a) CORRECTNESS — the fork's fold is byte-equal to the room's real state at the fork point. The old
+      // behavior dropped the pre-floor SLOT deltas entirely (hp "2", no `secret`): a silent gameplay reset.
+      expect(row.runtime).toEqual(srcRow?.runtime);
+      expect(row.runtime).toEqual({ hp: "12", secret: "daylight", relic: "new-crown", note: "-post" });
+      // (b) THE LOG — one synthetic baseline stamped AT the floor (the state the member walked in on, which
+      // their unclamped `getVariables` already reads), then only the above-floor batches. `secret` folds to
+      // `daylight`: the pre-floor `moonlight` write is collapsed away, not carried.
+      expect(row.standalone).toEqual([
+        {
+          seq: 3,
+          delta: [
+            { op: "set", key: "hp", value: "11" },
+            { op: "set", key: "secret", value: "daylight" },
+            { op: "set", key: "relic", value: "new-crown" },
+          ],
+        },
+        { seq: 4, delta: [{ op: "add", key: "note", value: "-post" }] },
+      ]);
+      // (c) VISIBILITY — no superseded pre-floor batch VALUE rides into the room the forker now hosts (F6b),
+      // and no stamp below the floor survives to be refolded later.
+      const serialized = JSON.stringify(row.standalone);
+      expect(serialized).not.toContain("old-crown");
+      expect(serialized).not.toContain("moonlight");
+      for (const batch of row.standalone as { seq: number }[]) {
+        expect(batch.seq).toBeGreaterThanOrEqual(3);
+      }
+    });
+
+    test("a floored fork truncated BELOW the floor carries no variable state at all (the visible slice is empty)", async () => {
+      const member = await seedUser(db, "vb_trunc_member");
+      const chatId = await seedChat(db, "vb_trunc_src");
+      await seedVariableChain(chatId);
+      await seedParticipant(db, { chatId, key: "vb_t", userId: member, role: "member", joinSeq: 3, joinHistoryVisibility: "from-join" });
+
+      const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+      const { chat } = await fork.forkChat({ principal: principal(member), chatId, throughSeq: 2 });
+
+      // No canon is visible at that horizon, so state as-of seq 2 would be state the forker may not read.
+      const forkMsgs = await db
+        .select({ id: messages.id })
+        .from(messages)
+        .where(eq(messages.chatId, castId(chat.id)));
+      expect(forkMsgs).toHaveLength(0);
+      const row = await forkRow(chat.id);
+      expect(row.standalone).toBeNull();
+      expect(row.runtime).toBeNull();
+    });
   });
 
   // §3.6 member-strip across the fork boundary (D106): a fork copies canon into a room the forker HOSTS. A
