@@ -16,6 +16,27 @@ test("renders title, description, and action from the caller", async ({ mount, p
   await expect(component.locator('[data-slot="empty-state-description"]')).toHaveCSS("color", TOKENS["color.muted-foreground"].value);
 });
 
+// side-eye P2f: the same empty state teaches at CONTENT scale on a wide surface and drops a type step in a
+// narrow LIST pane — decided by a CONTAINER QUERY on its own root (§4b axis 1), never a caller-passed
+// `compact` prop. Asserted on the COMPUTED font size against the resolved tokens: `done ≠ rendered`.
+const TITLE = '[data-slot="empty-state-title"]';
+const REM = 16;
+
+test("the voice scales to the SURFACE: content-tier title when wide", async ({ mount, page }) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const component = await mount(<EmptyState description="Weave your first one." title="No characters yet" />);
+  const expected = `${Number.parseFloat(TOKENS["text.title"].value) * REM}px`;
+  await expect(component.locator(TITLE)).toHaveCSS("font-size", expected);
+});
+
+test("the voice scales to the SURFACE: one step down inside a LIST-pane-width container", async ({ mount, page }) => {
+  // ~307px is the shell LIST pane; the root IS the container, so it answers for itself with no prop.
+  await page.setViewportSize({ width: 307, height: 720 });
+  const component = await mount(<EmptyState description="Weave your first one." title="No characters yet" />);
+  const expected = `${Number.parseFloat(TOKENS["text.body"].value) * REM}px`;
+  await expect(component.locator(TITLE)).toHaveCSS("font-size", expected);
+});
+
 test("omits the description and action slots when not provided", async ({ mount, page }) => {
   await mount(<EmptyState title="Nothing here" />);
   await expect(page.getByText("Nothing here")).toBeVisible();

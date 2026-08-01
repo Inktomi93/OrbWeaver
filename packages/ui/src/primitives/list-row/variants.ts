@@ -6,7 +6,7 @@ export const listRowVariants = tv({
   slots: {
     // `@container/list-row` lets a consumer's `actions` collapse responsively to the row's own width
     // (fold into a kebab via `@max-*/list-row` when tight).
-    root: "@container/list-row flex w-full min-w-0 items-center gap-row",
+    root: "@container/list-row relative flex w-full min-w-0 items-center gap-row",
     // Keeps `min-w-0` so it can shrink and let `title`'s `truncate` engage — starvation is prevented by
     // `content`'s own `min-w-24` floor below (a floor RAISES a min-content contribution, so if it lived
     // here on `body` it would pin `body` to the title's full width and force a horizontal scrollbar in a
@@ -35,6 +35,25 @@ export const listRowVariants = tv({
     actions: "flex shrink-0 items-center justify-end gap-field",
   },
   variants: {
+    // A cluster that is HIDDEN at rest must not spend the row's width on nothing: two ghost icon controls
+    // reserve ~76px, which starves the title/subtitle in a 307px LIST pane (side-eye P1-2b). `float` lifts
+    // the cluster OUT OF FLOW at the row's inline end so the text column keeps the full width at rest, and
+    // the reveal costs no reflow — the meta stamp and the truncation point do not jump mid-read (the width-
+    // transition alternative moves both by the cluster's width on every hover).
+    //   · FINE pointers only: at coarse there is no hover, the cluster is permanently visible
+    //     (`ROW_REVEAL`), so it stays IN FLOW and honestly spends its width instead of covering text.
+    //   · the backdrop paints only while revealed, so at rest nothing shows over the text; the wrapper is
+    //     `pointer-events-none` (its revealed children re-enable themselves via ROW_REVEAL).
+    float: {
+      true: {
+        actions: [
+          "pointer-fine:pointer-events-none pointer-fine:absolute pointer-fine:inset-y-0 pointer-fine:end-0",
+          "pointer-fine:rounded-control pointer-fine:ps-block pointer-fine:transition-colors",
+          "pointer-fine:group-hover:bg-accent pointer-fine:group-focus-within:bg-accent",
+        ],
+      },
+      false: {},
+    },
     density: {
       default: { body: "min-h-control-md px-row py-field" },
       compact: { body: "min-h-control-sm px-field py-field" },
@@ -46,5 +65,5 @@ export const listRowVariants = tv({
       false: {},
     },
   },
-  defaultVariants: { density: "default", clickable: false },
+  defaultVariants: { density: "default", clickable: false, float: false },
 });

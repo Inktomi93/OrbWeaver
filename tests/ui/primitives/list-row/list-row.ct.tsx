@@ -2,6 +2,7 @@
 // load-bearing assertion is the a11y contract: a clickable row is ONE role="button" element and
 // its trailing actions are SEPARATE tab stops OUTSIDE that element, never nested inside it.
 
+import { Button } from "@orb/ui/button";
 import { ListRow } from "@orb/ui/list-row";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -179,6 +180,38 @@ test.describe("coarse pointer — density heights", () => {
     await defaultRow.unmount();
     expect(compactHeight).toBeLessThan(defaultHeight);
   });
+});
+
+// side-eye P1-2b: a trailing cluster that is HIDDEN at rest was still reserving its full width, starving
+// the title/subtitle in a ~307px LIST pane. `actionsFloat` lifts it out of flow at the row's inline end, so
+// the text column keeps the width at rest — and (the reason it is an overlay rather than a width
+// transition) the reveal reflows NOTHING: the meta stamp and the truncation point do not move mid-read.
+test("actionsFloat gives the text column back the width a rest-hidden cluster reserved", async ({ mount, page }) => {
+  // Two `size="icon"` controls — the grammar's real cap (a state toggle + the kebab), on the token box.
+  const Cluster = (
+    <>
+      <Button aria-label="Star" intent="ghost" size="icon" />
+      <Button aria-label="Actions" intent="ghost" size="icon" />
+    </>
+  );
+  const content = '[data-slot="list-row-content"]';
+
+  const reserved = await mount(<ListRow actions={Cluster} clickable={true} meta="2h" subtitle="the pitch" title="Elara" />);
+  const starved = await page.locator(content).evaluate((el) => el.getBoundingClientRect().width);
+  const metaAtRest = await page.locator('[data-slot="list-row-meta"]').evaluate((el) => el.getBoundingClientRect().x);
+  await reserved.unmount();
+
+  const floated = await mount(<ListRow actions={Cluster} actionsFloat={true} clickable={true} meta="2h" subtitle="the pitch" title="Elara" />);
+  const roomy = await page.locator(content).evaluate((el) => el.getBoundingClientRect().width);
+  expect(roomy - starved).toBeGreaterThanOrEqual(60);
+  // …and the row is not merely wider at rest: hovering it (the reveal) leaves the text column exactly where
+  // it was — the layout-jump the width-collapse alternative would have shipped.
+  await floated.hover();
+  const hovered = await page.locator(content).evaluate((el) => el.getBoundingClientRect().width);
+  expect(hovered).toBe(roomy);
+  await expect
+    .poll(() => page.locator('[data-slot="list-row-meta"]').evaluate((el) => el.getBoundingClientRect().x), { intervals: [20, 50, 100] })
+    .toBeGreaterThan(metaAtRest);
 });
 
 test("renders the leading slot", async ({ mount, page }) => {
