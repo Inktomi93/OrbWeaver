@@ -366,8 +366,11 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
 
 - **ORPHANED OPEN ITEMS boarded from the archive sweep (08-02):** w4-my-lane S1 — `fireRpgTurnCompleted`
   still AFTER the turnCompleted emit (`engine.ts:1238`; report carries the exact patch, option 1) ·
-  join-history ruling #8/F6 — floored fork's variable carry is a hybrid (`fork.ts:383`: clamped
-  forker's runtimeVariables diverge + pre-floor batch VALUES leak into an unreadable chat) ·
+  join-history ruling #8/F6 — floored fork's variable carry (`fork.ts:383`). SEVERITY NARROWED
+  (owner + code, 08-02): fork is gated host-or-sole-present-human, floor is OPT-IN — the leak path
+  needs floored member → becomes sole human → forks. Kept because fork's own §3.6 strip already
+  covers content+reasoning on exactly this path; VARIABLES are the one missed plane, + the
+  no-baseline divergence half is floor-independent. Small consistency fix, low priority. ·
   contracts-audit F6 — `DEFAULT_BLUR_SURFACES` (3 members, zero consumers) vs schema default `[]`
   (two-line fix; closing it archives that whole audit) · Button wrap/multiline size variant
   (clears ui-size-via-variant's 2 debt rows).
