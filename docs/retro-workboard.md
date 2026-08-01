@@ -88,6 +88,10 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
    system→admin merge at stage 4 · sub-deep-links IN program · Q3/Q5/Q6 as recommended). Stage 0
    mechanism is the hard barrier.
 6. **DENSITY PASS** — approved-to-build; §7 all ten ruled (incl. D6 rounded-card demotion + D7
+   Card.padding retirement). RIDER (08-01 late): the ghost tag-chips (F3-B, merged `98fdff28`)
+   are quieter but not mock-TIGHT — box height is dominated by the D62 touch-floor icon buttons
+   and the smallest spacing token (field=6px). S1's `--spacing-tight` (4px) + `--radius-inset`
+   make mock-tight chips ON-TOKEN — fold chip tightening into the S1/S3 sweep, don't pre-solve.
    Card.padding retirement). S0 computed-value probe FIRST; S3 waits for the panel to stop moving.
 7. **WORKLOADS JUNK-DRAWER EXIT** — investigation ready
    (`docs/reviews/stickler/2026-07-25-workloads-junk-drawer-exit.md`).
@@ -181,13 +185,15 @@ tokenizer eating malformed opens (§4h) — F2a leniency + F2b example shipped.
 - Macro feed (`chat-ops/macro-view.ts`) cast projection does NOT carry the new guide fields
   (appearance/outfit/thoughts) — RV-11 lane left it deliberately. Decide: should user macros be able
   to bind cast guides via celBindings? If yes, thread them; if no, note the asymmetry in the file.
-- **PRESET-PANE FOREVER-SKELETON** (found by Lane B, PRE-EXISTING — reproduced with their change
-  reverted): the presets LIST pane hangs on "Loading your presets…" forever on a fresh-DB stage at
-  HEAD; `preset.list` returns 1 row in 41ms, zero pending queries, yet the LibrarySurfaceShell
-  fallback never resolves (Characters list, same shell family, works). Data/composition-path
-  specific — the F5 CT passes on stubbed mounts. Suspects: suspense boundary /
-  [[ct-suspense-needs-production-boundary]] class live, or socket-count starvation
-  [[sse-per-origin-connection-budget]]. Diagnose against the live stage.
+- PRESET-PANE FOREVER-SKELETON — **NOT REPRODUCIBLE (08-01 diagnosis: ~25 live loads, every
+  composition path incl. forced-race + socket-loaded + mobile + the original DB — rows every
+  time; all four suspect classes ruled out with receipts).** Likely original sighting = a
+  `--dirty` stage rsync-restart artifact (502s mid-load against the suspended boundary — the
+  class was caught live). DEMOTED to needs-a-repro-recipe; reopen only with stage mode +
+  `__orb.queries()` capture for `preset.list`. PARKED design note (latent hazard, not a bug):
+  presets is the only `useSuspenseQuery` library list — a cancelled suspended query hangs with a
+  clean cache; moving it to the Characters `useQuery`+SkeletonRows pattern changes the shared
+  `LibrarySurfaceShell` contract (world-info rides it) — owner-taste design call if ever wanted.
 - Chat-row rpg/game marker SKIPPED by Lane B (correctly): `ChatSummary` carries no rpg pointer and
   rpgRouter has no list-games query — needs a contract field; fold into the ChatSummary
   last-message-snippet field work (one migration, both markers).
@@ -223,6 +229,16 @@ verification (needs the multi-user e2e stack).
 
 ### DISCUSSION PILE (owner, no build)
 
+☰ **LIST-PANE RENT** (owner musing 08-01 late: "kind of feels like a waste"): the stickler audit
+fixed row CONTENT (scent — landed); the pane's per-screen EXISTENCE is an open IA call. Arms
+sketched: (1) auto-collapse to a slim glyph rail once a chat is open (cheap, reclaims ~280px) ·
+(2) live-instrument rows (activity/streaming indicators; snippet landed) · (3) contextual content
+per screen (in-chat = that chat's forks/branches/bookmarks tree). GUARDRAIL (D18 rationale rider,
+recorded same night): "chats with this character" surfaces must be filtered PROJECTIONS of
+first-class chats — never re-derive the ST launcher coupling. Same family as HUD-HOME; consider
+one IA focus session for both. · Snippet SEARCH (filter-chats matches title+names only — include
+message content?) is a cheap adjacent call.
+
 ☰ **RV-13 second half — branch-and-save game modes**: the ruling (freeform demoted, d20-in-lite is
 the direction) is doctrine, but the BUILD — "branch off + save your own game mode derived from the
 prebuilt d20" — was never queued. **SEQUENCING (owner, 2026-08-01): deliberately AFTER the
@@ -233,6 +249,17 @@ real payload (tracker defs, teaches, steering prose, extraction knobs). Spec the
 (parked) · flakes/facelift micro-ledgers.
 
 ## ═══ STANDING FACTS + POSTURE ═══
+
+- **OVERNIGHT FULL-AUTO: ACTIVE (owner, 2026-08-01 late).** Proceed through THE QUEUE in ruled
+  order without blocking; stuck = the escalation ladder (stickler → ast/code → docs → judgment),
+  log the reasoning here. Blocking questions ONLY for destructive/irreversible, owner-sacred
+  (persona pin), ORIGIN PUSHES (still need the per-push word — do NOT push overnight), genuine
+  scope pivots. Stack/engines pre-authorized. In flight at activation: 8 lanes (F3 swap · GM-tab
+  wave · ChatSummary scent · MU-picks · preset-skeleton diagnosis [holds the snap stage] · smalls
+  batch 3 · guided-sampling kill · injections/authors-note collapse). After they drain: SSE
+  MULTIPLEX S0→S1 (→S2 with its stickler pass) per the ruled queue; stage-needing smalls
+  (VERIFY-BURST · ✨-PERSPECTIVE · BUS-FLAP/BOOT-4X observation) serialize on the stage after the
+  preset lane frees it.
 
 - **NEVER push to origin** without an explicit per-push owner word. Origin @ `24989143`; everything
   after is local. Commit cadence relaxed ([[commit-cadence-relaxed]]).
