@@ -68,7 +68,7 @@ The orbweaver preset editor, as built (every receipt from this session's full re
 | F5 | **One object, three panes.** A section's body edits in the CENTER drill-in (`section-body-editor.tsx`), its placement/triggers/locks in the CONTEXT inspector (`preset-section-inspector.tsx:98-101`), its enable/reorder on the rack row. Editing one section is a three-geography trip. |
 | F6 | **Form-voice monotony + box-in-box.** The guided-actions surface is 8 `rounded-card border bg-card` boxes in a grid (`guided-actions-section.tsx:122`) inside a CLOSED disclosure inside the Prompt tab; rack rows carry `rounded-card border` each (`section-row.tsx:109`) — the exact chrome class density D6/CD2 demotes. Zero kicker/datum voices anywhere in the feature (the library pane's one `voice="kicker"` excepted). |
 | F7 | **Silent stored knobs.** A capability-absent knob renders ABSENT — correct doctrine (`capability-panel-model.ts:100-104`) — but a STORED explicit value on an unhonored knob (import, model swap) is then invisible in the editor AND dropped at the funnel (D68). Honest wire, lying editor: the preset carries a value no surface will ever show you. |
-| F8 | **Schema knobs with NO editor anywhere** (structural sweep, this session): `params.stop` · `params.topA` (schema-supported at `index.ts:192` yet the ST importer drops `top_a` claiming *"no neo sampling vocab"*, `index.ts:1417-1420` — the two halves contradict) · `params.maxBudgetUsd` · `params.providerContextCompression` · `params.compaction.verbatimTail` (minted as "the missing 4th compaction knob", `index.ts:168-172`, then never given an editor) · `formatStrings.responseNudge`. Plus a DEAD DOOR PAIR: `preset.export` exists server-side (`domain/preset/verbs/export.ts`) with zero client consumers, and the orb-native `parsePresetFile` importer has no client door either (the import dialog is ST-only, `preset-import-dialog.tsx`). |
+| F8 | **Schema knobs with NO editor anywhere** (structural sweep, this session): `params.stop` · `params.topA` (schema-supported at `index.ts:192` yet the ST importer drops `top_a` claiming *"no neo sampling vocab"*, `index.ts:1417-1420` — the two halves contradict) · `params.maxBudgetUsd` · `params.providerContextCompression` · `params.compaction.verbatimTail` (minted as "the missing 4th compaction knob", `index.ts:168-172`, then never given an editor) · `formatStrings.responseNudge`. Plus the MISSING SINGLE-PRESET DOOR (corrected from v1's "dead pair" reading — the reuse-seam law's check-both-ends): `domain/preset/verbs/{export,import}.ts` are the LIVE portability-bundle descriptor arms (`"preset"` is a `PORTABLE_KINDS` member, `contracts/portability/index.ts:15,41`; whole-profile bundles round-trip presets today) — what has NO door is sharing/receiving ONE preset file (the client import dialog is ST-only, `preset-import-dialog.tsx`; no single-export affordance exists). |
 | F9 | **No effective truth.** The funnel (quality defaults → explicit knobs → capability clamp → engine floors) resolves server-side, correctly one-homed — and the editor never shows its output. You move a control and nothing tells you what the next turn will actually send. ST's directness is *what-you-set-is-what's-sent*; ours can't be that (the capability doctrine is right), so it must COMPENSATE by rendering the resolved result — today it doesn't, which is the deepest "does not feel good" cause. |
 | F10 | **Activation is pane chrome, not a row affordance.** Making a preset active is a `Select` above the search box (`preset-library-surface.tsx:113-121`); the row's Active badge is passive by design (`preset-library-row.tsx:4`). Two UI locations for one one-of-N state, and the frequent act (activate what I just forked) is a dropdown trip. |
 
@@ -254,6 +254,30 @@ The effective column/gloss must come from the REAL funnel, not a client mirror. 
 - Without D5 the ghost state degrades to what the Output tab does today (static placeholders from
   shared constants) — shippable but weaker; the quality-fed sampling defaults would stay invisible.
 
+### 4.4 The freshness contract (owner-flagged: "we had a bitch of a time with the preview section")
+
+The readouts and `preset.resolveEffective` are READS and MUST ride the invalidation system — a frozen
+readout is the named prior failure class. The contract, in full:
+
+- **Every preset WRITE invalidates the read set**: `preset.update` (every knob autosave, section edit,
+  template edit), `preset.reset`, `preset.create` (create / duplicate / import), and the fork-once COW
+  (a `preset.update` under the hood) each invalidate `preset.get`, `preset.list`, AND
+  `preset.resolveEffective` — the effective profile re-resolves on save-settle, which is what makes
+  "settle-live" TRUE rather than prose.
+- **Activation invalidates**: the `seeds.defaultPresetId` patch invalidates the no-selection readout's
+  read (it projects the ACTIVE preset) and `resolveEffective` where keyed by the active pick.
+- **Capability/model changes invalidate**: the readout claims "resolved for <model>" — the same
+  producer events that refetch `connection.resolveChatCapability` today (the settings/routing writes)
+  must fan to `resolveEffective` and the capability card, or the provenance line lies after a model
+  swap.
+- **The landed `query-freshness-coverage` GATE is the wall**: `preset.resolveEffective` and every new
+  readout query get classified in the freshness map at birth — the gate makes an unclassified (frozen)
+  surface RED, so the build lane structurally cannot ship the prior failure class.
+- **Router-sweep classification**: `preset.resolveEffective` is a new proc — it lands with its
+  cross-tenant sweep row (PROBED: caller-scoped preset read) per the standing new-router rule.
+- **The tested property**: an integration/CT pin drives a write → asserts the invalidation fired → the
+  readout refetched (the settle-live loop, proven not narrated).
+
 ## 5. The Prompt view
 
 ### 5.1 The rack — kept, density-conformed
@@ -346,6 +370,17 @@ v1 draft's single static Assembly readout is SUPERSEDED by this table.
 - **CONTEXT is read-only + navigation-only.** Its only interactive elements are the sanctioned
   selection ECHOES (§16 rows 14/19) — every one writes through the ONE selection store action. Zero
   mutation affordances live in the panel; that is a §16 standing invariant.
+- **Prose previews NEVER fake a resolution (owner-flagged hazard).** The preset editor is
+  chat-independent — identity macros have no referent here, and identity-macro resolution is
+  CHAT-OWNED (Ruling B: domains THREAD values, never re-derive). The split rides the macro REGISTRY's
+  own `requires` metadata (the landed preview-engine concept — no new classification): a macro with no
+  chat requirement preview-resolves (a user macro expands structurally; a ChoiceBlock renders its
+  declared default labeled `default pick`); an identity / chat-scoped macro (`{{char}}` `{{user}}`
+  `{{persona}}` `{{memory}}` `{{compact_summary}}` the rpg set, and fire-time inputs like
+  `{{person}}`/`{{input}}`) renders AS ITS TOKEN with a distinct mark + a "resolves in chat" gloss.
+  The preview's value is the assembled SHAPE with runtime tokens marked — never a fabricated
+  resolution. Applies to EVERY prose preview: the Actions resolved preview, the Prompt assembled
+  preview, and any future readout.
 
 **The per-view table** (mock: `mocks/preset-redesign/context-readouts.html` — all six panels; the
 Params panel also appears in `params-deck.html` beside its CONTENT view):
@@ -355,7 +390,7 @@ Params panel also appears in `params-deck.html` beside its CONTENT view):
 | **no selection** (LIST browsing, no editor open) | the ACTIVE preset's effective profile — its name + the §4.3 datum rows + the capability line | "is what generation will use RIGHT NOW what I want — do I need to open, fork, or activate anything before my next turn?" It is the §4.3 read pointed at the active pick — zero new machinery, and the pane is useful before a row is ever clicked |
 | **Params** | the effective profile (every resolved knob + provenance) · the CAPABILITY card (model · window · output cap · the honored-knob list) · the quality-mapping line · the staleness COUNT | which knob to touch next (effective vs intent) · why a knob is absent or clamps (capability — today you cannot see WHY the panel shows only some sliders) · whether to trust the dial or go explicit (mapping) · whether stored intent is dead weight (staleness — the Keep/Clear AFFORDANCE stays in the deck, §4.2; the count is a pointer only) |
 | **Prompt** | the zone budget (SETUP/POST counts + ~tokens) · per-section token bars, the drilled section highlighted · pivot-health echo · the assembled preview on demand (block-click selects the section) | what to trim or disable when the system block bloats (bars) · where a section actually lands in the assembled prompt (preview) · the structural fix when the pivot is missing/duplicated (health) |
-| **Actions** | the DELIVERY PATH: the `guided_instruction` marker's health (healthy/off/absent) + its zone/position/depth in the current arrangement, with the section-select echo · the SELECTED action row's RESOLVED preview (the template with `{{input}}` marked and macros preview-resolved) | "will my customized template actually land, and where in the prompt?" — the §6 cross-link promoted from a chip you must notice to a standing readout · "what does the model actually receive when I fire this action?" (the resolved preview) |
+| **Actions** | the DELIVERY PATH: the `guided_instruction` marker's health (healthy/off/absent) + its zone/position/depth in the current arrangement, with the section-select echo · the SELECTED action row's RESOLVED preview (the template with runtime tokens MARKED and only chat-independent macros resolved — the honesty pin above) | "will my customized template actually land, and where in the prompt?" — the §6 cross-link promoted from a chip you must notice to a standing readout · "what does the model actually receive when I fire this action?" (the resolved preview) |
 | **Data** | per-variable / per-macro REFERENCE COUNTS within this preset — which sections, templates, nudges, and macro bodies mention `{{name}}` (each reference is a section-select echo) · an unreferenced marker | "is this safe to rename or delete, and where do I look first?" — scoped honestly: a zero count reads "no references in THIS preset", never "dead" (chat-time consumers outside the preset are not claimed). The scan is a pure client derivation over the saved config — no new server read |
 | **Transforms** | the PIPELINE readout, two lanes in execution order: prompt-side (regex script counts per `REGEX_PLACEMENTS` slot, on/off) · reply-side (native reasoning → `reasoningParse` fallback → AI-output/display regex → each post-process step, on/off) | "why did the reply change / which stage do I edit?" — the ORDER is the datum; today it lives only in engine file headers |
 
@@ -395,8 +430,9 @@ Per the ratified row-action grammar (`list-pane-projection-proposal.md` §12), w
   already is. The kebab gains an Activate item (N3 keyboard/discoverability parity).
 - **Inline verb: Duplicate** (ratified §12.2 — the fork workflow's measured frequent verb) — cluster =
   toggle + verb + kebab, exactly the §12.3 cap.
-- **Kebab:** Activate · Rename · Duplicate (mirror) · **Export** (gap-close G6 — wires the dead
-  `preset.export` verb; the band's import gains the orb-native `parsePresetFile` arm beside ST) ·
+- **Kebab:** Activate · Rename · Duplicate (mirror) · **Export** (gap-close G6 — the thin
+  single-preset arm over the live portability serde; hidden on the built-in row, matching the bundle's
+  own exclusion) ·
   Delete (landed active-aware confirm copy).
 - **Lineage — stated seam, not faked.** The workboard already queues the `forkedFrom` column
   ("Preset multi-tab fork idempotency"). Until it lands, lineage = the landed scent (stamp + kind);
@@ -413,7 +449,7 @@ Per the ratified row-action grammar (`list-pane-projection-proposal.md` §12), w
 | G3 | `providerContextCompression` switch (CONTEXT) with per-backend honesty gloss | S |
 | G4 | `compaction.verbatimTail` number row (CONTEXT), placeholder = engine floor | S |
 | G5 | `responseNudge` row (Actions ▸ NUDGES) | S |
-| G6 | Export door: kebab Export → `preset.export` download; import dialog gains the `orb.preset` arm (`parsePresetFile` — STRICT, loud errors, per its contract) | S |
+| G6 | The SINGLE-preset door, as THIN ARMS over the live portability seam (owner-corrected — never a parallel path): **export** = client-side `buildPresetFile(name, config)` from the cached `preset.get` row → download (the contract fn IS the bundle arm's serde — one home, `verbs/export.ts:15`; the affordance hides on the built-in row, matching the bundle's own system-default exclusion, `export.ts:1-3`); **import** = a thin `preset.importFile` proc DELEGATING to the existing `ImportPreset` verb, surfaced as the orb arm of the ONE band dialog — bundle semantics by construction: idempotent on `(ownerId, name)`, same-named preset MERGED in place else created under kind `roleplay`, `presetsChanged` emitted (`verbs/import.ts:2-4,40-76` — cited, reused, not re-derived); the dialog states the merge semantic | S |
 | G7 | Editor header truth: the ACTIVE state chip + a quiet Activate affordance when not active (a §16 row-3 sanctioned echo — same mutation as the row toggle), and the capability provenance chip ("for <model>") — the fork-once retarget's activation move becomes visible where you're editing | S |
 
 Each pairs with `mergeOnSubmit`/`seedConfig` touches where a new bound path needs seeding — noted so
@@ -452,6 +488,9 @@ Rule-by-feel stays scheduled post-SET-SEAMS-seal, exactly as the workboard has i
 | activation has one affordance | the pane Select is deleted in the same commit as the row toggle (old-beside-new is the banned half-migration) | review |
 | one home per affordance | the §16 audit table is the standing review artifact — its enforcement column names the per-row wall (shared writers, deleted twins, compile-time bridge death) | review |
 | CONTEXT is read-only + navigation-only | §16 invariant (i): context bodies carry zero mutation hooks; selection echoes ride the one store writer | review + CT |
+| readout freshness (§4.4) | the landed `query-freshness-coverage` gate — `preset.resolveEffective` + every readout query classified at birth; an unclassified surface is RED | lint-time + the write→refetch int pin |
+| new proc sweep | `preset.resolveEffective` + `preset.importFile` land with their cross-tenant sweep rows (PROBED — caller-scoped) | test-time |
+| single-preset portability = the bundle seam | the import door DELEGATES to the one `ImportPreset` verb; the export door serializes via the one `buildPresetFile` — a second serde or collision rule is the banned parallel path | review |
 | density conformance | the landed density-tier gate arms (A1 radius, A2 box-in-box) — the guided-card and rack-row `rounded-card border` rows come OUT of the baseline in this sweep, shrink-only | lint-time |
 
 ## 13. Primitives inventory — the DEFINITIVE build-input table (re-verified post-approval + round-3 amendments)
@@ -511,6 +550,21 @@ Rule-by-feel stays scheduled post-SET-SEAMS-seal, exactly as the workboard has i
 Every stage ends with its side-eye pass and ALL findings fixed ([[side-eye-fix-all-findings]]).
 Verification recipes for the build (stage permitting): `pnpm snap --wide` on the presets section with
 `--context-tab` per view; computed-value assertions per density §5.3, never authored classes.
+
+### 14.1 Build requirements (owner-flagged — build-shaping, not taste)
+
+1. **THE FORM FACTORY IS MANDATORY.** Every editor surface — the knob deck (slider + twin), the
+   section drill-in, the template/nudge editors, the Data dialogs — rides the house autosave boundary
+   (`createAutosaveEntityForm`, the landed D78 `PresetForm`): fields bind form paths through it,
+   structural array ops ride the store driver, saves ride the serialized fork-once chain. NO bespoke
+   form state, NO hand-rolled form classes (the AppearanceForm disease SET-SEAMS killed). The KnobRow
+   twin-convergence CT runs THROUGH the boundary, not around it.
+2. **Freshness is the §4.4 contract** — the `query-freshness-coverage` gate classifies every new read
+   at birth; the write→invalidate→refetch pin ships with P0 (the resolver) and P3 (the readouts).
+3. **Prose previews obey the §7 macro-honesty pin** — `requires`-gated resolution, tokens never faked
+   (Ruling B: identity resolution is chat-owned).
+4. **Portability reuses the bundle seam** (§16.1) — the single-preset arms are thin; any divergence
+   from the bundle's serde or collision semantics is a defect.
 
 ## 15. Owner decisions — genuine forks ONLY, with recommendations
 
@@ -577,3 +631,22 @@ are the #19 selection echoes and the #29 reveal; (ii) every echo pair shares ONE
 writer, never a second code path; (iii) destructive actions each live in exactly one confirm-gated
 menu. The audit is a STANDING review artifact: a new affordance lands with its row here, or it does
 not land.
+### 16.1 The preset LIFECYCLE — CRUD + portability, complete (owner-required)
+
+Every lifecycle operation, its server path, its ONE door (consistent with the audit above), and its
+semantics — the portability rows REUSE the live bundle seam (owner-corrected: `"preset"` is a
+`PORTABLE_KINDS` member and whole-profile bundles round-trip presets today; the single-preset door is
+a THIN ARM over the same descriptor, never a parallel path):
+
+| op | server path | door (audit row) | semantics |
+| - | - | - | - |
+| create | `preset.create` | band **New** (#1) | starter config; selected after create |
+| rename | `preset.update` (name) | row kebab dialog (#6) | names are NOT unique — the fork workflow mints same-name rows by design; the scent subtitle + qualifier machinery disambiguates |
+| duplicate | `preset.get` + `preset.create(config)` | inline row verb (#5) | "Copy of <name>"; selected after |
+| fork (COW) | `preset.update` against the system default | implicit — editing the built-in (§ fork-once, landed) | server mints "Default (edited)" ONCE per session chain; activation retargets when the built-in was the pick; the queued `forkedFrom` column adds lineage scent later |
+| activate | `settings` seeds patch (`defaultPresetId`) | row toggle (#3, + its two sanctioned echoes) | one-of-N; the built-in row = the null pick |
+| delete | `preset.remove` | row kebab confirm (#8) | deleting the ACTIVE preset clears the pointer first (landed); the built-in cannot be deleted |
+| ST import | client-side `importStChatCompletionPreset` → `preset.create` | the ONE band import dialog (#2) | landed: browser-side parse, dropped-fields summary, selected after |
+| orb import (G6, NEW door) | a thin `preset.importFile` proc → the EXISTING `ImportPreset` verb (`verbs/import.ts`) | the SAME band dialog — format sniffed by `schemaKind` | BUNDLE semantics by construction (cited from the verb): STRICT parse with loud per-file error; idempotent on `(ownerId, name)` — a same-named preset is MERGED in place, else created (kind `roleplay`); lift-walk from the file's schemaVersion; `presetsChanged` emitted (the §4.4 freshness ride). The dialog states the merge semantic before commit |
+| orb export (G6, NEW door) | client-side `buildPresetFile(name, config)` from the cached row | row kebab **Export** (#7) | the SAME serde bytes as the bundle arm (`buildPresetFile` is the one home both read); download named by the slug idiom; HIDDEN on the built-in row (the bundle excludes the system default — it re-seeds on the target box) |
+| whole-profile bundle | the portability core iterating the descriptors | the settings export/import surface (out of this program's scope) | UNTOUCHED — the single-preset arms above add zero divergence: same serde, same import verb, same collision rule |
