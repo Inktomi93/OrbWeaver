@@ -3,6 +3,7 @@
 // via characters.ownerId (a foreign/undistilled card short-circuits to null BEFORE any summarize call). The
 // LLM is the scripted `summarize` recorder — a test asserts the narrative parse + that the pass fired.
 
+import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -91,6 +92,28 @@ describe("compareCharactersDeep", () => {
     // The summarize pass actually fired (one input for the one comparison).
     expect(summarize.calls).toHaveLength(1);
     expect(summarize.calls[0]).toHaveLength(1);
+    // PROSE-1 `discovery.compare.system` — unset, the SYSTEM prompt is the shipped default, byte for byte.
+    expect(summarize.calls[0]?.[0]?.systemPrompt).toBe(PROSE_SLOTS["discovery.compare.system"].text);
+  });
+
+  test("the card owner's PROSE override replaces the compare system prompt (the caller rung, not the room host)", async () => {
+    // The threading proof: the slot resolves under `resolveUserProse(userId)` — the same caller rung the
+    // sampling ladder reads — so a host's edit reaches the wire and nothing else on the call changes.
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const a = await seedCard(db, { id: "a", ownerId: owner, name: "Aria", genre: "fantasy", tone: "dark", tags: ["dragons"] });
+    const b = await seedCard(db, { id: "b", ownerId: owner, name: "Bryn", genre: "fantasy", tone: "tense", tags: ["dragons"] });
+    const summarize = makeSummarizeRecorder([JSON.stringify({ summary: "s", overlap: "o", distinction: "d" })]);
+    const svc = createDiscoveryService(
+      makeDiscoveryHarness(db, {
+        summarize,
+        resolveUserProse: () => Promise.resolve({ "discovery.compare.system": { text: "Compare them in one dry sentence.", baseVersion: 1 } }),
+      }).ctx,
+    );
+
+    await svc.compareCharactersDeep(owner, a, b);
+
+    expect(summarize.calls[0]?.[0]?.systemPrompt).toBe("Compare them in one dry sentence.");
   });
 
   test("a double validation failure degrades to raw narrative — the diff still returns (D79)", async () => {
@@ -171,6 +194,25 @@ describe("askCard", () => {
     const prompt = summarize.calls[0]?.[0]?.userPrompt ?? "";
     expect(prompt).toContain("moonblade");
     expect(prompt).toContain("oath to the queen");
+    // PROSE-1 `discovery.ask.system` — unset ⇒ the shipped default.
+    expect(summarize.calls[0]?.[0]?.systemPrompt).toBe(PROSE_SLOTS["discovery.ask.system"].text);
+  });
+
+  test("the card owner's PROSE override replaces the ask system prompt", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const hero = await seedCard(db, { id: "character_hero", ownerId: owner, name: "Hero", genre: "fantasy" });
+    const summarize = makeSummarizeRecorder([JSON.stringify({ answer: "a moonblade", grounded: true })]);
+    const svc = createDiscoveryService(
+      makeDiscoveryHarness(db, {
+        summarize,
+        resolveUserProse: () => Promise.resolve({ "discovery.ask.system": { text: "Answer from the scenes only.", baseVersion: 1 } }),
+      }).ctx,
+    );
+
+    await svc.askCard(owner, hero, "What weapon?");
+
+    expect(summarize.calls[0]?.[0]?.systemPrompt).toBe("Answer from the scenes only.");
   });
 
   test("a double validation failure degrades to ungrounded raw text — the answer still returns (D79)", async () => {

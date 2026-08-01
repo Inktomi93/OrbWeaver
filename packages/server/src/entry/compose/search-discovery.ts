@@ -225,6 +225,10 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     summarizerModel: roleClients.summarizerModel,
     attachCardTagByName: deps.attachCardTagByName,
     resolveUserPresetParams: deps.resolveUserPresetParams,
+    // PROSE-1 — the compare / ask / distill system prompts off the CARD OWNER's `UserSettings.prose` (the
+    // same caller scoping imagery's template resolvers use: a library analysis is one human's request about
+    // their own cards, not a room-level side generation). No override ⇒ the shipped prompts.
+    resolveUserProse: async (userId) => (await deps.settings.loadUserSettings(userId)).prose,
     writeHubScores: embeddings.writeHubScores,
     // discovery receives only the narrowed economics results — raw message_variants columns never cross the fence.
     characterEconomics: stats.characterEconomics,

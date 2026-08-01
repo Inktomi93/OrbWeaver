@@ -5,6 +5,7 @@ import type { AssembleCharacter, AssembleContext, ChatInjection } from "@orb/con
 import { CHAT_INJECTION_POSITIONS } from "@orb/contracts/chat";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { ProseOverrides } from "@orb/contracts/prose";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -502,6 +503,29 @@ describe("assemblePromptWithSlices — per-source budget attribution", () => {
     // …and the delivered prompt is byte-identical to the pre-split merge (the split is accounting only).
     expect(prompt.static).toBe(assemblePrompt(config, ctx).static);
     expect(prompt.static).toBe(slices.map((s) => s.text).join("\n\n"));
+  });
+
+  test("the host's PROSE overrides re-word the three merged co-speaker headings, keeping each member's name", () => {
+    // PROSE-1: `chat.group.*` are per-USER slots resolved under the ROOM HOST and carried on the ctx. The
+    // member's card text underneath is data — only the heading is authorable, and `{{name}}` is what keeps
+    // the per-member attribution the budget's slice split depends on.
+    const config = configOf([marker({ marker: "char_description", name: "character description" }), marker({ marker: "chat_history" })]);
+    const niko: AssembleCharacter = { name: "Niko", description: "a wary scout", scenario: "the docks", exampleMessages: "Niko: careful." };
+    const prose: ProseOverrides = {
+      "chat.group.alsoPresent": { text: "== also here: {{name}} ==", baseVersion: 1 },
+      "chat.group.scenarioHeading": { text: "== {{name}} — setting ==", baseVersion: 1 },
+      "chat.group.exampleHeading": { text: "== {{name}} — voice ==", baseVersion: 1 },
+    };
+
+    const overridden = assemblePrompt(config, ctxOf({ coSpeakers: [niko], prose })).static;
+
+    expect(overridden).toContain("== also here: Niko ==\na wary scout");
+    expect(overridden).toContain("== Niko — setting ==\nthe docks");
+    // `<START>` is `normalizeExampleStart`'s doing — the heading is the slot, the block below it is not.
+    expect(overridden).toContain("== Niko — voice ==\n<START>\nNiko: careful.");
+    expect(overridden).not.toContain("[Also present");
+    // …and an unset ctx is byte-identical to the pre-migration inline literals.
+    expect(assemblePrompt(config, ctxOf({ coSpeakers: [niko] })).static).toContain("[Also present — Niko]\na wary scout");
   });
 
   test("a member's at-depth note lands under THAT member, not an anonymous channel", () => {

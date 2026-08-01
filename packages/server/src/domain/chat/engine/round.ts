@@ -8,6 +8,7 @@
 // refusal (a concurrent human turn won the lock) yields the round — returns what committed so far.
 
 import type { GroupConfig } from "@orb/contracts/chat";
+import { resolveProseText } from "@orb/contracts/prose";
 import type { CharacterId } from "@orb/kit/ids";
 import type { CastName } from "../contract/arbitration";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors";
@@ -44,7 +45,10 @@ function buildSpeakerPrep(base: RoundBase, group: GroupConfig, speaker: CastName
     speakerName: speaker.name,
     speakerRef: speaker.ref,
   };
-  const groupNudge = group.groupNudge && multi ? `[Write the next reply only as ${speaker.name}.]` : null;
+  // The per-speaker fence is a PROSE-1 slot (`chat.group.roundNudge`, per-USER under the room host) with the
+  // speaker's name as its `{{name}}` pre-substitution token; the host prose rode onto the round's one
+  // immutable assemble ctx at build. Unset ⇒ the shipped line, byte-identical.
+  const groupNudge = group.groupNudge && multi ? resolveProseText("chat.group.roundNudge", base.assembleContext.prose ?? {}, { name: speaker.name }) : null;
   return {
     ...base,
     speakerCharacterId,

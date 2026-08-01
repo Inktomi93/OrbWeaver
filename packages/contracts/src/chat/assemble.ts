@@ -13,6 +13,7 @@ import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
 import type { EntryPosition } from "@orb/kit/world-info";
 import { z } from "zod";
 import type { GenerationType, PromptConfig } from "#preset";
+import type { ProseOverrides } from "#prose-slot";
 import type { RegexScript } from "#regex";
 import type { WorldInfoScope } from "#world-info";
 import type { RoomOverrides } from "./metadata";
@@ -301,6 +302,12 @@ export interface AssembleContext {
   /** The identity of the per-speaker turn's active character — drives the `cardScope: "scoped"` egocentric
    *  history fold. Absent (merged / narrator / solo) ⇒ no fold. */
   activeSpeakerCharacterId?: CharacterId | null | undefined;
+  /** The ROOM HOST's model-facing prose overrides (PROSE-1 §4.3), resolved once at
+   *  `buildAssembleContext` off the chatId. The BUILD walk + SHAPE splice read the frames they compose
+   *  (the merged co-speaker headings, the two injection note frames, the group round nudge) through it.
+   *  Absent ⇒ `{}` ⇒ every frame is its shipped default, byte-identical — which is what keeps the ~50
+   *  hand-built assemble contexts (tests, previews) honest without threading anything. */
+  prose?: ProseOverrides | undefined;
   /** Host-level per-room overrides (`room > card > preset`). Absent ⇒ no room tier. */
   roomOverrides?: RoomOverrides;
   /** Resolved source of the author's-note depth injection ("room override" / "from <Name>"). */
