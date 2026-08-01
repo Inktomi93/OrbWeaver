@@ -1599,7 +1599,7 @@ test("HUD-1 §7.2: only the PHASE-LOCKED cell carries a `title` — a live cell'
   await expect(rail.getByRole("tab", { name: "Map" })).toHaveAttribute("title", "Maps unlock with the map arc (MA-3)");
 });
 
-test("HUD-1: the ACTIVE cell's caption takes the cell's ember state colour (the Text primitive must not win)", async ({ mount, page }) => {
+test("HUD-1: the ACTIVE cell's caption takes the cell's accent state colour (the Text primitive must not win)", async ({ mount, page }) => {
   // `voice="gloss"` paints `text-muted-foreground`; without `text-inherit` the caption stays grey while the
   // glyph and the cell tint go ember, which reads as "nothing is selected". Asserted as the COMPUTED colour
   // against the same token the cell's `data-active:text-primary` resolves to.
