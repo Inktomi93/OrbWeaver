@@ -230,9 +230,17 @@ Naming them is the point — a claimant with no fences is a second shell.
    never re-runs `when`, never invents a tab the resolve did not hand it.
 5. **No cross-feature import.** rpg still imports zero of chat; the door assembles (lockdown §6c).
 6. **No a11y regression.** Two labelled tab groups, arrow-key roving focus per group, the viewport
-   `aria-labelledby` the active tab, `aria-disabled` (never `disabled`) for PHASE-locked tabs, decoration
-   `aria-hidden` with the TEXT as the datum (CP-4 §4.9 + the tracker-kit a11y model). The HUD inherits
-   these as REQUIREMENTS, not as leftovers of the primitive it stopped using.
+   `aria-labelledby` the active tab, decoration `aria-hidden` with the TEXT as the datum (CP-4 §4.9 + the
+   tracker-kit a11y model). The HUD inherits these as REQUIREMENTS, not as leftovers of the primitive it
+   stopped using.
+   **AMENDED 2026-08-01 (H1 side-eye, P1-3 + P1-4).** Two corrections the built HUD forced:
+   (a) the `aria-labelledby` association must be written EXPLICITLY — Base UI resolves a panel's label
+   within ONE list, and two rails off one `Tabs` root left the active tabpanel unnamed;
+   (b) the PHASE-locked tab is **NOT `aria-disabled`**. The locked Map OPENS onto the body that states when
+   the feature arrives (RV-7), so announcing "unavailable" over a control that both Enter and a click
+   activate was two stories in one cell. It wears a LOCK glyph + the reason on `title` (the accessible
+   DESCRIPTION beside its `aria-label`), and mouse, keyboard and AT all get the same answer. `disabled` is
+   still banned; a genuinely inert tab would have to hide its teaching body, which owner review asked for.
 
 ---
 
@@ -359,8 +367,12 @@ the dead-zone fix and it preserves the strength the audit named:
 - tall body ⇒ the viewport shrinks to the available space, scrolls internally, and the rail is pinned at
   the bottom exactly as today (admin stays reachable mid-scroll).
 
-Residual space below the rail on a short body is HUD ground — it stays empty panel background. Do NOT
-invent filler content for it (owner decision 6 records the alternative).
+**AMENDED 2026-08-01 (H1 side-eye, P1-2 — decision 6, answered on the real screenshots).** The rail is
+PINNED to the pane's bottom edge (a stable Fitts target), and the residual span between the body and it is
+a GROUND element that absorbs exactly what is left. Bare background read as truncation, not as a floor, and
+a rail floating ~400px up the pane read as a bug. The ground carries a treatment, not content — the surface
+tint gathering toward the foot, `aria-hidden`, nothing to read; the "do NOT invent filler content" rule
+stands. On a tall body the ground measures ZERO, so the rail does not move between the two states.
 
 **Budget rule:** at the 30rem × 900px docked reference, band + both strips ≤ 30% of the pane height, so
 the viewport always owns the majority of the panel. Asserted as a RATIO in CT, never as px.
@@ -368,13 +380,19 @@ the viewport always owns the majority of the panel. Asserted as a RATIO in CT, n
 ### 7.2 Strip form
 
 - Every cell: glyph + caption, always both. The caption is the accessible name AND visible (this deletes
-  the "compressed form is the permanent form" defect); `title` stays for the PHASE-disabled reason only.
+  the "compressed form is the permanent form" defect); `title` stays for the PHASE-locked reason only.
+  **AMENDED 2026-08-01 (H1 side-eye, P0-1):** a stacked cell is a `@orb/ui` TabsTab `layout="stacked"`, not
+  a call-site `h-auto` — a custom-token height is opaque to tailwind-merge, so the sealed `h-control-sm`
+  won on stylesheet order and CRUSHED the cell's children (a 6px glyph over a 5px sliver of the word). The
+  conformance test measures the rendered boxes; a class-string assertion stayed green through the defect.
 - Cells fill the row as equal columns (`grid-flow-col auto-cols-fr`) — the bracket reads as a solid frame,
   the 2026-07-28 owner ruling that `shell.css:348-357` records, carried over verbatim.
 - Hit target ≥ 32px fine / ≥ 44px coarse (CP-4 §4.7, unchanged).
 - Arithmetic check at the 17rem floor: 7 cells × ~38px = ~266px — fits; at 480px each cell is ~68px, wide
   enough for a 6-character kicker caption. If a caption cannot fit at the floor, the FLOOR wins and the
-  caption truncates with the full name on `title` — never a nameless glyph.
+  caption truncates — the full name stays the cell's `aria-label`, never a nameless glyph. (AMENDED
+  2026-08-01: the truncation understudy is `aria-label`, NOT `title` — the bullet above reserves `title`
+  for the lock reason, and a hover tooltip on all six live cells was noise the side-eye called.)
 
 ### 7.3 The band (waystone) and its compressed form
 
@@ -495,12 +513,15 @@ before the stage closes.
    fired, not a UI reaction); `activeTab` reflects a stored value, then the `defaultTab` flag, then first.
 7. `context-tabs-panel.ct.tsx` (existing) — with no claimant, ONE strip, no bracket, `aria-label="Detail"`
    (the pre-HUD contract, now permanent for generic sections).
-8. **computed geometry** (done ≠ rendered): with a SHORT body the admin rail's `boundingBox().top` is
-   within one gap of the viewport's `bottom` (no dead zone); with a TALL body the rail's `bottom` equals
-   the region's `bottom` (still pinned) and the viewport scrolls; band + strips ≤ 30% of region height.
-   All ratios/relations against resolved token values, never hardcoded px.
-9. a11y: two tab groups with their labels, arrow-key roving focus inside each, the PHASE-locked Map cell
-   `aria-disabled` with its reason on `title`, decoration `aria-hidden`.
+8. **computed geometry** (done ≠ rendered): the admin rail's `bottom` equals the region's `bottom` on a
+   SHORT body AND on a TALL one (pinned, no layout jump between them) and the viewport scrolls; the band's
+   ember edge sits at the pane's row 0, full-bleed; a stacked cell's box holds glyph over caption (the
+   children measured against their own line-box/aspect — a crushed cell does not overflow); band + strips
+   ≤ 30% of region height. All ratios/relations against resolved token values, never hardcoded px.
+9. a11y: two tab groups with their labels ("Game state" / "Chat" — the game rail's name may not collide
+   with the admin rail's crown "Game" TAB), arrow-key roving focus inside each, the active tabpanel named
+   by its cell (`aria-labelledby`), the PHASE-locked Map cell reachable and activatable from BOTH mouse and
+   keyboard with its reason on `title`, decoration `aria-hidden`.
 10. `rpg-context-section.ct.tsx` (existing) — updated for the deleted `header` contribution; the band's
     content is asserted through the HUD region instead.
 
