@@ -1,5 +1,11 @@
-// routeOrbSocket — the Playwright CT stub for the MULTIPLEXED socket (SSE-1 §12). The `routeChatStream`
-// companion for `stream.connect`, plus the thing a per-proc stub never needed: a LIFECYCLE RECORDER.
+// routeOrbSocket — the Playwright CT stub for the MULTIPLEXED socket (SSE-1 §12). The ONE SSE stub for
+// `stream.connect` (it replaced the per-proc `routeChatStream`/`routeUserStream` helpers as their rooms
+// folded), plus the thing a per-proc stub never needed: a LIFECYCLE RECORDER.
+//
+// A chat CT authors its scripted turn as `chat` FRAMES (`{ channel: "chat", chatId, seq, event }`) — the
+// bus event rides verbatim under `event`, and `seq` is the durable cursor that used to be the tracked
+// envelope id, so the attach synthetics (`chatOpened`/`historyTruncated`) are expressed by giving them the
+// NON-ADVANCING cursor seq exactly as the server does.
 //
 // Why a handshake instead of a sleep. Under the multiplex the client attaches AFTER the socket is live, and
 // the registry DROPS a frame for a room nobody joined (correct — the real server never sends one). So a stub
@@ -43,11 +49,20 @@ function socketBody(frames: readonly StreamFrame[], includeReturn: boolean): str
   return out.join("");
 }
 
+/** One recorded `stream.attach` — the room AND its replay request. `sinceSeq: 0` is a durable room asking to
+ *  replay from the beginning (the chat bus's draft→committed seed); `null`/absent is live-only. */
+export interface AttachRequest {
+  readonly ref: StreamRoomRef;
+  readonly sinceSeq: number | null;
+}
+
 export interface OrbSocketRecorder {
   /** How many `stream.connect` EventSource requests were served. ONE per page is the invariant. */
   readonly connects: () => number;
   /** Every attached room ref, in call order — the "did this surface open a room it shouldn't?" lens. */
   readonly attaches: () => readonly StreamRoomRef[];
+  /** The same attaches WITH their replay request — the lens for "did this room ask for a replay?". */
+  readonly attachRequests: () => readonly AttachRequest[];
   readonly detaches: () => readonly StreamRoomRef[];
   /** Attached room KEYS (`"user"` / `"rpg:<id>"`) — the terse form for an assertion. */
   readonly attachedChannels: () => readonly string[];
@@ -72,8 +87,8 @@ export interface RouteOrbSocketOptions {
 const HANDSHAKE_TIMEOUT_MS = 5000;
 const HANDSHAKE_POLL_MS = 25;
 
-/** Decode the `stream.attach`/`stream.detach` refs out of a (possibly batched) tRPC mutation request. */
-function decodeStreamRefs(req: Request, url: URL, wanted: "attach" | "detach"): StreamRoomRef[] {
+/** Decode the `stream.attach`/`stream.detach` inputs out of a (possibly batched) tRPC mutation request. */
+function decodeStreamAttaches(req: Request, url: URL, wanted: "attach" | "detach"): AttachRequest[] {
   const procs = decodeURIComponent(url.pathname.split("/api/trpc/")[1] ?? "").split(",");
   if (!procs.includes(`stream.${wanted}`)) {
     return [];
@@ -86,17 +101,17 @@ function decodeStreamRefs(req: Request, url: URL, wanted: "attach" | "detach"): 
   }
   const isBatch = url.searchParams.get("batch") === "1";
   const byIndex = isBatch ? ((body as Record<string, unknown>) ?? {}) : { 0: body };
-  const refs: StreamRoomRef[] = [];
+  const attaches: AttachRequest[] = [];
   for (const [i, proc] of procs.entries()) {
     if (proc !== `stream.${wanted}`) {
       continue;
     }
-    const input = byIndex[String(i)] as { ref?: StreamRoomRef } | undefined;
+    const input = byIndex[String(i)] as { ref?: StreamRoomRef; sinceSeq?: number | null } | undefined;
     if (input?.ref !== undefined) {
-      refs.push(input.ref);
+      attaches.push({ ref: input.ref, sinceSeq: input.sinceSeq ?? null });
     }
   }
-  return refs;
+  return attaches;
 }
 
 /** Stub the ONE multiplexed socket and record its lifecycle. Non-socket traffic falls through to routeTrpc. */
@@ -105,8 +120,8 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
   const awaitAttaches = opts.awaitAttaches ?? 0;
   const closeStream = opts.closeStream ?? true;
   const dropFirstConnection = opts.dropFirstConnection ?? false;
-  const attached: StreamRoomRef[] = [];
-  const detached: StreamRoomRef[] = [];
+  const attached: AttachRequest[] = [];
+  const detached: AttachRequest[] = [];
   let connects = 0;
 
   await page.route("**/api/trpc/**", async (route) => {
@@ -132,15 +147,16 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
       return;
     }
 
-    attached.push(...decodeStreamRefs(req, url, "attach"));
-    detached.push(...decodeStreamRefs(req, url, "detach"));
+    attached.push(...decodeStreamAttaches(req, url, "attach"));
+    detached.push(...decodeStreamAttaches(req, url, "detach"));
     await route.fallback();
   });
 
   return {
     connects: (): number => connects,
-    attaches: (): readonly StreamRoomRef[] => [...attached],
-    detaches: (): readonly StreamRoomRef[] => [...detached],
-    attachedChannels: (): readonly string[] => attached.map((ref) => ("chatId" in ref ? `${ref.channel}:${ref.chatId}` : ref.channel)),
+    attaches: (): readonly StreamRoomRef[] => attached.map((a) => a.ref),
+    attachRequests: (): readonly AttachRequest[] => [...attached],
+    detaches: (): readonly StreamRoomRef[] => detached.map((a) => a.ref),
+    attachedChannels: (): readonly string[] => attached.map(({ ref }) => ("chatId" in ref ? `${ref.channel}:${ref.chatId}` : ref.channel)),
   };
 }

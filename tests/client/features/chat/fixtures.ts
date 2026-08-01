@@ -33,7 +33,7 @@ export function makeMessagesPage(messages: readonly MessageView[], macroNames: C
   return { messages, macroNames, personaAvatars: [], characterAvatars: [] };
 }
 
-/** The fixed chat the stories address — the CT's routeTrpc/routeChatStream key off this id. */
+/** The fixed chat the stories address — the CT's routeTrpc/routeOrbSocket key off this id. */
 export const CHAT_ID = castId<ChatId>("chat_ct_keystone");
 /** The chat a committed `ComposerStory` addresses — its own id (distinct from `CHAT_ID`) so the
  *  composer suite's turn slots never collide with the message-list suite's in the shared store. */

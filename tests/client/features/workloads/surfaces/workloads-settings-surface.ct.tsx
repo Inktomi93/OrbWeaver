@@ -62,7 +62,7 @@ function workloadRow(overrides: Record<string, unknown> = {}): Record<string, un
   };
 }
 
-/** SSE frames in the tRPC tracked wire shape (the route-trpc-subscription.ts format, local here
+/** SSE frames in the tRPC tracked wire shape (the routeOrbSocket format, local here
  *  because that helper types its events as `ChatBusEvent`). */
 function sseBody(events: readonly Record<string, unknown>[]): string {
   const frames = ["event: connected\ndata: {}\n\n"];

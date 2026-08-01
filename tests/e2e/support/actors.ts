@@ -50,7 +50,7 @@ export interface ActorClient {
    *  the seam resolve this request AS, and at what role. `authenticated:false` for an unresolved caller. */
   readonly whoami: () => Promise<Whoami>;
   /** This actor's identifying headers (cookie / signed-JWT proxy headers), for a caller that must speak the
-   *  wire directly AS this actor — the SSE consumer (`collectChatStream`) connects the member's own stream. */
+   *  wire directly AS this actor — the SSE consumer (`collectChatRoomFrames`) attaches the member's own chat room. */
   readonly headers: Readonly<Record<string, string>>;
 }
 

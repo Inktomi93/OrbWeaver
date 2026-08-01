@@ -1,10 +1,10 @@
-// routeAutomationStream — the SSE stub for `automation.stream` in Playwright CT (the `routeChatStream`
+// routeAutomationStream — the SSE stub for `automation.stream` in Playwright CT (the `routeOrbSocket`
 // companion, automation-design/04 §5). It fulfills the EventSource GET with a real `text/event-stream` body
 // carrying a SCRIPTED sequence of `AutomationBusEvent`s in the exact tRPC SSE wire shape, so a CT drives the
 // production path end-to-end: EventSource → httpSubscriptionLink → useSubscription → the chips component's
 // onData. Only the NETWORK is stubbed — the component's real state + render + send path runs.
 //
-// Wire shape (matches route-trpc-subscription.ts, verified against @trpc/server 11.18 sse.ts): a `connected`
+// Wire shape (matches route-orb-socket.ts, verified against @trpc/server 11.18 sse.ts): a `connected`
 // frame first, then each tracked value as `data: <JSON>` + `id: <seq>`, then a terminal `return` frame.
 //
 // USAGE — call routeTrpc FIRST (for the query/mutation + `chat.send` traffic), then routeAutomationStream.

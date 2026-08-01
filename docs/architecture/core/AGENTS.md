@@ -224,7 +224,7 @@ participants/agents/identity → the pointer subsection below.
 | **export** | keep (rework) | import + export **share ONE serialization core** (`Spine-Config-and-Serialization.md`, §5.3 above). |
 | **assets** | keep | the CAS index/table (the blob *store* itself is `infra/storage`). |
 | **workloads** | keep | the per-user execution engine (`singular\|bulk` mode) that users, the indexer, and bulk passes enqueue into. |
-| **notifications** | **NEW** | the per-user durable inbox + delivery stream (invite/kick/host-handoff to non-members the per-chat bus can't reach); part of the unified roster/group/multi-human system (D16). Producers (chat) emit via an injected op; transport streams it on the `chat.streamMessages` resume shape. |
+| **notifications** | **NEW** | the per-user durable inbox + delivery stream (invite/kick/host-handoff to non-members the per-chat bus can't reach); part of the unified roster/group/multi-human system (D16). Producers (chat) emit via an injected op; transport streams it on the `chat` room resume shape. |
 | ~~models~~ | → **connection** | merged. |
 | ~~debug~~ | → **foundation/observability** | `/api/_debug` is observability, not a domain. |
 | ~~corpus~~ | → **discovery** | renamed (name required insider knowledge; it does library understanding). |

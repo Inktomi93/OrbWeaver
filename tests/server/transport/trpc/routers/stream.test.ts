@@ -201,8 +201,12 @@ describe("the staged fold leaves no dual transport", () => {
     const socketId = nextSocket();
     const call = caller(ctxWith(seated));
 
-    await expect(call.stream.attach({ socketId, ref: { channel: "chat", chatId: CHAT } })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    // `chat` folded at S2 and now ATTACHES (its own accept-always/withhold-per-yield posture, pinned in
+    // stream/sources/chat.test.ts); `notifications`/`automation` are still their own procedures, so their
+    // rooms refuse — there is never a moment where one room is reachable by two transports.
+    await expect(call.stream.attach({ socketId, ref: { channel: "chat", chatId: CHAT } })).resolves.toBeUndefined();
     await expect(call.stream.attach({ socketId, ref: { channel: "notifications" } })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(call.stream.attach({ socketId, ref: { channel: "automation", chatId: CHAT } })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
   test("detach is idempotent — tearing down a room the server already dropped is not an error", async () => {

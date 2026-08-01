@@ -27,8 +27,8 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // PERMANENT (spec §14 decision 2).
   "chat.impersonateStream": "request-scoped + user-gesture-initiated, at most one at a time; detach would have to mean 'cancel generation' (spec §14.2)",
   // STAGED — deleted by the commit that folds each room (spec §13 build sequence). `sessions.streamUserEvents`
-  // and `rpg.stream` were here until S1 folded them; their absence is now ENFORCED — re-adding either goes RED.
-  "chat.streamMessages": "folds at S2 (durable replay + the per-yield member strip move into sources/chat.ts)",
+  // and `rpg.stream` (S1) and `chat.streamMessages` (S2) were here until their rooms folded; their absence is
+  // now ENFORCED — re-adding any of them goes RED.
   "notifications.notifications": "folds at S3 (durable replay #2 + the multiHuman belt relocation + the presence move)",
   "automation.stream": "folds at S4 (server-side move; no client consumer today)",
   "workloads.subscribe": "folds at S5 (its event union needs a contracts home first — spec §14 decision 3)",

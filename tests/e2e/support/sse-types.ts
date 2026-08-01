@@ -1,4 +1,4 @@
-// The wire subset of a `chat.streamMessages` yielded event the reasoning-strip spec asserts on — declared
+// The wire subset of a `chat` room frame's event the reasoning-strip spec asserts on — declared
 // LOCALLY (the e2e-support import-free-of-package-trees rule, the trpc.ts `CanonMessage` posture). Only the
 // fields the assertions read: the event `type`, a `delta`'s channel `kind` + text, and a committed `view`'s
 // `content` + `reasoning`. `type`/`kind` stay `string` (specs compare to literals; the no-inline-union-redecl
@@ -17,7 +17,7 @@ interface ViewLite {
   readonly reasoning?: string | null;
 }
 
-/** One yielded `chat.streamMessages` event — the union members the spec inspects, flattened to optional
+/** One `chat` room frame's event — the union members the spec inspects, flattened to optional
  *  fields (a given event carries only the ones for its `type`). */
 export interface ChatBusEventLite {
   readonly type: string;
