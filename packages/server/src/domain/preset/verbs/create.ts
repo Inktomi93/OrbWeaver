@@ -31,6 +31,9 @@ export function createCreate(ctx: PresetContext): Pick<PresetService, "create"> 
       kind: params.kind,
       config,
       schemaVersion: config.schemaVersion,
+      // Born here: a create carries no lineage, INCLUDING the client's Duplicate (it posts a config, not a
+      // source row — the copy is independent authorship, not a fork of the row it was seeded from).
+      forkedFrom: null,
       createdAt: now,
       updatedAt: now,
     };

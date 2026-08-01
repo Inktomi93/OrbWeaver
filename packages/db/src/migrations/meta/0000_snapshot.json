@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6bf1107e-4db2-4bd8-b54f-89fe381d9e92",
+  "id": "1b01f35d-92d2-4a36-a539-4a9f246eca59",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -4703,6 +4703,13 @@
           "autoincrement": false,
           "default": 4
         },
+        "forked_from": {
+          "name": "forked_from",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "integer",
@@ -4725,6 +4732,11 @@
           "name": "presets_owner_idx",
           "columns": ["owner_id"],
           "isUnique": false
+        },
+        "presets_owner_forked_from_idx": {
+          "name": "presets_owner_forked_from_idx",
+          "columns": ["owner_id", "forked_from"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -4735,6 +4747,15 @@
           "columnsFrom": ["owner_id"],
           "columnsTo": ["id"],
           "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "presets_forked_from_presets_id_fk": {
+          "name": "presets_forked_from_presets_id_fk",
+          "tableFrom": "presets",
+          "tableTo": "presets",
+          "columnsFrom": ["forked_from"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -5756,7 +5777,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 6
+          "default": 7
         },
         "config": {
           "name": "config",

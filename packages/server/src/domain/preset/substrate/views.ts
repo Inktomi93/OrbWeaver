@@ -19,6 +19,7 @@ export function toPresetSummary(row: PresetRow): PresetSummary {
     name: row.name,
     kind: row.kind,
     isSystemDefault: row.id === SYSTEM_DEFAULT_PRESET_ID,
+    forkedFrom: row.forkedFrom,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

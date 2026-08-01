@@ -68,9 +68,11 @@ describe("update (copy-on-write of the system default)", () => {
     expect(forked.id).not.toBe(SYSTEM_DEFAULT_PRESET_ID);
     expect(forked.isSystemDefault).toBe(false);
     expect(forked.name).toBe("My fork");
+    // The lineage is STAMPED on the row, not just narrated in the log.
+    expect(forked.forkedFrom).toBe(SYSTEM_DEFAULT_PRESET_ID);
     // A DISTINCT fork action carrying the provenance (never a plain preset.create).
     const fork = h.audits.find((a) => a.entry.action === "preset.fork");
-    expect(fork?.entry.metadata).toEqual({ forkedFrom: SYSTEM_DEFAULT_PRESET_ID });
+    expect(fork?.entry.metadata).toEqual({ forkedFrom: SYSTEM_DEFAULT_PRESET_ID, converged: false });
     expect(h.audits.map((a) => a.entry.action)).not.toContain("preset.create");
 
     // The system default row is untouched (still present, still the default).
@@ -101,21 +103,34 @@ describe("update (copy-on-write of the system default)", () => {
     expect(forked.name).toBe(`${base.name} (edited)`);
   });
 
-  test("repeat COWs NUMBER the derived name instead of stacking identical rows (F5)", async () => {
+  test("repeat COWs CONVERGE on the one fork instead of stacking rows (the multi-tab fork-once half)", async () => {
     const db = await freshDb();
-    const svc = createPresetService(makeHarness(db).ctx);
+    const h = makeHarness(db);
+    const svc = createPresetService(h.ctx);
     const owner = await seedUser(db);
     await ensureSystemDefaultPreset(db, () => FROZEN_AT);
-    const base = await svc.get({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
 
-    const first = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
-    const second = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
+    const first = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, name: "Tab A" });
+    const second = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID, name: "Tab B" });
     const third = await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID });
 
-    expect([first.name, second.name, third.name]).toEqual([`${base.name} (edited)`, `${base.name} (edited) 2`, `${base.name} (edited) 3`]);
+    // ONE fork, its id stable across every later COW — the id is what the client retargets on.
+    expect([second.id, third.id]).toEqual([first.id, first.id]);
+    // Last write wins on the converged row; a COW with no name leaves the name alone.
+    expect([second.name, third.name]).toEqual(["Tab B", "Tab B"]);
+    // The library holds the default + exactly one fork (not three).
+    const rows = await svc.list({ userId: owner });
+    expect(rows.length).toBe(2);
+    expect(rows.filter((s) => s.forkedFrom === SYSTEM_DEFAULT_PRESET_ID).map((s) => s.id)).toEqual([first.id]);
+    // Every COW audits preset.fork; only the first one actually minted a row.
+    expect(h.audits.filter((a) => a.entry.action === "preset.fork").map((a) => a.entry.metadata)).toEqual([
+      { forkedFrom: SYSTEM_DEFAULT_PRESET_ID, converged: false },
+      { forkedFrom: SYSTEM_DEFAULT_PRESET_ID, converged: true },
+      { forkedFrom: SYSTEM_DEFAULT_PRESET_ID, converged: true },
+    ]);
   });
 
-  test("numbering is per-OWNER — another user's identical name is not a collision", async () => {
+  test("convergence is per-OWNER — another user's fork of the same default is never touched", async () => {
     const db = await freshDb();
     const svc = createPresetService(makeHarness(db).ctx);
     const a = await seedUser(db, "a");
@@ -124,6 +139,22 @@ describe("update (copy-on-write of the system default)", () => {
 
     const aFork = await svc.update({ userId: a, id: SYSTEM_DEFAULT_PRESET_ID });
     const bFork = await svc.update({ userId: b, id: SYSTEM_DEFAULT_PRESET_ID });
-    expect(bFork.name).toBe(aFork.name);
+    expect(bFork.id).not.toBe(aFork.id);
+    expect(bFork.name).toBe(aFork.name); // the derived name de-collides per-owner, so both read the same
+  });
+
+  test("a pre-existing fork PAIR (the residual race's leftovers) converges on the OLDEST, deterministically", async () => {
+    const db = await freshDb();
+    const svc = createPresetService(makeHarness(db).ctx);
+    const owner = await seedUser(db);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT);
+    // The residual the verb documents: two requests that both read "no fork yet" can still mint two rows.
+    const older = await seedPreset(db, { id: castId<PresetId>("preset_race_a"), ownerId: owner, name: "Race A", forkedFrom: SYSTEM_DEFAULT_PRESET_ID });
+    await seedPreset(db, { id: castId<PresetId>("preset_race_b"), ownerId: owner, name: "Race B", forkedFrom: SYSTEM_DEFAULT_PRESET_ID });
+
+    // Same createdAt (the frozen clock) — the id tiebreak keeps the answer stable, and no THIRD row appears.
+    expect((await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID })).id).toBe(older);
+    expect((await svc.update({ userId: owner, id: SYSTEM_DEFAULT_PRESET_ID })).id).toBe(older);
+    expect((await svc.list({ userId: owner })).length).toBe(3);
   });
 });

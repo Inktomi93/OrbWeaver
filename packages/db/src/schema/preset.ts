@@ -14,12 +14,13 @@
 // `schema_version` mirrors `config.schemaVersion` (the boot reseed is
 // version-gated; the column is the legible compare key, defaulted to the current PromptConfig version).
 // NO FK from chats/messages: past-turn provenance lives on `message_variants.params` (a UserIntent
-// snapshot, D26), never a preset FK.
+// snapshot, D26), never a preset FK. The ONE preset→preset link is `forked_from` (self-FK, below).
 
 import type { PromptConfig } from "@orb/contracts/preset";
 import { PROMPT_CONFIG_SCHEMA_VERSION } from "@orb/contracts/preset";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
+import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { users } from "./users";
 
@@ -41,8 +42,21 @@ export const presets = sqliteTable(
     // Mirrors `config.schemaVersion` (the reseed-gate compare key). Defaulted to the current version so
     // a fresh write is self-consistent; the domain stamps `config.schemaVersion` explicitly on write.
     schemaVersion: integer("schema_version").notNull().default(PROMPT_CONFIG_SCHEMA_VERSION),
+    // Fork lineage — the preset this row was COPIED from (the copy-on-write fork of the system default,
+    // and the `clonePackaged` copy of a PACKAGED template). A self-FK, NOT a soft ref (D24 sanctions
+    // exactly one soft ref, `audit_logs.entity_id`), spelled like `chats.parent_chat_id`: nullable
+    // (null = born here, not a fork) with SET NULL so a fork outlives its source as a root. A fork is a
+    // deep COPY — this link carries nothing but provenance, and no read path depends on the source row
+    // existing. Also the COW convergence key: `domain/preset/verbs/update.ts` looks up the caller's
+    // existing fork of the same source instead of minting a second one.
+    forkedFrom: text("forked_from")
+      .$type<PresetId>()
+      .references((): AnySQLiteColumn => presets.id, { onDelete: "set null" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  (table) => [index("presets_owner_idx").on(table.ownerId)],
+  // The owner index serves the library list; the (owner, source) index serves the COW convergence lookup.
+  // NOT unique: `clonePackaged` mints an INDEPENDENT copy per call by contract (its rpg GM-preset consumer
+  // clones the same template once per game), so uniqueness on this pair would refuse the second copy.
+  (table) => [index("presets_owner_idx").on(table.ownerId), index("presets_owner_forked_from_idx").on(table.ownerId, table.forkedFrom)],
 );

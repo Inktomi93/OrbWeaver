@@ -29,6 +29,8 @@ describe("clonePackaged", () => {
     expect(detail.isSystemDefault).toBe(false);
     expect(detail.config.sections).toEqual(RPG_GM.config.sections);
 
+    expect(detail.forkedFrom).toBe(RPG_GM.id); // lineage stamped: the clone names its template
+
     const clone = h.audits.find((a) => a.entry.action === "preset.clonePackaged");
     expect(clone?.entry.entityId).toBe(detail.id);
     expect(clone?.entry.metadata).toEqual({ packagedKey: "rpg-gm", clonedFrom: RPG_GM.id });
@@ -52,6 +54,22 @@ describe("clonePackaged", () => {
     expect(template?.name).toBe("RPG Game Master");
     expect(template?.config.sections).toEqual(RPG_GM.config.sections);
     expect(template?.config.sections.length).toBeGreaterThan(0);
+  });
+
+  test("a repeat clone mints a SECOND copy — the lineage stamp is not a uniqueness key", async () => {
+    // Deliberately NOT the COW's converge behavior: a clone is an independent copy by contract (its rpg
+    // GM-preset consumer clones per game), which is why `(owner_id, forked_from)` is never unique.
+    const db = await freshDb();
+    const svc = createPresetService(makeHarness(db).ctx);
+    const owner = await seedUser(db);
+    await ensurePackagedPresets(db, () => FROZEN_AT);
+
+    const first = await svc.clonePackaged({ userId: owner, key: "rpg-gm" });
+    const second = await svc.clonePackaged({ userId: owner, key: "rpg-gm" });
+
+    expect(second.id).not.toBe(first.id);
+    expect([first.forkedFrom, second.forkedFrom]).toEqual([RPG_GM.id, RPG_GM.id]);
+    expect((await svc.list({ userId: owner })).filter((s) => s.forkedFrom === RPG_GM.id).length).toBe(2);
   });
 
   test("refuses with PresetNotFoundError when the packaged template is unseeded", async () => {
