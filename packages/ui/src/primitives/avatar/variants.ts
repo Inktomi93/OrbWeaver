@@ -18,7 +18,9 @@ export const avatarVariants = tv({
     shape: {
       round: { root: "rounded-full" },
       square: { root: "rounded-control" },
-      rounded: { root: "rounded-card" },
+      // The PORTRAIT step (density-pass-spec.md §2.1 assigns `--radius-base` to portraits); `card` is the
+      // floating-island step and an avatar never floats.
+      rounded: { root: "rounded-base" },
     },
     aspect: {
       square: {},
