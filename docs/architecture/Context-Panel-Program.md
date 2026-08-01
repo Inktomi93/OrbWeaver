@@ -172,6 +172,8 @@ tabs sit one click away in the bottom row, never in a submenu. The bottom strip 
 
 ### 4.2 Anatomy (the bracket, bound to our seams)
 
+> **§4.2 (AMENDED 2026-08-01, HUD-1 H1).** The bracket anatomy below describes the HUD's OWN composition, not a set of shell slots it occupies. When a chat carries an ENGAGED game the rpg feature CLAIMS the whole CONTEXT pane (`ContextRegionDef`, `client-architecture-lockdown.md` §6b/§6c): the shell renders the `.shell-panel` mechanics and hands the claimant the resolved tabs + the one selection; the claimant renders the band, both rails, and the viewport itself. The `.shell-panel-header` band, `.ctx-tab-strip`, and the two-strip branch of `ContextTabsPanel` are NOT used by the takeover — the branch, the `edge` prop, the count-6/7 reveal thresholds and the band's growth exception are DELETED, and §4.11's registry deltas 1, 2, 3 and 5 are RETIRED (they described the rented seams). `ContextTabDef.strip` SURVIVES, re-read as RAIL MEMBERSHIP: a property of the tab's job, declared by its owner, which the GENERIC panel ignores. The IA rulings survive unchanged: state above / administration below, ONE selection across both rails, icon density, the single swapped viewport, the locked-but-visible tab, and orbs as glanceable vitals.
+
 ```
 [ .shell-panel-header band — the 2px ember inset edge (landed) stays ]
 [ SCENE BANNER + POOL ORBS — the defineContextTabs `header` slot (exists today) ]
@@ -187,14 +189,17 @@ floor. Behavioral contract (implementation left to the builder against Base UI):
 
 - Exactly ONE tab is selected across both strips; the viewport shows its panel. Selecting in one
   strip deselects in the other.
-- Each strip is its own a11y group (`aria-label="Game"` / `aria-label="Chat"`), its own arrow-key
-  roving-focus row, Home/End within the strip. Both drive the same `contextTab` seam.
-- Both strips are `.ctx-tab-strip` containers (icon-mode by landed default; per-count thresholds
-  extended to counts 6–7 in shell.css when built).
-- The bottom strip renders ONLY when game-strip tabs resolved — standard chats keep today's single
+- Each rail is its own a11y group, its own arrow-key roving-focus row, Home/End within the rail.
+  Both drive the same `contextTab` seam. **AMENDED (HUD-1 H1, as built):** the group names are
+  **"Game state" / "Chat"**, not "Game" / "Chat" — the crown GM console in the ADMIN rail is a TAB
+  named "Game", and two sibling groups where one's name is the other's member collide for anyone
+  navigating by name (`rpg-hud.tsx` `RAIL_NAME`, pinned by the a11y CT).
+- **RETIRED (§4.2 amendment, 2026-08-01, HUD-1 H1)** — both strips are `.ctx-tab-strip` containers
+  with per-count thresholds extended to counts 6–7. Described a rented seam: the claimant's rails are
+  its own composition (`grid-flow-col auto-cols-fr` + always-visible captions, §7.2 of the HUD spec),
+  and the 6/7 thresholds were DELETED from `shell.css` — they could never fire at any shell width.
+- The bottom rail renders ONLY when game-rail tabs resolved — standard chats keep today's single
   top strip untouched. The bracket exists only in takeover.
-
-> **§4.2 (AMENDED 2026-08-01, HUD-1 H1).** The bracket anatomy below describes the HUD's OWN composition, not a set of shell slots it occupies. When a chat carries an ENGAGED game the rpg feature CLAIMS the whole CONTEXT pane (`ContextRegionDef`, `client-architecture-lockdown.md` §6b/§6c): the shell renders the `.shell-panel` mechanics and hands the claimant the resolved tabs + the one selection; the claimant renders the band, both rails, and the viewport itself. The `.shell-panel-header` band, `.ctx-tab-strip`, and the two-strip branch of `ContextTabsPanel` are NOT used by the takeover — the branch, the `edge` prop, the count-6/7 reveal thresholds and the band's growth exception are DELETED, and §4.11's registry deltas 1, 2, 3 and 5 are RETIRED (they described the rented seams). `ContextTabDef.strip` SURVIVES, re-read as RAIL MEMBERSHIP: a property of the tab's job, declared by its owner, which the GENERIC panel ignores. The IA rulings survive unchanged: state above / administration below, ONE selection across both rails, icon density, the single swapped viewport, the locked-but-visible tab, and orbs as glanceable vitals.
 
 ### 4.3 Tab roster — full rpg (top strip, 7 · bottom strip, ≤5)
 
@@ -208,7 +213,7 @@ floor. Behavioral contract (implementation left to the builder against Base UI):
 | 4 | `rpg.scene` | Scene | `Drama` | always | **ambient strip** (location · date · time · weather — §3.2, hand-editable) → present-cast cards (name · mood · customFields) → **goal lines** (§3.2) → subjectName-grouped custom widgets → **last-3 beats strip** ("Just now"). Scene = NOW; Journal = the record — window vs archive, distinct jobs, honest near-dup accepted | "No one on stage yet." |
 | 5 | `rpg.quests` | Quests | `Flag` | full only (lite: APPLICABILITY omit) | active quests + clocks (segmented rings, `n/m` text). Change-badged | "No quests yet — play on." |
 | 6 | `rpg.journal` | Journal | `BookOpen` | full only (lite: APPLICABILITY omit) | the beats archive + session wraps | "The record starts when the story does." |
-| 7 | `rpg.map` | Map | `Map` | full only; **PHASE disabled-with-reason until MA-3** | the region map | disabled tab: `aria-disabled` + `title` "Maps unlock with the map arc (MA-3)" — the OSRS locked-tab pattern, per the no-omissions law |
+| 7 | `rpg.map` | Map | `Map` | full only; **PHASE disabled-with-reason until MA-3** | the region map | locked tab: a LOCK glyph + the reason on `title` — the OSRS locked-tab pattern, per the no-omissions law. **AMENDED (HUD-1 §3.6 amendment b, as built):** in a CLAIMED pane the locked cell is NOT `aria-disabled` — it OPENS onto the body that states when the feature arrives (RV-7), so mouse, keyboard and AT all get the same answer (`rpg-hud.tsx` `RpgHudCell`). The GENERIC panel keeps `aria-disabled` + `title` for its own sections (`context-tabs-panel.tsx`) |
 
 **Bottom strip (meta — CP-1's consolidated set + one game-admin home):**
 

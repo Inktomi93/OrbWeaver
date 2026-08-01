@@ -50,9 +50,9 @@ export interface ContextTabDef<S> {
    *  / `false` / `0` ⇒ no badge. Resolved at resolve-time against `S` (same as `when`). Never rendered on
    *  the active tab (the strip suppresses it). */
   readonly badge?: (state: S) => number | boolean | null;
-  /** PHASE disable-with-reason (§4.6): a non-null string ⇒ the tab renders `aria-disabled` + `title=<reason>`
-   *  + a lock glyph + reduced opacity, but stays focusable-discoverable (never `disabled`). `null` ⇒ enabled.
-   *  Resolved at resolve-time against `S` (same as `when`). */
+  /** PHASE disable-with-reason (§4.6), resolved against `S` like `when` — the REASON, never a rendering: the
+   *  GENERIC panel renders it `aria-disabled` + `title` + lock glyph (focusable, never `disabled`); a CLAIMED
+   *  pane renders lock + `title` and NOT `aria-disabled` — its locked cell OPENS (HUD-1 §3.6b). `null` ⇒ enabled. */
   readonly disabledReason?: (state: S) => string | null;
   /** Preferred-default marker (Context-Panel-Program §4.1) — when TRUE and no stored `contextTab` is visible,
    *  the panel lands on THIS tab instead of the declared-order first (a game chat lands on `rpg.status`, not
