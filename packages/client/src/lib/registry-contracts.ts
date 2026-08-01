@@ -17,9 +17,11 @@ import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { ContributorRegistry } from "./registry";
 
-/** Which of the two-strip bracket a CONTEXT tab belongs to (Context-Panel-Program §4.2). `"game"` = the
- *  state row ABOVE the viewport; `"meta"` = the administration row BELOW it. The bracket renders ONLY when
- *  ≥1 resolved tab is `"game"`; an all-`"meta"` set (every standard section) is the single top strip. */
+/** RAIL MEMBERSHIP — which of a CLAIMANT's two rails a CONTEXT tab belongs to (HUD-1 §4, owner decision 5).
+ *  `"game"` = the STATE rail above the viewport; `"meta"` = the ADMINISTRATION rail below it. Membership is
+ *  a property of the tab's JOB, declared by its owner, so chat's own tabs stay `"meta"` without knowing a
+ *  claimant exists (an id-prefix rule would break the moment a non-rpg contributor ships a state tab). The
+ *  GENERIC panel ignores it entirely — with no claim there is one strip carrying every visible tab. */
 export type ContextTabStrip = "game" | "meta";
 
 /** One CONTEXT-panel tab. `S` is the host section's OWN context-state projection — a real named type
@@ -36,8 +38,8 @@ export interface ContextTabDef<S> {
   /** Absent = always visible. THE dynamic axis — subsumes chat's isHost/group/member conditionals. */
   readonly when?: (state: S) => boolean;
   readonly body: (state: S) => ReactNode;
-  /** The bracket assignment (Context-Panel-Program §4.2). Absent ⇒ `"meta"` (the bottom/administration
-   *  strip) — so an untouched section stays single-strip. Only a `"game"` tab summons the bracket. */
+  /** Rail membership for a CLAIMED pane (HUD-1 §4). Absent ⇒ `"meta"` (administration), so an untouched
+   *  section never has to think about it. */
   readonly strip?: ContextTabStrip;
   /** A changed-since-viewed marker (§4.6): a truthy boolean ⇒ a corner dot; a number \> 0 ⇒ a count. `null`
    *  / `false` / `0` ⇒ no badge. Resolved at resolve-time against `S` (same as `when`). Never rendered on
@@ -53,12 +55,6 @@ export interface ContextTabDef<S> {
    *  `contextTab` always wins (continuity is untouched); when no tab flags it, the first visible tab is the
    *  default (backward-compat). The FIRST resolved tab whose flag is true supplies the default. */
   readonly defaultTab?: (state: S) => boolean;
-  /** The CONTEXT-panel BAND identity a CONTRIBUTOR supplies (Context-Panel-Program §4.2/§4.11 #3) — the
-   *  scene-banner + pool-orbs header that rides the `.shell-panel-header` band ABOVE both strips, gated by
-   *  this tab's OWN `when`. The FIRST `when`-passing contributor header wins and overrides the host's own
-   *  (a game chat's chat header is the neutral band by CP-1 de-dup, so nothing is lost). Absent ⇒ no band
-   *  content. RETIRES at HUD-1 H1: a claimant owns the band, so a contributor stops reaching for the slot. */
-  readonly header?: (state: S) => ReactNode;
 }
 
 /** What the shell renders for one tab — `S` already applied. `strip` is always present (defaulted to
@@ -173,14 +169,10 @@ export function resolveContextTabs<S>(spec: ContextTabsSpec<S>, state: S): Resol
     defaultTab: tab.defaultTab?.(state) ?? false,
     ...(tab.icon === undefined ? {} : { icon: tab.icon }),
   }));
-  // The host's own band identity is the baseline; a `when`-passing CONTRIBUTOR header (rpg's scene banner)
-  // OVERRIDES it while active (§4.2/§4.11 #3 — the takeover owns the band). First active contributor header
-  // wins; the host header shows when none is active (a game chat's own chat header is the neutral band).
-  const contributedHeader = active.find((tab) => tab.header !== undefined)?.header?.(state);
   // The FIRST claiming region wins the whole pane (HUD-1 §3.2) — declared order decides, so the outcome is
   // deterministic; the ≤1-claimant gate arm makes a second claimant unbuildable anyway.
   const region = spec.regions?.list().find((candidate) => candidate.claims(state))?.render;
-  const resolved = { tabs, actions: spec.actions?.(state), header: contributedHeader ?? spec.header?.(state) };
+  const resolved = { tabs, actions: spec.actions?.(state), header: spec.header?.(state) };
   return region === undefined ? resolved : { ...resolved, region };
 }
 
