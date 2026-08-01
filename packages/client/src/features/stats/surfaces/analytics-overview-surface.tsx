@@ -29,7 +29,7 @@ export function AnalyticsOverviewSurface(): ReactElement {
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("analyticsOverviewSurface")}>
       <QueryBoundary
-        fallback={<Text tone="muted">Loading your analytics…</Text>}
+        fallback={<Text voice="gloss">Loading your analytics…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your analytics" onRetry={retry} />}
       >
         <OverviewBody />
@@ -62,9 +62,7 @@ function OverviewBody(): ReactElement {
   return (
     <Stack className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="section">
       <Row align="center" justify="between" gap="row">
-        <Text size="micro" tone="muted">
-          {freshness.computedAt === null ? "Not computed yet" : `Updated ${timeLib.formatRelative(freshness.computedAt)}`}
-        </Text>
+        <Text voice="gloss">{freshness.computedAt === null ? "Not computed yet" : `Updated ${timeLib.formatRelative(freshness.computedAt)}`}</Text>
         <RecomputeButton />
       </Row>
 
@@ -86,7 +84,7 @@ function OverviewBody(): ReactElement {
               title={wrapped.topCharacter.name}
               subtitle="Your most-played character — open the list to drill into any character"
               actions={
-                <Text size="micro" tone="muted" className="whitespace-nowrap font-mono">
+                <Text voice="gloss" className="whitespace-nowrap font-mono">
                   {formatCompact(wrapped.topCharacter.assistantTurns)} replies
                 </Text>
               }
@@ -113,12 +111,10 @@ function OverviewBody(): ReactElement {
 
       <Section heading="Momentum">
         {momentum.latestMonth === null ? (
-          <Text size="micro" tone="muted">
-            Not enough recent activity to compare months yet.
-          </Text>
+          <Text voice="gloss">Not enough recent activity to compare months yet.</Text>
         ) : (
           <Stack gap="block">
-            <Text size="micro" tone="muted">
+            <Text voice="gloss">
               {momentum.prevMonth} → {momentum.latestMonth}
             </Text>
             <Row gap="section" className="flex-wrap items-start">
@@ -167,12 +163,8 @@ function MomentumColumn({
   if (rows.length === 0) {
     return (
       <Stack gap="field" className="min-w-48 flex-1">
-        <Text size="micro" tone="muted" transform="caps">
-          {label}
-        </Text>
-        <Text size="micro" tone="muted">
-          None this month.
-        </Text>
+        <Text voice="kicker">{label}</Text>
+        <Text voice="gloss">None this month.</Text>
       </Stack>
     );
   }

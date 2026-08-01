@@ -25,11 +25,9 @@ export function CorpusContextHeader(): ReactElement {
   return (
     <Row align="center" gap="field" className="min-w-0">
       <Icon icon={Library} size="sm" />
-      <Text size="title" weight="semibold" className="truncate">
-        Corpus
-      </Text>
+      <Text className="truncate text-title leading-title font-semibold">Corpus</Text>
       {count > 0 ? (
-        <Text className="font-mono" size="micro" tone="muted">
+        <Text voice="gloss" className="font-mono">
           {count}
         </Text>
       ) : null}

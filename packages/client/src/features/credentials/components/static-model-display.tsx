@@ -41,11 +41,11 @@ export function StaticModelDisplay({ source, value, defaultModelId, dimensions, 
       <Row gap="field" align="center" className="min-w-0">
         {/* The model id is the ONE flexible cell — it absorbs the squeeze and truncates cleanly (min-w-0
             truncate) at the real ~746px modal width, so the dimension text + chip never wrap or clip (FIX 2). */}
-        <Text as="span" size="body" tone="muted" className="min-w-0 flex-1 truncate italic">
+        <Text as="span" className="min-w-0 flex-1 truncate text-muted-foreground italic">
           {served}
         </Text>
         {dimensions !== undefined ? (
-          <Text as="span" size="micro" tone="muted" className="shrink-0 whitespace-nowrap font-mono">
+          <Text as="span" voice="gloss" className="shrink-0 whitespace-nowrap font-mono">
             {`${dimensions}-dim`}
           </Text>
         ) : null}
@@ -60,7 +60,7 @@ export function StaticModelDisplay({ source, value, defaultModelId, dimensions, 
             <Icon icon={AlertTriangle} size="xs" />
             ignored pin
           </Badge>
-          <Text size="micro" tone="muted">
+          <Text voice="gloss">
             {`“${ignoredPin}” is stored for this role but this provider only serves its configured model — saving this pane clears it.`}
           </Text>
         </Row>

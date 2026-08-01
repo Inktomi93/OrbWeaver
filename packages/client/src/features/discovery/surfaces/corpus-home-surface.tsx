@@ -45,7 +45,7 @@ export function CorpusHomeSurface(): ReactElement {
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("corpusHomeSurface")}>
       <QueryBoundary
-        fallback={<Text tone="muted">Loading your corpus…</Text>}
+        fallback={<Text voice="gloss">Loading your corpus…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your corpus" onRetry={retry} />}
       >
         <CorpusHomeBody />
@@ -93,9 +93,7 @@ function CorpusHomeBody(): ReactElement {
           <FacetBars label="Genres" facets={catalog.genres} />
           <FacetBars label="Tones" facets={catalog.tones} />
           {catalog.topTags.length === 0 ? (
-            <Text size="micro" tone="muted">
-              No tags distilled.
-            </Text>
+            <Text voice="gloss">No tags distilled.</Text>
           ) : (
             <BarList
               label="Top tags"
@@ -111,9 +109,7 @@ function CorpusHomeBody(): ReactElement {
 
       <Section heading="Forgotten gems">
         {gems.length === 0 ? (
-          <Text size="micro" tone="muted">
-            No quiet-but-invested characters yet.
-          </Text>
+          <Text voice="gloss">No quiet-but-invested characters yet.</Text>
         ) : (
           <Stack gap="row" role="list">
             {gems.map((gem) => (
@@ -133,9 +129,7 @@ function CorpusHomeBody(): ReactElement {
 
       <Section heading="Never played">
         {unused.length === 0 ? (
-          <Text size="micro" tone="muted">
-            Every character has been played at least once.
-          </Text>
+          <Text voice="gloss">Every character has been played at least once.</Text>
         ) : (
           <Stack gap="row" role="list">
             {unused.map((character) => (
@@ -154,9 +148,7 @@ function CorpusHomeBody(): ReactElement {
 
       <Section heading="Model economics">
         {routing.length === 0 ? (
-          <Text size="micro" tone="muted">
-            No generation economics recorded yet.
-          </Text>
+          <Text voice="gloss">No generation economics recorded yet.</Text>
         ) : (
           <BarList
             label="Cost by route"
@@ -188,13 +180,9 @@ function ThemeGroup({
 }): ReactElement {
   return (
     <Stack gap="field">
-      <Text size="micro" tone="muted" transform="caps">
-        {label}
-      </Text>
+      <Text voice="kicker">{label}</Text>
       {themes.length === 0 ? (
-        <Text size="micro" tone="muted">
-          No {label.toLowerCase()} themes computed yet.
-        </Text>
+        <Text voice="gloss">No {label.toLowerCase()} themes computed yet.</Text>
       ) : (
         <Stack gap="row" role="list">
           {themes.map((row) => (
@@ -217,7 +205,7 @@ function ThemeDetailCard({ selection, onDismiss }: { readonly selection: ThemeSe
   return (
     <Card>
       <QueryBoundary
-        fallback={<Text tone="muted">Loading theme…</Text>}
+        fallback={<Text voice="gloss">Loading theme…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the theme" onRetry={retry} />}
       >
         <ThemeDetailBody selection={selection} onDismiss={onDismiss} />
@@ -237,7 +225,7 @@ function ThemeDetailBody({ selection, onDismiss }: { readonly selection: ThemeSe
   if (detail === null) {
     return (
       <Row align="center" justify="between">
-        <Text tone="muted">This theme is no longer available.</Text>
+        <Text>This theme is no longer available.</Text>
         <Button intent="ghost" size="sm" onClick={onDismiss}>
           Close
         </Button>
@@ -247,12 +235,12 @@ function ThemeDetailBody({ selection, onDismiss }: { readonly selection: ThemeSe
   return (
     <Stack gap="block">
       <Row align="center" justify="between">
-        <Text weight="semibold">{detail.name ?? "Unnamed theme"}</Text>
+        <Text className="font-semibold">{detail.name ?? "Unnamed theme"}</Text>
         <Button intent="ghost" size="sm" onClick={onDismiss}>
           Close
         </Button>
       </Row>
-      <Text size="micro" tone="muted">
+      <Text voice="gloss">
         {detail.size} digests · {detail.level}
       </Text>
       <Stack gap="row" role="list">
@@ -272,7 +260,7 @@ function ThemeDetailBody({ selection, onDismiss }: { readonly selection: ThemeSe
 
 function Money({ value }: { readonly value: number }): ReactElement {
   return (
-    <Text className="whitespace-nowrap font-mono" size="micro" tone="muted">
+    <Text voice="gloss" className="whitespace-nowrap font-mono">
       {money(value)}
     </Text>
   );

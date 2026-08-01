@@ -19,9 +19,7 @@ export interface ImportReportSummaryProps {
 export function ImportReportSummary({ summary }: ImportReportSummaryProps): ReactElement {
   return (
     <Stack gap="block" data-testid={testId("importReport")}>
-      <Text size="body" weight="semibold">
-        {summaryCaption(summary)}
-      </Text>
+      <Text className="font-semibold">{summaryCaption(summary)}</Text>
       {summary.outcomes.length > 0 ? (
         <Stack aria-label="Imported files" gap="field" role="list">
           {summary.outcomes.map((outcome) => (
@@ -32,10 +30,8 @@ export function ImportReportSummary({ summary }: ImportReportSummaryProps): Reac
                 className={outcome.ok ? "text-success" : "text-destructive"}
                 label={outcome.ok ? "Imported" : "Not imported"}
               />
-              <Text size="body" className="min-w-0 flex-1 truncate font-mono">
-                {outcome.path}
-              </Text>
-              <Text size="micro" tone="muted" className="whitespace-nowrap">
+              <Text className="min-w-0 flex-1 truncate font-mono">{outcome.path}</Text>
+              <Text voice="gloss" className="whitespace-nowrap">
                 {outcome.detail}
               </Text>
             </Row>

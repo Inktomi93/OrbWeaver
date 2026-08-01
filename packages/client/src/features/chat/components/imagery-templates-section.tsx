@@ -84,7 +84,7 @@ const CARDS: readonly CardDescriptor[] = [
 export function ImageryTemplatesSection({ sectionId }: { readonly sectionId: string }): ReactElement {
   return (
     <QueryBoundary
-      fallback={<Text tone="muted">Loading your image-prompt templates…</Text>}
+      fallback={<Text voice="gloss">Loading your image-prompt templates…</Text>}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your image-prompt templates" onRetry={retry} />}
     >
       <ImageryTemplatesFormBody sectionId={sectionId} />
@@ -112,13 +112,13 @@ function ImageryTemplatesBody({ sectionId, session }: { readonly sectionId: stri
   return (
     <Section divider={true} heading={IMAGERY_TEMPLATES_SUBCATEGORY.label} id={settingsAnchorId("chat-behavior", IMAGERY_TEMPLATES_SUBCATEGORY.id)}>
       <Stack gap="block">
-        <Text size="micro" tone="muted">
+        <Text voice="gloss">
           How each image-generation mode builds its prompt. Leave a field blank to use the built-in default (shown as the placeholder). Your opening line still
           gets the composition prefix the size defaults expect.
         </Text>
         <Grid cols="auto" gap="field">
           {CARDS.map((card) => (
-            <Stack key={card.field} gap="field" padding="field" className="rounded-card border border-border bg-card">
+            <Stack key={card.field} gap="field" padding="field" className="rounded-base border border-border bg-card">
               <form.AppField name={card.field}>
                 {(field): ReactElement => (
                   <field.MacroField

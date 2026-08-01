@@ -31,7 +31,7 @@ export function ThemePickerSurface(): ReactElement {
   return (
     <Container ref={surfaceRef} tabIndex={-1} className="outline-none">
       <QueryBoundary
-        fallback={<Text tone="muted">Loading your themes…</Text>}
+        fallback={<Text voice="gloss">Loading your themes…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your themes" onRetry={retry} />}
       >
         <ThemeManager />
@@ -91,9 +91,7 @@ function ThemeManager(): ReactElement {
   return (
     <Stack gap="block">
       <Row align="center" className="justify-between">
-        <Text size="label" weight="medium">
-          Themes
-        </Text>
+        <Text voice="label">Themes</Text>
         <Row gap="row">
           <Button intent="ghost" onClick={(): void => selectById(null)}>
             Reset to Hearth
