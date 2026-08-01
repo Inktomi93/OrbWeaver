@@ -282,6 +282,9 @@ in full before the stage closes (side-eye is the polish authority, not an adviso
 independently shippable; S1 is not partially shippable (a half-written tier map renders a mixed
 surface).
 
+**(AMENDED 2026-08-01, HUD-1 H1)** S3's context-panel sweep runs AFTER HUD-1 lands; the HUD's own
+rails/band are S3 CONFORMANCE targets, not restyle targets.
+
 ## 7. Owner decisions — RULED (owner, 2026-08-01)
 
 > **ALL TEN RULED AS RECOMMENDED**, including the headline pair: **D6 YES** (rounded-card demotes to
