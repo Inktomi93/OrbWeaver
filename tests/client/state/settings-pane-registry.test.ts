@@ -14,8 +14,16 @@ import {
   imageryTemplatesSection,
   memorySettingsSection,
 } from "@orb/client/features/chat";
-import { memoryTuningSection, rateLimitsSection, systemTuningSection } from "@orb/client/features/user-admin";
-import { workloadsTuningSection } from "@orb/client/features/workloads";
+import {
+  adminCatalogSection,
+  adminEmbeddingsSection,
+  adminEnginesSection,
+  adminUsersSection,
+  memoryTuningSection,
+  rateLimitsSection,
+  systemTuningSection,
+} from "@orb/client/features/user-admin";
+import { workloadsJobsSection, workloadsSchedulesSection, workloadsTuningSection } from "@orb/client/features/workloads";
 import { worldInfoSettingsSection } from "@orb/client/features/world-info";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { SettingsSectionContribution, SettingsViewerView } from "@orb/client/state";
@@ -196,9 +204,15 @@ test("the real door's settings-section claims partition cleanly against DEFAULT_
     worldInfoSettingsSection,
     databankSettingsSection,
     imageryTemplatesSection,
+    adminUsersSection,
+    adminEnginesSection,
+    adminCatalogSection,
+    adminEmbeddingsSection,
     memoryTuningSection,
     rateLimitsSection,
     systemTuningSection,
+    workloadsJobsSection,
+    workloadsSchedulesSection,
     workloadsTuningSection,
     appearanceMessageStyleSection,
     appearanceAvatarsSection,

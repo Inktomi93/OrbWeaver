@@ -53,8 +53,17 @@ import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
 import { appearancePane, automationPane, chatBehaviorPane, regexPane, settingsModal, systemPane, tagsPane, themeModal } from "@orb/client/features/settings";
 import { analyticsSection } from "@orb/client/features/stats";
-import { adminPane, memoryTuningSection, rateLimitsSection } from "@orb/client/features/user-admin";
-import { backupPane, workloadsPane, workloadsTuningSection } from "@orb/client/features/workloads";
+import {
+  adminCatalogSection,
+  adminEmbeddingsSection,
+  adminEnginesSection,
+  adminPane,
+  adminUsersSection,
+  memoryTuningSection,
+  rateLimitsSection,
+  systemTuningSection,
+} from "@orb/client/features/user-admin";
+import { backupPane, workloadsJobsSection, workloadsPane, workloadsSchedulesSection, workloadsTuningSection } from "@orb/client/features/workloads";
 import { worldInfoSection, worldInfoSettingsSection } from "@orb/client/features/world-info";
 import type {
   CharacterDetailContribution,
@@ -178,8 +187,19 @@ const realSettingsSections: ContributorRegistry<SettingsSectionContribution> = c
   worldInfoSettingsSection,
   databankSettingsSection,
   imageryTemplatesSection,
+  // admin ← the DECOMPOSED pane (SET-SEAMS stage 3), in the door's render order, then the AppSettings
+  // admin-tier sections. `systemTuningSection` used to be omitted here; with the pane a pure skimmer the
+  // registry IS the pane, so an omission would render an incomplete admin pane in every CT.
+  adminUsersSection,
+  adminEnginesSection,
+  adminCatalogSection,
+  adminEmbeddingsSection,
   memoryTuningSection,
   rateLimitsSection,
+  systemTuningSection,
+  // workloads ← the DECOMPOSED pane (SET-SEAMS stage 3), in the door's render order.
+  workloadsJobsSection,
+  workloadsSchedulesSection,
   workloadsTuningSection,
   // appearance ← the DECOMPOSED pane (SET-SEAMS stage 1), in the door's render order.
   appearanceMessageStyleSection,

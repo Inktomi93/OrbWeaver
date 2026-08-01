@@ -1,64 +1,17 @@
-// The Admin settings pane (client-architecture-lockdown.md §8) — a HOST of the `admin`-anchored
-// settings-section seam (Phase B ③): the AppSettings admin-tier sections (memory tuning, rate limits,
-// system tuning) graft in WITHOUT growing this pane (pain-point §7), rendering inside its surface off the
-// ONE door-assembled section registry while the shell merges their navs in. `when` replaces the old
-// `adminOnly` flag — the §6b "def declares, consumer supplies" inversion.
+// The Admin settings pane (client-architecture-lockdown.md §8) — a PURE SKIMMER since SET-SEAMS stage 3:
+// `body: { kind: "sections" }`, no own surface and no own `subcategories`. The four groups it used to render
+// inside one pane surface are self-owned settings-SECTION CONTRIBUTIONS in this same feature now (§6,
+// reader-owns — user-admin owns the admin verbs): users · engines · model catalog · card embeddings, joining
+// the AppSettings admin-tier sections that were already contributions (memory tuning, rate limits, system
+// tuning). The settings host renders the `admin`-anchored contributions and DERIVES the pane's nav from them.
+//
+// `when` stays HERE and only here: it is the ONE viewer gate for everything at this anchor (nav, search,
+// render), so no contributed admin section re-declares it.
 
 import { Lock } from "@orb/ui/icons";
-import type { SettingsPaneDefinition, SettingsSubcategory } from "#state";
-import { AdminSettingsSurface } from "../surfaces/admin-settings-surface";
-import { ADMIN_SUBCATEGORY_IDS } from "./admin-nav";
+import type { SettingsPaneDefinition } from "#state";
 
-// The pane's OWN subcategories — the contributed section navs are appended after these (declared order).
-const OWN_SUBCATEGORIES: readonly SettingsSubcategory[] = [
-  {
-    id: ADMIN_SUBCATEGORY_IDS.users,
-    label: "Users",
-    keywords: ["accounts", "people", "members", "roles", "agents"],
-    settings: [
-      {
-        id: "create-user",
-        label: "Create user",
-        keywords: ["add", "invite", "account", "handle", "password"],
-      },
-      {
-        id: "user-roles",
-        label: "Roles & access",
-        keywords: ["role", "admin", "owner", "promote", "demote", "disable", "enable"],
-      },
-      {
-        id: "user-sessions",
-        label: "Sessions",
-        keywords: ["devices", "revoke", "sign out", "kick", "password reset"],
-      },
-    ],
-  },
-  {
-    id: ADMIN_SUBCATEGORY_IDS.engines,
-    label: "Engines",
-    keywords: ["vllm", "gpu", "inference", "restart", "supervisor", "health"],
-    settings: [
-      {
-        id: "engine-restart",
-        label: "Restart an engine",
-        keywords: ["vllm", "bounce", "hung", "failed", "embed", "rerank"],
-      },
-    ],
-  },
-  {
-    id: ADMIN_SUBCATEGORY_IDS.catalog,
-    label: "Model catalog",
-    keywords: ["models", "catalog", "sync", "refresh", "openrouter", "providers"],
-  },
-  {
-    id: ADMIN_SUBCATEGORY_IDS.embeddings,
-    label: "Card embeddings",
-    keywords: ["embeddings", "cards", "reindex", "vectors", "backfill", "characters"],
-  },
-];
-
-/** The admin pane — a host of the settings-section seam (Phase B ③). `subcategories` lists only what the
- *  pane itself renders; the shell appends the `admin`-anchored contributions' navs. */
+/** The admin pane — a `sections` skimmer. Section ORDER is the door array's order (main.tsx). */
 export const adminPane: SettingsPaneDefinition = {
   id: "admin",
   group: "app",
@@ -66,6 +19,5 @@ export const adminPane: SettingsPaneDefinition = {
   icon: Lock,
   description: "Accounts, sessions, and the local inference engines on this deployment.",
   when: (viewer) => viewer.isAdmin,
-  subcategories: OWN_SUBCATEGORIES,
-  body: { kind: "surface", render: () => <AdminSettingsSurface /> },
+  body: { kind: "sections" },
 };

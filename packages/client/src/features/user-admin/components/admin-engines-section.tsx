@@ -7,14 +7,16 @@
 
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Row, Stack } from "@orb/ui/layout";
+import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { QueryInlineStates, useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, QueryInlineStates, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
+import { settingsAnchorId } from "#state";
 import { useRestartEngine } from "../hooks/use-admin-mutations";
+import { ADMIN_ENGINES_SUBCATEGORY } from "../lib/admin-engines-nav";
 import { engineBadgeIntent } from "../lib/admin-model";
 import { EngineLaunchConfig } from "./engine-launch-config";
 
@@ -44,49 +46,59 @@ export function AdminEnginesSection(): ReactElement {
   const entries = Object.entries(engines.data ?? {});
 
   return (
-    <Stack gap="row" data-testid={testId("adminEnginesSection")}>
-      <QueryInlineStates
-        status={engines}
-        isEmpty={entries.length === 0}
-        pending="Loading engine status…"
-        error="Couldn't load the engine status — administrators only."
-        empty="No engine status yet — the supervisor reports after its first probe."
-      />
+    <Section className="@container" divider={true} heading={ADMIN_ENGINES_SUBCATEGORY.label} id={settingsAnchorId("admin", ADMIN_ENGINES_SUBCATEGORY.id)}>
+      <Stack gap="row" data-testid={testId("adminEnginesSection")}>
+        <QueryInlineStates
+          status={engines}
+          isEmpty={entries.length === 0}
+          pending="Loading engine status…"
+          error="Couldn't load the engine status — administrators only."
+          empty="No engine status yet — the supervisor reports after its first probe."
+        />
 
-      <Stack gap="field">
-        {entries.map(([engine, record]) => (
-          <ListRow
-            key={engine}
-            title={engine}
-            // The lifecycle line plus the env-only DEPLOYMENT facts (port + store path), read-only — the
-            // #14 ruling: these are displayed, never edited. The subtitle truncates within its column and
-            // its native title= surfaces the full (often long) store path on hover.
-            subtitle={`${record.detail === "" ? record.status : record.detail} · updated ${timeLib.formatRelative(record.updatedAt)} · port ${record.port} · ${record.storePath}`}
-            actions={
-              <Row align="center" gap="row">
-                <Badge intent={engineBadgeIntent(record.status)}>{record.status}</Badge>
-                <Button
-                  intent="ghost"
-                  size="sm"
-                  disabled={restart.isPending && restart.pendingVariables?.engine === engine}
-                  aria-label={`Restart engine — ${engine}`}
-                  onClick={(): void => restart.mutate({ engine })}
-                >
-                  Restart
-                </Button>
-              </Row>
-            }
-          />
-        ))}
+        <Stack gap="field">
+          {entries.map(([engine, record]) => (
+            <ListRow
+              key={engine}
+              title={engine}
+              // The lifecycle line plus the env-only DEPLOYMENT facts (port + store path), read-only — the
+              // #14 ruling: these are displayed, never edited. The subtitle truncates within its column and
+              // its native title= surfaces the full (often long) store path on hover.
+              subtitle={`${record.detail === "" ? record.status : record.detail} · updated ${timeLib.formatRelative(record.updatedAt)} · port ${record.port} · ${record.storePath}`}
+              actions={
+                <Row align="center" gap="row">
+                  <Badge intent={engineBadgeIntent(record.status)}>{record.status}</Badge>
+                  <Button
+                    intent="ghost"
+                    size="sm"
+                    disabled={restart.isPending && restart.pendingVariables?.engine === engine}
+                    aria-label={`Restart engine — ${engine}`}
+                    onClick={(): void => restart.mutate({ engine })}
+                  >
+                    Restart
+                  </Button>
+                </Row>
+              }
+            />
+          ))}
+        </Stack>
+
+        {restart.error === null ? null : (
+          <Text size="label" tone="destructive">
+            Couldn't restart the engine — check the server logs.
+          </Text>
+        )}
+
+        {/* The launch editor SUSPENDS on getAppSettings (the retired pane surface's one boundary used to
+            cover it, and blocked the whole pane on it). Its own boundary now: the engine STATUS list — the
+            live ops read an admin opens this section for — paints without waiting on the config read. */}
+        <QueryBoundary
+          fallback={<Text voice="gloss">Loading the launch config…</Text>}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="the engine launch config" onRetry={retry} />}
+        >
+          <EngineLaunchConfig />
+        </QueryBoundary>
       </Stack>
-
-      {restart.error === null ? null : (
-        <Text size="label" tone="destructive">
-          Couldn't restart the engine — check the server logs.
-        </Text>
-      )}
-
-      <EngineLaunchConfig />
-    </Stack>
+    </Section>
   );
 }
