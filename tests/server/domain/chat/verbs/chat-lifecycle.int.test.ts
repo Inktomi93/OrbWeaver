@@ -5,6 +5,7 @@
 import process from "node:process";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
+import type { UserMacroSpec } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { chatEvents, chatInjections, chats } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
@@ -310,6 +311,76 @@ describe("setUserMacroValues — the per-chat user-macro picks flush (WAVE MU, m
     await expect(life.setUserMacroValues({ principal: principal(member), chatId, values: bad })).rejects.toThrow();
     // Nothing persisted.
     expect(await loadStoredUserMacroValues(db, chatId)).toEqual({});
+  });
+});
+
+describe("getUserMacroPicks — the picks pane read (#24, member)", () => {
+  // The host's preset declarations the pane renders controls from: one PICKABLE macro (a typed input) and
+  // one input-less macro (nothing to pick). `resolvePromptUserMacros` is the compose op the verb reads.
+  const pickableMacro: UserMacroSpec = {
+    name: "mood",
+    description: "The scene's emotional weather.",
+    args: [],
+    body: "The mood is {{tone}}.",
+    inputs: [
+      {
+        kind: "single-select",
+        name: "tone",
+        label: "Tone",
+        options: [
+          { label: "Grim", value: "grim" },
+          { label: "Warm", value: "warm" },
+        ],
+        separator: ", ",
+        onValue: "true",
+        offValue: "",
+        defaultValue: "warm",
+      },
+    ],
+    strict: false,
+  };
+  const inputlessMacro: UserMacroSpec = { name: "sig", description: "", args: [], body: "— the house", inputs: [], strict: false };
+
+  function lifeWithMacros(defs: readonly UserMacroSpec[]): ReturnType<typeof createChatLifecycle> {
+    return createChatLifecycle(makeChatContext(db, { resolvePromptUserMacros: () => Promise.resolve(defs) }), lifecycleDeps());
+  }
+
+  test("a member reads the PICKABLE declarations + the stored picks; an input-less macro is omitted", async () => {
+    const { member, chatId } = await seedRoom();
+    const life = lifeWithMacros([pickableMacro, inputlessMacro]);
+
+    await life.setUserMacroValues({ principal: principal(member), chatId, values: { mood: { tone: "grim" } } });
+    const view = await life.getUserMacroPicks({ principal: principal(member), chatId });
+
+    expect(view.macros.map((m) => m.name)).toEqual(["mood"]);
+    expect(view.macros[0]?.inputs).toEqual(pickableMacro.inputs);
+    expect(view.values).toEqual({ mood: { tone: "grim" } });
+  });
+
+  test("the macro BODY + args never cross the wire (the least-privilege projection)", async () => {
+    const { member, chatId } = await seedRoom();
+    const view = await lifeWithMacros([pickableMacro]).getUserMacroPicks({ principal: principal(member), chatId });
+
+    // The body is prompt content (host-gated everywhere else) — the projection is identity + inputs only.
+    expect(Object.keys(view.macros[0] ?? {}).sort()).toEqual(["description", "inputs", "name"]);
+  });
+
+  test("no picks stored yet ⇒ an empty bag (every input renders UNSET), not a throw", async () => {
+    const { member, chatId } = await seedRoom();
+    const view = await lifeWithMacros([pickableMacro]).getUserMacroPicks({ principal: principal(member), chatId });
+
+    expect(view.values).toEqual({});
+    expect(view.macros).toHaveLength(1);
+  });
+
+  test("a non-participant (stranger) is refused — neither declarations nor picks leak", async () => {
+    const { chatId } = await seedRoom();
+    const stranger = await seedUser(db, "stranger");
+
+    const err = await lifeWithMacros([pickableMacro])
+      .getUserMacroPicks({ principal: principal(stranger), chatId })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatNotFoundError);
   });
 });
 

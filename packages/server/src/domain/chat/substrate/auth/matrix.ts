@@ -102,6 +102,7 @@ export const CHAT_VERB_AUTHORITY = {
   getStoredVariables: "member",
   setVariables: "member",
   setUserMacroValues: "member", // WAVE MU: user-macro input picks — interactive play state (the setVariables sibling)
+  getUserMacroPicks: "member", // #24: the picks pane read — the pickable macro DECLARATIONS (identity + inputs; never the body, which is prompt content) + the room's picks. Same member floor as its write.
   clearVariables: "member",
   delete: "host", // host-only
   reapTemporaryChats: "non-chat-scoped", // per-user maintenance: sweeps the CALLER's own expired temp chats

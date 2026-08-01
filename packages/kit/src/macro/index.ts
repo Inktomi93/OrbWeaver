@@ -79,6 +79,7 @@ export {
   type UserMacroInputValue,
   type UserMacroInputValueBag,
   type UserMacroRegistration,
+  userMacroToggleDefaultsOn,
 } from "./user-macros";
 // D46 runtime variable delta model: the ordered op the mutation handlers record + the shared apply/fold.
 export { applyVarOp, foldVarOps } from "./variables";

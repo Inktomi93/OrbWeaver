@@ -10,6 +10,7 @@
 // here at compile time, never a re-spelled union at the call site (§5.5).
 
 import type { ChatInjectionInput, GroupConfig, RoomOverrides } from "@orb/contracts/chat";
+import type { UserMacroValues } from "@orb/contracts/preset";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { ChatId, ChatInjectionId } from "@orb/kit/ids";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -45,6 +46,30 @@ export const useSetToolRecurseLimit = createEntityMutation<SetToolRecurseLimitVa
   // reads back via `ChatDetail.toolRecurseLimit`), delivered by the active subscription (the setRoomOverrides twin).
   busDriven: true,
   errorToast: "Couldn't save the tool round limit.",
+});
+
+/** `chat.setUserMacroValues` vars (#24) — the WHOLE per-chat user-macro pick bag (the verb is a column
+ *  flush, so every edit sends the rebuilt bag) + the target chat. Member-gated INSIDE the verb. */
+interface SetUserMacroValuesVars {
+  readonly chatId: ChatId;
+  readonly values: UserMacroValues;
+}
+
+type UserMacroPicks = inferOutput<Trpc["chat"]["getUserMacroPicks"]>;
+
+export const useSetUserMacroValues = createEntityMutation<SetUserMacroValuesVars, unknown, UserMacroPicks>({
+  options: (trpc) => trpc.chat.setUserMacroValues.mutationOptions(),
+  // OPTIMISTIC: the picks pane is a set of DISCRETE-write controls outside an autosave form (no local field
+  // state re-seeds them), so a pick must paint before the round trip — patch the pane's own read. The
+  // declarations half is untouched (only the room's picks changed).
+  optimistic: {
+    readKey: (trpc, vars) => trpc.chat.getUserMacroPicks.queryKey({ chatId: vars.chatId }),
+    update: (old, vars) => (old === undefined ? old : { ...old, values: vars.values }),
+  },
+  // `busDriven` on the OPEN chat: the verb emits `chatUpdated` (→ the seam's `getUserMacroPicks` row),
+  // delivered by the active subscription — that echo is the reconciliation of the optimistic write above.
+  busDriven: true,
+  errorToast: "Couldn't save the macro picks.",
 });
 
 /** `chat.setChatInjection` vars — the authored injection fields (`ChatInjectionInput`: id?/position/
