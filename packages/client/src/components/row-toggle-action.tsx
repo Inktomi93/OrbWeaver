@@ -30,13 +30,17 @@ export interface RowToggleActionProps {
   readonly icon: LucideIcon;
   /** The pressed tone (e.g. `text-warning` for a star). Applies only while pressed. */
   readonly pressedClassName?: string;
-  /** `when-on` (D11, the list default) = visible at rest only while pressed; `always` = never hidden. */
-  readonly rest?: "always" | "when-on";
+  /** `when-on` (D11, the list default) = visible at rest only while pressed; `always` = never hidden;
+   *  `never` = always reveal-gated, for a row that shows the PRESSED state elsewhere at rest (the chats
+   *  row's title-line ★ marker, `ListRow.markers` + `ROW_REVEAL_SWAP`). D11's invariant — pressed state is
+   *  visible at rest — is still met there, in the marker slot; this control is then purely the affordance,
+   *  and reveal-gating it is what keeps the row from painting two stars at once. */
+  readonly rest?: "always" | "never" | "when-on";
 }
 
 /** One row state-toggle: a ghost icon button that IS the marker (`aria-pressed` carries the datum). */
 export function RowToggleAction({ pressed, onToggle, labelOn, labelOff, icon, pressedClassName, rest = "when-on" }: RowToggleActionProps): ReactElement {
-  const revealed = rest === "when-on" && !pressed;
+  const revealed = rest === "never" || (rest === "when-on" && !pressed);
   return (
     <Button
       aria-label={pressed ? labelOn : labelOff}

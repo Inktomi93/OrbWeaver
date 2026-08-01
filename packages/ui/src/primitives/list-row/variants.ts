@@ -6,7 +6,11 @@ export const listRowVariants = tv({
   slots: {
     // `@container/list-row` lets a consumer's `actions` collapse responsively to the row's own width
     // (fold into a kebab via `@max-*/list-row` when tight).
-    root: "@container/list-row relative flex w-full min-w-0 items-center gap-row",
+    // `group/row` is the ROW-WIDE reveal group — NAMED because `body` below is itself an (unnamed) group, so
+    // a marker living inside the content column can only key on the whole row's hover/focus-within through a
+    // name (`group-hover/row:`). That is what lets a rest-visible marker yield to the revealed control that
+    // carries the same datum (`ROW_REVEAL_SWAP`) instead of both painting at once.
+    root: "@container/list-row group/row relative flex w-full min-w-0 items-center gap-row",
     // Keeps `min-w-0` so it can shrink and let `title`'s `truncate` engage — starvation is prevented by
     // `content`'s own `min-w-24` floor below (a floor RAISES a min-content contribution, so if it lived
     // here on `body` it would pin `body` to the title's full width and force a horizontal scrollbar in a
@@ -25,6 +29,9 @@ export const listRowVariants = tv({
     // end so it never gets clipped by the title's truncate.
     titleRow: "flex min-w-0 items-baseline gap-field",
     title: "block min-w-0 flex-1 truncate text-left text-body font-medium leading-body text-foreground",
+    // Rest-visible state markers on the title line, before the stamp (the mock's ⚔ / ★ / Archived cluster).
+    // `shrink-0`: a glyph slot is already minimal — it must clip the TITLE, never itself.
+    markers: "flex shrink-0 items-center gap-field",
     // Trailing title-line meta (e.g. relative-time): mono muted micro, never shrinks.
     meta: "shrink-0 whitespace-nowrap font-mono text-label leading-label text-muted-foreground",
     subtitle: "block truncate text-left text-label leading-label text-muted-foreground",
