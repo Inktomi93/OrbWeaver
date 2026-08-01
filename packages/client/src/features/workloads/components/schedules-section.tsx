@@ -1,7 +1,12 @@
-// The Schedules section. Lists the caller's recurring schedules with an enable/disable Switch + Edit +
-// Delete per row, and a "New schedule" button opening the create dialog. Reads workloads.listSchedules
-// (server-scoped: a plain user sees only their own; owner/admin sees every owner's, so a foreign/bulk
-// row is labelled). Only the box owner may create/retune a bulk schedule; the server re-gates regardless.
+// The Schedules section (Settings → Workloads → Schedules). Lists the caller's recurring schedules with an
+// enable/disable Switch + Edit + Delete per row, and a "New schedule" button opening the create dialog.
+// Reads workloads.listSchedules (server-scoped: a plain user sees only their own; owner/admin sees every
+// owner's, so a foreign/bulk row is labelled). Only the box owner may create/retune a bulk schedule; the
+// server re-gates regardless.
+//
+// A settings-SECTION CONTRIBUTION at the `workloads` anchor since SET-SEAMS stage 3, owned by
+// features/workloads: it owns its own read (viewer + schedules + the gated admin handle map, which the
+// retired pane surface used to hand down as props) and its own suspense boundary.
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import { Badge } from "@orb/ui/badge";
@@ -11,36 +16,46 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQueries } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
-import { useInvalidation, useTRPC } from "#data";
+import { QueryBoundary, QueryErrorState, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { settingsAnchorId } from "#state";
 import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations";
 import { WORKLOAD_KIND_LABELS } from "../lib/workloads-model";
-import { WORKLOADS_SUBCATEGORY_IDS } from "../lib/workloads-nav";
 import { SCHEDULE_CADENCE_LABELS } from "../lib/workloads-schedule-model";
+import { WORKLOADS_SCHEDULES_SUBCATEGORY } from "../lib/workloads-schedules-nav";
 import { CreateScheduleDialog, EditScheduleDialog } from "./create-schedule-dialog";
 
 type ScheduleItem = inferOutput<Trpc["workloads"]["listSchedules"]>[number];
-type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 
-export interface SchedulesSectionProps {
-  /** The box owner gets the bulk create/edit affordances. */
-  readonly viewerIsOwner: boolean;
-  /** The viewer's own user id — a schedule with this owner is "mine" (no foreign handle shown). */
-  readonly viewerUserId: string;
-  /** The admin user table (owner∪admin only, else `[]`) — resolves a foreign row's owner handle. */
-  readonly users: readonly AdminUser[];
+/** The Schedules section body — mounted at the workloads pane's sections anchor. */
+export function SchedulesSection(): ReactElement {
+  return (
+    <QueryBoundary
+      fallback={<Text voice="gloss">Loading your schedules…</Text>}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="your schedules" onRetry={retry} />}
+    >
+      <SchedulesBody />
+    </QueryBoundary>
+  );
 }
 
-export function SchedulesSection({ viewerIsOwner, viewerUserId, users }: SchedulesSectionProps): ReactElement {
+function SchedulesBody(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const { data: schedules } = useSuspenseQuery(trpc.workloads.listSchedules.queryOptions({}));
+  const [{ data: schedules }, { data: viewer }] = useSuspenseQueries({
+    queries: [trpc.workloads.listSchedules.queryOptions({}), trpc.sessions.me.queryOptions()],
+  });
+  const viewerIsOwner = viewer.globalRole === "owner";
+  const isPrivileged = viewerIsOwner || viewer.globalRole === "admin";
+  // The admin user table resolves a FOREIGN row's owner handle (owner∪admin only — the adminProcedure read
+  // never fires for a plain user, whose schedules are all their own).
+  const usersQuery = useGatedQuery(isPrivileged ? "admin-users" : null, () => trpc.admin.listUsers.queryOptions());
+  const users = usersQuery.data ?? [];
   const setEnabled = useSetScheduleEnabled({ trpc, invalidation });
   const deleteSchedule = useDeleteSchedule({ trpc, invalidation });
   const [createOpen, setCreateOpen] = useState(false);
@@ -48,14 +63,19 @@ export function SchedulesSection({ viewerIsOwner, viewerUserId, users }: Schedul
 
   const handleByUserId = new Map(users.map((user) => [user.id as string, user.handle as string]));
   const ownerHandleFor = (schedule: ScheduleItem): string | null => {
-    if (schedule.ownerId === viewerUserId) {
+    if (schedule.ownerId === viewer.userId) {
       return null;
     }
     return handleByUserId.get(schedule.ownerId as string) ?? null;
   };
 
   return (
-    <Section divider={true} heading="Schedules" id={settingsAnchorId("workloads", WORKLOADS_SUBCATEGORY_IDS.schedules)}>
+    <Section
+      className="@container"
+      divider={true}
+      heading={WORKLOADS_SCHEDULES_SUBCATEGORY.label}
+      id={settingsAnchorId("workloads", WORKLOADS_SCHEDULES_SUBCATEGORY.id)}
+    >
       <Stack gap="block" data-testid={testId("workloadsSchedulesSection")}>
         <Row align="center" justify="between" gap="row">
           <Text tone="muted" size="label">
