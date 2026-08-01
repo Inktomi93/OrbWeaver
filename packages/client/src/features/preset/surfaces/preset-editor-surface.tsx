@@ -13,6 +13,8 @@
 // Saving goes through `usePresetAutosave` (never an inline mutateAsync): it serializes the writes and owns the
 // LOCKED built-in's fork-once retarget — editing the system default COWs into ONE owned copy, and the editor
 // session + the active-for-generation seed both follow it (read its header; the ten-duplicates bug lived here).
+// Once the owner ALREADY has a fork of the built-in, that hook parks the write on `PresetForkChoiceDialog`
+// (rendered here, the surface's second dialog): keep editing the fork they have, or name a new one.
 //
 // north-star §6.2: the ten leaf tabs render as FOUR primary groups (Generation · Prompt · Context ·
 // Transforms), each group's leaves shown as sub-navigation — leaf CONTENT is unchanged (a regroup). The
@@ -37,6 +39,7 @@ import type { AppFormInstance, AutosaveSession } from "#forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
 import { useFocusOnMount } from "#lib";
 import { ParamsPanel } from "../components/params-panel";
+import { PresetForkChoiceDialog } from "../components/preset-fork-choice-dialog";
 import { PresetStructureTabs } from "../components/preset-structure-tabs";
 import { RegexTab } from "../components/regex-tab";
 import { UserMacrosTab } from "../components/user-macros-tab";
@@ -133,22 +136,36 @@ function PresetEditor({ presetId, onRevealSection, onDismissSection }: PresetEdi
   const capability = capabilityQuery.data?.capability;
 
   // The save path incl. the built-in's fork-once retarget (see the hook header) — never an inline mutateAsync.
-  const save = usePresetAutosave({ presetId, server: preset.config, activePresetId: settings.config.seeds.defaultPresetId });
+  const autosave = usePresetAutosave({ presetId, server: preset.config, activePresetId: settings.config.seeds.defaultPresetId });
 
   return (
-    <PresetForm entityId={presetId} serverValues={seedConfig(preset.config)} save={save}>
-      {(session): ReactElement => (
-        <PresetEditorBody
-          session={session}
-          presetId={presetId}
-          presetName={preset.name}
-          capability={capability}
-          reset={reset}
-          onRevealSection={onRevealSection}
-          onDismissSection={onDismissSection}
+    <>
+      <PresetForm entityId={presetId} serverValues={seedConfig(preset.config)} save={autosave.save}>
+        {(session): ReactElement => (
+          <PresetEditorBody
+            session={session}
+            presetId={presetId}
+            presetName={preset.name}
+            capability={capability}
+            reset={reset}
+            onRevealSection={onRevealSection}
+            onDismissSection={onDismissSection}
+          />
+        )}
+      </PresetForm>
+      {/* The built-in's fork choice — the ONE thing that interrupts the autosave, and only when the owner
+          already has a fork to lose track of (the hook parks the write until an arm is picked). */}
+      {autosave.forkChoice === null ? null : (
+        <PresetForkChoiceDialog
+          forkName={autosave.forkChoice.forkName}
+          onKeepEditing={autosave.keepEditingFork}
+          onNewFork={autosave.startNewFork}
+          open={true}
+          sourceName={autosave.forkChoice.sourceName}
+          suggestedName={autosave.forkChoice.suggestedName}
         />
       )}
-    </PresetForm>
+    </>
   );
 }
 

@@ -22,7 +22,13 @@ import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
 import { makeModelCapability, makeResolvedChatCapability } from "../../../../support/factories/resolved-connection";
-import { PresetEditorCapabilityFreshnessStory, PresetEditorSurfaceStory, PresetEditorSwitchStory, PresetForkOnceStory } from "./_ct-stories";
+import {
+  PresetEditorCapabilityFreshnessStory,
+  PresetEditorSurfaceStory,
+  PresetEditorSwitchStory,
+  PresetForkChoiceStory,
+  PresetForkOnceStory,
+} from "./_ct-stories";
 
 // The three fixed ids — the plain-string mirror of the story module's branded PresetIds (biome forbids the
 // story exporting non-component consts, so the literals live in both places).
@@ -49,13 +55,16 @@ interface PresetDetailFixture {
   readonly name: string;
   readonly kind: string;
   readonly isSystemDefault: boolean;
+  readonly forkedFrom: string | null;
   readonly createdAt: number;
   readonly updatedAt: number;
   readonly config: PromptConfig;
   readonly schemaVersion: number;
 }
 
-/** A PresetDetail whose config differs only in `params.quality` — the dial the CT reads + edits. */
+/** A PresetDetail whose config differs only in `params.quality` — the dial the CT reads + edits. A detail is
+ *  a superset of the summary the LIST returns, so the same fixtures double as `preset.list` rows (the editor
+ *  reads the list to answer the built-in's fork question). */
 function presetDetail(id: string, name: string, quality: "fast" | "balanced" | "deep" | undefined): PresetDetailFixture {
   const config: PromptConfig = quality === undefined ? { ...DEFAULT_PROMPT_CONFIG, params: {} } : { ...DEFAULT_PROMPT_CONFIG, params: { quality } };
   return {
@@ -63,6 +72,7 @@ function presetDetail(id: string, name: string, quality: "fast" | "balanced" | "
     name,
     kind: "custom",
     isSystemDefault: false,
+    forkedFrom: null,
     createdAt: 0,
     updatedAt: 0,
     config,
@@ -110,6 +120,7 @@ test("capability freshness — a settingsChanged tick swaps the connect-a-model 
   let resolves = 0;
   const trpc = await routeTrpc(page, {
     "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "connection.resolveChatCapability": () => (resolves++ === 0 ? trpcError({ message: "no chat connection configured" }) : CAPABILITY),
   });
@@ -133,6 +144,7 @@ test("capability freshness — a settingsChanged tick swaps the connect-a-model 
 test("SWITCH pin — A(dirty)→B shows B's real config and never persists A's values into B", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "preset.get": (input: unknown) => ((input as { id?: string }).id === PRESET_B ? PRESET_B_DETAIL : PRESET_A_DETAIL),
+    "preset.list": () => [PRESET_A_DETAIL, PRESET_B_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.update": () => ({}),
   });
@@ -168,6 +180,7 @@ function routeReset(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     // Before reset → A ("fast"); after `preset.resetToDefault` fires → the starter (unset quality).
     "preset.get": () => (didReset ? STARTER_DETAIL : PRESET_A_DETAIL),
+    "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "preset.resetToDefault": () => {
       didReset = true;
@@ -235,8 +248,12 @@ test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the 
     schemaVersion: forkConfig.schemaVersion,
   });
 
+  // The owner has NO fork yet — the copy-on-write stays silent (nothing to forget), which is what keeps this
+  // pin about the fork-ONCE mechanism. The minted fork joins the list, exactly as the real invalidation does.
+  let minted = false;
   const trpc = await routeTrpc(page, {
     "preset.get": (input: unknown) => ((input as { id?: string }).id === BUILT_IN ? BUILT_IN_DETAIL : forkDetail()),
+    "preset.list": () => (minted ? [BUILT_IN_DETAIL, { ...forkDetail(), forkedFrom: BUILT_IN }] : [BUILT_IN_DETAIL]),
     "settings.getUserSettings": () => ({
       ...SETTINGS_VIEW,
       config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
@@ -249,6 +266,7 @@ test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the 
     // Every write lands on the fork row; targeting the built-in is what MINTS it (a NEW id in the response).
     "preset.update": (input: unknown) => {
       forkConfig = (input as { config: PromptConfig }).config;
+      minted = true;
       return forkDetail();
     },
   });
@@ -291,4 +309,150 @@ test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the 
   // ONESHOT-OK: settled — the preceding 900ms real-timer wait is the negative-assertion window itself.
   expect(updatesAgainst(trpc, BUILT_IN).length).toBe(1);
   expect(updatesAgainst(trpc, FORK).length).toBeGreaterThanOrEqual(1);
+});
+
+// ── The FORK-CHOICE pins (owner ruling). The silent copy-on-write above is right exactly ONCE: the first
+// fork has nothing to forget. Once the owner already HAS a fork of the built-in, a second silent COW either
+// converges onto a copy they had moved on from or hides the edit in a row they can't find — so the editor
+// asks BEFORE the write, at the one place a built-in edit enters the mutation path (`usePresetAutosave`).
+// The library list is mounted beside the editor because the answer is only legible against those rows.
+const FORK_ONE = "preset_ct_fork0000001";
+const FORK_ONE_NAME = "Default (edited)";
+const FORK_TWO = "preset_ct_fork0000002";
+const SUGGESTED_NAME = "Default fork 2";
+const KEEP_EDITING_LABEL = `Keep editing ${FORK_ONE_NAME}`;
+const NEW_FORK_LABEL = "Start a new fork";
+const LINEAGE_RE = /forked from Default/;
+// The dialog's own copy, not the library row behind it: it must NAME the fork the primary arm targets.
+const NAMES_THE_FORK_RE = /You already have one: Default \(edited\)/;
+const SETTLE_MS = 500;
+
+interface ForkUpdateCall {
+  readonly id?: string;
+  readonly fork?: { readonly mode?: string; readonly name?: string };
+  readonly config?: { readonly params?: { readonly quality?: string } };
+}
+
+/** The owner's library: the built-in plus ONE existing fork of it — the precondition for the choice. The
+ *  fake server mirrors the verb: a `new` intent MINTS a row, an absent/`converge` one lands on the existing
+ *  fork (recorded either way, so a test can prove which arm actually ran). */
+function routeForkChoice(page: Page): Promise<TrpcRecorder> {
+  const forkOne = { ...presetDetail(FORK_ONE, FORK_ONE_NAME, undefined), forkedFrom: BUILT_IN };
+  const rows: PresetDetailFixture[] = [BUILT_IN_DETAIL, forkOne];
+  let activeId: string | null = null;
+  const patch = (id: string, config: PromptConfig): PresetDetailFixture => {
+    const index = rows.findIndex((row) => row.id === id);
+    const next = { ...(rows[index] ?? forkOne), config, schemaVersion: config.schemaVersion };
+    rows[index] = next;
+    return next;
+  };
+  return routeTrpc(page, {
+    "preset.get": (input: unknown) => rows.find((row) => row.id === (input as { id?: string }).id) ?? BUILT_IN_DETAIL,
+    "preset.list": () => rows,
+    "settings.getUserSettings": () => ({
+      ...SETTINGS_VIEW,
+      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
+    }),
+    "settings.updateUserSettingsSection": (input: unknown) => {
+      activeId = (input as { patch: { defaultPresetId: string | null } }).patch.defaultPresetId;
+      return {};
+    },
+    "connection.resolveChatCapability": () => CAPABILITY,
+    "preset.update": (input: unknown) => {
+      const call = input as ForkUpdateCall & { config: PromptConfig };
+      if (call.id === BUILT_IN && call.fork?.mode === "new") {
+        const minted = {
+          ...presetDetail(FORK_TWO, call.fork.name ?? "", undefined),
+          forkedFrom: BUILT_IN,
+          config: call.config,
+          schemaVersion: call.config.schemaVersion,
+        };
+        rows.push(minted);
+        return minted;
+      }
+      // Both the plain patch of a fork and the (unwanted here) silent convergence land through one seam.
+      return patch(call.id === BUILT_IN ? FORK_ONE : (call.id ?? FORK_ONE), call.config);
+    },
+  });
+}
+
+test("FORK-CHOICE — with a fork already in the library, a built-in edit is INTERCEPTED: both arms, the fork NAMED, and nothing written yet", async ({
+  mount,
+  page,
+}) => {
+  const trpc = await routeForkChoice(page);
+  const component = await mount(<PresetForkChoiceStory />);
+  await expect(component.getByText(`selected=${BUILT_IN}`)).toBeVisible();
+
+  await component.getByRole("radio", { name: BALANCED_RE }).click();
+
+  // The dialog renders in a PORTAL (document.body) — and it NAMES the fork, since "your edits live in a copy"
+  // is useless if the owner can't tell which of their rows that is.
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("button", { name: KEEP_EDITING_LABEL })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: NEW_FORK_LABEL })).toBeVisible();
+  await expect(dialog.getByText(NAMES_THE_FORK_RE)).toBeVisible();
+
+  // THE PIN: the save is PARKED. A dialog that appears after the write already landed is theatre.
+  await page.evaluate((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)), SETTLE_MS);
+  // ONESHOT-OK: settled — the preceding wait is the negative-assertion window itself (the debounce + a full
+  // save round-trip have had their chance; the dialog is what holds the chain).
+  expect(trpc.count("preset.update")).toBe(0);
+});
+
+test("FORK-CHOICE keep-editing — the edit lands on the EXISTING fork, the editor retargets, and nothing is minted", async ({ mount, page }) => {
+  const trpc = await routeForkChoice(page);
+  const component = await mount(<PresetForkChoiceStory />);
+  await expect(component.getByText(`selected=${BUILT_IN}`)).toBeVisible();
+
+  await component.getByRole("radio", { name: BALANCED_RE }).click();
+  await page.getByRole("dialog").getByRole("button", { name: KEEP_EDITING_LABEL }).click();
+
+  // The pending edit applies THERE (the arm is a retarget, not a discard).
+  await expect.poll(() => updatesAgainst(trpc, FORK_ONE).at(-1)?.config?.params?.quality, { intervals: [100, 200, 300, 500] }).toBe("balanced");
+  // …and the editor follows it, exactly as the silent COW's retarget does.
+  await expect(component.getByText(`selected=${FORK_ONE}`)).toBeVisible();
+
+  await page.evaluate((ms) => new Promise<void>((resolve) => setTimeout(resolve, ms)), SETTLE_MS);
+  // THE PIN (mutation count): the built-in is never written to, so the server never COWs — the library still
+  // holds exactly the ONE fork it started with, no second copy minted behind the owner's back.
+  // ONESHOT-OK: settled — the wait above is the negative-assertion window.
+  expect(updatesAgainst(trpc, BUILT_IN).length).toBe(0);
+  expect((trpc.inputs("preset.update") as ForkUpdateCall[]).every((call) => call.id === FORK_ONE)).toBe(true);
+  await expect(component.getByText(LINEAGE_RE)).toHaveCount(1);
+});
+
+test("FORK-CHOICE new fork — the suggested name is pre-filled, the mint carries the intent, and the list shows BOTH forks", async ({ mount, page }) => {
+  const trpc = await routeForkChoice(page);
+  const component = await mount(<PresetForkChoiceStory />);
+  await expect(component.getByText(`selected=${BUILT_IN}`)).toBeVisible();
+
+  await component.getByRole("radio", { name: BALANCED_RE }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: NEW_FORK_LABEL }).click();
+
+  // The name step opens pre-filled and FOCUSED (the owner types over it, never hunts for the field).
+  const nameField = dialog.getByLabel("New fork name");
+  await expect(nameField).toHaveValue(SUGGESTED_NAME);
+  await expect(nameField).toBeFocused();
+  await nameField.fill("Deep run");
+  await dialog.getByRole("button", { name: "Create fork" }).click();
+
+  // THE PIN: the write goes against the BUILT-IN carrying the explicit `new` intent + the name — the arm that
+  // mints a sibling instead of converging on the fork the owner already had.
+  await expect
+    .poll(() => (trpc.inputs("preset.update") as ForkUpdateCall[]).at(-1)?.fork, { intervals: [100, 200, 300, 500] })
+    .toEqual({
+      mode: "new",
+      name: "Deep run",
+    });
+  expect(updatesAgainst(trpc, FORK_ONE).length).toBe(0);
+  expect((trpc.inputs("preset.update") as ForkUpdateCall[]).at(-1)?.config?.params?.quality).toBe("balanced");
+
+  // The editor retargets onto the NEW fork, and the library now shows two rows both scented "forked from
+  // Default" — the lineage that makes a library of forks navigable at all.
+  await expect(component.getByText(`selected=${FORK_TWO}`)).toBeVisible();
+  // The new row is IN THE LIBRARY (a row button), not just in the editor header the retarget also updated.
+  await expect(component.getByRole("button", { name: "Deep run", exact: true })).toBeVisible();
+  await expect(component.getByText(LINEAGE_RE)).toHaveCount(2);
 });

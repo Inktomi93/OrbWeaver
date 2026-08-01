@@ -56,7 +56,9 @@ export const presets = sqliteTable(
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   // The owner index serves the library list; the (owner, source) index serves the COW convergence lookup.
-  // NOT unique: `clonePackaged` mints an INDEPENDENT copy per call by contract (its rpg GM-preset consumer
-  // clones the same template once per game), so uniqueness on this pair would refuse the second copy.
+  // NOT unique, for two independent reasons: `clonePackaged` mints an INDEPENDENT copy per call by contract
+  // (its rpg GM-preset consumer clones the same template once per game), and the owner may deliberately keep
+  // SEVERAL forks of the built-in (the update verb's `{mode:"new"}` fork intent) — uniqueness on this pair
+  // would refuse both.
   (table) => [index("presets_owner_idx").on(table.ownerId), index("presets_owner_forked_from_idx").on(table.ownerId, table.forkedFrom)],
 );
