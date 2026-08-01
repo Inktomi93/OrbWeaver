@@ -634,7 +634,11 @@ const templatedMarkerSection = z.object({
   marker: z.enum(TEMPLATED_MARKERS),
   role: z.enum(MESSAGE_ROLES).default("system"),
   enabled: z.boolean().default(true),
-  /** Custom framing template (macros allowed). Omit ⇒ `DEFAULT_MARKER_TEMPLATES[marker]`. Empty = render nothing. */
+  /** Custom framing template (macros allowed). Omit ⇒ `DEFAULT_MARKER_TEMPLATES[marker]`.
+   *  There is no "render nothing" arm: an EMPTY string is the same thing as omitted (the editor writes
+   *  `undefined` when you clear the field), and turning a marker off is `enabled: false` — the one
+   *  mechanism (preset-surface-redesign §5.2a, the tri-state retirement; the v4→v5 lift retires every
+   *  stored `""`). */
   template: z.string().max(MAX_TEXT_LENGTH).optional(),
   inject: injectSchema.optional(),
   trigger: triggerSchema.optional(),
@@ -1012,11 +1016,12 @@ const _valueIsKitValue = (value: z.infer<typeof userMacroInputValueSchema>): Use
 void _valueIsKitValue;
 
 /** Current blob shape. Bump + add a lift below when the shape changes (NO DB migration needed). */
-export const PROMPT_CONFIG_SCHEMA_VERSION = 4;
+export const PROMPT_CONFIG_SCHEMA_VERSION = 5;
 const SCHEMA_VERSION_V1 = 1; // walk floor — a versionless/garbage blob probes as v1
 const SCHEMA_VERSION_V2 = 2;
 const SCHEMA_VERSION_V3 = 3;
 const SCHEMA_VERSION_V4 = 4;
+const SCHEMA_VERSION_V5 = 5;
 
 /** The per-preset format-string overrides. Every key is optional and blank-means-default. NO carrier refine
  *  here on purpose — this schema is also the READ path (`parsePromptConfig` degrades a failed parse to
@@ -1161,7 +1166,31 @@ export const CONFIG_LIFTS: Record<number, (config: Record<string, unknown>) => R
   // v3 → v4: `compaction.mode:"off"` is retired (compaction is a SAFETY property — a chat may never error from
   // context growth). A stored "off" lifts to "managed" (our durable marker); all other fields untouched.
   3: (c): Record<string, unknown> => ({ ...c, schemaVersion: SCHEMA_VERSION_V4, params: liftCompactionOff(c["params"]) }),
+  // v4 → v5 (redesign G8): the Default/Custom/SILENT tri-state is retired. Silent's stored form was
+  // `template: ""` ("render nothing") — which is the ENABLE mechanism wearing a second face. A stored
+  // empty template becomes `{ template: undefined, enabled: false }`: the marker is off, and clearing the
+  // field in the editor now means "the built-in default rides" for every section alike.
+  4: (c): Record<string, unknown> => ({ ...c, schemaVersion: SCHEMA_VERSION_V5, sections: liftSilentTemplates(c["sections"]) }),
 };
+
+/** v4→v5: `template: ""` ⇒ drop the template AND disable the section. Non-array sections / non-object
+ *  entries / a non-empty template pass through untouched (by reference where nothing changes). */
+function liftSilentTemplates(sections: unknown): unknown {
+  if (!Array.isArray(sections)) {
+    return sections;
+  }
+  return sections.map((entry: unknown): unknown => {
+    if (entry === null || typeof entry !== "object") {
+      return entry;
+    }
+    const section = entry as RawSection;
+    if (section["template"] !== "") {
+      return entry;
+    }
+    const { template: _silent, ...rest } = section;
+    return { ...rest, enabled: false };
+  });
+}
 
 /** v3→v4: map a stored `params.compaction.mode:"off"` → `"managed"`. Non-object params / absent compaction / a
  *  non-"off" mode pass through untouched (return by reference where nothing changes). */

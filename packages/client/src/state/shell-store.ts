@@ -228,8 +228,12 @@ export function setContextTab(tab: string | null): void {
  *  neither leaks into the other. This is the viewport-unaware equivalent of the old
  *  `if (isMobile) sheet else dock` branch, without state forking the shell's `matchMedia` homes
  *  (the app-shell viewport hooks, no-raw-matchmedia). */
-export function revealContextPanel(tab: string): void {
-  setContextTab(tab);
+export function revealContextPanel(tab?: string): void {
+  // A `single`-kind CONTEXT (the Presets readout) HAS no tabs, so it names none: writing a tab id no
+  // strip can resolve would be a stored lie the next tabbed section has to fall back out of.
+  if (tab !== undefined) {
+    setContextTab(tab);
+  }
   setOpenOverlayPanel("context");
   setPanelMode("context", "docked");
 }

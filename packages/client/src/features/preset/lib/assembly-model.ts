@@ -39,19 +39,45 @@ export function sectionGlyphIcon(section: PromptSection): LucideIcon {
   return kind === "templatedMarker" ? Sparkles : Anchor;
 }
 
-/** The header label + one-liner for a section (marker copy, or the neutral literal framing) — shared by
- *  the CENTER body-editor header and the CONTEXT inspector header. */
+/** The drill-in header's label + one-liner. The LABEL is the section's own NAME when it has one — the
+ *  drill-in is reached from a rack row, and a header that renamed "Style guide" to "Literal text" between
+ *  the click and the editor reads as having opened something else. The one-liner stays the KIND's copy
+ *  (what this slot is), which is the half a name cannot carry. */
 export function headerCopy(section: PromptSection): { readonly label: string; readonly oneLiner: string } {
+  const named = section.name.trim();
   if (section.type === "marker") {
     const copy = MARKER_COPY[section.marker];
-    return { label: copy.label, oneLiner: copy.oneLiner };
+    return { label: named === "" ? copy.label : named, oneLiner: copy.oneLiner };
   }
-  return { label: "Literal text", oneLiner: "Your own text, sent exactly as written." };
+  return { label: named === "" ? "Literal text" : named, oneLiner: "Your own text, sent exactly as written." };
 }
 
-/** The two markers whose card/room override is user-facing — the inspector always surfaces their
+/** The two markers whose card/room override is user-facing — the drill-in always surfaces their
  *  override-lock cluster. */
 export const OVERRIDABLE_MARKERS: readonly MarkerType[] = ["main_prompt", "post_history"];
+
+/** The conversation PIVOT — `chat_history`. It can be neither deleted, disabled, nor silenced
+ *  (preset-surface-redesign §5.1/§5.2): a preset whose pivot is off is an assembly with nowhere to splice
+ *  the conversation, which is the exact state the missing-pivot warning exists to prevent. */
+export function isPivotSection(section: PromptSection): boolean {
+  return section.type === "marker" && section.marker === "chat_history";
+}
+
+/** Is this section STRUCTURAL — i.e. a MARKER (§5.2, ST parity)? A marker is part of the prompt's fixed
+ *  anatomy: its ⋯ menu omits Duplicate and Delete entirely (never a disabled Delete), and its one
+ *  off-switch is the enable toggle. Only `literal` sections are user-authored, and only they are
+ *  deletable. The contract's own three-branch union IS the classification — nothing is stamped. */
+export function isStructuralSection(section: PromptSection): boolean {
+  return section.type === "marker";
+}
+
+/** The Placement cluster's ZONE vocabulary. A zone is DERIVED from the section's position relative to the
+ *  pivot, so picking one is a MOVE across the pivot (the same `moveFieldValues` the drag and the ⋯
+ *  Move-above/below item go through — one home, §16 row 17), never a stored field. */
+export const ZONE_ITEMS: readonly { readonly value: string; readonly label: string }[] = [
+  { value: "setup", label: "Setup — before the conversation" },
+  { value: "post", label: "Post — after your message" },
+];
 
 /** chat_history carries the transcript's own per-message roles — no editable role field. */
 export function hasRoleField(section: PromptSection): boolean {
