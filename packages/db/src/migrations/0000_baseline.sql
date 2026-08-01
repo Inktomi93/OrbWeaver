@@ -722,7 +722,7 @@ CREATE TABLE `presets` (
 	`name` text NOT NULL,
 	`kind` text NOT NULL,
 	`config` text NOT NULL,
-	`schema_version` integer DEFAULT 4 NOT NULL,
+	`schema_version` integer DEFAULT 5 NOT NULL,
 	`forked_from` text,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,

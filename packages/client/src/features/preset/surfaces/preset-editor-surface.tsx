@@ -42,7 +42,7 @@ import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs"
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { ConfirmDialog } from "#components";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AppFormInstance, AutosaveSession } from "#forms";
@@ -59,7 +59,6 @@ import { VariablesTab } from "../components/variables-tab";
 import { usePresetAutosave } from "../hooks/use-preset-autosave";
 import { useResetPreset } from "../hooks/use-preset-mutations";
 import type { EffectiveProfileRow } from "../lib/effective-knobs";
-import { clearAssemblyForm, publishAssemblyForm } from "../lib/preset-editor-bridge";
 import { seedConfig } from "../lib/preset-editor-model";
 import type { PresetEditorView } from "../lib/preset-nav";
 import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav";
@@ -75,11 +74,9 @@ export interface PresetEditorSurfaceProps {
   readonly presetId: PresetId;
   /** Reveal the CONTEXT section inspector — a rack row's name-button click calls this after selecting the section. */
   readonly onRevealSection?: (() => void) | undefined;
-  /** Dismiss the section drill-in — the CENTER `SectionBodyEditor` back button. */
-  readonly onDismissSection?: (() => void) | undefined;
 }
 
-export function PresetEditorSurface({ presetId, onRevealSection, onDismissSection }: PresetEditorSurfaceProps): ReactElement {
+export function PresetEditorSurface({ presetId, onRevealSection }: PresetEditorSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
 
@@ -89,7 +86,7 @@ export function PresetEditorSurface({ presetId, onRevealSection, onDismissSectio
         fallback={<Text tone="muted">Loading the preset…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the preset" onRetry={retry} />}
       >
-        <PresetEditor presetId={presetId} onRevealSection={onRevealSection} onDismissSection={onDismissSection} />
+        <PresetEditor presetId={presetId} onRevealSection={onRevealSection} />
       </QueryBoundary>
     </Stack>
   );
@@ -105,18 +102,17 @@ interface ViewContentProps {
   /** The Macros body's source attribution (`preset:<id>` in the browser). */
   readonly presetId: PresetId;
   readonly onRevealSection?: (() => void) | undefined;
-  readonly onDismissSection?: (() => void) | undefined;
 }
 
 /** Render one VIEW's body. Params is the new deck; the other four are the landed bodies re-homed per the
  *  §3 map (Data and Transforms simply stack the leaves that used to be sub-tabs). */
 function viewContent(id: PresetEditorView["id"], props: ViewContentProps): ReactElement {
-  const { form, capability, effective, customParameterKeys, presetId, onRevealSection, onDismissSection } = props;
+  const { form, capability, effective, customParameterKeys, presetId, onRevealSection } = props;
   switch (id) {
     case "params":
       return <ParamsDeck capability={capability} customParameterKeys={customParameterKeys} effective={effective} form={form} />;
     case "prompt":
-      return <PresetStructureTabs capability={capability} form={form} onDismissSection={onDismissSection} onRevealSection={onRevealSection} tab="prompt" />;
+      return <PresetStructureTabs capability={capability} form={form} onRevealSection={onRevealSection} tab="prompt" />;
     case "actions":
       return (
         <ActionsView
@@ -145,7 +141,7 @@ function viewContent(id: PresetEditorView["id"], props: ViewContentProps): React
   }
 }
 
-function PresetEditor({ presetId, onRevealSection, onDismissSection }: PresetEditorSurfaceProps): ReactElement {
+function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: preset } = useSuspenseQuery(trpc.preset.get.queryOptions({ id: presetId }));
@@ -186,7 +182,6 @@ function PresetEditor({ presetId, onRevealSection, onDismissSection }: PresetEdi
             customParameterKeys={Object.keys(preset.config.customParameters ?? {})}
             reset={reset}
             onRevealSection={onRevealSection}
-            onDismissSection={onDismissSection}
           />
         )}
       </PresetForm>
@@ -215,7 +210,6 @@ interface PresetEditorBodyProps {
   readonly customParameterKeys: readonly string[];
   readonly reset: ReturnType<typeof useResetPreset>;
   readonly onRevealSection?: (() => void) | undefined;
-  readonly onDismissSection?: (() => void) | undefined;
 }
 
 function PresetEditorBody({
@@ -227,7 +221,6 @@ function PresetEditorBody({
   customParameterKeys,
   reset,
   onRevealSection,
-  onDismissSection,
 }: PresetEditorBodyProps): ReactElement {
   const { form, saveState, retrySave, reseed } = session;
 
@@ -246,17 +239,13 @@ function PresetEditorBody({
     })();
   };
 
-  // Publish the live form handle so the CONTEXT section inspector (a sibling shell region, no shared React
-  // ancestor) can bind `sections[i].*`; clears on unmount so a stale handle never outlives the editor. The
-  // session's `form` is the boundary's widened surface minus `reset`; the bridge consumers are typed against
-  // the full `AppFormInstance` (the editor never calls `reset`), so widen once here.
+  // The session's `form` is the boundary's widened surface minus `reset`; the view bodies are typed
+  // against the full `AppFormInstance` (the editor never calls `reset`), so widen once here. NOTHING
+  // publishes it any more: the form BRIDGE is deleted with the CONTEXT inspector (§5.2) — CONTEXT is a
+  // pure-query readout now, so no sibling shell region needs a live form handle.
   const boundForm = form as AppFormInstance<PromptConfig>;
-  useEffect(() => {
-    publishAssemblyForm({ presetId, form: boundForm });
-    return (): void => clearAssemblyForm();
-  }, [presetId, boundForm]);
 
-  const viewProps: ViewContentProps = { form: boundForm, capability, effective, customParameterKeys, presetId, onRevealSection, onDismissSection };
+  const viewProps: ViewContentProps = { form: boundForm, capability, effective, customParameterKeys, presetId, onRevealSection };
   // The ONE writer of the view axis; an unset store read resolves to the tuple's first view.
   const view = usePresetEditorView() ?? PRESET_EDITOR_VIEWS[0]?.id;
 

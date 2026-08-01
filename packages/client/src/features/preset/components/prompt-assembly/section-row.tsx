@@ -1,13 +1,26 @@
-// SectionRow — one rack row for a non-pivot section. A domain composition of Row + Badge + Switch + a
-// ghost Button (not ListRow — three independent tab stops: name-button, enabled switch, grip). Anatomy
-// left→right: type-glyph badge · name+subtitle button (selects the section) · cue badges shown only when
-// set · the ~token estimate · the enabled Switch. A disabled row is dimmed whole.
+// SectionRow — one rack row (preset-surface-redesign.md §5.1, drawn first-class in
+// `mocks/preset-redesign/prompt-rack.html`). The ST prompt-manager anatomy on our grammar: drag GRIP (the
+// SortableList's own handle, rendered by the list) · zone-hued type GLYPH · NAME button · only-when-set
+// cue badges · the ~token estimate · the enable Switch · the drill CHEVRON.
+//
+// SELECT ≠ DRILL (§16 row 19, ST parity): the NAME click SELECTS — the CONTEXT readout echoes, and that
+// echo IS the inspect view (our answer to ST's name-click inspect popout). The trailing CHEVRON DRILLS
+// into the editor. Two acts, two controls, never conflated.
+//
+// `ListRow` is the skin (D6/CD1/CD2 conformance): the row's `rounded-card border` box is GONE — rows
+// separate by the list's own hairline + gap, selection is the primitive's 2px ember bar + 10% tint, and
+// the three tab stops (name body · switch · chevron) survive because `actions` renders as a SIBLING of the
+// clickable body, never nested inside it.
+//
+// CARRIERS READ `~—`, NOT `~0` (§5.1): a plain marker's cost is the CONVERSATION or the active world-info
+// set — chat-side facts this editor cannot know. A `~0` there would be a lie with a number on it.
 
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Hash, Icon, Lock, Zap } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { ChevronRight, Hash, Icon, Lock, Zap } from "@orb/ui/icons";
+import { Row } from "@orb/ui/layout";
+import { ListRow } from "@orb/ui/list-row";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -18,45 +31,45 @@ import { MARKER_COPY } from "./marker-copy";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;
 
-/** The assembler's default within-depth order (injections.ts:150 — shown when `inject.order` is unset). */
+/** The assembler's default within-depth order (`injections.ts`) — shown when `inject.order` is unset. */
 const DEFAULT_INJECT_ORDER = 100;
+/** The token cell for a CARRIER — its substance is chat-side, so the estimate is honestly absent. */
+const CARRIER_TOKENS = "~—";
 
 export interface SectionRowProps {
   readonly form: AssemblyForm;
   readonly section: PromptSection;
   readonly index: number;
-  /** The derived zone accent (`setup` steel-blue / `post` warm-amber) — a left-edge cue only. */
+  /** The derived zone accent (`setup` steel-blue / `post` warm-amber) — carried by the type glyph. */
   readonly zone: "setup" | "post";
-  /** This row's section is the CONTEXT-selected one (a 10% primary tint + a primary left bar — the one
-   *  restrained ember cue on the row; north-star §6.2 P2 ember budget). */
+  /** This row's section is the SELECTED one — the readout echoes it (ListRow paints the ember bar+tint). */
   readonly selected: boolean;
-  /** Select this section → reveal the inspector (the route-built choreography, §3.4). */
+  /** SELECT (the name click) — the inspect act. */
   readonly onSelect: (sectionId: string) => void;
+  /** DRILL (the chevron) — open the consolidated editor. */
+  readonly onDrill: (sectionId: string) => void;
 }
 
 /** The plain-language name + subtitle for a section (marker copy for markers; the author's name for a
- *  literal, falling back to a neutral label when it's blank). */
+ *  literal, falling back to a neutral label when it's blank). A CARRIER says so in its subtitle — the
+ *  scent that tells you its body is attribution, not text. */
 function sectionLabels(section: PromptSection): { name: string; subtitle: string } {
   if (section.type === "marker") {
     const copy = MARKER_COPY[section.marker];
     return {
       name: section.name.trim() === "" ? copy.label : section.name,
-      subtitle: copy.subtitle,
+      subtitle: isTemplatedMarker(section.marker) ? copy.subtitle : `carrier — ${copy.subtitle}`,
     };
   }
-  return {
-    name: section.name.trim() === "" ? "Literal text" : section.name,
-    subtitle: "your own text",
-  };
+  return { name: section.name.trim() === "" ? "Literal text" : section.name, subtitle: "your own text" };
 }
 
-/** Has this templated marker a NON-default (custom or silent) template set? Drives the template-state dot. */
+/** Has this templated marker a custom framing template set? Drives the `custom` cue. */
 function hasCustomTemplate(section: PromptSection): boolean {
   return section.type === "marker" && isTemplatedMarker(section.marker) && "template" in section && section.template !== undefined;
 }
 
-/** Is this a templated marker whose card/room override is locked? Drives the lock cue. (`in` narrows the
- *  union to the templated-marker branch that carries the two forbid flags.) */
+/** Is this a templated marker whose card/room override is locked? Drives the lock cue. */
 function isLocked(section: PromptSection): boolean {
   if (!("forbidCharacterOverride" in section)) {
     return false;
@@ -64,24 +77,24 @@ function isLocked(section: PromptSection): boolean {
   return section.forbidCharacterOverride === true || section.forbidRoomOverride === true;
 }
 
-/** The trailing cue badges (ONLY-WHEN-SET) — split out so the row body stays flat. */
+/** The ONLY-WHEN-SET cue badges. The splice cue is the fused `@depth·order` read-only form — legal HERE
+ *  (a compact badge) and nowhere else: the drill-in's fields stay split (round-3 ruling). */
 function SectionCues({ section }: { readonly section: PromptSection }): ReactElement {
   const inject = "inject" in section ? section.inject : undefined;
-  const trigger = "trigger" in section ? section.trigger : undefined;
-  const triggersLabel = triggersPillLabel(trigger);
+  const triggersLabel = triggersPillLabel("trigger" in section ? section.trigger : undefined);
   return (
-    <Row gap="field" align="center">
-      {inject !== undefined ? (
+    <>
+      {inject === undefined ? null : (
         <Badge intent="info" size="sm">
           <Icon icon={Hash} size="xs" />@{inject.depth}·{inject.order ?? DEFAULT_INJECT_ORDER}
         </Badge>
-      ) : null}
-      {triggersLabel !== null ? (
+      )}
+      {triggersLabel === null ? null : (
         <Badge intent="warning" size="sm">
           <Icon icon={Zap} size="xs" />
           {triggersLabel}
         </Badge>
-      ) : null}
+      )}
       {isLocked(section) ? (
         <Badge intent="neutral" size="sm">
           <Icon icon={Lock} size="xs" />
@@ -92,52 +105,48 @@ function SectionCues({ section }: { readonly section: PromptSection }): ReactEle
           custom
         </Badge>
       ) : null}
-      {section.role !== "system" ? (
+      {section.role === "system" ? null : (
         <Badge intent="neutral" size="sm">
           {section.role === "user" ? "U" : "A"}
         </Badge>
-      ) : null}
-    </Row>
+      )}
+    </>
   );
 }
 
-export function SectionRow({ form, section, index, zone, selected, onSelect }: SectionRowProps): ReactElement {
+export function SectionRow({ form, section, index, zone, selected, onSelect, onDrill }: SectionRowProps): ReactElement {
   const { name, subtitle } = sectionLabels(section);
-  const tokens = estimateSectionTokens(section);
-  // Selection is the ONE restrained ember cue on the row: a 10% primary tint (the N2 chats-list pattern),
-  // not the flat `bg-accent` fill. The left bar flips to primary when selected, else the zone accent.
-  const rowClass = ["rounded-card border border-border", selected ? "bg-primary/10" : "", section.enabled ? "" : "opacity-60"].join(" ");
-  const unselectedAccent = zone === "post" ? "bg-warning" : "bg-info";
-  const zoneAccent = selected ? "bg-primary" : unselectedAccent;
-
+  const carrier = section.type === "marker" && !isTemplatedMarker(section.marker);
+  const tokens = carrier ? CARRIER_TOKENS : `~${estimateSectionTokens(section)}`;
   return (
-    <Row gap="row" align="center" padding="row" data-selected={selected ? "" : undefined} data-zone={zone} className={rowClass}>
-      <Stack aria-hidden={true} className={`w-1 self-stretch rounded-full ${zoneAccent}`} />
-
-      <Badge intent={zone === "post" ? "warning" : "info"} size="sm">
-        <Icon icon={sectionGlyphIcon(section)} size="sm" />
-      </Badge>
-
-      <Button intent="ghost" size="sm" className="min-w-0 flex-1 justify-start text-left" onClick={(): void => onSelect(section.id)}>
-        <Text size="body" weight="medium" className="truncate">
-          {name}
-        </Text>
-        <Text size="micro" tone="muted" className="truncate">
-          {subtitle}
-        </Text>
-      </Button>
-
-      <SectionCues section={section} />
-
-      <Text size="code" tone="muted" className={section.enabled ? "tabular-nums" : "tabular-nums line-through"}>
-        ~{tokens}
-      </Text>
-
-      <form.AppField name={`sections[${index}].enabled`}>
-        {(field): ReactElement => (
-          <Switch aria-label={`${name} enabled`} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} tone="quiet" />
-        )}
-      </form.AppField>
-    </Row>
+    <ListRow
+      actions={
+        <Row align="center" gap="field">
+          <Text className={section.enabled ? "tabular-nums" : "tabular-nums line-through"} size="code" tone="muted">
+            {tokens}
+          </Text>
+          <form.AppField name={`sections[${index}].enabled`}>
+            {(field): ReactElement => (
+              <Switch aria-label={`${name} enabled`} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} tone="quiet" />
+            )}
+          </form.AppField>
+          <Button aria-label={`Edit ${name}`} intent="ghost" onClick={(): void => onDrill(section.id)} size="icon" type="button">
+            <Icon icon={ChevronRight} size="sm" />
+          </Button>
+        </Row>
+      }
+      className={section.enabled ? "" : "opacity-60"}
+      clickable={true}
+      leading={
+        <Badge intent={zone === "post" ? "warning" : "info"} size="sm">
+          <Icon icon={sectionGlyphIcon(section)} size="sm" />
+        </Badge>
+      }
+      markers={<SectionCues section={section} />}
+      onClick={(): void => onSelect(section.id)}
+      selected={selected}
+      subtitle={subtitle}
+      title={name}
+    />
   );
 }

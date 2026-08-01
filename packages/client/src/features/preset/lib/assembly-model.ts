@@ -12,9 +12,6 @@ import { MARKER_COPY } from "../components/prompt-assembly/marker-copy";
 const SECTION_KINDS = ["literal", "templatedMarker", "plainMarker"] as const;
 type SectionKind = (typeof SECTION_KINDS)[number];
 
-/** The rack's two view modes. */
-export const ASSEMBLY_MODES = ["compose", "preview"] as const;
-
 /** A templated marker is exactly a key of `DEFAULT_MARKER_TEMPLATES`. */
 export function isTemplatedMarker(marker: MarkerType): marker is keyof typeof DEFAULT_MARKER_TEMPLATES {
   return marker in DEFAULT_MARKER_TEMPLATES;
@@ -39,19 +36,53 @@ export function sectionGlyphIcon(section: PromptSection): LucideIcon {
   return kind === "templatedMarker" ? Sparkles : Anchor;
 }
 
-/** The header label + one-liner for a section (marker copy, or the neutral literal framing) — shared by
- *  the CENTER body-editor header and the CONTEXT inspector header. */
+/** The drill-in header's label + one-liner. The LABEL is the section's own NAME when it has one — the
+ *  drill-in is reached from a rack row, and a header that renamed "Style guide" to "Literal text" between
+ *  the click and the editor reads as having opened something else. The one-liner stays the KIND's copy
+ *  (what this slot is), which is the half a name cannot carry. */
 export function headerCopy(section: PromptSection): { readonly label: string; readonly oneLiner: string } {
+  const named = section.name.trim();
   if (section.type === "marker") {
     const copy = MARKER_COPY[section.marker];
-    return { label: copy.label, oneLiner: copy.oneLiner };
+    return { label: named === "" ? copy.label : named, oneLiner: copy.oneLiner };
   }
-  return { label: "Literal text", oneLiner: "Your own text, sent exactly as written." };
+  return { label: named === "" ? "Literal text" : named, oneLiner: "Your own text, sent exactly as written." };
 }
 
-/** The two markers whose card/room override is user-facing — the inspector always surfaces their
+/** The two markers whose card/room override is user-facing — the drill-in always surfaces their
  *  override-lock cluster. */
 export const OVERRIDABLE_MARKERS: readonly MarkerType[] = ["main_prompt", "post_history"];
+
+/** The conversation PIVOT — `chat_history`. It can be neither deleted, disabled, nor silenced
+ *  (preset-surface-redesign §5.1/§5.2): a preset whose pivot is off is an assembly with nowhere to splice
+ *  the conversation, which is the exact state the missing-pivot warning exists to prevent. */
+export function isPivotSection(section: PromptSection): boolean {
+  return section.type === "marker" && section.marker === "chat_history";
+}
+
+/** Is this section STRUCTURAL — i.e. a MARKER (§5.2, ST parity)? A marker is part of the prompt's fixed
+ *  anatomy: its ⋯ menu omits Duplicate and Delete entirely (never a disabled Delete), and its one
+ *  off-switch is the enable toggle. Only `literal` sections are user-authored, and only they are
+ *  deletable. The contract's own three-branch union IS the classification — nothing is stamped. */
+export function isStructuralSection(section: PromptSection): boolean {
+  return section.type === "marker";
+}
+
+/** The Placement cluster's ZONE vocabulary. A zone is DERIVED from the section's position relative to the
+ *  pivot, so picking one is a MOVE across the pivot (the same `moveFieldValues` the drag and the ⋯
+ *  Move-above/below item go through — one home, §16 row 17), never a stored field. */
+export const ZONE_ITEMS: readonly { readonly value: string; readonly label: string }[] = [
+  { value: "setup", label: "Setup — before the conversation" },
+  { value: "post", label: "Post — after your message" },
+];
+
+/** Can this section be SPLICED into the conversation and TRIGGER-filtered? The schema's own branches are
+ *  the authority: `inject` and `trigger` exist on the LITERAL and TEMPLATED-marker arms only — a PLAIN
+ *  marker (a pure carrier) declares neither, so offering either field would write a shape the contract
+ *  rejects. The absence IS the answer; nothing is disabled. */
+export function supportsArrangement(section: PromptSection): boolean {
+  return section.type === "literal" || isTemplatedMarker(section.marker);
+}
 
 /** chat_history carries the transcript's own per-message roles — no editable role field. */
 export function hasRoleField(section: PromptSection): boolean {
