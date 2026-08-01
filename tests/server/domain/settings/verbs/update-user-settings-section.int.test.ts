@@ -151,6 +151,36 @@ describe("updateUserSettingsSection", () => {
     });
     expect((await h.svc.getUserSettings({ principal: p })).config.regex.scripts).toHaveLength(0);
   });
+
+  // PROSE-1 S2 — the Prose settings section's WRITE end. A `prose` key is a slot id, and the editor sends
+  // every editable slot on every save: a typed field as `{text, baseVersion}`, a blank one as the leaf
+  // `null`. The clear is the arm worth pinning — `undefined` would be "don't touch" and reset would not
+  // reset, and a stored `null` must read back as ABSENT (⇒ the shipped default) rather than poisoning the
+  // section (\[\[merge-clear-needs-transition-test]]).
+  test("the prose section stores an override and CLEARS it on a null leaf (a real reset-to-default)", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const u = await seedUser(db, { id: "user_prose" });
+    const p = principal(u, "user");
+    const override = { text: "Pick whoever has been quiet longest.", baseVersion: 1 };
+    const before = (await h.svc.getUserSettings({ principal: p })).config;
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "prose", patch: { "chat.arbiter.system": override, "chat.compaction.system": null } },
+    });
+    const after = (await h.svc.getUserSettings({ principal: p })).config;
+    expect(after.prose["chat.arbiter.system"]).toEqual(override);
+    expect(after.prose["chat.compaction.system"]).toBeUndefined();
+    // The write is key-minimal: a prose patch leaves the sibling section it shares a blob with alone.
+    expect(after.imagery).toEqual(before.imagery);
+
+    await h.svc.updateUserSettingsSection({
+      principal: p,
+      input: { section: "prose", patch: { "chat.arbiter.system": null } },
+    });
+    const cleared = (await h.svc.getUserSettings({ principal: p })).config.prose;
+    expect(cleared["chat.arbiter.system"]).toBeUndefined();
+  });
 });
 
 // PD-139a — an embed/imageEmbed model change is the trigger the PD-104 purge+reindex machine was missing.

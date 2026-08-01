@@ -860,10 +860,11 @@ export const USER_SETTINGS_SECTIONS = [
   "chat",
   "library",
   "imagery",
-  // NOTE: `prose` is deliberately NOT a section-patch target yet. The D107 `knob-wire-coverage` arm B REDs a
-  // `USER_SETTINGS_SECTIONS` member with no reachable write path, and the prose EDIT SURFACE (PROSE-1 §5) is
-  // not in this stage — registering the door before its writer would be a dead switch. It lands in the same
-  // commit as the settings Prose section.
+  // PROSE-1 S2: the section tuple is the EDITOR's door, so it lands in the SAME commit as the Prose settings
+  // section that writes it (D107 arm B — a member registered ahead of its writer is a dead switch). The
+  // writer is the chat-owned `prose-settings` contribution at the `chat-behavior` anchor; it patches ONE
+  // slot-id key at a time (a blank field sends the leaf `null` = back to the shipped default).
+  "prose",
   "persona",
 
   "groupDefaults",

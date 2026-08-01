@@ -41,6 +41,7 @@ export { imageryTemplatesSection } from "./lib/imagery-templates-section";
 export { clearJoinParam, readJoinToken } from "./lib/join-token";
 export { memorySettingsSection } from "./lib/memory-settings-section";
 export { newChatModal } from "./lib/new-chat-modal";
+export { proseSettingsSection } from "./lib/prose-settings-section";
 export type { ChatLandingSurfaceProps } from "./surfaces/chat-landing-surface";
 export { ChatLandingSurface } from "./surfaces/chat-landing-surface";
 export type { ChatListSurfaceProps } from "./surfaces/chat-list-surface";

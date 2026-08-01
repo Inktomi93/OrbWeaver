@@ -43,6 +43,7 @@ import {
   makeChatsSection,
   memorySettingsSection,
   newChatModal,
+  proseSettingsSection,
 } from "@orb/client/features/chat";
 import { connectionsPane } from "@orb/client/features/credentials";
 import { corpusSection } from "@orb/client/features/discovery";
@@ -194,6 +195,7 @@ const realSettingsSections: ContributorRegistry<SettingsSectionContribution> = c
   worldInfoSettingsSection,
   databankSettingsSection,
   imageryTemplatesSection,
+  proseSettingsSection,
   // admin ← the former SYSTEM pane's five sections lead (SET-SEAMS stage 4 / §10 Q2), then the DECOMPOSED
   // admin pane (stage 3) in the door's render order, then the AppSettings admin-tier sections.
   // `systemTuningSection` used to be omitted here; with the pane a pure skimmer the registry IS the pane, so

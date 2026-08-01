@@ -49,6 +49,7 @@ import {
   makeChatsSection,
   memorySettingsSection,
   newChatModal,
+  proseSettingsSection,
 } from "#features/chat";
 import { connectionsPane } from "#features/credentials";
 import { corpusSection } from "#features/discovery";
@@ -263,6 +264,7 @@ const settingsSections = createContributorRegistry<SettingsSectionContribution>(
   worldInfoSettingsSection,
   databankSettingsSection,
   imageryTemplatesSection,
+  proseSettingsSection,
   // admin ← the former SYSTEM pane's five sections lead (SET-SEAMS stage 4 / §10 Q2 merged `system` INTO
   // `admin`, "system's sections becoming the first group"), in their pre-merge pane order …
   mediaTrustSection,

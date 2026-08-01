@@ -20,7 +20,7 @@ import { ChatBehaviorPaneStory, SettingsShellDeepLinkStory } from "../_ct-storie
 const SETTINGS_VIEW = { userId: "user_ct_chat_behavior_pane", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 
-/** The pane's six sections, in the door's declared order (main.tsx) — which IS the render order. */
+/** The pane's seven sections, in the door's declared order (main.tsx) — which IS the render order. */
 const ANCHOR_ORDER = [
   "settings-anchor-chat-behavior-message-handling",
   "settings-anchor-chat-behavior-streaming",
@@ -28,11 +28,12 @@ const ANCHOR_ORDER = [
   "settings-anchor-chat-behavior-world-info",
   "settings-anchor-chat-behavior-databank",
   "settings-anchor-chat-behavior-imagery-templates",
+  "settings-anchor-chat-behavior-prose",
 ];
 
 /** The nav rows the pane DERIVES from its contributions, in door order — a section that declares a
  *  `navLabel` shows THAT here ("Chat & message handling" stays the heading). */
-const NAV_LABELS = ["Message handling", "Streaming", "Memory", "World info", "Databank", "Image prompts"];
+const NAV_LABELS = ["Message handling", "Streaming", "Memory", "World info", "Databank", "Image prompts", "Prose"];
 /** A moved section's surviving search leaf (the option row also carries its category label). */
 const STOPPING_STRINGS_LEAF = /Custom stopping strings/;
 
@@ -58,7 +59,7 @@ function patchCountFor(trpc: TrpcRecorder, key: string): number {
   return patches(trpc).filter((patch) => key in patch).length;
 }
 
-test("the skimmer renders all six contributed sections, in the door's declared order", async ({ mount, page }) => {
+test("the skimmer renders all seven contributed sections, in the door's declared order", async ({ mount, page }) => {
   await stub(page);
   await mount(<ChatBehaviorPaneStory />);
   await page.getByRole("heading", { name: "Chat & message handling" }).waitFor();
