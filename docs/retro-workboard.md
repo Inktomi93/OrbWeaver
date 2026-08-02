@@ -66,6 +66,17 @@ React profiler / __orb.animations() + a pointer parked on the boundary; the fix 
 swap layout-stable (reserve the space, opacity-swap, never conditional-mount width). (2) **the
 LIST-VIEW buttons are JANK** (owner verbatim) — the reveal cluster's appearance/hit-targets;
 judge live, not from CTs. The re-verify side-eye STARTS with these two before its normal sweep.
+**→ FULL EXECUTION CRUNCH LIST DELIVERED (08-02 night, orchestrator mock-vs-rendered pass +
+owner's own list merged): `docs/reviews/misc/2026-08-02-preset-execution-crunch-list.md`** —
+P0 mechanism PINNED from owner console (conditional-mount badge⇄cluster swap, (detached)
+oscillation; synthetic hover can't repro — real-pointer proof required), 17 orchestrator items +
+15 owner items incl. 7 ★rulings (active=filled lucide dot [P4 badge arm OVERRULED] · zone vocab
+In-Chat + conditional depth/order · Spoken-as/Delivered-as→Role · triggers=dropdown multi-check ·
+rack descs→hover · compaction label shorten · quality-strip redo) + the VERIFIED memory-marker
+vocab lie (compaction writes compactSummary, never Memory — 3 copy sites) + dead inject-at-depth
+input + dead Delivers-via button + missing drill OVERRIDES block. Mock crops for side-eye:
+`reports/snaps/preset-mocks/` (INDEX.md); rendered set `reports/snaps/mvr-*.png`. THE FIX LANE
+BRIEFS FROM THAT DOC.
 
 **WHEN THE FREEZE LIFTS, THE RULED ORDER:** the two owner-reported defects above → preset
 side-eye RE-VERIFY round (fix-rounds law) +
