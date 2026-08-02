@@ -1,10 +1,10 @@
 // domain/character/persistence/queries — all read access for the feature. Every owner read is scoped in
 // the WHERE (never a post-filter). `cardOf` narrows JSON columns through the parse-seam: greetings/
-// regexScripts are always-a-list (corrupt ⇒ []); depthPrompt/extensions/refinery are nullable (corrupt ⇒ null).
+// depthPrompt/extensions/refinery are nullable (corrupt ⇒ null). The card projection carries NO regexScripts
+// (D121-E — they are library rows behind `character_regex_scripts`; only the serde boundary re-embeds them).
 
 import type { CharacterCard, CharacterListCursor, CharacterListSort } from "@orb/contracts/character";
 import { cardDepthPromptSchema, greetingsColumnSchema, refinerySignalsSchema } from "@orb/contracts/character";
-import { regexScriptSchema } from "@orb/contracts/regex";
 import type { TagView } from "@orb/contracts/tag";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource } from "@orb/contracts/theme";
@@ -25,7 +25,6 @@ const LIMIT_ONE = 1;
 type CharacterRow = typeof characters.$inferSelect;
 type AssetRow = typeof assets.$inferSelect;
 
-const regexScriptsParser = z.array(regexScriptSchema).catch([]);
 const depthPromptParser = cardDepthPromptSchema.nullable().catch(null);
 const refineryParser = refinerySignalsSchema.nullable().catch(null);
 const extensionsParser = z.record(z.string(), z.unknown()).nullable().catch(null);
@@ -351,7 +350,6 @@ export function cardOf(src: CharacterCard): CharacterCard {
     source: parseStringArrayColumn(src.source),
     creationDate: src.creationDate,
     modificationDate: src.modificationDate,
-    regexScripts: regexScriptsParser.parse(src.regexScripts),
     extensions: extensionsParser.parse(src.extensions),
     residualData: residualDataParser.parse(src.residualData),
     avatarAssetId: src.avatarAssetId,

@@ -45,7 +45,6 @@ function configOf(sections: PromptSection[]): PromptConfig {
     schemaVersion: 3,
     sections,
     params: {},
-    regexScripts: [],
     variables: [],
     userMacros: [],
   };

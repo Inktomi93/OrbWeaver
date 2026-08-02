@@ -81,6 +81,7 @@ export function toChatDetail({
     group: chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
     roomOverrides: chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES,
     toolRecurseLimit: chat.metadata.toolRecurseLimit ?? null,
+    hostDisplayScripts: chat.metadata.hostDisplayScripts === true,
     background: chat.metadata.background ?? null,
     rpg: chat.metadata.rpg ?? null,
     opening: chat.metadata.opening ?? null,

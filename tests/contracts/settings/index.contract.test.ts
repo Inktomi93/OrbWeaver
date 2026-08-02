@@ -28,6 +28,7 @@ const SCHEMA_VERSION_V4 = 4;
 const SCHEMA_VERSION_V5 = 5;
 const SCHEMA_VERSION_V6 = 6;
 const SCHEMA_VERSION_V7 = 7;
+const SCHEMA_VERSION_V8 = 8;
 const LOCAL_COMPUTE_BUDGET = 50;
 const SAMPLE_SCAN_DEPTH = 12;
 
@@ -365,10 +366,11 @@ test("LOG_LEVELS is the canonical tuple and userSettingsSchema round-trips the d
   expect(roundTripped).toEqual(DEFAULT_USER_SETTINGS);
 });
 
-test("USER_SETTINGS_SECTIONS includes the regex section and excludes schemaVersion", () => {
-  // regex became a real object section (`config.regex.scripts`) so it's section-patchable; the retired
-  // top-level `regexScripts` array is gone.
-  expect(USER_SETTINGS_SECTIONS).toContain("regex");
+test("USER_SETTINGS_SECTIONS excludes schemaVersion and no longer carries the retired regex section", () => {
+  // D121-E DELETED the `regex` section: the owner's script library is `regex_scripts` rows behind the
+  // `regex` tRPC router, so there is no addressable settings namespace for it any more — and the pre-v3
+  // top-level `regexScripts` array is long gone too.
+  expect(USER_SETTINGS_SECTIONS).not.toContain("regex");
   expect(USER_SETTINGS_SECTIONS).not.toContain("regexScripts");
   expect(USER_SETTINGS_SECTIONS).not.toContain("schemaVersion");
   expect(USER_SETTINGS_SECTIONS).toContain("groupDefaults");
@@ -387,14 +389,10 @@ test("UserSettings v2→v3 lift moves the top-level regexScripts array into the 
     runOnEdit: false,
     trimStrings: [],
     substituteRegex: 0,
-    minDepth: null,
-    maxDepth: null,
   };
   // A stored v2 row (column = 2) with the OLD top-level array + a sibling namespace to prove it survives.
   const storedV2 = { regexScripts: [script], worldInfo: { scanDepth: SAMPLE_SCAN_DEPTH } };
   const parsed = parseUserSettings(storedV2, SCHEMA_VERSION_V2);
-  expect(parsed.regex.scripts).toHaveLength(1);
-  expect(parsed.regex.scripts[0]?.id).toBe(script.id);
   expect(parsed.worldInfo.scanDepth).toBe(SAMPLE_SCAN_DEPTH);
   // The retired top-level key is gone from the parsed shape.
   expect(parsed).not.toHaveProperty("regexScripts");
@@ -428,7 +426,7 @@ test("v4→(v5→v6→v7) lift is a no-op passthrough — databank + imagery + p
   // sections read back as their prefault defaults (byte-identical — the additive-section precedent). Others survive.
   const storedV4 = { worldInfo: { scanDepth: 12 } };
   const lifted = parseUserSettings(storedV4, SCHEMA_VERSION_V4);
-  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V7);
+  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V8);
   expect(lifted.worldInfo.scanDepth).toBe(12); // an existing override survives the lift
   expect(lifted.databank.retrieval).toEqual({ k: 5, minScore: 0.25, rerank: false });
   expect(lifted.databank.slotTokenBudget).toBe(4096);
@@ -441,7 +439,7 @@ test("v4→(v5→v6→v7) lift is a no-op passthrough — databank + imagery + p
 test("v5→v6 lift adds the imagery section — a v5 blob with no imagery key reads back the empty override set", () => {
   const storedV5 = { chat: { enterSends: false } };
   const lifted = parseUserSettings(storedV5, SCHEMA_VERSION_V5);
-  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V7);
+  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V8);
   expect(lifted.chat.enterSends).toBe(false); // an existing override survives
   expect(lifted.imagery).toEqual({ templates: {}, captions: {} });
 });
@@ -449,7 +447,7 @@ test("v5→v6 lift adds the imagery section — a v5 blob with no imagery key re
 test("v6→v7 lift adds the prose section — a v6 blob with no prose key reads back the empty override set", () => {
   const storedV6 = { imagery: { templates: { character: "mine" } } };
   const lifted = parseUserSettings(storedV6, SCHEMA_VERSION_V6);
-  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V7);
+  expect(lifted.schemaVersion).toBe(SCHEMA_VERSION_V8);
   expect(lifted.imagery.templates.character).toBe("mine"); // an existing override survives
   expect(lifted.prose).toEqual({});
 });
@@ -466,9 +464,9 @@ test("a stored prose override round-trips, and a RETIRED slot id is stripped ins
   expect(parsed.prose).toEqual({ "chat.compaction.system": { text: "Summarize like a ship's log.", baseVersion: 1 } });
 });
 
-test("the pinned schema versions: AppSettings v4 (Phase B ⑩), UserSettings v7 (the prose section, PROSE-1 S1)", () => {
+test("the pinned schema versions: AppSettings v4 (Phase B ⑩), UserSettings v8 (the regex section's DELETION, D121-E)", () => {
   expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V4);
-  expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V7);
+  expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V8);
 });
 
 // ── ⑫ imagery templates: default-identity + per-mode override resolution ──

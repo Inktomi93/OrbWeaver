@@ -5,7 +5,7 @@
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { z } from "zod";
-import { regexScriptSchema } from "#regex";
+import { regexScriptCardSchema } from "#regex";
 import { themeBackgroundSchema, themeOverrideSchema } from "#theme";
 import { worldBookRoleSchema } from "#world-info";
 
@@ -127,7 +127,12 @@ export const characterCardSchema = z.object({
   creationDate: z.number().int().nullable(),
   /** Unix-seconds last-modification timestamp (ST V3 `data.modification_date`). */
   modificationDate: z.number().int().nullable(),
-  regexScripts: z.array(regexScriptSchema).max(REGEX_SCRIPTS_MAX),
+  /** The ST card-wire regex scripts (`data.extensions.regex_scripts` / V2 root `data.regex_scripts`) —
+   *  the LIFT/RE-EMBED slot, present ONLY at the serde boundary: the importer hands these to the regex
+   *  domain to mint library rows + a `character_regex_scripts` attachment, and the exporter fills it by
+   *  walking that junction back out (byte-shape-identical ST wire). The DOMAIN's card projection OMITS it
+   *  — a character does not carry scripts by value any more (D121-E). */
+  regexScripts: z.array(regexScriptCardSchema).max(REGEX_SCRIPTS_MAX).optional(),
   /** Residual `data.extensions` MINUS the promoted-to-column fields — genuinely-unknown vendor extras only. */
   extensions: z.record(z.string(), z.unknown()).nullable(),
   /** Residual TOP-LEVEL `data.*` keys MINUS the promoted-to-column fields — distinct from `extensions`. */
@@ -162,7 +167,9 @@ export const createCharacterSchema = z.object({
   source: z.array(z.string().max(TEXT_MAX)).max(SOURCE_MAX).nullable().optional(),
   creationDate: z.number().int().nullable().optional(),
   modificationDate: z.number().int().nullable().optional(),
-  regexScripts: z.array(regexScriptSchema).max(REGEX_SCRIPTS_MAX).nullable().optional(),
+  // NO `regexScripts` (D121-E): a character does not carry scripts by value, so the CREATE input has no
+  // slot for them. The import path reads them off the PARSED CARD and hands them to the regex domain's lift
+  // op (which mints library rows + the `character_regex_scripts` attachment) — the `importLorebook` shape.
   extensions: z.record(z.string(), z.unknown()).nullable().optional(),
   residualData: z.record(z.string(), z.unknown()).nullable().optional(),
   avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable().optional(),

@@ -10,13 +10,13 @@ import {
   createCharacterSchema,
   updateCharacterSchema,
 } from "@orb/contracts/character";
-import type { RegexScript } from "@orb/contracts/regex";
+import type { RegexScriptCard } from "@orb/contracts/regex";
 import { SubstituteFindRegex } from "@orb/kit/regex";
 import { expect, test } from "../../support/fixtures";
 
 // A fully-specified regex script (every field present) so `parse` is an identity on the card → the card
 // round-trips byte-for-byte. Mirrors the regex node's own FULL_SCRIPT fixture (no high-entropy literals).
-const FULL_SCRIPT: RegexScript = {
+const FULL_SCRIPT: RegexScriptCard = {
   id: "script_brackets",
   name: "Wrap cat in asterisks",
   findRegex: "\\bcat\\b",
@@ -28,12 +28,10 @@ const FULL_SCRIPT: RegexScript = {
   runOnEdit: false,
   trimStrings: ["the "],
   substituteRegex: SubstituteFindRegex.none,
-  minDepth: null,
-  maxDepth: null,
 };
 
-// An APP-AUTHORED canonical card with NO `raw` blob — every promotion (creator / cardVersion / regexScripts /
-// extensions) is a typed field. This is the §7.3 lossiness fix: an app-authored card carries the same typed
+// An APP-AUTHORED canonical card with NO `raw` blob — every promotion (creator / cardVersion / extensions)
+// is a typed field, and `regexScripts` is the card-WIRE lift slot (D121-E — never a column). This is the §7.3 lossiness fix: an app-authored card carries the same typed
 // columns an imported one would, so it round-trips identically. Every field is fully specified so `parse` is
 // an identity (round-trip holds). Note: NO `character_version`, NO `currentVersionId`, NO `raw`.
 const APP_CARD: CharacterCard = {
@@ -53,6 +51,8 @@ const APP_CARD: CharacterCard = {
   source: ["https://example.test/aria"],
   creationDate: 1_700_000_000,
   modificationDate: 1_700_100_000,
+  // The ST card-WIRE lift slot (D121-E) — present because this fixture models a card as it arrives from /
+  // leaves the serde boundary. The DOMAIN's projection of the same character omits it.
   regexScripts: [FULL_SCRIPT],
   extensions: { favColor: "ink-black" },
   residualData: null,
@@ -74,14 +74,23 @@ test("the canonical card carries no version provenance — no character_version 
   expect("currentVersionId" in parsed).toBe(false);
   expect("raw" in parsed).toBe(false);
   // The promotions are typed fields, not stashed in a residual blob.
-  expect(parsed.regexScripts[0]?.id).toBe(FULL_SCRIPT.id);
+  expect(parsed.regexScripts?.[0]?.name).toBe(FULL_SCRIPT.name);
 });
 
-test("regexScripts accepts a RegexScript[] typed column", () => {
+// D121-E: `regexScripts` is the OPTIONAL serde-boundary slot, not card content — a parsed card carries it
+// when the wire did (import) and the DOMAIN's card projection omits it entirely (a character's scripts are
+// `character_regex_scripts` junction rows). Both arms are pinned here.
+test("regexScripts rides the card WIRE as an optional RegexScriptCard[]", () => {
   const parsed = characterCardSchema.parse(APP_CARD);
-  const scripts: RegexScript[] = parsed.regexScripts;
+  const scripts: readonly RegexScriptCard[] | undefined = parsed.regexScripts;
   expect(scripts).toHaveLength(1);
-  expect(scripts[0]?.placement).toEqual(["AI_OUTPUT"]);
+  expect(scripts?.[0]?.placement).toEqual(FULL_SCRIPT.placement);
+});
+
+test("a card with NO regexScripts key parses — the field is the lift slot, never required content", () => {
+  const { regexScripts: _omitted, ...withoutScripts } = APP_CARD;
+  const parsed = characterCardSchema.parse(withoutScripts);
+  expect(parsed.regexScripts).toBeUndefined();
 });
 
 // ── ONE schema for both front doors (§7.3 inv 3): the CRUD wire AND the import normalizer's output ──
@@ -94,11 +103,12 @@ test("createCharacterSchema validates an app-authored CRUD payload", () => {
     depthPrompt: { prompt: "Aria adjusts her spectacles.", depth: 4, role: "system" },
     creator: "studio",
     cardVersion: "1.2",
-    regexScripts: [FULL_SCRIPT],
     extensions: { favColor: "ink-black" },
   });
   expect(created.handle).toBe("aria-archivist");
-  expect(created.regexScripts?.[0]?.id).toBe(FULL_SCRIPT.id);
+  // D121-E: the CREATE input has NO regexScripts slot — the import path reads them off the parsed CARD and
+  // hands them to the regex domain's lift op, so a character is never created carrying scripts by value.
+  expect("regexScripts" in created).toBe(false);
 });
 
 test("the SAME createCharacterSchema validates an import-normalized payload (no parallel card schema)", () => {

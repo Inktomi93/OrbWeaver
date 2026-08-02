@@ -6,7 +6,9 @@
 // re-link) are injected via context.ts — import never reads a db table directly.
 
 import type { AttachedBookRef } from "@orb/contracts/character";
-import type { CharacterId } from "@orb/kit/ids";
+import type { RegexScriptCard } from "@orb/contracts/regex";
+import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
+import type { CharacterId, RegexScriptId } from "@orb/kit/ids";
 import { isPng } from "@orb/kit/png-card-chunk";
 import type { ImportContext } from "../context";
 import { ImportCardError } from "../contract/errors";
@@ -74,6 +76,51 @@ function relinkCarriedBooks(
   return ctx.linkCarriedBooks({ ownerId: ctx.ownerId, characterId, refs });
 }
 
+/** The content a card CARRIES beyond its own fields: its lorebook (embedded and/or by reference) and its
+ *  regex scripts (by value and/or by reference). */
+interface CarriedContent {
+  readonly book: BulkImportLorebookInput | null;
+  readonly attachedBooks: readonly AttachedBookRef[];
+  readonly regexScripts: readonly RegexScriptCard[];
+  readonly attachedRegexScripts: readonly RegexScriptId[];
+}
+
+/**
+ * Attach everything the card carried, after the character row exists. Extracted from the verb so the verb
+ * reads as its own story (parse → dedupe → write → attach) and the two channels' DIFFERENT rules sit
+ * together where they can be compared:
+ *
+ *  • LOREBOOK is either/or. A resolved reference IS the book on this install, so when ANY reference links
+ *    we SKIP the embedded clone — cloning it would duplicate the book (double primary). The clone is the
+ *    fallback for a foreign install (no reference resolved) and for cards carrying no references at all.
+ *  • REGEX takes BOTH channels at once and resolves them INTERNALLY (`planCardLift`): a carried reference
+ *    this owner holds attaches the existing row, and a by-value script content-dedups against the library,
+ *    minting only when genuinely new. So a same-install re-import produces zero duplicate rows and a
+ *    foreign card still gets its scripts.
+ */
+async function attachCarriedContent(
+  ctx: ImportContext,
+  characterId: CharacterId,
+  carried: CarriedContent,
+): Promise<{ readonly attachedBooksLinked: number; readonly attachedBooksSkipped: number }> {
+  const { linked: attachedBooksLinked, skipped: attachedBooksSkipped } = await relinkCarriedBooks(ctx, characterId, carried.attachedBooks);
+
+  if (ctx.importLorebook !== undefined && carried.book !== null && attachedBooksLinked === 0) {
+    await ctx.importLorebook({ ownerId: ctx.ownerId, characterId, book: carried.book });
+  }
+
+  if (ctx.importCardScripts !== undefined && (carried.regexScripts.length > 0 || carried.attachedRegexScripts.length > 0)) {
+    await ctx.importCardScripts({
+      ownerId: ctx.ownerId,
+      characterId,
+      scripts: carried.regexScripts,
+      carried: carried.attachedRegexScripts,
+    });
+  }
+
+  return { attachedBooksLinked, attachedBooksSkipped };
+}
+
 export function createImportCharacter(ctx: ImportContext): ImportService["importCharacter"] {
   return async ({ card }: ImportCharacterInput): Promise<ImportCharacterResult> => {
     const { bytes, filename } = card;
@@ -89,7 +136,7 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
         png ? "No character data found in this PNG (no ccv3/chara card chunk)" : "This file isn't a V2/V3 character card (unreadable JSON)",
       );
     }
-    const { card: characterCard, tags, book, attachedBooks } = parsed;
+    const { card: characterCard, tags, book, attachedBooks, attachedRegexScripts } = parsed;
 
     const importHash = importFileHash(bytes);
 
@@ -116,15 +163,12 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
     });
     await attachCardTags(ctx, characterId, tags);
 
-    // PD-144: re-link the carried attached-book REFERENCES by id (owned-source gated in the op). A resolved
-    // reference IS the book on this install, so when ANY reference links we SKIP the embedded-lorebook clone
-    // below — cloning it would duplicate the book (double primary). The clone stays the fallback for the
-    // foreign-install case (no reference resolved) + for cards that carry no references at all.
-    const { linked: attachedBooksLinked, skipped: attachedBooksSkipped } = await relinkCarriedBooks(ctx, characterId, attachedBooks);
-
-    if (ctx.importLorebook !== undefined && book !== null && attachedBooksLinked === 0) {
-      await ctx.importLorebook({ ownerId: ctx.ownerId, characterId, book });
-    }
+    const { attachedBooksLinked, attachedBooksSkipped } = await attachCarriedContent(ctx, characterId, {
+      book,
+      attachedBooks,
+      regexScripts: characterCard.regexScripts ?? [],
+      attachedRegexScripts,
+    });
 
     return { characterId, created, importHash, attachedBooksLinked, attachedBooksSkipped };
   };

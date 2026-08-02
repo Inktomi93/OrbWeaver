@@ -20,7 +20,7 @@ import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import type { RegexScript } from "@orb/contracts/regex";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
@@ -110,7 +110,7 @@ export interface ChatScenarioOptions {
     readonly active: AssemblePersona | null;
   };
   /** The host-global regex tier (FOREIGN — `UserSettings.regex.scripts`). Default none. */
-  readonly hostRegexScripts?: readonly RegexScript[];
+  readonly hostRegexScripts?: readonly RegexScriptRow[];
   /** The WI keyword-scan window (FOREIGN). Default 6. */
   readonly scanDepth?: number;
   /** The ONE injection budget pass (FOREIGN; 0 ⇒ unbudgeted). Default 0. */

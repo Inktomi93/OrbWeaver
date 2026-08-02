@@ -13,14 +13,14 @@ import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { PromptConfig, PromptSection, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
-import type { RegexScript } from "@orb/contracts/regex";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chats, personas } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, MessageId, PersonaId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
@@ -122,7 +122,7 @@ function harness(
   over: {
     content?: string;
     groupCharacterId?: CharacterId;
-    hostTierRegexScripts?: RegexScript[];
+    hostTierRegexScripts?: RegexScriptRow[];
     /** Capture each wire `TurnRequest` (the guided-routing pins inspect the assembled prompt). */
     onChatRequest?: (request: unknown) => void;
     /** Observe every bus emit AS IT HAPPENS — `h.events` is only readable after the send settles, so an
@@ -166,6 +166,10 @@ function harness(
   const notifications: NotificationEvent[] = [];
   let replyIdx = 0;
   const ctx = makeChatContext(database, {
+    // D121-E: the host-tier regex set reaches a turn through the injected four-scope resolver, not through
+    // ForeignInputs. The harness feeds the override in as the GLOBAL slice — the same tier the old
+    // `globalRegexScripts` field modelled, so the pins it carries keep asserting the same thing.
+    resolveRegexSources: () => Promise.resolve({ hostGlobal: over.hostTierRegexScripts ?? [], preset: [], cast: [], chat: [] }),
     runChatTurn: (request) => {
       over.onChatRequest?.(request);
       if (over.runChatTurn !== undefined) {
@@ -226,7 +230,6 @@ function harness(
       return Promise.resolve({
         promptConfig: over.promptConfig ?? DEFAULT_PROMPT_CONFIG,
         personas: PERSONAS,
-        globalRegexScripts: over.hostTierRegexScripts ?? [],
         scanDepth: 6,
         injectionTokenBudget: 0,
         ...(over.chatBehavior !== undefined ? { chatBehavior: over.chatBehavior } : {}),
@@ -1803,7 +1806,6 @@ function triggerGatedConfig(): PromptConfig {
     schemaVersion: 3,
     sections,
     params: {},
-    regexScripts: [],
     variables: [],
     userMacros: [],
   } satisfies PromptConfig;
@@ -1987,7 +1989,7 @@ describe("send — SEND USER_INPUT regex (D53; chat.md §2/§7)", () => {
   test("the persisted user row is the POST-USER_INPUT-regex text (canon-mutating at write)", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const script = regexScriptSchema.parse({
-      id: "u",
+      id: mintTypeId(ID_PREFIX.regexScript),
       name: "u",
       findRegex: "badword",
       replaceString: "****",

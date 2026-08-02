@@ -36,6 +36,7 @@ const chatMetadataSchema = z
     databankVisibility: chatDocumentVisibilitySchema.optional().catch(undefined),
     background: themeBackgroundSchema.optional().catch(undefined),
     rpg: chatRpgPointerSchema.optional().catch(undefined),
+    hostDisplayScripts: z.boolean().optional().catch(undefined),
   })
   .loose();
 

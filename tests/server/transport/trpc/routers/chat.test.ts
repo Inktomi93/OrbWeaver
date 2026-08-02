@@ -573,6 +573,8 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
       archived: false,
       // A fork is born non-temporary (PD-65 — the flag is set only at `startChat`).
       temporary: false,
+      // D121-E: the room display-tier option is OFF on a fresh fork (options never default on).
+      hostDisplayScripts: false,
       parentChatId: CHAT,
       forkedAt: 0,
       anchorPersonaId: null,

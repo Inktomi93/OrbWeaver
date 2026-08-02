@@ -52,7 +52,6 @@ export function makeCharacter(overrides: Partial<CharacterRow> = {}): CharacterR
     source: null,
     creationDate: null,
     modificationDate: null,
-    regexScripts: [],
     extensions: null,
     residualData: null,
     avatarAssetId: null,

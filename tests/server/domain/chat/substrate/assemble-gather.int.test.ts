@@ -6,12 +6,12 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import type { RegexScript } from "@orb/contracts/regex";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { chatBooks, chatInjections, chats, messages, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { ForeignInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign";
@@ -30,7 +30,7 @@ beforeEach(async () => {
 });
 
 /** A full canonical card (D28 live read) carrying `regexScripts` (the host-tier cast source). */
-function cardOf(name: string, regexScripts: RegexScript[] = []): CharacterCard {
+function cardOf(name: string, regexScripts: RegexScriptRow[] = []): CharacterCard {
   return {
     name,
     description: "",
@@ -57,10 +57,11 @@ function cardOf(name: string, regexScripts: RegexScript[] = []): CharacterCard {
 }
 
 /** A fully-defaulted host-tier `RegexScript` (via the parse seam) for the given placement. */
-function regexScript(id: string, find: string, replace: string, placement: "USER_INPUT" | "WORLD_INFO"): RegexScript {
+function regexScript(label: string, find: string, replace: string, placement: "USER_INPUT" | "WORLD_INFO"): RegexScriptRow {
   return regexScriptSchema.parse({
-    id,
-    name: id,
+    // D121-E: a row id is a real `regex_script_…` TypeID; the readable label rides on `name`.
+    id: mintTypeId(ID_PREFIX.regexScript),
+    name: label,
     findRegex: find,
     replaceString: replace,
     placement: [placement],
@@ -71,7 +72,6 @@ function foreignOf(over: Partial<ForeignInputs> = {}): ForeignInputs {
   return {
     promptConfig: DEFAULT_PROMPT_CONFIG,
     personas: { anchor: null, active: null },
-    globalRegexScripts: [],
     scanDepth: 6,
     injectionTokenBudget: 0,
     ...over,
@@ -395,12 +395,26 @@ describe("gatherAssembleContext — the {{databank}} slot GATHER (DB6)", () => {
   });
 });
 
-describe("gatherAssembleContext — the host-tier regex union (D53)", () => {
-  test("union = host-global ∪ chat-preset ∪ cast, in that order", async () => {
+describe("gatherAssembleContext — the host-tier regex union (D53 as amended by D121-E)", () => {
+  // THE SOURCE-SET PIN. The gather no longer hand-assembles the union from three blobs — it calls the ONE
+  // injected `resolveRegexSources` op with the turn's frozen `runAsUserId`, the resolved preset, the roster's
+  // cast, and the room, then unions what comes back. This test pins BOTH halves: that the gather passes the
+  // right scope keys, and that it preserves the resolver's tier order end-to-end.
+  test("union = global ∪ preset ∪ cast ∪ room, in that order, from the injected scope resolver", async () => {
     const { host, chatId, aria } = await seedRoom("regex");
-    const castScript = regexScript("cast", "a", "b", "WORLD_INFO");
+    const seen: { ownerId?: string; chatId?: string; characterIds?: readonly string[] } = {};
     const ctx = makeChatContext(db, {
-      getCard: () => Promise.resolve(cardOf("Aria", [castScript])),
+      resolveRegexSources: (args) => {
+        seen.ownerId = args.ownerId;
+        seen.chatId = args.chatId;
+        seen.characterIds = args.characterIds;
+        return Promise.resolve({
+          hostGlobal: [regexScript("global", "x", "y", "WORLD_INFO")],
+          preset: [regexScript("preset", "p", "q", "WORLD_INFO")],
+          cast: [regexScript("cast", "a", "b", "WORLD_INFO")],
+          chat: [regexScript("room", "r", "s", "WORLD_INFO")],
+        });
+      },
     });
 
     const out = await gatherAssembleContext(
@@ -412,16 +426,15 @@ describe("gatherAssembleContext — the host-tier regex union (D53)", () => {
         castCharacterIds: [aria],
         personaIds: [],
       },
-      foreignOf({
-        globalRegexScripts: [regexScript("global", "x", "y", "WORLD_INFO")],
-        promptConfig: {
-          ...DEFAULT_PROMPT_CONFIG,
-          regexScripts: [regexScript("preset", "p", "q", "WORLD_INFO")],
-        },
-      }),
+      foreignOf(),
     );
 
-    expect((out.hostTierRegexScripts ?? []).map((s) => s.id)).toEqual(["global", "preset", "cast"]);
+    expect((out.hostTierRegexScripts ?? []).map((s) => s.name)).toEqual(["global", "preset", "cast", "room"]);
+    // The scope keys the gather handed the resolver: the FROZEN host (D19 — never the calling member), the
+    // room, and the roster's cast in order. A drift here is a silently wrong (or cross-tenant) source set.
+    expect(seen.ownerId).toBe(host);
+    expect(seen.chatId).toBe(chatId);
+    expect(seen.characterIds).toEqual([aria]);
   });
 });
 
@@ -454,7 +467,11 @@ describe("gatherAssembleContext — the FOREIGN injection budget is applied", ()
 describe("gatherAssembleContext — SEND USER_INPUT regex flows through the gather", () => {
   test("the post-regex text is surfaced on the sink + folded into {{input}}", async () => {
     const { host, chatId, aria } = await seedRoom("send");
-    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("Aria")) });
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardOf("Aria")),
+      // The SEND leg's script arrives through the D121-E scope resolver, not a foreign blob.
+      resolveRegexSources: () => Promise.resolve({ hostGlobal: [regexScript("u", "wyrm", "dragon", "USER_INPUT")], preset: [], cast: [], chat: [] }),
+    });
     const sink: { sendUserText?: string } = {};
 
     const out = await gatherAssembleContext(
@@ -467,7 +484,7 @@ describe("gatherAssembleContext — SEND USER_INPUT regex flows through the gath
         personaIds: [],
         pendingUserText: "a wyrm appears",
       },
-      foreignOf({ globalRegexScripts: [regexScript("u", "wyrm", "dragon", "USER_INPUT")] }),
+      foreignOf(),
       sink,
     );
 

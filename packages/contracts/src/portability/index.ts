@@ -12,6 +12,10 @@ export const PORTABLE_KINDS = [
   "chat",
   "persona",
   "world-info",
+  // The regex SCRIPT LIBRARY (D121-E). Attachments are junction rows to characters/presets/chats, which
+  // are NOT carried by this bundle — a restored script lands in the library, un-attached, except for the
+  // GLOBAL scope (which is a property of the script itself and rides in the file).
+  "regex",
   "preset",
   "theme",
   "user-settings",
@@ -35,6 +39,9 @@ export const PORTABLE_IMPORT_ORDER = [
   "tag",
   "persona",
   "world-info",
+  // regex before character/preset: a card's carried script references re-link against library rows that
+  // already exist (the world-info-before-character precedent).
+  "regex",
   "character",
   // gallery after character + assets; an unresolvable character handle survives un-charactered.
   "gallery",

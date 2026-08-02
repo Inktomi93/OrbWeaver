@@ -17,7 +17,6 @@ import { REGEX_PLACEMENTS } from "@orb/kit/regex";
 export const REGEX_PLACEMENT_LABELS: Record<RegexPlacement, string> = {
   ["USER_INPUT"]: "Your message",
   ["WORLD_INFO"]: "World info",
-  ["SLASH_COMMAND"]: "Slash commands",
   ["REASONING"]: "Reasoning channel",
   ["AI_OUTPUT"]: "Model output",
   ["DISPLAY"]: "Display only",

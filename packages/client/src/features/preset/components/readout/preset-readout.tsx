@@ -151,7 +151,7 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
         />
       ) : null}
       {view === "data" ? <DataReadout config={config} /> : null}
-      {view === "transforms" ? <TransformsReadout config={config} /> : null}
+      {view === "transforms" ? <TransformsReadout config={config} presetId={presetId} /> : null}
       {view === "params" ? (
         <>
           <EffectiveProfile contextWindow={capability.data?.capability.context.window} effective={effective.data ?? undefined} />

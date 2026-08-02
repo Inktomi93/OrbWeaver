@@ -1,13 +1,17 @@
-// The shared Regex-script editor Dialog (clone-audit item 4 / item 10) — binds `regexScripts[index].*` on
-// ANY direct-bind form whose values carry a `regexScripts: RegexScript[]` array: name · the find pattern
+// The shared Regex-script editor Dialog — binds ONE library row's authored fields: name · the find pattern
 // (via `@orb/ui/code-editor` — a regex is code) · replaceString · placement · enabled + the ST card-format
-// leg flags. ONE home so preset's Regex tab and the owner-global settings Regex pane consume the same dialog.
+// leg flags.
 //
-// OWNER RULING: lives client-shared (NOT @orb/ui — it composes the form factory's bound fields). Generic
-// over the form value shape: both consumers (`PromptConfig`, the settings `{ regexScripts }` form) hold the
-// array at `regexScripts`, so the field paths are identical.
+// D121-E CHANGED ITS BINDING, and that is the whole point of the reshape: it used to bind
+// `regexScripts[index].*` on whichever of THREE embedded carriers was in scope, which is exactly how the
+// app ended up with three editors at three capability levels (the settings pane got the full dialog, the
+// preset tab got the full dialog, and the character facet got four inline fields and defaulted `placement`
+// to `[]` — a script that could never fire). There is now ONE library row, so there is ONE editor at ONE
+// capability level, and the pickers attach that row rather than authoring a fourth copy of it.
+//
+// OWNER RULING (unchanged): lives client-shared (NOT @orb/ui — it composes the form factory's bound fields).
 
-import type { RegexScript } from "@orb/contracts/regex";
+import type { CreateRegexScriptInput } from "@orb/contracts/regex";
 import { Button } from "@orb/ui/button";
 import { Dialog, DialogClose, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Field } from "@orb/ui/field";
@@ -20,30 +24,22 @@ import { REGEX_PLACEMENT_ITEMS } from "#lib";
 // Lazy — CodeMirror is heavy and this dialog is modal-only.
 const CodeEditor = lazy(() => import("@orb/ui/code-editor").then((m) => ({ default: m.CodeEditor })));
 
-/** The minimal form value shape the dialog binds — any editor form carrying a `regexScripts` array. */
-export interface RegexScriptsFormValues {
-  readonly regexScripts: RegexScript[];
-}
-
 /** The placement multi-toggle items. The labels are the SHARED map (side-eye F-23): this dialog used to
  *  offer the raw enum member (`USER_INPUT`) while the Transforms readout printed prose for the same stage,
  *  so one pipeline had two vocabularies and neither surface could be read against the other. */
 const PLACEMENT_ITEMS = REGEX_PLACEMENT_ITEMS;
 
 // The form the dialog binds — a direct-bind form OR the autosave factory's reset-less form (the dialog
-// never calls `reset`, so it accepts the wider shape; both a full `AppFormInstance` and the autosave
-// factory's `Omit<…, "reset">` satisfy it).
-type RegexEditorForm = Omit<AppFormInstance<RegexScriptsFormValues>, "reset">;
+// never calls `reset`, so it accepts the wider shape).
+type RegexEditorForm = Omit<AppFormInstance<CreateRegexScriptInput>, "reset">;
 
 export interface RegexEditorDialogProps {
   readonly form: RegexEditorForm;
-  /** The script index this dialog edits (`regexScripts[index].*`). */
-  readonly index: number;
   readonly onClose: () => void;
 }
 
-/** The regex-script editor — bound to `regexScripts[index].*`; closes via the caller's `onClose`. */
-export function RegexEditorDialog({ form, index, onClose }: RegexEditorDialogProps): ReactElement {
+/** The regex-script editor — bound to one library row; closes via the caller's `onClose`. */
+export function RegexEditorDialog({ form, onClose }: RegexEditorDialogProps): ReactElement {
   return (
     <Dialog
       open={true}
@@ -56,9 +52,9 @@ export function RegexEditorDialog({ form, index, onClose }: RegexEditorDialogPro
       <DialogPopup>
         <DialogTitle>Edit regex script</DialogTitle>
         <Stack gap="block" className="min-h-0 overflow-y-auto">
-          <form.AppField name={`regexScripts[${index}].name`}>{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
+          <form.AppField name="name">{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
 
-          <form.AppField name={`regexScripts[${index}].findRegex`}>
+          <form.AppField name="findRegex">
             {(field): ReactElement => (
               <Field label="Find pattern" name={field.name}>
                 <Suspense fallback={null}>
@@ -68,25 +64,25 @@ export function RegexEditorDialog({ form, index, onClose }: RegexEditorDialogPro
             )}
           </form.AppField>
 
-          <form.AppField name={`regexScripts[${index}].replaceString`}>
+          <form.AppField name="replaceString">
             {(field): ReactElement => <field.TextareaField label="Replace with" description="What each match becomes (macros allowed)." rows={3} />}
           </form.AppField>
 
-          <form.AppField name={`regexScripts[${index}].placement`}>
+          <form.AppField name="placement">
             {(field): ReactElement => (
               <field.MultiToggleField label="Runs on" description="Which text streams this script applies to." items={PLACEMENT_ITEMS} />
             )}
           </form.AppField>
 
           <Section heading="Options">
-            <form.AppField name={`regexScripts[${index}].enabled`}>{(field): ReactElement => <field.SwitchField label="Enabled" />}</form.AppField>
-            <form.AppField name={`regexScripts[${index}].markdownOnly`}>
+            <form.AppField name="enabled">{(field): ReactElement => <field.SwitchField label="Enabled" />}</form.AppField>
+            <form.AppField name="markdownOnly">
               {(field): ReactElement => <field.SwitchField label="Display only" description="Only affects what's shown, never the prompt." />}
             </form.AppField>
-            <form.AppField name={`regexScripts[${index}].promptOnly`}>
+            <form.AppField name="promptOnly">
               {(field): ReactElement => <field.SwitchField label="Prompt only" description="Only affects the prompt, never the display." />}
             </form.AppField>
-            <form.AppField name={`regexScripts[${index}].runOnEdit`}>
+            <form.AppField name="runOnEdit">
               {(field): ReactElement => <field.SwitchField label="Run on edit" description="Re-apply when a message is edited." />}
             </form.AppField>
           </Section>

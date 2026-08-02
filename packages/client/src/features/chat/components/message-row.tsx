@@ -5,6 +5,7 @@
 // assistant/LLM/imported content by default (the indirect-prompt-injection boundary).
 
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -70,6 +71,9 @@ export interface MessageRowProps {
    *  Fork/Delete/Hide are suppressed (no server row). Body/attribution render identically to committed. */
   readonly greeting?: GreetingBinding | undefined;
   readonly autoFixMarkdown?: boolean | undefined;
+  /** D121-E/F1: the VIEWER's own enabled DISPLAY-placement scripts, resolved ONCE by the list surface
+   *  (never per row — one query, N rows). Absent ⇒ the display leg is a no-op, exactly as before. */
+  readonly displayScripts?: readonly RegexScriptRow[] | undefined;
   /** The `appearance.colorQuotedSpeech` pref, folded into this row's render policy. Absent ⇒ ON. */
   readonly colorQuotedSpeech?: boolean | undefined;
   /** Phase 4b §B.5.5 — the reasoning-disclosure glyph pref, threaded to the SETTLED reasoning block exactly
@@ -143,6 +147,7 @@ export function MessageRow({
   onChatForked,
   greeting,
   autoFixMarkdown,
+  displayScripts,
   colorQuotedSpeech,
   showLLMReasoningIcon = false,
   metadataVisibility = NO_METADATA_VISIBLE,
@@ -189,6 +194,7 @@ export function MessageRow({
     personaNamesById,
     anchorPersonaId,
     autoFixMarkdown,
+    displayScripts,
   });
   const trainParagraphs = !editing && skin.bubbleLayout === "trains" ? splitIntoTrainParagraphs(message.content) : null;
   const speakerThemes = speakerThemesByName(participants);

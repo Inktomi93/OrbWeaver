@@ -20,8 +20,8 @@
 import { createHash } from "node:crypto";
 import type { AttachedBookRef, CardDepthPrompt, CardSpec, CharacterCard, CharacterCardV3, Greeting } from "@orb/contracts/character";
 import { ATTACHED_BOOKS_WIRE_KEY, CHARA_CARD_V2_SPEC, CHARA_CARD_V3_SPEC, characterCardV3Schema } from "@orb/contracts/character";
-import type { RegexScript } from "@orb/contracts/regex";
-import { regexScriptSchema } from "@orb/contracts/regex";
+import type { AttachedRegexScriptRef, RegexScriptCard } from "@orb/contracts/regex";
+import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, regexScriptCardSchema } from "@orb/contracts/regex";
 import { isPlainObject } from "@orb/kit/guards";
 import { messageRoleFromSt, messageRoleToSt } from "@orb/kit/message-role";
 import { stableStringify } from "@orb/kit/stable-stringify";
@@ -154,17 +154,20 @@ function parseDepthPrompt(raw: unknown): CharacterCard["depthPrompt"] {
   return { prompt, depth, role: messageRoleFromSt(dp["role"]) ?? "system" };
 }
 
-/** The card's typed `regexScripts` column. The raw blob is V3 `data.extensions.regex_scripts` or the V2
- *  root `data.regex_scripts`; each candidate is parsed through the canonical `regexScriptSchema` and only
- *  the valid ones survive (tolerant IN — a foreign-shaped ST script is dropped rather than thrown, and an
- *  orbweaver-emitted card round-trips its scripts back cleanly). */
-function parseRegexScripts(data: RawCard): CharacterCard["regexScripts"] {
+/** The card's ST regex scripts (the LIFT payload — D121-E: there is no `regexScripts` column any more; the
+ *  importer hands these to the regex domain). The raw blob is V3 `data.extensions.regex_scripts` or the V2
+ *  root `data.regex_scripts`; each candidate is parsed through `regexScriptCardSchema` and only the valid
+ *  ones survive (tolerant IN — a foreign-shaped ST script is dropped rather than thrown, and an
+ *  orbweaver-emitted card round-trips its scripts back cleanly). The card schema's accept-and-drop heals run
+ *  here: an ST `SLASH_COMMAND` placement and any `min_depth`/`max_depth` keys are stripped from an otherwise
+ *  valid script instead of taking the whole script down with them. */
+function parseRegexScripts(data: RawCard): RegexScriptCard[] {
   const v3 = Array.isArray(data.extensions?.regex_scripts) ? data.extensions.regex_scripts : null;
   const v2 = Array.isArray(data.regex_scripts) ? data.regex_scripts : null;
   const src = v3 ?? v2 ?? [];
-  const out: CharacterCard["regexScripts"] = [];
+  const out: RegexScriptCard[] = [];
   for (const candidate of src) {
-    const parsed = regexScriptSchema.safeParse(candidate);
+    const parsed = regexScriptCardSchema.safeParse(candidate);
     if (parsed.success) {
       out.push(parsed.data);
     }
@@ -217,6 +220,8 @@ const PROMOTED_DATA_KEYS = new Set([
   // PD-144: the attached-book references are an external junction (re-linked by id on import), not residual
   // `data.*` — keep them out of the preserved blob so they don't double-emit on a round-trip.
   ATTACHED_BOOKS_WIRE_KEY,
+  // D121-E twin of the line above: the attached SCRIPT references are an external junction too.
+  ATTACHED_REGEX_SCRIPTS_WIRE_KEY,
 ]);
 
 /** TOP-LEVEL `data.*` keys MINUS the ones with a typed column (PD-127 — the top-level sibling of
@@ -307,7 +312,7 @@ export function cardFromJson(raw: unknown, fallbackName: string): CharacterCard 
 
 /** The semantic content subset that IDENTIFIES a card. EXCLUDED (deliberate — re-attributing/re-deriving a
  *  card must NOT change its identity): creator, creatorNotes, cardVersion, extensions, refinery,
- *  avatarAssetId. INCLUDED: the content a reader experiences. */
+ *  avatarAssetId, and (D121-E) regexScripts. INCLUDED: the content a reader experiences. */
 function semanticFields(card: CharacterCard): Record<string, unknown> {
   return {
     name: card.name,
@@ -319,7 +324,9 @@ function semanticFields(card: CharacterCard): Record<string, unknown> {
     systemPrompt: card.systemPrompt,
     postHistoryInstructions: card.postHistoryInstructions,
     depthPrompt: card.depthPrompt,
-    regexScripts: card.regexScripts,
+    // NO `regexScripts` (D121-E): scripts are attached LIBRARY ROWS, not card content, so a stored card
+    // projection has none while a freshly-parsed card does — including them would make the same card hash
+    // differently before and after import and break the re-import content dedup.
   };
 }
 
@@ -362,7 +369,10 @@ export interface ExportCardFields {
   readonly tags: string[];
   readonly extensions: Record<string, unknown> | null;
   readonly residualData?: Record<string, unknown> | null;
-  readonly regexScripts: RegexScript[];
+  readonly regexScripts: readonly RegexScriptCard[];
+  /** D121-E: attached regex-script REFERENCES — the OUT-emitter rides them under
+   *  `data.orbweaver_attached_regex_scripts`. Optional/absent-empty (the `attachedBooks` shape). */
+  readonly attachedRegexScripts?: readonly AttachedRegexScriptRef[];
   readonly depthPrompt: CardDepthPrompt | null;
   /** PD-144: attached world-info book REFERENCES — the OUT-emitter rides them under
    *  `data.orbweaver_attached_books`. Optional/absent-empty: a card with no attached books emits no key. */
@@ -543,6 +553,11 @@ function attachedBooksWire(refs: readonly AttachedBookRef[] | undefined): Record
   return refs !== undefined && refs.length > 0 ? { [ATTACHED_BOOKS_WIRE_KEY]: refs } : {};
 }
 
+// D121-E twin of `attachedBooksWire` — the namespaced attached-SCRIPT references for the OUT wire.
+function attachedRegexScriptsWire(refs: readonly AttachedRegexScriptRef[] | undefined): Record<string, unknown> {
+  return refs !== undefined && refs.length > 0 ? { [ATTACHED_REGEX_SCRIPTS_WIRE_KEY]: refs } : {};
+}
+
 // The V3 content promotions (`nickname`/`source`/`creation_date`/`modification_date`) emitted to `data.*`
 // only when non-null — a V2 / app-authored card omits the key entirely (the clean-omit round-trip property).
 // Extracted so `buildCardV3` stays under the cognitive-complexity gate. Keys are set via bracket-assignment
@@ -603,6 +618,7 @@ export function buildCardV3(fields: ExportCardFields, entries: ExportWorldEntry[
     extensions,
     ...(entries.length > 0 ? { character_book: { entries: entries.map(exportBookEntry) } } : {}),
     ...attachedBooksWire(fields.attachedBooks),
+    ...attachedRegexScriptsWire(fields.attachedRegexScripts),
   };
   const spec = fields.spec ?? CHARA_CARD_V3_SPEC;
   return characterCardV3Schema.parse({

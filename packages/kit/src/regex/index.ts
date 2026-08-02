@@ -10,8 +10,11 @@ import { processMacros } from "#macro";
 // RegexScriptInput` keeps them aligned from the contracts side.
 
 /** Where in the pipeline a script runs. `DISPLAY` is frontend-only (render-time); the rest are
- *  prompt-side legs. */
-export const REGEX_PLACEMENTS = ["USER_INPUT", "AI_OUTPUT", "SLASH_COMMAND", "WORLD_INFO", "REASONING", "DISPLAY"] as const;
+ *  prompt-side legs. EVERY member has an execution leg (D121-E order table) — a placement the pipeline
+ *  cannot run is a dead switch (D107), which is why ST's `SLASH_COMMAND` is NOT here: orbweaver has no
+ *  server slash pipeline (the client palette is a command launcher, never a text leg). A card carrying it
+ *  accepts-and-drops the value at the contracts lift seam. */
+export const REGEX_PLACEMENTS = ["USER_INPUT", "AI_OUTPUT", "WORLD_INFO", "REASONING", "DISPLAY"] as const;
 
 export type RegexPlacement = (typeof REGEX_PLACEMENTS)[number];
 

@@ -5,6 +5,7 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, RoomOverrides } from "@orb/contracts/chat";
+import { roomOverridesSchema } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { ThemeBackground } from "@orb/contracts/theme";
@@ -1270,6 +1271,61 @@ describe("setParticipantActivePersona — the chat-domain write persona.setActiv
 
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("participant_not_found");
+    expect(emitted).toEqual([]);
+  });
+});
+
+// ── D121-E: the display-tier room OPTION (owner ruling 2026-08-02) ──────────────────────────────────────
+// A HOST option in the D121-B grammar: default off, host-only, and RENDER-only — it governs what the room
+// LOOKS like, never what the model sees or what anyone types. The read-back arm matters as much as the
+// write: `ChatDetail.hostDisplayScripts` is what the host's switch and the viewer's render tier both read.
+describe("setHostDisplayScripts — the host's display-tier broadcast option", () => {
+  test("defaults OFF, and the host can turn it on (merging, never nuking, the sibling sub-blobs)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const roster = createRoster(makeChatContext(db), { emit });
+
+    // Seed a sibling sub-blob first — the write must not eat it.
+    await roster.setRoomOverrides({ principal: principal(host), chatId, overrides: roomOverridesSchema.parse({ scenario: "keep me" }) });
+    emitted.length = 0;
+
+    expect(await roster.setHostDisplayScripts({ principal: principal(host), chatId, enabled: true })).toBe(true);
+
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    const metadata = row?.metadata as { hostDisplayScripts?: boolean; roomOverrides?: { scenario?: string } };
+    expect(metadata.hostDisplayScripts).toBe(true);
+    expect(metadata.roomOverrides?.scenario).toBe("keep me");
+    expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
+  });
+
+  test("turning it back OFF is a real write (absent must never be read as ON)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const roster = createRoster(makeChatContext(db), { emit });
+
+    await roster.setHostDisplayScripts({ principal: principal(host), chatId, enabled: true });
+    expect(await roster.setHostDisplayScripts({ principal: principal(host), chatId, enabled: false })).toBe(false);
+
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect((row?.metadata as { hostDisplayScripts?: boolean }).hostDisplayScripts).toBe(false);
+  });
+
+  test("a plain MEMBER is refused with not_host — no write, no emit", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const roster = createRoster(makeChatContext(db), { emit });
+
+    const err = await roster.setHostDisplayScripts({ principal: principal(member), chatId, enabled: true }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_host");
+    const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
+    // A never-written metadata column is NULL, not an empty object — either way the option is absent.
+    expect((row?.metadata as { hostDisplayScripts?: boolean } | null)?.hostDisplayScripts).toBeUndefined();
     expect(emitted).toEqual([]);
   });
 });

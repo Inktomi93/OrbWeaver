@@ -9,6 +9,7 @@ import type { TagSource, TagStatus } from "@orb/contracts/tag";
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import type { ImportContext } from "#domain/import";
+import type { ImportCardScripts } from "#domain/regex";
 
 /** The `character` front-door slice the driver wires the import create/dedup/edit-in-place ops to. */
 export interface ImportCharacterPort {
@@ -75,6 +76,9 @@ export interface ImportContextWiring {
   readonly attachCardTag: ImportTagPort["attachCardTagByName"];
   readonly importLorebook?: ImportWorldInfoPort["importLorebook"];
   readonly linkCarriedBooks?: ImportWorldInfoPort["linkCarriedBooks"];
+  /** D121-E: the regex card LIFT (the `importLorebook` twin). Optional for the same reason: the card-only
+   *  slice may omit it; the delivery composition always supplies it. */
+  readonly importCardScripts?: ImportCardScripts;
   readonly profile?: ImportContext["profile"];
 }
 
@@ -83,7 +87,7 @@ export interface ImportContextWiring {
  * optional `importLorebook`/`profile` are spread only when defined, never assigned `undefined`.
  */
 export function buildImportContext(wiring: ImportContextWiring): ImportContext {
-  const { principal, character, storeAvatar, attachCardTag, importLorebook, linkCarriedBooks, profile } = wiring;
+  const { principal, character, storeAvatar, attachCardTag, importLorebook, linkCarriedBooks, importCardScripts, profile } = wiring;
   const ownerId = principal.userId;
   const ctx: ImportContext = {
     ownerId,
@@ -120,6 +124,7 @@ export function buildImportContext(wiring: ImportContextWiring): ImportContext {
     attachCardTag: ({ ownerId: oid, characterId, tagName }) => attachCardTag({ ownerId: oid, characterId, tagName, source: "card", status: "pending" }),
     ...(importLorebook !== undefined ? { importLorebook } : {}),
     ...(linkCarriedBooks !== undefined ? { linkCarriedBooks } : {}),
+    ...(importCardScripts !== undefined ? { importCardScripts } : {}),
     ...(profile !== undefined ? { profile } : {}),
   };
   return ctx;

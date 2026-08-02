@@ -127,6 +127,12 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
       });
     }
 
+    // D121-E: the card's regex scripts are LIBRARY ROWS behind `character_regex_scripts`, so the RE-EMBED is
+    // an injected regex-domain op rather than a column read. It returns both halves of the wire: the ST
+    // by-value payload (`extensions.regex_scripts` — byte-shape-identical, foreign portability unchanged) and
+    // the orbweaver reference list (`orbweaver_attached_regex_scripts`), exactly the attachedBooks double.
+    const cardScripts = await ctx.exportCardScripts({ ownerId, characterId });
+
     // The typed columns are read straight off the flat row — no `raw` blob, so an app-authored card
     // round-trips identically. The serde owns re-encoding depthPrompt + regexScripts back into `extensions`.
     const card = buildCardV3(
@@ -151,7 +157,8 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
         tags: acceptedTags,
         extensions: parseRecord(charRow.extensions),
         residualData: parseRecord(charRow.residualData),
-        regexScripts: charRow.regexScripts,
+        regexScripts: cardScripts.scripts,
+        attachedRegexScripts: cardScripts.carried.map((regexScriptId) => ({ regexScriptId })),
         depthPrompt: parseDepthPrompt(charRow.depthPrompt),
         attachedBooks,
       },

@@ -19,6 +19,7 @@ export const PORTABLE_KIND_LABELS: Record<PortableKind, string> = {
   chat: "Chats",
   persona: "Personas",
   "world-info": "World info",
+  regex: "Regex scripts",
   preset: "Presets",
   theme: "Themes",
   "user-settings": "Settings",

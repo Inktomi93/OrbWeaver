@@ -8,14 +8,14 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import type { RegexScript } from "@orb/contracts/regex";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characterStats, chatDigests, chats, dailyStats, messages, messageVariants, modelStats, ownerStats, rpgSnapshots } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName, VarOp } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import type { AuditEntry } from "@orb/server/foundation/observability";
@@ -35,7 +35,7 @@ import { seedDigest } from "../memory/_support";
 let db: Db;
 let emitted: ChatBusEvent[];
 /** The host-global regex source the fake FOREIGN resolver serves (per-test scripts; reset empty). */
-let globalScripts: RegexScript[];
+let globalScripts: RegexScriptRow[];
 
 beforeEach(async () => {
   db = await freshDb();
@@ -48,12 +48,13 @@ const emit = (event: ChatBusEvent): Promise<void> => {
   return Promise.resolve();
 };
 
-/** The FOREIGN-half fake (the PD-110 runOnEdit sources) — DEFAULT config + the per-test `globalScripts`. */
+/** The FOREIGN-half fake — DEFAULT config only. D121-E: the runOnEdit sources moved OFF ForeignInputs onto
+ *  the injected `ctx.resolveRegexSources` (see `regexSourcesCtx` below), which is the SAME seam the turn path
+ *  uses — that shared seam is what makes the edit path structurally unable to drift from a live turn. */
 const resolveForeignInputs: Parameters<typeof createEdit>[1]["resolveForeignInputs"] = () =>
   Promise.resolve({
     promptConfig: DEFAULT_PROMPT_CONFIG,
     personas: { anchor: null, active: null },
-    globalRegexScripts: globalScripts,
     scanDepth: 6,
     injectionTokenBudget: 0,
   });
@@ -149,12 +150,19 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
 
 describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () => {
   /** A minimal live card (the assemble RESOLVE + the purify name read; regexScripts ride the cast tier). */
-  const card = (name: string, regexScripts: RegexScript[] = []): CharacterCard =>
+  const card = (name: string, regexScripts: RegexScriptRow[] = []): CharacterCard =>
     ({ name, description: "", avatarAssetId: null, regexScripts }) as unknown as CharacterCard;
 
-  const script = (over: Record<string, unknown>): RegexScript =>
+  /** A ChatContext whose regex resolver returns the per-test `globalScripts` as the GLOBAL slice. */
+  const regexSourcesCtx = (cardName: string): ReturnType<typeof makeChatContext> =>
+    makeChatContext(db, {
+      getCard: () => Promise.resolve(card(cardName)),
+      resolveRegexSources: () => Promise.resolve({ hostGlobal: globalScripts, preset: [], cast: [], chat: [] }),
+    });
+
+  const script = (over: Record<string, unknown>): RegexScriptRow =>
     regexScriptSchema.parse({
-      id: "s1",
+      id: mintTypeId(ID_PREFIX.regexScript),
       name: "s1",
       findRegex: "badword",
       replaceString: "****",
@@ -168,7 +176,7 @@ describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () 
       characterId: charA,
     });
     globalScripts = [script({ placement: ["AI_OUTPUT"], runOnEdit: true })];
-    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) });
+    const ctx = regexSourcesCtx("Aria");
     const edit = createEdit(ctx, { emit, resolveForeignInputs });
 
     const view = await edit.editMessage({
@@ -191,7 +199,7 @@ describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () 
       characterId: charA,
     });
     globalScripts = [script({ placement: ["AI_OUTPUT"], runOnEdit: false })];
-    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) });
+    const ctx = regexSourcesCtx("Aria");
     const edit = createEdit(ctx, { emit, resolveForeignInputs });
 
     const view = await edit.editMessage({
@@ -208,7 +216,7 @@ describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () 
     const { member, chatId } = await seedRoom();
     const { messageId } = await seedMessage(db, chatId, 1, { role: "user", authorUserId: member });
     globalScripts = [script({ placement: ["USER_INPUT"], runOnEdit: true })];
-    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) });
+    const ctx = regexSourcesCtx("Aria");
     const edit = createEdit(ctx, { emit, resolveForeignInputs });
 
     const view = await edit.editMessage({
