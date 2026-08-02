@@ -1,4 +1,4 @@
-// Gate: home-tile-registry-completeness (docs/design/home-section-spec.md §7) — the HOME-TILE seam's structural walls
+// Gate: home-tile-registry-completeness (docs/history/design/home-section-spec.md §7) — the HOME-TILE seam's structural walls
 // tsc can't see. Unlike the section/settings registries there is no total door `Record` to lean on: a tile
 // is an open-ended contribution, so EVERY wall here is this gate's. Four arms, mirroring G1's PLANNED set
 // one level down:
@@ -76,7 +76,7 @@ function checkDormantArm(def: TileDef, doorway: ObjectLiteralExpression, out: Vi
         line: def.line,
         message:
           `dormant home tile "${def.name}" has an empty \`${field}\` — a doorway earns its pixels by naming what must ` +
-          "land first (`reason`) AND what the thing will be (`teaser`); without both it is an IOU — docs/design/home-section-spec.md §3.5.",
+          "land first (`reason`) AND what the thing will be (`teaser`); without both it is an IOU — docs/history/design/home-section-spec.md §3.5.",
       });
     }
   }
@@ -86,7 +86,7 @@ function checkDormantArm(def: TileDef, doorway: ObjectLiteralExpression, out: Vi
       line: def.line,
       message:
         `dormant home tile "${def.name}" also declares an \`action\` — a DOORWAY has no controls (no button, no ` +
-        "skeleton, no spinner); a tile with both is a fake feature wearing a Dormant badge — docs/design/home-section-spec.md §3.5.",
+        "skeleton, no spinner); a tile with both is a fake feature wearing a Dormant badge — docs/history/design/home-section-spec.md §3.5.",
     });
   }
 }
@@ -107,7 +107,7 @@ function checkUniqueId(def: TileDef, out: Violation[], seenIds: Map<string, Seen
     line: def.line,
     message:
       `home tile "${def.name}" declares id "${id}", already claimed by "${firstOwner.name}" (${firstOwner.file}) — ` +
-      "two tiles for one id is a shadow contribution that rots green while edits land in the dead twin — docs/design/home-section-spec.md §7.",
+      "two tiles for one id is a shadow contribution that rots green while edits land in the dead twin — docs/history/design/home-section-spec.md §7.",
   });
 }
 
@@ -126,7 +126,7 @@ function checkTileDefs(sf: SourceFile, out: Violation[], seenIds: Map<string, Se
         line,
         message:
           `HomeTileContribution "${decl.getName()}" is not co-located — a home tile lives only in its OWNING feature's ` +
-          "lib tile file (features/*/lib/*-tile.tsx; the gate keys on location, never on name) — docs/design/home-section-spec.md §7.",
+          "lib tile file (features/*/lib/*-tile.tsx; the gate keys on location, never on name) — docs/history/design/home-section-spec.md §7.",
       });
       continue;
     }
@@ -161,7 +161,7 @@ function checkAssembly(sf: SourceFile, out: Violation[]): void {
         line: call.getStartLineNumber(),
         message:
           'a second "home-tiles" assembly outside the composition root — tiles are assembled ONCE at the main.tsx door ' +
-          "(G8), so home consumes them blind and a feature can never register by importing home — docs/design/home-section-spec.md §3.2.",
+          "(G8), so home consumes them blind and a feature can never register by importing home — docs/history/design/home-section-spec.md §3.2.",
       });
     }
   }
@@ -169,11 +169,11 @@ function checkAssembly(sf: SourceFile, out: Violation[]): void {
 
 export const gate: GateDescriptor = {
   name: "home-tile-registry-completeness",
-  docRow: "docs/design/home-section-spec.md §7",
+  docRow: "docs/history/design/home-section-spec.md §7",
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a home tile is dishonest: a HomeTileContribution not co-located in its feature's lib tile file, a duplicate tile id, a DORMANT doorway with an empty reason/teaser or one that also declares an action, or a second `home-tiles` assembly outside the door — docs/design/home-section-spec.md §7.",
+    "a home tile is dishonest: a HomeTileContribution not co-located in its feature's lib tile file, a duplicate tile id, a DORMANT doorway with an empty reason/teaser or one that also declares an action, or a second `home-tiles` assembly outside the door — docs/history/design/home-section-spec.md §7.",
   fix: "co-locate the tile in features/<owner>/lib/<name>-tile.tsx; give a dormant doorway a real reason AND teaser and no action (a doorway has no controls); assemble tiles ONCE at main.tsx.",
   run: (ctx) => {
     const out: Violation[] = [];
