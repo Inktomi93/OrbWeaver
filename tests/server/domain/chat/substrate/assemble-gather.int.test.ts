@@ -8,6 +8,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Db } from "@orb/db";
 import { chatBooks, chatInjections, chats, messages, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
@@ -57,10 +58,11 @@ function cardOf(name: string, regexScripts: RegexScriptRow[] = []): CharacterCar
 }
 
 /** A fully-defaulted host-tier `RegexScript` (via the parse seam) for the given placement. */
-function regexScript(id: string, find: string, replace: string, placement: "USER_INPUT" | "WORLD_INFO"): RegexScriptRow {
+function regexScript(label: string, find: string, replace: string, placement: "USER_INPUT" | "WORLD_INFO"): RegexScriptRow {
   return regexScriptSchema.parse({
-    id,
-    name: id,
+    // D121-E: a row id is a real `regex_script_…` TypeID; the readable label rides on `name`.
+    id: mintTypeId(ID_PREFIX.regexScript),
+    name: label,
     findRegex: find,
     replaceString: replace,
     placement: [placement],
@@ -428,7 +430,7 @@ describe("gatherAssembleContext — the host-tier regex union (D53 as amended by
       foreignOf(),
     );
 
-    expect((out.hostTierRegexScripts ?? []).map((s) => s.id)).toEqual(["global", "preset", "cast", "room"]);
+    expect((out.hostTierRegexScripts ?? []).map((s) => s.name)).toEqual(["global", "preset", "cast", "room"]);
     // The scope keys the gather handed the resolver: the FROZEN host (D19 — never the calling member), the
     // room, and the roster's cast in order. A drift here is a silently wrong (or cross-tenant) source set.
     expect(seen.ownerId).toBe(host);
@@ -466,7 +468,12 @@ describe("gatherAssembleContext — the FOREIGN injection budget is applied", ()
 describe("gatherAssembleContext — SEND USER_INPUT regex flows through the gather", () => {
   test("the post-regex text is surfaced on the sink + folded into {{input}}", async () => {
     const { host, chatId, aria } = await seedRoom("send");
-    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("Aria")) });
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardOf("Aria")),
+      // The SEND leg's script arrives through the D121-E scope resolver, not a foreign blob.
+      resolveRegexSources: () =>
+        Promise.resolve({ hostGlobal: [regexScript("u", "wyrm", "dragon", "USER_INPUT")], preset: [], cast: [], chat: [] }),
+    });
     const sink: { sendUserText?: string } = {};
 
     const out = await gatherAssembleContext(

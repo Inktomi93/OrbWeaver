@@ -9,6 +9,7 @@ import { speakerKey } from "@orb/contracts/chat";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Db } from "@orb/db";
 import { chatBooks, worldBooks, worldEntries } from "@orb/db";
 import { ZWSP } from "@orb/kit/guided";
@@ -115,10 +116,11 @@ function inputOf(chatId: string, ownerId: UserId, castIds: CharacterId[], over: 
 }
 
 /** A fully-defaulted host-tier `RegexScript` (via the parse seam) for the given placement. */
-function regexScript(id: string, find: string, replace: string, placement: "USER_INPUT" | "WORLD_INFO"): RegexScriptRow {
+function regexScript(label: string, find: string, replace: string, placement: "USER_INPUT" | "WORLD_INFO"): RegexScriptRow {
   return regexScriptSchema.parse({
-    id,
-    name: id,
+    // D121-E: a row id is a real `regex_script_…` TypeID; the readable label rides on `name`.
+    id: mintTypeId(ID_PREFIX.regexScript),
+    name: label,
     findRegex: find,
     replaceString: replace,
     placement: [placement],
@@ -691,7 +693,8 @@ describe("buildAssembleContext — the WORLD_INFO leg runs the RESOLVED host-tie
       ...inputOf(chatId, host, [charId]),
       hostTierRegexScripts: [regexScript("w", "GOLD", "SILVER", "WORLD_INFO")],
     });
-    expect(out.worldInfoBefore).toContain("GOLD hoard");
+    // The union DID feed the leg: the entry's "GOLD hoard" came out rewritten.
+    expect(out.worldInfoBefore).toContain("SILVER hoard");
   });
 });
 
