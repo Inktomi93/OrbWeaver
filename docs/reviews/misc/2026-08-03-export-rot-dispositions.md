@@ -6,6 +6,14 @@ updated: 2026-08-03
 
 # Export-rot dispositions (lane CLEAN)
 
+> **ONE-SHOT APPLIED RECORD — executed 2026-08-03. Its staleness is deliberate; do not "fix" it.** This table
+> is the input its codemod (`scripts/codemods/export-rot-cleanup.ts`) has ALREADY consumed: it describes the
+> tree as it stood BEFORE the apply and is intentionally not updated to the tree after. Re-running the codemod
+> therefore ABORTS on the first already-applied row (`no exported "X" in …` / `edit target not found`), and
+> that abort is CORRECT — the assert's "the table is stale" hint is written for a pre-apply run; post-apply it
+> means the work is done, not that a row needs repairing. Read this file as HISTORY. To act on export rot
+> again, re-run the lenses (`pnpm ast orphans|testonly`) and write a NEW dated table with its own executor.
+
 The reviewed artifact for the export-rot sweep. **One row per export**: name · file:line · verdict ·
 evidence · action taken. The codemod (`scripts/codemods/export-rot-cleanup.ts`) is DATA-DRIVEN off this
 table — the table is the source, the codemod is the executor.
