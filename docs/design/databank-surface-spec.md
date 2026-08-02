@@ -142,11 +142,10 @@ already correct).
 
 ### 3.1 THE HEADLINE FORK — where the documents LIBRARY lives
 
-The rail today is SEVEN sections (`state/shell-store.ts:12`): chats · characters · corpus · worldInfo ·
-presets · refinery · analytics. `home-section-spec.md` adds an **eighth** (`SECTION_IDS` gains `"home"`,
-that spec §62). A Databank section makes **nine**, and five of the nine (corpus, worldInfo, presets,
-refinery, databank) are library-shaped authoring surfaces. That is the samey concern, stated as
-arithmetic.
+The rail today is EIGHT sections (D121 clause C — `home` leads on the brand cell, AMENDS D62-P6):
+home · chats · characters · corpus · worldInfo · presets · refinery · analytics. A Databank section
+makes it a **ninth**, and five of the nine (corpus, worldInfo, presets, refinery, databank) are
+library-shaped authoring surfaces. That is the samey concern, stated as arithmetic.
 
 **Arm A — its own `databank` rail section** (legacy's shape, `legacy-main:lib/databank-section.tsx`).
 LIST = the document library; CONTENT = the document detail; CONTEXT = the `single`-arm activation body.

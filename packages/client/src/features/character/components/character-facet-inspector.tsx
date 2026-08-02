@@ -26,7 +26,6 @@ import { CharacterProvenanceSection } from "./character-provenance-section";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
 
-/** Explicit (not `Omit<Props>`) so biome's `noUnnecessaryConditions` follows the union through the switch. */
 type CharacterFacetId = (typeof CHARACTER_CARD_FACET_IDS)[number];
 
 export interface CharacterFacetInspectorProps {
@@ -102,6 +101,27 @@ function InspectorBody({
   );
 }
 
+interface FacetDetailProps {
+  readonly form: CardForm;
+  readonly readOnly: CharacterProvenanceSectionProps;
+}
+
+/** THE CONTEXT-DETAIL DISPATCH — exhaustive `Record<CharacterFacetId, …>` (the house Record-not-switch
+ *  dispatch, `template-drill-in.tsx`'s `CAPABILITY_RENDERERS`). A new facet id fails `tsc` HERE until it
+ *  has a renderer, instead of silently falling through a switch. */
+const FACET_DETAIL_RENDERERS: Record<CharacterFacetId, (props: FacetDetailProps) => ReactElement> = {
+  depthPrompt: ({ form }) => <DepthDetail form={form} />,
+  provenance: ({ form, readOnly }) => <ProvenanceDetail form={form} readOnly={readOnly} />,
+  regexScripts: ({ form }) => <RegexDetail form={form} />,
+  creatorNotes: ({ form }) => <CountDetail form={form} name="creatorNotes" tokens={false} />,
+  description: ({ form }) => <CountDetail form={form} name="description" tokens={true} />,
+  personality: ({ form }) => <CountDetail form={form} name="personality" tokens={true} />,
+  scenario: ({ form }) => <CountDetail form={form} name="scenario" tokens={true} />,
+  exampleMessages: ({ form }) => <CountDetail form={form} name="exampleMessages" tokens={true} />,
+  systemPrompt: ({ form }) => <CountDetail form={form} name="systemPrompt" tokens={true} />,
+  postHistoryInstructions: ({ form }) => <CountDetail form={form} name="postHistoryInstructions" tokens={true} />,
+};
+
 /** The small detail per facet (owner's hard rule — no big text here). */
 function FacetDetail({
   form,
@@ -112,23 +132,8 @@ function FacetDetail({
   readonly facetId: CharacterFacetId;
   readonly readOnly: CharacterProvenanceSectionProps;
 }): ReactElement {
-  switch (facetId) {
-    case "depthPrompt":
-      return <DepthDetail form={form} />;
-    case "provenance":
-      return <ProvenanceDetail form={form} readOnly={readOnly} />;
-    case "regexScripts":
-      return <RegexDetail form={form} />;
-    case "creatorNotes":
-      return <CountDetail form={form} name="creatorNotes" tokens={false} />;
-    case "description":
-    case "personality":
-    case "scenario":
-    case "exampleMessages":
-    case "systemPrompt":
-    case "postHistoryInstructions":
-      return <CountDetail form={form} name={facetId} tokens={true} />;
-  }
+  const render = FACET_DETAIL_RENDERERS[facetId];
+  return render({ form, readOnly });
 }
 
 /** depthPrompt's SMALL knobs — the Depth stepper + Role select + the note's exact char/token count (the

@@ -59,8 +59,9 @@ export function createSetEnabled(ctx: AdminContext): AdminService["setEnabled"] 
       },
       at,
     );
-    // setEnabled deliberately accepts agent targets — it is the containment verb; disabling an agent
-    // principal drops it from every cast/arbitration and makes every canAgent throw.
+    // setEnabled deliberately accepts agent targets — it is the containment verb (design of record, D60
+    // build-state rider: agent principals are not built yet; when they land, disabling one must drop it
+    // from every cast/arbitration and make every canAgent throw).
     return { ...row, ownerHandle: target.ownerHandle };
   };
 }
