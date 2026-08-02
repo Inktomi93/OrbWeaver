@@ -9,10 +9,10 @@ import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
 import type { BubbleDecoration } from "../lib/message-row-variants";
 
-// `cn` here is the raw tailwind-variants merge (not the tv-configured factory), so it doesn't know
-// px-block/py-row conflict with p-*; a p-0 decoration className computed to 0 in React but the DOM
-// still rendered the padding utility's declaration. Removing the exact classes at the string level
-// sidesteps the merge entirely.
+// `cn` is configured for the DTCG TYPE-SCALE groups only (lib/class-merge.ts) — custom SPACING tokens
+// stay opaque to tailwind-merge, so it doesn't know px-block/py-row conflict with p-*; a p-0 decoration
+// className computed to 0 in React but the DOM still rendered the padding utility's declaration.
+// Removing the exact classes at the string level sidesteps the merge entirely.
 function withoutBubblePadding(className: string): string {
   return className
     .split(" ")

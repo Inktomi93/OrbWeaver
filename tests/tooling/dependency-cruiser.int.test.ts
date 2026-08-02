@@ -166,6 +166,8 @@ function writeAllFixtures(): void {
   );
   // ui-satellite-seals (minisearch): minisearch belongs to primitives/macro-textarea/ only.
   fx("packages/ui/src/__dc/minisearch-sealbreach.ts", `import MiniSearch from "minisearch";\nexport const m = MiniSearch;\n`);
+  // ui-class-merge-seal: tailwind-merge belongs to lib/class-merge.ts only (the ONE configured merger).
+  fx("packages/ui/src/__dc/twmerge-sealbreach.ts", `import { twMerge } from "tailwind-merge";\nexport const m = twMerge;\n`);
   // search-minisearch-seal: minisearch (server side) belongs to domain/search/substrate/field-index.ts only.
   fx("packages/server/src/domain/search/__dc/minisearch-sealbreach.ts", `import MiniSearch from "minisearch";\nexport const m = MiniSearch;\n`);
 
