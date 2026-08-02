@@ -1,8 +1,9 @@
 // Self-test for the `pnpm ast` rot lenses (scripts/codemods/ast.ts) — unwired, clientgap, the orphan
-// substrate, swallowed, respell, and typeonly-alive. Each drives the pure enumeration substrate over a tiny
-// synthetic project (a server router with one WIRED and one UNWIRED procedure; a namespace-swallowed schema
-// barrel; a derived-vs-hand-spelled contract pair; a value export reached only from type positions) and
-// asserts the lens flags EXACTLY the defect shape — bite-proof in both directions, never a sketch.
+// substrate, swallowed, respell, typeonly-alive, columns, and regkeys. Each drives the pure enumeration
+// substrate over a tiny synthetic project (a server router with one WIRED and one UNWIRED procedure; a
+// namespace-swallowed schema barrel; a derived-vs-hand-spelled contract pair; a value export reached only
+// from type positions; a miniature drizzle schema with one column per consumption class) and asserts the
+// lens flags EXACTLY the defect shape — bite-proof in both directions, never a sketch.
 
 import { Project } from "ts-morph";
 import { describe } from "vitest";
@@ -11,15 +12,20 @@ import {
   assignabilityChecker,
   buildLiveness,
   collectClientConsumed,
+  collectColumnCandidates,
   collectOrphanCandidates,
+  collectRegistries,
+  collectSchemaTables,
   collectServerProcedures,
   collectSwallowedCandidates,
   collectTypeOnlyCandidates,
+  isColumnExempt,
   isProdConsumed,
   isSwallowedExempt,
   isTypeOnlyExempt,
   isUnwiredExempt,
   respellHitsFor,
+  scanRowReads,
 } from "../../scripts/codemods/ast.ts";
 import { expect, test } from "../support/fixtures.ts";
 
@@ -551,6 +557,185 @@ export const live = staleTagged.a;
     // candidate — `staleTagged` has a runtime consumer now, so the marker is a lie.
     expect(isTypeOnlyExempt(declOf("staleTagged"))).toBe(true);
     expect(candidateNames).not.toContain("staleTagged");
+  });
+});
+
+// The columns lens over a MINIATURE drizzle: `sqliteTable` is declared with a signature returning the config
+// object's own type, so `<table>.<col>` resolves to the real PropertyAssignment the way the live drizzle
+// types do. All three consumption shapes the lens must separate are present: a QUERY read (`t.col`), a ROW
+// read, and structural writes via `.values({…})` / `.set({…})` / a whole-row `.values(row)`.
+//
+// A NOTE ON WHAT THIS SYNTHETIC PROJECT CANNOT REPRODUCE, so a later reader does not mistake it for full
+// coverage: on the REAL tree, drizzle's `$inferSelect` loses its declaration links, which is why a
+// `row.<col>` read there is invisible to reference resolution and why READ arm 2 exists at all (measured —
+// the lens's first cut reported 90 write-only columns, of which `plugins.*` was a whole table of falsehoods).
+// A hand-written mini `$inferSelect` keeps those links whatever shape it is given, so arm 1 happens to catch
+// that read HERE. Arm 2 is therefore pinned DIRECTLY, against `scanRowReads`, in its own test below.
+const MINI_DRIZZLE = `
+export declare function sqliteTable<T>(name: string, cols: T): T & { $inferSelect: { [K in keyof T]: string } };
+export declare function text(name: string): string;
+export declare function integer(name: string): number;
+export declare const db: {
+  insert: (t: unknown) => { values: (v: unknown) => { onConflictDoUpdate: (c: unknown) => void } };
+  update: (t: unknown) => { set: (v: unknown) => { where: (w: unknown) => void } };
+  select: () => { from: (t: unknown) => unknown[] };
+};
+`;
+
+const WIDGET_SCHEMA = `
+import { integer, sqliteTable, text } from "../drizzle";
+export const widgets = sqliteTable("widgets", {
+  id: text("id"),
+  label: text("label"),
+  // @column-ok: written by the importer for provenance; nothing renders it yet (PD-999).
+  origin: text("origin"),
+  tally: integer("tally"),
+  ghost: text("ghost"),
+});
+`;
+
+/** Only the mini-schema counts as the schema dir — the lens's own SCHEMA_DIR constant is a path substring. */
+const COLUMN_FILES: Record<string, string> = {
+  "packages/db/src/drizzle.ts": MINI_DRIZZLE,
+  "packages/db/src/schema/widgets.ts": WIDGET_SCHEMA,
+  "packages/server/src/domain/widget/queries.ts": `
+import { db } from "../../../../db/src/drizzle";
+import { widgets } from "../../../../db/src/schema/widgets";
+type WidgetRow = typeof widgets.$inferSelect;
+export function readAll(): string[] {
+  const rows = db.select().from(widgets) as WidgetRow[];
+  return rows.map((row) => row.tally + widgets.label);
+}
+export function write(): void {
+  db.insert(widgets).values({ id: "a", label: "b", origin: "import", tally: "1" });
+  db.update(widgets).set({ tally: "2" }).where(widgets.id);
+}
+`,
+};
+
+describe("ast columns lens (drizzle consumption)", () => {
+  test("classifies every column into the four consumption classes", () => {
+    const project = projectOf(COLUMN_FILES);
+    const tables = collectSchemaTables(project);
+    expect(tables.map((t) => t.sqlName)).toEqual(["widgets"]);
+
+    const byName = new Map(collectColumnCandidates(project, tables).candidates.map((c) => [c.column.jsProp, c]));
+    // `label` is read as a query reference AND written in the insert literal — the healthy state.
+    expect(byName.get("label")?.klass).toBe("read-write");
+    // `tally` is read off a row and written twice (the insert literal + the update `set`).
+    expect(byName.get("tally")?.klass).toBe("read-write");
+    // `id` is read (the `where` reference) and written — healthy.
+    expect(byName.get("id")?.klass).toBe("read-write");
+    // `origin` is written by the insert literal and read by NOBODY — the RV-11 class, exactly.
+    expect(byName.get("origin")?.klass).toBe("write-only");
+    // `ghost` is named by no reader and no writer at all, and no writer here is opaque — pure rot.
+    expect(byName.get("ghost")?.klass).toBe("neither");
+    expect(byName.get("ghost")?.opaque).toBe(false);
+    // The SQL spelling travels beside the JS one (a reader greps the migration, not the property).
+    expect(byName.get("ghost")?.column.sqlColumn).toBe("ghost");
+  });
+
+  test("READ arm 2 counts a row-shaped access with NO link back to the table (the mapped-type hole)", () => {
+    const project = projectOf({
+      ...COLUMN_FILES,
+      // A hand-written view whose fields merely MATCH the columns — nothing ties it to `widgets`, so
+      // reference resolution can never connect this read to the schema. Arm 2's shape test is the only
+      // thing that can, and this is exactly the real-tree `type Row = typeof t.$inferSelect` situation.
+      "packages/server/src/domain/widget/view.ts": `
+interface WidgetView { id: string; label: string; origin: string; tally: string; ghost: string }
+export function render(v: WidgetView): string {
+  const { ghost } = v;
+  return v.origin + ghost;
+}
+`,
+    });
+    const tables = collectSchemaTables(project);
+    const rowReads = scanRowReads(project, tables);
+    // The scan's key is the lens's private (tableVar, prop) PAIR — matched by suffix so this test never
+    // encodes the separator, the same way the liveness tests avoid encoding declaration keys.
+    const readSites = (col: string): readonly string[] => [...rowReads].find(([k]) => k.endsWith(col))?.[1] ?? [];
+    // The property access AND the destructure both land — a destructure is a read of every name it binds.
+    expect(readSites("origin").length).toBeGreaterThan(0);
+    expect(readSites("ghost").length).toBeGreaterThan(0);
+    // `label` is on the view type but nothing reads it there — arm 2 counts ACCESSES, never membership.
+    expect(readSites("label")).toEqual([]);
+
+    // End to end: the two columns the view reads stop being findings; the lens errs toward alive.
+    const byName = new Map(collectColumnCandidates(project, tables).candidates.map((c) => [c.column.jsProp, c]));
+    expect(byName.get("origin")?.klass).toBe("read-write");
+    expect(byName.get("ghost")?.klass).toBe("read-only");
+  });
+
+  test("a whole-row `.values(row)` makes every column of that table write-UNKNOWN, never `neither`", () => {
+    const project = projectOf({
+      ...COLUMN_FILES,
+      // The opaque writer: a typed variable, no object literal — it names no column, so the lens must stop
+      // claiming any column of `widgets` is unwritten (erring toward alive, as the swallowed lens does).
+      "packages/server/src/domain/widget/bulk.ts": `
+import { db } from "../../../../db/src/drizzle";
+import { widgets } from "../../../../db/src/schema/widgets";
+export function bulk(row: { id: string }): void {
+  db.insert(widgets).values(row);
+}
+`,
+    });
+    const audit = collectColumnCandidates(project, collectSchemaTables(project));
+    const ghost = audit.candidates.find((c) => c.column.jsProp === "ghost");
+    expect(ghost?.opaque).toBe(true);
+    // The load-bearing assertion: `neither` is no longer reachable for this table, but the READ half is
+    // untouched, so `ghost` stays a WRITE-only hit rather than silently disappearing into read-write.
+    expect(ghost?.klass).toBe("write-only");
+    expect(audit.opaqueTables.has("widgets")).toBe(true);
+  });
+
+  test("`@column-ok: <reason>` on the column property exempts it; the marker reads off the PropertyAssignment", () => {
+    const project = projectOf(COLUMN_FILES);
+    const tables = collectSchemaTables(project);
+    const declOf = (name: string): Parameters<typeof isColumnExempt>[0] => {
+      const found = tables[0]?.columns.find((c) => c.jsProp === name)?.decl;
+      if (found === undefined) {
+        throw new Error(`no column ${name}`);
+      }
+      return found;
+    };
+    expect(isColumnExempt(declOf("origin"))).toBe(true);
+    expect(isColumnExempt(declOf("ghost"))).toBe(false);
+  });
+});
+
+describe("ast regkeys lens (informational row dispatch)", () => {
+  test("reports only the rows whose key is spelled at no non-test dispatch site", () => {
+    const project = projectOf({
+      "packages/client/src/state/panes.ts": `
+export const PANE_REGISTRY = {
+  chat: 1,
+  settings: 2,
+  retired: 3,
+  alsoRetired: 4,
+} as const;
+`,
+      // `chat` is dispatched as a string literal, `settings` as a property-access name — both count.
+      "packages/client/src/features/shell/router.ts": `
+export const open = (): string => "chat";
+export const which = (r: { settings: number }): number => r.settings;
+`,
+      // A TEST spelling `retired` must NOT keep it alive — the same rule `testonly` applies to exports.
+      "tests/client/panes.test.ts": 'export const k = "retired";\n',
+    });
+    const registries = collectRegistries(project);
+    expect(registries.map((r) => r.name)).toEqual(["PANE_REGISTRY"]);
+    expect(registries[0]?.rows.map((r) => r.key)).toEqual(["chat", "settings", "retired", "alsoRetired"]);
+  });
+
+  test("a 2-row table is below the registry floor, and a non-exported / lowercase-untyped const is not a registry", () => {
+    const project = projectOf({
+      "packages/client/src/state/small.ts": "export const TWO_ROWS = { a: 1, b: 2 } as const;\n",
+      "packages/client/src/state/local.ts": "const PRIVATE_TABLE = { a: 1, b: 2, c: 3 } as const;\nexport const use = PRIVATE_TABLE.a;\n",
+      "packages/client/src/state/plain.ts": "export const plainObject = { a: 1, b: 2, c: 3 };\n",
+      // The Record-annotated form IS a registry even without a SCREAMING_SNAKE name (the house dispatch shape).
+      "packages/client/src/state/typed.ts": "export const handlers: Record<string, number> = { a: 1, b: 2, c: 3 };\n",
+    });
+    expect(collectRegistries(project).map((r) => r.name)).toEqual(["handlers"]);
   });
 });
 
