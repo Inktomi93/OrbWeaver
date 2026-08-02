@@ -49,6 +49,8 @@ const BALANCED = "Balanced";
 const DEEP = "Deep";
 const PRESSED = "aria-pressed";
 const RESET_ITEM_RE = /Reset to starter/;
+// The G7 provenance chip, matched loosely so its ABSENCE can be asserted without naming a model.
+const FOR_MODEL_RE = /^for /;
 
 /** One quality-dial cell — a `ToggleGroup` button, located by its exact label. */
 function qualityCell(root: Locator, label: string): Locator {
@@ -521,4 +523,83 @@ test("FIVE VIEWS — one flat strip (Params default), and the re-homed nudge edi
     proc: "preset.update",
     payloadKey: "config.formatStrings.continueNudge",
   });
+});
+
+// ── G7: HEADER TRUTH (redesign §10 G7 / §16 row 3 echo b) ────────────────────────────────────────
+// Two facts change UNDER an open editor and are otherwise only legible in another pane: whether this preset
+// is the ACTIVE one (the fork-once retarget moves it mid-edit), and which model the deck's effective column
+// resolved against. The Activate affordance exists ONLY in the not-active state — a status chip naming an
+// actionable state must act — and it rides the SAME `settings.updateUserSettingsSection` seeds patch as the
+// LIST row toggle and its kebab mirror.
+
+function settingsWithActive(activeId: string | null): Record<string, unknown> {
+  return {
+    ...SETTINGS_VIEW,
+    config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, defaultPresetId: activeId } },
+  };
+}
+
+interface SeedsPatchCall {
+  readonly patch?: { readonly defaultPresetId?: string | null };
+}
+
+test("G7 a NOT-active preset's header offers Activate — the same setDefault seeds patch the LIST row fires", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => settingsWithActive(null),
+    "settings.updateUserSettingsSection": () => ({}),
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  await expect(component.getByText("Preset A", { exact: true })).toBeVisible();
+  // No chip while it isn't the pick — the state that IS true is the one that shows.
+  await expect(component.getByText("Active", { exact: true })).toHaveCount(0);
+
+  await component.getByRole("button", { name: "Activate Preset A for generation" }).click();
+  await expect
+    .poll(() => (trpc.inputs("settings.updateUserSettingsSection") as SeedsPatchCall[]).map((call) => call.patch?.defaultPresetId))
+    .toEqual([PRESET_A]);
+});
+
+test("G7 the ACTIVE preset's header wears the chip and offers NO Activate", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => settingsWithActive(PRESET_A),
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  await expect(component.getByText("Preset A", { exact: true })).toBeVisible();
+  await expect(component.getByText("Active", { exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Activate Preset A for generation" })).toHaveCount(0);
+});
+
+test("G7 the header names the model the effective column resolved AGAINST, and omits it when there is none", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => settingsWithActive(PRESET_A),
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  // The provenance of every ghosted number in the deck, stated where the preset is named.
+  await expect(component.getByText(`for ${EFFECTIVE_FLOOR.model}`, { exact: true })).toBeVisible();
+});
+
+test("G7 no resolvable model ⇒ NO provenance chip (never a guessed name)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => settingsWithActive(PRESET_A),
+    "preset.resolveEffective": () => trpcError({ message: "no chat connection configured" }),
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  await expect(component.getByText("Preset A", { exact: true })).toBeVisible();
+  await expect(component.getByText("Active", { exact: true })).toBeVisible();
+  await expect(component.getByText(FOR_MODEL_RE)).toHaveCount(0);
 });
