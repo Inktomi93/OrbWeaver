@@ -199,6 +199,21 @@ describe("foundation/env — the floor parse (defaults + transforms)", () => {
     expect(env.CREDENTIALS_KEY_AUTO).toBe(false);
   });
 
+  // `envBool` is `z.stringbool` with PINNED `{truthy:["true"], falsy:["false"], case:"sensitive"}`. Bare
+  // `z.stringbool()` is case-INSENSITIVE and also accepts 1/0/yes/no/on/off — adopting it unpinned would
+  // silently widen every boolean knob's vocabulary. These are the spellings that MUST stay boot-fatal, so a
+  // future author who drops the params gets a RED here instead of a quiet posture drift.
+  test.each(["TRUE", "True", "1", "yes", "on", "", " true"])("env boolean knobs REFUSE the widened spelling %j at boot", async (spelling) => {
+    await expect(reimportEnvWith({ EGRESS_FIREWALL: spelling })).rejects.toThrow();
+  });
+
+  test("env boolean knobs still accept exactly lowercase true/false (and 0/off are NOT falsy)", async () => {
+    expect((await reimportEnvWith({ EGRESS_FIREWALL: "false" })).env.EGRESS_FIREWALL).toBe(false);
+    expect((await reimportEnvWith({ EGRESS_FIREWALL: "true" })).env.EGRESS_FIREWALL).toBe(true);
+    await expect(reimportEnvWith({ EGRESS_FIREWALL: "0" })).rejects.toThrow();
+    await expect(reimportEnvWith({ EGRESS_FIREWALL: "off" })).rejects.toThrow();
+  });
+
   test("processEnvSnapshot returns a copy of the raw process.env (the agent-sdk baseline)", async () => {
     const { processEnvSnapshot } = await reimportEnvWith({ SOME_HOST_VAR: "present" });
     const snap = processEnvSnapshot();

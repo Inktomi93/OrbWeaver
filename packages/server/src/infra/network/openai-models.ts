@@ -17,6 +17,28 @@ const modelsResponseSchema = z.object({
 /** Trailing-slash trimmer (hoisted — useTopLevelRegex). */
 const TRAILING_SLASH_RE = /\/$/;
 
+/** The exact host this probe pins to, from the owner's configured `baseUrl`.
+ *
+ *  SEALED BY CONSTRUCTION (2026-08-02 security review of the `netHosts` hardening): `hostAllowed`
+ *  (./egress) reads a LEADING-DOT allowlist entry as a SUFFIX WILDCARD — `.com` matches every `.com` host.
+ *  WHATWG `URL` PRESERVES a leading dot (`new URL("https://.com/").hostname === ".com"`, probed), so this
+ *  call site — the only wildcard-arm producer left once plugin manifests are `z.hostname()`-validated — could
+ *  otherwise turn a user-supplied baseUrl into a wildcard pin. Not reachable as a privilege escalation today
+ *  (a leading-dot host is unresolvable, so the first hop dies at DNS, and the allowlist only ever widens the
+ *  OWNER'S own probe), but a "pinned to the configured host" contract must not depend on that.
+ *
+ *  REFUSE, not strip: stripping the dot would pin to a DIFFERENT host than the one being fetched (coherent
+ *  only by accident — the fetch then fails the allowlist anyway). A leading-dot hostname is not a real host,
+ *  so the honest answer is that there is nothing here to probe. The caller's best-effort `catch` turns this
+ *  into the documented empty-list return plus a log line. */
+function exactPinnedHost(base: string): string {
+  const { hostname } = new URL(base);
+  if (hostname.startsWith(".")) {
+    throw new Error("baseUrl hostname starts with '.' — not an exact host, refusing to build a wildcard host pin");
+  }
+  return hostname;
+}
+
 const OK_STATUS_MIN = 200;
 const OK_STATUS_MAX = 300;
 // A `/models` list is small; keep a tight cap so an internal service coaxed into responding can't stream a
@@ -36,7 +58,8 @@ export async function fetchOpenAiModels(args: FetchOpenAiModelsArgs): Promise<st
     const base = args.baseUrl.replace(TRAILING_SLASH_RE, "");
     const res = await safeFetch(`${base}/models`, {
       // Pinned to the owner's configured host; ownerConfiguredEndpoint defers SSRF to the global firewall.
-      allowedHosts: [new URL(base).hostname],
+      // `exactPinnedHost` guarantees the entry can never be read as `hostAllowed`'s suffix wildcard.
+      allowedHosts: [exactPinnedHost(base)],
       ownerConfiguredEndpoint: true,
       maxBytes: MODELS_MAX_BYTES,
       headers: {
