@@ -82,6 +82,10 @@ export async function insertSchedule(db: Db, row: ScheduleInsert): Promise<void>
 }
 
 /** Load one schedule by id, or `null` (absent). */
+// @owner-scope-ok: the `loadWorkload` F3-AUTHZ twin — every caller (`update-schedule`/`set-schedule-enabled`/
+// `delete-schedule`) runs `isVisibleToCaller(isAdmin, caller, existing.ownerId)` on the loaded row and
+// collapses a foreign id to the same leak-free NOT_FOUND. An ownerId in this WHERE would make the admin arm
+// unrepresentable. Ends if the admin arm goes.
 export async function loadSchedule(db: Db, id: WorkloadScheduleId): Promise<WorkloadScheduleRow | null> {
   const rows = await db.select().from(workloadSchedules).where(eq(workloadSchedules.id, id)).limit(1);
   const row = rows[0];

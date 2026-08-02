@@ -59,6 +59,10 @@ export function collectMacroIds(args: { readonly participants?: readonly Partici
  * runs it through `buildCharacterNameMap`/`buildPersonaNameMap` (`@orb/contracts/chat`) to get the
  * `ReadonlyMap`s `resolveRowMacros` (`@orb/kit/macro`) takes.
  */
+// @owner-scope-ok: the id union is derived from the room's OWN canon (`collectMacroIds` over roster seats +
+// per-message attribution stamps), never from caller input, and the read returns display names only — the
+// member-gated `{{char}}`/`{{user}}` vocabulary a room's transcript already shows (D18). Ends if the
+// producer ever accepts an id set from a request.
 export async function loadChatMacroNameProducer(
   db: Db,
   args: {

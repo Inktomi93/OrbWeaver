@@ -43,7 +43,7 @@ describe("createCopyCharacterBooks", () => {
     const primary = await seedAttachedBook(db, { bookId: "world_book_primary", ownerId: owner, characterId: from, role: "primary" });
     const aux = await seedAttachedBook(db, { bookId: "world_book_aux", ownerId: owner, characterId: from, role: "auxiliary" });
 
-    await createCopyCharacterBooks({ db, now: (): number => NOW })({ fromCharacterId: from, toCharacterId: to });
+    await createCopyCharacterBooks({ db, now: (): number => NOW })({ ownerId: owner, fromCharacterId: from, toCharacterId: to });
 
     expect(new Set(await junctionsFor(db, to))).toEqual(
       new Set([
@@ -63,13 +63,43 @@ describe("createCopyCharacterBooks", () => {
     );
   });
 
+  // The OWNED-SOURCE GATE: the op re-checks tenancy itself instead of inheriting `duplicate`'s discipline.
+  // A stranger's source carries NOTHING — otherwise naming a foreign characterId re-points that stranger's
+  // world_books onto a card the caller owns, i.e. reads their lore through the duplicate path.
+  test("a FOREIGN source character carries nothing (the ownerId gate, not the call site's discipline)", async () => {
+    const db = await freshDb();
+    const owner = (await seedUser(db, {})).id;
+    const stranger = (await seedUser(db, {})).id;
+    const foreign = (await seedCharacter(db, { ownerId: stranger })).id;
+    const mine = (await seedCharacter(db, { ownerId: owner })).id;
+    await seedAttachedBook(db, { bookId: "world_book_theirs", ownerId: stranger, characterId: foreign, role: "primary" });
+
+    await createCopyCharacterBooks({ db, now: (): number => NOW })({ ownerId: owner, fromCharacterId: foreign, toCharacterId: mine });
+
+    expect(await junctionsFor(db, mine)).toEqual([]);
+  });
+
+  // The other end of the same gate: an owned source may not be carried onto a card the caller does not own.
+  test("a FOREIGN target character receives nothing", async () => {
+    const db = await freshDb();
+    const owner = (await seedUser(db, {})).id;
+    const stranger = (await seedUser(db, {})).id;
+    const mine = (await seedCharacter(db, { ownerId: owner })).id;
+    const theirs = (await seedCharacter(db, { ownerId: stranger })).id;
+    await seedAttachedBook(db, { bookId: "world_book_mine", ownerId: owner, characterId: mine, role: "primary" });
+
+    await createCopyCharacterBooks({ db, now: (): number => NOW })({ ownerId: owner, fromCharacterId: mine, toCharacterId: theirs });
+
+    expect(await junctionsFor(db, theirs)).toEqual([]);
+  });
+
   test("a source with zero attached books is a no-op (no junction rows, no books)", async () => {
     const db = await freshDb();
     const owner = (await seedUser(db, {})).id;
     const from = (await seedCharacter(db, { ownerId: owner })).id;
     const to = (await seedCharacter(db, { ownerId: owner })).id;
 
-    await createCopyCharacterBooks({ db, now: (): number => NOW })({ fromCharacterId: from, toCharacterId: to });
+    await createCopyCharacterBooks({ db, now: (): number => NOW })({ ownerId: owner, fromCharacterId: from, toCharacterId: to });
 
     expect(await junctionsFor(db, to)).toEqual([]);
     expect(await db.select().from(worldBooks)).toEqual([]);

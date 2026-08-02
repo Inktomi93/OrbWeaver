@@ -52,8 +52,9 @@ export type DetachCardTagOp = (args: { readonly ownerId: UserId; readonly charac
 
 /** Carries the source character's attached world-info book REFERENCES onto the duplicate (PD-141): fresh
  *  character_books rows pointing at the SAME books; world-info owns the junction write. Zero attachments =
- *  no-op. Internal to the DI bundle (the runtime op is world-info's `CopyCharacterBooks`, wired at compose). */
-type CopyCharacterBooksOp = (args: { readonly fromCharacterId: CharacterId; readonly toCharacterId: CharacterId }) => Promise<void>;
+ *  no-op. Internal to the DI bundle (the runtime op is world-info's `CopyCharacterBooks`, wired at compose).
+ *  `ownerId` is the owned-source gate — the op re-checks BOTH ends rather than trusting the call site. */
+type CopyCharacterBooksOp = (args: { readonly ownerId: UserId; readonly fromCharacterId: CharacterId; readonly toCharacterId: CharacterId }) => Promise<void>;
 
 /** The editable greeting-studio template resolved from the CALLER's preset `guidedActions` (audit §3): the
  *  `greeting_rewrite`/`greeting_new` prompt string. Wired at compose to the preset domain's active-preset

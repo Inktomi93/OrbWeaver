@@ -39,6 +39,10 @@ const DEPENDENCY_FAILED_MESSAGE = "a dependency did not succeed (a non-success t
 const DEPENDENCY_GATES = ["ready", "waiting", "failed"] as const;
 type DependencyGate = (typeof DEPENDENCY_GATES)[number];
 
+// @owner-scope-ok: the ENGINE plane, not a door — the ids are a row's own persisted `dependsOn` set and the
+// read returns statuses the scheduler needs to decide runnability. Owner-scoping it would deadlock a
+// dependent whose dependency is (legitimately) another principal's row. Ends if `dependsOn` ever becomes
+// caller-authored across owners without a validation rung.
 async function resolveDependencyGate(db: Db, dependsOn: readonly WorkloadId[]): Promise<DependencyGate> {
   const rows = await db
     .select({ id: workloads.id, status: workloads.status })
@@ -201,6 +205,9 @@ export async function markTerminal(
 }
 
 /** The raw status of one row (`undefined` when absent). */
+// @owner-scope-ok: the engine's own status probe (cancel/worker plane). The user-facing authorization is
+// F3-AUTHZ at the verb — `isVisibleToCaller(isAdmin, caller, row.ownerId)` in `verbs/get.ts` — which is the
+// POST-FETCH arm this gate recognizes; the engine reads have no caller at all. Ends if a door calls this.
 export async function loadWorkloadStatus(db: Db, id: WorkloadId): Promise<WorkloadStatus | undefined> {
   const rows = await db.select({ status: workloads.status }).from(workloads).where(eq(workloads.id, id)).limit(1);
   return rows[0]?.status;
@@ -208,6 +215,9 @@ export async function loadWorkloadStatus(db: Db, id: WorkloadId): Promise<Worklo
 
 /** Race-safe, idempotent cancel: tries `queued → cancelled`, then `running → cancelling` on 0 rows. No
  *  SELECT-then-act gap — each arm is a status-guarded UPDATE. */
+// @owner-scope-ok: the tail SELECT reports which terminal the two status-guarded UPDATEs landed on; the
+// caller (`verbs/cancel.ts`) has already run the F3-AUTHZ visibility check on the loaded row, so the owner
+// predicate lives one frame up. Ends if cancel stops loading-and-checking before it calls this.
 export async function markCancelling(db: Db, id: WorkloadId, now: number): Promise<CancelWorkloadResult> {
   const cancelledQueued = await db
     .update(workloads)
@@ -242,6 +252,10 @@ export async function failQueuedRow(db: Db, id: WorkloadId, error: string, now: 
 
 /** Load one typed row by id, or `null` (absent, or a kind this build doesn't ship). A row with unparseable
  *  params comes back POISON — visible, not vanished. */
+// @owner-scope-ok: THE F3-AUTHZ POST-FETCH ARM. The owner predicate deliberately lives at the verb
+// (`verbs/get.ts`/`cancel.ts`/`retry.ts`: `isVisibleToCaller(isAdmin, caller, row.ownerId)` collapsing a
+// foreign row to the SAME leak-free NOT_FOUND as an absent one) because the ADMIN and system-caller arms
+// must see any row — an ownerId in this WHERE would make them unrepresentable. Ends if the admin arm goes.
 export async function loadWorkload(db: Db, contributions: WorkloadContributions, id: WorkloadId): Promise<WorkloadRowAnyKind | null> {
   const rows = await db.select().from(workloads).where(eq(workloads.id, id)).limit(1);
   const row = rows[0];
@@ -251,6 +265,8 @@ export async function loadWorkload(db: Db, contributions: WorkloadContributions,
 /** The RAW (unparsed) params blob of one row — what `retry` clones for a POISON row, whose typed view carries
  *  `params: null`. Cloning the blob verbatim is what makes a poison row honestly retryable: the operator's
  *  original input survives, and a build that fixed the schema re-runs it unchanged. */
+// @owner-scope-ok: `verbs/retry.ts` calls this only AFTER `loadWorkload` + the F3-AUTHZ visibility check on
+// the same id — the blob clone rides an already-authorized row. Ends if a caller reaches it without that.
 export async function loadRawWorkloadParams(db: Db, id: WorkloadId): Promise<Record<string, unknown> | null> {
   const rows = await db.select({ params: workloads.params }).from(workloads).where(eq(workloads.id, id)).limit(1);
   return rows[0]?.params ?? null;

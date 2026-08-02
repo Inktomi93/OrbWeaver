@@ -464,6 +464,23 @@ function writeFixtures(): void {
     "packages/db/src/schema/__g_ownerid.ts",
     'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gOwnerid = sqliteTable("__g_ownerid", { ownerId: text("owner_id").references(() => gOwnerid.ownerId) });\n',
   );
+  // table-scoping-class: a schema table with NO row in TABLE_SCOPING_CLASSES — unclassified at birth.
+  fx(
+    "packages/db/src/schema/__g_scopeclass.ts",
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gScopeclass = sqliteTable("__g_scopeclass", { id: text("id").primaryKey() });\n',
+  );
+  // owner-scoped-reads: a bare `eq(T.id, …)` on the (a)-class `characters` table, no owner predicate,
+  // no post-fetch compare, no marker.
+  fx(
+    "packages/server/src/domain/__g_ownerreads/persistence/__g_ownerreads.ts",
+    'import { characters } from "@orb/db";\nimport { eq } from "drizzle-orm";\nexport async function gLoad(db: D, id: string) {\n  return db.select().from(characters).where(eq(characters.id, id)).limit(1);\n}\n',
+  );
+  // injected-op-caller-param: a domain contract op taking a branded entity id and returning a Promise, with
+  // no caller/scope param and no CALLER_FREE_OPS row.
+  fx(
+    "packages/server/src/domain/__g_opcaller/contract/__g_opcaller.ts",
+    'import type { CharacterId } from "@orb/kit/ids";\nexport type GRenameCardOp = (characterId: CharacterId, name: string) => Promise<void>;\n',
+  );
   // no-untyped-soft-ref: a `*Id` column with NO `.references()` FK (not in SOFT_REF_ALLOWLIST).
   fx(
     "packages/db/src/schema/__g_softref.ts",

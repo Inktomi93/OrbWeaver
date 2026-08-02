@@ -240,6 +240,9 @@ export async function loadOwnedCharacterRow(db: Db, ownerId: UserId, characterId
 }
 
 /** No owner scope — the embeddings indexer is a trusted system consumer; not a user-facing surface. */
+// @owner-scope-ok: D20 un-principal — the embeddings indexer re-reads ids IT enumerated
+// (`listEmbeddableCharacterIdRows`), never a request-supplied id; the owner-facing fast path is
+// `loadOwnedCharacterRow` directly above. Ends the day a door reaches this instead of that.
 export async function loadCharacterRowById(db: Db, characterId: CharacterId): Promise<CharacterRow | undefined> {
   const rows = await db.select().from(characters).where(eq(characters.id, characterId)).limit(LIMIT_ONE);
   return rows[0];
