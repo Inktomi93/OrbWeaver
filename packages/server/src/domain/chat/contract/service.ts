@@ -61,6 +61,7 @@ import type {
   MoveMessageParams,
   NominateHostHandoffParams,
   PeekPromptParams,
+  PreviewActionTemplatesParams,
   PreviewAssemblyParams,
   PreviewContextFitParams,
   PreviewInviteParams,
@@ -110,6 +111,7 @@ import type {
   VariablesResult,
 } from "./results";
 import type {
+  ActionTemplatesPreview,
   AssembledPrompt,
   AssemblyPreview,
   ChatBusReplayEvent,
@@ -162,6 +164,9 @@ export interface ChatService {
   readonly previewAssembly: (params: PreviewAssemblyParams) => Promise<AssemblyPreview>;
   /** The resolved `PromptConfig` the chat assembles against. */
   readonly getActivePresetConfig: (params: GetActivePresetConfigParams) => Promise<PromptConfig>;
+  /** Every ACTION template of ONE preset, resolved against THIS chat (D8 / §7.1 — the preset editor's bound
+   *  readout). `presetId` is an OVERRIDE resolved owned-or-system under the host; host-gated, nothing persists. */
+  readonly previewActionTemplates: (params: PreviewActionTemplatesParams) => Promise<ActionTemplatesPreview>;
   /** One section's render preview (the COMPOSER/editor surface). */
   readonly previewSection: (params: PreviewSectionParams) => Promise<SectionPreview>;
   /** The assembled prompt for the NEXT real turn (no generation). */

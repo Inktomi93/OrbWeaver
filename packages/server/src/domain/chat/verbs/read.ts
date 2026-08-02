@@ -34,13 +34,20 @@ import type {
 import { buildCharacterNameMap, buildPersonaNameMap, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ChatSendAvailability, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ParticipantRole } from "@orb/contracts/identity";
-import type { PromptConfig, UserMacroSpec } from "@orb/contracts/preset";
-import { DEFAULT_NAMES_BEHAVIOR, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { GuidedActionKind, PromptConfig, TemplateDefId, UserMacroSpec } from "@orb/contracts/preset";
+import {
+  DEFAULT_FORMAT_STRINGS,
+  DEFAULT_GUIDED_ACTIONS,
+  DEFAULT_NAMES_BEHAVIOR,
+  DEFAULT_PROMPT_CONFIG,
+  GUIDED_ACTION_KINDS,
+  TEMPLATE_DEFS,
+} from "@orb/contracts/preset";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { projectBodyForPreview } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { ChatContext } from "../context";
@@ -61,6 +68,7 @@ import type {
   ListMessageVariantsParams,
   ListParticipantsParams,
   PeekPromptParams,
+  PreviewActionTemplatesParams,
   PreviewAssemblyParams,
   PreviewContextFitParams,
   PreviewSectionParams,
@@ -71,6 +79,7 @@ import type {
 import type { HistoryMacroNames } from "../contract/results";
 import type { ChatService } from "../contract/service";
 import type {
+  ActionTemplatesPreview,
   AssembledPrompt,
   AssemblyPreview,
   ChatDetail,
@@ -114,6 +123,7 @@ import {
   buildTurnUserMacros,
   fitHistory,
   loadCharacterCardLore,
+  previewActionText,
   previewSection,
   renderMacros,
   shapeContextForSpeaker,
@@ -155,6 +165,7 @@ type ReadVerbs = Pick<
   | "checkSendAvailability"
   | "getMemberCard"
   | "previewAssembly"
+  | "previewActionTemplates"
   | "getActivePresetConfig"
   | "previewSection"
   | "peekPrompt"
@@ -316,6 +327,12 @@ async function resolvePreviewInputs(
   opts: {
     readonly anchorPersonaId: PersonaId | null;
     readonly speakerCharacterId?: CharacterId | null | undefined;
+    /** D8 / §7.1 — assemble as if THIS preset were the chat's active one (the preset editor's bound readout
+     *  inspects a preset the room has not adopted). Rides the LANDED `ResolveForeignInputsOp.presetOverride`
+     *  seam (minted for the rpg GM-voice redirect): compose resolves it owned-or-system under the HOST and
+     *  falls back to the host's own default on a stale/unowned id — the lenient-id rule, so an override can
+     *  never read a preset outside the host's library. Absent ⇒ byte-identical to every existing preview. */
+    readonly presetOverride?: PresetId | undefined;
   },
 ): Promise<PreviewInputs> {
   const { anchorPersonaId, speakerCharacterId } = opts;
@@ -339,6 +356,7 @@ async function resolvePreviewInputs(
     anchorPersonaId,
     personaIds,
     triggerPersonaId: hostPersonaId,
+    ...(opts.presetOverride !== undefined ? { presetOverride: opts.presetOverride } : {}),
   });
   const gameUserMacros = ctx.rpg === null ? [] : await ctx.rpg.resolveUserMacros(chatId);
   return {
@@ -1003,6 +1021,65 @@ function createPreviewSection(ctx: ChatContext, deps: ReadDeps): ChatService["pr
   };
 }
 
+/** WHICH stored field a `TEMPLATE_DEFS` row edits, resolved to its EFFECTIVE bytes. The registry's id is
+ *  `GuidedActionKind | FormatStringKey` and nothing else disambiguates them, so the split rides
+ *  `GUIDED_ACTION_KINDS` — the same derivation the client's row model uses, never a second list of names.
+ *  Blank/absent falls back to the shipped default on both arms, which is the storage semantic everywhere in
+ *  this schema ("empty means the default rides"). */
+function isGuidedActionKind(id: TemplateDefId): id is GuidedActionKind {
+  return (GUIDED_ACTION_KINDS as readonly string[]).includes(id);
+}
+
+function actionTemplateText(config: PromptConfig, id: TemplateDefId): string {
+  if (isGuidedActionKind(id)) {
+    return (config.guidedActions?.[id] ?? DEFAULT_GUIDED_ACTIONS[id]).prompt;
+  }
+  const stored = config.formatStrings?.[id] ?? "";
+  return stored.trim() === "" ? DEFAULT_FORMAT_STRINGS[id] : stored;
+}
+
+/** `previewActionTemplates` (D8 / preset-surface-redesign §7.1) — every ACTION template of ONE preset,
+ *  resolved against THIS chat, for the preset editor's BOUND readout.
+ *
+ *  HOST/ADMIN (`requireHost`, matrix `previewActionTemplates: "host"`): a rendered template resolves the
+ *  roster's cards at FULL through its macros (`{{charsysinfo}}`/`{{description}}`/`{{persona}}`), the exact
+ *  D22 bypass `previewSection` was re-gated for — the preview family is a host instrument.
+ *
+ *  THE OVERRIDE (`presetId`): the editor inspects a preset the chat has NOT adopted, so the read assembles
+ *  this room as if that preset were active. It rides the landed `ResolveForeignInputsOp.presetOverride` seam
+ *  rather than a new one, which also supplies the safety: compose resolves the id owned-or-system UNDER THE
+ *  HOST and degrades to the host's own default on a stale/unowned id, so no override can read outside the
+ *  host's library.
+ *
+ *  PLURAL BY DESIGN: the resolution is ~a dozen string renders over ONE already-built ctx, so answering for
+ *  the whole registry makes the readout's row selection a pure client pick — one query per (chat, preset),
+ *  one freshness row, no per-row round trip. Nothing persists (the `previewSection` dry-run frame). */
+function createPreviewActionTemplates(ctx: ChatContext, deps: ReadDeps): ChatService["previewActionTemplates"] {
+  return async ({ principal, chatId, presetId }: PreviewActionTemplatesParams): Promise<ActionTemplatesPreview> => {
+    const membership = await requireHost(ctx, principal, chatId);
+    const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
+      anchorPersonaId: membership.chat.anchorPersonaId,
+      presetOverride: presetId,
+    });
+    const registry = buildPreviewRegistry(inputs);
+    const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { deps, registry });
+    const config = inputs.foreign.promptConfig;
+    return {
+      // The bindings this render actually USED — read off the same resolved ctx, so the readout's gloss can
+      // NAME the resolution ("`{{user}}` → Alex") instead of claiming one happened.
+      identity: { user: assembleContext.activePersona?.name ?? "User", char: assembleContext.character.name },
+      templates: TEMPLATE_DEFS.map((def) => ({
+        id: def.id,
+        resolved: previewActionText(assembleContext, actionTemplateText(config, def.id), {
+          model: inputs.model,
+          chatId,
+          ...(registry !== null ? { registry } : {}),
+        }),
+      })),
+    };
+  };
+}
+
 /** `replayStreamEvents` — resume the resumable SSE token log from a cursor (late-subscriber ramp-up).
  *  D16-clamped: a stream row is raw transcript text, so a `from-join` caller only gets rows anchored to a
  *  slot at/above their `historyFloorSeq` (see `loadStreamReplay`). §3.6 member-scrub: the replayed `text`
@@ -1104,6 +1181,7 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     previewAssembly: createPreviewAssembly(ctx, deps),
     getActivePresetConfig: createGetActivePresetConfig(ctx, deps),
     previewSection: createPreviewSection(ctx, deps),
+    previewActionTemplates: createPreviewActionTemplates(ctx, deps),
     peekPrompt: createPeekPrompt(ctx, deps),
     getShapeTrace: createGetShapeTrace(ctx, deps),
     previewContextFit: createPreviewContextFit(ctx, deps),

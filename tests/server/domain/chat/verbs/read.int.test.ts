@@ -8,11 +8,12 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { AssemblePersona, MemberCardVisibility } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
-import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { PromptConfig } from "@orb/contracts/preset";
+import { DEFAULT_GUIDED_ACTIONS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, TEMPLATE_DEFS } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { characterBooks, chatParticipants, chats as chatsTable, messages, personas as personasTable, worldBooks, worldEntries } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, Handle, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, PersonaId, PresetId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
 import { and, eq } from "drizzle-orm";
@@ -1074,6 +1075,75 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const { getActivePresetConfig } = createRead(makeChatContext(db), makeDeps());
     const config = await getActivePresetConfig({ principal: principal(me), chatId });
     expect(config.sections.length).toBe(DEFAULT_PROMPT_CONFIG.sections.length);
+  });
+
+  // ── previewActionTemplates (D8 / preset-surface-redesign §7.1) — the preset editor's BOUND readout ────
+  // Two properties carry the whole feature and neither is visible to a typecheck: the resolution is REAL
+  // (identity macros resolve through the CHAT — Ruling B), and it is HONESTLY PARTIAL (the fire-time tokens
+  // survive, because the user has typed no steer and picked no perspective; substituting them would put a
+  // fabricated value on the editor's honesty instrument).
+
+  /** A preset whose impersonate template carries one identity macro and BOTH fire-time tokens. */
+  const bindingConfig: PromptConfig = {
+    ...DEFAULT_PROMPT_CONFIG,
+    guidedActions: {
+      ...DEFAULT_GUIDED_ACTIONS,
+      impersonate: { prompt: "Write {{user}}'s next message from a {{person}}-person perspective. {{input}}", role: "user" },
+    },
+  };
+
+  test("previewActionTemplates resolves identity through the CHAT and keeps the fire-time tokens as TOKENS", async () => {
+    const me = await seedUser(db, "bind_host");
+    const chatId = await seedRoom("bind", me);
+
+    const { previewActionTemplates } = createRead(
+      makeChatContext(db),
+      makeDeps({
+        // The `presetOverride` the editor sends lands here (compose resolves it under the HOST); the chat
+        // resolves `{{user}}` from its own persona, which is precisely the binding's whole value.
+        resolveForeignInputs: () =>
+          Promise.resolve({
+            promptConfig: bindingConfig,
+            personas: { anchor: null, active: { name: "Alex", description: "" } },
+            globalRegexScripts: [],
+            scanDepth: 6,
+            injectionTokenBudget: 0,
+          }),
+      }),
+    );
+
+    const preview = await previewActionTemplates({ principal: principal(me), chatId, presetId: castId<PresetId>("preset_bind") });
+    const impersonate = preview.templates.find((t) => t.id === "impersonate")?.resolved ?? "";
+
+    // REAL: the chat's persona is what `{{user}}` became — the editor could not have known this alone.
+    expect(impersonate).toContain("Write the owner's next message");
+    expect(impersonate).not.toContain("{{user}}");
+    // HONESTLY PARTIAL: both fire-time tokens are still tokens.
+    expect(impersonate).toContain("{{person}}");
+    expect(impersonate).toContain("{{input}}");
+    // The bindings the readout's gloss NAMES come off the same resolution, never re-derived client-side.
+    expect(preview.identity.user).toBe("Alex");
+
+    // EVERY registry row is answered — the readout's row selection is a client pick over one round trip.
+    expect(preview.templates.map((t) => t.id)).toEqual(TEMPLATE_DEFS.map((d) => d.id));
+
+    // A DRY RUN: nothing was written to the room.
+    expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(0);
+  });
+
+  test("previewActionTemplates is HOST-only — a rendered template carries full-fidelity card bytes (D22)", async () => {
+    const host = await seedUser(db, "bind_h2");
+    const member = await seedUser(db, "bind_m2");
+    const chatId = await seedRoom("bind2", host);
+    await seedParticipant(db, { chatId, key: "bind2_m", userId: member, role: "member" });
+
+    const { previewActionTemplates } = createRead(makeChatContext(db), makeDeps());
+    const presetId = castId<PresetId>("preset_bind2");
+    expect((await previewActionTemplates({ principal: principal(host), chatId, presetId })).templates.length).toBeGreaterThan(0);
+
+    const err = await previewActionTemplates({ principal: principal(member), chatId, presetId }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect((err as ChatOperationError).code).toBe("not_host");
   });
 
   test("previewSection renders a known section for the HOST; an unknown sectionId is NOT_FOUND", async () => {

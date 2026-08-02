@@ -118,6 +118,26 @@ test("the list is a FIXED ENUM — no toggle, no grip, no Add anywhere (§16 row
   await expect(probe.getByRole("button", { name: "Add" })).toHaveCount(0);
 });
 
+// ── §16 row 23 / §6.1: SELECT ≠ DRILL, the rack's grammar spoken here too ─────────────────────────────
+// The row body used to DRILL, which was defensible only while the readout had no echo half to select toward.
+// D8's resolved preview is that half, so the acts diverge: body = select (the readout resolves THAT template),
+// chevron = drill. The pin is the same one the rack row carries — a row click must NOT mount the editor.
+
+test("row click SELECTS and does not drill; the chevron is the only door into the editor", async ({ mount }) => {
+  const probe = await mount(<ActionsStory />);
+
+  await probe.getByRole("button", { name: "Impersonate", exact: true }).click();
+  // The editor did NOT open (the drill-in's back affordance is its unmistakable tell).
+  await expect(probe.getByRole("button", { name: "Back to actions" })).toHaveCount(0);
+  // …and the list is still standing, with the clicked row now carrying the selected state the readout echoes.
+  await expect(probe.getByRole("heading", { name: "Steers", exact: true })).toBeVisible();
+  await expect(probe.locator('[data-slot="list-row-root"][data-selected]')).toHaveCount(1);
+
+  // The chevron remains the drill — one act, one control.
+  await probe.getByRole("button", { name: "Edit Impersonate", exact: true }).click();
+  await expect(probe.getByRole("button", { name: "Back to actions" })).toBeVisible();
+});
+
 test("the drill-in is CAPABILITY-DRIVEN: a guided template gets role+depth, a nudge gets text only", async ({ mount }) => {
   const probe = await mount(<ActionsStory />);
 
