@@ -45,6 +45,7 @@ import type { ChatInjectionView, UserMacroPicksView, VariablePicksView } from ".
 import { requireHost, requireParticipant } from "../guard";
 import { loadChatInjections, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
+import { presentHumanUserIdsOf } from "../substrate/roster-humans";
 import { shadowPresetUserMacros } from "../substrate/user-macros";
 import { resolveChoiceVariables } from "../substrate/variables";
 
@@ -140,7 +141,9 @@ function createSetChatAnchorPersona(ctx: ChatContext, emit: EmitChatEvent): Chat
     await requireHost(ctx, principal, chatId);
     if (personaId !== null) {
       const roster = await loadRoster(ctx.db, chatId);
-      const presentHumanIds = [...new Set(roster.flatMap((r) => (r.kind === "human" && r.userId !== null ? [r.userId] : [])))];
+      // The SAME consent set the resolver gates its persona read on (`presentHumanUserIdsOf`) — one home, so
+      // a pin this verb permits is a pin the assemble can actually resolve.
+      const presentHumanIds = presentHumanUserIdsOf(roster);
       const ownership = await Promise.all(presentHumanIds.map((ownerId) => ctx.verifyPersonaOwned({ ownerId, personaId })));
       if (!ownership.some((owned) => owned)) {
         throw new ChatOperationError(CHAT_OP_CODES.notPersonaOwner, `chat ${chatId}: the anchor persona must be owned by a present human participant`);
