@@ -142,6 +142,10 @@ function CompareResult({
   );
 }
 
+/** The narrative, or the honest DEGRADED arm. `narrative.degraded` says the model's reply failed the payload
+ *  schema twice, so `summary` is its RAW text and overlap/distinction are empty — rendering that as a finished
+ *  narrative beside two blank sections is the lie the flag exists to stop. Degraded shows the raw reply
+ *  LABELLED, and drops the two empty headings entirely. */
 function DeepNarrative({
   isPending,
   error,
@@ -153,6 +157,7 @@ function DeepNarrative({
     readonly summary: string;
     readonly overlap: string;
     readonly distinction: string;
+    readonly degraded: boolean;
   } | null;
 }): ReactElement {
   if (isPending) {
@@ -163,6 +168,19 @@ function DeepNarrative({
   }
   if (narrative === null) {
     return <Text>No narrative available.</Text>;
+  }
+  if (narrative.degraded) {
+    return (
+      <Stack gap="field" data-testid={testId("corpusCompareDeepDegraded")}>
+        <Row align="center" gap="field">
+          <Badge intent="warning" size="sm">
+            Unstructured reply
+          </Badge>
+          <Text voice="gloss">The model didn't return a comparison in the expected shape — this is its raw answer.</Text>
+        </Row>
+        <Text>{narrative.summary}</Text>
+      </Stack>
+    );
   }
   return (
     <Stack gap="field">

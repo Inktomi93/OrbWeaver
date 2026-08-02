@@ -90,6 +90,9 @@ function mode(m: Map<string, number>): string | null {
 }
 
 function visualArchetypesForGroup(group: readonly AvatarVector[], labels: Map<CharacterId, VisualLabels>, k: number): VisualArchetype[] {
+  // A space below the k+1 floor yields NO archetypes (clustering n≤k vectors just renames each one a cluster).
+  // The caller returns [] for the whole read, which the UI must show as "not enough captioned avatars yet" —
+  // it is a coverage state, never a failure (mirrors `archetypes.archetypesForGroup`).
   if (group.length < k + 1) {
     return [];
   }

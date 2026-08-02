@@ -83,11 +83,12 @@ describe("compareCharactersDeep", () => {
     // The base diff is intact (same belt + diff as compareCharacters).
     expect(deep?.sameGenre).toBe(true);
     expect(deep?.sharedTags).toEqual(["dragons"]);
-    // The narrative parsed from the scripted reply.
+    // The narrative parsed from the scripted reply — and is NOT flagged degraded (it validated first try).
     expect(deep?.narrative).toEqual({
       summary: "Two fantasy leads.",
       overlap: "Both dragons.",
       distinction: "Curse vs heist.",
+      degraded: false,
     });
     // The summarize pass actually fired (one input for the one comparison).
     expect(summarize.calls).toHaveLength(1);
@@ -130,8 +131,10 @@ describe("compareCharactersDeep", () => {
     // The base diff is intact — the degrade never discards it.
     expect(deep?.sameGenre).toBe(true);
     expect(deep?.sharedTags).toEqual(["dragons"]);
-    // The narrative degraded to the raw reply (ungrounded), overlap/distinction blanked.
-    expect(deep?.narrative).toEqual({ summary: "totally free-text, no json here", overlap: "", distinction: "" });
+    // The narrative degraded to the raw reply, overlap/distinction blanked — and SAYS SO. Without the flag the
+    // client renders unparseable model output under "Deep compare" beside two empty section bodies, which is
+    // indistinguishable from a real narrative: the degrade has to travel as data or it is a lie by omission.
+    expect(deep?.narrative).toEqual({ summary: "totally free-text, no json here", overlap: "", distinction: "", degraded: true });
     // The bounded retry actually fired (first turn + one retry) before the degrade.
     expect(summarize.calls).toHaveLength(2);
   });
@@ -189,6 +192,7 @@ describe("askCard", () => {
     expect(ans?.question).toBe("What weapon?");
     expect(ans?.answer).toBe("They wield a moonblade.");
     expect(ans?.grounded).toBe(true);
+    expect(ans?.degraded).toBe(false);
     expect(ans?.sampledMessages).toBe(2);
     // The scenes reached the prompt (grounding), most-recent first.
     const prompt = summarize.calls[0]?.[0]?.userPrompt ?? "";
@@ -227,8 +231,11 @@ describe("askCard", () => {
     const ans = await svcFor(db, summarize).askCard(owner, hero, "What weapon?");
     expect(ans).not.toBeNull();
     expect(ans?.answer).toBe("I think they use a sword, probably.");
-    // The degrade marks it ungrounded — the caller can flag it as unsupported prose.
+    // `grounded` is the MODEL'S OWN claim (contract/results.ts). A parse failure produced no claim at all, so
+    // the degrade must be its own field — reading `grounded: false` here as "the model said it's speculative"
+    // is the conflation this flag exists to break.
     expect(ans?.grounded).toBe(false);
+    expect(ans?.degraded).toBe(true);
     expect(ans?.sampledMessages).toBe(1);
     // The bounded retry fired before the degrade.
     expect(summarize.calls).toHaveLength(2);

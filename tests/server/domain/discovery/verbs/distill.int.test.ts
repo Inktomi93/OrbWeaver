@@ -12,9 +12,10 @@
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import { characterSummaries, characterTags, tags as tagsTable } from "@orb/db";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { createDiscoveryService, DistillFailedError } from "@orb/server/domain/discovery";
 import { createTagService } from "@orb/server/domain/tag";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -357,6 +358,64 @@ describe("distillCharacters", () => {
     expect(stats).toMatchObject({ scanned: 3, distilled: 2, failed: 1 });
     const summaries = await db.select({ id: characterSummaries.characterId }).from(characterSummaries);
     expect(summaries.map((s) => s.id).sort()).toEqual([castId("character_alpha"), castId("character_gamma")]);
+  });
+
+  // ── the ON-DEMAND (single-card) arm: a failure is the CALLER'S failure, never a silent 200 ───────────
+  // The batch's per-card containment above is correct FOR THE BATCH (one bad card must not abort 500 others).
+  // On the `suggestCharacterTags` path the pass IS one card, so containing its failure hands the editor a
+  // success with `distilled: 0` that no client reads — the button just goes quiet. The narrow arm throws.
+
+  test("the on-demand single-card pass REJECTS when that card double-fails (no silent success for the editor)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const character = await seedCharacter(db, { id: "character_solo", ownerId: owner, name: "Solo", description: "Solo the smuggler." });
+    // The model ignores the schema on the batch call AND on the retry — the card produces nothing.
+    const probe = makeDistillProbe({ batchReply: () => SCHEMA_FAIL_REPLY, retry: () => Promise.resolve(SCHEMA_FAIL_REPLY) });
+    const svc = createDiscoveryService({ ...makeDiscoveryHarness(db).ctx, summarize: probe.op });
+
+    await expect(svc.distillCharacters({ characterId: character, ownerId: owner })).rejects.toBeInstanceOf(DistillFailedError);
+    // Nothing was written — the failure is total, not partial.
+    const summaries = await db.select({ id: characterSummaries.characterId }).from(characterSummaries);
+    expect(summaries).toHaveLength(0);
+  });
+
+  test("the on-demand pass on a FOREIGN / missing id refuses leak-free (NOT_FOUND), never a silent zero-count", async () => {
+    // Pre-fix BOTH returned `{scanned: 0, distilled: 0}` with a 200 — indistinguishable from "it worked". The
+    // refusal must be NOT_FOUND specifically: a stranger's rejection has to look identical to a plain miss, so
+    // no verdict about the card (that it exists, that its text is thin) may precede the ownership belt.
+    // `cross-tenant-sweep.suite.int.test.ts` is the whole-graph enforcement — it rejected a BAD_REQUEST-coded
+    // version of this refusal on 2026-08-03; this is the unit-level pin.
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const stranger = await seedUser(db, "user_b");
+    const theirCard = await seedCharacter(db, { id: "character_theirs", ownerId: owner, name: "Theirs", description: "A real card with real text." });
+    const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
+
+    const foreign: unknown = await svc.distillCharacters({ characterId: theirCard, ownerId: stranger }).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(foreign).toBeInstanceOf(DomainNotFoundError);
+
+    const missing: unknown = await svc.distillCharacters({ characterId: castId("character_gone"), ownerId: owner }).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(missing).toBeInstanceOf(DomainNotFoundError);
+  });
+
+  test("the whole-library BATCH still returns counts and never throws (the narrow arm must not creep here)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    await seedCharacter(db, { id: "character_alpha", ownerId: owner, name: "Alpha", description: "Alpha the aeronaut." });
+    await seedCharacter(db, { id: "character_beta", ownerId: owner, name: "Beta", description: "Beta the botanist." });
+    // EVERY card double-fails — the batch's per-card containment is the law here (a sweep reports, never aborts).
+    const probe = makeDistillProbe({ batchReply: () => SCHEMA_FAIL_REPLY, retry: () => Promise.resolve(SCHEMA_FAIL_REPLY) });
+    const svc = createDiscoveryService({ ...makeDiscoveryHarness(db).ctx, summarize: probe.op });
+
+    // Both batch shapes: the global sweep and the owner-narrowed (still multi-card) sweep.
+    await expect(svc.distillCharacters()).resolves.toMatchObject({ scanned: 2, distilled: 0, failed: 2 });
+    await expect(svc.distillCharacters({ ownerId: owner })).resolves.toMatchObject({ scanned: 2, distilled: 0, failed: 2 });
   });
 
   test("a correlated schema failure (every card fails the batch) retries at BOUNDED concurrency, not a fan-out", async () => {
