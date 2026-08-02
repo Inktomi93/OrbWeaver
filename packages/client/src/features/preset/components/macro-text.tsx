@@ -19,6 +19,15 @@
 // scripts/check/gates/macro-resolution-home.ts): this file chips a template AS a template and resolves
 // nothing.
 //
+// THE CHIP IS QUIET (crunch-list item 14, "THE BLUE PROBLEM"): `tone="soft"`, never the solid arm. A macro
+// reference is a NOUN INSIDE A SENTENCE, and the surface's job here is to show what the model receives — a
+// full-saturation `bg-info` lozenge every few words turns a paragraph into a field of blue and out-shouts
+// the wire text it annotates. The quiet arm is the mock's own `.tok` treatment (a ~15% info tint + the info
+// hue as TEXT — docs/design/mocks/preset-redesign/context-readouts.html:73), and it is the same 15%-tint +
+// hue-text grammar the rack's glyph discs already wear, so the surface speaks ONE muted-info dialect. The
+// PALETTE is untouched by design (owner ruling): `--color-info` stays blue; only the pill's weight moves.
+// Pinned by computed color in tests/client/features/preset/components/macro-text.ct.tsx.
+//
 // THE CHIP IS `size="inline"` (side-eye F-6): a run of prose is a LINE BOX, and an `inline-flex` chip with
 // vertical padding and its own line-height builds a 28px box inside a 20px line — every line carrying a
 // macro shoved its neighbours apart, and the chip's side padding detached the following punctuation
@@ -56,7 +65,7 @@ export function MacroText({ tokens, frame = "quoted" }: MacroTextProps): ReactEl
           token.kind === "macro" ? (
             // A text token stays a bare string child — strings in a `ReactNode[]` need no key, only
             // elements do. The key is index+value because the run is render-stable per template.
-            <Badge intent="info" key={`${String(i)}-${token.value}`} size="inline">
+            <Badge intent="info" key={`${String(i)}-${token.value}`} size="inline" tone="soft">
               {`{{${token.value}}}`}
             </Badge>
           ) : (

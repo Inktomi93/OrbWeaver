@@ -58,6 +58,15 @@ export const badgeVariants = tv({
     { intent: "warning", tone: "ghost", class: "text-warning border-warning/30" },
     { intent: "danger", tone: "ghost", class: "text-destructive border-destructive/30" },
     { intent: "info", tone: "ghost", class: "text-info border-info/30" },
+    // THE IN-FLOW ARM DRAWS NO BORDER BOX, in any tone. `soft`/`ghost` carry a hairline everywhere else,
+    // and everywhere else it is free — but an INLINE box's left/right borders are real horizontal ADVANCE,
+    // so a bordered chip re-opens the exact gap the `inline` size exists to close (side-eye F-6: the chip's
+    // side padding detached the following punctuation, `{{user}} 's voice`), and its top/bottom borders paint
+    // outside a line box they cannot grow. Declared LAST so tailwind-merge's border-width group resolves in
+    // its favour over the tone's `border`; the tone's `border-<intent>/30` is a different group and simply
+    // stops being painted. Pinned by computed border-width in
+    // tests/client/features/preset/components/macro-text.ct.tsx (the one in-flow consumer).
+    { size: "inline", class: "border-0" },
   ],
   defaultVariants: { intent: "neutral", tone: "solid", size: "sm" },
 });

@@ -50,10 +50,13 @@ const BALANCED = "Balanced";
 const DEEP = "Deep";
 const QUALITY_OFF_LABEL = "Don't use quality";
 const RESET_ITEM_RE = /Reset to starter/;
-// The G7 provenance chip, matched loosely so its ABSENCE can be asserted without naming a model.
+// The G7 provenance chip, matched loosely so its ABSENCE can be asserted without naming a model. The
+// grammar is the READOUT's (crunch-list O-2): "resolved for <model>", never the bare "for <model>" that
+// read as "this preset is FOR anthropic/…" — a claim about the preset instead of a statement about which
+// model the ghosted numbers were resolved against.
 /** The Actions cross-link's accessible name — its health arm prefixes the label, so match the tail. */
 const DELIVERS_VIA_RE = /Delivers via Guided instruction/;
-const FOR_MODEL_RE = /^for /;
+const FOR_MODEL_RE = /^resolved for /;
 
 /** The quality dial's trigger — its text IS the current arm (the fixture the dial edits, in one locator). */
 function qualityDial(root: Locator): Locator {
@@ -611,8 +614,10 @@ test("G7 the header names the model the effective column resolved AGAINST, and o
   });
   const component = await mount(<PresetEditorSurfaceStory />);
 
-  // The provenance of every ghosted number in the deck, stated where the preset is named.
-  await expect(component.getByText(`for ${EFFECTIVE_FLOOR.model}`, { exact: true })).toBeVisible();
+  // The provenance of every ghosted number in the deck, stated where the preset is named — in the ONE
+  // grammar the readout uses for the same fact (O-2), so the header echo cannot drift into a claim that
+  // the PRESET belongs to a model.
+  await expect(component.getByText(`resolved for ${EFFECTIVE_FLOOR.model}`, { exact: true })).toBeVisible();
 });
 
 test("G7 no resolvable model ⇒ NO provenance chip (never a guessed name)", async ({ mount, page }) => {
