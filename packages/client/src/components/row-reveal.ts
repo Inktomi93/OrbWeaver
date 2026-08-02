@@ -18,7 +18,16 @@ export const ROW_REVEAL =
 
 /** ROW_REVEAL's other half — for the rest-visible MARKER whose datum the revealed control also carries (a
  *  starred row's title-line ★ and the star toggle in the floated cluster are one concept). The marker shows
- *  exactly when the cluster is hidden and hides exactly when it reveals, so the row never paints the same
+ *  exactly when the cluster is hidden and yields exactly when it reveals, so the row never paints the same
  *  state twice. Keyed on `group/row` (the `@orb/ui` ListRow root) rather than the consumer's bare `group`,
- *  because a marker on the title line sits INSIDE the row body, which is its own unnamed group. */
-export const ROW_REVEAL_SWAP = "group-hover/row:hidden group-focus-within/row:hidden pointer-coarse:hidden";
+ *  because a marker on the title line sits INSIDE the row body, which is its own unnamed group.
+ *
+ *  LAYOUT STABILITY IS THE LAW HERE — the hover arms are `invisible` (visibility, which RESERVES the box),
+ *  never `hidden` (display, which removes it). A display-swap keyed on hover is a hit-test OSCILLATOR: the
+ *  marker leaves layout, the title line reflows, a span/flex boundary slides across the stationary pointer,
+ *  hover recomputes, the marker returns, and the row flips at frame rate. MEASURED on the preset list
+ *  (2026-08-02, real mouse): ~1,727 pointerover/out pairs, ~85 crossings/sec, with ZERO DOM mutations — pure
+ *  CSS, no React involved, and invisible to every CT (a synthetic pointer does not re-hit-test on layout
+ *  shift). `pointer-coarse:hidden` stays `display` on purpose: a media state is not hover-variable, so it
+ *  cannot oscillate, and at coarse the always-visible cluster means the marker's box would be dead air. */
+export const ROW_REVEAL_SWAP = "group-hover/row:invisible group-focus-within/row:invisible pointer-coarse:hidden";
