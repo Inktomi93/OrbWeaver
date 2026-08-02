@@ -150,8 +150,32 @@ plugin_kv ([pluginId,key] — NO owner) · stats apply-delta ×4 · settings/the
 automation (owner-targeted, likely fine); needs UNIQUE-index derivation × target list.
 **Lane DANGLE also dispatched** (TRUTH's ruled gate arms: backticked-PATH + backticked-SYMBOL
 existence, dangling-refs family, both-ways).
-**LIVE NOW (5): REGEX · F14 · PERSONA-STICKLER (persona×rpg + history design pass, resumed
-w/ full corpus context — owner's 4 questions) · UPSERT · DANGLE.**
+**LIVE NOW (5): REGEX · F14 · UPSERT · DANGLE (+ MONO's zombie instance TaskStopped after
+merge — owner spotted it lingering).**
+**✅ PERSONA×RPG STICKLER DELIVERED + 3 RULINGS (owner, 08-03; report committed `1ed993c7`:
+docs/reviews/stickler/2026-08-03-persona-rpg-and-history.md):** Q1 rpg = COHERENT-AS-IS
+(receipted — actor keys persona-stable, every read live-resolves; Ashen Spire root cause =
+frozen prose from a persona-less generation stack, NOT resolution) · Q4 stored history =
+RIGHT (names never freeze into rows; ids+stamps, live derive; freezes = assistant prose,
+digests-by-design, export header only). RULED: **(1) REGENERATE the six demo transcripts**
+on a persona'd stack (re-generate-never-edit law) → Lane TRANSCRIPTS queued for a QUIET
+stack slot (needs live engines + the post-REGEX reseed; after the baseline-drop reboot).
+**(2) Mid-session persona-change linkage STAYS PARKED — owner's own reasoning, RECORD IT
+(the standing constraint for whenever this unparks):** "if you form relations with NPCs with
+persona A and then swap to persona B, all those keyed things will now point to persona B even
+though they haven't done anything — the same debacle as persona pin and why we made it."
+A swap must NOT silently transfer NPC-keyed relations/state built under the previous persona;
+recast-is-story is NOT ratified as the full answer. **(3) RESYNC = the two thin affordances**
+(bulk arm on reattributePersona {mine:true, fromSeq?} killing the client 100-row window hack ·
+opt-in restamp checkbox on the host resyncFromStory dialog, restamp-then-rebuild; never-touch
+list stands: content D26, snapshots, digests D55, exports) → Lane RESYNC queued next drain.
+**REGEX mid-state:** R1-R6 BUILT + suites green (133 files +3200/−865; regex portable kind at
+PORTABLE_IMPORT_ORDER[5] pre-character; scope-key ORDER pin new; carriers dead; raw columns
+dead; ONE baseline regen — dev db drops next boot, BACKREST-MANUAL for owner scripts);
+CONTINUING WARM to close its enumerated 52-item tail (owed domain test mirrors + behavioral
+bundle round-trip + RECEIVE/WI ORDER pins). **OPEN OWNER FORK: DISPLAY-tier sourcing** —
+viewer-only (implemented, law-literal: a host can't rewrite what others SEE) vs ST-parity
+(room carriers' DISPLAY scripts render for every viewer + viewer's on top) — posed.
 **LIVE NOW (5): REGEX · MONO (monotonic-tests manifest regen + fail-loud
 readManifest + two-sided arms) · WRITES (PRIN's write-half: the owner-scoped predicate over
 update/delete, 30 sites classified w/ markers, world_books rows coordinate w/ REGEX) · POLISH
