@@ -47,6 +47,76 @@ Enforcement: the `own-tables-only` gate makes the ownership half structural — 
 - **TypeID brands → `kit`**; the brand is type-only (SQL stays `TEXT`), so adding/removing a brand is never a migration.
 - **Wire schemas / domain params never live here.** Gates: `types-in-contract`, `no-inline-types`, `schema-branding`, dep-cruiser `db-cake`.
 
+## The migration lifecycle — today's squash, and "when we migrate for real"
+
+There are exactly TWO regimes, separated by launch day. Both are written here NOW so the first
+incremental migration lands into a documented procedure instead of minting one under pressure.
+
+### Regime 1 — PRE-LAUNCH (today): one squashed baseline, regenerated
+
+A schema change is a SOURCE edit plus a REGENERATED baseline. There is no `0001`. The whole procedure:
+
+1. Edit `schema/<feature>.ts`.
+2. Regenerate over a CLEARED migrations dir — `rm -rf packages/db/src/migrations` then
+   `pnpm --filter @orb/db exec drizzle-kit generate --name baseline --config=drizzle.config.ts`. The
+   `--name baseline` is not cosmetic: the journal's single entry must stay `{ idx: 0, tag: "0000_baseline" }`.
+3. `biome format --write` the two `migrations/meta` files (drizzle emits unformatted JSON; `lint:biome`
+   reds otherwise). Scope the `--write` to those files — never a repo-wide fix-all.
+4. Verify with the two stages, not by eye: `pnpm check:db-baseline` (schema ≡ baseline) and
+   `pnpm check:drizzle-kit` (the journal/snapshot chain).
+
+**The dev-db consequence is automatic and lossy by design.** `entry/boot/migrate.ts` hashes the shipped
+baseline against what the dev db recorded; a mismatch takes a backup, DROPS the database, and re-migrates
+from the fresh baseline (logged `BASELINE REGENERATED … RESETTING`). So a regen means: the next stack boot
+re-mints the dev db and every seeded row is gone. That is the pre-launch bargain — no migration debt in
+exchange for a disposable dev db.
+
+Enforcement of the regime itself: the `baseline-single-migration` gate (exactly one `.sql`, exactly one
+journal entry) and its runtime twin `LAUNCHED` in `entry/boot/migrate.ts`.
+
+### Regime 2 — POST-LAUNCH: forward-only incremental migrations
+
+The instant a database exists that we cannot drop, the squash policy INVERTS: regenerating the baseline
+would mean destroying live data, so the baseline freezes and every change ships as a forward `000N`.
+
+**Launch day is a two-switch flip, both in the same commit:** `LAUNCHED = true` in
+`scripts/check/gates/baseline-single-migration.ts` (the gate stops demanding a single baseline) AND
+`LAUNCHED` in `packages/server/src/entry/boot/migrate.ts` (baseline drift becomes boot-FATAL instead of an
+auto-wipe). Flipping one without the other is the worst state: either the gate refuses every new migration,
+or a launched db silently auto-wipes.
+
+The per-change procedure after that:
+
+1. Edit `schema/<feature>.ts`.
+2. `pnpm --filter @orb/db exec drizzle-kit generate --name <what-changed> --config=drizzle.config.ts` —
+   NO clearing. drizzle diffs the previous `meta/<n>_snapshot.json` against the live schema and emits
+   `000N_<name>.sql` + `meta/000N_snapshot.json` + a new journal entry. The snapshot chain IS the history;
+   `meta/` is committed, never gitignored, never hand-edited.
+3. READ the emitted SQL before committing. SQLite cannot `ALTER TABLE … DROP CONSTRAINT` or change a
+   column type, so drizzle emits its 12-step table rebuild (create `__new_x` → copy → drop → rename) for
+   those. That rebuild is why `runMigrations` turns `foreign_keys=OFF` on the connection (§Esoteric #5) and
+   why `assertReferentialIntegrity` runs after — a rebuild that drops a parent with FKs ON would
+   cascade-delete children. A hand-written data backfill goes in the SAME `.sql` file, after the DDL.
+4. Never EDIT or DELETE an applied migration: drizzle records applied tags in `__drizzle_migrations`, so a
+   rewritten `.sql` is simply never re-run on an existing db and silently diverges from a fresh one. A
+   mistake in an applied migration is fixed by a NEW forward migration.
+5. Verify with all three, in this order:
+   - `pnpm check:drizzle-kit` — the chain: every journal entry has its snapshot and no two snapshots claim
+     the same parent. This is the ONE that catches the concurrent-generation FORK (two branches each
+     generating `0003` off `0002`) — the failure mode that goes from impossible to routine the moment the
+     chain grows past one entry, and precisely why the stage is wired now.
+   - `pnpm check:db-baseline` — schema ≡ the CUMULATIVE migrations. It compares the live schema to
+     `0000_baseline.sql` alone, so **it must be re-pointed at the applied chain when regime 2 begins**
+     (`scripts/verify/db-baseline-parity.ts` — generate from the last snapshot instead of from `{}`); until
+     then it would red on every legitimate incremental. Left in place for regime 1's benefit; this line is
+     the reminder that it is regime-1-shaped.
+   - the boot path against a COPY of a real db — `assertReferentialIntegrity` after the run is the belt
+     that a 12-step rebuild did not orphan rows.
+
+The two stages guard orthogonal halves and neither sees the other's failure: `structure:db-baseline` is
+CONTENT parity (did you forget to regenerate?), `structure:drizzle-kit` is CHAIN integrity (did two people
+generate against the same parent?).
+
 ## Esoteric / load-bearing
 
 1. **The F32\_BLOB exact-scan note (ANN dropped).** No DiskANN/ANN shadow index exists. At corpus scale a full `ORDER BY vector_distance_cos(...) LIMIT k` is sub-millisecond and EXACT — the index was \~50× data bloat for nothing. Consequences: `vector32` stores the raw blob (sidestepping drizzle insert caveat #3899; the query vector is wrapped `vector32(?)` in search SQL), and `clearVectorTable` (domain/embeddings) is a plain `DELETE FROM` — safe precisely because there is no shadow graph to poison. Re-introducing ANN breaks both silently. (Carried in `custom-types/index.ts`.)
@@ -67,7 +137,7 @@ Enforcement: the `own-tables-only` gate makes the ownership half structural — 
    replacement differs per pragma and was measured, not assumed: `journal_mode=WAL` survives (it is
    persisted in the db FILE, not the connection), `foreign_keys=ON` survives (libsql's native default —
    proven by an FK-rejection probe on the replacement connection), and `busy_timeout` did NOT (it read back
-   0) until the `Config.timeout` belt landed in `createClient`. The full which-mechanism-guards-which-
+   0\) until the `Config.timeout` belt landed in `createClient`. The full which-mechanism-guards-which-
    connection answer is carried at `packages/db/src/client/index.ts` (the `TUNING_PRAGMAS` block) — read it
    there before adding a seventh pragma, because a new one is guarded by NOTHING on a replacement
    connection unless it is either file-persisted, a libsql native default, or passed through the client
@@ -81,5 +151,7 @@ Enforcement: the `own-tables-only` gate makes the ownership half structural — 
 2. **Producer names the schema file; the barrel re-exports every file.** *(`db-structure` gate.)*
 3. **The DB row is the one home for column shapes; no wire schema in `db`.** *(`types-in-contract` / `no-inline-types`; `schema-branding` pins the `$type<>` brands.)*
 4. **All five primary vector tables (character\_embeddings · image\_embeddings · chat\_digests · chat\_segments · document\_chunks, the last producer FK `documents.id`, owner derives via `documents.ownerId`) carry `content_hash` (staleness gate, NOT NULL) and `hub_score` (advisory `real`, written only by discovery via `embeddings.writeHubScores`, never nulled by a vector write).** *(compile-time DDL; `StoreParams` has no `hubScore`/`ownerId` field — D20.)*
-5. **`@orb/db/kit` holds only drizzle-typed primitives** — they would fail `kit-purity` in `@orb/kit`. *(lint + resolve-time.)* `@orb/db/kit` is also their documented IMPORT PATH: the top barrel re-exports them for the single-import case, but a consumer names `@orb/db/kit`.
-6. **A domain touches only the tables it OWNS; cross-domain data comes from an injected op, and a cross-domain READ lives in `persistence/`.** *(`own-tables-only` gate outside `persistence/`, with the derived schema→domain ownership map; `no-direct-users-read` + `discovery-no-stats-rollups` for the two narrower table seals.)*
+5. **`@orb/db/kit` holds only drizzle-typed primitives** — they would fail `kit-purity` in `@orb/kit`. *(lint + resolve-time.)* `@orb/db/kit` is their ONLY import path: the top barrel deliberately does NOT re-export `./kit` (2026-08-02 — while it did, half the tree reached `batchMany`/`fetchOwned`/`isConstraintViolation` through `@orb/db`, which reads as "a table-ish thing from the schema barrel" and blurs the very line invariant 6 draws). *(resolve-time: the wrong path no longer compiles.)*
+6. **A domain touches only the tables it OWNS; cross-domain data comes from an injected op, and a cross-domain READ lives in `persistence/`.** *(`own-tables-only` gate outside `persistence/`, with the derived schema→domain ownership map; `no-direct-users-read` + `discovery-no-stats-rollups` for the two narrower table seals.)* The WRITE half has no gate arm inside `persistence/` (that slot is scoped out), so it is carried by the convention: a cross-domain write is the OWNING domain's persistence factory, injected as an op — `character/persistence/avatar-link-write.ts`'s `createLinkCharacterAvatars` (consumed by `assets.backfillAvatars` as `AssetsContext.linkCharacterAvatars`) and `persona/persistence/import-write.ts`'s `createBulkImportPersonas` (consumed by `import`) are the two worked examples.
+7. **Every `.references()` column LEADS an index, and every `.references()` states its `onDelete`.** SQLite auto-indexes only the PARENT side of an FK and defaults the child action to `NO ACTION` — both silences cost real behavior (a full child-table scan per parent delete; a delete that fails at commit for reasons nobody chose). *(`fk-columns-indexed` + `fk-ondelete-stated` gates; plain B-tree only — an ANN shadow index is rejected, §Esoteric #1.)*
+8. **Every table declares a primary key** — inline `.primaryKey()` or composite `primaryKey({ columns })`; the hidden `rowid` is unstable across VACUUM, invisible to `$inferSelect`, and unreferenceable, so a keyless table can never be an FK parent nor part of the inherited-ownership chain. *(`table-explicit-primary-key` gate.)*

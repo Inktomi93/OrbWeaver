@@ -237,8 +237,7 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   it (latest: the `schema_version` DEFAULT 5→6 drift). The comparison is in-process via `drizzle-kit/api`
   (\~1s, no stack, no db file) — it was wired too LATE, not too heavy — and it is the SAME comparator
   `tests/tooling/schema-baseline-parity.int.test.ts` calls (one home, two callers).
-- **`structure:drizzle-kit`** (`static`/`push`/`full` — `pnpm --filter @orb/db exec drizzle-kit check
-  --config=drizzle.config.ts`) — drizzle-kit's OWN migration-chain validator, the ORTHOGONAL half of its
+- **`structure:drizzle-kit`** (`static`/`push`/`full` — `pnpm --filter @orb/db exec drizzle-kit check --config=drizzle.config.ts`) — drizzle-kit's OWN migration-chain validator, the ORTHOGONAL half of its
   sibling above: `structure:db-baseline` compares the schema to the baseline's CONTENT, this one validates
   the `migrations/meta` CHAIN (every `_journal.json` entry has its snapshot; no two snapshots claim the
   same parent — the forked-chain collision two concurrently-generated migrations produce, probe-verified
