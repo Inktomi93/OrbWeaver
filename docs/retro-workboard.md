@@ -114,8 +114,21 @@ must FOLLOW a per-element Release UI — flagged, not skipped) · e2e dismissAct
 (knip-red, unverifiable from lane). DEFERRED→R2: panel dismiss affordance (Known-characters
 disclosure is its home) · member-own-volatile doorway noted in patch-actor.ts header · @live
 rpg-lite-loop pass owed next stack window (SPEC 1 now drives patchActor). Lesson banked:
-[[op-shaped-hand-door-write-seam]]. **R2+R3 LANE DISPATCHED** (NPC becomes actor + presence
-plane + hp demotion + GM→HOST sweep; stickler pass before merge). ·
+[[op-shaped-hand-door-write-seam]]. **R2+R3 REPORTED — STICKLER PRE-MERGE PASS IN FLIGHT (merge waits on its verdict).** Lane
+branch `wt/agent-ab0c8130e32fd8c95` (2 commits, tree clean): NPC IS an actor (identity on the
+actor row, slug keys, emptyActorEntry births cast identity); presence = plane; cast* projections
+DEAD (one actorCarrier derivation both consumers); hp DEMOTED (§6 all 8 sites ✓; seed by
+ATTRIBUTE VOCABULARY not profile name — special seeds hp too, RPG_SEED_HP_MAX=20); 2 NEW op
+arms setIdentityText/setRelationship; lock paths grew volatile/identity segments; GM→HOST copy
+done (gmPresetId/gmUserId wire fields deliberately kept); Status excludes cast (one edit home);
+partyTotals excludes cast; Known-characters disclosure rendered+screenshotted. 710 rpg battery +
+73 CT + sweep + gates green in-lane. **⚠ ANNOUNCE: dev db WIPE required on next boot (blobs are
+old shape, parseSnapshotRow throws) — but NO baseline squash (JSON text columns, zero DDL; spec
+conflated the two).** Lane CONTRADICTS the program report ×3 (no hp bar/orb existed; no DDL;
+presentCharacters.characterId written by NOTHING → deleted RelationshipBadge rendered for
+nobody) — stickler charged to verify all three + the raw-castKey sibling-mint hole (normalization
+seam ruling owed). Deferred: side-eye lens on the new disclosure (mood wrap nit at 320px,
+pre-existing CastCard behavior) · @live rpg-lite-loop run. ·
 ~~V2~~ **MERGED (`c4112f85`, hooked 12/12; merge-side knip cleanup [dead zone-summary-strip +
 2 de-exports] + density-baseline shrink 326→321).** P3 + Actions LANDED: rack select≠drill
 (name=select/echo, chevron=drill; pivot's enable Switch DELETED; Add auto-drills; carriers ~—) ·
@@ -127,9 +140,33 @@ DERIVED from TEMPLATE_DEFS (G5 responseNudge + G9 newChatMarker got editors with
 them; caps → exhaustive Record dispatch) · RENDERING CAUGHT A CONTRACT BUG gates couldn't: drill-in
 offered inject/trigger on plain markers (invalid section on write) — supportsArrangement() derives
 from the schema branch, fields ABSENT not disabled (`628a3666`). 51 preset CT + 128 unit/contract.
-**V2 DEFERRED → P4 LANE DISPATCHED** (LIST projection: RowToggleAction activate + Select death +
-kebab Export G6 + header chip G7 — §14 says independent) · D8 binding + Actions resolved preview
-stay post-P5 per §7.1 sequencing. CT lessons banked (hub #24). · ~~smalls#2~~ **MERGED (`165cd85e`,
+~~P4~~ **MERGED (`30022a1f` tail, hooked 12/12; worktree down):** inline ACTIVATE toggle radio
+semantics, ALL THREE paths one setDefault writer; pane Select DEAD same-commit; G6 doors (export
+= buildPresetFile bytes-asserted CT, hidden on built-in; orb import = the ONE dialog, schemaKind
+sniffed, merge semantic stated, server rejection keeps dialog open); G7 header truth chips.
+67 preset CT + 217 unit. RECEIPTED DEVIATION (correct, sanctioned in RowToggleAction's header):
+§9's "amber always-visible" toggle is UNCLICKABLE under actionsFloat (pointer-events-none at
+rest, overlaps title) — state rides a title-line "Active" Badge + ROW_REVEAL_SWAP, toggle
+rest="never" (D11 chats-row arm; the INVARIANT holds). FLAGS: preset.importFile sweep row is
+EXEMPT "self-scoped" not PROBED (correct on evidence — no id to aim; spec/tree divergence noted)
+· PresetImportOutcome flat bag doesn't narrow ok:false→error (bundle-path shape, future
+single-arm-union pass) · LibraryRow grew generic stateToggle/menuItemsBefore/After slots.
+Lessons banked (hub #25). ~~SIDE-EYE~~ **DELIVERED — verdict DO NOT SHIP** (report + orchestrator rulings persisted:
+docs/reviews/side-eye/2026-08-02-preset-program.md; owner's mock-vs-rendered axis included).
+34 findings: P0 F-01 three Actions rows render NO name · P1 band incl. custom-badge lies on the
+BUILT-IN (defaults materialized as values — the F2 defect reborn), capability ERROR rendered as
+"connect a model", ghost slider paints a FULLER bar than explicit (both fills ruled DEAD — mock
+draws all sliders neutral), rack ON/OFF indistinguishable (ON is DARKER), color-only activation,
+no-selection readout contradicts the list, import dialog states no merge semantic, focus dumped
+to body on drill. Mock-vs-rendered: 13 RENDERED-WRONG (incl. GREEN budget bars, glyph-disc
+noise, chunky QUALITY strip) · 2 MOCK-STALE sanctioned (P4 badge arm, pivot switch) · 2 JUDGMENT
+RULED (subtitle inline per mock; carrier depth = mock-stale per 628a3666). Rider verdicts:
+amber badge = second CTA (soft + shape fix); KnobRow ember DIES. WORKING (don't touch): rack
+keyboard model, carrier attribution, freshness fans FIRE live, motion clean. STACK NOTE:
+side-eye found+cleared a stale-vite ghost on :5173 (restart). **FIX-ALL LANE DISPATCHED**
+(GhostValue unification first — closes F-03/05/09 + badge lie in one motion; all 34 + 10 ARIA
+recs accounted). D8 binding + Actions
+resolved preview stay post-P5 per §7.1 sequencing. · ~~smalls#2~~ **MERGED (`165cd85e`,
 HOOKED — the 12/12 check on this merge CERTIFIED the whole unhooked pile incl. mirror-pin; batch
 debt CLEARED).** All six landed: Jobs = the one user noun (pane copy swept, filtered-tab CTAs
 dropped, 44 CT green) · `rpg.toolround.usage` economics record (§10.1a true, 42 int green) ·
