@@ -23,6 +23,12 @@ export interface MarkerCopy {
    *  information. The mock draws a distinct glyph per slot, and the glyph is the only thing that lets the
    *  eye find "the character card's description" without reading. */
   readonly glyph: LucideIcon;
+  /** A FIXED-BY-PRODUCT firing cue for the rack row (crunch item 16 / the mock's `⚡ steered turns`). Not
+   *  the section's editable `trigger` list — this is a fact about the MARKER that no preset can change, so
+   *  it belongs to the registry rather than to a stored field. Absent for every marker that fires on every
+   *  generation (almost all of them); a marker with BOTH renders its own trigger list, since that is the
+   *  half the user chose. */
+  readonly firesCue?: string;
 }
 
 /** The plain-language copy for every marker slot. Exhaustive over `MarkerType` by construction. */
@@ -86,6 +92,10 @@ export const MARKER_COPY: Record<MarkerType, MarkerCopy> = {
     oneLiner: "The wrapper that lands when you steer a generation (see Guided actions).",
     subtitle: "your steer, wrapped",
     glyph: Zap,
+    // The assembler renders this slot ONLY when a guided steer resolved (`assemble.ts` →
+    // `serverMarkerValue`'s `ctx.guidedInstruction`), so on an ordinary turn the row costs nothing and
+    // contributes nothing. That is the one row where "always on" would misread, hence the cue.
+    firesCue: "steered turns",
   },
   ["chat_history"]: {
     label: "Chat history",

@@ -2,6 +2,13 @@
 // body. ONE scrolling instrument column of kicker-separated clusters (QUALITY · SAMPLING · REASONING ·
 // OUTPUT · CONTEXT · ADVANCED), replacing the four leaf tabs the Generation group used to hold.
 //
+// ONE TYPE SCALE, ONE CONTROL GRAMMAR (crunch-list 4/9/21, owner rulings 2026-08-02). The deck speaks four
+// voices and no fifth: `kicker` (cluster names) · `label` (knob names, incl. every Field label) · the
+// control's own value step · `gloss` (every helper line). Explanatory prose rides the hover hint, never a
+// Field `description` — that slot renders a second, louder helper step. Controls: amber-ON switches and
+// amber-fill explicit sliders (the app's one control color grammar), and numbers print RAW (KnobRow's
+// `KNOB_NUMBER_FORMAT`), never locale-grouped.
+//
 // Still descriptor-driven: every sampling knob, effort level and verbosity level comes from
 // `ModelCapability` via capability-panel-model.ts — never a hardcoded knob stack or a model-name match, and
 // an unlisted knob is ABSENT, never a disabled slider. What CHANGED is the row grammar: the override
@@ -25,14 +32,20 @@ import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
-import { Toggle } from "@orb/ui/toggle";
-import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { AppFormInstance } from "#forms";
-import { pageStep, QUALITY_OPTIONS, reasoningControlFor, samplingKnobsFor, supportsSeed } from "../lib/capability-panel-model";
+import {
+  pageStep,
+  QUALITY_SELECT_ITEMS,
+  qualityFromSelect,
+  qualitySelectValue,
+  reasoningControlFor,
+  samplingKnobsFor,
+  supportsSeed,
+} from "../lib/capability-panel-model";
 import type { EffectiveProfileRow } from "../lib/effective-knobs";
-import { qualityMappingGloss, qualityOverrideGloss } from "../lib/effective-knobs";
+import { qualityDeckGloss } from "../lib/effective-knobs";
 import { THINKING_DISPLAY_ITEMS, thinkingDisplayLabel } from "../lib/preset-nav";
 import { CapabilityGate } from "./capability-gate";
 import { KnobRow } from "./knob-row";
@@ -101,42 +114,46 @@ export function ParamsDeck({ form, capability, effective, customParameterKeys, c
   );
 }
 
-/** QUALITY (§4 cluster 1) — the dial as ONE segmented row plus the SERVER-RESOLVED mapping gloss. */
+/** QUALITY (§4 cluster 1) — the dial as ONE dropdown row plus the SERVER-RESOLVED mapping gloss.
+ *
+ *  THE STRIP IS DEAD (owner ruling O-18). The segmented `ToggleGroup` was three 15px cells that nothing
+ *  else on the deck spoke — two of its own type tuples in the Params typography census — and it had no
+ *  honest OFF affordance: "no dial" was reachable only by clicking the selected cell again. It is now the
+ *  same `Field` + `Select` grammar as Effort / Reasoning display / Verbosity (which is also what "the strip
+ *  is on the wrong side" resolves to: the control docks in the row's control column like every other one),
+ *  with "Don't use quality" as a first-class option. That arm STORES AS THE ABSENCE of `params.quality` —
+ *  see `qualitySelectValue`'s header; it is a named arm, not a fourth enum member. */
 function QualityCluster({ form, effective }: { readonly form: AppForm; readonly effective: EffectiveProfileRow | undefined }): ReactElement {
   return (
-    <Section kicker="Quality" hint="The primary dial. It fills any knob you leave inherited below; anything you set explicitly wins over it.">
-      <form.AppField name="params.quality">
-        {(field): ReactElement => {
-          const current = field.state.value as Quality | undefined;
-          // TWO LINES, TWO JOBS (side-eye F-15): the MAPPING is the datum ("deep → effort high · temp
-          // 1.0", the server's own projection of the dial table); the OVERRIDE note is status. Fusing them
-          // is what made a fully-overridden dial print "everything is overridden" where the mock asks for
-          // the mapping.
-          const mapping = qualityMappingGloss(effective, current);
-          const override = qualityOverrideGloss(effective);
-          return (
-            <Stack gap="tight">
-              {/* RADIO, not a pressed-toggle group (ARIA rec 7): the dial is ONE-OF-N, and `aria-pressed`
-                  on three buttons announces three independent toggles. The ARIA shape lives in the seal
-                  (`Toggle`/`ToggleGroup` semantics), never hand-stamped here. */}
-              <ToggleGroup
-                aria-label="Quality"
-                onValueChange={(next): void => field.handleChange(next[0] as Quality | undefined)}
-                semantics="radio"
-                value={current === undefined ? [] : [current]}
-              >
-                {QUALITY_OPTIONS.map((option) => (
-                  <Toggle checked={current === option.value} key={option.value} semantics="radio" value={option.value}>
-                    {option.label}
-                  </Toggle>
-                ))}
-              </ToggleGroup>
-              {mapping === null ? null : <Text voice="gloss">{mapping}</Text>}
-              {override === null ? null : <Text voice="gloss">{override}</Text>}
-            </Stack>
-          );
-        }}
-      </form.AppField>
+    <Section kicker="Quality">
+      <FieldLayout orientation="horizontal">
+        <form.AppField name="params.quality">
+          {(field): ReactElement => {
+            const current = field.state.value as Quality | undefined;
+            // ONE LINE (crunch-list 5): the MAPPING datum ("deep → effort high · temperature 1", the
+            // server's own projection of the dial table) joined with the OVERRIDE status, exactly as the
+            // mock draws it. Both halves stay separate derivations in `effective-knobs.ts`.
+            const gloss = qualityDeckGloss(effective, current);
+            return (
+              <Stack gap="tight">
+                <Field
+                  hint="The primary dial. It fills any knob you leave inherited below; anything you set explicitly wins over it."
+                  label="Quality"
+                  name={field.name}
+                >
+                  <Select
+                    aria-label="Quality"
+                    items={QUALITY_SELECT_ITEMS}
+                    onValueChange={(next): void => field.handleChange(qualityFromSelect(next))}
+                    value={qualitySelectValue(current)}
+                  />
+                </Field>
+                {gloss === null ? null : <Text voice="gloss">{gloss}</Text>}
+              </Stack>
+            );
+          }}
+        </form.AppField>
+      </FieldLayout>
     </Section>
   );
 }

@@ -50,10 +50,14 @@ export function SectionContextHost({ definition }: SectionContextHostProps): Rea
 }
 
 /** The CONTEXT-panel BAND identity (north-star §4 N4 / P4) — rendered as the context `PanelChrome`'s
- *  header. Only a `tabs` context supplies a definition-owned `header`; `none`/`single` and an unselected
+ *  header. A `tabs` context supplies it through `defineContextTabs`; a `single` context may supply it
+ *  directly (the same slot, no resolve step to run). `none`, a header-less `single`, and an unselected
  *  `tabs` context fall back to the neutral "Details" label. */
 export function SectionContextHeader({ definition }: SectionContextHostProps): ReactNode {
   const { context } = definition;
+  if (context.kind === "single") {
+    return context.header === undefined ? CONTEXT_HEADER_DEFAULT : context.header();
+  }
   if (context.kind !== "tabs") {
     return CONTEXT_HEADER_DEFAULT;
   }

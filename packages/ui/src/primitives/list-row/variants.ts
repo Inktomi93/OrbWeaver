@@ -127,6 +127,32 @@ export const listRowVariants = tv({
       },
       false: {},
     },
+    // WHICH box wears the row's hover/selected tint. `body` (the default) is right whenever the trailing
+    // cluster is floated INTO the body's box or absent — the tint spans everything the eye reads as the row.
+    // `row` moves it to the ROOT, for a row that RESERVES an in-flow trailing strip: the strip is a sibling
+    // OUTSIDE the body, so a body-painted tint stops short of it and the highlight reads as a truncated
+    // band with the controls stranded on the pane background. Painting the root is what lets the glyphs ride
+    // the row's own tint instead of the cluster minting a second, darker panel of its own — the box-in-box
+    // double highlight (preset crunch-list item 18). The body's own tint is neutralized in this arm (both
+    // are `hover:bg-*` utilities, so tailwind-merge resolves them; two painted boxes would double the alpha).
+    rowTint: {
+      body: {},
+      row: {
+        root: [
+          "rounded-control border-l-2 border-l-transparent pe-row",
+          "transition-colors duration-(--motion-fast) ease-out-expo",
+          "data-selected:border-l-primary data-selected:bg-primary/10",
+        ],
+        body: "rounded-none border-l-0 hover:bg-transparent active:bg-transparent data-selected:bg-transparent data-selected:border-l-transparent",
+      },
+    },
   },
-  defaultVariants: { density: "default", clickable: false, float: false, subtitleWrap: false, subtitlePlacement: "block" },
+  compoundVariants: [
+    {
+      clickable: true,
+      rowTint: "row",
+      class: { root: "cursor-pointer hover:bg-accent active:bg-accent/80" },
+    },
+  ],
+  defaultVariants: { density: "default", clickable: false, float: false, subtitleWrap: false, subtitlePlacement: "block", rowTint: "body" },
 });

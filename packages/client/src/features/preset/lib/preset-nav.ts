@@ -15,6 +15,21 @@
 import type { CompactionMode, ContinuePostfix, NamesBehavior, ThinkingDisplay } from "@orb/contracts/preset";
 import { COMPACTION_MODES, CONTINUE_POSTFIX_TYPES, NAMES_BEHAVIOR, THINKING_DISPLAYS } from "@orb/contracts/preset";
 import type { SelectItems } from "@orb/ui/select";
+import { selectPresetSection, setPresetEditorView } from "#state";
+
+/** THE CROSS-VIEW SECTION DOOR (crunch-list O-13). A rack section is only reachable in the PROMPT view, so
+ *  every "go to that section" affordance elsewhere on the surface — the Actions header's Guided-instruction
+ *  cross-link, the Actions readout's marker name — has to do BOTH halves: switch the view AND write the
+ *  selection. Selecting alone is what made the Actions button read as dead (the row it selected was in a
+ *  view the click never opened), and it is the navigation the readout's own note promises verbatim
+ *  ("Clicking the name selects that row in Prompt").
+ *
+ *  It writes through the SAME two store actions the tab strip and the rack use (§16 row 10 / row 19) — one
+ *  writer each, no second navigation surface. */
+export function openSectionInPrompt(sectionId: string): void {
+  setPresetEditorView(PROMPT_VIEW);
+  selectPresetSection(sectionId);
+}
 
 /** The five flat views, in strip order (redesign §3). Each `id` drives exactly one content body; the
  *  §3 schema→home map decides which fields live under which view. Keyed off `as const` so the view-id
@@ -40,6 +55,10 @@ export interface PresetEditorView {
 /** The ONE tab strip's views, in render order. `[0]` is the default the strip resolves an unset store
  *  read to — the default lives WITH the vocabulary, never re-spelled in the state store. */
 export const PRESET_EDITOR_VIEWS: readonly PresetEditorView[] = PRESET_EDITOR_VIEW_TUPLE;
+
+/** The view that owns the rack — read from the tuple, never re-spelled, so `openSectionInPrompt` cannot
+ *  drift from the strip's own vocabulary. */
+const PROMPT_VIEW: PresetEditorViewId = "prompt";
 
 // ── The static enum→label select vocabularies (the non-descriptor knobs) ────────────────────────────
 
@@ -82,9 +101,18 @@ export const CONTINUE_POSTFIX_ITEMS: SelectItems<string> = CONTINUE_POSTFIX_TYPE
 /** The label an UNSET Continue-delimiter select GHOSTS (side-eye F-05). */
 export const continuePostfixLabel = (value: ContinuePostfix): string => CONTINUE_POSTFIX_LABELS[value];
 
+// SHORT LABELS (owner ruling O-4). These are SELECT OPTION labels — the trigger renders the picked one
+// inline, and "Default — Managed — summarize into a memory marker at a threshold" ran past the control
+// column and truncated mid-sentence. The mode NAME is the label; what each mode DOES rides the row's hover
+// hint (§4.1's rule: the datum is visible, the teaching costs no width).
+//
+// The old label also carried the O-5 VOCAB LIE: compaction writes `chats.compactSummary`/`compactedAtSeq`
+// — its own chained COMPACTION marker spliced into the top history slot — and never feeds the Memory plane
+// (remembered past events, a different system). The domain's own noun is "compaction marker"
+// (`domain/chat/verbs/compaction.ts`), and that is what every preset-side copy site now says.
 const COMPACTION_MODE_LABELS: Record<CompactionMode, string> = {
-  auto: "Auto — the SDK's own compaction",
-  managed: "Managed — summarize into a memory marker at a threshold",
+  auto: "Auto",
+  managed: "Managed",
 };
 export const COMPACTION_MODE_ITEMS: SelectItems<string> = COMPACTION_MODES.map((value) => ({
   value,

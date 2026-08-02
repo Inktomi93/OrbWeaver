@@ -10,14 +10,14 @@
 //     discard-flagged teardown, driven by `session.reseed(row.config)` off the mutation response).
 //
 // The Quality dial (`params.quality`, the Params view's first cluster, no capability needed) is the
-// visible+editable config field: A = "fast", B = "deep", the starter = unset (nothing pressed).
+// visible+editable config field: A = "fast", B = "deep", the starter = unset (the dial's named OFF arm).
 // `preset.get`/`settings.getUserSettings` are stubbed at the NETWORK (routeTrpc). No chat model is
 // configured → the SAMPLING/REASONING/OUTPUT clusters show the connect-a-model note; QUALITY still renders,
 // which is all these pins touch.
 //
 // Post-redesign (preset-surface-redesign.md §3/§4): the editor is ONE flat tab level and Params is the
-// DEFAULT view, so these pins need no tab navigation at all; the dial is a segmented `ToggleGroup`
-// (`aria-pressed` buttons), not a radio group.
+// DEFAULT view, so these pins need no tab navigation at all; the dial is a `Select` (owner ruling O-18 —
+// the segmented strip died), so its state reads off the TRIGGER'S TEXT and its options live in a portal.
 
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -43,19 +43,28 @@ const PRESET_B = "preset_ct_bbbbbbbbbb";
 const BUILT_IN = "preset_00000000000000000000000000";
 const FORK = "preset_ct_forkedddddd";
 
-// Quality-dial cell names + the checked-state attribute. The strip is a RADIOGROUP (side-eye F-19 / ARIA
-// rec 7) — one-of-N, so `aria-checked` carries the state and `aria-pressed` is deliberately absent.
+// Quality-dial option labels. The dial is a SELECT since owner ruling O-18 (the segmented strip died), so
+// the state is the TRIGGER'S TEXT — and "no dial" is the named OFF arm, not an empty selection.
 const FAST = "Fast";
 const BALANCED = "Balanced";
 const DEEP = "Deep";
-const PRESSED = "aria-checked";
+const QUALITY_OFF_LABEL = "Don't use quality";
 const RESET_ITEM_RE = /Reset to starter/;
 // The G7 provenance chip, matched loosely so its ABSENCE can be asserted without naming a model.
+/** The Actions cross-link's accessible name — its health arm prefixes the label, so match the tail. */
+const DELIVERS_VIA_RE = /Delivers via Guided instruction/;
 const FOR_MODEL_RE = /^for /;
 
-/** One quality-dial cell — a `ToggleGroup` cell in its RADIO arm, located by its exact label. */
-function qualityCell(root: Locator, label: string): Locator {
-  return root.getByRole("radio", { name: label, exact: true });
+/** The quality dial's trigger — its text IS the current arm (the fixture the dial edits, in one locator). */
+function qualityDial(root: Locator): Locator {
+  return root.getByRole("combobox", { name: "Quality" });
+}
+
+/** Pick a dial arm. The listbox renders in a PORTAL (document.body), outside the mounted root, so the
+ *  option is located on the PAGE — the same rule the menu/dialog locators below already follow. */
+async function pickQuality(root: Locator, page: Page, label: string): Promise<void> {
+  await qualityDial(root).click();
+  await page.getByRole("option", { name: label, exact: true }).click();
 }
 
 const SETTINGS_VIEW = {
@@ -183,24 +192,23 @@ test("SWITCH pin — A(dirty)→B shows B's real config and never persists A's v
 
   // A is open: its name + its Quality dial ("fast") are shown.
   await expect(component.getByText("Preset A")).toBeVisible();
-  await expect(qualityCell(component, FAST)).toHaveAttribute(PRESSED, "true");
+  await expect(qualityDial(component)).toHaveText(FAST);
 
   // Dirty A to "balanced" (a value DISTINCT from B's "deep", so the frozen-seed bug can't hide behind a
   // coincidental match). The debounced autosave persists it AGAINST A, proving the edit took.
-  await qualityCell(component, BALANCED).click();
+  await pickQuality(component, page, BALANCED);
   await expect.poll(() => updatesAgainst(trpc, PRESET_A).at(-1)?.config?.params?.quality, { intervals: [100, 200, 300, 500] }).toBe("balanced");
 
   // Switch A→B (the rail prop change). The boundary rekeys its Session on the new entityId and seeds from
   // B's REAL row — the header shows B and the dial shows B's "deep", NOT A's frozen edited "balanced" seed.
   await component.getByRole("button", { name: "switch to B" }).click();
   await expect(component.getByText("Preset B")).toBeVisible();
-  await expect(qualityCell(component, DEEP)).toHaveAttribute(PRESSED, "true");
-  await expect(qualityCell(component, BALANCED)).toHaveAttribute(PRESSED, "false");
+  await expect(qualityDial(component)).toHaveText(DEEP);
 
   // THE PIN (Finding 1): the ONE keystroke on the newly-selected B must persist as B's own value — never
   // A's frozen "balanced". Pick "fast" on B; the autosave fires against B with "fast", and NO update
   // against B ever carries A's "balanced" (the frozen-seed persist-the-previous-preset bug).
-  await qualityCell(component, FAST).click();
+  await pickQuality(component, page, FAST);
   await expect.poll(() => updatesAgainst(trpc, PRESET_B).at(-1)?.config?.params?.quality, { intervals: [100, 200, 300, 500] }).toBe("fast");
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 300)));
   expect(updatesAgainst(trpc, PRESET_B).some((call) => call.config?.params?.quality === "balanced")).toBe(false);
@@ -228,8 +236,8 @@ test("RESET pin — reset-to-starter shows the starter config and never writes t
   // A is open with "fast". Dirty it to "balanced" so the pre-reset form is non-default (isDefaultValue
   // false — the exact precondition under which the teardown flush would re-persist the old values). This
   // fires ONE legit autosave against A (the pre-reset edit); the pin below counts only writes AFTER reset.
-  await expect(qualityCell(component, FAST)).toHaveAttribute(PRESSED, "true");
-  await qualityCell(component, BALANCED).click();
+  await expect(qualityDial(component)).toHaveText(FAST);
+  await pickQuality(component, page, BALANCED);
   await expect.poll(() => updatesAgainst(trpc, PRESET_A).at(-1)?.config?.params?.quality, { intervals: [100, 200, 300, 500] }).toBe("balanced");
 
   // Snapshot the update count once the pre-reset edit has settled — any write past this line is the
@@ -243,10 +251,9 @@ test("RESET pin — reset-to-starter shows the starter config and never writes t
   await page.getByRole("menuitem", { name: RESET_ITEM_RE }).click();
   await page.getByRole("button", { name: "Reset" }).click();
 
-  // The editor reseeds from the FRESH starter row — the Quality dial shows NO selection (params unset).
-  await expect(qualityCell(component, FAST)).toHaveAttribute(PRESSED, "false");
-  await expect(qualityCell(component, BALANCED)).toHaveAttribute(PRESSED, "false");
-  await expect(qualityCell(component, DEEP)).toHaveAttribute(PRESSED, "false");
+  // The editor reseeds from the FRESH starter row — the dial returns to its OFF arm (params unset), and it
+  // SAYS so (owner ruling O-18) rather than rendering as an empty control.
+  await expect(qualityDial(component)).toHaveText(QUALITY_OFF_LABEL);
 
   // THE PIN: the reset calls `session.reseed(starter)`, whose discard-flagged teardown must NOT flush the
   // dirty pre-reset form. With the old frozen-seed bug (or a non-discard teardown) that flush writes the
@@ -315,10 +322,10 @@ test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the 
 
   const component = await mount(<PresetForkOnceStory />);
   await expect(component.getByText(`selected=${BUILT_IN}`)).toBeVisible();
-  await expect(qualityCell(component, BALANCED)).toHaveAttribute(PRESSED, "false");
+  await expect(qualityDial(component)).toHaveText(QUALITY_OFF_LABEL);
 
   // FIELD 1 — the Quality dial. Its debounce fires the first save, which the route handler holds open.
-  await qualityCell(component, BALANCED).click();
+  await pickQuality(component, page, BALANCED);
   await expect.poll(() => mintRequests, { intervals: [50, 100, 200, 300] }).toBe(1);
 
   // FIELD 2, fired INSIDE the mint's in-flight window — the race arm. Serialized, it must wait for the fork id
@@ -414,7 +421,7 @@ test("FORK-CHOICE — with a fork already in the library, a built-in edit is INT
   const component = await mount(<PresetForkChoiceStory />);
   await expect(component.getByText(`selected=${BUILT_IN}`)).toBeVisible();
 
-  await qualityCell(component, BALANCED).click();
+  await pickQuality(component, page, BALANCED);
 
   // The dialog renders in a PORTAL (document.body) — and it NAMES the fork, since "your edits live in a copy"
   // is useless if the owner can't tell which of their rows that is.
@@ -435,7 +442,7 @@ test("FORK-CHOICE keep-editing — the edit lands on the EXISTING fork, the edit
   const component = await mount(<PresetForkChoiceStory />);
   await expect(component.getByText(`selected=${BUILT_IN}`)).toBeVisible();
 
-  await qualityCell(component, BALANCED).click();
+  await pickQuality(component, page, BALANCED);
   await page.getByRole("dialog").getByRole("button", { name: KEEP_EDITING_LABEL }).click();
 
   // The pending edit applies THERE (the arm is a retarget, not a discard).
@@ -457,7 +464,7 @@ test("FORK-CHOICE new fork — the suggested name is pre-filled, the mint carrie
   const component = await mount(<PresetForkChoiceStory />);
   await expect(component.getByText(`selected=${BUILT_IN}`)).toBeVisible();
 
-  await qualityCell(component, BALANCED).click();
+  await pickQuality(component, page, BALANCED);
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: NEW_FORK_LABEL }).click();
 
@@ -606,4 +613,70 @@ test("G7 no resolvable model ⇒ NO provenance chip (never a guessed name)", asy
   await expect(component.getByText("Preset A", { exact: true })).toBeVisible();
   await expect(component.getByText("Active", { exact: true })).toBeVisible();
   await expect(component.getByText(FOR_MODEL_RE)).toHaveCount(0);
+});
+
+// ── O-13★: THE GUIDED-INSTRUCTION CROSS-LINK IS A REAL DOOR ───────────────────────────────────────────
+// It selected the marker's rack row and left you standing in ACTIONS, where no rack exists — a control
+// that does nothing you can see. The door is both halves (view + selection), which is exactly the
+// navigation the Actions readout's own note promises. Only a whole-surface test can see it: the view axis
+// and the selection axis live in different stores, and the button writes through both.
+
+test("O-13 — the Delivers-via chip OPENS the Guided instruction row in the Prompt view", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  await component.getByRole("tab", { name: "Actions" }).click();
+  await component.getByRole("button", { name: DELIVERS_VIA_RE }).click();
+
+  // The VIEW moved…
+  await expect(component.getByRole("tab", { name: "Prompt" })).toHaveAttribute("aria-selected", "true");
+  // …and the row it named is the SELECTED one (ListRow paints `aria-current` on the selection).
+  await expect(component.getByRole("button", { name: "Guided instruction", exact: true })).toHaveAttribute("aria-current", "true");
+});
+
+// ── O-16★: EXPORT HAS ONE HOME, AND IT IS THE LIST ROW ────────────────────────────────────────────────
+// The editor-header kebab carried an Export echo (the fix-all's §16 rows 7+27 sanctioned it). Overruled:
+// lifecycle lives list-side, matching characters/chats. The kebab keeps exactly one item.
+
+test("O-16 — the editor header's kebab offers Reset only; Export is not a second home", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  await component.getByRole("button", { name: "Preset options" }).click();
+  await expect(page.getByRole("menuitem", { name: "Reset to starter arrangement" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Export" })).toHaveCount(0);
+});
+
+// ── O-17★: THE WIRE-SHAPING TAIL LIVES IN TRANSFORMS ──────────────────────────────────────────────────
+// Delivery (speaker names · continue delimiter) and Collapsing (adjacent-role merging · squash system
+// notes) shape the WIRE, not the prompt's content — owner sort. They must be in ONE view, not both.
+
+test("O-17 — Delivery + Collapsing render under Transforms and are gone from Prompt", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  await component.getByRole("tab", { name: "Prompt" }).click();
+  await expect(component.getByRole("combobox", { name: "Speaker names" })).toHaveCount(0);
+  await expect(component.getByRole("combobox", { name: "Adjacent-role merging" })).toHaveCount(0);
+
+  await component.getByRole("tab", { name: "Transforms" }).click();
+  await expect(component.getByRole("combobox", { name: "Speaker names" })).toBeVisible();
+  await expect(component.getByRole("combobox", { name: "Continue delimiter" })).toBeVisible();
+  await expect(component.getByRole("combobox", { name: "Adjacent-role merging" })).toBeVisible();
+  await expect(component.getByRole("switch", { name: "Squash system notes" })).toBeVisible();
 });
