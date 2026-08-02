@@ -12,7 +12,14 @@ import type { Violation } from "../harness.ts";
 
 const FEATURES = "packages/client/src/features";
 // The shell tier is the top-level container PROVIDER (§4.1) — exempt from "sit inside a Container".
+// TWO-SIDED (gate-hub #10): a SHELL_EXEMPT row naming a feature that no longer exists is RED — the
+// exemption ratchets down with its feature instead of silently un-scanning a name someone later reuses.
 const SHELL_EXEMPT = new Set(["app-shell"]);
+const GATE_SELF = "scripts/check/gates/surface-in-a-container.ts";
+/** Real-tree anchor (gate-hub #11): a feature that is NOT the exempt one, so a synthetic conformance tree
+ *  (which builds its own `features/x/`) never "proves" the shell tier had vanished. */
+const ANCHOR_FEATURE = "chat";
+const STALE_PREFIX = "stale SHELL_EXEMPT row — no such feature dir under packages/client/src/features (ratchet down): ";
 // A layout container from @orb/ui/layout: the surface (or, once cross-file, its anchor) must render one.
 const CONTAINER_RE = /<(?:Container|Section)[\s/>]/u;
 // A structural root worth containing — the surface establishes layout (a raw box/grid/flex element).
@@ -83,6 +90,19 @@ export const gate: GateDescriptor = {
     for (const v of scanSurfaceInAContainer(ctx.root)) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
+    if (!existsSync(join(ctx.root, FEATURES, ANCHOR_FEATURE))) {
+      return; // synthetic tree — the stale arm is a whole-tree claim
+    }
+    for (const feat of SHELL_EXEMPT) {
+      if (!existsSync(join(ctx.root, FEATURES, feat))) {
+        ctx.report({
+          file: GATE_SELF,
+          line: 1,
+          column: 0,
+          message: `${STALE_PREFIX}"${feat}" — delete the row in scripts/check/gates/surface-in-a-container.ts`,
+        });
+      }
+    }
   },
   mustFlag: [
     {
@@ -91,6 +111,13 @@ export const gate: GateDescriptor = {
       },
       expect: { messageIncludes: "no <Container>" },
       why: "a surface with a raw structural <div>/<ul> root + no Container (own or anchor's) — §4",
+    },
+    {
+      files: {
+        "packages/client/src/features/chat/surfaces/ok.tsx": "export const Ok = () => <Container><ul><li>row</li></ul></Container>;\n",
+      },
+      expect: { count: 1, messageIncludes: "stale SHELL_EXEMPT row" },
+      why: "THE STALE ARM: the real-tree anchor feature is present but `app-shell` is not — the container-PROVIDER exemption outlived its feature and must ratchet down instead of un-scanning a name a future feature could reuse",
     },
   ],
   mustPass: [
@@ -110,7 +137,14 @@ export const gate: GateDescriptor = {
       files: {
         "packages/client/src/features/app-shell/surfaces/app-shell.tsx": "export const A = () => <Stack>x</Stack>;\n",
       },
-      why: "the app-shell shell tier is the container PROVIDER frame — exempt, passes",
+      why: "the app-shell shell tier is the container PROVIDER frame — exempt, passes; with no anchor feature present the stale arm also stays silent (THE ANCHOR GUARD)",
+    },
+    {
+      files: {
+        "packages/client/src/features/chat/surfaces/ok.tsx": "export const Ok = () => <Container><ul><li>row</li></ul></Container>;\n",
+        "packages/client/src/features/app-shell/surfaces/app-shell.tsx": "export const A = () => <Stack>x</Stack>;\n",
+      },
+      why: "the row STILL EARNED, judged against the real-tree anchor: the exempt feature exists, so neither arm fires",
     },
   ],
 };

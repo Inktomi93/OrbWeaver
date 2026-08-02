@@ -3,10 +3,28 @@
 // already catches `process.env.X`; this gate is the AST backstop that also catches the bracket trick
 // `process["env"]` and reads only real access nodes (comments naming process.env are ignored).
 // `domain/sessions`' sanctioned call-time reads are allowlisted below.
+//
+// TWO-SIDED (gate-hub #10): the sanction ratchets DOWN — a SANCTIONED_KEYS entry that role-policy.ts does
+// not read any more is RED (a dead licence to bypass the frozen `env` for that var), and so is the whole
+// exception if role-policy.ts itself has left the project. The arm self-guards on a REAL-TREE ANCHOR
+// (gate-hub #11): `foundation/env/index.ts`, the home this gate exists to protect — a conformance
+// mini-project only has it when an example materializes it deliberately.
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
+import { fileLoaded } from "../pass.ts";
 
 const ENV_HOME = /\/packages\/server\/src\/foundation\/env\//u;
+const GATE_SELF = "scripts/check/gates/sole-env-reader.ts";
+/** Real-tree anchor (gate-hub #11): the frozen-env home itself. */
+const ANCHOR = "packages/server/src/foundation/env/index.ts";
+const ROLE_POLICY_REL = "packages/server/src/domain/sessions/substrate/role-policy.ts";
+const STALE_KEY_PREFIX =
+  "stale SANCTIONED_KEYS entry — role-policy.ts no longer reads this var at call time, so the sanction is a dead licence to bypass the frozen `env` (ratchet down): ";
+const STALE_HOME =
+  "stale exception — the sanctioned call-time reader `packages/server/src/domain/sessions/substrate/role-policy.ts` is not in the project any more, so the whole ROLE_POLICY/SANCTIONED_KEYS exception is dead (ratchet down): delete it in scripts/check/gates/sole-env-reader.ts";
+
+/** The sanctioned keys role-policy.ts actually read this run — the stale arm's truth set. */
+const seenKeys = new Set<string>();
 
 // The ONE sanctioned call-time process.env EXCEPTION: the
 // role-derivation policy reads exactly these vars at CALL time (not via the frozen `env`) so per-test
@@ -23,7 +41,11 @@ function isSanctionedRolePolicyRead(node: Node): boolean {
     return false;
   }
   const arg = parent.getArgumentExpression();
-  return arg !== undefined && Node.isStringLiteral(arg) && SANCTIONED_KEYS.has(arg.getLiteralText());
+  if (!(arg !== undefined && Node.isStringLiteral(arg) && SANCTIONED_KEYS.has(arg.getLiteralText()))) {
+    return false;
+  }
+  seenKeys.add(arg.getLiteralText());
+  return true;
 }
 
 // Is this node a `process.env` access (property `process.env` or element `process["env"]`)?
@@ -39,6 +61,13 @@ function isProcessEnvAccess(node: Node): boolean {
   }
   return false;
 }
+
+/** A role-policy source that reads exactly `keys` at call time — derived from the ledger itself so the
+ *  stale arm's proofs never drift out of sync with SANCTIONED_KEYS. */
+function rolePolicyReading(keys: readonly string[]): string {
+  return keys.map((k, i) => `export const v${i} = process.env["${k}"];\n`).join("");
+}
+const ALL_SANCTIONED = [...SANCTIONED_KEYS];
 
 const SOLE_ENV_MESSAGE =
   "reads process.env outside foundation/env — env is the SOLE reader; import the frozen `env` and dot-access a typed key (core/Tier-2-Foundation.md inv #1).";
@@ -61,6 +90,28 @@ export const gate: GateDescriptor = {
     }
     ctx.report(node, { token: "process.env", offset: 0 });
   },
+  begin: () => {
+    seenKeys.clear();
+  },
+  finalize: (ctx) => {
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
+      return;
+    }
+    if (!fileLoaded(ctx, ROLE_POLICY_REL)) {
+      ctx.report({ file: GATE_SELF, line: 1, column: 0, message: STALE_HOME });
+      return; // the whole exception is dead — per-key noise would only bury that
+    }
+    for (const key of SANCTIONED_KEYS) {
+      if (!seenKeys.has(key)) {
+        ctx.report({
+          file: GATE_SELF,
+          line: 1,
+          column: 0,
+          message: `${STALE_KEY_PREFIX}"${key}" — delete it from SANCTIONED_KEYS in scripts/check/gates/sole-env-reader.ts`,
+        });
+      }
+    }
+  },
   mustFlag: [
     {
       files: "export const x = process.env.SOME_VAR;\n",
@@ -72,6 +123,21 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/domain/hub/y.ts",
       why: 'the bracket trick process["env"] the property-form biome rule can miss — the AST backstop',
     },
+    {
+      files: {
+        [ANCHOR]: "export const env = {};\n",
+        [ROLE_POLICY_REL]: rolePolicyReading(ALL_SANCTIONED.slice(1)),
+      },
+      expect: { count: 1, messageIncludes: "stale SANCTIONED_KEYS entry" },
+      why: "THE STALE ARM at KEY grain: the anchor is loaded and role-policy reads every sanctioned var but the first — that key's licence to bypass the frozen `env` is dead and ratchets down (the example derives its source from the ledger, so it can never drift out of sync with it)",
+    },
+    {
+      files: {
+        [ANCHOR]: "export const env = {};\n",
+      },
+      expect: { count: 1, messageIncludes: "stale exception" },
+      why: "the coarser staleness: the sanctioned reader file itself is gone, so the whole ROLE_POLICY exception is dead — reported ONCE instead of one-per-key",
+    },
   ],
   mustPass: [
     {
@@ -82,7 +148,14 @@ export const gate: GateDescriptor = {
     {
       files: 'export const owners = process.env["OWNER_HANDLES"];\n',
       at: "packages/server/src/domain/sessions/substrate/role-policy.ts",
-      why: "the sanctioned call-time role-policy read (OWNER_HANDLES in role-policy.ts) — the isSanctionedRolePolicyRead allowlist, passes",
+      why: "the sanctioned call-time role-policy read (OWNER_HANDLES in role-policy.ts) — the isSanctionedRolePolicyRead allowlist, passes; and with no anchor in this project the stale arm stays silent",
+    },
+    {
+      files: {
+        [ANCHOR]: "export const env = {};\n",
+        [ROLE_POLICY_REL]: rolePolicyReading(ALL_SANCTIONED),
+      },
+      why: "every sanctioned key STILL EARNED, judged against the real-tree anchor — the ledger mirrors the reader exactly, so neither arm fires",
     },
   ],
 };

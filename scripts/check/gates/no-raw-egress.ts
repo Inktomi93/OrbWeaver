@@ -10,13 +10,27 @@
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
+import { fileLoaded } from "../pass.ts";
 
 const SERVER_SRC = /\/packages\/server\/src\//u;
 const FETCH = "fetch";
 const CORSPROXY = "corsproxy.io";
 
-/** Paths where a raw `fetch(` is sanctioned (credentialed/loopback provider egress + safeFetch's home). */
+/** Paths where a raw `fetch(` is sanctioned (credentialed/loopback provider egress + safeFetch's home).
+ *  TWO-SIDED (gate-hub #10): a zone with NO bare `fetch(` left in it is RED — the sanction ratchets down
+ *  with the code, so a zone that stops doing raw egress (or gets renamed out from under the pattern) can
+ *  never sit here as a standing licence for the next raw fetch someone drops in. */
 const FETCH_SANCTIONED: readonly RegExp[] = [/\/packages\/server\/src\/infra\/network\//u, /\/packages\/server\/src\/infra\/providers\//u];
+
+const GATE_SELF = "scripts/check/gates/no-raw-egress.ts";
+/** Real-tree anchor (gate-hub #11): safeFetch's own home — the file this whole gate routes egress to. */
+const ANCHOR = "packages/server/src/infra/network/egress.ts";
+const STALE_PREFIX =
+  "stale FETCH_SANCTIONED zone — no bare `fetch(` is left anywhere it matches (ratchet down): the zone " +
+  "either stopped doing raw egress or was renamed out from under the pattern, and a dead zone row is a " +
+  "standing licence for the next raw fetch dropped into it. Re-point or delete it: ";
+/** The sanctioned zones that actually covered a bare `fetch(` this run — the stale arm's truth set. */
+const seenZones = new Set<string>();
 
 const FETCH_MESSAGE =
   "bare `fetch(` outside the sanctioned provider-egress zones — route untrusted/user-influenced egress " +
@@ -39,7 +53,12 @@ const STRING_KINDS: readonly SyntaxKind[] = [
 ];
 
 function isFetchSanctioned(rel: string): boolean {
-  return FETCH_SANCTIONED.some((re) => re.test(`/${rel}`));
+  const zone = FETCH_SANCTIONED.find((re) => re.test(`/${rel}`));
+  if (zone === undefined) {
+    return false;
+  }
+  seenZones.add(zone.source);
+  return true;
 }
 
 function isBareFetchCall(node: Node): boolean {
@@ -80,6 +99,24 @@ export const gate: GateDescriptor = {
       });
     }
   },
+  begin: () => {
+    seenZones.clear();
+  },
+  finalize: (ctx) => {
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
+      return;
+    }
+    for (const zone of FETCH_SANCTIONED) {
+      if (!seenZones.has(zone.source)) {
+        ctx.report({
+          file: GATE_SELF,
+          line: 1,
+          column: 0,
+          message: `${STALE_PREFIX}${zone.source} — the zone list lives in scripts/check/gates/no-raw-egress.ts`,
+        });
+      }
+    }
+  },
   mustFlag: [
     {
       files: 'export async function f() {\n  return await fetch("https://x");\n}\n',
@@ -100,6 +137,14 @@ export const gate: GateDescriptor = {
       at: "packages/server/src/domain/imagery/verbs/generate-picture.ts",
       expect: { messageIncludes: "safeFetch" },
       why: "imagery generate-picture is de-sanctioned — its provider-returned URL is response-controlled, a raw fetch flags",
+    },
+    {
+      files: {
+        [ANCHOR]: "export const safeFetch = null;\n",
+        "packages/server/src/infra/providers/vllm/engine/client.ts": 'export async function f() {\n  return await fetch("https://x");\n}\n',
+      },
+      expect: { count: 1, messageIncludes: "stale FETCH_SANCTIONED zone" },
+      why: "THE STALE ARM at zone grain: the anchor (safeFetch's home) is loaded, the providers zone still covers a bare fetch and stands — the infra/network zone covers none any more, so exactly that row ratchets down",
     },
   ],
   mustPass: [
@@ -122,7 +167,14 @@ export const gate: GateDescriptor = {
     {
       files: 'export async function f() {\n  return await fetch("https://x");\n}\n',
       at: "packages/client/src/x.ts",
-      why: "scope: non-server source is not scanned — passes",
+      why: "scope: non-server source is not scanned — passes (and with no anchor loaded the stale arm stays silent: THE ANCHOR GUARD)",
+    },
+    {
+      files: {
+        [ANCHOR]: 'export async function raw() {\n  return await fetch("https://x");\n}\n',
+        "packages/server/src/infra/providers/vllm/engine/client.ts": 'export async function f() {\n  return await fetch("https://x");\n}\n',
+      },
+      why: "both zones STILL EARNED, judged against the real-tree anchor: each covers a live bare fetch, so neither the per-node arm nor the stale arm fires",
     },
   ],
 };
