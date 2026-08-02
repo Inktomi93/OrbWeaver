@@ -1,6 +1,4 @@
 {
-  "scripts/check/gates/bus-payload-allowlist.ts": ["SANCTIONED_FIELDS"],
-  "scripts/check/gates/feature-structure.ts": ["ALWAYS_ALLOWED_ROOT_FILES"],
   "scripts/check/gates/no-test-fabrication.ts": ["EXEMPT_TYPES"],
   "scripts/check/gates/ui-primitive-structure.ts": ["COLOR_LITERAL_TEST_EXEMPT", "PROVIDER_ALLOW", "TEST_EXEMPT", "VARIANTS_EXEMPT"]
 }
