@@ -1,10 +1,21 @@
-// @orb/contracts/rpg/actor — the actor ref + per-actor volatile (§2.6) + the R1 HAND OP union. Pins: the
-// three ref arms parse, `actorRefKey` projects each, hp is born nullable, wallet is a STORED named-amount
-// array, the volatile defaults fill the collection fields, and every op arm carries only its own field's
-// datum (the op vocabulary is the plane's write surface — an arm that grew a foreign field would be a
-// second image contract creeping back in).
+// @orb/contracts/rpg/actor — THE actor: the ref, the cast SLUG, the IDENTITY half and the VOLATILE half
+// (§2.6 + the R2 one-row reshape) + the hand OP union. Pins: the three ref arms parse, `actorRefKey` projects
+// each, the slug normalizes and the display name stays separate, an entry carries both halves (identity for
+// `cast` only), the volatile defaults fill the collection fields, hp is GONE from the plane (R3 — health is an
+// ordinary tracker), and every op arm carries only its own field's datum (the op vocabulary is the plane's
+// write surface — an arm that grew a foreign field would be a second image contract creeping back in).
 
-import { actorRefKey, RPG_ACTOR_OP_FIELDS, rpgActorOpSchema, rpgActorRefSchema, rpgActorVolatileSchema } from "@orb/contracts/rpg";
+import {
+  actorRefKey,
+  RPG_ACTOR_IDENTITY_TEXT_FIELDS,
+  RPG_ACTOR_OP_FIELDS,
+  rpgActorEntrySchema,
+  rpgActorIdentitySchema,
+  rpgActorOpSchema,
+  rpgActorRefSchema,
+  rpgActorVolatileSchema,
+  rpgCastSlug,
+} from "@orb/contracts/rpg";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures";
@@ -24,18 +35,51 @@ test("actorRefKey projects a stable distinct key per arm", () => {
   expect(actorRefKey({ kind: "cast", castKey: "goblin" })).toBe("cast:goblin");
 });
 
-test("hp is born nullable (a null-hp actor has no health bar, §8)", () => {
-  const parsed = rpgActorVolatileSchema.parse({ actorRef: { kind: "cast", castKey: "npc" }, hp: null });
-  expect(parsed.hp).toBeNull();
-  expect(parsed.trackerValues).toEqual({});
-  expect(parsed.inventory).toEqual([]);
-  expect(parsed.wallet).toEqual([]);
+// ── the cast SLUG (R2 — the doc's "normalized-name key" claim made true) ──────────────────────────────────
+
+test("rpgCastSlug folds every spelling of one name onto ONE key (the sibling-identity class)", () => {
+  // The exact class the verbatim key allowed: case, spacing and punctuation variance minted separate actors
+  // on any non-enforcing wire, each with its own state, each unreachable from the other's spelling.
+  const canonical = rpgCastSlug("Sister Vesna");
+  expect(canonical).toBe("sister-vesna");
+  expect(rpgCastSlug("sister  vesna")).toBe(canonical);
+  expect(rpgCastSlug("  Sister Vesna.  ")).toBe(canonical);
+  expect(rpgCastSlug("SISTER-VESNA")).toBe(canonical);
+});
+
+test("a name with no slug-able character still yields a legal key (a ref key is min(1))", () => {
+  // A refused write on an emoji-only name would be a worse answer than one stable bucket a host can rename.
+  expect(rpgCastSlug("🔥🔥").length).toBeGreaterThan(0);
+  expect(rpgCastSlug("   ").length).toBeGreaterThan(0);
+});
+
+// ── the actor ENTRY: two halves, one lifecycle ────────────────────────────────────────────────────────────
+
+test("an entry parses with only its ref — the volatile half is born WHOLE (no partial rows)", () => {
+  const parsed = rpgActorEntrySchema.parse({ actorRef: { kind: "cast", castKey: "npc" } });
+  expect(parsed.identity).toBeUndefined();
+  expect(parsed.volatile).toEqual({ trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" });
+});
+
+test("hp is NOT a volatile field (R3 — health is an ordinary meter tracker, not a schema privilege)", () => {
+  expect(Object.keys(rpgActorVolatileSchema.shape)).not.toContain("hp");
+  // The old dual-max home is gone with it: a ceiling lives ONCE, on the tracker value.
+  const parsed = rpgActorVolatileSchema.parse({ trackerValues: { hp: { value: 9, max: 12 } } });
+  expect(parsed.trackerValues["hp"]).toEqual({ value: 9, items: null, max: 12 });
+});
+
+test("identity carries the DISPLAY name + the standing guides, and defaults its display fields", () => {
+  const identity = rpgActorIdentitySchema.parse({ name: "Sister Vesna" });
+  expect(identity.name).toBe("Sister Vesna");
+  expect(identity.emoji).toBe("");
+  expect(identity.mood).toBe("");
+  expect(identity.relationship).toEqual({ kind: "neutral", label: "" });
+  // The three RV-11 guides are absent-when-unwritten (never "" placeholders the reader would print).
+  expect(identity.appearance).toBeUndefined();
 });
 
 test("wallet is a STORED named-amount array (the lite-first divergence from the derived legacy wallet)", () => {
   const parsed = rpgActorVolatileSchema.parse({
-    actorRef: { kind: "cast", castKey: "merchant" },
-    hp: null,
     wallet: [
       { name: "gold", amount: 40 },
       { name: "silver", amount: 3 },
@@ -47,13 +91,14 @@ test("wallet is a STORED named-amount array (the lite-first divergence from the 
   ]);
 });
 
-// ── the R1 op vocabulary ──────────────────────────────────────────────────────────────────────────────────
+// ── the hand op vocabulary ────────────────────────────────────────────────────────────────────────────────
 
 test("every op arm parses, and an unknown op is REJECTED at the wire (the union is the whole vocabulary)", () => {
   const ops = [
+    { op: "setIdentityText", field: "mood", text: "wary" },
+    { op: "setIdentityText", field: "name", text: "Sister Vesna" },
+    { op: "setRelationship", relationship: { kind: "enemy", label: "" } },
     { op: "setStatus", status: "wary" },
-    { op: "setHp", hp: { value: 9, max: 12 } },
-    { op: "setHp", hp: null },
     { op: "setTracker", key: "trust", value: { value: 4 } },
     { op: "setTracker", key: "trust", value: { max: null } },
     { op: "addCondition", condition: { name: "Chilled" } },
@@ -67,6 +112,10 @@ test("every op arm parses, and an unknown op is REJECTED at the wire (the union 
     expect(rpgActorOpSchema.safeParse(op).success).toBe(true);
   }
   expect(rpgActorOpSchema.safeParse({ op: "setActorRef", actorRef: { kind: "cast", castKey: "x" } }).success).toBe(false);
+  // `setHp` died with the demotion — health is written by `setTracker` like every other meter.
+  expect(rpgActorOpSchema.safeParse({ op: "setHp", hp: { value: 9, max: 12 } }).success).toBe(false);
+  // An identity TEXT op may only name a real identity field (never `relationship`, which has its own arm).
+  expect(rpgActorOpSchema.safeParse({ op: "setIdentityText", field: "relationship", text: "x" }).success).toBe(false);
   // An `addItem` without a name has no honest row to mint (the "Item 3" orphan the panel refuses too).
   expect(rpgActorOpSchema.safeParse({ op: "addItem", item: {} }).success).toBe(false);
 });
@@ -76,10 +125,14 @@ test("an item's `id` is NOT authorable — identity is server-minted on both the
   expect(parsed.op === "addItem" && "id" in parsed.item).toBe(false);
 });
 
-test("the op FIELD vocabulary is the volatile plane's own writable keys (addressing excluded)", () => {
-  expect([...RPG_ACTOR_OP_FIELDS].toSorted()).toEqual(
-    Object.keys(rpgActorVolatileSchema.shape)
-      .filter((key) => key !== "actorRef")
+test("the op FIELD vocabulary is the volatile plane's own writable keys", () => {
+  expect([...RPG_ACTOR_OP_FIELDS].toSorted()).toEqual(Object.keys(rpgActorVolatileSchema.shape).toSorted());
+});
+
+test("the identity TEXT vocabulary is the identity plane's own string keys (relationship excluded)", () => {
+  expect([...RPG_ACTOR_IDENTITY_TEXT_FIELDS].toSorted()).toEqual(
+    Object.keys(rpgActorIdentitySchema.shape)
+      .filter((key) => key !== "relationship" && key !== "characterId")
       .toSorted(),
   );
 });

@@ -91,11 +91,11 @@ function realReminder(wits: number, beats: readonly string[]): string {
         actorRef: { kind: "cast", castKey: "kestrel" },
         name: "Kestrel",
         // `flavor: ""` (RV-11's new sheet field) — empty renders no line, so the probe's prompt is unchanged.
-        sheet: { className: "courier", attributes: {}, maxHp: null, flavor: "", level: 3, trackerGrants: [], trackerRevokes: [] },
+        sheet: { className: "courier", attributes: {}, flavor: "", level: 3, trackerGrants: [], trackerRevokes: [] },
         trackers: [rpgTrackerDefSchema.parse({ key: "Stamina", label: "Stamina", shape: "meter", write: "delta", subject: "actor", max: 14 })],
+        presence: false,
+        identity: null,
         volatile: {
-          actorRef: { kind: "cast", castKey: "kestrel" },
-          hp: { value: 22, max: 30 },
           trackerValues: { Stamina: { value: 9, items: null, max: null } },
           conditions: [],
           inventory: [
@@ -107,17 +107,29 @@ function realReminder(wits: number, beats: readonly string[]): string {
           status: "",
         },
       },
+      // R2 — the scene NPC is an ACTOR row beside the roster: her identity half and her readings on ONE row.
+      {
+        actorRef: { kind: "cast", castKey: "wren" },
+        name: "Wren",
+        presence: true,
+        identity: { name: "Wren", emoji: "🗝️", mood: "alert", relationship: { kind: "custom", label: "travelling companion" } },
+        sheet: { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
+        trackers: [...WREN_TRACKERS],
+        volatile: {
+          trackerValues: {
+            [(WREN_TRACKERS[0] as RpgTrackerDef).key]: { value: 70, items: null, max: null },
+            [(WREN_TRACKERS[1] as RpgTrackerDef).key]: { value: wits, items: null, max: null },
+            [(WREN_TRACKERS[2] as RpgTrackerDef).key]: { value: "fixer", items: null, max: null },
+          },
+          conditions: [],
+          inventory: [],
+          wallet: [],
+          status: "",
+        },
+      },
     ],
-    cast: [{ key: "Wren", name: "Wren", emoji: "🗝️", mood: "alert", relationship: { kind: "custom", label: "travelling companion" } }],
+    cast: ["cast:wren"],
     trackerDefs: [...WREN_TRACKERS],
-    castTrackers: {
-      Wren: [
-        { def: WREN_TRACKERS[0] as RpgTrackerDef, value: { value: 70, items: null, max: null } },
-        { def: WREN_TRACKERS[1] as RpgTrackerDef, value: { value: wits, items: null, max: null } },
-        { def: WREN_TRACKERS[2] as RpgTrackerDef, value: { value: "fixer", items: null, max: null } },
-      ],
-    },
-    castVolatile: {},
     gameTrackers: [],
     quests: [],
     plot: null,

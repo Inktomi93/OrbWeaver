@@ -5,7 +5,7 @@
 // carries update-guidance. On `folded` (R1) it DOES contribute `terminalTools`: the same 7 state tools, mounted
 // on the character turn as a write surface whose calls are read back rather than executed.
 
-import type { RpgActorVolatile, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
+import type { RpgActorEntry, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
 import { buildTrackerWriteGroups, gameTrackerWriteKeys, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { messages, rpgSnapshots } from "@orb/db";
@@ -29,9 +29,17 @@ import {
   test,
 } from "../_support";
 
-/** One cast actor's volatile row carrying an HP value (the delta block's numeric plane). */
-function kael(hp: number): RpgActorVolatile {
-  return { actorRef: { kind: "cast", castKey: "kael" }, hp: { value: hp, max: 20 }, trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" };
+/** The HP tracker def the seeded beats read against (R3 — health is an ordinary meter now, so the delta
+ *  block only renders it when the GAME defines it, which is the whole point of the demotion). */
+const HP = trackerDef({ key: "hp", label: "HP", shape: "meter", write: "delta", subject: "actor", appliesTo: "everyone", max: 20, sort: 0 });
+
+/** One cast actor's row carrying an HP reading (the delta block's numeric plane). */
+function kael(hp: number): RpgActorEntry {
+  return {
+    actorRef: { kind: "cast", castKey: "kael" },
+    identity: { name: "Kael", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
+    volatile: { trackerValues: { hp: { value: hp, items: null, max: null } }, conditions: [], inventory: [], wallet: [], status: "" },
+  };
 }
 
 /** Seed a COMMITTED snapshot on a fresh assistant slot — the delta block's lineage input. Returns the slot's
@@ -45,6 +53,7 @@ async function seedBeat(
     ...target({ gameId: opts.gameId, chatId: opts.chatId, seq: opts.seq, variantId, key: `beat${opts.seq}` }),
     ...emptyState(),
     actorState: [kael(opts.hp)],
+    presentCharacters: ["cast:kael"],
     fieldLocks: null,
     committed: 1,
   });
@@ -60,6 +69,7 @@ async function seedVariantSnapshot(
     ...target({ gameId: opts.gameId, chatId: opts.chatId, seq: opts.seq, variantId: opts.variantId, key: opts.key }),
     ...emptyState(),
     actorState: [kael(opts.hp)],
+    presentCharacters: ["cast:kael"],
     fieldLocks: null,
     committed: 1,
   });
@@ -186,16 +196,18 @@ test("a scene-cast NPC's CONDITIONS reach the reminder injection (snapshot → v
   await db.insert(rpgSnapshots).values({
     ...target({ gameId, chatId, seq: 1, variantId, key: "castcond" }),
     ...emptyState(),
-    presentCharacters: [{ key: "Mari", name: "Mari", emoji: "", mood: "wary", relationship: { kind: "neutral", label: "" } }],
+    presentCharacters: ["cast:mari"],
     actorState: [
       {
-        actorRef: { kind: "cast", castKey: "Mari" },
-        hp: null,
-        trackerValues: {},
-        conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: null }],
-        inventory: [],
-        wallet: [],
-        status: "",
+        actorRef: { kind: "cast", castKey: "mari" },
+        identity: { name: "Mari", emoji: "", mood: "wary", relationship: { kind: "neutral", label: "" } },
+        volatile: {
+          trackerValues: {},
+          conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: null }],
+          inventory: [],
+          wallet: [],
+          status: "",
+        },
       },
     ],
     fieldLocks: null,
@@ -242,17 +254,20 @@ test("readonly (manual-steering): tool-less char turn + the reminder still steer
 test("the delta block renders prev→current across a two-beat committed lineage", async () => {
   const db = await freshDb();
   const { chatId, gameId, h } = await seedLiteGame(db);
+  // R3 — health only exists where the GAME defines it, so the delta lineage seeds the def first.
+  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { trackers: [HP] } });
   await seedBeat(db, { chatId, gameId, seq: 2, hp: 12 }); // prior beat
   await seedBeat(db, { chatId, gameId, seq: 4, hp: 16 }); // current head
   const text = await reminderText(h, chatId);
   // cur (seq 4, HP 16) vs prev (seq 2, HP 12) → a +4 delta line, before the license.
   expect(text).toContain("CHANGES SINCE LAST BEAT");
-  expect(text).toContain("kael HP 12→16 (+4)");
+  expect(text).toContain("Kael HP 12→16 (+4)");
 });
 
 test("swipe-consistency: selecting a sibling variant re-resolves the delta on the NEW lineage", async () => {
   const db = await freshDb();
   const { chatId, gameId, h } = await seedLiteGame(db);
+  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { trackers: [HP] } });
   await seedBeat(db, { chatId, gameId, seq: 2, hp: 12 }); // shared prior beat
   // The current head slot (seq 4) has TWO swipe variants: A (HP 16) selected by seedBeat, B (HP 8).
   const head = await seedBeat(db, { chatId, gameId, seq: 4, hp: 16 });
@@ -260,18 +275,19 @@ test("swipe-consistency: selecting a sibling variant re-resolves the delta on th
   await seedVariantSnapshot(db, { chatId, gameId, seq: 4, variantId: variantB, key: "beat4B", hp: 8 });
 
   // A selected ⇒ delta is 12→16 (+4).
-  expect(await reminderText(h, chatId)).toContain("kael HP 12→16 (+4)");
+  expect(await reminderText(h, chatId)).toContain("Kael HP 12→16 (+4)");
 
   // Swipe to B ⇒ the delta re-resolves prev(12)→cur(8) = a -4 line (the OTHER outcome), byte-different.
   await db.update(messages).set({ selectedVariantId: variantB }).where(eq(messages.id, head.messageId));
   const swiped = await reminderText(h, chatId);
-  expect(swiped).toContain("kael HP 12→8 (-4)");
+  expect(swiped).toContain("Kael HP 12→8 (-4)");
   expect(swiped).not.toContain("12→16");
 });
 
 test("hand-edit-as-source: a host patchActor surfaces as a delta on the next gather", async () => {
   const db = await freshDb();
   const { chatId, gameId, h } = await seedLiteGame(db);
+  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { trackers: [HP] } });
   // A committed prior beat (HP 12) is the lineage head; there is no newer beat yet.
   await seedBeat(db, { chatId, gameId, seq: 2, hp: 12 });
   // The host hand-edits HP to 18 through the OP door (R1 — the per-actor plane left `editSnapshot`). It
@@ -281,11 +297,11 @@ test("hand-edit-as-source: a host patchActor surfaces as a delta on the next gat
     principal: principal("host"),
     chatId,
     targetRef: { kind: "cast", castKey: "kael" },
-    ops: [{ op: "setHp", hp: { value: 18, max: 20 } }],
+    ops: [{ op: "setTracker", key: "hp", value: { value: 18 } }],
   });
   const text = await reminderText(h, chatId);
   // The GM tweak lands next turn: prev(12)→cur(18) = a +6 delta line (the diff is agnostic to the WRITE source).
-  expect(text).toContain("kael HP 12→18 (+6)");
+  expect(text).toContain("Kael HP 12→18 (+6)");
 });
 
 // ── the P6 macro × rpg FEED (parity-plus §12) — the gather populates rpgSceneState/rpgCast/rpgQuests + the `rpg`
@@ -299,7 +315,14 @@ async function seedScene(db: Db, opts: { chatId: ChatId; gameId: RpgGameId; seq:
     ...target({ gameId: opts.gameId, chatId: opts.chatId, seq: opts.seq, variantId, key: `scene${opts.seq}` }),
     ...emptyState(),
     location: "Village of Dunmoor",
-    presentCharacters: [{ key: "mari", name: "Mari", emoji: "", mood: "wary", relationship: { kind: "enemy", label: "" } }],
+    presentCharacters: ["cast:mari"],
+    actorState: [
+      {
+        actorRef: { kind: "cast", castKey: "mari" },
+        identity: { name: "Mari", emoji: "", mood: "wary", relationship: { kind: "enemy", label: "" } },
+        volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" },
+      },
+    ],
     quests: [
       {
         id: questId("key"),
@@ -461,9 +484,19 @@ function reading(value: number | string): RpgTrackerValue {
   return { value, items: null, max: null };
 }
 
-/** A volatile row carrying ONLY tracker readings (the plane under test). */
-function withTrackers(actorRef: RpgActorVolatile["actorRef"], trackerValues: Record<string, RpgTrackerValue>): RpgActorVolatile {
-  return { actorRef, hp: null, trackerValues, conditions: [], inventory: [], wallet: [], status: "" };
+/** An actor row carrying ONLY tracker readings (the plane under test). A `cast` ref gets its identity half
+ *  (R2 — a cast actor is a person, and the display name is what every reader prints). */
+function withTrackers(
+  actorRef: RpgActorEntry["actorRef"],
+  trackerValues: Record<string, RpgTrackerValue>,
+  identity: { name: string; mood?: string } | null = null,
+): RpgActorEntry {
+  const volatile = { trackerValues, conditions: [], inventory: [], wallet: [], status: "" };
+  if (actorRef.kind !== "cast") {
+    return { actorRef, volatile };
+  }
+  const named = identity ?? { name: actorRef.castKey };
+  return { actorRef, identity: { name: named.name, emoji: "", mood: named.mood ?? "", relationship: { kind: "neutral", label: "" } }, volatile };
 }
 
 const NIKO = "01kyw994c1ecrtvwbmx4avkqzz"; // a real 26-char TypeID suffix (the actorState schema validates it)
@@ -491,12 +524,12 @@ async function seedTrackerGame(db: Db): Promise<{ chatId: ChatId; h: RpgHarness 
     ...target({ gameId, chatId, seq: 2, variantId, key: "trk" }),
     ...emptyState(),
     location: "Konbini",
-    presentCharacters: [{ key: "Mari", name: "Mari", emoji: "", mood: "wary", relationship: { kind: "neutral", label: "" } }],
+    presentCharacters: ["cast:mari"],
     actorState: [
       // ZERO is state, not absence — a 0/100 meter must reach the model exactly like a 12/100 one.
       withTrackers({ kind: "user", userId: castId("user_host") }, { corruption: reading(0) }),
       withTrackers({ kind: "character", characterId: castId(`character_${NIKO}`) }, { corruption: reading(12) }),
-      withTrackers({ kind: "cast", castKey: "Mari" }, { corruption: reading(5) }),
+      withTrackers({ kind: "cast", castKey: "mari" }, { corruption: reading(5) }, { name: "Mari", mood: "wary" }),
     ],
     trackerValues: { alarm: reading(3) },
     fieldLocks: null,

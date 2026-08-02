@@ -36,8 +36,8 @@ import { mintDefKey } from "../lib/mint-key";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
 import { RpgGameMacros } from "./rpg-game-macros";
-import { HostConsoleScalars } from "./rpg-host-scalars";
 import { RpgHintMapEditor } from "./rpg-hint-map-editor";
+import { HostConsoleScalars } from "./rpg-host-scalars";
 import { Kicker } from "./rpg-kicker";
 import { DEF_ROW_CLASS, RpgStatProfileEditor } from "./rpg-stat-profile-editor";
 

@@ -46,7 +46,7 @@ test("update_party STAGES a pool delta into the turn's accumulator (the mutation
   expect(result.ok).toBe(true);
   // Assert the accumulator holds the staged mutation — the effective state the flush would take.
   const staged = h.ctx.staging.peek(TURN);
-  expect(staged?.actorState[0]?.trackerValues["rage"]).toEqual({ value: 5, items: null, max: null });
+  expect(staged?.actorState[0]?.volatile.trackerValues["rage"]).toEqual({ value: 5, items: null, max: null });
 });
 
 test("read-through: two tool calls in one turn compose (tool 2 sees tool 1's write)", async ({ db }) => {
@@ -56,7 +56,7 @@ test("read-through: two tool calls in one turn compose (tool 2 sees tool 1's wri
   await defOf(defs, "update_inventory").handler({ targetRef: "Hero", walletDeltas: [{ name: "gold", delta: 5 }] }, exec(chatId, TURN));
   const staged = h.ctx.staging.peek(TURN);
   // The second delta composed onto the first (15), not overwrote it — read-through through the accumulator.
-  expect(staged?.actorState[0]?.wallet).toEqual([{ name: "gold", amount: 15 }]);
+  expect(staged?.actorState[0]?.volatile.wallet).toEqual([{ name: "gold", amount: 15 }]);
 });
 
 test("upsert_quest STAGES a quest into the snapshot plane", async ({ db }) => {
@@ -85,11 +85,17 @@ test("roll_dice returns a baked roll, zero state (nothing staged)", async ({ db 
   expect(h.ctx.staging.peek(TURN)).toBeUndefined(); // no bucket — zero state
 });
 
-test("update_party hpDelta on a null-hp actor is an errors-as-data denial", async ({ db }) => {
+test("update_party is TOTAL since R3 — the hp refusal lane left with the bespoke arm", async ({ db }) => {
+  // The retired `hpDelta` arm refused a delta on a null-hp actor. Health is a tracker now, so the gate moved
+  // UPSTREAM to the write schema (an actor who does not carry hp cannot be handed an hp key at all) and this
+  // handler has no legality verdict left to return.
   const { chatId, h } = await seedLiteGame(db);
-  const result = await defOf(rpgToolDefinitions(h.ctx), "update_party").handler({ targetRef: "Ghost", hpDelta: -1 }, exec(chatId, TURN));
-  expect(result.ok).toBe(false);
-  expect((result as Extract<ToolHandlerResult, { ok: false }>).error).toContain("no HP track");
+  const result = await defOf(rpgToolDefinitions(h.ctx), "update_party").handler(
+    { targetRef: "Ghost", trackerDeltas: [{ key: "hp", delta: -1 }] },
+    exec(chatId, TURN),
+  );
+  expect(result.ok).toBe(true);
+  expect(h.ctx.staging.peek(TURN)?.actorState[0]?.volatile.trackerValues["hp"]).toEqual({ value: -1, items: null, max: null });
 });
 
 test("a stateful tool on a non-game chat is an errors-as-data denial (never a throw)", async ({ db }) => {

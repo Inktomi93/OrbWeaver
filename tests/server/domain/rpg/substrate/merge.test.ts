@@ -103,27 +103,30 @@ describe("lock-honoring (manual-edit-wins)", () => {
     // The #10 per-field pin: the whole-array tool overlay correlates actors by `actorRefKey`; the locked
     // `status` survives while the SAME actor's trackers take the tool's write — never a whole-roster pin.
     const base = { actorState: [actorWithWallet("mari", 10, 5)] };
-    const patched = { ...actorWithWallet("mari", 10, 2), status: "tool-set" };
-    const out = applyLockedPatch(base, { actorState: [patched] }, { "actorState.cast:mari.status": true });
-    const actors = out.actorState as { status: string; trackerValues: Record<string, { value: number }> }[];
-    expect(actors[0]?.status).toBe(""); // locked — the hand value (empty) survives
-    expect(actors[0]?.trackerValues["focus"]?.value).toBe(2); // unlocked sibling field took the patch
+    const patchRow = actorWithWallet("mari", 10, 2);
+    const patched = { ...patchRow, volatile: { ...patchRow.volatile, status: "tool-set" } };
+    // The `volatile` segment is a REAL path segment (R2) — the merge walks the stored JSON, so a lock path
+    // that skipped it would pin nothing at all.
+    const out = applyLockedPatch(base, { actorState: [patched] }, { "actorState.cast:mari.volatile.status": true });
+    const actors = out.actorState as { volatile: { status: string; trackerValues: Record<string, { value: number }> } }[];
+    expect(actors[0]?.volatile.status).toBe(""); // locked — the hand value (empty) survives
+    expect(actors[0]?.volatile.trackerValues["focus"]?.value).toBe(2); // unlocked sibling field took the patch
   });
 
   test("a nested TRACKER lock (actorState.<key>.trackerValues.<key>) pins ONE tracker, siblings take the patch", () => {
     // The tracked-field unification made this FREE: `trackerValues` is a record keyed by tracker key, so the
     // plain object walk already yields a per-tracker lock path — no keyed-array registry entry needed (the
     // retired name-addressed `pools[]` array was exactly why that machinery had to exist).
-    const withTrackers = (focus: number, mana: number): Record<string, unknown> => ({
-      ...actorWithWallet("mari", 10, focus),
-      trackerValues: { focus: { value: focus, items: null }, mana: { value: mana, items: null } },
-    });
+    const withTrackers = (focus: number, mana: number): Record<string, unknown> => {
+      const row = actorWithWallet("mari", 10, focus);
+      return { ...row, volatile: { ...row.volatile, trackerValues: { focus: { value: focus, items: null }, mana: { value: mana, items: null } } } };
+    };
     const out = applyLockedPatch(
       { actorState: [withTrackers(5, 8)] },
       { actorState: [withTrackers(1, 0)] },
-      { "actorState.cast:mari.trackerValues.mana": true },
+      { "actorState.cast:mari.volatile.trackerValues.mana": true },
     );
-    const values = (out.actorState as { trackerValues: Record<string, { value: number }> }[])[0]?.trackerValues ?? {};
+    const values = (out.actorState as { volatile: { trackerValues: Record<string, { value: number }> } }[])[0]?.volatile.trackerValues ?? {};
     expect(values["mana"]?.value).toBe(8); // pinned
     expect(values["focus"]?.value).toBe(1); // took the patch
   });
@@ -131,7 +134,7 @@ describe("lock-honoring (manual-edit-wins)", () => {
   test("an actor carrying a sub-field lock survives a tool that drops the actor (removal defense)", () => {
     const base = { actorState: [actorWithWallet("mari", 10, 5), actorWithWallet("zan", 3, 1)] };
     const patch = { actorState: [actorWithWallet("zan", 3, 1)] }; // mari dropped
-    const out = applyLockedPatch(base, patch, { "actorState.cast:mari.wallet.gold": true });
+    const out = applyLockedPatch(base, patch, { "actorState.cast:mari.volatile.wallet.gold": true });
     const keys = (out.actorState as { actorRef: { castKey: string } }[]).map((a) => a.actorRef.castKey);
     expect(keys).toContain("mari"); // re-inserted — the pinned wallet never silently dies with its row
     expect(keys).toContain("zan");
@@ -139,21 +142,22 @@ describe("lock-honoring (manual-edit-wins)", () => {
 
   test("an UNNAMED actorState element survives with NO lock — an actor is an identity, not list content", () => {
     // `actorState` is the ONE additive keyed plane: no producer removes an actor by omission (the tool
-    // appliers map/append over the base; the client patch builder can only see the ROSTER half of the
-    // plane), so an unnamed element is ignorance. Without this the second of two per-actor writes silently
+    // appliers map/append over the base; the hand door derives its next row from the true head), so an
+    // unnamed element is ignorance. Without this the second of two per-actor writes silently
     // deleted the first actor's whole volatile row (the e2e-caught hand-plane loss).
     const base = { actorState: [actorWithWallet("mari", 10, 5), actorWithWallet("zan", 3, 1)] };
     const out = applyLockedPatch(base, { actorState: [actorWithWallet("zan", 3, 9)] }, null);
-    const actors = out.actorState as { actorRef: { castKey: string }; trackerValues: Record<string, { value: number }> }[];
+    const actors = out.actorState as { actorRef: { castKey: string }; volatile: { trackerValues: Record<string, { value: number }> } }[];
     expect(actors.map((a) => a.actorRef.castKey).sort()).toEqual(["mari", "zan"]);
-    expect(actors.find((a) => a.actorRef.castKey === "mari")?.trackerValues["focus"]?.value).toBe(5); // untouched
-    expect(actors.find((a) => a.actorRef.castKey === "zan")?.trackerValues["focus"]?.value).toBe(9); // took the patch
+    expect(actors.find((a) => a.actorRef.castKey === "mari")?.volatile.trackerValues["focus"]?.value).toBe(5); // untouched
+    expect(actors.find((a) => a.actorRef.castKey === "zan")?.volatile.trackerValues["focus"]?.value).toBe(9); // took the patch
   });
 
   test("every OTHER keyed plane still removes by omission — an unlocked dropped quest is gone [the contrast]", () => {
-    // The counterweight to the additive `actorState` rule: quests/inventory/presentCharacters/wallet/
-    // conditions all have a real remove-by-omission gesture (deleteQuest, the pack's onRemoveItem,
-    // `presentRemove`, `removeCondition`), so the authored array IS the plane there.
+    // The counterweight to the additive `actorState` rule: quests/inventory/wallet/conditions all have a real
+    // remove-by-omission gesture (deleteQuest, the pack's onRemoveItem, `removeCondition`), so the authored
+    // array IS the plane there. (`presentCharacters` left the registry with R2 — a flat key list has no
+    // elements to correlate, so it wholesale-replaces, which is the same semantic by a cheaper route.)
     const base = { quests: [quest("main"), quest("side")] };
     const out = applyLockedPatch(base, { quests: [quest("side")] }, null);
     expect((out.quests as { id: string }[]).map((q) => q.id)).toEqual([questId("side")]);
