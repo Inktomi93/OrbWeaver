@@ -1,17 +1,23 @@
-// Self-test for the `pnpm ast` unwired + clientgap lenses (scripts/codemods/ast.ts). Drives the pure
-// enumeration substrate over a tiny synthetic project — a server router with one WIRED and one UNWIRED
-// procedure, a client that consumes the wired one via both idioms (proxy chain + `Trpc[…]` inference) —
-// and asserts the diff flags EXACTLY the unwired procedure (bite-proof, not a sketch).
+// Self-test for the `pnpm ast` rot lenses (scripts/codemods/ast.ts) — unwired, clientgap, the orphan
+// substrate, swallowed, and respell. Each drives the pure enumeration substrate over a tiny synthetic
+// project (a server router with one WIRED and one UNWIRED procedure; a namespace-swallowed schema barrel;
+// a derived-vs-hand-spelled contract pair) and asserts the lens flags EXACTLY the defect shape — bite-proof
+// in both directions, never a sketch.
 
 import { Project } from "ts-morph";
 import { describe } from "vitest";
+import type { SwallowedCandidate } from "../../scripts/codemods/ast.ts";
 import {
+  assignabilityChecker,
   buildLiveness,
   collectClientConsumed,
   collectOrphanCandidates,
   collectServerProcedures,
+  collectSwallowedCandidates,
   isProdConsumed,
+  isSwallowedExempt,
   isUnwiredExempt,
+  respellHitsFor,
 } from "../../scripts/codemods/ast.ts";
 import { expect, test } from "../support/fixtures.ts";
 
@@ -265,6 +271,143 @@ describe("ast orphan-candidate substrate", () => {
     const declOf = (name: string): Parameters<typeof isProdConsumed>[1] => shapes.getInterfaceOrThrow(name);
     expect(isProdConsumed(live, declOf("LiveShape"))).toBe(true);
     expect(isProdConsumed(live, declOf("RotShape"))).toBe(false);
+  });
+});
+
+// ── swallowed: the err-alive namespace arm hiding a functionally dead export ──────────────────────
+// The real shape (packages/db): `import * as schema from "#schema"` handed to `drizzle(client, {schema})`
+// marks EVERY export of the barrel alive without naming one — `usersRelations` read as consumed for five
+// weeks. The fixture reproduces it and pins all four escape hatches: a member the swallowing file SPELLS
+// (`schema.users`), one it DESTRUCTURES, one a NAMED import reaches elsewhere, and one used in its own file
+// are all genuinely alive; only the wholesale-passed export is a candidate.
+
+const SCHEMA_TABLES = `
+export const users = { id: "users" };
+export const auditLog = { id: "audit" };
+export const legacyView = { id: "legacy" };
+export const selfUsed = { id: "self" };
+export const usersRelations = { on: users, self: selfUsed };
+`;
+
+const SCHEMA_BARREL = 'export * from "./tables";';
+
+// The swallowing consumer: passes the namespace WHOLESALE to a library, and separately names two members.
+const SWALLOWING_CLIENT = `
+import * as schema from "../schema/index";
+export const db = drizzle(client, { schema });
+export const primary = schema.users;
+const { legacyView } = schema;
+export const legacy = legacyView;
+`;
+
+const SWALLOWED_FILES = {
+  "packages/db/src/schema/tables.ts": SCHEMA_TABLES,
+  "packages/db/src/schema/index.ts": SCHEMA_BARREL,
+  "packages/db/src/client/index.ts": SWALLOWING_CLIENT,
+  // A NAMED importer of one member — "no named import reaches it ANYWHERE" is part of the definition.
+  "packages/server/src/domain/audit/service.ts": 'import { auditLog } from "../../../../db/src/schema/tables"; export const a = auditLog;',
+};
+
+const inDb = (fp: string): boolean => fp.includes("/packages/db/");
+
+describe("ast swallowed lens (namespace-only liveness)", () => {
+  test("flags EXACTLY the export the swallowing file never names", () => {
+    const project = projectOf(SWALLOWED_FILES);
+    const candidates = collectSwallowedCandidates(project, buildLiveness(project), inDb);
+
+    // usersRelations rides into drizzle inside the namespace object and is never spelled — the rot-hider.
+    // Every other export is alive through a DIFFERENT arm and must not be reported: users (property access
+    // at the swallow site), legacyView (destructure of the namespace), auditLog (a named import elsewhere),
+    // selfUsed (used in its own file).
+    expect(candidates.map((c) => c.name).sort(byString)).toEqual(["usersRelations"]);
+
+    const swallowed = candidates.find((c) => c.name === "usersRelations") as SwallowedCandidate;
+    // The hit names the file a human must read to render the verdict — the site holding the wholesale pass.
+    // (Path form is repo-relative on the real tree; this synthetic root is outside it, so match the tail.)
+    expect(swallowed.sites.some((s) => s.endsWith("packages/db/src/client/index.ts"))).toBe(true);
+  });
+
+  test("a member the swallowing file SPELLS is not a candidate, even through a renaming barrel", () => {
+    // The namespace exposes the origin under the BARREL's alias, so the lens must match `ns.<barrel name>`,
+    // not the origin's own name — the same alias trap that forked the liveness key in 2026-08-02.
+    const project = projectOf({
+      "packages/db/src/schema/tables.ts": "export const rawUsers = { id: 1 };\nexport const rawAudit = { id: 2 };\n",
+      "packages/db/src/schema/index.ts": 'export { rawUsers as users, rawAudit as auditLog } from "./tables";',
+      "packages/db/src/client/index.ts":
+        'import * as schema from "../schema/index";\nexport const db = drizzle(client, { schema });\nexport const primary = schema.users;\n',
+    });
+    const candidates = collectSwallowedCandidates(project, buildLiveness(project), inDb);
+    // `schema.users` spells the ALIAS of rawUsers → alive. rawAudit is never spelled → the candidate.
+    expect(candidates.map((c) => c.name)).toEqual(["rawAudit"]);
+  });
+
+  test("an export reached by NOBODY is an orphan, not a swallowed candidate (the lenses do not overlap)", () => {
+    const project = projectOf({
+      "packages/db/src/schema/tables.ts": "export const unreached = { id: 1 };\n",
+    });
+    const live = buildLiveness(project);
+    expect(collectSwallowedCandidates(project, live, inDb)).toEqual([]);
+    expect(collectOrphanCandidates(project, live, inDb).map((c) => c.name)).toEqual(["unreached"]);
+  });
+
+  test("`@swallowed-ok: <reason>` above an `export const` exempts; a bare marker does not", () => {
+    const project = projectOf({
+      "packages/db/src/schema/relations.ts": `
+// @swallowed-ok: handed to drizzle wholesale; the library reads the relations config it is given.
+export const usersRelations = { on: 1 };
+// @swallowed-ok:
+export const unreasoned = { on: 2 };
+export const untagged = { on: 3 };
+`,
+    });
+    const decls = project.getSourceFileOrThrow(`${ROOT}/packages/db/src/schema/relations.ts`);
+    const declOf = (name: string): Parameters<typeof isSwallowedExempt>[0] => decls.getVariableDeclarationOrThrow(name);
+    // The marker lives on the STATEMENT, not on the binding name — reading it off the declaration alone
+    // would make every `export const`-shaped marker (i.e. the real one, in db/schema/relations.ts) invisible.
+    expect(isSwallowedExempt(declOf("usersRelations"))).toBe(true);
+    expect(isSwallowedExempt(declOf("unreasoned"))).toBe(false);
+    expect(isSwallowedExempt(declOf("untagged"))).toBe(false);
+  });
+});
+
+// ── respell: the lens must not flag the derive it recommends ──────────────────────────────────────
+// SM1's finding (2026-08-03): `export type X = <contracts symbol>` IS mutually assignable with that symbol,
+// so the lens flagged its own recommended fix and its steady state was "3 hits, all resolved" — which trains
+// a reader to ignore it. A bare alias naming the matched contracts symbol is the destination, not the defect;
+// a hand-spelled twin of the same body still has to red.
+
+const CONTRACTS_MEMORY = "export interface MemoryBackfillResult { scanned: number; written: number; skipped: number; }\n";
+const CONTRACTS_IMPORT = "../../../../../contracts/src/chat/index";
+
+describe("ast respell lens (alias blind spot)", () => {
+  test("skips a bare alias OF the matched contracts symbol, still reds a hand-spelled twin", () => {
+    const project = projectOf({
+      "packages/contracts/src/chat/index.ts": CONTRACTS_MEMORY,
+      "packages/server/src/domain/chat/contract/memory.ts": `
+import type { MemoryBackfillResult } from "${CONTRACTS_IMPORT}";
+export type MemoryBackfillCounts = MemoryBackfillResult;
+export interface MemoryBackfillTally { scanned: number; written: number; skipped: number; }
+`,
+    });
+    const names = respellHitsFor(project, assignabilityChecker(project), "chat").map((h) => h.text);
+    // The hand-copy is the defect; the alias is the fix the lens's own banner recommends.
+    expect(names.some((t) => t.startsWith("MemoryBackfillTally"))).toBe(true);
+    expect(names.some((t) => t.startsWith("MemoryBackfillCounts"))).toBe(false);
+  });
+
+  test("an alias of a DIFFERENT contracts symbol that happens to match is still reported", () => {
+    // The skip is per-PAIR (same declaration identity), not "any alias is innocent": aliasing shape A while
+    // structurally duplicating shape B is still a re-spell candidate.
+    const project = projectOf({
+      "packages/contracts/src/chat/index.ts": `${CONTRACTS_MEMORY}export interface MemoryScanResult { scanned: number; written: number; skipped: number; }\n`,
+      "packages/server/src/domain/chat/contract/memory.ts": `
+import type { MemoryBackfillResult } from "${CONTRACTS_IMPORT}";
+export type MemoryBackfillCounts = MemoryBackfillResult;
+`,
+    });
+    const texts = respellHitsFor(project, assignabilityChecker(project), "chat").map((h) => h.text);
+    // Skipped against its own origin, reported against the structurally-identical sibling.
+    expect(texts).toEqual(["MemoryBackfillCounts  ≡  @orb/contracts/chat::MemoryScanResult"]);
   });
 });
 
