@@ -90,7 +90,8 @@ interface ViewerRole {
 }
 
 /** Does this viewer hold the HOST role? THE ONE spelling of `role === "host"` for the whole role-PROJECTION
- *  class — every derived host verdict in this module and every `ChatDetail`-style payload flag composes it
+ *  class — every derived host verdict in this module, every `ChatDetail`-style payload flag, and every
+ *  role-conditioned POLICY VALUE (`auth/clamp.ts` — the D106 history floor, the D22 card level) composes it
  *  rather than re-deriving the comparison inline.
  *
  *  Takes `ViewerRole | undefined` because "the viewer is not on the roster" is a real arm at the projection
