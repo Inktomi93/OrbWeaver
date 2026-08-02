@@ -35,6 +35,24 @@ export const { TRPCProvider, useTRPC, useTRPCClient } = createTRPCContext<AppRou
  * never reach the console either — `useSubscription` `onError` surfaces (toast/reconnect) own
  * those. Enabled: every op in DEV; in PROD only error settlements log (via `formatTrpcOp`'s
  * console.error red-badge line). `colorMode:'css'` matches the formatter's `%c` styling.
+ *
+ * `httpBatchLink` — NOT `httpBatchStreamLink` — is a DELIBERATE, probed choice (2026-08-02), not
+ * un-migrated legacy. The stream link's per-response flushing on mixed-speed batches is real, but it
+ * costs two things on THIS stack:
+ *   1. It silently kills `responseMeta`'s error visibility. The tRPC server's jsonl branch (11.18.0,
+ *      the pinned version) calls `initResponse({ …, errors: [] })` — hardcoded empty, because the head
+ *      is flushed before any procedure resolves (`resolveResponse`, the
+ *      `info.accept === "application/jsonl"` branch). Our
+ *      `entry/app.ts` mounts `responseMeta: ({ errors }) => rateLimitResponseMeta(errors)`, so
+ *      `Retry-After` + `X-RateLimit-Remaining` would stop being sent on EVERY rate-limited response —
+ *      and no test would go red for it: `app.test.ts` calls `rateLimitResponseMeta` directly with a
+ *      populated array, so the unit stays green while the wire header disappears.
+ *   2. It breaks the whole CT data layer. The link sends `trpc-accept: application/jsonl` and feeds
+ *      `res.body` to `jsonlStreamConsumer` with NO plain-JSON fallback on a 2xx; the CT network stub
+ *      (`tests/support/ct/route-trpc.ts`) fulfills a plain JSON array. Probed by swapping it in:
+ *      3/3 of `tests/client/data/query-boundary.ct.tsx` failed with "Stream closed before head was
+ *      received" — i.e. every client CT that drives a query, until the stub grows a jsonl producer.
+ * Revisit only with both addressed; the CSRF header itself is fine (identical `headers` seam).
  */
 export function createTrpcClient(url: string = TRPC_URL): TRPCClient<AppRouter> {
   return createTRPCClient<AppRouter>({
