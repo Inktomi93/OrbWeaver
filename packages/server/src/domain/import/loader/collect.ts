@@ -76,7 +76,6 @@ async function collectCards(fs: ImportFsPort, profileDir: string, state: Collect
     // biome-ignore lint/performance/noAwaitInLoops: cards are read + hashed sequentially — a bounded, one-time collection scan, not a hot path.
     const bytes = await fs.readFile(fs.join(charsDir, ent.name));
     const stem = ent.name.replace(PNG_EXT, "");
-    // biome-ignore lint/performance/noAwaitInLoops: same bounded sequential collection scan as the read above.
     const parsed = await parseCardPng(bytes, stem);
     if (parsed === null) {
       state.unreadableCards.push(ent.name);

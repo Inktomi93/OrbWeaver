@@ -16,5 +16,6 @@ export interface RawExtraction {
  *  that as `ExtractionFailedError`. (A call-signature interface, not a `type` alias — `no-inline-types`
  *  reserves exported aliases for contract homes; infra names its shapes with `interface`.) */
 export interface Loader {
+  // biome-ignore lint/style/useShorthandFunctionType: the shorthand is an exported `type` alias, which the `no-inline-types` gate reserves for the type-home dirs — infra names its shapes with `interface` (see this declaration's own header).
   (bytes: Uint8Array): Promise<RawExtraction>;
 }
