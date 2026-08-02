@@ -59,7 +59,6 @@ export const LOCAL_MEMBER = { handle: "member", password: "member-dev-pass" } as
 // `E2E_ALLOW_DEV_TARGET=1` flips this project back to the pre-2026-08-01 shape: the dev ports 8788/5173 and
 // NO DATABASE_URL pin, i.e. the operator's real dev stack + dev DB (reused, not booted — see
 // playwright.config.ts). That is the supervised-live-drive escape hatch, and it waives the target guard. ──
-// biome-ignore lint/style/noProcessEnv: e2e node support reads the override env exactly as trpc.ts does (its sanctioned peer).
 const SINGLE_USER_ON_DEV_STACK = devTargetAllowed(process.env);
 const SINGLE_BACKEND_PORT = SINGLE_USER_ON_DEV_STACK ? "8788" : "8796";
 const SINGLE_VITE_PORT = SINGLE_USER_ON_DEV_STACK ? "5173" : "5181";

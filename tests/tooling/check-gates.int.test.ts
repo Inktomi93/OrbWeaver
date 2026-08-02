@@ -668,6 +668,30 @@ function writeFixtures(): void {
     "tests/ui/primitives/__g_oneshot/__g_oneshot.ct.tsx",
     'import { expect, test } from "@playwright/experimental-ct-react";\ntest("g", async ({ page }) => {\n  const el = page.locator("div");\n  expect(await el.boundingBox()).not.toBe(null);\n});\n',
   );
+  // two-class-role-authority: an inline `role === "host"` in an ENFORCEMENT position (the comparison gates a
+  // `throw`) in a domain file that is neither a SANCTIONED_HOMES chokepoint nor ALLOWLISTed — the founding
+  // shape (the six rpg verbs that re-spelled their chokepoint's compare). The gate's scanRoot is
+  // `packages/server/src/domain/` ONLY, so writing the shape literally here cannot self-trip it, and the
+  // fixture leaves the real-tree anchor (chat/substrate/auth/decide.ts) untouched — its both-ways stale arms
+  // keep judging the REAL chokepoints, so this row adds a violation without faking one.
+  fx(`${D}/__g_roleauth/verbs/x.ts`, 'export function f(role: string): void {\n  if (role !== "host") {\n    throw new Error("nope");\n  }\n}\n');
+  // contract-derives-not-respells (ARM B): a hand-written `*Row` interface in a domain `contract/` whose
+  // prefix names a REAL drizzle table (`WorkloadScheduleRow` → the live `workloadSchedules` export in
+  // packages/db/src/schema/workloads.ts) instead of deriving `typeof workloadSchedules.$inferSelect`. ARM B is
+  // the fixturable one: ARM A needs a name the sibling `packages/contracts/src/<domain>/` also exports, and a
+  // `__g_` domain has no contracts sibling (planting one would need a SECOND fixture in contracts/ whose
+  // domain name matches — the same shape, twice the surface, for no extra proof).
+  // The gate's ALLOWLIST stale arm keys on the REAL-TREE anchor + real files, which this fixture does not
+  // touch, so the added finding is the ARM-B bite alone.
+  fx(`${D}/__g_cdnr/contract/probe-row.ts`, "export interface WorkloadScheduleRow {\n  readonly id: string;\n  readonly enabled: boolean;\n}\n");
+  // zod-modern-spellings: ARM A (`.strict()` on a `z.object(…)` — respell as `z.strictObject`). Its other
+  // three arms (all-literal union, hand-flattened `error.issues`, the `z.enum(["true","false"])` env
+  // hand-roll) fire on the same fixture would be redundant here — one arm proves the gate is wired into the
+  // live pass, which is all this anti-drift suite claims; every arm's own bite is proven per-arm by
+  // gate-conformance's mustFlag rows. The gate scans `packages/**` only, so writing the shape literally in
+  // THIS file cannot self-trip it, and the fixture leaves the real-tree anchor (foundation/env/index.ts)
+  // untouched so its ISSUES_ALLOWLIST ratchet keeps judging the six real join sites.
+  fx("packages/contracts/src/__g_zodspell/index.ts", 'import { z } from "zod";\nexport const gZodSpell = z.object({ a: z.string() }).strict();\n');
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose

@@ -72,7 +72,9 @@ const CSP_MIRROR_TTL_MS = 2000;
 
 /** Accept a probed policy only if it is the backend's DEV arm — never inherit a prod script-src into HMR. */
 function isDevPolicy(csp: string | null): csp is string {
-  return csp !== null && csp.includes("'unsafe-eval'");
+  // `=== true`, not biome's bare `csp?.includes(…)`: the optional chain yields `boolean | undefined`, which
+  // does not satisfy this function's `csp is string` predicate return type.
+  return csp?.includes("'unsafe-eval'") === true;
 }
 
 /**
