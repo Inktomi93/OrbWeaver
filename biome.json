@@ -129,6 +129,12 @@
         "noRestrictedImports": {
           "level": "error",
           "options": {
+            "paths": {
+              "tailwind-variants": {
+                "importNames": ["cn", "cnMerge", "tv"],
+                "message": "These three read tailwind-variants' MODULE-LEVEL twMerge config, which only a called tv() factory writes — so they merge with an UNCONFIGURED tailwind-merge until some unrelated module happens to load, silently dropping our custom --text-*/--leading-*/--tracking-* classes. Import cn/tv from @orb/ui/lib (packages/ui/src/lib/class-merge.ts owns the ONE config). createTV is deliberately NOT banned — class-merge.ts is its one caller."
+              }
+            },
             "patterns": [
               {
                 "group": ["@base-ui-components/react", "@base-ui-components/react/**"],
