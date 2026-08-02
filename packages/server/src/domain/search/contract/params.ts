@@ -20,7 +20,11 @@ export interface FindCharactersParams {
   readonly rerank?: boolean | undefined;
 }
 
-// FLAG[PD-35]: DigestsParams/SegmentsParams are pure aliases kept only so SearchService signatures self-document.
+// DigestsParams/SegmentsParams are ALIASES of the contracts shape — the derive, not a re-spell. Both verbs take
+// exactly the memory-recall query wire `@orb/contracts/search` owns; the named aliases exist only so a
+// SearchService signature says WHICH verb its argument belongs to. A structural-identity lens (`ast respell`)
+// reports them by construction — it cannot see that an alias already IS the one home — so the answer is this
+// comment, never a rename or a hand-written body.
 export type DigestsParams = MemoryQueryOptions;
 
 /** Requires scopedCharacterId (the verbatim lens has no character column) — else SearchError(SCOPE_REQUIRED). */

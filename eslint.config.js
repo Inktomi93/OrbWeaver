@@ -107,6 +107,15 @@ export default tseslint.config(
     ],
   },
   {
+    // A stale `eslint-disable` can never rot silently: a directive that suppresses nothing is itself an
+    // ERROR. No `files` key ⇒ this applies to every linted file. ESLint's own default here is "warn", which
+    // only bites where `--max-warnings 0` is passed (the lint:eslint script and the verify registry's scoped
+    // argv do; an ad-hoc `npx eslint <file>` does not) — "error" makes the verdict the same everywhere. A
+    // suppression that stops matching a real diagnostic is exactly the comment the doctrine wants deleted,
+    // and this is what turns "should be deleted" into "must be deleted".
+    linterOptions: { reportUnusedDisableDirectives: "error" },
+  },
+  {
     // Type-aware parser for shipped source. `projectService` builds one TS program per package so
     // `no-deprecated` can see types; each file resolves upward to its own package tsconfig (ui/client).
     files: SHIPPED_SRC,

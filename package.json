@@ -16,6 +16,7 @@
     "design-audit": "tsx scripts/probes/design-audit.ts",
     "snap": "tsx scripts/probes/snap.ts",
     "ast": "tsx scripts/codemods/ast.ts",
+    "codemod": "tsx scripts/codemods/codemod.ts",
     "knip": "knip --cache",
     "knip:prod": "knip --cache --production --strict",
     "record": "tsx scripts/probes/record.ts",
