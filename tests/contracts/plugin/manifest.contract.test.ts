@@ -94,6 +94,36 @@ test("manifest matrix — netHosts refuses wildcards, schemes, and over-count (t
   expect(pluginManifestSchema.safeParse({ ...withNet, netHosts: Array.from({ length: 9 }, (_, i) => `h${i}.example.com`) }).success).toBe(false);
 });
 
+// THE HOLE THIS CLOSED (2026-08-02): `hostAllowed` (server/src/infra/network/egress.ts) treats a LEADING-DOT
+// allowlist entry as a SUFFIX WILDCARD — `.com` matches every `.com` host. The old charset regex
+// `/^[a-z0-9.-]+$/` accepted leading dots, so a manifest declaring `netHosts: [".com"]` passed install
+// validation and then reached the entire TLD, against this field's documented "exact hostname, no wildcards"
+// contract. `z.hostname()` refuses every leading-dot form. If this test ever goes green-by-deletion, the SSRF
+// allowlist is wildcard-able again.
+test("manifest matrix — netHosts refuses the LEADING-DOT suffix wildcard (the `.com` reaches-every-host hole)", () => {
+  const withNet = { ...BASE, capabilities: ["net.fetch"] as const };
+  for (const entry of [".com", ".example.com", ".", "..com", "example..com"]) {
+    expect(pluginManifestSchema.safeParse({ ...withNet, netHosts: [entry] }).success).toBe(false);
+  }
+  // …while the exact hostname the wildcard was masquerading as still installs.
+  expect(pluginManifestSchema.safeParse({ ...withNet, netHosts: ["example.com"] }).success).toBe(true);
+});
+
+test("manifest matrix — netHosts refuses malformed host grammar the old charset regex let through", () => {
+  const withNet = { ...BASE, capabilities: ["net.fetch"] as const };
+  for (const entry of ["-.-", "...", "-", "-example.com", "example-.com", `${"a".repeat(64)}.com`]) {
+    expect(pluginManifestSchema.safeParse({ ...withNet, netHosts: [entry] }).success).toBe(false);
+  }
+});
+
+// The ONE acceptance widening of the z.hostname() swap, pinned as DELIBERATE: hostnames are case-insensitive
+// and the enforcer normalizes (`hostAllowed` lowercases every entry against a lowercased request host), so an
+// uppercase entry reaches exactly the host its lowercase spelling would — no new host is reachable.
+test("manifest matrix — netHosts accepts a mixed-CASE hostname (egress `hostAllowed` lowercases both sides)", () => {
+  const withNet = { ...BASE, capabilities: ["net.fetch"] as const };
+  expect(pluginManifestSchema.safeParse({ ...withNet, netHosts: ["API.Example.com"] }).success).toBe(true);
+});
+
 test("manifest matrix — a capabilities SUPERSET (more entries than the axis) is refused", () => {
   const tooMany = Array.from({ length: PLUGIN_CAPABILITIES.length + 1 }, () => "chat.read");
   expect(pluginManifestSchema.safeParse({ ...BASE, capabilities: tooMany }).success).toBe(false);
