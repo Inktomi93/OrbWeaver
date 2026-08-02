@@ -31,6 +31,26 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 PUSH NEEDS ITS OWN WORD). Six-lane cap stands (owner). Board-only commits = `--no-verify`
 (owner word). Dev db DROPS on next stack boot (DBG baseline regen) — expected, reseeds via latch.
 
+**✅ CERD DELIVERED (branch `wt/agent-ada8d9c0033d2f420` @ `9e966692` — DRAFT for the
+SUCCESSOR'S REVIEW-THEN-LAND, per design):** **D121 minted** (7 clauses A-G: role law verbatim ·
+permissions pointer + name-the-bypassed-option rule · home/D62-P6 amend · chrome anatomy ·
+regex D53-storage + ORDER table · rewind asymmetry · D8 residue) + Spine-Identity §2c/2d/2e
+(three layers · who-owns-what · BY-DESIGN register) + §4 dormant-doorway rewrite + UI-Arch §4.1
+eight-rail + lockdown/home-spec annotations. check:docs + d-citation-integrity green in-lane.
+**ITS BIG FIND: D60 ITSELF still claims agent principals BUILT** (the ledger outranks the spine
+— a spine-only repair would be overruled on cold read); CERD added a dated build-state RIDER at
+D60's head — **APPROVED, keep it** (lesson: purge waves must sweep the LEDGER, banked below).
+SUCCESSOR'S LANDING CHECKLIST for the CERD merge: verify the re-derived rewind-asymmetry +
+promoted-unseated framings (no durable text existed — CERD re-derived source-pinned; check
+before landing) · R2's three-questions paragraph was reconstructed from code homes (R2's text
+lives only in its lane SendMessage — the reconstruction is anchored on the three real homes,
+acceptable) · the board's own R4 self-contradiction: CODE WINS, R4 IS BUILT
+(promote-actor.ts + actor-rekey.ts + tests) — strike the stale "parked" line when landing ·
+the 6 stickler reports ARE committed (verified, 6/6 tracked — citations resolve) · regex-R0
+ORDER-table inclusion approved (the board's version governs, per-leg pins = owed work).
+NEW SMALLS from CERD: engine.ts:171-179 gateAndResolveConnection = live no-op passthrough w/
+lying canAgent docstring (delete-or-truth-repair) · 3 more stale canAgent/seatAgent comment
+sites · databank-spec's "SEVEN sections" line.
 **RETRO mid-run (approved, finishing axes 2+3):** the machine-checked baseline BURNED 13/16→0/0
 across four commits — baseline + generator DELETED per §4.8 (arm B now unsuppressed: a new
 one-sided table reds on arrival). 22 gates retrofitted; SIX dead purge-debris allowlist rows
