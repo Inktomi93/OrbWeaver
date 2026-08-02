@@ -101,7 +101,26 @@ D121-G residue is genuinely open) **+ crunch-list (2 rows genuinely open, no rec
 macro pill [lane-C claim/code mismatch CONFIRMED] + O-2 provenance chip)** → both rows to POLISH.
 **OWNER WORDS (08-03): monotonic-tests re-arm = GO ("flip it") · lane cap back to SIX + "fan
 out if there's more work."**
-**LIVE NOW (6, at cap): PERSONA · REGEX · MONO (monotonic-tests manifest regen + fail-loud
+✅ **PERSONA MERGED (`c736ae8a`, hook 14/14, torn down) + D122 MINTED (`67a04383`)** — the
+R0-R4 program complete: multi-human keyhole CLOSED red-first over the real composition root
+(3/4 specs failed on HEAD: member anchor/active/card all resolved wrong; green now) via the
+persona-domain principal-less op `resolvePersonasForRoster` gated on the ONE consent-set home
+`roster-humans.ts::presentHumanUserIdsOf` (verb + resolver share it — permission and reach
+can't diverge) · member descriptions in shared prompt unconditionally · three-state
+triggerPersonaId (explicit null binds ANCHOR; unit home activePersonaIdFor) · FORCED first-run
+dialog on real sign-in ONLY (seeder auto-creates solely under E2E_HARNESS/DEV_SEED; DEV_SEED
+minted + pinned in stack.sh — the owner's dev-regen constraint holds, both arms CT-proven) ·
+sacred pin suite UNEDITED and green · ResolveForeignInputsOp.presentHumanUserIds REQUIRED
+(fail-closed, every caller decided). Zero ruling forks. rpg linkage parked per ruling 5; noted
+seam: turn.ts:509 steerIdentity.user now resolves live member identity for free. FLAGS: drain
+end-to-end proof needs a compose-tier provider tape (doesn't exist — flagged not faked) ·
+2 files added to SERIAL_INT (documented cold-import class). Lane lessons: peekPrompt/
+getMemberCard = the cheap compose-level persona observables · foundation/env parses at module
+load (vi.stubEnv can't flip composed knobs — injected unit tests own the other arm) · new
+full-createServices int file needs a SERIAL_INT row.
+**HANDOFF-COPY now waits on REGEX's drain instead** (BOTH regen the db baseline —
+0000_baseline.sql collision; REGEX's regen is already in its branch).
+**LIVE NOW (5): REGEX · MONO (monotonic-tests manifest regen + fail-loud
 readManifest + two-sided arms) · WRITES (PRIN's write-half: the owner-scoped predicate over
 update/delete, 30 sites classified w/ markers, world_books rows coordinate w/ REGEX) · POLISH
 (crunch item-14 macro pill + O-2 provenance chip + preset-surface-redesign BUILT-stamp pass) ·
