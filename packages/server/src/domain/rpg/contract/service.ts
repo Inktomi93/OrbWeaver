@@ -33,6 +33,7 @@ import type {
 } from "@orb/contracts/rpg";
 import type { Db, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
 import type {
+  CharacterId,
   ChatId,
   ChatTurnId,
   MessageId,
@@ -63,6 +64,7 @@ import type {
   PatchActorParams,
   PatchSheetParams,
   PopulateFromCharacterParams,
+  PromoteActorParams,
   ReadGameParams,
   RestoreCheckpointParams,
   ResyncFromStoryParams,
@@ -192,6 +194,44 @@ export interface RpgRosterActor {
   readonly avatar?: string;
 }
 export type RpgResolveRoster = (chatId: ChatId) => Promise<readonly RpgRosterActor[]>;
+
+/** R4 — PROMOTION's durable half: mint a character CARD from a promoted NPC and seat it on the chat's roster,
+ *  returning the new `CharacterId` the actor row is re-keyed onto. The one rpg write that reaches outside the
+ *  game, and therefore the one that MUST be an injected op: rpg owns no card table and no participant table
+ *  (§2 one-directional flow), so the impl is wired at compose over the character + chat front doors (the
+ *  `resolvePresetOwned` precedent) and rpg stays table-blind.
+ *
+ *  `hostUserId` is the ROOM HOST the verb already resolved by ROLE (D19), threaded EXPLICITLY end-to-end (the
+ *  injected-op caller-gate class: an op that dropped the caller and re-derived an owner would mint a card into
+ *  whoever the impl happened to pick). The card is minted UNDER that user and the seat added AS that user, so a
+ *  promoted character is host-owned exactly like every other roster character — which is what keeps the seat
+ *  resolvable (`resolveRpgRoster` reads character cards under the room host's ownership) and the stats
+ *  attribution consistent.
+ *
+ *  `handle` is the DESIRED per-owner handle; the impl uniquifies it (the per-owner handle index) and refuses as
+ *  DATA if it cannot — nothing durable is written on a refusal, because the verb's snapshot write has not run
+ *  yet when this is called. */
+export type RpgPromoteToRoster = (input: RpgPromoteToRosterInput) => Promise<RpgPromoteToRosterResult>;
+
+/** What the promotion's durable half is handed: the room + the host it acts as, and the CARD CONTENT derived
+ *  server-side from the actor's own identity row (never client-authored — the R1 lesson).
+ *  Non-exported: reachable only through `RpgPromoteToRoster`'s signature — no consumer names it (knip). */
+interface RpgPromoteToRosterInput {
+  readonly chatId: ChatId;
+  readonly hostUserId: UserId;
+  /** The NPC's display name → the card's `name` (and the roster name every model `targetRef` resolves by). */
+  readonly name: string;
+  /** The desired per-owner card handle (the cast slug); the impl uniquifies against the owner's library. */
+  readonly handle: string;
+  /** The standing guides rendered as card prose (`rpgPromotedCardDescription`) — `""` when the story wrote
+   *  none, which mints an empty description rather than an invented biography. */
+  readonly description: string;
+}
+
+/** The durable half's verdict. `ok:false` is DATA (a handle the owner's library cannot free), raised BEFORE
+ *  the snapshot re-key so a refused promotion leaves neither a card, a seat, nor a state-anchor slot.
+ *  Non-exported: reachable only through `RpgPromoteToRoster`'s signature — no consumer names it (knip). */
+type RpgPromoteToRosterResult = { readonly ok: true; readonly characterId: CharacterId } | { readonly ok: false; readonly reason: string };
 
 /** Mint a fresh narrator message slot (chat's `postNarratorMessage`, §3.2). `restoreCheckpoint` posts a
  *  VISIBLE line (the restore notice); a between-turns hand-edit / resync clone-forward posts an EMPTY body —
@@ -424,6 +464,9 @@ export interface RpgContext {
   readonly getMembership: RpgGetMembership;
   readonly setPointer: RpgSetPointer;
   readonly resolveRoster: RpgResolveRoster;
+  /** R4 — promotion's DURABLE half (mint the card + seat it on the roster), wired at compose over the
+   *  character + chat front doors. rpg owns neither table; the verb owns the snapshot re-key alone. */
+  readonly promoteToRoster: RpgPromoteToRoster;
   readonly postNarratorMessage: RpgPostNarratorMessage;
   /** The preset-ownership gate (§3.2 fork host-secret strip) — is a `gmPresetId` safe for the forker to carry? */
   readonly resolvePresetOwned: RpgResolvePresetOwned;
@@ -599,6 +642,16 @@ export interface RpgService {
   /** Host. THE removal gesture for the actor plane (R1): drops the actor's state row + scene-presence row and
    *  releases every lock at/below its path. Errors-as-data when the game carries no such actor. */
   readonly dismissActor: (params: DismissActorParams) => Promise<HandDoorResult>;
+  /** Host. THE promotion doorway (R4) — `dismissActor`'s opposite: a scene NPC the story kept bringing back
+   *  earns a durable character CARD + a chat roster seat, and her actor row is RE-KEYED `cast:<slug>` →
+   *  `character:<id>` so her trackers, pack, purse, conditions, status, scene presence and hand PINS all follow
+   *  her under the new identity. Her identity HALF does not survive the re-key (a roster actor carries none):
+   *  its durable content — the display name and the standing guides — is carried onto the card in the same
+   *  gesture; `mood`/`relationship` have no roster home and are dropped, which the doorway states out loud.
+   *  Errors-as-data: an untracked target, an actor with no identity row, a NAME the chat roster already carries
+   *  (two roster actors sharing a name make the model's name→ref resolution ambiguous), or a card handle the
+   *  owner's library cannot free. */
+  readonly promoteActor: (params: PromoteActorParams) => Promise<HandDoorResult>;
   /** Host. Snapshot-plane quest write (clone-forward + `quests.<id>` lock). Returns the quest id. */
   readonly upsertQuest: (params: UpsertQuestParams) => Promise<RpgQuestId>;
   readonly deleteQuest: (params: DeleteQuestParams) => Promise<void>;

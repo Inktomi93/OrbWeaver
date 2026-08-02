@@ -209,8 +209,9 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
   // when the connected model's window is a fallback GUESS (`ceilingEstimated`, e.g. an unreachable catalog),
   // the used total with the window named unknown. Never a ratio against a fabricated denominator (D41).
   const contextBoundaryLabel = previewFit.data !== undefined ? contextFitLabel(previewFit.data) : undefined;
-  // The memory fact: when a compactSummary covers the span above the boundary, the divider says the older
-  // messages are compacted into memory + offers a peek at the summary text. Null ⇒ nothing above is compacted.
+  // The compaction fact: when a compactSummary covers the span above the boundary, the divider says the older
+  // messages are compacted into a summary + offers a peek at that text. Null ⇒ nothing above is compacted.
+  // (The noun is COMPACTION, not memory — this is `chats.compactSummary`, not the Memory plane.)
   const contextBoundaryCompactSummary = previewFit.data?.compactSummary ?? null;
 
   const renderItem = (item: (typeof items)[number]): ReactNode =>
@@ -382,7 +383,9 @@ function DraftGreetingEmpty({ names }: { readonly names: readonly string[] }): R
   const label = names.filter((n) => n.length > 0).join(", ");
   return (
     <Stack align="center" justify="center" padding="section" className="h-full">
-      <Text tone="muted">{label.length > 0 ? `Say hello to ${label} to begin the scene.` : "No messages yet."}</Text>
+      {/* An empty state stays READABLE PROSE — the prose default, not a muted gloss (density S3 ruling):
+          the one line standing in for a whole transcript is the last thing that should recede. */}
+      <Text>{label.length > 0 ? `Say hello to ${label} to begin the scene.` : "No messages yet."}</Text>
     </Stack>
   );
 }
@@ -391,7 +394,8 @@ function DraftGreetingEmpty({ names }: { readonly names: readonly string[] }): R
 function EmptyThread(): ReactElement {
   return (
     <Stack align="center" justify="center" padding="section" className="h-full">
-      <Text tone="muted">No messages yet.</Text>
+      {/* Readable prose, not a gloss — see DraftGreetingEmpty above (density S3 ruling). */}
+      <Text>No messages yet.</Text>
     </Stack>
   );
 }

@@ -84,6 +84,16 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
     await expect(h.service.dismissActor({ principal: principal("member"), chatId, targetRef: CAST_REF })).rejects.toThrow(DomainForbiddenError);
     await expect(h.service.dismissActor({ principal: principal("ghost"), chatId, targetRef: CAST_REF })).rejects.toThrow(DomainNotFoundError);
   });
+
+  // R4 — the promotion doorway. It is the ONE rpg verb whose write reaches OUTSIDE the game (a durable
+  // character card + a chat roster seat), so its host floor is the gate that keeps a mere member from minting
+  // library rows into the host's account. Both refusals land BEFORE any mint.
+  test("promoteActor", async () => {
+    const { chatId, h } = await seedGameWithRoster();
+    await expect(h.service.promoteActor({ principal: principal("member"), chatId, targetRef: CAST_REF })).rejects.toThrow(DomainForbiddenError);
+    await expect(h.service.promoteActor({ principal: principal("ghost"), chatId, targetRef: CAST_REF })).rejects.toThrow(DomainNotFoundError);
+    expect(h.fakes.promoteMints).toHaveLength(0);
+  });
 });
 
 describe("member-gated reads — a member is ALLOWED, a non-member leak-free NOT-FOUND", () => {

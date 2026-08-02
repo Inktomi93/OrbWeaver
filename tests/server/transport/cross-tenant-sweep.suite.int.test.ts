@@ -821,6 +821,10 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.rpg.patchActor({ chatId: i.chatId, targetRef: { kind: "cast", castKey: "mira" }, ops: [{ op: "setStatus", status: "hacked" }] }),
   },
   { path: "rpg.dismissActor", call: (c, i) => c.rpg.dismissActor({ chatId: i.chatId, targetRef: { kind: "cast", castKey: "mira" } }) },
+  // R4 — the promotion doorway is the ONE rpg proc whose write reaches outside the game (a character card into
+  // the ROOM HOST's library + a seat on their roster), which makes a cross-tenant leak here worse than a state
+  // write: a stranger passing a foreign chatId must never get as far as the mint.
+  { path: "rpg.promoteActor", call: (c, i) => c.rpg.promoteActor({ chatId: i.chatId, targetRef: { kind: "cast", castKey: "mira" } }) },
   { path: "rpg.upsertQuest", call: (c, i) => c.rpg.upsertQuest({ chatId: i.chatId, questId: i.rpgQuestId, name: "hacked" }) },
   { path: "rpg.deleteQuest", call: (c, i) => c.rpg.deleteQuest({ chatId: i.chatId, questId: i.rpgQuestId }) },
   { path: "rpg.addJournalEntry", call: (c, i) => c.rpg.addJournalEntry({ chatId: i.chatId, type: "note", title: "hacked", content: "hacked" }) },

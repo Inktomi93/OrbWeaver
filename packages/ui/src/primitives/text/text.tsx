@@ -29,8 +29,9 @@ export interface TextProps extends ComponentProps<"p">, VariantProps<typeof text
 /**
  * Token-driven typographic scale over the body intrinsics (p/span/div) — there is no Base UI text primitive.
  *
- * Feature code passes `voice` (density-pass-spec.md §2.3 — kicker · label · datum · gloss, plus the prose
- * `size="title"|"body"` for CONTENT copy): the four-voice grammar is what makes a surface's hierarchy
+ * Feature code passes `voice` (density-pass-spec.md §2.3 — kicker · label · datum · gloss, plus `monogram`
+ * for a decorative display glyph, and the prose
+ * `size="title"|"body"` for CONTENT copy): the voice grammar is what makes a surface's hierarchy
  * legible instead of uniformly loud. `size`/`weight`/`tone`/`transform` are the ui-package-internal axes a
  * voice is BUILT from; the `density-tier` gate (arm A3) ratchets their remaining feature call sites down.
  */
