@@ -92,7 +92,14 @@ interface ViewerRole {
 /** Is THIS caller entitled to the unstripped hidden-content payload (§3.6 "the host via the eye")? The host
  *  reads verbatim; every other present role is a member and is stripped. The ONE place the host/member split
  *  is spelled for the payload boundary — every verb/return that hands canon content to a caller routes its
- *  verdict through here (never re-derives `role === "host"` inline). */
+ *  verdict through here (never re-derives `role === "host"` inline).
+ *
+ *  THE BOUNDARY (ruled 2026-08-03): this is the DATA-PROJECTION class (D106-F1 — consumers thread the verdict
+ *  as DATA), which is why it takes a bare `ViewerRole` and not a `Principal` + `can()`. Its counterpart is the
+ *  ENFORCEMENT class, homed at `substrate/auth/decide.ts::permitsHost` / `assertHost`: any comparison that
+ *  DECIDES whether an operation is permitted goes there, under spine invariant #6. Deliberately NOT wired
+ *  through `can()` — doing so would thread a Principal into this pure, I/O-free module for zero behavior
+ *  change (`can(…, 'host', …)` reduces to exactly this comparison; the Principal is never read). */
 export function viewerReadsHidden(viewer: ViewerRole): boolean {
   return viewer.role === "host";
 }

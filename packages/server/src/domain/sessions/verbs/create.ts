@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { getLog, logAudit } from "#foundation/observability";
 import type { CreateSessionParams } from "../contract/params";
@@ -10,13 +9,12 @@ import { insertSession } from "../persistence/sessions";
 // mint is a login (local route + OIDC callback funnel here), so it audits AUTH_LOGIN; admin-initiated
 // revokes audit at the admin layer.
 
-const RANDOM_TOKEN_BYTES = 32;
 const AUTH_LOGIN = "AUTH_LOGIN";
 const SESSION_ENTITY = "session";
 
 export function createCreate(ctx: SessionsContext): Pick<SessionsService, "create"> {
   async function create(params: CreateSessionParams): Promise<CreateSessionResult> {
-    const token = randomBytes(RANDOM_TOKEN_BYTES).toString("base64url");
+    const token = ctx.mintToken();
     const sessionId = mintTypeId(ID_PREFIX.session);
     const now = ctx.now();
     const expiresAt = now + ctx.ttlMs;

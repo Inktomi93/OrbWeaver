@@ -9,7 +9,7 @@ import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
-import type { UserId } from "@orb/kit/ids";
+import type { SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
 import type { TRPCError } from "@trpc/server";
@@ -133,8 +133,11 @@ const MULTI_HUMAN_CAPABLE: Record<AuthMode, (cfg: EffectiveAppConfig) => boolean
   oidc: () => true,
 };
 
-/** Read our opaque session token from the Cookie header. */
-function readSessionToken(headers: Headers): string | null {
+/** Read our opaque session token from the Cookie header. The trust-boundary crossing for the expiry-slide
+ *  re-issue: the brand records that this string came off OUR cookie name, so only that value can be written
+ *  back out through `serializeSessionCookie`. Authenticity is still `sessions.validate`'s hash lookup — the
+ *  slide callback only fires when validate already accepted the token. */
+function readSessionToken(headers: Headers): SessionToken | null {
   const raw = headers.get("cookie");
   if (raw === null) {
     return null;
@@ -146,7 +149,7 @@ function readSessionToken(headers: Headers): string | null {
     }
     if (part.slice(0, eq).trim() === SESSION_COOKIE_NAME) {
       try {
-        return decodeURIComponent(part.slice(eq + 1).trim());
+        return castId<SessionToken>(decodeURIComponent(part.slice(eq + 1).trim()));
       } catch {
         return null;
       }

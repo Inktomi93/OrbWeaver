@@ -1,5 +1,7 @@
+import type { SessionToken } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { createTokenHasher, SESSION_TTL_MS, SLIDE_THROTTLE_MS } from "../../../../../packages/server/src/domain/sessions/tokens/tokens";
+import { createTokenHasher, mintSessionToken, SESSION_TTL_MS, SLIDE_THROTTLE_MS } from "../../../../../packages/server/src/domain/sessions/tokens/tokens";
 import { expect, test } from "../../../../support/fixtures";
 
 // Invariant #3: the token is never stored — only its PEPPERED hash; the hasher THROWS (loud
@@ -9,7 +11,11 @@ const PEPPER = "test-session-secret-at-least-32-chars-long";
 const OTHER_PEPPER = "another-session-secret-32-chars-minimum!!";
 const HEX_64 = /^[0-9a-f]{64}$/u;
 const SESSION_SECRET_ERROR = /SESSION_SECRET/u;
-const TOKEN = "opaque-token-abc";
+const TOKEN = castId<SessionToken>("opaque-token-abc");
+// 32 CSPRNG bytes → base64url is exactly 43 unpadded chars. Pinned because the session cookie's ENTROPY is
+// the whole anti-guessing story: nothing downstream (the hash lookup, the TTL) notices a shortened token.
+const BASE64URL_43 = /^[A-Za-z0-9_-]{43}$/u;
+const MINT_SAMPLES = 64;
 
 const MS_PER_SECOND = 1000;
 const SECONDS_PER_MINUTE = 60;
@@ -17,6 +23,17 @@ const MINUTES_PER_HOUR = 60;
 const HOURS_PER_DAY = 24;
 const TTL_DAYS = 30;
 const SLIDE_MINUTES = 5;
+
+describe("mintSessionToken", () => {
+  test("mints 256 bits of entropy as cookie-safe base64url (43 unpadded chars)", () => {
+    expect(mintSessionToken()).toMatch(BASE64URL_43);
+  });
+
+  test("every mint is unique — no counter, no reuse", () => {
+    const minted = new Set(Array.from({ length: MINT_SAMPLES }, () => mintSessionToken()));
+    expect(minted.size).toBe(MINT_SAMPLES);
+  });
+});
 
 describe("createTokenHasher", () => {
   test("produces a stable SHA-256 hex digest (round-trip: same token → same hash)", () => {

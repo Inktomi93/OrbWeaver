@@ -130,7 +130,7 @@ import {
   shapeTurn,
   toShapeCanon,
 } from "../substrate/assembly-access";
-import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth";
+import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, permitsHost, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth";
 
 import { toChatDetail } from "../substrate/chat-detail";
 import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember } from "../substrate/member-visibility";
@@ -1122,7 +1122,9 @@ function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents
   return async ({ principal, chatId, afterSeq }: ReplayChatEventsParams) => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const rows = await loadChatEventReplay(ctx.db, chatId, afterSeq);
-    const isHost = membership.role === "host";
+    // Spine invariant #6: the host verdict routes through the ONE `can()` seam (`substrate/auth::permitsHost`),
+    // never an inline `role === "host"` — a surface that relaxes its gate inherits the correct redaction.
+    const isHost = permitsHost(ctx.can, principal, membership.role);
     // The D16 join-history floor drops pre-join rows FIRST (per-EVENT, on the payload's own anchor), for host
     // and member alike (a promoted host is floored at 0). The §3.6 member projection then runs STATEFULLY over
     // the survivors: `scrubChatEventReplayForMember` removes hidden-class `<lie>` spans from every replayed
@@ -1161,7 +1163,8 @@ function createChatEventBounds(ctx: ChatContext): ChatService["chatEventBounds"]
     // `reasoningHostOnly` (the deception-active verdict) rides the same probe so the live fan-out withholds
     // the reasoning channel for a member of a deception game — resolved server-side, never client-supplied. A
     // host never has reasoning stripped, so the resolve is skipped on the host path (one fewer read per yield).
-    const isHost = membership.role === "host";
+    // Spine invariant #6 — the host verdict is the `can()` seam's, not an inline role compare (see above).
+    const isHost = permitsHost(ctx.can, principal, membership.role);
     const reasoningHostOnly = isHost ? false : await resolveReasoningHostOnly(ctx, chatId);
     return { ...(await loadChatEventBounds(ctx.db, chatId)), historyFloorSeq: membership.historyFloorSeq, viewerIsHost: isHost, reasoningHostOnly };
   };
