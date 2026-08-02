@@ -122,12 +122,25 @@ function updatesAgainst(trpc: TrpcRecorder, presetId: string): UpdateCall[] {
 // until I reloaded"). Connections persists `routing.roleDefaults` through the busDriven
 // `settings.updateUserSettingsSection`, so the user-bus `settingsChanged` row in data/invalidation.ts is the
 // ONLY thing that can refresh `connection.resolveChatCapability` (staleTime Infinity, no focus refetch).
-// The FIRST resolve fails (no chat connection configured) → the cluster shows its connect-a-model note
-// naming the hidden knobs; after the event the second resolve succeeds and the OUTPUT KnobRows render — each
-// GHOSTED at its effective value (the twin's blank-means-default placeholder, redesign §4.1) with the
+// The FIRST resolve FAILS → the deck stands on `CapabilityGate`'s FAILURE arm (side-eye F-02's P1: a failed
+// read is a routing problem, NOT "connect a chat model" — different problem, different fix, and the server's
+// own message is shown verbatim); after the event the second resolve succeeds and the OUTPUT KnobRows render
+// — each GHOSTED at its effective value (the twin's blank-means-default placeholder, redesign §4.1) with the
 // provenance gloss under the track.
 // The read returns the descriptor PLUS the identity it resolved for (`ResolvedChatCapability`); this panel
 // reads the descriptor half only.
+//
+// THE BARRIER IS THE RENDERED FAILURE ARM, not the request count (lane FLK, 2026-08-02). This pin used to
+// assert the gate's NO-MODEL note and to gate its bus tick on `count(...) === 1`. Both were races the harness
+// lost under battery contention, and both for the same reason: a recorded request proves the ROUTE HANDLER
+// ran node-side, never that the browser settled the query. So (a) the no-model note is only ever on screen
+// during the in-flight window — the instant the scripted rejection lands, F-02's failure arm replaces it, so
+// the assertion was chasing a flash that a busy machine paints past (repro: 3/3 losses on `pnpm test`'s
+// battery, "element(s) not found" on that first assertion), and (b) ticking the bus off the count could
+// invalidate an IN-FLIGHT query, which yields no second call at all. The FAILURE ARM is a SETTLED, durable
+// render — waiting for it is a real browser-side barrier for both hazards, with no timeout anywhere.
+const CAPABILITY_FAILURE_RE = /Your chat model couldn't be resolved/;
+const ROUTING_FAULT_MESSAGE = "no chat connection configured";
 const CAPABILITY = makeResolvedChatCapability({
   capability: makeModelCapability({
     sampling: { temperature: { min: 0, max: 2 } },
@@ -135,8 +148,6 @@ const CAPABILITY = makeResolvedChatCapability({
     context: { window: 32_768 },
   }),
 });
-// The deck's ONE capability note (side-eye F-02: it was three per-cluster copies of the same sentence).
-const OUTPUT_GATE_RE = /max output tokens, max context tokens and verbosity appear here once a chat model is connected/;
 // The funnel's own projection for this preset (`preset.resolveEffective`, §4.3) — `maxOutputTokens` resolves
 // to the engine FLOOR (nothing explicit, nothing dialed), which is exactly what the ghost must show.
 const EFFECTIVE_FLOOR = {
@@ -146,31 +157,34 @@ const EFFECTIVE_FLOOR = {
   stale: [],
 };
 
-test("capability freshness — a settingsChanged tick swaps the connect-a-model note for the live Output knobs", async ({ mount, page }) => {
-  // Fail-then-succeed script (the routeTrpc header's own counter idiom): resolve #1 rejects — no chat
-  // connection configured — and every later resolve returns the capability, i.e. the user picked a model in
-  // Connections. The refetch COUNT below is what proves the invalidation seam fired; the script only decides
-  // what that refetch gets back.
+test("capability freshness — a settingsChanged tick swaps the failed-capability note for the live Output knobs", async ({ mount, page }) => {
+  // Fail-then-succeed script (the routeTrpc header's own counter idiom): resolve #1 rejects — the routing
+  // fault the owner's receipt named — and every later resolve returns the capability, i.e. the user fixed the
+  // model role in Connections. The refetch COUNT below is what proves the invalidation seam fired; the script
+  // only decides what that refetch gets back.
   let resolves = 0;
   const trpc = await routeTrpc(page, {
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    "connection.resolveChatCapability": () => (resolves++ === 0 ? trpcError({ message: "no chat connection configured" }) : CAPABILITY),
+    "connection.resolveChatCapability": () => (resolves++ === 0 ? trpcError({ message: ROUTING_FAULT_MESSAGE }) : CAPABILITY),
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
   });
   const component = await mount(<PresetEditorCapabilityFreshnessStory />);
 
-  await expect(component.getByText(OUTPUT_GATE_RE)).toBeVisible();
-  // Fire the bus tick only AFTER the mount fetch has landed — invalidating an in-flight query yields NO
-  // second call, which would make this pin pass for the wrong reason.
+  // THE BARRIER (see the block header): the failure arm rendered IS the proof that resolve #1 settled in the
+  // browser — so the bus tick below can never land on an in-flight query (which yields no second call at all).
+  // It doubles as the F-02 P1's only pin: a failed read must NOT read as "connect a chat model", and it must
+  // quote the server's own message rather than swallowing it.
+  await expect(component.getByText(CAPABILITY_FAILURE_RE)).toBeVisible();
+  await expect(component.getByText(ROUTING_FAULT_MESSAGE, { exact: true })).toBeVisible();
   await expect.poll(() => trpc.count("connection.resolveChatCapability")).toBe(1);
 
   await component.getByRole("button", { name: "connect a chat model" }).click();
 
   // The seam refetches the capability (proof the map row exists) and the axis re-renders with the knobs.
   await expect.poll(() => trpc.count("connection.resolveChatCapability")).toBe(2);
-  await expect(component.getByText(OUTPUT_GATE_RE)).toBeHidden();
+  await expect(component.getByText(CAPABILITY_FAILURE_RE)).toBeHidden();
   // The GHOST: each twin is genuinely EMPTY (blank-means-default is the storage semantic) while showing the
   // effective value as its placeholder — max output from the funnel's floor, max context from the model's
   // own window — each with its provenance gloss visible.

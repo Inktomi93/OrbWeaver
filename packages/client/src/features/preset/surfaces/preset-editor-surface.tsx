@@ -179,7 +179,8 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   // The LIVE resolved chat capability — the SAME `(model, source, api)` a real turn resolves (incl. the
   // vLLM engine's self-reported window), not a hand-built key off `roleDefaults.chat` (often unset on the
   // vLLM default). Refetches on a settings change (the routing knobs feed the resolution). A resolve failure
-  // (no chat connection configured) leaves `capability` undefined ⇒ the panel shows its connect-a-model note.
+  // leaves `capability` undefined AND `capabilityError` set ⇒ the deck stands down to `CapabilityGate`'s
+  // FAILURE arm, quoting the server (F-02) — never to the connect-a-model note, which is a different problem.
   const capabilityQuery = useQuery(trpc.connection.resolveChatCapability.queryOptions());
   // The read carries the resolved `(api, source, model)` alongside the descriptor (the Connections pane names
   // the fallback from it); this panel gates on the descriptor only.
