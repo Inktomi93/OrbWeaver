@@ -194,6 +194,17 @@ module.exports = {
       },
     },
     {
+      name: "ui-class-merge-seal",
+      comment:
+        "tailwind-merge is sealed to packages/ui/src/lib/class-merge.ts — the ONE module that configures it (the custom --text-*/--leading-*/--tracking-* DTCG class groups) and the ONE home of `cn` + `tv`. A second construction site is a second config, and a merger built without those groups silently drops custom-token classes (2026-08-02 root-fix; the named-import twin — cn/cnMerge/tv from tailwind-variants — is biome noRestrictedImports).",
+      severity: "error",
+      from: {
+        path: UI,
+        pathNot: `${UI}lib/class-merge\\.ts$`,
+      },
+      to: { path: "node_modules/tailwind-merge/" },
+    },
+    {
       name: "search-minisearch-seal",
       comment:
         "minisearch (server side) is sealed to domain/search/substrate/field-index.ts — the ONE lexical BM25 engine home (PD-37). Any other server module importing it is a seal breach; the vector verbs scan the DB, not minisearch.",

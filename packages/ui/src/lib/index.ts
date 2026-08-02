@@ -1,12 +1,13 @@
 // Cross-cutting @orb/ui seams with no better single home: the class-merge (cn), the configured
 // variant factory (tv), and the reduced-motion live-query hook. Primitives import these from here,
 // never a raw lib directly.
-import { createTV } from "tailwind-variants";
 
 export { isSafeColor } from "@orb/kit/safe-color";
-export { cn } from "tailwind-variants";
 export { ACCENT_HOVER } from "./accent-hover";
 export { ANCHOR_GAP_INPUT, ANCHOR_GAP_TRIGGER } from "./anchor-gap";
+// `cn` + `tv` are ONE module because they must share ONE tailwind-merge config — see class-merge.ts
+// for the import-order race that shape kills.
+export { cn, tv } from "./class-merge";
 export { CONTROL_SIZE } from "./control-size";
 export { DISABLED_STATE, DISABLED_STATE_NATIVE } from "./disabled-state";
 export { FIELD_CONTROL, FIELD_CONTROL_BOX } from "./field-control";
@@ -34,24 +35,3 @@ export { SCRIM, SCRIM_BASE } from "./scrim";
 export { SELECTION_CONTROL, TOUCH_TARGET_PSEUDO } from "./selection-control";
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion";
 export { assertBoundedScrollHeight, GAP_TOKENS, type GapToken, gapPxFor } from "./virtual-gap";
-
-// tv is a createTV-CONFIGURED factory, never the raw tailwind-variants export — the DTCG type-scale
-// utilities are custom --text-* tokens tailwind-merge otherwise misclassifies as text COLORS,
-// silently dropping the size class. Must be baked into the factory (a per-call twMergeConfig loses a cache race).
-export const tv = createTV({
-  twMergeConfig: {
-    extend: {
-      classGroups: {
-        "font-size": [{ text: ["display", "headline", "title", "body", "label", "code", "micro"] }],
-        // The line-height + letter-spacing twins of the font-size group above, for the same reason:
-        // `--leading-*`/`--tracking-*` are custom DTCG namespaces, so tailwind-merge does not know
-        // `leading-body` belongs in the same group as core `leading-tight` and would keep BOTH — leaving the
-        // winner to stylesheet source order, i.e. luck. The four-voice grammar (text/variants.ts) rides
-        // exactly this override (a voice re-spells leading/tracking over the size default), so an
-        // unregistered group is a silently-wrong line-height, not a lint nit.
-        leading: [{ leading: ["display", "headline", "title", "body", "label"] }],
-        tracking: [{ tracking: ["micro"] }],
-      },
-    },
-  },
-});
