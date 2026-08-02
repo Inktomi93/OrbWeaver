@@ -120,6 +120,38 @@ load (vi.stubEnv can't flip composed knobs — injected unit tests own the other
 full-createServices int file needs a SERIAL_INT row.
 **HANDOFF-COPY now waits on REGEX's drain instead** (BOTH regen the db baseline —
 0000_baseline.sql collision; REGEX's regen is already in its branch).
+**⚡ OWNER WORD (08-03): MERGES GO `--no-verify` on branch-side hook-green receipts** ("this is
+insane" — the double hook-run per merge dies). Consolidated proof = the quiesce verify --push.
+Track as explicit debt: any --no-verify merge is listed here until that run.
+✅ **MONO MERGED (`3f7d4fee`, hook 14/14, torn down)** — the deleted-test tooth BITES again:
+manifest regenerated (1,447 files, the post-retro floor), readManifest FAIL-LOUD w/ regen
+remedy (real-tree anchored), two-sided deletions ledger (unaccounted deletion RED · ledgered
+GREEN · returned-file stale row RED), 4 probe receipts. Account-a-deletion flow documented in
+the gate header (add a why-row, no regen needed).
+✅ **POLISH MERGED (`634db1b8`, hook 14/14, torn down)** — item 14: macro pill tone="soft"
+(the mock's own .tok grammar; computed-style CT red-first 2/4 on HEAD; --color-info now
+CT-load-bearing = the don't-re-hue ruling is enforceable) + Badge inline arm draws no border
+box in any tone (single-consumer swept) · O-2: "resolved for {model}" via SHARED literal
+`resolvedForLabel` in effective-knobs.ts (header + readout byte-identical — the drift class
+dead) · preset-surface-redesign.md restamped BUILT/CLOSED w/ per-stage receipts + honest
+clause-G residue. **CRUNCH LIST = 36/36 ACCOUNTED, GRADUATION-READY** (next pass moves it,
+no re-verify needed). Lane lesson banked below (pathspec commit drops untracked NEW files).
+✅ **WRITES MERGED (`316d92b5`, hook 14/14, torn down)** — `owner-scoped-writes` gate live
+(SIBLING gate w/ DISJOINT marker vocab @owner-scope-write-ok — shared vocab would invert the
+read gate's stale arm, lesson banked); 33 sites classified, 29 markers each naming its
+authorizer; shared substrate extracted (tenancy-read.ts + ownerScopedTableIdents — the two
+halves can't drift on what a WHERE is; read gate −165 lines). **SECOND REAL CROSS-TENANT
+DEFECT FIXED red-first: credentials `promoteActive`** — Alice naming Bob's credentialId
+flipped BOB's credential active + broke his one-active-per-slot invariant (verb checked
+ownership but the query leg didn't; now owner-scoped in the WHERE + spec). **FLAGGED
+FOLLOW-ON → Lane UPSERT dispatched:** onConflictDoUpdate is an update in disguise — a conflict
+target omitting the owner column can overwrite a foreign row; live (a)-table upserts to judge:
+plugin_kv ([pluginId,key] — NO owner) · stats apply-delta ×4 · settings/theme-queries ·
+automation (owner-targeted, likely fine); needs UNIQUE-index derivation × target list.
+**Lane DANGLE also dispatched** (TRUTH's ruled gate arms: backticked-PATH + backticked-SYMBOL
+existence, dangling-refs family, both-ways).
+**LIVE NOW (5): REGEX · F14 · PERSONA-STICKLER (persona×rpg + history design pass, resumed
+w/ full corpus context — owner's 4 questions) · UPSERT · DANGLE.**
 **LIVE NOW (5): REGEX · MONO (monotonic-tests manifest regen + fail-loud
 readManifest + two-sided arms) · WRITES (PRIN's write-half: the owner-scoped predicate over
 update/delete, 30 sites classified w/ markers, world_books rows coordinate w/ REGEX) · POLISH
