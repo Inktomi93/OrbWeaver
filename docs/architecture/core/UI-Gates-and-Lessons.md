@@ -72,7 +72,7 @@ The UI enforcement families:
   client-foundation belts (`no-array-literal-querykey`, `no-inline-invalidate-outside-seam`,
   `bus-onData-no-store-write`, `no-form-reset-in-autosave`, `persist-partialize-and-total-migrate`).
 - **Tests.** The token-freshness invariant (§3 derived theme) + the CT containment tests on the D44
-  trio (§12.6).
+  trio (UI-Theming-and-Content.md §12.6).
 
 **The D62 design-gate set** (specced in `history/design-enforcement.md` §3; lands WITH the D62 feature
 lanes per §11.7): `no-raw-interactive-intrinsics` (raw `<button>/<input>/<select>/<textarea>/<a>` banned
@@ -258,7 +258,7 @@ resolves `render` via `resolveRowRenderPolicy`, `message-content.tsx` dispatches
 per block. The `html-card` + `asset`-media arms are PRE-WIRED seams awaiting their producers (card grammar
 
 - `cardTrust`; asset resolver + composer attach). *Gates `no-untrusted-html-in-main-dom`,
-  `no-external-media-without-gate` (§12.6).*
+  `no-external-media-without-gate` (UI-Theming-and-Content.md §12.6).*
 
 ### 11.7 Sequencing (born-compliant — the non-negotiable)
 
