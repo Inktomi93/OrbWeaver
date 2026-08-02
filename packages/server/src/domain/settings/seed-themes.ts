@@ -46,7 +46,7 @@ import { upsertSeedTheme } from "./persistence/theme-queries";
 
 const HEARTH_OVERRIDE: ThemeOverride = {
   accent: "oklch(0.72 0.175 52)",
-  userBubble: { bg: "oklch(0.255 0.007 60)", fg: "oklch(0.955 0.004 75)" },
+  userBubble: { bg: "oklch(0.255 0.006 60)", fg: "oklch(0.955 0.004 75)" },
   aiBubble: { bg: "oklch(0.205 0.006 60)", fg: "oklch(0.955 0.004 75)" },
   systemBubble: { bg: "oklch(0.255 0.006 60)", fg: "oklch(0.74 0.008 65)" },
   speaker: "oklch(0.72 0.175 52)",
