@@ -27,17 +27,25 @@ import { expect, test } from "../../../support/fixtures";
 import { makeHarness as makeAssetsHarness } from "../../domain/assets/_support.ts";
 import { makeHarness as makeCharacterHarness, principal, seedUser } from "../../domain/character/_support.ts";
 
-/** In-memory settings latch (isSeeded/markSeeded), keyed by userId — the compose wiring of the real latch is
- *  proven in the compose slice test; here we only need the seeder to run once. */
+/** In-memory settings latch (isSeeded/markSeeded + the pack-version stamp), keyed by userId — the compose
+ *  wiring of the real latch is proven in the compose slice test; here we only need the seeder to run once. */
 function fakeLatch(): {
   readonly isSeeded: (p: Principal) => Promise<boolean>;
   readonly markSeeded: (p: Principal) => Promise<void>;
+  readonly readPackVersion: (p: Principal) => Promise<number>;
+  readonly markPackVersion: (p: Principal, version: number) => Promise<void>;
 } {
   const seeded = new Set<UserId>();
+  const versions = new Map<UserId, number>();
   return {
     isSeeded: (p): Promise<boolean> => Promise.resolve(seeded.has(p.userId)),
     markSeeded: (p): Promise<void> => {
       seeded.add(p.userId);
+      return Promise.resolve();
+    },
+    readPackVersion: (p): Promise<number> => Promise.resolve(versions.get(p.userId) ?? 0),
+    markPackVersion: (p, version): Promise<void> => {
+      versions.set(p.userId, version);
       return Promise.resolve();
     },
   };

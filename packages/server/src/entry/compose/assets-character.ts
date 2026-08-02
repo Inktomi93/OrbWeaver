@@ -320,6 +320,14 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
       }
     },
     isSeeded: async (principal): Promise<boolean> => (await settings.getUserSettings({ principal })).config.onboarding.defaultCharactersSeeded,
+    // The pack stamp: an already-latched library trailing CARD_PACK_VERSION gets the reseed migration.
+    readPackVersion: async (principal): Promise<number> => (await settings.getUserSettings({ principal })).config.onboarding.defaultCharactersPackVersion,
+    markPackVersion: async (principal, version): Promise<void> => {
+      await settings.updateUserSettingsSection({
+        principal,
+        input: { section: "onboarding", patch: { defaultCharactersPackVersion: version } },
+      });
+    },
     markSeeded: async (principal, welcomeAssistantId): Promise<void> => {
       await settings.updateUserSettingsSection({
         principal,
