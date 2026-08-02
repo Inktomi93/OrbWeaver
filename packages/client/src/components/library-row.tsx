@@ -108,6 +108,10 @@ export function LibraryRow({
       // reserving ~76px of the title column at rest (side-eye P1-2b). `actionsReserved` opts out for a row
       // that shows a control at rest — see the prop.
       actionsFloat={!actionsReserved}
+      // A reserved strip is a SIBLING of the body, so the row's tint has to be painted on the root or the
+      // highlight stops before the controls (and the cluster ends up minting its own panel to compensate —
+      // the box-in-box the reserved arm exists to kill).
+      rowTint={actionsReserved ? "row" : "body"}
       clickable={true}
       onClick={onSelect}
       selected={selected}

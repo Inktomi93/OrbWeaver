@@ -174,7 +174,7 @@ test("O-1 the ACTIVE row's dot is a FILLED disc in the trailing slot, painted at
   await expect(dot).toHaveCSS("opacity", "1");
   await expect(dot).toHaveCSS("visibility", "visible");
   // Never `display:none` — that is the swap that oscillates (the box must stay in layout in both states).
-  expect(await dot.evaluate((el) => getComputedStyle(el).display)).not.toBe("none");
+  await expect(dot).not.toHaveCSS("display", "none");
   await expect(dot.locator("svg")).toHaveAttribute("fill", "currentColor");
   // …and it lives in the TRAILING cluster, not on the title line (where the swapped badge used to).
   await expect(component.locator(TITLE_ROW).getByRole("radio")).toHaveCount(0);
