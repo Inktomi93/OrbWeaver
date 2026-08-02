@@ -1,4 +1,4 @@
-// Gate: types-in-contract (core/Core-0-Architecture-and-Structure.md §7.4) — a feature's contract/service.ts is the typed API
+// Gate: types-in-contract (core/Spine-TypeScript-and-Patterns.md §7.4) — a feature's contract/service.ts is the typed API
 // surface and MUST declare the exported <Feature>Service interface (read it to know everything the
 // feature does). Lenient: only fires once a feature HAS a contract/service.ts (skips features not yet
 // built). The "no exported types OUTSIDE contract/" half is the no-inline-types grit; this is the
@@ -17,7 +17,7 @@ function relPath(root: string, abs: string): string {
 
 export const gate: GateDescriptor = {
   name: "types-in-contract",
-  docRow: "core/Core-0-Architecture-and-Structure.md §7.4",
+  docRow: "core/Core-0-Architecture-and-Structure.md §7 (core/Spine-TypeScript-and-Patterns.md §7.4)",
   status: "active",
   scopeSafety: "incremental-safe",
   message: SERVICE_MESSAGE,

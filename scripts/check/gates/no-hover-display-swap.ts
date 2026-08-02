@@ -31,12 +31,12 @@
 // (`.x:hover { display: none }`) is out of scope — `feature-css-files` already bans feature CSS, and the
 // ui/client stylesheets are `motion-token-purity`'s scan surface, not this one.
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor } from "../contract.ts";
+import type { ExemptionTable, GateDescriptor } from "../contract.ts";
 
 /** Legitimate hover-keyed display swaps → the reason each cannot oscillate. Both-ways ratchet: a stale row
  *  (the file no longer carries one) is RED, so a migrated file can't keep a standing exemption. EMPTY —
  *  every live instance was migrated onto the reserved-box posture in the gate's own landing commit. */
-const ALLOWLIST: Record<string, string> = {};
+const ALLOWLIST: ExemptionTable = {};
 
 const MESSAGE =
   "hover-keyed DISPLAY utility — a hit-test oscillator. A display swap driven by hover removes a box from " +
