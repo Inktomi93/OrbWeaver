@@ -22,6 +22,7 @@ import {
   parsePromptConfig,
   promptConfigSchema,
   promptConfigWriteSchema,
+  QUALITY_LEVELS,
   SIDE_GEN_POSTURES,
   TEMPLATE_DEF_BY_ID,
   TEMPLATE_DEFS,
@@ -236,6 +237,19 @@ test("a clean params blob parses through unchanged (the catch only fires on fail
     params: { temperature: SAMPLE_TEMPERATURE, quality: "deep" },
   });
   expect(parsed.params).toEqual({ temperature: SAMPLE_TEMPERATURE, quality: "deep" });
+});
+
+test("the QUALITY dial's OFF arm is the ABSENCE — the enum stays three-membered (owner ruling O-18)", () => {
+  // The editor's "Don't use quality" option is a REAL arm, stored as no `quality` key at all: the funnel
+  // feeds nothing when the field is absent, and DEFAULT_PROMPT_CONFIG.params ships `{}`. Pinning it here is
+  // what stops a later lane from "fixing" the dropdown by adding a fourth `QUALITY_LEVELS` member — which
+  // would force an `off` row into QUALITY_EFFORT/QUALITY_SAMPLING and thereby MATERIALIZE a mapping for
+  // "no mapping" (the exact shape the G8 tri-state retirement ruled out).
+  expect(QUALITY_LEVELS).toEqual(["fast", "balanced", "deep"]);
+  expect(userIntentSchema.parse({})).toEqual({});
+  expect(userIntentSchema.parse({ quality: undefined }).quality).toBeUndefined();
+  expect(userIntentSchema.safeParse({ quality: "off" }).success).toBe(false);
+  expect(DEFAULT_PROMPT_CONFIG.params.quality).toBeUndefined();
 });
 
 test("userIntentSchema rejects an out-of-bounds knob (the shared numeric bounds hold)", () => {

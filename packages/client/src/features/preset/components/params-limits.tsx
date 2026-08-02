@@ -155,12 +155,12 @@ function StopSequences({ form }: { readonly form: AppForm }): ReactElement {
           field.handleChange([...stops, next]);
           input.value = "";
         };
+        // HINT, not `description` (crunch-list 21): a Field description renders at the 13px/muted step,
+        // which is a FIFTH type tuple on a deck whose helper voice is `gloss`. The deck's one helper voice
+        // is the gloss; explanatory prose rides the hover hint (§4.1's rule), which is what every other row
+        // here already does.
         return (
-          <Field
-            description="The model stops generating when it would emit one of these. Type a sequence and press Enter."
-            label="Stop sequences"
-            name={field.name}
-          >
+          <Field hint="The model stops generating when it would emit one of these. Type a sequence and press Enter." label="Stop sequences" name={field.name}>
             <Row className="flex-wrap" gap="field">
               {stops.map((stop) => (
                 <Badge intent="neutral" key={stop} size="sm" tone="soft">
@@ -249,9 +249,11 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
           ) : null
         }
       </form.Subscribe>
+      {/* Same one-helper-voice rule as Stop sequences above (crunch-list 21): hover hint, not a 13px
+          always-visible description line. */}
       <form.AppField name="params.compaction.instructions">
         {(field): ReactElement => (
-          <field.TextareaField description="How to steer the summary (leave blank for the RP-tuned default)." label="Summary instructions" rows={3} />
+          <field.TextareaField hint="How to steer the summary (leave blank for the RP-tuned default)." label="Summary instructions" rows={3} />
         )}
       </form.AppField>
     </Section>
@@ -269,7 +271,7 @@ function AdvancedCluster({ form, customParameterKeys }: { readonly form: AppForm
         <Stack gap="field">
           <form.Subscribe selector={(state): Record<string, number> | undefined => state.values.params.logitBias}>
             {(logitBias): ReactElement => (
-              <Field description="A JSON map of token id → bias (-100…100). Nudges or blocks specific tokens. Invalid JSON is ignored." label="Logit bias">
+              <Field hint="A JSON map of token id → bias (-100…100). Nudges or blocks specific tokens. Invalid JSON is ignored." label="Logit bias">
                 <Textarea
                   aria-label="Logit bias"
                   defaultValue={logitBias === undefined ? "" : JSON.stringify(logitBias)}

@@ -141,6 +141,13 @@ export function provenanceSuffix(provenance: string): string | null {
   return provenance;
 }
 
+/** The dial's OFF arm, as the deck AND the readout state it (owner ruling O-18). "No quality" is a REAL,
+ *  named arm of the dropdown — it is stored as the ABSENCE of `params.quality`, which is the funnel's own
+ *  off arm (nothing is fed; see `qualitySelectValue`'s header for why absence and not a fourth enum) — so
+ *  the surface that reads the dial must SAY so rather than rendering the mapping row away. A hidden row is
+ *  how "off" and "the read hasn't landed" became indistinguishable. */
+const QUALITY_OFF_GLOSS = "quality off — knobs are what you set";
+
 /** The QUALITY cluster's MAPPING DATUM (§4 cluster 1, the mock's `deep → effort high · temp 1.0`) — the
  *  server's projection of the dial's own table, formatted. Never a client re-mapping of quality→axes (the
  *  drift `capability-panel-model.ts` bans), and never derived from the funnel's OUTPUT either: the previous
@@ -152,7 +159,7 @@ export function provenanceSuffix(provenance: string): string | null {
  *  note its cluster already owns). */
 export function qualityMappingGloss(profile: EffectiveProfileRow | undefined, quality: string | undefined): string | null {
   if (quality === undefined) {
-    return null;
+    return QUALITY_OFF_GLOSS;
   }
   const mapping = profile?.qualityMapping;
   if (mapping === undefined || mapping === null) {
@@ -174,4 +181,19 @@ export function qualityOverrideGloss(profile: EffectiveProfileRow | undefined): 
     return "explicit knobs below override this";
   }
   return `${overridden.join(" · ")} set explicitly below — the dial no longer feeds ${overridden.length === 1 ? "it" : "them"}`;
+}
+
+/** The DECK's quality line — ONE line, the mock's own ("deep → effort high · temp 1.0 — explicit knobs
+ *  below override this"), incl. the temperature the mapping defines. The two halves stay SEPARATE
+ *  derivations above (the mapping is a fact about the dial, the override note is status — side-eye F-15's
+ *  distinction, which is about what each half SAYS, not about how many lines it takes); only the rendering
+ *  joins them, because two stacked micro-lines under one control is the "crunchy" the owner named
+ *  (crunch-list 5). The readout keeps the halves apart — it has a whole labelled group for the mapping. */
+export function qualityDeckGloss(profile: EffectiveProfileRow | undefined, quality: string | undefined): string | null {
+  const mapping = qualityMappingGloss(profile, quality);
+  const override = qualityOverrideGloss(profile);
+  if (mapping === null) {
+    return override;
+  }
+  return override === null ? mapping : `${mapping} — ${override}`;
 }

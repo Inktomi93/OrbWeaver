@@ -169,6 +169,19 @@ describe("resolveEffective — the QUALITY MAPPING datum (side-eye F-15)", () =>
     expect((await resolveWith({}, makeModelCapability(SAMPLING_CAPABLE))).qualityMapping).toBeNull();
   });
 
+  test("the OFF arm is the ABSENCE, and it feeds nothing (owner ruling O-18)", async () => {
+    // The editor's "Don't use quality" option writes NO `quality` key — the storage form of the off arm
+    // (never a fourth enum member, which would need a row in the dial tables and would therefore feed
+    // SOMETHING). This is the server half of that arm: same model, same absent knobs, and temperature must
+    // come from the MODEL, not from a dial — compare against the `quality: "balanced"` case above, where the
+    // identical params resolve to the dial's own number with provenance `quality`.
+    const capability = makeModelCapability(SAMPLING_CAPABLE);
+    const off = await resolveWith({}, capability);
+    expect(off.qualityMapping).toBeNull();
+    expect(off.knobs.temperature?.provenance).not.toBe("quality");
+    expect(off.knobs.temperature?.value).not.toBe(QUALITY_SAMPLING.balanced.temperature);
+  });
+
   test("the mapping never names a knob THIS model cannot take (the F-14 honesty, applied to the dial)", async () => {
     // No reasoning and no temperature range means the dial feeds nothing here, so it claims nothing.
     expect((await resolveWith({ quality: "fast" }, makeModelCapability())).qualityMapping).toBeNull();

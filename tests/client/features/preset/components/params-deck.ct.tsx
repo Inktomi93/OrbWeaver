@@ -44,6 +44,9 @@ const CAPABILITY_ERROR = "400 incoherent routing (agent-sdk × local-light)";
 const CLAUDE_ENV_RE = /claudeEnv/;
 const DEFAULT_PREFIX = /Default — /;
 const SETTLE_MS = 500;
+/** The dial's OFF arm as the surface states it (owner ruling O-18) — spelled once here, asserted in both
+ *  the deck's gloss and the ACTIVE-arm round trip. */
+const QUALITY_OFF_GLOSS = "quality off — knobs are what you set";
 
 /** The resolved px width of a `--width-*` token (the deck's geometry is asserted against the TOKEN, never a
  *  hardcoded number — a token edit must move the assertion with it). */
@@ -145,23 +148,38 @@ test("CLAMP — an explicit value the model moved says so, visibly (never behind
   await expect(deck.getByRole("textbox", { name: "Repetition penalty", exact: true })).toHaveValue("2.5");
 });
 
-test("QUALITY — the strip is a RADIOGROUP and prints the dial's MAPPING datum, not an override status", async ({ mount }) => {
+test("QUALITY — the dial is a SELECT and prints the dial's MAPPING datum on ONE line (O-18)", async ({ mount }) => {
   const deck = await mount(<ParamsDeckExplicitStory />);
 
-  // ARIA rec 7 / F-19: one-of-N is a radiogroup, not three independent pressed buttons. `aria-pressed`
-  // is CLEARED — a control may not claim two contradictory state models at once.
-  const deep = deck.getByRole("radio", { name: "Deep", exact: true });
-  await expect(deep).toHaveAttribute("aria-checked", "true");
-  await expect(deep).not.toHaveAttribute("aria-pressed", ANY);
-  await expect(deck.getByRole("radiogroup", { name: "Quality" })).toBeVisible();
+  // O-18: the segmented strip is dead. The dial reads back through the same combobox grammar as every
+  // other select on the deck, showing the stored level.
+  await expect(deck.getByRole("combobox", { name: "Quality" })).toHaveText("Deep");
+  await expect(deck.getByRole("radiogroup", { name: "Quality" })).toHaveCount(0);
 
-  // F-15: the DATUM is what the dial FEEDS — the server's own projection of the dial table. This fixture
-  // resolves temperature FROM the dial (provenance `quality`) while `repetitionPenalty` is the explicit
-  // knob, so the mapping states both axes and the override note is the SEPARATE, second line. Before this
-  // pass the mapping line WAS the override sentence, which is why a fully-overridden dial printed
-  // "everything is overridden" in the one place the mapping was supposed to appear.
-  await expect(deck.getByText("deep → effort high · temperature 1", { exact: true })).toBeVisible();
-  await expect(deck.getByText("explicit knobs below override this", { exact: true })).toBeVisible();
+  // F-15's distinction survives the fusion: the DATUM is what the dial FEEDS (the server's own projection
+  // of the dial table — true even though `temperature` is currently overridden), and the override note is
+  // still its own derivation. Crunch-list 5: they render as ONE line, the mock's own, temp value included.
+  await expect(deck.getByText("deep → effort high · temperature 1 — explicit knobs below override this", { exact: true })).toBeVisible();
+});
+
+test("QUALITY OFF — 'don't use quality' is a real arm: it writes the ABSENCE and says so (O-18)", async ({ mount }) => {
+  // The GHOST story ships `params: {}` — the off arm's storage form — so the deck must open ON it, named.
+  const deck = await mount(<ParamsDeckGhostStory />);
+  const dial = deck.getByRole("combobox", { name: "Quality" });
+  await expect(dial).toHaveText("Don't use quality");
+  await expect(deck.getByText(QUALITY_OFF_GLOSS, { exact: true })).toBeVisible();
+
+  // Pick a level → the dial is stored…
+  await dial.click();
+  await deck.page().getByRole("option", { name: "Deep", exact: true }).click();
+  await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain('values=quality:"deep"');
+
+  // …and picking OFF again writes NO quality key at all (not `"off"`, not a materialized default) while the
+  // gloss returns to the named off arm. This is the whole ruling: the arm is the absence.
+  await dial.click();
+  await deck.page().getByRole("option", { name: "Don't use quality", exact: true }).click();
+  await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain("keys= ");
+  await expect(deck.getByText(QUALITY_OFF_GLOSS, { exact: true })).toBeVisible();
 });
 
 // ── §4.2 staleness (F7) ───────────────────────────────────────────────────────────────────────────────
@@ -197,8 +215,13 @@ test("OUTPUT — the token caps are KnobRows at the model's real ceilings, and a
 
   await setNumber(deck.getByRole("textbox", { name: "Max output tokens", exact: true }), "999999");
 
-  await expect(deck.getByRole("textbox", { name: "Max output tokens", exact: true })).toHaveValue("8,192");
+  // RAW digits, not "8,192" (crunch-list 9): ONE number grammar across the deck. The clamped value came
+  // back through Base UI's formatter, while the row below it ghosts its placeholder as a plain string —
+  // same KnobRow family, two grammars, until `KNOB_NUMBER_FORMAT` turned grouping off.
+  await expect(deck.getByRole("textbox", { name: "Max output tokens", exact: true })).toHaveValue("8192");
   await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain("values=maxOutputTokens:8192");
+  // The ghost placeholder beside it is raw too — that is what "one grammar" means here.
+  await expect(deck.getByRole("textbox", { name: "Max context tokens", exact: true })).toHaveAttribute("placeholder", "32768");
 });
 
 test("OUTPUT — the stop-sequence chip list adds and removes (G2)", async ({ mount }) => {
@@ -243,7 +266,7 @@ test("NO MODEL — ONE gate note names every hidden knob; QUALITY/CONTEXT/ADVANC
   // …and the routing sentence is printed exactly ONCE, where it used to appear three times.
   await expect(deck.getByText(GATE_SETTINGS_RE)).toHaveCount(1);
 
-  await expect(deck.getByRole("radio", { name: "Balanced", exact: true })).toBeVisible();
+  await expect(deck.getByRole("combobox", { name: "Quality" })).toBeVisible();
   await expect(deck.getByLabel("Verbatim tail", { exact: true })).toBeVisible();
   await expect(deck.getByRole("button", { name: "Advanced" })).toBeVisible();
 });
@@ -300,7 +323,14 @@ test("GEOMETRY — label column · flexing track · mono twin, all on ONE line (
   expect(Math.abs(center(trackBox) - center(twinBox))).toBeLessThanOrEqual(2);
 });
 
-test("F-09 — the ONE derivation, painted: inherited = bare rail + muted thumb, explicit = a NON-ember fill", async ({ mount }) => {
+test("CONTROL COLOR — one grammar, asserted COMPUTED: explicit slider fill IS the ember, inherited paints none", async ({ mount }) => {
+  // OWNER RULING 2026-08-02 ("sliders WHITE, off-palette too"): the deck's set knobs and the surface's
+  // switches speak ONE control color. This REVERSES side-eye F-09's non-ember arm — that call rationed the
+  // accent and produced a set knob painted in a grey the palette does not otherwise speak.
+  //
+  // Asserted on COMPUTED style against the RESOLVED token, never the authored class: a custom-token class
+  // can lose a tailwind-merge race and still read correct in source (the tailwind-merge custom-token
+  // lesson), which is exactly how "rack switches are amber now" survived a review while rendering grey.
   const deck = await mount(<ParamsDeckExplicitStory />);
 
   const ghostRow = deck.getByRole("slider", { name: "Top-P", exact: true });
@@ -310,19 +340,25 @@ test("F-09 — the ONE derivation, painted: inherited = bare rail + muted thumb,
       const control = el.closest("[data-slot=slider-control]") ?? el;
       return getComputedStyle(control.querySelector(`[data-slot="${slot}"]`) ?? el).backgroundColor;
     }, part);
+  // The ember as the BROWSER resolves it — `--color-primary` is authored in oklch and computes to a
+  // different string, so the token is resolved through a probe element rather than string-compared.
+  const ember = await deck.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.backgroundColor = "var(--color-primary)";
+    document.body.append(probe);
+    const resolved = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return resolved;
+  });
 
   // THUMB: the inherited row reads "not yours yet" and the explicit one is full weight.
   expect(await partColor(ghostRow, "slider-thumb")).not.toBe(await partColor(explicitRow, "slider-thumb"));
 
-  // FILL — the half the review measured as actively misleading: an unset Top-P at its 0.92 model default
-  // painted a near-full grey bar, so an INHERITED row read as MORE set than the explicit rows beside it.
-  // The inherited row now claims no magnitude at all.
+  // FILL — the inherited row claims NO magnitude at all (F-09's surviving half: an unset Top-P at its 0.92
+  // model default painting a near-full bar read as MORE set than the explicit rows beside it)…
   expect(await partColor(ghostRow, "slider-indicator")).toBe("rgba(0, 0, 0, 0)");
-  const explicitFill = await partColor(explicitRow, "slider-indicator");
-  expect(explicitFill).not.toBe("rgba(0, 0, 0, 0)");
-  // …and it is NOT the ember: §4.1 rations the accent to focus + the pane's one primary (CD3).
-  const ember = await deck.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--color-primary").trim());
-  expect(explicitFill).not.toContain(ember);
+  // …and the explicit row's fill IS the ember, exactly.
+  expect(await partColor(explicitRow, "slider-indicator")).toBe(ember);
 });
 
 test("CLEAR-THEN-BLANK — emptying the twin returns the knob to inherited (blank-means-default survives)", async ({ mount }) => {

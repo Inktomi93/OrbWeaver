@@ -74,6 +74,36 @@ test("the drilled header's enable switch and the rack row's switch write ONE fie
   await expect(state).toContainText("on=6");
 });
 
+test("CONTROL COLOR — the rack switch is AMBER-ON, asserted COMPUTED in BOTH states (owner ruling)", async ({ mount }) => {
+  // The rendered defect this pins: every rack switch painted a pale `foreground/55` track ON and the
+  // `input` track OFF — a pair the eye reads as one control in two indistinguishable states, while the
+  // Reasoning switch one tab away was amber. One switch grammar, amber-ON, everywhere on this surface.
+  //
+  // COMPUTED, not the class list: the `tone` axis resolves through tailwind-merge, and a custom-token class
+  // that loses that race still reads correct in source (the tailwind-merge custom-token lesson) — which is
+  // how this exact defect was once marked fixed while rendering grey.
+  const probe = await mount(<RackStory />);
+  const toggle = probe.getByRole("switch", { name: "DeleteMe enabled" });
+  const trackColor = (): Promise<string> => toggle.evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor);
+  const ember = await probe.evaluate(() => {
+    const swatch = document.createElement("div");
+    swatch.style.backgroundColor = "var(--color-primary)";
+    document.body.append(swatch);
+    const resolved = getComputedStyle(swatch).backgroundColor;
+    swatch.remove();
+    return resolved;
+  });
+
+  // ON (the story seeds every row enabled).
+  await expect(toggle).toBeChecked();
+  expect(await trackColor()).toBe(ember);
+
+  // OFF — a genuinely different track, so the state never rides the thumb offset alone.
+  await toggle.click();
+  await expect(toggle).not.toBeChecked();
+  expect(await trackColor()).not.toBe(ember);
+});
+
 // The two menus are separate mounts on purpose: Base UI's popup leaves an inert backdrop behind for a beat
 // after it closes, which swallows the next click on the surface underneath — a fresh mount is the honest
 // isolation, not a sleep.
