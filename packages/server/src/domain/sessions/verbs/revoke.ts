@@ -1,4 +1,4 @@
-import type { SessionId, UserId } from "@orb/kit/ids";
+import type { SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { getLog, logAudit } from "#foundation/observability";
 import type { SessionsContext, SessionsService } from "../contract/service";
 import { revokeAllForUser as revokeAllForUserQuery, revokeById, revokeByTokenHash } from "../persistence/sessions";
@@ -12,7 +12,7 @@ const AUTH_LOGOUT = "AUTH_LOGOUT";
 const SESSION_ENTITY = "session";
 
 export function createRevoke(ctx: SessionsContext): Pick<SessionsService, "revokeByToken" | "revoke" | "revokeAllForUser"> {
-  async function revokeByToken(token: string): Promise<void> {
+  async function revokeByToken(token: SessionToken): Promise<void> {
     const now = ctx.now();
     const revoked = await revokeByTokenHash(ctx.db, ctx.hashToken(token), now);
     // The returned row attributes the logout to its user (the token is not identity).

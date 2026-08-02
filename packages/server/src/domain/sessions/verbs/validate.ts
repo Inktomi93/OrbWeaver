@@ -1,3 +1,4 @@
+import type { SessionToken } from "@orb/kit/ids";
 import type { ValidatedSession } from "../contract/results";
 import type { SessionsContext, SessionsService } from "../contract/service";
 import { selectForValidation, slideExpiry } from "../persistence/sessions";
@@ -10,7 +11,7 @@ import { selectForValidation, slideExpiry } from "../persistence/sessions";
 // refresh the cookie Max-Age (else the cookie would die 30d after LOGIN regardless of activity).
 
 export function createValidate(ctx: SessionsContext): Pick<SessionsService, "validate"> {
-  async function validate(token: string, onSlide?: (expiresAt: number) => void): Promise<ValidatedSession | null> {
+  async function validate(token: SessionToken, onSlide?: (expiresAt: number) => void): Promise<ValidatedSession | null> {
     const now = ctx.now();
     const session = await selectForValidation(ctx.db, ctx.hashToken(token));
     // Gating `enabled` to null here IS how disable takes effect next request.

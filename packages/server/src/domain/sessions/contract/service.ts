@@ -4,7 +4,7 @@
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
-import type { Handle, SessionId, UserId } from "@orb/kit/ids";
+import type { Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import type { CreateSessionParams } from "./params";
 import type { CreateSessionResult, ProvisionResult, UserPrincipalFields, ValidatedSession } from "./results";
 
@@ -12,8 +12,10 @@ import type { CreateSessionResult, ProvisionResult, UserPrincipalFields, Validat
 export interface SessionsContext {
   db: Db;
   now: () => number;
-  /** The peppered token hasher, bound to `SESSION_SECRET` at the root; throws if the pepper is unset. */
-  hashToken: (token: string) => string;
+  /** The peppered token hasher, bound to `SESSION_SECRET` at the root; throws if the pepper is unset.
+   *  NARROWED to `SessionToken`: the underlying `createTokenHasher` is generic (chat invites share it), but
+   *  inside this domain only a branded session token may be hashed into a `sessions.token_hash` lookup key. */
+  hashToken: (token: SessionToken) => string;
   /** Session lifetime + slide-throttle (ms), injected from the `tokens/` subsystem. */
   ttlMs: number;
   slideThrottleMs: number;
@@ -30,9 +32,9 @@ export interface SessionsService {
    *  missing/revoked/expired/disabled. `role`/`enabled` are re-read from the row each request, so a
    *  revoke/role-change/disable propagates on the next request. Slides expiry on a throttle; `onSlide`
    *  fires with the new expiry so the route can refresh the cookie Max-Age. */
-  validate: (token: string, onSlide?: (expiresAt: number) => void) => Promise<ValidatedSession | null>;
+  validate: (token: SessionToken, onSlide?: (expiresAt: number) => void) => Promise<ValidatedSession | null>;
   /** Revoke the session a token belongs to (logout); audits `AUTH_LOGOUT`. No-op if already gone. */
-  revokeByToken: (token: string) => Promise<void>;
+  revokeByToken: (token: SessionToken) => Promise<void>;
   /** Revoke one session by id (admin: kick a specific device). @internal */
   revoke: (sessionId: SessionId) => Promise<void>;
   /** Revoke all of a user's live sessions → count revoked. @internal */

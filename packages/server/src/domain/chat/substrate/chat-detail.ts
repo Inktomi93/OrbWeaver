@@ -69,6 +69,9 @@ export function toChatDetail({
     anchorPersonaId: chat.anchorPersonaId,
     participants,
     viewerActivePersonaId: viewer?.activePersonaId ?? null,
+    // A role-derived PAYLOAD field, not a gate: this is the `member-visibility.ts::viewerReadsHidden` class
+    // (D106-F1 — consumers thread the verdict as DATA), NOT the `auth/decide.ts::permitsHost` enforcement
+    // class. Deliberately no `Principal`/`can()` here; the server gates every host-only surface separately.
     viewerIsHost: viewer?.role === "host",
     viewerUserId,
     pendingHostUserId: chat.pendingHostUserId,

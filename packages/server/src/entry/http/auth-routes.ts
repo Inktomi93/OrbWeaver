@@ -17,7 +17,7 @@
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
-import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
+import type { ExternalId, Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Context, Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -96,8 +96,10 @@ async function exchangeCodeForClaims(config: Configuration, callbackUrl: URL, tx
   }
 }
 
-/** Serialize the `__Host-orb_session` Set-Cookie value with a Max-Age (seconds; clamped ≥ 0). */
-export function serializeSessionCookie(token: string, maxAgeSeconds: number): string {
+/** Serialize the `__Host-orb_session` Set-Cookie value with a Max-Age (seconds; clamped ≥ 0). Takes the
+ *  branded `SessionToken` so no other secret (a handle, a `SessionId`, an OIDC code) can be written into
+ *  the session cookie by accident. */
+export function serializeSessionCookie(token: SessionToken, maxAgeSeconds: number): string {
   const maxAge = Math.max(0, Math.floor(maxAgeSeconds));
   return `${SESSION_COOKIE_NAME}=${token}; Max-Age=${maxAge}; ${COOKIE_ATTRS}`;
 }
@@ -107,8 +109,10 @@ export function serializeClearedSessionCookie(): string {
   return `${SESSION_COOKIE_NAME}=; Max-Age=0; ${COOKIE_ATTRS}`;
 }
 
-/** Read the opaque session token from the request `Cookie` header, or `null`. */
-function readSessionToken(headers: Headers): string | null {
+/** Read the opaque session token from the request `Cookie` header, or `null`. The trust-boundary crossing
+ *  for logout: the header is attacker-controlled, so the brand records PROVENANCE only — `revokeByToken`'s
+ *  peppered-hash lookup is the authenticity gate and matches nothing on a forged value. */
+function readSessionToken(headers: Headers): SessionToken | null {
   const raw = headers.get("cookie");
   if (raw === null) {
     return null;
@@ -120,7 +124,7 @@ function readSessionToken(headers: Headers): string | null {
     }
     if (part.slice(0, eq).trim() === SESSION_COOKIE_NAME) {
       try {
-        return decodeURIComponent(part.slice(eq + 1).trim());
+        return castId<SessionToken>(decodeURIComponent(part.slice(eq + 1).trim()));
       } catch {
         return null;
       }
@@ -131,8 +135,11 @@ function readSessionToken(headers: Headers): string | null {
 
 /** The `domain/sessions` slice the mint routes consume (the seam owns resolution; this is the write side). */
 export interface AuthSessionsPort {
-  readonly create: (params: { readonly userId: UserId; readonly userAgent?: string | null }) => Promise<{ readonly token: string; readonly expiresAt: number }>;
-  readonly revokeByToken: (token: string) => Promise<void>;
+  readonly create: (params: {
+    readonly userId: UserId;
+    readonly userAgent?: string | null;
+  }) => Promise<{ readonly token: SessionToken; readonly expiresAt: number }>;
+  readonly revokeByToken: (token: SessionToken) => Promise<void>;
   readonly provisionIdentity: (identity: ResolvedIdentity) => Promise<ProvisionOutcome>;
 }
 
@@ -273,7 +280,7 @@ export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
 }
 
 /** Build the Set-Cookie for a freshly minted session (Max-Age from the expiry minus the injected clock). */
-function sessionCookieFor(session: { readonly token: string; readonly expiresAt: number }, now: number): string {
+function sessionCookieFor(session: { readonly token: SessionToken; readonly expiresAt: number }, now: number): string {
   return serializeSessionCookie(session.token, (session.expiresAt - now) / MS_PER_SECOND);
 }
 
