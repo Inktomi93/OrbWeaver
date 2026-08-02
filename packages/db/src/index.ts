@@ -4,12 +4,18 @@
 //
 // Note: the granular subpaths also resolve (`@orb/db/schema`, `@orb/db/kit`) via the package.json
 // exports map; this top-level barrel re-exports the surface for the common single-import case.
+//
+// `./kit` is DELIBERATELY NOT re-exported here (2026-08-02). `Tier-1-DB.md` §Invariants #5 has always
+// said "`@orb/db/kit` is also their documented IMPORT PATH", but the barrel re-export made the wrong path
+// compile, so half the tree reached `batchMany`/`fetchOwned`/`isConstraintViolation`/`parseStringArrayColumn`
+// through `@orb/db` — which reads as "a table-ish thing from the schema barrel" and blurs the one line the
+// `own-tables-only` gate keys on (tables are OWNED, kit primitives are legal everywhere). Dropping the
+// re-export makes the documented path the ONLY path: `@orb/db/kit` for primitives, `@orb/db` for rows +
+// tables + the client.
 
 // The client + lifecycle (Db, createDb, the migration/integrity/backup/housekeeping helpers, LibSqlWrap).
 export * from "./client";
 // The native vector column codec (consumed by the embeddings + discovery schema files).
 export { vector32 } from "./custom-types";
-// The db-layer primitives (batch bridge, constraint classifier, fetchOwned, insert chunker, parsers).
-export * from "./kit";
 // Every drizzle table + the relations (the db-row producers).
 export * from "./schema";

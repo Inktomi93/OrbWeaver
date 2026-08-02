@@ -4,7 +4,8 @@
 // (owner,provider) partial unique index, and the ownerId FK.
 
 import { CRED_PROVIDERS, parseProviderMetadata } from "@orb/contracts/credentials";
-import { isConstraintViolation, userCredentials } from "@orb/db";
+import { userCredentials } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";

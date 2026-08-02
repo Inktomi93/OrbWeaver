@@ -7,7 +7,8 @@
 import { regexScriptSchema } from "@orb/contracts/regex";
 import { DEFAULT_USER_SETTINGS, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import { themeOverrideSchema } from "@orb/contracts/theme";
-import { isConstraintViolation, settings, themes, userSettings, users } from "@orb/db";
+import { settings, themes, userSettings, users } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

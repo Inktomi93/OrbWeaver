@@ -21,12 +21,11 @@ import {
   chatParticipants,
   chatStreamEvents,
   chats,
-  isConstraintViolation,
   messages,
   messageVariants,
   pendingTurns,
 } from "@orb/db";
-import { parseRecord } from "@orb/db/kit";
+import { isConstraintViolation, parseRecord } from "@orb/db/kit";
 import type {
   CharacterId,
   ChatEventId,

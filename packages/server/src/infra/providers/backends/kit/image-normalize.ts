@@ -24,6 +24,7 @@ export interface NormalizedImageBytes {
  *  call-signature interface (not a `type` alias): exported function shapes ride an interface in this
  *  infra-pure tier — the `no-inline-types` gate reserves exported `type` aliases for type-home dirs. */
 export interface NormalizeImageBytes {
+  // biome-ignore lint/style/useShorthandFunctionType: the shorthand is an exported `type` alias, which the `no-inline-types` gate reserves for the type-home dirs — this infra-pure tier names its shapes with `interface` (see this declaration's own header).
   (bytes: Uint8Array): Promise<NormalizedImageBytes>;
 }
 
@@ -31,6 +32,7 @@ export interface NormalizeImageBytes {
  *  function so `backends/kit` never imports `infra/image` (a sibling infra module) — the strategy-isolation
  *  seam. Compose binds `imageAdapter.transform(bytes, { format: 'png' })`. */
 export interface ImageToPng {
+  // biome-ignore lint/style/useShorthandFunctionType: same as `NormalizeImageBytes` above — the shorthand is an exported `type` alias, reserved by `no-inline-types` for the type-home dirs.
   (bytes: Uint8Array): Promise<Uint8Array>;
 }
 

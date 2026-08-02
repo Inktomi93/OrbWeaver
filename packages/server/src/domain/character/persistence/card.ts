@@ -6,7 +6,8 @@
 // classified into a typed `CharacterOperationError("handle_conflict")` (never a phantom pre-SELECT).
 
 import type { Db } from "@orb/db";
-import { characterSnapshots, characters, isConstraintViolation } from "@orb/db";
+import { characterSnapshots, characters } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
 import { CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors";

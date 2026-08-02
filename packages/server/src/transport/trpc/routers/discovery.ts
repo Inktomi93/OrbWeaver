@@ -5,8 +5,11 @@
 //
 // "Map errors" is the domain-error MIDDLEWARE's job, never a procedure body: every read verb here refuses by
 // RETURNING (null / []), and the one mutation (`suggestCharacterTags`) THROWS — `DomainNotFoundError` for a
-// foreign/missing card (leak-free NOT_FOUND, the cross-tenant sweep's bar) and `DistillFailedError` when the
-// summarizer produced nothing usable (SERVICE_UNAVAILABLE, retryable). `classifyDomainError` maps both.
+// foreign/missing card (leak-free NOT_FOUND, the cross-tenant sweep's bar), `CardNotDistillableError` when
+// the card is name-only (BAD_REQUEST + `data.reason: card_not_distillable`, which the editor's toast keys on
+// — the caller's fix is to write the card, not to retry) and `DistillFailedError` when the summarizer
+// produced nothing usable (SERVICE_UNAVAILABLE, retryable). `classifyDomainError` maps all three, and the
+// content verdicts are ordered AFTER the ownership belt so neither is an existence oracle.
 
 import { RELATIONS } from "@orb/contracts/discovery";
 import type { CharacterId, ChatId } from "@orb/kit/ids";

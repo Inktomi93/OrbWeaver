@@ -32,7 +32,7 @@ import { alias } from "drizzle-orm/sqlite-core";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import { createAssetsService } from "#domain/assets";
 import type { CharacterService, DefaultCharacterSeeder } from "#domain/character";
-import { createCharacterService, createDefaultCharacterSeeder } from "#domain/character";
+import { createCharacterService, createDefaultCharacterSeeder, createLinkCharacterAvatars } from "#domain/character";
 import type { PersonaService } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
 import type { SettingsService } from "#domain/settings";
@@ -104,6 +104,10 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     now,
     newAssetId: minter(ID_PREFIX.asset),
     newGalleryItemId: minter(ID_PREFIX.galleryItem),
+    // The cross-domain avatar-pointer write, delivered as the OWNING domain's op (character owns
+    // `characters.avatarAssetId`) — the persona `createBulkImportPersonas` shape. Built from character's
+    // own persistence factory, not re-implemented here.
+    linkCharacterAvatars: createLinkCharacterAvatars({ db }),
     assertCharacterOwned: async (ownerId, characterId) => {
       const rows = await db
         .select({ id: charactersTable.id })

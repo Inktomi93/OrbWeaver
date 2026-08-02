@@ -3,7 +3,8 @@
 // message_variants and arrive pre-aggregated through the injected stats op).
 
 import type { Db } from "@orb/db";
-import { assets, characters, messages, messageVariants, notStateAnchor } from "@orb/db";
+import { assets, characters, messages, messageVariants } from "@orb/db";
+import { notStateAnchor } from "@orb/db/kit";
 import type { CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { aliasedTable, and, desc, eq, gt, sql } from "drizzle-orm";
 

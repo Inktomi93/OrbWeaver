@@ -15,7 +15,7 @@
 // so module state, zustand stores, and localStorage all start clean. If a future lane ever reuses a
 // page across tests, the per-mount reset belongs HERE.
 
-import { createTrpcClient, TRPCProvider } from "@orb/client/data";
+import { createAppQueryClient, createTrpcClient, TRPCProvider } from "@orb/client/data";
 import {
   appearanceBackgroundSection,
   appearanceEffectsSection,
@@ -119,6 +119,23 @@ export function CtDataProviders({ children }: { readonly children: ReactNode }):
       mutations: { retry: false },
     },
   });
+  const trpcClient = createTrpcClient();
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
+        {children}
+      </TRPCProvider>
+    </QueryClientProvider>
+  );
+}
+
+/** {@link CtDataProviders}, but on the REAL app QueryClient (`createAppQueryClient`) — the one whose
+ *  MutationCache/QueryCache `onError` IS the `meta.errorToast` → `notify` channel. The plain client above
+ *  has no such channel, so a CT whose observable is a mutation's ERROR TOAST must mount this one and pair it
+ *  with `CtToastSurface` (which owns the single `bindNotify`). Everything else — the real tRPC client over
+ *  the routeTrpc-stubbed network, one client per mount — is identical. */
+export function CtAppDataProviders({ children }: { readonly children: ReactNode }): ReactElement {
+  const queryClient = createAppQueryClient();
   const trpcClient = createTrpcClient();
   return (
     <QueryClientProvider client={queryClient}>

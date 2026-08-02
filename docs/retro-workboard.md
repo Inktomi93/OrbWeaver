@@ -439,6 +439,176 @@ holding); 3 SPAN-LESS FINDINGS boarded: fireRpgTurnCompleted runs outside any li
 commit rpg round invisible — fix = withRequestSpan at dispatch) · structured-turn retry
 unobservable by construction (server/kit below foundation; needs injected onRetry; callers are
 discovery) · providerDurationMs total permanently 0 (no provider.* span ever opened).
+**TRPC LEVERAGE AUDIT (orchestrator census, 08-03, v11.18.0): FLUENT** — SSE ping/inactivity
+config verified vs 11.18 · tracked() envelopes · 2 subscription sites GATE-HELD
+(single-stream-transport) · splitLink→httpSubscriptionLink/httpBatchLink+CSRF · errorFormatter
+rides domain reason codes · span-per-proc middleware. Correctly absent w/ stated reasons:
+.output (double-validate) · transformer (raw-JSON law) · wsLink (SSE is the design). **ONE
+candidate boarded: httpBatchStreamLink probe** (stable v11; batched responses stream
+per-resolution — free latency on mixed-speed batches; one-line swap + Hono-adapter probe).
+**ZOD BACKSLIDE GATE (owner-asked): Lane ZG QUEUED behind BOUND** (gates territory collision) —
+scan the retired spellings: .strict() legacy · union-of-literals vs z.literal([...]) ·
+issues[0] hand-flattening outside sanctioned model-facing joins · hand-rolled env booleans vs
+pinned stringbool · .transform() on tool/extraction schemas; fix-don't-park, two-sided.
+**DB-TIER AUDITS COMPLETE (drizzle + libsql scouts, 08-03) + OWNER RULINGS:** drizzle FLUENT
+(127 FKs 100% onDelete-verified · 50+ CHECKs · casing deliberately-unset-with-comment); REAL
+FIND = unindexed FK columns (plain B-TREE on fk cols — SQLite doesn't auto-index; chat.ts
+sample: a dozen incl. messages.userId/characterId; **owner confirmed: NOT ANN — shadow ANN
+stays fundamentally rejected, and the audit verified that rejection is documented in code**).
+libsql FLUENT — native F32_BLOB vectors + SQL-side vector_distance_cos ALREADY adopted, ANN
+correctly-absent-with-trigger; interactive tx BANNED with documented reason; 6 pragmas
+read-back-verified. REAL FIND = busy-timeout dual mechanism (boot PRAGMA vs per-connection
+Config.timeout — unverified persistence across logical connections; load-bearing).
+**OWNER: "do all recommended + build migration-readiness NOW"** (don't wait for the need —
+mid-migration is the worst time to discover the tooling gap): **Lane DRV LIVE** (busy-timeout
+probe+belt w/ answer written at the pragma block · batchMany explicit "write" mode ·
+httpBatchStreamLink probe-first) · **Lane DBG queued behind BOUND** (FK-index sweep+fix+gate ·
+onDelete gate [pure prevention] · PK gate · drizzle-kit check as a standing stage ·
+post-baseline migration workflow documented in Tier-1-DB) · Lane ZG queued (zod backslide).
+**TYPO forks ruled:** arms-split deviation APPROVED (unread vocabulary = the rot class itself;
+reference-position dominates import form) · chain-dead DECLINED-correctly → **Lane CHAIN
+queued** with the substrate blocker verbatim (buildLiveness attributes at FILE granularity;
+declaration-granular edges = substrate change under the live push-tier ratchet — isolated lane,
+own red-first). TYPO audit incoming: 38 type-only-alive candidates / 30 files.
+**✅ BOUND MERGED (`1c3c7995`)**: Tier-1-DB law amended ("the line is OWNERSHIP, not slot"; 4
+sanctioned patterns; supersession note); `own-tables-only` gate live (TOTAL derived map — an
+unmapped schema file reds AT THE MAP; foreign WRITES red unconditionally, proven by the
+export-domain probe; 2 real leaks FIXED into persistence/, zero exempted); 7-file barrel-kit
+repoint. Follow-ups boarded: barrel root-fix final sweep (~8 src + ~19 tests → drop export*) ·
+batchLinkAvatars cross-domain-write fork · lesson banked (file-home ≠ producer).
+**✅ TYPO MERGED (`13566512`)**: typeonly-alive lens live (COMPLETE reference-position arm;
+mutation-proofed 6/6; the heritage-extends isTypeNode trap special-cased + banked). **AUDIT: 38
+type-only-alive candidates / 30 files** — CLASS B (5): zod schemas built ONLY for z.infer
+(validators that never parse; fork per row: plain type vs wire as tRPC .output) · CLASS A (33):
+as-const tuples never iterated (6 doc/self-cited conformance seams; 27 conventional).
+DISPOSITION PASS queued (rides the ceremony window). Bonus finds: ENGINE_LIFECYCLE_STATUSES
+union re-derived ×2 (new facet-class instance, boarded) · authority tuples flagged
+security-routing if dispositioned. **LANES DBG + ZG DISPATCHED** (db gate wave + migration
+readiness · zod backslide gate + THE MAIN RED fix [check-gates fixture rows for the 2
+faa6adb2 gates] + the 14 biome stragglers incl. 2 stale suppressions). **DRV mid-run:** ITEM-2
+premise FALSIFIED source-pinned (drizzle 0.45.2 batch has NO mode param — deferred is the only
+emittable mode, not a choice; raw-client bypass = wrong arm, forfeits typed BatchResponse/PD-24
+seam) → approved: the answer lands in batch.ts's header, no code change. **BIOME COUNT
+(owner-asked): 11 warnings + 3 infos / 4313 files** (error tier = 0) — all 14 in ZG.
+**═══ SIX-LANE WAVE (owner: cap→6 + fresh weekly budget + host processes freed) ═══**
+LIVE BUILD (6): DBG (fk-indexes×37 + 3 schema gates + drizzle-kit check + migration doc +
+barrel root-fix + avatar-write ROUTE) · ZG (zod backslide + main-red fixtures + 14 biome) ·
+LIV (columns lens + monotonic-tests STRENGTHEN-IN-PLACE [premise-corrected: skip gate EXISTED;
+tree has ONE reasoned skip — my "~6" was a battery-summary/runtime-skipIf instrument error] +
+regkeys informational) · TAGF (content floor) · R1 (rpg→can(), security) · SEC3 (cookie parser,
+security). ✅ DRV MERGED (`bf86e641`): busy-timeout HOLE proven+fixed (client.transaction()
+replaces the native connection un-PRAGMA'd; busy_timeout was 0 post-tx; Config.timeout belt,
+red-first; FK-enforcement survives via libsql native default) · batch-mode premise falsified
+(drizzle emits no mode — header truth) · httpBatchStreamLink CLOSED w/ 2 source-pinned blockers
+written at the site. Lessons banked ([[sqlite3-wal-danger-on-live-db]]).
+READ-ONLY LIVE (3): gate-corpus modernization scorecard scout (162 gates/24.5k lines vs the
+8-axis modern checklist; retrofit plan by-axis; end-state = the checklist becomes a META-gate) ·
+**REGEX MODEL stickler** (owner direction: WI/tag shape — first-class + attach-by-reference;
+established: D53 unions 3 embed-by-value carriers at RESOLUTION but authoring has no
+references/picking [can't pick a card's script in preset]; review maps ALL regex planes
+[script-library vs regex-AS-SYNTAX vs CEL/macro engine family], the lift-on-import/re-embed-on-
+export WI precedent, engine-family fork, R-staged program) · (role stickler done earlier).
+QUEUED next drains (priority order): **GDOC** (gate-authoring law doc IN-REPO [my memory hub
+migrates in — the amnesiac-transfer fix] + contract.ts ExemptionRow type w/ MANDATORY why
+[verified: no shared type exists — reasons are 162 local conventions] + pnpm gate:new scaffold +
+the meta-gate) → **RETRO** (~57 one-sided gates [40-join priority; 10/10 sample real] + 22
+unverified guard shapes + 16 complex scanRoots hand-read + the ONE broken §-citation
+[UI-Gates §12.6 phantom, cited 3×]) → R2 · MACU · CHAIN · BRAND · content-class dispatch ·
+facet Record · preset-polish · TYPO dispositions · span-coverage smalls · ceremony (D-entry
+awaits R1). **CLIENT-ARCH STICKLER LIVE (owner's 3 worries):** feature-layout law gaps ·
+THE CHANNEL MAP (zustand/tRPC-cache/registries/#lib/bus/nav — when-to-use-which decision table,
+the written law that doesn't exist; wrong-channel audit) · MOVABILITY (SET-SEAMS portability =
+the model; welded-vs-portable surface census; pivot-cost scoring; portability laws/gates).
+**MERGE WAVE 2 SEALED:** ✅ ZG (`ef906b68` — zod gate live, ARM C caught a LIVE pathless
+refusal in plugin manifest; main-red fixture rows landed; 14 biome stragglers → tree-wide
+info-level ZERO; unsafe-autofix lesson) · ✅ SEC3 (`d3069801` — ONE cookie reader, 12-case
+parity suite incl. duplicate-header first-wins; killed a 4th hardcoded cookie-name drift
+surface; flagged: read-decodes/write-raw asymmetry [unreachable today] + app.ts missing from
+Spine §3's cookie-sites list) · ✅ R1 (`c466477e` — rpg kernel-unified; SANCTIONED_HOMES down
+to ONE row; self-red ratchet receipt worked exactly as designed; merge conflict on the gates
+doc row resolved as union) · ✅ TAGF (`70f45c30` — content floor both arms; summarizer
+never-called proof; skipped-count gained a REAL reader [progress line]; toast at pixels;
+CtAppDataProviders minted [memory-worthy: plain CtDataProviders has no errorToast channel];
+story-module notify-binding lesson).
+**REGEX STICKLER DELIVERED (docs/reviews/stickler/2026-08-03-regex-model.md):** headline — the
+reshape is ALREADY RULED LAW never built (Core-0 §6:207 rules regex = library + scope junctions,
+"the world-info pattern, regex reuses it"); R0 = D-entry amending D53's STORAGE clause only.
+SIX confirmed defects: F1 P1 dead DISPLAY tier (zero writers) · F2 P1 WORLD_INFO leg runs
+preset-only, missing the union (2-line fix, recommend PRE-program) · F3 card-editor scripts
+born placement:[] unfireable · F4 SLASH_COMMAND phantom placement · F5 minDepth/maxDepth stored
+never executed · F6 readout order contradicts execution. Engine family: kit-level composition
+EXISTS, must NOT merge further (3 different safety envelopes); share the junction PATTERN + one
+inter-engine ORDER home only. 8 owner forks (O-1..O-8, all w/ recs) + R0-R6 (~2wk laned).
+LESSON banked: check Core-0 §6 partitioning table BEFORE treating a reshape question as new —
+it and the D-ledger drifted apart. **PORT STICKLER DISPATCHED** (owner's CRUD/import-export
+scatter question): full lifecycle census per entity family [the missing-import gap map] ·
+is entry/compose/portability.ts the half-remembered seam · PortableEnvelope deletion
+archaeology [the never-built unified envelope?] · serde-vs-verbs-vs-portability layer answer ·
+the LIFECYCLE REGISTRY proposal (exhaustive-by-type doors — a family missing import = red).
+**✅ DBG MERGED (`07da68ac`; 2-file format drift fixed in the staged merge):** 37 FK B-tree
+indexes (sweep found 3× the audit's sample: 21 cascade · 14 set-null · 2 restrict; 8 were
+non-leading-composite-covered incl. chat_participants.userId = FULL SCAN on "list my chats";
+per-table judgment applied — chat_stream_events stands w/ receipts; ZERO exemption rows AND no
+exemption map [an empty allowlist = untestable branch]) + fk-ondelete-stated +
+table-explicit-primary-key gates (both minted at zero violations, pure prevention; shared
+schema-read.ts substrate) + `structure:drizzle-kit` standing stage (NAMING RATIFIED — my
+"quality/" spelling was wrong, structure is its group; probe proved it bites on a forked
+snapshot chain; `--dialect sqlite` SPACE-form misparses into AWS Data API — use `--config=`) +
+Tier-1-DB migration-lifecycle section (two regimes; the TWO-SWITCH launch-day flip warning;
++DRV's pragma-hole rider as §Esoteric 6) + barrel root-fix COMPLETE (47 files → @orb/db/kit,
+`export * from "./kit"` DROPPED — wrong path no longer compiles) + avatar write ROUTED
+(character owns the seam; AssetsContext.linkCharacterAvatars REQUIRED not optional — absent op
+would silently no-op while reporting linked:n). Lessons banked.
+**⚠⚠ DEV DB DROPS ON NEXT STACK BOOT** (baseline regen → boot detects hash change → backup +
+DROP + re-migrate, logged "BASELINE REGENERATED… RESETTING") — owner's dev games/chats reseed
+via the latch+heal; DO NOT be surprised. **REGIME-2 LANDMINE ticket boarded:**
+structure:db-baseline is regime-1-SHAPED (generates from {} vs 0000 alone) — MUST re-point at
+the applied chain on launch day or it reds every legitimate incremental (documented in the doc,
+not fixed). Gate count now 166 (Core-Enforcement line = the concurrent-lane collision point).
+**FULL-READ DELTAS (owner-ordered sweep of both stickler reports — items the summaries
+dropped, now boarded):**
+· REGEX report §1b: **ST `use_regex` WI-entry flag is INERT** — imported regex-keyed lorebook
+entries silently degrade to LITERAL matching (kit/world-info escapes keys; no matcher reads the
+flag) → WI parity-ledger item, NOT part of the regex reshape. · **Presets have NO export verb
+at all** (domain/export = character+chat only; PromptConfig.regexScripts has no portability
+wire; ST profile import carries no global-regex mapping) → feeds the PORT census as a known
+missing-door row. · The inter-engine ORDER table exists ONLY in the report §1c — R0 mints it
+into the D-entry + pin tests (SEND pin exists at context.int:215; RECEIVE + WI twins owed).
+· REGEX F2 pre-program small QUEUED NOW (context.ts:771 → the union, 2 lines + pin; users
+silently losing configured behavior today) + F6 readout-order one-liner rides it. 8 forks
+stand default-approved (owner veto window open).
+· CLIENT report: F-2 home-vs-D62-P6 unamended ledger = CEREMONY RIDER (urgent — the ledger
+currently outlaws the built 8th section) · F-1 README/depcruise-comment teach SUPERSEDED law
+(doc lane) · F-3 comp-tier dir modules UNWALLED (one depcruise rule + §3/§7 sentence) · F-4
+client-structure doesn't RECURSE buckets (surfaces/nested escapes naming+purity rules; nesting
+legality unlegislated) · F-5 lockdown type sketches drifted 6 axes (§15 reconciliation) · F-6
+the §12 channel matrix misses half the live channels — the 11-row refreshed decision table IS
+DRAFTED in the report §Q2, land it into §12 · F-7 seven judgment-call slots (feed the feature
+scaffold + README rewrite) · F-8 the MULTI-OWNER SECTION PRIMITIVE gap = the config-rail
+prerequisite (collection-contribution design set + contributions-BUNDLE arity gate [make*Section
+capped at 1 registry-typed positional param] + the SECTION_IDS coupled-site playbook ¶) ·
+suppressions red the stickler saw = MID-WAVE STALE (ZG's baseline regen landed; DBG's
+post-merge floor + every hook since = clean) · unconfirmed rows: home mobile fate ·
+agent-seed verb parity (dev-only) · chat/components at 72 files nearing F-4 practical relevance.
+GATE-CORPUS VERIFICATION P2 DONE: ~57 real one-sided · ZERO dead scanRoots (mechanical set) ·
+why NOT type-enforced (→GDOC) · 1 broken §-cite / 112 · anchor-file guards = valid alternate
+shape (meta-gate must accept).
+**LIVENESS TAXONOMY CLOSED (owner-asked "any more ways?"):** 9 classes instrumented; 4
+residuals ruled — (1) **DEAD DB COLUMNS lens boarded** (column-grain read/write/neither
+classification; completes the db lock; the RV-11/inventory-fields class mechanized) · (2)
+**SKIP-ROT lint boarded** (every .skip/.todo carries reason + un-skip condition, stale-armed;
+6 live skips; knip-blind because test files are entries) · (3) registry-key-never-dispatched =
+review-lens note only (key-flow analysis, weak ROI) · (4) unreachable state arms = stays
+judgment + empty-states doctrine (halting-adjacent; the 2 known instances already boarded) ·
+dynamic-swallow twin already armed w/ documented trigger.
+**BRAND GATE boarded (owner-asked design)**: plain `string` in a name-position whose brand
+EXISTS in kit/ids (chatId: string reds because ChatId is minted) — positions DERIVED from the
+id vocabulary, zero hardcoded paths; foreign-wire ids = reasoned markers; the SessionToken class
+generalized.
+**CPD REPORT (owner-asked): 1.15% dup (269 clones) = HEALTHY**; concentrations mostly by-design
+(seed data · D71 value-sets · parallel embedding schemas); 3 opportunistic rows boarded
+(invites verb+persistence pair · embed-store-reads per-store shapes · rebuild-from-canon) —
+consolidate when next IN the file, no dedicated lane (DRY-not-gospel).
 **✅ DISC MERGED (`2f1ba51b`)**: 24 paths already-honest (receipted) · 0 generic · 3 SILENT
 fixed (dead errorToast → DistillFailedError/NotFound leak-free-ordered w/ inversion pin;
 compare degraded-as-data; askCard 3-state badge + grounded semantics restored) · 5 comment-only.

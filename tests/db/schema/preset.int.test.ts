@@ -5,7 +5,8 @@
 
 import { DEFAULT_PROMPT_CONFIG, PROMPT_CONFIG_SCHEMA_VERSION, parsePromptConfig } from "@orb/contracts/preset";
 import { regexScriptSchema } from "@orb/contracts/regex";
-import { isConstraintViolation, presets, users } from "@orb/db";
+import { presets, users } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, isNull } from "drizzle-orm";

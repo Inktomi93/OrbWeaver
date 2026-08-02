@@ -7,18 +7,8 @@
 
 import { DOC_ORIGINS } from "@orb/contracts/databank";
 import type { Db } from "@orb/db";
-import {
-  assets,
-  characterDocuments,
-  characters,
-  chatDocuments,
-  chats,
-  documentChunks,
-  documents,
-  globalDocuments,
-  isConstraintViolation,
-  users,
-} from "@orb/db";
+import { assets, characterDocuments, characters, chatDocuments, chats, documentChunks, documents, globalDocuments, users } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterId, ChatId, DocumentChunkId, DocumentId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

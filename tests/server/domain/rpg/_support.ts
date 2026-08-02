@@ -12,6 +12,7 @@ import type { Db } from "@orb/db";
 import { presets, rpgGames } from "@orb/db";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, PresetId, RpgGameId, RpgQuestId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
+import { can } from "@orb/server/domain/admin";
 import type { WireTool } from "@orb/server/infra/providers";
 import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat";
 import type { ForwardSnapshotTarget } from "../../../../packages/server/src/domain/rpg/contract/params";
@@ -394,6 +395,9 @@ export function makeRpgService(
       item: () => `item_hand_${handItemSeq++}`,
     },
     staging: createRpgStagingStore(),
+    // The REAL kernel, not a fake: `can` is pure (no db, no I/O — it decides over the Principal + the roster fed
+    // in), so faking it would only let the authority suite pass against a stub of the thing under test.
+    can,
     getMembership: (_chatId, userId) => {
       const role = fakes.membership.get(userId);
       return Promise.resolve(role === undefined ? null : { role });
