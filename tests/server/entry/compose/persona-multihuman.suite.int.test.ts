@@ -97,6 +97,10 @@ describe("multi-human persona resolution — the composed resolver (F1/F2)", () 
     // The default `main_prompt` marker frames the roleplay "with {{user}}" — the PROMPT context.
     expect(text).toContain("roleplay with Zara");
     expect(text).not.toContain("roleplay with User");
+    // Owner ruling: a present member's persona DESCRIPTION enters the shared prompt unconditionally (no
+    // toggle) — it IS the feature (§A.1: the prompt context is the speaker's), and the room already consumes
+    // member persona-book lore through the same assembly.
+    expect(text).toContain("a wandering cartographer");
   });
 
   test("REFUSAL: a DEPARTED member's persona stops resolving — the anchor falls to the active persona (HEAL semantics)", async ({ db, services }) => {
