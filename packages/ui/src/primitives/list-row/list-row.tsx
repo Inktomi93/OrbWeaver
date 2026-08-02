@@ -20,6 +20,20 @@ export interface ListRowProps {
   /** Optional secondary line (subtitle/meta — one slot, caller's call which it means). */
   subtitle?: string;
   /**
+   * WHERE the subtitle sits. `block` (default) is the two-line entity row. `inline` puts it on the TITLE
+   * LINE after the name — the instrument-row grammar (the preset rack's name + scent, the Actions list's
+   * name + fires gloss), where the subtitle takes the flexing column and the title keeps a width floor so
+   * the identifier can never be squeezed to nothing.
+   */
+  subtitlePlacement?: "block" | "inline";
+  /**
+   * Drops the subtitle out of the accessible tree (`aria-hidden`, and out of `aria-describedby`). For a
+   * subtitle that is a DECORATIVE echo of content the row already announces or that a screen reader has no
+   * use for — e.g. a truncated mono preview of a 600-character template body, which otherwise gets read out
+   * whole as the row's description. The subtitle stays visible; only the announcement drops.
+   */
+  subtitleDecorative?: boolean;
+  /**
    * Lets a GLOSS subtitle wrap to two clamped lines instead of truncating to one. For rows whose
    * subtitle is a sentence (the home jump grid's per-section teaching copy); leave it off for dense
    * list panes, where one scannable line per row is the point.
@@ -122,6 +136,8 @@ function ListRowContent({
   fullTitle,
   subtitle,
   subtitleReveal,
+  subtitleInline,
+  subtitleDecorative,
   meta,
   markers,
   ids,
@@ -132,12 +148,30 @@ function ListRowContent({
   fullTitle: string | undefined;
   subtitle: string | undefined;
   subtitleReveal: string | undefined;
+  subtitleInline: boolean;
+  subtitleDecorative: boolean;
   meta: string | undefined;
   markers: ReactNode;
   ids: ListRowDescriptors;
 }): ReactElement {
   // The subtitle hides on hover/focus only when a reveal is present, so it takes the exact line.
   const subtitleSwap = subtitleReveal === undefined ? "" : "group-hover:hidden group-focus-within:hidden";
+  const subtitleSpan =
+    subtitle === undefined ? null : (
+      <span
+        aria-hidden={subtitleDecorative ? true : undefined}
+        className={slots.subtitle({ className: subtitleSwap })}
+        data-slot="list-row-subtitle"
+        id={ids.subtitleId}
+        title={subtitle}
+      >
+        {subtitle}
+      </span>
+    );
+  // ONE span, TWO possible parents (the `inline` arm puts it on the title line). Resolved to two nullable
+  // nodes here so each render site is a bare expression, never a ternary whose alternate is a variable.
+  const inlineSubtitle = subtitleInline ? subtitleSpan : null;
+  const blockSubtitle = subtitleInline ? null : subtitleSpan;
   return (
     <>
       {leading === undefined ? null : (
@@ -152,6 +186,8 @@ function ListRowContent({
           <span aria-hidden={true} className={slots.title()} data-slot="list-row-title" title={fullTitle ?? title}>
             {title}
           </span>
+          {/* INLINE: the scent rides the title line, taking the flexing column so the NAME keeps its floor. */}
+          {inlineSubtitle}
           {markers === undefined ? null : (
             <span className={slots.markers()} data-slot="list-row-markers" id={ids.markersId}>
               {markers}
@@ -163,11 +199,7 @@ function ListRowContent({
             </span>
           )}
         </span>
-        {subtitle === undefined ? null : (
-          <span className={slots.subtitle({ className: subtitleSwap })} data-slot="list-row-subtitle" id={ids.subtitleId} title={subtitle}>
-            {subtitle}
-          </span>
-        )}
+        {blockSubtitle}
         {subtitleReveal === undefined ? null : (
           <span aria-hidden={true} className={slots.subtitleReveal()} data-slot="list-row-subtitle-reveal" title={subtitleReveal}>
             {subtitleReveal}
@@ -263,6 +295,8 @@ export function ListRow({
   subtitle,
   subtitleReveal,
   subtitleWrap = false,
+  subtitlePlacement = "block",
+  subtitleDecorative = false,
   meta,
   markers,
   actions,
@@ -277,13 +311,13 @@ export function ListRow({
   onClick,
   className,
 }: ListRowProps): ReactElement {
-  const slots = listRowVariants({ density, clickable, float: actionsFloat, subtitleWrap });
+  const slots = listRowVariants({ density, clickable, float: actionsFloat, subtitleWrap, subtitlePlacement });
   const rootRef = useRef<HTMLDivElement>(null);
   const collapsed = useCollapsedBelow(rootRef, renderActions === undefined ? undefined : collapseBelow);
   const resolvedActions = renderActions !== undefined ? renderActions(collapsed) : actions;
   // Stable per-row id base for the describedby wiring; the subtitle/meta ids only attach where the slot renders.
   const baseId = useId();
-  const subtitleId = subtitle === undefined ? undefined : `${baseId}-subtitle`;
+  const subtitleId = subtitle === undefined || subtitleDecorative ? undefined : `${baseId}-subtitle`;
   const metaId = meta === undefined ? undefined : `${baseId}-meta`;
   const markersId = markers === undefined ? undefined : `${baseId}-markers`;
   const describedBy = [subtitleId, metaId, markersId].filter((id) => id !== undefined).join(" ") || undefined;
@@ -307,6 +341,8 @@ export function ListRow({
           meta={meta}
           slots={slots}
           subtitle={subtitle}
+          subtitleDecorative={subtitleDecorative}
+          subtitleInline={subtitlePlacement === "inline"}
           subtitleReveal={subtitleReveal}
           title={title}
         />

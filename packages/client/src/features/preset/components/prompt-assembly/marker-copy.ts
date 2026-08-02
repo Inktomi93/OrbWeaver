@@ -10,12 +10,19 @@
 // plain marker is a tsc error here rather than an empty body slot.
 
 import type { DEFAULT_MARKER_TEMPLATES, MarkerType } from "@orb/contracts/preset";
+import type { LucideIcon } from "@orb/ui/icons";
+import { BookOpen, CircleUser, Drama, History, Library, MapPin, MessagesSquare, Scroll, ScrollText, Sparkles, Zap } from "@orb/ui/icons";
 import type { SectionId } from "#state";
 
 export interface MarkerCopy {
   readonly label: string;
   readonly oneLiner: string;
   readonly subtitle: string;
+  /** The rack row's TYPE GLYPH. Per-MARKER, not per-kind (side-eye F-17): a kind glyph made nine of the
+   *  twelve default rows identical sparkle discs — the loudest column in the pane carrying near-zero
+   *  information. The mock draws a distinct glyph per slot, and the glyph is the only thing that lets the
+   *  eye find "the character card's description" without reading. */
+  readonly glyph: LucideIcon;
 }
 
 /** The plain-language copy for every marker slot. Exhaustive over `MarkerType` by construction. */
@@ -24,66 +31,79 @@ export const MARKER_COPY: Record<MarkerType, MarkerCopy> = {
     label: "Main prompt",
     oneLiner: "Your top-level system instruction — the character's card can replace it in place.",
     subtitle: "your core system instruction",
+    glyph: Sparkles,
   },
   ["char_description"]: {
     label: "Character description",
     oneLiner: "The active character's description, wrapped by this section's framing.",
     subtitle: "from the character card",
+    glyph: BookOpen,
   },
   ["char_personality"]: {
     label: "Character personality",
     oneLiner: "The active character's personality summary.",
     subtitle: "from the character card",
+    glyph: Drama,
   },
   ["scenario"]: {
     label: "Scenario",
     oneLiner: "The scene or setting the character card declares.",
     subtitle: "from the character card",
+    glyph: MapPin,
   },
   ["dialogue_examples"]: {
     label: "Dialogue examples",
     oneLiner: "Example exchanges that teach the character's voice.",
     subtitle: "from the character card",
+    glyph: ScrollText,
   },
   ["post_history"]: {
     label: "Post-history instructions",
     oneLiner: "A reminder placed after the conversation — the character's card can replace it in place.",
     subtitle: "reminder after the conversation",
+    glyph: Sparkles,
   },
   ["persona"]: {
     label: "Persona",
     oneLiner: "Who YOU are in the scene — your persona's description.",
     subtitle: "from your persona",
+    glyph: CircleUser,
   },
   ["memory"]: {
     label: "Memory",
     oneLiner: "Long-term notes carried forward from earlier in the chat.",
     subtitle: "remembered past events",
+    glyph: History,
   },
   ["compact_summary"]: {
     label: "Summary",
     oneLiner: "The running summary of the conversation so far (from /compact).",
     subtitle: "conversation summary",
+    glyph: Scroll,
   },
   ["guided_instruction"]: {
     label: "Guided instruction",
     oneLiner: "The wrapper that lands when you steer a generation (see Guided actions).",
     subtitle: "your steer, wrapped",
+    glyph: Zap,
   },
   ["chat_history"]: {
     label: "Chat history",
     oneLiner: "The conversation itself — the pivot everything sits before or after.",
     subtitle: "the conversation",
+    glyph: MessagesSquare,
   },
   ["world_info_before"]: {
     label: "World info (before)",
     oneLiner: "Lorebook entries positioned to sit before the conversation.",
     subtitle: "lorebook — before",
+    glyph: Library,
   },
   ["world_info_after"]: {
     label: "World info (after)",
     oneLiner: "Lorebook entries positioned to sit after the conversation.",
     subtitle: "lorebook — after",
+    glyph: Library,
   },
 };
 

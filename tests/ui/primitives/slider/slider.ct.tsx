@@ -3,6 +3,7 @@
 import { Field } from "@orb/ui/field";
 import { Slider } from "@orb/ui/slider";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
 
 const TOUCH_FLOOR_PX = 44;
@@ -144,36 +145,47 @@ test("a bare slider (no Field wrapper) shows a visible ring on keyboard focus", 
 // in the browser, and a class assertion would stay green if the token behind it moved.
 const INDICATOR = '[data-slot="slider-indicator"]';
 const THUMB = '[data-slot="slider-thumb"]';
-/** The ghost fill's alpha, as the browser serializes a 30% token mix. Asserting the ALPHA (not just
- *  "different from default") is what makes the check non-vacuous: a dropped/misspelled utility resolves
- *  fully transparent, which would satisfy every not-equal assertion while painting no fill at all. */
-const GHOST_FILL_ALPHA = "0.3";
+/** The resolved ALPHA of an element's background — the GHOST arm's fill is asserted as "paints nothing"
+ *  rather than "differs from default", because a merely-DIMMED fill still draws a bar: an unset knob at
+ *  its model default then rendered a full grey meter that read as MORE set than the explicit rows beside
+ *  it (side-eye F-09). Read as a number so no color literal is spelled here (§13.7 clause 5). */
+function backgroundAlpha(locator: Locator): Promise<number> {
+  return locator.evaluate((el) => {
+    // A 3-part functional color is opaque; a 4-part one carries its alpha last. Split rather than pattern-
+    // match so the assertion names no color syntax at all (§13.7 clause 5 reads the source text).
+    const parts = getComputedStyle(el).backgroundColor.split(",");
+    return parts.length < 4 ? 1 : Number.parseFloat(parts[3] ?? "1");
+  });
+}
 
-test("tone: default is the ember fill + full-weight thumb; ghost drops both onto the neutral ramp", async ({ mount, page }) => {
+test("tone: default keeps the ember fill; neutral drops the accent for WEIGHT; ghost paints NO fill at all", async ({ mount, page }) => {
   await mount(
     <>
-      <Slider defaultValue={50} label="Explicit" />
+      <Slider defaultValue={50} label="Standalone" />
+      <Slider defaultValue={50} label="Explicit" tone="neutral" />
       <Slider defaultValue={50} label="Inherited" tone="ghost" />
     </>,
   );
   const indicators = page.locator(INDICATOR);
   const thumbs = page.locator(THUMB);
-  await expect(indicators).toHaveCount(2);
+  await expect(indicators).toHaveCount(3);
 
-  // DEFAULT — byte-identical to the pre-axis skin.
+  // DEFAULT — the standalone slider's skin, unchanged: the ONE sanctioned accent control on a surface
+  // that shows a single slider.
   await expect(indicators.nth(0)).toHaveCSS("background-color", resolvedTokenColor("color.primary"));
   await expect(thumbs.nth(0)).toHaveCSS("background-color", resolvedTokenColor("color.foreground"));
 
-  // GHOST — the thumb is the muted ramp (still solid: the datum stays legible), the fill is off the accent
-  // AND quieter than the default's own resolved fill.
-  await expect(thumbs.nth(1)).toHaveCSS("background-color", resolvedTokenColor("color.muted-foreground"));
-  const [defaultFill, ghostFill] = await Promise.all([
-    indicators.nth(0).evaluate((el) => getComputedStyle(el).backgroundColor),
-    indicators.nth(1).evaluate((el) => getComputedStyle(el).backgroundColor),
-  ]);
-  expect(ghostFill).not.toBe(defaultFill);
-  expect(ghostFill).not.toBe(resolvedTokenColor("color.primary"));
-  expect(ghostFill).toContain(GHOST_FILL_ALPHA);
+  // NEUTRAL (the KnobRow's EXPLICIT arm) — a real fill, but OFF the accent: weight, not ember (§4.1's
+  // CD3 ration). The thumb stays full-weight foreground.
+  await expect(thumbs.nth(1)).toHaveCSS("background-color", resolvedTokenColor("color.foreground"));
+  const neutralFill = await indicators.nth(1).evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(neutralFill).not.toBe(resolvedTokenColor("color.primary"));
+  expect(await backgroundAlpha(indicators.nth(1))).toBeGreaterThan(0);
+
+  // GHOST (the INHERITED arm) — a muted thumb sitting at the effective value over a BARE rail. No fill
+  // means no magnitude claim about a number you did not set.
+  await expect(thumbs.nth(2)).toHaveCSS("background-color", resolvedTokenColor("color.muted-foreground"));
+  expect(await backgroundAlpha(indicators.nth(2))).toBe(0);
 });
 
 // `tone` is COLOR ONLY — a seven-row knob deck mixes both arms in one column, so a tone that moved the box

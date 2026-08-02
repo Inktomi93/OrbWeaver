@@ -35,7 +35,6 @@ import type { AppFormInstance } from "#forms";
 import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model";
 import type { EffectiveProfileRow } from "../lib/effective-knobs";
 import { COMPACTION_MODE_ITEMS, compactionModeLabel } from "../lib/preset-nav";
-import { CapabilityGate } from "./capability-gate";
 import { KnobRow } from "./knob-row";
 
 type AppForm = AppFormInstance<PromptConfig>;
@@ -56,7 +55,9 @@ const DYNAMIC_CONTEXT_ITEMS: SelectItems<string> = [
 export function ParamsLimits({ form, capability, effective, customParameterKeys }: ParamsLimitsProps): ReactElement {
   return (
     <>
-      {capability === undefined ? <CapabilityGate arm="output" /> : <OutputCluster capability={capability} effective={effective} form={form} />}
+      {/* No capability ⇒ OUTPUT is absent with its two sibling clusters, under the deck's ONE gate note
+          (side-eye F-02: three per-cluster notes printed the same sentence three times). */}
+      {capability === undefined ? null : <OutputCluster capability={capability} effective={effective} form={form} />}
       <ContextCluster form={form} />
       <AdvancedCluster customParameterKeys={customParameterKeys} form={form} />
     </>

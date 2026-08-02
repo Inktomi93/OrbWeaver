@@ -9,15 +9,28 @@ export interface ToggleGroupProps extends Omit<BaseToggleGroupProps<string>, "or
   className?: string;
   "aria-label"?: string;
   "aria-labelledby"?: string;
+  /**
+   * `radio` makes the group the owning `role="radiogroup"` for cells rendered with
+   * `<Toggle semantics="radio">` — a ONE-OF-N segmented strip rather than N independent pressed buttons
+   * (side-eye ARIA rec 7). The default `toggle` arm is Base UI's own `role="group"`, unchanged.
+   */
+  semantics?: "toggle" | "radio";
 }
 
-export function ToggleGroup({ className, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledby, ...rest }: ToggleGroupProps): ReactElement {
+export function ToggleGroup({
+  className,
+  "aria-label": ariaLabel,
+  "aria-labelledby": ariaLabelledby,
+  semantics = "toggle",
+  ...rest
+}: ToggleGroupProps): ReactElement {
   return (
     <BaseToggleGroup
       data-slot="toggle-group"
       className={cn(toggleGroupVariants(), className)}
       {...(ariaLabel !== undefined ? { "aria-label": ariaLabel } : {})}
       {...(ariaLabelledby !== undefined ? { "aria-labelledby": ariaLabelledby } : {})}
+      {...(semantics === "radio" ? { role: "radiogroup" } : {})}
       {...rest}
     />
   );

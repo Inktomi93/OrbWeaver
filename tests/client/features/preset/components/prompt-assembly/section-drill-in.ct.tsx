@@ -33,6 +33,32 @@ test("a row CLICK selects without mounting the drill-in; the CHEVRON drills", as
   await expect(probe.getByRole("textbox", { name: "Order" })).toBeVisible();
 });
 
+// ── F-04: the drill-in is a NAVIGATION, so focus has to travel with it ────────────────────────────────
+// Drilling in unmounts the chevron that opened the editor, and backing out unmounts the editor: both
+// dropped focus to <body>, which restarts a keyboard user at the top of the document, twice per edit.
+// This is a COMPOSITION property — neither component can see it alone — and it is invisible to any
+// assertion that is not about `document.activeElement`.
+
+test("F-04 — focus lands in the drill-in on entry and RETURNS to the originating chevron on exit", async ({ mount, page }) => {
+  const probe = await mount(<RackStory />);
+
+  const chevron = probe.getByRole("button", { name: "Edit DeleteMe" });
+  await chevron.click();
+
+  // ENTRY: the region's first control — Back-to-rack, which also names the way out.
+  const back = probe.getByRole("button", { name: "Back to rack" });
+  await expect(back).toBeFocused();
+  // …inside a NAMED region, so the editor is reachable by landmark and announces what it edits (rec 2).
+  await expect(probe.getByRole("region", { name: "DeleteMe — section editor" })).toBeVisible();
+
+  await back.click();
+
+  // EXIT: back to the chevron the user left from — a BRAND-NEW node (the rack remounted), which is why
+  // the restore is keyed on the section id rather than a held ref.
+  await expect(probe.getByRole("button", { name: "Edit DeleteMe" })).toBeFocused();
+  await expect(page.locator("body")).not.toBeFocused();
+});
+
 test("the drilled header's enable switch and the rack row's switch write ONE field", async ({ mount }) => {
   const probe = await mount(<RackStory />);
   const state = probe.locator("output");
@@ -100,7 +126,10 @@ test("a CARRIER's drill-in offers no depth, no order and no triggers — the sch
   await expect(probe.getByRole("textbox", { name: "Order" })).toHaveCount(0);
   await expect(probe.getByRole("group", { name: "Fires on" })).toHaveCount(0);
   // Its body is the source-attribution panel plus the shared entry wrapper — never a body textarea.
-  await expect(probe.getByLabel("Entry wrapper")).toBeVisible();
+  // Located by ROLE: the field's explainer moved to the hover HINT (side-eye F-32 — a one-line format
+  // string does not need a 90px textarea plus a paragraph), and the hint trigger's own accessible name
+  // contains the label, so a bare `getByLabel` now matches two elements.
+  await expect(probe.getByRole("combobox", { name: "Entry wrapper" })).toBeVisible();
 });
 
 test("Add mints a section AND drills straight into it, where the Name field is", async ({ mount, page }) => {

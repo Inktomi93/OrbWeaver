@@ -83,7 +83,14 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
         setParsed({ arm: "st", name: base === "" ? "Imported preset" : base, result: importStChatCompletionPreset(json) });
       })
       .catch((cause: unknown) => {
-        setError(cause instanceof Error ? cause.message : "That file isn't a preset.");
+        // THE SNIFFER'S FALL-THROUGH IS NOT A VERDICT (side-eye F-10): a malformed ORB file fails
+        // `isOrbPresetFile`, lands in the ST arm, and its parser says "Not a SillyTavern preset…" — true,
+        // and completely misleading about the file the user actually picked. The door reads TWO formats, so
+        // a rejection says it matched NEITHER, and keeps the parser's own reason as the detail.
+        const detail = cause instanceof Error ? cause.message : String(cause);
+        setError(
+          `That file isn't a preset this can read — it matched neither an orbweaver preset export nor a SillyTavern Chat Completion preset. (${detail})`,
+        );
       });
   };
 
@@ -105,7 +112,11 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
 
   return (
     <FormDialog
-      description="Pick an orbweaver preset export or a SillyTavern Chat Completion preset (.json). The format is detected from the file."
+      // THE OUTCOME, not the mechanism (side-eye F-10): "the format is detected" tells you what the DIALOG
+      // does; what a user needs before committing is what happens to their library — and the orb arm's
+      // bundle semantics MERGE over a same-named preset, which is the one outcome this door must never
+      // surprise anyone with. The per-arm summary below repeats no part of this line.
+      description="Pick an orbweaver preset export or a SillyTavern Chat Completion preset (.json). An orbweaver export REPLACES the settings of a preset with the same name, if you have one; anything else is created as a new preset."
       onOpenChange={(next): void => {
         if (!next) {
           reset();
@@ -116,10 +127,11 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
       title="Import a preset"
     >
       <Stack gap="block">
+        {/* NO `hint` (side-eye F-10): "orbweaver preset exports and SillyTavern Chat Completion presets"
+            was the dialog description's first clause, printed a second time two lines below it. */}
         <FileDropzone
           accept="application/json,.json"
           instructions="Drop a preset .json, or click to browse"
-          hint="orbweaver preset exports and SillyTavern Chat Completion presets"
           onFilesSelected={(result): void => {
             const first = result.accepted[0];
             if (first !== undefined) {
@@ -129,9 +141,9 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
         />
 
         {error !== null ? (
-          <Row gap="field" align="start">
+          <Row align="start" className="text-destructive" gap="field">
             <Icon icon={AlertTriangle} size="sm" />
-            <Text size="body" tone="destructive">
+            <Text prose={true} voice="label">
               {error}
             </Text>
           </Row>
@@ -158,16 +170,13 @@ function ImportSummary({ parsed }: { readonly parsed: ParsedImport }): ReactElem
   return <StImportSummary name={parsed.name} result={parsed.result} />;
 }
 
-/** The orb-native summary — it names the merge key and states the collision rule BEFORE the write, because
- *  the bundle's idempotence on `(ownerId, name)` means this can silently replace a preset the owner has. */
+/** The orb-native summary — it names the merge KEY, the one fact the dialog-level rule cannot carry (which
+ *  name this particular file will collide on). The rule itself is stated once, above (side-eye F-10). */
 function OrbSummary({ name }: { readonly name: string }): ReactElement {
   return (
-    <Section heading="Ready to import">
-      <Text size="body">orbweaver preset export — "{name}".</Text>
-      {/* Not a `gloss`: the collision rule is the load-bearing sentence here (this door can overwrite a
-          preset the owner still wants), so it reads at the same content step as the line above it. */}
-      <Text size="body" tone="muted">
-        If you already have a preset named "{name}", its settings are REPLACED by this file's. Otherwise a new preset is created.
+    <Section kicker="Ready to import">
+      <Text prose={true} voice="label">
+        orbweaver preset export — "{name}". That name is the merge key.
       </Text>
     </Section>
   );
@@ -177,9 +186,9 @@ function OrbSummary({ name }: { readonly name: string }): ReactElement {
 function StImportSummary({ name, result }: { readonly name: string; readonly result: StImportResult }): ReactElement {
   const { sectionCount, dropped } = result;
   return (
-    <Section heading="Ready to import">
-      <Text size="body">
-        SillyTavern preset — {sectionCount} section{sectionCount === 1 ? "" : "s"}, saved as "{name}".
+    <Section kicker="Ready to import">
+      <Text prose={true} voice="label">
+        SillyTavern preset — {sectionCount} section{sectionCount === 1 ? "" : "s"}, created as a new preset named "{name}".
       </Text>
       {dropped.length === 0 ? (
         <Text voice="gloss">Everything mapped — nothing was dropped.</Text>

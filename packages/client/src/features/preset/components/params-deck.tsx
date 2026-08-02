@@ -32,8 +32,8 @@ import { useState } from "react";
 import type { AppFormInstance } from "#forms";
 import { pageStep, QUALITY_OPTIONS, reasoningControlFor, samplingKnobsFor, supportsSeed } from "../lib/capability-panel-model";
 import type { EffectiveProfileRow } from "../lib/effective-knobs";
-import { qualityMappingGloss } from "../lib/effective-knobs";
-import { THINKING_DISPLAY_ITEMS } from "../lib/preset-nav";
+import { qualityMappingGloss, qualityOverrideGloss } from "../lib/effective-knobs";
+import { THINKING_DISPLAY_ITEMS, thinkingDisplayLabel } from "../lib/preset-nav";
 import { CapabilityGate } from "./capability-gate";
 import { KnobRow } from "./knob-row";
 import { ParamsLimits } from "./params-limits";
@@ -50,14 +50,10 @@ export interface ParamsDeckProps {
   readonly effective: EffectiveProfileRow | undefined;
   /** The server-only BYOK passthrough's KEYS — a read-only presence row in ADVANCED (D7). */
   readonly customParameterKeys: readonly string[];
+  /** The capability read's FAILURE message — `null` when the read simply resolved no model. The two are
+   *  different problems (side-eye F-02) and the deck must not print the empty state over the error. */
+  readonly capabilityError: string | null;
 }
-
-/** The QUALITY gloss's short knob names — the resolver reports `EffectiveKnob` keys, the gloss reads as
- *  prose. An unmapped key prints itself (the read stays the authority, the map is display only). */
-const QUALITY_GLOSS_LABELS: Readonly<Record<string, string>> = {
-  temperature: "temp",
-  effort: "effort",
-};
 
 /** The staleness row's vocabulary (§4.2): every knob the effective read can report as STORED-BUT-DROPPED,
  *  with the WIRE name the row prints and the one write that unsets it. A closure per row rather than a
@@ -85,13 +81,20 @@ function staleWireName(knob: string): string {
   return STALE_KNOB_ROWS.find((row) => row.knob === knob)?.wire ?? knob;
 }
 
-export function ParamsDeck({ form, capability, effective, customParameterKeys }: ParamsDeckProps): ReactElement {
+export function ParamsDeck({ form, capability, effective, customParameterKeys, capabilityError }: ParamsDeckProps): ReactElement {
   return (
     <Surface tier="instrument">
       <Stack gap="section">
         <QualityCluster effective={effective} form={form} />
-        <SamplingCluster capability={capability} effective={effective} form={form} />
-        <ReasoningCluster capability={capability} effective={effective} form={form} />
+        {/* ONE gate for the three model-fed clusters, never three copies of the same sentence (F-02). */}
+        {capability === undefined ? (
+          <CapabilityGate error={capabilityError} />
+        ) : (
+          <>
+            <SamplingCluster capability={capability} effective={effective} form={form} />
+            <ReasoningCluster capability={capability} effective={effective} form={form} />
+          </>
+        )}
         <ParamsLimits capability={capability} customParameterKeys={customParameterKeys} effective={effective} form={form} />
       </Stack>
     </Surface>
@@ -105,21 +108,31 @@ function QualityCluster({ form, effective }: { readonly form: AppForm; readonly 
       <form.AppField name="params.quality">
         {(field): ReactElement => {
           const current = field.state.value as Quality | undefined;
-          const gloss = qualityMappingGloss(effective, current, (knob) => QUALITY_GLOSS_LABELS[knob] ?? knob);
+          // TWO LINES, TWO JOBS (side-eye F-15): the MAPPING is the datum ("deep → effort high · temp
+          // 1.0", the server's own projection of the dial table); the OVERRIDE note is status. Fusing them
+          // is what made a fully-overridden dial print "everything is overridden" where the mock asks for
+          // the mapping.
+          const mapping = qualityMappingGloss(effective, current);
+          const override = qualityOverrideGloss(effective);
           return (
             <Stack gap="tight">
+              {/* RADIO, not a pressed-toggle group (ARIA rec 7): the dial is ONE-OF-N, and `aria-pressed`
+                  on three buttons announces three independent toggles. The ARIA shape lives in the seal
+                  (`Toggle`/`ToggleGroup` semantics), never hand-stamped here. */}
               <ToggleGroup
                 aria-label="Quality"
                 onValueChange={(next): void => field.handleChange(next[0] as Quality | undefined)}
+                semantics="radio"
                 value={current === undefined ? [] : [current]}
               >
                 {QUALITY_OPTIONS.map((option) => (
-                  <Toggle key={option.value} value={option.value}>
+                  <Toggle checked={current === option.value} key={option.value} semantics="radio" value={option.value}>
                     {option.label}
                   </Toggle>
                 ))}
               </ToggleGroup>
-              {gloss === null ? null : <Text voice="gloss">{gloss}</Text>}
+              {mapping === null ? null : <Text voice="gloss">{mapping}</Text>}
+              {override === null ? null : <Text voice="gloss">{override}</Text>}
             </Stack>
           );
         }}
@@ -135,12 +148,9 @@ function SamplingCluster({
   effective,
 }: {
   readonly form: AppForm;
-  readonly capability: ModelCapability | undefined;
+  readonly capability: ModelCapability;
   readonly effective: EffectiveProfileRow | undefined;
 }): ReactElement {
-  if (capability === undefined) {
-    return <CapabilityGate arm="sampling" />;
-  }
   const knobs = samplingKnobsFor(capability);
   if (knobs.length === 0 && !supportsSeed(capability)) {
     return (
@@ -232,18 +242,15 @@ function ReasoningCluster({
   effective,
 }: {
   readonly form: AppForm;
-  readonly capability: ModelCapability | undefined;
+  readonly capability: ModelCapability;
   readonly effective: EffectiveProfileRow | undefined;
 }): ReactElement {
-  if (capability === undefined) {
-    return <CapabilityGate arm="reasoning" />;
-  }
   const control = reasoningControlFor(capability);
   if (!control.reasons) {
     return (
       <Section kicker="Reasoning">
         <Text voice="gloss">This model does not expose reasoning controls.</Text>
-        <ThinkingDisplayField form={form} />
+        <ThinkingDisplayField effective={effective} form={form} />
       </Section>
     );
   }
@@ -268,7 +275,7 @@ function ReasoningCluster({
         {control.kind === "adaptive" ? (
           <Text voice="gloss">This model reasons adaptively — it self-budgets per turn, so there is no manual effort dial.</Text>
         ) : null}
-        <ThinkingDisplayField form={form} />
+        <ThinkingDisplayField effective={effective} form={form} />
       </FieldLayout>
     </Section>
   );
@@ -326,12 +333,20 @@ function EffortField({
   );
 }
 
-/** `params.thinkingDisplay` — re-homed from Prompt ▸ Message delivery (§3 map, F4). */
-function ThinkingDisplayField({ form }: { readonly form: AppForm }): ReactElement {
+/** `params.thinkingDisplay` — re-homed from Prompt ▸ Message delivery (§3 map, F4). Unset GHOSTS the
+ *  funnel's own resolved display mode rather than rendering an empty combobox (side-eye F-05); with no
+ *  reading it says "model default" instead of inventing one. */
+function ThinkingDisplayField({ form, effective }: { readonly form: AppForm; readonly effective: EffectiveProfileRow | undefined }): ReactElement {
+  const resolved = effective?.knobs["thinkingDisplay"]?.value;
   return (
     <form.AppField name="params.thinkingDisplay">
       {(field): ReactElement => (
-        <field.SelectField hint="How the model's reasoning is shown, when it reasons." items={THINKING_DISPLAY_ITEMS} label="Reasoning display" />
+        <field.SelectField
+          hint="How the model's reasoning is shown, when it reasons."
+          items={THINKING_DISPLAY_ITEMS}
+          label="Reasoning display"
+          placeholder={resolved === undefined ? "Model default" : thinkingDisplayLabel(String(resolved))}
+        />
       )}
     </form.AppField>
   );

@@ -13,36 +13,32 @@ import type { RegexPlacement } from "@orb/kit/regex";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { regexPlacementStep } from "#lib";
+
+// ONE VOCABULARY WITH THE CENTER (side-eye F-23): every step's name below is the string the control that
+// EDITS it carries — the regex placements come from the shared `regexPlacementStep` map the editor dialog's
+// own chips read, and the post-process / reasoning-parse steps are their `SwitchField` labels verbatim.
+// The readout and the center were two namings of one pipeline, so a reader could not carry a step from the
+// diagnosis ("which stage do I edit?") to the control that changes it.
 
 /** The prompt-side lane, in the order the assembler applies it. */
-const PROMPT_LANE: readonly { readonly placement: RegexPlacement; readonly label: string }[] = [
-  { placement: "USER_INPUT", label: "Regex · your message" },
-  { placement: "WORLD_INFO", label: "Regex · world info" },
-  { placement: "SLASH_COMMAND", label: "Regex · slash commands" },
-];
-
-/** The reply-side regex placements, at their position in the reply pipeline. */
-const REPLY_REGEX: readonly { readonly placement: RegexPlacement; readonly label: string }[] = [
-  { placement: "REASONING", label: "Regex · reasoning channel" },
-  { placement: "AI_OUTPUT", label: "Regex · model output" },
-  { placement: "DISPLAY", label: "Regex · display only" },
-];
+const PROMPT_LANE: readonly RegexPlacement[] = ["USER_INPUT", "WORLD_INFO", "SLASH_COMMAND"];
 
 export function TransformsReadout({ config }: { readonly config: PromptConfig }): ReactElement {
-  const countOf = (placement: RegexPlacement): number => config.regexScripts.filter((s) => s.enabled && s.placement.includes(placement)).length;
+  // ONE count for one pipeline stage: the ENABLED scripts that bite there. The center's script list shows
+  // the same rows' enabled state per script, so `2 on` here and two "enabled" rows there are the same fact.
+  const scriptState = (placement: RegexPlacement): string => {
+    const count = config.regexScripts.filter((script) => script.enabled && script.placement.includes(placement)).length;
+    return count === 0 ? "off" : `${String(count)} on`;
+  };
   const post = config.postProcess;
   const parse = config.reasoningParse;
   return (
     <Stack gap="section">
       <Section kicker="Prompt-side">
         <Stack gap="tight">
-          {PROMPT_LANE.map((entry, at) => (
-            <StepRow
-              index={at + 1}
-              key={entry.placement}
-              label={entry.label}
-              state={countOf(entry.placement) === 0 ? "off" : `${countOf(entry.placement)} on`}
-            />
+          {PROMPT_LANE.map((placement, at) => (
+            <StepRow index={at + 1} key={placement} label={regexPlacementStep(placement)} state={scriptState(placement)} />
           ))}
         </Stack>
       </Section>
@@ -50,16 +46,19 @@ export function TransformsReadout({ config }: { readonly config: PromptConfig })
       <Section kicker="Reply-side">
         <Stack gap="tight">
           <StepRow index={1} label="Native reasoning channel" state="preferred" />
-          <StepRow index={2} label="Inline <think> parse (fallback)" state={parse?.autoParse === true ? "on" : "off"} />
-          <StepRow index={3} label={REPLY_REGEX[0]?.label ?? ""} state={countOf("REASONING") === 0 ? "off" : `${countOf("REASONING")} on`} />
-          <StepRow index={4} label={REPLY_REGEX[1]?.label ?? ""} state={countOf("AI_OUTPUT") === 0 ? "off" : `${countOf("AI_OUTPUT")} on`} />
+          {/* The center's own SwitchField label, not a paraphrase of it. */}
+          <StepRow index={2} label="Parse inline reasoning tags" state={parse?.autoParse === true ? "on" : "off"} />
+          <StepRow index={3} label={regexPlacementStep("REASONING")} state={scriptState("REASONING")} />
+          <StepRow index={4} label={regexPlacementStep("AI_OUTPUT")} state={scriptState("AI_OUTPUT")} />
           <StepRow index={5} label="Collapse blank lines" state={post?.collapseNewlines === true ? "on" : "off"} />
           <StepRow index={6} label="Trim trailing whitespace" state={post?.trimTrailingWhitespace === true ? "on" : "off"} />
           <StepRow index={7} label="Drop a dangling sentence" state={post?.dropIncompleteSentence === true ? "on" : "off"} />
           <StepRow index={8} label="Single line" state={post?.singleLine === true ? "on" : "off"} />
-          <StepRow index={9} label={REPLY_REGEX[2]?.label ?? ""} state={countOf("DISPLAY") === 0 ? "off" : `${countOf("DISPLAY")} on`} />
+          <StepRow index={9} label={regexPlacementStep("DISPLAY")} state={scriptState("DISPLAY")} />
         </Stack>
-        <Text voice="gloss">Execution order — display-only scripts change what you read and never touch the wire.</Text>
+        <Text prose={true} voice="gloss">
+          Execution order — display-only scripts change what you read and never touch the wire.
+        </Text>
       </Section>
     </Stack>
   );
