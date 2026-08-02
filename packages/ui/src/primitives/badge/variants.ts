@@ -29,6 +29,20 @@ export const badgeVariants = tv({
     size: {
       sm: "px-row py-field text-label leading-label",
       md: "px-block py-field text-body leading-body",
+      // THE IN-FLOW ARM (side-eye F-6, 2026-08-03) — a chip that sits INSIDE a run of prose (a `{{macro}}`
+      // token in a preview of what the model receives), not beside it. `sm` in that position is line-box
+      // DAMAGE: `inline-flex` + `py-field` + `leading-label` builds a 28.25px box inside a 20.15px line, so
+      // every line carrying a macro shoves its neighbours apart, and the 8px side padding detaches the
+      // following punctuation (`{{user}} 's voice`).
+      //
+      // So this arm states the three things that make a chip behave like a WORD: `inline` (participates in
+      // the line box instead of establishing a flex box), NO padding on either axis (the braces the chip
+      // prints are their own optical padding — any inline padding reappears as a gap before the next
+      // character), and NO type axes at all, so font-size AND line-height inherit from the surrounding run
+      // and the line rhythm is arithmetically unchanged. The radius steps one below the pill (`inset`, the
+      // sub-control mark step) because a full pill on a text-height box reads as a lozenge.
+      // Pinned by computed box in tests/ui/primitives/badge/badge.ct.tsx.
+      inline: "inline rounded-inset",
     },
   },
   compoundVariants: [

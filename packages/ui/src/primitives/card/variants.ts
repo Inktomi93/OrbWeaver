@@ -17,10 +17,23 @@ export const cardVariants = tv({
       true: "rounded-card shadow-overlay",
       false: "",
     },
+    // THE NESTED-ISLAND arm (CD2 as ruled by side-eye, 2026-08-03). An interactive island rendered INSIDE
+    // another box — a choices block inside a chat bubble — must stay distinguishable (a user has to see
+    // that those are pressable, which is the case CD2's "maximum" clause exists to permit), but the full
+    // Card treatment inside a box that already has border+radius+fill is TWO complete boxes, and the one
+    // shipped instance carried a second BORDER COLOR on top of the host's. This arm is the ruled
+    // single-axis separation: drop the border entirely, step the radius one below the host's, and let the
+    // FILL alone carry the distinction (the caller supplies it — an intent hue is a feature's call, never a
+    // generic surface's). The radius is re-declared unlayered in tiers.css for the same reason `elevated`
+    // is: a `rounded-*` utility on the card loses to the tier rule inside a Surface.
+    nested: {
+      true: "rounded-inset border-0",
+      false: "",
+    },
     interactive: {
       true: `cursor-pointer transition-colors duration-(--motion-fast) ease-out-expo hover:bg-accent active:bg-accent/80 focus-visible:outline-none ${FOCUS_RING}`,
       false: "",
     },
   },
-  defaultVariants: { elevated: false, interactive: false },
+  defaultVariants: { elevated: false, interactive: false, nested: false },
 });

@@ -44,9 +44,17 @@ export function MessageChoicesBlock({ options }: MessageChoicesBlockProps): Reac
   return (
     // DENSITY S6: the choice set is an INTERACTIVE ISLAND (CD1 — you operate it), so it keeps its box, but
     // the box is now a `<Card>`: inside the room's `<Surface tier="instrument">` the tier map resolves its
-    // padding + `--radius-base` (D6 demoted `--radius-card` to the floating step, which here is the bubble
-    // this island sits in). The info-blue edge is the only thing this feature still spells.
-    <Card className="border-info">
+    // padding (D6 demoted `--radius-card` to the floating step, which here is the bubble this island sits
+    // in).
+    //
+    // ONE BOX, DEMOTED CHROME (CD2 as ruled by side-eye 2026-08-03). This card renders INSIDE the message
+    // bubble (`message-content.tsx`), which is itself border + radius + fill — so the full Card treatment
+    // PLUS an accent `border-info` on top of the bubble's own border was two complete boxes with two border
+    // colors, the A2/CD2 violation by the letter. The island must still be distinguishable (a user has to
+    // see that those are pressable — the case CD2's "maximum" clause permits), so the separation demotes to
+    // ONE axis: `nested` drops the border and steps the radius one below the bubble's, and the info tint
+    // that the border was carrying moves into the FILL, where it does the same job without a second edge.
+    <Card className="bg-info/10" nested={true}>
       <Stack gap="field" data-slot="message-choices">
         <Text voice="kicker" className="text-info">
           Your move

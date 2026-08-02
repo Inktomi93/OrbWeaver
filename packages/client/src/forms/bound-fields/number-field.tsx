@@ -27,6 +27,11 @@ export function BoundNumberField(props: BoundNumberFieldProps): ReactElement {
   return (
     <Field {...fieldProps}>
       <UiNumberField
+        // The `<Field>` label names the INPUT (Base UI's `aria-labelledby`, which outranks this), but it
+        // reaches neither stepper button — so three NumberFields in one column announced three bare
+        // "Decrease"es (side-eye F-20). Forwarding the label as `aria-label` is what gives the steppers a
+        // subject; a non-string label has no name to forward and keeps the bare verb.
+        {...(typeof props.label === "string" ? { "aria-label": props.label } : {})}
         max={props.max}
         min={props.min}
         onBlur={field.handleBlur}

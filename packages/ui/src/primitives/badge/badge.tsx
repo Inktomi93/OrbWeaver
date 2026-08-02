@@ -14,6 +14,9 @@ export interface BadgeProps extends ComponentProps<"span">, VariantProps<typeof 
  * tinted variant (15% background + intent-colored text + hairline border) — the status-chip look;
  * `tone="ghost"` drops the fill entirely (hairline outline + intent text) for chips that must stay
  * quieter than the surface's focal element no matter how many of them render.
+ *
+ * `size="inline"` is the IN-FLOW arm — a chip rendered inside a run of prose (a `{{macro}}` token in a
+ * preview), which must not perturb the line box it lives in. See the variant's own note.
  */
 export function Badge({ className, intent, tone, size, ...props }: BadgeProps): ReactElement {
   return <span data-slot="badge" {...props} className={cn(badgeVariants({ intent, tone, size }), className)} />;

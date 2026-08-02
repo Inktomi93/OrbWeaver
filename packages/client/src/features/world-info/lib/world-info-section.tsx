@@ -31,5 +31,11 @@ export const worldInfoSection: SectionDefinition = {
   listHeader: () => <WorldInfoListHeader />,
   content: () => <WorldInfoContent />,
   // The book activation panel — one body, shown once a book is open (no book = nothing to attach yet).
-  context: { kind: "single", body: () => <WorldInfoContextBody /> },
+  // The no-selection ARM (side-eye F-12) — declared here so the section's voice lives with the
+  // section; a `single` body renders it itself (only it can read its own selection).
+  context: {
+    kind: "single",
+    body: () => <WorldInfoContextBody />,
+    empty: { title: "No book open", description: "Open a world book and this pane shows where it attaches." },
+  },
 };

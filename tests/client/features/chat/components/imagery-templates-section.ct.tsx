@@ -42,7 +42,7 @@ const CHARACTER_FIELD = "Character portrait";
 test("a virgin section ghosts each shipped default as the field placeholder (empty ⇒ use the default)", async ({ mount, page }) => {
   await stub(page);
   await mount(<ImageryTemplatesSectionStory />);
-  const characterField = page.getByRole("combobox", { name: CHARACTER_FIELD, exact: true });
+  const characterField = page.getByRole("textbox", { name: CHARACTER_FIELD, exact: true });
   await expect(characterField).toHaveValue(""); // no override
   await expect(characterField).toHaveAttribute("placeholder", DEFAULT_PROMPT_TEMPLATES.character);
 });
@@ -50,7 +50,7 @@ test("a virgin section ghosts each shipped default as the field placeholder (emp
 test("typing a character-mode override fires updateUserSettingsSection('imagery') with the nested templates patch", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<ImageryTemplatesSectionStory />);
-  const characterField = page.getByRole("combobox", { name: CHARACTER_FIELD, exact: true });
+  const characterField = page.getByRole("textbox", { name: CHARACTER_FIELD, exact: true });
   await characterField.fill("my custom {{char}} portrait prompt");
   await characterField.blur();
   await expect.poll(() => templates(trpc)?.["character"], { intervals: [20, 50, 100] }).toBe("my custom {{char}} portrait prompt");
@@ -62,7 +62,7 @@ test("clearing an existing override sends the leaf null (reset to the shipped de
   // Seed an active character override, then clear the field → the patch carries `templates.character: null`.
   const trpc = await stub(page, { templates: { character: "an existing override" }, captions: {} });
   await mount(<ImageryTemplatesSectionStory />);
-  const characterField = page.getByRole("combobox", { name: CHARACTER_FIELD, exact: true });
+  const characterField = page.getByRole("textbox", { name: CHARACTER_FIELD, exact: true });
   await expect(characterField).toHaveValue("an existing override");
   await characterField.fill("");
   await characterField.blur();

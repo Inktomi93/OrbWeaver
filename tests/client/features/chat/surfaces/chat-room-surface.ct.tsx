@@ -607,8 +607,15 @@ test("the chat room declares the INSTRUMENT tier — the transcript's island res
   const block = await resolveTokenPx(island, "--spacing-block");
   expect(row, "the two steps must differ or this proves nothing").not.toBe(block);
   expect(await computedPx(island, "paddingLeft"), "an un-tiered room falls back to the airy --spacing-block step").toBe(row);
-  // D6: `--radius-card` is the ELEVATED step (the bubble); grouped content inside a surface is --radius-base.
-  expect(await computedPx(island, "borderTopLeftRadius")).toBe(await resolveTokenPx(island, "--radius-base"));
+  // D6 + CD2 (side-eye ruling 2026-08-03): `--radius-card` is the ELEVATED step (the bubble this island
+  // sits INSIDE), grouped content inside a surface is `--radius-base`, and a NESTED island steps one below
+  // that again — `--radius-inset`. The choices block is nested by construction (it renders inside the
+  // bubble), so this specimen reads the nested step, and its border is gone: one box, one axis of
+  // separation, the fill alone carrying the distinction.
+  expect(await computedPx(island, "borderTopLeftRadius")).toBe(await resolveTokenPx(island, "--radius-inset"));
+  expect(await computedPx(island, "borderTopLeftRadius")).toBeLessThan(await resolveTokenPx(island, "--radius-base"));
+  const borderWidth = await island.evaluate((node) => Number.parseFloat(getComputedStyle(node).borderTopWidth));
+  expect(borderWidth, "CD2: the nested island drops its border rather than adding a second edge inside the bubble's").toBe(0);
 });
 
 test("LIVE: stripping data-surface-tier off the room moves the transcript island back to the tier-less step", async ({ mount, page }) => {
