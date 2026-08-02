@@ -31,11 +31,10 @@
 // `{}` that means "I did nothing and I'm not telling you".
 
 import { RPG_HAND_PATCH_PLANES, RPG_OP_SHAPED_PLANES } from "@orb/contracts/rpg";
-import { DomainForbiddenError } from "@orb/kit/errors";
 import type { EditSnapshotParams } from "../contract/params";
 import type { HandDoorResult } from "../contract/results";
 import type { RpgContext, RpgService } from "../contract/service";
-import { resolveMember } from "../guard";
+import { assertHostRole, resolveMember } from "../guard";
 import { applyHandEdit } from "../snapshot-edit";
 
 export function createEditSnapshot(ctx: RpgContext): Pick<RpgService, "editSnapshot"> {
@@ -43,9 +42,7 @@ export function createEditSnapshot(ctx: RpgContext): Pick<RpgService, "editSnaps
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
     // The member-own-actor volatile arm is deferred (the per-actor sub-field lock grammar is unfixed — see the
     // file header); v1 gates editSnapshot host-only. The doorway is kept: a member gets a FORBIDDEN, not a lie.
-    if (role !== "host") {
-      throw new DomainForbiddenError("host authority required to hand-edit the snapshot");
-    }
+    assertHostRole(role, "host authority required to hand-edit the snapshot");
     // Gate 1 — plane legality, in two arms. The reason NAMES the writable planes: the caller is a hand (a host
     // at a keyboard, a console, an agent seed), and a refusal that doesn't say what IS writable just moves the
     // guess. The OP-SHAPED arm goes further and names the verb that owns the plane, because "actorState is not

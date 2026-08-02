@@ -24,20 +24,17 @@
 // scope): a member gets a FORBIDDEN, not a lie.
 
 import { actorRefKey } from "@orb/contracts/rpg";
-import { DomainForbiddenError } from "@orb/kit/errors";
 import type { PatchActorParams } from "../contract/params";
 import type { HandDoorResult } from "../contract/results";
 import type { RpgContext, RpgService } from "../contract/service";
-import { resolveMember } from "../guard";
+import { assertHostRole, resolveMember } from "../guard";
 import { writeHandState } from "../snapshot-edit";
 import { applyActorOps, emptyActorEntry } from "../substrate/actor-ops";
 
 export function createPatchActor(ctx: RpgContext): Pick<RpgService, "patchActor"> {
   async function patchActor(params: PatchActorParams): Promise<HandDoorResult> {
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
-    if (role !== "host") {
-      throw new DomainForbiddenError("host authority required to hand-edit an actor");
-    }
+    assertHostRole(role, "host authority required to hand-edit an actor");
     const targetKey = actorRefKey(params.targetRef);
 
     const written = await writeHandState(ctx, game, (head) => {

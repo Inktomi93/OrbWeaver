@@ -4,12 +4,13 @@
 // through the injected chat op.
 
 import { RPG_GAME_MODES } from "@orb/contracts/rpg";
-import { DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { RpgModeUnbuiltError } from "../../contract/errors";
 import type { CreateGameParams } from "../../contract/params";
 import type { CreateGameResult } from "../../contract/results";
 import type { RpgContext, RpgService } from "../../contract/service";
 import { mintLiteGame } from "../../game-mint";
+import { assertHostRole } from "../../guard";
 import { findGameByChat } from "../../persistence/games";
 
 export function createCreateGame(ctx: RpgContext): Pick<RpgService, "createGame"> {
@@ -32,9 +33,7 @@ export function createCreateGame(ctx: RpgContext): Pick<RpgService, "createGame"
     if (membership === null) {
       throw new DomainNotFoundError("game", params.chatId);
     }
-    if (membership.role !== "host") {
-      throw new DomainForbiddenError("host authority required to create a game");
-    }
+    assertHostRole(membership.role, "host authority required to create a game");
     // One game per chat (the UNIQUE chatId is the belt; this is the friendly refusal).
     if (await findGameByChat(ctx.db, params.chatId)) {
       throw new DomainOperationError("rpg_already_a_game", "this chat is already a game");

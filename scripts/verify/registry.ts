@@ -258,6 +258,21 @@ export const REGISTRY: readonly StageDef[] = [
     classify: asViolations,
   },
 
+  {
+    name: "deps:orphan-ratchet",
+    group: "deps",
+    // PUSH tier, never the commit bar: it resolves the whole type graph to key liveness on origin
+    // declarations (~30s). knip CANNOT stand in for it — probe-verified (dispositions doc, "Correction"):
+    // each package's `exports` map already makes these subpaths public API in knip's eyes, so knip flags
+    // none of them and its `tags: ["-@public"]` exemption never fires. This stage reads `@public <reason>`
+    // itself and ratchets the swept tree (scripts/verify/orphan-export-ratchet.ts).
+    tiers: ["push", "full"],
+    argv: ["pnpm", "check:orphan-ratchet"],
+    classify: ownScheme,
+    // A WHOLE-TREE liveness reconciliation (an export is only an orphan relative to the ENTIRE workspace's
+    // import graph) — whole-only, deferred at a scoped tier like the other cross-file reconciliations.
+  },
+
   // ── docs stage-group ──
   {
     name: "docs:format",

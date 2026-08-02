@@ -28,20 +28,17 @@
 // names that drop out loud; a host who learns it afterwards learns it as a bug.
 
 import { actorRefKey, rpgCastSlug, rpgPromotedCardDescription } from "@orb/contracts/rpg";
-import { DomainForbiddenError } from "@orb/kit/errors";
 import type { PromoteActorParams } from "../contract/params";
 import type { HandDoorResult } from "../contract/results";
 import type { RpgContext, RpgService } from "../contract/service";
-import { resolveMember } from "../guard";
+import { assertHostRole, resolveMember } from "../guard";
 import { currentSnapshotState, writeHandState } from "../snapshot-edit";
 import { rekeyActor } from "../substrate/actor-rekey";
 
 export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteActor"> {
   async function promoteActor(params: PromoteActorParams): Promise<HandDoorResult> {
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
-    if (role !== "host") {
-      throw new DomainForbiddenError("host authority required to promote an actor to the roster");
-    }
+    assertHostRole(role, "host authority required to promote an actor to the roster");
     const from = params.targetRef;
     const fromKey = actorRefKey(from);
 
