@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url";
 import StyleDictionary from "style-dictionary";
 import type { DesignTokens } from "style-dictionary/types";
 import { THEME_SCOPE_EMIT_VARS } from "./src/content/theme-scope/clamp.ts";
+import { assertNoNearDuplicateColors } from "./tokens.near-duplicate.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TOKENS_JSON = join(HERE, "src/tokens/tokens.json");
@@ -245,6 +246,9 @@ function renderSeedThemesTs(themes: readonly SeedTheme[]): string {
 
 export async function generateArtifacts(): Promise<{ themeCss: string; tokensTs: string; themesTs: string }> {
   const source = JSON.parse(readFileSync(TOKENS_JSON, "utf8")) as DesignTokens;
+  // Runs on the RAW source, BEFORE resolution: a `{color.x}` reference is the one-token answer, and a
+  // resolved dictionary can no longer tell a reference from a hand-authored twin (tokens.near-duplicate.ts).
+  assertNoNearDuplicateColors(source as unknown as Record<string, unknown>);
   const sd = new StyleDictionary({
     tokens: source,
     usesDtcg: true,
