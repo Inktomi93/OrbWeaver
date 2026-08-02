@@ -21,6 +21,13 @@ export interface TrackBarProps {
   max?: number;
   /** Which `--color-track-N` fills the bar. @defaultValue 1 */
   color?: TrackColor;
+  /**
+   * Swaps the categorical ramp for a SEMANTIC zone accent — for a bar whose magnitude belongs to a named
+   * zone (the preset budget readout's setup/post lanes) rather than to a user-defined pool. Ignored while
+   * `danger` bites; `color` is ignored while this is set.
+   * @defaultValue "ramp"
+   */
+  accent?: "ramp" | "info" | "warning";
   /** A host-picked CSS color LITERAL (the panel-redesign free-hex ruling) that overrides the ramp step.
    *  Applied as inline data only when it passes `isSafeColor` (an unsafe value falls back to the ramp);
    *  the fill is aria-hidden decoration, so a non-theme hex is accepted by design. Danger still wins. */
@@ -39,17 +46,18 @@ function clampFraction(value: number, max: number): number {
 }
 
 /** The decorative fill bar. `aria-hidden` — pair it with a text `value/max` readout (the datum). */
-export function TrackBar({ value, max = FULL_PERCENT, color = 1, customColor, dangerBelow, className }: TrackBarProps): ReactElement {
+export function TrackBar({ value, max = FULL_PERCENT, color = 1, accent = "ramp", customColor, dangerBelow, className }: TrackBarProps): ReactElement {
   const danger = dangerBelow !== undefined && value < dangerBelow;
-  const slots = trackBarVariants({ danger });
+  const slots = trackBarVariants({ danger, accent });
   const width = `${clampFraction(value, max) * FULL_PERCENT}%`;
   const custom = !danger && customColor !== undefined && isSafeColor(customColor) ? customColor : undefined;
+  const ramped = accent === "ramp" && !danger && custom === undefined;
   return (
     <div aria-hidden={true} className={cn(slots.root(), className)} data-slot="track-bar">
       {/* width is data (inline style is the only honest home for a runtime fraction); color is a ramp token
-          — or the host-picked color literal (also data, safe-color-gated). */}
+          — or the semantic zone accent, or the host-picked color literal (also data, safe-color-gated). */}
       <div
-        className={cn(slots.fill(), danger || custom !== undefined ? undefined : TRACK_FILL[color])}
+        className={cn(slots.fill(), ramped ? TRACK_FILL[color] : undefined)}
         data-slot="track-bar-fill"
         style={custom === undefined ? { width } : { width, backgroundColor: custom }}
       />

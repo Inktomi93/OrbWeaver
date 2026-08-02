@@ -130,6 +130,51 @@ describe("resolveEffective — the staleness list (F7)", () => {
   });
 });
 
+describe("resolveEffective — a knob the model does not have is ABSENT, not clamped (side-eye F-14)", () => {
+  test("a model that cannot reason reports NO effort at all — never `none · clamped`", async () => {
+    // The measured lie: `resolvedEffortOf` returned `none` for a model with `reasoning.mode: "none"`, and
+    // the dial's `high` then had something to be "clamped" from — so the readout printed
+    // `effort · none · clamped` about a knob that does not exist on that model, on a value nothing moved.
+    const effective = await resolveWith({ quality: "deep" }, makeModelCapability({ reasoning: { mode: "none", enabled: false } }));
+    expect(effective.knobs.effort).toBeUndefined();
+    // …and the absence is not laundered into staleness either: nothing was STORED for effort.
+    expect(effective.stale).toStrictEqual([]);
+  });
+
+  test("a model that CAN reason still reports the dial's effort, labelled as the dial's", async () => {
+    const effective = await resolveWith({ quality: "deep" }, makeModelCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["high"] } }));
+    expect(effective.knobs.effort).toStrictEqual({ value: "high", provenance: "quality" });
+  });
+});
+
+describe("resolveEffective — the QUALITY MAPPING datum (side-eye F-15)", () => {
+  test("the dial's mapping is reported even when every knob it feeds is overridden explicitly", async () => {
+    // The whole distinction: "what does deep DO" is a fact about the DIAL and stays true under an
+    // override. The client used to derive it from the funnel's OUTPUT, so a fully-overridden dial rendered
+    // "everything is overridden" in the one place the mapping was supposed to appear.
+    const capability = makeModelCapability({ ...SAMPLING_CAPABLE, reasoning: { mode: "effort", enabled: true, effortLevels: ["high"] } });
+    const effective = await resolveWith({ quality: "deep", temperature: 0.4 }, capability);
+
+    expect(effective.knobs.temperature).toStrictEqual({ value: 0.4, provenance: "explicit" });
+    expect(effective.qualityMapping).toStrictEqual({
+      quality: "deep",
+      entries: [
+        { knob: "effort", value: "high" },
+        { knob: "temperature", value: QUALITY_SAMPLING.deep.temperature },
+      ],
+    });
+  });
+
+  test("no dial set means no mapping — there is nothing to state", async () => {
+    expect((await resolveWith({}, makeModelCapability(SAMPLING_CAPABLE))).qualityMapping).toBeNull();
+  });
+
+  test("the mapping never names a knob THIS model cannot take (the F-14 honesty, applied to the dial)", async () => {
+    // No reasoning and no temperature range means the dial feeds nothing here, so it claims nothing.
+    expect((await resolveWith({ quality: "fast" }, makeModelCapability())).qualityMapping).toBeNull();
+  });
+});
+
 describe("resolveEffective — scope", () => {
   test("names the model it resolved against", async () => {
     const effective = await resolveWith({}, makeModelCapability());

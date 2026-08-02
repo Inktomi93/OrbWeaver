@@ -25,6 +25,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { selectPresetSection } from "#state";
 import { isTemplatedMarker } from "../../lib/assembly-model";
+import { formatEstimate } from "../../lib/format-count";
 import { AssemblyPreview } from "../prompt-assembly/assembly-preview";
 import { deriveZones } from "../prompt-assembly/derive-zones";
 import { estimateSectionTokens } from "../prompt-assembly/estimate-tokens";
@@ -55,8 +56,11 @@ function sectionName(section: PromptSection): string {
 export function PromptReadout({ sections, selectedSectionId }: PromptReadoutProps): ReactElement {
   const [previewOpen, setPreviewOpen] = useState(false);
   const zones = deriveZones(sections);
-  const enabled = sections.filter((section) => section.enabled);
-  const largest = enabled.reduce((max, section) => Math.max(max, barTokens(section) ?? 0), 0);
+  // EVERY section gets a bar, disabled included (side-eye F-26): a disabled row vanished from the budget
+  // while staying in the rack, so the readout answered "what am I spending" with a list that silently
+  // omitted the rows you had just turned off — exactly the rows you are deciding about. An off row renders
+  // ZEROED and struck (the rack row's own `line-through` grammar): present, and visibly not spent.
+  const largest = sections.reduce((max, section) => Math.max(max, section.enabled ? (barTokens(section) ?? 0) : 0), 0);
   const selected = sections.find((section) => section.id === selectedSectionId);
 
   return (
@@ -64,25 +68,26 @@ export function PromptReadout({ sections, selectedSectionId }: PromptReadoutProp
       <Section kicker="Budget">
         <Stack gap="tight">
           <Row align="center" gap="field">
-            <Badge intent="info" size="sm">
+            <Badge intent="info" size="sm" tone="soft">
               SETUP
             </Badge>
             <Text voice="gloss">
-              {zones.summaries.setup.enabledCount} on · ~{zones.summaries.setup.tokenEstimate}
+              {zones.summaries.setup.enabledCount} on · {formatEstimate(zones.summaries.setup.tokenEstimate)}
             </Text>
           </Row>
           <Row align="center" gap="field">
-            <Badge intent="warning" size="sm">
+            <Badge intent="warning" size="sm" tone="soft">
               POST
             </Badge>
             <Text voice="gloss">
-              {zones.summaries.post.enabledCount} on · ~{zones.summaries.post.tokenEstimate}
+              {zones.summaries.post.enabledCount} on · {formatEstimate(zones.summaries.post.tokenEstimate)}
             </Text>
           </Row>
         </Stack>
         <Stack gap="tight">
-          {enabled.map((section) => {
+          {sections.map((section, at) => {
             const tokens = barTokens(section);
+            const off = !section.enabled;
             return (
               <Button
                 intent="ghost"
@@ -91,16 +96,29 @@ export function PromptReadout({ sections, selectedSectionId }: PromptReadoutProp
                 size="sm"
                 {...(section.id === selectedSectionId ? { className: "bg-primary/10" } : {})}
               >
-                <Text className="min-w-0 flex-1 truncate text-left" voice="label">
+                <Text className={off ? "min-w-0 flex-1 truncate text-left line-through" : "min-w-0 flex-1 truncate text-left"} voice="label">
                   {sectionName(section)}
                 </Text>
-                <TrackBar className="min-w-0 flex-1" max={largest === 0 ? 1 : largest} value={tokens ?? 0} />
-                <Text voice="datum">{tokens === null ? "~—" : `~${tokens}`}</Text>
+                {/* ZONE-HUED, never the categorical ramp's step 1 (side-eye, the mock-vs-rendered table):
+                    the ramp's first step is vitality GREEN, a hue this surface's language does not contain.
+                    Steel-blue setup / warm-amber post is the rack's own zone accent, echoed. */}
+                <TrackBar
+                  accent={zones.zoneOf(at) === "post" ? "warning" : "info"}
+                  className="min-w-0 flex-1"
+                  max={largest === 0 ? 1 : largest}
+                  value={off ? 0 : (tokens ?? 0)}
+                />
+                <Text className={off ? "line-through" : ""} voice="datum">
+                  {tokens === null ? "~—" : formatEstimate(tokens)}
+                </Text>
               </Button>
             );
           })}
         </Stack>
-        <Text voice="gloss">A bar click selects its section — carriers read ~— because their cost is the conversation's, not the preset's.</Text>
+        <Text voice="gloss">
+          A bar click selects its section. A struck row is switched off and costs nothing; carriers read ~— because their cost is the conversation's, not the
+          preset's.
+        </Text>
       </Section>
 
       {selected === undefined ? null : <SelectedSectionAttribution section={selected} />}

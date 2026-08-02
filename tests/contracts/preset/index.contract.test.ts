@@ -7,6 +7,7 @@ import {
   customParametersSchema,
   DEFAULT_FORMAT_STRINGS,
   DEFAULT_GUIDED_ACTIONS,
+  DEFAULT_MARKER_TEMPLATES,
   DEFAULT_PROMPT_CONFIG,
   GREETING_TRANSFORM_AXES,
   GREETING_TRANSFORMS,
@@ -46,6 +47,20 @@ const SCHEMA_VERSION_V5 = 5;
 test("promptConfigSchema accepts DEFAULT_PROMPT_CONFIG and parsePromptConfig round-trips it", () => {
   expect(promptConfigSchema.parse(DEFAULT_PROMPT_CONFIG)).toEqual(DEFAULT_PROMPT_CONFIG);
   expect(parsePromptConfig(DEFAULT_PROMPT_CONFIG)).toEqual(DEFAULT_PROMPT_CONFIG);
+});
+
+test("the starter arrangement stores NO section templates — the built-in opens fully ghosted (side-eye F-03)", () => {
+  // The `custom` cue and the full-weight body derive from `template !== undefined`, so a starter that
+  // MATERIALIZES a default as a stored value makes the untouched built-in — the first preset every user
+  // meets — open looking edited. The starter framing lives in `DEFAULT_MARKER_TEMPLATES` instead, which is
+  // where every other marker's default already lived.
+  const stored = DEFAULT_PROMPT_CONFIG.sections.filter((section) => "template" in section && section.template !== undefined);
+  expect(stored).toStrictEqual([]);
+
+  // …and the WIRE is unchanged: the assembler resolves `section.template ?? DEFAULT_MARKER_TEMPLATES[marker]`,
+  // so the same bytes still go out for the main prompt.
+  expect(DEFAULT_MARKER_TEMPLATES.main_prompt).toContain("{{char}}");
+  expect(DEFAULT_MARKER_TEMPLATES.main_prompt).toContain("{{user}}");
 });
 
 test("parsePromptConfig degrades a non-object / malformed blob to DEFAULT_PROMPT_CONFIG (lenient)", () => {

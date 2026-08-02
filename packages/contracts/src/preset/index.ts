@@ -588,6 +588,12 @@ export type MarkerType = (typeof MARKER_TYPES)[number];
 export const NAMES_BEHAVIOR = ["none", "default", "content", "completion"] as const;
 export type NamesBehavior = (typeof NAMES_BEHAVIOR)[number];
 
+/** What an UNSET `namesBehavior` resolves to on the wire. Exported because the EDITOR must ghost the
+ *  effective default in its select rather than render blank (side-eye F-05) — a select that shows nothing
+ *  for "inherited" hides the very datum it exists to state. The assembler's two `?? "default"` sites read
+ *  this same constant, so the shown default and the sent default cannot drift. */
+export const DEFAULT_NAMES_BEHAVIOR: NamesBehavior = "default";
+
 // Generation types a section's `trigger` can gate on (ST `injection_trigger`).
 export const GENERATION_TYPES = ["normal", "continue", "impersonate", "swipe", "regenerate", "quiet"] as const;
 export type GenerationType = (typeof GENERATION_TYPES)[number];
@@ -595,6 +601,10 @@ export type GenerationType = (typeof GENERATION_TYPES)[number];
 // Continuation delimiter inserted between existing tip + new chunk on a continue turn.
 export const CONTINUE_POSTFIX_TYPES = ["none", "space", "newline", "double-newline"] as const;
 export type ContinuePostfix = (typeof CONTINUE_POSTFIX_TYPES)[number];
+
+/** What an UNSET `continuePostfix` resolves to (the engine's `?? "none"`). Exported for the same reason as
+ *  {@link DEFAULT_NAMES_BEHAVIOR} — the editor ghosts the effective default instead of rendering blank. */
+export const DEFAULT_CONTINUE_POSTFIX: ContinuePostfix = "none";
 
 /** A section's conditional gate (ST `injection_trigger`). Empty/absent ⇒ always fires. */
 const triggerSchema = z.array(z.enum(GENERATION_TYPES)).max(GENERATION_TYPES.length);
@@ -896,7 +906,16 @@ export const THINK_SUFFIX_DEFAULT = "</think>";
 const macro = (name: string): string => `{{${name}}}`;
 
 export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
-  ["main_prompt"]: "",
+  // THE STARTER FRAMING LIVES HERE, NOT IN A STORED `template` (side-eye F-03, 2026-08-02). It used to be
+  // materialized as a VALUE on `DEFAULT_PROMPT_CONFIG`'s main section, so the untouched built-in preset
+  // opened with a full-weight body and a `custom` cue — the exact F2/§5.2a defect the redesign exists to
+  // kill, on the one preset every user meets first. Moving the bytes to the marker's DEFAULT makes the
+  // built-in's section carry `template: undefined`, which the editor ghosts as a placeholder and the
+  // `custom` cue derives honestly from. The WIRE is unchanged: the assembler already resolves
+  // `section.template ?? DEFAULT_MARKER_TEMPLATES[marker]` (`assembly/assemble.ts`), so the same bytes go
+  // out — a marker-less ST import now inherits this framing instead of nothing, which is the same "the
+  // built-in default rides" rule every other marker already followed.
+  ["main_prompt"]: "You are {{char}} in an immersive, ongoing roleplay with {{user}}. Stay in character; write {{char}}'s perspective only.",
   ["post_history"]: "",
   ["char_description"]: macro("description"),
   ["char_personality"]: macro("personality"),
@@ -1234,7 +1253,9 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
       marker: "main_prompt",
       role: "system",
       enabled: true,
-      template: "You are {{char}} in an immersive, ongoing roleplay with {{user}}. Stay in character; write {{char}}'s perspective only.",
+      // NO `template` (side-eye F-03): the starter framing is `DEFAULT_MARKER_TEMPLATES.main_prompt`, so
+      // the built-in ships this section UNSET like every other marker — the editor ghosts the default and
+      // the `custom` cue stays honest. Same bytes on the wire (the assembler's `?? DEFAULT_MARKER_TEMPLATES`).
     },
     {
       type: "marker",

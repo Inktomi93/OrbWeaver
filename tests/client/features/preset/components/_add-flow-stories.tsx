@@ -63,7 +63,13 @@ export function CompactionTabDefaultsStory(): ReactElement {
   return (
     <StoryForm entityId={STORY_PRESET} serverValues={serverValues} save={(): Promise<void> => Promise.resolve()}>
       {(session): ReactElement => (
-        <ParamsDeck capability={undefined} customParameterKeys={[]} effective={undefined} form={session.form as AppFormInstance<PromptConfig>} />
+        <ParamsDeck
+          capability={undefined}
+          capabilityError={null}
+          customParameterKeys={[]}
+          effective={undefined}
+          form={session.form as AppFormInstance<PromptConfig>}
+        />
       )}
     </StoryForm>
   );
@@ -78,7 +84,13 @@ export function CompactionTabSetStory(): ReactElement {
   return (
     <StoryForm entityId={STORY_PRESET} serverValues={serverValues} save={(): Promise<void> => Promise.resolve()}>
       {(session): ReactElement => (
-        <ParamsDeck capability={undefined} customParameterKeys={[]} effective={undefined} form={session.form as AppFormInstance<PromptConfig>} />
+        <ParamsDeck
+          capability={undefined}
+          capabilityError={null}
+          customParameterKeys={[]}
+          effective={undefined}
+          form={session.form as AppFormInstance<PromptConfig>}
+        />
       )}
     </StoryForm>
   );

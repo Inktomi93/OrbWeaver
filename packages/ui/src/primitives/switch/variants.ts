@@ -39,9 +39,21 @@ export const switchVariants = tv({
         thumb: "data-checked:bg-primary-foreground",
         readOnlyIcon: "group-data-[checked]:text-primary",
       },
+      // MEASURED, not chosen by taste (side-eye F-08, 2026-08-02): the checked track was `--color-secondary`
+      // (L 0.255) while the UNCHECKED `bg-input` (12% white over the card) composites to ≈L 0.286 — ON was
+      // DARKER than OFF, so a rack of twelve rows signalled its state with a 10px thumb offset and nothing
+      // else (the switch CT's separation pin measures 0.017 on that pair, ~0 for the eye).
+      //
+      // `foreground/55` is the RENDERED call the review left open ("bg-foreground/70 … your call from the
+      // rendered result"): /70 painted six near-WHITE pills that out-shouted the row names they belong to —
+      // loudness traded, not fixed — while /55 still measures a ~0.4 separation, far past the pin's 0.15
+      // floor. It spends no accent either way, which is this tone's whole reason to exist; the thumb
+      // inverts to `background` so it stays visible against the now-bright track (the `accent` arm's own
+      // thumb-inversion pattern).
       quiet: {
-        root: "data-checked:border-secondary data-checked:bg-secondary",
-        readOnlyIcon: "group-data-[checked]:text-secondary",
+        root: "data-checked:border-foreground/55 data-checked:bg-foreground/55",
+        thumb: "data-checked:bg-background",
+        readOnlyIcon: "group-data-[checked]:text-foreground",
       },
     },
   },

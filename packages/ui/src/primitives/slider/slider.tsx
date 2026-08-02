@@ -19,6 +19,13 @@ export interface SliderProps<Value extends number | readonly number[] = number>
   label?: ReactNode;
   /** Accessible names per thumb (index-aligned) — use for range endpoints ("Minimum"/"Maximum"). */
   thumbLabels?: readonly string[];
+  /**
+   * Description id(s) for the THUMB — the element that actually carries the value for assistive tech (Base
+   * UI's thumb wraps the real range input; a spread on the Root lands on a wrapper `<div>` that describes
+   * nothing, the same footgun `NumberField` documents). Use it to attach a provenance/clamp gloss rendered
+   * beside the control, so the line belongs to its own row instead of fusing with its neighbours' text.
+   */
+  thumbDescribedBy?: string | undefined;
   showValue?: boolean;
   formatValue?: (formattedValues: readonly string[], values: readonly number[]) => ReactNode;
 }
@@ -26,11 +33,12 @@ export interface SliderProps<Value extends number | readonly number[] = number>
 /**
  * Single or range: pass a scalar for one thumb, or an array (`value={[lo, hi]}`) for a range.
  *
- * `tone="ghost"` mutes the fill + thumb for a row whose value is INHERITED rather than explicitly set —
- * the thumb still sits at the resolved effective value, so the datum is never hidden (§4.1).
+ * `tone` picks the KnobRow arm: `neutral` = EXPLICIT (a weight fill, no accent), `ghost` = INHERITED
+ * (NO fill, muted thumb — the thumb still sits at the resolved effective value, so the datum is never
+ * hidden, but a bare rail makes no magnitude claim about a value you did not set; §4.1).
  */
 export function Slider<Value extends number | readonly number[] = number>(props: SliderProps<Value>): ReactElement {
-  const { className, label, thumbLabels, showValue = false, formatValue, tone, ...rootProps } = props;
+  const { className, label, thumbLabels, thumbDescribedBy, showValue = false, formatValue, tone, ...rootProps } = props;
   const slots = sliderVariants({ tone });
   const count = thumbCount(rootProps.value ?? rootProps.defaultValue);
   const isRange = count > 1;
@@ -58,6 +66,7 @@ export function Slider<Value extends number | readonly number[] = number>(props:
           <BaseSlider.Indicator className={slots.indicator()} data-slot="slider-indicator" />
           {Array.from({ length: count }, (_unused, index) => (
             <BaseSlider.Thumb
+              aria-describedby={thumbDescribedBy}
               aria-label={isRange ? thumbLabels?.[index] : singleAriaLabel}
               className={slots.thumb()}
               data-slot="slider-thumb"

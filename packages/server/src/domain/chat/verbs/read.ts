@@ -35,7 +35,7 @@ import { buildCharacterNameMap, buildPersonaNameMap, DEFAULT_GROUP_CONFIG } from
 import type { ChatSendAvailability, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { PromptConfig, UserMacroSpec } from "@orb/contracts/preset";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_NAMES_BEHAVIOR, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { projectBodyForPreview } from "@orb/kit/content";
@@ -757,7 +757,7 @@ async function shapeNextTurn(
     output: "per-speaker",
     cardScope: "merged",
     scopedTargetId: null,
-    namesBehavior: assembleContext.promptConfig.namesBehavior ?? "default",
+    namesBehavior: assembleContext.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
     speakers: { user: assembleContext.activePersona?.name ?? "User", assistant: assembleContext.character.name },
     groupNudge: null,
     assistantPrefill: turns?.assistantPrefill === true,

@@ -5,7 +5,7 @@
 import type { GenerationType, MarkerType, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES, GENERATION_TYPES, MARKER_TYPES } from "@orb/contracts/preset";
 import type { LucideIcon } from "@orb/ui/icons";
-import { Anchor, Pencil, Sparkles } from "@orb/ui/icons";
+import { Pencil } from "@orb/ui/icons";
 import { MARKER_COPY } from "../components/prompt-assembly/marker-copy";
 
 /** The three section kinds the rack + inspector branch on (derived from a section, never stamped). */
@@ -25,15 +25,13 @@ export function sectionKind(section: PromptSection): SectionKind {
   return isTemplatedMarker(section.marker) ? "templatedMarker" : "plainMarker";
 }
 
-/** The glyph icon for a section (literal → Pencil · templated marker → Sparkles · plain marker → Anchor)
- *  — the rack row + the body-editor header both cue the same kind. Pure: returns the icon COMPONENT; the
- *  caller renders `<Icon icon={sectionGlyphIcon(section)} size="sm" />` (JSX stays out of this node-safe model). */
+/** The glyph icon for a section — the MARKER'S OWN glyph (`MARKER_COPY.glyph`), and Pencil for a literal
+ *  (the author's own text). Per-marker, not per-kind (side-eye F-17): a kind glyph rendered nine of the
+ *  twelve default rows as the same sparkle, so the rack's loudest column carried almost no information.
+ *  Pure: returns the icon COMPONENT; the caller renders `<Icon icon={sectionGlyphIcon(section)} />` (JSX
+ *  stays out of this node-safe model). */
 export function sectionGlyphIcon(section: PromptSection): LucideIcon {
-  const kind = sectionKind(section);
-  if (kind === "literal") {
-    return Pencil;
-  }
-  return kind === "templatedMarker" ? Sparkles : Anchor;
+  return section.type === "literal" ? Pencil : MARKER_COPY[section.marker].glyph;
 }
 
 /** The drill-in header's label + one-liner. The LABEL is the section's own NAME when it has one — the

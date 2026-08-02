@@ -345,3 +345,56 @@ test("leading slot is aria-hidden — its text never leaks into the row's access
   await expect(page.getByRole("button", { name: "Elara", exact: true })).toBeVisible();
   await expect(page.getByRole("button")).toHaveAccessibleName("Elara");
 });
+
+// ── The INLINE-subtitle arm (side-eye F-01's structural fix) ──────────────────────────────────────────
+// The default `block` arm gives the title the whole line, so it can safely be `flex-1 min-w-0`. The
+// INLINE arm puts the subtitle ON that line, which is where a `shrink-0` sibling could squeeze the title
+// to zero — the P0 the preset Actions list shipped. The arm therefore inverts the priority: the SUBTITLE
+// takes the flexing column and the TITLE keeps a width floor.
+
+test("subtitlePlacement=inline puts the scent on the title line and the NAME never reaches 0px", async ({ mount, page }) => {
+  await mount(
+    <div style={{ width: "260px" }}>
+      <ListRow
+        clickable={true}
+        subtitle="an extremely long scent line that would happily consume the entire row if nothing stopped it"
+        subtitlePlacement="inline"
+        title="Greeting rewrite"
+      />
+    </div>,
+  );
+  const title = page.locator('[data-slot="list-row-title"]');
+  const subtitle = page.locator('[data-slot="list-row-subtitle"]');
+
+  // INLINE: both share one line (their vertical centers agree).
+  const [titleBox, subtitleBox] = await Promise.all([title.boundingBox(), subtitle.boundingBox()]);
+  const center = (box: { y: number; height: number } | null): number => (box === null ? -1 : Math.round(box.y + box.height / 2));
+  expect(Math.abs(center(titleBox) - center(subtitleBox))).toBeLessThanOrEqual(2);
+
+  // THE PIN: at a width that cannot hold both, the NAME still measures — and the gloss is what shortened.
+  expect(titleBox?.width ?? 0).toBeGreaterThan(0);
+  await expect(subtitle).toHaveCSS("text-overflow", "ellipsis");
+});
+
+test("the BLOCK arm is untouched — the subtitle stays on its own line below the title", async ({ mount, page }) => {
+  await mount(<ListRow clickable={true} subtitle="second line" title="Elara" />);
+  const [titleBox, subtitleBox] = await Promise.all([
+    page.locator('[data-slot="list-row-title"]').boundingBox(),
+    page.locator('[data-slot="list-row-subtitle"]').boundingBox(),
+  ]);
+  expect(subtitleBox?.y ?? 0).toBeGreaterThan((titleBox?.y ?? 0) + (titleBox?.height ?? 0) - 2);
+});
+
+// A DECORATIVE subtitle stays visible and drops out of the announcement — for a mono preview of a body
+// the row is not describing (side-eye F-20: an Actions row read out its whole ~600-character template).
+test("subtitleDecorative keeps the subtitle visible but out of the row's description", async ({ mount, page }) => {
+  await mount(<ListRow clickable={true} meta="fires on every reply" subtitle="{{input}} a long mono preview" subtitleDecorative={true} title="Response" />);
+  const row = page.getByRole("button", { name: "Response" });
+
+  await expect(page.getByText("{{input}} a long mono preview")).toBeVisible();
+  const describedBy = (await row.getAttribute("aria-describedby")) ?? "";
+  expect(describedBy).not.toBe("");
+  const described = await page.locator(`#${describedBy.split(" ").join(", #")}`).allTextContents();
+  expect(described.join(" ")).toContain("fires on every reply");
+  expect(described.join(" ")).not.toContain("{{input}}");
+});

@@ -28,9 +28,10 @@ import { Slider } from "@orb/ui/slider";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
+import { useId } from "react";
 import type { AppFormInstance } from "#forms";
 import type { KnobBinding } from "../lib/capability-panel-model";
-import type { EffectiveKnobRow } from "../lib/effective-knobs";
+import type { EffectiveKnobRow, KnobGhost } from "../lib/effective-knobs";
 import { clampGloss, knobGhost } from "../lib/effective-knobs";
 
 /** The placeholder for a knob whose funnel reports NO value on this model — the honest empty (§4.3): the
@@ -58,15 +59,23 @@ export interface KnobRowProps {
 
 export function KnobRow(props: KnobRowProps): ReactElement {
   const { form, name, label, hint, min, max, step, largeStep, effective, quality } = props;
+  // ONE id per row for the provenance line. Both modalities point at it (§4.1's gloss belongs to the
+  // VALUE), which is what stops a column of loose glosses from fusing into one run of text for a screen
+  // reader — a gloss reads as this row's, or it does not reach the row at all (side-eye F-21).
+  const glossId = useId();
   return (
     <form.AppField name={name}>
       {(field): ReactElement => {
         const value = field.state.value as number | undefined;
+        // THE ONE DERIVATION (§4.1, the side-eye's "single biggest opportunity"): explicit ⇔ the field
+        // carries a value. Everything else — fill vs bare rail, full-weight vs muted, whether the reset
+        // exists, whether a provenance line renders — hangs off this and nothing else.
         const explicit = value !== undefined;
         const ghost = explicit ? null : knobGhost(effective, quality);
         // The clamp gloss stays VISIBLE on an explicit row (decision-load-bearing, §4.1); the ghost's
         // provenance line is the inherited row's.
         const gloss = explicit ? clampGloss(effective, { min, max }) : ghost?.gloss;
+        const describedBy = gloss === undefined || gloss === null ? undefined : glossId;
         return (
           <Stack gap="tight">
             {/* ONE instrument line: label · track · twin · reset all share a vertical center (the mock's
@@ -74,55 +83,110 @@ export function KnobRow(props: KnobRowProps): ReactElement {
                 cells off that center. */}
             <Row align="center" gap="row">
               <KnobLabel hint={hint} label={label} />
-
-              <Slider
-                className="min-w-0 flex-1"
+              <KnobControls
+                describedBy={describedBy}
+                explicit={explicit}
+                ghost={ghost}
+                label={label}
                 largeStep={largeStep}
                 max={max}
                 min={min}
-                onValueChange={(next): void => field.handleChange(next)}
+                onChange={(next): void => field.handleChange(next)}
                 step={step}
-                thumbLabels={[`${label} slider`]}
-                tone={explicit ? "default" : "ghost"}
-                value={value ?? ghost?.value ?? min}
+                value={value}
               />
-
-              <NumberField
-                aria-label={label}
-                max={max}
-                min={min}
-                onValueChange={(next): void => field.handleChange(next ?? undefined)}
-                placeholder={ghost === null ? UNKNOWN_DEFAULT_PLACEHOLDER : String(ghost.value)}
-                size="inline"
-                step={step}
-                value={value ?? null}
-              />
-
-              <Button
-                aria-label={`Reset ${label} to inherited`}
-                className={explicit ? "" : "invisible"}
-                intent="ghost"
-                onClick={(): void => field.handleChange(undefined)}
-                size="icon"
-                type="button"
-              >
-                <Icon icon={RotateCcw} size="xs" />
-              </Button>
             </Row>
-
-            {gloss === undefined || gloss === null ? null : (
-              <Row gap="row">
-                {/* Indented to the track's own column — the provenance belongs to the VALUE, not the name. */}
-                <Row className="w-(--width-label-col) shrink-0" />
-                <Text as="span" voice="gloss">
-                  {gloss}
-                </Text>
-              </Row>
-            )}
+            <KnobGloss glossId={glossId} text={gloss ?? null} />
           </Stack>
         );
       }}
     </form.AppField>
+  );
+}
+
+/** The row's THREE datum cells — track, editable twin, reset — all bound to the SAME value, which is what
+ *  makes them two modalities of one control rather than three homes (§16 row 12). */
+function KnobControls({
+  value,
+  explicit,
+  ghost,
+  label,
+  min,
+  max,
+  step,
+  largeStep,
+  describedBy,
+  onChange,
+}: {
+  readonly value: number | undefined;
+  readonly explicit: boolean;
+  readonly ghost: KnobGhost | null;
+  readonly label: string;
+  readonly min: number;
+  readonly max: number;
+  readonly step: number;
+  readonly largeStep: number | undefined;
+  readonly describedBy: string | undefined;
+  readonly onChange: (next: number | undefined) => void;
+}): ReactElement {
+  return (
+    <>
+      <Slider
+        className="min-w-0 flex-1"
+        largeStep={largeStep}
+        max={max}
+        min={min}
+        onValueChange={(next): void => onChange(next)}
+        step={step}
+        // The ROLE is not part of the name (side-eye F-27): "Max output tokens slider" restates what
+        // `role=slider` already announces.
+        thumbLabels={[label]}
+        thumbDescribedBy={describedBy}
+        // EXPLICIT is `neutral`, never the ember `default`: §4.1 rations the accent to focus + the pane's
+        // one primary, and twelve accent fills in one column is the CD3 break (F-09).
+        tone={explicit ? "neutral" : "ghost"}
+        value={value ?? ghost?.value ?? min}
+      />
+
+      <NumberField
+        aria-describedby={describedBy}
+        aria-label={label}
+        max={max}
+        min={min}
+        onValueChange={(next): void => onChange(next ?? undefined)}
+        placeholder={ghost === null ? UNKNOWN_DEFAULT_PLACEHOLDER : String(ghost.value)}
+        size="inline"
+        step={step}
+        value={value ?? null}
+      />
+
+      <Button
+        aria-label={`Reset ${label} to inherited`}
+        className={explicit ? "" : "invisible"}
+        intent="ghost"
+        onClick={(): void => onChange(undefined)}
+        size="icon"
+        type="button"
+      >
+        <Icon icon={RotateCcw} size="xs" />
+      </Button>
+    </>
+  );
+}
+
+/** The provenance/clamp line, indented to the TRACK's column — it belongs to the VALUE, not the name — and
+ *  carrying the id both modalities point `aria-describedby` at (side-eye F-21). */
+function KnobGloss({ text, glossId }: { readonly text: string | null; readonly glossId: string }): ReactElement | null {
+  if (text === null) {
+    return null;
+  }
+  return (
+    <Row gap="row">
+      <Row className="w-(--width-label-col) shrink-0" />
+      <Text as="span" id={glossId} voice="gloss">
+        {text}
+      </Text>
+    </Row>
   );
 }
 

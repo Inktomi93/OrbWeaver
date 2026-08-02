@@ -15,7 +15,18 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { EffectiveProfileRow } from "../../lib/effective-knobs";
-import { provenanceSuffix } from "../../lib/effective-knobs";
+import { knobLabel, provenanceSuffix } from "../../lib/effective-knobs";
+import { formatCount } from "../../lib/format-count";
+
+/** ONE number format across the whole readout (side-eye F-29): a cluster printed `1,500` beside `8192`
+ *  because two producers formatted independently. Integers ≥ 10 000 group; a fraction prints as authored
+ *  (a temperature is not a magnitude you group). A non-number passes through untouched. */
+function formatKnobValue(value: number | string | undefined): string {
+  if (typeof value !== "number") {
+    return String(value);
+  }
+  return formatCount(value);
+}
 
 export interface DatumRowProps {
   readonly label: string;
@@ -39,7 +50,17 @@ export function DatumRow({ label, value, suffix }: DatumRowProps): ReactElement 
 /** The resolved generation profile — the funnel's OWN output (§4.3), never a client re-derivation. An
  *  absent read is stated as the condition that causes it (no chat model resolves) rather than an empty
  *  cluster the eye reads as "nothing set". */
-export function EffectiveProfile({ effective }: { readonly effective: EffectiveProfileRow | undefined }): ReactElement {
+export function EffectiveProfile({
+  effective,
+  contextWindow,
+}: {
+  readonly effective: EffectiveProfileRow | undefined;
+  /** The model's context window — the ONE row the funnel deliberately does not resolve (`maxContextTokens`
+   *  is our history soft-cap, not a wire knob), and which the mock nonetheless prints because it IS part of
+   *  what the next turn will do. It came from the capability read, exactly as the deck's own ghost does
+   *  (side-eye F-13: the value existed and had no row). */
+  readonly contextWindow?: number | undefined;
+}): ReactElement {
   if (effective === undefined) {
     return (
       <Section kicker="Effective generation">
@@ -50,13 +71,21 @@ export function EffectiveProfile({ effective }: { readonly effective: EffectiveP
   const rows = Object.entries(effective.knobs).filter(([, reading]) => reading !== undefined);
   return (
     <Section kicker="Effective generation">
-      {rows.length === 0 ? (
+      {rows.length === 0 && contextWindow === undefined ? (
         <Text voice="gloss">This model resolves no generation knobs — it takes the prompt and nothing else.</Text>
       ) : (
         <Stack gap="tight">
+          {/* DISPLAY names, never the schema key (side-eye F-13): the read is keyed by `maxOutputTokens`,
+              the reader wants "max output". */}
           {rows.map(([knob, reading]) => (
-            <DatumRow key={knob} label={knob} suffix={reading === undefined ? null : provenanceSuffix(reading.provenance)} value={String(reading?.value)} />
+            <DatumRow
+              key={knob}
+              label={knobLabel(knob)}
+              suffix={reading === undefined ? null : provenanceSuffix(reading.provenance)}
+              value={formatKnobValue(reading?.value)}
+            />
           ))}
+          {contextWindow === undefined ? null : <DatumRow label={knobLabel("maxContextTokens")} suffix="window" value={formatKnobValue(contextWindow)} />}
         </Stack>
       )}
       <Text voice="gloss">
@@ -83,13 +112,17 @@ export function CapabilityCard({
   if (capability === undefined) {
     return null;
   }
-  const honored = Object.keys(capability.sampling);
+  const honored = Object.keys(capability.sampling).map((knob) => knobLabel(knob));
   return (
     <Section kicker="Capability">
       <Stack gap="tight">
         {model === undefined ? null : <DatumRow label="model" value={model} />}
-        <DatumRow label="context window" suffix={capability.context.windowEstimated === true ? "estimated" : null} value={String(capability.context.window)} />
-        <DatumRow label="output cap" value={String(capability.output.maxTokens.max)} />
+        <DatumRow
+          label="context window"
+          suffix={capability.context.windowEstimated === true ? "estimated" : null}
+          value={formatKnobValue(capability.context.window)}
+        />
+        <DatumRow label="output cap" value={formatKnobValue(capability.output.maxTokens.max)} />
       </Stack>
       <Text voice="gloss">
         {honored.length === 0 ? "This model honors no sampling knobs — that is why the deck shows none." : `honors ${honored.join(" · ")}`}

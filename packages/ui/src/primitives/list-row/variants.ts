@@ -41,6 +41,10 @@ export const listRowVariants = tv({
     titleRow: "flex min-w-0 items-baseline gap-field",
     // The tier-less title step (`body`); the tier map drops it to the `label` voice at 600 under an
     // instrument surface, which is where the mock's 12.5px/600 row name lives.
+    //
+    // `flex-1` is the BLOCK-subtitle arm's growth (the title owns the whole line); the INLINE arm below
+    // replaces it with a min-width floor, because a `flex-1 min-w-0` title beside a `shrink-0` sibling
+    // collapses to ZERO width — the P0 that hid three Actions row names outright (side-eye F-01).
     title: "block min-w-0 flex-1 truncate text-left text-body font-medium leading-body text-foreground",
     // Rest-visible state markers on the title line, before the stamp (the mock's ⚔ / ★ / Archived cluster).
     // `shrink-0`: a glyph slot is already minimal — it must clip the TITLE, never itself.
@@ -83,6 +87,22 @@ export const listRowVariants = tv({
       },
       false: {},
     },
+    // WHERE the subtitle sits. `block` (the default) is the two-line entity row every landed list speaks.
+    // `inline` puts the subtitle on the TITLE LINE, right after the name — the instrument-row grammar the
+    // preset mocks draw for the rack (`prompt-rack.html`: name + scent on one line) and the Actions list
+    // (`actions-and-sections.html`: a fixed name column, then the fires gloss at `1fr`, truncating).
+    //
+    // The inline arm is where the F-01 P0 is fixed structurally: the SUBTITLE takes the flexing column and
+    // truncates, and the TITLE keeps a `min-w-24` floor — the identifier can shorten but can never reach
+    // 0px, whatever the gloss is. Both slots are consumed by `titleRow`'s flex, so this is a layout swap,
+    // never a second markup path (`ListRowContent` renders the same span in a different parent).
+    subtitlePlacement: {
+      block: {},
+      inline: {
+        title: "flex-none min-w-24 shrink",
+        subtitle: "min-w-0 flex-1 truncate",
+      },
+    },
     // A one-line dense row TRUNCATES (the default — a list pane scans by column). A row whose subtitle is
     // a SENTENCE (the home jump grid's per-section teaching gloss) clamps to two lines instead: a nowrap
     // ellipsis eats the second half of every sentence, which is the whole content of that row.
@@ -108,5 +128,5 @@ export const listRowVariants = tv({
       false: {},
     },
   },
-  defaultVariants: { density: "default", clickable: false, float: false, subtitleWrap: false },
+  defaultVariants: { density: "default", clickable: false, float: false, subtitleWrap: false, subtitlePlacement: "block" },
 });
