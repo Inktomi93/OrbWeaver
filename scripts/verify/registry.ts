@@ -410,6 +410,24 @@ export const REGISTRY: readonly StageDef[] = [
       "CANDIDATE lens (`pnpm ast swallowed <scope>`) — namespace-only liveness is evidence, not proof; a hit may be load-bearing through the swallowing API, so verify before deleting",
   },
   {
+    name: "quality:typeonly",
+    group: "quality",
+    // The third CANDIDATE lens, `manual` for the same reason as quality:respell / quality:swallowed — it
+    // names VALUE exports (functions, consts, classes) whose EVERY reference is a TYPE position: `import
+    // type`, `typeof X`, an annotation, an `implements` clause. That is EVIDENCE of runtime-dead code kept
+    // alive structurally, never proof: a `satisfies`-anchor tuple whose only job is to be the source of a
+    // derived union (packages/db's CONSTRAINT_KINDS) is exactly this shape and exactly correct. Gating on it
+    // would train agents to delete the axis tuples the exhaustiveness dispatch is built from. The row exists
+    // so the audit is discoverable in `verify --list` instead of living only in a lens verb nobody remembers.
+    // Its `@typeonly-ok:` markers ARE two-sided (a stale one exits 1) — that half is self-enforcing whenever
+    // the lens is run. Also the SLOWEST lens in the file (one reference resolution per value export).
+    tiers: ["manual"],
+    argv: ["pnpm", "check:typeonly"],
+    classify: asViolations,
+    manualReason:
+      "CANDIDATE lens (`pnpm ast typeonly-alive <scope>`) — type-position-only liveness is evidence, not proof; a hit is often a deliberate conformance seam, so verify before deleting",
+  },
+  {
     name: "tests:coverage",
     group: "tests",
     tiers: ["manual"],
