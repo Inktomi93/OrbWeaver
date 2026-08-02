@@ -11,6 +11,7 @@
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { MintSyntheticGroupCharacterOp } from "./context";
 
 /** The DI bundle `createBulkImportChats` closes over (assembled at the entry composition root). All ids are
  *  minted by the INJECTED minters (determinism — no ambient `mintTypeId()` in the write). */
@@ -32,6 +33,11 @@ export interface ChatImportContext {
    *  bundled attachment resolves); a ref to a non-bundled asset degrades to plain body text (no dangling FK,
    *  matching the asset-refs "generic canon-scan" note). */
   readonly filterExistingAssetIds: (ownerId: UserId, assetIds: readonly AssetId[]) => Promise<readonly AssetId[]>;
+  /** Find-or-mint the room's synthetic `__group__<chatId>` narrator identity — the SAME injected op
+   *  `verbs/turn.ts` runs for a live `output:"narrator"` round, so an imported narrator slot and a generated
+   *  one are authored by the identical row. Called ONCE per imported chat that carries a narrator slot (the
+   *  verb is itself find-or-mint idempotent, so a retry is free); a chat with none never calls it. */
+  readonly mintSyntheticGroupCharacter: MintSyntheticGroupCharacterOp;
 }
 
 /** The chat-owned bulk-import op (`createBulkImportChats`) the entry root wires into `import`'s

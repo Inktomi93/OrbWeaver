@@ -20,6 +20,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
+import { RPG_PACKAGED_PROFILE_BY_KEY } from "@orb/contracts/rpg";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
@@ -30,8 +31,8 @@ import { can, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
-import type { ChatContext } from "#domain/chat";
-import { createResolveViewerVisibility } from "#domain/chat";
+import type { ChatContext, DemoChatSeeder } from "#domain/chat";
+import { createDemoChatSeeder, createResolveViewerVisibility } from "#domain/chat";
 import type { LocalEngineReachability } from "#domain/connection";
 import { createConnectionService } from "#domain/connection";
 import { createCredentialsService } from "#domain/credentials";
@@ -77,6 +78,7 @@ import type { SocketRegistry } from "../../transport/trpc/stream/socket-registry
 import { createSocketRegistry } from "../../transport/trpc/stream/socket-registry";
 import { createHostPrincipalResolver } from "../auth";
 import type { DefaultPersonaSeeder } from "../boot";
+import { readSeedDemoChat } from "../boot/seed-assets";
 import type { ImportWorldInfoPort } from "../import";
 import { buildAdmin } from "./admin";
 import { buildAssetsCharacter } from "./assets-character";
@@ -208,6 +210,9 @@ export interface ServicesResult {
   readonly characterSeeder: DefaultCharacterSeeder;
   /** Mirrors `characterSeeder`, for the default "You" persona. */
   readonly personaSeeder: DefaultPersonaSeeder;
+  /** Mirrors `characterSeeder`, for the bundled EXAMPLE conversations. MUST run AFTER `characterSeeder` —
+   *  each example attaches to seeded cards (a missing handle skips that example, never a partial room). */
+  readonly demoChatSeeder: DemoChatSeeder;
   /** The rpg `ChatRpgOps` runtime (the turn hooks chat fires) — surfaced top-level so the composed-real int
    *  test drives a turn's flush (`onTurnCompleted`) through the REAL compose graph (the [compose-stub-goes-stale]
    *  antidote). Not on the transport `Services` bundle (chat's turn lifecycle is its only production caller). */
@@ -618,6 +623,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     sessions,
     emitChatBusEvent,
     assets,
+    character,
   });
   const { worldInfo, importWorldInfo, bulkImportChats, bulkImportPersonas, resolveOwnerPrincipal } = worldInfoCompose;
 
@@ -717,6 +723,36 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     worldInfo,
   };
 
+  // The ONE demo-chat seeder instance boot + the app first-request hook share (the characterSeeder
+  // precedent). Built HERE, last: it needs chat's bulk write (world-info seam), character's handle lookup,
+  // rpg's create door, and the settings latch — every one of them composed above. The transcript READ is
+  // injected by the lifecycle (the bytes live in entry/boot/seed-assets, which this seam does not import).
+  const demoChatSeeder = createDemoChatSeeder({
+    readTranscript: readSeedDemoChat,
+    findCharacterByHandle: async ({ principal, handle }) => {
+      const ref = await character.findByHandle({ ownerId: principal.userId, handle });
+      if (ref === null) {
+        return null;
+      }
+      const detail = await character.get({ principal, characterId: ref.characterId });
+      return { characterId: ref.characterId, name: detail.name };
+    },
+    writeChats: bulkImportChats,
+    // rpg's REAL create door — the same verb `startChat`'s `startAsGame` runs (it writes the game AND the
+    // chat's opaque rpg pointer). The profile is resolved from rpg's own packaged contract data.
+    createGame: async ({ principal, chatId, game }): Promise<void> => {
+      await rpg.createGame({ principal, chatId, mode: "lite", profile: RPG_PACKAGED_PROFILE_BY_KEY[game.profile] });
+    },
+    now,
+    isSeeded: async (principal): Promise<boolean> => (await settings.getUserSettings({ principal })).config.onboarding.demoChatsSeeded,
+    markSeeded: async (principal): Promise<void> => {
+      await settings.updateUserSettingsSection({
+        principal,
+        input: { section: "onboarding", patch: { demoChatsSeeded: true } },
+      });
+    },
+  });
+
   return {
     services,
     automation,
@@ -741,6 +777,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     vllmEngine: registry.vllmEngine,
     characterSeeder,
     personaSeeder,
+    demoChatSeeder,
     rpgChatOps: rpgCompose.chatOps,
     toolUse,
     chatRpgOps: chatCompose.rpgChatOps,

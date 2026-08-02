@@ -69,6 +69,10 @@ export { loadTurnForClassify, loadTurnOrigin } from "./persistence/queries";
 // The membership primitive imagery's extractQuiet compose-gate reads (leak-free NOT_FOUND for a non-member —
 // cross-tenant-sweep-enforced; the createGetMembership precedent, a pure `(db, chatId, userId)` read).
 export { loadPresentRole } from "./persistence/roster";
+// The bundled EXAMPLE-conversation seeder (the `domain/character/seeder` sibling) — entry builds the ONE
+// instance and shares it between boot and the first-authed-request hook.
+export type { DemoChat, DemoChatGame, DemoChatSeeder, DemoChatSeederDeps } from "./seeder";
+export { createDemoChatSeeder, DEMO_CHAT_NARRATOR_NAME, DEMO_CHAT_TITLE_PREFIX, DEMO_CHATS } from "./seeder";
 export { createChatService } from "./service";
 // The ONE D16 per-bus-event visibility verdict (`substrate/auth/clamp`). Exported because the LIVE half of
 // the chat ROOM stream runs OUTSIDE the domain (the per-chat fan-out is transport state, keyed by chatId
