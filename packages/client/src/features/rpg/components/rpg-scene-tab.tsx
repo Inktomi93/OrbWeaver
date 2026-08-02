@@ -21,7 +21,7 @@ import { AmbientStrip, BeatLine, GoalLine, MeterRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { revealContextPanel } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useDismissActor, useEditSnapshot, usePatchActor, useResyncFromStory } from "../hooks/use-rpg-mutations";
+import { useDismissActor, useEditSnapshot, usePatchActor, usePromoteActor, useResyncFromStory } from "../hooks/use-rpg-mutations";
 import { TRACKER_SHAPE_GLYPHS } from "../lib/glyphs";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color";
 import { RpgChoiceEcho } from "./rpg-choice-echo";
@@ -89,6 +89,7 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
   const editSnapshot = useEditSnapshot({ trpc, invalidation });
   const patchActor = usePatchActor({ trpc, invalidation });
   const dismissActor = useDismissActor({ trpc, invalidation });
+  const promoteActor = usePromoteActor({ trpc, invalidation });
   if (!canEditShared) {
     return {};
   }
@@ -123,6 +124,10 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
         );
       },
       onDismiss: (targetRef): void => dismissActor.mutate({ chatId, targetRef }),
+      // R4 — the panel names the ACTOR and nothing else: the card's name, handle and description are all
+      // DERIVED server-side off her own identity row. A client that could only ever see the plane in
+      // projections must not author what lands in it (the R1 lesson, applied to the promotion door).
+      onPromote: (targetRef): void => promoteActor.mutate({ chatId, targetRef }),
     },
     // GAME-subject tracker values ride editSnapshot's `trackerValues` record, keyed by tracker KEY (never a
     // label — the old widget plane keyed by label, so a rename orphaned the value). The written value is TOTAL

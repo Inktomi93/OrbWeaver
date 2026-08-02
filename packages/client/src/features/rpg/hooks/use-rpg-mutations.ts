@@ -56,6 +56,18 @@ export const useDismissActor = createEntityMutation<inferInput<Trpc["rpg"]["dism
   errorToast: "Couldn't dismiss the character.",
 });
 
+/** `rpg.promoteActor` — THE promotion doorway (R4), `dismissActor`'s opposite: a known character earns a
+ *  durable card in the host's library + a seat in this room, and her tracked row is re-keyed onto the new
+ *  character identity server-side (trackers, pack, purse, conditions, status, scene presence and hand pins all
+ *  follow her). Host-only. It repaints the tracker view (she leaves the Scene cast for the Status roster) AND
+ *  `chat.getChat` — the promotion adds a ROSTER PARTICIPANT, so the members surface is stale until it refetches;
+ *  a panel that only invalidated its own read would leave the new seat invisible everywhere else in the room. */
+export const usePromoteActor = createEntityMutation<inferInput<Trpc["rpg"]["promoteActor"]>, unknown>({
+  options: (trpc) => trpc.rpg.promoteActor.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId }), trpc.chat.getChat.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't promote the character.",
+});
+
 /** `rpg.upsertQuest` — the hand arm of the quest plane (Quests tab cards + Scene tab goal echo). `questId`
  *  present ⇒ update, absent ⇒ create. Host-only in v1. Repaints the tracker view (quests ride the snapshot). */
 export const useUpsertQuest = createEntityMutation<inferInput<Trpc["rpg"]["upsertQuest"]>, unknown>({

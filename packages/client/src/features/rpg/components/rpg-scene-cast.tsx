@@ -13,10 +13,10 @@
 // `presentCharacters` IMAGE rebuilt from the live cast on every keystroke, which pinned the ENTIRE plane on
 // one NPC's mood edit and could only ever author the members this client could see.
 
-import type { RpgActorRef, RpgActorView, RpgCastGuideField, RpgRelationship, RpgTrackerDef, RpgTrackerEntry } from "@orb/contracts/rpg";
+import type { RpgActorRef, RpgActorView, RpgCastGuideField, RpgCastRef, RpgRelationship, RpgTrackerDef, RpgTrackerEntry } from "@orb/contracts/rpg";
 import { RPG_CAST_GUIDE_FIELDS, trackerCeiling, trackerNumber, trackerReading } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
-import { ChevronDown, ChevronRight, Icon, X } from "@orb/ui/icons";
+import { ChevronDown, ChevronRight, Icon, UserPlus, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
@@ -55,6 +55,10 @@ export interface SceneCastEdit {
   readonly onEditTracker: (targetRef: RpgActorRef, def: RpgTrackerDef, next: string | number) => void;
   /** Drop this actor from the game entirely — state, presence and locks (`rpg.dismissActor`). */
   readonly onDismiss: (targetRef: RpgActorRef) => void;
+  /** PROMOTE this known character to the roster (`rpg.promoteActor`, R4) — mint her a character card + a seat
+   *  in the room and re-key her tracked row onto that identity. Takes the CAST arm only: promoting a roster
+   *  actor is meaningless, and the wire cannot express it either. */
+  readonly onPromote: (targetRef: RpgCastRef) => void;
 }
 
 /** ONE cast actor's card — identity, its carried trackers, its readings. Shared by the on-stage list and the
@@ -154,8 +158,10 @@ export function SceneCast({
  *  her tracked state in a plane no surface projected, so the state was simultaneously permanent and invisible:
  *  the host could not see her, edit her, or remove her, and the model could still be told to wound her. Now
  *  departure is a presence drop and nothing else, and this is where the retained person lives — readable,
- *  editable through the same card the stage uses, and DISMISSABLE (`rpg.dismissActor`, the gesture the plane's
- *  additive merge policy always named and never had).
+ *  editable through the same card the stage uses, DISMISSABLE (`rpg.dismissActor`, the gesture the plane's
+ *  additive merge policy always named and never had) and — R4 — PROMOTABLE (`rpg.promoteActor`): the recurring
+ *  stranger earns a real character card and a seat in the room. The two durable doorways home here together,
+ *  and only here: the on-stage cards are the NOW window, and neither of these is a move in the scene.
  *
  *  Collapsed by default: it is a memory, not the scene. The count rides the summary so a host knows there is
  *  something behind it without opening it. */
@@ -185,7 +191,7 @@ export function SceneKnownCharacters({ offstage, edit }: { readonly offstage: re
           {offstage.map((actor) => (
             <Stack key={actorKey(actor)} gap="field">
               <SceneCastCard actor={actor} {...(edit === undefined ? {} : { edit })} />
-              {edit === undefined ? null : <DismissRow actor={actor} onDismiss={edit.onDismiss} />}
+              {edit === undefined ? null : <KnownCharacterDoorways actor={actor} edit={edit} />}
             </Stack>
           ))}
         </Stack>
@@ -194,39 +200,78 @@ export function SceneKnownCharacters({ offstage, edit }: { readonly offstage: re
   );
 }
 
-/** The per-actor DISMISS affordance — two-step by design. Dismissal is the one gesture in this panel that
- *  destroys durable state (the row, its presence, and its locks), and it is reachable next to ordinary edits,
- *  so it asks first. The confirm state names the actor, because a list of cards makes "are you sure?" ambiguous. */
-function DismissRow({ actor, onDismiss }: { readonly actor: RpgActorView; readonly onDismiss: (targetRef: RpgActorRef) => void }): ReactElement {
-  const [confirming, setConfirming] = useState(false);
-  if (!confirming) {
+/** The two DURABLE doorways a known character has, and the only two gestures in this panel that reach outside
+ *  the swipe-volatile plane: DISMISS forgets her (the row, her presence, her pins), PROMOTE keeps her forever
+ *  (a character card in the host's library + a seat in this room). They live together because they are the same
+ *  decision asked twice — "is this person finished, or is she part of the story now?" — and they are the reason
+ *  this section is a disclosure rather than a list: an accidental click here is not undoable by a re-edit.
+ *
+ *  BOTH ASK FIRST, and only ONE can be asking (`pending` is a single state, not two booleans): a row offering
+ *  two open confirmations is a row where the wrong button is one mis-aim away. Every control is NAMED BY WHOSE
+ *  IT IS (the side-eye 08-01 rule) — a disclosure of N characters would otherwise offer N buttons all called
+ *  "Dismiss", with the name in the DOM and not in the control's accessible name. */
+function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView; readonly edit: SceneCastEdit }): ReactElement {
+  const [pending, setPending] = useState<"dismiss" | "promote" | null>(null);
+  const ref = actor.actorRef;
+
+  if (pending === "dismiss") {
     return (
       <Row gap="field" align="center" justify="end">
-        {/* NAMED BY WHOSE IT IS (the side-eye 08-01 rule this section inherits): a disclosure of N characters
-            otherwise offers N controls all called "Dismiss", and the card's name is in the DOM, not the
-            control's. */}
-        <Button
-          intent="ghost"
-          size="sm"
-          aria-label={`Dismiss ${actor.name}`}
-          title={`Forget ${actor.name} — removes their state from this game`}
-          onClick={(): void => setConfirming(true)}
-        >
-          <Icon icon={X} size="xs" />
+        <Text as="span" voice="gloss">
+          Forget {actor.name} and everything tracked on them?
+        </Text>
+        <Button intent="ghost" size="sm" aria-label={`Keep ${actor.name}`} onClick={(): void => setPending(null)}>
+          Keep
+        </Button>
+        <Button intent="destructive" size="sm" aria-label={`Confirm dismissing ${actor.name}`} onClick={(): void => edit.onDismiss(ref)}>
           Dismiss
+        </Button>
+      </Row>
+    );
+  }
+  if (pending === "promote" && ref.kind === "cast") {
+    return (
+      <Row gap="field" align="center" justify="end">
+        {/* THE CONFIRM IS WHERE THE PANEL SAYS WHAT DOES NOT CARRY. Her tracked state, her scene presence and
+            the host's pins all follow her across the re-key; her mood and her stance toward the player have no
+            home on a roster member (a stance is a cast actor's datum), so they end here. A host who discovers
+            that afterwards discovers it as a bug. */}
+        <Text as="span" voice="gloss">
+          Give {actor.name} a character card and a seat in this room? Everything tracked on them comes along; their mood and their stance toward you do not.
+        </Text>
+        <Button intent="ghost" size="sm" aria-label={`Cancel promoting ${actor.name}`} onClick={(): void => setPending(null)}>
+          Cancel
+        </Button>
+        <Button intent="primary" size="sm" aria-label={`Confirm promoting ${actor.name}`} onClick={(): void => edit.onPromote(ref)}>
+          Promote
         </Button>
       </Row>
     );
   }
   return (
     <Row gap="field" align="center" justify="end">
-      <Text as="span" voice="gloss">
-        Forget {actor.name} and everything tracked on them?
-      </Text>
-      <Button intent="ghost" size="sm" aria-label={`Keep ${actor.name}`} onClick={(): void => setConfirming(false)}>
-        Keep
-      </Button>
-      <Button intent="destructive" size="sm" aria-label={`Confirm dismissing ${actor.name}`} onClick={(): void => onDismiss(actor.actorRef)}>
+      {/* PERMISSION-shaped ABSENCE, not a disabled control: a roster actor has nothing to promote (she already
+          has a card), so the doorway simply is not there for one. */}
+      {ref.kind === "cast" ? (
+        <Button
+          intent="ghost"
+          size="sm"
+          aria-label={`Promote ${actor.name} to the roster`}
+          title={`Give ${actor.name} a character card and a seat in this room`}
+          onClick={(): void => setPending("promote")}
+        >
+          <Icon icon={UserPlus} size="xs" />
+          Promote
+        </Button>
+      ) : null}
+      <Button
+        intent="ghost"
+        size="sm"
+        aria-label={`Dismiss ${actor.name}`}
+        title={`Forget ${actor.name} — removes their state from this game`}
+        onClick={(): void => setPending("dismiss")}
+      >
+        <Icon icon={X} size="xs" />
         Dismiss
       </Button>
     </Row>

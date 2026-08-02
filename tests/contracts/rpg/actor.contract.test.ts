@@ -15,6 +15,7 @@ import {
   rpgActorRefSchema,
   rpgActorVolatileSchema,
   rpgCastSlug,
+  rpgPromotedCardDescription,
 } from "@orb/contracts/rpg";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
@@ -157,4 +158,38 @@ test("the identity TEXT vocabulary is the identity plane's own string keys (rela
       .filter((key) => key !== "relationship" && key !== "characterId")
       .toSorted(),
   );
+});
+
+// ── R4: PROMOTION's identity carry ───────────────────────────────────────────────────────────────────────
+// The re-key drops the identity half (a roster actor carries none), so whatever has a DURABLE home must be
+// carried onto the minted card in the same gesture or it is destroyed. This function IS that decision, and it
+// is one-homed precisely so the promotion door's copy ("their mood and their stance toward you do not come
+// along") and the behavior cannot drift apart.
+
+test("the card carry is the STANDING guides, labelled and in field order — never the per-beat mood or the stance", () => {
+  const description = rpgPromotedCardDescription(
+    rpgActorIdentitySchema.parse({
+      name: "Sister Vesna",
+      mood: "guarded",
+      relationship: { kind: "ally", label: "" },
+      appearance: "Ash-grey habit, a burn scar down one wrist.",
+      outfit: "Travelling cloak, boots caked in river mud.",
+      thoughts: "She is counting the exits.",
+    }),
+  );
+  expect(description).toBe(
+    "Appearance: Ash-grey habit, a burn scar down one wrist.\nOutfit: Travelling cloak, boots caked in river mud.\nInner life: She is counting the exits.",
+  );
+  // `mood` is a per-beat observation and `relationship` is ruled a CAST actor's datum — neither is a card fact,
+  // and a card that asserted them would freeze a moment as a permanent trait.
+  expect(description).not.toContain("guarded");
+  expect(description).not.toContain("ally");
+});
+
+test("an NPC the story never described mints an EMPTY description, never an invented one", () => {
+  // A fabricated biography is prose the model then plays as canon. Empty is the honest answer; the host can
+  // write the card themselves, which is what a card editor is for.
+  expect(rpgPromotedCardDescription(rpgActorIdentitySchema.parse({ name: "Mira" }))).toBe("");
+  // Whitespace-only guides are nothing written, not a blank line in the card.
+  expect(rpgPromotedCardDescription(rpgActorIdentitySchema.parse({ name: "Mira", appearance: "   ", outfit: "A red sash." }))).toBe("Outfit: A red sash.");
 });

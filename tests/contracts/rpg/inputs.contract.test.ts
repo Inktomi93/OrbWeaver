@@ -10,12 +10,16 @@ import {
   rpgListJournalInputSchema,
   rpgPatchActorInputSchema,
   rpgPatchSheetInputSchema,
+  rpgPromoteActorInputSchema,
   rpgUpdateConfigInputSchema,
   rpgUpsertQuestInputSchema,
 } from "@orb/contracts/rpg";
 import { expect, test } from "../../support/fixtures";
 
 const CHAT_ID = "chat_alpha";
+/** A wire-shaped character id (the `typeIdSchema(ID_PREFIX.character)` prefix) — the promotion test needs a
+ *  VALID roster ref, or the refusal it asserts could be the id shape rather than the arm. */
+const CHARACTER_ID = "character_01h0000000000000000000000";
 
 test("createGame: mode is enum-gated at the wire (a bogus mode is refused, not passed to the resolver)", () => {
   expect(rpgCreateGameInputSchema.safeParse({ chatId: CHAT_ID, mode: "lite" }).success).toBe(true);
@@ -81,4 +85,21 @@ test("patchActor: the target rides the DERIVED actor union and an EMPTY op list 
 test("dismissActor: chatId + the derived actor ref, nothing else", () => {
   expect(rpgDismissActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "cast", castKey: "mira" } }).success).toBe(true);
   expect(rpgDismissActorInputSchema.safeParse({ chatId: CHAT_ID }).success).toBe(false);
+});
+
+// ── R4: the promotion doorway ────────────────────────────────────────────────────────────────────────────
+
+test("promoteActor: the target is the CAST ARM ONLY, and the card content is not on the wire at all", () => {
+  expect(rpgPromoteActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "cast", castKey: "mira" } }).success).toBe(true);
+  // Promoting a roster actor is not "refused", it is MEANINGLESS — she already has a card. The wire cannot
+  // express it, so no verb has to carry a branch for the case.
+  expect(rpgPromoteActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "character", characterId: CHARACTER_ID } }).success).toBe(false);
+  expect(rpgPromoteActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "user", userId: "user_a" } }).success).toBe(false);
+  // The cast key must ALREADY be its slug here too (the shared refine) — a raw caller cannot promote a
+  // non-canonical sibling key into a card.
+  expect(rpgPromoteActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "cast", castKey: "Sister Vesna" } }).success).toBe(false);
+  // The card's name/handle/description are the SERVER's derivation off the actor's identity row — a client
+  // that could only ever see the plane in projections must not author what lands in it (the R1 lesson).
+  const parsed = rpgPromoteActorInputSchema.safeParse({ chatId: CHAT_ID, targetRef: { kind: "cast", castKey: "mira" }, name: "Not Mira", handle: "hijack" });
+  expect(parsed.success && Object.keys(parsed.data)).toEqual(["chatId", "targetRef"]);
 });
