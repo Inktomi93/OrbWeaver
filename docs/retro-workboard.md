@@ -650,8 +650,24 @@ F6 readout order · card.ts prettify · TYPO-B demotion ×4 · Spine §3 app.ts 
 asymmetry cite · acquired_at cite) · RAWVIEW (security-executor: the per-variant wire
 inspector — host-gated, member-visibility/hidden-span/credential-scrub laws called out;
 writer census first; PROBED tenancy classification; honest not-captured empty states).
+**R2 MERQUEUE:** landed both arms + found the report's lists stale-by-two (15 lookup sites [roster-host.ts hostSeatOf/hostUserIdOf, belt kept w/ seat-wave rationale] + 4 projection collapses incl. a missed replayStreamEvents site); taking F6 clamp rider in the warm lane; the THREE-QUESTIONS lesson (act?/read-hidden?/which-seat? — three cross-citing homes) goes into the permissions page verbatim. **PRINCIPAL-FLOW scout LIVE** (76-table scoping-model census [one census, two consumers: the gate + the permissions page] · read-path spelling counts · injected-op caller audit · gate-arm spec w/ red counts) → one M gate lane after. **HANDOFF × CARD-OWNERSHIP stickler LIVE** (owner catch: the built two-party handoff transfers the ROOM but seated cards are the old host's PROPERTY — core question: whose authority resolves cast cards post-swap, cross-tenant-or-breaks; sad paths edit/delete/leave/account-delete/export/fork/rpg-mid-handoff; arms copy-on-handoff / room-scoped license / seat-freeze / refuse; precedents demo-seeder-copy · synthetic mint · promote-actor · characterless import).
 STANDING OWNER QUEUE unchanged: PV wording veto · AV2 re-push offer ~$0.56 + Calamity $4 ·
-DRAFT-TRUST · AGENT-1 · D22 (multi-user stack). CEREMONY (5 riders) runs after this wave.
+DRAFT-TRUST · AGENT-1 · D22 (multi-user stack). CEREMONY (now 6 riders) runs after this wave.
+**CEREMONY R0 SCOPE GROWN (owner nit, 08-03 — agents re-flag by-design visibility):**
+Spine-Identity-and-Auth's truth-repair becomes THE PERMISSIONS-MODEL page: (1) the THREE
+LAYERS one-page (app user/admin/owner via GlobalAction · room host/member via membership+can()
+on OWNERLESS chats [host=role not ownership, D18] · visibility DEFAULT-VISIBLE with
+host-OPTIONED limits [D16 floor · hidden spans · member-strip — options, never defaults]; the
+philosophy sentence: "a room is a shared document; members see it; the host may limit") ·
+(2) who-owns-what table (cite BOUND's derived gate map, don't duplicate) · (3) the BY-DESIGN
+do-not-re-flag REGISTER (member-sees-admitted-history IS the point · empty anchor slots ·
+adopt-only engines · accrete as reviews re-flag) · (4) agent-def line after the doc lands: a
+visibility finding must name WHICH host option/floor is bypassed (the real-leak test — what
+made cold-scrubber + fork-laundering real and "member sees history" noise). RPG-VARIANT
+RELATION: scout verdict CLEAN with receipts (variantId=identity, messageId=cascade
+convenience documented · swipe-flip = zero-write derive-don't-stamp, pinned · fork = real
+re-keying pass, evidence FOR the F9 export arm · variableDelta vs rpg state = distinct planes
+documented) — owner unease answered: surface complexity, not flaw; closed.
 GATE-CORPUS VERIFICATION P2 DONE: ~57 real one-sided · ZERO dead scanRoots (mechanical set) ·
 why NOT type-enforced (→GDOC) · 1 broken §-cite / 112 · anchor-file guards = valid alternate
 shape (meta-gate must accept).
