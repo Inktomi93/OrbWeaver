@@ -3,7 +3,7 @@
 // wrong place), so test them directly. Ported nearly verbatim from neo-tavern's
 // macro-textarea-logic.test.ts — these functions never touched the macro catalog, so the port is a
 // straight copy.
-import { computeMacroInsertion, detectTrigger } from "../../../../packages/ui/src/primitives/macro-textarea/macro-textarea-logic";
+import { computeMacroInsertion, detectTrigger, MACRO_CARET_MARKER } from "../../../../packages/ui/src/primitives/macro-textarea/macro-textarea-logic";
 import { expect, test } from "../../../support/fixtures";
 
 test("detectTrigger: returns null when there is no `{{` before the caret", () => {
@@ -73,4 +73,41 @@ test("computeMacroInsertion: empty partial inserts the macro at the `{{` with no
   const { next, caret } = computeMacroInsertion("a {{", { start: 2, partial: "" }, "user");
   expect(next).toBe("a {{user}}");
   expect(caret).toBe("a {{user}}".length);
+});
+
+// ── the BLOCK arm: an explicit `insertTemplate` (the `{{if}}` pair a `{{name}}` spelling cannot express) ──
+
+test("computeMacroInsertion: an insertTemplate lands whole, caret at its marker", () => {
+  const { next, caret } = computeMacroInsertion("say {{i", { start: 4, partial: "i" }, "if", `{{if::${MACRO_CARET_MARKER}}}{{/if}}`);
+  expect(next).toBe("say {{if::}}{{/if}}");
+  // The caret sits where the PREDICATE goes — inside the opening tag, not after the whole block.
+  expect(caret).toBe("say {{if::".length);
+  expect(next.slice(caret)).toBe("}}{{/if}}");
+});
+
+test("computeMacroInsertion: a body-caret block template leaves the caret between the tags", () => {
+  const { next, caret } = computeMacroInsertion("{{upp", { start: 0, partial: "upp" }, "uppercase", `{{uppercase}}${MACRO_CARET_MARKER}{{/uppercase}}`);
+  expect(next).toBe("{{uppercase}}{{/uppercase}}");
+  expect(caret).toBe("{{uppercase}}".length);
+});
+
+test("computeMacroInsertion: an insertTemplate preserves the text after the trigger span", () => {
+  const { next } = computeMacroInsertion("{{i tail", { start: 0, partial: "i" }, "if", `{{if::${MACRO_CARET_MARKER}}}{{/if}}`);
+  expect(next).toBe("{{if::}}{{/if}} tail");
+});
+
+test("computeMacroInsertion: a marker-less template drops the caret at its end (total, never NaN)", () => {
+  const { next, caret } = computeMacroInsertion("{{n", { start: 0, partial: "n" }, "noop", "{{noop}}{{/noop}}");
+  expect(next).toBe("{{noop}}{{/noop}}");
+  expect(caret).toBe(next.length);
+});
+
+test("computeMacroInsertion: WITHOUT an insertTemplate the two original arms are byte-identical", () => {
+  // The seal-variant pin: the field is additive, so an entry that does not carry one must take exactly the
+  // path it took before — proven against the arms above, not assumed.
+  expect(computeMacroInsertion("hi {{ch", { start: 3, partial: "ch" }, "char", undefined)).toEqual({ next: "hi {{char}}", caret: 11 });
+  expect(computeMacroInsertion("{{getv", { start: 0, partial: "getv" }, "getvar::name", undefined)).toEqual({
+    next: "{{getvar::}}",
+    caret: "{{getvar::}}".length - 2,
+  });
 });

@@ -24,10 +24,11 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { AppFormInstance } from "#forms";
-import { PROMPT_MACRO_SUGGESTIONS, useFocusOnSwap } from "#lib";
+import { useFocusOnSwap } from "#lib";
 import { GUIDED_INPUT_TOKEN } from "../lib/assembly-model";
 import type { TemplateRow } from "../lib/template-rows";
 import { DeliveryCluster } from "./delivery-cluster";
+import { PresetMacroSuggestions } from "./preset-macro-suggestions";
 
 type PresetForm = AppFormInstance<PromptConfig>;
 
@@ -90,17 +91,20 @@ function TemplateBody({ form, row }: { readonly form: PresetForm; readonly row: 
   const { def, guidedKind, factoryDefault } = row;
   const placeholder = factoryDefault === "" ? "Blank — nothing is emitted until you write something here." : factoryDefault;
   const label = "Template";
-  if (guidedKind === undefined) {
-    return (
-      <form.AppField name={`formatStrings.${def.id}` as "formatStrings.continueNudge"}>
-        {(field): ReactElement => <field.MacroField label={label} placeholder={placeholder} rows={4} suggestions={PROMPT_MACRO_SUGGESTIONS} />}
-      </form.AppField>
-    );
-  }
   return (
-    <form.AppField name={`guidedActions.${guidedKind}.prompt`}>
-      {(field): ReactElement => <field.MacroField label={label} placeholder={placeholder} rows={4} suggestions={PROMPT_MACRO_SUGGESTIONS} />}
-    </form.AppField>
+    <PresetMacroSuggestions form={form}>
+      {(suggestions): ReactElement =>
+        guidedKind === undefined ? (
+          <form.AppField name={`formatStrings.${def.id}` as "formatStrings.continueNudge"}>
+            {(field): ReactElement => <field.MacroField label={label} placeholder={placeholder} rows={4} suggestions={suggestions} />}
+          </form.AppField>
+        ) : (
+          <form.AppField name={`guidedActions.${guidedKind}.prompt`}>
+            {(field): ReactElement => <field.MacroField label={label} placeholder={placeholder} rows={4} suggestions={suggestions} />}
+          </form.AppField>
+        )
+      }
+    </PresetMacroSuggestions>
   );
 }
 

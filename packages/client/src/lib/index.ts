@@ -72,7 +72,7 @@ export type { Notify } from "./notify";
 export { bindNotify, notify } from "./notify";
 export { perfMark, perfMeasure } from "./perf-marks";
 export { isProbeMode } from "./probe-mode";
-export { PROMPT_MACRO_SUGGESTIONS } from "./prompt-macros";
+export { withUserMacros } from "./prompt-macros";
 export { REGEX_PLACEMENT_ITEMS, REGEX_PLACEMENT_LABELS, regexPlacementStep } from "./regex-placement-labels";
 export type { ContributorRegistry, Registry } from "./registry";
 export { createContributorRegistry, createRegistry } from "./registry";

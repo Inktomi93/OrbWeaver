@@ -21,9 +21,22 @@ const MACROS: readonly MacroSuggestion[] = [
   },
 ];
 
+// A BLOCK entry: the row still reads `{{if}}` (name owns the label + the search index), but picking it
+// inserts the whole pair via `insertTemplate`, caret at the `$0`.
+const BLOCK_MACROS: readonly MacroSuggestion[] = [
+  ...MACROS,
+  { name: "if", category: "System", description: "Conditional block.", args: ["predicate?"], insertTemplate: "{{if::$0}}{{/if}}" },
+];
+
 export function MacroTextareaStory(): ReactElement {
   const [value, setValue] = useState("");
   return <MacroTextarea aria-label="Body" onChange={setValue} suggestions={MACROS} value={value} />;
+}
+
+/** The block-insertion shape: a suggestion whose acceptance must land BOTH tags, not a bare `{{if}}`. */
+export function BlockSuggestionsStory(): ReactElement {
+  const [value, setValue] = useState("");
+  return <MacroTextarea aria-label="Body" onChange={setValue} suggestions={BLOCK_MACROS} value={value} />;
 }
 
 export function EmptySuggestionsStory(): ReactElement {
