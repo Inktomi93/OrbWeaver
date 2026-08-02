@@ -11,6 +11,9 @@ import type { BrowseFilter } from "../contract/params";
 import type { BrowseCharacter, CharacterFacets, FacetCount } from "../contract/results";
 import type { DiscoveryService } from "../contract/service";
 
+// The page size when the caller names none. A library past this is TRUNCATED silently — deliberate (the row
+// set is a browse page, not a count), and the reason the catalog's `totalDistilled` is a separate read: a
+// surface that needs "N of M" takes M from `catalog`, never from this array's length.
 const DEFAULT_BROWSE_LIMIT = 200;
 
 export function createBrowse(ctx: DiscoveryContext): Pick<DiscoveryService, "browseCharacters" | "characterFacets"> {

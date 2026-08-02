@@ -155,6 +155,8 @@ async function nameDrafts(drafts: readonly ClusterDraft[], summarize: Summarize)
   if (inputs.length === 0) {
     return names;
   }
+  // A provider fault PROPAGATES and aborts the whole pass — deliberate: a themes recompute is an atomic
+  // replace, and half-named clusters written over the old set is worse than a workload row that says it failed.
   const result = await summarize(inputs);
   for (let t = 0; t < targets.length; t += 1) {
     const item = result.items[t];
@@ -163,6 +165,9 @@ async function nameDrafts(drafts: readonly ClusterDraft[], summarize: Summarize)
       names[idx] = parseThemeName(item.text);
     }
   }
+  // A DEGRADE, not a fault: a reply short of `targets.length` items (or one that sanitizes to empty) leaves
+  // those clusters at `name: null` — the same state a below-MIN_NAME_SIZE cluster gets, which the schema and
+  // every reader already handle. The cluster keeps its members and centroid; only its label is missing.
   return names;
 }
 

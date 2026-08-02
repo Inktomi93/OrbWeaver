@@ -24,9 +24,15 @@ export const useRejectSuggestion = createEntityMutation<inferInput<Trpc["tag"]["
 });
 
 /** Run the on-demand distill producer for one card. Explicitly invalidates the pending read — the staging
- *  chokepoint emits no user-bus event. */
+ *  chokepoint emits no user-bus event.
+ *
+ *  This toast is the ONLY thing that tells a user the run failed, and until 2026-08-03 it never fired: the
+ *  server contained the single-card failure and answered 200 with `{distilled: 0, failed: 1}`, so the button
+ *  went quiet, the list refetched to the same contents, and nothing said why. The domain now throws
+ *  (`DistillFailedError` → SERVICE_UNAVAILABLE), which is what makes this line live. "Try again" is honest for
+ *  the reachable arm: the failure is a bad summarizer reply or a provider fault, both transient. */
 export const useSuggestCharacterTags = createEntityMutation<inferInput<Trpc["discovery"]["suggestCharacterTags"]>, unknown>({
   options: (trpc) => trpc.discovery.suggestCharacterTags.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.tag.listPendingSuggestions.queryFilter({ characterId: vars.characterId })],
-  errorToast: "Couldn't generate tag suggestions.",
+  errorToast: "Couldn't generate tag suggestions — try again.",
 });

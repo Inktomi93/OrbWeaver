@@ -231,11 +231,18 @@ export interface CharacterComparison {
 }
 
 // ── analyze (LLM-narrated comparison + card Q&A; the semantic-understanding half) ───────────────────────
-/** The grounded LLM narrative decorating {@link CharacterComparison} — a prose read of the facet diff. */
+/** The grounded LLM narrative decorating {@link CharacterComparison} — a prose read of the facet diff.
+ *
+ *  `degraded` is the DEGRADE-AS-DATA channel (the only honest way out of a validation failure that still
+ *  returns something): `false` = the model's reply validated and the three fields are real. `true` = it failed
+ *  the payload schema on both the first turn and the bounded retry, so `summary` carries the RAW reply verbatim
+ *  and `overlap`/`distinction` are empty. A renderer MUST branch on it — without the flag, unparseable model
+ *  output reads as a finished narrative beside two blank sections, which is a lie by omission. */
 export interface ComparisonNarrative {
   readonly summary: string;
   readonly overlap: string;
   readonly distinction: string;
+  readonly degraded: boolean;
 }
 
 /** {@link CharacterComparison} plus a grounded LLM narrative over the same diff (`compareCharactersDeep`). */
@@ -244,13 +251,20 @@ export interface CharacterComparisonDeep extends CharacterComparison {
 }
 
 /** A grounded answer to a free-text question about ONE owned/distilled character — answered from its recent
- *  PLAYED scenes ONLY (SEMANTIC content, never economics). `grounded` is the model's own claim that the
- *  answer is supported by the sampled scenes; `sampledMessages` is how many scenes it saw. */
+ *  PLAYED scenes ONLY (SEMANTIC content, never economics). `sampledMessages` is how many scenes it saw.
+ *
+ *  The two boolean fields are DIFFERENT claims by DIFFERENT authors and must not be read as one:
+ *  • `grounded` — the MODEL'S own claim that its answer is supported by the sampled scenes. Only meaningful
+ *    when `degraded` is false; a degraded answer carries no model claim at all, so it reports `false` as the
+ *    safe floor rather than a judgment.
+ *  • `degraded` — OURS: the reply failed the payload schema twice, so `answer` is the raw text verbatim.
+ *  A renderer that shows "Speculative" for a degraded answer is attributing our parse failure to the model. */
 export interface AskCardAnswer {
   readonly characterId: CharacterId;
   readonly question: string;
   readonly answer: string;
   readonly grounded: boolean;
+  readonly degraded: boolean;
   readonly sampledMessages: number;
 }
 

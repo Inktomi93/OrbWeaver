@@ -2,13 +2,26 @@
 // similarArt is NOT here by design — "more like this avatar" is retrieval, built as search.similarArt
 // (2026-07-10; the dossier client queries it directly); discovery's image analytics stay retrieval-free.
 //
-// NO TYPED ERRORS, deliberately (2026-08-03): discovery mints none. An engine/infra fault PROPAGATES
-// unchanged (verbs/analyze.ts), a validation failure DEGRADES to the ungrounded result, and an empty
-// corpus is a zero-count result, not a fault. The former `contract/errors.ts` claimed a DiscoveryError
-// these paths throw — nothing ever threw it. Growing a real taxonomy here is a design change, not a
-// re-add of the class.
+// ONE TYPED ERROR, wired (2026-08-03, superseding the same day's zero-error state). The 08-03 deletion of
+// `DiscoveryError` was correct — it was a class with no throw site — and the header that replaced it read the
+// absence as law. The failure-path audit found one path where the absence was the DEFECT: the on-demand
+// single-card distill (`suggestCharacterTags`) contained its own failure and answered 200 with `{distilled: 0,
+// failed: 1}`, so the editor's "Suggest tags" button went quiet and told the user nothing. `contract/errors.ts`
+// carries exactly the one error that path throws (`DistillFailedError`) and nothing else; its other refusal
+// reuses the house `DomainNotFoundError` for the leak-free ownership collapse the cross-tenant sweep requires.
+//
+// Everything else in this domain still mints nothing, and that IS the law:
+//   • a compute pass's engine/infra fault PROPAGATES unchanged (themes/generate, the workload runners);
+//   • an LLM validation failure DEGRADES to a result that CARRIES the degrade as data — never a silent
+//     substitution (`ComparisonNarrative.degraded`, `AskCardAnswer.degraded`, verbs/analyze.ts);
+//   • the BATCH distill CONTAINS a per-card failure and reports it in `DistillStats.failed` (a sweep reports,
+//     never aborts) — only the single-card narrow throws;
+//   • an empty / degenerate corpus is a zero-count result, not a fault (the substrate is total on empty input).
+// Growing this taxonomy further needs a convicted path with a throw site AND a surfaced client state — a class
+// with neither is the exact lie that was deleted.
 
 export type { DiscoveryContext } from "./context";
+export { DistillFailedError } from "./contract/errors";
 export type {
   ArchetypesOptions,
   BrowseFilter,

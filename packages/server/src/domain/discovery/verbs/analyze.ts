@@ -72,12 +72,14 @@ async function compareCharactersDeep(
   let narrative: ComparisonNarrative;
   try {
     const p = await runStructuredTurn({ payloadSchema: NARRATIVE_PAYLOAD, run });
-    narrative = { summary: p.summary.trim(), overlap: p.overlap.trim(), distinction: p.distinction.trim() };
+    narrative = { summary: p.summary.trim(), overlap: p.overlap.trim(), distinction: p.distinction.trim(), degraded: false };
   } catch (err) {
     if (!(err instanceof StructuredOutputError)) {
       throw err; // an engine/infra error propagates; only a validation failure degrades (the diff is truth)
     }
-    narrative = { summary: err.raw.trim(), overlap: "", distinction: "" };
+    // The degrade travels as DATA (`degraded`) — the raw reply is still worth showing, but a renderer has to
+    // be able to tell it apart from a narrative the model actually produced.
+    narrative = { summary: err.raw.trim(), overlap: "", distinction: "", degraded: true };
   }
   return { ...base, narrative };
 }
@@ -121,18 +123,24 @@ async function askCard(ctx: DiscoveryContext, userId: UserId, characterId: Chara
   };
   let answer: string;
   let grounded: boolean;
+  let degraded: boolean;
   try {
     const p = await runStructuredTurn({ payloadSchema: ANSWER_PAYLOAD, run });
     answer = p.answer.trim();
     grounded = p.grounded;
+    degraded = false;
   } catch (err) {
     if (!(err instanceof StructuredOutputError)) {
-      throw err; // an engine/infra error propagates; a validation failure degrades to ungrounded raw text
+      throw err; // an engine/infra error propagates; a validation failure degrades to raw text
     }
     answer = err.raw.trim();
+    // `grounded` is the MODEL'S claim and a failed parse produced none, so it holds its safe floor — the
+    // separate `degraded` flag is what says WHY, so the caller never renders our parse failure as the model
+    // calling its own answer speculative.
     grounded = false;
+    degraded = true;
   }
-  return { characterId, question, answer, grounded, sampledMessages: samples.length };
+  return { characterId, question, answer, grounded, degraded, sampledMessages: samples.length };
 }
 
 function buildAskPrompt(name: string, question: string, samples: readonly { content: string }[]): string {
