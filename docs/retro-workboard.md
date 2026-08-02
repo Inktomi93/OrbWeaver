@@ -400,7 +400,12 @@ gate:new · gate-modernization/own-tables-only/two-class-role-authority/contract
 zod-modern-spellings/no-hover-display-swap/fk-index/ondelete/pk gates · structure:drizzle-kit ·
 structure:db-baseline (commit tier) · deps:orphan-ratchet (push tier) · chat.getVariantWire.
 
-**STANDING OWNER ITEMS (post-answers): D22 (multi-user stack) · F6 strict-fidelity nit (leave unless owner cares) · regime-2 landmine (launch-day) — everything else RULED/CLOSED today.**
+**STANDING OWNER ITEMS (post-answers): ~~D22 (multi-user stack)~~ **UNBLOCKED 08-03 — the
+blocker was STALE (owner correction): `scripts/dev/multi-user-fixture.sh` + `multi-user-seed.ts`
++ the e2e multi-user-seed modes exist; Lane D22 DISPATCHED** (live two-account verification:
+memberCardVisibility clamps · D16 from-join arm · hidden-span member strip · export 404 ·
+Members-tab captures · the D122 member-persona plane live) · F6 strict-fidelity nit (leave
+unless owner cares) · regime-2 landmine (launch-day).**
 
 ## ═══ ▶▶▶ HANDOFF #3 — 2026-08-02 NIGHT (SESSION-END; the ONE current block. Owner is
 ## swapping accounts — the resuming orchestrator has NO conversation memory; this block +
