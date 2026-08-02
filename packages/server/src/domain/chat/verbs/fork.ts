@@ -400,13 +400,14 @@ async function forkGameOntoFork(
  *  The HOST half of the verdict routes through the ONE injected `can()` seam (`substrate/auth::permitsHost`,
  *  spine invariant #6) — never an inline `role === "host"`. The composite is still chat's own policy: the
  *  seam answers "is this caller the host?", this function decides what that means for a fork. */
-function assertForkAllowed(
-  can: ChatContext["can"],
-  principal: Principal,
-  role: (typeof chatParticipants.$inferSelect)["role"],
-  roster: readonly (typeof chatParticipants.$inferSelect)[],
-  chatId: ChatId,
-): void {
+function assertForkAllowed(args: {
+  readonly can: ChatContext["can"];
+  readonly principal: Principal;
+  readonly role: (typeof chatParticipants.$inferSelect)["role"];
+  readonly roster: readonly (typeof chatParticipants.$inferSelect)[];
+  readonly chatId: ChatId;
+}): void {
+  const { can, principal, role, roster, chatId } = args;
   const presentHumanCount = roster.filter((r) => r.kind === "human").length;
   if (!permitsHost(can, principal, role) && presentHumanCount > 1) {
     throw new ChatOperationError(CHAT_OP_CODES.notHost, `chat ${chatId}: only the host may fork a multi-human room`);
@@ -435,7 +436,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       loadVariableDeltas(ctx.db, chatId),
     ]);
 
-    assertForkAllowed(ctx.can, principal, membership.role, roster, chatId);
+    assertForkAllowed({ can: ctx.can, principal, role: membership.role, roster, chatId });
 
     // §3.6 member-strip across the fork boundary (now DEFENSE-IN-DEPTH — the gate above closes the multi-human
     // member→host laundering case; the solo arm has no other human to launder to). The forker's SOURCE-room

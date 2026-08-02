@@ -112,7 +112,10 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
       "host authority required to hand-edit an actor",
     );
     await expectMessage(h.service.dismissActor({ principal: member, chatId, targetRef: CAST_REF }), "host authority required to dismiss an actor");
-    await expectMessage(h.service.promoteActor({ principal: member, chatId, targetRef: CAST_REF }), "host authority required to promote an actor to the roster");
+    await expectMessage(
+      h.service.promoteActor({ principal: member, chatId, targetRef: CAST_REF }),
+      "host authority required to promote an actor to the roster",
+    );
     // createGame gates BEFORE a game exists (membership read direct, no game gate) — a second chat, no game.
     const bareChatId = await seedChat(db, "b");
     h.fakes.membership.set("user_member", "member");

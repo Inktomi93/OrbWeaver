@@ -235,7 +235,8 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/db/src/schema/workloads.ts": 'export const workloadSchedules = sqliteTable("workload_schedules", {});\n',
-        "packages/server/src/domain/workloads/contract/probe-schedule.ts": "export interface WorkloadScheduleRow {\n  readonly id: string;\n  readonly enabled: boolean;\n}\n",
+        "packages/server/src/domain/workloads/contract/probe-schedule.ts":
+          "export interface WorkloadScheduleRow {\n  readonly id: string;\n  readonly enabled: boolean;\n}\n",
       },
       expect: { messageIncludes: "$inferSelect" },
       why: "ARM B: the founding defect — a hand-written interface listing a real table's columns (fixed on the tree in this gate's landing commit)",
@@ -253,7 +254,8 @@ export const gate: GateDescriptor = {
     {
       files: {
         "packages/contracts/src/assets/index.ts": "export interface ListOwnedParams {\n  readonly ownerId: string;\n}\n",
-        "packages/server/src/domain/assets/contract/params.ts": 'import type { ListOwnedParams as Wire } from "@orb/contracts/assets";\n\nexport type ListOwnedParams = Wire;\n',
+        "packages/server/src/domain/assets/contract/params.ts":
+          'import type { ListOwnedParams as Wire } from "@orb/contracts/assets";\n\nexport type ListOwnedParams = Wire;\n',
       },
       why: "the SANCTIONED shape and the tree's actual state: the domain contract re-exports the contracts shape as a REFERENCE — one home, one spelling",
     },

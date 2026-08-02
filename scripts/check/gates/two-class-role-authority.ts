@@ -62,7 +62,7 @@ const ALLOWLIST: Record<string, string> = {
 };
 
 const MESSAGE =
-  "inline role comparison in an ENFORCEMENT position — a `role === \"host\"` that gates a `throw`. Spine " +
+  'inline role comparison in an ENFORCEMENT position — a `role === "host"` that gates a `throw`. Spine ' +
   "invariant #6: the privilege comparison lives at the domain's ONE cited authority chokepoint, so a surface " +
   "that relaxes (or tightens) its gate cannot drift from every other surface. A re-spelled compare is also " +
   "how a refusal's leak-free shape gets lost: the chokepoint owns not-found-vs-forbidden, the verb does not. " +
@@ -80,7 +80,7 @@ const STALE_HOME_PREFIX =
   "SANCTIONED_HOMES entry carries NO enforcement role comparison any more — the chokepoint moved or died " +
   "(ratchet down): delete the stale row in two-class-role-authority.ts: ";
 const STALE_ALLOW_PREFIX =
-  "ALLOWLIST entry carries NO enforcement role comparison any more (ratchet down): delete the stale row in " + "two-class-role-authority.ts: ";
+  "ALLOWLIST entry carries NO enforcement role comparison any more (ratchet down): delete the stale row in two-class-role-authority.ts: ";
 const GATE_SELF = "scripts/check/gates/two-class-role-authority.ts";
 /** The tell that a run's fileset IS the real tree: chat's enforcement chokepoint, which exists by law
  *  (spine §2a — every chat authority verdict routes through it). Absent ⇒ a synthetic/partial fileset, so
@@ -287,7 +287,7 @@ export const gate: GateDescriptor = {
     {
       files: `export function f(kind: string): void {\n  if (kind !== "host") {\n    throw new Error("nope");\n  }\n}\n`,
       at: "packages/server/src/domain/chat/verbs/z.ts",
-      why: "a non-`role` binding compared to the same lexeme (`kind`) — the gate keys on the ParticipantRole vocabulary, not on the word \"host\"",
+      why: 'a non-`role` binding compared to the same lexeme (`kind`) — the gate keys on the ParticipantRole vocabulary, not on the word "host"',
     },
     {
       files: `export function f(m: { role: string }): void {\n  if (m.role === "host") {\n    return;\n  }\n  throw new Error("nope");\n}\n`,

@@ -1201,8 +1201,35 @@ const RESPELL_PROPERTY_FLOOR = 3;
 
 type ShapeEntry = { readonly name: string; readonly decl: Node; readonly signature: string };
 
-/** The sorted `prop:type` signature of a declaration's type, or undefined when it is not an object shape with
- *  at least {@link RESPELL_PROPERTY_FLOOR} properties (a union/primitive/function type has no signature here). */
+/** The compiler checker's mutual-assignability primitive. It is a TS INTERNAL, so it is resolved once and
+ *  its ABSENCE is a tool error (exit 2), never a silent zero — a lens that quietly stops comparing is worse
+ *  than no lens. (Present on TS 5.x/TS7's checker object; re-verify on a TypeScript bump.) */
+type AssignabilityChecker = { isTypeAssignableTo: (source: unknown, target: unknown) => boolean };
+
+function assignabilityChecker(project: Project): AssignabilityChecker {
+  const compiler = project.getTypeChecker().compilerObject as unknown as Partial<AssignabilityChecker>;
+  if (typeof compiler.isTypeAssignableTo !== "function") {
+    console.error(
+      "ast respell: this TypeScript build exposes no `checker.isTypeAssignableTo` (a TS internal this lens depends on) — the comparison cannot run. Re-verify the API after a TypeScript bump; scripts/codemods/ast.ts.",
+    );
+    process.exit(2);
+  }
+  return { isTypeAssignableTo: compiler.isTypeAssignableTo.bind(compiler) };
+}
+
+/** MUTUALLY assignable = the same shape, whatever the two spell their fields' types as. Assignability (not
+ *  type TEXT) is the comparison because a text signature is ALIAS-SENSITIVE: `CharacterId` and
+ *  `TypeIdOf<"character">` print differently and are the same type, so a text lens reports a clean zero on a
+ *  literal re-spell (measured — the first cut of this lens missed a planted twin for exactly that reason). */
+function mutuallyAssignable(checker: AssignabilityChecker, a: Node, b: Node): boolean {
+  const ta = a.getType().compilerType;
+  const tb = b.getType().compilerType;
+  return checker.isTypeAssignableTo(ta, tb) && checker.isTypeAssignableTo(tb, ta);
+}
+
+/** The sorted PROPERTY-NAME signature of a declaration's type — the cheap prefilter that keeps the O(n²)
+ *  assignability probe off every unrelated pair. Undefined when it is not an object shape with at least
+ *  {@link RESPELL_PROPERTY_FLOOR} properties (a union/primitive/function type has no signature here). */
 function shapeSignature(decl: Node): string | undefined {
   const type = decl.getType();
   if (type.isUnion() || type.isIntersection()) {
@@ -1219,8 +1246,10 @@ function shapeSignature(decl: Node): string | undefined {
   if (props.length < RESPELL_PROPERTY_FLOOR) {
     return;
   }
-  const parts = props.map((p) => `${p.getName()}:${p.getTypeAtLocation(decl).getText(decl)}`).sort();
-  return parts.join("|");
+  return props
+    .map((p) => p.getName())
+    .sort()
+    .join("|");
 }
 
 /** Every exported declaration of the files under `prefix` that HAS a shape signature. */
@@ -1255,6 +1284,31 @@ function domainsWithContracts(project: Project, arg: string): string[] {
 
 const DOMAIN_CONTRACT_DIR_RE = /\/packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\//u;
 
+/** ONE domain's structural twins: every `contract/` shape MUTUALLY ASSIGNABLE with a shape the sibling
+ *  `@orb/contracts/<domain>` exports (property-name signature prefilter, then the real probe). */
+function respellHitsFor(project: Project, checker: AssignabilityChecker, domain: string): Hit[] {
+  const contractsShapes = shapesUnder(project, `/packages/contracts/src/${domain}/`);
+  if (contractsShapes.length === 0) {
+    return [];
+  }
+  const bySignature = new Map<string, ShapeEntry[]>();
+  for (const shape of contractsShapes) {
+    bySignature.set(shape.signature, [...(bySignature.get(shape.signature) ?? []), shape]);
+  }
+  const hits: Hit[] = [];
+  for (const domainShape of shapesUnder(project, `/packages/server/src/domain/${domain}/contract/`)) {
+    for (const twin of bySignature.get(domainShape.signature) ?? []) {
+      if (!mutuallyAssignable(checker, domainShape.decl, twin.decl)) {
+        continue;
+      }
+      const h = hitOf(domainShape.decl, domainShape.name === twin.name ? "respell-same-name" : "respell-renamed");
+      h.text = `${domainShape.name}  ≡  @orb/contracts/${domain}::${twin.name}`;
+      hits.push(h);
+    }
+  }
+  return hits;
+}
+
 /** Domain `contract/` shapes structurally identical to a shape the sibling `@orb/contracts/<domain>` already
  *  exports — the RENAMED re-spell the syntactic gate cannot see. Optional arg = one domain; bare = all. */
 function cmdRespell(project: Project, arg: string, flags: Flags): void {
@@ -1263,23 +1317,10 @@ function cmdRespell(project: Project, arg: string, flags: Flags): void {
     console.error(`ast respell: no domain contract/ dir matched "${arg}" — try a domain name (chat, rpg, preset, …) or run bare for all.`);
     process.exit(2);
   }
+  const checker = assignabilityChecker(project);
   const hits: Hit[] = [];
   for (const domain of domains) {
-    const contractsShapes = shapesUnder(project, `/packages/contracts/src/${domain}/`);
-    if (contractsShapes.length === 0) {
-      continue;
-    }
-    const bySignature = new Map<string, ShapeEntry[]>();
-    for (const shape of contractsShapes) {
-      bySignature.set(shape.signature, [...(bySignature.get(shape.signature) ?? []), shape]);
-    }
-    for (const domainShape of shapesUnder(project, `/packages/server/src/domain/${domain}/contract/`)) {
-      for (const twin of bySignature.get(domainShape.signature) ?? []) {
-        const h = hitOf(domainShape.decl, domainShape.name === twin.name ? "respell-same-name" : "respell-renamed");
-        h.text = `${domainShape.name}  ≡  @orb/contracts/${domain}::${twin.name}`;
-        hits.push(h);
-      }
-    }
+    hits.push(...respellHitsFor(project, checker, domain));
   }
   console.log(
     `respell is a CANDIDATE lens — structural identity is EVIDENCE of a re-spell, not proof: two shapes may agree today and be free to diverge tomorrow. Verify intent before acting, and prefer a derive when the domain shape IS the contracts shape. (${RESPELL_PROPERTY_FLOOR}+ properties, checker-resolved; a \`respell-same-name\` hit is already RED at the \`contract-derives-not-respells\` gate.)`,

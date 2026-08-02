@@ -161,10 +161,14 @@ function writeBaseline(root: string, orphans: readonly Orphan[], previous: Basel
 
 function report(added: readonly Orphan[], stale: readonly string[], staleTags: readonly Orphan[]): void {
   for (const orphan of added) {
-    process.stdout.write(`  ✗ ${orphan.file}:${orphan.line}  NEW orphan export \`${orphan.name}\` — reached by nobody (prod or test) and unused in its own file\n`);
+    process.stdout.write(
+      `  ✗ ${orphan.file}:${orphan.line}  NEW orphan export \`${orphan.name}\` — reached by nobody (prod or test) and unused in its own file\n`,
+    );
   }
   for (const key of stale) {
-    process.stdout.write(`  ✗ ${BASELINE_REL}  STALE row \`${key}\` — that export is no longer an unexempted orphan (consumed, tagged, or deleted): remove the row (ratchet down)\n`);
+    process.stdout.write(
+      `  ✗ ${BASELINE_REL}  STALE row \`${key}\` — that export is no longer an unexempted orphan (consumed, tagged, or deleted): remove the row (ratchet down)\n`,
+    );
   }
   for (const tag of staleTags) {
     process.stdout.write(
