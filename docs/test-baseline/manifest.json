@@ -1448,5 +1448,9 @@
     "tests/ui/tokens/theme-emit-pairing.suite.test.ts",
     "tests/ui/touch-target-floor.suite.ct.tsx"
   ],
-  "deletions": {}
+  "deletions": {
+    "tests/client/features/preset/components/regex-tab.ct.tsx": {
+      "why": "superseded by the D121-E R5 library takeover (2026-08-03, REGEX lane): the preset regex tab's settings-blob pane died with the embed carriers; its coverage moved to regex-settings-surface.ct.tsx + regex-script-picker.ct.tsx + transforms-readout coverage"
+    }
+  }
 }
