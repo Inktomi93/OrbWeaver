@@ -180,8 +180,10 @@ interface GroupCharacterRef {
   readonly characterId: CharacterId;
 }
 
-/** Find-or-mint the hidden group-narrator identity for a room (idempotent, never null). */
-type MintSyntheticGroupCharacterOp = (params: { readonly ownerId: UserId; readonly chatId: ChatId }) => Promise<GroupCharacterRef>;
+/** Find-or-mint the hidden group-narrator identity for a room (idempotent, never null). EXPORTED because the
+ *  bulk-import context (`contract/import.ts`) wires the SAME op: a narrator slot written by the import path
+ *  must be authored by the identical `__group__<chatId>` row a live narrator round would mint. */
+export type MintSyntheticGroupCharacterOp = (params: { readonly ownerId: UserId; readonly chatId: ChatId }) => Promise<GroupCharacterRef>;
 
 /** The group identity for a room, or null if not yet minted. */
 type FindSyntheticGroupCharacterOp = (params: { readonly ownerId: UserId; readonly chatId: ChatId }) => Promise<GroupCharacterRef | null>;

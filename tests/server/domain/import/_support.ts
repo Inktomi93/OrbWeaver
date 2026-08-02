@@ -227,6 +227,8 @@ export function makeProfileHarness(ownerId: UserId): ProfileHarness {
       chatCalls.push(args);
       const realConversationWritten = args.chats.some((c) => c.isRealConversation);
       return Promise.resolve({
+        // The stub writes nothing, so it reports no written ids — the real op returns one per imported chat.
+        chatIds: [],
         chatsImported: args.chats.length,
         chatsSkipped: 0,
         messagesImported: args.chats.reduce((n, c) => n + c.messages.length, 0),

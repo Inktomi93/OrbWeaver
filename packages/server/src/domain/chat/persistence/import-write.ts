@@ -17,6 +17,7 @@ import type { AssetId, CharacterId, ChatId, MessageId, UserId } from "@orb/kit/i
 import { castId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
 import type { BulkImportChats, ChatImportContext } from "../contract/import";
+import { parseChatMetadata } from "../contract/metadata";
 
 /** The distinct inline `asset:<id>` refs in a message's content, across all its variants. */
 function assetRefsInMessage(message: BulkImportChatInput["messages"][number]): AssetId[] {
@@ -38,15 +39,47 @@ interface PendingParent {
   readonly forkedAt: number;
 }
 
-/** Ownership gate: the target character must be the caller's (leak-free `DomainNotFoundError`). */
-async function assertOwnedCharacter(db: Db, ownerId: UserId, characterId: CharacterId): Promise<void> {
+/** Ownership gate: EVERY seat (the primary + any extra roster id) must be the caller's — checked before a
+ *  single row is written, so a foreign id can never be seated into a room the caller hosts. Leak-free
+ *  `DomainNotFoundError`, the same refusal shape a stranger's characterId got when the op was
+ *  single-character. One query for the whole set; the miss is reported by id. */
+async function assertOwnedCharacters(db: Db, ownerId: UserId, characterIds: readonly CharacterId[]): Promise<void> {
   const owned = await db
     .select({ id: characters.id })
     .from(characters)
-    .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
-    .limit(1);
-  if (owned[0] === undefined) {
-    throw new DomainNotFoundError("character", characterId);
+    .where(and(inArray(characters.id, [...characterIds]), eq(characters.ownerId, ownerId)));
+  // @orb-gate-ignore persistence-no-in-memory-state: query-local membership Set over the row set this query just returned
+  const ownedIds = new Set(owned.map((row) => row.id));
+  for (const characterId of characterIds) {
+    if (!ownedIds.has(characterId)) {
+      throw new DomainNotFoundError("character", characterId);
+    }
+  }
+}
+
+/** The DISTINCT seated cast for one imported chat: the run's primary first (it is the header character —
+ *  `loadExistingHashes`/`resolveBranches` scope on it), then this chat's extra roster seats in order. */
+function seatedCast(primary: CharacterId, roster: readonly CharacterId[] | undefined): readonly CharacterId[] {
+  return [primary, ...(roster ?? []).filter((id) => id !== primary)];
+}
+
+/** The character a slot NAMES as its speaker, or null when it names none (the optional field is absent, or
+ *  explicitly null meaning "the run's primary"). One home for the absent-vs-null read. */
+function namedSpeaker(m: BulkImportChatInput["messages"][number]): CharacterId | null {
+  return m.characterId ?? null;
+}
+
+/** Referential gate: a slot may only be voiced by a character this chat actually SEATS. Without it a caller
+ *  could stamp `messages.characterId` with an owned-but-unrostered card — a row every roster-joined read
+ *  (transcript speaker names, member cards, the group arbitration feed) would then resolve to a ghost. */
+function assertSeatedSpeakers(ci: BulkImportChatInput, primary: CharacterId): void {
+  // @orb-gate-ignore persistence-no-in-memory-state: call-local membership Set over one input's seats (a pure precondition check, no state survives the call)
+  const seated = new Set(seatedCast(primary, ci.roster));
+  for (const m of ci.messages) {
+    const named = namedSpeaker(m);
+    if (named !== null && !seated.has(named)) {
+      throw new DomainNotFoundError("chat_participant", named);
+    }
   }
 }
 
@@ -69,12 +102,13 @@ async function loadExistingHashes(db: Db, characterId: CharacterId, hashes: read
   return seen;
 }
 
-/** The founding roster for an imported chat (host human + the one character); `joinSeq=0` (born here). */
+/** The founding roster for an imported chat (host human + every seated character); `joinSeq=0` (born here).
+ *  A single-character `cast` is byte-identically the pre-roster two-row shape. */
 function rosterRows(args: {
   readonly ctx: ChatImportContext;
   readonly chatId: ChatId;
   readonly ownerId: UserId;
-  readonly characterId: CharacterId;
+  readonly cast: readonly CharacterId[];
   readonly anchorPersonaId: BulkImportChatInput["anchorPersonaId"];
   readonly now: number;
 }): (typeof chatParticipants.$inferInsert)[] {
@@ -89,15 +123,15 @@ function rosterRows(args: {
       joinedAt: args.now,
       joinSeq: 0,
     },
-    {
+    ...args.cast.map((characterId): typeof chatParticipants.$inferInsert => ({
       id: args.ctx.newParticipantId(),
       chatId: args.chatId,
       kind: "character",
-      characterId: args.characterId,
+      characterId,
       role: "member",
       joinedAt: args.now,
       joinSeq: 0,
-    },
+    })),
   ];
 }
 
@@ -108,9 +142,33 @@ interface MessageStatementsArgs {
   readonly seq: number;
   readonly message: BulkImportChatInput["messages"][number];
   readonly ownerId: UserId;
+  /** The run's PRIMARY character — the voice every assistant slot that names none falls back to. */
   readonly characterId: CharacterId;
   /** Asset ids confirmed to exist on the target box (pre-filtered per chat). */
   readonly existingAssetIds: readonly AssetId[];
+  /** The room's minted synthetic narrator identity, or null when this chat carries no narrator slot. */
+  readonly narratorCharacterId: CharacterId | null;
+}
+
+/** WHO voices this slot: the room's synthetic narrator identity (`narrator: true` — the `output:"narrator"`
+ *  grammar), else the message's own `characterId` (a per-speaker group transcript names its speaker per
+ *  turn), else the run's primary (the single-voice ST transcript — the pre-roster behavior, unchanged). A
+ *  `user` slot is never character-attributed. A named id is already proven seated by
+ *  {@link assertSeatedSpeakers}; `narratorCharacterId` is null exactly when no slot asked for it. */
+function slotCharacterId(message: BulkImportChatInput["messages"][number], primary: CharacterId, narratorCharacterId: CharacterId | null): CharacterId | null {
+  if (message.role !== "assistant") {
+    return null;
+  }
+  if (message.narrator === true && narratorCharacterId !== null) {
+    return narratorCharacterId;
+  }
+  return message.characterId ?? primary;
+}
+
+/** Does this chat carry any narrator-voiced slot? Gates the once-per-chat mint so a plain ST import never
+ *  touches the synthetic-character namespace at all (byte-identical: no mint, no extra row, no query). */
+function hasNarratorSlot(ci: BulkImportChatInput): boolean {
+  return ci.messages.some((m) => m.role === "assistant" && m.narrator === true);
 }
 
 /** Statements for ONE imported message: slot (pointer null) → its variant pool → set the pointer. */
@@ -129,7 +187,7 @@ function messageStatements(args: MessageStatementsArgs): {
         seq,
         role: message.role,
         authorUserId: isUser ? args.ownerId : null,
-        characterId: message.role === "assistant" ? args.characterId : null,
+        characterId: slotCharacterId(message, args.characterId, args.narratorCharacterId),
         personaId: isUser ? message.personaId : null,
         selectedVariantId: null,
         createdAt: message.createdAt,
@@ -225,6 +283,8 @@ interface OneChatArgs {
   readonly characterId: CharacterId;
   /** The target-box-existing subset of this chat's inline asset refs (pre-resolved once per chat). */
   readonly existingAssetIds: readonly AssetId[];
+  /** The room's minted synthetic narrator identity, or null when this chat carries no narrator slot. */
+  readonly narratorCharacterId: CharacterId | null;
 }
 
 /** The imported ST `note_prompt`'s landing placement — the house author's-note register: "near enough to
@@ -245,7 +305,10 @@ function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs)
         anchorPersonaId: ci.anchorPersonaId,
         importedFrom: ci.importedFrom,
         importHash: ci.importHash,
-        metadata: null,
+        // Absent ⇒ NULL, byte-identically the ST import. A supplied blob goes through the column's OWN
+        // parser (the same fault-isolated read seam every consumer uses) so a caller can never land a
+        // sub-blob shape the readers would heal away — one validation home, no second spelling here.
+        metadata: ci.metadata === undefined ? null : parseChatMetadata(ci.metadata),
         createdAt: ci.createdAt,
         updatedAt: ci.updatedAt,
       }),
@@ -269,7 +332,7 @@ function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs)
       ctx,
       chatId,
       ownerId,
-      characterId,
+      cast: seatedCast(characterId, ci.roster),
       anchorPersonaId: ci.anchorPersonaId,
       now: ci.createdAt,
     }).map((r) => batchStmt(db.insert(chatParticipants).values(r))),
@@ -282,7 +345,7 @@ function buildChatStatements(args: OneChatArgs): {
   readonly messageCount: number;
   readonly variantCount: number;
 } {
-  const { ctx, chatId, ci, ownerId, characterId, existingAssetIds } = args;
+  const { ctx, chatId, ci, ownerId, characterId, existingAssetIds, narratorCharacterId } = args;
   const stmts = chatHeaderStmts(args);
   let messageCount = 0;
   let variantCount = 0;
@@ -297,6 +360,7 @@ function buildChatStatements(args: OneChatArgs): {
       ownerId,
       characterId,
       existingAssetIds,
+      narratorCharacterId,
     });
     stmts.push(...built.stmts);
     messageCount += 1;
@@ -306,17 +370,54 @@ function buildChatStatements(args: OneChatArgs): {
   return { stmts, messageCount, variantCount };
 }
 
+/** EVERY character id a run could seat or attribute: the primary, each chat's extra roster, and each slot's
+ *  named speaker. Ownership-gated in one pass before any write, so a foreign id anywhere refuses the whole
+ *  run rather than landing a partially-correct room. */
+function everyReferencedCharacter(primary: CharacterId, input: readonly BulkImportChatInput[]): CharacterId[] {
+  const ids: CharacterId[] = [primary];
+  for (const c of input) {
+    ids.push(...(c.roster ?? []));
+    for (const m of c.messages) {
+      const named = namedSpeaker(m);
+      if (named !== null) {
+        ids.push(named);
+      }
+    }
+  }
+  return ids;
+}
+
+/** Resolve one chat's two async preconditions and build its statement plan. Both preconditions run in ONE
+ *  `Promise.all`: the bounded asset-existence read, and — only for a chat carrying a narrator slot — the
+ *  find-or-mint of the room's synthetic identity, the same op and the same idempotency a live narrator round
+ *  uses. A chat with no narrator slot never touches the synthetic namespace at all. */
+async function planOneChat(args: Omit<OneChatArgs, "existingAssetIds" | "narratorCharacterId">): Promise<ReturnType<typeof buildChatStatements>> {
+  const { ctx, ci, ownerId, chatId } = args;
+  const [existingAssetIds, narratorCharacterId] = await Promise.all([
+    ctx.filterExistingAssetIds(ownerId, ci.messages.flatMap(assetRefsInMessage)),
+    hasNarratorSlot(ci) ? ctx.mintSyntheticGroupCharacter({ ownerId, chatId }).then((ref) => ref.characterId) : Promise.resolve(null),
+  ]);
+  return buildChatStatements({ ...args, existingAssetIds, narratorCharacterId });
+}
+
 /** Dup-skips by `chats.importHash`, commits each chat as ONE `db.batch`, then resolves branch parents. */
 export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
   return async ({ ownerId, characterId, chats: input }): Promise<BulkImportChatsResult> => {
     const { db } = ctx;
-    await assertOwnedCharacter(db, ownerId, characterId);
+    // EVERY id this run could seat or attribute — the primary, every chat's extra roster, and every slot's
+    // named speaker — ownership-gated in ONE pass before any write. A foreign id anywhere refuses the whole
+    // run rather than landing a partially-correct room.
+    await assertOwnedCharacters(db, ownerId, everyReferencedCharacter(characterId, input));
+    for (const ci of input) {
+      assertSeatedSpeakers(ci, characterId);
+    }
     const existing = await loadExistingHashes(
       db,
       characterId,
       input.map((c) => c.importHash),
     );
 
+    const chatIds: ChatId[] = [];
     let chatsImported = 0;
     let chatsSkipped = 0;
     let messagesImported = 0;
@@ -332,21 +433,14 @@ export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
       existing[ci.importHash] = true; // a second byte-identical file later in THIS run skips too
 
       const chatId = ctx.newChatId();
-      // biome-ignore lint/performance/noAwaitInLoops: one bounded existence read per imported chat (the same per-chat granularity as the atomic commit below); a foreign asset would fail-closed the whole chat batch otherwise.
-      const existingAssetIds = await ctx.filterExistingAssetIds(ownerId, ci.messages.flatMap(assetRefsInMessage));
-      const { stmts, messageCount, variantCount } = buildChatStatements({
-        ctx,
-        chatId,
-        ci,
-        ownerId,
-        characterId,
-        existingAssetIds,
-      });
+      // biome-ignore lint/performance/noAwaitInLoops: per-chat by construction — the preconditions resolve against THIS chat's freshly minted id, at the same granularity as the atomic commit below.
+      const { stmts, messageCount, variantCount } = await planOneChat({ ctx, chatId, ci, ownerId, characterId });
       if (ci.parentRef !== null) {
         pendingParents.push({ chatId, parentRef: ci.parentRef, forkedAt: ci.createdAt });
       }
 
       await commitChatBatch(db, stmts);
+      chatIds.push(chatId);
       chatsImported += 1;
       messagesImported += messageCount;
       variantsImported += variantCount;
@@ -357,6 +451,7 @@ export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
 
     const branchesLinked = await resolveBranches(db, characterId, pendingParents);
     return {
+      chatIds,
       chatsImported,
       chatsSkipped,
       messagesImported,

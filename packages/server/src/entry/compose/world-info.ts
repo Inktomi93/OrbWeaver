@@ -15,6 +15,7 @@ import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { can } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
+import type { CharacterService } from "#domain/character";
 import type { BulkImportChats } from "#domain/chat";
 import type { BulkImportPersonas } from "#domain/persona";
 import { createBulkImportPersonas } from "#domain/persona";
@@ -37,6 +38,10 @@ export interface WorldInfoComposeDeps {
   /** chat's bus durable-first emit (`ChatComposeResult.emitBusEvent`) — world-info publishes WI events onto it. */
   readonly emitChatBusEvent: (event: ChatBusEvent) => Promise<void>;
   readonly assets: Pick<AssetsService, "resolveOwnedAssetRefs">;
+  /** character's find-or-mint of a room's synthetic `__group__<chatId>` narrator identity — the SAME op
+   *  chat's turn verb runs for a live `output:"narrator"` round. The bulk-import write needs it so an
+   *  imported narrator slot is authored by the identical row (chat never imports domain/character). */
+  readonly character: Pick<CharacterService, "mintSyntheticGroupCharacter">;
 }
 
 /** The world-info compose product: the service + the import ports + the bulk importers + the owner resolver. */
@@ -89,6 +94,7 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
     // The bundle's assets entity imports first, so a bundled inline attachment exists by the time chats
     // import; this filters an imported message's asset refs to the ones that landed.
     filterExistingAssetIds: async (ownerId, assetIds) => (await assets.resolveOwnedAssetRefs(ownerId, assetIds)).map((r) => r.assetId),
+    mintSyntheticGroupCharacter: deps.character.mintSyntheticGroupCharacter,
   });
   const bulkImportPersonas = createBulkImportPersonas({
     db,
