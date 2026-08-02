@@ -8,7 +8,8 @@
 // DISJOINT rows (order is immaterial) — but ATOMICITY is not: split into two sequential awaits, a concurrent
 // attach could leave two primaries or a crash between them zero. Do NOT split it.
 
-import { batchMany, characterBooks } from "@orb/db";
+import { characterBooks } from "@orb/db";
+import { batchMany } from "@orb/db/kit";
 import { and, eq, ne } from "drizzle-orm";
 import type { WorldInfoContext } from "../../context";
 import { WorldInfoNotFoundError } from "../../contract/errors";

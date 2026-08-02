@@ -3,17 +3,19 @@
 //
 // This file also RE-HOMES a defect: the `assets-backfill` GATHER (a `db.select` over `characters` plus a
 // per-row CAS probe) used to run at the ENTRY tier, in `compose/runner-env.ts`, purely because the old hub
-// demanded a count-only op shape. Domain reads belong in the domain — they are here now, and the compose
-// file contains no `db.select` at all.
+// demanded a count-only op shape. Domain reads belong in the domain — the compose file contains no
+// `db.select` at all. The SQL half then moved one step further in, to
+// `persistence/maintenance.ts::loadAvatarBackfillCandidates`: `characters` is CHARACTER's table, and a
+// domain's cross-domain read lives in its db-access slot, never in a root seam (Tier-1-DB.md §"Cross-tier
+// composition"; the `own-tables-only` gate). What stays here is the CAS half — the per-row blob probe.
 
 import type { FsckReport } from "@orb/contracts/assets";
 import type { MaintenanceResult } from "@orb/contracts/workloads";
 import { emptyWorkloadParams, maintenanceWorkloadParams } from "@orb/contracts/workloads";
-import { characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
 import type { WorkloadContribution } from "#domain/workloads";
 import type { AssetsWorkloadDeps } from "./contract/service";
+import { loadAvatarBackfillCandidates } from "./persistence/maintenance";
 
 type AssetsContributions = readonly [WorkloadContribution<"assets-backfill">, WorkloadContribution<"assets-gc">, WorkloadContribution<"assets-fsck">];
 
@@ -23,11 +25,7 @@ async function gatherStagedCards(
   deps: AssetsWorkloadDeps,
   ownerId: UserId | null,
 ): Promise<Map<UserId, { characterId: CharacterId; bytes: Uint8Array; importHash: string }[]>> {
-  const scope =
-    ownerId === null
-      ? and(isNull(characters.avatarAssetId), isNotNull(characters.importHash))
-      : and(eq(characters.ownerId, ownerId), isNull(characters.avatarAssetId), isNotNull(characters.importHash));
-  const rows = await deps.db.select({ id: characters.id, ownerId: characters.ownerId, importHash: characters.importHash }).from(characters).where(scope);
+  const rows = await loadAvatarBackfillCandidates(deps.db, ownerId);
 
   const byOwner = new Map<UserId, { characterId: CharacterId; bytes: Uint8Array; importHash: string }[]>();
   for (const row of rows) {

@@ -4,7 +4,8 @@
 // content/keys/enabled/priority/ignoreBudget/metadata carry over) with only `id`/`worldBookId`/`createdAt`
 // overridden. Attachments are NOT copied — the duplicate is a fresh editable copy, unattached at every scope.
 
-import { batchMany, worldBooks, worldEntries } from "@orb/db";
+import { worldBooks, worldEntries } from "@orb/db";
+import { batchMany } from "@orb/db/kit";
 import type { WorldInfoContext } from "../../context";
 import { WorldInfoNotFoundError } from "../../contract/errors";
 import type { DuplicateBookParams } from "../../contract/params";
