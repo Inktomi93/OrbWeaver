@@ -45,10 +45,13 @@ export type {
   ReapAssetsOp,
 } from "./contract/service";
 export type { CharacterDetail, CharacterSummary } from "./contract/views";
-export type { DefaultCharacterSeeder, DefaultCharacterSeederDeps } from "./seeder";
+export type { DefaultCharacterSeeder, DefaultCharacterSeederDeps, SeededCardContent } from "./seeder";
 export {
+  CARD_PACK_VERSION,
   createDefaultCharacterSeeder,
   DEFAULT_CHARACTER_CARDS,
+  matchesPriorPack,
+  PRIOR_PACK_CONTENT,
   WELCOME_ASSISTANT_HANDLE,
 } from "./seeder";
 export { createCharacterService } from "./service";

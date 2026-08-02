@@ -13,7 +13,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
 import type { CharacterService } from "@orb/server/domain/character";
-import { createCharacterService, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
+import { CARD_PACK_VERSION, createCharacterService, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsIndexer } from "@orb/server/domain/embeddings";
 import { createDomainEventBus, createServices } from "@orb/server/entry/compose";
@@ -257,6 +257,31 @@ describe("default-card seeder wiring (PD-32)", () => {
       handle: WELCOME_ASSISTANT_HANDLE,
     });
     expect(settings.config.seeds.welcomeAssistantCharacterId).toBe(assistant?.characterId);
+    // The pack stamp lands through the REAL settings write — the door every future pack bump migrates through.
+    expect(settings.config.onboarding.defaultCharactersPackVersion).toBe(CARD_PACK_VERSION);
+  });
+
+  test("the pack stamp round-trips: a library rolled back to v0 is re-migrated, not re-seeded", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: "owner" });
+    const actor = principal(owner);
+    const first = await buildGraph(db);
+    await first.characterSeeder.ensureSeeded(actor);
+
+    // Roll the STAMP back (the latch stays set) — the pre-v2-install shape, written through the real seam.
+    await first.services.settings.updateUserSettingsSection({
+      principal: actor,
+      input: { section: "onboarding", patch: { defaultCharactersPackVersion: 0 } },
+    });
+
+    // A cold graph (fresh in-process memo) must read that stamp back and run the migration, not the seed.
+    const second = await buildGraph(db);
+    await second.characterSeeder.ensureSeeded(actor);
+
+    const list = await second.services.character.list({ principal: actor });
+    expect(list.items).toHaveLength(DEFAULT_CHARACTER_CARDS.length); // no duplicate pack
+    const settings = await second.services.settings.getUserSettings({ principal: actor });
+    expect(settings.config.onboarding.defaultCharactersPackVersion).toBe(CARD_PACK_VERSION);
   });
 
   test("markSeeded never clobbers an explicit welcome-assistant pick", async () => {

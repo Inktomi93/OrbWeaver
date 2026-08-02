@@ -631,6 +631,15 @@ const onboardingSchema = z
     // dead-field precedent. A stored blob's stale `personaWizardSeen` is stripped by zod (unknown key); the
     // sibling seeded-flags below are consumed (character seeder + boot seed-default-persona).
     defaultCharactersSeeded: z.boolean().catch(false).default(false),
+    // The default-card PACK VERSION this library was last seeded or migrated to (`CARD_PACK_VERSION` in
+    // `domain/character/seeder/cards.ts`). A version stamp rather than a second boolean so every future pack
+    // bump reuses ONE door: the seeder re-dresses provably-unedited seeded cards whenever this trails the
+    // shipped pack, then re-stamps. `0` is the pre-stamp cohort — either a never-seeded user (the boolean
+    // latch above is the authority there) or an install seeded under the v1 pack, which is exactly the
+    // cohort the v2 migration exists for. NEVER folded into `defaultCharactersSeeded`: that latch also
+    // encodes deletion-respect (a user who deleted the pack must not get it re-created), and the migration
+    // only ever touches rows that still exist.
+    defaultCharactersPackVersion: z.number().int().min(0).catch(0).default(0),
     defaultPersonaSeeded: z.boolean().catch(false).default(false),
     // The bundled EXAMPLE conversations (`domain/chat/seeder`) — its OWN latch, deliberately not folded into
     // `defaultCharactersSeeded`: the demo chats attach to the seeded cards, so they must be re-runnable

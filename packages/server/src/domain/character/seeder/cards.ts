@@ -11,9 +11,11 @@
 // art at entry/boot/seed-assets/avatars/<handle>.png and stamps the id — a missing file seeds art-less).
 // `greetings[0]` is NEVER `groupOnly` (the first message is always solo-eligible; contract invariant).
 //
-// RESEED: the pack reaches NEW users/installs only — an existing install has the persisted latch
-// `UserSettings.onboarding.defaultCharactersSeeded` set, and nothing here migrates it (owner's call, no
-// migration is minted by this file). The EXISTING dev/owner door is the settings section write
+// RESEED: an ALREADY-SEEDED install reaches this pack through the version stamp, not the boolean latch —
+// bumping `CARD_PACK_VERSION` below is what makes `seeder/seed.ts` run its migration on every library whose
+// `UserSettings.onboarding.defaultCharactersPackVersion` trails it. That migration creates the pack's
+// net-new cards and re-dresses a prior pack's cards ONLY while they still match `seeder/pack-v1.ts`
+// byte-for-byte; an edited card is never touched. The full-reset door still exists for dev/owner use:
 // `updateUserSettingsSection({section: "onboarding", patch: {defaultCharactersSeeded: false}})` (authed tRPC
 // `settings.updateUserSettingsSection`); note the seeder's in-process `settled` memo means a flip only takes
 // effect for a user the running process has not already seeded (restart, or a different user).
@@ -22,6 +24,12 @@ import type { CreateCharacterInput } from "@orb/contracts/character";
 import type { SeedCard } from "../contract/seeder";
 
 export const WELCOME_ASSISTANT_HANDLE = "assistant";
+
+/** The shipped pack's version, stamped on a library at `onboarding.defaultCharactersPackVersion` once it
+ *  holds this pack. BUMP IT whenever the authored cards below change in a way existing installs should
+ *  receive — that bump IS the migration trigger. `1` was the original five-card pack (shipped BEFORE the
+ *  stamp existed, so v1 libraries read `0`); `2` is this ten-card pack. */
+export const CARD_PACK_VERSION = 2;
 
 /** The pack-wide provenance/posture fields every authored card carries identically (wiring note 5 of the
  *  roster doc): app-authored, no upstream source, no dates (the seeder stamps the real row timestamps), no
