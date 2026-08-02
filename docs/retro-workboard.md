@@ -406,6 +406,21 @@ blocker was STALE (owner correction): `scripts/dev/multi-user-fixture.sh` + `mul
 memberCardVisibility clamps · D16 from-join arm · hidden-span member strip · export 404 ·
 Members-tab captures · the D122 member-persona plane live) · F6 strict-fidelity nit (leave
 unless owner cares) · regime-2 landmine (launch-day).**
+**D22 MID-RUN CORRECTION (lane, source-pinned): the multi-user FIXTURE is NOT port-isolated** —
+it reuses stack.sh's 8788/5173 verbatim (only the DB is its own; fixture.ts:24 + the script's
+own "run this INSTEAD of pnpm stack" header) — my dispatch premise was wrong. RULED arm B:
+pixels come from the e2e `local` project's OWN isolated stack (8799/5183, E2E_HARNESS) via a
+new tests/e2e/support multi-user-pixels helper; the owner's :5173 untouched. **NEW SMALL
+boarded: the snap `--contexts` / fixture port coupling** — --contexts is unusable while the
+dev stack is up (SNAP_FIXTURE_SERVER_URL read by neither fixtureStatus() nor opts.base);
+either snap grows a real port override + the fixture an offset-pair mode, or the snap header
+says honestly "requires the owner's stack down". SIDE-EYE re-check lane STOPPED early by
+owner word (barely started, nothing lost) — re-queue after the wave drains.
+**⛔ DISPATCH FREEZE (owner word, 08-03: 5h usage limit, ~20 min left): NO new agent spawns
+until the owner lifts it.** The 5 live lanes (REGEX · DANGLE · RESYNC · SM4 · D22) run out
+their course — process their READY reports (merge --no-verify on receipts, board, teardown),
+answer questions, keep the board current; NOTHING new launches. If a lane stalls mid-window,
+board its resume state rather than respawning.
 
 ## ═══ ▶▶▶ HANDOFF #3 — 2026-08-02 NIGHT (SESSION-END; the ONE current block. Owner is
 ## swapping accounts — the resuming orchestrator has NO conversation memory; this block +
