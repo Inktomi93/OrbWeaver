@@ -4,7 +4,7 @@
 // on the pure mock harness in auth-routes.test.ts. Determinism: the throttle window is pinned via `now`.
 
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
-import type { UserId } from "@orb/kit/ids";
+import type { SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuthRoutesDeps, AuthSessionsPort, LocalAuthenticator } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
@@ -25,7 +25,8 @@ const connEnv = (addr: string): { incoming: { socket: { remoteAddress: string; r
 
 function sessionsStub(over: Partial<AuthSessionsPort> = {}): AuthSessionsPort {
   return {
-    create: (): Promise<{ token: string; expiresAt: number }> => Promise.resolve({ token: "tok-123", expiresAt: NOW + THIRTY_DAYS_MS }),
+    create: (): Promise<{ token: SessionToken; expiresAt: number }> =>
+      Promise.resolve({ token: castId<SessionToken>("tok-123"), expiresAt: NOW + THIRTY_DAYS_MS }),
     revokeByToken: (): Promise<void> => Promise.resolve(),
     provisionIdentity: (
       _identity: ResolvedIdentity,

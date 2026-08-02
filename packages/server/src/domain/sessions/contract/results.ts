@@ -3,12 +3,13 @@
 // `UserId`. None is a `Principal` itself — the seam adds `via` and mints it.
 
 import type { UserRole } from "@orb/contracts/identity";
-import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
+import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 
 /** `create` output: the raw token (returned ONCE — never stored; the route sets it as the cookie), the
- *  row id, and the 30-day expiry. */
+ *  row id, and the 30-day expiry. `token` is the branded `SessionToken` (the opaque cookie VALUE), never
+ *  the `SessionId` row id — the brand is what keeps those two from being swapped at the cookie write. */
 export interface CreateSessionResult {
-  token: string;
+  token: SessionToken;
   sessionId: SessionId;
   expiresAt: number;
 }

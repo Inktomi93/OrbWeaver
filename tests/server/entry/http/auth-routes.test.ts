@@ -8,7 +8,7 @@
 
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import type { SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuthRoutesDeps, AuthSessionsPort, LocalAuthenticator, OidcClaimMap, OidcRoutesDeps } from "@orb/server/entry/http";
 import { deriveRedirectUri, identityFromClaims, registerAuthRoutes, serializeClearedSessionCookie, serializeSessionCookie } from "@orb/server/entry/http";
@@ -113,12 +113,12 @@ function recordingSessions(): SessionRecorder {
     createdUa: undefined,
     revoked: null,
     sessions: {
-      create: (p): Promise<{ token: string; expiresAt: number }> => {
+      create: (p): Promise<{ token: SessionToken; expiresAt: number }> => {
         rec.createdFor = p.userId;
         rec.createdUa = p.userAgent;
-        return Promise.resolve({ token: "tok-123", expiresAt: NOW + THIRTY_DAYS_MS });
+        return Promise.resolve({ token: castId<SessionToken>("tok-123"), expiresAt: NOW + THIRTY_DAYS_MS });
       },
-      revokeByToken: (token: string): Promise<void> => {
+      revokeByToken: (token: SessionToken): Promise<void> => {
         rec.revoked = token;
         return Promise.resolve();
       },
@@ -138,7 +138,7 @@ function recordingSessions(): SessionRecorder {
 
 describe("cookie I/O", () => {
   test("serializeSessionCookie carries the full __Host- policy + Max-Age", () => {
-    const cookie = serializeSessionCookie("tok-123", THIRTY_DAYS_MS / 1000);
+    const cookie = serializeSessionCookie(castId<SessionToken>("tok-123"), THIRTY_DAYS_MS / 1000);
     expect(cookie).toContain(`${COOKIE}=tok-123`);
     expect(cookie).toContain("Max-Age=2592000");
     expect(cookie).toContain("Path=/");

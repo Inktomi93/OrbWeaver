@@ -1,6 +1,6 @@
 import type { Db } from "@orb/db";
 import { auditLogs, users } from "@orb/db";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { eq } from "drizzle-orm";
@@ -43,7 +43,9 @@ describe("sessions.revokeByToken (logout)", () => {
   });
 
   test("an unknown token is a no-op (no audit)", async () => {
-    await svc.revokeByToken("nope");
+    // The cast is what a forged cookie looks like AFTER the entry-tier brand: shaped like a token, matches
+    // no `token_hash` row. The brand records provenance; the hash lookup is the authenticity gate.
+    await svc.revokeByToken(castId<SessionToken>("nope"));
     expect(await logoutAudits()).toBe(0);
   });
 });
