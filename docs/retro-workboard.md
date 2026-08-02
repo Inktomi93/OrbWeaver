@@ -114,7 +114,39 @@ must FOLLOW a per-element Release UI — flagged, not skipped) · e2e dismissAct
 (knip-red, unverifiable from lane). DEFERRED→R2: panel dismiss affordance (Known-characters
 disclosure is its home) · member-own-volatile doorway noted in patch-actor.ts header · @live
 rpg-lite-loop pass owed next stack window (SPEC 1 now drives patchActor). Lesson banked:
-[[op-shaped-hand-door-write-seam]]. **R2+R3 REPORTED — STICKLER PRE-MERGE PASS IN FLIGHT (merge waits on its verdict).** Lane
+[[op-shaped-hand-door-write-seam]]. ~~R2+R3~~ **MERGED (hooked 12/12 green; 70 files; worktree down) — THE ACTOR-STATE PROGRAM
+R1-R3 IS COMPLETE ON MAIN.** All six stickler findings fixed red-first before merge (`c39e5811`):
+F1 took the GOOD arm (compose wired THROUGH actorCarrier — §1.4 drift dissolved in code) · F2
+presenceName→actorLabel + the reminderAbsent lens + roster-carrier probes (2 unit + 2 suite reds
+on revert) · F3 SPEC 5 re-keyed + full e2e op-literal sweep (7 live members, 0 retired) · F4
+castKey slug refine at the contract (5 refusal pins; toJSONSchema untouched verified) · F5
+isPartyActor gates the purse note · F6 stub/comments. 719 battery + 74 CT + knip EXIT=0 in-lane.
+**DEV DB RE-MINT: stack restart issued post-merge** (V2's baseline squash + the blob reshape both
+require it; old actorState blobs would SILENTLY ZERO, not throw — N1 corrected). REMAINING in
+the program: R4 promotion doorway (parked, not this wave) · @live rpg-lite-loop pass on the next
+stack window (SPEC 2/5 now drive identity/tracker ops) · combined rpg side-eye incl. the
+NPC-only-game band question + the Known-characters disclosure + CastCard mood-wrap nit. FLAGGED
+stale probe artifacts (hpDelta in run-coverage.mjs/native-wire-probe.mjs/real-cheap-toolround
+.json — already stale at merge-base with 13 pre-existing retired symbols): OWNER CALL whether
+probe corpora are maintained or archived. Stickler report:
+docs/reviews/stickler/2026-08-02-r2r3-premerge.md. F1 knip-red (actorCarrier gains its
+compose consumer — the ONE-derivation claim becomes literal; offstageLine de-export) · F2
+SCENE-OPENS leaks `character:chr_…` raw keys into the PROMPT (roster identity-less post-reshape;
++ the missing roster-carrier first-snapshot reachability probe) · F3 stale setHp op in the @live
+SPEC 5 (invisible to tsc — loose-typed e2e helper; + literal sweep for retired ops) · F4 RULED:
+castKey slug refine AT THE CONTRACT (purity trade judged false) · F5 PurseLine cast-subject
+carried-note incoherence · F6 stub-shape hygiene. All 3 lane spec-contradictions VERIFIED TRUE;
+all judgment calls sound; mirror pins tightened-not-loosened; N1: old actorState blobs are
+silently ZEROED not thrown (wipe still required — the framing corrected). LESSONS: reachability
+matrix needs a roster carrier on every first-snapshot-arm probe · retired op-union members need
+a literal tests/e2e/** sweep (loose-typed helpers invisible to every type gate). STICKLER
+UNCONFIRMED SUSPICIONS boarded (report §3 tail, not findings): (a) trackerOrbs picks "first
+actor with state" roster∪cast — on an NPC-only game the BAND may render HER pinned meters where
+pre-R2 it rendered none (plausibly desirable; → the combined rpg side-eye checks the band on an
+NPC-only game) · (b) a hand editSnapshot presence IMAGE racing a model flush wholesale-replaces
+the presence list — the stale-image class survives in MINIATURE on the presence plane (client
+ships no presence-image writer today; dies whenever R1's trailing presence image-exit lands —
+the program already contemplates it, §5 R1 "image-exit can trail"). Lane
 branch `wt/agent-ab0c8130e32fd8c95` (2 commits, tree clean): NPC IS an actor (identity on the
 actor row, slug keys, emptyActorEntry births cast identity); presence = plane; cast* projections
 DEAD (one actorCarrier derivation both consumers); hp DEMOTED (§6 all 8 sites ✓; seed by
@@ -208,6 +240,14 @@ isError `9e58c49d` — audit-lists-are-snapshots bit at BATCH granularity; queue
 below). **MERGED (hooked, 12/12 green; worktree torn down)** — the parked test-presence-client
 red was cleared by the warm lane (`97f06b32`: mirror CT at tests/client/data/, four real arms
 incl. missing-key→true [pins the !== false spelling] and failed-read→degrade-to-default).
+**+ ICON-SEAL LUCIDE-LEVERAGE LANE (owner-ordered 08-02):** extend the @orb/ui Icon seal so
+client controls OUTLINE WEIGHT / FILL / PARTIAL FILL on any allowlisted icon with zero per-need
+minting. Posture (owner verbatim spirit): "use the fuck out of lucide" — thin curation over
+lucide 1.22.0's full native machinery (probe node_modules AS AUTHORITY + online docs/changelog
+research for the pin); hand-build only what lucide lacks (likely the partial-fill overlay, built
+FROM iconNode data); default arms byte-identical; fill-suitability per icon = tsc-enforced data
+beside the allowlist; partialFill never information-alone (tracker a11y law). ui-only scope —
+client adoption (F-06 bolt migration, tracker orbs, meter glyphs) rides later lanes.
 **+ ~~ZOD LEVERAGE AUDIT~~ DELIVERED** (report rescued to
 docs/reviews/stickler/2026-08-02-zod-leverage-audit.md, 412 lines; worktree down). **VERDICT: NOT
 lazy** — settings prefault/catch self-heal, per-boundary strict/loose posture, and the
