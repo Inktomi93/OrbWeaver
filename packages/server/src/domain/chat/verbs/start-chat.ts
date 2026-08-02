@@ -285,6 +285,9 @@ async function runGeneratedOpening(
     model: connection.model,
     anchorPersonaId: args.anchorPersonaId,
     personaIds,
+    // A just-founded room's ONLY human seat is the founding host (`buildInitialRosterRows`), so the persona
+    // consent set is exactly them — and the anchor the seed chain just resolved is theirs by construction.
+    presentHumanUserIds: [hostUserId],
   });
   const assembleContext = await gatherAssembleContext(
     ctx,

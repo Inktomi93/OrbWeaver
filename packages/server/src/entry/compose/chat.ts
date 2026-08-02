@@ -68,7 +68,7 @@ import type { CredentialsService } from "#domain/credentials";
 import type { EmbeddingsService } from "#domain/embeddings";
 import type { ImageryService } from "#domain/imagery";
 import type { NotificationsService } from "#domain/notifications";
-import type { PersonaService } from "#domain/persona";
+import type { PersonaService, ResolvePersonasForRoster } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
 import type { SearchService } from "#domain/search";
 import { createTokenHasher } from "#domain/sessions";
@@ -124,6 +124,36 @@ function agentRowText(m: TurnMessage): string {
  * depth-0 system at/after the last canon assistant, so the run we find is always the injection band. Exported
  * for bridge tests only — not a composition surface.
  */
+/**
+ * THE THREE-STATE TRIGGER BINDING — which persona id prompt-config `{{user}}` (the assemble ctx's ACTIVE
+ * persona) resolves against, per `ResolveForeignInputsOp` / Chat-Macro-Resolution §3–§4. PURE; exported for
+ * its unit pin only (the `extractTrailingSystemRows` precedent — not a composition surface).
+ *
+ *   • an ID (a human triggered this turn)  → THAT human's persona ("who's speaking right now", §A.1).
+ *   • EXPLICIT null (deferred drain / auto turn — no live triggering human) → the chat ANCHOR. The anchor is
+ *     the chat-invariant identity (D51 rider); binding to `personaIds[0]` instead would address the prompt to
+ *     a presence-order-arbitrary bystander, and falling to the kit floor would address "User" in a room whose
+ *     `{{user}}` is well-defined. The drain/auto call sites have documented exactly this since they were
+ *     written (`turn.ts` — "the user macro binds to the chat anchor, not a presence-order human"); the resolver
+ *     coalesced their null away with `??` and did neither.
+ *   • ABSENT/undefined (the trigger is UNKNOWN — a host preview / a card display) → the fallback chain:
+ *     the first present human's active persona, else nothing.
+ *
+ * Returning an ID (not a resolved persona) is deliberate: the anchor arm then resolves through the SAME
+ * roster read as every other arm, so `active === anchor` is byte-identical to the anchor projection and the
+ * `sameProjectedPersona` dedup keeps holding.
+ */
+export function activePersonaIdFor(args: {
+  readonly triggerPersonaId?: PersonaId | null | undefined;
+  readonly personaIds: readonly PersonaId[];
+  readonly anchorPersonaId: PersonaId | null;
+}): PersonaId | null {
+  if (args.triggerPersonaId === undefined) {
+    return args.personaIds.at(0) ?? null;
+  }
+  return args.triggerPersonaId ?? args.anchorPersonaId;
+}
+
 export function extractTrailingSystemRows(history: readonly TurnMessage[]): { rows: readonly TurnMessage[]; systemText: string | null } {
   // Walk back past a trailing NON-system tail (the appended nudge — at most a short user run) to find the end
   // of the system band, then past the system run to its start. `[…, system, user-nudge]` → sysStart..sysEnd
@@ -218,6 +248,10 @@ export interface ChatComposeInput {
   readonly credentials: CredentialsService;
   readonly character: CharacterService;
   readonly persona: PersonaService;
+  /** The persona domain's PRINCIPAL-LESS roster op (`domain/persona/contract/ops.ts`) — the ONE room-plane
+   *  persona read the FOREIGN-inputs resolver uses. Separate from `persona` because `PersonaService` is
+   *  Principal-scoped by contract, and a room's assembly has no single Principal to read as (D106). */
+  readonly resolvePersonasForRoster: ResolvePersonasForRoster;
   readonly preset: PresetService;
   readonly settings: SettingsService;
   readonly notifications: NotificationsService;
@@ -977,41 +1011,45 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       return input.connection.checkChatAvailability({ principal: await realHostPrincipal(runAsUserId), routableChat: routable });
     },
     resolveCreatorGroupDefaults: async (userId) => (await input.settings.loadUserSettings(userId)).groupDefaults,
-    resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, personaIds, triggerPersonaId, presetOverride }) => {
+    resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, personaIds, presentHumanUserIds, triggerPersonaId, presetOverride }) => {
       const us = await input.settings.loadUserSettings(runAsUserId);
-      const principal = hostPrincipal(runAsUserId);
 
       // A feature-supplied GM-voice preset REDIRECT (rpg-design/02 §1.1 #1) wins over the host's default when it
       // resolves owned-or-system under the host; a stale/unowned override degrades to the host's normal default
       // (the lenient-id rule — never a broken turn). Absent ⇒ the host default (byte-identical to today).
       const { config: promptConfig, presetId } = await resolvePromptConfigWithOverride(runAsUserId, presetOverride, us.seeds.defaultPresetId);
 
-      // anchor = the chat-open {{user}}; active = the speaking participant's persona (first present).
-      const loadPersona = async (
-        personaId: typeof anchorPersonaId,
-      ): Promise<{
+      // THE ROOM-PLANE PERSONA READ (the multi-human widening). NOT `persona.get` under a host Principal:
+      // that owner-scoped keyhole silently nulled every NON-HOST member's persona, so a member's own turn
+      // rendered `{{user}}` as the kit floor "User" and a host-pinned member-owned anchor was a dead pin —
+      // both violating FINAL-Persona §A.1 in exactly the multi-human room the D16/D18 spine exists for. The
+      // persona domain's principal-less roster op resolves the room's ids in ONE gated read; chat supplies
+      // the consent set (its PRESENT humans), so a departed member's persona resolves to nothing.
+      const activePersonaId = activePersonaIdFor({ triggerPersonaId, personaIds, anchorPersonaId });
+      const roster = await input.resolvePersonasForRoster({
+        personaIds: [anchorPersonaId, activePersonaId].flatMap((id) => (id === null ? [] : [id])),
+        allowedOwnerIds: presentHumanUserIds,
+      });
+      const projectPersona = (
+        personaId: PersonaId | null,
+      ): {
         name: string;
         description: string;
         placement: PersonaDescriptionPlacement;
-      } | null> => {
-        if (personaId === null) {
-          return null;
-        }
-        try {
-          const p = await input.persona.get({ principal, personaId });
-          return {
-            name: p.name,
-            description: p.description,
-            placement: resolvePersonaDescriptionPlacement(p.metadata),
-          };
-        } catch {
-          return null;
-        }
+      } | null => {
+        const p = personaId === null ? undefined : roster.get(personaId);
+        return p === undefined
+          ? null
+          : {
+              name: p.name,
+              description: p.description,
+              placement: resolvePersonaDescriptionPlacement(p.metadata),
+            };
       };
-      const anchor = await loadPersona(anchorPersonaId);
-      // The triggering human's persona (not personaIds[0], the presence-order-arbitrary first present
-      // human) — so prompt-config {{user}} is the speaker's own persona in a multi-human room.
-      const active = await loadPersona(triggerPersonaId ?? personaIds.at(0) ?? null);
+      // anchor = the chat-open {{user}} (card-derived sections); active = prompt-config {{user}}, bound by
+      // the three-state trigger contract above.
+      const anchor = projectPersona(anchorPersonaId);
+      const active = projectPersona(activePersonaId);
 
       const memoryConfig = withMemoryOptOut(us.memory.enabled === false, input.settings.getEffectiveConfig().memoryDefaults);
 
