@@ -31,6 +31,18 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 PUSH NEEDS ITS OWN WORD). Six-lane cap stands (owner). Board-only commits = `--no-verify`
 (owner word). Dev db DROPS on next stack boot (DBG baseline regen) — expected, reseeds via latch.
 
+**FINAL-7% DISPATCH (owner: "dispatch until you run out") — SIX LIVE NOW:** RETRO (gate
+retrofit, has GDOC's baseline loop) · HEAL (handoff heals) · **PERSONA stickler** (the
+consolidated design pass: multi-human resolution + pin/anchor integration + forced-first-run
+w/ the dev/harness constraint + ST comparison) · **PRIN** (principal-flow gate: 3 arms on the
+census, ReapAssetsOp verdict inside) · **CERD** (DRAFTS the ceremony doc set: close-out D-entry
+w/ all six riders' text + the permissions-model page + rail-list refresh — successor REVIEWS
+then lands; graduation verifier + history moves stay orchestrator steps) · **CHAIN**
+(declaration-granular liveness edge [byte-identical-liveness guard mandatory — it sits under
+the push ratchet] + pnpm ast chains fixpoint + first audit). **verify:push FIRED in background
+(owner: "see what the carnage is")** — output at the task file; expect POSSIBLE contention
+flakes from six lanes' verification phases (the paid-for law: re-run suspicious reds isolated
+before believing them; the tree was hook-green at every merge today).
 **LIVE LANES (4, resumable via task notifications — process each per the THREE MERGE LAWS:
 --no-ff merge → verify separately → teardown separately; format-drift reds get fixed in the
 staged merge, scoped biome only):**
