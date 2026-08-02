@@ -100,9 +100,19 @@ don't write memory yourself.
 - **Verification floor** (scoped green is NOT done): your suites + scoped tsc + biome/eslint PLUS
   `pnpm check:structure` (test-file rules — test-layout mirror, ct-no-oneshot, no-test-fabrication,
   testid-typed — are invisible to every source-scoped tool) PLUS whole-tree `npx knip --cache`
-  (last-importer removals) PLUS `pnpm typecheck:graph` when you touched anything under tests/.
+  (last-importer removals) PLUS `npx depcruise packages --config .dependency-cruiser.cjs` whenever
+  you added/moved a FILE or changed any import path (layer/subsystem-mediation rules are whole-graph —
+  a scoped floor missed a verbs→named-subsystem edge once, 08-03) PLUS `pnpm typecheck:graph` when
+  you touched anything under tests/.
 - Red-first proofs compile against the OLD source and assert user-visible affordances (see the executor
   def for the cp/git-show mechanism). Worktree Bash rejects compound commands — script to scratchpad,
   run by absolute path.
 - You can SendMessage the orchestrator MID-RUN: ask on ruled-territory forks and keep working elsewhere;
   never improvise on rulings, never stall silently.
+- **Test-seam convention:** a test-only export is self-identifying — `__reset<Noun>` when it resets
+  state, `__<verb>ForTest` otherwise. Read the spelling off the existing code before minting a third.
+  A pure model helper that tests happen to exercise is NOT a seam — don't rename it into a lie.
+- **A dynamic seam ships with its lens:** a seam the language service cannot see — a string-keyed
+  lookup, a registry entry, a devtools action label, a test title — ships with the literal sweep (or
+  lens arm) that finds it. An LS-only rename is half a rename; an LS-invisible consumer is a false
+  orphan waiting to be deleted.
