@@ -14,6 +14,7 @@
 // re-derives carriage and drifts from the write surface the model was handed.
 
 import type {
+  RpgActorEntry,
   RpgActorRef,
   RpgActorView,
   RpgActorVolatile,
@@ -45,7 +46,7 @@ function keepLastBeats(beats: readonly string[], keepLast: number): readonly str
 
 /** The default sheet a roster actor with no row renders (§4.3 — a missing row = the default sheet). */
 function defaultSheet(): RpgSheet {
-  return { className: "", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] };
+  return { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] };
 }
 
 /** The `RpgActorRef` a sheet row addresses (character XOR user; the XOR is DB-enforced). */
@@ -59,16 +60,23 @@ function sheetRef(row: { characterId: CharacterId | null; userId: UserId | null 
   return null;
 }
 
-/** The carrier record for a ROSTER actor: `party` class, carrying its sheet's grants/revokes. */
-function rosterCarrier(entry: { actorRef: RpgActorRef; name: string }, sheet: RpgSheet): RpgTrackerCarrier {
-  return { actorKey: actorRefKey(entry.actorRef), name: entry.name, kind: "party", grants: sheet.trackerGrants, revokes: sheet.trackerRevokes };
-}
-
-/** The carrier record for a SCENE-CAST member: `npcs` class, no sheet (a cast NPC has no `rpg_sheets` row —
- *  its exceptions are reachable through an explicit `appliesTo` list on the def, which is the honest home for
- *  a one-off NPC field: the def, not a row the NPC doesn't have). */
-function castCarrier(key: string, name: string): RpgTrackerCarrier {
-  return { actorKey: `cast:${key}`, name, kind: "npcs", grants: [], revokes: [] };
+/** THE carrier record for ANY actor (R2) — the ONE derivation of "what class is this person, and what are
+ *  their exceptions". `kind` comes off `actorRef.kind`, so the classes partition PEOPLE, not rows. That is the
+ *  §1.4 read/write drift fix and it is structural: the view used to classify by which PLANE a row sat on, so a
+ *  roster character standing in the scene was BOTH a `party` carrier (to the write surface, which deduped by
+ *  name, roster first) and an `npcs` one (to the reminder and Scene tab, which walked the cast rows). A
+ *  `trust(appliesTo:"npcs")` def was therefore taught on her line and offered on nobody's — the exact
+ *  reminder-is-knowledge / tools-are-permissions drift the file header calls impossible. A cast actor carries
+ *  no sheet, so its exceptions are empty (a one-off NPC field homes on the def's explicit `appliesTo` list —
+ *  the honest home, not a row the NPC doesn't have). */
+export function actorCarrier(ref: RpgActorRef, name: string, sheet: RpgSheet | undefined): RpgTrackerCarrier {
+  return {
+    actorKey: actorRefKey(ref),
+    name,
+    kind: ref.kind === "cast" ? "npcs" : "party",
+    grants: sheet?.trackerGrants ?? [],
+    revokes: sheet?.trackerRevokes ?? [],
+  };
 }
 
 /** Pair a carrier's trackers with their readings off a volatile row's `trackerValues`. */
@@ -76,29 +84,36 @@ function trackerEntries(defs: readonly RpgTrackerDef[], values: RpgActorVolatile
   return defs.map((def) => ({ def, value: values?.[def.key] ?? null }));
 }
 
-/** Project one roster actor onto the tracker view: its sheet (row or default), its volatile state (from the
+/** Project ONE actor onto the tracker view (R2 — roster and cast through the same function): its sheet (row or
+ *  default), its identity half (cast only), whether it stands in the scene, its volatile state (from the
  *  resolved snapshot's `actorState`, keyed by `actorRefKey`, or null), and the trackers it carries. */
-function actorView(
-  entry: { actorRef: RpgActorRef; name: string; avatar?: string },
-  sheet: RpgSheet,
-  volatile: RpgActorVolatile | null,
-  trackers: readonly RpgTrackerDef[],
-): RpgActorView {
+function actorView(args: {
+  actorRef: RpgActorRef;
+  name: string;
+  avatar?: string | undefined;
+  presence: boolean;
+  identity: RpgActorView["identity"];
+  sheet: RpgSheet;
+  volatile: RpgActorVolatile | null;
+  trackers: readonly RpgTrackerDef[];
+}): RpgActorView {
+  const { sheet } = args;
   return {
-    actorRef: entry.actorRef,
-    name: entry.name,
-    ...(entry.avatar !== undefined ? { avatar: entry.avatar } : {}),
+    actorRef: args.actorRef,
+    name: args.name,
+    ...(args.avatar !== undefined ? { avatar: args.avatar } : {}),
+    presence: args.presence,
+    identity: args.identity,
     sheet: {
       className: sheet.className,
       attributes: sheet.attributes,
-      maxHp: sheet.maxHp,
       flavor: sheet.flavor,
       level: sheet.level,
       trackerGrants: sheet.trackerGrants,
       trackerRevokes: sheet.trackerRevokes,
     },
-    volatile,
-    trackers,
+    volatile: args.volatile,
+    trackers: args.trackers,
   };
 }
 
@@ -156,29 +171,49 @@ export async function buildTrackerView(ctx: RpgContext, game: RpgGameRow, tracke
       sheetByKey.set(actorRefKey(ref), row.sheet);
     }
   }
-  const volatileByKey = new Map<string, RpgActorVolatile>();
+  const entryByKey = new Map<string, RpgActorEntry>();
   for (const v of state.actorState) {
-    volatileByKey.set(actorRefKey(v.actorRef), v);
+    entryByKey.set(actorRefKey(v.actorRef), v);
   }
+  const present = new Set(state.presentCharacters);
 
-  const actors = roster.map((r) => {
+  // EVERY actor, ONE shape (R2): the chat roster first (in roster order — the Party is the stable spine), then
+  // every TRACKED CAST actor the roster does not already cover, present or offstage. The offstage half is the
+  // whole point: those rows existed before and were projected NOWHERE, so a departed NPC's retained state was
+  // invisible to the host and unreachable by any gesture.
+  const rosterActors = roster.map((r) => {
     const key = actorRefKey(r.actorRef);
     const sheet = sheetByKey.get(key) ?? defaultSheet();
-    return actorView(r, sheet, volatileByKey.get(key) ?? null, trackersForCarrier(defs, rosterCarrier(r, sheet)));
+    return actorView({
+      actorRef: r.actorRef,
+      name: r.name,
+      avatar: r.avatar,
+      presence: present.has(key),
+      identity: null,
+      sheet,
+      volatile: entryByKey.get(key)?.volatile ?? null,
+      trackers: trackersForCarrier(defs, actorCarrier(r.actorRef, r.name, sheet)),
+    });
   });
-  // The scene cast: each present member's carried trackers paired with the readings on its `cast:<key>`
-  // volatile row (the SAME actorState plane roster members use — one value home, D108 ruling #2), plus that
-  // WHOLE row beside them. `update_party`/`update_inventory` write hp/status/conditions/inventory/wallet onto a
-  // cast target exactly as they do onto a roster one, and none of it has a home on `RpgPresentCharacter` — so
-  // projecting anything less than the row is precisely how a written-but-unreadable plane comes back.
-  const castTrackers: Record<string, readonly RpgTrackerEntry[]> = {};
-  const castVolatile: Record<string, RpgActorVolatile | null> = {};
-  for (const c of state.presentCharacters) {
-    const carried = trackersForCarrier(defs, castCarrier(c.key, c.name));
-    const volatileRow = volatileByKey.get(`cast:${c.key}`);
-    castTrackers[c.key] = trackerEntries(carried, volatileRow?.trackerValues);
-    castVolatile[c.key] = volatileRow ?? null;
-  }
+  const rosterKeys = new Set(rosterActors.map((a) => actorRefKey(a.actorRef)));
+  const castActors = state.actorState
+    .filter((entry) => entry.actorRef.kind === "cast" && !rosterKeys.has(actorRefKey(entry.actorRef)))
+    .map((entry) => {
+      const key = actorRefKey(entry.actorRef);
+      // A cast actor's DISPLAY name is its identity's; the slug key is the fallback for a row that predates an
+      // identity write (a party/inventory tool call can mint a tracked actor before any `presentUpsert` does).
+      const name = entry.identity?.name ?? (entry.actorRef.kind === "cast" ? entry.actorRef.castKey : key);
+      return actorView({
+        actorRef: entry.actorRef,
+        name,
+        presence: present.has(key),
+        identity: entry.identity ?? null,
+        sheet: defaultSheet(),
+        volatile: entry.volatile,
+        trackers: trackersForCarrier(defs, actorCarrier(entry.actorRef, name, undefined)),
+      });
+    });
+  const actors = [...rosterActors, ...castActors];
   const gameEntries: RpgTrackerEntry[] = gameTrackers(defs).map((def) => ({ def, value: state.trackerValues[def.key] ?? null }));
   const quests: RpgQuestView[] = state.quests.map((q) => ({ id: q.id, name: q.name, status: q.status, description: q.description, objectives: q.objectives }));
 
@@ -187,8 +222,6 @@ export async function buildTrackerView(ctx: RpgContext, game: RpgGameRow, tracke
     actors,
     cast: state.presentCharacters,
     trackerDefs: defs,
-    castTrackers,
-    castVolatile,
     gameTrackers: gameEntries,
     quests,
     // The P5 snapshot-resident plot plane (act rail) — swipe-consistent like every plane here; null until

@@ -5,11 +5,11 @@
 // resolved-current snapshot, so a swipe re-resolves everything at once (the owner's ratification demand).
 
 import type { ChatId, RpgGameId } from "@orb/kit/ids";
-import type { RpgActorRef, RpgActorVolatile } from "./actor";
+import type { RpgActorIdentity, RpgActorRef, RpgActorVolatile } from "./actor";
 import type { RpgClockTime, RpgWeather } from "./ambient";
 import type { RpgDeliveryPath, RpgFoldFallbackReason, RpgGameConfig } from "./config";
 import type { RpgGameMode, RpgGameStatus } from "./enums";
-import type { RpgPlot, RpgPresentCharacter } from "./snapshot";
+import type { RpgPlot } from "./snapshot";
 import type { RpgTrackerDef, RpgTrackerValue } from "./tracker";
 
 /** EFF-3 — the EFFECTIVE state delivery for this room, as opposed to the `extractionMode` KNOB that asked for
@@ -73,16 +73,30 @@ export interface RpgGameView {
   };
 }
 
-/** An actor row in the tracker view — roster ∪ sheets projection (§4.3). A participant without a sheet row
- *  renders the DEFAULT sheet; `volatile` is null until a snapshot carries this actor's state. */
+/** An actor row in the tracker view — the ONE actor shape, for EVERY actor (R2): roster ∪ sheets ∪ every
+ *  tracked `cast` NPC, on stage or off. A participant without a sheet row renders the DEFAULT sheet;
+ *  `volatile` is null until a snapshot carries this actor's state.
+ *
+ *  It replaced THREE bolted-on cast projections (`castVolatile` · `castTrackers` · the `cast` identity array).
+ *  Those existed because the NPC was not an actor in the view model, and the split was load-bearing for two
+ *  measured defect classes: a cast NPC's model-written hp/status/conditions/inventory/wallet rendered in NO
+ *  client surface (`castVolatile` had zero consumers), and carrier CLASSES partitioned ROWS rather than PEOPLE,
+ *  so a roster character standing in the scene was taught an `npcs`-classed tracker the write surface never
+ *  offered her. Both are unrepresentable now: one row per person, and `carrierKind` derives from
+ *  `actorRef.kind`. */
 export interface RpgActorView {
   readonly actorRef: RpgActorRef;
   readonly name: string;
   readonly avatar?: string;
+  /** Does this actor stand in the scene RIGHT NOW (the presence plane)? An offstage actor keeps every other
+   *  field on this row — that IS the R2 retention guarantee, and the panel's "Known characters" disclosure. */
+  readonly presence: boolean;
+  /** The cast actor's own identity half (name/emoji/mood/relationship/guides); `null` for a roster actor,
+   *  whose identity is the chat roster's and whose standing prose is the sheet's. */
+  readonly identity: RpgActorIdentity | null;
   readonly sheet: {
     readonly className: string;
     readonly attributes: Readonly<Record<string, number>>;
-    readonly maxHp: number | null;
     /** The sheet's free FLAVOR prose (RV-11) — written through `patchSheet` and, until the takeover grew a
      *  gloss line for it, projected to no reader at all. `""` = nothing written (the line is omitted). */
     readonly flavor: string;
@@ -137,25 +151,15 @@ export interface RpgTrackerView {
     readonly clock: RpgClockTime | null;
     readonly weather: RpgWeather | null;
   } | null;
+  /** EVERY actor — roster ∪ tracked cast, present and offstage — in ONE shape (R2). */
   readonly actors: readonly RpgActorView[];
-  readonly cast: readonly RpgPresentCharacter[];
+  /** The presence echo: the `actorRefKey`s standing in the scene, in presence order. A THIN derivation of
+   *  `actors[].presence`, carried so a consumer that only needs "who is on stage" (the scene card order, the
+   *  CEL feed) does not re-filter — never a second identity home. */
+  readonly cast: readonly string[];
   /** The whole game's tracker DEFS (`config.trackers`) — the ONE def home, surfaced once so every consumer
    *  (roster rows, scene cast rows, the band, the editor) reads the same list instead of four shapes. */
   readonly trackerDefs: readonly RpgTrackerDef[];
-  /** Per scene-cast member (by cast `key`), the trackers that member carries paired with its readings —
-   *  resolved server-side through the ONE carrier predicate, so the Scene tab never re-derives carriage. */
-  readonly castTrackers: Readonly<Record<string, readonly RpgTrackerEntry[]>>;
-  /** Per scene-cast member (by cast `key`), that member's WHOLE `cast:<key>` volatile row — the SAME per-actor
-   *  plane a roster member's `volatile` carries (one value home, D108 #2), `null` until a snapshot writes one.
-   *  Projected SEPARATELY because `cast` is the scene-IDENTITY row (`RpgPresentCharacter`:
-   *  name/mood/relationship/guides) and carries no volatile plane at all.
-   *
-   *  THE WHOLE ROW, not a hand-picked slice (the reachability suite's finding): `update_party` /
-   *  `update_inventory` write hp, status, conditions, inventory and wallet onto a cast NPC exactly as they do
-   *  onto a roster member, and every one of those except `conditions` used to reach NO reader — an NPC the tool
-   *  round had just robbed, wounded or poisoned was invisible to the very turn that had to play it. A slice is
-   *  how that gap comes back; the row is what the panel and the reminder both read. */
-  readonly castVolatile: Readonly<Record<string, RpgActorVolatile | null>>;
   /** The GAME-subject trackers (the retired custom widgets) paired with their snapshot readings. */
   readonly gameTrackers: readonly RpgTrackerEntry[];
   readonly quests: readonly RpgQuestView[];

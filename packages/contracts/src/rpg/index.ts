@@ -5,9 +5,10 @@
 //   • mode.ts     — the `MODE_POLICY` exhaustive record + the mode capability axis (§2.2)
 //   • profile.ts  — `statProfile` as data + the three packaged profiles (§2.3)
 //   • sheet.ts    — the per-actor identity sheet (§4.3)
-//   • actor.ts    — the actor ref + `actorRefKey` + per-actor volatile (wallet/inventory first-class, §2.6)
+//   • actor.ts    — THE actor: ref + `actorRefKey` + the cast SLUG + the identity half + the volatile half
+//                   (wallet/inventory first-class, §2.6; the R2 one-row reshape)
 //   • ambient.ts  — clock/weather/time-of-day, engine-shaped, born nullable (§2.7)
-//   • snapshot.ts — quest/objective/present-character + the swipe-volatile snapshot state (§2.4-2.5)
+//   • snapshot.ts — quest/objective/plot/presence + the swipe-volatile snapshot state (§2.4-2.5)
 //   • tracker.ts  — THE unified tracked-field def + value + carrier resolution + the R6 write surface
 //                   (`docs/design/tracked-field-unification.md`; replaces pools/cast-fields/orbs/widgets)
 //   • config.ts   — the `rpg_games.config` blob (statProfile + lite dials, §4.1)

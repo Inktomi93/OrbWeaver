@@ -26,24 +26,35 @@
 // the prose the vocabulary split exists to collapse. The tracker HINT still reaches a preset author through
 // `{{rpgDelta}}` (the delta line glosses each reading).
 
-import type { RpgDateMode, RpgPresentCharacter, RpgQuestView, RpgSnapshotState, RpgStatProfile, RpgTrackerView } from "@orb/contracts/rpg";
+import type { RpgActorView, RpgDateMode, RpgQuestView, RpgSnapshotState, RpgStatProfile, RpgTrackerView } from "@orb/contracts/rpg";
 import type { CelValue } from "@orb/kit/cel";
 import type { DeltaContext } from "../contract/delta";
 import type { RpgMacroFeed } from "../contract/params";
 import { buildDeltaBlock } from "../substrate/delta";
-import { actorLine, ambientLine, castHeader, castLine, gameTrackerLine, plotLine, questLine } from "../substrate/reminder";
+import { actorLine, ambientLine, castHeader, gameTrackerLine, plotLine, questLine } from "../substrate/reminder";
 
-/** The `Present:` block both string macros carry — the guide-teaching header + one whole {@link castLine} per
+/** The scene-cast actors, in the reminder's own partition (R2): cast-kind actors who stand on stage. */
+function onStage(view: RpgTrackerView): readonly RpgActorView[] {
+  return view.actors.filter((a) => a.actorRef.kind === "cast" && a.presence);
+}
+
+/** The `Present:` block both string macros carry — the guide-teaching header + one whole {@link actorLine} per
  *  member (identity · carried trackers · the volatile plane · the standing guides). */
-function castBlock(view: RpgTrackerView, relationshipHints: Readonly<Record<string, string>>): string[] {
-  return [castHeader(view.cast), ...view.cast.map((c) => castLine(c, view.castTrackers[c.key] ?? [], view.castVolatile[c.key] ?? null, relationshipHints))];
+function castBlock(view: RpgTrackerView, statProfile: RpgStatProfile, relationshipHints: Readonly<Record<string, string>>): string[] {
+  const cast = onStage(view);
+  return [castHeader(cast), ...cast.map((a) => actorLine(a, statProfile.attributes, relationshipHints))];
 }
 
 /** `{{rpgSceneState}}` — the scene the world is in: ambient · plot · present cast · the GAME-subject tracker
  *  readings (which belong to no actor, so they fall through the party/cast split unless this block carries
  *  them) · recent beats. The party sheets are `{{rpgCast}}`'s job. Empty planes are omitted; a wholly-empty
  *  scene returns "". */
-function sceneStateString(view: RpgTrackerView, dateMode: RpgDateMode, relationshipHints: Readonly<Record<string, string>>): string {
+function sceneStateString(
+  view: RpgTrackerView,
+  dateMode: RpgDateMode,
+  statProfile: RpgStatProfile,
+  relationshipHints: Readonly<Record<string, string>>,
+): string {
   const lines: string[] = [];
   if (view.ambient !== null) {
     const ambient = ambientLine(view.ambient, dateMode);
@@ -56,7 +67,7 @@ function sceneStateString(view: RpgTrackerView, dateMode: RpgDateMode, relations
     lines.push(`Story: ${plotLine(view.plot)}`);
   }
   if (view.cast.length > 0) {
-    lines.push(...castBlock(view, relationshipHints));
+    lines.push(...castBlock(view, statProfile, relationshipHints));
   }
   if (view.gameTrackers.length > 0) {
     lines.push("Game trackers:", ...view.gameTrackers.map(gameTrackerLine));
@@ -72,11 +83,13 @@ function sceneStateString(view: RpgTrackerView, dateMode: RpgDateMode, relations
  *  panel's Party + Present tabs render. */
 function castString(view: RpgTrackerView, statProfile: RpgStatProfile, relationshipHints: Readonly<Record<string, string>>): string {
   const lines: string[] = [];
-  if (view.actors.length > 0) {
-    lines.push("Party:", ...view.actors.map((a) => actorLine(a, statProfile.attributes)));
+  // The same roster/cast partition the reminder makes off the one actor list (R2) — never a second rule.
+  const party = view.actors.filter((a) => a.actorRef.kind !== "cast");
+  if (party.length > 0) {
+    lines.push("Party:", ...party.map((a) => actorLine(a, statProfile.attributes, relationshipHints)));
   }
   if (view.cast.length > 0) {
-    lines.push(...castBlock(view, relationshipHints));
+    lines.push(...castBlock(view, statProfile, relationshipHints));
   }
   return lines.join("\n");
 }
@@ -101,12 +114,12 @@ function rpgCelTree(view: RpgTrackerView, deltaText: string): CelValue {
       weather: ambient?.weather !== null && ambient?.weather !== undefined ? ambient.weather.type : "",
       day: ambient?.clock !== null && ambient?.clock !== undefined ? ambient.clock.day : 0,
     },
-    cast: view.cast.map((c) => ({
-      name: c.name,
-      mood: c.mood,
+    cast: onStage(view).map((a) => ({
+      name: a.name,
+      mood: a.identity?.mood ?? "",
       // The custom `label` is the reachable relationship for a custom kind; the bare kind otherwise. So an
       // `{{expr}}` predicate reads `c.relationship == "enemy"` OR a custom `c.relationship == "vassal"` uniformly.
-      relationship: celRelationship(c),
+      relationship: celRelationship(a),
     })),
     quests: view.quests.map((q) => ({
       name: q.name,
@@ -130,11 +143,15 @@ function rpgCelTree(view: RpgTrackerView, deltaText: string): CelValue {
  *  custom kind, the bare kind token otherwise. Distinct from the reminder's `relationshipSeg` (which blanks a
  *  neutral default and glosses a custom label with its host hint, for the steering PROSE); CEL wants the literal
  *  kind so `c.relationship == "neutral"` is reachable. */
-function celRelationship(c: RpgPresentCharacter): string {
-  if (c.relationship.kind !== "custom") {
-    return c.relationship.kind;
+function celRelationship(actor: RpgActorView): string {
+  const rel = actor.identity?.relationship;
+  if (rel === undefined) {
+    return "";
   }
-  return c.relationship.label !== "" ? c.relationship.label : "custom";
+  if (rel.kind !== "custom") {
+    return rel.kind;
+  }
+  return rel.label !== "" ? rel.label : "custom";
 }
 
 /** Build the macro + CEL feed from the resolved tracker view + the delta lineage (§12). PURE — the gather resolves
@@ -159,7 +176,7 @@ export function buildRpgMacroFeed(args: {
   const hints = args.deltaContext.relationshipHints;
   return {
     macros: {
-      rpgSceneState: sceneStateString(args.view, args.dateMode, hints),
+      rpgSceneState: sceneStateString(args.view, args.dateMode, args.statProfile, hints),
       rpgCast: castString(args.view, args.statProfile, hints),
       rpgQuests: questsString(args.view.quests),
       rpgDelta: deltaText,

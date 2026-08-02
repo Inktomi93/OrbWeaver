@@ -8,8 +8,8 @@
 //
 // It is ONE gesture over THREE couplings, because half a dismissal is a ghost:
 //   • the `actorState` row — dropped (the state the review found irremovable);
-//   • the scene PRESENCE row — dropped (an NPC dismissed from the game must not still stand in the scene;
-//     `presentCharacters` is keyed by cast `key`, and a roster character joins it by `characterId`);
+//   • the scene PRESENCE entry — dropped (an NPC dismissed from the game must not still stand in the scene;
+//     since R2 presence is a flat `actorRefKey` list, so this is one filter for every actor kind);
 //   • every LOCK at or below the actor's path — released (the `deleteQuest` symmetric-lock precedent: a
 //     removed element leaves no ghost lock, or the host is left with pins on an actor that no longer exists,
 //     and a later re-mint of the same key would be born silently frozen).
@@ -37,14 +37,10 @@ export function createDismissActor(ctx: RpgContext): Pick<RpgService, "dismissAc
 
     const written = await writeHandState(ctx, game, (head) => {
       const actorState = head.state.actorState.filter((a) => actorRefKey(a.actorRef) !== targetKey);
-      // The presence half: a `cast` NPC IS its `presentCharacters` row (identity ≡ presence); a roster
-      // character standing in the scene joins that row by `characterId`. A `user` actor never has one.
-      const presentCharacters = head.state.presentCharacters.filter((c) => {
-        if (ref.kind === "cast") {
-          return c.key !== ref.castKey;
-        }
-        return ref.kind === "character" ? c.characterId !== ref.characterId : true;
-      });
+      // The presence half — since R2 the presence plane is a flat list of actor-ref KEYS, so dropping an
+      // actor's presence is the same one-key filter for every kind (roster refs included). It used to need a
+      // per-kind join because identity and presence were fused on the cast row.
+      const presentCharacters = head.state.presentCharacters.filter((key) => key !== targetKey);
       if (actorState.length === head.state.actorState.length && presentCharacters.length === head.state.presentCharacters.length) {
         return { ok: false, reason: `no actor "${targetKey}" in this game's state — nothing to dismiss` };
       }

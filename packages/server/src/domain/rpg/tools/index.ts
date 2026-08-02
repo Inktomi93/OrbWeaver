@@ -111,11 +111,9 @@ export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
           return resolved.result;
         }
         const state = await effectiveState(ctx, resolved.turn.game, resolved.turn.turnId);
-        const applied = applyUpdateParty(state, args, await rosterIndexFor(ctx, resolved.turn.game));
-        if (!applied.ok) {
-          return { ok: false, error: applied.error };
-        }
-        ctx.staging.stage(resolved.turn.turnId, applied.patch);
+        // TOTAL since R3 — the one refusal arm (`hpDelta` on a null-hp actor) left with `hp`'s demotion to an
+        // ordinary tracker, whose per-actor key enum makes the illegal write untypeable instead of refusable.
+        ctx.staging.stage(resolved.turn.turnId, applyUpdateParty(state, args, await rosterIndexFor(ctx, resolved.turn.game)));
         return { ok: true, value: { targetRef: args.targetRef } };
       },
     }),
@@ -150,7 +148,7 @@ export function rpgToolDefinitions(ctx: RpgContext): readonly ToolDefinition[] {
         const state = await effectiveState(ctx, resolved.turn.game, resolved.turn.turnId);
         // ScenePatch is a named partial (no index signature) — cast to the [merge-clear] patch shape the
         // accumulator overlays (the staging.ts domain-internal cast pattern).
-        ctx.staging.stage(resolved.turn.turnId, { ...applyUpdateScene(state, args) });
+        ctx.staging.stage(resolved.turn.turnId, { ...applyUpdateScene(state, args, await rosterIndexFor(ctx, resolved.turn.game)) });
         return { ok: true, value: {} };
       },
     }),

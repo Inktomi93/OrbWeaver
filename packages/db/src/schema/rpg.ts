@@ -16,18 +16,7 @@
 // model entries stamp their producing `variantId` (CASCADE — a deleted swipe deletes its entries), hand
 // entries stamp NULL (every lineage); the READ projects the selected-variant chain (D46 derive-don't-stamp).
 
-import type {
-  RpgActorVolatile,
-  RpgClockTime,
-  RpgFieldLocks,
-  RpgGameConfig,
-  RpgPlot,
-  RpgPresentCharacter,
-  RpgQuest,
-  RpgSheet,
-  RpgTrackerValues,
-  RpgWeather,
-} from "@orb/contracts/rpg";
+import type { RpgActorEntry, RpgClockTime, RpgFieldLocks, RpgGameConfig, RpgPlot, RpgQuest, RpgSheet, RpgTrackerValues, RpgWeather } from "@orb/contracts/rpg";
 import { RPG_CHECKPOINT_TRIGGERS, RPG_GAME_MODES, RPG_GAME_STATUSES, RPG_JOURNAL_TYPES } from "@orb/contracts/rpg";
 import type {
   CharacterId,
@@ -131,11 +120,13 @@ export const rpgSnapshots = sqliteTable(
     calendarDate: text("calendar_date"),
     location: text("location").notNull().default(""),
     weather: text("weather", { mode: "json" }).$type<RpgWeather>(),
-    // Scene cast + the recent-events window.
-    presentCharacters: text("present_characters", { mode: "json" }).$type<readonly RpgPresentCharacter[]>(),
+    // The PRESENCE plane (R2) — the `actorRefKey`s standing in the scene. It carried the cast NPC's whole
+    // identity row until R2 made the NPC an actor; the column name stays (no DDL, no re-spell).
+    presentCharacters: text("present_characters", { mode: "json" }).$type<readonly string[]>(),
     recentEvents: text("recent_events", { mode: "json" }).$type<readonly string[]>(),
-    // Per-actor volatile state (hp/pools/conditions/inventory/wallet/status) — the wallet/inventory-first-class plane.
-    actorState: text("actor_state", { mode: "json" }).$type<readonly RpgActorVolatile[]>(),
+    // Per-actor state — identity (cast only) + the volatile half (trackers/conditions/inventory/wallet/status);
+    // the wallet/inventory-first-class plane, and since R2 the ONE home for a cast NPC's whole person.
+    actorState: text("actor_state", { mode: "json" }).$type<readonly RpgActorEntry[]>(),
     // GAME-SUBJECT tracker VALUES, keyed by tracker `key` (the tracked-field unification). Replaces
     // `widget_values`, which keyed by widget LABEL against defs in a whole separate table — both gone.
     trackerValues: text("tracker_values", { mode: "json" }).$type<RpgTrackerValues>(),

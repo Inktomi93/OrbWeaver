@@ -49,7 +49,7 @@ const POPULATE_ANCHOR_CONTENT = "";
 /** The default sheet a first write merges onto (a missing row = the default sheet, §4.3). Mirrors
  *  `patchSheet`'s own default — verb-to-verb VALUE imports are banned, so each verb spells its own. */
 function defaultSheet(): RpgSheet {
-  return { className: "", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] };
+  return { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] };
 }
 
 /** Merge the populate round's sheet half FILL-ONLY: a field the host (or a prior populate) already set is

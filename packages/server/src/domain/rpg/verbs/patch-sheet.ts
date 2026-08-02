@@ -32,7 +32,7 @@ function assertAttributes(game: RpgGameRow, attributes: Readonly<Record<string, 
 
 /** The default sheet a first-write patch merges onto (a missing row = the default sheet, §4.3). */
 function defaultSheet(): RpgSheet {
-  return { className: "", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] };
+  return { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] };
 }
 
 /** The actor-id split the persistence upsert takes (a `character` ref → characterId; a `user` ref → userId). */
@@ -47,9 +47,10 @@ function actorIds(ref: RpgActorRef): { characterId: CharacterId | null; userId: 
   throw new DomainOperationError("rpg_cast_has_no_sheet", "a cast actor has no identity sheet");
 }
 
-/** Merge the MA-4 patch onto the current sheet (omit = keep). `maxHp`/`level` use key-presence (`"k" in patch`),
- *  NOT `??`, because a passed `null` is a REAL clear value ("clear the health bar" / "clear the level") — `??`
- *  would swallow it. Hoisted so `patchSheet` stays under the cognitive-complexity gate. */
+/** Merge the MA-4 patch onto the current sheet (omit = keep). `level` uses key-presence (`"level" in patch`),
+ *  NOT `??`, because a passed `null` is a REAL clear value ("clear the level") — `??` would swallow it.
+ *  Hoisted so `patchSheet` stays under the cognitive-complexity gate. `maxHp` is gone with hp's demotion (R3):
+ *  a meter's per-carrier ceiling has ONE home now, on the tracker value. */
 function mergeSheet(current: RpgSheet, patch: PatchSheetParams["patch"]): RpgSheet {
   return {
     className: patch.className ?? current.className,
@@ -58,7 +59,6 @@ function mergeSheet(current: RpgSheet, patch: PatchSheetParams["patch"]): RpgShe
     // DEFS are not reachable here: they home once in `config.trackers` (`updateConfig` is their door).
     trackerGrants: patch.trackerGrants !== undefined ? [...patch.trackerGrants] : current.trackerGrants,
     trackerRevokes: patch.trackerRevokes !== undefined ? [...patch.trackerRevokes] : current.trackerRevokes,
-    maxHp: "maxHp" in patch ? (patch.maxHp ?? null) : current.maxHp,
     flavor: patch.flavor ?? current.flavor,
     // §2.6 hand-only level — no TURN can write it (absent from extraction + tool args); the only other door is
     // the host born-state round (`populateFromCharacter`), which FILLS it from the card while it is still null.

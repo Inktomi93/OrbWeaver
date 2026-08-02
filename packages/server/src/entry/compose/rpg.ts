@@ -353,12 +353,12 @@ interface ResolvedRefs {
  *     literally named "Player" therefore OWNS the `player` ref — stickler F10 — and the human is addressed by
  *     their own display name, kept below);
  *   • every roster member's display name (incl. a "Player"-named char and the user's persona name);
- *   • existing scene-cast keys (`baseState.presentCharacters[].key`) — so `scene.presentRemove` can name an NPC
- *     the model previously upserted, and party/inventory can reach a scene NPC (stickler F4);
- *   • existing cast actor keys (`baseState.actorState` cast entries) — so party/inventory/wallet reach a
- *     first-class cast actor already tracked (D108 — cast actors are first-class targets).
- *  Deduped (a scene NPC promoted to a cast actor appears once). A model can then only target a REAL, resolvable
- *  ref under an enforcing backend, and the cast-actor reach is representable in BOTH constrained modes. */
+ *   • every tracked CAST actor's display name (`baseState.actorState` cast entries — R2 folded the old separate
+ *     `presentCharacters[].key` walk into this one, because the scene cast and the tracked cast are the same
+ *     rows now) — so `scene.presentRemove` can name an NPC the model previously upserted, and
+ *     party/inventory/wallet reach a first-class cast actor whether or not she is on stage (stickler F4, D108).
+ *  Deduped case-insensitively. A model can then only target a REAL, resolvable ref under an enforcing backend,
+ *  and the cast-actor reach is representable in BOTH constrained modes. */
 async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseState: RpgSnapshotState, reconcile: boolean): Promise<ResolvedRefs> {
   const [roster, game] = await Promise.all([deps.rpgChatOps.resolveRpgRoster(chatId), findGameByChat(deps.db, chatId)]);
   const config = game?.config ?? rpgGameConfigSchema.parse({});
@@ -396,20 +396,20 @@ async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseS
     // every roster display name is valid (persona-name + the F10 "Player"-named char)
     add({ actorKey: actorRefKey(r.actorRef), name: r.name, kind: "party", ...exceptionsFor(actorRefKey(r.actorRef)) });
   }
-  for (const pc of baseState.presentCharacters) {
-    add({ actorKey: `cast:${pc.key}`, name: pc.key, kind: "npcs", grants: [], revokes: [] }); // a scene NPC (F4)
-  }
+  // The tracked CAST actors — on stage or off (F4: party/inventory/wallet reach a tracked NPC either way).
+  // ONE walk since R2, because the scene cast and the tracked cast are the SAME rows now: the presence plane
+  // holds only ref keys, so there is no second name namespace to add and no way for a carrier to be classed
+  // twice. The enum offers the DISPLAY name (what the model wrote and will write back), never the slug key.
   for (const actor of baseState.actorState) {
     if (actor.actorRef.kind === "cast") {
-      // an existing first-class cast actor — party/inventory/wallet reach it (F4)
-      add({ actorKey: actorRefKey(actor.actorRef), name: actor.actorRef.castKey, kind: "npcs", grants: [], revokes: [] });
+      add({ actorKey: actorRefKey(actor.actorRef), name: actor.identity?.name ?? actor.actorRef.castKey, kind: "npcs", grants: [], revokes: [] });
     }
   }
   const actorRefs = carriers.map((c) => c.name);
   // R5a — the CURRENTLY-ACTIVE condition names (across every tracked actor, deduped in encounter order)
   // constrain `party[].removeCondition`, so a retirement can only name a condition that is actually on
   // someone. Nobody afflicted ⇒ an empty list ⇒ the field stays unconstrained (never an empty enum).
-  const conditionNames = [...new Set(baseState.actorState.flatMap((a) => a.conditions.map((c) => c.name)))];
+  const conditionNames = [...new Set(baseState.actorState.flatMap((a) => a.volatile.conditions.map((c) => c.name)))];
   // ESTABLISH-WHEN-UNSET: force scene fields REQUIRED (constrainExtractionSchema) ONLY while the current scene
   // lacks them — a fresh game establishes the scene from the first beat, an ongoing scene keeps the optional
   // omit=keep patch. `location` defaults to "" (unset), `clock` is null until a timeOfDay lands, and an empty

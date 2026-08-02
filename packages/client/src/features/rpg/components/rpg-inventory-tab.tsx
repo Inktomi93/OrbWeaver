@@ -50,10 +50,16 @@ function viewerActor(actors: readonly RpgActorView[], viewerUserId: string): Rpg
   return actors.find((a) => a.actorRef.kind === "user" && a.actorRef.userId === viewerUserId) ?? actors[0];
 }
 
-/** Party totals per currency name, summed across every actor's wallet (§12.2 — a purse is a SUM). */
+/** Party totals per currency name, summed across every PARTY actor's wallet (§12.2 — a purse is a SUM).
+ *  Cast NPCs are excluded on purpose: `tracker.actors` carries them since R2 (which is how their pack finally
+ *  became reachable at all), but an NPC's coin is hers, not the party's — summing it would make the pinned
+ *  total lie the moment the story hands a stranger a bribe. */
 function partyTotals(actors: RpgTrackerView["actors"]): ReadonlyMap<string, number> {
   const totals = new Map<string, number>();
   for (const actor of actors) {
+    if (actor.actorRef.kind === "cast") {
+      continue;
+    }
     for (const coin of actor.volatile?.wallet ?? []) {
       totals.set(coin.name, (totals.get(coin.name) ?? 0) + coin.amount);
     }

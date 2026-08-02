@@ -80,12 +80,13 @@ interface KeyedPlane {
  *  `actorState` is the ONE ADDITIVE plane, because NOTHING removes an actor by omission and two writers
  *  routinely author less than the whole array:
  *    • the tool/extraction appliers only ever map-or-append over the base (`withActor`, tools/apply.ts);
- *    • the HAND door writes with `fieldLocks: null` (hand-always-wins) — which also disables the element-lock
- *      removal defense — and its client sends the ROSTER half of the plane plus the ONE actor it is editing
- *      (a `cast:` NPC's row is projected separately, under the tracker view's `castVolatile`).
- *  So a host editing one party member's HP used to DELETE every scene NPC's tracked state, and two
+ *    • the HAND door no longer sends an image at all (R1's `patchActor` derives the next row from the true
+ *      head), but the policy stays: the model appliers still author less than the whole array.
+ *  So a host editing one party member's meters used to DELETE every scene NPC's tracked state, and two
  *  back-to-back per-actor hand edits erased the first (the e2e-caught hand-plane loss). An actor is an
- *  identity, not list content: it leaves the plane by a real gesture, never by going unmentioned.
+ *  identity, not list content: it leaves the plane by a real gesture (`rpg.dismissActor`), never by going
+ *  unmentioned. Since R2 the element is the WHOLE person — `{actorRef, identity?, volatile}` — so the nested
+ *  planes register under `…<actorKey>.volatile.<field>` and the sub-field pin grammar recurses unchanged.
  *
  *  TRACKER VALUES ARE NOT HERE, and that is the point of the unification: `trackerValues` is a RECORD keyed
  *  by tracker `key`, not an array, so the plain object walk already gives it per-tracker lock paths
@@ -94,7 +95,9 @@ interface KeyedPlane {
 const KEYED_ARRAYS: Readonly<Record<string, KeyedPlane>> = {
   quests: { keyOf: propKey("id"), omissionRemoves: true },
   inventory: { keyOf: propKey("id"), omissionRemoves: true },
-  presentCharacters: { keyOf: propKey("key"), omissionRemoves: true },
+  // `presentCharacters` is NOT here since R2: it is a flat array of `actorRefKey` STRINGS (the presence plane),
+  // which has no elements to correlate and no per-element lock to honor — an unkeyed array wholesale-replaces,
+  // which is exactly right for a plane whose appliers always author it whole from the true base.
   actorState: { keyOf: actorStateKey, omissionRemoves: false },
   wallet: { keyOf: propKey("name"), omissionRemoves: true },
   conditions: { keyOf: propKey("name"), omissionRemoves: true },

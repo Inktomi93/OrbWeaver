@@ -109,7 +109,6 @@ export const rpgPatchSheetInputSchema = z.object({
     // Tracker DEFS are not here — they home once in `config.trackers` (`updateConfig` is their door).
     trackerGrants: z.array(z.string().min(1)).optional(),
     trackerRevokes: z.array(z.string().min(1)).optional(),
-    maxHp: z.number().int().nullable().optional(),
     flavor: z.string().optional(),
     // `level` (§2.6) — hand-only; a member/host patch sets it (nullable: explicit null clears). No TURN can
     // write it (absent from the extraction schema + tool args); the only other door is the host born-state
