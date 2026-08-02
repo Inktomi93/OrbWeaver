@@ -447,10 +447,12 @@ test("a chatOpened at a non-advancing cursor seq STILL invalidates on reopen (th
   await expect.poll(() => trpc.count("chat.getChat"), { intervals: [50, 100, 200], timeout: 15_000 }).toBeGreaterThanOrEqual(2);
 });
 
-// #9 (B): the ONE present-tense divider carries the MEMORY FACT when previewContextFit reports a compactSummary
-// covering the span above the boundary — "older messages compacted into memory" + a PEEK popover revealing the
-// summary text. The boundary row is AI_VIEW (its id === boundaryMessageId), so the divider renders above it.
-const COMPACTED_INTO_MEMORY = /compacted into memory/i;
+// #9 (B): the ONE present-tense divider carries the COMPACTION FACT when previewContextFit reports a
+// compactSummary covering the span above the boundary — "older messages compacted into a summary" + a PEEK
+// popover revealing the summary text. The boundary row is AI_VIEW (its id === boundaryMessageId), so the
+// divider renders above it. The noun is COMPACTION, never "memory" (`chats.compactSummary` is its own thing,
+// not the Memory plane) — vocab repaired 2026-08-02.
+const COMPACTED_INTO_SUMMARY = /compacted into a summary/i;
 const IN_CONTEXT_FROM_HERE = /in context from here/i;
 
 const COMPACTED_PREVIEW_FIT = {
@@ -473,7 +475,7 @@ const COMPACTED_PREVIEW_FIT = {
   }),
 };
 
-test("the divider carries the memory fact + a peek that reveals the compaction summary", async ({ mount, page }) => {
+test("the divider carries the compaction fact + a peek that reveals the summary", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await routeTrpc(page, {
     ...ROSTER_STUB,
@@ -484,9 +486,9 @@ test("the divider carries the memory fact + a peek that reveals the compaction s
 
   const component = await mount(<MessageListSurfaceStory />); // committed=true
 
-  // The boundary divider announces the memory fact (not the plain "in context from here" line).
+  // The boundary divider announces the compaction fact (not the plain "in context from here" line).
   const divider = component.locator('[data-slot="context-boundary-divider"]');
-  await expect(divider).toContainText(COMPACTED_INTO_MEMORY);
+  await expect(divider).toContainText(COMPACTED_INTO_SUMMARY);
 
   // The peek is closed by default — the summary text is not in the DOM until opened. (The popover PORTALS to
   // the themed portal root outside #root, so the popup is asserted on `page`, not the mounted `component`.)
@@ -497,7 +499,7 @@ test("the divider carries the memory fact + a peek that reveals the compaction s
   await expect(page.locator('[data-slot="compact-summary-text"]')).toContainText("swore an oath by the river");
 });
 
-test("no memory fact when previewContextFit reports no covering summary (plain cutoff line)", async ({ mount, page }) => {
+test("no compaction fact when previewContextFit reports no covering summary (plain cutoff line)", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await routeTrpc(page, {
     ...ROSTER_STUB,
@@ -526,7 +528,40 @@ test("no memory fact when previewContextFit reports no covering summary (plain c
 
   const divider = component.locator('[data-slot="context-boundary-divider"]');
   await expect(divider).toContainText(IN_CONTEXT_FROM_HERE);
-  await expect(divider).not.toContainText(COMPACTED_INTO_MEMORY);
+  await expect(divider).not.toContainText(COMPACTED_INTO_SUMMARY);
   // No peek affordance when there's no summary.
   await expect(component.locator('[data-slot="compact-summary-peek"]')).toHaveCount(0);
+});
+
+// DENSITY S6 (density-pass-spec.md §2.3): the divider names a REGION of the transcript ("everything below
+// this line is in context"), which is the `kicker` voice — micro caps at the section-name weight, with the
+// hairline rules either side. Read back computed, because the caps + micro half of that shape was already
+// true by taste and only the WEIGHT (and the `voice` attribute that pins the intent) distinguishes a
+// kicker from a hand-assembled lookalike.
+test("the context-boundary divider's label speaks the kicker voice (a region name, not body prose)", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await routeTrpc(page, {
+    ...ROSTER_STUB,
+    ...COMPACTED_PREVIEW_FIT,
+    "chat.listMessages": () => makeMessagesPage([USER_VIEW, AI_VIEW]),
+  });
+  await routeOrbSocket(page, { frames: [] });
+
+  const component = await mount(<MessageListSurfaceStory />);
+
+  const label = component.locator('[data-slot="context-boundary-divider"] [data-slot="text"]').first();
+  await expect(label).toBeVisible();
+  await expect(label).toHaveAttribute("data-voice", "kicker");
+  const type = await label.evaluate((el) => {
+    const style = getComputedStyle(el);
+    const probe = el.ownerDocument.createElement("div");
+    el.ownerDocument.body.append(probe);
+    probe.style.fontSize = "var(--text-micro)";
+    const micro = getComputedStyle(probe).fontSize;
+    probe.remove();
+    return { size: style.fontSize, weight: style.fontWeight, transform: style.textTransform, micro };
+  });
+  expect(type.size).toBe(type.micro);
+  expect(type.transform).toBe("uppercase");
+  expect(type.weight).toBe("600");
 });

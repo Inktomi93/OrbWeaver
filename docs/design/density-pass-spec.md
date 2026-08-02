@@ -95,6 +95,12 @@ single closed `voice` axis:
 | `datum` | `text-label` + `font-mono` + tabular-nums + foreground | the number/value — the thing you came to read | `.statcell .v`, `.meter .mline .v`, all `.num` |
 | `gloss` | `text-micro` + muted | the quiet explanatory second line | `.srow .what .truth`, `.beat`, `.orb .vals` |
 
+**(AMENDED 2026-08-02, density S6 — owner-ruled)** a FIFTH voice, `monogram`, for the decorative display
+glyph: `text-title` + semibold + **no color of its own** (the skin that paints the band owns the ink). The
+chat transcript's immersive row skins paint a single-letter mark on a header band / echo tile; none of the
+four content voices fits a glyph whose whole job is to be large, and the call-site alternative was spelling
+`size`/`weight` through `className` — a literal-shape dodge the A3 arm structurally cannot see.
+
 Prose voices (`title`, `body`) survive unchanged for CONTENT and form copy. `datum` rides
 `text-label` (13px) rather than a new 11px step: an 11px step is a 4.8% ratio move off `micro`
 (10.5px) — too fine to be a real scale step, and mono + tabular already separates it visually (owner
