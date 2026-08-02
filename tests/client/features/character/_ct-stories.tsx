@@ -25,7 +25,8 @@ import type { CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { CtCharacterContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
+import { CtAppDataProviders, CtCharacterContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
+import { CtToastSurface } from "../../lib/_ct-stories";
 
 // The door's empty character-detail registry (§6c) — stories that don't test the seam pass this, mirroring
 // main.tsx's zero-contribution assembly (byte-identical to today's editor, no review-section wrapper).
@@ -125,6 +126,22 @@ export function CharacterEditorSurfaceStory(): ReactElement {
   );
 }
 
+/** The same editor, mounted on the REAL app QueryClient + the real toast surface — the wiring a "Suggest
+ *  tags" FAILURE needs to be observable at all: the refusal rides `meta.errorToast` → `notify.error` → the
+ *  Toaster. `CtDataProviders`' plain client has no MutationCache error channel, so a toast CT must use this
+ *  stack (the on-demand distill's refusal copy is the whole user-facing half of the 2026-08-03 fix). */
+export function CharacterEditorSuggestToastStory(): ReactElement {
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <div style={{ height: 640, width: 720 }}>
+          <CharacterEditorSurface characterId={castId<CharacterId>("char_ct_1")} detailContributors={NO_DETAIL_CONTRIBUTORS} />
+        </div>
+      </CtToastSurface>
+    </CtAppDataProviders>
+  );
+}
+
 // ── The character-detail CONTRIBUTOR seam (client-architecture-lockdown.md §6c) ─────────────────────
 // The seam is built EMPTY at the door; no CT had ever mounted a LIVE contribution through it. This proves
 // a fake `CharacterDetailContribution` at the `editor-sections` anchor, registered at a door-mirroring
@@ -209,12 +226,18 @@ export function CharacterLibrarySurfaceStory({ width }: CharacterLibrarySurfaceS
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
-        <div style={width === undefined ? { height: 480 } : { height: 480, width }}>
-          <CharactersListBand />
-          <CharacterLibraryAnchor>
-            <CharacterLibrarySurface />
-          </CharacterLibraryAnchor>
-        </div>
+        {/* The import path's outcome is a `notify.*` call, so the story carries the real toast surface —
+            `notify` is BOUND for every story in this module (bindNotify is module-global; importing
+            CtToastSurface anywhere in the module binds it), which makes the console fallback unreachable.
+            Rendered pixels are the honest assertion for it anyway. */}
+        <CtToastSurface>
+          <div style={width === undefined ? { height: 480 } : { height: 480, width }}>
+            <CharactersListBand />
+            <CharacterLibraryAnchor>
+              <CharacterLibrarySurface />
+            </CharacterLibraryAnchor>
+          </div>
+        </CtToastSurface>
       </CtRealSectionRegistry>
     </CtDataProviders>
   );
