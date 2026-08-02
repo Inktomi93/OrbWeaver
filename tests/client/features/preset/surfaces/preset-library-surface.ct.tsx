@@ -55,6 +55,10 @@ function menuFor(name: string): string {
 function duplicateFor(name: string): string {
   return `Duplicate "${name}" ·`;
 }
+/** The activate toggle's accessible name — ONE label in both states (the press only ever activates). */
+function activateFor(name: string): string {
+  return `Activate ${name} for generation`;
+}
 
 function summary(fields: {
   id: string;
@@ -179,8 +183,11 @@ test("every non-built-in row carries its own edit stamp — the F5 scent that te
   // label owns that word).
   await expect(component.getByText("generation · edited 5m ago", { exact: true })).toHaveCount(0);
   // The built-in keeps its own marker instead of a stamp (its updatedAt is the seed's, not the user's edit).
-  // (located by ROLE + description — the Active-for-generation Select prints the same words.)
-  await expect(component.getByRole("button", { name: "Default", exact: true, description: "Built-in default" })).toBeVisible();
+  // (located by exact ROLE name — the row BODY button, never the "Activate Default for generation" toggle
+  // beside it. `description` is NOT asserted here: `exact` applies to it too, and with nothing else picked
+  // the built-in row is the active one, so its markers append "Active" to the same accessible description.)
+  await expect(component.getByRole("button", { name: "Default", exact: true })).toBeVisible();
+  await expect(component.getByText("Built-in default", { exact: true })).toBeVisible();
 });
 
 test("deleting the ACTIVE '(edited)' row also clears the active-for-generation pointer", async ({ mount, page }) => {
@@ -298,10 +305,159 @@ test("P3a two forks with the SAME name expose distinct action names (the stamp d
   expect(names.every((name) => name.startsWith(`Actions for "${EDITED_ONE_NAME}" · `))).toBe(true);
 });
 
-test("§12 the built-in row stays action-free — no inline verb where there is no actions menu", async ({ mount, page }) => {
+test("§12 the built-in row carries the state toggle ONLY — no inline verb, no kebab", async ({ mount, page }) => {
   await routeLibrary(page, null);
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
   await expect(page.getByRole("button", { name: "Duplicate Default", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: menuFor("Default") })).toHaveCount(0);
+  // …but activation is not CRUD: the un-renameable, un-deletable built-in is still a pick (D1).
+  await expect(page.getByRole("button", { name: activateFor("Default"), exact: true })).toHaveCount(1);
+});
+
+// ── §9 / D1: ACTIVATE is the row's state toggle, and the pane-level Select is DEAD ────────────────
+// The toggle is RADIO-shaped (one-of-N): pressing an unpressed row activates it; pressing the PRESSED row is
+// a no-op, because "no active preset" is not a state the funnel has — deactivation is activating another row.
+
+test("§9/D1 the row toggle ACTIVATES that row through the one setDefault mutation", async ({ mount, page }) => {
+  const trpc = await routeLibrary(page, null);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  const toggle = page.getByRole("button", { name: activateFor(EDITED_ONE_NAME), exact: true });
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  // It rides the row reveal like every other trailing control (the pressed STATE is the title-line marker).
+  await expect(toggle).toHaveClass(REVEAL_ON_HOVER);
+  await expect(toggle).toHaveClass(REVEAL_ON_FOCUS);
+
+  await component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first().hover();
+  await toggle.click();
+  await expect
+    .poll(() => (trpc.inputs("settings.updateUserSettingsSection") as SettingsPatchCall[]).map((call) => call.patch?.defaultPresetId))
+    .toEqual([EDITED_ONE]);
+});
+
+test("§9/D1 the toggle NEVER bare-unpresses: pressing the ACTIVE row writes nothing", async ({ mount, page }) => {
+  const trpc = await routeLibrary(page, EDITED_ONE);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  const toggle = page.getByRole("button", { name: activateFor(EDITED_ONE_NAME), exact: true });
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+  const row = component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first();
+  await row.hover();
+  await toggle.click();
+  // The click landed (the control is hit-testable while revealed) and produced NO write. Settled by the
+  // subsequent activation below, which proves the same handler DOES write when the row is not the pick.
+  await component.locator(LIST_ROW_ROOT, { hasText: IMPORTED_NAME }).first().hover();
+  await page.getByRole("button", { name: activateFor(IMPORTED_NAME), exact: true }).click();
+  await expect
+    .poll(() => (trpc.inputs("settings.updateUserSettingsSection") as SettingsPatchCall[]).map((call) => call.patch?.defaultPresetId))
+    .toEqual([IMPORTED]);
+});
+
+test("§9/D1 the BUILT-IN row is the null pick — pressed when nothing is chosen, and it activates as null", async ({ mount, page }) => {
+  const trpc = await routeLibrary(page, EDITED_ONE);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  const builtIn = page.getByRole("button", { name: activateFor("Default"), exact: true });
+  await expect(builtIn).toHaveAttribute("aria-pressed", "false");
+
+  await component.locator(LIST_ROW_ROOT, { hasText: "Default" }).first().hover();
+  await builtIn.click();
+  // NULL, never the system row's sentinel id — "no explicit preset" is what the seed stores.
+  await expect
+    .poll(() => (trpc.inputs("settings.updateUserSettingsSection") as SettingsPatchCall[]).map((call) => call.patch?.defaultPresetId))
+    .toEqual([null]);
+});
+
+test("§9/D1 with nothing chosen, the BUILT-IN row wears the pressed state", async ({ mount, page }) => {
+  await routeLibrary(page, null);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  await expect(page.getByRole("button", { name: activateFor("Default"), exact: true })).toHaveAttribute("aria-pressed", "true");
+  // …and it is the ONLY pressed row (one-of-N).
+  await expect(component.locator(TITLE_ROW).getByText("Active", { exact: true })).toHaveCount(1);
+});
+
+test("§12 enforcement: the pane-level 'Active for generation' Select is DELETED, not kept beside the toggle", async ({ mount, page }) => {
+  await routeLibrary(page, EDITED_ONE);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  await expect(page.getByRole("combobox")).toHaveCount(0);
+  await expect(page.getByLabel("Active preset for generation")).toHaveCount(0);
+  await expect(component.getByText("Active for generation", { exact: true })).toHaveCount(0);
+});
+
+test("§16 row 3 echo (a): the kebab Activate item fires the SAME mutation as the toggle", async ({ mount, page }) => {
+  const trpc = await routeLibrary(page, EDITED_ONE);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  await component.locator(LIST_ROW_ROOT, { hasText: EDITED_TWO_NAME }).first().hover();
+  await page.getByRole("button", { name: menuFor(EDITED_TWO_NAME) }).click();
+  await page.getByRole("menuitem", { name: "Activate" }).click();
+  await expect
+    .poll(() => (trpc.inputs("settings.updateUserSettingsSection") as SettingsPatchCall[]).map((call) => call.patch?.defaultPresetId))
+    .toEqual([EDITED_TWO]);
+});
+
+// ── G6: the single-preset EXPORT door (§16.1) ────────────────────────────────────────────────────
+// The door is a THIN ARM over the bundle's serde: `buildPresetFile` from the cached `preset.get` row. The
+// pin is the BYTES — an `orb.preset` envelope carrying the row's own config — because a second serde (or a
+// hand-rolled envelope) is exactly the banned parallel path this arm exists to avoid.
+
+test("G6 the kebab EXPORT downloads the bundle's own orb.preset bytes for that row", async ({ mount, page }) => {
+  const config = { schemaVersion: 5, params: { temperature: 0.42 }, sections: [] };
+  await routeTrpc(page, {
+    "preset.list": () => PRESETS,
+    "settings.getUserSettings": () => ({ userId: "user_ct_preset", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "preset.get": () => ({ id: EDITED_ONE, name: EDITED_ONE_NAME, kind: "generation", isSystemDefault: false, config, createdAt: 0, updatedAt: 0 }),
+  });
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  await component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first().hover();
+  await page.getByRole("button", { name: menuFor(EDITED_ONE_NAME) }).click();
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "Export" }).click();
+  const download = await downloadPromise;
+
+  expect(download.suggestedFilename()).toBe("default-edited.json");
+  const stream = await download.createReadStream();
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.from(chunk as Buffer));
+  }
+  const file: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  // The ENVELOPE is `buildPresetFile`'s (schemaKind + the export-time schemaVersion + name + config) — the
+  // same shape `preset.importFile` strict-parses on the way back in.
+  expect(file).toMatchObject({ schemaKind: "orb.preset", name: EDITED_ONE_NAME, config });
+});
+
+test("G6 the BUILT-IN row offers no Export — the bundle excludes the system default", async ({ mount, page }) => {
+  await routeLibrary(page, null);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  // It has no kebab at all, so there is no menu the item could hide in.
+  await expect(page.getByRole("button", { name: menuFor("Default") })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "Export" })).toHaveCount(0);
+});
+
+test("§16 row 3 echo (a): the ACTIVE row's kebab offers no Activate — the menu carries no act it would refuse", async ({ mount, page }) => {
+  await routeLibrary(page, EDITED_ONE);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  await component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first().hover();
+  await page.getByRole("button", { name: menuFor(EDITED_ONE_NAME) }).click();
+  // The menu IS open (its own Rename item is there) — the Activate absence is real, not an unopened popup.
+  await expect(page.getByRole("menuitem", { name: "Rename" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Activate" })).toHaveCount(0);
 });
