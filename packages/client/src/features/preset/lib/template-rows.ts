@@ -10,7 +10,7 @@
 // WHY IT IS PURE: the registration cost for a new template stays "one enum member + one def row" (the D117
 // shape). Nothing here enumerates templates — it maps over whatever the registry holds.
 
-import type { GuidedActionKind, TemplateDef, TemplateKind } from "@orb/contracts/preset";
+import type { GuidedActionKind, PromptConfig, TemplateDef, TemplateDefId, TemplateKind } from "@orb/contracts/preset";
 import { GUIDED_ACTION_KINDS, PRESET_PROSE_SLOTS, TEMPLATE_DEFS, TEMPLATE_KINDS } from "@orb/contracts/preset";
 
 /** One registry row, resolved for the client: the def plus which slot shape it edits. */
@@ -31,6 +31,11 @@ export interface TemplateGroup {
 
 const GUIDED_KIND_SET: ReadonlySet<string> = new Set<string>(GUIDED_ACTION_KINDS);
 
+/** Which ARM of `TemplateDefId` an id is — the one derivation the whole file's form-path split rides. */
+function isGuidedActionKind(id: TemplateDefId): id is GuidedActionKind {
+  return GUIDED_KIND_SET.has(id);
+}
+
 /** The GROUP HEADING for one registry kind. The enum member is a code identifier (`steer`, `voice`) — the
  *  kicker over a group of rows is a heading a person reads, so it gets a human plural (side-eye F-30 /
  *  ARIA rec 10). Keyed by the union, so a new kind is a `tsc` error here until it has a label — the D117
@@ -49,7 +54,7 @@ function templateRow(def: TemplateDef): TemplateRow {
   const slot = def.defaultSlot;
   return {
     def,
-    guidedKind: GUIDED_KIND_SET.has(def.id) ? (def.id as GuidedActionKind) : undefined,
+    guidedKind: isGuidedActionKind(def.id) ? def.id : undefined,
     factoryDefault: slot === undefined ? "" : PRESET_PROSE_SLOTS[slot].text,
   };
 }
@@ -66,6 +71,22 @@ export function templateGroups(): readonly TemplateGroup[] {
 export function templateRowById(id: string): TemplateRow | undefined {
   const def = TEMPLATE_DEFS.find((entry) => entry.id === id);
   return def === undefined ? undefined : templateRow(def);
+}
+
+/** The bytes a preset STORES for one template id — the same "which form path" answer this file already owns,
+ *  applied to a saved config instead of a live form. The readout's unbound preview reads through here so it
+ *  and the Actions row can never print two different templates for one row. `""` = nothing stored, which
+ *  means "the shipped default rides" (the storage semantic everywhere in this schema) — the caller ghosts it
+ *  through {@link templatePreview}, exactly as the row does. */
+export function templateStoredText(config: PromptConfig, id: string): string {
+  const row = templateRowById(id);
+  if (row === undefined) {
+    return "";
+  }
+  const defId = row.def.id;
+  // `TemplateDefId` has exactly two arms, so the guided predicate IS the split — the else branch is a
+  // `FormatStringKey` by narrowing rather than by a second assertion.
+  return isGuidedActionKind(defId) ? (config.guidedActions?.[defId].prompt ?? "") : (config.formatStrings?.[defId] ?? "");
 }
 
 /** Default / Customized — the state chip's derivation, shared by the row and the drill-in. EMPTY IS THE

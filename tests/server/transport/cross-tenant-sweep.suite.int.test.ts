@@ -579,6 +579,15 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.chat.getVariablePicks({ chatId: i.chatId }),
   },
   { path: "chat.previewAssembly", call: (c, i) => c.chat.previewAssembly({ chatId: i.chatId }) },
+  {
+    // D8's bound readout. TWO foreign-id surfaces on one call, and the chatId gate is the one that must bite:
+    // `requireHost` refuses the stranger's chat BEFORE any preset is resolved or any template is rendered. The
+    // `presetId` half needs no probe of its own — the override is resolved `preset.get({userId: <the HOST>})`
+    // by compose, so a caller cannot aim it at a library that is not the room host's (and a miss degrades to
+    // the host's own default rather than throwing).
+    path: "chat.previewActionTemplates",
+    call: (c, i) => c.chat.previewActionTemplates({ chatId: i.chatId, presetId: i.presetId }),
+  },
   { path: "chat.getShapeTrace", call: (c, i) => c.chat.getShapeTrace({ chatId: i.chatId }) },
   { path: "chat.previewContextFit", call: (c, i) => c.chat.previewContextFit({ chatId: i.chatId }) },
   {

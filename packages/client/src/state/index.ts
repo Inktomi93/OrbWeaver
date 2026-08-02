@@ -151,6 +151,7 @@ export {
   useSelectedPresetId,
   useSelectedPresetSectionId,
 } from "./preset-selection-store";
+export { clearPresetTemplate, selectPresetTemplate, useSelectedPresetTemplateId } from "./preset-template-selection-store";
 export {
   clearAllRecentModels,
   pushRecentModel,

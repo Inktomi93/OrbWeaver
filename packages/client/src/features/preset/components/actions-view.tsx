@@ -17,9 +17,12 @@
 // informational — we wouldn't want to disable something we shouldn't; the actual trigger thingy is in
 // prompts"). The editable trigger vocabulary exists EXCLUSIVELY in the section drill-in.
 //
-// The row grammar is the rack's, spoken identically (§5.0 one-list-grammar): the row body and the chevron
-// both open the template's ONE editing home — a template has no readout-echo half to select toward yet, so
-// (unlike a rack row) the two acts have not diverged here.
+// The row grammar is the rack's, spoken identically (§5.0 one-list-grammar): the row body SELECTS and the
+// trailing chevron DRILLS. The two acts were conflated here while the readout had no echo half to select
+// toward; D8's resolved preview (§7.1) IS that half, so §6.1's rule lands as written — "NAME click = SELECT
+// (the Actions readout echoes the selected template — resolved preview + delivery path, §7); CHEVRON/Enter =
+// DRILL". Selection writes through the ONE `selectPresetTemplate` store action; nothing here reads it back
+// (the readout is the reader), which is the same one-writer posture the rack's section selection takes.
 
 import type { PromptConfig } from "@orb/contracts/preset";
 import { Badge } from "@orb/ui/badge";
@@ -31,6 +34,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { AppFormInstance } from "#forms";
+import { selectPresetTemplate, useSelectedPresetTemplateId } from "#state";
 import { GUIDED_INPUT_TOKEN } from "../lib/assembly-model";
 import type { TemplateRow } from "../lib/template-rows";
 import { isCustomized, TEMPLATE_KIND_LABEL, templateGroups, templatePreview, templateRowById } from "../lib/template-rows";
@@ -66,6 +70,9 @@ export interface ActionsViewProps {
 export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactElement {
   // WHICH body the view paints — local, exactly like the Prompt view's drill (one region, one writer).
   const [drilledId, setDrilledId] = useState<string | null>(null);
+  // READ-ONLY here: the row highlight mirrors the same selection the READOUT projects, so the two panes can
+  // never disagree about which template is being inspected.
+  const selectedId = useSelectedPresetTemplateId();
   const drilled = drilledId === null ? undefined : templateRowById(drilledId);
   if (drilled !== undefined) {
     return <TemplateDrillIn form={form} onBack={(): void => setDrilledId(null)} row={drilled} />;
@@ -86,7 +93,7 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
           <Section key={group.kind} kicker={TEMPLATE_KIND_LABEL[group.kind]}>
             <Stack gap="tight">
               {group.rows.map((row) => (
-                <TemplateListRow form={form} key={row.def.id} onDrill={setDrilledId} row={row} />
+                <TemplateListRow form={form} key={row.def.id} onDrill={setDrilledId} row={row} selected={row.def.id === selectedId} />
               ))}
             </Stack>
           </Section>
@@ -106,10 +113,13 @@ function TemplateListRow({
   form,
   row,
   onDrill,
+  selected,
 }: {
   readonly form: PresetForm;
   readonly row: TemplateRow;
   readonly onDrill: (id: string) => void;
+  /** This row is the SELECTED template — the readout echoes it (ListRow paints the ember bar + tint). */
+  readonly selected: boolean;
 }): ReactElement {
   const { def, guidedKind, factoryDefault } = row;
   return (
@@ -149,7 +159,10 @@ function TemplateListRow({
               </Row>
             }
             clickable={true}
-            onClick={(): void => onDrill(def.id)}
+            // SELECT ≠ DRILL (§16 row 23, the rack's own grammar): the body click SELECTS, so the readout's
+            // resolved preview echoes THIS template; the chevron above is the way into the editor.
+            onClick={(): void => selectPresetTemplate(def.id)}
+            selected={selected}
             // THE P0 (side-eye F-01): the fires gloss is the row's SUBTITLE on the title line, so the
             // NAME keeps the `inline` arm's width floor and the GLOSS is what truncates. It rode `meta`
             // — a `shrink-0` slot — which starved three rows' names to 0px and clipped a fourth.

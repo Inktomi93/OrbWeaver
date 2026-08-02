@@ -92,8 +92,16 @@ function hiddenRevealRead(trpc: Trpc): readonly InvalidateFilter[] {
 // persona still in the preview": the server re-pin was correct, the panel was showing a snapshot from before
 // it). They ride the SAME row as `previewContextFit` everywhere — the fit is the budget of exactly this
 // assembly, so a row that refetches one and not the other makes the two halves of that tab disagree.
+// `previewActionTemplates` (D8 / preset-surface-redesign §7.1) rides HERE, not a row of its own: it is the
+// same class of read — a dry-run render of the next turn's prose against the live chat — and it goes stale on
+// exactly the same moments. Through this one member it inherits every driver the pair already has:
+// `presetsChanged` (the editor's own autosave — the resolved preview must move with the template you just
+// typed, which is what makes "settle-live" true here), `settingsChanged` (a model/persona swap changes what
+// `{{user}}`/`{{char}}` resolve TO), and every canon terminal (the macros read `{{lastMessage}}` &c). The
+// binding's OTHER freshness axis — the bind target moving to a different chat — needs no row at all: `chatId`
+// is in the query key, so a switch is a cold fetch of a new key by construction (§4.4's binding rows).
 function promptPreviewReads(trpc: Trpc): readonly InvalidateFilter[] {
-  return [trpc.chat.previewAssembly.pathFilter(), trpc.chat.getShapeTrace.pathFilter()];
+  return [trpc.chat.previewAssembly.pathFilter(), trpc.chat.getShapeTrace.pathFilter(), trpc.chat.previewActionTemplates.pathFilter()];
 }
 
 // Canon reads plus the chat list, for non-terminal canon events the server fires no chatsChanged for. Every
