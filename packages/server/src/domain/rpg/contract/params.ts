@@ -10,6 +10,7 @@ import type { UserMacroSpec } from "@orb/contracts/preset";
 import type {
   RpgActorOp,
   RpgActorRef,
+  RpgCastRef,
   RpgDateMode,
   RpgExtractionContext,
   RpgGameFeatures,
@@ -180,6 +181,15 @@ export interface DismissActorParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
   readonly targetRef: RpgActorRef;
+}
+
+/** `promoteActor` — THE promotion doorway (R4; host): a scene NPC earns a durable roster card + a chat seat,
+ *  and her actor row is RE-KEYED `cast:<slug>` → `character:<id>` in the same gesture. `targetRef` is the CAST
+ *  arm only — promoting a roster actor is meaningless, so the type cannot express it. */
+export interface PromoteActorParams {
+  readonly principal: Principal;
+  readonly chatId: ChatId;
+  readonly targetRef: RpgCastRef;
 }
 
 /** `upsertQuest` — the hand arm of the quest plane (host). Writes the `quests` array on the current resolved

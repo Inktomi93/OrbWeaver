@@ -59,16 +59,23 @@ export function rpgCastSlug(name: string): string {
  *  person in the panel, unreachable by every model write (the appliers resolve names through the slug), and
  *  removable only by `dismissActor` with the same raw key. The refine costs {@link actorRefKey} nothing: it
  *  stays a pure projection, now over data that is canonical by the time it exists. */
+export const rpgCastRefSchema = z.object({
+  kind: z.literal("cast"),
+  castKey: z
+    .string()
+    .min(1)
+    .refine((key) => key === rpgCastSlug(key), { message: "a cast key must be its normalized slug (lowercase, hyphen-separated) — see rpgCastSlug" }),
+});
+/** The CAST arm alone, named because one door addresses only scene NPCs: `rpg.promoteActor` (R4). Promotion
+ *  turns a cast NPC into a roster character, so a `character`/`user` target is not "refused" — it is
+ *  MEANINGLESS, and the wire says so by being unable to express it (the prevent-at-schema posture the cast-key
+ *  refine above already takes). The union below is composed FROM this, never a second spelling of the arm. */
+export type RpgCastRef = z.infer<typeof rpgCastRefSchema>;
+
 export const rpgActorRefSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
   z.object({ kind: z.literal("user"), userId: brandedId<UserId>() }),
-  z.object({
-    kind: z.literal("cast"),
-    castKey: z
-      .string()
-      .min(1)
-      .refine((key) => key === rpgCastSlug(key), { message: "a cast key must be its normalized slug (lowercase, hyphen-separated) — see rpgCastSlug" }),
-  }),
+  rpgCastRefSchema,
 ]);
 export type RpgActorRef = z.infer<typeof rpgActorRefSchema>;
 
@@ -125,8 +132,12 @@ export type RpgRelationship = z.infer<typeof rpgRelationshipSchema>;
  *  prose from `rpg_sheets` (one home per fact, never a second name to reconcile).
  *
  *  `name` is the DISPLAY name (the model authors it; the ref key is its {@link rpgCastSlug}), which is what
- *  makes rename possible at all. `characterId` is the promotion join (R4's doorway — a cast NPC who earns a
- *  roster card). The three guides are STANDING state (see {@link RPG_CAST_GUIDE_FIELDS}). */
+ *  makes rename possible at all. The three guides are STANDING state (see {@link RPG_CAST_GUIDE_FIELDS}).
+ *
+ *  `characterId` is UNREAD (flagged rot, R4): it was reserved as "the promotion join", but promotion RE-KEYS
+ *  the row to `character:<id>` — the ref itself carries the join, and a promoted actor has no identity half at
+ *  all ({@link rpgPromotedCardDescription} carries its durable content onto the card instead). Left in place
+ *  rather than deleted in the promotion lane; its removal is a contracts+mirror sweep of its own. */
 export const rpgActorIdentitySchema = z.object({
   name: z.string().min(1),
   characterId: typeIdSchema(ID_PREFIX.character).optional(),
@@ -148,6 +159,44 @@ export type RpgActorIdentity = z.infer<typeof rpgActorIdentitySchema>;
  *  above — renaming a field without updating this tuple fails `tsc` here, not at a call site. */
 export const RPG_CAST_GUIDE_FIELDS = ["appearance", "outfit", "thoughts"] as const satisfies readonly (keyof RpgActorIdentity)[];
 export type RpgCastGuideField = (typeof RPG_CAST_GUIDE_FIELDS)[number];
+
+/** The reader-facing label each standing guide carries into a PROMOTED NPC's card description (R4). Named
+ *  beside the tuple it is keyed by, so a guide added to {@link RPG_CAST_GUIDE_FIELDS} fails `tsc` here rather
+ *  than silently vanishing from every card promotion mints. */
+const CAST_GUIDE_CARD_LABEL: Readonly<Record<RpgCastGuideField, string>> = {
+  appearance: "Appearance",
+  outfit: "Outfit",
+  thoughts: "Inner life",
+};
+
+/** PROMOTION'S IDENTITY CARRY (R4) — the standing guides an NPC accumulated, rendered as the card description
+ *  her freshly-minted roster card is born with.
+ *
+ *  Promotion RE-KEYS the actor row from `cast:<slug>` to `character:<id>`, and a roster actor carries NO
+ *  identity half ({@link rpgActorIdentitySchema}) — her name is the chat roster's and her standing prose the
+ *  sheet's. So the identity row does not survive the re-key, and everything on it that has a DURABLE home must
+ *  be carried there in the same gesture or it is destroyed: the display `name` becomes the card's `name`, and
+ *  the three standing guides — the persistent look/dress/inner-life the story spent the whole acquaintance
+ *  writing — become the card's description, which is exactly the prose a card exists to hold.
+ *
+ *  What deliberately does NOT carry: `mood` (a per-beat observation, not a standing fact) and `relationship`
+ *  (ruled a CAST actor's datum — a roster member's stance toward the player is the story's, not a tracked
+ *  plane's). The promotion door SAYS SO to the host rather than letting them discover it; this function is the
+ *  one home for what the carry contains, so the copy and the behavior cannot drift.
+ *
+ *  `""` when the story wrote no guides at all — the caller then mints a card with an empty description rather
+ *  than a fabricated one (`createCharacterSchema.description` accepts it; an invented biography would be a lie
+ *  the model then plays). */
+export function rpgPromotedCardDescription(identity: RpgActorIdentity): string {
+  const lines: string[] = [];
+  for (const field of RPG_CAST_GUIDE_FIELDS) {
+    const text = identity[field]?.trim() ?? "";
+    if (text !== "") {
+      lines.push(`${CAST_GUIDE_CARD_LABEL[field]}: ${text}`);
+    }
+  }
+  return lines.join("\n");
+}
 
 /** Per-actor volatile state — the swipe-volatile plane, born whole (full grafts ZERO fields here). `wallet` is
  *  the STORED named-amount array (§2.6). `trackerValues` is the tracked-field VALUE plane, keyed by tracker

@@ -256,6 +256,7 @@ function stubTakeover(
     "rpg.editSnapshot": () => undefined,
     "rpg.patchActor": () => undefined,
     "rpg.dismissActor": () => undefined,
+    "rpg.promoteActor": () => undefined,
     "rpg.patchSheet": () => undefined,
     "rpg.populateFromCharacter": () => undefined,
     "rpg.updateConfig": () => undefined,
@@ -558,6 +559,53 @@ test("R2: an OFFSTAGE cast actor is listed, editable and dismissable — never o
   await expect.poll(() => trpc.count("rpg.dismissActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   // ONESHOT-OK: settled by the poll above (see the `patchActor` payload read for the same reasoning).
   expect(trpc.lastInput("rpg.dismissActor")).toMatchObject({ targetRef: { kind: "cast", castKey: "vesna" } });
+});
+
+// ── R4: PROMOTION — the recurring stranger earns a roster card ────────────────────────────────────────────
+// The other durable per-actor gesture, and Dismiss's opposite: dismissal forgets the person, promotion keeps
+// her forever. It lives beside Dismiss in the SAME disclosure because both are library acts on a known
+// character, not moves in the NOW window the on-stage cards are.
+//
+// The confirm is not ceremony — it is where the panel says out loud what does NOT carry. The volatile plane
+// (trackers, pack, purse, conditions, status), the scene presence and the hand pins all follow her across the
+// re-key; her MOOD and her RELATIONSHIP stance do not, because a roster member has no home for them (R2: a
+// stance is a cast actor's datum). A host who learns that after the fact learns it as a bug.
+test("R4: an offstage cast actor can be PROMOTED to the roster — two-step, named by whose it is, and honest about the stance", async ({ mount, page }) => {
+  const base = trackerView(false) as { actors: Record<string, unknown>[]; cast: readonly string[] };
+  const sera = base.actors.find((a) => a["name"] === "Sera") as Record<string, unknown>;
+  const trpc = await stubTakeover(page, {
+    tracker: {
+      ...(base as Record<string, unknown>),
+      actors: [
+        ...base.actors,
+        {
+          ...sera,
+          actorRef: { kind: "cast", castKey: "vesna" },
+          name: "Sister Vesna",
+          presence: false,
+          identity: { ...(sera["identity"] as Record<string, unknown>), name: "Sister Vesna", mood: "guarded", appearance: "", thoughts: "" },
+        },
+      ],
+    },
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+
+  const section = component.locator('[data-slot="rpg-known-characters"]');
+  await section.getByRole("button", { name: "Show known characters" }).click();
+
+  await section.getByRole("button", { name: "Promote Sister Vesna to the roster" }).click();
+  // The confirm NAMES what survives and what does not — the whole reason this gesture asks twice.
+  await expect(section).toContainText("Sister Vesna");
+  await expect(section).toContainText("mood");
+  await expect(section).toContainText("stance");
+  await section.getByRole("button", { name: "Confirm promoting Sister Vesna" }).click();
+
+  await expect.poll(() => trpc.count("rpg.promoteActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  // ONESHOT-OK: settled by the poll above (see the `patchActor` payload read for the same reasoning).
+  // The panel names the ACTOR and nothing else — the card's name/handle are the SERVER's derivation off the
+  // actor's own identity row, never a client-authored image (the R1 lesson applied to the promotion door).
+  expect(trpc.lastInput("rpg.promoteActor")).toEqual({ chatId: "chat_ct_keystone", targetRef: { kind: "cast", castKey: "vesna" } });
 });
 
 test("the host New-quest affordance fires upsertQuest (create) — the mutation COUNT", async ({ mount, page }) => {

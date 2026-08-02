@@ -20,6 +20,7 @@ export type {
   RpgIdMints,
   RpgPopulateDelta,
   RpgPostNarratorMessage,
+  RpgPromoteToRoster,
   RpgResolvePresetOwned,
   RpgResolveRoster,
   RpgResolveStateDelivery,

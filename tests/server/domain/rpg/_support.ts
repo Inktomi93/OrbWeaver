@@ -10,7 +10,7 @@ import type { RpgActorEntry, RpgBusEvent, RpgExtraction, RpgExtractionMode, RpgG
 import { RPG_PROFILE_FREEFORM, RPG_RECENT_BEATS_KEEP_DEFAULT } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { presets, rpgGames } from "@orb/db";
-import type { ChatId, Handle, MessageId, MessageVariantId, PresetId, RpgGameId, RpgQuestId, RpgSnapshotId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, PresetId, RpgGameId, RpgQuestId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import type { WireTool } from "@orb/server/infra/providers";
 import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat";
@@ -244,6 +244,13 @@ export interface RpgFakes {
   readonly populateCalls: { chatId: string; hostUserId: string; targetRef: string; corpus: RpgCardCorpus }[];
   /** The `resolveCardCorpus` reads (the injected chat op) — the characterId the verb asked for. */
   readonly cardCorpusReads: { chatId: string; characterId: string }[];
+  /** R4 — force the PROMOTION's durable half to refuse (the exhausted-handle arm the compose impl produces).
+   *  Set to a reason string; the fake then mints nothing. Default unset ⇒ the mint succeeds. */
+  promoteRefusal?: string;
+  /** R4 — the promotion mints fired (`promoteToRoster`): the room, the HOST userId the card was minted under
+   *  (the injected-op caller-gate assertion — never a re-derived owner), and the card content the verb DERIVED
+   *  off the actor's identity row. A test asserts the standing guides actually reached the card. */
+  readonly promoteMints: { chatId: string; hostUserId: string; name: string; handle: string; description: string; characterId: CharacterId | null }[];
   /** The rpg-bus events a verb/flush emitted (the `emitBus` recorder — assert-the-mutation-fired for §4.9). */
   readonly busEvents: RpgBusEvent[];
   /** The write-boundary DROPS the flush surfaced (the `onFlushDropped` recorder — assert the drop was OBSERVED,
@@ -315,6 +322,7 @@ export function makeRpgService(
     canonWindowReads: [],
     populateCalls: [],
     cardCorpusReads: [],
+    promoteMints: [],
     busEvents: [],
     flushDrops: [],
     barrierTimeouts: [],
@@ -400,6 +408,23 @@ export function makeRpgService(
       return Promise.resolve();
     },
     resolveRoster,
+    // R4 — the PROMOTION's durable half. The real impl mints a character card + a chat roster seat over the
+    // character/chat front doors; the fake mints a stable id and SEATS her on `fakes.roster`, because the seat
+    // is not decoration: the tracker view projects a `character:` actor only when the roster carries it, so a
+    // fake that skipped it would let a promotion "pass" while the panel showed nobody.
+    promoteToRoster: ({ chatId, hostUserId, name, handle, description }) => {
+      if (fakes.promoteRefusal !== undefined) {
+        fakes.promoteMints.push({ chatId, hostUserId, name, handle, description, characterId: null });
+        return Promise.resolve({ ok: false, reason: fakes.promoteRefusal });
+      }
+      // A REAL TypeID, not a readable stand-in: the re-keyed ref crosses the snapshot write boundary, which
+      // validates the id shape — a `character_vesna` fake would make every promotion test fail there for a
+      // reason that has nothing to do with promotion. The minted id is RECORDED so a test can assert the ref.
+      const characterId = mintTypeId(ID_PREFIX.character);
+      fakes.promoteMints.push({ chatId, hostUserId, name, handle, description, characterId });
+      fakes.roster.push({ actorRef: { kind: "character", characterId }, name });
+      return Promise.resolve({ ok: true, characterId });
+    },
     postNarratorMessage,
     resolvePresetOwned: (presetId, userId) => Promise.resolve(fakes.ownedPresets.has(`${presetId}:${userId}`)),
     resolvePresetUserMacros: () => Promise.resolve(fakes.presetUserMacros),

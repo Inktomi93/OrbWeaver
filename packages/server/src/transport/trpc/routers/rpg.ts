@@ -35,6 +35,7 @@ import {
   rpgPatchActorInputSchema,
   rpgPatchSheetInputSchema,
   rpgPopulateFromCharacterInputSchema,
+  rpgPromoteActorInputSchema,
   rpgReadGameInputSchema,
   rpgRestoreCheckpointInputSchema,
   rpgRollDiceInputSchema,
@@ -60,6 +61,13 @@ export const rpgRouter = t.router({
   dismissActor: authedProcedure
     .input(rpgDismissActorInputSchema)
     .mutation(({ ctx, input }) => ctx.services.rpg.dismissActor({ principal: ctx.auth, ...input })),
+  // R4 — the PROMOTION doorway (`dismissActor`'s opposite). Also chatId-scoped and host-gated inside the verb,
+  // so the cross-tenant sweep classifies it PROBED like every sibling; note that it is the ONE rpg proc whose
+  // write reaches outside the game (a character card + a roster seat), which is exactly why the verb resolves
+  // the host FIRST and threads that userId into the injected mint.
+  promoteActor: authedProcedure
+    .input(rpgPromoteActorInputSchema)
+    .mutation(({ ctx, input }) => ctx.services.rpg.promoteActor({ principal: ctx.auth, ...input })),
   upsertQuest: authedProcedure.input(rpgUpsertQuestInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.upsertQuest({ principal: ctx.auth, ...input })),
   deleteQuest: authedProcedure.input(rpgDeleteQuestInputSchema).mutation(({ ctx, input }) => ctx.services.rpg.deleteQuest({ principal: ctx.auth, ...input })),
   addJournalEntry: authedProcedure
