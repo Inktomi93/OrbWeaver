@@ -8,6 +8,18 @@
 > (desktop+mobile; incl. F's CD2 box-in-box + chip-radius flags), close-out D-entry,
 > graduation verifier → docs/history. Owner's morning mouse = final confirmation.
 
+> **STRIKE-PASS SUMMARY (2026-08-02, lane STRIKE):** 34 struck w/ receipts — items 1,2,3,4,6,7,8,
+> 9,10,11,12,13,15,16(chip-cue half),17,18,19,20(pre-struck, confirmed),21,22-arm2 (19 items) +
+> O-1,O-3,O-4,O-5,O-6,O-7,O-9,O-10,O-11,O-12,O-13,O-14,O-16,O-17,O-18,O-19 (16 rulings, incl. the
+> P0-root-cause paragraph closed under item 1/2's fix). 2 open — O-2 (provenance chip never
+> reworded/rehomed) and item 14 (kind chips + rack glyph discs + budget-bar hue fixed/sanctioned,
+> but `{{macro}}` token pills in `macro-text.tsx:59` still render full-saturation `intent="info"`,
+> contradicting the lane-C commit message's "quiet mono" claim). 4 superseded/refuted — item 5
+> (superseded by O-18), item 16's Post-history-badges half (refuted: neither flag is set on any
+> live preset), O-8 (refuted: depth input round-trips fine, live probe + CT), O-15 (owner ruled
+> no action needed), item 22-arm1 (refuted: the "navy pane" was the orchestrator's own DevTools
+> chrome, not app paint). Zero un-annotated rows remain.
+
 Rendered on the live dev stack (main @ `7c312220`, wide 1920, preset "New preset" on
 anthropic/claude-sonnet-5) via `pnpm snap --goto presets`. Receipts: rendered `reports/snaps/mvr-*.png`,
 mock crops `reports/snaps/preset-mocks/` (INDEX.md maps crop → surface; sanctioned deviations listed
@@ -30,6 +42,12 @@ That is why every CT is green while the live surface loops. Fix + regression pro
   mount, zero width change on the title line (reserve `max(badge, cluster)` width).
 - Verify with a REAL pointer (chrome-devtools MCP / CDP mouse-move series), not a CT.
 
+~~1.~~ ✅ `5978fddf` The `display:none` swap (`ROW_REVEAL_SWAP`) is gone from the row; the badge
+becomes a permanently-mounted filled dot (O-1) in a reserved trailing slot, cluster stays in-flow —
+geometry is byte-identical rest vs hover, so the CSS hit-test oscillator has nothing to reflow
+against. Real-pointer verification is the doc's own P0-ROOT-CAUSE section's REGRESSION PROOF, not
+re-run here per doctrine (no browser tooling in this pass).
+
 **2. LIST reveal cluster is jank (owner verbatim), and it hides state.**
 - The activate affordance renders as a FILLED AMBER LIGHTNING BOLT — reads as a one-shot zap
   action, not the mock's pressed toggle-dot (`list--pane-presets.png` + the toggle-semantics note
@@ -39,6 +57,11 @@ That is why every CT is green while the live surface loops. Fix + regression pro
 - The Active BADGE VANISHES exactly while you inspect the row — the P4 receipt's own invariant was
   "state rides a title-line Active Badge" with the toggle at rest="never"; the badge must SURVIVE
   hover. (Bolt→FillableIcon fill-axis is already queued in icon-seal adoption — fold, don't fork.)
+
+~~2.~~ ✅ `5978fddf` (superseded by O-1) The text Active badge is retired; state is a persistent
+lucide `FillableIcon` dot (`Circle`, `fill="solid"` when active), painted at rest, hollow-and-
+reveals-with-the-row when not — the ⚡ one-shot bolt is gone. Survives hover by construction (it's
+the permanently-mounted element, not a conditional swap).
 
 ## P1 — structural execution misses
 
@@ -55,9 +78,17 @@ In focus mode at full width the void is ~800px. OWNER NUANCE: "looks okay when b
 out, but when you close them it looks awful" — the ruling must hold across pane widths ~960 →
 full-bleed (a centered/responsive column degrades gracefully; a left-pinned fixed clamp cannot).
 
+~~3.~~ ✅ `45cf001d` One shared wrapper across all five tabpanels, centered (`character-editor-
+surface.tsx` convention) and breathing to `--width-content-col-wide` (56rem) once the pane clears
+@5xl — exactly the panels-collapsed/focus-mode regime the owner called out. Also closes item 8's
+truncation (the void that starved it is gone).
+
 **O-19 ★ PRESETS OPENS WITH LIST + CONTEXT DOCKED.** The section currently opens without the
 list/context panes; the section-registry default for Presets becomes list=docked +
 context=docked (the surface is unusable without the list, and the readout IS the product).
+
+~~O-19.~~ ✅ `56881c9f` `presetsSection.panelDefaults` set to list=docked + context=docked; landed
+in the same commit as item 20's focus-mode fix.
 
 **4. Switch grammar split — the rack ON/OFF ambiguity is BACK (or never died live).** Params'
 Reasoning switch = amber-ON (correct, the app convention). Every RACK switch renders pale-gray
@@ -67,10 +98,18 @@ marked fixed in the fix-all; rendered truth says otherwise. One switch grammar, 
 on this surface. (This smells like the tailwind-merge custom-token override class — verify the fix
 actually lands in COMPUTED style, assert computed color in the CT.)
 
+~~4.~~ ✅ `45cf001d` Rack + drill enable switches drop `tone="quiet"`, KnobRow's explicit slider
+drops `tone="neutral"` — both adopt amber-ON, pinned by computed color in both states (per the
+tailwind-merge-custom-token lesson this row itself named).
+
 **5. Quality strip execution.** Selected "Deep" = thin amber outline only (mock: the selected
 segment is visually FILLED/darker). The mapping gloss wraps into two stacked mini-lines UNDER the
 strip and drops the temp value; mock renders one inline line beside the strip
 ("deep → effort high · temp 1.0 — explicit knobs below override this").
+
+~~5.~~ SUPERSEDED by O-18. `45cf001d` The segmented strip (and its selected-fill question) dies
+entirely — Quality becomes a dropdown; the surviving gloss half (temp value inline, one line) is
+fixed in the same commit.
 
 ## P2 — row-level execution deltas
 
@@ -78,32 +117,58 @@ strip and drops the temp value; mock renders one inline line beside the strip
 "generation · edited 3d ago". Built: bare "edited 2h ago" (`mvr-list-rest.png`). The kind vocab
 exists (registry, G7 chips) — thread it into the row subtitle.
 
+~~6.~~ ✅ `5978fddf` "The kind leads every row subtitle again" — thread-through confirmed in the
+commit message and diff.
+
 **7. Kind-chip inconsistency in Actions.** `format` chip renders FILLED blue while
 steer/voice/studio/nudge are outlined (`mvr-actions-content.png`) — nothing semantic justifies the
 odd one out. One chip grammar.
+
+~~7.~~ ✅ `c4844496` "One kind-chip grammar (outlined neutral, killing the odd filled-blue
+`format`)".
 
 **8. Truncation everywhere in Actions.** Descriptions and template previews cut at ~20-30 chars
 ("[Take the following into speci…") while half the pane is void — falls out of item 3; verify the
 previews recover once the column ruling lands.
 
+~~8.~~ ✅ `45cf001d` (item 3 fix) + `ed90cd59` (F-7, pre-dating this doc) — the void that starved
+the previews is gone (item 3) and the mono preview cell that clipped to a fixed ~30 chars was
+deleted outright (`actions-view.tsx:160-166`, "the row's width now goes to the scent" — template
+text's homes are the drill-in + readout only).
+
 **9. Number formatting split inside one deck.** Max output "1,500" (locale) vs Max context "200000"
 (raw) — same KnobRow family, two grammars (`mvr-params-content.png`). Mock uses raw mono. Pick one.
+
+~~9.~~ ✅ `45cf001d` "ONE number grammar — raw, ungrouped digits across the deck".
 
 **10. Template drill "At depth" NumberField clips its own ghost** ("0 — the t…",
 `mvr-drill-template.png`) — inline size too narrow for the ghost copy; widen the box or shorten the
 ghost. Same drill: section drill's DELIVERY row (Spoken-as ↔ Inject-at-depth) is misaligned —
 label baselines and input widths don't form the mock's two-column row (`mvr-drill-section.png`).
 
+~~10.~~ ✅ `c4844496` (ghost half, tied to O-14: "depth ghost shortens to `0 · tail`") +
+`303638ee` ("the DELIVERY row is ONE row — the hint trigger stops costing 16px, and a deliberate
+pair stops collapsing").
+
 **11. Readout pane header is generic "Details".** Mock names what it reads ("ACTIONS · READOUT").
 With per-view swapping content, name the view in the pane header (`mvr-readout-*.png`).
+
+~~11.~~ ✅ `c4844496` "The CONTEXT band names its projection ('Prompt · readout'), via a new
+optional `header` slot on the `single` context arm".
 
 **12. Actions readout is ~90% void.** DELIVERY PATH renders; the D8 binding chip + resolved preview
 are QUEUED post-P5 (sanctioned) — but until they land, ship the honest placeholder arm naming what
 arrives ("resolved preview appears when a chat is bound") instead of dead space
 ([[empty-states-are-load-bearing]]).
 
+~~12.~~ ✅ `c4844496` honest Resolved-preview placeholder arm shipped; D8 itself (the real binding
++ chip) landed separately (`6b11ea7a`, `607d7e94`), so the void is gone either way.
+
 **13. Header title de-emphasized.** "New preset" renders at body weight/size; mock gives the name
 title weight. The truth chips (Active + model) are right.
+
+~~13.~~ ✅ `45cf001d` "the editor header's preset name gets title weight/size" — confirmed live in
+`preset-editor-surface.tsx:318` (`<Heading level={2}>` replacing the old `voice="label"` `<p>`).
 
 ## P3 — polish / taste flags (fix-all law says these get fixed too)
 
@@ -114,19 +179,41 @@ Prompt-readout budget bars (blue fills) — a blue/steel family the mocks don't 
 dark tiles, quiet chips, ONE blue SETUP kicker + green on-chip). Rule it once: either blue IS the
 preset-surface info hue (then mute + apply consistently) or it's drift (re-tint neutral/amber).
 
+~~14.~~ ⚠ OPEN (partial). Kind chips fixed (item 7, `c4844496`); rack glyph discs muted to a 15%
+tint (`ed90cd59` F-17, `section-row.tsx:183` — "15% tint + hue text IS the mock's `.glyph`
+treatment"); budget-bar/SETUP-kicker blue is the doc's own sanctioned deviation ("ONE blue SETUP
+kicker" — `prompt-readout.tsx:80`, zone-hued track by design). BUT the lane-C commit message
+claims "macro token pills go quiet mono" and the diff (`c4844496 --stat`) never touches
+`macro-text.tsx` — verified live: `macro-text.tsx:59` still renders `{{macro}}` chips as
+full-saturation `Badge intent="info"`. Remaining: mute the macro-token-pill Badge to quiet mono (or
+correct the commit-message claim).
+
 **15. Rack token counts cramped** — ~30/~4/~— tiny and tight against the toggles; mock gives a
 dedicated right-aligned mono column with air.
+
+~~15.~~ ✅ `c4844496` "the ~token estimate takes a fixed-width right-aligned tabular-mono column".
 
 **16. Missing rack cue badges.** Guided instruction lacks "steered turns"; Post-history lacks
 lock + custom (mock draws them; registry carries fires-on + position-lock — the metadata exists).
 
+~~16.~~ ✅ PARTIAL/refuted-remainder `c4844496` — "the registry gains ONE fixed-by-product firing
+cue (`guided_instruction` → 'steered turns')" (fixed); the Post-history lock+custom half is
+REFUTED WITH RECEIPTS in the same commit: "Post-history lock/custom pills are only-when-set by the
+mock's own note, and the live preset has neither flag set" — nothing to render, not a defect.
+
 **17. Built-in lock placement.** Mock: lock inline LEFT of "Default" (a property of the name).
 Built: far right edge (reads as an action slot) — and see item 19: it collides with the reveal.
+
+~~17.~~ ✅ `5978fddf` "the built-in's lock moves to the leading slot, inline-LEFT of the name... it
+no longer stacks under the revealed cluster at the row's end".
 
 **18. Cluster wrapper paints its OWN box on hover** (owner-spotted live, CDP-held-hover zoom
 receipt): the [⚡ · dup · kebab] cluster sits in a distinct darker rounded panel ON TOP of the
 row's hover tint — box-in-box double highlight. Kill the wrapper background (glyphs ride the row
 tint) or make it seamless with it.
+
+~~18.~~ ✅ `5978fddf` cluster now sits IN FLOW in the reserved `LibraryRow.actionsReserved` strip;
+"that also kills item 18 (the float's own `bg-accent` panel — the box-in-box double highlight)".
 
 **19. Non-active/built-in trailing-slot COLLISION** (owner-spotted live, zoom receipt): on
 Default's hover the lock rest-marker STAYS and the ⚡ bolt renders overlapping/below it —
@@ -135,9 +222,17 @@ rest-marker vs reveal. Same family as the P0 swap: one reserved trailing slot la
 cluster co-exist in it (marker inline-left of the cluster, or marker yields via opacity in a
 FIXED box) — never stack, never `hidden`.
 
+~~19.~~ ✅ `5978fddf` (same commit as item 17) — lock moved to the leading slot, disjoint from the
+trailing cluster; no stack, no collision.
+
 **O-1 nuance (owner, after seeing it live):** "don't hate the active thing now that I understand
 it" — the ⚡ activate-toggle CONCEPT survives; the dot-for-state ruling and the bolt's
 weight/centering fixes stand as written.
+
+~~O-1 (incl. nuance).~~ ✅ `5978fddf` filled `FillableIcon` dot (persistent, in the reserved
+trailing/leading slots per items 17-19), ⚡ bolt retired as the state marker; the activate-toggle
+CONCEPT (a `Zap`-icon Activate affordance for the not-active arm) survives per the nuance, visible
+in `preset-editor-surface.tsx:331-334`.
 
 **~~20~~ LANDED (`56881c9f` FF-merged, main check-certified post-merge).** Root cause was DEEPER
 than diagnosed: NO focus flag existed — "focus" was DERIVED from "both panels collapsed" (which
@@ -199,6 +294,16 @@ mounting without its body. NOT zoom, NOT height math. Repro recipe: devtools emu
 → nav presets (no selection; persisted panel-open state). Owner screenshot (960-band, clipped
 controls under an undressed overlay) is the OTHER band's arm of the same item.
 
+~~22-arm2 (48-64rem undressed overlay).~~ ✅ `c2bb5b94` "narrow-band overlay panels wear real
+sheet clothing" — `--shadow-overlay` on overlay mode (the house drawer/dialog/toast recipe:
+scrim+shadow), floating context pane's docked-adjacency ember edge, content column goes `inert`
+behind the scrim (keyboard trap fixed too). Red-first CTs cited (box-shadow "none"/inert null on
+HEAD~).
+~~22-arm1 (owner's 418×634 sighting).~~ REFUTED WITH RECEIPTS `c2bb5b94` — "that receipt is a
+browser window with devtools docked below an emulated viewport — the vertical icon rail is
+devtools' own collapsed toolbar. A 418×634 dpr1 device-emulated sweep of all 8 sections × both
+panes paints and measures clean." Not a code defect.
+
 **21. Params typography census — the "font colors and weights all over the place" receipt
 (visible-only probe, Params deck): 7 distinct color·size·weight tuples on one deck.** Worst two:
 (a) "Between 1 and 64,000" BOUNDS-HELPER text renders 15px bright-white 400 — LOUDER than the
@@ -208,6 +313,10 @@ the selected "Deep" — token drift, not a choice. Full zoo: kickers 10.5/600 mu
 10.5/400 muted · labels 13/500 bright · select values 13/400 bright · bounds 15/400 bright ·
 quality options 15/500 muted · selected 15/500 off-white. Rule the scale (kicker/label/value/
 helper tokens), collapse the two whites, and the bounds text drops to helper voice.
+
+~~21.~~ ✅ `45cf001d` scale collapsed to four tuples (kicker/label/value/gloss), the two whites
+now both reference `--color-foreground`; the "bounds helper 15px bright-white" row is retracted as
+a probe artifact (the node is `sr-only`, invisible on screen — no restyle needed).
 
 ## OWNER LIST (2026-08-02 night) — merged; ★ = owner RULING that overrides mock/receipt
 
@@ -220,49 +329,115 @@ misalignment both drills (items 10/21) · Actions tab "not as clean as the mocku
 use fills" — the P4 receipted badge arm is OVERRULED: active state renders as a filled lucide dot
 (FillableIcon), persistent on the row; the hover cluster reveals BESIDE it. Folds into P0 item 2's
 fix (and the icon-seal client-adoption queue).
+
+~~O-1 (list echo).~~ ✅ `5978fddf` — same fix as the P0 item-2 strike above; the FillableIcon dot
+is the one implementation for both.
+
 **O-2 "for anthropic/…" chip is MISLEADING** — it shows the CURRENT resolved connection model, but
 reads as "this preset is for xyz". Reword/re-home the provenance (readout owns resolution truth).
+
+⚠ OPEN. `preset-editor-surface.tsx:342-346` still renders `Badge … tone="ghost"` reading
+`for {effective.model}`, unchanged wording, still header-homed (not moved into the readout). No
+commit touches this string outside comment additions explaining why it's there. Nothing landed.
+
 **O-3 Import button (list header) has no tooltip** — icon-only, aria-label exists but sighted users
 get nothing on hover.
+
+~~O-3.~~ ✅ `5978fddf` "the header Import icon button gets a `title` tooltip (same string as its
+aria-label)".
+
 **O-4 ★ Compaction mode value too long** ("Default — Managed — summarize into…") — shorten the
 option label; long explanation moves to hover/info.
+
+~~O-4.~~ ✅ `d294c7c5` option labels are now bare mode names ("Managed"/"Auto"); the "what it does"
+copy moved to the row's hover hint.
+
 **O-5 "MEMORY MARKER" IS A VOCAB LIE — VERIFIED.** Compaction writes `chats.compactSummary` +
 `compactedAtSeq`, its own chained summary marker spliced into the top history slot
 (`domain/chat/verbs/compaction.ts:1-9`); it NEVER feeds the Memory plane (rack "Memory" =
 remembered past events, a different system). The copy at `params-limits.tsx:198,221,246` says
 "memory marker / durable portable memory" — rename to summary/compaction marker, all three sites.
 Verbatim-tail's MECHANIC is correct (newest N stay literal); only the noun lies.
+
+~~O-5.~~ ✅ `d294c7c5` "all four preset-side copy sites now use the domain's own noun" (compaction-
+mode hint, verbatim-tail hint, auto-mode honesty gloss, mode label).
+
 **O-6 Summary instructions textarea shows no default** — the RP-tuned default must GHOST in the
 box (the GhostValue law's textarea arm, missed).
+
+~~O-6.~~ ✅ `ed90cd59` (F-11, landed before lane B/C dispatch) "the RP-tuned compaction default
+ghosts".
+
 **O-7 ★ Rack row explainer prose → hover.** The inline "your core system instruction" descriptions
 are owner-ruled lame; move to hover/title on the name. (Overrides the mock's inline-desc drawing.)
+
+~~O-7.~~ ✅ `c4844496` "The rack row's explainer prose moves to the name's hover (`fullTitle`)".
+
 **O-8 Inject at depth is STUCK at "in flow"** — dead input, can't set a depth. Functional defect,
 P1.
+
+~~O-8.~~ REFUTED WITH RECEIPTS `c4844496` — "does not reproduce: typing round-trips to the form
+(CT) and persists across a reload (live probe on main); what the owner met was the clipped ghost +
+a depth field offered on a Relative section, both of which O-9 removes."
+
 **O-9 ★ ZONE VOCAB + CONDITIONAL FIELDS.** Zone options change: POST → "In Chat"; the model is
 Relative (ordered among prompts) vs In-Chat @ depth. Depth + Order render ONLY when zone = In Chat.
 (Spec §5 zone table needs the amendment; supportsArrangement stays schema-derived.)
+
+~~O-9.~~ ✅ `c4844496` "Depth + Order therefore render ONLY on the In-Chat arm... moving back to
+Relative CLEARS the splice".
+
 **O-10 ★ "Spoken as" → "Role"** (section drill) and **"Delivered as" → "Role"** (template drill).
 One vocab.
+
+~~O-10.~~ ✅ `c4844496` "'Spoken as'/'Delivered as' → 'Role', both drill-ins + the readout datum".
+
 **O-11 ★ TRIGGERS = dropdown multi-checkbox**, not the segmented strip. (Overrides the mock's
 segmented drawing.)
+
+~~O-11.~~ ✅ `c4844496` "Triggers becomes a multi-check dropdown (the `multiple` Select's own check
+idiom)".
+
 **O-12 Drill-in missing OVERRIDES block at the bottom** — verify against spec §5/§7 what the
 overrides section carries and build it.
+
+~~O-12.~~ ✅ `c4844496` root cause was a dead gate (`"forbidCharacterOverride" in section` matched
+no real preset); "the gate is now the schema ARM that declares them".
+
 **O-13 "Delivers via Guided instruction" button DOES NOTHING** — dead affordance on the Actions
 header. Either it becomes the real door (select the Guided-instruction row in Prompt — the readout
 note already promises "clicking the name selects that row") or it dies.
+
+~~O-13.~~ ✅ `c4844496` "`openSectionInPrompt` (preset-nav) does both halves — view + selection —
+through the same two store actions".
+
 **O-14 Template drill At-depth ghost invisible** — confirms item 10 (clipped ghost); owner saw
 stray "next" text in the field.
+
+~~O-14.~~ ✅ `c4844496` (same fix as item 10) "the depth ghost shortens to `0 · tail`".
+
 **O-15 noted, no action:** Guided instruction toggleable in the rack — owner grumble, stands
 ("I guess it's fine").
+
+~~O-15.~~ CLOSED AS-INTENTIONAL — no code change; owner ruling stands as written, nothing to fix.
+
 **O-16 ★ EXPORT DOUBLE-HOME OVERRULED.** Export in the list-row kebab AND the content-header kebab
 is dumb (owner). The fix-all SANCTIONED that echo (§16 rows 7+27 "header-Export echo") — overruled:
 ONE home, the list-row kebab (matches the characters/chats ruling: lifecycle lives list-side).
 Remove Export from the editor-header kebab; §16 rows 7+27 revert.
+
+~~O-16.~~ ✅ `c4844496` — confirmed live: `preset-editor-surface.tsx:46` "`Download` is GONE with
+the header Export door (O-16★ — one home, the list-row kebab)".
+
 **O-17 ★ Prompt-view tail clusters → TRANSFORMS.** Delivery (Speaker names · Continue delimiter)
 and Collapsing (Adjacent-role merging · "This model enforces at least Strict — stricter always
 wins" · Squash system notes) move out of Prompt into Transforms (owner: they're wire-shaping, not
 prompt content). Spec §5 concept-sort text amends with it. (Recorded counterpoint, not argued:
 the spec homed Delivery under Prompt as "how sections speak"; owner sort wins.)
+
+~~O-17.~~ ✅ `c4844496` "DELIVERY + COLLAPSING MOVE TO TRANSFORMS... They lead that view, above the
+prompt-side regex lanes"; follow-through cleanup in `824071ab` (dropped now-unused capability prop
+from the Prompt view's call site) and `713fcbcc` (dead export removed).
 
 **O-18 ★ QUALITY = A DROPDOWN, with an OFF arm.** The Fast/Balanced/Deep segmented strip dies;
 Quality becomes a select whose options include "don't use quality" (no mapping feeds the knobs —
@@ -270,6 +445,10 @@ fully manual). Supersedes the strip half of item 5 (the gloss/placement half sti
 wherever the mapping line renders); the readout's QUALITY MAPPING group grows the off arm
 ("quality off — knobs are what you set"). Check the G8 tri-state lift: "off" must be a REAL stored
 arm, not a fourth enum value that materializes defaults.
+
+~~O-18.~~ ✅ `45cf001d` — segmented strip dies, dropdown with Fast/Balanced/Deep + "Don't use
+quality"; OFF stores as absence of `params.quality` (no fourth enum member), contract test pins
+the three-membered enum + the absence.
 
 ## P0 ROOT CAUSE — source-pinned + LIVE-MEASURED (real-mouse probe, owner + orchestrator, 08-02)
 `components/row-reveal.ts:24` — `ROW_REVEAL_SWAP = "group-hover/row:hidden …"` is a
@@ -288,6 +467,14 @@ REGRESSION PROOF (the probe, rerunnable): arm capture-phase pointerover/out coun
 childList MutationObserver on `[aria-label="Presets list"]`, real-mouse wiggle the name edge ~10s
 → crossings must be single-digit; CTs cannot see this class (synthetic pointers don't re-hit-test
 on layout shift).
+
+~~P0 root cause.~~ ✅ `5978fddf` — the swap is gone from the row (see item-1 strike); the
+"sweep other consumers" directive is fulfilled in the same commit: "ROW_REVEAL_SWAP survives for
+its one remaining consumer (the chats row's ★) migrated to the reserved-box pattern:
+`invisible` on the hover axis... `hidden` kept only on `pointer-coarse`". Real-mouse regression
+proof itself is NOT re-run in this pass (doctrine bars browser tooling here); the doc's own
+wave-status block records the post-merge CDP re-probe (14 dispatches, over:3/out:2/mut:0) as the
+live confirmation.
 
 ## Verified GOOD against the mocks (don't touch)
 
