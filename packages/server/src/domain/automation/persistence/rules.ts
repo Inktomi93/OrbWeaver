@@ -95,6 +95,10 @@ export async function insertRule(db: Db, row: RuleInsert): Promise<void> {
   await db.insert(automationRules).values({ ...row, actions: row.actions as RuleRow["actions"], enabled: false });
 }
 
+// @owner-scope-ok: every caller has already passed `requireRuleHost(ctx, principal, ruleId)` — the D18 host
+// rung, which is STRICTER than the ownerId stamp (a rule's owner is its author, but only the room's host may
+// touch it). Re-adding `eq(ownerId, …)` here would encode the weaker check. Ends if a caller ever reaches
+// this without the guard (create-rule reads back its own freshly-minted id, which is the same proof).
 export async function selectRuleRow(db: Db, ruleId: AutomationRuleId): Promise<RuleRow | undefined> {
   const rows = await db.select().from(automationRules).where(eq(automationRules.id, ruleId)).limit(LIMIT_ONE);
   return rows[0];

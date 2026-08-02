@@ -65,7 +65,7 @@ export function createDuplicate(ctx: CharacterContext): CharacterService["duplic
     // PD-141: carry the source's attached world-info book REFERENCES onto the duplicate (fresh
     // character_books rows pointing at the SAME books; world-info owns the junction write, D28). Sequential
     // after the insert (the FK needs the new row); no transaction — matches duplicate's existing op story.
-    await ctx.copyCharacterBooks({ fromCharacterId: characterId, toCharacterId: newId });
+    await ctx.copyCharacterBooks({ ownerId, fromCharacterId: characterId, toCharacterId: newId });
 
     // A duplicate is a fresh card with copied content → embed it (contentChanged always true for duplicate).
     ctx.emit({ type: "character.updated", characterId: newId, contentChanged: true });
