@@ -9,7 +9,8 @@
 import type { ChatTriggerType } from "@orb/contracts/automation";
 import { AUTOMATION_FIRE_OUTCOMES, AUTOMATION_TRIGGER_BUSES } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
-import { automationBudgets, automationFires, automationRules, chats, globalVariables, isConstraintViolation } from "@orb/db";
+import { automationBudgets, automationFires, automationRules, chats, globalVariables } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { AutomationFireId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

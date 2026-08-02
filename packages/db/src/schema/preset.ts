@@ -60,5 +60,12 @@ export const presets = sqliteTable(
   // (its rpg GM-preset consumer clones the same template once per game), and the owner may deliberately keep
   // SEVERAL forks of the built-in (the update verb's `{mode:"new"}` fork intent) — uniqueness on this pair
   // would refuse both.
-  (table) => [index("presets_owner_idx").on(table.ownerId), index("presets_owner_forked_from_idx").on(table.ownerId, table.forkedFrom)],
+  // `presets_forked_from_idx` is the fork self-FK's own SET-NULL parent scan: SQLite only uses an index
+  // whose LEFTMOST column is the constrained one, so the (owner, forkedFrom) pair above cannot serve a
+  // delete that knows only the parent preset id (`fk-columns-indexed` gate).
+  (table) => [
+    index("presets_owner_idx").on(table.ownerId),
+    index("presets_owner_forked_from_idx").on(table.ownerId, table.forkedFrom),
+    index("presets_forked_from_idx").on(table.forkedFrom),
+  ],
 );

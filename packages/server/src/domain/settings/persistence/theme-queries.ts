@@ -3,7 +3,8 @@
 // un-mutable by construction. Timestamps arrive as params.
 
 import type { Db } from "@orb/db";
-import { isConstraintViolation, themes } from "@orb/db";
+import { themes } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, isNull, or } from "drizzle-orm";
 

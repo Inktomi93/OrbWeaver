@@ -21,6 +21,7 @@ import type { Db } from "@orb/db";
 import { assets, characters, chatParticipants, chats, messageAssets, messages, personas } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, GalleryItemId, Handle, MessageAssetId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { createLinkCharacterAvatars } from "@orb/server/domain/character";
 import { createCas, createVariantCache } from "@orb/server/infra/storage";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
@@ -83,6 +84,10 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
     now: (): number => clock.now(),
     newAssetId: (): AssetId => castId<AssetId>(ids.next("asset")),
     newGalleryItemId: (): GalleryItemId => castId<GalleryItemId>(ids.next("gallery_item")),
+    // The cross-domain avatar-pointer write, wired as the REAL character-owned factory (mirrors
+    // `entry/compose/assets-character.ts`) — so `backfillAvatars` exercises the actual owning-domain write,
+    // not a stub that would pass while writing nothing.
+    linkCharacterAvatars: createLinkCharacterAvatars({ db }),
     // The gallery owner-only gate, wired as the real owner-scoped `characters` read (mirrors compose) so
     // the addToGallery character-ownership rejection is exercised for real, not stubbed.
     assertCharacterOwned: async (ownerId: UserId, characterId: CharacterId): Promise<boolean> => {
@@ -234,6 +239,9 @@ interface SeedCharacterOverrides {
   readonly id?: string;
   readonly handle?: string;
   readonly name?: string;
+  /** The recorded card-bytes sha-256 the avatar backfill keys on (`loadAvatarBackfillCandidates` stages a
+   *  row only when it is set AND `avatarAssetId` is null). Omitted ⇒ null = never staged. */
+  readonly importHash?: string;
 }
 
 /** Insert a minimal `characters` row owned by `ownerId` (the gallery `subjectCharacterId` FK target).
@@ -246,6 +254,7 @@ export async function seedCharacter(db: Db, ownerId: UserId, overrides: SeedChar
     ownerId,
     contentHash: `hash_${id}`,
     name: overrides.name ?? "Test Character",
+    ...(overrides.importHash === undefined ? {} : { importHash: overrides.importHash }),
   });
   return id;
 }

@@ -3,7 +3,8 @@
 // UNIQUE index, the userId FK + its cascade-on-user-delete, and the oidc_transactions natural-key KV
 // (round-trip + the PK collision).
 
-import { isConstraintViolation, oidcTransactions, sessions, users } from "@orb/db";
+import { oidcTransactions, sessions, users } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

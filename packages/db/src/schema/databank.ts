@@ -82,6 +82,9 @@ export const documents = sqliteTable(
   },
   (t) => [
     uniqueIndex("documents_owner_hash_unique").on(t.ownerId, t.importHash),
+    // The source-blob FK's SET-NULL parent scan (an asset delete / CAS GC walks this table). The
+    // (ownerId, importHash) unique cannot serve an assetId-only predicate (`fk-columns-indexed` gate).
+    index("documents_source_asset_idx").on(t.sourceAssetId),
     check("documents_origin_check", sql.raw(`origin in (${DOC_ORIGIN_CHECK_LIST})`)),
   ],
 );

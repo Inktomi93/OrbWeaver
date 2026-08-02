@@ -6,12 +6,15 @@
 // BOUNDED CONCURRENCY (~8); the links land as ONE batched UPDATE via the `@orb/db/kit` batch helpers.
 // `dryRun` reports the population without storing bytes or writing the pointer. UN-PRINCIPAL (D20) — the
 // `ownerId` scopes every store + the batched UPDATE.
+//
+// The pointer WRITE is not assets' to make: `characters.avatarAssetId` belongs to `domain/character`, so the
+// links land through the injected `ctx.linkCharacterAvatars` op (character's own persistence helper, wired at
+// `entry/compose/assets-character.ts`) — the same shape `domain/import` uses for six domains' canon.
 
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import type { AssetsContext } from "../context";
 import type { BackfillCard } from "../contract/maintenance";
 import type { AssetsService } from "../contract/service";
-import { batchLinkAvatars } from "../persistence/maintenance";
 import { storeBlob } from "../persistence/queries";
 
 /** Bounded store fan-out — 8 concurrent `storeBlob` calls per wave (the CAS write + the index upsert are the
@@ -65,7 +68,9 @@ export function createBackfillAvatars(ctx: AssetsContext): AssetsService["backfi
     }
 
     if (links.length > 0) {
-      await batchLinkAvatars(ctx.db, ownerId, links);
+      // The pointer write is CHARACTER's (`characters.avatarAssetId`) — delegated through the injected
+      // owning-domain op, never an assets-side UPDATE (AGENTS §2; Tier-1-DB.md §"Cross-tier composition").
+      await ctx.linkCharacterAvatars({ ownerId, links });
     }
     return { scanned: cards.length, linked: links.length, mismatched, dryRun: false };
   };

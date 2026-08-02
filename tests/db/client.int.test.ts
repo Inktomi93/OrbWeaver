@@ -9,7 +9,8 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pid } from "node:process";
-import { assertReferentialIntegrity, createDb, hasPendingMigrations, isConstraintViolation, localPath, pruneDbBackups, runMigrations, users } from "@orb/db";
+import { assertReferentialIntegrity, createDb, hasPendingMigrations, localPath, pruneDbBackups, runMigrations, users } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";

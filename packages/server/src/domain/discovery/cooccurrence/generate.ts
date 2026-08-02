@@ -3,8 +3,10 @@
 // hub-token filtered). Writes `keyword_cooccurrence` (owner × keyword-pair) + `character_keyword_profiles`
 // (per witnessing character). Atomic per-owner replace — a crash mid-rebuild never leaves an empty table.
 
-import type { BatchStmt, Db } from "@orb/db";
-import { batchMany, characterKeywordProfiles, characters, chunkRows, keywordCooccurrence, rowsPerInsert } from "@orb/db";
+import type { Db } from "@orb/db";
+import { characterKeywordProfiles, characters, keywordCooccurrence } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { eq, inArray } from "drizzle-orm";
 import type { ComputeCooccurrenceOptions } from "../contract/params";

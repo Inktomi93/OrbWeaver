@@ -85,6 +85,10 @@ export const rpgGames = sqliteTable(
   },
   (t) => [
     uniqueIndex("rpg_games_chat_unique").on(t.chatId),
+    // Both nullable seat/knob FKs are SET NULL parents: a user or preset delete must find the games
+    // pointing at it, and SQLite auto-indexes no child FK (`fk-columns-indexed` gate).
+    index("rpg_games_gm_user_idx").on(t.gmUserId),
+    index("rpg_games_gm_preset_idx").on(t.gmPresetId),
     check("rpg_games_mode_check", sql.raw(`mode in (${checkList(RPG_GAME_MODES)})`)),
     check("rpg_games_status_check", sql.raw(`status in (${checkList(RPG_GAME_STATUSES)})`)),
   ],
@@ -141,7 +145,13 @@ export const rpgSnapshots = sqliteTable(
     committed: integer("committed").notNull().default(0),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [uniqueIndex("rpg_snapshots_variant_unique").on(t.variantId), index("rpg_snapshots_game_idx").on(t.gameId)],
+  (t) => [
+    uniqueIndex("rpg_snapshots_variant_unique").on(t.variantId),
+    index("rpg_snapshots_game_idx").on(t.gameId),
+    // The message CASCADE parent — deleting a message must find its snapshots, and nothing here leads with
+    // `messageId` (`fk-columns-indexed` gate).
+    index("rpg_snapshots_message_idx").on(t.messageId),
+  ],
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -174,6 +184,11 @@ export const rpgSheets = sqliteTable(
   (t) => [
     uniqueIndex("rpg_sheets_game_character_unique").on(t.gameId, t.characterId),
     uniqueIndex("rpg_sheets_game_user_unique").on(t.gameId, t.userId),
+    // Both actor FKs sit SECOND in their (gameId, …) unique, and SQLite only uses an index whose LEFTMOST
+    // column is the constrained one — so a character/user hard-delete scanned every sheet to CASCADE
+    // (`fk-columns-indexed` gate).
+    index("rpg_sheets_character_idx").on(t.characterId),
+    index("rpg_sheets_user_idx").on(t.userId),
     // Exactly one of characterId/userId is set (the actor XOR — a sheet keys one durable identity).
     check("rpg_sheets_actor_xor_check", sql.raw("(character_id is null) + (user_id is null) = 1")),
   ],
@@ -219,6 +234,10 @@ export const rpgJournal = sqliteTable(
   },
   (t) => [
     index("rpg_journal_game_variant_idx").on(t.gameId, t.variantId),
+    // `variantId` leads nothing (it is second in the game index), and `sourceMessageId` leads nothing at
+    // all: a variant CASCADE and a message SET NULL both scanned the whole archive (`fk-columns-indexed`).
+    index("rpg_journal_variant_idx").on(t.variantId),
+    index("rpg_journal_source_message_idx").on(t.sourceMessageId),
     check("rpg_journal_type_check", sql.raw(`type in (${checkList(RPG_JOURNAL_TYPES)})`)),
   ],
 );
@@ -247,6 +266,9 @@ export const rpgCheckpoints = sqliteTable(
   },
   (t) => [
     index("rpg_checkpoints_game_idx").on(t.gameId),
+    // The snapshot FK is RESTRICT: every snapshot delete must PROBE this table to decide whether to refuse,
+    // and without a leading index that probe is a full scan (`fk-columns-indexed` gate).
+    index("rpg_checkpoints_snapshot_idx").on(t.snapshotId),
     check("rpg_checkpoints_trigger_check", sql.raw(`trigger in (${checkList(RPG_CHECKPOINT_TRIGGERS)})`)),
   ],
 );

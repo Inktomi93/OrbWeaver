@@ -6,7 +6,8 @@
 // (never Date). ZERO vector columns is enforced structurally by the dep-cruiser gate, not here.
 
 import type { Db } from "@orb/db";
-import { characterStats, characters, dailyStats, isConstraintViolation, modelStats, ownerStats } from "@orb/db";
+import { characterStats, characters, dailyStats, modelStats, ownerStats } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { CharacterId, CharacterStatId, DailyStatId, ModelStatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";

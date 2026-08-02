@@ -3,7 +3,8 @@
 // the FK-on-owner enforcement, the `kind` CHECK, and the test-mirror (db enum members === ASSET_KINDS).
 
 import { ASSET_KINDS } from "@orb/contracts/assets";
-import { assets, isConstraintViolation } from "@orb/db";
+import { assets } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

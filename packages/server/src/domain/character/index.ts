@@ -2,6 +2,7 @@
 // boundary wire types/schemas live in `@orb/contracts/character` and are NOT re-exported here.
 
 export type { CharacterContext } from "./context";
+export type { CharacterAvatarLink, CharacterAvatarLinkContext, LinkCharacterAvatars } from "./contract/avatar-link";
 export {
   AssetNotFoundError,
   CharacterNotFoundError,
@@ -45,6 +46,7 @@ export type {
   ReapAssetsOp,
 } from "./contract/service";
 export type { CharacterDetail, CharacterSummary } from "./contract/views";
+export { createLinkCharacterAvatars } from "./persistence/avatar-link-write";
 export type { DefaultCharacterSeeder, DefaultCharacterSeederDeps, SeededCardContent } from "./seeder";
 export {
   CARD_PACK_VERSION,
