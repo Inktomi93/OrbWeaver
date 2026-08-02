@@ -459,6 +459,23 @@ EXACT promoteActive shape, in code written TODAY — owner in the WHERE now; the
 earns its keep same-day). Both fixed at landing `ff2aa8b4`, hook 14/14.
 **UNBLOCKED by REGEX's merge: HANDOFF-COPY · PORTABILITY R0-R6 · TRANSCRIPTS (stack reboot
 now also re-mints the db — bundle the reboot).** Cap THREE governs the next dispatch.
+**✅ SIDE-EYE RE-CHECK DELIVERED (report committed: docs/reviews/side-eye/2026-08-03-scoped-
+recheck.md) — VERDICT SHIP-WITH-FIXES; the NEW regex surfaces = DO-NOT-SHIP-AS-IS (4 P1 +
+5 P2).** FX's 31: 22 re-verified HOLD; F-8 REGRESSED via regex lane (Section heading= vs
+kicker=) + ONE new regression from the fix-all itself (macro chip user-select:none — copied
+text loses the {{tokens}}); F-13 unfixed; F-7 half. Macro pill in-situ PASS (5.74:1). Home
+tiles: mechanism works (CLS 0.108 from 0.24) but row-pitch polish RULED NEEDED (189px blank +
+a 2.9px orphan stripe; fix shape in report). Regex P1s: duplicate "Display only" labels ×2
+controls · Display+Prompt both-ON contradiction · Remove deletes instantly no confirm ·
+CodeMirror focus-ring absent. 5 retractions incl. design-audit's whole haul (all FPs — it saw
+NONE of the real P1s; instrument note). **Lane RFIX DISPATCHED (fix-ALL law) into the freed
+slot.** LIVE (3, at cap): HCOPY (all 3 mid-run calls ratified: end-to-end offer UI ·
+BOTH digest columns · copyPresetToUser factory; atomicity = copy-then-swap w/ crash-arm
+test) · PORT (all 3 defaults ratified: registry-in-gate · two serde factories · theme/tag
+merge-flip [user-visible, owner-notable]; parse outcomes must RENDER their reason; R6 =
+honest scope-out if oversized) · RFIX. **CARCH (client-arch F-1..F-7 doc/gate batch) = next
+on any drain** (owner asked after it — 1/8 findings discharged [F-2 via D121-C]; F-6's
+11-row channel matrix pre-drafted in the report §Q2; F-8 stays the queued design set).
 (Superseded pause block:) NO new spawns AND the
 5 live lanes ORDERED TO SLEEP (checkpoint-commit coherent work [--no-verify sanctioned for
 the checkpoint], reply resume-state, stop; worktrees + branches STAY — teardown forbidden).
