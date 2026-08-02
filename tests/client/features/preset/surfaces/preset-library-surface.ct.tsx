@@ -511,6 +511,8 @@ test("G6 an orb.preset file rides the ONE import verb with its own bytes, after 
   await page.getByRole("button", { name: "Import preset", exact: true }).click();
   // The FILE'S OWN TEXT reaches the door — not a client-side reserialization, and never `preset.create`.
   await expect.poll(() => (trpc.inputs("preset.importFile") as ImportFileCall[]).map((call) => call.fileText)).toEqual([ORB_FILE]);
+  // ONESHOT-OK: settled — ONE confirm handler picks exactly one arm, so the recorded `importFile` above
+  // proves the click's request already landed; a `create` from the same click would be recorded by now.
   expect(trpc.count("preset.create")).toBe(0);
 });
 
@@ -526,6 +528,7 @@ test("G6 the SAME door takes a SillyTavern preset — sniffed to the ST arm, cre
   await page.getByRole("button", { name: "Import preset", exact: true }).click();
 
   await expect.poll(() => trpc.count("preset.create")).toBe(1);
+  // ONESHOT-OK: settled — same single-arm confirm handler; the recorded `create` proves the click landed.
   expect(trpc.count("preset.importFile")).toBe(0);
 });
 
