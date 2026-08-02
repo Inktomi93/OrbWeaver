@@ -81,9 +81,15 @@ export function isStructuralSection(section: PromptSection): boolean {
  *  section's position relative to the pivot, so picking one is a MOVE across it (the same
  *  `moveFieldValues` the drag and the ⋯ Move-above/below item go through — one home, §16 row 17), never a
  *  stored field. */
+/*  THE LABELS ARE THE BARE NAMES (side-eye F-26): the em-dash explanations rode INSIDE the option, and the
+ *  Select trigger is one truncating line in a half-width pair track — so the committed value rendered
+ *  "Relative — ordered among the…", which is O-4's disease in a new box (the half a user reads is the half
+ *  that got cut). The explanation is not lost: it is the Zone Field's own `hint`, which states both arms in
+ *  full, and it is restated here for the reader of this file. A control's label names the choice; the
+ *  teaching belongs to the affordance built for teaching. */
 export const ZONE_ITEMS: readonly { readonly value: string; readonly label: string }[] = [
-  { value: "setup", label: "Relative — ordered among the prompts" },
-  { value: "post", label: "In Chat — at a depth in the conversation" },
+  { value: "setup", label: "Relative" },
+  { value: "post", label: "In Chat" },
 ];
 
 /** Can this section be SPLICED into the conversation and TRIGGER-filtered? The schema's own branches are

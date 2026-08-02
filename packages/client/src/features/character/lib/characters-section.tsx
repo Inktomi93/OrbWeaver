@@ -69,6 +69,12 @@ export function makeCharactersSection(
         },
       ],
       actions: (s) => <CharacterActionsMenu characterId={s.characterId} />,
+      // The no-selection ARM (side-eye F-12) — this pane shared one voiceless
+      // "Select something to see its details here." with two other sections.
+      empty: {
+        title: "Nobody open",
+        description: "Open someone from your cast and this pane carries the field you are editing, their world books and personas, and their options.",
+      },
     }),
   };
 }

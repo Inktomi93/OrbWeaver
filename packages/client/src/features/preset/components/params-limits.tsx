@@ -18,7 +18,7 @@
 
 import type { ModelCapability, Verbosity } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
-import { DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";
+import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -254,7 +254,18 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
           always-visible description line. */}
       <form.AppField name="params.compaction.instructions">
         {(field): ReactElement => (
-          <field.TextareaField hint="How to steer the summary (leave blank for the RP-tuned default)." label="Summary instructions" rows={3} />
+          // THE GHOST (side-eye F-11 / crunch-list O-6). This was the one field on the deck with no
+          // placeholder: the hint said "leave blank for the RP-tuned default" while the field showed
+          // nothing, so the user could not see WHAT runs if they leave it blank — on a deck that had
+          // taught them a ghost would be there (`0.85 (default)`, `8 (engine default)`, `default`). The
+          // ghost is the shipped default VERBATIM, off the contract that the engine actually falls back
+          // to (`DEFAULT_COMPACT_INSTRUCTIONS`), so the two can never drift into a plausible lie.
+          <field.TextareaField
+            hint="How to steer the summary (leave blank for the RP-tuned default)."
+            label="Summary instructions"
+            placeholder={DEFAULT_COMPACT_INSTRUCTIONS}
+            rows={3}
+          />
         )}
       </form.AppField>
     </Section>

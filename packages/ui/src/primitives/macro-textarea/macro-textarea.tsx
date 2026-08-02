@@ -93,8 +93,23 @@ function toRows(list: readonly MacroSuggestion[]): SuggestionRow[] {
  * insert the `{{base::}}` template with the caret left inside the closing braces plus an inline
  * `::`-arg hint. Hand-rolled combobox on the same textarea (not Base UI Autocomplete/cmdk, which
  * can't anchor mid-text or would force a two-input state sync). Controlled to fit TanStack Form's
- * Field idiom. ARIA: textarea plays `combobox` over a `listbox` popup; the textarea is the one tab
- * stop, highlight moves via `aria-activedescendant`.
+ * Field idiom.
+ *
+ * ARIA — A MULTILINE TEXTBOX THAT SOMETIMES OWNS A LISTBOX, never a combobox (side-eye F-3, 2026-08-03).
+ * The field used to carry `role="combobox"` unconditionally, and that is three defects in one attribute:
+ *   1. `combobox` OVERRIDES the native `textbox` role, and `combobox` does not support `aria-multiline` —
+ *      so a 4-row prompt editor announced as a single-line pick-one control.
+ *   2. The W3C accname algorithm falls through to the control's VALUE for a combobox, so the field's
+ *      accessible name became the entire 60-word template it holds (announced TWICE: once as the name,
+ *      once as the value). A screen-reader user heard a whole prompt template before they could type.
+ *   3. `aria-expanded`/`aria-haspopup` are not supported on `textbox`, and a combobox that is collapsed
+ *      99% of its life is claiming a popup relationship that does not exist.
+ * The shape here is the mid-text inline-autocomplete one (the \@-mention pattern): the textarea keeps its
+ * NATIVE `textbox` role (and with it the implicit `aria-multiline="true"`), its name stays the `<Field>`
+ * label / `aria-label`, and the popup is exposed ONLY while it is open — `aria-controls` +
+ * `aria-activedescendant` point at the live listbox, and an `aria-live` status line announces the match
+ * count so a non-sighted user learns the popup appeared at all (which is the affordance `aria-expanded`
+ * was pretending to carry). The textarea remains the one tab stop; the highlight moves with Arrow keys.
  */
 export function MacroTextarea({
   value,
@@ -209,10 +224,10 @@ export function MacroTextarea({
     <div className={cn(slots.root(), className)} data-slot="macro-textarea">
       <Textarea
         aria-activedescendant={open ? optionId(highlight) : undefined}
+        // `aria-autocomplete="list"` IS supported on `textbox` and is the honest declaration: typing can
+        // surface a list of completions. It stays; `aria-expanded`/`aria-haspopup`/`role=combobox` do not.
         aria-autocomplete="list"
         aria-controls={open ? listboxId : undefined}
-        aria-expanded={open}
-        aria-haspopup="listbox"
         aria-label={ariaLabel}
         data-slot="macro-textarea-control"
         disabled={disabled}
@@ -229,7 +244,6 @@ export function MacroTextarea({
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         ref={textareaRef}
-        role="combobox"
         rows={rows}
         value={value}
         className={slots.textarea()}
@@ -273,6 +287,12 @@ export function MacroTextarea({
           )}
         </div>
       ) : null}
+      {/* The popup's APPEARANCE, announced. With `aria-expanded` gone (see the ARIA note above) nothing
+          else tells a non-sighted user that typing `{{` surfaced completions — `aria-controls` alone is a
+          relationship, not an event. A polite count is the whole affordance in one clause. */}
+      <span aria-live="polite" className="sr-only" data-slot="macro-textarea-status">
+        {open ? `${String(suggestionsList.length)} macro suggestions` : ""}
+      </span>
       {argHintText !== null ? (
         // aria-live: the hint appears after the popover closes, so it needs to be announced.
         <p aria-live="polite" className={slots.argHint()} data-slot="macro-textarea-arg-hint">

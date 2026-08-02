@@ -134,6 +134,12 @@ export function makeChatsSection(
       // (the rpg HUD on an engaged game chat) renders the entire CONTEXT pane from the tabs + selection
       // this same mint resolved. Zero claimants ⇒ the generic panel, unchanged.
       regions: chatContextRegions,
+      // The no-selection ARM (side-eye F-12) — this pane shared one voiceless
+      // "Select something to see its details here." with two other sections.
+      empty: {
+        title: "No chat open",
+        description: "Open a thread and this pane carries its cast, its memory, and the knobs that apply to it.",
+      },
     }),
   };
 }

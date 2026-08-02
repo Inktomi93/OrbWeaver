@@ -19,7 +19,9 @@ import { Input } from "@orb/ui/input";
 import { Stack, Surface } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { useRef } from "react";
 import { QueryBoundary, QueryErrorState } from "#data";
+import { useRovingRadioGroup } from "./use-roving-radio-group";
 
 export interface LibrarySurfaceShellProps {
   /** Suspense fallback copy, e.g. "Loading your presets…". */
@@ -75,6 +77,10 @@ export function LibraryListLayout({
   rowsRadiogroupLabel,
 }: LibraryListLayoutProps): ReactElement {
   const rowsGroup = rowsRadiogroupLabel === undefined ? {} : { role: "radiogroup", "aria-label": rowsRadiogroupLabel };
+  // The radiogroup's keyboard contract (side-eye F-5) — roving tabindex + Arrow/Home/End. A no-op on a
+  // list that renders no `[role=radio]`, which is why it can mount unconditionally beside the optional role.
+  const rowsRef = useRef<HTMLDivElement>(null);
+  useRovingRadioGroup(rowsRef);
   return (
     // INSTRUMENT tier (density-pass-spec.md §3.1 LIST panes) — presets and world-info books are scanned
     // lists, not forms. Declared once here, so both consuming surfaces get identical density by
@@ -86,7 +92,7 @@ export function LibraryListLayout({
         {isEmpty ? (
           empty
         ) : (
-          <Stack {...rowsGroup} className="min-h-0 flex-1 overflow-y-auto" gap="tight">
+          <Stack {...rowsGroup} className="min-h-0 flex-1 overflow-y-auto" gap="tight" ref={rowsRef}>
             {children}
           </Stack>
         )}

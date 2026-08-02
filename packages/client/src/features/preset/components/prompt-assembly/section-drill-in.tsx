@@ -3,8 +3,12 @@
 // inspector, its enable/reorder on the rack row. The inspector and its form bridge are DELETED; this
 // drill-in owns the WHOLE section, in the ruled order:
 //
-//   body (kind-branched — section-body.tsx) → DELIVERY (name · role · inject depth) → PLACEMENT (zone ·
-//   order) → TRIGGERS → OVERRIDE LOCKS
+//   body (kind-branched — section-body.tsx) → PLACEMENT (zone · order) → DELIVERY (name · role · inject
+//   depth) → TRIGGERS → OVERRIDE LOCKS
+//
+// PLACEMENT PRECEDES DELIVERY (side-eye F-10, 2026-08-03) — the zone is the CAUSE of both conditional
+// fields on this form, so it reads before them rather than 80px below them. See the swap's own note at the
+// render site; neither owner ruling below is touched by it.
 //
 // Round-3 ruling, verbatim: "depth goes near whatever role it goes in as" — DEPTH is a delivery property
 // and rides the shared `DeliveryCluster`; ORDER (the within-depth tiebreak) is arrangement vocabulary and
@@ -57,6 +61,7 @@ import {
   supportsArrangement,
   ZONE_ITEMS,
 } from "../../lib/assembly-model";
+import { PRESET_NUMBER_FORMAT } from "../../lib/format-count";
 import { DeliveryCluster } from "../delivery-cluster";
 import type { DerivedZones } from "./derive-zones";
 import { deriveZones } from "./derive-zones";
@@ -130,14 +135,23 @@ export function SectionDrillIn({ form, section, index, onBack }: SectionDrillInP
           const inChat = zones.zoneOf(index) === "post";
           return (
             <>
-              <Section kicker="Delivery">
-                <DeliveryFields form={form} inChat={inChat} index={index} section={section} />
-              </Section>
+              {/* PLACEMENT LEADS DELIVERY (side-eye F-10). Zone is the CAUSE of two conditional fields —
+                  Order beside it, and Inject-at-depth in Delivery — and it used to sit BELOW both of them:
+                  picking "In Chat" made a field appear ~80px above, in a different kicker group, while the
+                  user was looking at the select they had just changed. Nothing moved where they were
+                  looking, which is the §13 IA failure.
+                  Zone stays in PLACEMENT and depth stays with the role it rides — both are standing owner
+                  rulings (round-3: "depth goes near whatever role it goes in as"; order is arrangement
+                  vocabulary and lives beside zone). Reading ORDER is the free variable, so it is the one
+                  that moved: cause first, then its two effects, both downstream of it. */}
               {pivot ? null : (
                 <Section kicker="Placement">
                   <PlacementFields form={form} inChat={inChat} index={index} section={section} zones={zones} />
                 </Section>
               )}
+              <Section kicker="Delivery">
+                <DeliveryFields form={form} inChat={inChat} index={index} section={section} />
+              </Section>
             </>
           );
         }}
@@ -229,7 +243,8 @@ function PlacementFields({ form, section, index, inChat, zones }: ZonedClusterPr
           hint={
             zones.missingPivot
               ? "There is no chat-history marker yet, so there is no conversation to splice into — add one on the rack."
-              : "How this section is delivered: ordered among the prompts, or spliced into the conversation at a depth. Picking one MOVES the section across the chat-history pivot."
+              : // The option labels are bare names (F-26); THIS is where both arms are spelled out in full.
+                "How this section is delivered. RELATIVE renders it into the system block, ordered among the other prompts. IN CHAT splices it into the conversation at a depth. Picking one MOVES the section across the chat-history pivot."
           }
           label="Zone"
           name="section-zone"
@@ -255,6 +270,8 @@ function PlacementFields({ form, section, index, inChat, zones }: ZonedClusterPr
           <Field hint={ORDER_HINT} label="Order" name="section-order">
             <NumberField
               aria-label="Order"
+              // The surface's one editable-number grammar (F-23) — see `PRESET_NUMBER_FORMAT`.
+              format={PRESET_NUMBER_FORMAT}
               onValueChange={(next): void => {
                 const depth = inject?.depth ?? TAIL_DEPTH;
                 form.setFieldValue(`sections[${index}].inject`, next === null ? { depth } : { depth, order: next });

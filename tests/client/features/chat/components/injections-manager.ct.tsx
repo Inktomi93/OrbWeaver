@@ -170,6 +170,8 @@ test("a non-host sees no Add/Remove affordances and every field is disabled-with
   // Every field STAYS present, disabled — never omitted (the §8.1 host-only gating class).
   await expect(component.getByLabel("Position")).toBeDisabled();
   await expect(component.getByLabel("Role")).toBeDisabled();
-  await expect(component.getByLabel("Depth")).toBeDisabled();
+  // The INPUT specifically: since side-eye F-20 the steppers take the field's name as their subject
+  // ("Decrease Depth" / "Increase Depth"), so a bare `getByLabel("Depth")` now matches all three.
+  await expect(component.getByRole("textbox", { name: "Depth" })).toBeDisabled();
   await expect(component.getByLabel("Content")).toBeDisabled();
 });
