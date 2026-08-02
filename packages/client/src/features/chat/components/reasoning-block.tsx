@@ -76,9 +76,9 @@ export function ReasoningBlock({
           <Icon icon={expanded ? ChevronDown : ChevronRight} size="sm" />
           {/* Decorative — the adjacent label text already names the disclosure. */}
           {showIcon ? <Icon icon={BrainCircuit} size="sm" /> : null}
-          <Text size="label" tone="muted">
-            {label}
-          </Text>
+          {/* The disclosure names the channel it opens — the `label` voice (§2.3), at reading size
+              because it is the row you click, not a footnote about it. */}
+          <Text voice="label">{label}</Text>
         </Row>
       </CollapsibleTrigger>
       <CollapsiblePanel>

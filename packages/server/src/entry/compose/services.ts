@@ -595,6 +595,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     executor,
     resolveHostPrincipal,
     resolvePresetOwned,
+    // R4 promotion's durable half — the two front doors the injected `promoteToRoster` op mints through (a
+    // character card + a chat roster seat, both under the room host). rpg reads neither table itself.
+    character,
+    chat: chatCompose.service,
     toolUse,
   });
   rpgOpsHolder = rpgCompose.chatOps;

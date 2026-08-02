@@ -179,16 +179,17 @@ function renderAttributionName(attribution: RowAttribution): ReactElement | null
   if (attribution.name === null) {
     return null;
   }
+  // The speaker's name IS the name of this row's one datum — the `label` voice (density-pass-spec.md §2.3).
   if (attribution.tokens === null) {
     return (
-      <Text as="span" size="label" weight="medium" tone="muted">
+      <Text as="span" voice="label">
         {attribution.name}
       </Text>
     );
   }
   return (
     <ThemeScope tokens={attribution.tokens} className="contents">
-      <Text as="span" size="label" weight="medium" className="text-speaker">
+      <Text as="span" voice="label" className="text-speaker">
         {attribution.name}
       </Text>
     </ThemeScope>
@@ -318,8 +319,12 @@ export function renderContextBoundaryDivider(show: boolean, budgetLabel?: string
   return (
     <Row gap="field" align="center" data-slot="context-boundary-divider" className="w-full">
       <Separator className="flex-1 bg-(--color-primary)/35" />
-      <Text size="micro" tone="muted" transform="caps">
-        {compacted ? "Older messages compacted into memory" : "In context from here"}
+      {/* The divider NAMES a region of the transcript ("everything below is in context") — the `kicker`
+          voice, which is exactly the caps-micro-with-a-hairline shape this line was already assembling by
+          hand. The noun is COMPACTION, never memory: compaction writes `chats.compactSummary`, its own
+          summary — the Memory plane is a different subsystem (vocab repair, 2026-08-02). */}
+      <Text voice="kicker">
+        {compacted ? "Older messages compacted into a summary" : "In context from here"}
         {budgetLabel !== undefined ? ` · ${budgetLabel}` : ""}
       </Text>
       {compacted ? <CompactSummaryPeek summary={compactSummary} /> : null}

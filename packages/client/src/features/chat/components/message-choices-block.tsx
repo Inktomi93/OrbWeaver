@@ -9,6 +9,7 @@
 // theme tokens only, never hex.
 
 import { Button } from "@orb/ui/button";
+import { Card } from "@orb/ui/card";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -41,29 +42,35 @@ export function MessageChoicesBlock({ options }: MessageChoicesBlockProps): Reac
     reason = CHOICE_WAIT_FOR_TURN;
   }
   return (
-    <Stack gap="field" data-slot="message-choices" className="rounded-card border border-info bg-card px-block py-row">
-      <Text size="label" transform="caps" className="tracking-micro text-info">
-        Your move
-      </Text>
-      {withKeys(options).map(({ option, key }, index) => (
-        <Button
-          key={key}
-          intent="secondary"
-          size="wrap"
-          focusableWhenDisabled={true}
-          disabled={disabled}
-          title={reason}
-          data-testid={testId("messageChoiceOption")}
-          className="justify-start text-left"
-          onClick={(): void => {
-            if (choiceSend !== null && !choiceSend.busy) {
-              choiceSend.choose(option);
-            }
-          }}
-        >
-          {index + 1}. {option}
-        </Button>
-      ))}
-    </Stack>
+    // DENSITY S6: the choice set is an INTERACTIVE ISLAND (CD1 — you operate it), so it keeps its box, but
+    // the box is now a `<Card>`: inside the room's `<Surface tier="instrument">` the tier map resolves its
+    // padding + `--radius-base` (D6 demoted `--radius-card` to the floating step, which here is the bubble
+    // this island sits in). The info-blue edge is the only thing this feature still spells.
+    <Card className="border-info">
+      <Stack gap="field" data-slot="message-choices">
+        <Text voice="kicker" className="text-info">
+          Your move
+        </Text>
+        {withKeys(options).map(({ option, key }, index) => (
+          <Button
+            key={key}
+            intent="secondary"
+            size="wrap"
+            focusableWhenDisabled={true}
+            disabled={disabled}
+            title={reason}
+            data-testid={testId("messageChoiceOption")}
+            className="justify-start text-left"
+            onClick={(): void => {
+              if (choiceSend !== null && !choiceSend.busy) {
+                choiceSend.choose(option);
+              }
+            }}
+          >
+            {index + 1}. {option}
+          </Button>
+        ))}
+      </Stack>
+    </Card>
   );
 }
