@@ -23,7 +23,7 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 | `discovery-no-vector-write` | `discovery` embeds nothing — no write into the embeddings vector tables | discovery + embeddings domains built (§A1) |
 | `dead-code` (knip) | unused exports / files / deps | PROMOTED 2026-07-13 — LIVE as the `deps:knip` static-tier stage in `pnpm check` (see Active-Gates Layer 4); this row is retained only as the deferral record |
 | `api-surface` | public package-surface drift snapshot ("lock the surface") | packages export a stable surface |
-| `monotonic-tests` | test-count baseline only grows (behavior lock) | PROMOTED — `status:"active"` (see Active-Gates); ⚠ the committed manifest is currently ABSENT so the deleted-test arm is inert (truth-audit 2026-08-03, see the Active-Gates row) |
+| `monotonic-tests` | test-count baseline only grows (behavior lock) | PROMOTED — `status:"active"` (see Active-Gates); the committed manifest is RE-ARMED (2026-08-03) — the deleted-test arm reads `docs/test-baseline/manifest.json` with a two-sided `deletions` ledger and fail-loud on a missing/malformed manifest |
 | `suppressions` | `biome-ignore` count ratchet + audit (reasons are already biome-native) | post-Phase-1 baseline (count-down ratchet needs existing code) |
 | `provider-vocab` | provider-routing vocabulary has one home | connection domain built |
 | `env-natures` | settings "four natures" split, machine-locked | settings domain built |
