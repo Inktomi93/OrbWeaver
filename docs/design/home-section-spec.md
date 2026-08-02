@@ -1,12 +1,16 @@
 ---
 kind: spec
-status: draft
-updated: 2026-08-01
+status: active
+updated: 2026-08-03
 ---
 
 # HOME-SECTION — the glyph goes somewhere: a home the features furnish
 
-**Status:** DESIGN SPEC — DRAFT, nothing here is built. Owner-proposed 2026-08-01 (late), verbatim:
+**Status:** BUILT — home is the EIGHTH rail section and the born-default `activeSection`
+(`client/src/state/shell-store.ts` `SECTION_IDS`; tiles assembled at the door via `makeHomeSection`,
+gate `home-tile-registry-completeness`). Ratified into the ledger as **D121 clause C**, which amends
+D62-P6's seven-section ceiling and records the partial reversal of lockdown O7's "no home page" claim
+(the ROUTE ruling stands; home is a section, never a page). Owner-proposed 2026-08-01 (late), verbatim:
 *"a separate home page that we can click on the glyph to come back to; I can put some future stuff on
 this page, quick-jump to other sections, have a temp chat thing, buddy when we eventually add one back."*
 

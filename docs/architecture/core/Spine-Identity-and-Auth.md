@@ -1,12 +1,12 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-08-03
 ---
 
 # Orbweaver — Spine: Identity, Auth, and Permission
 
-Canonical doc for spine §7.1 (`AGENTS.md` §5.1 points here). BUILT — current law. Agent-principal detail: ledger D60 wins over this digest on any conflict; the design set is parked in `../proposed/` (see its `INDEX.md`) ([`../proposed/README.md`](../proposed/README.md)).
+Canonical doc for spine §7.1 (`AGENTS.md` §5.1 points here), and THE permissions-model page (D121 clause B): §1–§2b are the mechanics, §2c–§2e are the model a reviewer reasons from. Agent-principal detail: ledger D60 is the DESIGN of record; §4 states what is actually on the tree.
 
 ## 1. Resolution — one pipeline, one mint
 
@@ -34,9 +34,9 @@ The numbered invariants (code comments cite these as "invariant #n"):
 
 - **Global:** `USER_ROLES = owner|admin|user` (`@orb/contracts/identity`, D17). `max-pro-sub` construction is `requireOwner`-gated. **`admin` is granted by the owner EITHER via `admin.setRole` OR — under OIDC — via owner-configured IdP group membership (`OIDC_ADMIN_GROUPS`, D65): a new owner-controlled mechanism for the same authority, not a delegation. When group governance is active (`OIDC_ADMIN_GROUPS`/`OIDC_ALLOWED_GROUPS` set) roles RE-DERIVE from groups each login (a `setRole` grant to a non-group-member is wiped next login); `OIDC_ALLOWED_GROUPS` is a fail-closed login gate. The OWNER row is never group-derived, gated, or downgraded (D65).**
 - **Resource:** `chat_participants.role: host|member` IS chat authority (D18) — there is NO `chats.ownerId`. Membership derives "my chats"; host-handoff (`nominateHostHandoff`/`acceptHostHandoff`, `domain/chat/verbs/roster.ts`) moves authority; a non-member gets `ChatNotFoundError`, not FORBIDDEN (leak-free by design).
-- **Capability:** the agent ceiling — `canAgent` over the closed `AGENT_ACTIONS` union (§4).
+- **Capability:** the kind-keyed third factor — the agent ceiling. **NOT BUILT today** (§4): the axis exists in the type system (`ToolCapability` is `can()`-shaped: `{scope:"chat", action: ChatAction} | {scope:"global", action: GlobalAction}`), the runtime agent ceiling does not.
 
-All three route through the one `can()` seam (invariant #6); `ResourceRef` is a discriminated union, so a new resource kind breaks the `can()` switch until handled.
+The two BUILT factors route through the one `can()` seam (invariant #6); `ResourceRef` is a discriminated union, so a new resource kind breaks the `can()` switch until handled.
 
 ### 2b. Ownership is INHERITED through the FK chain, never re-stamped per table
 
@@ -52,6 +52,50 @@ redundant owner stamp to a child table is a DEFECT (two sources of truth that ca
 its root and find the verb gate — the cross-tenant IDOR sweep (`cross-tenant-sweep.suite.int.test.ts`)
 is the proof this holds at the transport boundary.**
 
+## 2c. THE THREE LAYERS (the permissions model — read this before filing a permission finding)
+
+Permission in orbweaver is three independent tiers. They compose; none substitutes for another, and a
+finding that confuses two tiers is not a finding.
+
+| Tier | Vocabulary | Home | The one thing agents get wrong |
+| - | - | - | - |
+| **APP** | `user \| admin \| owner` over `GlobalAction` | `users.role` (D17/D65) → `can(principal, "admin"\|"owner", …)` | **A global admin grants ZERO host power inside a room.** The lattice `owner ⊇ admin` governs APP surfaces only; `decideChat` never consults `UserRole`. An admin who is not a member of a chat gets `ChatNotFoundError` like any stranger. |
+| **ROOM** | `host \| member` over `ChatAction` (`read \| host`) | `chat_participants.role` (D18) → `can(principal, "host", {kind:"chat", roster})` | **Chats are OWNERLESS.** The creator becomes the host — the room is functionally theirs — but structurally there is no `chats.ownerId`: host is a TRANSFERABLE roster ROLE (`nominateHostHandoff`/`acceptHostHandoff` via `chats.pendingHostUserId`), and MEMBERSHIP is the scope. "Who owns this chat" has no answer; "who is its host, and who is in it" have exact ones. |
+| **VISIBILITY** | per-member / per-span policy VALUES | `substrate/auth/clamp.ts` + `substrate/member-visibility.ts` | **The default is VISIBLE.** A room is a shared document; members see it; the host MAY limit. Limits are OPTIONS the host sets, never defaults, and each is a policy value the projection class resolves — not an authority gate. |
+
+**The host's three options to limit (the complete set — a visibility finding must name which one it bypasses):**
+
+1. **The D16 history floor** — per-member `joinHistoryVisibility` (`full` default, or `from-join`), resolved to a `messages.seq` floor by `resolveHistoryFloorSeq`. The HOST is never clamped ("authority implies visibility").
+2. **Hidden spans / the reveal eye** — producer-stamped member text (`member-visibility.ts`, gate `scrubber-home`); the host reads canon verbatim, every other present role reads the stripped bytes, and on a deception-active game the reasoning channel strips too (D110 ruling A).
+3. **The D22 member-card level** — per-chat `memberCardVisibility` clamped by `clampMemberCard`; the host always resolves `full`.
+
+**The THREE QUESTIONS (the taxonomy every role read answers — three questions, three homes, zero inline
+re-spellings; landed 2026-08-03 as the role-authority clause's stage R2):**
+
+> A role read is answering exactly one of three questions, and each has ONE home. **"May this caller ACT?"** is the ENFORCEMENT class — the comparison lives in the kernel (`can()`), reached through the domain's cited chokepoint (`chat/substrate/auth/decide.ts::assertHost`/`permitsHost`; `rpg/guard.ts::assertHostRole`), which owns the leak-free refusal shape and nothing else. **"May this viewer READ the hidden bytes?"** is the DATA-PROJECTION class — `member-visibility.ts::viewerHoldsHost` is the host bit, `viewerReadsHidden` is the named lens the payload boundary asks through, and both are deliberately Principal-free: routing a projection through `can()` threads a Principal into pure code for zero behavior change. It has its own home precisely so it can legitimately DIVERGE later (a co-GM who commands the room but must not read deception truth). **"WHICH SEAT is the host?"** is neither — it is a roster LOOKUP (role → identity, D19), homed at `substrate/roster-host.ts::hostSeatOf`/`hostUserIdOf`, whose consumers want an OWNER for a downstream read (card/preset/connection ownership, the stats delta's owner, the notification recipient) and whose `userId` belt is the one answer for the class. Ask which question a site answers before "fixing" its spelling: the three homes cross-cite each other, and collapsing any two of them is a defect, not a cleanup.
+
+## 2d. Who owns what — the map is DERIVED, not written here
+
+This page never duplicates the ownership map; it names where the machine-checked truth lives.
+
+| Question | The answer's home |
+| - | - |
+| Which tables may stamp an `ownerId` at all? | `scripts/check/gates/ownerid-registry.ts` — `OWNERID_ALLOWLIST`, every row carrying its D23 justification (true producer · parentless per-user aggregate · sanctioned scope-subject). Two-direction ratchet: a new stamp is RED, a stale row is RED. |
+| Which DOMAIN owns which table? | `scripts/check/gates/own-tables-only.ts` — the map is READ OFF `packages/db/src/schema/<file>.ts` at run time (schema file ↔ same-named domain), TOTAL, with `SCHEMA_OWNERS`/`TABLE_OWNERS` for the non-1:1 rows. A foreign WRITE is unconditionally RED; a foreign READ belongs in `persistence/` or an injected op. |
+| Who owns a row with no `ownerId`? | §2b — the FK chain to the owning root, gated at the producer verb. Walk the chain BEFORE flagging "missing scope". |
+| Who owns a CHAT? | Nobody (D18). Membership is the scope, host is the transferable role — see §2c. |
+| Which principal classes exist, and which are enforcement-gated? | The principal-flow census + its gate arms (the class-(a) ownership stamp is already gated by `ownerid-registry`; the membership rung is behavioral-only — the cross-tenant sweep, `cross-tenant-sweep.suite.int.test.ts`, is that proof, by design). |
+
+## 2e. BY DESIGN — the do-not-re-flag register
+
+These are ruled, intentional, and re-flagged by cold reviewers about once a wave. Re-raising one without
+new evidence is noise; ADD to this list when a review re-flags something already ruled.
+
+- **A member sees the history they were admitted to — that IS the point.** `joinHistoryVisibility` defaults to `full`; a member reading pre-join canon in a room they were invited to is the product working. A finding must name which OPTION (§2c) was bypassed, or it is not a leak.
+- **Empty rpg state-anchor slots are not lost work.** A hand-door write on a COMMITTED head clone-forwards onto a fresh narrator slot whose only job is to key the new snapshot (`domain/rpg/snapshot-edit.ts`, `contract/service.ts`); an empty-content slot is that anchor, deliberately unflagged. Refusals are raised BEFORE the clone-forward precisely so a rejected edit leaves no slot at all.
+- **`adopt-only` engine stacks never spawn, and fail fast when the engines are down.** That is the posture (`ENGINES_POSTURE`), not broken wiring — snap/e2e stacks adopt a running fleet or refuse honestly.
+- **The `permitsHost`/`viewerReadsHidden` split is two classes, not two spellings** (§2c). Do not "unify" them.
+
 ## 3. Construction
 
 The sanctioned `Principal`/credential construction + cookie sites — everything else consumes:
@@ -63,11 +107,16 @@ The sanctioned `Principal`/credential construction + cookie sites — everything
 - `entry/compose/role-clients.ts` — mints a synthetic owner `Principal` to bind the boot-time role-clients bundle.
 - `entry/lifecycle.ts` — mints a synthetic owner `Principal` for the boot-seed steps (default preset/characters/persona).
 - `entry/compose/chat.ts` — the frozen-host bridge (`resolveHostPrincipal`/`hostPrincipal`) mints synthetic Principals for role-irrelevant and owner-gated host-ops when no request `Principal` exists.
-- `entry/compose/services.ts` — wires `createHostPrincipalResolver` + agent-principal provisioning, minting synthetic Principals for the same offline host-ops seam.
+- `entry/compose/services.ts` — wires `createHostPrincipalResolver`, minting synthetic Principals for the same offline host-ops seam. (It does NOT wire agent-principal provisioning — that claim was purge residue, corrected 2026-08-03 with §4; the only `agent` identifiers here are agent-SDK backend config.)
 
-## 4. Agents are first-class principals (D60)
+## 4. Agents as first-class principals — the DOORWAY, not the tree (D60)
 
-Built: an agent is a real `users` row (`kind:'agent'`, `users_agent_shape` CHECK makes it loginless/`role='user'`/owned by DDL) + an `agent_principals` satellite, minted lazily by `sessions.provisionAgentPrincipal` (idempotent; the reserved `__agent__` handle namespace is refused at every auth/handle surface). The roster's per-kind shape CHECK `chat_participants_kind_shape` (`human|character|agent|observer`, `packages/db/src/schema/chat.ts`) shapes each kind. The ceiling: agents are structurally sessionless + `Principal`-less; the one runtime gate is `canAgent(actor, action, room)` over `AGENT_ACTIONS = ["speak","tool-propose"]` — the ceiling IS the union. Proof: `tests/server/domain/admin/containment.suite.int.test.ts`. COMMITTED (not yet built): the seat wave (buddy adoption + rpg GM seat, AP3/AP4a) — until it lands, buddy's borrowed-owner posture (D17) is the shipping posture. Authoritative: ledger D60 (design set parked in `../proposed/` (see its `INDEX.md`), `../proposed/README.md`).
+**NOT BUILT — this section is a DOORWAY, not a description of the tree** (truth-repaired 2026-08-03, D121; the machinery this section once claimed as built was purged 2026-07-25 and the claim survived the purge). On the tree TODAY: there is no `canAgent`, no `agent_principals` table, no `provisionAgentPrincipal`, and no containment suite — the only live agent surface is DORMANT DDL kept so the re-land needs no second migration.
+
+- **What IS on the tree (the reserved seams):** `USER_KINDS` carries `agent` as a tuple member (never an `isAgent` boolean) and the `users_agent_shape` CHECK makes an agent row loginless/`role='user'`/owned BY DDL (`packages/db/src/schema/users.ts`); `chat_participants_kind_shape` carries the dormant `agent` (userId-backed) and `observer` (both-null) arms (`packages/db/src/schema/chat.ts`); `rosterMemberSpecSchema` documents where those arms graft back; the deny SEAM is pre-named in `admin/guard.ts` + `chat/guard.ts`. Every live `Principal` is human.
+- **COMMITTED (not yet built) — the capability factor re-lands with the seat wave:** the agent ceiling (a `canAgent` successor over a CLOSED action union, decided at the kernel) + its containment suite + `ChatRoster` widening to carry `kind` (the construction sites are the compile-forced update set — `decide.ts`, `chat/guard.ts`, `resolve-stream-authority.ts`, the tool-use ceiling check). Until then, buddy's borrowed-owner posture (D17) is the shipping posture.
+- **The constraint the seat wave inherits (D121 clause A, the agents rider):** chat tools execute under the HOST principal, so an agent initiator would otherwise inherit the host's full tool ceiling. It never does — **an initiator's ceiling derives from its OWN capability factor at the point of initiation, never by inheritance through a turn's execution context.**
+- Design of record: ledger D60 + the agent-principal design set parked in `../proposed/` (see its `INDEX.md`) — a parked set is not quotable as build authority, and D60 describes the DESIGN, not the tree.
 
 ## BFF session ≠ SDK chat session
 
