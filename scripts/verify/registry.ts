@@ -394,6 +394,22 @@ export const REGISTRY: readonly StageDef[] = [
     manualReason: "CANDIDATE lens (`pnpm ast respell <domain>`) — structural identity is evidence, not proof; verify each hit before acting, never gate on it",
   },
   {
+    name: "quality:swallowed",
+    group: "quality",
+    // The other CANDIDATE lens, `manual` for the same reason as quality:respell — it names exports whose only
+    // liveness is a whole-module `import * as` (db's `drizzle(client, { schema })` swallows the entire schema
+    // barrel), which is EVIDENCE of rot, never proof: the swallowing API may itself read the member (drizzle
+    // does read a `relations()` config it is handed). Gating on it would train agents to delete load-bearing
+    // config. The row exists so the audit is discoverable in `verify --list` instead of living only in a lens
+    // verb nobody remembers. Its `@swallowed-ok:` markers ARE two-sided (a stale one exits 1) — that half is
+    // self-enforcing whenever the lens is run.
+    tiers: ["manual"],
+    argv: ["pnpm", "check:swallowed"],
+    classify: asViolations,
+    manualReason:
+      "CANDIDATE lens (`pnpm ast swallowed <scope>`) — namespace-only liveness is evidence, not proof; a hit may be load-bearing through the swallowing API, so verify before deleting",
+  },
+  {
     name: "tests:coverage",
     group: "tests",
     tiers: ["manual"],
