@@ -43,6 +43,7 @@
 import type { ContextFitPreview as ContractContextFitPreview, GroupConfig, GuidedSteer, MessageView, ParticipantView, ShapeTrace } from "@orb/contracts/chat";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import type {
+  RpgActorIdentity,
   RpgActorRef,
   RpgActorVolatile,
   RpgClockTime,
@@ -52,7 +53,6 @@ import type {
   RpgJournalEntryView,
   RpgPlot,
   RpgPlotAct,
-  RpgPresentCharacter,
   RpgQuestView,
   RpgRevealedSpan,
   RpgRevealView,
@@ -137,7 +137,7 @@ type MirrorTrackerValue = MirrorVolatile["trackerValues"][string];
 type MirrorTrackerDef = TrackerView["trackerDefs"][number];
 type MirrorTrackerEntry = TrackerView["gameTrackers"][number];
 type MirrorTrackerOrb = TrackerView["trackerOrbs"][number];
-type MirrorTrackerCast = TrackerView["cast"][number];
+type MirrorIdentity = NonNullable<TrackerActor["identity"]>;
 type MirrorTrackerQuest = TrackerView["quests"][number];
 type MirrorTrackerPlot = NonNullable<TrackerView["plot"]>;
 type MirrorAmbient = NonNullable<TrackerView["ambient"]>;
@@ -158,9 +158,8 @@ test("TrackerDef / TrackerEntry / TrackerOrb mirror the tracker def + reading su
   expectTypeOf<RpgTrackerOrb>().toExtend<MirrorTrackerOrb>();
 });
 
-test("the per-actor volatile plane mirrors RpgActorVolatile (hp + conditions + wallet + inventory rows)", () => {
-  pin<Subset<"actorRef">>(keys<MirrorVolatile, RpgActorVolatile>());
-  pin<Complete>(keys<NonNullable<MirrorVolatile["hp"]>, NonNullable<RpgActorVolatile["hp"]>>());
+test("the per-actor volatile plane mirrors RpgActorVolatile (trackers + conditions + wallet + inventory rows)", () => {
+  pin<Complete>(keys<MirrorVolatile, RpgActorVolatile>());
   pin<Subset<"stat" | "modifier" | "turnsLeft">>(keys<MirrorVolatile["conditions"][number], RpgActorVolatile["conditions"][number]>());
   pin<Complete>(keys<MirrorVolatile["wallet"][number], RpgActorVolatile["wallet"][number]>());
   pin<Subset<"id" | "description" | "location" | "type" | "icon">>(keys<MirrorVolatile["inventory"][number], RpgInventoryItem>());
@@ -168,15 +167,17 @@ test("the per-actor volatile plane mirrors RpgActorVolatile (hp + conditions + w
 });
 
 test("TrackerActor + its identity SHEET mirror RpgActorView (the retired `poolDefs` class)", () => {
-  pin<Subset<"avatar" | "trackers">>(keys<TrackerActor, ContractActorView>());
+  pin<Subset<"avatar">>(keys<TrackerActor, ContractActorView>());
   pin<Complete>(keys<TrackerActor["sheet"], ContractActorView["sheet"]>());
   expectTypeOf<ContractActorView>().toExtend<TrackerActor>();
 });
 
-test("TrackerCast mirrors RpgPresentCharacter (the Scene tab's present band)", () => {
-  pin<Subset<"key" | "characterId" | "appearance" | "outfit" | "thoughts">>(keys<MirrorTrackerCast, RpgPresentCharacter>());
-  pin<Complete>(keys<MirrorTrackerCast["relationship"], RpgPresentCharacter["relationship"]>());
-  expectTypeOf<RpgPresentCharacter>().toExtend<MirrorTrackerCast>();
+// R2 — a cast NPC is an ACTOR, so her identity half is pinned as part of the one actor row above (there is no
+// separate cast shape to mirror any more; `TrackerView.cast` is a bare key list, pinned with the view).
+test("TrackerActor's identity half mirrors RpgActorIdentity (the cast NPC's own plane)", () => {
+  pin<Subset<"characterId" | "appearance" | "outfit" | "thoughts">>(keys<MirrorIdentity, RpgActorIdentity>());
+  pin<Complete>(keys<MirrorIdentity["relationship"], RpgActorIdentity["relationship"]>());
+  expectTypeOf<RpgActorIdentity>().toExtend<MirrorIdentity>();
 });
 
 test("TrackerQuest / TrackerPlot mirror the quest + plot planes", () => {
@@ -189,7 +190,7 @@ test("TrackerQuest / TrackerPlot mirror the quest + plot planes", () => {
 });
 
 test("TrackerView + its ambient plane mirror RpgTrackerView (the whole persisted-snapshot projection)", () => {
-  pin<Subset<"castVolatile">>(keys<TrackerView, RpgTrackerView>());
+  pin<Complete>(keys<TrackerView, RpgTrackerView>());
   pin<Complete>(keys<MirrorAmbient, ContractAmbient>());
   pin<Subset<"minute">>(keys<NonNullable<MirrorAmbient["clock"]>, RpgClockTime>());
   pin<Subset<"temperatureC" | "wind" | "visibility">>(keys<NonNullable<MirrorAmbient["weather"]>, RpgWeather>());

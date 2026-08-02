@@ -3,7 +3,16 @@
 // license, and `steeringNote` LAST. The char turn is tool-less (owner ruling 2026-07-27) — the reminder carries
 // NO tool-update guidance (that checklist lives in the tool round's prompt, entry/compose/rpg.ts).
 
-import type { RpgActorVolatile, RpgGameFeatures, RpgSnapshotState, RpgTrackerDef, RpgTrackerEntry, RpgTrackerValue, RpgTrackerView } from "@orb/contracts/rpg";
+import type {
+  RpgActorView,
+  RpgActorVolatile,
+  RpgGameFeatures,
+  RpgSnapshotState,
+  RpgTrackerDef,
+  RpgTrackerEntry,
+  RpgTrackerValue,
+  RpgTrackerView,
+} from "@orb/contracts/rpg";
 import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import { tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -25,18 +34,46 @@ function def(over: Partial<RpgTrackerDef> & Pick<RpgTrackerDef, "key" | "label" 
   return rpgTrackerDefSchema.parse(over);
 }
 
-/** The per-cast tracker map, built with a COMPUTED key: the map is keyed by a cast KEY (display data), not
- *  by a JS identifier, so it is spelled through a variable rather than a literal property name. */
-function castTrackersFor(castKey: string, entries: readonly RpgTrackerEntry[]): RpgTrackerView["castTrackers"] {
-  return { [castKey]: entries };
+/** The DEFAULT sheet every actor row falls back to (a participant with no `rpg_sheets` row). */
+function sheet(over: Partial<RpgActorView["sheet"]> = {}): RpgActorView["sheet"] {
+  return { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [], ...over };
 }
 
-/** The per-cast VOLATILE row (same computed-key reason as {@link castTrackersFor}) — the whole plane a scene
- *  NPC carries, which the cast line renders through the SAME `volatileSegs` a party line uses. */
-function castVolatileFor(castKey: string, over: Partial<RpgActorVolatile> = {}): RpgTrackerView["castVolatile"] {
-  return {
-    [castKey]: { actorRef: { kind: "cast", castKey }, hp: null, trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "", ...over },
-  };
+/** ONE actor row in the view — R2's single shape for a roster member AND a scene NPC. */
+function actor(over: Partial<RpgActorView> & Pick<RpgActorView, "actorRef" | "name">): RpgActorView {
+  return { presence: false, identity: null, sheet: sheet(), volatile: null, trackers: [], ...over };
+}
+
+/** A CAST actor with its identity half + the trackers it carries. `presence` defaults ON (the on-stage case);
+ *  the offstage roster's own test flips it. The tracker ENTRIES are split into the def list the row carries and
+ *  the readings on its volatile half — one row, exactly as the view builds it. */
+function castActor(
+  castKey: string,
+  identity: Partial<NonNullable<RpgActorView["identity"]>> & { name: string },
+  entries: readonly RpgTrackerEntry[] = [],
+  volatile: Partial<RpgActorVolatile> | null = null,
+): RpgActorView {
+  const values: Record<string, RpgTrackerValue> = {};
+  for (const entry of entries) {
+    if (entry.value !== null) {
+      values[entry.def.key] = entry.value;
+    }
+  }
+  const hasVolatile = volatile !== null || Object.keys(values).length > 0;
+  return actor({
+    actorRef: { kind: "cast", castKey },
+    name: identity.name,
+    presence: true,
+    identity: { emoji: "", mood: "", relationship: { kind: "neutral", label: "" }, ...identity },
+    trackers: entries.map((e) => e.def),
+    volatile: hasVolatile ? { trackerValues: values, conditions: [], inventory: [], wallet: [], status: "", ...(volatile ?? {}) } : null,
+  });
+}
+
+/** The `{actors, cast}` pair a view carries for a set of actors — the presence echo is DERIVED from the rows,
+ *  never spelled twice (the view builds it the same way). */
+function withActors(...rows: readonly RpgActorView[]): Pick<RpgTrackerView, "actors" | "cast"> {
+  return { actors: rows, cast: rows.filter((r) => r.presence).map((r) => (r.actorRef.kind === "cast" ? `cast:${r.actorRef.castKey}` : r.name)) };
 }
 
 /** The condition-list shape a volatile row carries (lite writes only the `name`). */
@@ -77,8 +114,6 @@ function emptyView(over: Partial<RpgTrackerView> = {}): RpgTrackerView {
     actors: [],
     cast: [],
     trackerDefs: [],
-    castTrackers: {},
-    castVolatile: {},
     gameTrackers: [],
     quests: [],
     plot: null,
@@ -162,7 +197,9 @@ test("the reminder NEVER carries tool-update guidance (the char turn is tool-les
       {
         actorRef: { kind: "cast", castKey: "k" },
         name: "K",
-        sheet: { className: "", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
+        presence: false,
+        identity: null,
+        sheet: { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
         volatile: null,
         trackers: [],
       },
@@ -181,13 +218,13 @@ test("the state block reports each plane, label-as-mini-prompt", () => {
     trackerDefs: [FOCUS],
     actors: [
       {
-        actorRef: { kind: "cast", castKey: "kael" },
+        actorRef: { kind: "character", characterId: castId<CharacterId>("character_kael") },
         name: "Kael",
-        sheet: { className: "Rogue", attributes: { dex: 16 }, maxHp: null, flavor: "", level: 3, trackerGrants: [], trackerRevokes: [] },
+        sheet: { className: "Rogue", attributes: { dex: 16 }, flavor: "", level: 3, trackerGrants: [], trackerRevokes: [] },
+        presence: false,
+        identity: null,
         trackers: [FOCUS],
         volatile: {
-          actorRef: { kind: "cast", castKey: "kael" },
-          hp: { value: 8, max: 12 },
           trackerValues: { focus: { value: 3, items: null, max: null } },
           conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: null }],
           inventory: [{ id: "i1", name: "dagger", description: "", quantity: 2, location: "", type: "" }],
@@ -204,7 +241,6 @@ test("the state block reports each plane, label-as-mini-prompt", () => {
   expect(out).toContain("The Rusty Anchor");
   expect(out).toContain("night");
   expect(out).toContain("Kael");
-  expect(out).toContain("HP 8/12");
   // #36 — the host tracker hint reaches the model, taught ONCE on the vocabulary line; the carrier line
   // carries the bare reading under the same label (the `attributeGloss`/`attributeReading` split).
   expect(out).toContain("Trackers: focus (spent to steady the hand)");
@@ -230,7 +266,9 @@ test("an actor with NO volatile row still lists the trackers it carries", () => 
       {
         actorRef: { kind: "user", userId: castId<UserId>("user_host") },
         name: "You",
-        sheet: { className: "", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
+        presence: false,
+        identity: null,
+        sheet: { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
         volatile: null,
         trackers: [bond],
       },
@@ -252,11 +290,12 @@ test("an active quest's host-written DESCRIPTION rides its line", () => {
 
 test("the cast line renders relationship + the member's TRACKERS shape-aware", () => {
   const view = emptyView({
-    cast: [{ key: "Mari", name: "Mari", emoji: "", mood: "wary", relationship: { kind: "custom", label: "vassal" } }],
-    castTrackers: castTrackersFor("Mari", [
-      { def: def({ key: "suspicion", label: "suspicion", shape: "meter", write: "set", subject: "actor", max: 10 }), value: value(7) },
-      { def: def({ key: "trust", label: "trust", shape: "text", write: "set", subject: "actor" }), value: value("guarded") },
-    ]),
+    ...withActors(
+      castActor("mari", { name: "Mari", mood: "wary", relationship: { kind: "custom", label: "vassal" } }, [
+        { def: def({ key: "suspicion", label: "suspicion", shape: "meter", write: "set", subject: "actor", max: 10 }), value: value(7) },
+        { def: def({ key: "trust", label: "trust", shape: "text", write: "set", subject: "actor" }), value: value("guarded") },
+      ]),
+    ),
   });
   const out = buildLiteReminder(input({ view, features: features({ relationshipHints: { vassal: "sworn to serve but resentful" } }) }));
   expect(out).toContain("Mari");
@@ -273,28 +312,29 @@ test("the cast line renders relationship + the member's TRACKERS shape-aware", (
 // condition names in by accident; that channel is correctly gone.) ONE builder now serves both surfaces.
 test("a cast NPC's WHOLE volatile plane rides its line in the same grammar a party line uses", () => {
   const view = emptyView({
-    cast: [{ key: "Mari", name: "Mari", emoji: "", mood: "wary", relationship: { kind: "neutral", label: "" } }],
-    castTrackers: castTrackersFor("Mari", [
-      { def: def({ key: "trust", label: "trust", shape: "text", write: "set", subject: "actor" }), value: value("guarded") },
-    ]),
-    castVolatile: castVolatileFor("Mari", {
-      hp: { value: 8, max: 12 },
-      wallet: [{ name: "gold", amount: 40 }],
-      inventory: [{ id: "i1", name: "dagger", description: "", quantity: 2, location: "", type: "" }],
-      status: "favouring one leg",
-      conditions: conditions(["poisoned", "bleeding"]),
-    }),
+    ...withActors(
+      castActor(
+        "mari",
+        { name: "Mari", mood: "wary" },
+        [{ def: def({ key: "trust", label: "trust", shape: "text", write: "set", subject: "actor" }), value: value("guarded") }],
+        {
+          wallet: [{ name: "gold", amount: 40 }],
+          inventory: [{ id: "i1", name: "dagger", description: "", quantity: 2, location: "", type: "" }],
+          status: "favouring one leg",
+          conditions: conditions(["poisoned", "bleeding"]),
+        },
+      ),
+    ),
   });
   const out = buildLiteReminder(input({ view }));
   // ` — ` segs (short state, like mood), AFTER the trackers — never a continuation line (those carry prose),
   // and in the byte-identical order a party line uses.
-  expect(out).toContain("- Mari — wary — trust: guarded — HP 8/12 — 40 gold — carrying: dagger ×2 — favouring one leg — conditions: poisoned, bleeding");
+  expect(out).toContain("- Mari — wary — trust: guarded — 40 gold — carrying: dagger ×2 — favouring one leg — conditions: poisoned, bleeding");
 });
 
 test("a cast NPC with an EMPTY volatile row adds no segs (no dangling `conditions:`/`carrying:` labels)", () => {
   const view = emptyView({
-    cast: [{ key: "Mari", name: "Mari", emoji: "", mood: "wary", relationship: { kind: "neutral", label: "" } }],
-    castVolatile: castVolatileFor("Mari"),
+    ...withActors(castActor("mari", { name: "Mari", mood: "wary" }, [], {})),
   });
   const out = buildLiteReminder(input({ view }));
   expect(out).toContain("- Mari — wary");
@@ -313,14 +353,15 @@ test("every tracker's hint is taught ONCE on the vocabulary line; readings stay 
   const bond = def({ key: "bond", label: "Bond", shape: "text", write: "set", subject: "actor", hint: "where the two of them stand" });
   const debts = def({ key: "plain", label: "Debts", shape: "meter", write: "set", subject: "actor", max: 5 });
   const view = emptyView({
-    cast: [{ key: "Wren", name: "Wren", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } }],
     trackerDefs: [wits, nerve, bond, debts],
-    castTrackers: castTrackersFor("Wren", [
-      { def: wits, value: value(10) },
-      { def: nerve, value: value(4) },
-      { def: bond, value: value("frayed") },
-      { def: debts, value: value(3) },
-    ]),
+    ...withActors(
+      castActor("wren", { name: "Wren" }, [
+        { def: wits, value: value(10) },
+        { def: nerve, value: value(4) },
+        { def: bond, value: value("frayed") },
+        { def: debts, value: value(3) },
+      ]),
+    ),
   });
   const out = buildLiteReminder(input({ view }));
   // The vocabulary line: every def, glossed, exactly once — an unhinted def contributes its bare label.
@@ -340,9 +381,11 @@ test("attribute LABELS + HINTS reach the model: the vocabulary is taught once, v
   const view = emptyView({
     actors: [
       {
-        actorRef: { kind: "cast", castKey: "kael" },
+        actorRef: { kind: "character", characterId: castId<CharacterId>("character_kael") },
         name: "Kael",
-        sheet: { className: "", attributes: { str: 14, wis: 9 }, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
+        presence: false,
+        identity: null,
+        sheet: { className: "", attributes: { str: 14, wis: 9 }, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
         volatile: null,
         trackers: [],
       },
@@ -363,9 +406,11 @@ test("a FREEFORM profile teaches no attribute vocabulary (no empty header, no ph
   const view = emptyView({
     actors: [
       {
-        actorRef: { kind: "cast", castKey: "kael" },
+        actorRef: { kind: "character", characterId: castId<CharacterId>("character_kael") },
         name: "Kael",
-        sheet: { className: "", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
+        presence: false,
+        identity: null,
+        sheet: { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
         volatile: null,
         trackers: [],
       },
@@ -378,10 +423,11 @@ test("the gloss teaches the CARRIER's effective ceiling, not the game default it
   // Wren's Nerve tops out at 6 where the game default is 10. Teaching the default would tell the model this
   // character is at 40% when she is at two-thirds — the exact "the panel and the prompt disagree" class.
   const view = emptyView({
-    cast: [{ key: "Wren", name: "Wren", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } }],
-    castTrackers: castTrackersFor("Wren", [
-      { def: def({ key: "nerve", label: "Nerve", shape: "meter", write: "set", subject: "actor", max: 10 }), value: value(4, null, 6) },
-    ]),
+    ...withActors(
+      castActor("wren", { name: "Wren" }, [
+        { def: def({ key: "nerve", label: "Nerve", shape: "meter", write: "set", subject: "actor", max: 10 }), value: value(4, null, 6) },
+      ]),
+    ),
   });
   const out = buildLiteReminder(input({ view }));
   expect(out).toContain("Nerve 4/6");
@@ -390,10 +436,11 @@ test("the gloss teaches the CARRIER's effective ceiling, not the game default it
 
 test("an EMPTY tracker hint glosses nothing (no empty parens)", () => {
   const view = emptyView({
-    cast: [{ key: "Wren", name: "Wren", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } }],
-    castTrackers: castTrackersFor("Wren", [
-      { def: def({ key: "wits", label: "Wits", shape: "meter", write: "set", subject: "actor", max: 10 }), value: value(7) },
-    ]),
+    ...withActors(
+      castActor("wren", { name: "Wren" }, [
+        { def: def({ key: "wits", label: "Wits", shape: "meter", write: "set", subject: "actor", max: 10 }), value: value(7) },
+      ]),
+    ),
   });
   const out = buildLiteReminder(input({ view }));
   expect(out).toContain("- Wren — Wits 7/10");
@@ -408,10 +455,11 @@ test("an actor's host-written sheet FLAVOR rides a continuation line under its p
       {
         actorRef: { kind: "character", characterId: castId<CharacterId>("character_mara") },
         name: "Mara",
+        presence: false,
+        identity: null,
         sheet: {
           className: "Warden",
           attributes: {},
-          maxHp: null,
           flavor: "Sworn to a house that no longer exists.",
           level: 3,
           trackerGrants: [],
@@ -432,7 +480,9 @@ test("an EMPTY sheet flavor omits its line (no dangling `flavor:` label)", () =>
       {
         actorRef: { kind: "character", characterId: castId<CharacterId>("character_mara") },
         name: "Mara",
-        sheet: { className: "Warden", attributes: {}, maxHp: null, flavor: "   ", level: null, trackerGrants: [], trackerRevokes: [] },
+        presence: false,
+        identity: null,
+        sheet: { className: "Warden", attributes: {}, flavor: "   ", level: null, trackerGrants: [], trackerRevokes: [] },
         volatile: null,
         trackers: [],
       },
@@ -448,18 +498,16 @@ test("an EMPTY sheet flavor omits its line (no dangling `flavor:` label)", () =>
 // already fixed. They ride CONTINUATION lines under the member's one-liner, taught once on the section header.
 test("a cast member's appearance/outfit/thoughts ride continuation lines under its one-liner", () => {
   const view = emptyView({
-    cast: [
-      {
-        key: "Vesna",
+    ...withActors(
+      castActor("vesna", {
         name: "Sister Vesna",
         emoji: "🕯️",
         mood: "warming",
         appearance: "tall, silver-haired",
         outfit: "patched grey habit",
         thoughts: "weighing whether to trust you",
-        relationship: { kind: "neutral", label: "" },
-      },
-    ],
+      }),
+    ),
   });
   const out = buildLiteReminder(input({ view }));
   expect(out).toContain(
@@ -472,9 +520,7 @@ test("a cast member's appearance/outfit/thoughts ride continuation lines under i
 
 test("an EMPTY guide omits its line entirely (no `appearance:` with nothing after it)", () => {
   const view = emptyView({
-    cast: [
-      { key: "Wren", name: "Wren", emoji: "", mood: "", outfit: "   ", thoughts: "she has already decided", relationship: { kind: "neutral", label: "" } },
-    ],
+    ...withActors(castActor("wren", { name: "Wren", outfit: "   ", thoughts: "she has already decided" })),
   });
   const out = buildLiteReminder(input({ view }));
   expect(out).toContain("- Wren\n  thoughts: she has already decided");
@@ -483,7 +529,7 @@ test("an EMPTY guide omits its line entirely (no `appearance:` with nothing afte
 });
 
 test("a cast with NO guides keeps the bare `Present:` header (no phantom teaching)", () => {
-  const view = emptyView({ cast: [{ key: "Bob", name: "Bob", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } }] });
+  const view = emptyView(withActors(castActor("bob", { name: "Bob" })));
   const out = buildLiteReminder(input({ view }));
   expect(out).toContain("Present:\n- Bob");
   expect(out).not.toContain("UNSPOKEN");
@@ -491,11 +537,35 @@ test("a cast with NO guides keeps the bare `Present:` header (no phantom teachin
 
 test("a neutral relationship is silent in the cast line (no steering signal)", () => {
   const view = emptyView({
-    cast: [{ key: "Bob", name: "Bob", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } }],
+    ...withActors(castActor("bob", { name: "Bob" })),
   });
   const out = buildLiteReminder(input({ view }));
   expect(out).toContain("Bob");
   expect(out).not.toContain("neutral");
+});
+
+// R2 — the OFFSTAGE roster. Retention without visibility steers nothing: before the reshape a departed NPC's
+// identity was DESTROYED outright, so the model had no way to bring her back consistently and no line saying
+// she existed. She is retained now, and this block is how the turn hears about her.
+test("a tracked cast actor who is NOT on stage rides the terse `Known, offstage` roster", () => {
+  const trust = def({ key: "trust", label: "trust", shape: "text", write: "set", subject: "actor" });
+  const onStage = castActor("bran", { name: "Bran" });
+  const gone = {
+    ...castActor("mira", { name: "Mira", emoji: "🗡️", mood: "wary", relationship: { kind: "enemy", label: "" }, thoughts: "she has not forgiven you" }, [
+      { def: trust, value: value("guarded") },
+    ]),
+    presence: false,
+  };
+  const out = buildLiteReminder(input({ view: emptyView({ trackerDefs: [trust], ...withActors(onStage, gone) }) }));
+  // She is NAMED with the state that steers a return — mood + the stance her arc reached.
+  expect(out).toContain("Known, offstage");
+  expect(out).toContain("- 🗡️ Mira — wary — enemy");
+  // …and deliberately NOTHING else: this is a memory jog, not a second Present block. Her trackers, pack and
+  // standing guides stay on her row for the panel and for the beat she walks back into.
+  expect(out).not.toContain("she has not forgiven you");
+  expect(out).not.toContain("Mira — wary — enemy — trust");
+  // The on-stage member is unaffected — the two blocks are a partition of ONE list.
+  expect(out).toContain("Present:\n- Bran");
 });
 
 test("the steering note is the always-wins tail (LAST)", () => {
@@ -556,15 +626,19 @@ test("an active-only quest filter (completed quests never clutter the reminder)"
 test("the DELTA block renders BETWEEN the state block and the license (§2.7 placement, always-on)", () => {
   // A prev→cur pair with a real change: the delta must appear AFTER the game-state absolutes and BEFORE the
   // license (the license's "let the change land" gets its referent).
-  const actor = (hp: number): RpgSnapshotState => ({
+  const wounded = (reading: number): RpgSnapshotState => ({
     ...emptyState(),
     location: "The Docks",
     actorState: [
-      { actorRef: { kind: "cast", castKey: "kael" }, hp: { value: hp, max: 20 }, trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" },
+      {
+        actorRef: { kind: "cast", castKey: "kael" },
+        volatile: { trackerValues: { hp: value(reading) }, conditions: [], inventory: [], wallet: [], status: "" },
+      },
     ],
   });
-  const view = emptyView({ ambient: { location: "The Docks", calendarDate: null, clock: null, weather: null } });
-  const out = buildLiteReminder(input({ view, curSnapshot: actor(16), prevSnapshot: actor(12) }));
+  const hp = def({ key: "hp", label: "HP", shape: "meter", write: "delta", subject: "actor", max: 20 });
+  const view = emptyView({ ambient: { location: "The Docks", calendarDate: null, clock: null, weather: null }, trackerDefs: [hp] });
+  const out = buildLiteReminder(input({ view, curSnapshot: wounded(16), prevSnapshot: wounded(12) }));
   expect(out).toContain("CHANGES SINCE LAST BEAT");
   expect(out).toContain("kael HP 12→16 (+4)");
   // Placement: after the game-state header, before the license.

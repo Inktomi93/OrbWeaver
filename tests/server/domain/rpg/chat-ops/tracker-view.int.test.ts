@@ -4,7 +4,7 @@
 // passed through. The verb's member-gate + the swipe-consistency are covered by their own suites; this pins the
 // projection is byte-shared (no drift between the panel and the steering injection).
 
-import type { RpgActorVolatile, RpgSheet, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
+import type { RpgActorEntry, RpgSheet, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
 import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { ChatTurnId, RpgSheetId } from "@orb/kit/ids";
@@ -44,7 +44,7 @@ test("projects roster ∪ sheets — a roster actor with no sheet row renders th
   const view = await buildTrackerView(h.ctx, game, false);
   expect(view.actors).toHaveLength(1);
   expect(view.actors[0]?.name).toBe("Kael");
-  expect(view.actors[0]?.sheet).toEqual({ className: "", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] });
+  expect(view.actors[0]?.sheet).toEqual({ className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] });
   expect(view.actors[0]?.volatile).toBeNull(); // no snapshot yet — turnless game
 });
 
@@ -115,16 +115,11 @@ async function seedGameWithTrackers(
   // A REAL minted TypeID — the volatile actorRef's `characterId` is re-validated at snapshot-write, so a
   // fabricated `character_<key>` id would be silently dropped (the write asserts ok below).
   const characterId = await seedCharacter(db, ownerId, key, { id: mintTypeId(ID_PREFIX.character) });
-  const sheet: RpgSheet = { className: "", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [], ...sheetOver };
+  const sheet: RpgSheet = { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [], ...sheetOver };
   await upsertSheet(db, { id: castId<RpgSheetId>(`rpg_sheet_${key}`), gameId, characterId, userId: null, sheet, now: FROZEN_AT });
-  const volatile: RpgActorVolatile = {
+  const volatile: RpgActorEntry = {
     actorRef: { kind: "character", characterId },
-    hp: null,
-    trackerValues: values,
-    conditions: [],
-    inventory: [],
-    wallet: [],
-    status: "",
+    volatile: { trackerValues: values, conditions: [], inventory: [], wallet: [], status: "" },
   };
   const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   // The snapshot write RE-VALIDATES the volatile (`rpgActorRefSchema` checks `characterId` is a real TypeID);
@@ -222,7 +217,7 @@ test("the band renders the PINNED trackers with a numeric reading — never a de
 // onto an NPC (hp/status/conditions/inventory/wallet) reached NO reader, and the steering reminder could not
 // state the affliction, the wound or the purse the tool round had just given that NPC. The WHOLE row is
 // projected, never a slice: a slice is how the gap came back after the conditions half was fixed.
-test("a scene-cast member's WHOLE volatile row rides the view off its `cast:<key>` actor state", async () => {
+test("a scene-cast member is an ORDINARY actor row in the view — identity, presence, volatile, trackers (R2)", async () => {
   const db = await freshDb();
   const chatId = await seedChat(db, "castcond");
   const gameId = await seedGame(db, chatId, "castcond");
@@ -232,19 +227,25 @@ test("a scene-cast member's WHOLE volatile row rides the view off its `cast:<key
     db,
     {
       ...emptyState(),
-      presentCharacters: [
-        { key: "Mari", name: "Mari", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
-        { key: "Bran", name: "Bran", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
-      ],
+      presentCharacters: ["cast:mari", "cast:bran"],
       actorState: [
         {
-          actorRef: { kind: "cast", castKey: "Mari" },
-          hp: { value: 8, max: 12 },
-          trackerValues: {},
-          conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: null }],
-          inventory: [{ id: "i1", name: "dagger", description: "", quantity: 1, location: "", type: "" }],
-          wallet: [{ name: "gold", amount: 12 }],
-          status: "favouring one leg",
+          actorRef: { kind: "cast", castKey: "mari" },
+          identity: { name: "Mari", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
+          volatile: {
+            trackerValues: {},
+            conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: null }],
+            inventory: [{ id: "i1", name: "dagger", description: "", quantity: 1, location: "", type: "" }],
+            wallet: [{ name: "gold", amount: 12 }],
+            status: "favouring one leg",
+          },
+        },
+        // A tracked cast actor who is NOT on the presence list — the OFFSTAGE row, which no projection
+        // carried before R2 (her state was retained and unreadable, and no gesture could remove her).
+        {
+          actorRef: { kind: "cast", castKey: "vesna" },
+          identity: { name: "Sister Vesna", emoji: "", mood: "guarded", relationship: { kind: "enemy", label: "" } },
+          volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" },
         },
       ],
     },
@@ -258,14 +259,23 @@ test("a scene-cast member's WHOLE volatile row rides the view off its `cast:<key
     throw new Error("game not found");
   }
   const view = await buildTrackerView(ctx, game, false);
-  const mari = view.castVolatile["Mari"];
-  expect(mari?.conditions.map((c) => c.name)).toEqual(["poisoned"]);
-  expect(mari?.hp).toEqual({ value: 8, max: 12 });
-  expect(mari?.status).toBe("favouring one leg");
-  expect(mari?.inventory.map((i) => i.name)).toEqual(["dagger"]);
-  expect(mari?.wallet).toEqual([{ name: "gold", amount: 12 }]);
-  // An on-stage member with no volatile row reads NULL (never undefined) — the castTrackers key rule.
-  expect(view.castVolatile["Bran"]).toBeNull();
+  // ONE list, one shape: the cast NPC is an `RpgActorView` beside the roster, not a bolted-on projection.
+  const mari = view.actors.find((a) => a.name === "Mari");
+  expect(mari?.presence).toBe(true);
+  expect(mari?.volatile?.conditions.map((c) => c.name)).toEqual(["poisoned"]);
+  expect(mari?.volatile?.status).toBe("favouring one leg");
+  expect(mari?.volatile?.inventory.map((i) => i.name)).toEqual(["dagger"]);
+  expect(mari?.volatile?.wallet).toEqual([{ name: "gold", amount: 12 }]);
+  // Her carrier CLASS derives from `actorRef.kind` — a partition of people, not of rows (the §1.4 fix).
+  expect(mari?.actorRef.kind).toBe("cast");
+
+  // THE OFFSTAGE ROW is projected too, with everything on it — that visibility IS the R2 deliverable.
+  const vesna = view.actors.find((a) => a.name === "Sister Vesna");
+  expect(vesna?.presence).toBe(false);
+  expect(vesna?.identity?.relationship).toEqual({ kind: "enemy", label: "" });
+
+  // The presence ECHO is derived from the same rows (a presence key with no actor row is simply not an actor).
+  expect(view.cast).toEqual(["cast:mari", "cast:bran"]);
 });
 
 test("P5: the plot plane rides the tracker view from the resolved snapshot (null for a turnless game)", async () => {

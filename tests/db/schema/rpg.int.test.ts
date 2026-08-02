@@ -76,7 +76,7 @@ const CONFIG: RpgGameConfig = {
   },
   userMacros: [],
 };
-const EMPTY_SHEET = { className: "", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] };
+const EMPTY_SHEET = { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] };
 
 async function seedGame(db: Awaited<ReturnType<typeof freshDb>>, chatId: ChatId, gameId: RpgGameId): Promise<void> {
   await db.insert(chats).values({ id: chatId });

@@ -14,7 +14,7 @@
 // The STRUCTURAL "populate can never touch a live-play plane" proof is a contract test (`salvagePopulate`
 // rebuilds those planes empty), which is where it belongs — it is a property of the parse, not of this verb.
 
-import type { RpgActorVolatile, RpgQuest } from "@orb/contracts/rpg";
+import type { RpgActorEntry, RpgQuest } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, RpgQuestId, UserId } from "@orb/kit/ids";
@@ -39,15 +39,16 @@ async function seedCharacterGame(
 
 /** The volatile plane a populate round's inventory/wallet writes produce (the ABSOLUTE plane the real fold
  *  emits — the fake stands in for `extractionToStateDelta`'s output, which its own tests cover). */
-function filledActor(characterId: CharacterId): RpgActorVolatile {
+function filledActor(characterId: CharacterId): RpgActorEntry {
   return {
     actorRef: { kind: "character", characterId },
-    hp: null,
-    trackerValues: {},
-    conditions: [],
-    inventory: [{ id: "item_bone_key", name: "Bone key", description: "cold to the touch", quantity: 1, location: "belt pouch", type: "" }],
-    wallet: [{ name: "gold", amount: 20 }],
-    status: "",
+    volatile: {
+      trackerValues: {},
+      conditions: [],
+      inventory: [{ id: "item_bone_key", name: "Bone key", description: "cold to the touch", quantity: 1, location: "belt pouch", type: "" }],
+      wallet: [{ name: "gold", amount: 20 }],
+      status: "",
+    },
   };
 }
 

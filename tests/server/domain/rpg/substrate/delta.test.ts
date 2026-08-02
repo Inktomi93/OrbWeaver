@@ -35,9 +35,14 @@ function reading(value: number | string | null, items: string[] | null = null, m
   return { value, items, max };
 }
 
-/** A present character (born with the neutral relationship default — the swipe-volatile plane shape). */
-function member(key: string, name: string, over: Partial<RpgSnapshotState["presentCharacters"][number]> = {}): RpgSnapshotState["presentCharacters"][number] {
-  return { key, name, emoji: "", mood: "", relationship: { kind: "neutral", label: "" }, ...over };
+/** A cast ACTOR row with its identity half (R2 — a person is one row: name, stance and guides beside the
+ *  tracked state, so a presence drop destroys none of it). */
+function member(
+  key: string,
+  name: string,
+  over: Partial<NonNullable<RpgSnapshotState["actorState"][number]["identity"]>> = {},
+): RpgSnapshotState["actorState"][number] {
+  return { ...castVolatile(key), identity: { name, emoji: "", mood: "", relationship: { kind: "neutral", label: "" }, ...over } };
 }
 
 /** An empty-born snapshot state (the createGame seed shape). */
@@ -58,26 +63,22 @@ function state(over: Partial<RpgSnapshotState> = {}): RpgSnapshotState {
   };
 }
 
-/** A cast actor's volatile row (the diff correlates by the cast key). */
-function castVolatile(castKey: string, over: Partial<RpgSnapshotState["actorState"][number]> = {}): RpgSnapshotState["actorState"][number] {
+/** A cast actor's row, keyed by its slug (the diff correlates by the actor ref key). `over` patches the
+ *  VOLATILE half — the identity half is {@link member}'s job. */
+function castVolatile(castKey: string, over: Partial<RpgSnapshotState["actorState"][number]["volatile"]> = {}): RpgSnapshotState["actorState"][number] {
   return {
     actorRef: { kind: "cast", castKey },
-    hp: null,
-    trackerValues: {},
-    conditions: [],
-    inventory: [],
-    wallet: [],
-    status: "",
-    ...over,
+    volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "", ...over },
   };
 }
 
-test("HP — a signed numeric delta with the actor name", () => {
-  const prev = state({ actorState: [castVolatile("kael", { hp: { value: 12, max: 20 } })] });
-  const cur = state({ actorState: [castVolatile("kael", { hp: { value: 16, max: 20 } })] });
-  const out = buildDeltaBlock(prev, cur, ctx());
+test("HEALTH — an ordinary tracker delta line since R3 (no bespoke hp renderer, and it carries the HINT)", () => {
+  const hp = def({ key: "hp", label: "HP", shape: "meter", write: "delta", subject: "actor", max: 20, hint: "physical health" });
+  const prev = state({ actorState: [castVolatile("kael", { trackerValues: { hp: reading(12) } })] });
+  const cur = state({ actorState: [castVolatile("kael", { trackerValues: { hp: reading(16) } })] });
+  const out = buildDeltaBlock(prev, cur, ctx({ trackerDefs: [hp] }));
   expect(out).toContain(RPG_DELTA_HEADING);
-  expect(out).toContain("kael HP 12→16 (+4)");
+  expect(out).toContain("kael HP 12→16 (+4) — physical health");
 });
 
 const MANA = def({ key: "mana", label: "mana", shape: "meter", write: "delta", subject: "actor", max: 10 });
@@ -131,7 +132,7 @@ test("conditions — added and removed per actor", () => {
 });
 
 test("inventory — add, remove, and quantity change", () => {
-  const item = (name: string, quantity: number): RpgSnapshotState["actorState"][number]["inventory"][number] => ({
+  const item = (name: string, quantity: number): RpgSnapshotState["actorState"][number]["volatile"]["inventory"][number] => ({
     id: name,
     name,
     description: "",
@@ -178,9 +179,12 @@ test("ambient — a within-band minute tick is NOT a beat (no time delta line)",
   expect(buildDeltaBlock(prev, cur, ctx())).toBeNull();
 });
 
-test("present cast — joined and left the scene", () => {
-  const prev = state({ presentCharacters: [member("mari", "Mari")] });
-  const cur = state({ presentCharacters: [member("zandik", "Zandik")] });
+test("present cast — joined and left the scene (presence keys; the NAME comes off the actor row)", () => {
+  const actors = [member("mari", "Mari"), member("zandik", "Zandik")];
+  // Both actors are TRACKED throughout — only presence moves. That is the whole R2 semantic: a departure is
+  // a presence drop, so Mari's row (stance, guides, pack) is still right there for her return.
+  const prev = state({ actorState: actors, presentCharacters: ["cast:mari"] });
+  const cur = state({ actorState: actors, presentCharacters: ["cast:zandik"] });
   const out = buildDeltaBlock(prev, cur, ctx());
   expect(out).toContain("+Zandik enters");
   expect(out).toContain("-Mari leaves");
@@ -215,7 +219,8 @@ test("game trackers — a numeric delta on the game-subject plane, keyed by trac
 test("first snapshot (prev === null) → SCENE OPENS, not everything-changed", () => {
   const cur = state({
     location: "The Rusty Anchor",
-    presentCharacters: [member("mari", "Mari")],
+    actorState: [member("mari", "Mari")],
+    presentCharacters: ["cast:mari"],
     quests: [{ id: "q1" as never, name: "Find the ledger", status: "active", description: "", objectives: [] }],
   });
   const out = buildDeltaBlock(null, cur, ctx());
@@ -232,22 +237,27 @@ test("first snapshot with an empty born state → OMIT (null, no phantom SCENE O
 });
 
 test("no change → OMIT the block entirely (null, byte-stable quiet-turn signal)", () => {
-  const s = state({ location: "The Docks", actorState: [castVolatile("kael", { hp: { value: 10, max: 10 } })] });
+  const s = state({ location: "The Docks", actorState: [castVolatile("kael", { trackerValues: { hp: reading(10) } })] });
   // Same state on both ends — nothing moved.
   expect(buildDeltaBlock(s, structuredClone(s), ctx())).toBeNull();
 });
 
 test("HEAL (§2.7.4) — a malformed plane degrades its line, the block still renders the good planes", () => {
-  // A hand-edit / future-applier bug slips a malformed actorState shape past the write backstop:
-  // `trackerValues` is not an object (the tracker renderer's index throws). That plane's line degrades to
-  // nothing; HP still renders.
-  const prev = state({ actorState: [castVolatile("kael", { hp: { value: 12, max: 20 } })] });
+  // A hand-edit / future-applier bug slips a malformed actorState shape past the write backstop: `conditions`
+  // is not an array (the conditions renderer's `.map` throws). That plane's line degrades to nothing; the
+  // well-formed wallet plane still renders.
+  const prev = state({ actorState: [castVolatile("kael", { wallet: [{ name: "gold", amount: 10 }] })] });
   const cur = state({
-    actorState: [{ ...castVolatile("kael", { hp: { value: 16, max: 20 } }), trackerValues: null as never }],
+    actorState: [
+      {
+        ...castVolatile("kael", { wallet: [{ name: "gold", amount: 25 }] }),
+        volatile: { ...castVolatile("kael").volatile, wallet: [{ name: "gold", amount: 25 }], conditions: null as never },
+      },
+    ],
   });
   const out = buildDeltaBlock(prev, cur, ctx());
-  // The block SURVIVED (didn't throw) and the well-formed HP plane still rendered.
-  expect(out).toContain("kael HP 12→16 (+4)");
+  // The block SURVIVED (didn't throw) and the well-formed wallet plane still rendered.
+  expect(out).toContain("kael gold 10→25 (+15)");
 });
 
 test("the registry is OPEN — a new PlaneDiffRenderer contributes without a monolith edit (the P1 seam)", () => {
@@ -267,14 +277,14 @@ test("the registry is OPEN — a new PlaneDiffRenderer contributes without a mon
 // ── P1 additions: relationship / cast-fields / widgets set-delta / calendar-agnostic ambient / roster names ──
 
 test("relationship — a per-cast stance transition (feature 1, the steering loop signal)", () => {
-  const prev = state({ presentCharacters: [member("mari", "Mari", { relationship: { kind: "friend", label: "" } })] });
-  const cur = state({ presentCharacters: [member("mari", "Mari", { relationship: { kind: "enemy", label: "" } })] });
+  const prev = state({ actorState: [member("mari", "Mari", { relationship: { kind: "friend", label: "" } })] });
+  const cur = state({ actorState: [member("mari", "Mari", { relationship: { kind: "enemy", label: "" } })] });
   expect(buildDeltaBlock(prev, cur, ctx())).toContain("Mari: friend → enemy");
 });
 
 test("relationship — a custom kind glosses with the M1 hint", () => {
-  const prev = state({ presentCharacters: [member("mari", "Mari", { relationship: { kind: "neutral", label: "" } })] });
-  const cur = state({ presentCharacters: [member("mari", "Mari", { relationship: { kind: "custom", label: "vassal" } })] });
+  const prev = state({ actorState: [member("mari", "Mari", { relationship: { kind: "neutral", label: "" } })] });
+  const cur = state({ actorState: [member("mari", "Mari", { relationship: { kind: "custom", label: "vassal" } })] });
   const out = buildDeltaBlock(prev, cur, ctx({ relationshipHints: { vassal: "sworn to serve but resentful" } }));
   expect(out).toContain("Mari: neutral → vassal (sworn to serve but resentful)");
 });
@@ -323,19 +333,16 @@ test("ambient — a long rest fires all three time arms together (date + day + t
 });
 
 test("roster names — a character-kind actor names via the roster map, not the generic label (fold-in #5)", () => {
-  const kael = (over: Partial<RpgSnapshotState["actorState"][number]>): RpgSnapshotState["actorState"][number] => ({
+  const hp = def({ key: "hp", label: "HP", shape: "meter", write: "delta", subject: "actor", max: 20 });
+  const kael = (value: number): RpgSnapshotState["actorState"][number] => ({
     actorRef: { kind: "character", characterId: "char_kael" as never },
-    hp: null,
-    trackerValues: {},
-    conditions: [],
-    inventory: [],
-    wallet: [],
-    status: "",
-    ...over,
+    volatile: { trackerValues: { hp: reading(value) }, conditions: [], inventory: [], wallet: [], status: "" },
   });
-  const prev = state({ actorState: [kael({ hp: { value: 12, max: 20 } })] });
-  const cur = state({ actorState: [kael({ hp: { value: 16, max: 20 } })] });
-  const out = buildDeltaBlock(prev, cur, ctx({ rosterNames: { "character:char_kael": "Kael" } }));
+  const out = buildDeltaBlock(
+    state({ actorState: [kael(12)] }),
+    state({ actorState: [kael(16)] }),
+    ctx({ rosterNames: { "character:char_kael": "Kael" }, trackerDefs: [hp] }),
+  );
   expect(out).toContain("Kael HP 12→16 (+4)"); // named, not "character HP …"
 });
 
