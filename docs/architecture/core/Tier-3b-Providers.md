@@ -6,11 +6,13 @@ updated: 2026-07-13
 
 # Orbweaver — `infra/providers`: the sealed execution tier (roles · backends · the local engine)
 
+> **⚠ BUILD-STATE RIDER (truth audit 2026-08-03):** the `anth-direct` backend this doc describes as built was **PURGED in the 2026-07-22 retro sync** — `infra/providers/backends/anth-direct/` does not exist and `BACKEND_KEYS` is FIVE members (`agent-sdk · openrouter · vllm · local-light · custom-openai`); D67/D68 remain the design record if it returns. Also since 2026-07-27 (D109-4) the role set gained **`structured`** — `PROVIDER_ROLES` is EIGHT members and `roles/structured.ts` is live. The anth-direct/role-list mentions below are kept as the design record; the tuples are the truth.
+
 The infra **execution layer** — the sealed inference backends behind the role contracts. It **executes**; it never **selects**. `domain/connection` selects (backend/model/credential/capability) and hands in a resolved request; providers runs it. `runner`/`family`/`protocol` are derived INSIDE providers and never leak upward.
 
 > **Roles are the firewall. Backends are sealed strategies. The domain calls a role, never a backend.**
 
-- **Public surface = ROLES:** `chat · agent · embed · rerank · imageEmbed · summarize · generateImage`. Each is a thin contract; the domain builds a request ONCE and calls the role — it never sees sessions, seed frames, env vars, or name-stamping.
+- **Public surface = ROLES:** `chat · agent · embed · rerank · imageEmbed · summarize · structured · generateImage` (`PROVIDER_ROLES`, `contract/backend.ts`; `structured` added D109-4). Each is a thin contract; the domain builds a request ONCE and calls the role — it never sees sessions, seed frames, env vars, or name-stamping.
 - **Behind each role = sealed implementations.** No backend imports another; cross-backend work goes through the role contract or the pure `backends/kit/` (the shared OpenAI-compat reducer both `openrouter` and `custom-byo` import DOWN).
 - **Each backend internalizes ALL its own quirks** — statefulness, env config, name handling, caching. Editing one backend cannot touch another.
 - **Adding a backend** = a new sealed impl in `backends/` + (if new auth) a new credential arm; consumers do not change.
@@ -103,7 +105,7 @@ The OR catalog parse and the chat/responses wire schemas (`backends/kit/wire-sch
 
 ### §7.5 — the sealed dispatch axes
 
-- **`BackendKey` (`openrouter | agent-sdk | anth-direct | vllm | custom-openai | local-light`)** — derived inside via `deriveRunner(api, source)` / `backendForSource`; never leaves the tier (`ResolvedConnection` carries `backend`-opaque vocab, never `runner`/`family`).
+- **`BackendKey` (`agent-sdk | openrouter | vllm | local-light | custom-openai` — five members since the anth-direct purge; the `BACKEND_KEYS` tuple is the truth)** — derived inside via `deriveRunner(api, source)` / `backendForSource`; never leaves the tier (`ResolvedConnection` carries `backend`-opaque vocab, never `runner`/`family`).
 - **`credential.source`** — the non-chat dispatchers switch on it; unsupported pairings throw typed. `local-light` serves the three derive roles only (its backend simply lacks the other methods; `requireRoleImpl` throws typed not-supported).
 - Adding a backend = the source arm + the runner arm + the credential arm simultaneously; `assertNever` makes a missed arm a `tsc` error. *Gates: `providers-runner-seal`, `infra-strategy-isolation`, `vllm-surface-isolation`, `providers-public-surface-only`.*
 

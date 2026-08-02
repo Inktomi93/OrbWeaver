@@ -168,16 +168,6 @@ function economicsCommon(e: TurnEconomics | null): EconomicsCommon {
 /** The loaded write target for an append-variant/continue turn, read pre-start. */
 type SlotTarget = NonNullable<Awaited<ReturnType<typeof loadSlotTarget>>>;
 
-/** The pre-start gate + connection resolve for a turn: identify the agent speaker (if any), run the
- *  `canAgent('speak')` capability gate, then resolve the EFFECTIVE connection. An agent speaker voices through
- *  its OWN host-funded brain (`resolveRole('agent')`, D60; agent-principal-design/04 §5); a null resolution
- *  (no coherent host-funded agent connection) falls back to the round connection, itself host-funded. A
- *  character/human/narrator keeps the round connection BYTE-IDENTICALLY (agentUserId null short-circuits both).
- *  Runs BEFORE the consent belt so the belt + the infra firewall gate on the source actually dispatched. */
-function gateAndResolveConnection(_ctx: ChatContext, prep: TurnPrep, _persist: TurnPersist, _target: SlotTarget | null): ResolvedConnection {
-  return prep.connection;
-}
-
 /** Re-reads a just-committed message's authoritative MessageView (append-variant/continue produce fields
  *  the in-memory insert params don't know, unlike a fresh slot). */
 async function readCommittedView(ctx: ChatContext, messageId: MessageId): Promise<MessageView> {
@@ -1016,10 +1006,9 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     throw new ChatNotFoundError(prep.chatId);
   }
 
-  // The agent-speaker capability gate + the per-agent connection swap (D60): a disabled/force-injected agent
-  // is refused pre-start (emits nothing), and a valid agent speaker voices through its OWN host-funded brain.
-  // A character/human keeps the round connection byte-identically.
-  const connection = gateAndResolveConnection(ctx, prep, persist, target);
+  // Agent-speaker connection swap (D60) is DESIGN-of-record, not built (agent principals are dormant;
+  // Spine-Identity §4) — a character/human always keeps the round connection byte-identically.
+  const connection = prep.connection;
 
   // Security belts before any turnStarted: consent + budget debit attributed to triggeredBy, on the
   // EFFECTIVE connection (the agent's own, or the round connection).
@@ -1344,9 +1333,7 @@ function dropDelta(): void {
  *  FULL canon as context (a `new-slot` at the tail — impersonate's shape). An abort mid-generation is a clean
  *  outcome: `{ text: <whatever streamed>, aborted: true }`; a provider/DB fault still throws. */
 async function generateTextUnpersisted(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep, onText: (text: string) => void = dropDelta): Promise<GeneratedText> {
-  // No persist target — a draft generation reads the full canon (new-slot semantics).
-  const persist: TurnPersist = { mode: "new-slot", role: prep.persist?.mode === "new-slot" ? prep.persist.role : "user" };
-  const connection = gateAndResolveConnection(ctx, prep, persist, null);
+  const connection = prep.connection;
   // The SAME security belts a persisted turn runs (consent + budget), attributed to triggeredBy on the
   // effective connection — a generation is billable whether or not it lands in canon.
   const policy = await deps.resolveTurnPolicy(prep.runAsUserId);

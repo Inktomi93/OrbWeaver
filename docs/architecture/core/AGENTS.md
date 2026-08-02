@@ -47,7 +47,7 @@ updated: 2026-08-03
 | **providers / backends / a new model source** | `Tier-3b-Providers.md` + the `domain/connection` code + D31/D39/D67 |
 | **db schema / a migration** | `Tier-1-DB.md` + D15/D20/D23/D24/D28 |
 | **a gate / an enforcement change** | `Core-Enforcement-Active-Gates.md` + `Core-0` §7 |
-| **client / a feature surface** | `UI-Architecture-and-Layout.md` header (its reading order + §-map) → the active program `../proposed/ui-cohesion-north-star.md` |
+| **client / a feature surface** | `UI-Architecture-and-Layout.md` header (its reading order + §-map) → the active program `../../retro-workboard.md` (supersedes `../proposed/ui-cohesion-north-star.md`, 2026-07-25) |
 | **a `@orb/ui` primitive** | `ui-package-design.md` + `UI-Primitives-and-Reuse.md` §13.7–§13.8 |
 | **types / unions / dispatch** | `Spine-TypeScript-and-Patterns.md` |
 | **tests** | `Spine-Testing.md` |
@@ -75,7 +75,8 @@ updated: 2026-08-03
   (`MacroContext` values, the regex script library) is a domain. One engine, every call site → identical
   behavior. (Full rule: `Core-0` §2.)
 - Design sets are PARKED in `../proposed/` — `../proposed/INDEX.md` carries their VERIFIED build status;
-  a parked set's own status lines rot. The active program is `../proposed/ui-cohesion-north-star.md`.
+  a parked set's own status lines rot. The active program is `docs/retro-workboard.md` (supersedes
+  `../proposed/ui-cohesion-north-star.md`, 2026-07-25).
 - **Ownership is INHERITED, not stamped:** a table without an `ownerId` is not unscoped — scope derives
   from the Principal through the FK chain to the root row, gated at the producer verb. Before flagging
   "missing scope," walk the chain (`Spine-Identity-and-Auth.md` §2b, D18/D20).
@@ -209,14 +210,14 @@ participants/agents/identity → the pointer subsection below.
 | **persona** | keep | personas; pin = anchor (`{{user}}`), active = per-participant. |
 | **preset** | keep | **generation config only** (params/customParameters/sections) — never the connection. |
 | **world-info** | keep | one books/entries store + scope junctions (already correct). |
-| **connection** | **NEW** | api/source/model/providerRouting; the ONE provider-vocab map (runner/family *derived* from source+protocol); `resolveRole(role)` for all 7 roles (chat/embed/rerank/summarize/imageEmbed/generateImage/agent). Absorbs **models** (the catalog = "what a connection can pick"). |
+| **connection** | **NEW** | api/source/model/providerRouting; the ONE provider-vocab map (runner/family *derived* from source+protocol); `resolveRole(role)` for all 8 roles (chat/embed/rerank/summarize/imageEmbed/generateImage/agent/structured — `PROVIDER_ROLES`, D109-4). Absorbs **models** (the catalog = "what a connection can pick"). |
 | **credentials** | keep (un-invert) | ALL credential logic — resolve + CRUD + metadata. No `_shared` guts. |
 | **tag** | keep (fix) | one tag namespace + per-entity junctions; **proposed = a status**, not a parallel store. Labels only — NOT analytics facets (those are `discovery`). |
 | **embeddings** | **NEW** | the vector substrate: embeds every source + owns the vector store + the event-driven indexer. The ONE write path. |
 | **search** | keep (narrow) | the ONE retrieval capability (cosine + rerank + field-search). One cosine engine. |
 | **discovery** | rename of **corpus** | library *semantic understanding*: themes, hubness/centrality, near-duplicates, distillation (genre/tone/pitch), archetypes, similarity browsing. Consumes embeddings; embeds nothing; holds its OWN in-RAM cosine — does NOT call `search` (analytics ≠ retrieval). |
 | **stats** | keep (narrow) | turn **economics** only — tokens/cost/cache/timing. Distinct from `discovery` (semantics). |
-| **buddy** | keep | the companion = the `agent` role connection (no hand-rolled router). |
+| ~~buddy~~ | **purged** | the domain was retired with the 2026-07-25 retro burn-down (no `domain/buddy` on the tree); the buddy-as-agent-role-connection design lives in the ledger/parked sets only, not as live code. |
 | **settings** | keep | app + user setting tiers. |
 | **sessions** | keep | auth/BFF sessions (distinct from SDK chat sessions). |
 | **admin** | keep | admin surfaces / gating. |
@@ -231,10 +232,12 @@ participants/agents/identity → the pointer subsection below.
 
 Phase-7/8 additive domains (post-chat grafts — D47/D48/D49; scripting D46): **imagery** BUILT
 (`domain/imagery/` — chat-facing image gen, prompt-template modes, `/imagine` via automation);
-**gallery** BUILT (`domain/assets` gallery v1/v2 verbs + `domain/hub` gif search/import —
-[gallery.md](../history/gallery.md) · [gallery-design.md](../history/gallery-design.md)); **tool-use**
-BUILT (`domain/tool-use/` — registry/resolve/execute verbs, wired at `entry/compose`); unbuilt →
-databank · expressions · automation design sets (parked in `../proposed/` — see its `INDEX.md`).
+**gallery** BUILT (`domain/assets` gallery v1/v2 verbs — `domain/hub` gif search/import was purged with
+the 2026-07-22 hub drop — [gallery.md](../history/gallery.md) ·
+[gallery-design.md](../history/gallery-design.md)); **tool-use** BUILT (`domain/tool-use/` —
+registry/resolve/execute verbs, wired at `entry/compose`); **databank** BUILT (`domain/databank/`);
+**automation** BUILT (`domain/automation/`); unbuilt → expressions design set (parked in `../proposed/`
+— see its `INDEX.md`).
 
 ### Participants, agents & identity
 
@@ -285,7 +288,7 @@ the agent-principal design set (parked in `../proposed/`), or the built code. Li
 | authoring a structural gate (descriptor contract · the coupled sites · the exemption grammar · scanRoot formats · harness mechanics) | `../../../scripts/check/GATE-AUTHORING.md` (scaffold: `pnpm gate:new <name>`) |
 | the domain map | §6 above |
 | server tier law | `Tier-1-DB.md` · `Tier-2-Foundation.md` · `Tier-3-Infra.md` · `Tier-3b-Providers.md` · `Tier-4-Transport.md` · `Tier-5-Entry.md` |
-| UI law | `UI-Architecture-and-Layout.md` · `UI-Gates-and-Lessons.md` · `UI-Primitives-and-Reuse.md` · `UI-Theming-and-Content.md` · `ui-package-design.md` · `motion-and-animation-guide.md` (+ the active program: `../proposed/ui-cohesion-north-star.md`, D66) |
+| UI law | `UI-Architecture-and-Layout.md` · `UI-Gates-and-Lessons.md` · `UI-Primitives-and-Reuse.md` · `UI-Theming-and-Content.md` · `ui-package-design.md` · `motion-and-animation-guide.md` (+ the active program: `docs/retro-workboard.md`, supersedes `../proposed/ui-cohesion-north-star.md` per D66, 2026-07-25) |
 | client composition / feature architecture (registries, five-tier ladder, the paint law, the event/sync spine) | `client-architecture-lockdown.md` (D70) |
 | UI library evidence mines (re-homed 2026-07-09) | `../history/UI-Lib-TanStack-Form.md` · `../history/UI-Lib-TanStack-Query.md` · `../history/UI-Lib-TanStack-Router.md` · `../history/UI-Lib-TanStack-Virtual.md` · `../history/UI-Lib-Zustand.md` |
 | legacy migration / ST parity | `Core-Legacy-Migration-and-Gaps.md` (split index) → `Core-Shared-Dissolution.md` + `Core-ST-Feature-Gap-Register.md`; feature map: `Core-SillyTavern-Feature-Map.md` |
@@ -295,7 +298,7 @@ the agent-principal design set (parked in `../proposed/`), or the built code. Li
 | the neo→orb parity-audit record (campaign complete, protocol retired) | `../history/neo-orb-parity-audit.md` |
 | structural search — USE THIS, NOT GREP, for code questions | `pnpm ast` (scripts/codemods/ast.ts — refs/callers/importers/exports/jsx/ident + rot lenses orphans/testonly/cycles/aliases + module-graph flow/reaches; run bare for usage). Codemods: `scripts/codemods/codemod-kit.ts`. Import-boundary law: `pnpm depcruise` (.dependency-cruiser.cjs) |
 | task → reading-set router (backend + frontend) | §0.3 above |
-| the ONE active program doc | `../proposed/README.md` (D66 as amended: one ACTIVE at a time; currently `ui-cohesion-north-star.md`) — the verified PARKED sets live beside it, mapped by `../proposed/INDEX.md` |
+| the ONE active program doc | `docs/retro-workboard.md` (supersedes `../proposed/README.md`'s D66-amended pointer — `ui-cohesion-north-star.md` — as of 2026-07-25) — the verified PARKED sets still live at `../proposed/`, mapped by `../proposed/INDEX.md` |
 | resolved archeology (reference only, not live law) | `../history/`: `Pain-Ledger.md` · `Grounded-Intelligence-AST-Scan.md` · `Core-Debt-Cleared-Ledger.md` · `Core-Doc-Inconsistency-Audit-2026-06-26.md` · `Core-Doc-Review-Punchlist-2026-06-28.md` · `Core-Event-Bus-Parity-Audit.md` · `Shared-Drawer-Dissolution-Map.md` |
 
 ## 8. Archeology (moved to history/)

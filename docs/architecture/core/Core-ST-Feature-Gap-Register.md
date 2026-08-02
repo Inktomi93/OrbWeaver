@@ -10,6 +10,8 @@ updated: 2026-07-13
 >
 > **OWNERSHIP:** this doc = the CLOSED D49 inventory with dispositions — rows live THERE; [`Core-SillyTavern-Feature-Map.md`](Core-SillyTavern-Feature-Map.md) = the reconciled ST→orbweaver build MAP that summarizes it.
 >
+> **⚠ BUILD-STATE RIDER (truth audit 2026-08-03):** the STATUS column predates the 2026-07-22/25 retro purge AND the D109–D117 build waves. Tree-verified drift, both directions: `anth-direct`, `domain/hub`, `@orb/contracts/expressions`/`character_sprites`, and `roster-preset` are PURGED (their BUILT/RESERVED claims below are stale); `domain/{automation,plugin,databank,tool-use}` + `infra/plugin-host` (QuickJS) are BUILT (so "contract-only"/"stubbed" claims are stale the other way); structured output is LIVE (D109-4 `structured` role; the capability resolver synthesizes `output.structured` and `input.vision`). Rows below annotated where flagrant; on any residual disagreement the header's rule stands — trust the code.
+>
 > **Dispositions are law; STATUS below is verified against the code 2026-07-13.** On any status disagreement, trust the code, then the PD registry (`Core-Audits-and-Debt.md`); [`Core-SillyTavern-Feature-Map.md`](Core-SillyTavern-Feature-Map.md) is the reconciled build map.
 >
 > **Not a to-do board.** A `STILL-GAP` disposition names the staging program that owns it or says `unscheduled`; the ONLY live UI work board is [`../proposed/ui-cohesion-north-star.md`](../proposed/ui-cohesion-north-star.md). Audit provenance (the 2026-06-28 5-agent sweep) + the planning-snapshot essays are frozen in [`../history/st-feature-map-archaeology-record.md`](../history/st-feature-map-archaeology-record.md).
@@ -38,7 +40,7 @@ The wall behind most of this: orbweaver speaks **`ChatApi = agent-sdk | chat-com
 | NovelAI | proprietary text-completion wire, NAI samplers, NerdStash tokenizer | ABSENT | ARCHITECTURAL | non-OpenAI wire + tokenizer-zoo (a decided wall) |
 | KoboldAI (classic) | raw `/generate`, `sampler_order`, text-completion | ABSENT | ARCHITECTURAL | text-completion wall. (Modern KoboldCpp in OpenAI mode is covered by `custom_openai`) |
 | textgen family (ooba/aphrodite/tabby/llama.cpp/ollama/togetherai/…) | \~15 backends + \~60 samplers | PARTIAL | MODERATE (compat) / ARCHITECTURAL (raw) | OpenAI-compat members **already covered** by `custom_openai`/`vllm`; only raw-text-completion members hit the wall |
-| Direct model providers (native Anthropic/OpenAI/Google keys, not via OpenRouter) | direct chat-completion sources | COVERED (Anthropic) | MODERATE | BUILT: `infra/providers/backends/anth-direct` (paid-key Anthropic-messages). `openai`/`google_vertex` are storable `CRED_PROVIDERS` slots with the resolver arm reserved (route via openrouter/`custom_openai` today) |
+| Direct model providers (native Anthropic/OpenAI/Google keys, not via OpenRouter) | direct chat-completion sources | ABSENT (was COVERED; anth-direct PURGED 2026-07-22) | MODERATE | the `anth-direct` backend was purged with the retro sync (D67 is the design record); route via openrouter/`custom_openai` today |
 | instruct-mode + context templates | wraps turns into one completion string | ABSENT | ARCHITECTURAL | no text-completion runner to feed; structurally rejected |
 | sysprompt library | named, macro-substituted system prompts | STILL-GAP | MODERATE | unscheduled; `systemPrompt {static,dynamic}` + `kit/macro` exist, but no named-library CRUD surface |
 | CFG scale | negative-prompt + guidance\_scale | ABSENT | ARCHITECTURAL | only text-completion/NAI honor it; OpenAI wire has no `guidance_scale` |
@@ -47,7 +49,7 @@ The wall behind most of this: orbweaver speaks **`ChatApi = agent-sdk | chat-com
 | mainstream sampling knobs (temp/top\_p/top\_k/min\_p/penalties/seed/stop) | per-request sampling | COVERED | — | BUILT: capability-gated, descriptor-driven in `preset/…/capability-panel-model.ts` (`SAMPLING_KNOB_SPECS`) → `params-panel.tsx`; resolved to backends. Knobs render only where `ModelCapability` carries a `Range` |
 | logit bias | per-token bias | PARTIAL | MODERATE | gate synthesized from the OpenRouter catalog + resolved to backends; UI exposes it as a boolean flag. Bias-by-word still needs a real tokenizer |
 | tokenizer zoo | per-model tokenizers (tiktoken/LLaMA/NerdStash/…) | BY-DESIGN-OUT | ARCHITECTURAL | `kit/tokens` deliberately rejects the zoo (decided); truth = provider `usage`. Only token-id features need it |
-| grammar / JSON-schema constrained output | `json_schema`/`response_format` | STILL-GAP | MODERATE–PAINFUL | committed D48 as a separate `response_format` axis; the `ModelCapability.output.structured` contract gate exists but NO resolver sets it true and no runner emits — deferred (tool-use staging) |
+| grammar / JSON-schema constrained output | `json_schema`/`response_format` | BUILT (D109-4, was STILL-GAP) | — | the `structured` provider role is live (`roles/structured.ts`; vLLM xgrammar + OpenRouter `response_format`); `resolve-model-capability.ts` synthesizes `output.structured`; rpg extraction rides it |
 | exotic samplers (DRY, XTC, mirostat, dynatemp, top\_a, TFS, typical\_p, smoothing…) | textgen sampler set | PARTIAL | MODERATE (per-knob) | ride `customParameters` today (no first-class UI); the mainstream knobs got a panel, these did not. First-class = a contract cascade per knob |
 
 **Gotcha:** `custom_openai` + `customParameters` already silently cover much of the textgen world; don't rebuild ollama/tabby/llama.cpp-server as named sources (that's a `no-inline-union-redecl` doubling).
@@ -61,7 +63,7 @@ Mostly client (Phase 6). Several resurrect the VN scene compositor orbweaver rem
 | Welcome screen | landing: recent/pinned chats | BUILT | — | `chat/surfaces/chat-landing-surface.tsx` — hero + recent chats + quick-pick character row |
 | Gallery | per-character image grid | BUILT | — | v1 grid + v2 curation: assets `list-gallery`/`add-to-gallery`/`remove-from-gallery` verbs + client dialog |
 | Image-gen in chat (txt2img portrait/"selfie") | SD ext generate-from-chat | BUILT | — | `domain/imagery/verbs/generate-picture.ts` + chat wiring (`domain/chat/verbs/generate-image.ts`) → `MessageMedia` |
-| Expressions / sprites | emotion classifier → sprite swap (+ live2d/VRM) | RESERVED | ARCHITECTURAL | committed D49, PD-56 — `@orb/contracts/expressions` (`EXPRESSION_LABELS`) + `character_sprites` schema born, sprite-sheet runner stubbed; needs the classify role + per-turn hook. Staged: expressions-design |
+| Expressions / sprites | emotion classifier → sprite swap (+ live2d/VRM) | ABSENT (was RESERVED; seams PURGED 2026-07-25) | ARCHITECTURAL | committed D49, PD-56 — the born seams (`@orb/contracts/expressions`, `character_sprites`, the stubbed runner) died with the retro purge; rebuild rides the parked expressions-design set |
 | Backgrounds (app background image) | set an app/chat-chrome background image | BUILT | — | D63: FLAT `appearance` settings (`backgroundImageKind`/`backgroundSeededId`/`backgroundExternalUrl`/`fit`/`dim`) applied once at app root via `<ThemeBackgroundLayer>` + scrim; base surface color stays a `ThemeOverride.background` token. NOT the VN compositor |
 | Audio / BGM / blip sounds | scene/char music + typing blips | ABSENT | PAINFUL | player is trivial; "which track for this scene" needs new persistence + VN coupling |
 | TTS (text-to-speech) | \~30 providers + narrate pipeline | ABSENT | ARCHITECTURAL | a new inference role **and** a streaming-audio transport (SSE is text/JSON) + turn hook |
@@ -74,7 +76,7 @@ Mostly client (Phase 6). Several resurrect the VN scene compositor orbweaver rem
 
 ## 3. Scripting & extensibility
 
-**Addressed by D46 — not re-litigated here.** Tier-1 automation is contract-only today (`@orb/contracts/automation`); the build designs are parked in `../proposed/` (see `../proposed/INDEX.md`) (`../proposed/{automation,plugin}-design/`). Where the ST surface lands:
+**Addressed by D46 — not re-litigated here.** Tier-1 automation AND the Tier-2 plugin sandbox are BUILT (2026-08-03 truth audit: `domain/automation` + `domain/plugin` + `infra/plugin-host` (QuickJS-WASM membrane) + their routers/schemas are live — the "contract-only today" state this section froze at is gone). Where the ST surface lands:
 
 | Feature | What it is (ST) | Status | Where addressed |
 | - | - | - | - |
@@ -101,9 +103,9 @@ orbweaver rebuilt the vector substrate (embeddings/search/memory) but it is **ca
 | Scrapers | web/file/youtube/wiki → Data Bank | STILL-GAP | MODERATE | simple fetchers, homeless until the Data Bank lands; databank staging |
 | Web Search RAG | live search → inject results | STILL-GAP | MODERATE–PAINFUL | unscheduled; per-turn live ingestion, no orb seam |
 | Server doc text-extraction | pdf/docx/epub/html → text | STILL-GAP | MODERATE | a sub-feature the Data Bank needs (vendored lib in a loader); databank staging |
-| Attachments / Data Bank | per-chat/char/global file banks + doc RAG | RESERVED (D49) | ARCHITECTURAL | committed FLAG\[PD-57]: `documents` producer + scope junctions born (`db/schema/databank.ts`), `document_chunks` in the vector home, ingest/reindex workload runners STUBBED (return deferred). Staged: databank-design |
+| Attachments / Data Bank | per-chat/char/global file banks + doc RAG | BUILT (2026-07-26, D107 Phase B — was RESERVED) | — | `domain/databank` is live: real ingest (`ingest/` chunk→embed→prune via `embeddingsStore`), CRUD verbs, its router, and the `UserSettings.databank` knobs wired end-to-end |
 | Vectors as file-RAG | chunk+embed+retrieve uploaded files | STILL-GAP | PAINFUL | embed/search plumbing reuses; the producer/canon shape needs the doc-store above (databank staging) |
-| assets ext (community downloader) | download chars/extensions/audio from a repo index | PARTIAL | N/A | no extension system / marketplace / ambient-audio (all OUT); the "download a character from URL" sliver is COVERED by `domain/hub` (chub/wyvern/chartavern/pygmalion, D61) |
+| assets ext (community downloader) | download chars/extensions/audio from a repo index | PARTIAL | N/A | no extension system / marketplace / ambient-audio (all OUT); the "download a character from URL" sliver was `domain/hub` (chub/wyvern/chartavern/pygmalion, D61) — PURGED 2026-07-22 with the retro sync; returns with the hub wave |
 | **Already covered** (do not re-add) | chat-memory vectorization (→ memory/embeddings/search); image-captioning *capability* (inline in the indexer); RAG retrieval machinery (embed/space/exact-scan/rerank/threshold); bulk profile import (`import` domain) | COVERED | — | |
 
 ## 5. Generative media & tools
@@ -121,8 +123,8 @@ orbweaver rebuilt the vector substrate (embeddings/search/memory) but it is **ca
 | Reasoning data + streaming + resolve | native reasoning handling | COVERED | — | `message_variants.reasoning`/effort + `STREAM_DELTA_KINDS` + `resolve-chat.resolveReasoning` (D41) |
 | Reasoning `<think>` auto-parse (non-native models) | parse inline tags | BUILT | — | `server/kit/reasoning` (`parseReasoningTags`) wired in `domain/chat/engine/pipeline.ts` |
 | Reasoning UI render / effort picker | collapsible blocks + effort UI | BUILT | — | `chat/components/reasoning-block.tsx` + `preset/…/params-panel.tsx` ReasoningSection |
-| Vision / image INPUT (image→model) | `image_url` content parts | PARTIAL (D45) | — | the CONTRACT axis is born-compliant (`ModelCapability.input.vision` + `ChatHistoryMessage.content` content-parts), but NO resolver sets `input.vision` true and the per-backend translator is text-only — end-to-end vision input is NOT wired (unscheduled) |
-| Structured-output (`response_format`) | forced JSON | STILL-GAP (D48) | MODERATE | a SEPARATE `response_format` axis (not via `tool_choice`); the `ModelCapability.output.structured` contract gate exists but is never populated + no runner emits — tool-use staging |
+| Vision / image INPUT (image→model) | `image_url` content parts | PARTIAL→BUILT-side (D45/D51) | — | `resolve-model-capability.ts` now synthesizes `input.vision` from catalog modalities, and content-parts are produced once at the engine request seam (D51); the 2026-07-13 "NO resolver sets it" claim is stale |
+| Structured-output (`response_format`) | forced JSON | BUILT (D109-4 — was STILL-GAP) | — | the `structured` provider role + `responseFormat` are live (see the §1 grammar row); capability gate populated by the resolver |
 
 ## 6. Deliberately OUT by design (not gaps to "fix")
 

@@ -7,11 +7,13 @@
 // esoteric #4): inbound `ownerId`/`userId` FKs inherit that plainness. It still carries a `.$type<UserId>()`
 // brand (the schema-branding gate + type-safety), the brand is just not a `prefix_…` TypeID.
 //
-// AGENT PRINCIPALS (D60; agent-principal-design/01 §1): `kind` (`human|agent`) + `ownerUserId` (self-FK
-// CASCADE) are born at AP0 with three CHECKs. `kind` defaults `'human'` — every existing row is a valid human,
-// so there is no backfill; the CHECKs are free at creation and impossible to retrofit cheaply on a populated
-// identity root. The agent flavor is loginless / unprivileged / owned BY DDL. The BEHAVIOR the columns unlock
-// — the `provisionAgentPrincipal` mint, the seating chokepoint, `canAgent` — is AP1+ (FLAG[PD-17]).
+// AGENT PRINCIPALS (D60 — BUILD-STATE RIDER, 2026-08-03: design of record, NOT built; Spine-Identity-and-Auth.md
+// §4 is the tree). `kind` (`human|agent`) + `ownerUserId` (self-FK CASCADE) are DORMANT DDL kept deliberately so
+// the rebuild needs no second migration. `kind` defaults `'human'` — every existing row is a valid human, so
+// there is no backfill; the CHECKs are free at creation and impossible to retrofit cheaply on a populated
+// identity root. The agent flavor is loginless / unprivileged / owned BY DDL. The BEHAVIOR the columns would
+// unlock — `provisionAgentPrincipal`, the seating chokepoint, `canAgent` — does not exist on the tree; it is
+// design for the seat wave (AP3/AP4a).
 
 import { USER_KINDS, USER_ROLES } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";

@@ -449,7 +449,7 @@ young), R2 behind it, R3/R4 parked on their owning programs.
 **Read IN FULL this session:** `.claude/agent-doctrine.md` · `docs/architecture/core/AGENTS.md` ·
 `Core-Laws-and-Precedents.md` (whole) · `Spine-Identity-and-Auth.md` (whole) · D-ledger rows D106,
 D110, D111, D22 (`Core-Path-Registry.md` regions) · the form template
-`docs/reviews/stickler/2026-08-02-actor-state-model.md` (whole) ·
+`docs/history/reviews/stickler/2026-08-02-actor-state-model.md` (whole) ·
 `scripts/check/gates/two-class-role-authority.ts` (whole) + its
 `Core-Enforcement-Active-Gates.md:182` row · `scripts/check/gates/owner-role-split.ts` (whole) ·
 `membership-enforcer.ts` (header+arms) · `domain/admin/guard.ts` (whole) ·

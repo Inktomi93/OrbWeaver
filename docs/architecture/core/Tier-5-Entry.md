@@ -36,11 +36,11 @@ packages/server/src/entry/
 ├── compose/                  THE COMPOSITION ROOT (non-auth wiring; no logic)
 │   ├── services.ts           constructs every domain service with its Context; the injection graph
 │   ├── chat.ts               the chat domain's slice of the graph
-│   ├── runner-env.ts         builds the WorkloadRunnerEnv bundle (crosses every feature — the one true hub)
+│   ├── workload-contributions.ts  spreads every domain's WorkloadContribution factory into ONE exhaustive
+│   │                         registry (D117 — the former runner-env.ts hub is DELETED; D4 superseded)
 │   ├── event-bus.ts          the in-process typed event bus + subscriptions (embeddings indexer, …)
 │   ├── role-clients.ts       bindRoleClientsForUser — per-role connection.resolveRole (Tier-3b §"boot binder")
 │   ├── effective-config.ts   wires settings' getEffectiveConfig sync getter + the boot reload
-│   ├── buddy-observer.ts     wires the buddy domain's cross-feature observer
 │   ├── emit-character-updated.ts / emit-chat-changed.ts   cross-feature event-emit wiring
 │   ├── portability.ts        import/export composition wiring
 │   └── resolve-image-ref.ts  cross-feature image-ref resolution wiring
@@ -84,7 +84,7 @@ The split is load-bearing: **only `seedOwner` runs pre-compose** (compose binds 
 5. **compose** — event bus + subscriptions, role clients, every domain service + injected ops, the auth seam, the effective-config getter.
 6. **crypto decrypt-probe** — `built.services.credentials.probeKeyDecrypt()`, immediately after compose (a failure flips healthz to `credentials_key_mismatch`; boot continues).
 7. **seed (post-compose)** — env→DB credential seed (needs the composed credentials service); default preset/themes/characters/persona (the seeders are composed); `reclaimChatLocksOnBoot`; then the fire-and-forget host-offline **deferred-turn drain** (`chat.drainDeferredTurns` — the `pending_turns` reclaim; does real generation, so it must NOT block listen).
-8. **supervisors** — the vLLM supervisor (honor `VLLM_DISABLED`), the workloads worker poll loop, the catalog-refresh / workload-schedule / (oidc-only) oidc-gc schedulers, the buddy observer.
+8. **supervisors** — the vLLM supervisor (honor `VLLM_DISABLED`), the workloads worker poll loop, the catalog-refresh / workload-schedule / (oidc-only) oidc-gc schedulers *(the buddy observer died with the buddy purge — truth-audit 2026-08-03)*.
 9. **serve** — mount `app.ts` (middleware + tRPC + `entry/http`, the SPA static-serve registered LAST so every API/auth route wins by order; a missing client bundle is boot-fatal in prod, skipped-with-log in dev where vite serves the SPA), await the async bind (an `EADDRINUSE` surfaces as a server `error` event, not a throw — boot fails loudly on a dead listener), start listening; healthz goes live.
 10. **shutdown** — close the listener (healthz → 503 first, so the LB pulls traffic), stop supervisors, drain vLLM, db pre-close housekeeping.
 

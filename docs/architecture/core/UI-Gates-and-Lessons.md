@@ -235,7 +235,7 @@ render is chat's message body. The `@orb/ui/markdown` seam exposes two trust pol
 `packages/ui/src/markdown/policy.ts`). **Governing posture (D44 §12.0): UNTRUSTED BY DEFAULT** — "trusted"
 names the permissive POLICY, not a default; the model is untrusted (indirect prompt-injection can make it
 emit exfil-shaped markup). Per-message tier resolved by `resolveRowRenderPolicy`
-(`features/chat/lib/render-trust.ts`); the opt-in mirrors `forbidExternalMedia` (deployment-global
+(`client/src/lib/render-trust.ts` — re-homed from features/chat, cross-feature tier 4); the opt-in mirrors `forbidExternalMedia` (deployment-global
 `trustHtml` AND per-character override, resolved server-side `override ?? global`).
 
 - **`trusted` (the OPT-IN escalation — the viewer's OWN input, or a character/global that opted into rich

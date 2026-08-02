@@ -29,8 +29,9 @@ implementations with no owner.
 
 ## Invariants (cross-domain — gate-protected)
 
-1. **ONE vector write path.** Every insert/update on the five vector tables (`character_embeddings` ·
-   `image_embeddings` · `chat_digests` · `chat_segments` · `chat_digest_speakers`) lives in
+1. **ONE vector write path.** Every insert/update on the six vector tables (`character_embeddings` ·
+   `image_embeddings` · `chat_digests` · `chat_segments` · `chat_digest_speakers` · `document_chunks` —
+   the set the `vector-scope-derived` gate pins) lives in
    `embeddings/persistence/queries.ts`, reached only via `embeddings.store` (+ `writeHubScores`, inv 3).
    Producers (card/avatar/segment/digest) are *lens arms* of `store`, never inserters. `content_hash` is
    the staleness gate: identical hash ⇒ `noop` before the embed runs.
@@ -56,5 +57,7 @@ Recall semantics (the 5 modes, tiered bridge, witnessing, egocentric scoping, th
 execution, trigger discipline) are carried in full by the `chat/memory` code headers
 (`recall/recall.ts` et al.) + ledger D55 — not restated here.
 
-`document_chunks` (the databank RAG table) exists in schema with ZERO writers today; when databank lands
-it must join `embeddings.store`'s single write path or gain an explicit carve-out here.
+`document_chunks` (the databank RAG table) is WRITTEN today (databank landed 2026-07-26, D107 Phase B):
+`domain/databank/ingest` stores each chunk via the injected `embeddingsStore` op, and the physical insert
+lives in `embeddings/persistence/queries.ts` — the single write path held, no carve-out needed
+(truth-audit correction 2026-08-03; this line previously said "ZERO writers today").
