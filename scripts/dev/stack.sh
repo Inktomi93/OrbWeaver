@@ -41,7 +41,11 @@
 # an explicit ENGINES_POSTURE from the caller — e.g. e2e's adopt-only — wins) ·
 # AUTH_MODE=single-user · deterministic DEV-ONLY secrets so a caller flipping
 # AUTH_MODE=local/oidc doesn't trip the env superRefine boot-fatality
-# (packages/server/src/foundation/env/index.ts).
+# (packages/server/src/foundation/env/index.ts) · DEV_SEED=on, the dev twin of
+# the e2e harness stamp: it keeps the default-persona seeder's auto-create arm
+# ON so a DB regen never greets the operator with the FORCED first-run persona
+# dialog (that dialog is the real-stack behavior). To rehearse a real first
+# sign-in: `DEV_SEED=off pnpm stack restart` (host export wins).
 #
 # Run dir + logs live in .cache/stack/ (gitignored, never /tmp). Output
 # contract (probe convention): the LAST line is a stable `RESULT stack …`
@@ -78,7 +82,7 @@ FLEET_PORTS=(8701 8702 8703)
 mkdir -p "$RUN_DIR"
 
 # ── env pins (host export wins; `:=` only fills the gap) ─────────────────────
-PIN_VARS=(VLLM_DISABLED AUTH_MODE SESSION_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD)
+PIN_VARS=(VLLM_DISABLED AUTH_MODE SESSION_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD DEV_SEED)
 declare -A PIN_SRC
 for v in "${PIN_VARS[@]}"; do
   if [ -n "${!v:+x}" ]; then PIN_SRC[$v]=host; else PIN_SRC[$v]=pinned; fi
@@ -110,7 +114,10 @@ fi
 : "${SESSION_SECRET:=orbweaver-dev-only-session-secret-insecure}"
 : "${CREDENTIALS_KEY:=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}"
 : "${LOCAL_INITIAL_PASSWORD:=orbweaver-dev-password}"
-export AUTH_MODE SESSION_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD
+# The dev-stack seed stamp (see ENV PINS above): a dev stack auto-seeds the default persona, so the
+# FORCED first-run ask stays a real-stack behavior instead of firing on every regen.
+: "${DEV_SEED:=on}"
+export AUTH_MODE SESSION_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD DEV_SEED
 
 port_pid() { ss -tlnp 2>/dev/null | grep ":$1 " | grep -oP 'pid=\K[0-9]+' | head -1; }
 own_pgid() { [ -f "$PIDFILE" ] && cat "$PIDFILE" 2>/dev/null || true; }

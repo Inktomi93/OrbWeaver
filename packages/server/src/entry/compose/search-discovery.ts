@@ -29,8 +29,8 @@ import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import { createEmbeddingsIndexer, createEmbeddingsService } from "#domain/embeddings";
 import type { NotificationsService } from "#domain/notifications";
 import { createNotificationsService } from "#domain/notifications";
-import type { PersonaService } from "#domain/persona";
-import { createPersonaService } from "#domain/persona";
+import type { PersonaContext, PersonaService, ResolvePersonasForRoster } from "#domain/persona";
+import { createPersonaService, createResolvePersonasForRoster } from "#domain/persona";
 import type { PresetContext, PresetService } from "#domain/preset";
 import { createPresetService } from "#domain/preset";
 import type { SearchService } from "#domain/search";
@@ -90,6 +90,9 @@ export interface SearchDiscoveryComposeResult {
   readonly embeddings: EmbeddingsService;
   readonly indexer: EmbeddingsIndexer;
   readonly persona: PersonaService;
+  /** The persona domain's PRINCIPAL-LESS roster op — injected into the chat compose (the FOREIGN-inputs
+   *  resolver's ONE room-plane persona read). Built from the SAME `PersonaContext` as the service. */
+  readonly resolvePersonasForRoster: ResolvePersonasForRoster;
   readonly presetCtx: PresetContext;
   readonly preset: PresetService;
   readonly stats: StatsService;
@@ -155,7 +158,10 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     return Promise.resolve();
   });
 
-  const persona = createPersonaService({
+  // Named (not inlined into the service call) because TWO things are built from it: the Principal-scoped
+  // `PersonaService` and the PRINCIPAL-LESS roster op (`domain/persona/contract/ops.ts`) the chat
+  // FOREIGN-inputs resolver reads a room's personas through. One ctx, one home for the persona wiring.
+  const personaCtx: PersonaContext = {
     db,
     now,
     newPersonaId: minter(ID_PREFIX.persona),
@@ -203,7 +209,9 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
         },
       });
     },
-  });
+  };
+  const persona = createPersonaService(personaCtx);
+  const resolvePersonasForRoster = createResolvePersonasForRoster(personaCtx);
   const presetCtx: PresetContext = {
     db,
     now,
@@ -285,5 +293,18 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
       .catch(() => undefined);
   };
 
-  return { embeddings, indexer, persona, presetCtx, preset, stats, search, discovery, notifications, workloads, enqueueEmbedReindex };
+  return {
+    embeddings,
+    indexer,
+    persona,
+    resolvePersonasForRoster,
+    presetCtx,
+    preset,
+    stats,
+    search,
+    discovery,
+    notifications,
+    workloads,
+    enqueueEmbedReindex,
+  };
 }
