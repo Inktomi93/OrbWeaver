@@ -46,7 +46,7 @@ function fakeLatch(): {
   };
 }
 
-async function makeHarness(): Promise<{
+async function makeHarness(autoSeedEnabled = true): Promise<{
   readonly owner: UserId;
   readonly actor: Principal;
   readonly persona: ReturnType<typeof createPersonaService>;
@@ -63,6 +63,7 @@ async function makeHarness(): Promise<{
   const latch = fakeLatch();
 
   const seeder = createDefaultPersonaSeeder({
+    autoSeedEnabled: (): boolean => autoSeedEnabled,
     createPersona: async ({ principal: p, input }): Promise<{ id: PersonaId }> => {
       const detail = await persona.create({ principal: p, input });
       return { id: detail.id };
@@ -117,6 +118,7 @@ describe("createDefaultPersonaSeeder", () => {
   test("never throws on a create failure + leaves the latch unset (retry next touch)", async () => {
     const latch = fakeLatch();
     const seeder = createDefaultPersonaSeeder({
+      autoSeedEnabled: (): boolean => true,
       createPersona: (): Promise<{ id: PersonaId }> => Promise.reject(new Error("db is on fire")),
       storeAvatar: (): Promise<AssetId | null> => Promise.resolve(null),
       ...latch,
@@ -132,6 +134,7 @@ describe("createDefaultPersonaSeeder", () => {
     const captured: CreatePersonaInput[] = [];
     const latch = fakeLatch();
     const seeder = createDefaultPersonaSeeder({
+      autoSeedEnabled: (): boolean => true,
       createPersona: ({ input }): Promise<{ id: PersonaId }> => {
         captured.push(input);
         return Promise.resolve({ id: "persona_seeded" as PersonaId });
@@ -179,5 +182,41 @@ describe("createDefaultPersonaSeeder", () => {
     const names = (await h.persona.list({ principal: h.actor })).map((p) => p.name);
     expect(names).toContain("Sarah");
     expect(names).toContain("Traveler");
+  });
+
+  // ── THE FIRST-RUN DISCRIMINATOR (owner ruling 2026-08-03). Auto-creation is what made the shipped forced
+  // dialog dead by construction, and it must stay ON for automation-started stacks (a dev regen or an e2e
+  // boot landing on a blocking modal is exactly the constraint that kept the forced ask from shipping) and
+  // OFF everywhere else, so a REAL first sign-in reaches D107's zero-personas trigger. Both call sites (boot
+  // owner + per-user first authed request) route through `ensureSeeded`, so this one arm covers both.
+
+  test("REAL stack (auto-seed off): creates NOTHING and latches NOTHING — the zero-personas first-run trigger holds", async () => {
+    const h = await makeHarness(false);
+
+    await h.runSeed();
+
+    // The user's library is EMPTY, which is precisely the FirstRunPersonaDialog's trigger.
+    expect(await h.persona.list({ principal: h.actor })).toHaveLength(0);
+    // …and the latch is untouched, so flipping the stack to an automation posture still seeds later (and a
+    // user who creates their own persona is never re-seeded, because the dialog writes the seeds pointers).
+    expect(h.latch.marks).toHaveLength(0);
+  });
+
+  test("REAL stack: a re-run is still a no-op (no accumulating state, no eventual surprise seed)", async () => {
+    const h = await makeHarness(false);
+
+    await h.runSeed();
+    await h.runSeed();
+
+    expect(await h.persona.list({ principal: h.actor })).toHaveLength(0);
+  });
+
+  test("AUTOMATION stack (harness/dev): auto-creates, so no spec or dev regen ever meets the forced ask", async () => {
+    const h = await makeHarness(true);
+
+    await h.runSeed();
+
+    // One persona ⇒ `personas.length > 0` ⇒ the dialog's trigger cannot hold on a harness boot.
+    expect(await h.persona.list({ principal: h.actor })).toHaveLength(1);
   });
 });

@@ -1,14 +1,16 @@
-// All db access for the feature (queries only). Every read is owner-scoped (the predicate is part of the
-// WHERE, never a post-filter). `detailOf` narrows the stored `metadata` blob through the schema at the read
+// All db access for the feature (queries only). Every read is OWNERSHIP-scoped, and the predicate is always
+// part of the WHERE, never a post-filter: one caller (`ownerId = ?`) for the owner-scoped verbs, and — for
+// the one ROOM-plane read (`loadPersonasForOwners`, the multi-human widening) — the room's present-human SET
+// (`ownerId IN (…)`). `detailOf` narrows the stored `metadata` blob through the schema at the read
 // seam — a corrupt row degrades to `null` instead of poisoning the view.
 
 import { personaMetadataSchema } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
 import { assets, characterPersonas, characters, personas } from "@orb/db";
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { AssetNotFoundError, PersonaCharacterNotFoundError, PersonaNotFoundError } from "../contract/errors";
-import type { PersonaDetail } from "../contract/views";
+import type { PersonaDetail, PersonaRosterView } from "../contract/views";
 
 const LIMIT_ONE = 1;
 
@@ -39,6 +41,29 @@ export async function loadOwnedPersonaWithAvatar(db: Db, ownerId: UserId, person
     .where(and(eq(personas.id, personaId), eq(personas.ownerId, ownerId)))
     .limit(LIMIT_ONE);
   return rows[0];
+}
+
+/** The ROSTER read (the multi-human widening — `contract/ops.ts`): the rows among `personaIds` whose owner
+ *  is in `ownerIds`. The consent gate is part of the WHERE (`ownerId IN (…)`), never a post-filter — same
+ *  discipline as every owner-scoped read here, only the predicate is a SET (the room's present humans)
+ *  instead of one caller. No avatar join: the roster view is the presentation surface (name/description/
+ *  placement metadata), not the entity. Either list empty ⇒ no query (an empty result is the honest answer). */
+export async function loadPersonasForOwners(db: Db, personaIds: readonly PersonaId[], ownerIds: readonly UserId[]): Promise<PersonaRosterView[]> {
+  if (personaIds.length === 0 || ownerIds.length === 0) {
+    return [];
+  }
+  const rows = await db
+    .select({ id: personas.id, ownerId: personas.ownerId, name: personas.name, description: personas.description, metadata: personas.metadata })
+    .from(personas)
+    .where(and(inArray(personas.id, [...personaIds]), inArray(personas.ownerId, [...ownerIds])));
+  return rows.map((row) => ({
+    id: row.id,
+    ownerId: row.ownerId,
+    name: row.name,
+    description: row.description,
+    // The SAME read-seam narrowing `detailOf` applies — a corrupt blob degrades to null, never poisons the view.
+    metadata: personaMetadataSchema.nullable().catch(null).parse(row.metadata),
+  }));
 }
 
 /** The owner's personas + avatars, newest first. */
