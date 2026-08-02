@@ -419,13 +419,51 @@ owner word (barely started, nothing lost) — re-queue after the wave drains.
 **⛔ DISPATCH FREEZE → FULL PAUSE (owner words, 08-03: 5h usage limit): NO new spawns AND the
 5 live lanes ORDERED TO SLEEP** (checkpoint-commit coherent work [--no-verify sanctioned for
 the checkpoint], reply resume-state, stop; worktrees + branches STAY — teardown forbidden).
-Lanes at pause: REGEX (warm tail: 52-item mirror set + host-controls display toggle + RECEIVE/
-WI order pins + behavioral bundle round-trip) · DANGLE (phantom-ref gate arms) · RESYNC (the
-two reattribution affordances) · SM4 (CAP-GATE pending arm + 3 span smalls) · D22 (multi-user
-live verify, arm B — e2e local-project pixels + wire drives). Resume-state replies get boarded
-under this block as they land. RESUMING ORCHESTRATOR: worktrees under .claude/worktrees/ hold
-these five branches — SendMessage each agent id to resume warm, or re-dispatch fresh lanes
-briefed from the boarded resume states if the agents are unreachable post-window.
+RESUME STATES (all five landed; two lanes merged at pause, three parked):
+✅ **RESYNC MERGED (`f28b49c2`, --no-verify on receipts, torn down)** — COMPLETE: bulk arm =
+`ReattributeScope` union ({kind:"messages"} | {kind:"mine", fromSeq?}) through the same four
+belts + stamp-only UPDATE; 100-row client hack DELETED; rpg ResyncControl gained the opt-in
+"Restamp my messages first" checkbox (restamp→rebuild, failed restamp ABORTS). Never-touch
+byte-identity pins over variants/snapshots/digests with real rows. Wire shape CHANGED
+(messageIds→scope) — all 3 tree call sites updated. Deviations (sound): kind-union not bare
+mine:true; inline ResyncControl not a dialog (none exists).
+✅ **SM4 MERGED (`f46122ad`, --no-verify on receipts, torn down)** — all 4 complete: CAP-GATE
+pending arm (the connect-a-model flash DEAD — unreachable arm deleted, SkeletonRows;
+qualityMappingGloss same class) · rpg round TRACED (brief's mechanism was INCOMPLETE:
+withRequestSpan needs `root:true` — a parented span never seals the ring; both arms red-first;
+LESSON: background-work tracing fixes need root:true, banked) · provider.* spans at runRole
+(all 9 role dispatchers; providerDurationMs finally lands) · structured-retry onRetry injected,
+3 discovery callers, schema PATHS never zod messages (RP content must not reach spans).
+FLAGGED not fixed: readout-parts.tsx:67 same F-02 pending-flash class (owner-ruled prose) ·
+fireExpressionClassify/fireRpgTurnAborted/post-turn memory = same outlives-request class,
+rpgRoundRequestId is the template.
+**PARKED (worktrees + branches PRESERVED, resume-ready):**
+· **REGEX @ `5671aba6`** (wt/agent-a6c2a9b056faef5e6) — tail CLOSED: 52 structure violations
+  → 0, host display-broadcast BUILT (all 3 display CTs green incl. immunity pin; new wire:
+  ChatMetadata/ChatDetail.hostDisplayScripts · chat.setHostDisplayScripts · regex.
+  listRoomDisplayScripts member-gated · RegexContext.resolveRoomDisplayPolicy), ORDER pins in,
+  1484 server tests green, structure/knip/depcruise/tsc clean. **BLOCKER: 9 client CTs red**
+  (module-instance split class — diagnosis made: RegexPickerStory needs QueryBoundary [story
+  has useSuspenseQuery, no boundary]; regex-pane.ct needs re-pointing at the library surface;
+  one loose getByText('global') locator). Landmines in its final report: CT caches lie
+  (rm playwright/.cache first — pnpm test:ct does it, raw npx doesn't) · _ct-stories may
+  export ONLY components · biome can't see through zod discriminated unions (declare + \
+  satisfies, don't re-infer) · TypeID fixtures must mint not hand-write.
+· **D22 @ `c564af89`** (wt/agent-a55b950f1a2beec2e) — the multi-user battery VERIFIED LIVE:
+  all 4 D22 tiers on the wire both roles · D16 from-join list+replay · member/reasoning strip
+  live (first-ever run of those specs, 2/2) · export 404 · Members-tab snaps both roles
+  (reports/snaps/d22-*.png) · D122 persona plane BOTH halves. NOT verified: search (N/A by
+  construction — tenancy-scoped before the floor ever applies; accept or demand a probe) ·
+  the ed2aafc5 mid-slot resume arm (fixture emits the lie-span in ONE chunk; fix designed:
+  split LIE_SPAN across chunks in fixture-provider.ts). **BLOCKER: lane floor not run on its
+  3 new files** (biome/tsc/structure/knip/typecheck:graph) — run floor, then merge. Landmines:
+  chat.peekPrompt has NO tRPC proc (use getVariantWire) · member send DEFERS w/o host socket ·
+  __orb.nav.contextTab("members") mounts a 0px sliver (spec carries a boundingBox floor now).
+· **DANGLE** (wt/agent-acf0e77a2a1332695) — no resume-state reply received before the window;
+  check `git -C <wt> log/status` on resume; brief = the two truth-audit gate arms.
+RESUMING ORCHESTRATOR: SendMessage the agent ids to resume warm, or brief fresh lanes from
+these states. REGEX merge order note: REGEX regen'd the baseline — merge REGEX before
+dispatching HANDOFF-COPY or PORTABILITY (both blocked on it).
 
 ## ═══ ▶▶▶ HANDOFF #3 — 2026-08-02 NIGHT (SESSION-END; the ONE current block. Owner is
 ## swapping accounts — the resuming orchestrator has NO conversation memory; this block +
