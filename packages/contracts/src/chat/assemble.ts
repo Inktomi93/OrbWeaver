@@ -4,7 +4,7 @@
 // projections (`AssembleCharacter`/`AssemblePersona`/`AssembleWorldEntry`) are re-homed HERE (not imported
 // from `contracts/character`/`persona`) so `chat` avoids a `chat → character`/`persona` DAG edge.
 
-import type { CharacterId, ChatInjectionId, MessageId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatInjectionId, MessageId, MessageVariantId, WorldEntryId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { InjectionPlacement } from "@orb/kit/injection";
 import type { VarOp } from "@orb/kit/macro";
@@ -12,10 +12,11 @@ import type { MessageRole } from "@orb/kit/message-role";
 import type { PersonaDescriptionPlacement } from "@orb/kit/persona";
 import type { EntryPosition } from "@orb/kit/world-info";
 import { z } from "zod";
-import type { GenerationType, PromptConfig } from "#preset";
+import type { GenerationType, PromptConfig, UserIntent } from "#preset";
 import type { ProseOverrides } from "#prose-slot";
 import type { RegexScript } from "#regex";
 import type { WorldInfoScope } from "#world-info";
+import type { UserMacroDraws } from "./messages";
 import type { RoomOverrides } from "./metadata";
 import type { SpeakerRef } from "./participants";
 import { messageRoleSchema } from "./participants";
@@ -269,6 +270,59 @@ export interface AssembledPrompt {
   /** `false` only when a `chat_history` marker is present AND disabled (absent ⇒ true). */
   sendHistory: boolean;
   trace: AssembleTrace;
+}
+
+/**
+ * The SENT-PROMPT projection of a stored {@link AssembledPrompt} — the `message_variants.promptSnapshot` blob
+ * as the host inspector serves it. Deliberately a PROJECTION, not the whole node: the bytes that went on the
+ * wire (`static`/`dynamic`/`afterHistory`/`sendHistory`) and nothing else. `trace` is dropped — the Preview
+ * tab already renders a live `AssembleTrace`, and re-serving a stored one would widen a host-only payload for
+ * a readout that already exists.
+ *
+ * It is also the READ-SEAM PARSER for that column: `promptSnapshot` is untyped JSON at rest (`$type<>` is a
+ * compile-time claim, not a runtime one), so the wire read `safeParse`s through this instead of casting. A
+ * blob that fails degrades to `null` — an honest "nothing captured", never a throw or a half-typed object.
+ * The `position`/`role` axes DERIVE their canonical tuples (§5.5, no inline re-spell).
+ */
+export const sentPromptSchema = z.object({
+  static: z.string(),
+  dynamic: z.string(),
+  sendHistory: z.boolean(),
+  afterHistory: z.array(
+    z.object({
+      position: z.enum(CHAT_INJECTION_POSITIONS),
+      depth: z.number().int(),
+      role: messageRoleSchema,
+      content: z.string(),
+    }),
+  ),
+});
+export type SentPrompt = z.infer<typeof sentPromptSchema>;
+
+/**
+ * The per-variant WIRE RECORD — what one generation ACTUALLY sent, read back off
+ * `message_variants.promptSnapshot`/`params`/`macroDraws` (D26). The retrospective twin of the `peekPrompt`
+ * family: `peekPrompt` renders the NEXT turn, this returns the bytes a PAST turn already sent.
+ *
+ * HOST-ONLY MATERIAL — the payload is deliberately DISJOINT from the member-visible `MessageView` (no
+ * content/model/tokens/toolCalls re-served here; a member already has those). Every field below is
+ * host-plane by §3.6:
+ *  • `prompt` is the assembled prompt, and the wire projection rides hidden spans VERBATIM (the model always
+ *    reads them, `domain/chat/substrate/member-visibility` "WHO SEES WHAT"), plus every roster card at FULL
+ *    fidelity (bypassing the D22 `memberCardVisibility` clamp), plus the whole assembled history — including
+ *    slots below a clamped member's D16 floor. Same rationale that makes `previewAssembly`/`peekPrompt`/
+ *    `previewSection` host-gated; the producing verb gates identically (`requireHost`, matrix `host`).
+ *  • `params`/`macroDraws` are the host's own generation knobs + the frozen per-turn random draws.
+ *
+ * A null `prompt` is HONEST ABSENCE, never an error: a user/system row never generated, and a variant
+ * committed by a verbatim/greeting seed carries none. The raw PROVIDER envelopes are NOT here — those live
+ * only in the ephemeral debug ring (`WIRE_CAPTURE`, `foundation/observability/debug/wire-capture`), never the DB.
+ */
+export interface VariantWireView {
+  variantId: MessageVariantId;
+  prompt: SentPrompt | null;
+  params: UserIntent | null;
+  macroDraws: UserMacroDraws | null;
 }
 
 /** The immutable per-turn context (RESOLVE + GATHER produce it; BUILD + SHAPE take it + a speaker). Most

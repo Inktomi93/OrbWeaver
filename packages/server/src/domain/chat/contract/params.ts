@@ -132,6 +132,13 @@ export interface PeekPromptParams extends ChatScopedParams {
   readonly speakerCharacterId?: CharacterId | null | undefined;
 }
 
+/** `getVariantWire` — the per-variant WIRE RECORD: what ONE past generation actually sent (host/admin
+ *  inspector). `variantId` is scoped by the `messages.chatId` join, so a foreign variant is unreachable even
+ *  with a valid chatId (D108 carve #1, the same belt `rpg/persistence/reveal` uses). */
+export interface GetVariantWireParams extends ChatScopedParams {
+  readonly variantId: MessageVariantId;
+}
+
 /** `getShapeTrace` — the content-free SHAPE trace for the next-turn shaping of the current canon (host/admin
  *  inspector; PD-132). `speakerCharacterId` picks the primary speaker the peek shapes for (as `peekPrompt`). */
 export interface GetShapeTraceParams extends ChatScopedParams {

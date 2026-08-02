@@ -319,6 +319,21 @@ const getShapeTraceSchema = z.object({
   speakerCharacterId: brandedId<CharacterId>().nullish(),
 });
 
+// `getVariantWire` — the per-variant WIRE RECORD: what ONE PAST generation actually sent (`promptSnapshot` +
+// `params` + `macroDraws`). HOST-gated (`requireHost`) INSIDE the verb (matrix `getVariantWire: "host"`), for
+// the same reason the rest of the preview family is: a stored assembled prompt carries FULL-fidelity roster
+// cards (the D22 bypass), the hidden-class spans the §3.6 member strip removes, and history below a clamped
+// member's D16 floor. BOTH ids are foreign-referenceable, and BOTH are gated: `chatId` by `requireHost`, and
+// `variantId` by the query's `messages.chatId` join — so the cross-tenant sweep classifies it PROBED (a
+// stranger, and a host passing another room's variantId, both get the SAME leak-free NOT_FOUND).
+// FRESHNESS: IMMUTABLE — a committed variant's stamped prompt/params/draws never change (an edit mints a
+// new variant, a swipe appends one), so this read carries NO `BUS_FILTERS` row and no invalidation target;
+// the client caches it forever (the `connection.orGenerationCost` class, PD-137).
+const getVariantWireSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  variantId: brandedId<MessageVariantId>(),
+});
+
 // `previewContextFit` (PD-#7) — the present-tense fit budget for the current canon (the transcript divider's
 // live source). Member-gated (`requireParticipant`) INSIDE the verb (matrix `previewContextFit: "member"`);
 // reads tenant canon by chatId, so the cross-tenant sweep classifies it PROBED.
@@ -519,6 +534,8 @@ export const chatRouter = t.router({
     .query(({ ctx, input }) => ctx.services.chat.previewActionTemplates({ principal: ctx.auth, ...input })),
   // The content-free SHAPE trace (PD-132) — a host/admin inspector read (`requireHost` INSIDE the verb).
   getShapeTrace: authedProcedure.input(getShapeTraceSchema).query(({ ctx, input }) => ctx.services.chat.getShapeTrace({ principal: ctx.auth, ...input })),
+  // The per-variant WIRE RECORD — a host/admin inspector read (`requireHost` INSIDE the verb).
+  getVariantWire: authedProcedure.input(getVariantWireSchema).query(({ ctx, input }) => ctx.services.chat.getVariantWire({ principal: ctx.auth, ...input })),
   previewContextFit: authedProcedure
     .input(previewContextFitSchema)
     .query(({ ctx, input }) => ctx.services.chat.previewContextFit({ principal: ctx.auth, ...input })),

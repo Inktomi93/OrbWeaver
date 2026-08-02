@@ -1863,9 +1863,13 @@ const FROZEN_META_AT = 1_750_000_000_000;
 export function MessageMetadataRowStory({
   visibility,
   message,
+  viewerIsHost = false,
 }: {
   readonly visibility: MessageMetadataVisibility;
   readonly message?: Partial<MessageView>;
+  /** RAWVIEW — drives the HOST-only per-variant wire trigger arm (the one datum here gated by AUTHORITY
+   *  rather than an appearance toggle). Default false so every existing pin keeps its member-plane row. */
+  readonly viewerIsHost?: boolean;
 }): ReactElement {
   const view = makeMessageView({
     model: "qwen3-vl",
@@ -1879,7 +1883,7 @@ export function MessageMetadataRowStory({
   return (
     <CtDataProviders>
       <div data-testid="metadata-host">
-        <MessageMetadataRow message={view} visibility={visibility} />
+        <MessageMetadataRow message={view} visibility={visibility} viewerIsHost={viewerIsHost} />
       </div>
     </CtDataProviders>
   );
@@ -1893,6 +1897,40 @@ export function MessageCostReadoutStory({ generationId = "gen_ct_1" }: { readonl
   return (
     <CtDataProviders>
       <MessageCostReadout message={view} />
+    </CtDataProviders>
+  );
+}
+
+/** Only the model datum on — the wire trigger is gated by AUTHORITY, not by an appearance toggle, so the
+ *  story keeps one ordinary datum beside it to prove the separator/ordering stays honest. */
+const WIRE_STORY_VISIBILITY: MessageMetadataVisibility = {
+  showTimestamps: false,
+  showMessageId: false,
+  showModelIcon: true,
+  showTokenCount: false,
+  showGenerationTimer: false,
+  showGenerationCost: false,
+};
+
+/** RAWVIEW — the HOST-only per-variant wire inspector reached through its real trigger (`MessageWireTrigger`
+ *  inside `MessageMetadataRow`), so the CT exercises the whole graft: the host gate, the click, the gated
+ *  `chat.getVariantWire` read, and the dialog body. `role` drives the assistant-only arm (a user row has no
+ *  prompt by construction, so the trigger must not render). */
+export function VariantWireStory({
+  viewerIsHost = true,
+  messageRole = "assistant",
+}: {
+  readonly viewerIsHost?: boolean;
+  /** Named `messageRole`, not `role`: a JSX prop literally named `role` reads as an ARIA role to the
+   *  a11y lint (and to anyone skimming the call site). This is the D26 message role. */
+  readonly messageRole?: MessageView["role"];
+}): ReactElement {
+  const view = makeMessageView({ role: messageRole, model: "qwen3-vl" });
+  return (
+    <CtDataProviders>
+      <div data-testid="metadata-host">
+        <MessageMetadataRow message={view} visibility={WIRE_STORY_VISIBILITY} viewerIsHost={viewerIsHost} />
+      </div>
     </CtDataProviders>
   );
 }

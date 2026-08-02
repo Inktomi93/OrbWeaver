@@ -50,6 +50,8 @@ const STATIC: Record<string, string> = {
     "the viewer identity minted at login (data/use-viewer.ts). It changes only across a session boundary — login/logout remounts the app tree with a fresh cache — so no in-session writer exists to hang a row on.",
   "assets.resolveChatBlobRefs":
     "keyed by (chatId, the row's asset ids) over CONTENT-ADDRESSED blobs (features/chat/hooks/attachment-url-provider.tsx): the hash behind an assetId never changes, so the resolved map is immutable for its key.",
+  "chat.getVariantWire":
+    "keyed by (chatId, variantId) over a COMMITTED variant's stamped generation record (features/chat/components/variant-wire-viewer.tsx). A variant's prompt/params/draws are written once at commit and never updated: an edit mints a new variant and a swipe APPENDS one, so a new key is what a change produces — the old key's answer stays true forever. Deleting the message makes the key resolve NOT_FOUND, which the viewer renders as its typed gone-arm.",
   "search.search":
     "input-keyed live search (features/discovery/components/corpus-search-results.tsx) — the query text + `over` target are part of the key, so every new search is a cold fetch of a NEW cache entry.",
   "search.fields":

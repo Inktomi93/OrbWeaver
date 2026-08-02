@@ -61,6 +61,7 @@ import type {
   GetChatParams,
   GetMemberCardParams,
   GetShapeTraceParams,
+  GetVariantWireParams,
   GuidedSteer,
   ListChatsParams,
   ListForksParams,
@@ -92,6 +93,7 @@ import type {
   SectionPreview,
   ShapeTrace,
   StreamEventBounds,
+  VariantWireView,
 } from "../contract/views";
 import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
@@ -110,6 +112,7 @@ import {
   loadMessageVariantSummaries,
   loadStreamBounds,
   loadStreamReplay,
+  loadVariantWire,
 } from "../persistence/queries";
 import { loadPresentVisibilityRows, loadRoster } from "../persistence/roster";
 import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars";
@@ -170,6 +173,7 @@ type ReadVerbs = Pick<
   | "previewSection"
   | "peekPrompt"
   | "getShapeTrace"
+  | "getVariantWire"
   | "previewContextFit"
   | "listMessages"
   | "listMessageVariants"
@@ -910,6 +914,36 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
   };
 }
 
+/**
+ * `getVariantWire` — the per-variant WIRE RECORD: what ONE PAST generation actually sent, read straight off
+ * `message_variants` (`promptSnapshot`/`params`/`macroDraws`). The RETROSPECTIVE member of the preview family:
+ * `peekPrompt` renders the next turn, this replays a committed one. Nothing re-renders and nothing persists —
+ * a pure read of bytes the engine already stamped, so the answer is byte-faithful to what the model saw
+ * (a re-render against today's preset/roster would be a different prompt wearing a past turn's name).
+ *
+ * HOST/ADMIN (`requireHost`, matrix `getVariantWire: "host"`) — the SAME D22/§3.6/D16 rationale that gates
+ * `previewAssembly`/`peekPrompt`/`previewSection`, applied to a STORED prompt: the snapshot carries the
+ * roster's cards at FULL fidelity, the hidden-class spans the member strip removes (the wire projection rides
+ * them verbatim), and the whole assembled history — including slots below a clamped member's D16 floor.
+ * Reading a PAST prompt must not be the cheap way around the three host-gated doors (the same hole
+ * `previewSection` was closed for on 2026-08-01).
+ *
+ * TENANCY: `loadVariantWire` scopes the variant through its `messages.chatId` join, so a variant belonging to
+ * ANOTHER chat is unreachable even for a caller who legitimately hosts the chatId they passed — it collapses
+ * to the same leak-free {@link ChatNotFoundError} an unknown id gives (never "wrong chat", which would confirm
+ * the variant exists). PROBED in the cross-tenant sweep.
+ */
+function createGetVariantWire(ctx: ChatContext): ChatService["getVariantWire"] {
+  return async ({ principal, chatId, variantId }: GetVariantWireParams): Promise<VariantWireView> => {
+    await requireHost(ctx, principal, chatId);
+    const wire = await loadVariantWire(ctx.db, chatId, variantId);
+    if (wire === undefined) {
+      throw new ChatNotFoundError(chatId);
+    }
+    return wire;
+  };
+}
+
 /** `previewContextFit` — the PRESENT-TENSE fit budget for the current canon against the host's effective
  *  preset + resolved capability (PD-#7). MEMBER-gated (`requireParticipant`): unlike `getShapeTrace` it
  *  returns no per-stage row counts (no merged-card leak) — only the boundary id + budget numbers the
@@ -1187,6 +1221,7 @@ export function createRead(ctx: ChatContext, deps: ReadDeps): ReadVerbs {
     previewActionTemplates: createPreviewActionTemplates(ctx, deps),
     peekPrompt: createPeekPrompt(ctx, deps),
     getShapeTrace: createGetShapeTrace(ctx, deps),
+    getVariantWire: createGetVariantWire(ctx),
     previewContextFit: createPreviewContextFit(ctx, deps),
     listMessages: createListMessages(ctx, deps),
     listMessageVariants: createListMessageVariants(ctx),
