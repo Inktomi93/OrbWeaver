@@ -645,6 +645,13 @@ const onboardingSchema = z
     // `defaultCharactersSeeded`: the demo chats attach to the seeded cards, so they must be re-runnable
     // independently (clear this alone to re-seed the examples onto a library that already has the pack).
     demoChatsSeeded: z.boolean().catch(false).default(false),
+    // The EXAMPLE-pack version those seeded chats were last dressed to (`DEMO_CHAT_PACK_VERSION` in
+    // `domain/chat/seeder/demo-chats.ts`) — the `defaultCharactersPackVersion` twin, same reasoning. The
+    // examples' DRESSING (the curated room background, the host seat's persona binding, the flagship's
+    // authored game state) is pack content that improves between releases, while the transcripts are
+    // immutable; a stamp behind the shipped pack runs the seeder's heal, which only ever fills fields still
+    // at their seeded default (it never stomps a choice the user made in their copy of an example).
+    demoChatsPackVersion: z.number().int().min(0).catch(0).default(0),
   })
   .prefault({});
 

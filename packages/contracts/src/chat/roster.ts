@@ -194,27 +194,78 @@ export interface ParticipantView {
 /** BG-C true-solo composition — the ONE derivation of "exactly one human and exactly one character, no
  *  other seat", count-derived (never an `isGroup` branch). Returns the sole character's {@link ParticipantView}
  *  when the room is true-solo, else `undefined`. The shared home so the per-speaker THEME takeover
- *  (`resolveRoomTheme`, client attribution) and the per-chat BACKGROUND takeover (the app-shell background
- *  resolver) can never drift to two spellings of the same rule. */
+ *  (`resolveRoomTheme`, client attribution) and the CARD-CARRIED arm of the background takeover can never
+ *  drift to two spellings of the same rule. */
 const SOLO_COUNT = 1;
 const TRUE_SOLO_SEATS = 2;
 export function soleTrueSoloCharacter(participants: readonly ParticipantView[] | undefined): ParticipantView | undefined {
   if (participants === undefined) {
     return;
   }
-  let humanCount = 0;
   let characterCount = 0;
   let soleCharacter: ParticipantView | undefined;
   for (const participant of participants) {
-    if (participant.kind === "human") {
-      humanCount += 1;
-    } else {
+    if (participant.kind !== "human") {
       characterCount += 1;
       soleCharacter = participant;
     }
   }
-  const trueSolo = humanCount === SOLO_COUNT && characterCount === SOLO_COUNT && participants.length === TRUE_SOLO_SEATS;
+  const trueSolo = isSingleHumanRoom(participants) && characterCount === SOLO_COUNT && participants.length === TRUE_SOLO_SEATS;
   return trueSolo ? soleCharacter : undefined;
+}
+
+/** BG-C composition, WIDENED (owner ruling 2026-08-03): "this room holds no OTHER human seat" — exactly one
+ *  human, any number of characters. THE gate on the carried-appearance takeover. The 07-18 ruling spelled the
+ *  gate as true-solo, which ALSO excluded a single-human GROUP room — a composition its own stated rationale
+ *  ("a host writing it never forces another human's viewport") does not reach: there is no second viewport.
+ *  The predicate now matches the rationale exactly; a room with two humans is still, and permanently, INERT. */
+export function isSingleHumanRoom(participants: readonly ParticipantView[] | undefined): boolean {
+  if (participants === undefined) {
+    return false;
+  }
+  let humanCount = 0;
+  for (const participant of participants) {
+    if (participant.kind === "human") {
+      humanCount += 1;
+    }
+  }
+  return humanCount === SOLO_COUNT;
+}
+
+/** The resolved carried background + WHERE it came from. The provenance arm is not decoration: the chat
+ *  context panel's Background row echoes the EFFECTIVE source with its origin ("… — from <card>'s card"), so
+ *  the settings echo and the painted pixels are ONE truth (the S4 override-echoed-as-default class). */
+export interface CarriedBackground {
+  readonly source: ThemeBackground;
+  readonly arm: "chat-set" | "card-carried";
+  /** The card the source rode in on (`card-carried`), else `null` — the panel's provenance gloss. */
+  readonly characterName: string | null;
+}
+
+/** THE carried-background cascade (BG-C), ONE home for the app-shell paint AND the panel echo.
+ *  `undefined` ⇒ nothing is carried and the viewer's own appearance wins.
+ *
+ *  Gate: {@link isSingleHumanRoom} — in a room with any OTHER human the carried source is INERT for everyone.
+ *  Cascade inside the gate: the host's CHAT-SET source (any single-human composition) over the sole
+ *  character's CARD-CARRIED source. The card arm stays {@link soleTrueSoloCharacter}-only BY RULING: with two
+ *  cards in the room there is no non-arbitrary pick among their backgrounds, so a group room paints only what
+ *  its host explicitly chose. An absent / `kind:"none"` source at either level falls through. */
+export function resolveCarriedBackground(
+  participants: readonly ParticipantView[] | undefined,
+  chatBackground: ThemeBackground | null | undefined,
+): CarriedBackground | undefined {
+  if (!isSingleHumanRoom(participants)) {
+    return;
+  }
+  if (chatBackground && chatBackground.kind !== "none") {
+    return { source: chatBackground, arm: "chat-set", characterName: null };
+  }
+  const sole = soleTrueSoloCharacter(participants);
+  const cardCarried = sole?.backgroundOverride;
+  if (sole === undefined || !cardCarried || cardCarried.kind === "none") {
+    return;
+  }
+  return { source: cardCarried, arm: "card-carried", characterName: sole.displayName };
 }
 
 /** The membership-gated, level-clamped PUBLIC card projection (D22 — Part III §11). Fields above the

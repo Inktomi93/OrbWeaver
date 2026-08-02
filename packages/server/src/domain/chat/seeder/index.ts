@@ -6,9 +6,14 @@
 
 export type {
   DemoChat,
+  DemoChatActorSeat,
   DemoChatGame,
+  DemoChatGameActor,
+  DemoChatGameSetup,
+  DemoChatSeat,
   DemoChatSeeder,
   DemoChatSeederDeps,
+  SeededChatDressing,
 } from "../contract/seeder";
-export { DEMO_CHAT_NARRATOR_NAME, DEMO_CHAT_TITLE_PREFIX, DEMO_CHATS } from "./demo-chats";
+export { DEMO_CHAT_NARRATOR_NAME, DEMO_CHAT_PACK_VERSION, DEMO_CHAT_TITLE_PREFIX, DEMO_CHATS } from "./demo-chats";
 export { createDemoChatSeeder } from "./seed";

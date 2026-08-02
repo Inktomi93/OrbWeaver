@@ -8,6 +8,8 @@
 import { blobUrl } from "@orb/contracts/assets";
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
+import type { CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import {
   appearanceBackgroundSource,
   resolveChatBackgroundSource,
@@ -62,14 +64,29 @@ test("true-solo: no carried source at either level ⇒ undefined (viewer appeara
 
 test("multi-human room: the chat/card background is INERT (undefined), never forcing another viewer's viewport", () => {
   const alice = makeParticipant({ displayName: "Alice", backgroundOverride: CARD_BG });
-  // Two humans + one character — a host's chat-set background must not paint for the second human.
+  // Two humans + one character — a host's chat-set background must not paint for the second human. THE
+  // load-bearing refusal: the 08-03 widening moved the gate to "no OTHER human seat", so this case is the
+  // pin proving the widening did not decay into "anything paints".
   expect(resolveChatBackgroundSource([HUMAN, HUMAN2, alice], CHAT_BG)).toBeUndefined();
 });
 
-test("group room (one human, two characters): INERT (undefined)", () => {
-  const alice = makeParticipant({ characterId: makeParticipant().characterId, displayName: "Alice", backgroundOverride: CARD_BG });
-  const bob = makeParticipant({ displayName: "Bob" });
-  expect(resolveChatBackgroundSource([HUMAN, alice, bob], CHAT_BG)).toBeUndefined();
+test("multi-human GROUP room (two humans, two characters): still INERT", () => {
+  const alice = makeParticipant({ displayName: "Alice", backgroundOverride: CARD_BG });
+  const bob = makeParticipant({ characterId: castId<CharacterId>("char_bob"), displayName: "Bob", backgroundOverride: CARD_BG });
+  expect(resolveChatBackgroundSource([HUMAN, HUMAN2, alice, bob], CHAT_BG)).toBeUndefined();
+});
+
+test("single-human group room: the CHAT-SET background paints (08-03 widening — no other viewport to force)", () => {
+  const alice = makeParticipant({ displayName: "Alice", backgroundOverride: CARD_BG });
+  const bob = makeParticipant({ characterId: castId<CharacterId>("char_bob"), displayName: "Bob" });
+  expect(resolveChatBackgroundSource([HUMAN, alice, bob], CHAT_BG)).toEqual(CHAT_BG);
+});
+
+test("single-human group room: the CARD-carried arm stays true-solo-only (no arbitrary pick among cards)", () => {
+  const alice = makeParticipant({ displayName: "Alice", backgroundOverride: CARD_BG });
+  const bob = makeParticipant({ characterId: castId<CharacterId>("char_bob"), displayName: "Bob", backgroundOverride: CARD_BG });
+  expect(resolveChatBackgroundSource([HUMAN, alice, bob], null)).toBeUndefined();
+  expect(resolveChatBackgroundSource([HUMAN, alice, bob], NONE)).toBeUndefined();
 });
 
 test("no participants ⇒ undefined", () => {

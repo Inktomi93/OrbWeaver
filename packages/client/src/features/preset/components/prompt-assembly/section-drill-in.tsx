@@ -244,7 +244,10 @@ function PlacementFields({ form, section, index, inChat, zones }: ZonedClusterPr
             zones.missingPivot
               ? "There is no chat-history marker yet, so there is no conversation to splice into — add one on the rack."
               : // The option labels are bare names (F-26); THIS is where both arms are spelled out in full.
-                "How this section is delivered. RELATIVE renders it into the system block, ordered among the other prompts. IN CHAT splices it into the conversation at a depth. Picking one MOVES the section across the chat-history pivot."
+                // The owner-ruled vocabulary line (08-03): BOTH namings stay, and this sentence is where the
+                // reader learns they are one axis — Relative/In-Chat is the PLACEMENT you pick here, setup/post
+                // is the WIRE zone the assembled payload records for the same choice.
+                "How this section is delivered. RELATIVE renders it into the system block, ordered among the other prompts. IN CHAT splices it into the conversation at a depth. Picking one MOVES the section across the chat-history pivot. These are the placement names for the wire zones the assembled prompt records — Relative is setup, In Chat is post."
           }
           label="Zone"
           name="section-zone"
