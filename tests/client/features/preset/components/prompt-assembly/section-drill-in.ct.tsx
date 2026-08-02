@@ -14,7 +14,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { RackStory } from "./_rack-stories";
+import { MainPromptStory, RackStory } from "./_rack-stories";
 
 /** The rendered box, as a rounded integer rect — sub-pixel noise is not a defect, an 8/16px shear is. */
 async function boxOf(locator: Locator): Promise<{ readonly top: number; readonly height: number; readonly width: number }> {
@@ -157,6 +157,28 @@ test("item 10 / O-14 — the depth cell is WIDE ENOUGH FOR ITS OWN GHOST (it cli
     return context.measureText(input.placeholder).width - inner;
   });
   expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test("the main-prompt GHOST fits its own box — the second-person address clause did not overflow it", async ({ mount }) => {
+  // The O-14 lens, applied to the one templated marker whose factory default is a full sentence. The empty
+  // field's ONLY content is that ghost, so a placeholder taller than the box is a default the user cannot
+  // read — and the address clause ("use their name only when it is one they have chosen for themselves")
+  // roughly doubled its length. Measured on the RENDERED box, never on a character count.
+  const probe = await mount(<MainPromptStory />);
+  await probe.getByRole("button", { name: "Edit Main prompt" }).click();
+
+  const template = probe.getByRole("textbox", { name: "Template" });
+  const fit = await template.evaluate((area: HTMLTextAreaElement) => ({
+    overflow: area.scrollHeight - area.clientHeight,
+    // The ghost is what is actually on screen — pin that it IS the factory default, not an empty box.
+    ghost: area.placeholder,
+    value: area.value,
+  }));
+
+  expect(fit.value).toBe("");
+  expect(fit.ghost).toContain("Address");
+  expect(fit.ghost).toContain("chosen for themselves");
+  expect(fit.overflow).toBeLessThanOrEqual(0);
 });
 
 test("item 10 — the row is STABLE across the two zone arms: the Role select keeps its column", async ({ mount, page }) => {

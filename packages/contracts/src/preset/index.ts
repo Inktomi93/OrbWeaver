@@ -914,7 +914,17 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
   // `section.template ?? DEFAULT_MARKER_TEMPLATES[marker]` (`assembly/assemble.ts`), so the same bytes go
   // out — a marker-less ST import now inherits this framing instead of nothing, which is the same "the
   // built-in default rides" rule every other marker already followed.
-  ["main_prompt"]: "You are {{char}} in an immersive, ongoing roleplay with {{user}}. Stay in character; write {{char}}'s perspective only.",
+  // The ADDRESS clause is not filler (owner-ruled, 2026-08-02). `{{user}}` resolves to a persona NAME, and a
+  // default persona's name is a LABEL, not a name its owner picked — so a model reaching for a vocative
+  // produced "Goodnight, You." The clause is deliberately CONDITIONAL rather than a name ban: a persona the
+  // user actually named ("Sarah") must stay addressable, and only the placeholder case degrades to "you".
+  // It lives HERE, on the marker default, and not in a PROSE-1 slot: the only identity-framing slot
+  // (`chat.assembly.anchorIdentity`) fires solely on a persona SWAP, the default persona block ships
+  // deliberately unframed, and PROSE-1's own census leaves this template un-slotted (row 52) precisely
+  // because the per-section `template` override IS its edit path.
+  ["main_prompt"]:
+    "You are {{char}} in an immersive, ongoing roleplay with {{user}}. Stay in character; write {{char}}'s perspective only. " +
+    "Address {{user}} in the second person; use their name only when it is one they have chosen for themselves.",
   ["post_history"]: "",
   ["char_description"]: macro("description"),
   ["char_personality"]: macro("personality"),

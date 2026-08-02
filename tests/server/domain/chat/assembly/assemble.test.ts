@@ -61,6 +61,23 @@ function ctxOf(over: Partial<AssembleContext> = {}): AssembleContext {
 }
 
 describe("assemblePrompt — section walk", () => {
+  test("the FACTORY main_prompt teaches second-person address, with {{user}} bound to the active persona", () => {
+    // The vocative defect: a persona whose name is a LABEL ("You", "Traveler") arrives at the model as a bare
+    // `{{user}}` value, so it gets used as a form of address — "Goodnight, You." The framing rides
+    // `DEFAULT_MARKER_TEMPLATES.main_prompt` (the F-03 home for starter framing), which means it reaches every
+    // turn on the untouched built-in preset. Asserted on the ASSEMBLED bytes, not the constant: `template` is
+    // deliberately UNSET here, so this also pins that the factory default still resolves through the marker.
+    const config = configOf([marker({ marker: "main_prompt" })]);
+    const out = assemblePrompt(config, ctxOf({ activePersona: { name: "Traveler", description: "" } }));
+
+    expect(out.static).toContain("second person");
+    // …and it is CONDITIONAL, never a blanket name ban — a persona the user actually named stays addressable.
+    expect(out.static).toContain("chosen for themselves");
+    // The framing names the user through the macro, so it reads coherently whatever the persona is called.
+    expect(out.static).toContain("Traveler");
+    expect(out.static).not.toContain("{{user}}");
+  });
+
   test("renders {{char}} in a templated marker → static; afterHistory empty; sendHistory true", () => {
     const config = configOf([
       marker({ marker: "main_prompt", template: "You are {{char}}." }),

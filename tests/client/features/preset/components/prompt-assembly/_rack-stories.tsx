@@ -71,6 +71,28 @@ function RackBody({ session, savedCount }: { readonly session: AutosaveSession<P
   );
 }
 
+// A SEPARATE fixture, deliberately not folded into `SECTIONS`: the rack tests assert exact id order and a
+// MIDDLE delete target, so adding a section to the shared list would shift every one of them.
+const MAIN_PROMPT_SECTIONS: PromptSection[] = [{ type: "marker", id: "sec_main", name: "Main prompt", marker: "main_prompt", role: "system", enabled: true }];
+
+/** The Prompt view holding ONLY the `main_prompt` marker — the one templated marker whose factory default
+ *  is a full sentence and therefore GHOSTS as a multi-line placeholder. Its own story so the drill-in can be
+ *  measured against the real default without perturbing the rack fixture. */
+export function MainPromptStory(): ReactElement {
+  return (
+    <ToastProvider>
+      <StoryForm
+        entityId={STORY_PRESET}
+        save={(): Promise<void> => Promise.resolve()}
+        serverValues={{ ...DEFAULT_PROMPT_CONFIG, sections: [...MAIN_PROMPT_SECTIONS] }}
+      >
+        {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} tab="prompt" />}
+      </StoryForm>
+      <Toaster />
+    </ToastProvider>
+  );
+}
+
 /** The Prompt view over a real autosave boundary. */
 export function RackStory(): ReactElement {
   const [savedCount, setSavedCount] = useState(-1);
