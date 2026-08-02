@@ -217,10 +217,10 @@ test("R6: an actor who does NOT carry a tracker is never offered it (the whole p
   // Kael: Mana on the delta arm, no set arm at all.
   expect(armKeys("Kael", "trackerDeltas")).toEqual(["mana"]);
   expect(byTarget.get("Kael")?.["trackerSets"]).toBeUndefined();
-  // Sera: Mana revoked ⇒ NO tracker arms whatsoever (she is still targetable for hp/conditions/status).
+  // Sera: Mana revoked ⇒ NO tracker arms whatsoever (she is still targetable for conditions/status).
   expect(byTarget.get("Sera")?.["trackerDeltas"]).toBeUndefined();
   expect(byTarget.get("Sera")?.["trackerSets"]).toBeUndefined();
-  expect(byTarget.get("Sera")?.["hpDelta"]).toBeDefined();
+  expect(byTarget.get("Sera")?.["addCondition"]).toBeDefined();
   // Mira: the NPC-class Trust on the SET arm, and no delta arm.
   expect(armKeys("Mira", "trackerSets")).toEqual(["trust"]);
   expect(byTarget.get("Mira")?.["trackerDeltas"]).toBeUndefined();
@@ -363,13 +363,16 @@ test("PROMPT-CACHE (probe F4): only the SCENE-derived enums are dropped (targetR
   expect(refEnum(constrained, ["properties", "party", "items", "properties", "targetRef", "type"])).toBe("string");
 });
 
-test("PROMPT-CACHE (probe F4): a game with NO actor trackers keeps a targetable party plane (both arms pruned, hp/status intact)", () => {
+test("PROMPT-CACHE (probe F4): a game with NO actor trackers keeps a targetable party plane (both arms pruned, condition/status intact)", () => {
   const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), cacheStableExtractionRefs({ ...BARE_REFS, actorRefs: ["Kael"] }, []));
   const props = refEnum(constrained, ["properties", "party", "items", "properties"]) as Record<string, unknown>;
   expect(props["trackerDeltas"]).toBeUndefined();
   expect(props["trackerSets"]).toBeUndefined();
-  expect(props["hpDelta"]).toBeDefined();
+  // The non-tracker planes survive the prune — a tracker-free game can still afflict and describe an actor.
+  // (`hpDelta` is NOT among them since R3: health is a tracker, so a game with no trackers has no health.)
+  expect(props["hpDelta"]).toBeUndefined();
   expect(props["addCondition"]).toBeDefined();
+  expect(props["status"]).toBeDefined();
 });
 
 test("PROMPT-CACHE (probe F4): actorTrackerWriteKeys is the config-only superset — unlocked actor trackers, split by write axis", () => {

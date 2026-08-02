@@ -43,7 +43,7 @@ import type { CharacterId, ChatId, ChatTurnId, RpgGameId, UserId } from "@orb/ki
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RpgGatherResult } from "../../../../packages/server/src/domain/rpg/contract/params";
 import type { RpgRosterActor } from "../../../../packages/server/src/domain/rpg/index";
-import { RPG_DELTA_HEADING } from "../../../../packages/server/src/domain/rpg/substrate/delta";
+import { RPG_DELTA_HEADING, RPG_SCENE_OPENS_HEADING } from "../../../../packages/server/src/domain/rpg/substrate/delta";
 import { freshDb } from "../../../support/db";
 import { zodLeafPaths } from "../../../support/zod-leaf-paths";
 import type { RpgHarness } from "./_support";
@@ -71,28 +71,26 @@ const REMINDER_UNRENDERED: Readonly<Record<string, string>> = {
     "a full-ENGINE storage field born whole (contracts/rpg/ambient header); lite's `update_scene.weather` writes {type,label} only, so there is never a value to render.",
   "state.weather.wind": "a full-engine storage field, unwritable in lite (see state.weather.temperatureC).",
   "state.weather.visibility": "a full-engine storage field, unwritable in lite (see state.weather.temperatureC).",
-  "state.presentCharacters[].key": "the ADDRESSING key (the normalized name the cast/tracker/lock grammar joins on); `name` is the datum the line prints.",
-  "state.presentCharacters[].characterId":
-    "an optional linkage id to a roster character row — an id is never model-facing (projection-clean law, contracts/rpg/tools header).",
+  "state.actorState[].identity.characterId":
+    "the promotion JOIN to a roster character row (the R4 doorway) — an id is never model-facing (projection-clean law, contracts/rpg/tools header).",
   "state.actorState[].actorRef.kind": "the actor-ref plane is ADDRESSING: the reminder prints the actor's NAME (roster projection / cast key), never its ref.",
   "state.actorState[].actorRef.characterId": "addressing (see actorRef.kind) — and an id is never model-facing.",
   "state.actorState[].actorRef.userId": "addressing (see actorRef.kind) — and an id is never model-facing.",
   "state.actorState[].actorRef.castKey": "addressing (see actorRef.kind); the cast row's `name` is what the Present line prints.",
-  "state.actorState[].conditions[].stat":
+  "state.actorState[].volatile.conditions[].stat":
     "a full-ENGINE condition slot born whole (contracts/rpg/actor header) — lite writes only `name` (`update_party.addCondition`), so the modifier triple has no lite value to state.",
-  "state.actorState[].conditions[].modifier": "full-engine slot, unwritable in lite (see conditions[].stat).",
-  "state.actorState[].conditions[].turnsLeft": "full-engine slot, unwritable in lite (see conditions[].stat).",
-  "state.actorState[].inventory[].id": "the minted addressing id (the `inventory.<id>` lock path) — never model-facing.",
-  "state.actorState[].inventory[].type":
+  "state.actorState[].volatile.conditions[].modifier": "full-engine slot, unwritable in lite (see conditions[].stat).",
+  "state.actorState[].volatile.conditions[].turnsLeft": "full-engine slot, unwritable in lite (see conditions[].stat).",
+  "state.actorState[].volatile.inventory[].id": "the minted addressing id (the `inventory.<id>` lock path) — never model-facing.",
+  "state.actorState[].volatile.inventory[].type":
     "the full-engine equip/filter taxonomy; the lite applier writes the EMPTY STRING unconditionally (`applyUpdateInventory`), so there is no value to render.",
-  "state.actorState[].inventory[].icon":
+  "state.actorState[].volatile.inventory[].icon":
     "a HOST display pick from the `@orb/ui/icons` seal (#37) — panel decoration, absent from every model write surface by design.",
   "state.quests[].id": "the minted quest id (the `quests.<id>` lock path + the hand-edit address) — never model-facing (the model addresses a quest by NAME).",
   "state.quests[].objectives[].id": "the per-objective addressing id; the model completes objectives BY TEXT (`completeObjectives`).",
   "state.fieldLocks.*":
     "manual-edit-wins BOOKKEEPING, deliberately invisible to the model: D113 #4 — the reminder is the model's KNOWLEDGE and the tools are its permissions, so a locked field renders in full and the lock bites only at the write schema (proven by the lock matrix below).",
-  "sheet.maxHp":
-    "the FULL-mode hp dial: in lite health is a TRACKER (D86 — `rpg-actor-trackers.tsx` carries no HP arm), and what the reminder renders is the VOLATILE plane's `hp.max`. Nothing in lite writes this field.",
+
   "tracker.key":
     "the ADDRESSING key every stored value/lock/write-arm joins on (never a label — a rename must not orphan a value); `label` is the model-facing name.",
   "tracker.write":
@@ -114,16 +112,15 @@ const DELTA_UNRENDERED: Readonly<Record<string, string>> = {
   "state.weather.visibility": "a full-engine storage field with no lite write door (see state.weather.temperatureC).",
   "state.weather.description":
     "hand-edit-only (absent from `update_scene.weather`); the weather TRANSITION line diffs the DISPLAYED text (`rpgWeatherText` = label ?? type), which is the one home for that string.",
-  "state.presentCharacters[].key": "the CORRELATION key of the presentCast + relationship renderers — load-bearing, printed nowhere (the `name` is the datum).",
-  "state.presentCharacters[].characterId": "an addressing linkage id to a roster character row — an id is never model-facing (projection-clean law).",
-  "state.presentCharacters[].emoji":
+  "state.actorState[].identity.characterId": "the promotion JOIN id to a roster character row — an id is never model-facing (projection-clean law).",
+  "state.actorState[].identity.emoji":
     "cast DECORATION re-authored by the extraction every beat; a diff of it would fire constantly and say nothing the absolute line doesn't.",
-  "state.presentCharacters[].mood":
+  "state.actorState[].identity.mood":
     "re-observed every beat by the extraction round (the model just wrote it) — the absolute cast line carries it; diffing it is noise, not a beat.",
-  "state.presentCharacters[].appearance":
+  "state.actorState[].identity.appearance":
     "a STANDING guide the extraction re-authors every beat (RV-11); the reminder's continuation line carries it absolutely.",
-  "state.presentCharacters[].outfit": "a standing guide the extraction re-authors every beat; absolute-only (see presentCharacters[].appearance).",
-  "state.presentCharacters[].thoughts": "a standing guide the extraction re-authors every beat; absolute-only (see presentCharacters[].appearance).",
+  "state.actorState[].identity.outfit": "a standing guide the extraction re-authors every beat; absolute-only (see identity.appearance).",
+  "state.actorState[].identity.thoughts": "a standing guide the extraction re-authors every beat; absolute-only (see identity.appearance).",
   "state.recentEvents[]":
     "EXCLUDED BY CONSTRUCTION (`PLANE_DIFF_RENDERERS` header): a beat is an APPEND, not a mutation — the reminder's Recent-beats block is the whole record.",
   "state.actorState[].actorRef.kind":
@@ -131,19 +128,19 @@ const DELTA_UNRENDERED: Readonly<Record<string, string>> = {
   "state.actorState[].actorRef.characterId": "addressing, and an id is never model-facing (see state.actorState[].actorRef.kind).",
   "state.actorState[].actorRef.userId": "addressing, and an id is never model-facing (see state.actorState[].actorRef.kind).",
   "state.actorState[].actorRef.castKey": "addressing (see actorRef.kind) — it IS the cast line's label, which the reminder probe covers.",
-  "state.actorState[].conditions[].stat": "full-engine slot, unwritable in lite (reminder cite); the conditions diff matches by NAME.",
-  "state.actorState[].conditions[].modifier": "a full-engine condition slot lite never writes (see state.actorState[].conditions[].stat).",
-  "state.actorState[].conditions[].turnsLeft": "a full-engine condition slot lite never writes (see state.actorState[].conditions[].stat).",
-  "state.actorState[].inventory[].id": "the inventory diff matches by NAME (a re-added item mints a new id — an id diff would report a phantom swap).",
-  "state.actorState[].inventory[].description":
+  "state.actorState[].volatile.conditions[].stat": "full-engine slot, unwritable in lite (reminder cite); the conditions diff matches by NAME.",
+  "state.actorState[].volatile.conditions[].modifier": "a full-engine condition slot lite never writes (see state.actorState[].conditions[].stat).",
+  "state.actorState[].volatile.conditions[].turnsLeft": "a full-engine condition slot lite never writes (see state.actorState[].conditions[].stat).",
+  "state.actorState[].volatile.inventory[].id": "the inventory diff matches by NAME (a re-added item mints a new id — an id diff would report a phantom swap).",
+  "state.actorState[].volatile.inventory[].description":
     "WRITE-ONCE AT ADD: `applyUpdateInventory` only pushes and removes — there is no edit arm, so an item's annotation never TRANSITIONS. The `+rope` line is the beat; the absolute carrying line (which now renders the capped note, owner ruling 2026-08-01) carries the prose.",
-  "state.actorState[].inventory[].location":
+  "state.actorState[].volatile.inventory[].location":
     "write-once at add, exactly like inventory[].description — no edit door exists, so a location change is not a transition the diff could name. A re-add is a NEW row the add/remove lines already report.",
-  "state.actorState[].inventory[].type": "always the empty string in lite (the applier writes no taxonomy), so there is nothing to diff.",
-  "state.actorState[].inventory[].icon": "a HOST display pick from the icon seal — unwritable by play, so no beat can ever move it.",
-  "state.actorState[].status":
+  "state.actorState[].volatile.inventory[].type": "always the empty string in lite (the applier writes no taxonomy), so there is nothing to diff.",
+  "state.actorState[].volatile.inventory[].icon": "a HOST display pick from the icon seal — unwritable by play, so no beat can ever move it.",
+  "state.actorState[].volatile.status":
     "a free-prose state the beat OVERWRITES (`update_party.status`), re-authored whenever it moves — same class as cast `mood`: the reminder's absolute line is the honest home, and a transition line would fire on every re-phrasing.",
-  "state.actorState[].trackerValues.*.max":
+  "state.actorState[].volatile.trackerValues.*.max":
     "the per-carrier CEILING is HOST-authored (no tool arm carries `max`) — a ceiling edit is authoring, not a beat; the reading's transition line already prints the effective ceiling.",
   "state.trackerValues.*.max": "host-authored ceiling (see actorState[].trackerValues.*.max).",
   "state.quests[].id": "the quest diff matches by `id`; the line names the quest by NAME.",
@@ -156,7 +153,6 @@ const DELTA_UNRENDERED: Readonly<Record<string, string>> = {
   "sheet.className":
     "THE SHEET IS NOT A SNAPSHOT PLANE — the delta diffs two `RpgSnapshotState`s, and sheets live in `rpg_sheets` (identity, hand-written, not a beat). Structurally unreachable, not merely unrendered.",
   "sheet.attributes.*": "identity plane, not a snapshot plane (see sheet.className).",
-  "sheet.maxHp": "identity plane, and a full-mode dial besides (reminder cite).",
   "sheet.flavor": "identity plane, not a snapshot plane (see sheet.className).",
   "sheet.level": "identity plane — and EXPLICITLY excluded by the delta registry header (hand-only progression the prose doesn't react to).",
   "sheet.trackerGrants[]": "identity plane; carriage is a READ concern (it decides which trackers a carrier's lines show).",
@@ -180,27 +176,26 @@ const MACRO_UNRENDERED: Readonly<Record<string, string>> = {
   "state.weather.temperatureC": "a full-ENGINE storage field lite never writes, so there is never a value to stage (see the reminder cite).",
   "state.weather.wind": "a full-engine storage field, unwritable in lite (see state.weather.temperatureC).",
   "state.weather.visibility": "a full-engine storage field, unwritable in lite (see state.weather.temperatureC).",
-  "state.presentCharacters[].key":
-    "the ADDRESSING key — and load-bearing HERE specifically: the feed joins `castTrackers`/`castVolatile` on it to build a member's line. Printed nowhere; `name` is the datum.",
-  "state.presentCharacters[].characterId": "an optional linkage id to a roster character row — an id is never model-facing (projection-clean law).",
+  "state.presentCharacters[]":
+    "the PRESENCE plane is a list of ADDRESSING keys (`actorRefKey`) since R2 — it decides WHICH actors the feed's `Present:` block carries. Printed nowhere; each actor's `identity.name` is the datum.",
+  "state.actorState[].identity.characterId": "the promotion JOIN id to a roster character row — an id is never model-facing (projection-clean law).",
   "state.actorState[].actorRef.kind": "addressing — a line is LABELLED by the roster projection / cast key, never by printing the ref (see the reminder cite).",
   "state.actorState[].actorRef.characterId": "addressing, and an id is never model-facing (see state.actorState[].actorRef.kind).",
   "state.actorState[].actorRef.userId": "addressing, and an id is never model-facing (see state.actorState[].actorRef.kind).",
   "state.actorState[].actorRef.castKey": "addressing — it joins the volatile row to its cast member; the member's `name` is what the line prints.",
-  "state.actorState[].conditions[].stat":
+  "state.actorState[].volatile.conditions[].stat":
     "a full-ENGINE condition slot lite never writes (`update_party.addCondition` carries `name` only — the reminder cite).",
-  "state.actorState[].conditions[].modifier": "full-engine slot, unwritable in lite (see state.actorState[].conditions[].stat).",
-  "state.actorState[].conditions[].turnsLeft": "full-engine slot, unwritable in lite (see state.actorState[].conditions[].stat).",
-  "state.actorState[].inventory[].id": "the minted addressing id (the `inventory.<id>` lock path) — never model-facing.",
-  "state.actorState[].inventory[].type":
+  "state.actorState[].volatile.conditions[].modifier": "full-engine slot, unwritable in lite (see state.actorState[].conditions[].stat).",
+  "state.actorState[].volatile.conditions[].turnsLeft": "full-engine slot, unwritable in lite (see state.actorState[].conditions[].stat).",
+  "state.actorState[].volatile.inventory[].id": "the minted addressing id (the `inventory.<id>` lock path) — never model-facing.",
+  "state.actorState[].volatile.inventory[].type":
     "the lite applier writes the EMPTY STRING unconditionally, so there is no taxonomy value to stage (the reminder cite).",
-  "state.actorState[].inventory[].icon":
+  "state.actorState[].volatile.inventory[].icon":
     "a HOST display pick from the `@orb/ui/icons` seal — panel decoration, absent from every model write surface by design.",
   "state.quests[].id": "the minted quest id (the lock path + the hand-edit address) — the model addresses a quest by NAME.",
   "state.quests[].objectives[].id": "the per-objective addressing id; the model completes objectives BY TEXT.",
   "state.fieldLocks.*": "manual-edit-wins BOOKKEEPING, deliberately invisible to the model on every read surface (D113 #4 — see the reminder cite).",
-  "sheet.maxHp":
-    "the FULL-mode hp dial — in lite health is a TRACKER (D86) and the volatile plane's `hp.max` is what the composed line renders. Nothing in lite writes it.",
+
   "tracker.key": "the ADDRESSING key every stored value/lock/write-arm joins on; `label` is the model-facing name.",
   "tracker.write":
     "the WRITE axis — it picks the tool arm the model is handed, never a read datum (proven live by `actorTrackerWriteKeys` in the lock matrix).",
@@ -265,10 +260,25 @@ const CARRIERS: Readonly<Record<CarrierKind, Carrier>> = {
     label: "Mari",
     targetRef: "Mari",
     roster: [],
-    actorRef: { kind: "cast", castKey: "Mari" },
+    actorRef: { kind: "cast", castKey: "mari" },
     onStage: true,
   },
 };
+
+/** The strings a carrier's ADDRESSING key would print if a display-name join ever fell back to it. Derived
+ *  from the carrier's own ref so a new carrier kind cannot be added without one. */
+function refKeyNeedles(carrier: Carrier): readonly string[] {
+  const ref = carrier.actorRef;
+  if (ref.kind === "character") {
+    return [`character:${ref.characterId}`, ref.characterId];
+  }
+  if (ref.kind === "user") {
+    return [`user:${ref.userId}`, ref.userId];
+  }
+  // A CAST actor's slug key is not an id — it is a legitimate (if ugly) fallback label, and the display name
+  // is what must win. Assert the key form only.
+  return [`cast:${ref.castKey}`];
+}
 
 interface Fixture {
   readonly chatId: ChatId;
@@ -401,8 +411,12 @@ interface FieldProbe {
   readonly drive: (f: Fixture) => Promise<void>;
   readonly reminder: (f: Fixture) => readonly string[];
   /** Strings that must NOT appear (the field-state half of the matrix: an empty/filtered field renders NOTHING —
-   *  no dangling label, no phantom row). */
+   *  no dangling label, no phantom row). Asserted against the ABSOLUTE state block. */
   readonly absent?: (f: Fixture) => readonly string[];
+  /** Strings that must NOT appear ANYWHERE in the assembled reminder — the state block, the delta/SCENE-OPENS
+   *  block and the teaching blocks together. The block-scoped `absent` above could not see the SCENE OPENS
+   *  arm at all, which is precisely where a raw ref key reached the model unnoticed. */
+  readonly reminderAbsent?: (f: Fixture) => readonly string[];
   readonly delta?: (f: Fixture) => readonly string[];
   /** What the named macro keys must carry (the third surface's positive half). */
   readonly macro?: (f: Fixture) => readonly MacroNeedle[];
@@ -433,6 +447,19 @@ const TRUST: RpgTrackerDef = rpgTrackerDefSchema.parse({
   hint: "where you stand",
 });
 const PACK: RpgTrackerDef = rpgTrackerDefSchema.parse({ key: "pack", label: "Pack", shape: "list", write: "set", subject: "actor" });
+/** The HP meter a mechanical profile SEEDS at game mint (R3 — `rpgSeedTrackers`). Health is an ordinary
+ *  tracker, so the health probe drives it through the ordinary machinery; the def is spelled here rather than
+ *  imported so the probe states the shape it is claiming reachability FOR. */
+const SEEDED_HP: RpgTrackerDef = rpgTrackerDefSchema.parse({
+  key: "hp",
+  label: "HP",
+  shape: "meter",
+  write: "delta",
+  subject: "actor",
+  appliesTo: "everyone",
+  max: 20,
+  pinned: true,
+});
 const ALARM: RpgTrackerDef = rpgTrackerDefSchema.parse({
   key: "alarm",
   label: "Alarm",
@@ -446,17 +473,18 @@ const ALARM: RpgTrackerDef = rpgTrackerDefSchema.parse({
 const PROBES: readonly FieldProbe[] = [
   // ── the per-actor VOLATILE plane, over every carrier kind ────────────────────────────────────────────────
   {
-    name: "hp — the volatile health track reads absolutely and diffs signed",
-    reminderPaths: ["state.actorState[].hp.value", "state.actorState[].hp.max"],
-    deltaPaths: ["state.actorState[].hp.value", "state.actorState[].hp.max"],
-    macroPaths: ["state.actorState[].hp.value", "state.actorState[].hp.max"],
+    // R3 — HEALTH IS A SEEDED TRACKER. It used to be a schema-privileged `hp` leaf with a bespoke tool arm, a
+    // named reminder seg, its own delta renderer and a SECOND max home on the sheet. It is an ordinary meter
+    // now, so this probe proves it through the SAME machinery every other meter uses — which is exactly the
+    // claim the demotion makes.
+    name: "health — the SEEDED hp meter reads absolutely and diffs signed like any other tracker",
+    reminderPaths: [],
     carriers: ACTOR_CARRIERS,
+    trackers: [SEEDED_HP],
     drive: async (f) => {
-      // hp is born null (nullable-honesty) and no tool arm SETS it — the host seeds the track by hand, then
-      // the beat moves it (`update_party.hpDelta`, which refuses a null-hp actor).
       await f.beat(openingBeat(f.carrier));
-      await f.handActorOps([{ op: "setHp", hp: { value: 12, max: 20 } }]);
-      await f.beat({ party: [{ targetRef: f.carrier.targetRef, hpDelta: -4 }] });
+      await f.handActorOps([{ op: "setTracker", key: "hp", value: { value: 12 } }]);
+      await f.beat({ party: [{ targetRef: f.carrier.targetRef, trackerDeltas: [{ key: "hp", delta: -4 }] }] });
     },
     reminder: (f) => [`${f.carrier.label}`, "HP 8/20"],
     delta: (f) => [`${f.carrier.label} HP 12→8 (-4)`],
@@ -465,8 +493,8 @@ const PROBES: readonly FieldProbe[] = [
   },
   {
     name: "status — the free-prose per-actor state reads absolutely",
-    reminderPaths: ["state.actorState[].status"],
-    macroPaths: ["state.actorState[].status"],
+    reminderPaths: ["state.actorState[].volatile.status"],
+    macroPaths: ["state.actorState[].volatile.status"],
     carriers: ACTOR_CARRIERS,
     drive: async (f) => {
       await f.beat({ ...stageCast(f.carrier), party: [{ targetRef: f.carrier.targetRef, status: "favouring one leg" }] });
@@ -476,9 +504,9 @@ const PROBES: readonly FieldProbe[] = [
   },
   {
     name: "conditions — an applied affliction reads on the line and diffs as +/−",
-    reminderPaths: ["state.actorState[].conditions[].name"],
-    deltaPaths: ["state.actorState[].conditions[].name"],
-    macroPaths: ["state.actorState[].conditions[].name"],
+    reminderPaths: ["state.actorState[].volatile.conditions[].name"],
+    deltaPaths: ["state.actorState[].volatile.conditions[].name"],
+    macroPaths: ["state.actorState[].volatile.conditions[].name"],
     carriers: ACTOR_CARRIERS,
     drive: async (f) => {
       await f.beat({ ...stageCast(f.carrier), party: [{ targetRef: f.carrier.targetRef, addCondition: { name: "poisoned" } }] });
@@ -493,17 +521,17 @@ const PROBES: readonly FieldProbe[] = [
   {
     name: "inventory — carried items read by name × quantity + their capped annotation, and diff on add/remove/qty",
     reminderPaths: [
-      "state.actorState[].inventory[].name",
-      "state.actorState[].inventory[].quantity",
-      "state.actorState[].inventory[].location",
-      "state.actorState[].inventory[].description",
+      "state.actorState[].volatile.inventory[].name",
+      "state.actorState[].volatile.inventory[].quantity",
+      "state.actorState[].volatile.inventory[].location",
+      "state.actorState[].volatile.inventory[].description",
     ],
-    deltaPaths: ["state.actorState[].inventory[].name", "state.actorState[].inventory[].quantity"],
+    deltaPaths: ["state.actorState[].volatile.inventory[].name", "state.actorState[].volatile.inventory[].quantity"],
     macroPaths: [
-      "state.actorState[].inventory[].name",
-      "state.actorState[].inventory[].quantity",
-      "state.actorState[].inventory[].location",
-      "state.actorState[].inventory[].description",
+      "state.actorState[].volatile.inventory[].name",
+      "state.actorState[].volatile.inventory[].quantity",
+      "state.actorState[].volatile.inventory[].location",
+      "state.actorState[].volatile.inventory[].description",
     ],
     carriers: ACTOR_CARRIERS,
     drive: async (f) => {
@@ -532,9 +560,9 @@ const PROBES: readonly FieldProbe[] = [
   },
   {
     name: "wallet — a named amount reads on the line and diffs signed",
-    reminderPaths: ["state.actorState[].wallet[].name", "state.actorState[].wallet[].amount"],
-    deltaPaths: ["state.actorState[].wallet[].name", "state.actorState[].wallet[].amount"],
-    macroPaths: ["state.actorState[].wallet[].name", "state.actorState[].wallet[].amount"],
+    reminderPaths: ["state.actorState[].volatile.wallet[].name", "state.actorState[].volatile.wallet[].amount"],
+    deltaPaths: ["state.actorState[].volatile.wallet[].name", "state.actorState[].volatile.wallet[].amount"],
+    macroPaths: ["state.actorState[].volatile.wallet[].name", "state.actorState[].volatile.wallet[].amount"],
     carriers: ACTOR_CARRIERS,
     drive: async (f) => {
       await f.beat({ ...stageCast(f.carrier), inventory: [{ targetRef: f.carrier.targetRef, walletDeltas: [{ name: "gold", delta: 40 }] }] });
@@ -547,7 +575,7 @@ const PROBES: readonly FieldProbe[] = [
   {
     name: "tracker meter — the value, the effective ceiling and the taught hint reach the model",
     reminderPaths: [
-      "state.actorState[].trackerValues.*.value",
+      "state.actorState[].volatile.trackerValues.*.value",
       "tracker.label",
       "tracker.hint",
       "tracker.max",
@@ -555,9 +583,9 @@ const PROBES: readonly FieldProbe[] = [
       "tracker.subject",
       "tracker.appliesTo",
     ],
-    deltaPaths: ["state.actorState[].trackerValues.*.value", "tracker.label", "tracker.hint", "tracker.max", "tracker.shape", "tracker.subject"],
+    deltaPaths: ["state.actorState[].volatile.trackerValues.*.value", "tracker.label", "tracker.hint", "tracker.max", "tracker.shape", "tracker.subject"],
     macroPaths: [
-      "state.actorState[].trackerValues.*.value",
+      "state.actorState[].volatile.trackerValues.*.value",
       "tracker.label",
       "tracker.hint",
       "tracker.max",
@@ -582,9 +610,9 @@ const PROBES: readonly FieldProbe[] = [
   },
   {
     name: "tracker text — a `set` reading reads as `label: value` and diffs as a transition",
-    reminderPaths: ["state.actorState[].trackerValues.*.value"],
-    deltaPaths: ["state.actorState[].trackerValues.*.value"],
-    macroPaths: ["state.actorState[].trackerValues.*.value"],
+    reminderPaths: ["state.actorState[].volatile.trackerValues.*.value"],
+    deltaPaths: ["state.actorState[].volatile.trackerValues.*.value"],
+    macroPaths: ["state.actorState[].volatile.trackerValues.*.value"],
     carriers: ACTOR_CARRIERS,
     trackers: [TRUST],
     drive: async (f) => {
@@ -597,9 +625,9 @@ const PROBES: readonly FieldProbe[] = [
   },
   {
     name: "tracker list — the items read joined and diff as one transition",
-    reminderPaths: ["state.actorState[].trackerValues.*.items[]"],
-    deltaPaths: ["state.actorState[].trackerValues.*.items[]"],
-    macroPaths: ["state.actorState[].trackerValues.*.items[]"],
+    reminderPaths: ["state.actorState[].volatile.trackerValues.*.items[]"],
+    deltaPaths: ["state.actorState[].volatile.trackerValues.*.items[]"],
+    macroPaths: ["state.actorState[].volatile.trackerValues.*.items[]"],
     carriers: ACTOR_CARRIERS,
     trackers: [PACK],
     drive: async (f) => {
@@ -612,8 +640,8 @@ const PROBES: readonly FieldProbe[] = [
   },
   {
     name: "tracker max OVERRIDE — the carrier's own ceiling is what the model is taught",
-    reminderPaths: ["state.actorState[].trackerValues.*.max"],
-    macroPaths: ["state.actorState[].trackerValues.*.max"],
+    reminderPaths: ["state.actorState[].volatile.trackerValues.*.max"],
+    macroPaths: ["state.actorState[].volatile.trackerValues.*.max"],
     carriers: ACTOR_CARRIERS,
     trackers: [MANA],
     drive: async (f) => {
@@ -626,25 +654,46 @@ const PROBES: readonly FieldProbe[] = [
     macro: () => [{ key: "rpgCast", text: "Mana 4/6" }],
     macroAbsent: () => [{ key: "rpgCast", text: "Mana 4/10" }],
   },
+  // ── the FIRST-SNAPSHOT (SCENE OPENS) arm, over EVERY carrier kind ───────────────────────────────────────
+  {
+    // THE MATRIX HOLE THIS CLOSES: every scene-plane probe below stages a CAST carrier only, so the
+    // first-snapshot block was never read with a ROSTER member on stage — and a roster actor carries no
+    // identity by R2 design, so the presence-key→name join fell back to the raw `character:chr_…`/`user:usr_…`
+    // ref and printed it into the model's prompt. That fires on turn 1 of effectively every new game (the
+    // establish-when-unset arm FORCES a non-empty cast, and the model habitually lists the roster character),
+    // and a branded id is never model-facing — the projection-clean law this suite's own cites invoke.
+    //
+    // ONE beat means `prev === null` on the lineage, which is exactly the arm under test.
+    name: "SCENE OPENS — the first snapshot names an on-stage actor by her DISPLAY NAME, never her ref key",
+    reminderPaths: [],
+    carriers: ACTOR_CARRIERS,
+    drive: async (f) => {
+      await f.beat({ scene: { location: "The Ford", presentUpsert: [{ name: f.carrier.targetRef }] } });
+    },
+    reminder: (f) => [`${RPG_SCENE_OPENS_HEADING}: The Ford · with ${f.carrier.label}`],
+    // The ref key in ANY of its spellings — the raw projection AND its bare id half (a `user:` prefix could be
+    // stripped and the TypeID still leak).
+    reminderAbsent: (f) => refKeyNeedles(f.carrier),
+  },
   // ── the SCENE-CAST identity plane ────────────────────────────────────────────────────────────────────────
   {
     name: "cast identity — name, emoji, mood and the three standing guides reach the model",
     reminderPaths: [
-      "state.presentCharacters[].name",
-      "state.presentCharacters[].emoji",
-      "state.presentCharacters[].mood",
-      "state.presentCharacters[].appearance",
-      "state.presentCharacters[].outfit",
-      "state.presentCharacters[].thoughts",
+      "state.actorState[].identity.name",
+      "state.actorState[].identity.emoji",
+      "state.actorState[].identity.mood",
+      "state.actorState[].identity.appearance",
+      "state.actorState[].identity.outfit",
+      "state.actorState[].identity.thoughts",
     ],
-    deltaPaths: ["state.presentCharacters[].name"],
+    deltaPaths: ["state.actorState[].identity.name"],
     macroPaths: [
-      "state.presentCharacters[].name",
-      "state.presentCharacters[].emoji",
-      "state.presentCharacters[].mood",
-      "state.presentCharacters[].appearance",
-      "state.presentCharacters[].outfit",
-      "state.presentCharacters[].thoughts",
+      "state.actorState[].identity.name",
+      "state.actorState[].identity.emoji",
+      "state.actorState[].identity.mood",
+      "state.actorState[].identity.appearance",
+      "state.actorState[].identity.outfit",
+      "state.actorState[].identity.thoughts",
     ],
     drive: async (f) => {
       await f.beat({ scene: { presentUpsert: [{ name: "Vesna" }] } });
@@ -678,24 +727,30 @@ const PROBES: readonly FieldProbe[] = [
     ],
   },
   {
-    name: "cast exit — a member the scene drops leaves the read surface and diffs",
-    reminderPaths: [],
-    deltaPaths: ["state.presentCharacters[].name"],
+    // R2 FLIPPED THIS PROBE'S CENTRAL CLAIM, deliberately. A departure used to DESTROY the member's row, so
+    // "she leaves the read surface" was literally true — and it was the defect: her name, mood, stance and
+    // standing guides were gone, while her tracked state survived on a plane no reader projected. Departure is
+    // a PRESENCE drop now, so she leaves the `Present:` block and lands on the terse `Known, offstage` roster,
+    // which is what lets the model bring her back as a continuation instead of re-inventing her.
+    name: "cast exit — a member the scene drops leaves the PRESENT block for the offstage roster, and diffs",
+    reminderPaths: ["state.presentCharacters[]"],
+    deltaPaths: ["state.presentCharacters[]", "state.actorState[].identity.name"],
     drive: async (f) => {
       await f.beat({ scene: { presentUpsert: [{ name: "Vesna" }, { name: "Bran" }] } });
       await f.beat({ scene: { presentRemove: ["Bran"] } });
     },
-    reminder: () => ["- Vesna"],
-    absent: () => ["Bran"],
+    reminder: () => ["Present:\n- Vesna", "Known, offstage", "- Bran"],
     delta: () => ["-Bran leaves"],
     macro: () => [{ key: "rpgSceneState", text: "- Vesna" }],
+    // The MACRO feed's Present block is the on-stage cast only — the offstage roster is a REMINDER-side
+    // steering line, not a preset-facing plane (the feed carries no vocabulary/teaching lines either).
     macroAbsent: () => [{ key: "rpgSceneState", text: "Bran" }],
   },
   {
     name: "relationship — the stance reads glossed by its host hint and diffs as a transition",
-    reminderPaths: ["state.presentCharacters[].relationship.kind", "state.presentCharacters[].relationship.label"],
-    deltaPaths: ["state.presentCharacters[].relationship.kind", "state.presentCharacters[].relationship.label"],
-    macroPaths: ["state.presentCharacters[].relationship.kind", "state.presentCharacters[].relationship.label"],
+    reminderPaths: ["state.actorState[].identity.relationship.kind", "state.actorState[].identity.relationship.label"],
+    deltaPaths: ["state.actorState[].identity.relationship.kind", "state.actorState[].identity.relationship.label"],
+    macroPaths: ["state.actorState[].identity.relationship.kind", "state.actorState[].identity.relationship.label"],
     drive: async (f) => {
       await f.h.service.updateConfig({ principal: HOST, chatId: f.chatId, patch: { relationshipHints: { vassal: "sworn to serve but resentful" } } });
       await f.beat({ scene: { presentUpsert: [{ name: "Mari", relationship: { kind: "friend" } }] } });
@@ -960,6 +1015,9 @@ for (const probe of PROBES) {
       const reminder = await f.reminder();
       for (const needle of probe.reminder(f)) {
         expect(reminder, `reminder must carry ${needle}`).toContain(needle);
+      }
+      for (const needle of probe.reminderAbsent?.(f) ?? []) {
+        expect(reminder, `the reminder must NOT carry ${needle} ANYWHERE`).not.toContain(needle);
       }
       // Absence is asserted against the ABSOLUTE block: an emptied/filtered field must leave no dangling label
       // there, while the delta may still legitimately narrate the transition that emptied it.

@@ -84,14 +84,15 @@ function perActor(
   return out;
 }
 
-/** A volatile row's display label. A roster actor (character/user) resolves to its display NAME through
- *  `ctx.rosterNames` (P0 fold-in #5 — "Kael HP 12→16", not "character HP 12→16"); a `cast` NPC's key IS its
- *  human-facing name. The roster join arrives as DATA (the gather resolved it), so the diff stays pure. Falls
- *  back to the generic label when the roster map has no name for the key (a gone member — never a crash). */
+/** An actor row's display label. A roster actor (character/user) resolves to its display NAME through
+ *  `ctx.rosterNames` (P0 fold-in #5 — "Kael Vitality 12→16", not "character Vitality 12→16"); a `cast` NPC
+ *  carries her own (`identity.name`, R2 — the slug key is deliberately NOT a display name). The roster join
+ *  arrives as DATA (the gather resolved it), so the diff stays pure. Falls back to the generic label when the
+ *  roster map has no name for the key (a gone member — never a crash). */
 function actorLabel(row: ActorState[number], ctx: DeltaContext): string {
   const ref = row.actorRef;
   if (ref.kind === "cast") {
-    return ref.castKey;
+    return row.identity?.name ?? ref.castKey;
   }
   const named = ctx.rosterNames[volatileKey(row)];
   if (named !== undefined && named !== "") {
@@ -100,22 +101,9 @@ function actorLabel(row: ActorState[number], ctx: DeltaContext): string {
   return ref.kind === "character" ? "character" : "you";
 }
 
-/** HP — a per-actor signed numeric delta (`HP 12→16 (+4)`). A null↔value transition reads as a set-to. */
-const hpRenderer: PlaneDiffRenderer<ActorState> = {
-  plane: "hp",
-  select: (s) => s.actorState,
-  render: (prev, cur, ctx) =>
-    perActor(cur, prev, ctx, (name, p, c) => {
-      const pHp = p?.hp ?? null;
-      if (c.hp === null) {
-        return pHp !== null ? [`${name} HP → none`] : [];
-      }
-      if (pHp === null) {
-        return [`${name} HP → ${c.hp.value}/${c.hp.max}`];
-      }
-      return pHp.value !== c.hp.value ? [`${name} ${numDelta("HP", pHp.value, c.hp.value)}`] : [];
-    }),
-};
+// There is NO `hp` renderer (R3): health is an ordinary `meter` tracker, so its delta line is emitted by
+// {@link actorTrackersRenderer} through the ONE `trackerLine` grammar — which also means it finally carries
+// the def's steering HINT, which the bespoke arm never did.
 
 /** Append the def's steering HINT to a delta line (R5b): `Kael Mana 5→2 (-3) — fuels spellcasting`. The
  *  delta block is the license's referent ("let the change land in the fiction"), so a line that says WHAT
@@ -176,7 +164,7 @@ const actorTrackersRenderer: PlaneDiffRenderer<ActorState> = {
     return perActor(cur, prev, ctx, (name, p, c) => {
       const out: string[] = [];
       for (const def of actorDefs) {
-        const line = trackerLine(name, def, p?.trackerValues[def.key], c.trackerValues[def.key]);
+        const line = trackerLine(name, def, p?.volatile.trackerValues[def.key], c.volatile.trackerValues[def.key]);
         if (line !== null) {
           out.push(line);
         }
@@ -212,9 +200,9 @@ const conditionsRenderer: PlaneDiffRenderer<ActorState> = {
   select: (s) => s.actorState,
   render: (prev, cur, ctx) =>
     perActor(cur, prev, ctx, (name, p, c) => {
-      const before = new Set((p?.conditions ?? []).map((x) => x.name));
-      const after = new Set(c.conditions.map((x) => x.name));
-      const added = c.conditions.filter((x) => !before.has(x.name)).map((x) => `+${x.name} (${name})`);
+      const before = new Set((p?.volatile.conditions ?? []).map((x) => x.name));
+      const after = new Set(c.volatile.conditions.map((x) => x.name));
+      const added = c.volatile.conditions.filter((x) => !before.has(x.name)).map((x) => `+${x.name} (${name})`);
       const removed = [...before].filter((x) => !after.has(x)).map((x) => `-${x} (${name})`);
       return [...added, ...removed];
     }),
@@ -226,9 +214,9 @@ const inventoryRenderer: PlaneDiffRenderer<ActorState> = {
   select: (s) => s.actorState,
   render: (prev, cur, ctx) =>
     perActor(cur, prev, ctx, (name, p, c) => {
-      const prevQty = new Map((p?.inventory ?? []).map((x) => [x.name, x.quantity]));
+      const prevQty = new Map((p?.volatile.inventory ?? []).map((x) => [x.name, x.quantity]));
       const out: string[] = [];
-      for (const item of c.inventory) {
+      for (const item of c.volatile.inventory) {
         const was = prevQty.get(item.name);
         if (was === undefined) {
           out.push(`+${item.name} (${name})`);
@@ -250,9 +238,9 @@ const walletRenderer: PlaneDiffRenderer<ActorState> = {
   select: (s) => s.actorState,
   render: (prev, cur, ctx) =>
     perActor(cur, prev, ctx, (name, p, c) => {
-      const prevAmt = new Map((p?.wallet ?? []).map((x) => [x.name, x.amount]));
+      const prevAmt = new Map((p?.volatile.wallet ?? []).map((x) => [x.name, x.amount]));
       const out: string[] = [];
-      for (const w of c.wallet) {
+      for (const w of c.volatile.wallet) {
         const was = prevAmt.get(w.name);
         if (was === undefined) {
           out.push(`${name} ${w.name} → ${w.amount}`);
@@ -320,17 +308,36 @@ const ambientRenderer: PlaneDiffRenderer<AmbientSlice> = {
   },
 };
 
-/** Present cast — joined / left the scene (`+Zandik enters`, `-Mari leaves`), matched by the stable cast key.
- *  (A cast member's per-field diff — mood/customFields/relationship — is P1's cast-field + relationship
- *  renderers, registered separately; this renderer reports only scene ENTRY/EXIT.) */
-const presentCastRenderer: PlaneDiffRenderer<RpgSnapshotState["presentCharacters"]> = {
+/** The PRESENCE slice a scene entry/exit diff needs (R2): who is on stage, plus the actor plane the display
+ *  names come off (a presence entry is a bare `actorRefKey` — the name lives on its actor row). */
+interface PresenceSlice {
+  readonly present: readonly string[];
+  readonly actors: ActorState;
+}
+
+/** THE presence-key → display NAME resolution, and the only one. A presence entry is a bare `actorRefKey`
+ *  (R2), so every surface that prints "who is on stage" has to join it back to its actor row — and the join
+ *  MUST go through {@link actorLabel}, because a ROSTER actor carries no identity by design: her name lives in
+ *  `ctx.rosterNames`, not on the row. Spelling the join a second time is how a branded `character:chr_…` id
+ *  reached the model prompt in the SCENE OPENS block (the projection-clean law's exact failure: "an id is
+ *  never model-facing"). One helper, both readers. */
+function presenceName(key: string, actors: ActorState, ctx: DeltaContext): string {
+  const row = actors.find((a) => volatileKey(a) === key);
+  return row === undefined ? key : actorLabel(row, ctx);
+}
+
+/** Present cast — joined / left the scene (`+Zandik enters`, `-Mari leaves`), matched by actor-ref key. (A
+ *  member's per-field diff — mood/relationship — is the relationship renderer, registered separately; this one
+ *  reports only scene ENTRY/EXIT.) A LEAVE line is now the WHOLE of what departure means: the NPC's state,
+ *  guides and stance all stay on her actor row (R2), so nothing else can diff on the way out. */
+const presentCastRenderer: PlaneDiffRenderer<PresenceSlice> = {
   plane: "presentCast",
-  select: (s) => s.presentCharacters,
-  render: (prev, cur) => {
-    const before = new Map(prev.map((c) => [c.key, c.name]));
-    const after = new Set(cur.map((c) => c.key));
-    const entered = cur.filter((c) => !before.has(c.key)).map((c) => `+${c.name} enters`);
-    const left = [...before].filter(([k]) => !after.has(k)).map(([, name]) => `-${name} leaves`);
+  select: (s) => ({ present: s.presentCharacters, actors: s.actorState }),
+  render: (prev, cur, ctx) => {
+    const before = new Set(prev.present);
+    const after = new Set(cur.present);
+    const entered = cur.present.filter((k) => !before.has(k)).map((k) => `+${presenceName(k, cur.actors, ctx)} enters`);
+    const left = prev.present.filter((k) => !after.has(k)).map((k) => `-${presenceName(k, prev.actors, ctx)} leaves`);
     return [...entered, ...left];
   },
 };
@@ -364,7 +371,7 @@ const questsRenderer: PlaneDiffRenderer<RpgSnapshotState["quests"]> = {
 /** The display form of a relationship — the bare kind, or a `custom` label (glossed with the M1 hint when the
  *  host configured one for that label: `vassal (sworn to serve but resentful)`). A custom kind with no label
  *  falls back to "custom"; a non-custom kind ignores the label (the built-ins carry their meaning). */
-function relationshipDisplay(rel: RpgSnapshotState["presentCharacters"][number]["relationship"], ctx: DeltaContext): string {
+function relationshipDisplay(rel: NonNullable<ActorState[number]["identity"]>["relationship"], ctx: DeltaContext): string {
   if (rel.kind !== "custom") {
     return rel.kind;
   }
@@ -373,27 +380,33 @@ function relationshipDisplay(rel: RpgSnapshotState["presentCharacters"][number][
   return hint !== undefined && hint !== "" ? `${label} (${hint})` : label;
 }
 
-/** Relationship (feature 1, §2.1) — a per-cast stance TRANSITION (`Mari: friend → wary`), matched by cast key.
- *  This line IS the steering loop's closed signal (the delta block's referent for "let the change land"). A
- *  first-seen cast member with a non-default stance reads as a set-to; a NEUTRAL default is silent (no beat). */
-const relationshipRenderer: PlaneDiffRenderer<RpgSnapshotState["presentCharacters"]> = {
+/** Relationship (feature 1, §2.1) — a per-cast stance TRANSITION (`Mari: friend → wary`), matched by the
+ *  ACTOR's ref key. Since R2 the stance rides the actor row, so it survives departure: a returning NPC's turn
+ *  is a real transition line instead of the silent reset-from-blank the destroyed presence row produced. This
+ *  line IS the steering loop's closed signal (the delta block's referent for "let the change land"). A
+ *  first-seen actor with a non-default stance reads as a set-to; a NEUTRAL default is silent (no beat). */
+const relationshipRenderer: PlaneDiffRenderer<ActorState> = {
   plane: "relationship",
-  select: (s) => s.presentCharacters,
+  select: (s) => s.actorState,
   render: (prev, cur, ctx) => {
-    const before = new Map(prev.map((c) => [c.key, c]));
+    const before = new Map(prev.map((a) => [volatileKey(a), a.identity]));
     const out: string[] = [];
-    for (const c of cur) {
-      const was = before.get(c.key);
-      const nextDisp = relationshipDisplay(c.relationship, ctx);
+    for (const actor of cur) {
+      const identity = actor.identity;
+      if (identity === undefined) {
+        continue; // a roster actor carries no stance of its own
+      }
+      const was = before.get(volatileKey(actor));
+      const nextDisp = relationshipDisplay(identity.relationship, ctx);
       if (was === undefined) {
-        if (c.relationship.kind !== "neutral" || c.relationship.label !== "") {
-          out.push(`${c.name}: ${nextDisp}`); // a cast member arriving with a stance already set
+        if (identity.relationship.kind !== "neutral" || identity.relationship.label !== "") {
+          out.push(`${identity.name}: ${nextDisp}`); // an actor arriving with a stance already set
         }
         continue;
       }
       const prevDisp = relationshipDisplay(was.relationship, ctx);
       if (prevDisp !== nextDisp) {
-        out.push(`${c.name}: ${prevDisp} → ${nextDisp}`);
+        out.push(`${identity.name}: ${prevDisp} → ${nextDisp}`);
       }
     }
     return out;
@@ -438,7 +451,6 @@ const plotRenderer: PlaneDiffRenderer<RpgSnapshotState["plot"]> = {
  *  widgets. `journal beats` + `level` are EXCLUDED by construction (no renderer — §2.7: a beat is an append not
  *  a mutation; level is hand-only identity the prose doesn't react to). */
 export const PLANE_DIFF_RENDERERS: readonly RegisteredPlaneDiff[] = [
-  definePlaneDiff(hpRenderer),
   definePlaneDiff(actorTrackersRenderer),
   definePlaneDiff(conditionsRenderer),
   definePlaneDiff(inventoryRenderer),
@@ -470,7 +482,7 @@ function renderPlane(r: RegisteredPlaneDiff, prev: RpgSnapshotState, cur: RpgSna
  *  born state is empty. */
 export function buildDeltaBlock(prev: RpgSnapshotState | null, cur: RpgSnapshotState, ctx: DeltaContext): string | null {
   if (prev === null) {
-    return buildFirstSnapshotBlock(cur);
+    return buildFirstSnapshotBlock(cur, ctx);
   }
   const lines: string[] = [];
   for (const r of PLANE_DIFF_RENDERERS) {
@@ -484,14 +496,19 @@ export function buildDeltaBlock(prev: RpgSnapshotState | null, cur: RpgSnapshotS
 
 /** The first-snapshot arm (§2.7): the born state as a one-line SCENE OPENS summary (setting + who's present),
  *  NOT a delta over an empty prior (which would read as "everything just changed"). Omitted (null) when the
- *  born state carries nothing worth opening on. */
-function buildFirstSnapshotBlock(cur: RpgSnapshotState): string | null {
+ *  born state carries nothing worth opening on.
+ *
+ *  It takes the `DeltaContext` for ONE reason and it is load-bearing: the presence plane stores ref KEYS, and a
+ *  ROSTER actor's name lives in `ctx.rosterNames`, not on her row. Resolving without it printed the raw
+ *  `character:chr_…`/`user:usr_…` key into the model's prompt on turn 1 of effectively every new game (the
+ *  establish-when-unset arm forces a non-empty cast, and the model habitually lists the roster character). */
+function buildFirstSnapshotBlock(cur: RpgSnapshotState, ctx: DeltaContext): string | null {
   const parts: string[] = [];
   if (cur.location !== "") {
     parts.push(cur.location);
   }
   if (cur.presentCharacters.length > 0) {
-    parts.push(`with ${cur.presentCharacters.map((c) => c.name).join(", ")}`);
+    parts.push(`with ${cur.presentCharacters.map((key) => presenceName(key, cur.actorState, ctx)).join(", ")}`);
   }
   const active = cur.quests.filter((q) => q.status === "active");
   if (active.length > 0) {

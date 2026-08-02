@@ -50,10 +50,16 @@ function viewerActor(actors: readonly RpgActorView[], viewerUserId: string): Rpg
   return actors.find((a) => a.actorRef.kind === "user" && a.actorRef.userId === viewerUserId) ?? actors[0];
 }
 
-/** Party totals per currency name, summed across every actor's wallet (§12.2 — a purse is a SUM). */
+/** Party totals per currency name, summed across every PARTY actor's wallet (§12.2 — a purse is a SUM).
+ *  Cast NPCs are excluded on purpose: `tracker.actors` carries them since R2 (which is how their pack finally
+ *  became reachable at all), but an NPC's coin is hers, not the party's — summing it would make the pinned
+ *  total lie the moment the story hands a stranger a bribe. */
 function partyTotals(actors: RpgTrackerView["actors"]): ReadonlyMap<string, number> {
   const totals = new Map<string, number>();
   for (const actor of actors) {
+    if (actor.actorRef.kind === "cast") {
+      continue;
+    }
     for (const coin of actor.volatile?.wallet ?? []) {
       totals.set(coin.name, (totals.get(coin.name) ?? 0) + coin.amount);
     }
@@ -80,6 +86,10 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
   const items = volatile?.inventory ?? [];
   const totals = partyTotals(state.tracker.actors);
   const carried = volatile?.wallet ?? [];
+  // Is the SELECTED subject part of the party total? Cast NPCs are reachable subjects since R2 (that is how
+  // their pack became visible at all) but their coin is theirs, not the party's — the same exclusion
+  // `partyTotals` makes, read back at the note that would otherwise contradict it.
+  const isPartyActor = actor !== undefined && actor.actorRef.kind !== "cast";
   // The ephemeral "last change" line (§12.2.8) — a client-side diff, no TurnRef, cleared on reload.
   const lastChange = useInventoryDiff(items);
 
@@ -101,7 +111,10 @@ export function RpgInventoryTab({ state }: RpgInventoryTabProps): ReactElement {
           <RpgSubjectSelect actors={state.tracker.actors} value={actor} onChange={setSelectedKey} ariaLabel="Whose pack" />
         </Row>
       ) : null}
-      <PurseLine totals={totals} carried={carried} actorName={actor?.name} />
+      {/* The carried NOTE is only meaningful for an actor whose coin is IN the total: `partyTotals` excludes
+          cast NPCs, so pairing an NPC's purse with the party total would read "N of the total is on her" about
+          coin the total never counted. Her own purse still renders — on her Sheet chip, where it belongs. */}
+      <PurseLine totals={totals} {...(isPartyActor ? { carried, actorName: actor.name } : {})} />
 
       <PackSection
         items={items}
@@ -193,15 +206,19 @@ function buildPackEdit(state: RpgPanelState, actor: RpgActorView, patchActor: Re
   };
 }
 
-/** The pinned party-purse line — totals per currency + the "N on <actor>" carried note. */
+/** The pinned party-purse line — totals per currency + the "N on <actor>" carried note.
+ *
+ *  `carried`/`actorName` are OMITTED for a subject whose coin is not in the total (a cast NPC — see the call
+ *  site). The note's grammar is "N OF the total is on X"; pairing it with an excluded purse said the opposite
+ *  of what `partyTotals` counted, and the reader has no way to tell which number lied. */
 function PurseLine({
   totals,
-  carried,
+  carried = [],
   actorName,
 }: {
   readonly totals: ReadonlyMap<string, number>;
-  readonly carried: readonly { readonly name: string; readonly amount: number }[];
-  readonly actorName: string | undefined;
+  readonly carried?: readonly { readonly name: string; readonly amount: number }[];
+  readonly actorName?: string | undefined;
 }): ReactElement | null {
   if (totals.size === 0) {
     return null;

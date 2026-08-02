@@ -242,19 +242,15 @@ describe("write-boundary structural backstop (stickler F1)", () => {
     const chatId = await seedChat(db, "a");
     const gameId = await seedGame(db, chatId);
     const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
-    // An `hp.max = 0` state violates the contract belt (`hp.max >= 1`) — parse-on-read would throw AFTER the
-    // insert commits. The backstop must refuse it at the write boundary, BEFORE the durable insert.
+    // A `trackerValues.<key>.max = 0` state violates the contract belt (a meter ceiling is `>= 1`) —
+    // parse-on-read would throw AFTER the insert commits. The backstop must refuse it at the write boundary,
+    // BEFORE the durable insert.
     const invalid = {
       ...emptyState(),
       actorState: [
         {
-          actorRef: { kind: "cast" as const, castKey: "Broken" },
-          hp: { value: 1, max: 0 },
-          trackerValues: {},
-          conditions: [],
-          inventory: [],
-          wallet: [],
-          status: "",
+          actorRef: { kind: "cast" as const, castKey: "broken" },
+          volatile: { trackerValues: { hp: { value: 1, items: null, max: 0 } }, conditions: [], inventory: [], wallet: [], status: "" },
         },
       ],
     };
@@ -276,18 +272,13 @@ describe("write-boundary structural backstop (stickler F1)", () => {
       ...emptyState(),
       actorState: [
         {
-          actorRef: { kind: "cast" as const, castKey: "Ok" },
-          hp: null,
-          trackerValues: { mana: { value: 0, items: null, max: null } },
-          conditions: [],
-          inventory: [],
-          wallet: [],
-          status: "",
+          actorRef: { kind: "cast" as const, castKey: "ok" },
+          volatile: { trackerValues: { mana: { value: 0, items: null, max: null } }, conditions: [], inventory: [], wallet: [], status: "" },
         },
       ],
     };
 
     const written = await writeStagedSnapshot(db, valid, target({ gameId, chatId, seq: 1, variantId, key: "ok" }));
-    expect(written.ok ? written.row.actorState?.[0]?.trackerValues : undefined).toEqual({ mana: { value: 0, items: null, max: null } });
+    expect(written.ok ? written.row.actorState?.[0]?.volatile.trackerValues : undefined).toEqual({ mana: { value: 0, items: null, max: null } });
   });
 });

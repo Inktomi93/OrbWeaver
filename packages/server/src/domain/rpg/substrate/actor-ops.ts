@@ -18,23 +18,44 @@
 // carry is REFUSED with a reason, never a silent no-op. A stale panel click is the reachable case, and "I did
 // nothing and I'm not telling you" is the exact class this door exists to kill.
 
-import type { RpgActorOp, RpgActorOpField, RpgActorVolatile, RpgInventoryItem, RpgTrackerValue } from "@orb/contracts/rpg";
-import { RPG_TRACKER_VALUE_EMPTY, rpgActorLockBase } from "@orb/contracts/rpg";
+import type { RpgActorEntry, RpgActorOp, RpgActorOpField, RpgActorRef, RpgActorVolatile, RpgInventoryItem, RpgTrackerValue } from "@orb/contracts/rpg";
+import { RPG_TRACKER_VALUE_EMPTY, rpgActorIdentityLockBase, rpgActorVolatileLockBase } from "@orb/contracts/rpg";
 import type { ApplyActorOpsResult } from "../contract/results";
 
-/** The empty volatile row a FIRST hand write on an actor with no state row seeds. The ONE home for "a fresh
- *  actor's zero state" — the tool appliers mint through here too, so a hand-minted and a model-minted row can
- *  never be born different shapes. */
-export function emptyActorVolatile(actorRef: RpgActorVolatile["actorRef"]): RpgActorVolatile {
-  return { actorRef, hp: null, trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" };
+/** The empty ACTOR ROW a first write on an actor with no state row seeds — zero volatile state, plus (for a
+ *  `cast` ref only) a born IDENTITY whose display name falls back to the slug until something authors a real
+ *  one. A cast actor IS an identity-bearing person by construction: born without one, the very first
+ *  `presentUpsert`/`setIdentityText` would have nothing to write onto. A roster actor is born WITHOUT an
+ *  identity and stays that way — her name is the chat roster's, her standing prose the sheet's — which is what
+ *  makes the identity ops' refusal arm meaningful rather than a shape accident.
+ *
+ *  The ONE home for "a fresh actor's zero state": the tool appliers mint through here too, so a hand-minted and
+ *  a model-minted row can never be born different shapes. */
+export function emptyActorEntry(actorRef: RpgActorRef): RpgActorEntry {
+  const volatile: RpgActorVolatile = { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" };
+  if (actorRef.kind !== "cast") {
+    return { actorRef, volatile };
+  }
+  return { actorRef, identity: { name: actorRef.castKey, emoji: "", mood: "", relationship: { kind: "neutral", label: "" } }, volatile };
+}
+
+/** The IDENTITY-half op arms (R2) — the ones that write `entry.identity` rather than `entry.volatile`, and
+ *  therefore pin under a different lock base. Derived by EXCLUSION from the op union, so a new volatile arm is
+ *  volatile by default and a new identity arm must be named here or `tsc` reds at {@link OP_FIELD}. */
+const IDENTITY_OP_NAMES = ["setIdentityText", "setRelationship"] as const satisfies readonly RpgActorOp["op"][];
+type IdentityOpName = (typeof IDENTITY_OP_NAMES)[number];
+type VolatileOpName = Exclude<RpgActorOp["op"], IdentityOpName>;
+
+/** Is this op an identity-half write? A membership test over the tuple above (never a second literal list). */
+function isIdentityOp(op: RpgActorOp): op is Extract<RpgActorOp, { op: IdentityOpName }> {
+  return (IDENTITY_OP_NAMES as readonly string[]).includes(op.op);
 }
 
 /** Which volatile FIELD each op writes — the lock-path segment and the `RPG_ACTOR_OP_FIELDS` vocabulary in one
  *  mapped-type Record: a new op arm fails `tsc` here (§5.5 string-union dispatch), and a renamed volatile field
  *  fails at the tuple the values are pinned to. */
-const OP_FIELD: Readonly<Record<RpgActorOp["op"], RpgActorOpField>> = {
+const OP_FIELD: Readonly<Record<VolatileOpName, RpgActorOpField>> = {
   setStatus: "status",
-  setHp: "hp",
   setTracker: "trackerValues",
   addCondition: "conditions",
   removeCondition: "conditions",
@@ -61,10 +82,18 @@ function lockSub(op: RpgActorOp): string {
   return "";
 }
 
-/** The lock path one op stamps: `actorState.<actorKey>.<field>[.<element>]` (the ONE grammar, shared with the
- *  panel's pin reader through `rpgActorLockBase`). */
-function lockPathFor(actor: RpgActorVolatile, op: RpgActorOp): string {
-  return `${rpgActorLockBase(actor.actorRef)}.${OP_FIELD[op.op]}${lockSub(op)}`;
+/** The lock path one op stamps — `actorState.<actorKey>.volatile.<field>[.<element>]` for a volatile write,
+ *  `actorState.<actorKey>.identity.<field>` for an identity one (the ONE grammar, shared with the panel's pin
+ *  reader through the two exported lock bases). The `volatile`/`identity` segment is not decoration: the merge
+ *  walks the stored JSON, so a path that skipped it would pin nothing. */
+function lockPathFor(ref: RpgActorRef, op: RpgActorOp): string {
+  if (op.op === "setRelationship") {
+    return `${rpgActorIdentityLockBase(ref)}.relationship`;
+  }
+  if (op.op === "setIdentityText") {
+    return `${rpgActorIdentityLockBase(ref)}.${op.field}`;
+  }
+  return `${rpgActorVolatileLockBase(ref)}.${OP_FIELD[op.op]}${lockSub(op)}`;
 }
 
 /** An omitted datum KEEPS the current one; an explicit `null` is a real VALUE (a cleared ceiling, an unset
@@ -153,21 +182,19 @@ function applyWalletOp(actor: RpgActorVolatile, op: Op<"setWalletAmount">): RpgA
   return { ...actor, wallet };
 }
 
-/** Apply ONE op to a row. `null` = refused (the caller composes the reason from the op).
+/** Apply ONE VOLATILE op to a row's volatile half. `null` = refused (the caller composes the reason).
  *
- *  Dispatches on the CLEAN `RpgActorOp["op"]` string union via the local binding — NOT on `op.op` directly:
+ *  Dispatches on the CLEAN `VolatileOpName` string union via the local binding — NOT on `op.op` directly:
  *  biome's `noUnnecessaryConditions` cannot narrow a `z.infer` zod discriminated union (proven in-tree — see
  *  `domain/automation/engine/arm-executors.ts`, which switches the same way for the same reason), so
  *  `switch (op.op)` reads every case as unreachable. Switching on the bare string union keeps `default: never`
  *  as the exhaustiveness pin (a new op arm fails `tsc`) with NO suppression; the per-arm `as Op<…>` cast is the
  *  price of narrowing off the string rather than the object, sound by construction. */
-function applyOne(actor: RpgActorVolatile, op: RpgActorOp, mintItemId: () => string): RpgActorVolatile | null {
-  const kind: RpgActorOp["op"] = op.op;
+function applyVolatileOp(actor: RpgActorVolatile, op: Extract<RpgActorOp, { op: VolatileOpName }>, mintItemId: () => string): RpgActorVolatile | null {
+  const kind: VolatileOpName = op.op;
   switch (kind) {
     case "setStatus":
       return { ...actor, status: (op as Op<"setStatus">).status };
-    case "setHp":
-      return { ...actor, hp: (op as Op<"setHp">).hp };
     case "setTracker": {
       const set = op as Op<"setTracker">;
       return { ...actor, trackerValues: writeTracker(actor.trackerValues, set.key, set.value) };
@@ -186,12 +213,35 @@ function applyOne(actor: RpgActorVolatile, op: RpgActorOp, mintItemId: () => str
   }
 }
 
+/** Apply ONE IDENTITY op (R2). `null` = refused, and the reachable refusal is the honest one: a ROSTER actor
+ *  carries no identity half at all (her name is the chat roster's, her standing prose the sheet's), so writing
+ *  one would mint a second name home for the same person — exactly the split R2 exists to dissolve. */
+function applyIdentityOp(entry: RpgActorEntry, op: Extract<RpgActorOp, { op: IdentityOpName }>): RpgActorEntry | null {
+  const identity = entry.identity;
+  if (identity === undefined) {
+    return null;
+  }
+  if (op.op === "setRelationship") {
+    // A non-custom kind CLEARS the label (the built-ins carry their own meaning) — the same rule the model
+    // applier's `mergeRelationship` follows, so hand and story write the identical shape.
+    const kind = op.relationship.kind;
+    return { ...entry, identity: { ...identity, relationship: { kind, label: kind === "custom" ? op.relationship.label : "" } } };
+  }
+  const text = op.text.trim();
+  // `name` is the ONE identity field with a floor: an empty display name would render a nameless card and an
+  // unaddressable reminder line, so a blank rename is refused rather than written.
+  if (op.field === "name" && text === "") {
+    return null;
+  }
+  return { ...entry, identity: { ...identity, [op.field]: text } };
+}
+
 function assertNever(value: never): never {
   throw new Error(`unhandled actor op: ${JSON.stringify(value)}`);
 }
 
-/** The op-name → refusal wording for the two "you named something that isn't there" arms. A refusal a human
- *  reads must say WHICH datum, or the panel just moves the guess. */
+/** The op-name → refusal wording for the "you named something that isn't there" arms. A refusal a human reads
+ *  must say WHICH datum, or the panel just moves the guess. */
 function missingReason(op: RpgActorOp): string {
   if (op.op === "removeCondition") {
     return `no condition named "${op.name}" on this actor`;
@@ -199,25 +249,38 @@ function missingReason(op: RpgActorOp): string {
   if (op.op === "patchItem" || op.op === "removeItem") {
     return `no inventory item "${op.id}" on this actor`;
   }
+  if (op.op === "setIdentityText" && op.field === "name") {
+    return "an actor's display name cannot be blank";
+  }
+  if (isIdentityOp(op)) {
+    return "this actor carries no identity of its own — a roster member's name and standing prose live on the chat roster and its sheet";
+  }
   return `op ${op.op} could not be applied`;
 }
 
-/** Apply the hand's ops IN ORDER to one actor's row. Total: every op either produces a next row or refuses as
- *  DATA (nothing partial is returned — the verb writes all of it or none of it). The lock paths are the FINE
- *  per-op pins, de-duplicated in first-touch order. */
-export function applyActorOps(base: RpgActorVolatile, ops: readonly RpgActorOp[], mintItemId: () => string): ApplyActorOpsResult {
-  let actor = base;
+/** The volatile arm lifted back onto the ROW (which half an op writes is a detail of the op, never of the
+ *  caller — {@link applyActorOps} sees one shape). */
+function nextEntry(entry: RpgActorEntry, op: Extract<RpgActorOp, { op: VolatileOpName }>, mintItemId: () => string): RpgActorEntry | null {
+  const volatile = applyVolatileOp(entry.volatile, op, mintItemId);
+  return volatile === null ? null : { ...entry, volatile };
+}
+
+/** Apply the hand's ops IN ORDER to one actor's ROW (identity half + volatile half). Total: every op either
+ *  produces a next row or refuses as DATA (nothing partial is returned — the verb writes all of it or none of
+ *  it). The lock paths are the FINE per-op pins, de-duplicated in first-touch order. */
+export function applyActorOps(base: RpgActorEntry, ops: readonly RpgActorOp[], mintItemId: () => string): ApplyActorOpsResult {
+  let entry = base;
   const lockPaths: string[] = [];
   for (const op of ops) {
-    const next = applyOne(actor, op, mintItemId);
+    const next = isIdentityOp(op) ? applyIdentityOp(entry, op) : nextEntry(entry, op, mintItemId);
     if (next === null) {
       return { ok: false, reason: missingReason(op) };
     }
-    actor = next;
-    const path = lockPathFor(actor, op);
+    entry = next;
+    const path = lockPathFor(entry.actorRef, op);
     if (!lockPaths.includes(path)) {
       lockPaths.push(path);
     }
   }
-  return { ok: true, actor, lockPaths };
+  return { ok: true, actor: entry, lockPaths };
 }

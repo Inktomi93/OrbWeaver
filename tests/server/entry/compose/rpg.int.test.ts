@@ -540,18 +540,24 @@ test("§1.6 (plane registry): the extraction system prompt teaches the newly-cov
 });
 
 // ── F4: the per-call enum includes existing scene-cast + cast-actor keys (removal + cast-actor reach) ────
-/** A base snapshot state carrying an existing scene NPC (`presentCharacters[].key`) + an existing cast actor
- *  (`actorState` cast entry) — the two key namespaces F4 says the enum must offer so `presentRemove` can name an
- *  NPC and party/inventory can reach a cast actor. */
+/** A base snapshot state carrying two tracked cast actors — one ON stage, one tracked-only — which is the
+ *  ONE namespace F4's enum walks since R2 (the scene cast and the tracked cast are the same rows now). The
+ *  enum offers each actor's DISPLAY name, so `presentRemove` can name an NPC and party/inventory can reach a
+ *  cast actor whether or not she is standing in the scene. */
 function baseWithCast(): RpgSnapshotState {
+  const castRow = (castKey: string, name: string): RpgSnapshotState["actorState"][number] => ({
+    actorRef: { kind: "cast", castKey },
+    identity: { name, emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
+    volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" },
+  });
   return {
     clock: null,
     calendarDate: null,
     location: "the tavern",
     weather: null,
-    presentCharacters: [{ key: "Bartender", name: "Bartender", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } }],
+    presentCharacters: ["cast:bartender"],
     recentEvents: [],
-    actorState: [{ actorRef: { kind: "cast", castKey: "Goblin" }, hp: null, trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" }],
+    actorState: [castRow("bartender", "Bartender"), castRow("goblin", "Goblin")],
     trackerValues: {},
     quests: [],
     plot: null,
@@ -611,10 +617,13 @@ test("R5a: the LIVE active conditions bind party[].removeCondition to an enum (a
       ...afflicted,
       actorState: afflicted.actorState.map((a) => ({
         ...a,
-        conditions: [
-          { name: "Bleeding", stat: null, modifier: 0, turnsLeft: null },
-          { name: "Poisoned", stat: null, modifier: 0, turnsLeft: null },
-        ],
+        volatile: {
+          ...a.volatile,
+          conditions: [
+            { name: "Bleeding", stat: null, modifier: 0, turnsLeft: null },
+            { name: "Poisoned", stat: null, modifier: 0, turnsLeft: null },
+          ],
+        },
       })),
     },
     { id: castId("rpg_snapshot_r5a"), gameId, messageId: baseMsg, variantId: baseVar, now: FROZEN_AT },
@@ -1229,11 +1238,13 @@ test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the f
   // …carrying the CACHE-STABLE ref projection (F4): the party plane is fully writable, but its scene-derived
   // enums are gone — this payload opens the character turn's cached prefix (the byte-stability pin is below).
   const party = folded?.terminalTools?.find((t) => t.name === "update_party")?.parameters as {
-    properties?: { targetRef?: { enum?: string[]; type?: string }; hpDelta?: unknown };
+    properties?: { targetRef?: { enum?: string[]; type?: string }; hpDelta?: unknown; addCondition?: unknown };
   };
   expect(party.properties?.targetRef?.enum).toBeUndefined();
   expect(party.properties?.targetRef?.type).toBe("string");
-  expect(party.properties?.hpDelta).toBeDefined();
+  // The party plane's non-tracker arms survive; `hpDelta` does not (R3 — health rides `trackerDeltas`).
+  expect(party.properties?.hpDelta).toBeUndefined();
+  expect(party.properties?.addCondition).toBeDefined();
   // RV-9: `update_scene`'s description carries the WHEN — the panel's Waystone only reads as a clock if the
   // model actually advances time/weather/day, and a bare field list measurably doesn't get that written.
   const scene = folded?.terminalTools?.find((t) => t.name === "update_scene");
@@ -1322,7 +1333,7 @@ test("PROMPT-CACHE (probe F4): a gained actor + condition leave the FOLDED tools
 
   // The state genuinely moved (without this the byte-comparison below would be vacuous).
   const view = await foldCompose.service.getTrackerView({ principal, chatId });
-  expect(view.cast.map((c) => c.name)).toContain("Mira");
+  expect(view.actors.filter((a) => a.presence).map((a) => a.name)).toContain("Mira");
 
   const after = await foldCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   // The enumeration the enums used to carry is STILL delivered — in the depth-0 state block, BELOW the cache
@@ -1696,7 +1707,7 @@ const CANNED_POPULATE = {
   ],
   quests: [{ name: "Reach the Vault of Ash", action: "create", objectives: ["Find the road north"] }],
   scene: { location: "SHOULD NEVER LAND", recentEvent: "SHOULD NEVER LAND" },
-  party: [{ targetRef: "mara", hpDelta: -5 }],
+  party: [{ targetRef: "mara", trackerDeltas: [{ key: "hp", delta: -5 }] }],
   journal: [{ type: "note", title: "nope", content: "SHOULD NEVER LAND" }],
 };
 
@@ -1741,7 +1752,7 @@ test("POPULATE (real round): the card's identity + gear land, and the live-play 
   expect(view.quests.map((q) => q.name)).toEqual(["Reach the Vault of Ash"]);
   // …and NOTHING the live-play planes volunteered landed: no scene move, no hp write, no journal beat.
   expect(view.ambient?.location ?? "").toBe("");
-  expect(actor?.volatile?.hp ?? null).toBeNull();
+  expect(actor?.volatile?.trackerValues["hp"] ?? null).toBeNull();
   expect(await rpgCompose.service.listJournal({ principal: hostPrincipal(hostId), chatId, limit: 50 })).toEqual([]);
 });
 

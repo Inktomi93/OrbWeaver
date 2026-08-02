@@ -82,15 +82,18 @@ const weatherUpsertSchema = z.object({
   label: rpgWeatherLabelSchema.optional(),
 });
 
-/** `update_party` — tracker writes, conditions, hp delta, status on any party-side actor OR cast key.
- *  An `hpDelta` on a null-hp actor → an `ok:false` legality result (the errors-as-data lane, handler-side). */
+/** `update_party` — tracker writes, conditions, status on any party-side actor OR cast key.
+ *
+ *  `hpDelta` IS GONE (R3): health is an ordinary `meter` tracker now, so damage/healing rides `trackerDeltas`
+ *  with `key:"hp"` under the SAME per-actor key enum every other tracker uses. That is a STRONGER gate than the
+ *  arm it replaced — an actor who does not carry hp is now UNTYPEABLE rather than refused after the fact — and
+ *  the projected grammar shrinks by one property on every call. */
 export const updatePartyArgsSchema = z.object({
   targetRef: targetRefField,
   trackerDeltas: z.array(trackerDeltaSchema).optional(),
   trackerSets: z.array(trackerSetSchema).optional(),
   addCondition: z.object({ name: z.string().min(1), modifier: z.number().int().optional() }).optional(),
   removeCondition: z.string().min(1).optional(),
-  hpDelta: z.number().int().optional(),
   status: z.string().optional(),
 });
 export type UpdatePartyArgs = z.infer<typeof updatePartyArgsSchema>;

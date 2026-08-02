@@ -114,7 +114,7 @@ async function seedSourceGame(
     gameId,
     characterId: null,
     userId: gm,
-    sheet: { className: "Rogue", attributes: {}, maxHp: 10, flavor: "", level: 3, trackerGrants: ["bound_will"], trackerRevokes: [] },
+    sheet: { className: "Rogue", attributes: {}, flavor: "", level: 3, trackerGrants: ["bound_will"], trackerRevokes: [] },
     now: FROZEN_AT,
   });
   await insertCheckpoint(db, { id: castId(`rpg_checkpoint_src_${gmHandle}`), gameId, snapshotId, label: "start", trigger: "manual", createdAt: FROZEN_AT });

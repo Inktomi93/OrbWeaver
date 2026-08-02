@@ -36,20 +36,28 @@ test("every arg schema projects to JSON Schema without throwing (the z.toJSONSch
   }
 });
 
-test("update_party carries the targetRef + the two TRACKER write arms + condition/hp/status", () => {
+test("update_party carries the targetRef + the two TRACKER write arms + condition/status", () => {
   // The write axis is LOUD in the wire (the tracked-field unification): `delta` = a resource the beat spends
   // or restores; `set` = a state the beat observes. One key-addressed arm each, replacing `poolDeltas`
   // (name-addressed, meters only) and the cast row's opaque `customFields` string record.
   const parsed = updatePartyArgsSchema.parse({
     targetRef: "Hero",
-    hpDelta: -3,
     trackerDeltas: [{ key: "mana", delta: -1 }],
     trackerSets: [{ key: "trust", value: "guarded" }],
   });
   expect(parsed.targetRef).toBe("Hero");
-  expect(parsed.hpDelta).toBe(-3);
   expect(parsed.trackerDeltas).toEqual([{ key: "mana", delta: -1 }]);
   expect(parsed.trackerSets).toEqual([{ key: "trust", value: "guarded" }]);
+});
+
+test("hpDelta is GONE from the wire (R3) — damage rides trackerDeltas with key:'hp'", () => {
+  // The bespoke arm's replacement is a STRONGER gate, not a weaker one: `trackerDeltas[].key` is enum-
+  // constrained per target actor to the trackers that actor CARRIES, so hp on an actor with no hp is
+  // untypeable — where the retired arm accepted it and refused after the fact.
+  expect(Object.keys(updatePartyArgsSchema.shape)).not.toContain("hpDelta");
+  const parsed = updatePartyArgsSchema.parse({ targetRef: "Hero", hpDelta: -3, trackerDeltas: [{ key: "hp", delta: -3 }] });
+  expect("hpDelta" in parsed).toBe(false);
+  expect(parsed.trackerDeltas).toEqual([{ key: "hp", delta: -3 }]);
 });
 
 test("set_tracker writes a GAME-subject tracker by KEY, on either write arm", () => {

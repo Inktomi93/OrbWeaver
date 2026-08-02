@@ -45,6 +45,17 @@ export const usePatchActor = createEntityMutation<inferInput<Trpc["rpg"]["patchA
   errorToast: "Couldn't save the change.",
 });
 
+/** `rpg.dismissActor` — THE removal gesture for the actor plane (R1's verb, R2's affordance): drops the
+ *  actor's whole row, its scene presence, and every lock at or below its path. It is the counterweight that
+ *  makes the plane's additive merge policy honest — before it, a hallucinated or finished NPC stayed tracked,
+ *  `targetRef`-enumerated and clone-forwarded into every snapshot forever, and only a checkpoint restore (a
+ *  rewind, not a gesture) ever shrank the plane. Host-only. Repaints the tracker view. */
+export const useDismissActor = createEntityMutation<inferInput<Trpc["rpg"]["dismissActor"]>, unknown>({
+  options: (trpc) => trpc.rpg.dismissActor.mutationOptions(),
+  invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId })],
+  errorToast: "Couldn't dismiss the character.",
+});
+
 /** `rpg.upsertQuest` — the hand arm of the quest plane (Quests tab cards + Scene tab goal echo). `questId`
  *  present ⇒ update, absent ⇒ create. Host-only in v1. Repaints the tracker view (quests ride the snapshot). */
 export const useUpsertQuest = createEntityMutation<inferInput<Trpc["rpg"]["upsertQuest"]>, unknown>({

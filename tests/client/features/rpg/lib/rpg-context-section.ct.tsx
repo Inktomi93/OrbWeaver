@@ -101,13 +101,13 @@ function trackerView(trackersReadOnly: boolean): unknown {
       {
         actorRef: { kind: "character", characterId: "character_ct_mara" },
         name: "Mara",
-        sheet: { className: "Warden", attributes: {}, maxHp: null, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
+        presence: false,
+        identity: null,
+        sheet: { className: "Warden", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
         // The trackers this actor CARRIES, resolved server-side (the one carrier predicate) and paired with
         // the readings on its volatile row — the panel renders exactly these, never a re-derivation.
         trackers: [VITALITY, RESOLVE],
         volatile: {
-          actorRef: { kind: "character", characterId: "character_ct_mara" },
-          hp: null,
           trackerValues: { vitality: { value: 24, items: null }, resolve: { value: 7, items: null } },
           conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: null }],
           inventory: [],
@@ -115,26 +115,30 @@ function trackerView(trackersReadOnly: boolean): unknown {
           status: "",
         },
       },
-    ],
-    cast: [
+      // A scene NPC is an ACTOR ROW since R2 — her identity half rides beside her tracked state on ONE row, so
+      // a departure (a presence drop) can no longer destroy half of her. This stub's cast carries no trackers,
+      // so the Scene renders her row without tracked values.
       {
-        key: "sera",
+        actorRef: { kind: "cast", castKey: "sera" },
         name: "Sera",
-        characterId: undefined,
-        emoji: "🕯️",
-        mood: "guarded",
-        // RV-11 — the standing guides the extraction round writes every beat. `outfit` is deliberately
-        // UNWRITTEN here: the Scene cast card must show the two that exist and no line at all for the third.
-        appearance: "tall, silver-haired, a burn scar down one forearm",
-        thoughts: "weighing whether to trust you with the key",
-        relationship: { kind: "ally", label: "" },
+        presence: true,
+        identity: {
+          name: "Sera",
+          emoji: "🕯️",
+          mood: "guarded",
+          // RV-11 — the standing guides the extraction round writes every beat. `outfit` is deliberately
+          // UNWRITTEN here: the Scene cast card must show the two that exist and no line at all for the third.
+          appearance: "tall, silver-haired, a burn scar down one forearm",
+          thoughts: "weighing whether to trust you with the key",
+          relationship: { kind: "ally", label: "" },
+        },
+        sheet: { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
+        trackers: [],
+        volatile: null,
       },
     ],
+    cast: ["cast:sera"],
     trackerDefs: [VITALITY, RESOLVE],
-    // A cast member's carried trackers + readings, resolved server-side (empty here — this stub's cast
-    // carries none, so the Scene renders her row without tracked values).
-    castTrackers: {},
-    castVolatile: {},
     gameTrackers: [],
     quests: [{ id: "q1", name: "Keep the bone key", status: "active", description: "", objectives: [{ id: "o1", text: "Hold the door", completed: true }] }],
     recentBeats: ["The rain has not let up since dusk."],
@@ -204,11 +208,11 @@ function configView(macros: readonly unknown[] = [], presetNames: readonly strin
     omniscience: false,
     hiddenContentReveal: true,
     recentBeatsKeepLast: 6,
-    // The §1.3 extraction-depth trio the scalar form now edits (`toGmConsoleForm` reads all three).
+    // The §1.3 extraction-depth trio the scalar form now edits (`toHostConsoleForm` reads all three).
     extractionContext: "window",
     extractionWindowTokens: 4096,
     reconcileEveryBeats: 10,
-    // The P4/P5 knobs the scalar form projects (`toGmConsoleForm`).
+    // The P4/P5 knobs the scalar form projects (`toHostConsoleForm`).
     immersiveHtml: false,
     immersiveHtmlInteractive: false,
     cardKeepLastX: 3,
@@ -316,7 +320,7 @@ test("the band renders EVERY server-derived orb — no client cap drops a pinned
   await Promise.all(["Vitality 24/30", "Resolve 7/10", "Supplies 12/20", "Fatigue 5/8"].map((datum) => expect(component.getByText(datum)).toBeVisible()));
 });
 
-test("the crown GM console (Game tab, host) renders getConfigView — scalars, the TRACKER defs, hints", async ({ mount, page }) => {
+test("the crown HOST console (Game tab, host) renders getConfigView — scalars, the TRACKER defs, hints", async ({ mount, page }) => {
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
 
@@ -324,7 +328,7 @@ test("the crown GM console (Game tab, host) renders getConfigView — scalars, t
   await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
 
   // The crown header + the sections the config read feeds.
-  await expect(component.getByText("GM console — host only")).toBeVisible();
+  await expect(component.getByText("Host console — host only")).toBeVisible();
   // The steering-note scalar (autosave form) — the stubbed value.
   await expect(component.getByRole("textbox", { name: "Steering note" })).toHaveValue("Keep the tone grim.");
   // The stat-profile READ display (the vocabulary badge).
@@ -443,20 +447,24 @@ test("RV-11: the Scene cast card shows the standing guides, omits the unwritten 
   // The stub leaves `outfit` unwritten — no label, no placeholder, no line.
   await expect(card.locator('[data-slot="cast-guides"]')).not.toContainText("outfit");
 
-  // The host may correct what the story wrote: the guides ride the SAME `presentCharacters` overlay the mood
-  // does, so the receipt is the editSnapshot mutation COUNT ([[assert-the-mutation-fired]]).
+  // The host may correct what the story wrote: since R2 a guide is an OP on her actor row (an identity write),
+  // so the receipt is the patchActor payload — ONE datum, addressed to her, naming no sibling plane.
   await card.getByRole("button", { name: "Sera appearance" }).click();
   const field = component.getByRole("textbox", { name: "Sera appearance" });
   await field.fill("shaven-headed, a fresh scar");
   await field.blur();
-  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  await expect.poll(() => trpc.count("rpg.patchActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  // ONESHOT-OK: the poll above already settled the recorder — the call IS recorded, so reading its payload
+  // is a read of SETTLED state, not a race. (Polling the payload would just re-read the same frozen object.)
+  expect(trpc.lastInput("rpg.patchActor")).toMatchObject({
+    targetRef: { kind: "cast", castKey: "sera" },
+    ops: [{ op: "setIdentityText", field: "appearance", text: "shaven-headed, a fresh scar" }],
+  });
 });
 
-// The cast NPC's whole volatile row, as `getTrackerView` projects it (`castVolatile`, keyed by cast key) —
-// hp, a pack, a purse and a status the story wrote onto her `cast:sera` plane.
+// The cast NPC's whole volatile half, as `getTrackerView` projects it on her ONE actor row (R2) — a pack, a
+// purse, conditions and a status the story wrote onto her `cast:sera` plane.
 const SERA_VOLATILE = {
-  actorRef: { kind: "cast", castKey: "sera" },
-  hp: { value: 9, max: 14 },
   trackerValues: { trust: { value: 3, items: null } },
   conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: 2 }],
   inventory: [{ id: "item_ct_key", name: "bone key", description: "", quantity: 1, location: "", type: "" }],
@@ -472,11 +480,12 @@ const TRUST_METER = { ...VITALITY, key: "trust", label: "Trust", appliesTo: "npc
 // The op door cannot express that mistake: the wire payload carries the ONE datum the human touched and names
 // no sibling plane at all. The receipt is the WIRE payload, not a UI reaction.
 test("editing a cast NPC's tracker sends ONE op naming only that datum (her other planes are unmentionable)", async ({ mount, page }) => {
+  const base = trackerView(false) as { actors: Record<string, unknown>[] };
   const trpc = await stubTakeover(page, {
     tracker: {
-      ...(trackerView(false) as Record<string, unknown>),
-      castTrackers: { sera: [{ def: TRUST_METER, value: { value: 3, items: null } }] },
-      castVolatile: { sera: SERA_VOLATILE },
+      ...(base as Record<string, unknown>),
+      // Her carried tracker + its reading ride her OWN row — there is no second cast-value projection.
+      actors: base.actors.map((a) => ((a["name"] as string) === "Sera" ? { ...a, trackers: [TRUST_METER], volatile: SERA_VOLATILE } : a)),
     },
   });
   const component = await mount(<RpgTakeoverStory />);
@@ -497,9 +506,58 @@ test("editing a cast NPC's tracker sends ONE op naming only that datum (her othe
   expect(input.ops).toEqual([{ op: "setTracker", key: "trust", value: { value: 5 } }]);
   // The planes the empty mint used to clear are not on the wire AT ALL — the server keeps them by construction.
   const wire = JSON.stringify(input);
-  for (const plane of ["hp", "inventory", "wallet", "status", "conditions"]) {
+  for (const plane of ["inventory", "wallet", "status", "conditions"]) {
     expect(wire).not.toContain(plane);
   }
+});
+
+// ── R2: the KNOWN-CHARACTERS disclosure — the offstage NPC made visible, editable and dismissable ────────
+// Departure used to DESTROY a cast NPC's identity while her tracked state survived on a plane NO surface
+// projected: the host could not see her, edit her, or remove her, and the model could still be told to wound
+// her. Departure is a presence drop now, and this section is where the retained person lives.
+test("R2: an OFFSTAGE cast actor is listed, editable and dismissable — never on the On-stage list", async ({ mount, page }) => {
+  const base = trackerView(false) as { actors: Record<string, unknown>[]; cast: readonly string[] };
+  const sera = base.actors.find((a) => a["name"] === "Sera") as Record<string, unknown>;
+  const trpc = await stubTakeover(page, {
+    tracker: {
+      ...(base as Record<string, unknown>),
+      // Sera stays on stage; Vesna is TRACKED but absent from the presence plane — the offstage row.
+      actors: [
+        ...base.actors,
+        {
+          ...sera,
+          actorRef: { kind: "cast", castKey: "vesna" },
+          name: "Sister Vesna",
+          presence: false,
+          identity: { ...(sera["identity"] as Record<string, unknown>), name: "Sister Vesna", mood: "guarded", appearance: "", thoughts: "" },
+        },
+      ],
+    },
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+
+  // Collapsed by default — a memory, not the scene — but the COUNT is on screen without opening it.
+  const section = component.locator('[data-slot="rpg-known-characters"]');
+  await expect(section).toContainText("Known characters — 1");
+  await expect(component.getByText("Sister Vesna")).toBeHidden();
+  // She is NOT on the On-stage list (the two blocks are a partition of one actor list, by `presence`).
+  await expect(component.getByText("On stage — 1")).toBeVisible();
+
+  await section.getByRole("button", { name: "Show known characters" }).click();
+  await expect(section.getByText("Sister Vesna")).toBeVisible();
+
+  // DISMISS is two-step by design: it is the one gesture in this panel that destroys durable state, and it
+  // sits beside ordinary edits. The confirm names her, because a list of cards makes "are you sure?" ambiguous.
+  // …and each control is NAMED BY WHOSE it is (the side-eye 08-01 rule): N cards otherwise offer N buttons
+  // all called "Dismiss", with the card's name in the DOM and not in the control's.
+  await section.getByRole("button", { name: "Dismiss Sister Vesna" }).click();
+  await expect(section).toContainText("Forget Sister Vesna and everything tracked on them?");
+  await section.getByRole("button", { name: "Confirm dismissing Sister Vesna" }).click();
+
+  await expect.poll(() => trpc.count("rpg.dismissActor"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  // ONESHOT-OK: settled by the poll above (see the `patchActor` payload read for the same reasoning).
+  expect(trpc.lastInput("rpg.dismissActor")).toMatchObject({ targetRef: { kind: "cast", castKey: "vesna" } });
 });
 
 test("the host New-quest affordance fires upsertQuest (create) — the mutation COUNT", async ({ mount, page }) => {
@@ -1039,11 +1097,15 @@ function richTracker(): unknown {
       {
         actorRef: { kind: "character", characterId: "character_ct_mara" },
         name: "Mara",
+        // A ROSTER actor: `presence` is the presence plane's business, and she carries NO `identity` half —
+        // her name is the chat roster's and her standing prose is the sheet's (R2). A stub that mirrors the
+        // wire is the discipline; a stale one is a dead shape the next CT copies.
+        presence: false,
+        identity: null,
         // `flavor` (RV-11) — host-written sheet prose that reached no reader until the takeover grew its gloss line.
         sheet: {
           className: "Warden",
           attributes: { str: 14 },
-          maxHp: null,
           flavor: "Sworn to a house that no longer exists.",
           level: 3,
           trackerGrants: [],
@@ -1051,8 +1113,6 @@ function richTracker(): unknown {
         },
         trackers: [VITALITY, RESOLVE],
         volatile: {
-          actorRef: { kind: "character", characterId: "character_ct_mara" },
-          hp: null,
           trackerValues: { vitality: { value: 24, items: null }, resolve: { value: 7, items: null } },
           conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: null }],
           inventory: [{ id: "item_ct_key", name: "Bone key", description: "cold to the touch", quantity: 1, location: "belt pouch", type: "quest" }],
@@ -1089,6 +1149,51 @@ function packedTracker(): unknown {
   const actor = base.actors[0];
   return { ...base, actors: [{ ...actor, volatile: { ...actor?.volatile, inventory: PACKED_ITEMS } }] };
 }
+
+// The party purse SUMS the party's wallets and deliberately EXCLUDES cast NPCs (an NPC's coin is hers, not
+// the party's — a first-class path since R2, when `update_inventory.walletDeltas` on a cast target became
+// reachable and her pack became a selectable subject). The carried NOTE's grammar is "N OF the total is on X",
+// so pairing it with an EXCLUDED purse states the opposite of what the total counted, and the reader has no
+// way to tell which number is lying.
+test("R2: the purse's carried note is coherent with the party-total exclusion — omitted for a CAST subject", async ({ mount, page }) => {
+  const base = richTracker() as { readonly actors: readonly Record<string, unknown>[] };
+  const mara = base.actors[0] as Record<string, unknown>;
+  const purse = (amount: number): Record<string, unknown> => ({
+    ...(mara["volatile"] as Record<string, unknown>),
+    wallet: [{ name: "gold", amount }],
+  });
+  await stubTakeover(page, {
+    tracker: {
+      ...(base as Record<string, unknown>),
+      actors: [
+        { ...mara, volatile: purse(50) },
+        {
+          ...mara,
+          actorRef: { kind: "cast", castKey: "sera" },
+          name: "Sera",
+          presence: true,
+          identity: { name: "Sera", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
+          volatile: purse(30),
+        },
+      ],
+    },
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+
+  // The PARTY subject: the total is the party's own 50, and no carried note (she carries all of it).
+  const purseLine = component.locator('[data-slot="rpg-purse-line"]');
+  await expect(purseLine).toContainText("50 gold");
+  await expect(purseLine).not.toContainText("30");
+
+  // Flip to the CAST subject: the total is UNCHANGED (her 30 was never in it) and the note stays away — the
+  // old pairing rendered "50 gold — 30 on Sera", claiming 30 of the 50 was hers when none of it was.
+  await component.getByRole("combobox", { name: "Whose pack" }).click();
+  await page.getByRole("option", { name: "Sera" }).click();
+  await expect(purseLine).toContainText("50 gold");
+  await expect(purseLine).not.toContainText("on Sera");
+  await expect(purseLine).not.toContainText("30");
+});
 
 test("Status: expanding a roster entry TAKES OVER the panel with the character — everything Sheet-the-tab held", async ({ mount, page }) => {
   await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
@@ -2107,16 +2212,30 @@ test("side-eye 08-01: a cast card's tracked readings are named by WHOSE they are
   // Two cast members carrying the same tracker gave a name-navigating reader two buttons called "Trust
   // value" and no way to tell Sera's from Mara's — the card's own name was in the DOM, not in the control's.
   const trust = { ...VITALITY, key: "trust", label: "Trust", shape: "text", max: null, appliesTo: "npcs" };
-  const base = trackerView(false) as Record<string, unknown>;
-  const cast = base["cast"] as readonly Record<string, unknown>[];
+  const base = trackerView(false) as { actors: Record<string, unknown>[]; cast: readonly string[] } & Record<string, unknown>;
+  const sera = base.actors.find((a) => a["name"] === "Sera") as Record<string, unknown>;
+  const reading = (value: string): Record<string, unknown> => ({
+    trackerValues: { trust: { value, items: null } },
+    conditions: [],
+    inventory: [],
+    wallet: [],
+    status: "",
+  });
   await stubTakeover(page, {
     tracker: {
       ...base,
-      cast: [...cast, { ...cast[0], key: "mara-npc", name: "Mara the elder", appearance: "", thoughts: "" }],
-      castTrackers: {
-        sera: [{ def: trust, value: { value: "wary", items: null } }],
-        "mara-npc": [{ def: trust, value: { value: "warm", items: null } }],
-      },
+      actors: [
+        ...base.actors.map((a) => (a === sera ? { ...sera, trackers: [trust], volatile: reading("wary") } : a)),
+        {
+          ...sera,
+          actorRef: { kind: "cast", castKey: "mara-npc" },
+          name: "Mara the elder",
+          identity: { ...(sera["identity"] as Record<string, unknown>), name: "Mara the elder", appearance: "", thoughts: "" },
+          trackers: [trust],
+          volatile: reading("warm"),
+        },
+      ],
+      cast: [...base.cast, "cast:mara-npc"],
     },
   });
   const component = await mount(<RpgTakeoverStory />);

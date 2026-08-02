@@ -30,7 +30,7 @@ import type { HandDoorResult } from "../contract/results";
 import type { RpgContext, RpgService } from "../contract/service";
 import { resolveMember } from "../guard";
 import { writeHandState } from "../snapshot-edit";
-import { applyActorOps, emptyActorVolatile } from "../substrate/actor-ops";
+import { applyActorOps, emptyActorEntry } from "../substrate/actor-ops";
 
 export function createPatchActor(ctx: RpgContext): Pick<RpgService, "patchActor"> {
   async function patchActor(params: PatchActorParams): Promise<HandDoorResult> {
@@ -45,7 +45,7 @@ export function createPatchActor(ctx: RpgContext): Pick<RpgService, "patchActor"
       // A target with no row yet is MINTED here, so a first hand edit on a fresh actor is a real write and
       // never a silent no-op. The mint is the empty row (`emptyActorVolatile`) — the ops then write onto it,
       // so only the fields the human touched are authored (the fabricated-image wipe class needs an image).
-      const base = head.state.actorState[index] ?? emptyActorVolatile(params.targetRef);
+      const base = head.state.actorState[index] ?? emptyActorEntry(params.targetRef);
       const applied = applyActorOps(base, params.ops, () => ctx.ids.item());
       if (!applied.ok) {
         return { ok: false, reason: applied.reason };

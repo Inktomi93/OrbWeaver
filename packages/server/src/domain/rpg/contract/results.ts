@@ -5,7 +5,7 @@
 // outcome, and `editSnapshot`'s accept/refuse verdict. All are small internal contracts a transport lane later
 // maps onto its own wire shape.
 
-import type { RpgActorVolatile } from "@orb/contracts/rpg";
+import type { RpgActorEntry } from "@orb/contracts/rpg";
 import type { RpgGameId } from "@orb/kit/ids";
 
 /** `createGame`'s result — the birth summary. `trackersReadOnly` is the honest-arms verdict AT BIRTH (§4.4):
@@ -35,7 +35,7 @@ export type HandDoorResult = { readonly ok: true } | { readonly ok: false; reado
  *  ops earned, or an errors-as-data refusal (an op naming an item/condition the actor does not carry). Homed
  *  here because a domain type has no home in the substrate that produces it (substrate-not-a-type-home). */
 export type ApplyActorOpsResult =
-  | { readonly ok: true; readonly actor: RpgActorVolatile; readonly lockPaths: readonly string[] }
+  | { readonly ok: true; readonly actor: RpgActorEntry; readonly lockPaths: readonly string[] }
   | { readonly ok: false; readonly reason: string };
 
 export interface RollDiceResult {

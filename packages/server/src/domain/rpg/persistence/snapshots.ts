@@ -18,11 +18,10 @@
 
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import {
-  rpgActorVolatileSchema,
+  rpgActorEntrySchema,
   rpgClockTimeSchema,
   rpgFieldLocksSchema,
   rpgPlotSchema,
-  rpgPresentCharacterSchema,
   rpgQuestSchema,
   rpgSnapshotStateSchema,
   rpgTrackerValuesSchema,
@@ -43,9 +42,11 @@ const COMMITTED = 1;
 const UNCOMMITTED = 0;
 
 // The array/record JSON columns whose element schema `@orb/contracts/rpg` exports singular.
-const presentCharactersSchema = z.array(rpgPresentCharacterSchema);
+// The PRESENCE plane is a flat `actorRefKey` list since R2 — the same shape `recentEvents` has, and the reason
+// it no longer needs an element schema of its own.
+const presentCharactersSchema = z.array(z.string().min(1));
 const recentEventsSchema = z.array(z.string());
-const actorStateSchema = z.array(rpgActorVolatileSchema);
+const actorStateSchema = z.array(rpgActorEntrySchema);
 const questsSchema = z.array(rpgQuestSchema);
 
 /** Validate one JSON column through its contract schema. A schema-invalid persisted blob is a typed

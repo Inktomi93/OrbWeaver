@@ -33,7 +33,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
   ExtractionRefs,
-  RpgActorVolatile,
+  RpgActorEntry,
   RpgActorView,
   RpgExtraction,
   RpgGameConfig,
@@ -54,7 +54,7 @@ import {
   RPG_JOURNAL_TYPES,
   RPG_NO_CHANGES_TOOL,
   RPG_PROFILE_FREEFORM,
-  rpgActorVolatileSchema,
+  rpgActorEntrySchema,
   rpgExtractionSchema,
   rpgGameConfigSchema,
   rpgTrackerDefSchema,
@@ -125,18 +125,19 @@ function gameConfig(): RpgGameConfig {
 }
 
 function seedState(): RpgSnapshotState {
-  const volatile: RpgActorVolatile = rpgActorVolatileSchema.parse({
+  const volatile: RpgActorEntry = rpgActorEntrySchema.parse({
     actorRef: { kind: "user", userId: PLAYER_USER },
-    hp: { value: 26, max: 26 },
-    trackerValues: { stamina: { value: 14, items: null, max: null } },
+    volatile: {
+      trackerValues: { stamina: { value: 14, items: null, max: null } },
     conditions: [],
     inventory: [
       { id: "i1", name: "Worn Shortsword", description: "", quantity: 1, location: "sheathed", type: "" },
       { id: "i2", name: "Traveler's Cloak", description: "", quantity: 1, location: "worn", type: "" },
       { id: "i3", name: "Linen Strips", description: "clean bandaging", quantity: 3, location: "pack", type: "" },
     ],
-    wallet: [{ name: "gold", amount: 40 }],
-    status: "alert",
+      wallet: [{ name: "gold", amount: 40 }],
+      status: "alert",
+    },
   });
   return {
     clock: null,
@@ -162,23 +163,20 @@ function refsFor(state: RpgSnapshotState, config: RpgGameConfig): ExtractionRefs
     { actorKey: `user:${PLAYER_USER}`, name: PLAYER_NAME, kind: "party", grants: [], revokes: [] },
   ];
   const seen = new Set(carriers.map((c) => c.name.toLowerCase()));
-  for (const pc of state.presentCharacters) {
-    if (!seen.has(pc.key.toLowerCase())) {
-      seen.add(pc.key.toLowerCase());
-      carriers.push({ actorKey: `cast:${pc.key}`, name: pc.key, kind: "npcs", grants: [], revokes: [] });
-    }
-  }
+  // ONE walk over the tracked cast since R2 (the scene cast and the tracked cast are the same rows), and the
+  // enum offers each actor's DISPLAY name — never her slug key.
   for (const actor of state.actorState) {
-    if (actor.actorRef.kind === "cast" && !seen.has(actor.actorRef.castKey.toLowerCase())) {
-      seen.add(actor.actorRef.castKey.toLowerCase());
-      carriers.push({ actorKey: `cast:${actor.actorRef.castKey}`, name: actor.actorRef.castKey, kind: "npcs", grants: [], revokes: [] });
+    const name = actor.actorRef.kind === "cast" ? (actor.identity?.name ?? actor.actorRef.castKey) : "";
+    if (name !== "" && !seen.has(name.toLowerCase())) {
+      seen.add(name.toLowerCase());
+      carriers.push({ actorKey: `cast:${actor.actorRef.kind === "cast" ? actor.actorRef.castKey : ""}`, name, kind: "npcs", grants: [], revokes: [] });
     }
   }
   return {
     actorRefs: carriers.map((c) => c.name),
     trackerWriteGroups: buildTrackerWriteGroups(config.trackers, carriers),
     gameTrackerKeys: gameTrackerWriteKeys(config.trackers),
-    conditionNames: [...new Set(state.actorState.flatMap((a) => a.conditions.map((c) => c.name)))],
+    conditionNames: [...new Set(state.actorState.flatMap((a) => a.volatile.conditions.map((c) => c.name)))],
     establishScene: { location: state.location === "", timeOfDay: state.clock === null, presentCast: state.presentCharacters.length === 0 },
   };
 }
@@ -288,24 +286,36 @@ function roundSystem(kind: "cheap" | "structured", config: RpgGameConfig, refs: 
 // actor, no sheet rows ⇒ the default sheet, no grants/revokes).
 function trackerView(state: RpgSnapshotState, config: RpgGameConfig): RpgTrackerView {
   const defs = config.trackers;
-  const volatileByKey = new Map(state.actorState.map((v) => [v.actorRef.kind === "user" ? `user:${v.actorRef.userId}` : `cast:${v.actorRef.kind === "cast" ? v.actorRef.castKey : ""}`, v]));
-  const actors: RpgActorView[] = ROSTER.map((r) => ({
+  const byKey = new Map(state.actorState.map((v) => [v.actorRef.kind === "user" ? `user:${v.actorRef.userId}` : `cast:${v.actorRef.kind === "cast" ? v.actorRef.castKey : ""}`, v]));
+  const present = new Set(state.presentCharacters);
+  const rosterActors: RpgActorView[] = ROSTER.map((r) => ({
     actorRef: r.actorRef,
     name: r.name,
+    presence: present.has(`user:${PLAYER_USER}`),
+    identity: null,
     // `flavor: ""` deliberately (RV-11 added the field + its reminder line): an empty flavor renders NOTHING,
     // so this probe's measured prompt stays byte-identical to the runs it is compared against.
-    sheet: { className: "courier", attributes: {}, maxHp: null, flavor: "", level: 3, trackerGrants: [], trackerRevokes: [] },
-    volatile: volatileByKey.get(`user:${PLAYER_USER}`) ?? null,
+    sheet: { className: "courier", attributes: {}, flavor: "", level: 3, trackerGrants: [], trackerRevokes: [] },
+    volatile: byKey.get(`user:${PLAYER_USER}`)?.volatile ?? null,
     trackers: trackersForCarrier(defs, { actorKey: `user:${PLAYER_USER}`, name: r.name, kind: "party", grants: [], revokes: [] }),
   }));
-  const castTrackers: Record<string, readonly RpgTrackerEntry[]> = {};
-  const castVolatile: Record<string, RpgActorVolatile | null> = {};
-  for (const c of state.presentCharacters) {
-    const carried = trackersForCarrier(defs, { actorKey: `cast:${c.key}`, name: c.name, kind: "npcs", grants: [], revokes: [] });
-    const volatileRow = volatileByKey.get(`cast:${c.key}`);
-    castTrackers[c.key] = carried.map((def) => ({ def, value: volatileRow?.trackerValues[def.key] ?? null }));
-    castVolatile[c.key] = volatileRow ?? null;
-  }
+  // ONE actor shape for every person (R2): the tracked cast rows join the roster in the same list.
+  const castActors: RpgActorView[] = state.actorState
+    .filter((entry) => entry.actorRef.kind === "cast")
+    .map((entry) => {
+      const castKey = entry.actorRef.kind === "cast" ? entry.actorRef.castKey : "";
+      const name = entry.identity?.name ?? castKey;
+      return {
+        actorRef: entry.actorRef,
+        name,
+        presence: present.has(`cast:${castKey}`),
+        identity: entry.identity ?? null,
+        sheet: { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
+        volatile: entry.volatile,
+        trackers: trackersForCarrier(defs, { actorKey: `cast:${castKey}`, name, kind: "npcs", grants: [], revokes: [] }),
+      };
+    });
+  const actors: RpgActorView[] = [...rosterActors, ...castActors];
   const gameEntries: RpgTrackerEntry[] = gameTrackers(defs).map((def) => ({ def, value: state.trackerValues[def.key] ?? null }));
   const quests: RpgQuestView[] = state.quests.map((q) => ({ id: q.id, name: q.name, status: q.status, description: q.description, objectives: q.objectives }));
   const ambient =
@@ -317,8 +327,6 @@ function trackerView(state: RpgSnapshotState, config: RpgGameConfig): RpgTracker
     actors,
     cast: state.presentCharacters,
     trackerDefs: defs,
-    castTrackers,
-    castVolatile,
     gameTrackers: gameEntries,
     quests,
     plot: state.plot,
@@ -430,7 +438,6 @@ const FIELD_SPECS: readonly (readonly [string, string, (list: Args[]) => boolean
   ["update_party.addCondition.name", "update_party", (l) => l.some((a) => nStr((a["addCondition"] as Args | undefined)?.["name"]))],
   ["update_party.addCondition.modifier", "update_party", (l) => l.some((a) => nNum((a["addCondition"] as Args | undefined)?.["modifier"]))],
   ["update_party.removeCondition", "update_party", (l) => l.some((a) => nStr(a["removeCondition"]))],
-  ["update_party.hpDelta", "update_party", (l) => l.some((a) => nNum(a["hpDelta"]))],
   ["update_party.status", "update_party", (l) => l.some((a) => nStr(a["status"]))],
   ["update_inventory.targetRef", "update_inventory", (l) => l.some((a) => nStr(a["targetRef"]))],
   ["update_inventory.add.name", "update_inventory", (l) => inv(l, "name", nStr)],
@@ -637,8 +644,9 @@ async function runGame(arm: string, runIndex: number): Promise<{ turns: TurnRow[
     // Ground-truth setup — force the condition present at turn start (isolates retirement from addition).
     for (const name of beat.ensure ?? []) {
       const actor = state.actorState[0];
-      if (actor !== undefined && !actor.conditions.some((c) => norm(c.name).startsWith(norm(name)) || norm(name).startsWith(norm(c.name)))) {
-        state = { ...state, actorState: [{ ...actor, conditions: [...actor.conditions, { name, stat: null, modifier: 0, turnsLeft: null }] }, ...state.actorState.slice(1)] };
+      if (actor !== undefined && !actor.volatile.conditions.some((c) => norm(c.name).startsWith(norm(name)) || norm(name).startsWith(norm(c.name)))) {
+        const conditions = [...actor.volatile.conditions, { name, stat: null, modifier: 0, turnsLeft: null }];
+        state = { ...state, actorState: [{ ...actor, volatile: { ...actor.volatile, conditions } }, ...state.actorState.slice(1)] };
       }
     }
     const prev = state;
@@ -727,7 +735,7 @@ async function runGame(arm: string, runIndex: number): Promise<{ turns: TurnRow[
     const emittedRemoves = (tally["update_party"] ?? []).map((a) => a["removeCondition"]).filter((v): v is string => typeof v === "string");
     const expectRemove = beat.expectRemove ?? [];
     const hit = (want: string): boolean => emittedRemoves.some((got) => norm(got).startsWith(norm(want)) || norm(want).startsWith(norm(got)));
-    const emittedHp = (tally["update_party"] ?? []).some((a) => nNum(a["hpDelta"]) && a["hpDelta"] !== 0);
+    const emittedHp = (tally["update_party"] ?? []).some((a) => ((a["trackerDeltas"] as Args[] | undefined) ?? []).some((d) => d["key"] === "hp" && nNum(d["delta"]) && d["delta"] !== 0));
 
     const delta = extractionToStateDelta(state, extraction, mints, roster);
     state = { ...state, ...(delta.statePatch as Partial<RpgSnapshotState>) };

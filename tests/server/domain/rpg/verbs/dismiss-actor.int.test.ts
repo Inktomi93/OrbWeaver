@@ -45,7 +45,7 @@ test("drops the state row AND the presence row AND every lock at/below the actor
   await service.editSnapshot({
     principal: HOST,
     chatId,
-    patch: { presentCharacters: [{ key: "mira", name: "Mira", emoji: "", mood: "wary", relationship: { kind: "neutral", label: "" } }] },
+    patch: { presentCharacters: ["cast:mira"] },
   });
   await service.patchActor({
     principal: HOST,
@@ -58,7 +58,7 @@ test("drops the state row AND the presence row AND every lock at/below the actor
   });
   await service.patchActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: "thorn" }, ops: [{ op: "setStatus", status: "waiting" }] });
   const before = await resolveSnapshotForTurn(db, { id: game.id, chatId });
-  expect(before?.fieldLocks?.["actorState.cast:mira.status"]).toBe(true);
+  expect(before?.fieldLocks?.["actorState.cast:mira.volatile.status"]).toBe(true);
 
   expect(await service.dismissActor({ principal: HOST, chatId, targetRef: MIRA })).toStrictEqual({ ok: true });
 
@@ -66,9 +66,9 @@ test("drops the state row AND the presence row AND every lock at/below the actor
   expect((after?.actorState ?? []).map((a) => (a.actorRef.kind === "cast" ? a.actorRef.castKey : ""))).toEqual(["thorn"]);
   expect(after?.presentCharacters ?? []).toEqual([]);
   // The symmetric lock release: mira's pins are gone, thorn's survive (a dismissal is scoped to its actor).
-  expect(after?.fieldLocks?.["actorState.cast:mira.status"]).toBeUndefined();
-  expect(after?.fieldLocks?.["actorState.cast:mira.trackerValues.trust"]).toBeUndefined();
-  expect(after?.fieldLocks?.["actorState.cast:thorn.status"]).toBe(true);
+  expect(after?.fieldLocks?.["actorState.cast:mira.volatile.status"]).toBeUndefined();
+  expect(after?.fieldLocks?.["actorState.cast:mira.volatile.trackerValues.trust"]).toBeUndefined();
+  expect(after?.fieldLocks?.["actorState.cast:thorn.volatile.status"]).toBe(true);
 });
 
 test("a dismissed actor STAYS gone through a later hand write on another actor (the additive plane can't resurrect her)", async () => {
@@ -86,7 +86,7 @@ test("dismissing a PRESENCE-ONLY cast member (no state row yet) still clears her
   await service.editSnapshot({
     principal: HOST,
     chatId,
-    patch: { presentCharacters: [{ key: "mira", name: "Mira", emoji: "", mood: "wary", relationship: { kind: "neutral", label: "" } }] },
+    patch: { presentCharacters: ["cast:mira"] },
   });
 
   expect(await service.dismissActor({ principal: HOST, chatId, targetRef: MIRA })).toStrictEqual({ ok: true });

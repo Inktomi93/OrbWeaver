@@ -56,17 +56,21 @@ describe("patchSheet", () => {
     expect(sheet?.attributes["dex"]).toBe(15);
   });
 
-  test("a null maxHp is a REAL clear (MA-4 key-presence, not ??)", async () => {
+  test("maxHp is GONE from the sheet door (R3) — a stray key writes nothing, it is not a field", async () => {
+    // The clear-vs-keep semantic it used to pin now lives on `level` (the test below); what is pinned HERE is
+    // that the retired dial cannot be resurrected by a caller who still sends it: the dual-max home the
+    // unification killed for pools does not come back through the wire.
     const { chatId, userId, service } = await seedGame();
     const ref = { kind: "user" as const, userId };
-    await service.patchSheet({ principal: principal("host"), chatId, actorRef: ref, patch: { maxHp: 30 } });
+    // The point is that a caller still sending the retired dial writes nothing — only expressible by sending
+    // a key the type no longer has.
+    // FABRICATION-OK: a deliberate INVALID-INPUT probe (the retired `maxHp` key).
+    await service.patchSheet({ principal: principal("host"), chatId, actorRef: ref, patch: { maxHp: 30 } as never });
     const game = await findGameByChat(db, chatId);
     if (!game) {
       throw new Error("no game");
     }
-    expect((await findSheet(db, game.id, { userId }))?.sheet.maxHp).toBe(30);
-    await service.patchSheet({ principal: principal("host"), chatId, actorRef: ref, patch: { maxHp: null } });
-    expect((await findSheet(db, game.id, { userId }))?.sheet.maxHp).toBeNull();
+    expect((await findSheet(db, game.id, { userId }))?.sheet).not.toHaveProperty("maxHp");
   });
 
   test("level (§2.6 hand-only) writes + clears via patchSheet — its ONLY write door", async () => {
