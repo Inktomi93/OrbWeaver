@@ -4,7 +4,11 @@
 // `BACKGROUND_IMAGE_KINDS` / `ThemeBackground` (the one-home background-source vocabulary) so neither the
 // client feature nor the server compose forks a copy. The `url` is a static `public/` path served by the
 // client — a plain string here, never a bundler import.
-// TEMPORARY ART: swap for CC0/original images before ship.
+// The client-local twin (`client/src/lib/list-seeded-backgrounds.ts`) was COLLAPSED into this one home
+// 2026-08-02 — `client/src/lib` re-exports these (client → contracts is the lawful direction), so a slug
+// added here reaches the pickers, the app-shell layer and `/autobg` at once. The desync class is dead.
+// TEMPORARY ART: the four landscape plates are placeholders (swap for CC0/original before ship); the ten
+// `*-bg` character plates are original pack art.
 
 export interface SeededBackground {
   readonly id: string;
@@ -18,6 +22,19 @@ const SEEDED_BACKGROUNDS: readonly SeededBackground[] = [
   { id: "granite-valley", label: "Granite valley", url: "/backgrounds/granite-valley.jpg" },
   { id: "forest-falls", label: "Forest falls", url: "/backgrounds/forest-falls.jpg" },
   { id: "blue-fjord", label: "Blue fjord", url: "/backgrounds/blue-fjord.jpg" },
+  // The default-character pack's scene plates (original art). Each seeded card carries its own slug as
+  // `backgroundOverride` — the id is `<character handle>-bg`, so the pack's cards and this catalog can
+  // never drift apart silently (the seeder writes the slug; a missing plate degrades to "no image").
+  { id: "assistant-bg", label: "Charlotte's study", url: "/backgrounds/assistant-bg.jpg" },
+  { id: "jfc-coder-bg", label: "The dark office", url: "/backgrounds/jfc-coder-bg.jpg" },
+  { id: "niko-bg", label: "Konbini at 1 a.m.", url: "/backgrounds/niko-bg.jpg" },
+  { id: "hana-bg", label: "City park, midnight", url: "/backgrounds/hana-bg.jpg" },
+  { id: "morgatha-bg", label: "The Ashen Spire", url: "/backgrounds/morgatha-bg.jpg" },
+  { id: "sabine-bg", label: "Road-town tavern", url: "/backgrounds/sabine-bg.jpg" },
+  { id: "birdie-bg", label: "Hobby & Repair", url: "/backgrounds/birdie-bg.jpg" },
+  { id: "kohaku-bg", label: "Lamplit apartment", url: "/backgrounds/kohaku-bg.jpg" },
+  { id: "calamity-bg", label: "The good windowsill", url: "/backgrounds/calamity-bg.jpg" },
+  { id: "elias-bg", label: "Gullwrack lamp room", url: "/backgrounds/elias-bg.jpg" },
 ];
 
 /** The full seeded-background catalog (id/label/url) — the picker source + the `/autobg` seeded candidates. */

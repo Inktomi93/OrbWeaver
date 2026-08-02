@@ -2,6 +2,10 @@
 // modules never ride a shared barrel): ./dev-tools (main.tsx lazy-mounts it), ./long-task-tracer
 // (main.tsx dynamic-imports it).
 
+// The seeded-background catalog has ONE home in @orb/contracts/theme (the server's /autobg arm reads the
+// same list); re-exported here so every client consumer keeps importing it from `#lib`.
+export type { SeededBackground } from "@orb/contracts/theme";
+export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "@orb/contracts/theme";
 export { cn } from "@orb/ui/lib";
 export { BACKGROUND_KIND_ITEMS, BACKGROUND_KIND_LABELS } from "./background-kind-items";
 export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog";
@@ -61,8 +65,6 @@ export {
   sendUnavailableReason,
   WAND_NEEDS_TEXT,
 } from "./injection-copy";
-export type { SeededBackground } from "./list-seeded-backgrounds";
-export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "./list-seeded-backgrounds";
 export { logClock } from "./log-clock";
 export { messageBubbleClass } from "./message-bubble-class";
 export type { MessageRenderContext } from "./message-render";
