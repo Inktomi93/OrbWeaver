@@ -123,8 +123,8 @@ packages/server/src/
 
 ## 4. The per-feature template — the legibility engine
 
-**Every feature is the same eight slots.** Learn one, know all. Scales from `hub` (8 files) to the
-90+-file `chat` without changing shape.
+**Every feature is the same eight slots.** Learn one, know all. Scales from a small leaf like `tag`
+to the 90+-file `chat` without changing shape.
 
 ```
 domain/<feature>/
@@ -164,9 +164,10 @@ domain/<feature>/
 cross-feature op in its `contract`; the runtime op is wired at the composition root (`service.ts` /
 `context.ts`).
 
-**Feature-root files are locked** to `index.ts` / `service.ts` / `context.ts` / `guard.ts` — plus a
-handful of individually-sanctioned domain singletons (chat's `bus.ts` / `active-turns.ts`, buddy's
-`bus.ts`, preset/settings' `constants.ts` + seed files) that fit no
+**Feature-root files are locked** to `index.ts` / `service.ts` / `context.ts` / `guard.ts` /
+`workload-contributions.ts` (the ratified cross-domain 10th slot, D117) — plus a
+handful of individually-sanctioned domain singletons (chat's `bus.ts` / `active-turns.ts`, rpg's
+`bus.ts` / `staging.ts` / `flush-barrier.ts`, preset/settings' `constants.ts` + seed files) that fit no
 verb/substrate/subsystem. The allowlist lives in the `feature-structure` gate; anything else at the root
 is RED.
 

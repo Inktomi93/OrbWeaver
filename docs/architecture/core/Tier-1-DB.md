@@ -10,7 +10,7 @@ updated: 2026-08-02
 
 ## What this package owns
 
-- **The drizzle schema** — every `sqliteTable`, one file per **producing** domain (`schema/<feature>.ts`) plus the reserved cross-cutting set (`users` · `audit` · `agent-principals` · `relations`; `custom-types/` is its own top-level dir, not a schema file). `schema/index.ts` is the source-of-truth barrel; the `db-structure` gate enforces the domain split AND the re-export (a file missing from the barrel silently drops its tables from `typeof schema` and migrations).
+- **The drizzle schema** — every `sqliteTable`, one file per **producing** domain (`schema/<feature>.ts`) plus the reserved cross-cutting set (`users` · `audit` · `relations`; `custom-types/` is its own top-level dir, not a schema file — the former `agent-principals` schema file died with the 2026-07-25 agent-principal purge; only dormant DDL in `users.ts`/`chat.ts` survives, per the D60 build-state rider). `schema/index.ts` is the source-of-truth barrel; the `db-structure` gate enforces the domain split AND the re-export (a file missing from the barrel silently drops its tables from `typeof schema` and migrations).
 - **The DB row types** — `$inferSelect`/`$inferInsert` (the §7.4 DB-row home). The TypeID brand lives AT the column (`$type<CharacterId>()`), so rows come back branded with no `castId` at the row→view seam.
 - **The libSQL client + lifecycle** (`client/`) — `createDb(url, wrap?)`, the per-connection PRAGMA block, `runMigrations`, `assertReferentialIntegrity`, `backupBeforeMigrate`, `optimizeDb`, `preCloseHousekeeping`, and the `LibSqlWrap` injection seam (the OTel wrapper is passed IN from `foundation/observability` because `db` can't import `server`).
 - **The migrations** — the fresh `0000_baseline.sql` + `meta/_journal.json` (born with every ledger decision already applied — no cv-pin, no `chats.ownerId`, `content_hash` on all five vector tables (character\_embeddings · image\_embeddings · chat\_digests · chat\_segments · document\_chunks), …).
@@ -23,7 +23,7 @@ NOT owned: business logic (verbs/ownership/dispatch → `server`); the vector wr
 
 > **A schema file is named for the domain that PRODUCES/OWNS its rows, never for a consumer.**
 
-A consumer-named schema file hides its real producer (the port-from-neo antipattern; the enumerated cases are in `history/tier-1-2-archaeology-record.md`). Enforcement: compile-time (the schema file IS the type source — a move forces every importer) + the `db-structure` gate (asserts `schema/<feature>.ts` maps to a producing domain and the barrel re-exports every file; satellite tables map to their producer, e.g. `agent-principals` → `domain/sessions`, `gallery` → `domain/assets`).
+A consumer-named schema file hides its real producer (the port-from-neo antipattern; the enumerated cases are in `history/tier-1-2-archaeology-record.md`). Enforcement: compile-time (the schema file IS the type source — a move forces every importer) + the `db-structure` gate (asserts `schema/<feature>.ts` maps to a producing domain and the barrel re-exports every file; satellite tables map to their producer, e.g. `gallery` → `domain/assets`, `sdk-session` → the agent-sdk backend).
 
 ## Cross-tier composition (who reads `db`)
 

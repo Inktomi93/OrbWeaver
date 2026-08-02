@@ -104,11 +104,13 @@ canonical home an axis gets re-spelled inline at every dispatch site, so adding 
 scavenger hunt across dozens of files — the neo-tavern pain that motivated this rule, quantified per-axis
 in `../history/spine-typescript-archaeology-record.md`.
 
-**The GOLD STANDARD to copy:** `workloads.kind` dispatches through `RUNNERS: { [K in WorkloadKind]:
-Runner<K> }` (`domain/workloads/substrate/dispatch.ts`) — a **mapped-type Record**, so a missing kind is
+**The GOLD STANDARD to copy:** `workloads.kind` dispatches through `WorkloadContributions:
+{ readonly [K in WorkloadKind]: WorkloadContribution<K> }`, asserted exhaustive + duplicate-free by
+`keyByKind` at the compose door (`entry/compose/workload-contributions.ts`, D117 — the former
+`substrate/dispatch.ts` `RUNNERS` hub is deleted) — a **mapped-type Record**, so a missing kind is
 a hard compile error. `routing.api`/`source` runner switches use typed-return / `assertNever`.
 
 **The rule:** every axis has (a) ONE importable canonical union/tuple (no inline re-spelling — gated),
 and (b) a mapped-type Record or exhaustive `assertNever` dispatch (a new member fails the build).
-Orbweaver's axes are born this shape (`MESSAGE_ROLES`, `USER_ROLES`, `AUTH_MODES` + `MODE_RESOLVERS`, `WorkloadKind` + `RUNNERS`, …). Gates: **`no-inline-union-redecl` + `exhaustive-dispatch`**
+Orbweaver's axes are born this shape (`MESSAGE_ROLES`, `USER_ROLES`, `AUTH_MODES` + `MODE_RESOLVERS`, `WorkloadKind` + `WorkloadContributions`, …). Gates: **`no-inline-union-redecl` + `exhaustive-dispatch`**
 (`Core-0-Architecture-and-Structure.md §7`; catalog: `Core-Enforcement-Active-Gates.md`).
