@@ -61,6 +61,23 @@ test("renders the n/m counter and fires swipe (generate) on the next chevron at 
   await expect.poll(() => trpc.count("chat.selectVariant")).toBe(0);
 });
 
+// DENSITY S6 (density-pass-spec.md §2.3): the n/m counter is a VALUE you read, so it speaks the `datum`
+// voice — mono + tabular figures, so the digits stop shifting the chevrons sideways as the count ticks.
+// Asserted by computed style, never by the class string.
+test("the n/m counter speaks the datum voice — mono, tabular figures (the digits don't jitter the chevrons)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listMessageVariants": () => TWO_VARIANT_LIST });
+  const component = await mount(<SwipeStripStory message={atTipOf2} />);
+
+  const counter = component.getByText("2 / 2");
+  await expect(counter).toBeVisible();
+  const type = await counter.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { family: style.fontFamily, numeric: style.fontVariantNumeric };
+  });
+  expect(type.family).toContain("Mono");
+  expect(type.numeric).toContain("tabular-nums");
+});
+
 test("the left chevron is disabled when idx 0 has no earlier sibling (gate stays off, variantCount === 1)", async ({ mount }) => {
   // No routeTrpc call at all — `variantCount === 1` means `useVariantHistory`'s gate never fires the
   // query (§13.1 useGatedQuery/skipToken), so an unhandled network request would prove a leak if this

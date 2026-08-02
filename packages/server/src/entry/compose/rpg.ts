@@ -63,7 +63,8 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, newId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { eq } from "drizzle-orm";
-import type { RpgCardCorpus, RpgTurnTranscriptMessage } from "#domain/chat";
+import type { CharacterService } from "#domain/character";
+import type { ChatService, RpgCardCorpus, RpgTurnTranscriptMessage } from "#domain/chat";
 import { parseChatMetadata } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import { AgentModelHealError, ConnectionRoutingError } from "#domain/connection";
@@ -123,8 +124,61 @@ export interface RpgComposeDeps {
    *  off the preset front door `get` (the ONLY legal preset import), which throws `PresetNotFoundError` for a
    *  preset the user can't read — the exact "foreign preset" the strip drops. rpg never reads preset tables. */
   readonly resolvePresetOwned: RpgResolvePresetOwned;
+  /** R4 PROMOTION's durable half. The character front door mints the card (`create`) and resolves whether a
+   *  handle is already taken in the owner's library (`findByHandle` — the per-owner handle index is UNIQUE, so
+   *  the mint would otherwise throw a raw constraint error at the host instead of a sentence). rpg reads no
+   *  character table; this is the ONLY legal reach. */
+  readonly character: Pick<CharacterService, "create" | "findByHandle">;
+  /** R4 PROMOTION's other durable half — the chat participant-insert chokepoint (host-gated inside the verb,
+   *  idempotent on a present seat). rpg reads no participant table; this is the ONLY legal reach. */
+  readonly chat: Pick<ChatService, "addCharacterToChat">;
   /** The ONE tool-use registry — rpg registers its 7 state tools into it (the imagery precedent). */
   readonly toolUse: Pick<ToolUseService, "register">;
+}
+
+/** How many handle candidates the promotion mint probes before refusing (`vesna`, `vesna-2`, … `vesna-25`).
+ *  The card HANDLE is a machine label in the owner's own namespace (the `__group__<chatId>` synthetic precedent
+ *  — nothing addresses a character BY handle), so uniquifying it silently loses nothing; the display NAME is
+ *  the identity, and a name collision is refused loudly by the verb instead. The bound exists so a pathological
+ *  library cannot turn one promotion into an unbounded scan. */
+const PROMOTE_HANDLE_ATTEMPTS = 25;
+
+/** R4 — PROMOTION's durable half: mint the card + seat it on the roster, both AS THE ROOM HOST the verb
+ *  resolved by role (threaded explicitly — the injected-op caller-gate class; an op that re-derived the owner
+ *  here could mint a card into the wrong library). A promoted character MUST be host-owned, because
+ *  `resolveRpgRoster` reads roster character cards under the room host's ownership — a card owned by anyone
+ *  else resolves to no actor at all and the promotion would land the person nowhere.
+ *
+ *  The handle is uniquified against the owner's library BEFORE the mint, so the reachable failure is a
+ *  legible refusal rather than the unique-index error the insert would otherwise throw at the host. */
+/** The first handle in the owner's library that nothing already carries, or `null` if every candidate is taken.
+ *
+ *  TWO PHASES, deliberately: the bare `handle` is probed ALONE first, because it is free on essentially every
+ *  promotion and one indexed owner-scoped read is the honest cost of the common case. Only a real collision
+ *  pays for the suffixed candidates, and those are asked for IN PARALLEL — they are independent questions, so
+ *  a sequential walk would be a per-iteration round-trip for no ordering benefit. `findIndex` then restores
+ *  the deterministic lowest-suffix answer, so the same collision always resolves to the same handle. */
+async function freePromotionHandle(deps: RpgComposeDeps, ownerId: UserId, handle: string): Promise<string | null> {
+  if ((await deps.character.findByHandle({ ownerId, handle })) === null) {
+    return handle;
+  }
+  const suffixed = Array.from({ length: PROMOTE_HANDLE_ATTEMPTS - 1 }, (_, i) => `${handle}-${i + 2}`);
+  const taken = await Promise.all(suffixed.map((candidate) => deps.character.findByHandle({ ownerId, handle: candidate })));
+  const index = taken.indexOf(null);
+  return index === -1 ? null : (suffixed[index] ?? null);
+}
+
+function buildPromoteToRoster(deps: RpgComposeDeps): RpgContext["promoteToRoster"] {
+  return async ({ chatId, hostUserId, name, handle, description }) => {
+    const free = await freePromotionHandle(deps, hostUserId, handle);
+    if (free === null) {
+      return { ok: false, reason: `your character library already carries "${handle}" and every variant this promotion tried — rename the character first` };
+    }
+    const principal = await deps.resolveHostPrincipal(hostUserId);
+    const created = await deps.character.create({ principal, input: { handle: free, name, description } });
+    await deps.chat.addCharacterToChat({ principal, chatId, characterId: created.id });
+    return { ok: true, characterId: created.id };
+  };
 }
 
 /** The rpg compose product: the verb surface (transport consumes it) + the `ChatRpgOps` chat receives by
@@ -1157,6 +1211,8 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     getMembership: deps.rpgChatOps.getMembership,
     setPointer: deps.rpgChatOps.setRpgPointer,
     resolveRoster: deps.rpgChatOps.resolveRpgRoster,
+    // R4 — promotion's durable half (card + roster seat), the ONE rpg write that reaches outside the game.
+    promoteToRoster: buildPromoteToRoster(deps),
     postNarratorMessage: deps.rpgChatOps.postNarratorMessage,
     resolvePresetOwned: deps.resolvePresetOwned,
     // The chat's active-preset macros (WAVE MU) — the injected chat op the GM console's shadow gloss reads.

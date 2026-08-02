@@ -556,3 +556,74 @@ test("a fake message-footer contribution's `when:false` hides it on the row", as
 
   await expect(component.getByTestId("ct-fake-surface-contribution")).toHaveCount(0);
 });
+
+// ── DENSITY S6: the room DECLARES the instrument tier, and the transcript's islands resolve it ──────
+// The MECHANISM probe lives in tests/ui/density-tier.suite.ct.tsx; it says nothing about whether the real
+// chat room still declares a tier — a deleted <Surface>, a re-homed pane or a portaled row all leave the
+// mechanism green and the room un-tiered (the S5 lesson, tests/support/ct/tier-liveness.ts). So these read
+// the transcript's own island back from the browser: the `:::choices` block is the transcript's
+// always-reachable tier-resolved island (a <Card>, so its padding + radius come from the tier map and not
+// from anything this feature spells). Every expectation resolves its token from the SAME document.
+const CHOICES_CANON = [
+  makeMessageView({
+    id: castId<MessageId>("msg_room_choices"),
+    role: "assistant",
+    content: "The corridor forks.\n:::choices\n1. Draw your blade.\n2. Slip into the shadows.\n:::",
+    seq: 1,
+  }),
+];
+
+/** The px a spacing/radius token resolves to in the live CT document — never a hardcoded step. */
+function resolveTokenPx(root: Locator, token: string): Promise<number> {
+  return root.evaluate((node, name) => {
+    const probe = node.ownerDocument.createElement("div");
+    probe.style.padding = `var(${name})`;
+    node.ownerDocument.body.append(probe);
+    const px = Number.parseFloat(getComputedStyle(probe).paddingTop);
+    probe.remove();
+    return px;
+  }, token);
+}
+
+function computedPx(el: Locator, property: "paddingLeft" | "borderTopLeftRadius"): Promise<number> {
+  return el.evaluate((node, prop) => Number.parseFloat(getComputedStyle(node)[prop]), property);
+}
+
+/** The transcript island whose BOX the tier map owns: the `<Card>` wrapping the choices block. `Card` always
+ *  stamps its own `data-slot="card-root"` (it is the slot tiers.css keys on), so the block's own marker rides
+ *  the content inside it and the island is addressed through it. */
+const CHOICES_ISLAND = '[data-slot="card-root"]:has([data-slot="message-choices"])';
+
+test("the chat room declares the INSTRUMENT tier — the transcript's island resolves --spacing-row, not the tier-less --spacing-block", async ({
+  mount,
+  page,
+}) => {
+  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CHOICES_CANON) });
+  const component = await mount(<ChatRoomSurfaceStory committed={true} />);
+
+  const island = component.locator(CHOICES_ISLAND).first();
+  await expect(island).toBeVisible();
+  const row = await resolveTokenPx(island, "--spacing-row");
+  const block = await resolveTokenPx(island, "--spacing-block");
+  expect(row, "the two steps must differ or this proves nothing").not.toBe(block);
+  expect(await computedPx(island, "paddingLeft"), "an un-tiered room falls back to the airy --spacing-block step").toBe(row);
+  // D6: `--radius-card` is the ELEVATED step (the bubble); grouped content inside a surface is --radius-base.
+  expect(await computedPx(island, "borderTopLeftRadius")).toBe(await resolveTokenPx(island, "--radius-base"));
+});
+
+test("LIVE: stripping data-surface-tier off the room moves the transcript island back to the tier-less step", async ({ mount, page }) => {
+  await routeTrpc(page, { ...ROSTER_STUB, "chat.listMessages": () => makeMessagesPage(CHOICES_CANON) });
+  const component = await mount(<ChatRoomSurfaceStory committed={true} />);
+
+  const island = component.locator(CHOICES_ISLAND).first();
+  await expect(island).toBeVisible();
+  const before = await computedPx(island, "paddingLeft");
+  await page.evaluate(() => {
+    for (const node of document.querySelectorAll("[data-surface-tier]")) {
+      node.removeAttribute("data-surface-tier");
+    }
+  });
+  const after = await computedPx(island, "paddingLeft");
+  expect(after, "the tier map is INERT in this room — nothing under it actually resolves the tier").not.toBe(before);
+  expect(after).toBe(await resolveTokenPx(island, "--spacing-block"));
+});

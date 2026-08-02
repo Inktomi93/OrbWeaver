@@ -8,6 +8,7 @@ import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { speakerTagsToPlain, stripLeadingSpeakerName } from "@orb/kit/speaker-label";
+import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import { Skeleton } from "@orb/ui/skeleton";
@@ -45,13 +46,16 @@ function ghostFallbackTile(attribution: RowAttribution | undefined): {
 // partial HTML ever renders mid-stream). An aborted stream drops with the ghost row (no false card).
 function FormingCardChip({ title }: { readonly title: string | null }): ReactElement {
   return (
-    <Stack gap="row" data-slot="forming-card-chip" className="rounded-card border border-border bg-card p-block" aria-busy={true}>
-      <Text size="label" tone="muted">
-        ✦ {title !== null && title !== "" ? title : "Immersive card"} — forming…
-      </Text>
-      <Skeleton className="h-control-md w-full" />
-      <Skeleton variant="text" className="h-control-sm" />
-    </Stack>
+    // DENSITY S6: the chip is the placeholder ISLAND for the card it becomes, so it stays a box — but a
+    // `<Card>`, whose padding + `--radius-base` the room's instrument tier resolves. It was the largest
+    // radius step (D6 reserved that for the floating bubble it streams inside).
+    <Card aria-busy={true}>
+      <Stack gap="row" data-slot="forming-card-chip">
+        <Text voice="gloss">✦ {title !== null && title !== "" ? title : "Immersive card"} — forming…</Text>
+        <Skeleton className="h-control-md w-full" />
+        <Skeleton variant="text" className="h-control-sm" />
+      </Stack>
+    </Card>
   );
 }
 

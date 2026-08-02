@@ -47,7 +47,7 @@ export function MessageTimestamp({ message, show }: { readonly message: MessageV
     return null;
   }
   return (
-    <Text as="span" size="micro" tone="muted" className="font-mono" data-slot="message-metadata-timestamp">
+    <Text as="span" voice="gloss" className="font-mono" data-slot="message-metadata-timestamp">
       {timeLib.formatTime(message.createdAt)}
     </Text>
   );
@@ -59,10 +59,13 @@ function tokenCount(message: MessageView): number | null {
   return message.tokensOut ?? message.tokensIn ?? null;
 }
 
-/** A quiet micro-mono-muted metadata datum (the P5 voice, replacing the old badge pill). */
+/** A quiet micro-mono-muted metadata datum (the P5 voice, replacing the old badge pill). The four-voice
+ *  grammar name for that is `gloss` — the quiet second line — and the mono family is the P5 ruling this
+ *  row keeps: these are machine facts about the row, never the reply you came to read (which is why they
+ *  are NOT the `datum` voice, despite being numbers). */
 function metadatum(slot: string, text: string): ReactElement {
   return (
-    <Text as="span" size="micro" tone="muted" className="font-mono" data-slot={slot}>
+    <Text as="span" voice="gloss" className="font-mono" data-slot={slot}>
       {text}
     </Text>
   );
@@ -106,7 +109,7 @@ export function MessageMetadataRow({ message, visibility }: MessageMetadataRowPr
       {items.map((item, index) => (
         <Fragment key={item.key}>
           {index > 0 ? (
-            <Text as="span" size="micro" tone="muted" aria-hidden="true">
+            <Text as="span" voice="gloss" aria-hidden="true">
               ·
             </Text>
           ) : null}
