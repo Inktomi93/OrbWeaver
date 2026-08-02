@@ -45,6 +45,22 @@ const PLAYER_NAME = "Aldric Vane";
  *  rides theme tokens); every one carries the steering HINT the model reads. */
 const TRACKERS = [
   {
+    // HEALTH IS A TRACKER (R3) — the seed's own proof of the demotion. It used to be `sheet.maxHp` plus a
+    // schema-privileged `hp` leaf plus a `setHp` op; it is now one def like any other, which is why the seed
+    // can state its ceiling once, here, instead of in two places that nothing reconciled.
+    key: "hp",
+    label: "HP",
+    shape: "meter" as const,
+    write: "delta" as const,
+    subject: "actor" as const,
+    appliesTo: "everyone" as const,
+    max: 38,
+    color: "#e05a5a",
+    pinned: true,
+    sort: -1,
+    hint: "physical health — damage lowers it, rest and care restore it; unset counts as 0",
+  },
+  {
     key: "mana",
     label: "Mana",
     shape: "meter" as const,
@@ -118,30 +134,39 @@ const TRACKERS = [
 /** The custom-relationship gloss (config.features.relationshipHints — steers a `{kind:"custom",label}`). */
 const RELATIONSHIP_HINTS = { "sworn rival": "a bitter but respectful competitor; never an outright enemy" };
 
-/** The scene cast — present characters with relationships + the tracked custom cast-fields. Each carries a
- *  stable `key` (the normalized-name join). One rides a first-class relationship kind, one a custom label. */
-const PRESENT_CHARACTERS = [
+/** The scene cast's IDENTITY half as actor OPS (R2 — a cast NPC's name/emoji/mood/guides/relationship live on
+ *  her own `actorState` row, not on a presence row that departure would destroy). One rides a first-class
+ *  relationship kind, one a custom label. The `key` is the stable slug the ref uses; `name` is the display
+ *  name, and the two are deliberately different strings. */
+const CAST_IDENTITY_OPS: readonly { readonly castKey: string; readonly ops: readonly RpgActorOp[] }[] = [
   {
-    key: "mira",
-    name: "Mira Solheart",
-    emoji: "🗡️",
-    mood: "guarded",
-    appearance: "a lean duelist in travel-worn leathers, one hand always near her hilt",
-    outfit: "oiled leather cuirass, a faded green cloak",
-    thoughts: "he talks a good game — but can he hold a line when it breaks?",
-    relationship: { kind: "ally" as const, label: "" },
+    castKey: "mira",
+    ops: [
+      { op: "setIdentityText", field: "name", text: "Mira Solheart" },
+      { op: "setIdentityText", field: "emoji", text: "🗡️" },
+      { op: "setIdentityText", field: "mood", text: "guarded" },
+      { op: "setIdentityText", field: "appearance", text: "a lean duelist in travel-worn leathers, one hand always near her hilt" },
+      { op: "setIdentityText", field: "outfit", text: "oiled leather cuirass, a faded green cloak" },
+      { op: "setIdentityText", field: "thoughts", text: "he talks a good game — but can he hold a line when it breaks?" },
+      { op: "setRelationship", relationship: { kind: "ally", label: "" } },
+    ],
   },
   {
-    key: "corvin",
-    name: "Corvin Ashe",
-    emoji: "🔥",
-    mood: "smug",
-    appearance: "a silver-tongued mage with soot under his nails and a collector's grin",
-    outfit: "a burnt-hem coat stitched with cooling runes",
-    thoughts: "the relic is mine by right — Aldric merely doesn't know it yet",
-    relationship: { kind: "custom" as const, label: "sworn rival" },
+    castKey: "corvin",
+    ops: [
+      { op: "setIdentityText", field: "name", text: "Corvin Ashe" },
+      { op: "setIdentityText", field: "emoji", text: "🔥" },
+      { op: "setIdentityText", field: "mood", text: "smug" },
+      { op: "setIdentityText", field: "appearance", text: "a silver-tongued mage with soot under his nails and a collector's grin" },
+      { op: "setIdentityText", field: "outfit", text: "a burnt-hem coat stitched with cooling runes" },
+      { op: "setIdentityText", field: "thoughts", text: "the relic is mine by right — Aldric merely doesn't know it yet" },
+      { op: "setRelationship", relationship: { kind: "custom", label: "sworn rival" } },
+    ],
   },
 ];
+
+/** Who stands in the scene — the PRESENCE plane, as `actorRefKey` strings (R2). */
+const PRESENT_CHARACTERS: readonly string[] = CAST_IDENTITY_OPS.map((c) => `cast:${c.castKey}`);
 
 /** The player's inventory items, as `patchActor` ADD ops (the item id is minted server-side — a hand caller
  *  never names an item's identity, exactly as the model applier never does). */
@@ -240,11 +265,11 @@ const JOURNAL = [
 /** The player's per-attribute scores (d20 vocabulary). Freeform seeds NO attributes (no vocabulary). */
 const D20_ATTRIBUTES: Readonly<Record<string, number>> = { str: 15, dex: 13, con: 14, int: 12, wis: 11, cha: 16 };
 const PLAYER_LEVEL = 4;
-const PLAYER_MAX_HP = 38;
 
 /** The player's TRACKER readings (volatile) — keyed by tracker `key`, one `setTracker` op each (the server
  *  keeps each written value TOTAL). Partially spent, for a lived-in look. */
 const PLAYER_TRACKER_OPS: readonly RpgActorOp[] = [
+  { op: "setTracker", key: "hp", value: { value: 31 } },
   { op: "setTracker", key: "mana", value: { value: 28 } },
   { op: "setTracker", key: "focus", value: { value: 20 } },
   { op: "setTracker", key: "grit", value: { value: 6 } },
@@ -321,7 +346,6 @@ export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
       patch: {
         className: "Warden of House Vane",
         flavor: "grim, dutiful, quicker with a blade than with words",
-        maxHp: PLAYER_MAX_HP,
         level: PLAYER_LEVEL,
         ...(profile === "d20" ? { attributes: D20_ATTRIBUTES } : {}),
       },
@@ -349,15 +373,14 @@ export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
     const actorWrites: readonly { readonly targetRef: RpgActorRef; readonly ops: readonly RpgActorOp[] }[] = [
       {
         targetRef: playerRef,
-        ops: [
-          { op: "setHp", hp: { value: 31, max: PLAYER_MAX_HP } },
-          ...PLAYER_TRACKER_OPS,
-          ...PLAYER_ITEM_OPS,
-          ...PLAYER_WALLET_OPS,
-          { op: "setStatus", status: "on edge" },
-        ],
+        ops: [...PLAYER_TRACKER_OPS, ...PLAYER_ITEM_OPS, ...PLAYER_WALLET_OPS, { op: "setStatus", status: "on edge" }],
       },
-      ...CAST_ACTOR_OPS.map((c) => ({ targetRef: { kind: "cast", castKey: c.castKey } as const, ops: c.ops })),
+      // The cast's IDENTITY ops must land before its tracker ops on the same row read, so both halves are
+      // written in ONE call per actor (the ops apply in order against the true head).
+      ...CAST_IDENTITY_OPS.map((c) => ({
+        targetRef: { kind: "cast", castKey: c.castKey } as const,
+        ops: [...c.ops, ...(CAST_ACTOR_OPS.find((t) => t.castKey === c.castKey)?.ops ?? [])],
+      })),
     ];
     await actorWrites.reduce<Promise<unknown>>(
       (chain, write) => chain.then(() => client.rpg.patchActor.mutate({ chatId, targetRef: write.targetRef, ops: [...write.ops] })),

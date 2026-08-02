@@ -14,11 +14,12 @@
 
 import type {
   AddJournalEntryArgs,
+  RpgActorEntry,
+  RpgActorIdentity,
   RpgActorRef,
   RpgActorVolatile,
   RpgExtraction,
   RpgInventoryItem,
-  RpgPresentCharacter,
   RpgQuestObjective,
   RpgQuestStatus,
   RpgSnapshotState,
@@ -29,11 +30,11 @@ import type {
   UpdateSceneArgs,
   UpsertQuestArgs,
 } from "@orb/contracts/rpg";
-import { actorRefKey, journalTitleFor, journalTypeFor, RPG_TRACKER_VALUE_EMPTY, TIME_OF_DAY_HOURS, trackerNumber } from "@orb/contracts/rpg";
+import { actorRefKey, journalTitleFor, journalTypeFor, RPG_TRACKER_VALUE_EMPTY, rpgCastSlug, TIME_OF_DAY_HOURS, trackerNumber } from "@orb/contracts/rpg";
 import type { RpgQuestId } from "@orb/kit/ids";
 import type { StagedJournalEntry } from "../contract/params";
 import type { RpgStateDelta } from "../contract/service";
-import { emptyActorVolatile } from "../substrate/actor-ops";
+import { emptyActorEntry } from "../substrate/actor-ops";
 
 /** A name→actor-ref index over the roster (character/user members by their gather-surfaced display name,
  *  lowercased), so a model `targetRef` NAME resolves to the roster member's canonical ref key. Built once per
@@ -65,24 +66,23 @@ export function buildRosterRefIndex(roster: readonly { readonly actorRef: RpgAct
   return index;
 }
 
-/** A minimal actor identity keyed by `ref` — either a roster ref (`character`/`user`, F2) or a fresh `cast`.
- *  The zero row is one-homed in `substrate/actor-ops` (the hand door mints the SAME shape — a row's birth
- *  shape must not depend on which writer got there first). */
-function newActorFor(ref: RpgActorRef): RpgActorVolatile {
-  return emptyActorVolatile(ref);
+/** The `RpgActorRef` a model-facing target NAME addresses: a roster member's own ref when the name is on the
+ *  roster (F2 — the tracker view + reminder read that key), else a `cast` ref under the name's stable SLUG.
+ *  The ONE resolution rule, shared by the party/inventory appliers AND the scene applier's presence writes, so
+ *  a cast NPC introduced by `presentUpsert` and wounded by `update_party` in the same round is ONE actor. */
+function refForTarget(targetRef: string, roster: RosterRefIndex): RpgActorRef {
+  return roster.get(targetRef.toLowerCase()) ?? { kind: "cast", castKey: rpgCastSlug(targetRef) };
 }
 
 /** Resolve the actor a `targetRef` NAME addresses (the model never sees ids). Match order:
- *  1. an EXISTING `actorState` entry whose ref key already matches (roster ref OR cast key) — keep addressing it;
- *  2. else a ROSTER member by name → mint with its `character:<id>`/`user:<id>` ref (F2 — the tracker view +
- *     reminder read this key), so a party-member write is FIRST-CLASS and rendered;
- *  3. else a genuine non-roster scene NPC → mint a `cast:<name>` (the additive, hand-editable identity).
+ *  1. an EXISTING `actorState` entry whose ref key already matches (roster ref OR cast slug) — keep addressing it;
+ *  2. else a ROSTER member by name → mint with its `character:<id>`/`user:<id>` ref (F2), so a party-member
+ *     write is FIRST-CLASS and rendered;
+ *  3. else a genuine non-roster scene NPC → mint a `cast:<slug>` (the additive, hand-editable actor).
  *  Returns the matched/minted actor + its index (-1 = minted, appended). */
-function resolveActor(actors: readonly RpgActorVolatile[], targetRef: string, roster: RosterRefIndex): { actor: RpgActorVolatile; index: number } {
-  const rosterRef = roster.get(targetRef.toLowerCase());
-  // (1) an existing entry under the target's resolved key — a roster member already written this turn, OR a
-  //     cast NPC by name. Prefer the roster ref's key when the name resolves to a roster member.
-  const wantedKey = rosterRef !== undefined ? actorRefKey(rosterRef) : `cast:${targetRef}`;
+function resolveActor(actors: readonly RpgActorEntry[], targetRef: string, roster: RosterRefIndex): { actor: RpgActorEntry; index: number } {
+  const ref = refForTarget(targetRef, roster);
+  const wantedKey = actorRefKey(ref);
   const index = actors.findIndex((a) => actorRefKey(a.actorRef) === wantedKey);
   if (index !== -1) {
     const found = actors[index];
@@ -90,12 +90,13 @@ function resolveActor(actors: readonly RpgActorVolatile[], targetRef: string, ro
       return { actor: found, index };
     }
   }
-  // (2)/(3) mint under the roster ref when the name is a roster member, else a fresh cast NPC.
-  return { actor: newActorFor(rosterRef ?? { kind: "cast", castKey: targetRef }), index: -1 };
+  // The zero row is one-homed in `substrate/actor-ops` (the hand door mints the SAME shape — a row's birth
+  // shape must not depend on which writer got there first).
+  return { actor: emptyActorEntry(ref), index: -1 };
 }
 
 /** Write a resolved actor back into the plane (replace at `index`, or append a minted one). */
-function withActor(actors: readonly RpgActorVolatile[], resolved: { actor: RpgActorVolatile; index: number }): RpgActorVolatile[] {
+function withActor(actors: readonly RpgActorEntry[], resolved: { actor: RpgActorEntry; index: number }): RpgActorEntry[] {
   if (resolved.index === -1) {
     return [...actors, resolved.actor];
   }
@@ -160,20 +161,16 @@ function applyTrackerWrites(
   return out;
 }
 
-/** `update_party` → the new `actorState` plane (per-actor tracker/condition/hp/status writes). Returns the
- *  patch, or `{ ok:false }` when `hpDelta` targets a null-hp actor (the errors-as-data legality lane, §4.5).
- *  `roster` resolves the target NAME to a roster member's ref (F2 — a party-member write lands FIRST-CLASS). */
-export function applyUpdateParty(
-  state: RpgSnapshotState,
-  args: UpdatePartyArgs,
-  roster: RosterRefIndex,
-): { ok: true; patch: { actorState: RpgActorVolatile[] } } | { ok: false; error: string } {
+/** `update_party` → the new `actorState` plane (per-actor tracker/condition/status writes). `roster` resolves
+ *  the target NAME to a roster member's ref (F2 — a party-member write lands FIRST-CLASS).
+ *
+ *  TOTAL since R3 — there is no refusal arm left. The one that existed (an `hpDelta` on a null-hp actor)
+ *  disappeared with `hp`'s demotion to an ordinary meter: health now rides `trackerDeltas`, whose keys the
+ *  per-actor enum already constrains to the trackers that actor CARRIES, so the illegal write is untypeable
+ *  rather than refused after the fact. */
+export function applyUpdateParty(state: RpgSnapshotState, args: UpdatePartyArgs, roster: RosterRefIndex): { actorState: RpgActorEntry[] } {
   const resolved = resolveActor(state.actorState, args.targetRef, roster);
-  const actor = resolved.actor;
-
-  if (args.hpDelta !== undefined && actor.hp === null) {
-    return { ok: false, error: `${args.targetRef} has no HP track — set a max HP by hand before applying an hpDelta.` };
-  }
+  const actor = resolved.actor.volatile;
 
   const nextTrackers =
     args.trackerDeltas === undefined && args.trackerSets === undefined
@@ -187,16 +184,14 @@ export function applyUpdateParty(
           ...conditions.filter((c) => c.name !== args.addCondition?.name),
           { name: args.addCondition.name, stat: null, modifier: args.addCondition.modifier ?? 0, turnsLeft: null },
         ];
-  const nextHp = args.hpDelta === undefined || actor.hp === null ? actor.hp : { ...actor.hp, value: actor.hp.value + args.hpDelta };
 
-  const next: RpgActorVolatile = {
+  const volatile: RpgActorVolatile = {
     ...actor,
     trackerValues: nextTrackers,
     conditions: nextConditions,
-    hp: nextHp,
     ...(args.status !== undefined ? { status: args.status } : {}),
   };
-  return { ok: true, patch: { actorState: withActor(state.actorState, { actor: next, index: resolved.index }) } };
+  return { actorState: withActor(state.actorState, { actor: { ...resolved.actor, volatile }, index: resolved.index }) };
 }
 
 /** `update_inventory` → the new `actorState` plane (item add/remove + wallet deltas). `add` mints item ids via
@@ -206,9 +201,9 @@ export function applyUpdateInventory(
   args: UpdateInventoryArgs,
   mintItemId: () => string,
   roster: RosterRefIndex,
-): { actorState: RpgActorVolatile[] } {
+): { actorState: RpgActorEntry[] } {
   const resolved = resolveActor(state.actorState, args.targetRef, roster);
-  const actor = resolved.actor;
+  const actor = resolved.actor.volatile;
 
   let inventory: RpgInventoryItem[] = [...actor.inventory];
   for (const item of args.add ?? []) {
@@ -232,17 +227,20 @@ export function applyUpdateInventory(
   }
   const wallet = args.walletDeltas === undefined ? actor.wallet : applyWalletDeltas(actor.wallet, args.walletDeltas);
 
-  const next: RpgActorVolatile = { ...actor, inventory, wallet };
-  return { actorState: withActor(state.actorState, { actor: next, index: resolved.index }) };
+  const volatile: RpgActorVolatile = { ...actor, inventory, wallet };
+  return { actorState: withActor(state.actorState, { actor: { ...resolved.actor, volatile }, index: resolved.index }) };
 }
 
-/** The state patch `update_scene` produces — an ambient/cast/beat overlay under the [merge-clear] contract. */
+/** The state patch `update_scene` produces — an ambient/presence/identity/beat overlay under the [merge-clear]
+ *  contract. Since R2 a cast write touches TWO planes: `presentCharacters` (who is on stage — a flat
+ *  `actorRefKey` list) and `actorState` (the NPC's own identity half, retained across departures). */
 export interface ScenePatch {
   clock?: RpgSnapshotState["clock"];
   location?: string;
   calendarDate?: string;
   weather?: RpgSnapshotState["weather"];
   presentCharacters?: RpgSnapshotState["presentCharacters"];
+  actorState?: RpgActorEntry[];
   recentEvents?: readonly string[];
   plot?: RpgSnapshotState["plot"];
 }
@@ -262,27 +260,30 @@ function carry<T>(next: T | undefined, existing: T | undefined): T | undefined {
 }
 
 /** The default relationship a fresh cast member is born with (neutral, no label). */
-const DEFAULT_RELATIONSHIP: RpgPresentCharacter["relationship"] = { kind: "neutral", label: "" };
+const DEFAULT_RELATIONSHIP: RpgActorIdentity["relationship"] = { kind: "neutral", label: "" };
 
 /** Merge a `presentUpsert.relationship` patch onto the existing stance (§2.1). Omit = keep (MA-4). A `custom`
  *  kind carries its `label`; a non-custom kind clears the label (the built-ins carry their own meaning). */
 function mergeRelationship(
   up: NonNullable<UpdateSceneArgs["presentUpsert"]>[number]["relationship"],
-  existing: RpgPresentCharacter["relationship"] | undefined,
-): RpgPresentCharacter["relationship"] {
+  existing: RpgActorIdentity["relationship"] | undefined,
+): RpgActorIdentity["relationship"] {
   if (up === undefined) {
     return existing ?? DEFAULT_RELATIONSHIP;
   }
   return { kind: up.kind, label: up.kind === "custom" ? (up.label ?? "") : "" };
 }
 
-/** Merge one `presentUpsert` entry onto its existing cast row (or a fresh one) — a per-cast PATCH by `key`. */
-function mergeCastMember(up: NonNullable<UpdateSceneArgs["presentUpsert"]>[number], existing: RpgPresentCharacter | undefined): RpgPresentCharacter {
+/** Merge one `presentUpsert` entry onto a cast actor's existing IDENTITY half (or a fresh one) — a per-actor
+ *  PATCH. Since R2 this writes the ACTOR ROW, so a departure (`presentRemove`) no longer destroys any of it:
+ *  the guides, the mood and the whole relationship ARC survive offstage and re-surface on return. */
+function mergeCastIdentity(up: NonNullable<UpdateSceneArgs["presentUpsert"]>[number], existing: RpgActorIdentity | undefined): RpgActorIdentity {
   const appearance = carry(up.appearance, existing?.appearance);
   const outfit = carry(up.outfit, existing?.outfit);
   const thoughts = carry(up.thoughts, existing?.thoughts);
   return {
-    key: up.name,
+    // The model's spelling of the name is the DISPLAY name and wins on every upsert (that is how a story
+    // renames an NPC); the SLUG it resolves to is what keys the row, so a re-spelling never mints a sibling.
     name: up.name,
     emoji: pick(up.emoji, existing?.emoji, ""),
     mood: pick(up.mood, existing?.mood, ""),
@@ -294,15 +295,33 @@ function mergeCastMember(up: NonNullable<UpdateSceneArgs["presentUpsert"]>[numbe
   };
 }
 
-/** Apply the `presentRemove` + `presentUpsert` cast patches over the current cast plane. */
-function applyCastPatch(cast: readonly RpgPresentCharacter[], args: UpdateSceneArgs): RpgPresentCharacter[] {
-  let next = cast.filter((c) => !(args.presentRemove ?? []).includes(c.key));
+/** Apply the `presentRemove` + `presentUpsert` patches over BOTH halves (R2): presence (a flat `actorRefKey`
+ *  list) and the per-actor identity rows.
+ *
+ *  `presentRemove` drops PRESENCE ONLY — nothing else. That single line is the review's MS-2 fix: departure
+ *  used to delete the cast row outright, taking the NPC's mood, emoji, standing guides and relationship stance
+ *  with it while her tracked state survived invisibly, so a returning enemy came back neutral with no journal
+ *  beat. A `presentUpsert` naming a ROSTER member adds her presence and writes NO identity (her name is the
+ *  roster's, her standing prose the sheet's — one home per fact). */
+function applyPresencePatch(
+  state: RpgSnapshotState,
+  args: UpdateSceneArgs,
+  roster: RosterRefIndex,
+): { presentCharacters: string[]; actorState: RpgActorEntry[] } {
+  const removed = new Set((args.presentRemove ?? []).map((name) => actorRefKey(refForTarget(name, roster))));
+  let present = state.presentCharacters.filter((key) => !removed.has(key));
+  let actorState = state.actorState;
   for (const up of args.presentUpsert ?? []) {
-    const i = next.findIndex((c) => c.key === up.name);
-    const merged = mergeCastMember(up, i === -1 ? undefined : next[i]);
-    next = i === -1 ? [...next, merged] : next.map((c, idx) => (idx === i ? merged : c));
+    const resolved = resolveActor(actorState, up.name, roster);
+    const ref = resolved.actor.actorRef;
+    const entry: RpgActorEntry = ref.kind === "cast" ? { ...resolved.actor, identity: mergeCastIdentity(up, resolved.actor.identity) } : resolved.actor;
+    actorState = withActor(actorState, { actor: entry, index: resolved.index });
+    const key = actorRefKey(ref);
+    if (!present.includes(key)) {
+      present = [...present, key];
+    }
   }
-  return next;
+  return { presentCharacters: present, actorState: [...actorState] };
 }
 
 /** The P5 plot-patch applier: the model's FLAT patch (`act`/`title`/`actTitle`/`actSummary`) onto the
@@ -340,7 +359,7 @@ function sceneClock(state: RpgSnapshotState, args: UpdateSceneArgs): RpgSnapshot
 /** `update_scene` → the ambient/cast/beat patch (§2.7). `timeOfDay`/`day` map onto the engine `clock` via the
  *  ONE `TIME_OF_DAY_HOURS` home; `presentUpsert` is a per-cast PATCH (merge by `key` = normalized name);
  *  `recentEvent` appends one beat. `customFields` array-of-pairs collapses to the stored record. */
-export function applyUpdateScene(state: RpgSnapshotState, args: UpdateSceneArgs): ScenePatch {
+export function applyUpdateScene(state: RpgSnapshotState, args: UpdateSceneArgs, roster: RosterRefIndex): ScenePatch {
   const patch: ScenePatch = {};
   if (args.location !== undefined) {
     patch.location = args.location;
@@ -358,7 +377,9 @@ export function applyUpdateScene(state: RpgSnapshotState, args: UpdateSceneArgs)
     patch.clock = sceneClock(state, args);
   }
   if (args.presentUpsert !== undefined || args.presentRemove !== undefined) {
-    patch.presentCharacters = applyCastPatch(state.presentCharacters, args);
+    const presence = applyPresencePatch(state, args, roster);
+    patch.presentCharacters = presence.presentCharacters;
+    patch.actorState = presence.actorState;
   }
   if (args.recentEvent !== undefined) {
     patch.recentEvents = [...state.recentEvents, args.recentEvent];
@@ -484,11 +505,14 @@ export function reachableActorRefs(base: RpgSnapshotState, roster: RosterRefInde
   const known = new Set<string>(roster.keys()); // already lowercased by `buildRosterRefIndex`
   for (const actor of base.actorState) {
     if (actor.actorRef.kind === "cast") {
+      // BOTH spellings answer: the stable slug (what the ref key is) AND the current DISPLAY name (what the
+      // enum offers and the model actually writes back). Since R2 they are deliberately different strings.
       known.add(actor.actorRef.castKey.toLowerCase());
+      const name = actor.identity?.name;
+      if (name !== undefined) {
+        known.add(name.toLowerCase());
+      }
     }
-  }
-  for (const c of base.presentCharacters) {
-    known.add(c.key.toLowerCase());
   }
   return known;
 }
@@ -524,8 +548,7 @@ export interface ExtractionMints {
 /** The ACTOR-plane arms of the fold (`party` + `inventory`) applied over the running state — hoisted out of
  *  {@link extractionToStateDelta} so the R5 ghost drop stays under the cognitive-complexity ceiling. Each entry
  *  reads the previous entry's write (the staging-accumulator read-through); a GHOST-targeted arg is dropped
- *  whole (errors-as-data — never a throw, never a hallucinated mint). An `update_party` legality denial (an
- *  hpDelta on a null-hp actor) is skipped the same way. */
+ *  whole (errors-as-data — never a throw, never a hallucinated mint). */
 function applyActorArgs(base: RpgSnapshotState, extraction: RpgExtraction, mints: ExtractionMints, roster: RosterRefIndex): RpgSnapshotState {
   const ghosts = new Set(ghostTargetRefs(base, extraction, roster).map((r) => r.toLowerCase()));
   let state = base;
@@ -533,10 +556,7 @@ function applyActorArgs(base: RpgSnapshotState, extraction: RpgExtraction, mints
     if (ghosts.has(args.targetRef.toLowerCase())) {
       continue;
     }
-    const applied = applyUpdateParty(state, args, roster);
-    if (applied.ok) {
-      state = { ...state, ...applied.patch };
-    }
+    state = { ...state, ...applyUpdateParty(state, args, roster) };
   }
   for (const args of extraction.inventory) {
     if (ghosts.has(args.targetRef.toLowerCase())) {
@@ -552,9 +572,8 @@ function applyActorArgs(base: RpgSnapshotState, extraction: RpgExtraction, mints
  *  would otherwise have made" (§4.6). Each entry applies over the RUNNING state (read-through, exactly like the
  *  staging accumulator during a cheap turn: entry N sees entry N-1's write), so the delta's `statePatch` is the
  *  final ABSOLUTE plane values (the accumulator overlays them under the [merge-clear] contract + locks).
- *  An `update_party` legality denial (an hpDelta on a null-hp actor) is SKIPPED — the errors-as-data lane
- *  (cheap mode narrates it; the extraction has no narrator, so a bad delta line is dropped, never a throw).
- *  A GHOST-targeted party/inventory arg is dropped the same way ({@link ghostTargetRefs}, R5). */
+ *  A GHOST-targeted party/inventory arg is DROPPED ({@link ghostTargetRefs}, R5 — errors-as-data: a
+ *  hallucinated name never fails the turn and never mints an actor). */
 export function extractionToStateDelta(base: RpgSnapshotState, extraction: RpgExtraction, mints: ExtractionMints, roster: RosterRefIndex): RpgStateDelta {
   let state = base;
   const overlay = (patch: Partial<RpgSnapshotState>): void => {
@@ -565,7 +584,7 @@ export function extractionToStateDelta(base: RpgSnapshotState, extraction: RpgEx
   if (extraction.scene !== undefined) {
     // `ScenePatch.recentEvents` is `readonly string[]`; the state plane is mutable — split it off and copy it so
     // the overlay type matches (the `update_scene` tool handler spreads the same way through the accumulator).
-    const { recentEvents, ...scene } = applyUpdateScene(state, extraction.scene);
+    const { recentEvents, ...scene } = applyUpdateScene(state, extraction.scene, roster);
     overlay({ ...scene, ...(recentEvents !== undefined ? { recentEvents: [...recentEvents] } : {}) });
   }
   for (const args of extraction.trackers) {
@@ -600,30 +619,46 @@ export function extractionToStateDelta(base: RpgSnapshotState, extraction: RpgEx
   const journal = extraction.journal.filter((e) => e.content.trim().length > 0 || (e.title?.trim().length ?? 0) > 0).map(toStagedJournalEntry);
   // §2.4 — DERIVE a journal beat for each relationship-KIND change (a durable, swipe-consistent record of "when
   // did she turn"). Derived at the fold (both old + new state are in hand), NOT model-authored (a second write
-  // is a second failure point). Appended AFTER the model's own beats. Only fires when the scene plane changed.
-  const relationshipBeats = state.presentCharacters === base.presentCharacters ? [] : deriveRelationshipBeats(base.presentCharacters, state.presentCharacters);
+  // is a second failure point). Appended AFTER the model's own beats. Only fires when the actor plane changed.
+  const relationshipBeats = state.actorState === base.actorState ? [] : deriveRelationshipBeats(base.actorState, state.actorState);
   return { statePatch, journal: [...journal, ...relationshipBeats] };
 }
 
-/** Derive the relationship-change journal beats (§2.4) — one `event` entry per cast member whose relationship
- *  KIND flipped from its base snapshot value (`Mari: friend → enemy`). Matched by cast key; a first-seen member
- *  or a label-only change (same kind) is NOT a beat (the kind is the arc-turning datum). A custom→custom kind
- *  with a changed label IS a turn (both read as "custom" by kind, so we also fire when the label moved). */
-function deriveRelationshipBeats(prev: readonly RpgPresentCharacter[], cur: readonly RpgPresentCharacter[]): StagedJournalEntry[] {
-  const before = new Map(prev.map((c) => [c.key, c.relationship]));
+/** Derive the relationship-change journal beats (§2.4) — one `event` entry per cast actor whose relationship
+ *  KIND flipped from its base snapshot value (`Mari: friend → enemy`). Matched by the actor's REF KEY; a
+ *  first-seen actor or a label-only change (same kind) is NOT a beat (the kind is the arc-turning datum). A
+ *  custom→custom kind with a changed label IS a turn (both read as "custom" by kind, so we also fire when the
+ *  label moved).
+ *
+ *  Since R2 it walks the ACTOR plane, which is what makes a returning NPC's turn legible at all: the stance
+ *  used to die with her presence row, so she came back "first-seen" and neutral and the arc reset in silence. */
+function deriveRelationshipBeats(prev: readonly RpgActorEntry[], cur: readonly RpgActorEntry[]): StagedJournalEntry[] {
+  const before = new Map(prev.map((a) => [actorRefKey(a.actorRef), a.identity?.relationship]));
   const beats: StagedJournalEntry[] = [];
-  for (const c of cur) {
-    const was = before.get(c.key);
-    if (was === undefined) {
-      continue; // a newly-present member has no prior stance to have "turned" from
+  for (const actor of cur) {
+    const identity = actor.identity;
+    const was = before.get(actorRefKey(actor.actorRef));
+    if (identity === undefined || was === undefined || !relationshipTurned(was, identity.relationship)) {
+      continue; // a roster actor has no stance; a newly-tracked one has no prior stance to have "turned" from
     }
-    const kindChanged = was.kind !== c.relationship.kind;
-    const customLabelChanged = was.kind === "custom" && c.relationship.kind === "custom" && was.label !== c.relationship.label;
-    if (kindChanged || customLabelChanged) {
-      const from = was.kind === "custom" && was.label !== "" ? was.label : was.kind;
-      const to = c.relationship.kind === "custom" && c.relationship.label !== "" ? c.relationship.label : c.relationship.kind;
-      beats.push({ type: "event", label: "", title: `${c.name}: ${from} → ${to}`, content: `${c.name}'s relationship shifted from ${from} to ${to}.` });
-    }
+    const from = relationshipBeatLabel(was);
+    const to = relationshipBeatLabel(identity.relationship);
+    const name = identity.name;
+    beats.push({ type: "event", label: "", title: `${name}: ${from} → ${to}`, content: `${name}'s relationship shifted from ${from} to ${to}.` });
   }
   return beats;
+}
+
+/** Did the stance TURN? The `kind` is the arc datum, so a label-only change on the built-ins is not a beat —
+ *  but a custom→custom relabel IS one (both read as "custom" by kind, and the label carries the meaning). */
+function relationshipTurned(was: RpgActorIdentity["relationship"], now: RpgActorIdentity["relationship"]): boolean {
+  if (was.kind !== now.kind) {
+    return true;
+  }
+  return was.kind === "custom" && was.label !== now.label;
+}
+
+/** How a stance NAMES itself in a beat line: a labelled custom stance by its label, anything else by its kind. */
+function relationshipBeatLabel(rel: RpgActorIdentity["relationship"]): string {
+  return rel.kind === "custom" && rel.label !== "" ? rel.label : rel.kind;
 }

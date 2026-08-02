@@ -141,7 +141,6 @@ export interface PatchSheetParams {
     // THIS actor against its carrier class. Whole-list replace; defs themselves live in `config.trackers`.
     readonly trackerGrants?: readonly string[] | undefined;
     readonly trackerRevokes?: readonly string[] | undefined;
-    readonly maxHp?: number | null | undefined;
     readonly flavor?: string | undefined;
     readonly level?: number | null | undefined;
   };

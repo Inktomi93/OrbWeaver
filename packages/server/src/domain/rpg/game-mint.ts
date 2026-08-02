@@ -8,7 +8,7 @@
 //     (the gather sees the row; rpg steering rides the very first beat).
 
 import type { RpgStatProfile } from "@orb/contracts/rpg";
-import { RPG_PROFILE_FREEFORM, rpgGameConfigSchema } from "@orb/contracts/rpg";
+import { RPG_PROFILE_FREEFORM, rpgGameConfigSchema, rpgSeedTrackers } from "@orb/contracts/rpg";
 import type { ChatId, RpgGameId } from "@orb/kit/ids";
 import type { RpgContext } from "./contract/service";
 import { insertGame } from "./persistence/games";
@@ -20,7 +20,11 @@ export async function mintLiteGame(ctx: RpgContext, args: { readonly chatId: Cha
   const now = ctx.now();
   // `extractionMode` is deliberately NOT stamped here — the CONTRACT owns the born default (`folded`, owner
   // ruling 2026-08-01). Re-spelling it at birth is how a flipped default silently fails to reach new games.
-  const config = rpgGameConfigSchema.parse({ statProfile: args.profile ?? RPG_PROFILE_FREEFORM, lite: { steeringNote: "" } });
+  // R3 — the profile SEEDS the game's born trackers (the `hp` meter on a mechanical profile, nothing on
+  // freeform). Seeding happens ONCE, here, at birth: nothing re-seeds a game whose host deleted or renamed the
+  // def, which is the whole point of the demotion — health is the game's decision, not the schema's.
+  const statProfile = args.profile ?? RPG_PROFILE_FREEFORM;
+  const config = rpgGameConfigSchema.parse({ statProfile, trackers: rpgSeedTrackers(statProfile), lite: { steeringNote: "" } });
   const game = await insertGame(ctx.db, {
     id: ctx.ids.game(),
     chatId: args.chatId,

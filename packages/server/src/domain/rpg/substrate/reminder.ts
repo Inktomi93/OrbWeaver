@@ -236,9 +236,8 @@ function itemSeg(item: RpgActorVolatile["inventory"][number]): string {
  *  born (only `conditions` had been hand-carried across). */
 function volatileSegs(v: RpgActorVolatile): string[] {
   const segs: string[] = [];
-  if (v.hp !== null) {
-    segs.push(`HP ${v.hp.value}/${v.hp.max}`);
-  }
+  // No HP seg (R3): health is an ordinary meter, so it renders through `trackerSegs` under the game's own
+  // label with the game's own ceiling — one grammar, and finally one that a `freeform` game can simply not have.
   if (v.wallet.length > 0) {
     segs.push(v.wallet.map((w) => `${w.amount} ${w.name}`).join(", "));
   }
@@ -255,13 +254,27 @@ function volatileSegs(v: RpgActorVolatile): string[] {
   return segs;
 }
 
-/** ONE roster actor's whole line — identity (name/class/level/attribute readings), the trackers it CARRIES,
- *  its volatile plane, and the sheet's flavor continuation. EXPORTED for `{{rpgCast}}`'s Party block: the macro
- *  feed's own actor builder carried name/class/level/HP and nothing else, so wallet, inventory, status,
- *  conditions, the attribute readings and the flavor prose reached that surface NOWHERE. One builder cannot
- *  drift from itself. */
-export function actorLine(actor: RpgTrackerView["actors"][number], attrDefs: readonly RpgStatAttributeDef[]): string {
-  const segs: string[] = [actor.name];
+/** ONE actor's whole line — identity, the trackers it CARRIES, its volatile plane, and the standing-prose
+ *  continuations. ONE builder for EVERY actor since R2 (a roster member and a scene NPC are two shapes of the
+ *  same row, not two row types): the identity head differs by which half the actor carries, and everything
+ *  below it — trackers, volatile segs, guides — is shared. The retired `castLine`/`actorLine` split is exactly
+ *  how a cast NPC's wounds, pack and purse came to render on the model's side and nowhere else.
+ *
+ *  EXPORTED for `{{rpgCast}}`: the macro feed composes it rather than carrying a second builder. */
+export function actorLine(
+  actor: RpgTrackerView["actors"][number],
+  attrDefs: readonly RpgStatAttributeDef[],
+  relationshipHints: Readonly<Record<string, string>> = {},
+): string {
+  const identity = actor.identity;
+  const segs: string[] = [identity !== null && identity.emoji !== "" ? `${identity.emoji} ${actor.name}` : actor.name];
+  if (identity !== null && identity.mood !== "") {
+    segs.push(identity.mood);
+  }
+  const rel = identity === null ? null : relationshipSeg(identity.relationship, relationshipHints);
+  if (rel !== null) {
+    segs.push(rel);
+  }
   if (actor.sheet.className !== "") {
     segs.push(`(${actor.sheet.className})`);
   }
@@ -281,13 +294,16 @@ export function actorLine(actor: RpgTrackerView["actors"][number], attrDefs: rea
     segs.push(...volatileSegs(actor.volatile));
   }
   const head = `- ${segs.join(" — ")}`;
-  // The sheet's host-authored FLAVOR prose — the SAME dead-write class as the cast guides (RV-11): the
-  // takeover writes it through `patchSheet` and it reached the model nowhere, so the party line taught the
-  // character's numbers and none of who they are. A CONTINUATION line for the same reason the guides get
-  // one (prose with no length contract does not belong mid-`—`-chain); empty ⇒ omitted, and no header teach
-  // is owed — unlike `thoughts`, standing character prose carries no rule the turn could break.
+  // The standing PROSE, as CONTINUATION lines (prose with no length contract does not belong mid-`—`-chain):
+  // the cast's three guides (RV-11) and the sheet's host-authored FLAVOR. Both were the same dead-write class —
+  // written every beat / through `patchSheet`, read by nothing — so the line taught a character's numbers and
+  // none of who they are. Empty ⇒ omitted.
+  const lines = [...guideLines(actor.identity)];
   const flavor = actor.sheet.flavor.trim();
-  return flavor === "" ? head : `${head}\n  flavor: ${flavor}`;
+  if (flavor !== "") {
+    lines.push(`  flavor: ${flavor}`);
+  }
+  return lines.length === 0 ? head : `${head}\n${lines.join("\n")}`;
 }
 
 /** The steering display of a present character's relationship (§2.1) — the bare kind, or a custom `label` glossed
@@ -316,54 +332,41 @@ const RPG_CAST_GUIDE_HEADER =
  *  round every beat and read by NOTHING until now (RV-11) — so the character turn re-described a face it had
  *  already fixed. Empty/absent ⇒ the line is OMITTED (token-lean: a guide nobody wrote costs nothing, and the
  *  header teach only ships when one exists). */
-function guideLines(cast: RpgTrackerView["cast"][number]): string[] {
+function guideLines(identity: RpgTrackerView["actors"][number]["identity"]): string[] {
+  if (identity === null) {
+    return [];
+  }
   return RPG_CAST_GUIDE_FIELDS.flatMap((field) => {
-    const text = cast[field]?.trim() ?? "";
+    const text = identity[field]?.trim() ?? "";
     return text === "" ? [] : [`  ${field}: ${text}`];
   });
 }
 
 /** The `Present:` header — the guide TEACH only when a guide actually exists, so a game whose cast carries
  *  none gets the byte-identical bare label it always had (the no-phantom-teaching rule the feature-gated
- *  teaching blocks follow). EXPORTED with {@link castLine}: the teach and the guides travel TOGETHER, so no
+ *  teaching blocks follow). EXPORTED with {@link actorLine}: the teach and the guides travel TOGETHER, so no
  *  surface can print a member's unspoken `thoughts` without the line that says never to voice them. */
-export function castHeader(cast: RpgTrackerView["cast"]): string {
-  return cast.some((c) => guideLines(c).length > 0) ? RPG_CAST_GUIDE_HEADER : "Present:";
+export function castHeader(actors: readonly RpgTrackerView["actors"][number][]): string {
+  return actors.some((a) => guideLines(a.identity).length > 0) ? RPG_CAST_GUIDE_HEADER : "Present:";
 }
 
-/** ONE scene-cast member's whole line — identity (emoji/name/mood/relationship), carried trackers, the volatile
- *  plane, and the standing guides as continuation lines. EXPORTED for `{{rpgCast}}`/`{{rpgSceneState}}`, whose
- *  own cast builder carried name/mood/relationship/trackers only: an NPC the beat had wounded, robbed, poisoned
- *  or described reached those macros NOWHERE. */
-export function castLine(
-  cast: RpgTrackerView["cast"][number],
-  trackers: readonly RpgTrackerEntry[],
-  volatileRow: RpgActorVolatile | null,
-  hints: Readonly<Record<string, string>>,
-): string {
-  const segs: string[] = [cast.emoji !== "" ? `${cast.emoji} ${cast.name}` : cast.name];
-  if (cast.mood !== "") {
-    segs.push(cast.mood);
+/** The `Known, offstage:` roster (R2) — the terse continuity line for every tracked cast actor who is NOT on
+ *  stage. It exists because retention without VISIBILITY steers nothing: an NPC the story established, then
+ *  walked out of the room, is exactly the character the model should be able to bring back consistently, and
+ *  before R2 she was unrepresentable (departure destroyed her identity outright). Deliberately ONE line per
+ *  actor — name, mood, stance — never her trackers, pack or guides: this is a memory jog, not a second Present
+ *  block, and a long-running game accumulates these. */
+export function offstageLine(actor: RpgTrackerView["actors"][number], hints: Readonly<Record<string, string>>): string {
+  const identity = actor.identity;
+  const segs: string[] = [identity !== null && identity.emoji !== "" ? `${identity.emoji} ${actor.name}` : actor.name];
+  if (identity !== null && identity.mood !== "") {
+    segs.push(identity.mood);
   }
-  const rel = relationshipSeg(cast.relationship, hints);
+  const rel = identity === null ? null : relationshipSeg(identity.relationship, hints);
   if (rel !== null) {
     segs.push(rel);
   }
-  // Every tracker this cast member CARRIES (the server-resolved entry list), unmoved ones included as their
-  // bare label — the same rule the party lines and the game-subject block follow.
-  for (const entry of trackers) {
-    segs.push(trackerReading(entry.def, entry.value ?? undefined) ?? entry.def.label);
-  }
-  // The whole volatile plane rides the ` — ` seg chain (short state, like `mood`) exactly as it does on a
-  // party line — never a continuation line, which is reserved for the guides' unbounded PROSE. Same builder,
-  // same order (hp · wallet · carrying · status · conditions): an NPC the beat wounded, paid or poisoned reads
-  // to the model exactly as a party member would.
-  if (volatileRow !== null) {
-    segs.push(...volatileSegs(volatileRow));
-  }
-  const head = `- ${segs.join(" — ")}`;
-  const guides = guideLines(cast);
-  return guides.length === 0 ? head : `${head}\n${guides.join("\n")}`;
+  return `- ${segs.join(" — ")}`;
 }
 
 /** A GAME-subject tracker's line — the SAME reading every other tracker surface renders. A tracker with no
@@ -427,6 +430,41 @@ function teachingBlocks(input: LiteReminderInput): string[] {
   return blocks;
 }
 
+/** THE THREE ACTOR BLOCKS (R2), partitioned off ONE actor list by two booleans — `actorRef.kind` (a roster
+ *  person vs a scene NPC) and `presence` (on stage vs known-but-offstage). All three render through the SAME
+ *  {@link actorLine}/{@link offstageLine} grammar, so a plane written onto an NPC can never again reach a
+ *  party member's line and not hers. Hoisted out of {@link buildLiteReminder} for the complexity ceiling. */
+function actorBlocks(input: LiteReminderInput): string[] {
+  const { view } = input;
+  const hints = input.features.relationshipHints;
+  const attrDefs = input.statProfile.attributes;
+  const party = view.actors.filter((a) => a.actorRef.kind !== "cast");
+  const onStage = view.actors.filter((a) => a.actorRef.kind === "cast" && a.presence);
+  const offstage = view.actors.filter((a) => a.actorRef.kind === "cast" && !a.presence);
+  const lines: string[] = [];
+  if (party.length > 0) {
+    // The attribute VOCABULARY, taught ONCE (label + hint): the sheet's steering lever finally reaching the
+    // model. Per-actor lines below carry the numbers under the same labels — one meaning, N readings, never
+    // the profile's prose multiplied by the party size (the token budget the gloss has to respect).
+    if (attrDefs.length > 0) {
+      lines.push(`Attributes: ${attrDefs.map(attributeGloss).join(" · ")}`);
+    }
+    lines.push("Party:", ...party.map((a) => actorLine(a, attrDefs, hints)));
+  }
+  if (onStage.length > 0) {
+    lines.push(castHeader(onStage), ...onStage.map((a) => actorLine(a, attrDefs, hints)));
+  }
+  if (offstage.length > 0) {
+    lines.push(RPG_OFFSTAGE_HEADER, ...offstage.map((a) => offstageLine(a, hints)));
+  }
+  return lines;
+}
+
+/** The `Known, offstage:` header — a VERSIONED constant like the other teaching lines. It says the one thing a
+ *  model can get wrong about the block: these people EXIST and are not here, so bringing one back is a
+ *  continuation, never an introduction. */
+const RPG_OFFSTAGE_HEADER = "Known, offstage (established characters not in this scene — bring them back consistently, never re-introduce them):";
+
 /** Build the lite steering reminder (§4.7). Returns the assembled block; the gather wraps it as ONE depth-0
  *  `role:"system"` `ChatInjection`. Empty sections are omitted so a fresh game's reminder is just the license
  *  (+ note) — no phantom empty headers. No tool guidance: the char turn is tool-less (see the file header). */
@@ -451,21 +489,7 @@ export function buildLiteReminder(input: LiteReminderInput): string {
   if (view.trackerDefs.length > 0) {
     stateLines.push(trackerVocabularyLine(view.trackerDefs));
   }
-  if (view.actors.length > 0) {
-    // The attribute VOCABULARY, taught ONCE (label + hint): the sheet's steering lever finally reaching the
-    // model. Per-actor lines below carry the numbers under the same labels — one meaning, N readings, never
-    // the profile's prose multiplied by the party size (the token budget the gloss has to respect).
-    const attrDefs = input.statProfile.attributes;
-    if (attrDefs.length > 0) {
-      stateLines.push(`Attributes: ${attrDefs.map(attributeGloss).join(" · ")}`);
-    }
-    stateLines.push("Party:");
-    stateLines.push(...view.actors.map((a) => actorLine(a, attrDefs)));
-  }
-  if (view.cast.length > 0) {
-    stateLines.push(castHeader(view.cast));
-    stateLines.push(...view.cast.map((c) => castLine(c, view.castTrackers[c.key] ?? [], view.castVolatile[c.key] ?? null, input.features.relationshipHints)));
-  }
+  stateLines.push(...actorBlocks(input));
   if (view.gameTrackers.length > 0) {
     // "Game trackers" (not the bare "Trackers:" it used to be) — the vocabulary line above now owns that
     // word, and this block is specifically the SUBJECT:GAME readings that belong to nobody in particular.

@@ -17,7 +17,7 @@
 // the roster card and the takeover write through the same overlays, so a value edited in one place is the
 // same write in the other.
 
-import type { RpgActorOp, RpgActorRef, RpgActorView, RpgTrackerView } from "@orb/contracts/rpg";
+import type { RpgActorOp, RpgActorRef, RpgActorView } from "@orb/contracts/rpg";
 import { resolveTrackerMaxOverride, rpgActorLockBase, trackerNumber } from "@orb/contracts/rpg";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
@@ -26,7 +26,6 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { RelationshipBadge } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useEditSnapshot, usePatchActor } from "../hooks/use-rpg-mutations";
@@ -37,13 +36,6 @@ import { RpgCharacterDetail } from "./rpg-character-detail";
 import { RpgFieldLock } from "./rpg-field-lock";
 import { Kicker } from "./rpg-kicker";
 import { RpgVeiledSection } from "./rpg-veiled-section";
-
-/** The scene-cast row this roster actor also stands in (the §12.2.3 relationship join) — or undefined.
- *  A `user` actor never joins (cast rows are NPCs), so its predicate matches nothing: no row, no badge. */
-function castRowFor(actor: RpgActorView, cast: RpgTrackerView["cast"]): RpgTrackerView["cast"][number] | undefined {
-  const ref = actor.actorRef;
-  return cast.find((c) => (ref.kind === "character" ? c.characterId === ref.characterId : ref.kind === "cast" && c.key === ref.castKey));
-}
 
 export interface RpgStatusTabProps {
   readonly state: RpgPanelState;
@@ -59,7 +51,13 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
   // The open character (the takeover) — null = the roster. Keyed by the stable roster selector key.
   const [openKey, setOpenKey] = useState<string | null>(null);
 
-  if (tracker.actors.length === 0) {
+  // THE ROSTER, and only the roster (R2). `tracker.actors` now carries every actor the game tracks, cast NPCs
+  // included — one shape, so the filter is a partition, not a projection. Cast actors home on the SCENE tab
+  // (on stage) and in its Known-characters disclosure (offstage); duplicating them here would give one person
+  // two edit homes, which is the dual-homing rule this IA exists to obey.
+  const roster = tracker.actors.filter((a) => a.actorRef.kind !== "cast");
+
+  if (roster.length === 0) {
     return <Text>No one on the roster yet — add characters in Members.</Text>;
   }
 
@@ -108,7 +106,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
   };
 
   // THE TAKEOVER: the open character replaces the roster in the viewport (one panel, one place at a time).
-  const openActor = tracker.actors.find((a) => actorKey(a) === openKey);
+  const openActor = roster.find((a) => actorKey(a) === openKey);
   if (openActor !== undefined) {
     const edit = editFor(openActor);
     return <RpgCharacterDetail state={state} actor={openActor} onBack={(): void => setOpenKey(null)} {...(edit === undefined ? {} : { edit })} />;
@@ -126,19 +124,11 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
           ) : null
         }
       >
-        Roster — {tracker.actors.length}
+        Roster — {roster.length}
       </Kicker>
-      {tracker.actors.map((actor) => {
+      {roster.map((actor) => {
         const edit = editFor(actor);
-        return (
-          <RpgStatusCard
-            key={actorKey(actor)}
-            actor={actor}
-            cast={tracker.cast}
-            onOpen={(): void => setOpenKey(actorKey(actor))}
-            {...(edit === undefined ? {} : { edit })}
-          />
-        );
+        return <RpgStatusCard key={actorKey(actor)} actor={actor} onOpen={(): void => setOpenKey(actorKey(actor))} {...(edit === undefined ? {} : { edit })} />;
       })}
       {/* The host-only Veiled ledger (P3) — LIVE off `rpg.revealHidden` (its own boundary; empty/error ⇒
           null). PERMISSION-omit: a member never mounts it, so member DOM carries zero veiled content. */}
@@ -149,18 +139,21 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
 
 interface RpgStatusCardProps {
   readonly actor: RpgActorView;
-  readonly cast: RpgTrackerView["cast"];
   readonly edit?: ActorEdit;
   /** Open this character's takeover (the card's name is the door). */
   readonly onOpen: () => void;
 }
 
-/** One roster instrument card: portrait+name as the DOOR into the character · relationship badge · title ·
- *  status line · meters · condition chips. The name is a real button (the takeover's entry point); every
- *  other control on the card stays a sibling of it, never nested inside it. */
-function RpgStatusCard({ actor, cast, edit, onOpen }: RpgStatusCardProps): ReactElement {
+/** One roster instrument card: portrait+name as the DOOR into the character · title · status line · meters ·
+ *  condition chips. The name is a real button (the takeover's entry point); every other control on the card
+ *  stays a sibling of it, never nested inside it.
+ *
+ *  There is no relationship badge here (R2). It joined a roster character to a scene-cast row by
+ *  `presentCharacters[].characterId` — a field NO writer in the tree ever set, so the badge rendered for
+ *  nobody. A stance is a CAST actor's datum (it lives on `identity`, and the Scene card is its home); a roster
+ *  member's relationship to the player is the story's, not a tracked plane's. */
+function RpgStatusCard({ actor, edit, onOpen }: RpgStatusCardProps): ReactElement {
   const volatile = actor.volatile;
-  const castRow = castRowFor(actor, cast);
   return (
     <Stack gap="field" data-slot="rpg-status-card" className="rounded-base border border-border bg-card px-block py-row">
       <Row gap="block" align="center" justify="between">
@@ -181,7 +174,6 @@ function RpgStatusCard({ actor, cast, edit, onOpen }: RpgStatusCardProps): React
             </Text>
             <Icon icon={ChevronRight} size="xs" className="shrink-0 text-muted-foreground" />
           </Button>
-          {castRow === undefined ? null : <RelationshipBadge relationship={castRow.relationship} />}
         </Row>
         {actor.sheet.className === "" ? null : (
           <Text as="span" voice="gloss" className="shrink-0">

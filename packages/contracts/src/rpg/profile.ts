@@ -13,6 +13,7 @@
 // color a chat (they cost bytes, and shipping them makes the graft map's profile row "full adds nothing").
 
 import { z } from "zod";
+import type { RpgTrackerDef } from "./tracker";
 
 /** One attribute definition in a profile's vocabulary — the label-as-mini-prompt (`{key, label, hint}`).
  *  `key` is the machine name (a sheet's `attributes` record keys off it); `label`/`hint` are prompt prose. */
@@ -145,3 +146,54 @@ export const RPG_PACKAGED_PROFILE_BY_KEY: Readonly<Record<RpgPackagedProfileKey,
   d20: RPG_PROFILE_D20,
   special: RPG_PROFILE_SPECIAL,
 };
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE SEEDED TRACKERS (R3) — the profile's half of hp's demotion.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// `hp` used to be a schema-privileged field on every actor: a `hp: {value,max} | null` leaf, a bespoke
+// `hpDelta` tool arm, a named reminder seg, a dedicated delta renderer, and a SECOND max home on the sheet.
+// It is now an ordinary `meter` tracker, which means a game only has health if its game says so — and the
+// lived default was already hp-absent (a real freeform session renders zero hp anywhere, `untangle-status.png`).
+// So the demotion has no default-UX regression: a MECHANICAL profile seeds the def at mint and reads exactly as
+// before, and `freeform` seeds nothing and finally stops carrying a null health track it never used.
+
+/** The default ceiling the seeded HP meter is born with. A per-CARRIER ceiling that differs on purpose rides
+ *  `RpgTrackerValue.max` through the one `trackerCeiling` resolver (the d20 max-HP reality the unification's
+ *  per-carrier override was designed for) — this is only the game-wide default the host can retune. */
+export const RPG_SEED_HP_MAX = 20;
+
+/** The seeded HP def. `write:"delta"` because damage and healing are spends/restores (that axis is what picks
+ *  the model's tool arm); `appliesTo:"everyone"` because an NPC bleeds like a party member; `pinned` so it
+ *  rides the band orbs through the ordinary `trackerOrbs` path rather than a bespoke hp-orb arm.
+ *
+ *  The `hint` carries the ONE accepted semantic delta of the demotion (ruled): the retired `hpDelta` arm
+ *  REFUSED a delta on a null-hp actor, where a tracker delta on a carried-but-unset meter starts from 0. Under
+ *  the north star (steering, not simulation) that is the right trade — and the hint is where a host reads it. */
+const SEEDED_HP_TRACKER: RpgTrackerDef = {
+  key: "hp",
+  label: "HP",
+  shape: "meter",
+  write: "delta",
+  subject: "actor",
+  appliesTo: "everyone",
+  max: RPG_SEED_HP_MAX,
+  hint: "physical health — damage lowers it, rest and care restore it; unset counts as 0",
+  color: null,
+  icon: null,
+  sort: 0,
+  pinned: true,
+  locked: false,
+};
+
+/** The tracker defs a game MINTS with, given its profile (D71's "new theme = a json" pattern applied to game
+ *  birth: the profile is the data, this is the one derivation).
+ *
+ *  The rule is the profile's own attribute VOCABULARY, not its name: a profile that models a body with
+ *  attributes is a game where health is a mechanic, and one with no attributes at all (`freeform`) is a game
+ *  steered by prose, where a health bar nobody set is furniture. That covers the two packaged mechanical
+ *  templates (`d20`, `special` — whose own Endurance hint literally reads "hit points and resistances") and
+ *  any custom profile a host builds, without a name lookup that a renamed profile would silently fall out of.
+ *  A host may delete or redefine the seeded def immediately afterwards; nothing re-seeds it. */
+export function rpgSeedTrackers(profile: RpgStatProfile): readonly RpgTrackerDef[] {
+  return profile.attributes.length === 0 ? [] : [SEEDED_HP_TRACKER];
+}

@@ -30,8 +30,8 @@ import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { createAutosaveEntityForm } from "#forms";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations";
-import type { GmConsoleFormValues } from "../lib/gm-console-form-model";
-import { EMPTY_GM_CONSOLE_FORM, fromGmConsoleForm, toGmConsoleForm } from "../lib/gm-console-form-model";
+import type { HostConsoleFormValues } from "../lib/host-console-form-model";
+import { EMPTY_HOST_CONSOLE_FORM, fromHostConsoleForm, toHostConsoleForm } from "../lib/host-console-form-model";
 import { Kicker } from "./rpg-kicker";
 
 /** The honest one-line consequence per delivery mode (the mock's fact — the same freshness posture the
@@ -81,21 +81,21 @@ const DATE_MODE_CONSEQUENCE: Readonly<Record<RpgDateMode, string>> = {
 
 // The autosave scalar form (§13.4). Module scope (stable identity); keys its Session by `entityId` (the
 // chatId) so a chat switch with the Game tab open is a full remount seeded from the new game's config.
-const GmConsoleFormBoundary = createAutosaveEntityForm<GmConsoleFormValues>({
-  defaultValues: EMPTY_GM_CONSOLE_FORM,
+const HostConsoleFormBoundary = createAutosaveEntityForm<HostConsoleFormValues>({
+  defaultValues: EMPTY_HOST_CONSOLE_FORM,
 });
 
 /** The scalar autosave form — play style · hidden channels · steering note · delivery model. */
-export function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; readonly config: RpgConfigView }): ReactElement {
+export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId; readonly config: RpgConfigView }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const updateConfig = useUpdateConfig({ trpc, invalidation });
-  const save = (values: GmConsoleFormValues): Promise<unknown> => {
-    const { patch, extractionMode } = fromGmConsoleForm(values);
+  const save = (values: HostConsoleFormValues): Promise<unknown> => {
+    const { patch, extractionMode } = fromHostConsoleForm(values);
     return updateConfig.mutateAsync({ chatId, patch, extractionMode });
   };
   return (
-    <GmConsoleFormBoundary entityId={`rpg-game:${chatId}`} serverValues={toGmConsoleForm(config)} save={save}>
+    <HostConsoleFormBoundary entityId={`rpg-game:${chatId}`} serverValues={toHostConsoleForm(config)} save={save}>
       {({ form }): ReactElement => (
         <Stack gap="section">
           <Stack gap="field">
@@ -389,6 +389,6 @@ export function GmConsoleScalars({ chatId, config }: { readonly chatId: ChatId; 
           </Stack>
         </Stack>
       )}
-    </GmConsoleFormBoundary>
+    </HostConsoleFormBoundary>
   );
 }
