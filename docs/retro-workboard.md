@@ -23,6 +23,66 @@ Global **KISS/YAGNI are SUSPENDED here** — build the maximal, most-provable ve
 sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 `docs/architecture/core/AGENTS.md` IN FULL before any work.
 
+## ═══ ▶▶▶ COMPACT-SAFETY SNAPSHOT #2 (08-03 late — THE current block; supersedes everything
+## between here and the wave-3 seals below. A resuming orchestrator: read THIS, then the whole
+## board, then git log -60.) ═══
+
+**MAIN @ `7afaff54`** (tree clean; board committed; ~65 local commits past origin `851f625e` —
+PUSH NEEDS ITS OWN WORD). Six-lane cap stands (owner). Board-only commits = `--no-verify`
+(owner word). Dev db DROPS on next stack boot (DBG baseline regen) — expected, reseeds via latch.
+
+**LIVE LANES (4, resumable via task notifications — process each per the THREE MERGE LAWS:
+--no-ff merge → verify separately → teardown separately; format-drift reds get fixed in the
+staged merge, scoped biome only):**
+· GDOC — gate-authoring law doc (scripts/check/GATE-AUTHORING.md) + contract.ts ExemptionRow
+  (mandatory why) + pnpm gate:new scaffold + gate-modernization meta-gate (derived baseline
+  handed to RETRO). My memory-hub gate lessons are MIGRATING INTO the doc.
+· RETRO — ~57 one-sided gates get stale arms (40-join priority) + 22 guard shapes + 16 complex
+  scanRoots + the §12.6 citation fix ×3. Adopts GDOC's type if it lands first.
+· RAWVIEW (security) — per-variant PROMPT-SNAPSHOT inspector grafted into the EXISTING chat
+  diagnostic surface (owner correction: no new home) + THE FORK-LAUNDERING FIX (member→host
+  promptSnapshot leak, red-first) — the raw_request/raw_response columns are WRITE-NEVER and
+  RULED DELETED (deletion rides regex R1's baseline regen, NOT this lane).
+· HEAL — handoff F1 (foreign gmPresetId nulled in swap batch) + F2 (anchor persona conditional
+  null, fork.ts twin if cheap); verb/resolver fork RULED (resolver is the widening point, its
+  own ticket); found+confirmed: MULTI-HUMAN ACTIVE-PERSONA IS SILENTLY DEAD for non-host
+  members (single-principal resolveForeignInputs) → TICKET below.
+
+**RULED TODAY (all owner, question tool):** regex all-8 forks · portability all-8 · raw blobs
+= build reader (then columns ruled DELETED post-census) · TYPO class-B = plain types (done,
+SM2) · handoff = heals now + MINIMIZED COPY ARM approved as near-wave program (stickler-shaped:
+one toggle at nominate, pendingHandoffOffer column, copy-at-ACCEPT, cards+books-as-copies+
+optional-GM-preset, seats re-point in place, decline=D64 drop) · DB boundary = amended law +
+own-tables gate (landed) · migration-readiness NOW (landed) · six-lane cap · board --no-verify.
+
+**QUEUE (after live lanes drain, priority order):** CEREMONY — strike DONE; close-out D-ENTRY
+carries SIX riders (two-class clause [role report §6] · R0 permissions-model page [three
+layers + who-owns-what citing the scoping census + BY-DESIGN register + R2's three-questions
+paragraph verbatim from its final report] · Spine-Identity truth-repair [claims agent
+principals built — false] · home/D62-P6 amendment [ledger outlaws the built 8th section] ·
+portability chrome-anatomy D-entry · regex R0 D53-storage amendment] → graduation verifier →
+docs/history move. THEN: Lane PRIN (principal-flow gate — census DONE: ownerid-registry
+already gates class-a; 3 mechanical arms specced [class-declaration 0-red ·
+fetchOwned-or-justification 3 rows · caller-param sweep]; ReapAssetsOp compose-closure
+verification inside; membership-rung = behavioral-only, honest limit) · MULTI-PERSONA ticket
+(persona.getForRoom-class op + membership gate — HEAL's confirmed find; design fork to owner) ·
+HANDOFF-COPY program (approved shape above) · F-8 collection-contribution design set
+(pre-config-rail) · CHAIN (substrate blocker verbatim in queue notes: buildLiveness is
+FILE-granular; declaration-granular edges = substrate change under the live push ratchet) ·
+BRAND gate (string-where-kit/ids-brand-exists, positions derived) · REGEX R1-R6 program
+(report §7; R1 regens baseline + carries the raw-column deletions) · PORTABILITY R0-R6
+(lifecycle registry; databank F1 at R1 priority) · side-eye re-check on FX's 31 · F-14 CLS ·
+TD design pass · CAP-GATE + FirstRunPersonaDialog smalls · D8 residue (+BINDING_VIEWS) ·
+span-coverage smalls (fireRpgTurnCompleted outside any span · structured-turn retry
+unobservable · provider.* spans never opened) · TYPO class-A dispositions + responseFormatSchema
+@typeonly-ok one-liner · MacroTextarea other-consumers user-plane question · content-class
+table-dispatch + CharacterFacetId Record smalls · cookie-parser… done · ENDGAME: quiesce →
+verify:push → PUSH-READY (word).
+
+**STANDING OWNER ITEMS:** PV wording veto · AV2 re-push ~$0.56 + Calamity $4 · DRAFT-TRUST ·
+AGENT-1 · D22 · F6 readout strict-fidelity nit · regime-2 landmine (launch-day: re-point
+db-baseline at the applied chain).
+
 ## ═══ ▶▶▶ HANDOFF #3 — 2026-08-02 NIGHT (SESSION-END; the ONE current block. Owner is
 ## swapping accounts — the resuming orchestrator has NO conversation memory; this block +
 ## MEMORY.md + git log are the whole truth. Everything below it is archeology.) ═══
@@ -590,6 +650,131 @@ capped at 1 registry-typed positional param] + the SECTION_IDS coupled-site play
 suppressions red the stickler saw = MID-WAVE STALE (ZG's baseline regen landed; DBG's
 post-merge floor + every hook since = clean) · unconfirmed rows: home mobile fate ·
 agent-seed verb parity (dev-only) · chat/components at 72 files nearing F-4 practical relevance.
+**PORT STICKLER DELIVERED (docs/reviews/stickler/2026-08-03-lifecycle-portability-model.md) —
+THE OWNER'S QUESTION ANSWERED:** the "DI seam skimmer" IS REAL AND COMPLETE for the bundle
+plane — entry/compose/portability.ts::buildPortabilityRegistry, master spec
+docs/architecture/history/export-import-portability.md (07-11), 5-part template, 10 kinds,
+entity-agnostic zip/staged-archive core, round-trip-pinned. The doubt is CORRECT for the three
+planes it never covered (post-spec families · single-entity doors · client chrome) — nothing
+enforces completeness on any = the "agents say xyz missing import" mechanism. "We rewrite per
+domain" = TRUE at the serde-file tier (orb-JSON skeleton hand-cloned ×4, drifted policies),
+FALSE at delivery (written once). PortableEnvelope = the never-consumed R8 envelope (each serde
+re-spelled it; deleted correctly; the non-uniformity it evidences is the live defect).
+FINDINGS: **F1 P1 DATABANK ABSENT from PORTABLE_KINDS entirely** — a full-account backup
+silently loses the whole databank library (born after the spec froze; no gate could notice) ·
+F2 world-info single-book import/export = verbs BUILT, ZERO doors (no route/proc/chrome — the
+dead-wire archetype) · F3 persona chrome violates the ruled band/kebab anatomy (predates the
+ruling, never re-swept) · F4 envelope drift ×3 (wi spells `version`; persona has NO envelope;
+compliant serdes never GATE on schemaVersion) · F5 restore-policy drift (skip vs merge vs
+case-insensitive — per-family winners) · F6 serde skeleton clones (the CPD pairs + decodeJson
+×4) · F7 parse-strictness drift (one bad wi entry nulls the FILE; others drop the row) · F8
+compose descriptor bodies carry real import logic vs the template's owning-domain law · F9
+post-spec chat-anchored planes unportable by construction (rpg campaigns · injections · room
+overrides · re-links) + automation_rules/global_variables/plugins have no arm — DESIGN fork.
+PROPOSAL: the LIFECYCLE REGISTRY — (a) completeness gate deriving owned-canon families from
+schema, each PORTABLE or cited NON_PORTABLE (self-cleaning) → a new domain registering nothing
+REDS AT BIRTH · (b) exhaustive-by-kind door table + "every single door = thin arm over the
+bundle descriptor" ratified (twice-proven law) · (c) ONE defineJsonSerde kit spine for orb-JSON
+families (card/chat/preset/assets stay bespoke; accept-old-forever/emit-new — portable files
+are external artifacts NO-LEGACY doesn't govern) · (d) chrome anatomy MINTED as a D-entry
+(currently workboard-only — ANOTHER ceremony rider) · (e) descriptor bodies shrink to wiring.
+R0-R6 + 8 owner forks in the report — incl. HOMES for both parked queue items: JSON-card
+export = `?format=png|json` on the existing character door · absent-character transcript =
+"import as characterless chat" arm recommended. LESSONS: the chars+chats lifecycle audit
+tables were LANE-EPHEMERA never durably committed (this report §1 is now the standing census);
+**the regex program's R2/R4 MUST register a `regex` portable kind or it becomes the next F1**
+(cross-linked into the regex program's brief-to-be).
+**✅ LIV MERGED (`92e4a318`) — THE LIVENESS PROGRAM IS COMPLETE:** columns lens (685 cols/76
+tables: **0 NEITHER — no pure schema rot**; 25 write-only = 2 real [raw_request/raw_response
+blobs · chat_locks.acquired_at] + 20 timestamp stamps + variants; 90→25 after the mapped-type
+arm — drizzle $inferSelect rows have ZERO declarations, lesson banked) · monotonic-tests third
+tooth (allow-skip reason-required + two-sided) · regkeys informational (145 registries/1380
+rows/239 flagged; TOKENS/computed-key noise proves why it never gates; CHAT_SURFACE_AUTHORITY 5
+rows = the one signal). check-gates red confirmed resolved by ZG's fix at LIV's merge-forward.
+**OWNER RULED (4):** REGEX all-8 recommended (incl. backrest-manual live-data — his scripts
+re-enter by hand) · PORTABILITY all-8 (incl. F9 orb-native chat-bundle arm ALONGSIDE jsonl;
+databank F1 at R1 priority) · **raw blobs = BUILD THE READER** (the write becomes a feature) ·
+TYPO class-B = demote to plain types (responseFormatSchema keeps its seam). MINOR DEFAULTS
+TAKEN (proceed-in-full): card.ts:165 → prettifyError (same ruled class) · cookie
+read/write asymmetry = cite-and-close (unreachable by construction) · acquired_at = cite
+diagnostic · TYPO class-A 27 tuples stay untagged manual-lens candidates · F-8
+collection-contribution design set queued AFTER this wave.
+**═══ WAVE 3 DISPATCHED (6 lanes, at cap): ═══** GDOC (gate law doc + ExemptionRow type +
+pnpm gate:new scaffold + gate-modernization meta-gate w/ derived baseline handed to RETRO;
+the orchestrator-memory hub lessons MIGRATE INTO the repo doc) · RETRO (~57 two-sided
+retrofits [40-join priority] + 22 guard shapes + 16 complex scanRoots + the §12.6 citation
+fix ×3) · R2 (hostUserIdOf ×~14 + the F1 three-spellings collapse onto the projection lens
+per ruling; byte-identical pins) · MACU (withUserMacros union at the ruled #lib home + rpg
+both-planes shadowing + the {{if}} block-template insertion) · SM2 (REGEX-F2 union fix + pin ·
+F6 readout order · card.ts prettify · TYPO-B demotion ×4 · Spine §3 app.ts row · cookie
+asymmetry cite · acquired_at cite) · RAWVIEW (security-executor: the per-variant wire
+inspector — host-gated, member-visibility/hidden-span/credential-scrub laws called out;
+writer census first; PROBED tenancy classification; honest not-captured empty states).
+**R2 MERQUEUE:** landed both arms + found the report's lists stale-by-two (15 lookup sites [roster-host.ts hostSeatOf/hostUserIdOf, belt kept w/ seat-wave rationale] + 4 projection collapses incl. a missed replayStreamEvents site); taking F6 clamp rider in the warm lane; the THREE-QUESTIONS lesson (act?/read-hidden?/which-seat? — three cross-citing homes) goes into the permissions page verbatim. **PRINCIPAL-FLOW scout LIVE** (76-table scoping-model census [one census, two consumers: the gate + the permissions page] · read-path spelling counts · injected-op caller audit · gate-arm spec w/ red counts) → one M gate lane after. **HANDOFF × CARD-OWNERSHIP stickler LIVE** (owner catch: the built two-party handoff transfers the ROOM but seated cards are the old host's PROPERTY — core question: whose authority resolves cast cards post-swap, cross-tenant-or-breaks; sad paths edit/delete/leave/account-delete/export/fork/rpg-mid-handoff; arms copy-on-handoff / room-scoped license / seat-freeze / refuse; precedents demo-seeder-copy · synthetic mint · promote-actor · characterless import).
+**WAVE-3 SEALS:** ✅ R2 (`7a0e8c08`+`c3edc452` — 15 lookup + 4 projection + 2 clamp sites; the
+THREE-QUESTIONS taxonomy COMPLETE [act?/read-hidden?/which-seat? — 3 cross-citing homes; final
+census: 6 remaining role==="host" sites all class-homes or declared exemptions]; the verbatim
+paragraph for the permissions page is in R2's final report) · ✅ SM2 (`42dc7ebb` — REGEX-F2
+union fix w/ vacuous-watchdog-test re-route · F6 swap [residual: REASONING prints slot 4 vs
+executes post-postProcess — unobservable, owner-call for strict fidelity] · card.ts prettify ·
+TYPO-B ×4 demoted [lens receipt clean; responseFormatSchema still self-nominates — needs its
+@typeonly-ok marker, one-liner queued] · Spine §3 row · cookie-asymmetry cite [brand-keeps-it-
+true noted] · @column-ok on acquired_at [lesson: the columns lens HAS two-sided markers]) ·
+✅ MACU (`95f4c00b` — withUserMacros on all 5 surfaces w/ per-surface red-first CTs · rpg
+shadow-precedence proven · {{if}}+5 block macros via MacroSuggestion.insertTemplate w/ $0
+[ui seal additive; byte-identity pinned; insertTemplate in storeFields — searched picks would
+have silently downgraded] · exclusions 11→5 each reasoned · PROMPT_MACRO_SUGGESTIONS now
+module-private. FOLLOW-UP boarded: other MacroTextarea consumers [persona editor, imagery
+templates, prose settings, character facets] pass own catalogs — do any want the user plane?).
+**PRINCIPAL CENSUS DELIVERED:** class-(a) enforcement ALREADY GATED (ownerid-registry,
+both-ways!) — the census adds: 76-table class map (a×22/b/c/d/e receipted) · read-paths:
+fetchOwned ×6 + hand-rolled ×58-files (legit — list reads have no helper) + 3 justified
+unfiltered ids + the loadWorkload POST-FETCH-FILTER arm (a distinct legal class the gate must
+recognize) · op audit ~15/28 domains: all sampled SAFE except ReapAssetsOp (no caller param —
+compose-closure safety UNRESOLVED, verify before ruling) + CopyCharacterBooks (likely-safe
+unverified). GATE SPEC: 3 mechanical arms (class-declaration extension [0 red] ·
+fetchOwned-or-justification [3 exemption rows] · caller-param-on-op-signatures [full 28-domain
+sweep needed]) + the HONEST LIMIT: membership-rung completeness is behavioral-only (control-
+flow-dependent — the cross-tenant sweep stays that proof). → Lane PRIN queued (S/M).
+**HANDOFF: owner ruled OPT-IN POINT-IN-TIME COPY then ADDENDUM (simplicity weighs heavily,
+defers to stickler)** — both relayed mid-review; stickler licensed to recommend the simplest
+non-betraying arm incl. transfer-as-fork (copy problem = the already-solved fork problem).
+**HANDOFF REVIEW DELIVERED + RULED (docs/reviews/stickler/2026-08-03-handoff-card-ownership.md):**
+the owner's question answered — the new host does NOT get the cards and that's D64 LAW (seats
+drop in the atomic swap batch, nominee-scoped resolution, no cross-tenant read; test-pinned).
+Transfer-as-fork = FALSE ECONOMY (fork drops foreign seats identically — copies the room never
+the cards). TWO LIVE DEFECTS found in the current arm → **Lane HEAL dispatched** (F1 foreign
+gmPresetId survives the swap = silent GM-voice change + lying knob [fork-game guards exactly
+this]; F2 anchor persona dies silently = {{user}} POV drift + the setChatAnchorPersona
+verb/resolver mismatch [verb permits any present human's persona, resolver reads host-only];
+both heals ride the atomic swap batch; U2 if one-line). **OWNER RULED: heals now; the MINIMIZED
+COPY ARM is an APPROVED PROGRAM for a near wave** — one class-level toggle at nominate
+("also give copies of your characters & worldbooks used in this room"), pendingHandoffOffer
+column beside pendingHostUserId, COPY-AT-ACCEPT (acceptance freezes the point-in-time),
+copy set = seated cards (duplicate+promote-actor mint precedents, provenance-stamped for
+idempotent re-accept) + their character books AS COPIES (reference-carry silently kills lore —
+owner-filtered pool) + host-owned chat books + optional GM preset; seats re-point IN PLACE;
+messages.characterId + digest speakers re-stamp; rpg = rekeyActor only (chat id unchanged);
+variants transfer by construction; decline = the built D64 drop. ~90% machinery exists.
+F3 (cards-drop vs books-license asymmetry) reconciles via the copy arm. Verified: declining
+strands NOTHING host-authored (room state is the room's, in code, today).
+STANDING OWNER QUEUE unchanged: PV wording veto · AV2 re-push offer ~$0.56 + Calamity $4 ·
+DRAFT-TRUST · AGENT-1 · D22 (multi-user stack). CEREMONY (now 6 riders) runs after this wave.
+**CEREMONY R0 SCOPE GROWN (owner nit, 08-03 — agents re-flag by-design visibility):**
+Spine-Identity-and-Auth's truth-repair becomes THE PERMISSIONS-MODEL page: (1) the THREE
+LAYERS one-page (app user/admin/owner via GlobalAction · room host/member via membership+can()
+on OWNERLESS chats [host=role not ownership, D18] · visibility DEFAULT-VISIBLE with
+host-OPTIONED limits [D16 floor · hidden spans · member-strip — options, never defaults]; the
+philosophy sentence: "a room is a shared document; members see it; the host may limit") ·
+(2) who-owns-what table (cite BOUND's derived gate map, don't duplicate) · (3) the BY-DESIGN
+do-not-re-flag REGISTER (member-sees-admitted-history IS the point · empty anchor slots ·
+adopt-only engines · accrete as reviews re-flag) · (4) agent-def line after the doc lands: a
+visibility finding must name WHICH host option/floor is bypassed (the real-leak test — what
+made cold-scrubber + fork-laundering real and "member sees history" noise). RPG-VARIANT
+RELATION: scout verdict CLEAN with receipts (variantId=identity, messageId=cascade
+convenience documented · swipe-flip = zero-write derive-don't-stamp, pinned · fork = real
+re-keying pass, evidence FOR the F9 export arm · variableDelta vs rpg state = distinct planes
+documented) — owner unease answered: surface complexity, not flaw; closed.
 GATE-CORPUS VERIFICATION P2 DONE: ~57 real one-sided · ZERO dead scanRoots (mechanical set) ·
 why NOT type-enforced (→GDOC) · 1 broken §-cite / 112 · anchor-file guards = valid alternate
 shape (meta-gate must accept).

@@ -80,6 +80,7 @@ import { loadPresentRole, loadRoster } from "../persistence/roster";
 import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../substrate/assembly-access";
 import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility";
+import { hostUserIdOf } from "../substrate/roster-host";
 import { userMessageDelta } from "../substrate/stats-delta";
 import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access";
 
@@ -208,7 +209,7 @@ async function reasoningHostOnlyFor(ctx: ChatContext, chatId: ChatId, membership
  *  the host's ownership. */
 async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
   const roster = await loadRoster(ctx.db, chatId);
-  const hostUserId = roster.find((r) => r.role === "host" && r.userId !== null)?.userId ?? null;
+  const hostUserId = hostUserIdOf(roster);
   if (hostUserId === null) {
     throw new ChatNotFoundError(chatId);
   }

@@ -684,6 +684,10 @@ export const chatLocks = sqliteTable("chat_locks", {
     .references(() => chats.id, { onDelete: "cascade" }),
   // The replica/holder that owns the lock (for multi-replica takeover diagnostics).
   holder: text("holder").notNull(),
+  // @column-ok: DIAGNOSTIC-ONLY, deliberately write-only. Expiry/takeover reads `expiresAt` exclusively, so
+  // nothing in the app ever reads this back. It is kept for MANUAL forensics on a probe copy of the db —
+  // "when did this holder actually take the lock?" is unanswerable from `expiresAt` alone once LOCK_TTL_MS
+  // changes, and a lock stuck across a takeover is exactly the incident where that question gets asked.
   acquiredAt: integer("acquired_at").notNull(),
   // The TTL horizon — a stale lock past this is takeover-eligible (the LOCK_TTL_MS window).
   expiresAt: integer("expires_at").notNull(),

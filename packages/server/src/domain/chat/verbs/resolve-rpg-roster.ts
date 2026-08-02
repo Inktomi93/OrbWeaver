@@ -11,6 +11,7 @@ import type { UserId } from "@orb/kit/ids";
 import type { ChatContext } from "../context";
 import type { ResolveRpgRoster, RpgRosterActor } from "../contract/context";
 import { loadRoster } from "../persistence/roster";
+import { hostUserIdOf } from "../substrate/roster-host";
 
 type RosterRow = typeof chatParticipants.$inferSelect;
 
@@ -46,7 +47,7 @@ export function createResolveRpgRoster(ctx: ChatContext): ResolveRpgRoster {
     const roster = await loadRoster(ctx.db, chatId);
     // Card reads need an owner — the room host (the character-card ownership authority, D18/D19). A hostless
     // roster (a racing delete) resolves no character seats; humans still resolve.
-    const hostUserId = roster.find((r) => r.role === "host")?.userId ?? null;
+    const hostUserId = hostUserIdOf(roster);
     const resolved = await Promise.all(roster.map((row) => resolveSeat(ctx, row, hostUserId)));
     return resolved.filter((a): a is RpgRosterActor => a !== null);
   };

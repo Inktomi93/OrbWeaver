@@ -65,6 +65,13 @@ export const CHAT_VERB_AUTHORITY = {
   previewSection: "host",
   peekPrompt: "host", // the full next-turn prompt reveals merged member cards at FULL — host/admin only
   getShapeTrace: "host", // the SHAPE-phase debug trace (content-free counts) is a host/admin inspector surface (PD-132)
+  // The per-variant WIRE RECORD — the RETROSPECTIVE member of the preview family, and host for the SAME
+  // reason `peekPrompt` is: a stored `promptSnapshot` is a real assembled prompt, so it carries the roster's
+  // cards at FULL fidelity (the D22 `memberCardVisibility` bypass), the hidden-class spans the §3.6 member
+  // strip removes (the wire projection rides them verbatim — the model always sees them), and the whole
+  // assembled HISTORY, including slots below a clamped member's D16 floor. Reading a PAST prompt must not be
+  // the cheap way around the three host-gated doors above.
+  getVariantWire: "host",
   previewContextFit: "member", // the transcript divider's present-tense fit budget — a member read (no merged-card leak, only the boundary id + budget numbers)
   listMessages: "member",
   listMessageVariants: "member", // the full sibling-variant set for one slot — a present member may read it

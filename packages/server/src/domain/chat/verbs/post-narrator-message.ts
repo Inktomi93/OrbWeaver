@@ -14,6 +14,7 @@ import type { PostNarratorMessage, PostNarratorMessageDeps } from "../contract/c
 import { buildCommittedMessageView, insertCanonMessageStatements, insertMessageAssetStatements } from "../persistence/canon-write";
 import { loadMaxMessageSeq } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
+import { hostUserIdOf } from "../substrate/roster-host";
 
 /** The alt text stamped on each embedded narrator-media ref (one home — no scattered magic string). */
 const NARRATOR_MEDIA_ALT = "illustration";
@@ -34,7 +35,7 @@ export function createPostNarratorMessage(ctx: ChatContext, deps: PostNarratorMe
     // The group character is owned by the room HOST (the D19 funding/authority identity) — the same
     // owner every narrator turn mints under (`turn.ts` runAiRound).
     const roster = await loadRoster(ctx.db, chatId);
-    const hostUserId = roster.find((r) => r.role === "host" && r.userId !== null)?.userId ?? null;
+    const hostUserId = hostUserIdOf(roster);
     if (hostUserId === null) {
       throw new Error(`postNarratorMessage: chat ${chatId} has no host to author the narrator identity under`);
     }

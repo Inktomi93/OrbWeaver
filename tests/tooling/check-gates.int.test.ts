@@ -728,6 +728,14 @@ function writeFixtures(): void {
   // THIS file cannot self-trip it, and the fixture leaves the real-tree anchor (foundation/env/index.ts)
   // untouched so its ISSUES_ALLOWLIST ratchet keeps judging the six real join sites.
   fx("packages/contracts/src/__g_zodspell/index.ts", 'import { z } from "zod";\nexport const gZodSpell = z.object({ a: z.string() }).strict();\n');
+  // gate-modernization ARM A: a module in the gate corpus that exports no `gate` descriptor. The loader
+  // SKIPS such a file (`mod.gate === undefined ⇒ continue`), so it enforces nothing forever with no signal
+  // — the exact hole arm A closes. This is the ONE arm a throwaway file can drive: arm B needs a real
+  // one-sided exemption table (planting one would ALSO have to defeat the committed handoff baseline) and
+  // arm C needs a real doc whose §-anchor is missing. Both of those are proven by the gate's own conformance
+  // mustFlag rows + its three live catches at mint. The fixture leaves the real corpus untouched, so the
+  // baseline's stale-row arm keeps judging the REAL 16 tables.
+  fx("scripts/check/gates/__g_nodescriptor.ts", "export const notAGateDescriptor = 1;\n");
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose

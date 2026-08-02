@@ -24,6 +24,13 @@ export interface MacroSuggestion {
   category?: string;
   description?: string;
   args?: string[];
+  /**
+   * An explicit multi-part insertion, overriding the `name`-derived one — the shape a BLOCK macro needs
+   * (`{{if::$0}}{{/if}}`), which no `{{name}}` spelling can express. `$0` (`MACRO_CARET_MARKER`) is
+   * stripped on insert and is where the caret lands. `name` still owns the row label and the search index,
+   * so a block entry reads as the macro it is.
+   */
+  insertTemplate?: string;
 }
 
 export interface MacroTextareaProps {
@@ -59,7 +66,9 @@ function getMacroSearch(suggestions: readonly MacroSuggestion[]): MiniSearch<Mac
   }
   const index = new MiniSearch<MacroSuggestion & { id: string }>({
     fields: ["name", "description"],
-    storeFields: ["name", "description", "category", "args"],
+    // `insertTemplate` is stored (never indexed): the picked row is reconstructed from the STORED fields,
+    // so a block macro reached through search must carry its insertion with it or it inserts a bare call.
+    storeFields: ["name", "description", "category", "args", "insertTemplate"],
     searchOptions: {
       prefix: true,
       fuzzy: 0.2,
@@ -91,7 +100,8 @@ function toRows(list: readonly MacroSuggestion[]): SuggestionRow[] {
  * A textarea that watches for `{{…` at the caret and pops a fuzzy-matching macro autocomplete
  * anchored beneath it. Selecting a macro inserts the full `{{name}}` form; parameterized macros
  * insert the `{{base::}}` template with the caret left inside the closing braces plus an inline
- * `::`-arg hint. Hand-rolled combobox on the same textarea (not Base UI Autocomplete/cmdk, which
+ * `::`-arg hint; an entry carrying `insertTemplate` inserts that text verbatim (the block forms'
+ * `{{if::}}{{/if}}` pair), caret at its `$0`. Hand-rolled combobox on the same textarea (not Base UI Autocomplete/cmdk, which
  * can't anchor mid-text or would force a two-input state sync). Controlled to fit TanStack Form's
  * Field idiom.
  *
@@ -146,6 +156,7 @@ export function MacroTextarea({
         ...(h["description"] !== undefined ? { description: h["description"] as string } : {}),
         ...(h["category"] !== undefined ? { category: h["category"] as string } : {}),
         ...(h["args"] !== undefined ? { args: h["args"] as string[] } : {}),
+        ...(h["insertTemplate"] !== undefined ? { insertTemplate: h["insertTemplate"] as string } : {}),
       }),
     );
   }, [trigger, suggestions]);
@@ -175,7 +186,7 @@ export function MacroTextarea({
     if (!ta) {
       return;
     }
-    const { next, caret } = computeMacroInsertion(value, trigger, macro.name);
+    const { next, caret } = computeMacroInsertion(value, trigger, macro.name, macro.insertTemplate);
     onChange(next);
     setTrigger(null);
     setArgHint(macro.args !== undefined && macro.args.length > 0 ? macro : null);

@@ -7,7 +7,14 @@
 // the real DOM `selectionStart`) fires exactly as it would for a user.
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DerivedSuggestionsStory, EmptySuggestionsStory, FieldWrappedStory, GhostDefaultStory, MacroTextareaStory } from "./macro-textarea.fixtures";
+import {
+  BlockSuggestionsStory,
+  DerivedSuggestionsStory,
+  EmptySuggestionsStory,
+  FieldWrappedStory,
+  GhostDefaultStory,
+  MacroTextareaStory,
+} from "./macro-textarea.fixtures";
 
 const NON_EMPTY = /.+/u;
 /** ANY value — used with `not.toHaveAttribute` to assert an attribute is ABSENT, whatever it holds. */
@@ -104,6 +111,21 @@ test("a parameterized macro inserts the `::` template and shows the arg hint", a
   // Caret reposition: it sits just inside the closing braces, not at the string's end.
   await textarea.pressSequentially("x");
   await expect(textarea).toHaveValue("{{getvar::x}}");
+});
+
+test("a BLOCK suggestion inserts the whole `{{if}}…{{/if}}` pair with the caret at the predicate", async ({ mount, page }) => {
+  await mount(<BlockSuggestionsStory />);
+  const textarea = page.getByRole("textbox");
+  await textarea.click();
+  await textarea.pressSequentially("{{if");
+  await expect(page.getByRole("option", { name: "{{if}}" })).toBeVisible();
+  await textarea.press("Enter");
+  // The whole pair — a bare `{{if}}` here is the defect this arm exists for (an unclosed block renders
+  // as literal text in the prompt).
+  await expect(textarea).toHaveValue("{{if::}}{{/if}}");
+  // And the caret is where the author must type next: the predicate slot, INSIDE the opening tag.
+  await textarea.pressSequentially("flag");
+  await expect(textarea).toHaveValue("{{if::flag}}{{/if}}");
 });
 
 test("the popup wears the popover token and the overlay z-index", async ({ mount, page }) => {

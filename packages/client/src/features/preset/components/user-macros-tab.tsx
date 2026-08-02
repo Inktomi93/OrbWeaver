@@ -17,7 +17,7 @@ import { useState } from "react";
 import type { UserMacrosFormValues } from "#components";
 import { EntryListEditor, UserMacroEditorDialog } from "#components";
 import type { AppFormInstance } from "#forms";
-import { PROMPT_MACRO_SUGGESTIONS } from "#lib";
+import { withUserMacros } from "#lib";
 import { MacroBrowser } from "./macro-browser";
 
 type AppForm = AppFormInstance<PromptConfig>;
@@ -68,7 +68,9 @@ export function UserMacrosTab({ form, presetId }: UserMacrosTabProps): ReactElem
                 form={form as unknown as AppFormInstance<UserMacrosFormValues>}
                 index={index}
                 onClose={(): void => setEditIndex(null)}
-                suggestions={PROMPT_MACRO_SUGGESTIONS}
+                // A macro body completes against the preset's OWN macros too (they compose — one macro
+                // calling another is the point of a template), so the editor offers the plane it is editing.
+                suggestions={withUserMacros(userMacros)}
               />
             )}
           />

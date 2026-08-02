@@ -32,6 +32,7 @@ import { loadWitnessHorizons } from "../memory/persistence/queries";
 import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import { loadRoster } from "../persistence/roster";
 import { resolveGroupBucketCharacterId } from "./group-bucket";
+import { hostUserIdOf } from "./roster-host";
 
 /** The sweep universe (temporary chats included; they are live rooms until reaped). `ownerId` scopes to
  *  the chats that user hosts (a present, non-departed host participant); omitted/null = every chat. */
@@ -68,7 +69,7 @@ async function loadCastAndHost(
 }> {
   const roster = await loadRoster(ctx.db, chatId);
   const cast = roster.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [r.characterId] : []));
-  const hostUserId = roster.find((r) => r.role === "host" && r.userId !== null)?.userId ?? null;
+  const hostUserId = hostUserIdOf(roster);
   const producer = await loadChatMacroNameProducer(ctx.db, { participants: roster });
   const macroNames: RowMacroNameContext = {
     characterNamesById: buildCharacterNameMap(producer.characterNames),
@@ -195,7 +196,7 @@ export async function backfillGroupCharacters(
     // biome-ignore lint/performance/noAwaitInLoops: sequential by design — the mint writes must not race each other (idempotence is per-chat, checked-then-minted).
     const roster = await loadRoster(ctx.db, chatId);
     const cast = roster.filter((r) => r.kind === "character" && r.characterId !== null);
-    const hostUserId = roster.find((r) => r.role === "host" && r.userId !== null)?.userId ?? null;
+    const hostUserId = hostUserIdOf(roster);
     if (cast.length <= 1 || hostUserId === null) {
       continue; // solo/empty rooms need no group character; a hostless room has no funding owner
     }

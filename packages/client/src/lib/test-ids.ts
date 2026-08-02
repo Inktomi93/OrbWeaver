@@ -90,6 +90,11 @@ export const TEST_IDS = {
   // viewer renders in place of a clamped-away (null) section.
   memberCardViewer: "member-card-viewer",
   memberCardHiddenNote: "member-card-hidden-note",
+  // RAWVIEW — the HOST-only per-variant wire inspector opened from a message'''s metadata row. The trigger
+  // is the quiet "wire" readout (the MessageCostReadout class); the dialog shows the assembled prompt the
+  // turn actually SENT.
+  variantWireTrigger: "variant-wire-trigger",
+  variantWireViewer: "variant-wire-viewer",
   corpusListSurface: "corpus-list-surface",
   corpusSearchInput: "corpus-search-input",
   corpusSearchTarget: "corpus-search-target",
