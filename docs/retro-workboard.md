@@ -79,7 +79,31 @@ unobservable · provider.* spans never opened) · TYPO class-A dispositions + re
 table-dispatch + CharacterFacetId Record smalls · cookie-parser… done · ENDGAME: quiesce →
 verify:push → PUSH-READY (word).
 
-**STANDING OWNER ITEMS:** PV wording veto · AV2 re-push ~$0.56 + Calamity $4 · DRAFT-TRUST ·
+**✅ GDOC MERGED (`fafa228f`)** — GATE-AUTHORING.md (288 lines, the hub lessons now REPO LAW) ·
+ExemptionRow mandatory-why in contract.ts · pnpm gate:new (self-proving scaffold, probed) ·
+gate-modernization meta-gate #167 (arm A no-descriptor · arm B one-sided-exemptions BASELINED
+13 gates/16 tables shrink-only [RETRO's machine-checked loop; ~57→16 = narrower vocab, delta is
+RETRO's judgment sweep] · arm C §-anchor-DEFINED check — 3 live phantom citations FIXED at
+landing). RETRO handed the baseline flow + the 2 prose §12.6 refs. Lessons: PROBE_ARTIFACT_RE
+is what makes gates unfixturable · §-checks must require DEFINED not mentioned.
+**✅ RAWVIEW MERGED (`de3c7bb4`)** — fork-laundering CLOSED red-first (traitor-lie + vault-code
+receipt) · chat.getVariantWire host-gated + PROBED + the host-B-cross-room belt proven by
+join-deletion · grafted onto MessageMetadataRow (the real per-variant diagnostic home; Preview
+tab = chat-level prospective, couldn't host) · sentPromptSchema exact-key-set pinned so a
+widened AssembledPrompt can't grow the read · 3 registry rows flagged for skim · census: the
+raw columns are WRITE-NEVER (copy-writers aren't originators — lens nuance recorded).
+**OWNER ANSWERS (4):** PV = KEEP + three riders → **FIRSTRUN item reshaped**: persona creation
+FORCED at first sign-in (kills the dead-dialog small's premise — the seeder/dialog relationship
+redesigns), clause stays template-homed (verify it is — C1 landed in DEFAULT_MARKER_TEMPLATES),
+wording pass compares SillyTavern's first-run persona UX → folds into the PERSONA DESIGN PASS
+(one stickler when a slot frees: multi-human resolution [host-default + host anchor control +
+the half-remembered macro] · persona-pin integration · forced-first-run flow · ST comparison ·
+HEAL's getForRoom receipts) · AV2 = owner questions the $4 sticker figure (answer: it was the
+recorded actual cost of the sticker-SHEET attempt from the art lane's billing truth, not one
+image — receipt pullable; DEFAULT pending his read: close the row, spend nothing) · AGENT-1 =
+PARKED until current programs land · DRAFT-TRUST = design pass when reached (boards behind the
+tail).
+**STANDING OWNER ITEMS:****STANDING OWNER ITEMS:** PV wording veto · AV2 re-push ~$0.56 + Calamity $4 · DRAFT-TRUST ·
 AGENT-1 · D22 · F6 readout strict-fidelity nit · regime-2 landmine (launch-day: re-point
 db-baseline at the applied chain).
 
