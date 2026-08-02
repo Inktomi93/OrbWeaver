@@ -18,7 +18,7 @@
 
 import type { MessageRole } from "@orb/kit/message-role";
 import { Field } from "@orb/ui/field";
-import { Grid, Stack } from "@orb/ui/layout";
+import { Container, Grid, Stack } from "@orb/ui/layout";
 import { NumberField } from "@orb/ui/number-field";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
@@ -74,38 +74,46 @@ export function DeliveryCluster({
   return (
     <Stack gap="field">
       {leading}
-      <Grid cols="auto" gap="field">
-        {role === null ? (
-          <Text voice="gloss">The transcript carries each message's own speaker — this section has no single role.</Text>
-        ) : (
-          <Field label={roleLabel} name="delivery-role">
-            <Select
-              aria-label={roleLabel}
-              items={MESSAGE_ROLE_ITEMS}
-              onValueChange={(next): void => {
-                if (typeof next === "string" && next !== "") {
-                  onRoleChange(next as MessageRole);
-                }
-              }}
-              value={role}
-            />
-          </Field>
-        )}
-        {onDepthChange === undefined ? null : (
-          <Field hint={depthHint} label={depthLabel} name="delivery-depth">
-            <NumberField
-              aria-label={depthLabel}
-              max={depthMax}
-              min={TAIL_DEPTH}
-              onValueChange={onDepthChange}
-              placeholder={depthPlaceholder}
-              size="inline"
-              step={1}
-              value={depth}
-            />
-          </Field>
-        )}
-      </Grid>
+      {/* ONE ROW, TWO DELIBERATE HALVES (crunch item 10 + the owner's live report, both drills). The pair
+          used to tile on `cols="auto"` — auto-FIT, so the Relative/nudge arm (no depth half) collapsed the
+          second track and stretched the Role select to the whole pane. `cols="pair"` holds both halves in
+          both arms and stacks them only when the PANE is narrow, which is what the `<Container>` is for.
+          The label baselines are the `Field` primitive's job and now hold by construction: its hint trigger
+          no longer wears a 34px control box, so a hinted half and a plain one stand the same height. */}
+      <Container>
+        <Grid cols="pair" gap="field">
+          {role === null ? (
+            <Text voice="gloss">The transcript carries each message's own speaker — this section has no single role.</Text>
+          ) : (
+            <Field label={roleLabel} name="delivery-role">
+              <Select
+                aria-label={roleLabel}
+                items={MESSAGE_ROLE_ITEMS}
+                onValueChange={(next): void => {
+                  if (typeof next === "string" && next !== "") {
+                    onRoleChange(next as MessageRole);
+                  }
+                }}
+                value={role}
+              />
+            </Field>
+          )}
+          {onDepthChange === undefined ? null : (
+            <Field hint={depthHint} label={depthLabel} name="delivery-depth">
+              <NumberField
+                aria-label={depthLabel}
+                max={depthMax}
+                min={TAIL_DEPTH}
+                onValueChange={onDepthChange}
+                placeholder={depthPlaceholder}
+                size="inline"
+                step={1}
+                value={depth}
+              />
+            </Field>
+          )}
+        </Grid>
+      </Container>
       {tailPrefill ? (
         <Text voice="gloss">
           Tail prefill — an assistant message at the very end that the model continues. It is a position, not a role; wires without prefill support get it

@@ -47,6 +47,14 @@ function spliceState(sections: readonly PromptSection[]): string {
   return spliced.length === 0 ? "none" : spliced.join(",");
 }
 
+/** The FORM's own `trigger` state per section — the all-selected normalization proof (owner rider). The
+ *  canonical "fires on every generation" is the ABSENT field, so a stored list of all six types (which
+ *  filters nothing, and costs the cached prefix) must never be written. `-` = absent. */
+function triggerState(sections: readonly PromptSection[]): string {
+  const gated = sections.flatMap((s) => ("trigger" in s && s.trigger !== undefined ? [`${s.id}:${s.trigger.join("+")}`] : []));
+  return gated.length === 0 ? "-" : gated.join(",");
+}
+
 /** Mirrors the live section-id order + the last-saved section count so a CT can assert the mutation AND
  *  its persistence, plus the enabled flags (the drilled-header echo's convergence proof). */
 function RackBody({ session, savedCount }: { readonly session: AutosaveSession<PromptConfig>; readonly savedCount: number }): ReactElement {
@@ -55,7 +63,7 @@ function RackBody({ session, savedCount }: { readonly session: AutosaveSession<P
     <>
       <form.Subscribe selector={(state): readonly PromptSection[] => state.values.sections}>
         {(sections): ReactElement => (
-          <output>{`ids=${sections.map((s) => s.id).join(",")} savedCount=${savedCount} on=${sections.filter((s) => s.enabled).length} splice=${spliceState(sections)}`}</output>
+          <output>{`ids=${sections.map((s) => s.id).join(",")} savedCount=${savedCount} on=${sections.filter((s) => s.enabled).length} splice=${spliceState(sections)} trig=${triggerState(sections)}`}</output>
         )}
       </form.Subscribe>
       <PresetStructureTabs form={form} tab="prompt" />

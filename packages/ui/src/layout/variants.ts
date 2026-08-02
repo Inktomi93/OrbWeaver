@@ -86,6 +86,15 @@ export const gridVariants = tv({
       // tiles 2-up at the 320px mobile column and 3-up in the 480px docked CONTEXT panel, at a card SHORTER
       // than the old square — the wasted space goes and the datum (name · ×N · where it's kept) fits.
       cell: "grid-cols-[repeat(auto-fit,minmax(min(8.5rem,100%),1fr))]",
+      // A DELIBERATE TWO-COLUMN ROW whose second column is NOT optional (the preset drill-ins' DELIVERY and
+      // PLACEMENT rows — role beside depth, zone beside order). Every other arm here is auto-FIT, which
+      // COLLAPSES a track holding no item: a conditionally-rendered second field (O-9's depth/order, absent
+      // on the Relative arm) therefore doubles the surviving control's width the instant it disappears, and
+      // the row re-flows under a field the user never touched. Two explicit halves hold the same geometry in
+      // BOTH arms. The container query — not a viewport breakpoint — stacks them back to one column in a
+      // narrow pane, so the row answers to the pane it lives in; an ancestor `<Container>` is required
+      // (an element cannot query itself).
+      pair: "grid-cols-1 @md:grid-cols-2",
     },
   },
   defaultVariants: { cols: "auto" },
