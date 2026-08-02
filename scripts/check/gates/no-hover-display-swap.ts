@@ -32,6 +32,7 @@
 // ui/client stylesheets are `motion-token-purity`'s scan surface, not this one.
 import { SyntaxKind } from "ts-morph";
 import type { ExemptionTable, GateDescriptor } from "../contract.ts";
+import { fileLoaded } from "../pass.ts";
 
 /** Legitimate hover-keyed display swaps → the reason each cannot oscillate. Both-ways ratchet: a stale row
  *  (the file no longer carries one) is RED, so a migrated file can't keep a standing exemption. EMPTY —
@@ -167,6 +168,11 @@ function packageRel(path: string): string {
 
 const passSeenAllowlisted = new Set<string>();
 
+/** Real-tree anchor (GATE-AUTHORING.md §4.5): `ctx.scope.kind === "project"` is TRUE inside conformance's
+ *  synthetic mini-projects too, so scope ALONE is not a guard — the stale arm below is vacuous while the
+ *  table is empty, but the first row added would otherwise red this gate's own self-proof. */
+const STALE_ARM_ANCHOR = "packages/ui/src/tokens/index.ts";
+
 export const gate: GateDescriptor = {
   name: "no-hover-display-swap",
   docRow: "Core-Enforcement-Active-Gates.md (Layer 3)",
@@ -200,7 +206,7 @@ export const gate: GateDescriptor = {
   },
 
   finalize: (ctx) => {
-    if (ctx.scope.kind !== "project") {
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
       return; // the stale arm is a whole-tree claim — never fire it below project scope (§4.4)
     }
     for (const rel of Object.keys(ALLOWLIST)) {

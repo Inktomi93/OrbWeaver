@@ -9,6 +9,7 @@
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
+import { fileLoaded } from "../pass.ts";
 
 /** ARIA roles that mint an INTERACTIVE widget — a feature must reach for the matching @orb/ui primitive,
  *  never hand-roll one of these on a div/layout component. Structural + live-region roles are absent by
@@ -87,6 +88,11 @@ function bannedRoleOf(attr: Node): string | undefined {
   return literalTextsIn(attr).find((t) => WIDGET_ROLES.has(t));
 }
 
+/** Real-tree anchor (GATE-AUTHORING.md §4.5): `ctx.scope.kind === "project"` is TRUE inside conformance's
+ *  synthetic mini-projects too, so scope ALONE is not a guard — the stale arm below is vacuous while the
+ *  table is empty, but the first row added would otherwise red this gate's own self-proof. */
+const STALE_ARM_ANCHOR = "packages/ui/src/tokens/index.ts";
+
 export const gate: GateDescriptor = {
   name: "no-interactive-role-in-features",
   docRow: "UI-Gates-and-Lessons.md §8",
@@ -112,7 +118,7 @@ export const gate: GateDescriptor = {
     ctx.report(node, { token: `role="${role}"`, offset: 0 });
   },
   finalize: (ctx) => {
-    if (ctx.scope.kind !== "project") {
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
       return;
     }
     for (const rel of Object.keys(BURN_DOWN)) {
