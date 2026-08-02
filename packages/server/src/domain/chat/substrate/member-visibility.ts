@@ -89,10 +89,13 @@ interface ViewerRole {
   readonly role: string;
 }
 
-/** Is THIS caller entitled to the unstripped hidden-content payload (§3.6 "the host via the eye")? The host
- *  reads verbatim; every other present role is a member and is stripped. The ONE place the host/member split
- *  is spelled for the payload boundary — every verb/return that hands canon content to a caller routes its
- *  verdict through here (never re-derives `role === "host"` inline).
+/** Does this viewer hold the HOST role? THE ONE spelling of `role === "host"` for the whole role-PROJECTION
+ *  class — every derived host verdict in this module and every `ChatDetail`-style payload flag composes it
+ *  rather than re-deriving the comparison inline.
+ *
+ *  Takes `ViewerRole | undefined` because "the viewer is not on the roster" is a real arm at the projection
+ *  seam (`toChatDetail` resolves its viewer with a `participants.find`): a non-member is not a host, and
+ *  saying so HERE keeps the `?.role === "host"` idiom from being re-spelled at each producer.
  *
  *  THE BOUNDARY (ruled 2026-08-03): this is the DATA-PROJECTION class (D106-F1 — consumers thread the verdict
  *  as DATA), which is why it takes a bare `ViewerRole` and not a `Principal` + `can()`. Its counterpart is the
@@ -100,8 +103,18 @@ interface ViewerRole {
  *  DECIDES whether an operation is permitted goes there, under spine invariant #6. Deliberately NOT wired
  *  through `can()` — doing so would thread a Principal into this pure, I/O-free module for zero behavior
  *  change (`can(…, 'host', …)` reduces to exactly this comparison; the Principal is never read). */
+export function viewerHoldsHost(viewer: ViewerRole | undefined): boolean {
+  return viewer?.role === "host";
+}
+
+/** Is THIS caller entitled to the unstripped hidden-content payload (§3.6 "the host via the eye")? The host
+ *  reads verbatim; every other present role is a member and is stripped. The ONE place the host/member split
+ *  is spelled for the payload boundary — every verb/return that hands canon content to a caller routes its
+ *  verdict through here (never re-derives `role === "host"` inline). A NAMED LENS over
+ *  {@link viewerHoldsHost}, not a second comparison: the payload boundary says WHY the host bit is being
+ *  asked for, and the bit itself has one home. */
 export function viewerReadsHidden(viewer: ViewerRole): boolean {
-  return viewer.role === "host";
+  return viewerHoldsHost(viewer);
 }
 
 /** Strip the hidden-class spans from EVERY `MessageView` a mutation return hands back to a NON-HOST caller
