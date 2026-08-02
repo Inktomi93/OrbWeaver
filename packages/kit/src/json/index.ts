@@ -7,6 +7,10 @@ import { z } from "zod";
 
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
-export const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
-  z.union([z.string(), z.number(), z.boolean(), z.null(), z.array(jsonValueSchema), z.record(z.string(), jsonValueSchema)]),
-);
+/** The runtime gate for {@link JsonValue}. `z.json()` (zod 4.x) IS this recursive union — the hand-rolled
+ *  `z.lazy` + `z.union` that stood here re-spelled it byte-for-byte, so the swap deletes a recursion we were
+ *  keeping by hand with zero behavioral delta (probed 2026-08-02 on 4.4.3: identical accept/reject on nested
+ *  objects, `NaN`, functions, and `undefined`-valued properties). The `JsonValue` alias is kept deliberately:
+ *  it is the type every consumer imports (`settings` KV, the db `$type`, the catalog snapshots) and zod's own
+ *  `util.JSONType` is structurally the same shape under a name nothing else in the cake speaks. */
+export const jsonValueSchema: z.ZodType<JsonValue> = z.json();

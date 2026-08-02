@@ -424,6 +424,15 @@ function isIpLiteralHost(hostname: string): boolean {
   return isIP(bare) !== 0;
 }
 
+/** Membership of `host` (already `normalizeHost`ed by the caller) in an allowlist. Two entry shapes: an EXACT
+ *  host, and a LEADING-DOT SUFFIX WILDCARD (`.example.com` matches every subdomain).
+ *
+ *  COUPLED SITE — `netHostSchema` in `@orb/contracts/plugin` (manifest `netHosts`): (a) plugin manifests are
+ *  validated with `z.hostname()`, which REFUSES the leading-dot form, so the wildcard arm below is reachable
+ *  only from OUR OWN call sites, never from a plugin bundle (before 2026-08-02 a charset regex let a manifest
+ *  declare `.com` and reach every `.com` host); (b) the `entry.toLowerCase()` here is what makes that schema's
+ *  case-insensitivity safe — an uppercase manifest entry resolves to the same host as its lowercase spelling.
+ *  Dropping either normalization means re-pinning the schema. */
 function hostAllowed(host: string, allowedHosts: readonly string[]): boolean {
   for (const entry of allowedHosts) {
     const e = entry.toLowerCase();

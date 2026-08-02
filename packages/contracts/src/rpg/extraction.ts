@@ -12,10 +12,11 @@
 // the SAME two planes cheap-mode tools stage during the turn. `roll_dice` is absent: it is zero-state (the
 // ToolCallRecord is the canon stamp), so it has no delta to extract.
 //
-// PROJECTION-CLEAN (inherited from `./tools`): every arg schema is a top-level `z.object` with no
-// `.transform()`/branded ids (a branded id throws in `z.toJSONSchema`; [tool-schema-no-branded-transform]) —
-// so this composed object projects to a structured-output JSON Schema without throwing (the contract test
-// pins it, mirroring the tools projection pin).
+// PROJECTION-CLEAN (inherited from `./tools`): every arg schema is a top-level `z.object` carrying no
+// `.transform()` — the precise toxin ([tool-schema-no-branded-transform]): `z.toJSONSchema` THROWS on a
+// transform, and this repo's ids are transform-based (`typeIdSchema`). (zod `.brand()` no longer throws on
+// 4.4.3 and is unused here anyway — see the mechanism note in `./tools`.) So this composed object projects to
+// a structured-output JSON Schema without throwing (the contract test pins it, mirroring the tools pin).
 
 import { z } from "zod";
 import {
@@ -472,11 +473,18 @@ export interface RpgExtractionDrop {
   readonly issues: readonly string[];
 }
 
-/** What a salvaging parse yields: the extraction assembled from everything that DID conform, plus the itemized
- *  losses (empty on the happy path). */
+/** What a salvaging parse yields: the extraction assembled from everything that DID conform, the itemized
+ *  losses, and the SILENT losses (both empty on the happy path).
+ *
+ *  `dropped` and `stripped` are the two distinct failure classes and are deliberately NOT merged: a drop threw
+ *  away a whole plane/entry (nothing of it applied), while a strip applied the entry MINUS a key the schema
+ *  never declared. Conflating them would make the drop list lie about what landed. See the strip-observability
+ *  block below {@link malformedToolCalls} for why detection, not `z.strictObject`, is the closing arm. */
 export interface RpgExtractionSalvage {
   readonly extraction: RpgExtraction;
   readonly dropped: readonly RpgExtractionDrop[];
+  /** Dotted paths of keys the model sent that the schema silently stripped (`party.0.mana`). */
+  readonly stripped: readonly string[];
 }
 
 // The ARRAY planes' field → arg-schema pairing, DERIVED from the tool-round arm map (never re-spelled: the
@@ -493,7 +501,16 @@ function issueLines(error: z.ZodError): string[] {
 // Salvage ONE array plane IN PLACE: push every conforming entry onto `out` and return the drops. An omitted
 // plane is "nothing changed here" (never a drop); a non-array field is one whole-plane drop; a bad entry costs
 // exactly itself. Hoisted out of {@link salvageExtraction} to keep it under the complexity ceiling.
-function salvageArrayPlane(raw: unknown, plane: keyof RpgExtraction, schema: z.ZodType, out: unknown[]): RpgExtractionDrop[] {
+function salvageArrayPlane(args: {
+  readonly raw: unknown;
+  readonly plane: keyof RpgExtraction;
+  readonly schema: z.ZodType;
+  /** The plane's array on the extraction being assembled — conforming entries are pushed here. */
+  readonly out: unknown[];
+  /** The run's strip accumulator — undeclared keys on a CONFORMING entry are appended here. */
+  readonly stripped: string[];
+}): RpgExtractionDrop[] {
+  const { raw, plane, schema } = args;
   if (raw === undefined || raw === null) {
     return [];
   }
@@ -504,7 +521,10 @@ function salvageArrayPlane(raw: unknown, plane: keyof RpgExtraction, schema: z.Z
   for (const [index, entry] of raw.entries()) {
     const parsed = schema.safeParse(entry);
     if (parsed.success) {
-      out.push(parsed.data);
+      args.out.push(parsed.data);
+      // The structured arm's half of the strip observability — same detection, same vocabulary as the tool
+      // vehicles' `strippedToolCallKeys`, so an invented key reads identically whichever way it arrived.
+      vanishedKeyPaths(entry, parsed.data, `${plane}.${String(index)}.`, args.stripped);
     } else {
       dropped.push({ plane, index, issues: issueLines(parsed.error) });
     }
@@ -522,24 +542,34 @@ function salvageArrayPlane(raw: unknown, plane: keyof RpgExtraction, schema: z.Z
 export function salvageExtraction(value: unknown): RpgExtractionSalvage {
   const extraction: RpgExtraction = { party: [], inventory: [], trackers: [], quests: [], journal: [] };
   const dropped: RpgExtractionDrop[] = [];
+  const stripped: string[] = [];
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    return { extraction, dropped: [{ plane: "root", index: null, issues: ["expected a JSON object"] }] };
+    return { extraction, dropped: [{ plane: "root", index: null, issues: ["expected a JSON object"] }], stripped };
   }
   const record = value as Record<string, unknown>;
+  // ROOT-level strip: a payload whose top-level key names no plane at all (`{"trackerDeltas":[…]}` — the tool
+  // ARG vocabulary emitted where a plane belongs) was the most invisible shape of all, since the per-plane
+  // walk below simply never looks at it. Named here so the whole-payload loss can't read as a quiet beat.
+  for (const key of Object.keys(record)) {
+    if (!(EXTRACTION_ARRAY_PLANES.has(key as keyof RpgExtraction) || key === "scene")) {
+      stripped.push(key);
+    }
+  }
   for (const [plane, schema] of EXTRACTION_ARRAY_PLANES) {
     // The plane key names an array field; each surviving entry parsed through that plane's own arg schema.
-    dropped.push(...salvageArrayPlane(record[plane], plane, schema, extraction[plane] as unknown[]));
+    dropped.push(...salvageArrayPlane({ raw: record[plane], plane, schema, out: extraction[plane] as unknown[], stripped }));
   }
   const scene = record["scene"];
   if (scene !== undefined && scene !== null) {
     const parsed = updateSceneArgsSchema.safeParse(scene);
     if (parsed.success) {
       extraction.scene = parsed.data;
+      vanishedKeyPaths(scene, parsed.data, "scene.", stripped);
     } else {
       dropped.push({ plane: "scene", index: null, issues: issueLines(parsed.error) });
     }
   }
-  return { extraction, dropped };
+  return { extraction, dropped, stripped };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -680,4 +710,80 @@ export function malformedToolCalls(calls: readonly RpgToolCall[]): readonly stri
     }
   }
   return bad;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// STRIP OBSERVABILITY — the SILENT-write hole at the arg boundary, closed (D112 (3))
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// THE DEFECT: every arg schema is a plain `z.object`, and zod v4 `z.object` is STRIP mode — a key the schema
+// does not declare is silently REMOVED and the parse SUCCEEDS. So a model emitting `{"targetRef":"Kael",
+// "mana":-3}` instead of a `trackerDeltas` entry produced a SUCCESSFUL ToolCallRecord whose write simply never
+// existed: invisible to `malformedToolCalls` (the call parsed), invisible to `salvageExtraction`'s drops (the
+// entry conformed), invisible to `rpg.extraction.empty` (the other five planes wrote fine). A delivery fork
+// that resolves silently is exactly what D112 (3) bans.
+//
+// WHY NOT `z.strictObject`: strictness FAILS the whole call/entry over one junk key, discarding the writes
+// beside it — the precise opposite of EXT-4a's equal-drop philosophy (drop as little as possible), and it
+// would also make an enforcing-wire model's over-eager key cost a real beat. The D79 projection pin
+// (`additionalProperties:false` on every object node) stays the PREVENTION arm where the wire enforces it;
+// this is the DETECTION arm for the wires that don't (the folded D112 wire sends tools without `strict`).
+//
+// MECHANISM: a structural diff of the RAW payload against the PARSED result rather than a strict-schema twin.
+// It observes the ACTUAL outcome, so — like the drop list — it cannot disagree with what applied; it needs no
+// parallel schema that could drift; and it is uniform across all three vehicles. Sound here specifically
+// because the arg schemas carry no `.default()`, no `.catch()` and no `.transform()`: on a successful parse the
+// ONLY reason a key present in the input is absent from the output is that the schema did not declare it.
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+// Collect every path in `raw` that did not survive into `parsed`, at any depth. Descends only where both sides
+// are the same container shape (an equal-length array, or two plain objects) — anywhere else the payload was
+// re-shaped by the parse and a key-level comparison would be meaningless.
+function vanishedKeyPaths(raw: unknown, parsed: unknown, prefix: string, out: string[]): void {
+  if (Array.isArray(raw) && Array.isArray(parsed) && raw.length === parsed.length) {
+    for (const [index, item] of raw.entries()) {
+      vanishedKeyPaths(item, parsed[index], `${prefix}${String(index)}.`, out);
+    }
+    return;
+  }
+  if (!(isPlainObject(raw) && isPlainObject(parsed))) {
+    return;
+  }
+  for (const [key, value] of Object.entries(raw)) {
+    if (key in parsed) {
+      vanishedKeyPaths(value, parsed[key], `${prefix}${key}.`, out);
+    } else {
+      out.push(`${prefix}${key}`);
+    }
+  }
+}
+
+/**
+ * The STRIP predicate that mirrors {@link toolCallsToExtraction}'s successful parses — the dotted paths of keys
+ * the model sent on a call that PARSED, and which the schema silently dropped (`update_party.mana`,
+ * `update_scene.presentUpsert.0.vibe`). ONE home with the fold, the `malformedToolCalls` precedent: a call can
+ * now be malformed (dropped whole), stripped (applied minus an invented key), or clean — and each is NAMED.
+ *
+ * A call whose args are non-JSON or fail their schema is NOT reported here — it is already a whole-call drop
+ * that `malformedToolCalls` names, and reporting its keys too would double-count one loss.
+ */
+export function strippedToolCallKeys(calls: readonly RpgToolCall[]): readonly string[] {
+  const stripped: string[] = [];
+  for (const call of calls) {
+    const schema = call.name === "update_scene" ? updateSceneArgsSchema : TOOL_ROUND_ARRAY_ARMS.get(call.name)?.schema;
+    if (schema === undefined) {
+      continue; // `no_changes` / an unknown name — nothing was meant to apply, so nothing was stripped
+    }
+    const args = parseArgs(call.arguments);
+    if (args === null) {
+      continue;
+    }
+    const parsed = schema.safeParse(args);
+    if (parsed.success) {
+      vanishedKeyPaths(args, parsed.data, `${call.name}.`, stripped);
+    }
+  }
+  return stripped;
 }

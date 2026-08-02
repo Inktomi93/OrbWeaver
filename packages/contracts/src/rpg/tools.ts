@@ -1,8 +1,15 @@
 // @orb/contracts/rpg/tools — the tool-name vocabulary + the D48 tool ARG schemas' contract homes
-// (rpg-design/05 §4.5). Args are PROJECTION-CLEAN (no `.transform()`/branded ids — a branded id throws in
-// `z.toJSONSchema`, [tool-schema-no-branded-transform]): EVERY entity reference is a NAME/label the server
+// (rpg-design/05 §4.5). Args are PROJECTION-CLEAN: EVERY entity reference is a NAME/label the server
 // alias-resolves, top-level `z.object` always, and customFields ride an ARRAY-of-pairs shape (the D79
 // `additionalProperties:false` regime — a bare record projects an open `additionalProperties`).
+//
+// THE PROJECTION TOXIN IS `.transform()`, precisely ([tool-schema-no-branded-transform], mechanism repaired
+// 2026-08-02 against installed zod 4.4.3): `z.toJSONSchema(z.string().transform(…))` THROWS ("Transforms
+// cannot be represented in JSON Schema") — and this repo's id schemas are transform-based (`typeIdSchema`,
+// kit/ids), so an id here would kill the projection. `z.string().brand<"X">()` does NOT throw any more (brand
+// is type-level-only on 4.4.3, probed) — but zod `.brand()` is unused repo-wide regardless (ids carry the
+// house phantom `Branded<B>`), so the LAW is unchanged in effect: keep transform-bearing schemas off this
+// surface. Only the stated MECHANISM was stale.
 //
 // COUNT: 7 lite tools (`RPG_LITE_TOOL_NAMES`). Full SIBLINGS its tools (`skill_check`, `request_check`,
 // `advance_time`, `tick_clock`, `upsert_npc`, encounter/loot/map…) — same registry, additive
