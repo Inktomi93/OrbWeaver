@@ -13,7 +13,28 @@
 //     `inject` nor `trigger` on it, so offering the field would write a shape the contract rejects.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import { RackStory } from "./_rack-stories";
+
+/** The rendered box, as a rounded integer rect — sub-pixel noise is not a defect, an 8/16px shear is. */
+async function boxOf(locator: Locator): Promise<{ readonly top: number; readonly height: number; readonly width: number }> {
+  const box = await locator.boundingBox();
+  if (box === null) {
+    throw new Error("expected a rendered box");
+  }
+  return { top: Math.round(box.y), height: Math.round(box.height), width: Math.round(box.width) };
+}
+
+/** A NumberField's bordered GROUP — the box the eye reads as the control (its `<input>` is inset by the
+ *  group's own 1px border). */
+function controlBoxOf(input: Locator): Locator {
+  return input.locator("..");
+}
+
+/** A `<Field>`'s own label element, matched on its exact text (the hint trigger is a SIBLING of it). */
+function labelBox(probe: Locator, text: string): Promise<{ readonly top: number; readonly height: number; readonly width: number }> {
+  return boxOf(probe.locator('[data-slot="field-label"]').filter({ hasText: new RegExp(`^${text}$`) }));
+}
 
 // The zone select's two arms + the triggers dial's readings, matched on the trigger's TEXT (a Select
 // renders its arm's whole label, and these pins are about WHICH arm — not its full copy). Top-level per
@@ -22,6 +43,8 @@ const RELATIVE_ZONE_RE = /Relative/;
 const IN_CHAT_ZONE_RE = /In Chat/;
 const EVERY_GENERATION_RE = /Every generation/;
 const CONTINUE_TRIGGER_RE = /Continue/;
+/** Every option the Fires-on dial offers, in `GENERATION_TYPES` order — the all-selected arm's input. */
+const ALL_GENERATION_TYPES = ["Normal", "Continue", "Impersonate", "Swipe", "Regenerate", "Quiet"] as const;
 const SWIPE_TRIGGER_RE = /Swipe/;
 
 test("a row CLICK selects without mounting the drill-in; the CHEVRON drills", async ({ mount }) => {
@@ -87,6 +110,73 @@ test("O-8/O-9 — the depth input WRITES (typed value round-trips to the form), 
   await expect(state).toContainText("splice=none");
 });
 
+// ── ITEM 10: THE DELIVERY ROW IS ONE ROW ─────────────────────────────────────────────────────────────
+// Owner, live: "actions delivery misalignment, same with role and inject at depth in prompt". The pair is
+// drawn as a two-column row and rendered as a shear — the hinted half's label sits in a 34px `size="icon"`
+// button row while the plain half's is text-height, so the two labels and the two controls each land at a
+// different y. Only COMPUTED geometry can see it: the source reads as a tidy two-cell Grid.
+
+test("item 10 — the DELIVERY pair's two labels and two controls each share one baseline", async ({ mount }) => {
+  const probe = await mount(<RackStory />);
+  // `sec_z` is post-pivot ⇒ In Chat, the arm where both halves render.
+  await probe.getByRole("button", { name: "Edit Zeta" }).click();
+
+  const role = await labelBox(probe, "Role");
+  const depth = await labelBox(probe, "Inject at depth");
+  expect(role.top).toBe(depth.top);
+  expect(role.height).toBe(depth.height);
+
+  // The CONTROL BOXES, not the inner inputs: a NumberField's border lives on its Group, so the `<input>`
+  // itself sits 1px inside it — comparing an input to a Select TRIGGER (whose border is its own box) would
+  // assert a 1px shear that nobody can see.
+  const roleControl = await boxOf(probe.getByRole("combobox", { name: "Role" }));
+  const depthControl = await boxOf(controlBoxOf(probe.getByRole("textbox", { name: "Inject at depth" })));
+  expect(roleControl.top).toBe(depthControl.top);
+
+  // …and the PLACEMENT row below it speaks the same grammar (the drill's one row vocabulary).
+  const zoneControl = await boxOf(probe.getByRole("combobox", { name: "Zone" }));
+  const orderControl = await boxOf(controlBoxOf(probe.getByRole("textbox", { name: "Order" })));
+  expect(zoneControl.top).toBe(orderControl.top);
+});
+
+test("item 10 / O-14 — the depth cell is WIDE ENOUGH FOR ITS OWN GHOST (it clipped to '0 — the t…')", async ({ mount }) => {
+  const probe = await mount(<RackStory />);
+  await probe.getByRole("button", { name: "Edit Zeta" }).click();
+
+  // The ghost is the ONE thing the empty field says, and the inline cell is a fixed `--width-number-inline`
+  // box — so "fits" is a MEASURED relation between the placeholder's rendered text and the box, not a
+  // judgement about the copy. The same constant rides the template drill's cell.
+  const overflow = await probe.getByRole("textbox", { name: "Inject at depth" }).evaluate((input: HTMLInputElement) => {
+    const style = getComputedStyle(input);
+    const context = document.createElement("canvas").getContext("2d");
+    if (context === null) {
+      throw new Error("expected a 2d context");
+    }
+    context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    const inner = input.clientWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
+    return context.measureText(input.placeholder).width - inner;
+  });
+  expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test("item 10 — the row is STABLE across the two zone arms: the Role select keeps its column", async ({ mount, page }) => {
+  const probe = await mount(<RackStory />);
+  await probe.getByRole("button", { name: "Edit Zeta" }).click();
+
+  const withDepth = await boxOf(probe.getByRole("combobox", { name: "Role" }));
+  const zoneWithOrder = await boxOf(probe.getByRole("combobox", { name: "Zone" }));
+
+  // Relative DROPS the depth and order halves (O-9★). An auto-FIT track collapses when its only item
+  // leaves, so the surviving control silently doubles in width — the pane re-flows under a field the user
+  // did not touch. The column is the grammar; the absent field is absent, not a re-layout.
+  await probe.getByRole("combobox", { name: "Zone" }).click();
+  await page.getByRole("option", { name: RELATIVE_ZONE_RE }).click();
+  await expect(probe.getByRole("textbox", { name: "Inject at depth" })).toHaveCount(0);
+
+  expect((await boxOf(probe.getByRole("combobox", { name: "Role" }))).width).toBe(withDepth.width);
+  expect((await boxOf(probe.getByRole("combobox", { name: "Zone" }))).width).toBe(zoneWithOrder.width);
+});
+
 // ── O-11★: TRIGGERS IS A MULTI-CHECK DROPDOWN ────────────────────────────────────────────────────────
 // The UNSET field IS the "fires on every generation" state, so the last deselection has to write
 // `undefined` rather than an empty array that reads the same and stores differently.
@@ -112,6 +202,26 @@ test("O-11 — Fires on is a multi-check dropdown, and clearing the last pick re
   await page.getByRole("option", { name: "Swipe" }).click();
   await page.keyboard.press("Escape");
   await expect(probe.getByText("Nothing selected — this section fires on every generation.")).toBeVisible();
+});
+
+test("the rider — selecting EVERY type reads and STORES as the every-generation absence", async ({ mount, page }) => {
+  const probe = await mount(<RackStory />);
+  const state = probe.locator("output");
+  await probe.getByRole("button", { name: "Edit DeleteMe" }).click();
+
+  const fires = probe.getByRole("combobox", { name: "Fires on" });
+  await fires.click();
+  for (const option of ALL_GENERATION_TYPES) {
+    // biome-ignore lint/performance/noAwaitInLoops: real clicks in one open menu are inherently sequential — each check must land before the next, and a Promise.all would race the pointer.
+    await page.getByRole("option", { name: option, exact: true }).click();
+  }
+  await page.keyboard.press("Escape");
+
+  // ALL selected ≡ NO filter: one state, so ONE reading — and one stored shape. A list of all six spells
+  // "fires always" a second way AND drops the section out of the assembler's cached prefix.
+  await expect(fires).toHaveText(EVERY_GENERATION_RE);
+  await expect(probe.getByText("Nothing selected — this section fires on every generation.")).toBeVisible();
+  await expect(state).toContainText("trig=-");
 });
 
 // ── O-12: THE OVERRIDES BLOCK ────────────────────────────────────────────────────────────────────────
