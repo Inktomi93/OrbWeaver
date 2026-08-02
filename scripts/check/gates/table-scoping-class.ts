@@ -9,6 +9,7 @@ import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { ExemptionRow, GateDescriptor, GateRunCtx } from "../contract.ts";
 import { fileLoaded } from "../pass.ts";
+import { schemaTables } from "../schema-read.ts";
 
 const SCHEMA_DIR = "packages/db/src/schema/";
 const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
@@ -188,6 +189,26 @@ export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
     why: "the tenancy ROOT — it is not scoped BY anything: reads are self (principal.userId) or admin-gated, enforced by `no-direct-users-read`, not by a scope column.",
   },
 };
+
+/** The drizzle table IDENTIFIERS whose SQL table is class (a) — derived per run from the schema sources
+ *  CROSSED with the registry above, never a hand-kept list, so a re-classification moves every consumer at
+ *  once. ONE home: `owner-scoped-reads` and `owner-scoped-writes` both key their (a)-set on this, and each
+ *  keeps its OWN blindness tripwire (an empty set means the derivation went blind, never that the tree is
+ *  clean). */
+export function ownerScopedTableIdents(ctx: GateRunCtx): Set<string> {
+  const idents = new Set<string>();
+  for (const sf of ctx.project.getSourceFiles()) {
+    if (!repoRel(sf.getFilePath()).includes(SCHEMA_DIR)) {
+      continue;
+    }
+    for (const table of schemaTables(sf)) {
+      if (table.sqlName !== undefined && TABLE_SCOPING_CLASSES[table.sqlName]?.scope === "ownerId") {
+        idents.add(table.variableName);
+      }
+    }
+  }
+  return idents;
+}
 
 const MESSAGE =
   "every schema table must declare HOW a caller's tenancy reaches it — the scoping class (ownerId / " +
