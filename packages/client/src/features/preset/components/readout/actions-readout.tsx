@@ -204,7 +204,11 @@ function boundGloss(runs: readonly MacroRun[], user: string | undefined): string
  *  thing this panel exists to distinguish. */
 function MacroText({ tokens }: { readonly tokens: readonly MacroRun[] }): ReactElement {
   return (
-    <Text className="whitespace-pre-wrap break-words" prose={true} voice="datum">
+    // A BOXED payload, not loose prose (the mock's `.code`: bordered, tinted, mono, `pre-wrap`). What the
+    // model receives is a quoted artifact — dropping the box let it read as another paragraph of the panel's
+    // own copy, which is the one thing a preview must never be mistaken for. Same box as the Prompt view's
+    // assembled preview, so the surface quotes the wire ONE way.
+    <Text className="whitespace-pre-wrap break-words rounded-base border border-border bg-muted/40 p-row" prose={true} voice="datum">
       {tokens.map(
         (token, i): ReactNode =>
           token.kind === "macro" ? (
