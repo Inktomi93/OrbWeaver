@@ -590,6 +590,68 @@ capped at 1 registry-typed positional param] + the SECTION_IDS coupled-site play
 suppressions red the stickler saw = MID-WAVE STALE (ZG's baseline regen landed; DBG's
 post-merge floor + every hook since = clean) · unconfirmed rows: home mobile fate ·
 agent-seed verb parity (dev-only) · chat/components at 72 files nearing F-4 practical relevance.
+**PORT STICKLER DELIVERED (docs/reviews/stickler/2026-08-03-lifecycle-portability-model.md) —
+THE OWNER'S QUESTION ANSWERED:** the "DI seam skimmer" IS REAL AND COMPLETE for the bundle
+plane — entry/compose/portability.ts::buildPortabilityRegistry, master spec
+docs/architecture/history/export-import-portability.md (07-11), 5-part template, 10 kinds,
+entity-agnostic zip/staged-archive core, round-trip-pinned. The doubt is CORRECT for the three
+planes it never covered (post-spec families · single-entity doors · client chrome) — nothing
+enforces completeness on any = the "agents say xyz missing import" mechanism. "We rewrite per
+domain" = TRUE at the serde-file tier (orb-JSON skeleton hand-cloned ×4, drifted policies),
+FALSE at delivery (written once). PortableEnvelope = the never-consumed R8 envelope (each serde
+re-spelled it; deleted correctly; the non-uniformity it evidences is the live defect).
+FINDINGS: **F1 P1 DATABANK ABSENT from PORTABLE_KINDS entirely** — a full-account backup
+silently loses the whole databank library (born after the spec froze; no gate could notice) ·
+F2 world-info single-book import/export = verbs BUILT, ZERO doors (no route/proc/chrome — the
+dead-wire archetype) · F3 persona chrome violates the ruled band/kebab anatomy (predates the
+ruling, never re-swept) · F4 envelope drift ×3 (wi spells `version`; persona has NO envelope;
+compliant serdes never GATE on schemaVersion) · F5 restore-policy drift (skip vs merge vs
+case-insensitive — per-family winners) · F6 serde skeleton clones (the CPD pairs + decodeJson
+×4) · F7 parse-strictness drift (one bad wi entry nulls the FILE; others drop the row) · F8
+compose descriptor bodies carry real import logic vs the template's owning-domain law · F9
+post-spec chat-anchored planes unportable by construction (rpg campaigns · injections · room
+overrides · re-links) + automation_rules/global_variables/plugins have no arm — DESIGN fork.
+PROPOSAL: the LIFECYCLE REGISTRY — (a) completeness gate deriving owned-canon families from
+schema, each PORTABLE or cited NON_PORTABLE (self-cleaning) → a new domain registering nothing
+REDS AT BIRTH · (b) exhaustive-by-kind door table + "every single door = thin arm over the
+bundle descriptor" ratified (twice-proven law) · (c) ONE defineJsonSerde kit spine for orb-JSON
+families (card/chat/preset/assets stay bespoke; accept-old-forever/emit-new — portable files
+are external artifacts NO-LEGACY doesn't govern) · (d) chrome anatomy MINTED as a D-entry
+(currently workboard-only — ANOTHER ceremony rider) · (e) descriptor bodies shrink to wiring.
+R0-R6 + 8 owner forks in the report — incl. HOMES for both parked queue items: JSON-card
+export = `?format=png|json` on the existing character door · absent-character transcript =
+"import as characterless chat" arm recommended. LESSONS: the chars+chats lifecycle audit
+tables were LANE-EPHEMERA never durably committed (this report §1 is now the standing census);
+**the regex program's R2/R4 MUST register a `regex` portable kind or it becomes the next F1**
+(cross-linked into the regex program's brief-to-be).
+**✅ LIV MERGED (`92e4a318`) — THE LIVENESS PROGRAM IS COMPLETE:** columns lens (685 cols/76
+tables: **0 NEITHER — no pure schema rot**; 25 write-only = 2 real [raw_request/raw_response
+blobs · chat_locks.acquired_at] + 20 timestamp stamps + variants; 90→25 after the mapped-type
+arm — drizzle $inferSelect rows have ZERO declarations, lesson banked) · monotonic-tests third
+tooth (allow-skip reason-required + two-sided) · regkeys informational (145 registries/1380
+rows/239 flagged; TOKENS/computed-key noise proves why it never gates; CHAT_SURFACE_AUTHORITY 5
+rows = the one signal). check-gates red confirmed resolved by ZG's fix at LIV's merge-forward.
+**OWNER RULED (4):** REGEX all-8 recommended (incl. backrest-manual live-data — his scripts
+re-enter by hand) · PORTABILITY all-8 (incl. F9 orb-native chat-bundle arm ALONGSIDE jsonl;
+databank F1 at R1 priority) · **raw blobs = BUILD THE READER** (the write becomes a feature) ·
+TYPO class-B = demote to plain types (responseFormatSchema keeps its seam). MINOR DEFAULTS
+TAKEN (proceed-in-full): card.ts:165 → prettifyError (same ruled class) · cookie
+read/write asymmetry = cite-and-close (unreachable by construction) · acquired_at = cite
+diagnostic · TYPO class-A 27 tuples stay untagged manual-lens candidates · F-8
+collection-contribution design set queued AFTER this wave.
+**═══ WAVE 3 DISPATCHED (6 lanes, at cap): ═══** GDOC (gate law doc + ExemptionRow type +
+pnpm gate:new scaffold + gate-modernization meta-gate w/ derived baseline handed to RETRO;
+the orchestrator-memory hub lessons MIGRATE INTO the repo doc) · RETRO (~57 two-sided
+retrofits [40-join priority] + 22 guard shapes + 16 complex scanRoots + the §12.6 citation
+fix ×3) · R2 (hostUserIdOf ×~14 + the F1 three-spellings collapse onto the projection lens
+per ruling; byte-identical pins) · MACU (withUserMacros union at the ruled #lib home + rpg
+both-planes shadowing + the {{if}} block-template insertion) · SM2 (REGEX-F2 union fix + pin ·
+F6 readout order · card.ts prettify · TYPO-B demotion ×4 · Spine §3 app.ts row · cookie
+asymmetry cite · acquired_at cite) · RAWVIEW (security-executor: the per-variant wire
+inspector — host-gated, member-visibility/hidden-span/credential-scrub laws called out;
+writer census first; PROBED tenancy classification; honest not-captured empty states).
+STANDING OWNER QUEUE unchanged: PV wording veto · AV2 re-push offer ~$0.56 + Calamity $4 ·
+DRAFT-TRUST · AGENT-1 · D22 (multi-user stack). CEREMONY (5 riders) runs after this wave.
 GATE-CORPUS VERIFICATION P2 DONE: ~57 real one-sided · ZERO dead scanRoots (mechanical set) ·
 why NOT type-enforced (→GDOC) · 1 broken §-cite / 112 · anchor-file guards = valid alternate
 shape (meta-gate must accept).
