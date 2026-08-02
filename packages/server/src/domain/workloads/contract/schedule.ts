@@ -5,23 +5,14 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ScheduleCadence, StartWorkloadInput, WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
-import type { Db } from "@orb/db";
+import type { Db, workloadSchedules } from "@orb/db";
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { StartWorkloadParams } from "./params";
 
-export interface WorkloadScheduleRow {
-  readonly id: WorkloadScheduleId;
-  readonly ownerId: UserId;
-  readonly kind: WorkloadKind;
-  readonly mode: WorkloadMode;
-  readonly params: Record<string, unknown>;
-  readonly cadence: ScheduleCadence;
-  readonly nextRunAt: number;
-  readonly lastRunAt: number | null;
-  readonly enabled: boolean;
-  readonly createdAt: number;
-  readonly updatedAt: number;
-}
+/** The `workload_schedules` row, DERIVED — never re-spelled (AGENTS §0.2: a DB row shape's one home is `db`,
+ *  via `$inferSelect`). It was a hand-written interface listing the same eleven columns; a column added to the
+ *  table would have left it silently stale. */
+export type WorkloadScheduleRow = typeof workloadSchedules.$inferSelect;
 
 /** The first run is one cadence-interval out (a fresh schedule doesn't fire the instant it's made). */
 export interface CreateScheduleParams {

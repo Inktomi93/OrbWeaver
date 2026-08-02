@@ -94,6 +94,36 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
     await expect(h.service.promoteActor({ principal: principal("ghost"), chatId, targetRef: CAST_REF })).rejects.toThrow(DomainNotFoundError);
     expect(h.fakes.promoteMints).toHaveLength(0);
   });
+
+  // THE REFUSAL TEXT IS PART OF THE CONTRACT (pinned 2026-08-03, lane LENS). Each host-gated verb raises its
+  // OWN sentence — the reason a verb ever spelled `role !== "host"` inline instead of calling `resolveHost`.
+  // Those inline compares are now collapsed onto the ONE rpg chokepoint (`guard.ts::assertHostRole`, which
+  // takes the sentence as its argument), so this pin is what proves the collapse is BYTE-IDENTICAL and not a
+  // silent flattening of six refusals into one generic "host authority required".
+  test("each host-gated verb keeps its OWN refusal sentence (the chokepoint collapse is behavior-free)", async () => {
+    const { chatId, h } = await seedGameWithRoster();
+    const member = principal("member");
+    const expectMessage = async (promise: Promise<unknown>, message: string): Promise<void> => {
+      await expect(promise).rejects.toThrow(new DomainForbiddenError(message));
+    };
+    await expectMessage(h.service.editSnapshot({ principal: member, chatId, patch: { location: "x" } }), "host authority required to hand-edit the snapshot");
+    await expectMessage(
+      h.service.patchActor({ principal: member, chatId, targetRef: CAST_REF, ops: [{ op: "setStatus", status: "x" }] }),
+      "host authority required to hand-edit an actor",
+    );
+    await expectMessage(h.service.dismissActor({ principal: member, chatId, targetRef: CAST_REF }), "host authority required to dismiss an actor");
+    await expectMessage(
+      h.service.promoteActor({ principal: member, chatId, targetRef: CAST_REF }),
+      "host authority required to promote an actor to the roster",
+    );
+    // createGame gates BEFORE a game exists (membership read direct, no game gate) — a second chat, no game.
+    const bareChatId = await seedChat(db, "b");
+    h.fakes.membership.set("user_member", "member");
+    await expectMessage(h.service.createGame({ principal: member, chatId: bareChatId, mode: "lite" }), "host authority required to create a game");
+    // detachDanglingPointer gates on chat MEMBERSHIP directly (the game is gone by definition) — the bare
+    // chokepoint sentence, no verb-specific tail.
+    await expectMessage(h.service.detachDanglingPointer({ principal: member, chatId: bareChatId }), "host authority required");
+  });
 });
 
 describe("member-gated reads — a member is ALLOWED, a non-member leak-free NOT-FOUND", () => {

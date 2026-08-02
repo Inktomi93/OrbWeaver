@@ -16,10 +16,10 @@
 // real game (the panel would vanish while the rows persist); turning a game OFF is `updateConfig engaged:false`,
 // a different door. So the heal only ever fires when the pointed-at game is genuinely gone.
 
-import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
+import { DomainOperationError } from "@orb/kit/errors";
 import type { DetachDanglingPointerParams } from "../../contract/params";
 import type { RpgContext, RpgService } from "../../contract/service";
-import { notFoundGame } from "../../guard";
+import { assertHostRole, notFoundGame } from "../../guard";
 import { findGameByChat } from "../../persistence/games";
 
 export function createDetachDanglingPointer(ctx: RpgContext): Pick<RpgService, "detachDanglingPointer"> {
@@ -30,9 +30,7 @@ export function createDetachDanglingPointer(ctx: RpgContext): Pick<RpgService, "
       return notFoundGame(params.chatId);
     }
     // A present non-host member reaching a host-only heal is FORBIDDEN (they legitimately know the chat exists).
-    if (membership.role !== "host") {
-      throw new DomainForbiddenError("host authority required");
-    }
+    assertHostRole(membership.role, "host authority required");
     // Refuse to detach a LIVE game — the pointer is only "dangling" if the game row is actually gone.
     const game = await findGameByChat(ctx.db, params.chatId);
     if (game !== undefined) {

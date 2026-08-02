@@ -258,6 +258,21 @@ export const REGISTRY: readonly StageDef[] = [
     classify: asViolations,
   },
 
+  {
+    name: "deps:orphan-ratchet",
+    group: "deps",
+    // PUSH tier, never the commit bar: it resolves the whole type graph to key liveness on origin
+    // declarations (~30s). knip CANNOT stand in for it — probe-verified (dispositions doc, "Correction"):
+    // each package's `exports` map already makes these subpaths public API in knip's eyes, so knip flags
+    // none of them and its `tags: ["-@public"]` exemption never fires. This stage reads `@public <reason>`
+    // itself and ratchets the swept tree (scripts/verify/orphan-export-ratchet.ts).
+    tiers: ["push", "full"],
+    argv: ["pnpm", "check:orphan-ratchet"],
+    classify: ownScheme,
+    // A WHOLE-TREE liveness reconciliation (an export is only an orphan relative to the ENTIRE workspace's
+    // import graph) — whole-only, deferred at a scoped tier like the other cross-file reconciliations.
+  },
+
   // ── docs stage-group ──
   {
     name: "docs:format",
@@ -363,6 +378,20 @@ export const REGISTRY: readonly StageDef[] = [
     argv: ["pnpm", "test:mutation"],
     classify: asViolations,
     manualReason: "exploratory Stryker report (break:null) — minutes-long, report-only",
+  },
+  {
+    name: "quality:respell",
+    group: "quality",
+    // A CANDIDATE lens, so it is `manual` BY NATURE and not by cost: it reports domain `contract/` shapes
+    // structurally identical to an @orb/contracts shape, which is EVIDENCE of a re-spell, never proof (two
+    // shapes may agree today and be free to diverge tomorrow). Gating a commit on that would train agents to
+    // rename a field to dodge it — worse than the rot. The syntactic half IS enforced, at the
+    // `contract-derives-not-respells` gate; this row keeps the judgment half discoverable in `verify --list`
+    // (and reachable by the parity gate) rather than living only in a lens verb nobody remembers.
+    tiers: ["manual"],
+    argv: ["pnpm", "check:respell"],
+    classify: asViolations,
+    manualReason: "CANDIDATE lens (`pnpm ast respell <domain>`) — structural identity is evidence, not proof; verify each hit before acting, never gate on it",
   },
   {
     name: "tests:coverage",

@@ -23,8 +23,6 @@ const DEFAULT_MAX = 60;
 const COLLAPSE_THRESHOLD = 60;
 const TEST_FILE_RE = /\.(test|ct)\.tsx?$/u;
 const WORKSPACE_PACKAGES = ["kit", "contracts", "db", "server", "client", "ui"] as const;
-// How many star-suppressed filenames to name inline before eliding to "…" (the count is always exact).
-const SUPPRESS_FILE_LIST_CAP = 8;
 const GLOB_STAR_RE = /\*+/gu;
 const TS_SUFFIX_RE = /\.tsx?$/u;
 const DOT_SLASH_RE = /^\.\//u;
@@ -288,6 +286,21 @@ function cmdIdent(project: Project, name: string, flags: Flags): void {
 // identity BOTH sides observe identically (verified: barrel and origin resolve `createCreateBook` and
 // `createCreate` to the same FunctionDeclaration at the same offset). Displayed names still come from
 // the origin file's own export map — what a reader should go look for.
+//
+// WHY THERE IS NO REGISTRY SPECIAL-CASE (investigated 2026-08-03; do not re-litigate without new evidence).
+// The repo's string-keyed dispatch tables (the client chrome/modal/section/settings-pane/home-tile
+// contributor registries, `TEMPLATE_DEFS`, the 16 `as const satisfies Record<…>` maps across contracts/kit/
+// server/ui) look like a consumption seam import-liveness cannot see — they are not. A registry property
+// VALUE is either (a) an identifier IMPORTED into the registry file, which `markNamedAlive` resolves to the
+// ORIGIN declaration and keys alive, or (b) declared in the same file, which `isReferencedInOwnFile` keeps
+// alive. Receipt: `orphans client` reports ZERO — the package where every one of those registries lives.
+// A marking pass over registry values could therefore only re-mark already-alive origins, i.e. add a
+// false-NEGATIVE surface for nothing.
+// THE BOUNDARY CONDITION — this holds ONLY while registry values are inline literals or imported
+// identifiers. A registry that resolves its members from a CONSTRUCTED string breaks the guarantee:
+// a template-literal dynamic import (`import(\`./features/${name}.ts\`)` — `resolveModule` reads string
+// LITERALS only; there are currently ZERO such sites in packages/*/src) or a string-keyed module map that
+// names files rather than importing them. The day one lands, the registry-value marking pass is the fix.
 
 /** `<declFile>` + `<declStart>` — the identity a candidate export and every consumer of it agree on. */
 function declKey(decl: Node): string {
@@ -501,7 +514,7 @@ function resolveScope(project: Project, arg: string, verb: string): Scope {
 
 /** A candidate export of `sf` that a consumer might reach: `(name, first-decl)` for each export whose
  *  ORIGIN is `sf` (re-export slots — decls that live elsewhere — belong to their own file, not here). */
-function* ownExports(sf: SourceFile): Generator<{ name: string; decl: Node }> {
+export function* ownExports(sf: SourceFile): Generator<{ name: string; decl: Node }> {
   const fp = sf.getFilePath();
   for (const [name, decls] of sf.getExportedDeclarations()) {
     const d = decls[0];
@@ -511,48 +524,85 @@ function* ownExports(sf: SourceFile): Generator<{ name: string; decl: Node }> {
   }
 }
 
-type OrphanScan = { hits: Hit[]; suppressed: Hit[] };
+/** ONE orphan candidate — its export NAME plus the ORIGIN declaration node (the identity everything keys
+ *  on, and the node a reader of leading comments needs). `starSuppressed` = the declaring file is the
+ *  target of an `export *` somewhere, so a namespace consumer we cannot cheaply name MIGHT reach it: the
+ *  candidate is reported and NAMED, but never counted as a hit. This is the SHARED substrate — the
+ *  `orphans` verb prints it and the push-tier ratchet (`scripts/verify/orphan-export-ratchet.ts`) judges
+ *  it, so there is exactly one definition of "orphan candidate" in the repo. */
+export type OrphanCandidate = {
+  readonly name: string;
+  readonly decl: Node;
+  readonly starSuppressed: boolean;
+};
 
-function scanOrphans(sf: SourceFile, live: Liveness): OrphanScan {
-  const fp = sf.getFilePath();
-  const out: OrphanScan = { hits: [], suppressed: [] };
-  for (const { name, decl } of ownExports(sf)) {
-    const key = declKey(decl);
-    if (live.usedProd.has(key) || live.usedTest.has(key) || isReferencedInOwnFile(sf, name, decl)) {
+/** Every orphan candidate whose DECLARING file satisfies `inScope` — exports reached by nobody (prod or
+ *  test) and unused in their own file. Pure enumeration: no printing, no exemption policy (the ratchet
+ *  owns `@public`; the verb owns the display). */
+export function collectOrphanCandidates(project: Project, live: Liveness, inScope: (filePath: string) => boolean): OrphanCandidate[] {
+  const out: OrphanCandidate[] = [];
+  for (const sf of project.getSourceFiles()) {
+    const fp = sf.getFilePath();
+    if (!inScope(fp) || TEST_FILE_RE.test(fp)) {
       continue;
     }
-    const h = hitOf(decl, "orphan-export");
-    h.text = `${name}  —  ${h.text}`;
-    // Reached only through a star re-export chain a namespace consumer might use → suppress, but COUNT
-    // it (a zero must be legible as clean, not as star-blindness).
-    (live.starTargets.has(fp) ? out.suppressed : out.hits).push(h);
+    for (const { name, decl } of ownExports(sf)) {
+      const key = declKey(decl);
+      if (live.usedProd.has(key) || live.usedTest.has(key) || isReferencedInOwnFile(sf, name, decl)) {
+        continue;
+      }
+      out.push({ name, decl, starSuppressed: live.starTargets.has(fp) });
+    }
   }
   return out;
 }
 
+/** Is this ORIGIN declaration reached by a prod (non-test) consumer? The keying lives here, never at a
+ *  caller: the ratchet's stale-`@public` arm asks this question and must not re-derive `declKey`. */
+export function isProdConsumed(live: Liveness, decl: Node): boolean {
+  return live.usedProd.has(declKey(decl));
+}
+
+/** A candidate as a printable Hit — `<name>  —  <declaration line>`, the form both lists use. */
+function candidateHit(candidate: OrphanCandidate, kind: string): Hit {
+  const h = hitOf(candidate.decl, kind);
+  h.text = `${candidate.name}  —  ${h.text}`;
+  return h;
+}
+
+/** Name every star-suppressed candidate (file:line + symbol), never a bare per-file count: the 14 hidden
+ *  contracts/rpg candidates are the ones a reader must actually go look at, and "8 files" told them
+ *  nothing. Capped by `--max` with an explicit elision line (the count is always exact). */
+function printSuppressed(suppressed: readonly Hit[], hitCount: number, flags: Flags): void {
+  if (suppressed.length === 0) {
+    return;
+  }
+  const unique = dedupe([...suppressed], flags).sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+  if (unique.length === 0) {
+    return;
+  }
+  const files = new Set(unique.map((h) => h.file)).size;
+  console.log(
+    `orphans: ${unique.length} of ${hitCount + unique.length} candidate(s) SUPPRESSED by star re-exports in ${files} file(s) — named below, NOT counted as hits (a namespace consumer of the re-exporting barrel may reach them):`,
+  );
+  for (const h of unique.slice(0, flags.max)) {
+    console.log(`  ~ ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
+  }
+  if (unique.length > flags.max) {
+    console.log(`  … and ${unique.length - flags.max} more (raise --max)`);
+  }
+}
+
 /** Exports of a scope never imported anywhere (prod OR test) and never used in their own file — the rot
- *  signal. Star-suppressed candidates are counted + named, never silently swallowed (the permanent-zero
- *  `orphans contracts` bug: 100%-barrel packages reported clean while blind). */
+ *  signal. Star-suppressed candidates are counted + named PER SYMBOL, never silently swallowed (the
+ *  permanent-zero `orphans contracts` bug: 100%-barrel packages reported clean while blind). */
 function cmdOrphans(project: Project, arg: string, flags: Flags): void {
   const scope = resolveScope(project, arg, "orphans");
   const live = buildLiveness(project);
-  const hits: Hit[] = [];
-  const suppressed: Hit[] = [];
-  for (const sf of project.getSourceFiles()) {
-    const fp = sf.getFilePath();
-    if (fp.includes(scope.prefix) && !TEST_FILE_RE.test(fp)) {
-      const scan = scanOrphans(sf, live);
-      hits.push(...scan.hits);
-      suppressed.push(...scan.suppressed);
-    }
-  }
-  if (suppressed.length > 0) {
-    const files = [...new Set(suppressed.map((h) => h.file))].sort();
-    const total = hits.length + suppressed.length;
-    console.log(
-      `orphans: ${suppressed.length} of ${total} candidate(s) suppressed by star re-exports in ${files.length} file(s): ${files.slice(0, SUPPRESS_FILE_LIST_CAP).join(", ")}${files.length > SUPPRESS_FILE_LIST_CAP ? ", …" : ""}`,
-    );
-  }
+  const candidates = collectOrphanCandidates(project, live, (fp) => fp.includes(scope.prefix));
+  const hits = candidates.filter((c) => !c.starSuppressed).map((c) => candidateHit(c, "orphan-export"));
+  const suppressed = candidates.filter((c) => c.starSuppressed).map((c) => candidateHit(c, "star-suppressed"));
+  printSuppressed(suppressed, dedupe(hits, flags).length, flags);
   emit(hits, flags, `orphans ${scope.label}`);
 }
 
@@ -1132,6 +1182,152 @@ function cmdClientGap(project: Project, arg: string, flags: Flags): void {
   emit(hits, flags, `clientgap ${scope.label}${isContracts ? " (client-facing *View/*Summary names)" : ""}`);
 }
 
+// ── respell: a domain `contract/` shape STRUCTURALLY identical to an @orb/contracts shape ───────
+// The gate (`contract-derives-not-respells`) catches a re-spell that kept the OWNER'S NAME. This lens
+// catches the one that renamed it — the shape a syntactic reader cannot see, because nothing about
+// `interface SeatKnobs { … }` in `domain/chat/contract/` says it is `RosterMemberSpec`'s body again.
+//
+// It is a CANDIDATE lens, and deliberately NOT a gate: structural identity is EVIDENCE of a re-spell, never
+// proof of one. Two shapes may agree today by coincidence (`{id, name, createdAt}`) and be free to diverge
+// tomorrow — reding a commit on that would train agents to rename a field to dodge the gate, which is worse
+// than the rot. So it prints candidates for a human/agent to judge, exactly like `clientgap`.
+//
+// The comparison is the shape's PROPERTY SIGNATURE — sorted `name:typeText` pairs, resolved through the
+// checker so a `z.infer<…>` contracts export compares as its inferred object. Floor: 3 properties (a 1-2
+// property agreement is noise — every `{id}` in the repo would match).
+
+/** How many properties a shape needs before an exact structural match means anything. */
+const RESPELL_PROPERTY_FLOOR = 3;
+
+type ShapeEntry = { readonly name: string; readonly decl: Node; readonly signature: string };
+
+/** The compiler checker's mutual-assignability primitive. It is a TS INTERNAL, so it is resolved once and
+ *  its ABSENCE is a tool error (exit 2), never a silent zero — a lens that quietly stops comparing is worse
+ *  than no lens. (Present on TS 5.x/TS7's checker object; re-verify on a TypeScript bump.) */
+type AssignabilityChecker = { isTypeAssignableTo: (source: unknown, target: unknown) => boolean };
+
+function assignabilityChecker(project: Project): AssignabilityChecker {
+  const compiler = project.getTypeChecker().compilerObject as unknown as Partial<AssignabilityChecker>;
+  if (typeof compiler.isTypeAssignableTo !== "function") {
+    console.error(
+      "ast respell: this TypeScript build exposes no `checker.isTypeAssignableTo` (a TS internal this lens depends on) — the comparison cannot run. Re-verify the API after a TypeScript bump; scripts/codemods/ast.ts.",
+    );
+    process.exit(2);
+  }
+  return { isTypeAssignableTo: compiler.isTypeAssignableTo.bind(compiler) };
+}
+
+/** MUTUALLY assignable = the same shape, whatever the two spell their fields' types as. Assignability (not
+ *  type TEXT) is the comparison because a text signature is ALIAS-SENSITIVE: `CharacterId` and
+ *  `TypeIdOf<"character">` print differently and are the same type, so a text lens reports a clean zero on a
+ *  literal re-spell (measured — the first cut of this lens missed a planted twin for exactly that reason). */
+function mutuallyAssignable(checker: AssignabilityChecker, a: Node, b: Node): boolean {
+  const ta = a.getType().compilerType;
+  const tb = b.getType().compilerType;
+  return checker.isTypeAssignableTo(ta, tb) && checker.isTypeAssignableTo(tb, ta);
+}
+
+/** The sorted PROPERTY-NAME signature of a declaration's type — the cheap prefilter that keeps the O(n²)
+ *  assignability probe off every unrelated pair. Undefined when it is not an object shape with at least
+ *  {@link RESPELL_PROPERTY_FLOOR} properties (a union/primitive/function type has no signature here). */
+function shapeSignature(decl: Node): string | undefined {
+  const type = decl.getType();
+  if (type.isUnion() || type.isIntersection()) {
+    return; // a discriminated union is not the re-spell class; its arms are compared on their own if exported
+  }
+  // OBJECT shapes only. A primitive (a numeric `const` such as TOOL_RECURSE_LIMIT_DEFAULT) reports its
+  // APPARENT type's members — `toFixed`/`toString`/… — which sails past the property floor and matched every
+  // other numeric constant in the repo (measured, first run of this lens). Functions and arrays are likewise
+  // not the re-spell class.
+  if (!type.isObject() || type.isArray() || type.isTuple() || type.getCallSignatures().length > 0) {
+    return;
+  }
+  const props = type.getProperties();
+  if (props.length < RESPELL_PROPERTY_FLOOR) {
+    return;
+  }
+  return props
+    .map((p) => p.getName())
+    .sort()
+    .join("|");
+}
+
+/** Every exported declaration of the files under `prefix` that HAS a shape signature. */
+function shapesUnder(project: Project, prefix: string): ShapeEntry[] {
+  const out: ShapeEntry[] = [];
+  for (const sf of project.getSourceFiles()) {
+    const fp = sf.getFilePath();
+    if (!fp.includes(prefix) || TEST_FILE_RE.test(fp)) {
+      continue;
+    }
+    for (const { name, decl } of ownExports(sf)) {
+      const signature = shapeSignature(decl);
+      if (signature !== undefined) {
+        out.push({ name, decl, signature });
+      }
+    }
+  }
+  return out;
+}
+
+/** Domain dirs under `packages/server/src/domain/` that have a `contract/`, filtered by an optional arg. */
+function domainsWithContracts(project: Project, arg: string): string[] {
+  const found = new Set<string>();
+  for (const sf of project.getSourceFiles()) {
+    const domain = DOMAIN_CONTRACT_DIR_RE.exec(sf.getFilePath())?.groups?.["domain"];
+    if (domain !== undefined && (arg === "" || domain === arg)) {
+      found.add(domain);
+    }
+  }
+  return [...found].sort();
+}
+
+const DOMAIN_CONTRACT_DIR_RE = /\/packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\//u;
+
+/** ONE domain's structural twins: every `contract/` shape MUTUALLY ASSIGNABLE with a shape the sibling
+ *  `@orb/contracts/<domain>` exports (property-name signature prefilter, then the real probe). */
+function respellHitsFor(project: Project, checker: AssignabilityChecker, domain: string): Hit[] {
+  const contractsShapes = shapesUnder(project, `/packages/contracts/src/${domain}/`);
+  if (contractsShapes.length === 0) {
+    return [];
+  }
+  const bySignature = new Map<string, ShapeEntry[]>();
+  for (const shape of contractsShapes) {
+    bySignature.set(shape.signature, [...(bySignature.get(shape.signature) ?? []), shape]);
+  }
+  const hits: Hit[] = [];
+  for (const domainShape of shapesUnder(project, `/packages/server/src/domain/${domain}/contract/`)) {
+    for (const twin of bySignature.get(domainShape.signature) ?? []) {
+      if (!mutuallyAssignable(checker, domainShape.decl, twin.decl)) {
+        continue;
+      }
+      const h = hitOf(domainShape.decl, domainShape.name === twin.name ? "respell-same-name" : "respell-renamed");
+      h.text = `${domainShape.name}  ≡  @orb/contracts/${domain}::${twin.name}`;
+      hits.push(h);
+    }
+  }
+  return hits;
+}
+
+/** Domain `contract/` shapes structurally identical to a shape the sibling `@orb/contracts/<domain>` already
+ *  exports — the RENAMED re-spell the syntactic gate cannot see. Optional arg = one domain; bare = all. */
+function cmdRespell(project: Project, arg: string, flags: Flags): void {
+  const domains = domainsWithContracts(project, arg);
+  if (domains.length === 0) {
+    console.error(`ast respell: no domain contract/ dir matched "${arg}" — try a domain name (chat, rpg, preset, …) or run bare for all.`);
+    process.exit(2);
+  }
+  const checker = assignabilityChecker(project);
+  const hits: Hit[] = [];
+  for (const domain of domains) {
+    hits.push(...respellHitsFor(project, checker, domain));
+  }
+  console.log(
+    `respell is a CANDIDATE lens — structural identity is EVIDENCE of a re-spell, not proof: two shapes may agree today and be free to diverge tomorrow. Verify intent before acting, and prefer a derive when the domain shape IS the contracts shape. (${RESPELL_PROPERTY_FLOOR}+ properties, checker-resolved; a \`respell-same-name\` hit is already RED at the \`contract-derives-not-respells\` gate.)`,
+  );
+  emit(hits, flags, `respell ${arg === "" ? "(all domains)" : arg}`);
+}
+
 const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => void> = {
   refs: cmdRefs,
   callers: cmdCallers,
@@ -1146,6 +1342,7 @@ const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => voi
   aliases: cmdAliases,
   unwired: cmdUnwired,
   clientgap: cmdClientGap,
+  respell: cmdRespell,
 };
 
 // depcruise pass-throughs — the module-graph layer (the same config + rules the gates run), in
@@ -1170,10 +1367,10 @@ function runDepcruise(mode: string, pattern: string): void {
 // Verbs that resolve module specifiers to origin declarations (need the types:true / full-graph arm).
 // refs+cycles use the language service; orphans+testonly resolve every import to its origin decl so
 // liveness keys on (file, name) — bare-name matching over-reports same-file use and misses collisions.
-const TYPED_VERBS = new Set(["refs", "cycles", "orphans", "testonly", "prodonly", "unwired", "clientgap"]);
+const TYPED_VERBS = new Set(["refs", "cycles", "orphans", "testonly", "prodonly", "unwired", "clientgap", "respell"]);
 
 // Verbs whose scope arg is OPTIONAL (default to the whole surface) — run bare, arg defaults to "".
-const ARGLESS_VERBS = new Set(["unwired", "clientgap"]);
+const ARGLESS_VERBS = new Set(["unwired", "clientgap", "respell"]);
 
 const VERB_LIST = [...Object.keys(VERBS), ...Object.keys(DEPCRUISE_VERBS)].join("|");
 const USAGE = [
@@ -1195,6 +1392,7 @@ const USAGE = [
   "  pnpm ast aliases packages/server   rename-bindings (X as Y / const Y = X / type Y = X)",
   "  pnpm ast unwired                   server tRPC procedures NO client consumes (the PD-138 blind spot)",
   "  pnpm ast clientgap contracts       *View/*Summary contracts the SERVER uses but the CLIENT never does",
+  "  pnpm ast respell chat              domain contract/ shapes structurally identical to an @orb/contracts shape",
   "  pnpm ast flow chat/engine          module graph: X's direct edges both ways (depcruise, text)",
   "  pnpm ast reaches agent-sdk         every module that can transitively reach X (depcruise)",
   "",
@@ -1203,8 +1401,9 @@ const USAGE = [
   '  error — it prints what was tried + a suggestion and exits 2 (never a silent "no results").',
   "  orphans/testonly key liveness on (declaring-file, export name), not bare name: same-file use,",
   "  dynamic import(), and `import * as` namespaces all count as alive; name collisions never merge.",
-  "  orphans prints `orphans: N of M candidate(s) suppressed by star re-exports in …` when a barrel's",
-  "  members are only reachable through an `export *` chain (a zero is legible as clean, not blind).",
+  "  orphans NAMES every star-suppressed candidate (`~ file:line [star-suppressed] <symbol>`) above the hit",
+  "  list when a barrel's members are only reachable through an `export *` chain — reported per SYMBOL,",
+  "  never counted as a hit, so a zero is legible as clean rather than as star-blindness.",
   "",
   "prodonly is the FILE lens (testonly/orphans are symbol lenses): it BFS-walks the resolved import graph",
   "  (static + dynamic + star/namespace edges) from the production entry set — derived from each",
@@ -1235,13 +1434,19 @@ function main(): void {
     return;
   }
   const run = verb === undefined ? undefined : VERBS[verb];
-  // unwired/clientgap take an OPTIONAL scope — default arg to "" so they run bare (whole-surface).
-  const effectiveArg = arg ?? (verb !== undefined && ARGLESS_VERBS.has(verb) ? "" : undefined);
+  // unwired/clientgap/respell take an OPTIONAL scope — default the arg to "" so they run bare (whole
+  // surface). A leading FLAG is not a scope: `pnpm ast respell --max 60` used to read "--max" as the domain
+  // name and exit 2 on it, so an argless verb's first token is handed back to the flag parser when it starts
+  // with `--`.
+  const argless = verb !== undefined && ARGLESS_VERBS.has(verb);
+  const argIsFlag = argless && arg !== undefined && arg.startsWith("--");
+  const effectiveArg = argIsFlag ? "" : (arg ?? (argless ? "" : undefined));
+  const flagTokens = argIsFlag && arg !== undefined ? [arg, ...rest] : rest;
   if (run === undefined || effectiveArg === undefined || verb === undefined) {
     console.log(USAGE);
     return;
   }
-  run(loadProject(TYPED_VERBS.has(verb)), effectiveArg, parseFlags(rest));
+  run(loadProject(TYPED_VERBS.has(verb)), effectiveArg, parseFlags(flagTokens));
 }
 
 // Run only as the CLI entrypoint — importing this module (the self-test drives the pure enumeration
@@ -1260,5 +1465,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
 }
 
 // Exported for the self-test (tests/tooling/ast-lens.test.ts) — the pure enumeration substrate the
-// unwired/clientgap lenses diff, drivable over an in-memory ts-morph project.
+// unwired/clientgap lenses diff, drivable over an in-memory ts-morph project — AND for the push-tier
+// orphan-export ratchet (scripts/verify/orphan-export-ratchet.ts), which judges the SAME candidate set
+// this file's `orphans` verb prints (one definition of "orphan", never a parallel one).
+export type { Liveness };
 export { buildLiveness, collectClientConsumed, collectServerProcedures, isUnwiredExempt };
