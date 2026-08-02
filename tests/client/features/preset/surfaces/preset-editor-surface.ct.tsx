@@ -607,3 +607,69 @@ test("G7 no resolvable model ⇒ NO provenance chip (never a guessed name)", asy
   await expect(component.getByText("Active", { exact: true })).toBeVisible();
   await expect(component.getByText(FOR_MODEL_RE)).toHaveCount(0);
 });
+
+// ── O-13★: THE GUIDED-INSTRUCTION CROSS-LINK IS A REAL DOOR ───────────────────────────────────────────
+// It selected the marker's rack row and left you standing in ACTIONS, where no rack exists — a control
+// that does nothing you can see. The door is both halves (view + selection), which is exactly the
+// navigation the Actions readout's own note promises. Only a whole-surface test can see it: the view axis
+// and the selection axis live in different stores, and the button writes through both.
+
+test("O-13 — the Delivers-via chip OPENS the Guided instruction row in the Prompt view", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  await component.getByRole("tab", { name: "Actions" }).click();
+  await component.getByRole("button", { name: /Delivers via Guided instruction/ }).click();
+
+  // The VIEW moved…
+  await expect(component.getByRole("tab", { name: "Prompt" })).toHaveAttribute("aria-selected", "true");
+  // …and the row it named is the SELECTED one (ListRow paints `aria-current` on the selection).
+  await expect(component.getByRole("button", { name: "Guided instruction", exact: true })).toHaveAttribute("aria-current", "true");
+});
+
+// ── O-16★: EXPORT HAS ONE HOME, AND IT IS THE LIST ROW ────────────────────────────────────────────────
+// The editor-header kebab carried an Export echo (the fix-all's §16 rows 7+27 sanctioned it). Overruled:
+// lifecycle lives list-side, matching characters/chats. The kebab keeps exactly one item.
+
+test("O-16 — the editor header's kebab offers Reset only; Export is not a second home", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  await component.getByRole("button", { name: "Preset options" }).click();
+  await expect(page.getByRole("menuitem", { name: "Reset to starter arrangement" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Export" })).toHaveCount(0);
+});
+
+// ── O-17★: THE WIRE-SHAPING TAIL LIVES IN TRANSFORMS ──────────────────────────────────────────────────
+// Delivery (speaker names · continue delimiter) and Collapsing (adjacent-role merging · squash system
+// notes) shape the WIRE, not the prompt's content — owner sort. They must be in ONE view, not both.
+
+test("O-17 — Delivery + Collapsing render under Transforms and are gone from Prompt", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  await component.getByRole("tab", { name: "Prompt" }).click();
+  await expect(component.getByRole("combobox", { name: "Speaker names" })).toHaveCount(0);
+  await expect(component.getByRole("combobox", { name: "Adjacent-role merging" })).toHaveCount(0);
+
+  await component.getByRole("tab", { name: "Transforms" }).click();
+  await expect(component.getByRole("combobox", { name: "Speaker names" })).toBeVisible();
+  await expect(component.getByRole("combobox", { name: "Continue delimiter" })).toBeVisible();
+  await expect(component.getByRole("combobox", { name: "Adjacent-role merging" })).toBeVisible();
+  await expect(component.getByRole("switch", { name: "Squash system notes" })).toBeVisible();
+});
