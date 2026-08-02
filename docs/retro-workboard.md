@@ -98,14 +98,10 @@ redesigns), clause stays template-homed (verify it is — C1 landed in DEFAULT_M
 wording pass compares SillyTavern's first-run persona UX → folds into the PERSONA DESIGN PASS
 (one stickler when a slot frees: multi-human resolution [host-default + host anchor control +
 the half-remembered macro] · persona-pin integration · forced-first-run flow · ST comparison ·
-HEAL's getForRoom receipts) · AV2 = owner questions the $4 sticker figure (answer: it was the
-recorded actual cost of the sticker-SHEET attempt from the art lane's billing truth, not one
-image — receipt pullable; DEFAULT pending his read: close the row, spend nothing) · AGENT-1 =
+HEAL's getForRoom receipts) · **AV2 = CLOSED (owner, 08-03: "I approve what we have" — pack stands as-is, no re-push, no sticker, $0; fix-later-if-needed)** · AGENT-1 =
 PARKED until current programs land · DRAFT-TRUST = design pass when reached (boards behind the
 tail).
-**STANDING OWNER ITEMS:****STANDING OWNER ITEMS:** PV wording veto · AV2 re-push ~$0.56 + Calamity $4 · DRAFT-TRUST ·
-AGENT-1 · D22 · F6 readout strict-fidelity nit · regime-2 landmine (launch-day: re-point
-db-baseline at the applied chain).
+**STANDING OWNER ITEMS:****STANDING OWNER ITEMS (post-answers): D22 (multi-user stack) · F6 strict-fidelity nit (leave unless owner cares) · regime-2 landmine (launch-day) — everything else RULED/CLOSED today.**
 
 ## ═══ ▶▶▶ HANDOFF #3 — 2026-08-02 NIGHT (SESSION-END; the ONE current block. Owner is
 ## swapping accounts — the resuming orchestrator has NO conversation memory; this block +
