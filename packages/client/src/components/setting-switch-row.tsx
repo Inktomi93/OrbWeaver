@@ -17,6 +17,11 @@ interface SettingRowControlProps {
   readonly checked: boolean;
   readonly onChange: (next: boolean) => void;
   readonly onBlur?: () => void;
+  /** Inapplicable-right-now (never hidden — the row still states what it would do). Pair it with
+   *  `disabledReason`: `SettingRow` renders that note under the row, which is the ONLY thing that turns a
+   *  dead control into an honest one. */
+  readonly disabled?: boolean;
+  readonly disabledReason?: ReactNode;
 }
 
 /** One label-left / switch-right settings row (the on/off-effect shape). */
@@ -31,12 +36,18 @@ export function SettingSwitchRow({ id, label, description, checked, onChange, on
 }
 
 /** The checkbox sibling (the multi-pick-from-a-set shape, e.g. "which kinds to include"). */
-export function SettingCheckboxRow({ id, label, description, checked, onChange, onBlur }: SettingRowControlProps): ReactElement {
+export function SettingCheckboxRow({ id, label, description, checked, onChange, onBlur, disabled, disabledReason }: SettingRowControlProps): ReactElement {
   return (
-    <SettingRow id={id} label={label} {...(description === undefined ? {} : { description })}>
+    <SettingRow id={id} label={label} {...(description === undefined ? {} : { description })} {...(disabledReason === undefined ? {} : { disabledReason })}>
       {/* a11y: SettingRow renders the associated `<label htmlFor={id}>` — the shared id is the real label
           wiring, invisible at this control. */}
-      <Checkbox id={id} checked={checked} onCheckedChange={(next): void => onChange(next === true)} {...(onBlur === undefined ? {} : { onBlur })} />
+      <Checkbox
+        id={id}
+        checked={checked}
+        onCheckedChange={(next): void => onChange(next === true)}
+        {...(onBlur === undefined ? {} : { onBlur })}
+        {...(disabled === undefined ? {} : { disabled })}
+      />
     </SettingRow>
   );
 }

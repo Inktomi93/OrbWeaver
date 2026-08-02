@@ -159,6 +159,22 @@ export interface MessageView {
   toolCalls: readonly ToolCallRecord[];
 }
 
+// ── the `reattributePersona` SCOPE (the ONE stamp writer's two arms) ────────────────────────────────────
+// Chat-Macro-Resolution §5: re-stamping `messages.personaId` is the ONLY persona repair a history ever
+// needs, because every renderable surface (display + the assembled prompt) resolves the NAME live off the
+// stamp. `messages` is the explicit slot set (a per-row correction). `mine` is SERVER-resolved — every
+// user-role slot in the chat the CALLER authored, optionally floored at `fromSeq` — and exists because a
+// client cannot enumerate what it cannot page: the panel's affordance used to assemble ids from the last
+// 100 messages, so a wrong-persona stretch older than that was unreachable (FINAL-Persona §A.7 named the
+// limitation and pre-authorized this arm). `mine` is a SELF-stamp: the rows it resolves are the caller's
+// own, so it widens reach, never authority (the verb's author-or-host belt is unchanged).
+export const reattributeScopeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("messages"), messageIds: z.array(brandedId<MessageId>()) }),
+  z.object({ kind: z.literal("mine"), fromSeq: z.number().int().min(SEQ_MIN).optional() }),
+]);
+
+export type ReattributeScope = z.infer<typeof reattributeScopeSchema>;
+
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // STATE-ANCHOR SLOTS — the canon rows that are NOT messages
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════

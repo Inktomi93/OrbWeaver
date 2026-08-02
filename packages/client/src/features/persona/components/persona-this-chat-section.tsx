@@ -1,16 +1,21 @@
 // The per-chat picker's ONE home, folded into the rail-foot persona panel. Renders only when a chat is
 // active. Three controls: "Playing as" (sets the caller's chat persona), Anchor row (read-only,
 // re-pin gated behind viewerIsHost), Reattribute (restamps the caller's own user slots to the current
-// chat persona, scoped to REATTRIBUTE_WINDOW messages — no server bulk resolver exists).
+// chat persona — EVERY one of them, via the server-resolved `{kind:"mine"}` scope).
+//
+// The restamp used to page the last 100 messages here and send the ids it found: a wrong-persona stretch
+// older than that window was simply unreachable, and the tooltip had to say so (FINAL-Persona §A.7 named the
+// limitation and pre-authorized the server arm). The client now names the SCOPE and the server resolves the
+// rows — no window, no read before the write, and a chat of any length is covered.
 
-import type { MessageId, PersonaId } from "@orb/kit/ids";
+import type { PersonaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Anchor, Check, ChevronDown, History, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Menu, MenuGroup, MenuGroupLabel, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
@@ -21,9 +26,6 @@ import { useReattributePersona, useSetChatActivePersona, useSetChatAnchorPersona
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
-
-/** The most-recent-turns window `reattribute` restamps. */
-const REATTRIBUTE_WINDOW = 100;
 
 /** A persona id → its display name. The chat's MEMBER-GATED name producer (`macroNames`,
  *  Chat-Macro-Resolution §1) is consulted FIRST because it covers every persona the ROOM references —
@@ -54,7 +56,6 @@ function memberAnchorOptions(chat: ChatDetail): readonly { readonly personaId: P
 export function PersonaThisChatSection(): ReactElement | null {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const queryClient = useQueryClient();
   const chatId = useActiveChatId();
 
   const { data: chat } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
@@ -94,23 +95,24 @@ export function PersonaThisChatSection(): ReactElement | null {
     );
   };
 
-  const onReattribute = async (): Promise<void> => {
+  // One call, no pre-read: the server resolves "every user row I authored in this chat" itself. The
+  // confirming notify honors the same `persona.showNotifications` opt-out the switch does (one setting, one
+  // meaning) and fires on the server's ACK, so it never claims a restamp the write didn't land.
+  const onReattribute = (): void => {
     const targetPersonaId = chat.viewerActivePersonaId;
     if (targetPersonaId === null) {
       return;
     }
-    // The fetchQuery read carries no mutation errorToast of its own, so catch its rejection here.
-    try {
-      const page = await queryClient.fetchQuery(trpc.chat.listMessages.queryOptions({ chatId, limit: REATTRIBUTE_WINDOW }));
-      const messageIds: MessageId[] = page.messages.filter((m) => m.role === "user" && m.authorUserId === chat.viewerUserId).map((m) => m.id);
-      if (messageIds.length === 0) {
-        notify.info("No messages of yours in the recent window to restamp.");
-        return;
-      }
-      reattribute.mutate({ chatId, messageIds, personaId: targetPersonaId });
-    } catch {
-      notify.error("Couldn't load recent messages to restamp.");
-    }
+    reattribute.mutate(
+      { chatId, scope: { kind: "mine" }, personaId: targetPersonaId },
+      {
+        onSuccess: (): void => {
+          if (notifyOnChange) {
+            notify.info(`Your messages in this chat now read as ${personaLabel(chat, personas, targetPersonaId)}.`);
+          }
+        },
+      },
+    );
   };
 
   return (
@@ -189,22 +191,15 @@ export function PersonaThisChatSection(): ReactElement | null {
         <Tooltip>
           <TooltipTrigger
             render={
-              <Button
-                intent="ghost"
-                size="sm"
-                disabled={chat.viewerActivePersonaId === null || reattribute.isPending}
-                onClick={(): void => {
-                  void onReattribute();
-                }}
-              >
+              <Button intent="ghost" size="sm" disabled={chat.viewerActivePersonaId === null || reattribute.isPending} onClick={onReattribute}>
                 <Icon icon={History} size="xs" />
                 Restamp my messages to this persona
               </Button>
             }
           />
           <TooltipPopup side="top">
-            Restamps your own lines from the last {REATTRIBUTE_WINDOW} messages in this chat to "{personaLabel(chat, personas, chat.viewerActivePersonaId)}".
-            Older history is untouched.
+            Restamps every one of your own lines in this chat to "{personaLabel(chat, personas, chat.viewerActivePersonaId)}" — however far back they go. What
+            you wrote is untouched; replies keep the names they were written with.
           </TooltipPopup>
         </Tooltip>
       </Stack>

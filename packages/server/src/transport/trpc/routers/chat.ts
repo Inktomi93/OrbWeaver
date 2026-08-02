@@ -16,6 +16,7 @@ import {
   guidedSteerSchema,
   messageContentBlockSchema,
   openingPolicySchema,
+  reattributeScopeSchema,
   roomOverridesSchema,
   seatKnobsSchema,
 } from "@orb/contracts/chat";
@@ -212,11 +213,13 @@ const deleteMessagesSchema = z.object({
 
 // `reattributePersona` (task #60 — the persona-attribution / {{user}} history fix; neo `usePersonaReattribute`
 // / ST `#persona_sync_name`): re-stamp a set of USER rows' `personaId`. Author-or-host PER row + role/ownership
-// belts are enforced INSIDE the verb (no router-level authz — the sibling canon-edit shape). `messageIds` is
-// the bulk set (the client passes all its own user-row ids) or a single id (per-message).
+// belts are enforced INSIDE the verb (no router-level authz — the sibling canon-edit shape). `scope` picks the
+// rows: `{kind:"messages"}` for an explicit set (one row or a client-assembled batch), `{kind:"mine"}` for the
+// server-resolved "every row I authored" bulk arm (FINAL-Persona §A.7 — the arm that retired the client's
+// 100-message window).
 const reattributePersonaSchema = z.object({
   chatId: brandedId<ChatId>(),
-  messageIds: z.array(brandedId<MessageId>()),
+  scope: reattributeScopeSchema,
   personaId: brandedId<PersonaId>(),
 });
 
