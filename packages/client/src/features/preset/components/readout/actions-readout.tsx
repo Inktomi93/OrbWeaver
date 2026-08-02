@@ -38,6 +38,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useTRPC } from "#data";
+import { testId } from "#lib";
 import { useSelectedPresetTemplateId } from "#state";
 import { openSectionInPrompt } from "../../lib/preset-nav";
 import type { TemplateRow } from "../../lib/template-rows";
@@ -171,7 +172,7 @@ function BoundPreview({ chatId, presetId, templateId }: { readonly chatId: ChatI
   const runs = scanMacroRuns(resolved);
   return (
     <Stack gap="tight">
-      <Stack data-testid="resolved-preview" gap="tight">
+      <Stack data-testid={testId("presetResolvedPreview")} gap="tight">
         <MacroText tokens={runs} />
       </Stack>
       <Text voice="gloss">{boundGloss(runs, preview.data?.identity.user)}</Text>

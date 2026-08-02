@@ -15,7 +15,8 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
+import { testId } from "../../../../../../packages/client/src/lib/test-ids";
+import { routeTrpc, trpcError } from "../../../../../support/ct/route-trpc";
 import { PresetReadoutBoundStory, PresetReadoutUnboundStory } from "./_readout-stories";
 
 const PRESET = "preset_ct_readoutbind";
@@ -94,7 +95,7 @@ test("BOUND — the Actions preview resolves identity for REAL and keeps the fir
   // THE HONESTY PIN, both halves in one assertion set. `{{user}}` came back as "Alex" (the chat resolved it),
   // and the two fire-time tokens are still tokens because the user has typed no steer and picked no
   // perspective. A preview that resolved those would be inventing a value.
-  const preview = probe.getByTestId("resolved-preview");
+  const preview = probe.getByTestId(testId("presetResolvedPreview"));
   await expect(preview).toContainText("Write the owner's next message");
   await expect(preview).not.toContainText("{{user}}");
   await expect(preview).toContainText("{{person}}");
@@ -118,9 +119,11 @@ test("DISMISSED — the ✕ falls back to the token view, and the whole binding 
   await expect(probe.getByText(CHAT_TITLE, { exact: true })).toBeVisible();
 
   // READ-ONLY BY CONSTRUCTION (§7's standing invariant): binding, dismissing and re-binding are VIEW state.
-  // Nothing in the readout may mutate — not the chat, not the preset.
-  expect(trpc.inputs("preset.update")).toEqual([]);
-  expect(trpc.inputs("chat.setChatInjection")).toEqual([]);
+  // Nothing in the readout may mutate — not the chat, not the preset. POLLED, not read once: a mutation
+  // fired by the click above races the re-render this test already awaited, so a single sample could miss
+  // the very write it exists to catch (the DEF-14 class).
+  await expect.poll(() => trpc.count("preset.update")).toBe(0);
+  await expect.poll(() => trpc.count("chat.setChatInjection")).toBe(0);
 });
 
 test("UNBOUND — no recent chat renders the honest token arm, not an empty pane", async ({ mount, page }) => {
@@ -134,6 +137,7 @@ test("UNBOUND — no recent chat renders the honest token arm, not an empty pane
   await expect(probe.getByText(INSPECTING_AGAINST_RE)).toBeHidden();
 
   // With nothing bound there is nothing to resolve AGAINST — firing the read anyway would be a wasted
-  // round-trip whose answer the panel could not honestly show.
-  expect(trpc.inputs("chat.previewActionTemplates")).toEqual([]);
+  // round-trip whose answer the panel could not honestly show. Polled: a query mounted by the render this
+  // test just awaited lands on the recorder a tick later, so one sample proves nothing.
+  await expect.poll(() => trpc.count("chat.previewActionTemplates")).toBe(0);
 });
