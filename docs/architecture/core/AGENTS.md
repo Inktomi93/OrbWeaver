@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-08-03
 ---
 
 # Orbweaver — Constitution (AGENTS)
@@ -162,10 +162,10 @@ each section here is a pointer only. **Read the Spine doc IN FULL before touchin
 ### 5.1 identity / auth / permission
 
 **Canonical: [`Spine-Identity-and-Auth.md`](Spine-Identity-and-Auth.md).** Identity resolves ONCE at
-the edge into one immutable `Principal`; permission = global-role × resource-role × capability; agents
-are FIRST-CLASS PRINCIPALS (model locked; mint + ceiling BUILT (AP1/AP2) (AP0–AP4 = the agent-principal
-build waves; decode: the PD-17 row + `../proposed/INDEX.md`), seat wave remaining, per D60 —
-agent-principal design set (parked in `../proposed/` — see its `INDEX.md`)); BFF sessions ≠ SDK chat sessions.
+the edge into one immutable `Principal`; permission = global-role × resource-role × capability, decided in
+ONE kernel (`can()`) with two read classes — enforcement vs data projection (D121); agents are the model of
+record but **NOT BUILT** (the mint + ceiling were purged 2026-07-25; only dormant DDL survives — Spine §4
+states the tree, D60 states the design); BFF sessions ≠ SDK chat sessions.
 
 ### 5.2 settings / config / the env FOUR natures
 

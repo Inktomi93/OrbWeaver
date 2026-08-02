@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-08-03
 ---
 
 # UI-Architecture-and-Layout
@@ -173,14 +173,18 @@ The macro layout is the **four-region shell**, realized THROUGH the §11.1 clamp
 
 ```
 DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
-  RAIL    — persistent thin icon column (~56px, `--dimension-rail`). Weave glyph → section icons,
-            SEVEN (D62 P6, settled — Presets stays in the rail, Connections lives in Settings per D66),
-            grouped by --spacing-section dividers:
-            Chats · Characters · Corpus (primary; `corpus` is the SECTION/feature name — the owning
-            DOMAIN is `discovery`, the rename landed domain-side only, per the feature-structure gate
-            note) | World Info · Presets · Refinery (authoring)
-            | Analytics (insight) → spacer → Theme · Settings · persona Identity. Seven is the CEILING —
-            anything further goes to modals/settings. The rail renders ONE assembled chrome registry
+  RAIL    — persistent thin icon column (~56px, `--dimension-rail`). EIGHT sections (D121 amends
+            D62 P6's seven — Presets stays in the rail, Connections lives in Settings per D66);
+            `SECTION_IDS` (`client/src/state/shell-store.ts`) is the truth and its ORDER is the rail's:
+            Home (the Weave glyph IS its affordance — the brand cell is a real named button; below 48rem
+            the cell hides and home rides the mobile bar as its FIRST tab) | grouped by
+            --spacing-section dividers: Chats · Characters · Corpus (primary; `corpus` is the
+            SECTION/feature name — the owning DOMAIN is `discovery`, the rename landed domain-side only,
+            per the feature-structure gate note) | World Info · Presets · Refinery (authoring)
+            | Analytics (insight) → spacer → Theme · Settings · persona Identity. The CEILING is a rule
+            about KIND, not a count (D121): a rail section owns a top-level workspace with its own
+            LIST/CONTENT/CONTEXT grid; dialogs, preferences and one-shots go to modals/settings.
+            The rail renders ONE assembled chrome registry
             (`assembleChrome` at the main.tsx door → `CHROME_ZONES`): `rail.nav` = section entries derived
             from each `SectionDefinition.rail`, `rail.end` = the Theme/Settings modal triggers + the persona
             Identity widget (`personaChrome`) — one flat DOM list, CSS-reflowed to the mobile bar (§C), never
