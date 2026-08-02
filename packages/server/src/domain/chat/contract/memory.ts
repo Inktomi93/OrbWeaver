@@ -3,13 +3,15 @@
 // so the subsystem's internal types are declared HERE and RE-EXPORTED from `memory/types.ts` (the connection/
 // context.ts precedent — one type home, a conventional-slot re-export). These are subsystem-internal (they
 // never cross a package boundary — the cross-domain wire shapes are `MemoryQueryOptions`/`BlockKey` in
-// `@orb/contracts/search`); they live in `chat/contract/` only to satisfy the one-type-home gate.
+// `@orb/contracts/search`, and the corpus-sweep RESULTS at the bottom of this file, which DERIVE
+// `@orb/contracts/chat`); they live in `chat/contract/` only to satisfy the one-type-home gate.
 //
 // NO `ownerId` anywhere (D20 — the substrate derives owner via the chat FK, never a stamp); the scope key is
 // `scopedCharacterId`, ALWAYS a real `CharacterId` (inv 8 — solo's cast char / the synthetic group-as-character
 // `__group__${chatId}` for solo/merged/narrator / a per-witnessing cast char under scoped; NO `''` sentinel,
 // NO NULL — §4). The canonical retrieval-mode axis DERIVES `MemoryRetrievalMode` (no inline union re-spell).
 
+import type { BackfillPassResult, MemoryBackfillResult } from "@orb/contracts/chat";
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
 import type { CharacterId, ChatDigestId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -199,25 +201,22 @@ export interface ParsedDigest {
   readonly keywords: string[];
 }
 
-// ── The PD-41 corpus-sweep counts (`substrate/backfill.ts` — chat's `workload-contributions.ts` folds these; the
-//    workload contract declares its own structurally-identical shapes, never imports chat's). ──
+// ── The PD-41 corpus-sweep counts (`substrate/backfill.ts`). These DERIVE `@orb/contracts/chat` rather than
+//    re-spelling it: the sweep's fold IS the workload's terminal RESULT — `workload-contributions.ts` returns
+//    the value the sweep produced straight through as the contract type, and it lands verbatim in the durable
+//    workload result JSON. One home for that shape (contracts, which cannot import a domain), so a field the
+//    contracts shape grows can never silently miss this side. The sweep-vocabulary NAMES stay: `substrate/`'s
+//    signatures read as counts, not as a workload result. ──
 
 /** One sweep pass's fold: entities visited × rows actually written. */
-export interface BackfillPassCounts {
-  readonly scanned: number;
-  readonly changed: number;
-}
+export type BackfillPassCounts = BackfillPassResult;
 
 /** The memory-backfill sweep result: the segment pass (scanned = chats) + the digest pass (scanned =
  *  scope buckets). `failed` = chats whose build threw an UNEXPECTED error and were isolated-and-skipped
  *  (the sweep survives one bad chat, but the failure is NOT silent — it is logged at `error` level AND
  *  counted here so the workload result surfaces it; #41). A healthy sweep is `failed: 0`; any non-zero
  *  value is a signal to investigate, never a chat silently losing its memory without a trace. */
-export interface MemoryBackfillCounts {
-  readonly segments: BackfillPassCounts;
-  readonly digests: BackfillPassCounts;
-  readonly failed: number;
-}
+export type MemoryBackfillCounts = MemoryBackfillResult;
 
 /** Resolve a host's effective memory tuning for the PD-41 corpus sweep — the SAME merge the live turn path
  *  applies (`entry/compose/chat.ts resolveMemoryConfig`: `AppSettings.memoryDefaults` ⊕ host
