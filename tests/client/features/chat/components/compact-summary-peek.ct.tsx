@@ -11,14 +11,14 @@ const SUMMARY = "Aria and the traveller struck a bargain at the crossroads.\nThe
 
 test("the trigger renders but the summary text is hidden until opened", async ({ mount, page }) => {
   await mount(<CompactSummaryPeekStory summary={SUMMARY} />);
-  await expect(page.getByRole("button", { name: "View memory summary" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "View compaction summary" })).toBeVisible();
   // Nothing is revealed on mount — the summary text is behind the closed popover.
   await expect(page.locator('[data-slot="compact-summary-text"]')).toHaveCount(0);
 });
 
 test("clicking View reveals the compaction summary readout", async ({ mount, page }) => {
   await mount(<CompactSummaryPeekStory summary={SUMMARY} />);
-  await page.getByRole("button", { name: "View memory summary" }).click();
+  await page.getByRole("button", { name: "View compaction summary" }).click();
 
   const text = page.locator('[data-slot="compact-summary-text"]');
   await expect(text).toBeVisible();

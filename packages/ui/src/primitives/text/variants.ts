@@ -33,7 +33,8 @@ export const textVariants = tv({
       none: "",
       caps: "uppercase",
     },
-    // THE FOUR-VOICE GRAMMAR (density-pass-spec.md §2.3) — the closed axis that replaces choosing
+    // THE VOICE GRAMMAR (density-pass-spec.md §2.3 — four content voices + `monogram`, added S6 for the
+    // decorative glyph the four could not carry) — the closed axis that replaces choosing
     // size×weight×tone×transform per call site by taste (336 legal combinations, which is the mechanism by
     // which nothing recedes). A voice is an INTENT: what this text IS on the surface, not how it looks.
     //
@@ -53,6 +54,14 @@ export const textVariants = tv({
       datum: "font-mono text-label leading-label tracking-normal tabular-nums font-normal text-foreground",
       // The quiet explanatory second line (the mocks' `.truth`/`.beat`/`.orb .vals`).
       gloss: "font-sans text-micro leading-tight tracking-normal font-normal text-muted-foreground",
+      // The DECORATIVE DISPLAY GLYPH (added S6): a single-letter mark an immersive chat row skin paints on
+      // its own band/tile fill — aria-hidden ornament, not prose. None of the four CONTENT voices fits it
+      // (each would shrink a glyph whose entire job is to BE large), and the alternative at the call site
+      // was spelling `size`/`weight` through className — a dodge the density gate structurally cannot see.
+      // Deliberately sets NO COLOR: the skin that owns the band owns the ink, so the `tone` default survives
+      // here and one className on the call site still beats it. Callers that need a bigger mark than the
+      // title step override `font-size` (the echo tile rides `--spacing-avatar-hero` inline).
+      monogram: "font-sans text-title leading-title tracking-normal font-semibold",
     },
     // THE READING-LENGTH MODIFIER (side-eye F-31, 2026-08-02). `text-micro` (10.5px, leading-tight) was
     // doing five jobs — kicker, gloss, explainer prose, subtitle, status — and while contrast passes

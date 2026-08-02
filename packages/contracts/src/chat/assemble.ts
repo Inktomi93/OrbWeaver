@@ -252,7 +252,7 @@ export interface ContextFitPreview {
   reserveOutputTokens: number;
   droppedCount: number;
   /** The chat's LINEAR-tier compaction summary (`chats.compactSummary`) when it covers the span ABOVE the fit
-   *  boundary — the divider then reports that older messages are compacted into memory + offers a peek at this
+   *  boundary — the divider then reports that older messages are compacted into a summary + offers a peek at this
    *  text. `null` when no summary exists OR its checkpoint hasn't reached the boundary (nothing above the
    *  divider is compacted yet). Member-safe: the summary is built from prompt-eligible rows only (hidden rows
    *  are excluded at compaction), so peeking it never leaks another member's hidden content. */

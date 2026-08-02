@@ -47,7 +47,7 @@ function AssetMediaBlock({ block, assetId }: { readonly block: MediaBlock; reado
   const url = useAttachmentUrl(assetId);
   if (url === undefined) {
     return (
-      <Text as="span" size="label" tone="muted" data-slot="message-media-asset-pending">
+      <Text as="span" voice="gloss" data-slot="message-media-asset-pending">
         [image]
       </Text>
     );

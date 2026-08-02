@@ -84,7 +84,9 @@ export function SwipeStrip({ message }: SwipeStripProps): ReactElement {
       <Button intent="ghost" size="icon" disabled={!canStepBack} loading={busy && canStepBack} aria-label="Previous variant" onClick={goPrev}>
         <Icon icon={ChevronLeft} size="sm" />
       </Button>
-      <Text as="span" size="label" tone="muted">
+      {/* The counter is a VALUE you read — the `datum` voice, whose tabular mono figures stop the count
+          from nudging the chevrons sideways as it ticks (density-pass-spec.md §2.3). */}
+      <Text as="span" voice="datum">
         {current} / {total}
       </Text>
       <Button intent="ghost" size="icon" loading={busy} aria-label="Next variant" onClick={goNext}>
