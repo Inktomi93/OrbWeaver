@@ -110,6 +110,7 @@ export {
   setDraftStartAsGame,
   useDraftConfig,
 } from "./draft-config-store";
+export { __readHomeTileBoxForTest, __resetHomeTileBoxes, rememberHomeTileBox, useHomeTileBox } from "./home-tile-box-store";
 export {
   __readMessageEditDraftForTest,
   cancelEditingMessage,
