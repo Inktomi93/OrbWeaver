@@ -55,8 +55,10 @@ export interface RailEntry {
  *
  *  The axis is PER PANEL and covers BOTH: a pane-less section (home declares both) must not ship the
  *  detail-panel toggle either — nor the focus-mode toggle, which on a section with zero panels is a
- *  control whose only job is collapsing panels that aren't there (it cold-booted reading "Exit focus
- *  mode", because zero-panels trivially satisfies "both collapsed"). */
+ *  control whose only job is hiding panels that aren't there. (Its original tell was a cold boot reading
+ *  "Exit focus mode": focus used to be DERIVED from "both panels collapsed", which zero panels trivially
+ *  satisfied. That derivation is gone — focus is one flag now, item 20 — but the toggle still has nothing
+ *  to act on here, so it does not render.) */
 export interface SectionPanelAvailability {
   readonly list?: "unavailable";
   readonly context?: "unavailable";
