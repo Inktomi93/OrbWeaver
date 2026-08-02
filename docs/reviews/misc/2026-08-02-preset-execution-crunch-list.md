@@ -8,13 +8,21 @@
 > (desktop+mobile; incl. F's CD2 box-in-box + chip-radius flags), close-out D-entry,
 > graduation verifier → docs/history. Owner's morning mouse = final confirmation.
 
+> **CLOSED (2026-08-03, lane POLISH): 36/36 ACCOUNTED — ZERO OPEN ROWS.** The strike pass's last two
+> holdouts landed together in `8af6626e`: item 14's `{{macro}}` token pill goes `tone="soft"` (the
+> mock's `.tok` tint + hue-text, palette untouched per the owner ruling) with a computed-style CT,
+> and O-2's provenance chip is reworded in place to the readout's `resolved for <model>` grammar off
+> ONE shared `resolvedForLabel` (home KEPT — §16 sanctioned echo). This doc is GRADUATION-READY: no
+> row needs re-verifying before it moves to `docs/history`.
+>
 > **STRIKE-PASS SUMMARY (2026-08-02, lane STRIKE):** 34 struck w/ receipts — items 1,2,3,4,6,7,8,
 > 9,10,11,12,13,15,16(chip-cue half),17,18,19,20(pre-struck, confirmed),21,22-arm2 (19 items) +
 > O-1,O-3,O-4,O-5,O-6,O-7,O-9,O-10,O-11,O-12,O-13,O-14,O-16,O-17,O-18,O-19 (16 rulings, incl. the
-> P0-root-cause paragraph closed under item 1/2's fix). 2 open — O-2 (provenance chip never
-> reworded/rehomed) and item 14 (kind chips + rack glyph discs + budget-bar hue fixed/sanctioned,
-> but `{{macro}}` token pills in `macro-text.tsx:59` still render full-saturation `intent="info"`,
-> contradicting the lane-C commit message's "quiet mono" claim). 4 superseded/refuted — item 5
+> P0-root-cause paragraph closed under item 1/2's fix). The 2 then-open rows — O-2 (provenance chip
+> never reworded/rehomed) and item 14 (kind chips + rack glyph discs + budget-bar hue fixed/
+> sanctioned, but `{{macro}}` token pills in `macro-text.tsx:59` still rendering full-saturation
+> `intent="info"`, contradicting the lane-C commit message's "quiet mono" claim) — are CLOSED above.
+> 4 superseded/refuted — item 5
 > (superseded by O-18), item 16's Post-history-badges half (refuted: neither flag is set on any
 > live preset), O-8 (refuted: depth input round-trips fine, live probe + CT), O-15 (owner ruled
 > no action needed), item 22-arm1 (refuted: the "navy pane" was the orchestrator's own DevTools
@@ -179,14 +187,22 @@ Prompt-readout budget bars (blue fills) — a blue/steel family the mocks don't 
 dark tiles, quiet chips, ONE blue SETUP kicker + green on-chip). Rule it once: either blue IS the
 preset-surface info hue (then mute + apply consistently) or it's drift (re-tint neutral/amber).
 
-~~14.~~ ⚠ OPEN (partial). Kind chips fixed (item 7, `c4844496`); rack glyph discs muted to a 15%
+~~14.~~ ✅ CLOSED. Kind chips fixed (item 7, `c4844496`); rack glyph discs muted to a 15%
 tint (`ed90cd59` F-17, `section-row.tsx:183` — "15% tint + hue text IS the mock's `.glyph`
 treatment"); budget-bar/SETUP-kicker blue is the doc's own sanctioned deviation ("ONE blue SETUP
-kicker" — `prompt-readout.tsx:80`, zone-hued track by design). BUT the lane-C commit message
-claims "macro token pills go quiet mono" and the diff (`c4844496 --stat`) never touches
-`macro-text.tsx` — verified live: `macro-text.tsx:59` still renders `{{macro}}` chips as
-full-saturation `Badge intent="info"`. Remaining: mute the macro-token-pill Badge to quiet mono (or
-correct the commit-message claim).
+kicker" — `prompt-readout.tsx:80`, zone-hued track by design). The macro-token pill closed last, in
+`8af6626e` (lane POLISH): `macro-text.tsx` chips now carry `tone="soft"` — the mock's own `.tok`
+treatment (a ~15% info tint + the info hue as TEXT, `context-readouts.html:73`), the same grammar the
+glyph discs wear, so the surface speaks ONE muted-info dialect. The palette is untouched per the
+owner ruling (`--color-info` stays blue; the fix is the pill's rendering). `@orb/ui` Badge's in-flow
+arm also stopped drawing a border box in any tone — a border on an `inline` box is real horizontal
+advance and would have re-opened the F-6 punctuation gap; `size="inline"` has exactly one consumer.
+Proof is COMPUTED, not authored: `tests/client/features/preset/components/macro-text.ct.tsx` (4
+tests) pins the receded fill, the resolved `--color-info` text, zero border width, and the inherited
+mono face; red-first against the pre-fix tree failed with `background-color: oklch(0.7 0.1 232)` and
+`color: oklch(0.2 0.03 232)` — the solid token pair, exactly as this row described it.
+**SUPERSEDES the lane-C claim:** `c4844496`'s "macro token pills go quiet mono" was prose-only (zero
+diff hunks in `macro-text.tsx`, confirmed twice + archaeology); `8af6626e` is the real diff.
 
 **15. Rack token counts cramped** — ~30/~4/~— tiny and tight against the toggles; mock gives a
 dedicated right-aligned mono column with air.
@@ -336,9 +352,17 @@ is the one implementation for both.
 **O-2 "for anthropic/…" chip is MISLEADING** — it shows the CURRENT resolved connection model, but
 reads as "this preset is for xyz". Reword/re-home the provenance (readout owns resolution truth).
 
-⚠ OPEN. `preset-editor-surface.tsx:342-346` still renders `Badge … tone="ghost"` reading
-`for {effective.model}`, unchanged wording, still header-homed (not moved into the readout). No
-commit touches this string outside comment additions explaining why it's there. Nothing landed.
+~~O-2.~~ ✅ `8af6626e` (lane POLISH) — REWORD, home KEPT (orchestrator ruling, arm b). The chip now
+reads `resolved for {model}`, the CONTEXT readout's own grammar for the same fact
+(`readout-parts.tsx`, `EffectiveProfile`), which kills the "this preset is FOR anthropic/…"
+misreading: the preset is for nothing, it resolves against whatever chat model you currently have.
+It KEEPS its header home — this is the §16 sanctioned-echo class (the readout owns resolution truth;
+the header carries a justified echo because the CONTEXT panel is away on narrow and closable
+everywhere, and deleting the chip would silently revert a landed G7 affordance). The two spellings
+that let the drift in are now ONE: `resolvedForLabel` in `lib/effective-knobs.ts`, beside the rung
+vocabulary the same read's other glosses already share, called by both surfaces. Proof is the
+rendered text, red-first: the G7 provenance CT in `preset-editor-surface.ct.tsx` was flipped to the
+new grammar and failed against the pre-fix tree before the source moved.
 
 **O-3 Import button (list header) has no tooltip** — icon-only, aria-label exists but sighted users
 get nothing on hover.

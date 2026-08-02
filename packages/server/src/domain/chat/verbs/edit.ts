@@ -81,6 +81,7 @@ import { assertAuthorOrHost } from "../substrate/auth";
 import { projectViewReturnForViewer } from "../substrate/member-visibility";
 import { resolveHostTierRegexScripts } from "../substrate/regex-tier";
 import { hostUserIdOf } from "../substrate/roster-host";
+import { presentHumanUserIdsOf } from "../substrate/roster-humans";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables";
 import { canonMessageDelta, editMessageDelta, swipeVariantDelta } from "../substrate/stats-delta";
 
@@ -198,6 +199,9 @@ async function applyRunOnEditRegex(
     model,
     anchorPersonaId: args.anchorPersonaId,
     personaIds,
+    // The consent set for the persona read — the editor is a member of this room, so their own persona (and
+    // a member-owned anchor) resolve exactly as they do on a turn.
+    presentHumanUserIds: presentHumanUserIdsOf(args.roster),
   });
   const cards = await Promise.all(castCharacterIds.map((characterId) => ctx.getCard({ ownerId: hostUserId, characterId })));
   const scripts = resolveHostTierRegexScripts({

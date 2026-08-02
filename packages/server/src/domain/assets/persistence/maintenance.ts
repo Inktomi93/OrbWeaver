@@ -43,6 +43,11 @@ export async function listAssetOwners(db: Db): Promise<UserId[]> {
 /** Delete ONE index row by id. The FIRST step of the drop-row-BEFORE-blob deletion ordering: a crash after
  *  this (before `cas.remove`) leaves a benign orphan blob (reclaimed next sweep), NEVER a row pointing at a
  *  missing blob. The caller has already proven the asset is unreferenced. */
+// @owner-scope-write-ok: STRUCTURAL authority, not the caller's — the same verdict `injected-op-caller-param`
+// records for `ReapAssetsOp`. Both GC paths reach this through `purgeAsset` only after proving the id is
+// referenced by NOTHING in the asset-ref registry (`selectReferencedAmong` / `selectAllReferencedAssetIds`),
+// and the sweep is per-owner by construction (`loadOwnerAssetRows`). D20 un-principal: there is no caller.
+// Ends the day a reap stops consulting the reference registry first.
 export async function deleteAssetRow(db: Db, assetId: AssetId): Promise<void> {
   await db.delete(assets).where(eq(assets.id, assetId));
 }

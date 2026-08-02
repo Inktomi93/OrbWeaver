@@ -141,6 +141,20 @@ export function provenanceSuffix(provenance: string): string | null {
   return provenance;
 }
 
+/** WHICH MODEL the effective read resolved against, in the ONE grammar both surfaces state it in — the
+ *  CONTEXT readout's own line (`EffectiveProfile`, which appends `· chat role`) and the editor header's
+ *  provenance chip (G7), whose sanctioned echo exists because the LIST can be a closed sheet and the
+ *  CONTEXT panel can be away, so the fact must survive where the preset is named.
+ *
+ *  It is a FUNCTION, not two literals, because the header's earlier spelling — the bare `for <model>` —
+ *  read as a claim about the PRESET ("this preset is for anthropic/…") rather than a statement about the
+ *  numbers beside it (crunch-list O-2). "resolved for" is the readout's verb, and a resolution is exactly
+ *  what happened: `preset.resolveEffective` ran against the caller's current chat model. Two hand-typed
+ *  spellings of one fact is how that misreading got in; one home is how it stays out. */
+export function resolvedForLabel(model: string): string {
+  return `resolved for ${model}`;
+}
+
 /** The dial's OFF arm, as the deck AND the readout state it (owner ruling O-18). "No quality" is a REAL,
  *  named arm of the dropdown — it is stored as the ABSENCE of `params.quality`, which is the funnel's own
  *  off arm (nothing is fed; see `qualitySelectValue`'s header for why absence and not a fourth enum) — so

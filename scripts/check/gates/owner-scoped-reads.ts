@@ -3,19 +3,19 @@
 // F3-AUTHZ arm: project the ownerId and compare it — a distinct LEGAL shape, recognized here), or carry an
 // `// @owner-scope-ok: <reason>` marker. An unexplained bare `eq(T.id, x)` is the cross-tenant read hole.
 // TWO-SIDED: a marker on a function with no bare by-id read left is RED. DECLARED LIMIT: READS only — the
-// write verbs (`update`/`delete`) chain their own ownership guard, and membership-rung completeness on
-// (b)-class tables is control-flow-dependent (the cross-tenant behavioral sweep stays that proof).
-import type { CallExpression, Node, VariableDeclaration } from "ts-morph";
+// WRITE half is the sibling gate `owner-scoped-writes` (its own marker vocabulary), and membership-rung
+// completeness on (b)-class tables is control-flow-dependent (the cross-tenant behavioral sweep stays that
+// proof).
+import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract.ts";
+import type { GateDescriptor } from "../contract.ts";
 import { fileLoaded } from "../pass.ts";
-import { TABLE_SCOPING_CLASSES } from "./table-scoping-class.ts";
+import { enclosingFn, markedFunctions, markerKeyFor, predicatesOwnId, whereArgOf } from "../tenancy-read.ts";
+import { ownerScopedTableIdents } from "./table-scoping-class.ts";
 
-const SCHEMA_DIR = "packages/db/src/schema/";
 const SCHEMA_BARREL = "packages/db/src/schema/index.ts";
 const SERVER_SRC = "packages/server/src/";
 const GATE_SELF = "scripts/check/gates/owner-scoped-reads.ts";
-const TABLE_FN = "sqliteTable";
 const OWNER_COL = "ownerId";
 /** The two-sided comment marker. House grammar (`marker:\s*\S`) — the reason after the colon is REQUIRED,
  *  and a bare marker exempts NOTHING. */
@@ -46,102 +46,13 @@ const BLIND =
   "schema shape or the class registry moved, and a gate that matches nothing reports ✓ forever). Re-derive " +
   "it in scripts/check/gates/owner-scoped-reads.ts";
 
-/** The drizzle table identifiers whose SQL table is class (a). Derived per run from the schema sources
- *  CROSSED with `TABLE_SCOPING_CLASSES` — never a hand-kept list, so a re-classification moves the gate. */
-const ownerTableIdents = new Set<string>();
+/** The drizzle table identifiers whose SQL table is class (a) — derived per run by `table-scoping-class`
+ *  (the registry's own home), never a hand-kept list, so a re-classification moves the gate. */
+let ownerTableIdents = new Set<string>();
 /** Functions carrying the marker → their (file, name), for the stale arm. */
 const markedFns = new Map<string, { readonly fn: string; readonly file: string }>();
 /** Marker keys that actually guarded a bare read. */
 const markersUsed = new Set<string>();
-
-const LEADING_SLASH_RE = /^\/+/u;
-function repoRel(path: string): string {
-  const idx = path.indexOf("/packages/");
-  return idx === -1 ? path.replace(LEADING_SLASH_RE, "") : path.slice(idx + 1);
-}
-
-/** The SQL table name a `const X = sqliteTable("<name>", …)` declaration mints, or undefined. */
-function sqlNameOf(decl: VariableDeclaration): string | undefined {
-  const init = decl.getInitializer();
-  if (init?.isKind(SyntaxKind.CallExpression) !== true) {
-    return;
-  }
-  const callee = init.getExpression();
-  if (callee.isKind(SyntaxKind.Identifier) !== true || callee.getText() !== TABLE_FN) {
-    return;
-  }
-  const nameArg = init.getArguments()[0];
-  return nameArg?.isKind(SyntaxKind.StringLiteral) === true ? nameArg.getLiteralText() : undefined;
-}
-
-/** Rebuild `ownerTableIdents` from the shared project: `export const X = sqliteTable("<name>", …)` in a
- *  schema file whose `<name>` is class (a). */
-function deriveOwnerTables(ctx: GateRunCtx): void {
-  ownerTableIdents.clear();
-  for (const sf of ctx.project.getSourceFiles()) {
-    if (!repoRel(sf.getFilePath()).includes(SCHEMA_DIR)) {
-      continue;
-    }
-    for (const decl of sf.getVariableDeclarations()) {
-      const sqlName = sqlNameOf(decl);
-      if (sqlName !== undefined && TABLE_SCOPING_CLASSES[sqlName]?.scope === "ownerId") {
-        ownerTableIdents.add(decl.getName());
-      }
-    }
-  }
-}
-
-function isFnish(n: Node): boolean {
-  return (
-    n.isKind(SyntaxKind.FunctionDeclaration) ||
-    n.isKind(SyntaxKind.MethodDeclaration) ||
-    n.isKind(SyntaxKind.ArrowFunction) ||
-    n.isKind(SyntaxKind.FunctionExpression)
-  );
-}
-
-function fnName(fn: Node): string {
-  if (fn.isKind(SyntaxKind.FunctionDeclaration) || fn.isKind(SyntaxKind.MethodDeclaration)) {
-    return fn.getName() ?? "(anonymous)";
-  }
-  const parent = fn.getParent();
-  return parent?.isKind(SyntaxKind.VariableDeclaration) === true ? parent.getName() : "(anonymous)";
-}
-
-/** The innermost enclosing function — the post-fetch filter's unit of scope. */
-function enclosingFn(node: Node): Node | undefined {
-  return node.getFirstAncestor(isFnish);
-}
-
-function leadingMarker(n: Node): boolean {
-  return n.getLeadingCommentRanges().some((r) => MARKER_RE.test(r.getText()));
-}
-
-/** A function carries the marker when it sits in the function's OWN leading comments, or in those of the
- *  variable statement declaring it. Deliberately NOT "anywhere in the body": a marker attached to the
- *  function is the reviewable unit, and a body-wide text match would let an inner arrow inherit a promise
- *  its enclosing helper was granted (and would make the stale arm fire on phantom keys). */
-function carriesMarker(fn: Node): boolean {
-  if (leadingMarker(fn)) {
-    return true;
-  }
-  const decl = fn.getParent();
-  if (decl?.isKind(SyntaxKind.VariableDeclaration) !== true) {
-    return false;
-  }
-  const stmt = decl.getFirstAncestorByKind(SyntaxKind.VariableStatement);
-  return stmt !== undefined && leadingMarker(stmt);
-}
-
-/** The nearest ancestor function (innermost first) carrying the marker — a read inside a `.map()` inherits
- *  the exported helper's marker, which is where a reviewer writes it. */
-function markerOwner(node: Node): Node | undefined {
-  let cur = node.getFirstAncestor(isFnish);
-  while (cur !== undefined && !carriesMarker(cur)) {
-    cur = cur.getFirstAncestor(isFnish);
-  }
-  return cur;
-}
 
 /** The POST-FETCH-FILTER arm (`workloads/verbs/get.ts` F3-AUTHZ): the enclosing function compares a
  *  `.ownerId` property with `===`/`!==`. The owner predicate is resolved in JS instead of SQL — a distinct
@@ -159,34 +70,6 @@ function hasPostFetchFilter(fn: Node | undefined): boolean {
   });
 }
 
-/** Walk a drizzle method chain UP from `.from(T)`, collecting the calls that follow it. */
-function chainCalls(start: Node): CallExpression[] {
-  const out: CallExpression[] = [];
-  let cur: Node = start;
-  for (;;) {
-    const parent = cur.getParent();
-    if (parent === undefined) {
-      return out;
-    }
-    if (parent.isKind(SyntaxKind.CallExpression)) {
-      out.push(parent);
-    } else if (!(parent.isKind(SyntaxKind.PropertyAccessExpression) || parent.isKind(SyntaxKind.AwaitExpression))) {
-      return out;
-    }
-    cur = parent;
-  }
-}
-
-/** The `.where(…)` argument of the chain this `.from(T)` starts, or undefined (no WHERE ⇒ a LIST read, not
- *  a by-id read — out of scope). */
-function whereArgOf(fromCall: Node): Node | undefined {
-  const whereCall = chainCalls(fromCall).find((call) => {
-    const callee = call.getExpression();
-    return callee.isKind(SyntaxKind.PropertyAccessExpression) && callee.getName() === "where";
-  });
-  return whereCall?.getArguments()[0];
-}
-
 export const gate: GateDescriptor = {
   name: "owner-scoped-reads",
   docRow: "Core-Enforcement-Active-Gates.md (Layer 3) — Core-Path-Registry.md D20/D23; the `fetchOwned` contract (packages/db/src/kit/fetch-owned.ts)",
@@ -200,7 +83,7 @@ export const gate: GateDescriptor = {
   begin: (ctx) => {
     markedFns.clear();
     markersUsed.clear();
-    deriveOwnerTables(ctx);
+    ownerTableIdents = ownerScopedTableIdents(ctx);
   },
 
   visit: (node, sf, ctx) => {
@@ -222,20 +105,18 @@ export const gate: GateDescriptor = {
     const whereText = where.getText();
     const ident = arg.getText();
     // BY-ID: `eq(T.id, …)` or `inArray(T.id, …)` — both are "whatever id the caller supplies comes back".
-    if (!new RegExp(String.raw`\b${ident}\.id\b`, "u").test(whereText)) {
+    if (!predicatesOwnId(whereText, ident)) {
       return;
     }
     if (whereText.includes(OWNER_COL)) {
       return; // arm 1 — the owner is IN THE WHERE
     }
-    const fn = enclosingFn(node);
-    if (hasPostFetchFilter(fn)) {
+    if (hasPostFetchFilter(enclosingFn(node))) {
       return; // arm 2 — the F3-AUTHZ post-fetch filter
     }
-    const rel = repoRel(sf.getFilePath());
-    const owner = markerOwner(node);
-    if (owner !== undefined) {
-      markersUsed.add(`${rel}#${fnName(owner)}`);
+    const markerKey = markerKeyFor(node, sf, MARKER_RE);
+    if (markerKey !== undefined) {
+      markersUsed.add(markerKey);
       return; // arm 3 — a cited marker
     }
     ctx.report(node, { token: ident, offset: 0 });
@@ -244,16 +125,8 @@ export const gate: GateDescriptor = {
   visitFile: (sf) => {
     // Record every marker in scanned scope so the stale arm sees the ones guarding nothing. The key is
     // (file, marked-function) — the SAME key `visit` marks as USED, so the two halves can never drift.
-    if (!MARKER_RE.test(sf.getFullText())) {
-      return;
-    }
-    const rel = repoRel(sf.getFilePath());
-    for (const n of sf.getDescendants()) {
-      if (!(isFnish(n) && carriesMarker(n))) {
-        continue;
-      }
-      const key = `${rel}#${fnName(n)}`;
-      markedFns.set(key, { fn: fnName(n), file: rel });
+    for (const marked of markedFunctions(sf, MARKER_RE)) {
+      markedFns.set(marked.key, { fn: marked.fn, file: marked.file });
     }
   },
 
@@ -349,7 +222,7 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/character/persistence/card.ts":
           'import { characters } from "@orb/db";\nexport async function del(db: Db, id: string) {\n  return db.delete(characters).where(eq(characters.id, id));\n}\n',
       },
-      why: "DECLARED LIMIT: READS only. A write chains its own ownership guard in the verb (`remove` loads owned first); widening to update/delete is a separate, larger classification",
+      why: "DECLARED LIMIT: READS only — a `db.delete(T)`/`db.update(T)` is invisible to THIS gate by construction. The write half is the sibling gate `owner-scoped-writes`, which owns that shape with its own `@owner-scope-write-ok:` vocabulary; a write must never silence itself with a READ marker",
     },
   ],
 };

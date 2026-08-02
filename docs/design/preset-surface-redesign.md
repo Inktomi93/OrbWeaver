@@ -1,12 +1,41 @@
 ---
 kind: spec
-status: approved (owner-ruled — D1-D7 as recommended; mock round 3 amendments folded)
-updated: 2026-08-02
+status: closed (BUILT — see D121)
+updated: 2026-08-03
 ---
 
 # PRESET SURFACE REDESIGN — make the generation deck crunchy (PRESET-1)
 
-**Status:** APPROVED-TO-BUILD (owner, mock review round 3: D1-D7 ruled as recommended; the round-3 amendments — output/context KnobRow sliders, the depth/order split, the hover-hint rule — are folded in below). Nothing here is built yet; §13 is the build lanes' dispatch table. Owner charge (2026-08-02, verbatim): the preset
+**Status:** BUILT / CLOSED — ratified into the ledger as **D121** (`Core-Path-Registry.md` D121, the
+preset + actor-state close-out; drafted `9e966692`, graduated `f551bb42`). Every stage of §14's table
+landed: **P0+P1** the server seams (`preset.resolveEffective`, the template registry, G9/G10) + the
+five-view shell and the params deck (`5d71e287`, `f7e8bb89`) · **P2+P3** the rack rebuilt, the section
+drill-in consolidated (bridge + inspector dead), CONTEXT became the per-view readout (`7af80d24`,
+`1b46124a`, merged `c4112f85`) · **P4** the LIST projection — inline activate toggle with ONE
+`setDefault` writer, the pane Select deleted, the G6 export/import doors, the G7 header truth chips
+(`9c29c468`, `510b2c83`, `9ae29d5b`, merged `30022a1f`) · **P5** the density shrink + the §12 CT set +
+the side-eye fix-all, 33 findings closed (`4f91d627`, merged `11ee38d8`; program-complete
+`e1c07cbc`). D8's ruled binding + the Actions RESOLVED preview landed after the core (`6b11ea7a`).
+The post-build CRUNCH WAVE — owner verbatim *"it looks kinda crunchy"* — then ran on top of it
+(`5978fddf`, `45cf001d`, `d294c7c5`, `c4844496`, `ed90cd59`), and its per-row receipt ledger is
+`docs/reviews/misc/2026-08-02-preset-execution-crunch-list.md` (strike pass `5d8ff5ef`): THAT doc, not
+this one, is the authoritative row-by-row state of the rendered surface.
+
+**The residue, named so this stamp does not lie in the other direction.** D121 **clause G** is
+COMMITTED, NOT BUILT: the readout's binding chip is honest-by-membership, and `BINDING_VIEWS`
+(`client/src/features/preset/components/readout/preset-readout.tsx`) still holds `actions` ALONE —
+a chip over the Params profile would claim a resolution that is not happening. Prompt JOINS that set
+when its materialized carrier rows + true token costs land (`chat.previewActionTemplates` + the preset
+override), and `BINDING_VIEWS` becomes a real table in the same change — one change, three coupled
+sites. §7's drawing of a bound Prompt readout is therefore AHEAD OF THE TREE, and is the only clause
+of this spec that is. Everything else below is archaeology: the design record for a surface that
+exists, kept because the WHY (the F1-F12 diagnosis, the one-home audit §16, the D1-D8 forks) is not
+recoverable from the code.
+
+The approval record that governed the build, preserved: **APPROVED-TO-BUILD** (owner, mock review
+round 3: D1-D7 ruled as recommended; the round-3 amendments — output/context KnobRow sliders, the
+depth/order split, the hover-hint rule — are folded in below; §14 was the build lanes' dispatch
+table). Owner charge (2026-08-02, verbatim): the preset
 content pane *"feels wrong and is organized wrong… when compared to SillyTavern's generation params and
 presets and templates and fields are crunchy and it just does not feel good to use"* — he *"really truly
 hates how it looks and feels"* and is separately *"still not set on presets being their own thing"*
