@@ -9,6 +9,7 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel } from "@orb/ui/collapsible";
 import { FileTrigger } from "@orb/ui/file-trigger";
+import type { LucideIcon } from "@orb/ui/icons";
 import { ChevronDown, ChevronRight, Crown, Heart, Icon, Star, Trash2 } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
@@ -207,7 +208,7 @@ export function PersonaPanelRow({
 }
 
 interface IconActionProps {
-  readonly icon: typeof Star;
+  readonly icon: LucideIcon;
   readonly label: string;
   readonly onClick: () => void;
   readonly disabled?: boolean;
@@ -215,7 +216,7 @@ interface IconActionProps {
 }
 
 /** A non-interactive, glanceable status glyph shown at rest. */
-function StatusGlyph({ icon, label, className }: { readonly icon: typeof Star; readonly label: string; readonly className: string }): ReactElement {
+function StatusGlyph({ icon, label, className }: { readonly icon: LucideIcon; readonly label: string; readonly className: string }): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger
