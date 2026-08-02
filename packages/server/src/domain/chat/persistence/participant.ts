@@ -162,10 +162,16 @@ export function setPendingHostStatement(db: Db, chatId: ChatId, nomineeUserId: U
 
 /** The atomic host-handoff accept statements, unexecuted: demotes the present host → `member`, promotes
  *  the nominee → `host`, and clears the chat's pending nomination. Order is load-bearing: demote →
- *  promote → clear. The caller must verify the caller IS the pending nominee before calling. */
+ *  promote → clear. The caller must verify the caller IS the pending nominee before calling.
+ *
+ *  `clearAnchorPersona` rides the SAME `chats` UPDATE as the nomination clear (one statement, not two): the
+ *  D51 `{{user}}` anchor is resolved under the HOST's principal, so an anchor the incoming host cannot read is
+ *  a dead pin — the POV falls through to the speaker's active persona while `ChatDetail` keeps serving an
+ *  unreadable id (and `exportChat` still reads its NAME). The verb decides readability (stickler F2); this
+ *  layer only writes the null it is told to. */
 export function acceptHostHandoffSwapStatements(
   db: Db,
-  params: { readonly chatId: ChatId; readonly nomineeUserId: UserId; readonly now: number },
+  params: { readonly chatId: ChatId; readonly nomineeUserId: UserId; readonly now: number; readonly clearAnchorPersona: boolean },
 ): BatchStmt[] {
   return [
     db
@@ -176,6 +182,9 @@ export function acceptHostHandoffSwapStatements(
       .update(chatParticipants)
       .set({ role: "host" })
       .where(and(eq(chatParticipants.chatId, params.chatId), eq(chatParticipants.userId, params.nomineeUserId), isNull(chatParticipants.leftSeq))),
-    db.update(chats).set({ pendingHostUserId: null, updatedAt: params.now }).where(eq(chats.id, params.chatId)),
+    db
+      .update(chats)
+      .set({ pendingHostUserId: null, updatedAt: params.now, ...(params.clearAnchorPersona ? { anchorPersonaId: null } : {}) })
+      .where(eq(chats.id, params.chatId)),
   ];
 }

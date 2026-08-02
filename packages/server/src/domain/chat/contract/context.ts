@@ -29,6 +29,7 @@ import type { MemorySummarizerConfig } from "@orb/contracts/settings";
 import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { MaterializeBackgroundOp, ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import type { ContentImageRef } from "@orb/kit/content";
 import type {
   AssetId,
@@ -644,6 +645,16 @@ export interface ChatRpgOps {
    *  `resolveReasoningHostOnly`/`copyVariantStmt` already strip the reasoning + body channels across). `null` when
    *  rpg isn't wired / the source isn't a game ⇒ `{cloned:false}` and the fork stays plain. */
   readonly forkGame: (args: ForkGameArgs) => Promise<ForkGameResult>;
+  /** HOST HANDOFF (stickler 2026-08-03 F1): the rpg-side statements `acceptHostHandoff` must commit IN ITS OWN
+   *  SWAP BATCH when room authority moves to `newHostUserId`. Today that is the `gmPresetId` heal — the twin of
+   *  the fork's `resolveForkGmPreset` gate: a GM-voice preset the NEW host cannot read is nulled, since from the
+   *  swap onward `resolvePresetOverride` resolves it under THEM (owner-scoped) and would degrade the game's voice
+   *  silently while `getConfigView` served an id they can never inspect. A preset the nominee can read is left
+   *  alone (conditional, never a blanket clear). Returns UNEXECUTED statements rather than writing, so the heal
+   *  and the role swap commit atomically — the co-statement seam `markUserLeftStatement`/`setPendingHostStatement`
+   *  already ride. Empty for a non-game chat / an unset knob ⇒ a handoff in a plain room is byte-identical. Chat
+   *  stays rpg-table-blind: it folds the statements into its batch and reads nothing inside them. */
+  readonly handoffHealStatements: (chatId: ChatId, newHostUserId: UserId) => Promise<readonly BatchStmt[]>;
 }
 
 /** {@link ChatRpgOps.gatherTurnContext}'s call args. Chat OWNS this shape (rpg satisfies it, the same

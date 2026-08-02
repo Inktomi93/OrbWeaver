@@ -21,7 +21,17 @@ import { createFork } from "../../../../../packages/server/src/domain/chat/verbs
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { addVariant, makeChatContext, makeLoadParticipantViews, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support";
+import {
+  addVariant,
+  makeChatContext,
+  makeLoadParticipantViews,
+  seedCharacter,
+  seedChat,
+  seedMessage,
+  seedParticipant,
+  seedPersona,
+  seedUser,
+} from "../_support";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -345,6 +355,40 @@ describe("forkChat — D64 cast-drop on a non-owner fork (F4/PD-21 ruling)", () 
     expect(chat.parentChatId).toBe(chatId);
     expect(chat.participants.some((p) => p.characterId === charA)).toBe(true);
     expect(emitted).toContainEqual({ type: "chatCreated", chatId: chat.id });
+  });
+
+  // The anchor arm of the same single-owner rule (stickler 2026-08-03 F2, the fork's latent twin): the fork's
+  // host is the FORKER, and the D51 anchor resolves under the host's principal (owner-scoped `persona.get`).
+  // Copying a foreign `anchorPersonaId` verbatim mints a room born with a dead POV pin — the knob serves an
+  // unreadable id while `{{user}}` silently falls through to the active persona. Conditional, like the cast
+  // drop and the `resolveForkGmPreset` gate: keep what the forker can read, null what they cannot.
+  test("a foreign anchor persona is NULLED on the fork; the forker's own anchor is carried", async () => {
+    const host = await seedUser(db, "anchor_host");
+    const member = await seedUser(db, "anchor_member");
+    const hostAnchor = await seedPersona(db, host, "hostpov");
+    const memberAnchor = await seedPersona(db, member, "memberpov");
+    const foreignSrc = await seedChat(db, "anchor_foreign_src", { anchorPersonaId: hostAnchor });
+    await seedParticipant(db, { chatId: foreignSrc, key: "fm", userId: member, role: "member" });
+    const ownSrc = await seedChat(db, "anchor_own_src", { anchorPersonaId: memberAnchor });
+    await seedParticipant(db, { chatId: ownSrc, key: "om", userId: member, role: "member" });
+
+    const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+    const foreignFork = await fork.forkChat({ principal: principal(member), chatId: foreignSrc });
+    const ownFork = await fork.forkChat({ principal: principal(member), chatId: ownSrc });
+
+    const [foreignRow] = await db
+      .select()
+      .from(chats)
+      .where(eq(chats.id, castId(foreignFork.chat.id)));
+    expect(foreignRow?.anchorPersonaId).toBeNull();
+    const [ownRow] = await db
+      .select()
+      .from(chats)
+      .where(eq(chats.id, castId(ownFork.chat.id)));
+    expect(ownRow?.anchorPersonaId).toBe(memberAnchor);
+    // The SOURCE rooms are untouched — a fork never re-pins the room it copied from.
+    const [srcRow] = await db.select().from(chats).where(eq(chats.id, foreignSrc));
+    expect(srcRow?.anchorPersonaId).toBe(hostAnchor);
   });
 });
 
