@@ -1,13 +1,13 @@
 #!/usr/bin/env tsx
 // pnpm ast — no-script structural search over the whole workspace: symbol layer (ts-morph — refs/
-// callers/importers/exports/jsx/ident + rot lenses orphans/testonly/cycles/aliases) and module-graph
-// layer (depcruise pass-throughs flow/reaches, same config the gates run). Run bare for full usage
+// callers/importers/exports/jsx/ident + rot lenses orphans/testonly/chains/cycles/aliases) and module-
+// graph layer (depcruise pass-throughs flow/reaches, same config the gates run). Run bare for full usage
 // with examples (the USAGE block below is the doc). Prefer this over grep for CODE questions.
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import type { ExportDeclaration, ImportDeclaration, Project, SourceFile, Type } from "ts-morph";
+import type { BindingElement, ExportDeclaration, ImportDeclaration, Project, SourceFile, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import knipConfig from "../../knip.ts";
 import type { SchemaTable } from "../check/schema-read.ts";
@@ -358,6 +358,11 @@ type Liveness = {
   arms: Map<string, Set<ConsumptionArm>>;
   /** every `import * as` site in the workspace — the files `swallowed` re-scans for `alias.<member>`. */
   namespaceSites: NamespaceSite[];
+  /** DECLARATION-GRANULAR consumption: origin-key → the keys of the declarations whose bodies hold a
+   *  consuming reference to it (plus the module-scope sentinel for a side-effect position). EMPTY unless
+   *  `buildLiveness` was asked for it — see the section below for why it is parallel AND opt-in. Never
+   *  consulted by a liveness verdict. */
+  consumers: Map<string, Set<string>>;
 };
 
 /** The client package's src prefix — the seam that buckets prod consumption into client vs server. */
@@ -503,16 +508,27 @@ function prodBucketFor(fp: string, buckets: { usedTest: Set<string>; usedClientP
   return fp.includes(CLIENT_SRC_PREFIX) ? buckets.usedClientProd : buckets.usedServerProd;
 }
 
+/** What ONE `buildLiveness` call is asked to produce beyond the liveness sets. `edges` turns on the
+ *  DECLARATION-GRANULAR consumption map (`Liveness.consumers`) — off by default so the push-tier ratchet
+ *  pays neither its cost nor its risk. */
+export type LivenessOptions = { readonly edges: boolean };
+
+/** The default: liveness sets ONLY, byte- and cost-identical to the pass that predates the edge map. */
+const NO_EDGES: LivenessOptions = { edges: false };
+
 /** ONE resolution pass over the workspace: builds the prod/test origin-key sets and the star-target set.
  *  Runs in the same ~10s envelope as the old name pass — getModuleSpecifierSourceFile is memoized by
- *  ts-morph after the first resolve. */
-function buildLiveness(project: Project): Liveness {
+ *  ts-morph after the first resolve. With `{ edges: true }` it ALSO builds the declaration-granular
+ *  consumption map, at the cost of one identifier walk per file; the liveness sets are identical either
+ *  way (pinned in tests/tooling/ast-lens.test.ts, both arms). */
+function buildLiveness(project: Project, options: LivenessOptions = NO_EDGES): Liveness {
   const usedClientProd = new Set<string>();
   const usedServerProd = new Set<string>();
   const usedTest = new Set<string>();
   const starTargets = new Set<string>();
   const arms = new Map<string, Set<ConsumptionArm>>();
   const namespaceSites: NamespaceSite[] = [];
+  const consumers = new Map<string, Set<string>>();
   const record: ArmRecorder = (key, arm) => {
     const set = arms.get(key) ?? new Set<ConsumptionArm>();
     set.add(arm);
@@ -528,9 +544,311 @@ function buildLiveness(project: Project): Liveness {
     }
     collectStarTargets(sf, starTargets);
     markDynamicImports(sf, project, bucket, record);
+    if (options.edges) {
+      recordDeclarationEdges(sf, project, consumers);
+    }
   }
   const usedProd = new Set<string>([...usedClientProd, ...usedServerProd]);
-  return { usedProd, usedClientProd, usedServerProd, usedTest, starTargets, arms, namespaceSites };
+  return { usedProd, usedClientProd, usedServerProd, usedTest, starTargets, arms, namespaceSites, consumers };
+}
+
+// ── DECLARATION-GRANULAR consumption edges (the substrate `chains` needs, and nothing else reads) ──────
+// Everything above attributes consumption at FILE granularity: `markImportConsumption` records that SOME
+// import in file F reached origin key K, and `Liveness.arms` records WHICH ARM did it — never which
+// DECLARATION inside F holds the consuming reference. That is exactly enough for orphans/testonly/clientgap/
+// swallowed, all of which ask "does anything reach K?", and exactly NOT enough for the alias-rabbit-hole
+// class: `export const Y = X` inside an otherwise-live file keeps X alive forever, even when nothing
+// consumes Y. A FILE-level fixpoint cannot see it — it degenerates into iterated `prodonly` and reports the
+// head of the chain only. The edge therefore has to name the DECLARATION a consuming reference sits inside.
+//
+// THE EDGE IS PARALLEL AND OPT-IN; both halves are load-bearing.
+//   • PARALLEL — a new map on `Liveness`, never a change to usedProd/usedClientProd/usedServerProd/usedTest/
+//     starTargets/arms/namespaceSites. The push-tier `deps:orphan-ratchet` judges the SAME candidate set the
+//     `orphans` verb prints, so perturbing those sets is a GATE regression, not a lens change. Both arms are
+//     pinned identical in the self-test, and the whole-workspace digests were diffed before/after (0 bytes).
+//   • OPT-IN — it costs one identifier walk per source file, which the ratchet must not pay for a map it
+//     never reads. `buildLiveness(project)` is unchanged in output AND in cost.
+//
+// HOW A REFERENCE IS ATTRIBUTED — syntactically, by ANCESTRY. Not the language service: `findReferences` per
+// import specifier is the `refs` verb's cost times every import in the workspace, which would price the
+// substrate out of existence. One identifier pass per file builds `local name → the keys of the TOP-LEVEL
+// declarations whose subtree spells it`, and then:
+//   1. an occurrence directly under a module-scope statement (`createRoot(el).render(<App/>)`, a bare call,
+//      a top-level `if`) attributes to the file's MODULE-SCOPE key — a side-effect position no declaration
+//      owns, and an unconditional ALIVE root for the fixpoint (nothing can make a side effect dead);
+//   2. import/export SPECIFIER positions are SKIPPED outright. A specifier is where a name TRAVELS, never
+//      where it is used — the rule `typeonly-alive`'s NEUTRAL_REF_KINDS already states. Counting
+//      `import { X } from …` as a module-scope use would make every import an alive root and the whole
+//      fixpoint a no-op (measured: it reports zero chains);
+//   3. each import's local binding resolves to ORIGIN keys through `getExportedDeclarations()` — the same
+//      hop the liveness uses, so a renaming barrel cannot fork the identity — and every consumer key of that
+//      local name becomes an edge into each origin key. A namespace or dynamic import spreads the whole
+//      target surface across the consumers of its alias / of the `import()` call (err alive, exactly as
+//      `markModuleAlive` does);
+//   4. SAME-FILE consumption rides the same map: a top-level declaration's own name looked up in it, minus
+//      its own key (a self-reference is not life). This is `isReferencedInOwnFile` at declaration
+//      granularity — the arm that turns an intra-file hop (`const Y = X; export const Z = Y`) into a visible
+//      chain instead of a wall. NON-exported top-level declarations are nodes too: a chain that launders
+//      itself through a file-local helper is the same defect.
+//
+// KNOWN OVER-ATTRIBUTION, stated so a reader can price a verdict: the in-file pass is NAME-based, so a local
+// binding that SHADOWS an imported name, and a property-access tail (`obj.foo`) that happens to match one,
+// both donate their enclosing declaration as a consumer. That direction is deliberate. An extra edge can only
+// make a declaration look MORE alive, and a lens that nominates code for deletion must never err the other way.
+
+/** The `<file>\0module` sentinel for a consuming reference at MODULE SCOPE — a side-effect position no
+ *  declaration owns. Cannot collide with a `declKey`, whose second half is always a decimal offset. */
+const MODULE_SCOPE_MARK = "module";
+
+function moduleScopeKey(sf: SourceFile): string {
+  return `${sf.getFilePath()}${KEY_SEP}${MODULE_SCOPE_MARK}`;
+}
+
+/** True for the module-scope sentinel — the fixpoint's unconditional alive root. */
+function isModuleScopeKey(key: string): boolean {
+  return key.endsWith(`${KEY_SEP}${MODULE_SCOPE_MARK}`);
+}
+
+/** The FILE half of any key this substrate mints (a `declKey` or the module-scope sentinel). */
+function fileOfKey(key: string): string {
+  const cut = key.lastIndexOf(KEY_SEP);
+  return cut < 0 ? key : key.slice(0, cut);
+}
+
+/** Top-level statements whose identifiers are pure BINDING HOPS, never uses (see attribution rule 2).
+ *
+ *  `export default` splits: `export default someLocal` IS a hop (the local and the default export are the
+ *  same declaration — `getExportedDeclarations()` resolves "default" straight to it, so counting the
+ *  re-export as a use would make every default-exported symbol self-alive). `export default <expression>`
+ *  is NOT: `export default { value: helper() }` genuinely CONSUMES `helper`, and skipping it left that
+ *  reference attributed to nobody — the under-attribution direction, the one a lens nominating code for
+ *  deletion must never take. A non-identifier default lands at module scope (an alive root), erring alive. */
+function isBindingHopStatement(stmt: Node): boolean {
+  if (Node.isExportAssignment(stmt)) {
+    return Node.isIdentifier(stmt.getExpression());
+  }
+  return Node.isImportDeclaration(stmt) || Node.isExportDeclaration(stmt);
+}
+
+/** The identifier `BindingElement`s of a DESTRUCTURING declaration (`export const { a, b: c } = …`); empty
+ *  for a plain `const x = …`.
+ *
+ *  THE IDENTITY RULE THIS ENFORCES (caught by the lens's own first audit, 2026-08-03): the whole substrate
+ *  keys on the node `getExportedDeclarations()` hands back, and for a destructured export that node is the
+ *  BindingElement — NOT the VariableDeclaration, whose `getName()` is the pattern text `"{ useAppForm }"`.
+ *  Keying the node side on the VariableDeclaration while the consumer side keyed on the BindingElement forked
+ *  the identity exactly the way a bare NAME does, and reported the entire `useAppForm` form kit — 32
+ *  declarations, every bound field component in the client — as one chain-dead subtree. */
+function boundElementsOf(decl: Node): BindingElement[] {
+  if (!Node.isVariableDeclaration(decl) || Node.isIdentifier(decl.getNameNode())) {
+    return [];
+  }
+  return decl.getDescendantsOfKind(SyntaxKind.BindingElement).filter((element) => Node.isIdentifier(element.getNameNode()));
+}
+
+/** The keys of the top-level DECLARATION(s) a statement declares, or empty when it declares nothing (an
+ *  expression statement, an `if`, a `for` — a module-scope side-effect position). For a `VariableStatement`
+ *  the declarator is chosen BY POSITION, so `const a = 1, b = usesX()` attributes to `b`; a DESTRUCTURING
+ *  declarator yields EVERY bound element, because its initializer's consumption is kept alive by any one of
+ *  the names it binds (`const { useAppForm } = createFormHook({ … })` — the registered field components are
+ *  alive iff `useAppForm` is). */
+function topLevelDeclarationKeys(stmt: Node, at: Node): string[] {
+  if (Node.isVariableStatement(stmt)) {
+    const pos = at.getStart();
+    const decls = stmt.getDeclarations();
+    const hit = decls.find((d) => d.getStart() <= pos && pos < d.getEnd()) ?? decls[0];
+    if (hit === undefined) {
+      return [];
+    }
+    const bound = boundElementsOf(hit);
+    return bound.length > 0 ? bound.map((element) => declKey(element)) : [declKey(hit)];
+  }
+  const declares =
+    Node.isFunctionDeclaration(stmt) ||
+    Node.isClassDeclaration(stmt) ||
+    Node.isEnumDeclaration(stmt) ||
+    Node.isInterfaceDeclaration(stmt) ||
+    Node.isTypeAliasDeclaration(stmt);
+  return declares && stmt.getName() !== undefined ? [declKey(stmt)] : [];
+}
+
+/** The consumer keys a reference at `node` belongs to: the top-level declaration(s) whose subtree holds it,
+ *  or the file's module-scope sentinel. EMPTY for a binding-hop position (skip it entirely). */
+function consumerKeysOf(node: Node, sf: SourceFile): string[] {
+  let statement: Node = node;
+  let parent = statement.getParent();
+  while (parent !== undefined && !Node.isSourceFile(parent)) {
+    statement = parent;
+    parent = statement.getParent();
+  }
+  if (parent === undefined || isBindingHopStatement(statement)) {
+    return [];
+  }
+  const keys = topLevelDeclarationKeys(statement, node);
+  return keys.length > 0 ? keys : [moduleScopeKey(sf)];
+}
+
+/** `local name → the consumer keys that spell it`, for ONE file. The single identifier pass both edge arms
+ *  read; building it once is what keeps the whole substrate to one walk per file. */
+function consumerSitesOf(sf: SourceFile): Map<string, Set<string>> {
+  const sites = new Map<string, Set<string>>();
+  for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
+    const text = id.getText();
+    const set = sites.get(text) ?? new Set<string>();
+    for (const key of consumerKeysOf(id, sf)) {
+      set.add(key);
+    }
+    if (set.size > 0) {
+      sites.set(text, set);
+    }
+  }
+  return sites;
+}
+
+/** Record `originKey ← consumerKey`. A self-edge (a declaration spelling its own name) is dropped: a
+ *  declaration cannot keep itself alive, which is the property that makes the fixpoint terminate on a
+ *  self-recursive function instead of calling it live. */
+function addConsumerEdge(consumers: Map<string, Set<string>>, originKey: string, consumerKey: string): void {
+  if (originKey === consumerKey) {
+    return;
+  }
+  const set = consumers.get(originKey) ?? new Set<string>();
+  set.add(consumerKey);
+  consumers.set(originKey, set);
+}
+
+/** Link every consumer of a local binding to the ORIGIN declarations the exported name resolves to. */
+function linkLocalBinding(target: SourceFile, exportName: string, consumerKeys: ReadonlySet<string> | undefined, consumers: Map<string, Set<string>>): void {
+  if (consumerKeys === undefined || consumerKeys.size === 0) {
+    return;
+  }
+  for (const decl of target.getExportedDeclarations().get(exportName) ?? []) {
+    const originKey = declKey(decl);
+    for (const consumerKey of consumerKeys) {
+      addConsumerEdge(consumers, originKey, consumerKey);
+    }
+  }
+}
+
+/** ONE static import's declaration-granular edges. A namespace import spreads the target's WHOLE export
+ *  surface across the consumers of its alias — the err-alive arm, unchanged in spirit from markModuleAlive. */
+function recordImportEdges(imp: ImportDeclaration, sites: ReadonlyMap<string, Set<string>>, consumers: Map<string, Set<string>>): void {
+  const target = imp.getModuleSpecifierSourceFile();
+  if (target === undefined) {
+    return;
+  }
+  const ns = imp.getNamespaceImport();
+  if (ns !== undefined) {
+    const consumerKeys = sites.get(ns.getText());
+    for (const originKey of exposedNames(target).keys()) {
+      for (const consumerKey of consumerKeys ?? []) {
+        addConsumerEdge(consumers, originKey, consumerKey);
+      }
+    }
+    return;
+  }
+  for (const spec of imp.getNamedImports()) {
+    linkLocalBinding(target, spec.getName(), sites.get(spec.getAliasNode()?.getText() ?? spec.getName()), consumers);
+  }
+  const byDefault = imp.getDefaultImport();
+  if (byDefault !== undefined) {
+    linkLocalBinding(target, "default", sites.get(byDefault.getText()), consumers);
+  }
+}
+
+/** The workspace file a `import("…")` CALL resolves to, or undefined when the node is not a dynamic import
+ *  of a string literal this resolver can follow. */
+function dynamicImportTargetOf(call: Node, sf: SourceFile, project: Project): SourceFile | undefined {
+  if (!Node.isCallExpression(call) || call.getExpression().getKind() !== SyntaxKind.ImportKeyword) {
+    return;
+  }
+  const arg = call.getArguments()[0];
+  if (arg === undefined || !Node.isStringLiteral(arg)) {
+    return;
+  }
+  return resolveModule(project, sf.getDirectoryPath(), arg.getLiteralText());
+}
+
+/** A dynamic `import()` keeps its target's whole surface alive — attributed to the declaration holding the
+ *  CALL, which is finer than the import-edge arm can be (that one only knows the file). */
+function recordDynamicImportEdges(sf: SourceFile, project: Project, consumers: Map<string, Set<string>>): void {
+  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    const target = dynamicImportTargetOf(call, sf, project);
+    if (target === undefined) {
+      continue;
+    }
+    for (const consumerKey of consumerKeysOf(call, sf)) {
+      markModuleEdges(target, consumerKey, consumers);
+    }
+  }
+}
+
+/** Every export of `target` gains `consumerKey` as a consumer — the whole-surface arm shared by the
+ *  namespace-import and dynamic-import edges (err alive, exactly as `markModuleAlive` does). */
+function markModuleEdges(target: SourceFile, consumerKey: string, consumers: Map<string, Set<string>>): void {
+  for (const decls of target.getExportedDeclarations().values()) {
+    for (const decl of decls) {
+      addConsumerEdge(consumers, declKey(decl), consumerKey);
+    }
+  }
+}
+
+/** Every TOP-LEVEL declaration of a file, exported or not. A non-exported helper is a real hop in a chain —
+ *  a rabbit hole that launders itself through a file-local alias is the same defect as one that exports it. */
+/** ONE `const`/`let` statement's declarations: a plain declarator yields itself, a destructuring one yields
+ *  every bound element (the identity `getExportedDeclarations()` hands back — see {@link boundElementsOf}). */
+function* variableStatementDeclarations(stmt: Node): Generator<{ name: string; decl: Node }> {
+  if (!Node.isVariableStatement(stmt)) {
+    return;
+  }
+  for (const decl of stmt.getDeclarations()) {
+    const bound = boundElementsOf(decl);
+    if (bound.length === 0) {
+      yield { name: decl.getName(), decl };
+      continue;
+    }
+    for (const element of bound) {
+      yield { name: element.getNameNode().getText(), decl: element };
+    }
+  }
+}
+
+/** The non-`const` top-level declaration kinds, each its own statement and its own name. */
+function namedStatementDeclaration(stmt: Node): { name: string; decl: Node } | undefined {
+  const named =
+    Node.isFunctionDeclaration(stmt) ||
+    Node.isClassDeclaration(stmt) ||
+    Node.isEnumDeclaration(stmt) ||
+    Node.isInterfaceDeclaration(stmt) ||
+    Node.isTypeAliasDeclaration(stmt);
+  const name = named ? stmt.getName() : undefined;
+  return name === undefined ? undefined : { name, decl: stmt };
+}
+
+export function* topLevelDeclarations(sf: SourceFile): Generator<{ name: string; decl: Node }> {
+  for (const stmt of sf.getStatements()) {
+    yield* variableStatementDeclarations(stmt);
+    const named = namedStatementDeclaration(stmt);
+    if (named !== undefined) {
+      yield named;
+    }
+  }
+}
+
+/** Every declaration-granular edge ONE file contributes: its import bindings resolved to origins, its
+ *  dynamic-import targets, and its own top-level declarations' same-file uses. */
+function recordDeclarationEdges(sf: SourceFile, project: Project, consumers: Map<string, Set<string>>): void {
+  const sites = consumerSitesOf(sf);
+  for (const imp of sf.getImportDeclarations()) {
+    recordImportEdges(imp, sites, consumers);
+  }
+  recordDynamicImportEdges(sf, project, consumers);
+  for (const { name, decl } of topLevelDeclarations(sf)) {
+    const originKey = declKey(decl);
+    for (const consumerKey of sites.get(name) ?? []) {
+      addConsumerEdge(consumers, originKey, consumerKey);
+    }
+  }
 }
 
 const MODULE_FILE_EXTS = [".ts", ".tsx"] as const;
@@ -635,6 +953,31 @@ export function collectOrphanCandidates(project: Project, live: Liveness, inScop
  *  caller: the ratchet's stale-`@public` arm asks this question and must not re-derive `declKey`. */
 export function isProdConsumed(live: Liveness, decl: Node): boolean {
   return live.usedProd.has(declKey(decl));
+}
+
+// The `@public` marker plus the REST OF ITS LINE — the reason. Read per-line and stripped of the JSDoc
+// terminator on purpose: a naive `/@public\s+\S/` is satisfied by the `*/` of a BARE `/** @public */`
+// (space, then `*` — a non-space char), which silently turns the reason requirement off. Probe-caught at the
+// ratchet, 2026-08-03.
+const PUBLIC_TAG_RE = /@public(?<reason>[^\n]*)/u;
+const JSDOC_TERMINATOR_RE = /\*\/\s*$/u;
+
+/** Does this declaration carry `/** @public <reason> *\/` in a LEADING comment, WITH a reason? (the
+ *  `isUnwiredExempt` discipline: a bare marker is not a legal exemption.)
+ *
+ *  ONE HOME, deliberately: the push-tier ratchet (scripts/verify/orphan-export-ratchet.ts) reads this to
+ *  decide which orphan candidates it judges, and the `chains` fixpoint reads it to decide which declarations
+ *  are ALIVE ROOTS. Two spellings of the predicate would let the two disagree about what "deliberately
+ *  unconsumed" means — and the chain lens would then report a whole tree hanging off a head the ratchet has
+ *  already ratified. Reads through {@link commentHost}: a tagged `export const`'s JSDoc sits on the
+ *  VariableStatement, not on the VariableDeclaration the liveness keys on. */
+export function isPublicTagged(decl: Node): boolean {
+  return commentHost(decl)
+    .getLeadingCommentRanges()
+    .some((range) => {
+      const reason = PUBLIC_TAG_RE.exec(range.getText())?.groups?.["reason"];
+      return reason !== undefined && reason.replace(JSDOC_TERMINATOR_RE, "").trim().length > 0;
+    });
 }
 
 /** A candidate as a printable Hit — `<name>  —  <declaration line>`, the form both lists use. */
@@ -2660,6 +3003,309 @@ function cmdRegKeys(project: Project, arg: string, flags: Flags): void {
   emit(hits, flags, `regkeys ${arg === "" ? "(all registries)" : arg}`);
 }
 
+// ── chains: declarations whose ONLY life originates inside OTHER DEAD declarations ─────────────────────
+// The owner-named ALIAS-RABBIT-HOLE class, and the one rot shape every lens above is structurally blind to.
+// `orphans` asks "does ANYTHING reach this export?" and stops. So a chain — `export const Head = Mid` that
+// nobody consumes, `export const Mid = Deep`, `export function Deep()` — reports as exactly ONE hit: the
+// head. Delete the head, re-run, get one more hit; delete that, re-run, get one more. Three passes of a
+// human's attention for one dead subtree, and only if they think to re-run at all. Worse, the shape hides in
+// LIVE files: `Mid`'s file can be full of load-bearing code, so no FILE lens (`prodonly`, knip's unused-files,
+// an iterated version of either) can see the dead declaration inside it. Measured on the planted 3-link probe
+// before this verb existed: `orphans server` named `chainProbeHead` and neither of the two links below it.
+//
+// THE FIXPOINT. A declaration is ALIVE iff some ALIVE thing consumes it — which is circular on purpose and
+// resolved by iterating from the roots outward until nothing new is marked:
+//   ROOT 1 — a MODULE-SCOPE consumer. A side-effect position (`createRoot(el).render(<App/>)`, a top-level
+//     registration call) belongs to no declaration and nothing can make it dead.
+//   ROOT 2 — a consumer OUTSIDE the audited surface: a test path, or any file not under `packages/`
+//     (scripts, tooling, config). `orphans` already counts test consumption as life; this lens must agree
+//     with it or the two would nominate different code for deletion.
+//   ROOT 3 — a `/** @public <reason> */` declaration. That marker is the repo's ratified statement of
+//     "deliberately unconsumed API surface", it is judged two-sided by the push-tier orphan ratchet, and it
+//     is read HERE through the ratchet's own predicate ({@link isPublicTagged}) so the two cannot drift.
+//   ROOT 4 — every export of `packages/ui/src`. R2 of docs/architecture/core/ui-package-design.md: a sealed
+//     surface exists to be available, so "no consumer yet" is its designed state. The orphan ratchet exempts
+//     the whole package for exactly this reason; a chain lens that did not would report the entire UI tree.
+// Everything the roots transitively consume is alive. What is left is DEAD, in two shapes:
+//   • NO consumer edge at all — an `orphans` hit (or an unused file-local). NOT this lens's business, and
+//     deliberately not reported: two lenses reporting the same row is how a reader learns to skim both.
+//   • ≥1 consumer edge, EVERY one of them dead — the finding. `X ← only via Y (dead) ← only via Z
+//     (unconsumed)`, whole chain in one line, one run.
+//
+// THE FIX IS AT THE HEAD, and that is why this lens has NO marker of its own (owner-ratified 2026-08-03).
+// Every chain terminates at an unconsumed head that `orphans` already reports and the ratchet already
+// governs. Wire the head, or delete the head and the chain with it, or tag the head `@public <reason>` — any
+// of the three makes every link below it read alive here, by construction. A per-link `@chain-ok:` would let
+// somebody exempt a middle link while its head stays dead, which states nothing true.
+//
+// CANDIDATE lens, MANUAL tier — never a gate, for the same reason `swallowed`/`typeonly-alive`/`columns`
+// aren't, plus one specific to the fixpoint: a consumer this substrate cannot SEE (a registry dispatched by a
+// DB-sourced key, a `Trpc[…]` proxy consumption, a template-literal module id) makes a live declaration look
+// chain-dead, and a fixpoint AMPLIFIES that — one missed edge can kill a whole subtree in the report. Read the
+// call sites. The attribution errs alive wherever it can (see the substrate section's over-attribution note),
+// which is the only safe direction for a lens that nominates code for deletion.
+
+/** ONE declaration in the chain graph. `exported` separates the two remedies a reader has: an exported
+ *  chain-dead symbol may have an unseen dynamic consumer, a file-local one essentially cannot. */
+type ChainNode = { readonly name: string; readonly decl: Node; readonly exported: boolean };
+
+/** The graph the fixpoint walks: every audited declaration, plus the edge map in BOTH directions (the
+ *  forward index answers "who consumes me", the reverse one "what do I consume" — the fixpoint needs both). */
+type ChainGraph = {
+  readonly nodes: ReadonlyMap<string, ChainNode>;
+  readonly consumers: ReadonlyMap<string, ReadonlySet<string>>;
+  readonly consumes: ReadonlyMap<string, ReadonlySet<string>>;
+};
+
+/** ONE link in a rendered chain: the dead consumer's name and site, whether it is the TERMINAL (unconsumed)
+ *  head, and how many other dead consumers were elided at that step. */
+export type ChainLink = { readonly name: string; readonly site: string; readonly terminal: boolean; readonly alternates: number };
+
+/** ONE chain-dead declaration and the chain of dead consumers that is its entire liveness. */
+export type ChainCandidate = {
+  readonly name: string;
+  readonly decl: Node;
+  readonly exported: boolean;
+  readonly chain: readonly ChainLink[];
+};
+
+/** The workspace surface this lens audits: `packages/<pkg>/src/`. A file OUTSIDE it — a package's own
+ *  `vite.config.ts`, a build script — is loaded BY TOOLING, never through an import edge any lens can see,
+ *  so it is an unconditional alive root (same class as ROOT 2). Measured on the first audit: without this,
+ *  `devCspMirror` and six siblings inside `packages/client/vite.config.ts` read as a dead chain hanging off
+ *  the config's own (tooling-consumed, therefore "unconsumed") default export. */
+const PACKAGE_SRC_RE = /\/packages\/[^/]+\/src\//u;
+/** The bare-scope prefix (every package) — the nodes are already `src`-only by {@link PACKAGE_SRC_RE}. */
+const PACKAGES_PREFIX = "/packages/";
+/** The R2 sealed package: every export is an alive root (ROOT 4). */
+const UI_SRC_PREFIX = "/packages/ui/src/";
+/** How many links a rendered chain names before it stops — past this the reader has the shape already. */
+const CHAIN_MAX_LINKS = 8;
+/** How many chain-dead declarations the summary names per terminal head before collapsing to a count. */
+const CHAIN_HEADS_SHOWN = 12;
+/** Right-aligned width of the summary's per-head link count (the `columns` summary's COLUMN_COUNT_PAD). */
+const CHAIN_COUNT_PAD = 4;
+
+/** Is this consumer key outside the audited surface (a test, a script, a package's own build config)? ROOT 2. */
+function isChainRootFile(filePath: string): boolean {
+  return isTestPath(filePath) || !PACKAGE_SRC_RE.test(filePath);
+}
+
+/** Every audited declaration, keyed — plus the reverse edge index. Test files are not nodes (their
+ *  declarations are roots, per ROOT 2), matching `orphans`' own rule. */
+function buildChainGraph(project: Project, live: Liveness): ChainGraph {
+  const nodes = new Map<string, ChainNode>();
+  for (const sf of project.getSourceFiles()) {
+    const fp = sf.getFilePath();
+    if (!PACKAGE_SRC_RE.test(fp) || TEST_FILE_RE.test(fp)) {
+      continue;
+    }
+    const exportedKeys = new Set<string>();
+    for (const { decl } of ownExports(sf)) {
+      exportedKeys.add(declKey(decl));
+    }
+    for (const { name, decl } of topLevelDeclarations(sf)) {
+      const key = declKey(decl);
+      nodes.set(key, { name, decl, exported: exportedKeys.has(key) });
+    }
+  }
+  const consumes = new Map<string, Set<string>>();
+  for (const [originKey, consumerKeys] of live.consumers) {
+    for (const consumerKey of consumerKeys) {
+      const set = consumes.get(consumerKey) ?? new Set<string>();
+      set.add(originKey);
+      consumes.set(consumerKey, set);
+    }
+  }
+  return { nodes, consumers: live.consumers, consumes };
+}
+
+/** ROOT 1 + ROOT 2 — a consumer that is a module-scope side effect, or lives outside the audited surface
+ *  (a test, a script, a package's own build config). Nothing the fixpoint does can make either dead. */
+function isRootConsumerKey(consumerKey: string): boolean {
+  return isModuleScopeKey(consumerKey) || isChainRootFile(fileOfKey(consumerKey));
+}
+
+/** ROOT 3 + ROOT 4 — a declaration ratified as deliberately unconsumed (`@public <reason>`, the orphan
+ *  ratchet's own marker, read through its own predicate) or an export of the R2-sealed `ui` package. */
+function isRootDeclaration(node: ChainNode): boolean {
+  return (node.exported && node.decl.getSourceFile().getFilePath().includes(UI_SRC_PREFIX)) || isPublicTagged(node.decl);
+}
+
+/** The seed set: every ROOT, before any propagation. */
+function chainRootKeys(graph: ChainGraph): string[] {
+  const roots: string[] = [];
+  for (const consumerKeys of graph.consumers.values()) {
+    roots.push(...[...consumerKeys].filter(isRootConsumerKey));
+  }
+  for (const [key, node] of graph.nodes) {
+    if (isRootDeclaration(node)) {
+      roots.push(key);
+    }
+  }
+  return roots;
+}
+
+/** The fixpoint: seed the four roots, then mark everything an alive key consumes, until nothing new. */
+function chainAliveKeys(graph: ChainGraph): Set<string> {
+  const alive = new Set<string>();
+  const stack: string[] = [];
+  const seed = (key: string): void => {
+    if (!alive.has(key)) {
+      alive.add(key);
+      stack.push(key);
+    }
+  };
+  for (const root of chainRootKeys(graph)) {
+    seed(root);
+  }
+  while (stack.length > 0) {
+    const cur = stack.pop();
+    for (const originKey of (cur === undefined ? undefined : graph.consumes.get(cur)) ?? []) {
+      seed(originKey);
+    }
+  }
+  return alive;
+}
+
+/** `<repo-rel file>:<line>` for a graph key (the declaration's own position, or the file for a sentinel). */
+function chainSiteOf(key: string, graph: ChainGraph): string {
+  const node = graph.nodes.get(key);
+  if (node === undefined) {
+    return relPath(fileOfKey(key));
+  }
+  return `${relPath(node.decl.getSourceFile().getFilePath())}:${node.decl.getSourceFile().getLineAndColumnAtPos(node.decl.getStart()).line}`;
+}
+
+/** Walk UP from a chain-dead declaration through its dead consumers to the unconsumed head. At each step the
+ *  dead consumers are sorted and the first UNSEEN one is followed — the `seen` guard is what makes a dead
+ *  CYCLE (a mutually-referencing pair nothing else reaches) terminate instead of looping forever. */
+function chainOf(startKey: string, graph: ChainGraph, alive: ReadonlySet<string>): ChainLink[] {
+  const links: ChainLink[] = [];
+  const seen = new Set<string>([startKey]);
+  let cur = startKey;
+  while (links.length < CHAIN_MAX_LINKS) {
+    const dead = [...(graph.consumers.get(cur) ?? [])].filter((k) => !alive.has(k)).sort();
+    const next = dead.find((k) => !seen.has(k));
+    if (next === undefined) {
+      break;
+    }
+    seen.add(next);
+    links.push({
+      name: graph.nodes.get(next)?.name ?? relPath(fileOfKey(next)),
+      site: chainSiteOf(next, graph),
+      terminal: (graph.consumers.get(next)?.size ?? 0) === 0,
+      alternates: dead.length - 1,
+    });
+    cur = next;
+  }
+  return links;
+}
+
+/** The whole audit for one scope: the findings PLUS the graph's own size. The stats exist so a ZERO is
+ *  legible as CLEAN rather than as blindness — the permanent-zero footgun this file already ate once (the
+ *  `orphans contracts` bug: a 100%-barrel package reported clean while the lens could not see into it).
+ *  "0 findings over 4 declarations" and "0 findings over 9 000 declarations and 40 000 edges" are different
+ *  claims and a reader must be able to tell them apart. */
+export type ChainAudit = {
+  readonly candidates: readonly ChainCandidate[];
+  readonly declarations: number;
+  readonly edges: number;
+  readonly unconsumedHeads: number;
+};
+
+/** Declarations of `inScope` that are DEAD but DO have consumer edges — every one of them dead too. Pure
+ *  enumeration: no printing, no scope policy (the verb owns both), so the self-test drives the same function
+ *  the CLI does. A dead declaration with NO consumer at all is an `orphans` hit and is deliberately absent
+ *  from `candidates` — it is counted in `unconsumedHeads` instead, because it is where a reader FIXES. */
+export function collectChainAudit(project: Project, live: Liveness, inScope: (filePath: string) => boolean): ChainAudit {
+  const graph = buildChainGraph(project, live);
+  const alive = chainAliveKeys(graph);
+  const candidates: ChainCandidate[] = [];
+  let edges = 0;
+  let unconsumedHeads = 0;
+  for (const [key, node] of graph.nodes) {
+    const consumers = graph.consumers.get(key);
+    edges += consumers?.size ?? 0;
+    const dead = !alive.has(key);
+    if (dead && (consumers === undefined || consumers.size === 0)) {
+      unconsumedHeads += 1;
+      continue;
+    }
+    if (dead && inScope(node.decl.getSourceFile().getFilePath())) {
+      candidates.push({ name: node.name, decl: node.decl, exported: node.exported, chain: chainOf(key, graph, alive) });
+    }
+  }
+  return { candidates, declarations: graph.nodes.size, edges, unconsumedHeads };
+}
+
+/** The findings alone — the shape every caller but the CLI summary wants. */
+export function collectChainCandidates(project: Project, live: Liveness, inScope: (filePath: string) => boolean): readonly ChainCandidate[] {
+  return collectChainAudit(project, live, inScope).candidates;
+}
+
+/** One rendered link: `only via <name> (dead|unconsumed[, +N more dead consumer(s)]) @ file:line`. */
+function chainLinkText(link: ChainLink): string {
+  const more = link.alternates > 0 ? `, +${link.alternates} more dead consumer(s)` : "";
+  return `only via ${link.name} (${link.terminal ? "unconsumed" : "dead"}${more}) @ ${link.site}`;
+}
+
+function chainHit(candidate: ChainCandidate): Hit {
+  const rendered = candidate.chain.map(chainLinkText).join("  ←  ");
+  // A chain whose last link is NOT terminal ran into the `seen` guard: the remaining consumers are already
+  // named above it, i.e. the dead region is a CYCLE with no unconsumed head to fix at.
+  const cycle = candidate.chain.at(-1)?.terminal === false ? "  ←  ↺ dead CYCLE (no unconsumed head — delete the region)" : "";
+  const h = hitOf(candidate.decl, candidate.exported ? "chain-dead-export" : "chain-dead-local");
+  h.text = `${candidate.name}  ←  ${rendered}${cycle}`;
+  return h;
+}
+
+/** The deliverable above the hit list: how many chain-dead declarations hang off each UNCONSUMED HEAD —
+ *  the rows a reader actually acts on, since fixing one head resolves every link under it. */
+function printChainSummary(audit: ChainAudit): void {
+  const { candidates } = audit;
+  console.log(
+    `chains: graph = ${audit.declarations} declaration(s) with ${audit.edges} consumption edge(s); ${audit.unconsumedHeads} of them are UNCONSUMED heads (the \`orphans\`/\`@public\` class — reported by that lens, not this one). A zero below means those heads have nothing dead hanging off them, NOT that the lens is blind.`,
+  );
+  const byHead = new Map<string, number>();
+  let headless = 0;
+  for (const candidate of candidates) {
+    const head = candidate.chain.findLast((l) => l.terminal);
+    if (head === undefined) {
+      headless += 1;
+      continue;
+    }
+    const label = `${head.name}  @ ${head.site}`;
+    byHead.set(label, (byHead.get(label) ?? 0) + 1);
+  }
+  const exported = candidates.filter((c) => c.exported).length;
+  console.log(
+    `chains: ${candidates.length} chain-dead declaration(s) (${exported} exported, ${candidates.length - exported} file-local) hanging off ${byHead.size} unconsumed head(s)${headless === 0 ? "" : `, plus ${headless} in dead cycles with no head`}`,
+  );
+  const ranked = [...byHead.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  for (const [label, count] of ranked.slice(0, CHAIN_HEADS_SHOWN)) {
+    console.log(`  ${String(count).padStart(CHAIN_COUNT_PAD)} link(s) ← head ${label}`);
+  }
+  if (ranked.length > CHAIN_HEADS_SHOWN) {
+    console.log(`  … and ${ranked.length - CHAIN_HEADS_SHOWN} more head(s)`);
+  }
+}
+
+/** Declarations whose ONLY life originates inside declarations that are themselves dead — the alias
+ *  rabbit hole, reported as WHOLE chains in one run. Optional scope (a package name / path); bare = every
+ *  package. No marker of its own: the fix (and the `@public` exemption) lives at the chain's HEAD. */
+function cmdChains(project: Project, arg: string, flags: Flags): void {
+  const scope = arg === "" ? { prefix: PACKAGES_PREFIX, label: "(all packages)" } : resolveScope(project, arg, "chains");
+  const live = buildLiveness(project, { edges: true });
+  const audit = collectChainAudit(project, live, (fp) => fp.includes(scope.prefix));
+  const { candidates } = audit;
+  printChainSummary(audit);
+  console.log(
+    "chains is a CANDIDATE lens — it reports declarations whose ONLY consumers are THEMSELVES dead, as whole chains (`X ← only via Y (dead) ← only via Z (unconsumed)`). FIX AT THE HEAD: wire it, delete it, or tag it `/** @public <reason> */` — any of the three makes every link below read alive here, which is why this lens has no per-link marker of its own. VERIFY before acting: consumption attribution is syntactic and name-based inside a file, and a consumer this substrate cannot see (a registry keyed from the DB, a `Trpc[…]` proxy read, a template-literal module id) makes a LIVE declaration look chain-dead — a fixpoint amplifies one missed edge into a whole dead-looking subtree. Alive roots: module-scope side effects, test/script consumers, `@public`-tagged exports, and every `packages/ui/src` export (the R2 sealed surface).",
+  );
+  emit(candidates.map(chainHit), flags, `chains ${scope.label}`);
+}
+
 const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => void> = {
   refs: cmdRefs,
   callers: cmdCallers,
@@ -2679,6 +3325,7 @@ const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => voi
   "typeonly-alive": cmdTypeOnly,
   columns: cmdColumns,
   regkeys: cmdRegKeys,
+  chains: cmdChains,
 };
 
 // depcruise pass-throughs — the module-graph layer (the same config + rules the gates run), in
@@ -2703,10 +3350,23 @@ function runDepcruise(mode: string, pattern: string): void {
 // Verbs that resolve module specifiers to origin declarations (need the types:true / full-graph arm).
 // refs+cycles use the language service; orphans+testonly resolve every import to its origin decl so
 // liveness keys on (file, name) — bare-name matching over-reports same-file use and misses collisions.
-const TYPED_VERBS = new Set(["refs", "cycles", "orphans", "testonly", "prodonly", "unwired", "clientgap", "swallowed", "respell", "typeonly-alive", "columns"]);
+const TYPED_VERBS = new Set([
+  "refs",
+  "cycles",
+  "orphans",
+  "testonly",
+  "prodonly",
+  "unwired",
+  "clientgap",
+  "swallowed",
+  "respell",
+  "typeonly-alive",
+  "columns",
+  "chains",
+]);
 
 // Verbs whose scope arg is OPTIONAL (default to the whole surface) — run bare, arg defaults to "".
-const ARGLESS_VERBS = new Set(["unwired", "clientgap", "swallowed", "respell", "typeonly-alive", "columns", "regkeys"]);
+const ARGLESS_VERBS = new Set(["unwired", "clientgap", "swallowed", "respell", "typeonly-alive", "columns", "regkeys", "chains"]);
 
 const VERB_LIST = [...Object.keys(VERBS), ...Object.keys(DEPCRUISE_VERBS)].join("|");
 const USAGE = [
@@ -2733,6 +3393,7 @@ const USAGE = [
   "  pnpm ast typeonly-alive server     VALUE exports whose every reference is a TYPE position (runtime-dead)",
   "  pnpm ast columns rpg_games         drizzle columns by consumption: READ+WRITE / WRITE-only / READ-only / NEITHER",
   "  pnpm ast regkeys TEMPLATE_DEFS     registry ROWS whose key is dispatched nowhere (HEURISTIC, informational)",
+  "  pnpm ast chains server             WHOLE dead chains: declarations alive only via other DEAD declarations",
   "  pnpm ast flow chat/engine          module graph: X's direct edges both ways (depcruise, text)",
   "  pnpm ast reaches agent-sdk         every module that can transitively reach X (depcruise)",
   "",
@@ -2802,6 +3463,22 @@ const USAGE = [
   "  string, a property name, an identifier, or a JSX attribute — in NO non-test file outside its own table.",
   "  EXPECT FALSE POSITIVES: a key from the DB, a URL segment, a template literal, or an `Object.keys(REG)`",
   "  iteration is a LIVE row that looks dead here. That is exactly why it never gates. Syntactic only, so fast.",
+  "",
+  "chains (CANDIDATE lens, run on demand) = the ALIAS-RABBIT-HOLE class `orphans` is structurally blind to.",
+  "  `orphans` asks 'does anything reach this export?' and stops, so a dead chain (`export const Head = Mid`",
+  "  that nobody consumes, `export const Mid = Deep`, `function Deep()`) reports as ONE hit — the head — and",
+  "  costs a delete-and-rerun cycle per link. No FILE lens can help either: the middle links live inside",
+  "  perfectly live files. `chains` runs a FIXPOINT over a DECLARATION-granular consumption edge (which",
+  "  declaration's body holds the consuming reference, not merely which file) and reports whole chains in one",
+  "  run: `X ← only via Y (dead) ← only via Z (unconsumed)`. ALIVE ROOTS: a module-scope side-effect consumer,",
+  "  a consumer in a test/script (outside packages/), a `/** @public <reason> */` export (the ratchet's own",
+  "  marker, read through the ratchet's own predicate), and every `packages/ui/src` export (the R2 sealed",
+  "  surface). A declaration NOTHING reaches is an `orphans` hit and is deliberately NOT repeated here. There",
+  "  is NO per-link exemption marker by design — every chain ends at an unconsumed head that `orphans` already",
+  "  reports and the ratchet already governs, so FIX AT THE HEAD (wire it, delete it, or `@public` it) and the",
+  "  whole chain resolves. VERIFY before acting: a consumer this substrate cannot see (a DB-keyed registry",
+  "  row, a `Trpc[…]` proxy read) makes a live declaration look chain-dead, and a fixpoint amplifies one",
+  "  missed edge into a whole dead-looking subtree. Optional scope; bare = every package.",
   "",
   "Flags: --in <substr> path filter · --files per-file counts only (cheapest output) ·",
   "       --max <n> raw-line cap (default 60; big result sets auto-collapse to per-file counts) ·",

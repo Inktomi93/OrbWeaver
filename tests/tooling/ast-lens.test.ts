@@ -1,16 +1,24 @@
 // Self-test for the `pnpm ast` rot lenses (scripts/codemods/ast.ts) — unwired, clientgap, the orphan
-// substrate, swallowed, respell, typeonly-alive, columns, and regkeys. Each drives the pure enumeration
-// substrate over a tiny synthetic project (a server router with one WIRED and one UNWIRED procedure; a
-// namespace-swallowed schema barrel; a derived-vs-hand-spelled contract pair; a value export reached only
-// from type positions; a miniature drizzle schema with one column per consumption class) and asserts the
-// lens flags EXACTLY the defect shape — bite-proof in both directions, never a sketch.
+// substrate, swallowed, respell, typeonly-alive, columns, regkeys, and chains. Each drives the pure
+// enumeration substrate over a tiny synthetic project (a server router with one WIRED and one UNWIRED
+// procedure; a namespace-swallowed schema barrel; a derived-vs-hand-spelled contract pair; a value export
+// reached only from type positions; a miniature drizzle schema with one column per consumption class; a
+// 3-link dead chain) and asserts the lens flags EXACTLY the defect shape — bite-proof in both directions,
+// never a sketch.
+//
+// ONE SUITE HERE IS A GATE GUARD, NOT A LENS TEST: "ast liveness edge map (parallel + opt-in)". The
+// declaration-granular edge `chains` needs was added to `buildLiveness`, which the PUSH-tier
+// `deps:orphan-ratchet` also reads — so that suite pins the six liveness sets identical with the edge flag
+// off and on. Perturbing them is a GATE regression, not a lens change. Do not weaken it.
 
 import { Project } from "ts-morph";
 import { describe } from "vitest";
-import type { SwallowedCandidate } from "../../scripts/codemods/ast.ts";
+import type { ChainCandidate, Liveness, SwallowedCandidate } from "../../scripts/codemods/ast.ts";
 import {
   assignabilityChecker,
   buildLiveness,
+  collectChainAudit,
+  collectChainCandidates,
   collectClientConsumed,
   collectColumnCandidates,
   collectOrphanCandidates,
@@ -21,6 +29,7 @@ import {
   collectTypeOnlyCandidates,
   isColumnExempt,
   isProdConsumed,
+  isPublicTagged,
   isSwallowedExempt,
   isTypeOnlyExempt,
   isUnwiredExempt,
@@ -736,6 +745,229 @@ export const which = (r: { settings: number }): number => r.settings;
       "packages/client/src/state/typed.ts": "export const handlers: Record<string, number> = { a: 1, b: 2, c: 3 };\n",
     });
     expect(collectRegistries(project).map((r) => r.name)).toEqual(["handlers"]);
+  });
+});
+
+// ── the DECLARATION-GRANULAR edge must not perturb the liveness sets (the GATE-REGRESSION guard) ──────
+// `buildLiveness` is shared substrate: `pnpm ast orphans` prints its verdict and the PUSH-tier
+// `deps:orphan-ratchet` (scripts/verify/orphan-export-ratchet.ts) gates on the same candidate set. So the
+// edge map added for `chains` is PARALLEL and OPT-IN, and this is the pin that keeps it that way: over every
+// fixture corpus in this file, the six liveness sets must be IDENTICAL with the flag off and on — the flag's
+// only observable effect is `consumers`. (The same identity was measured on the REAL workspace before and
+// after the substrate landed: all 7028 usedProd / 8353 arm entries byte-identical outside the edited files.)
+
+/** Everything a liveness verdict is allowed to depend on, in a comparable form. */
+function livenessDigest(live: Liveness): Record<string, string[]> {
+  const sorted = (bucket: Set<string>): string[] => [...bucket].sort(byString);
+  return {
+    usedProd: sorted(live.usedProd),
+    usedClientProd: sorted(live.usedClientProd),
+    usedServerProd: sorted(live.usedServerProd),
+    usedTest: sorted(live.usedTest),
+    starTargets: sorted(live.starTargets),
+    arms: [...live.arms.entries()].map(([k, v]) => `${k}=>${[...v].sort(byString).join(",")}`).sort(byString),
+    namespaceSites: live.namespaceSites.map((s) => `${s.file.getFilePath()}::${s.alias}::${[...s.exposed.keys()].sort(byString).join("|")}`).sort(byString),
+  };
+}
+
+describe("ast liveness edge map (parallel + opt-in)", () => {
+  test("the edge flag changes NOTHING about the liveness sets, on every fixture corpus in this file", () => {
+    const corpora: Record<string, Record<string, string>> = {
+      alias: {
+        ...ALIAS_FILES,
+        "packages/server/src/domain/wi/service.ts": 'import { createCreateBook } from "./verbs/index"; export const wired = [createCreateBook];',
+      },
+      swallowed: SWALLOWED_FILES,
+      columns: COLUMN_FILES,
+      chain: CHAIN_FILES,
+      typeonly: {
+        "packages/server/src/typeonly/origin.ts": TYPEONLY_ORIGIN,
+        "packages/client/src/features/typeonly/panel.ts": TYPEONLY_CONSUMER,
+      },
+    };
+    for (const [label, files] of Object.entries(corpora)) {
+      const project = projectOf(files);
+      const off = buildLiveness(project);
+      const on = buildLiveness(project, { edges: true });
+      // The load-bearing assertion: the sets orphans/testonly/clientgap/swallowed/the ratchet read are equal.
+      expect(livenessDigest(on), `corpus ${label}`).toEqual(livenessDigest(off));
+      // …and the flag is what it claims to be — the map is EMPTY when off and populated when on, so a future
+      // edit that computes edges unconditionally (re-introducing the cost on the ratchet's path) fails here.
+      expect(off.consumers.size, `corpus ${label} (off)`).toBe(0);
+      expect(on.consumers.size, `corpus ${label} (on)`).toBeGreaterThan(0);
+    }
+  });
+});
+
+// ── chains: WHOLE dead chains, not just the head ──────────────────────────────────────────────────
+// The alias-rabbit-hole class. `orphans` answers "does anything reach this export?" and stops, so a chain
+// reports as ONE hit — its head — and costs a delete-and-rerun cycle per link. Measured on the real tree
+// before this lens existed: a planted 3-link chain under packages/server/src/ made `pnpm ast orphans server`
+// print exactly `chainProbeHead` and neither link below it. The fixture below is that shape, plus a FILE-LOCAL
+// hop (the arm no import-edge lens can ever see) so one run has to name all three links.
+
+const CHAIN_FILES: Record<string, string> = {
+  "packages/server/src/chain/deep.ts": "export function deepFn(): number { return 1; }\n",
+  // `localHop` is NOT exported — a chain that launders itself through a file-local alias is the same defect,
+  // and it is invisible to every import-edge lens in the file.
+  "packages/server/src/chain/mid.ts": 'import { deepFn } from "./deep";\nconst localHop = deepFn;\nexport const midValue = localHop();\n',
+  "packages/server/src/chain/head.ts": 'import { midValue } from "./mid";\nexport const headValue = midValue + 1;\n',
+};
+
+const inChainScope = (fp: string): boolean => fp.includes("/packages/server/src/chain/");
+
+/** The lens's candidates for one file set, by name — sorted, so every assertion below is EXACT (a lens that
+ *  names one link too few or the head too many fails, which is what makes these tests mutation-proof). */
+function chainNames(files: Record<string, string>, inScope: (fp: string) => boolean = inChainScope): string[] {
+  const project = projectOf(files);
+  return collectChainCandidates(project, buildLiveness(project, { edges: true }), inScope)
+    .map((c) => c.name)
+    .sort(byString);
+}
+
+describe("ast chains lens (declaration-granular fixpoint)", () => {
+  test("names EVERY link of a 3-link chain in ONE run — and never the head, which is `orphans`' hit", () => {
+    const project = projectOf(CHAIN_FILES);
+    const candidates = collectChainCandidates(project, buildLiveness(project, { edges: true }), inChainScope);
+
+    // All three links below the head, including the FILE-LOCAL hop. `headValue` is absent: nothing reaches it
+    // at all, so it is an `orphans` hit — the two lenses never report the same row (the `swallowed` rule).
+    expect(candidates.map((c) => c.name).sort(byString)).toEqual(["deepFn", "localHop", "midValue"]);
+    // …and `orphans` really does own the head, on the SAME project — the split is a fact, not a convention.
+    expect(collectOrphanCandidates(project, buildLiveness(project), inChainScope).map((c) => c.name)).toEqual(["headValue"]);
+
+    const byName = new Map(candidates.map((c) => [c.name, c]));
+    // The export/file-local split a reader prices a verdict with: a file-local link essentially cannot have
+    // an unseen dynamic consumer, an exported one can.
+    expect(byName.get("localHop")?.exported).toBe(false);
+    expect(byName.get("midValue")?.exported).toBe(true);
+
+    // The WHOLE chain is rendered, in order, terminating at the unconsumed head — that rendering is the
+    // deliverable (the reason this lens exists is that a reader gets the root cause without three re-runs).
+    const deep = byName.get("deepFn") as ChainCandidate;
+    expect(deep.chain.map((l) => l.name)).toEqual(["localHop", "midValue", "headValue"]);
+    expect(deep.chain.map((l) => l.terminal)).toEqual([false, false, true]);
+  });
+
+  test("the audit reports the GRAPH's own size, so a ZERO is legible as clean rather than as blindness", () => {
+    // The permanent-zero footgun this file already ate once (`orphans contracts` reporting clean while blind
+    // to a 100%-barrel package). "0 findings" is only a claim if the reader can see how much was examined —
+    // and the whole-workspace first audit of this lens WAS a zero, which is why these numbers must be real.
+    const project = projectOf(CHAIN_FILES);
+    const audit = collectChainAudit(project, buildLiveness(project, { edges: true }), inChainScope);
+    expect(audit.declarations).toBe(4); // deepFn, localHop, midValue, headValue
+    expect(audit.edges).toBe(3); // deepFn←localHop, localHop←midValue, midValue←headValue
+    expect(audit.unconsumedHeads).toBe(1); // headValue — the `orphans` hit this lens does NOT repeat
+    expect(audit.candidates).toHaveLength(3);
+  });
+
+  test("`@public <reason>` on the HEAD makes the whole chain alive — the fix-at-the-head rule, end to end", () => {
+    // The lens deliberately has NO marker of its own: every chain ends at an orphan candidate the ratchet
+    // already governs, so tagging the head is the exemption. A BARE `@public` must NOT exempt (the
+    // `isUnwiredExempt` discipline), which is the other half of this test.
+    const headPath = "packages/server/src/chain/head.ts";
+    const tagged = {
+      ...CHAIN_FILES,
+      [headPath]: 'import { midValue } from "./mid";\n/** @public the unbuilt admin surface this pairs with. */\nexport const headValue = midValue + 1;\n',
+    };
+    expect(chainNames(tagged)).toEqual([]);
+
+    const bare = { ...CHAIN_FILES, [headPath]: 'import { midValue } from "./mid";\n/** @public */\nexport const headValue = midValue + 1;\n' };
+    expect(chainNames(bare)).toEqual(["deepFn", "localHop", "midValue"]);
+
+    // The predicate itself, at the ONE home the push-tier orphan ratchet imports (two spellings of it would
+    // let the ratchet and this fixpoint disagree about what "deliberately unconsumed" means).
+    const headDecl = (files: Record<string, string>): Parameters<typeof isPublicTagged>[0] =>
+      projectOf(files).getSourceFileOrThrow(`${ROOT}/${headPath}`).getVariableDeclarationOrThrow("headValue");
+    expect(isPublicTagged(headDecl(tagged))).toBe(true);
+    expect(isPublicTagged(headDecl(bare))).toBe(false);
+  });
+
+  test("a MODULE-SCOPE side effect and a TEST consumer are each alive roots (nothing can make them dead)", () => {
+    // ROOT 1 — a top-level statement belongs to no declaration, so the fixpoint can never kill it.
+    const sideEffect = { ...CHAIN_FILES, "packages/server/src/chain/boot.ts": 'import { headValue } from "./head";\nconsole.log(headValue);\n' };
+    expect(chainNames(sideEffect)).toEqual([]);
+    // ROOT 2 — a test consumer, exactly as `orphans` counts test consumption as life. The two lenses must
+    // agree about what is alive or they would nominate different code for deletion.
+    const fromTest = {
+      ...CHAIN_FILES,
+      "tests/chain/head.test.ts": 'import { headValue } from "../../packages/server/src/chain/head";\nexport const t = headValue;\n',
+    };
+    expect(chainNames(fromTest)).toEqual([]);
+  });
+
+  test("a DESTRUCTURED export keys on its BindingElement, so its chain is neither faked nor missed", () => {
+    // The regression the lens's own first audit caught: `getExportedDeclarations()` hands back the
+    // BindingElement for `export const { useKit } = …`, while the declaration side saw a VariableDeclaration
+    // named `"{ useKit }"`. That fork reported the entire `useAppForm` form kit — 32 declarations — as one
+    // chain-dead subtree. Both directions are pinned here, because a fix that just excluded destructured
+    // declarations would pass the alive arm and silently lose the chain arm.
+    const files: Record<string, string> = {
+      "packages/server/src/chain/widget.ts": "export const FieldWidget = { id: 1 };\n",
+      "packages/server/src/chain/kit.ts": 'import { FieldWidget } from "./widget";\nexport const { useKit } = makeKit({ FieldWidget });\n',
+    };
+    // ALIVE arm: a module-scope consumer of the destructured name keeps the registered widget alive THROUGH
+    // the binding element. Under the forked keying this reported `FieldWidget`.
+    expect(chainNames({ ...files, "packages/server/src/chain/boot.ts": 'import { useKit } from "./kit";\nconsole.log(useKit);\n' })).toEqual([]);
+    // CHAIN arm: with nothing consuming `useKit`, the widget is chain-dead THROUGH it — and the link is
+    // named `useKit`, not the pattern text, so the reader is told where to go.
+    const project = projectOf(files);
+    const candidates = collectChainCandidates(project, buildLiveness(project, { edges: true }), inChainScope);
+    expect(candidates.map((c) => c.name)).toEqual(["FieldWidget"]);
+    expect(candidates[0]?.chain.map((l) => l.name)).toEqual(["useKit"]);
+  });
+
+  test("an export reached by NOBODY is an orphan, not a chain hit (the lenses do not overlap)", () => {
+    const project = projectOf({ "packages/server/src/chain/solo.ts": "export const unreached = { id: 1 };\n" });
+    expect(collectChainCandidates(project, buildLiveness(project, { edges: true }), inChainScope)).toEqual([]);
+    expect(collectOrphanCandidates(project, buildLiveness(project), inChainScope).map((c) => c.name)).toEqual(["unreached"]);
+  });
+
+  test("a dead CYCLE terminates and is reported as having no head to fix at", () => {
+    // Two declarations that only reach each other: dead, but neither chain ever arrives at an unconsumed
+    // head. Without the walk's `seen` guard this loops forever; without reporting them the fixpoint's whole
+    // advantage over iterated file reachability is lost (this is the shape no file lens can resolve).
+    const project = projectOf({
+      "packages/server/src/chain/a.ts": 'import { bee } from "./b";\nexport const ay = (): number => bee();\n',
+      "packages/server/src/chain/b.ts": 'import { ay } from "./a";\nexport const bee = (): number => ay();\n',
+    });
+    const candidates = collectChainCandidates(project, buildLiveness(project, { edges: true }), inChainScope);
+    expect(candidates.map((c) => c.name).sort(byString)).toEqual(["ay", "bee"]);
+    // Every rendered chain ends on a NON-terminal link — the tell the verb prints as `↺ dead CYCLE`.
+    for (const candidate of candidates) {
+      expect(candidate.chain.length).toBeGreaterThan(0);
+      expect(candidate.chain.at(-1)?.terminal).toBe(false);
+    }
+  });
+
+  test("a package's own build config is an alive root (it is loaded by TOOLING, not by an import edge)", () => {
+    // The other false-positive class the first audit caught: `packages/client/vite.config.ts`'s helpers hung
+    // off the config's own default export, which no workspace file imports because VITE loads it. The audited
+    // surface is `packages/<pkg>/src/` for exactly this reason.
+    const files: Record<string, string> = {
+      "packages/server/src/chain/helper.ts": "export const buildHelper = (): number => 1;\n",
+      // The real shape: a helper chain living INSIDE the config, whose own top export nothing imports
+      // (vite does). Treat the config as audited surface and `buildHelper` reads chain-dead through it.
+      "packages/server/vite.config.ts":
+        'import { buildHelper } from "./src/chain/helper";\nconst cspMirror = (): number => buildHelper();\nexport const devConfig = { value: cspMirror() };\n',
+    };
+    expect(chainNames(files)).toEqual([]);
+  });
+
+  test("`export default <expression>` CONSUMES what it names (only a bare `export default local` is a hop)", () => {
+    // Under-attribution is the one direction this substrate must never take: skipping the whole
+    // ExportAssignment left `helper` with no consumer at all, which silently reclassifies a live default
+    // export's dependency. A non-identifier default lands at module scope — an alive root.
+    const consumed = {
+      "packages/server/src/chain/helper.ts": "export const helper = (): number => 1;\n",
+      "packages/server/src/chain/config.ts": 'import { helper } from "./helper";\nexport default { value: helper() };\n',
+    };
+    const project = projectOf(consumed);
+    const live = buildLiveness(project, { edges: true });
+    expect(collectChainCandidates(project, live, inChainScope)).toEqual([]);
+    // …and it is alive because something CONSUMES it, not because nothing reaches it: `orphans` (which has
+    // no notion of the default-export hop) agrees `helper` is reached.
+    expect(collectOrphanCandidates(project, buildLiveness(project), inChainScope).map((c) => c.name)).not.toContain("helper");
   });
 });
 
