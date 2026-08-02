@@ -237,6 +237,10 @@ const USER_TRACKED_KEYS = [
   // they had NO driver at all (an open Analytics route froze at mount; a re-open inside gcTime served numbers
   // up to 5 min old). One representative read stands for the router root the map path-invalidates.
   "stats",
+  // The regex SCRIPT LIBRARY router root (D121-E). Every regex verb emits `regexChanged`, and the library
+  // + every scope's attached list live under the one `regex` path — so one coarse member covers the
+  // settings pane, the preset/character pickers, and the viewer's display-tier read in one invalidation.
+  "regex",
 ] as const;
 type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
 
@@ -247,6 +251,7 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   personasChanged: ["persona"],
   presetsChanged: ["preset", "presetEffective", "previewContextFit", "previewAssembly"],
   worldInfoChanged: ["worldInfo"],
+  regexChanged: ["regex"],
   tagsChanged: ["tag"],
   themesChanged: ["themes"], // NOT userSettings (that's its own member) — the boundary this test pins.
   // NOT themes (its own member). The chat CAPABILITY rides here: Connections persists roleDefaults through
@@ -282,6 +287,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         preset: trpc.preset.list.queryKey(),
         presetEffective: trpc.preset.resolveEffective.queryKey({ id: PRESET_ID }),
         worldInfo: trpc.worldInfo.listBooks.queryKey(),
+        regex: trpc.regex.listScripts.queryKey(),
         tag: trpc.tag.listTags.queryKey(),
         themes: trpc.settings.listThemes.queryKey(),
         userSettings: trpc.settings.getUserSettings.queryKey(),

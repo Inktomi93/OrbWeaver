@@ -117,46 +117,9 @@ describe("updateUserSettingsSection", () => {
     expect(view.config.theme.selectedThemeId).toBe("theme_00000000000000000000000002");
   });
 
-  test("the regex section patches its scripts array (REPLACE, not merge — the autosave contract)", async () => {
-    const db = await freshDb();
-    const h = makeHarness(db);
-    const u = await seedUser(db, { id: "user_regex" });
-    const p = principal(u, "user");
-    const script = {
-      id: "22222222-2222-4222-8222-222222222222",
-      name: "strip ooc",
-      findRegex: "\\(ooc\\)",
-      replaceString: "",
-      placement: [],
-      enabled: true,
-      markdownOnly: false,
-      promptOnly: false,
-      runOnEdit: false,
-      trimStrings: [],
-      substituteRegex: 0,
-      minDepth: null,
-      maxDepth: null,
-    };
-    expect((await h.svc.getUserSettings({ principal: p })).config.regex.scripts).toHaveLength(0);
-    await h.svc.updateUserSettingsSection({
-      principal: p,
-      input: { section: "regex", patch: { scripts: [script] } },
-    });
-    expect((await h.svc.getUserSettings({ principal: p })).config.regex.scripts).toHaveLength(1);
-    // A later save with the empty array REPLACES (an array is not deep-merged) — deleting the last
-    // script actually clears the library instead of leaving a stale entry.
-    await h.svc.updateUserSettingsSection({
-      principal: p,
-      input: { section: "regex", patch: { scripts: [] } },
-    });
-    expect((await h.svc.getUserSettings({ principal: p })).config.regex.scripts).toHaveLength(0);
-  });
+  // The `regex` section-patch test is GONE with the section (D121-E): the owner's script library is
+  // `regex_scripts` rows behind the `regex` tRPC router, not an addressable settings namespace.
 
-  // PROSE-1 S2 — the Prose settings section's WRITE end. A `prose` key is a slot id, and the editor sends
-  // every editable slot on every save: a typed field as `{text, baseVersion}`, a blank one as the leaf
-  // `null`. The clear is the arm worth pinning — `undefined` would be "don't touch" and reset would not
-  // reset, and a stored `null` must read back as ABSENT (⇒ the shipped default) rather than poisoning the
-  // section (\[\[merge-clear-needs-transition-test]]).
   test("the prose section stores an override and CLEARS it on a null leaf (a real reset-to-default)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);

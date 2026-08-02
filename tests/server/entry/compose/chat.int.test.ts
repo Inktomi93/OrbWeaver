@@ -24,7 +24,7 @@
 // tighten-only external-media combine, likewise stubbed everywhere else. Its own header explains the exploit.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { RegexScript } from "@orb/contracts/regex";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
@@ -43,7 +43,7 @@ function hostPrincipal(userId: UserId): Principal {
 /** The canonical ReDoS shape (`(a+)+$`) — ONE quantifier stack, so the kit pre-compile heuristic (which
  *  counts stacks, not nesting) lets it COMPILE; the catastrophic backtrack against a long all-`a` run capped
  *  by a non-`a` tail (`$` can never match) is what the node:vm per-call timeout must interrupt. */
-const REDOS_SCRIPT = (): RegexScript =>
+const REDOS_SCRIPT = (): RegexScriptRow =>
   regexScriptSchema.parse({
     id: "redos",
     name: "redos",
@@ -55,7 +55,7 @@ const REDOS_SCRIPT = (): RegexScript =>
 
 /** A benign runOnEdit USER_INPUT rule — the reverse pin. Applies cleanly through the SAME composed watchdog
  *  (a real find/replace completes in microseconds; the vm guard is transparent to a non-pathological rule). */
-const BENIGN_SCRIPT = (): RegexScript =>
+const BENIGN_SCRIPT = (): RegexScriptRow =>
   regexScriptSchema.parse({
     id: "benign",
     name: "benign",
@@ -79,16 +79,20 @@ interface SeededEditTarget {
 describe("D53 ReDoS watchdog — composed at the editMessage seam (real createServices)", () => {
   /** Seed the host + their `UserSettings.regex.scripts` (through the REAL settings verb — not blob-poking) +
    *  a solo room with one host-authored USER slot. Returns the ids the edit call needs. */
-  async function seedEditTarget(db: Db, services: Services, scripts: readonly RegexScript[], content: string): Promise<SeededEditTarget> {
+  async function seedEditTarget(db: Db, services: Services, scripts: readonly RegexScriptRow[], content: string): Promise<SeededEditTarget> {
     const host = await seedUser(db, "host");
     const principal = hostPrincipal(host);
 
-    // The heavyweight, faithful seed: write the regex scripts through the settings front door (a section
-    // patch merged into the current defaults) so the REAL resolveForeignInputs reads them at edit time.
-    await services.settings.updateUserSettingsSection({
-      principal,
-      input: { section: "regex", patch: { scripts: [...scripts] } },
-    });
+    // The heavyweight, faithful seed: write the scripts through the REGEX front door and attach them at the
+    // GLOBAL scope (D121-E), so the real `resolveRegexSources` dereferences them at edit time exactly as a
+    // live turn does. The old settings-section patch is gone with the section.
+    for (const script of scripts) {
+      const { id: _cardId, name, enabled, ...behavior } = script;
+      // biome-ignore lint/performance/noAwaitInLoops: a tiny fixed seed set, written in order so the attach positions are deterministic.
+      const row = await services.regex.createScript({ principal, input: { name, enabled, ...behavior } });
+      // biome-ignore lint/performance/noAwaitInLoops: same seed loop.
+      await services.regex.attachGlobal({ principal, scriptId: row.id });
+    }
 
     const chatId = await seedChat(db, "redos");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });

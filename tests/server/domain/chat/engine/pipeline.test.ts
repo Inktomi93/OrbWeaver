@@ -7,7 +7,7 @@ import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connect
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import type { RegexScript } from "@orb/contracts/regex";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { ContentSpan } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
@@ -926,7 +926,7 @@ describe("runTurnPipeline — immutability", () => {
 
 // ── RECEIVE (D53 step 2): <think>-demux → AI_OUTPUT regex → post-process → REASONING regex ─────────────────
 /** A host-tier regex script (fully defaulted via the parse seam) for a single placement. */
-function script(id: string, find: string, replace: string, placement: "AI_OUTPUT" | "REASONING"): RegexScript {
+function script(id: string, find: string, replace: string, placement: "AI_OUTPUT" | "REASONING"): RegexScriptRow {
   return regexScriptSchema.parse({
     id,
     name: id,

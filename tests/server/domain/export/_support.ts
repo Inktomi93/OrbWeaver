@@ -9,7 +9,7 @@
 import { Buffer } from "node:buffer";
 import type { CardDepthPrompt } from "@orb/contracts/character";
 import type { Principal, UserRole } from "@orb/contracts/identity";
-import type { RegexScript } from "@orb/contracts/regex";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { TagStatus } from "@orb/contracts/tag";
 import type { EntryMetadata, WorldBookRole } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
@@ -78,7 +78,9 @@ export function makeHarness(db: Db): ExportHarness {
   };
 
   return {
-    ctx: { db, cas, imageTransform },
+    // D121-E: the card RE-EMBED. Empty by default — an export suite that wants attached scripts on the
+    // wire overrides this op with its own rows.
+    ctx: { db, cas, imageTransform, exportCardScripts: () => Promise.resolve({ scripts: [], carried: [] }) },
     putBlob: (ownerId, hash, bytes): void => {
       blobs.set(key(ownerId, hash), bytes);
     },
@@ -143,7 +145,7 @@ interface SeedCharacterOverrides {
   readonly creatorNotes?: string | null;
   readonly creator?: string | null;
   readonly cardVersion?: string | null;
-  readonly regexScripts?: RegexScript[];
+  readonly regexScripts?: RegexScriptRow[];
   readonly extensions?: Record<string, unknown> | null;
   readonly depthPrompt?: CardDepthPrompt | null;
   readonly avatarAssetId?: AssetId | null;

@@ -7,7 +7,7 @@ import { cardDepthPromptSchema } from "@orb/contracts/character";
 import type { ChatInjection, RoomOverrides } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import type { RegexScript } from "@orb/contracts/regex";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { chatBooks, worldBooks, worldEntries } from "@orb/db";
@@ -90,7 +90,7 @@ interface InputOver {
   recentMessages?: string[];
   userInjections?: ChatInjection[];
   injectionTokenBudget?: number;
-  hostTierRegexScripts?: RegexScript[];
+  hostTierRegexScripts?: RegexScriptRow[];
   roomOverrides?: RoomOverrides;
   mutedSpeakerKeys?: ReadonlySet<string>;
 }
@@ -115,7 +115,7 @@ function inputOf(chatId: string, ownerId: UserId, castIds: CharacterId[], over: 
 }
 
 /** A fully-defaulted host-tier `RegexScript` (via the parse seam) for the given placement. */
-function regexScript(id: string, find: string, replace: string, placement: "USER_INPUT" | "WORLD_INFO"): RegexScript {
+function regexScript(id: string, find: string, replace: string, placement: "USER_INPUT" | "WORLD_INFO"): RegexScriptRow {
   return regexScriptSchema.parse({
     id,
     name: id,
@@ -684,11 +684,12 @@ describe("buildAssembleContext — the WORLD_INFO leg runs the RESOLVED host-tie
     await attachChatEntry(host, chatId, "k", { content: "GOLD hoard" });
     const ctx = ctxWithCard(cardOf("Aria"));
 
-    // `assemble-gather` folds `promptConfig.regexScripts` INTO the union (the `preset` source), so a real turn
-    // loses nothing; reading the field here too would be a second, differently-ordered source of the same set.
+    // D121-E: the WI leg consumes the RESOLVED UNION (F2's fix), which `assemble-gather` builds from the four
+    // scope junctions via `ctx.resolveRegexSources`. This pin feeds the union directly — reading any single
+    // scope here would be a second, differently-ordered source of the same set.
     const out = await buildAssembleContext(ctx, {
       ...inputOf(chatId, host, [charId]),
-      promptConfig: { ...DEFAULT_PROMPT_CONFIG, regexScripts: [regexScript("w", "GOLD", "SILVER", "WORLD_INFO")] },
+      hostTierRegexScripts: [regexScript("w", "GOLD", "SILVER", "WORLD_INFO")],
     });
     expect(out.worldInfoBefore).toContain("GOLD hoard");
   });

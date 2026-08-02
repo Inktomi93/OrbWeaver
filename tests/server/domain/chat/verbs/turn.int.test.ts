@@ -13,7 +13,7 @@ import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { PromptConfig, PromptSection, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
-import type { RegexScript } from "@orb/contracts/regex";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
@@ -121,7 +121,7 @@ function harness(
   over: {
     content?: string;
     groupCharacterId?: CharacterId;
-    hostTierRegexScripts?: RegexScript[];
+    hostTierRegexScripts?: RegexScriptRow[];
     /** Capture each wire `TurnRequest` (the guided-routing pins inspect the assembled prompt). */
     onChatRequest?: (request: unknown) => void;
     /** Observe every bus emit AS IT HAPPENS — `h.events` is only readable after the send settles, so an
@@ -1802,7 +1802,6 @@ function triggerGatedConfig(): PromptConfig {
     schemaVersion: 3,
     sections,
     params: {},
-    regexScripts: [],
     variables: [],
     userMacros: [],
   } satisfies PromptConfig;

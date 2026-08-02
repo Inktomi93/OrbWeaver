@@ -7,8 +7,6 @@
 // avatar SET NULL on asset delete (the character survives).
 
 import type { CardDepthPrompt, CharacterCard, RefinerySignals } from "@orb/contracts/character";
-import type { RegexScript } from "@orb/contracts/regex";
-import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { assets, characterPersonas, characterSnapshots, characters, personas } from "@orb/db";
 import { isConstraintViolation, parseRecord, parseStringArray, parseStringArrayColumn } from "@orb/db/kit";
@@ -53,7 +51,6 @@ test("characters insert→select round-trips (branded id + always-a-list default
   expect(rows[0]?.trustHtml).toBeNull();
   // Always-a-list columns default to `[]`, never null (the parseStringArray asymmetry).
   expect(parseStringArray(rows[0]?.greetings)).toEqual([]);
-  expect(rows[0]?.regexScripts).toEqual([]);
 });
 
 // A genuinely-unknown / deferred residual key (ST wire snake_case) — `assets` still rides residual pending
@@ -74,13 +71,6 @@ test("card-content JSON columns round-trip (greetings, extensions, residualData,
   // CardRefinery pipeline signals (derived) — a numeric score + an opaque analysis blob.
   const refinery: RefinerySignals = { score: REFINERY_SCORE, analysis: { summary: "clean" } };
   // A complete typed regex script (defaults filled via the contract schema, so it round-trips intact).
-  const regexScript: RegexScript = regexScriptSchema.parse({
-    id: "rx-strip",
-    name: "Strip",
-    findRegex: "foo",
-    replaceString: "bar",
-    placement: [],
-  });
   await db.insert(characters).values({
     id,
     handle: "card-content",
@@ -97,7 +87,6 @@ test("card-content JSON columns round-trip (greetings, extensions, residualData,
     residualData: DEFERRED_RESIDUAL,
     depthPrompt,
     refinery,
-    regexScripts: [regexScript],
   });
 
   const rows = await db.select().from(characters).where(eq(characters.id, id));
@@ -112,8 +101,6 @@ test("card-content JSON columns round-trip (greetings, extensions, residualData,
   // depthPrompt + refinery are nullable JSON blobs — round-trip through the @orb/db/kit read-seam parser.
   expect(parseRecord(rows[0]?.depthPrompt)).toEqual(depthPrompt);
   expect(parseRecord(rows[0]?.refinery)).toEqual(refinery);
-  // regexScripts is the typed always-a-list column; the non-empty value round-trips intact.
-  expect(rows[0]?.regexScripts).toEqual([regexScript]);
 });
 
 test("character_snapshots stores ONE opaque card blob and round-trips", async () => {
