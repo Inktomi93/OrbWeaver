@@ -101,7 +101,31 @@ the half-remembered macro] · persona-pin integration · forced-first-run flow �
 HEAL's getForRoom receipts) · **AV2 = CLOSED (owner, 08-03: "I approve what we have" — pack stands as-is, no re-push, no sticker, $0; fix-later-if-needed)** · AGENT-1 =
 PARKED until current programs land · DRAFT-TRUST = design pass when reached (boards behind the
 tail).
-**STANDING OWNER ITEMS:****STANDING OWNER ITEMS (post-answers): D22 (multi-user stack) · F6 strict-fidelity nit (leave unless owner cares) · regime-2 landmine (launch-day) — everything else RULED/CLOSED today.**
+**STANDING OWNER ITEMS:****PERSONA DESIGN PASS — OWNER CONSTRAINT ADDED (08-03, why the forced-dialog never shipped):**
+forced persona creation MUST NOT fire on dev regens / test harnesses — every stack re-mint +
+E2E boot would prompt. The design needs the force scoped to REAL first-sign-in only (the
+E2E_HARNESS stamp + dev-seed latch are the existing discriminators; the seeder likely keeps
+auto-creating under harness/dev and the force applies only outside them). This constraint is
+first-class in the pass's brief.
+
+**═══ REPORTS INDEX (everything today's programs cite) ═══**
+docs/reviews/stickler/: 2026-08-03-role-authority-model.md · 2026-08-03-regex-model.md ·
+2026-08-03-client-architecture.md · 2026-08-03-lifecycle-portability-model.md ·
+2026-08-03-handoff-card-ownership.md · (08-02) zod-leverage-audit.md · actor-state-model.md
+docs/reviews/misc/: 2026-08-03-export-rot-dispositions.md (one-shot record) ·
+2026-08-03-registry-map.md (v2) · 2026-08-02-preset-execution-crunch-list.md (STRUCK w/
+receipts) · 2026-08-03-avatar-pack-v2-contact-sheet.png
+LAW LANDED TODAY: scripts/check/GATE-AUTHORING.md (the gate law; hub lessons migrated IN) ·
+Tier-1-DB.md (ownership law + migration lifecycle + pragma hole) · agent-doctrine.md (floors:
+depcruise, fix-don't-park, test-seam naming, dynamic-seam-ships-with-lens) ·
+Spine-Identity-and-Auth §3 row. Scout censuses live in THIS BOARD's blocks (principal-flow ·
+db-ops · registry map · gate scorecard) — the board IS their durable home.
+TOOLING MINTED TODAY: pnpm ast {swallowed,typeonly-alive,columns,regkeys,respell} · pnpm
+gate:new · gate-modernization/own-tables-only/two-class-role-authority/contract-derives/
+zod-modern-spellings/no-hover-display-swap/fk-index/ondelete/pk gates · structure:drizzle-kit ·
+structure:db-baseline (commit tier) · deps:orphan-ratchet (push tier) · chat.getVariantWire.
+
+**STANDING OWNER ITEMS (post-answers): D22 (multi-user stack) · F6 strict-fidelity nit (leave unless owner cares) · regime-2 landmine (launch-day) — everything else RULED/CLOSED today.**
 
 ## ═══ ▶▶▶ HANDOFF #3 — 2026-08-02 NIGHT (SESSION-END; the ONE current block. Owner is
 ## swapping accounts — the resuming orchestrator has NO conversation memory; this block +
@@ -1036,6 +1060,20 @@ work.
 
 **═══ ORCHESTRATOR QUICK-ONBOARD (post-compact tips — skip the usual re-setup, minted 08-02;
 refined 08-03 after the smoothest resume yet) ═══**
+· 08-03 LATE REFINEMENTS (the second full day of this pattern — all proven): BOARD COMMITS =
+  `--no-verify` (owner word; code merges keep the hook). SIX-lane cap (owner word, "until
+  further notice"). Merge-hook format-drift reds: fix IN the staged merge (scoped biome on the
+  named files, inspect diff, git add, commit --no-edit) — happened 3×, always trivial.
+  Gate-authoring briefs now POINT AT scripts/check/GATE-AUTHORING.md instead of pasting lessons.
+  OWNER CADENCE: he answers question-tool batches fast and almost always takes the
+  mantra-marked arm — pose ALL pending forks, batch of 4, recommendations marked; text-list the
+  minor defaults you're taking under proceed-in-full. When he says "read the reports in full" —
+  do it, the summaries drop load-bearing items (proven twice). Lanes cite their own defaults
+  mid-run (the default-and-deadline law) — rule fast, they don't stall. EVERY scout PRESENCE
+  claim needs AST not grep (three instrument-error retractions today). Sticklers are the
+  design-question vehicle (5 ran today, every one changed the plan) — dispatch with the
+  actor-state-review form + "write the file first".
+
 · COMPACT RITUAL ADDENDUM: any OWED DELIVERABLE (unanswered owner question, undelivered
   report/recommendation) gets written INTO this board's current block before compact — never
   trust the summary alone to carry a whole deliverable across the boundary.
