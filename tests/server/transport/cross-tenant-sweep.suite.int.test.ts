@@ -589,6 +589,15 @@ const PROBES: readonly Probe[] = [
     call: (c, i) => c.chat.previewActionTemplates({ chatId: i.chatId, presetId: i.presetId }),
   },
   { path: "chat.getShapeTrace", call: (c, i) => c.chat.getShapeTrace({ chatId: i.chatId }) },
+  {
+    // The per-variant WIRE RECORD (RAWVIEW). TWO foreign-id surfaces and the chatId gate is the one that must
+    // bite: `requireHost` refuses the stranger's chatId BEFORE `loadVariantWire` runs, so no stored prompt is
+    // ever loaded. The `variantId` half carries its OWN belt (the query's `messages.chatId` join), pinned
+    // separately in read.int.test.ts — a HOST of chat A passing chat B's REAL variantId gets the same
+    // NOT_FOUND; that arm needs a legitimate host, which this stranger sweep by construction cannot be.
+    path: "chat.getVariantWire",
+    call: (c, i) => c.chat.getVariantWire({ chatId: i.chatId, variantId: FAKE.variantId }),
+  },
   { path: "chat.previewContextFit", call: (c, i) => c.chat.previewContextFit({ chatId: i.chatId }) },
   {
     path: "chat.setChatInjection",

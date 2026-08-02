@@ -97,6 +97,19 @@ function copyVariantStmt(
       reasoning: nullReasoning(variant.reasoning),
       preContinueReasoning: nullReasoning(variant.preContinueReasoning),
       lastContinuationReasoning: nullReasoning(variant.lastContinuationReasoning),
+      // §3.6, the WIRE-ENVELOPE arm of the same member→host laundering boundary. `promptSnapshot` is the
+      // `AssembledPrompt` the turn actually SENT, and the wire projection rides hidden spans VERBATIM (the model
+      // always sees them — member-visibility.ts "WHO SEES WHAT"), so the blob re-materializes every `<lie>` truth
+      // the body strip above just removed. It also embeds the whole assembled HISTORY, including slots below a
+      // clamped member's D16 floor — which the SLOT copy correctly withheld. A non-host forker becomes HOST of the
+      // copy and reads it through the host-only wire inspector (`chat.getVariantWire`), so the blob must not
+      // survive the transition. `stripHidden` is the whole verdict: a host is never floor-clamped
+      // (`resolveHistoryFloorSeq` F2), so a clamped forker is necessarily a non-host and the one flag covers both
+      // leaks. A HOST forker keeps it verbatim (they already read every byte). The `raw*` envelopes take the same
+      // verdict so the spread-strip is uniform across all three debug blobs.
+      promptSnapshot: stripHidden ? null : variant.promptSnapshot,
+      rawRequest: stripHidden ? null : variant.rawRequest,
+      rawResponse: stripHidden ? null : variant.rawResponse,
       contextBoundaryMessageId: newBoundaryId,
     }),
   );

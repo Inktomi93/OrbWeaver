@@ -49,6 +49,7 @@ import type {
   GetUserMacroPicksParams,
   GetVariablePicksParams,
   GetVariablesParams,
+  GetVariantWireParams,
   ImpersonateStreamParams,
   KickParticipantParams,
   ListChatInjectionsParams,
@@ -133,6 +134,7 @@ import type {
   StreamEventBounds,
   UserMacroPicksView,
   VariablePicksView,
+  VariantWireView,
 } from "./views";
 
 export interface ChatService {
@@ -174,6 +176,11 @@ export interface ChatService {
   /** The content-free SHAPE trace for the next-turn shaping of the current canon (host/admin inspector,
    *  PD-132). Re-runs SHAPE on demand — no content, nothing persists. */
   readonly getShapeTrace: (params: GetShapeTraceParams) => Promise<ShapeTrace>;
+  /** The per-variant WIRE RECORD — what ONE PAST generation actually sent (`peekPrompt`'s retrospective
+   *  twin): the persisted `promptSnapshot` + `params` + `macroDraws`. HOST-gated for exactly the reason
+   *  `peekPrompt` is (a stored prompt carries hidden spans, FULL-fidelity roster cards, and the whole
+   *  assembled history). Pure read — nothing re-renders, nothing persists. */
+  readonly getVariantWire: (params: GetVariantWireParams) => Promise<VariantWireView>;
   /** The present-tense context-fit budget for the current canon against the host's effective preset +
    *  capability (PD-#7). Member-gated; runs the SAME fit the next real turn would, so `boundaryMessageId`
    *  equals the canon boundary that turn stamps. Nothing persists — the transcript divider's live source. */

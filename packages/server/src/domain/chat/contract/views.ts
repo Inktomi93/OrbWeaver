@@ -44,6 +44,9 @@ export type {
   // The content-free SHAPE trace (getShapeTrace) — the cross-boundary wire node (`@orb/contracts/chat`),
   // re-exported type-only so the service signature + front door reference the ONE name (derive-don't-respell).
   ShapeTrace,
+  // The per-variant WIRE RECORD (getVariantWire) — the cross-boundary wire node (`@orb/contracts/chat`),
+  // re-exported type-only for the same reason. HOST-ONLY payload (see its contract header).
+  VariantWireView,
 } from "@orb/contracts/chat";
 
 /** The library-list row (listChats) — light, membership-scoped (D18: a chat I host OR am a member of; there
