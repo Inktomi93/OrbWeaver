@@ -456,6 +456,27 @@ test("every stage carries a classify + non-empty tiers", () => {
   }
 });
 
+// A stage NAME is an IDENTITY, not a label: run.ts derives the stage's log path from it
+// (`reports/verify/<name with ':'→'-'>.log`) and keys the run artifact's per-stage row by it, while every
+// lookup — this file's `stage()`, and any `--stage`-shaped selection — is a first-match `.find`. Two rows
+// sharing a name (or two names that FLATTEN to the same log file: "a:b" and "a-b" both land on `a-b.log`)
+// would silently overwrite one another's output and hide the second row behind the first — a verification
+// stage that ran but whose evidence is gone. The registry's `name` doc says "kebab, unique"; nothing enforced
+// it. (The other two completeness arms are already covered: the `verify-registry-parity` gate reconciles both
+// directions between the registry and package.json — arm 1 = an unplaced verification-shaped script, arm 2 =
+// a registry row whose `pnpm <script>` argv names no script — exercised below.)
+const STAGE_NAME_RE = /^[a-z0-9]+(?:[:-][a-z0-9]+)*$/u;
+
+test("stage names are unique, kebab, and collide-free as log filenames", () => {
+  const names = REGISTRY.map((s) => s.name);
+  expect(new Set(names).size).toBe(names.length);
+
+  const logNames = names.map((n) => n.replace(/:/gu, "-"));
+  expect(new Set(logNames).size).toBe(logNames.length);
+
+  expect(names.filter((n) => !STAGE_NAME_RE.test(n))).toEqual([]);
+});
+
 test("every manual-tier stage carries a reason", () => {
   const manualWithoutReason = REGISTRY.filter((s) => s.tiers.includes("manual") && s.manualReason === undefined);
   expect(manualWithoutReason).toEqual([]);
