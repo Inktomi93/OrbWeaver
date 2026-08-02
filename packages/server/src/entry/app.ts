@@ -9,7 +9,7 @@ import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
-import type { SessionToken, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
 import type { TRPCError } from "@trpc/server";
@@ -26,6 +26,7 @@ import { clientIp, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/
 import type { PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "../transport/trpc";
 import { appRouter, createContext } from "../transport/trpc";
 import type { AuthSeam } from "./auth";
+import { readSessionCookie } from "./auth";
 import type { AuthSessionsPort, BlobAssetsPort, BlobCasPort, LocalAuthenticator, OidcRoutesDeps, UploadAssetsPort } from "./http";
 import {
   registerAuthMeta,
@@ -48,7 +49,6 @@ import type { ImportAssetPort, ImportCharacterPort, ImportWorldInfoPort } from "
 const MS_PER_SECOND = 1000;
 const TRPC_ENDPOINT = "/api/trpc";
 const TRPC_MOUNT = "/api/trpc/*";
-const SESSION_COOKIE_NAME = "__Host-orb_session";
 const PAYLOAD_TOO_LARGE = 413;
 const BYTES_PER_KIB = 1024;
 const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
@@ -133,31 +133,6 @@ const MULTI_HUMAN_CAPABLE: Record<AuthMode, (cfg: EffectiveAppConfig) => boolean
   oidc: () => true,
 };
 
-/** Read our opaque session token from the Cookie header. The trust-boundary crossing for the expiry-slide
- *  re-issue: the brand records that this string came off OUR cookie name, so only that value can be written
- *  back out through `serializeSessionCookie`. Authenticity is still `sessions.validate`'s hash lookup — the
- *  slide callback only fires when validate already accepted the token. */
-function readSessionToken(headers: Headers): SessionToken | null {
-  const raw = headers.get("cookie");
-  if (raw === null) {
-    return null;
-  }
-  for (const part of raw.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1) {
-      continue;
-    }
-    if (part.slice(0, eq).trim() === SESSION_COOKIE_NAME) {
-      try {
-        return castId<SessionToken>(decodeURIComponent(part.slice(eq + 1).trim()));
-      } catch {
-        return null;
-      }
-    }
-  }
-  return null;
-}
-
 export function createApp(deps: AppDeps): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
 
@@ -185,7 +160,10 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
 
   // Resolve the ONE Principal per request + refresh a slid cookie session.
   app.use("*", async (c, next) => {
-    const token = readSessionToken(c.req.raw.headers);
+    // The SAME reader the seam authenticates with (entry/auth/seam.ts): the slide may only re-issue the
+    // exact token `sessions.validate` just accepted — a second copy here could write back a different value
+    // and silently log the caller out on the next request.
+    const token = readSessionCookie(c.req.raw.headers);
     // Peer address feeds the forward-header trusted-proxy anti-spoof gate; omitted (fails closed) when absent.
     const peer = peerIp(c);
     const { principal } = await deps.seam.resolvePrincipal(c.req.raw.headers, {

@@ -29,6 +29,7 @@ import { hasCsrfHeader, SESSION_COOKIE_NAME } from "#infra/auth";
 import { clientIp } from "#infra/network";
 import type { RateLimiter } from "../../transport/rate-limit";
 import { createRateLimiter } from "../../transport/rate-limit";
+import { readSessionCookie } from "../auth";
 
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
@@ -107,30 +108,6 @@ export function serializeSessionCookie(token: SessionToken, maxAgeSeconds: numbe
 /** Serialize the cleared (logout) Set-Cookie value — same name + attrs, empty value, Max-Age=0. */
 export function serializeClearedSessionCookie(): string {
   return `${SESSION_COOKIE_NAME}=; Max-Age=0; ${COOKIE_ATTRS}`;
-}
-
-/** Read the opaque session token from the request `Cookie` header, or `null`. The trust-boundary crossing
- *  for logout: the header is attacker-controlled, so the brand records PROVENANCE only — `revokeByToken`'s
- *  peppered-hash lookup is the authenticity gate and matches nothing on a forged value. */
-function readSessionToken(headers: Headers): SessionToken | null {
-  const raw = headers.get("cookie");
-  if (raw === null) {
-    return null;
-  }
-  for (const part of raw.split(";")) {
-    const eq = part.indexOf("=");
-    if (eq === -1) {
-      continue;
-    }
-    if (part.slice(0, eq).trim() === SESSION_COOKIE_NAME) {
-      try {
-        return castId<SessionToken>(decodeURIComponent(part.slice(eq + 1).trim()));
-      } catch {
-        return null;
-      }
-    }
-  }
-  return null;
 }
 
 /** The `domain/sessions` slice the mint routes consume (the seam owns resolution; this is the write side). */
@@ -265,7 +242,9 @@ export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
     if (!hasCsrfHeader(c.req.raw.headers)) {
       return c.json({ error: "missing CSRF header" }, FORBIDDEN);
     }
-    const token = readSessionToken(c.req.raw.headers);
+    // The SAME reader the seam authenticates with (entry/auth/seam.ts) — a second copy here could revoke a
+    // different token than the one that authenticated the request, leaving the live session un-killable.
+    const token = readSessionCookie(c.req.raw.headers);
     if (token !== null) {
       await deps.sessions.revokeByToken(token);
     }
