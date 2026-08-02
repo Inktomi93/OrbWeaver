@@ -18,10 +18,10 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog } from "#components";
+import { ConfirmDialog, ROW_REVEAL } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC, useUploadAsset } from "#data";
-import { notify } from "#lib";
+import { cn, notify } from "#lib";
 import { useUpdatePersona } from "../hooks/use-persona-mutations";
 import { PersonaEditor } from "./persona-editor";
 
@@ -157,12 +157,16 @@ export function PersonaPanelRow({
           )}
         </Stack>
 
-        <Row align="center" className="pointer-events-none relative shrink-0 group-hover:hidden group-focus-within:hidden" gap="field">
+        {/* MARKERS ⇄ ACTIONS is a PAINT swap, never a display swap: both clusters are permanently in flow, so
+            the row's geometry is byte-identical at rest and on hover. A `hidden`/`flex` swap here reflowed the
+            row under a stationary pointer and re-hit-tested at frame rate (the preset-list P0 —
+            packages/client/src/components/row-reveal.ts, gate `no-hover-display-swap`). */}
+        <Row align="center" className="pointer-events-none relative shrink-0 group-hover:invisible group-focus-within:invisible" gap="field">
           {isDefault ? <StatusGlyph className="text-warning" icon={Crown} label="Your default" /> : null}
           {persona.starred ? <StatusGlyph className="text-destructive" icon={Heart} label="Favorited" /> : null}
         </Row>
 
-        <Row align="center" className="pointer-events-none relative hidden shrink-0 group-hover:flex group-focus-within:flex" gap="field">
+        <Row align="center" className={cn("pointer-events-none relative shrink-0", ROW_REVEAL) ?? ""} gap="field">
           <IconAction
             {...(persona.starred ? { className: "text-destructive" } : {})}
             icon={Heart}

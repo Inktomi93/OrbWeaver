@@ -126,6 +126,9 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     "types:tests-dom",
     "types:tests-membership",
     "tests:execution-membership",
+    // The db-baseline parity stage (2026-08-02): the committed squashed baseline vs the live schema.
+    // Promoted from a push-only int test after two baseline-regen misses shipped and sat ~10h.
+    "structure:db-baseline",
     "structure:full",
     "imports:depcruise",
     "deps:knip",
@@ -288,6 +291,8 @@ test("types:testd + types:tests-* + browser:e2e* + tests:parity are whole-only (
     // tests-execution-membership's #22 sibling: same whole-tree-reconciliation shape (unions every
     // runner's --list view), no honest scoped form.
     "tests:execution-membership",
+    // The whole schema module vs the ONE committed baseline — no partial-file form exists.
+    "structure:db-baseline",
     // browser:ct is NOT here since 2026-07-17 — it gained a scopedArgv (the CT view mirror-mapping). The
     // e2e suites stay whole-only (cross-cutting by nature).
     "browser:e2e-smoke",

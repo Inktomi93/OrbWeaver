@@ -5,8 +5,9 @@
 // through the same trigger (`onContextMenu` → `.click()`); the trailing ⋯ button and the fine-pointer
 // inline shortcut cluster are `tabIndex={-1}` SIBLINGS (one tab stop per row — the panel's roving
 // tabindex owns the rest), and the inline cluster DUPLICATES two Menu items with identical
-// labels/icons, revealed on hover/`:focus-within` at a FINE pointer only (`pointer-fine:` — at coarse
-// it never renders; the ≥44px-floor touch path is row-tap → Menu).
+// labels/icons, revealed on hover/`:focus-within` at a FINE pointer only (`pointer-coarse:hidden` — at
+// coarse it never renders; the ≥44px-floor touch path is row-tap → Menu). The reveal is PAINT-only
+// (`ROW_REVEAL`): the cluster holds its box at rest, so hovering the row never moves layout.
 //
 // Accessible name = identity + state (lib/member-rows.ts `rowAccessibleName`); the cast "responding…"
 // mark is `aria-hidden` visually (a quiet pulse, never `aria-live` — no per-turn SR chatter) and rides
@@ -25,7 +26,8 @@ import { Menu, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
-import { ConfirmDialog } from "#components";
+import { ConfirmDialog, ROW_REVEAL } from "#components";
+import { cn } from "#lib";
 import type { MemberCastRow, MemberPersonRow, MemberRowActions, MemberRowFocusProps } from "../lib/member-rows";
 import { rowAccessibleName } from "../lib/member-rows";
 import { buildMenuItems } from "./member-row-menu";
@@ -98,7 +100,10 @@ export function MemberRow(props: MemberRowProps): ReactElement {
   );
 
   return (
-    <Row gap="field" align="center" className="group/member" data-slot="member-row">
+    // The BARE `group` rides beside `group/member` because that is what the homed `ROW_REVEAL` posture keys
+    // on (packages/client/src/components/row-reveal.ts) — the named group stays for the row's own explicit
+    // `group-*/member:` arms.
+    <Row gap="field" align="center" className="group group/member" data-slot="member-row">
       {hasMenu ? (
         <Menu>
           <MenuTrigger render={body} />
@@ -183,7 +188,12 @@ function CastInlineCluster({ row, actions }: { readonly row: MemberCastRow; read
   }
   const setDisabled = actions.onSetDisabled;
   return (
-    <Row gap="field" align="center" className="hidden pointer-fine:group-focus-within/member:flex pointer-fine:group-hover/member:flex">
+    // PAINT-only reveal (`ROW_REVEAL`), never a display swap: the cluster stays in flow at a fine pointer so
+    // the row's geometry is identical at rest and on hover. The old `hidden` → `flex` swap moved layout under
+    // a stationary pointer — the hit-test oscillator the preset list measured (row-reveal.ts; gate
+    // `no-hover-display-swap`). `pointer-coarse:hidden` keeps today's coarse behavior (the cluster is never
+    // rendered there — the row tap opens the Menu) and is a DEVICE-class swap, which cannot oscillate.
+    <Row gap="field" align="center" className={cn(ROW_REVEAL, "pointer-coarse:hidden") ?? ""}>
       <Button
         type="button"
         intent="ghost"
