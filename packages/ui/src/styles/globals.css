@@ -13,8 +13,11 @@
   *::after {
     /* biome-ignore lint/complexity/noImportantStyles: reduced-motion override MUST beat inline styles and high-specificity rules — removing !important silently ignores the user's a11y preference */
     animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: same floor — a suppression covers only the line beneath it, so each declaration in the block carries its own */
     animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: same floor — the a11y override must beat inline styles and high-specificity rules */
     transition-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: same floor — the a11y override must beat inline styles and high-specificity rules */
     scroll-behavior: auto !important;
   }
 }
@@ -26,8 +29,11 @@
 [data-reduced-motion="true"] *::after {
   /* biome-ignore lint/complexity/noImportantStyles: same as the @media block above — must override inline styles */
   animation-duration: 0.01ms !important;
+  /* biome-ignore lint/complexity/noImportantStyles: same as the @media block above — a suppression covers only the line beneath it, so each declaration carries its own */
   animation-iteration-count: 1 !important;
+  /* biome-ignore lint/complexity/noImportantStyles: same as the @media block above — must override inline styles */
   transition-duration: 0.01ms !important;
+  /* biome-ignore lint/complexity/noImportantStyles: same as the @media block above — must override inline styles */
   scroll-behavior: auto !important;
 }
 

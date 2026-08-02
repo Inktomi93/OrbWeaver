@@ -32,7 +32,7 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
   // chat while the rows stay preserved for re-enable.
   async function findEngagedGame(chatId: ChatId): Promise<Awaited<ReturnType<typeof findGameByChat>>> {
     const game = await findGameByChat(ctx.db, chatId);
-    return game !== undefined && game.config.engaged ? game : undefined;
+    return game?.config.engaged === true ? game : undefined;
   }
 
   // KNOB-DRIVEN, MODE-BLIND (§3.2 / ratification #2): the game's `gmPresetId` (born NULL = augment the user's
