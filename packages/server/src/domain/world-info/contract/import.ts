@@ -50,8 +50,15 @@ export interface WorldInfoDuplicateCarryContext {
 }
 
 /** Re-points the source character's attached books at the new character id (fresh character_books rows,
- *  role preserved). REFERENCE-carry — the world_books themselves are never cloned; zero attachments = no-op. */
-export type CopyCharacterBooks = (args: { readonly fromCharacterId: CharacterId; readonly toCharacterId: CharacterId }) => Promise<void>;
+ *  role preserved). REFERENCE-carry — the world_books themselves are never cloned; zero attachments = no-op.
+ *  `ownerId` is the OWNED-SOURCE GATE, the same guard {@link LinkCarriedBooks} carries: BOTH character ids
+ *  must be the caller's or the carry copies nothing. Without it the op is safe only because its one call
+ *  site happens to have loaded the source owned first — a promise no signature carries to the next one. */
+export type CopyCharacterBooks = (args: {
+  readonly ownerId: UserId;
+  readonly fromCharacterId: CharacterId;
+  readonly toCharacterId: CharacterId;
+}) => Promise<void>;
 
 // ── the character IMPORT re-link (PD-144) ──────────────────────────────────────────
 
