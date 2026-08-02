@@ -146,10 +146,13 @@ export function buildSystemPrompt(sp: { static: string; dynamic: string } | unde
   return `${staticPart}\n\n${dynamicPart}`;
 }
 
+// NO `maxBudgetUsd`: the preset knob that fed it is DELETED (owner ruling 2026-08-02 — it had no editor on
+// any surface, so nothing could ever set it and this branch was unreachable in practice). The SDK's own
+// `error_max_budget_usd` result subtype is UNRELATED and stays classified in verify.ts — that is the
+// provider reporting ITS ceiling, not ours.
 interface SdkGenerationOptions {
   thinking?: ThinkingConfig;
   effort?: EffortLevel;
-  maxBudgetUsd?: number;
 }
 
 function toSdkEffort(effort: UserIntent["effort"]): EffortLevel | undefined {
@@ -191,7 +194,9 @@ function buildThinking(reasoning: ResolvedReasoning): ThinkingConfig {
   return { type: "enabled", ...displayPart };
 }
 
-function buildGenerationOptions(params: UserIntent, resolved: ResolvedChatKnobs): SdkGenerationOptions {
+// Takes only `resolved`: with `maxBudgetUsd` retired, every generation option this builds comes from the
+// FUNNEL's output, never from the raw intent. (`buildEnvOverrides` beside it still needs both.)
+function buildGenerationOptions(resolved: ResolvedChatKnobs): SdkGenerationOptions {
   const options: SdkGenerationOptions = {};
   const { reasoning } = resolved;
   if (reasoning.enabled) {
@@ -202,9 +207,6 @@ function buildGenerationOptions(params: UserIntent, resolved: ResolvedChatKnobs)
     }
   } else {
     options.thinking = { type: "disabled" };
-  }
-  if (params.maxBudgetUsd !== undefined) {
-    options.maxBudgetUsd = params.maxBudgetUsd;
   }
   return options;
 }
@@ -271,7 +273,7 @@ export function toSdkGeneration(
   const resolved = resolveChat(params, capability);
   return {
     envOverrides: buildEnvOverrides(params, resolved),
-    options: buildGenerationOptions(params, resolved),
+    options: buildGenerationOptions(resolved),
     warnings: resolved.warnings,
     turnId: resolved.turnId,
   };

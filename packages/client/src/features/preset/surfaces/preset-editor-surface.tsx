@@ -44,7 +44,7 @@ import type { PresetId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Download, Icon, MoreHorizontal, RotateCcw, Zap } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Container, Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Heading, Text } from "@orb/ui/text";
@@ -306,8 +306,11 @@ function PresetEditorBody({
             <Row align="center" className="min-w-0" gap="field">
               {/* The artifact's NAME is an h2 (side-eye F-28 / ARIA rec 8): it was a <p>, with the view's
                   kickers as h3s under no h2 at all, so heading navigation could not find the thing being
-                  edited. `voice="label"` keeps the rendered step exactly where it was. */}
-              <Heading className="min-w-24 shrink truncate" level={2} voice="label">
+                  edited. It now RENDERS like the title it is (crunch-list 13): `voice="label"` held it at
+                  the deck's 13px/500 label step, so the one thing the whole pane is about read as just
+                  another field name beside its own chips. The h2's default `title` size + semibold is the
+                  step the mock draws. */}
+              <Heading className="min-w-24 shrink truncate" level={2}>
                 {presetName}
               </Heading>
               {/* G7 — the two truths that change UNDER the editor. The ACTIVE chip is the LIST row's marker
@@ -385,13 +388,22 @@ function PresetEditorBody({
 
         {PRESET_EDITOR_VIEWS.map((entry) => (
           <TabsPanel key={entry.id} value={entry.id}>
-            {/* THE CONTENT COLUMN IS CAPPED (side-eye F-16), once, for all five views: a wide pane stretched
-                rack rows to ~840px with a ~60% dead gutter and ran drill-in glosses to ~130ch against the
-                65-75ch reading measure. 720px is the width every preset-redesign mock draws its content
-                panel at. It lives HERE and not per view so no body can opt out of the measure. */}
-            <Stack className="w-full max-w-(--width-content-col)" gap="block" padding="block">
-              {viewContent(entry.id, viewProps)}
-            </Stack>
+            {/* THE CONTENT COLUMN IS CAPPED AND CENTERED (side-eye F-16 as amended by the owner's rendered
+                read, 2026-08-02), once, for all five views. The cap is why: a wide pane stretched rack rows
+                to ~840px with a ~60% dead gutter and ran drill-in glosses to ~130ch against the 65-75ch
+                reading measure. What the first build got wrong is the RULING: a 720px cap LEFT-PINNED inside
+                a 958px pane parks 240px of void on one side, and in focus mode ~800px ("looks okay when both
+                panels are out, but when you close them it looks awful"). So the column CENTERS — the house
+                convention for a wide content-pane editor (character-editor-surface.tsx uses the same
+                `mx-auto w-full max-w-…`) — and BREATHES to `--width-content-col-wide` once the pane itself
+                clears @5xl, which is exactly the panels-collapsed / focus-mode regime. The `Container` is
+                what the @5xl query measures (the pane's own width), which is why the cap and the container
+                are two elements and not one. It lives HERE and not per view so no body can opt out. */}
+            <Container className="w-full">
+              <Stack className="mx-auto w-full max-w-(--width-content-col) @5xl:max-w-(--width-content-col-wide)" gap="block" padding="block">
+                {viewContent(entry.id, viewProps)}
+              </Stack>
+            </Container>
           </TabsPanel>
         ))}
       </Tabs>

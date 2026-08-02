@@ -38,6 +38,14 @@ import { clampGloss, knobGhost } from "../lib/effective-knobs";
  *  model's own default applies and we do not know the number, so nothing is fabricated. */
 const UNKNOWN_DEFAULT_PLACEHOLDER = "default";
 
+/** ONE number grammar for the whole deck (crunch-list 9): RAW digits, no locale grouping. Base UI formats
+ *  the twin's committed value through `Intl.NumberFormat`, whose default groups — so an explicit
+ *  `maxOutputTokens` rendered "1,500" one row above an inherited `maxContextTokens` ghosting "200000"
+ *  (a placeholder is a plain string and never went through the formatter). Same KnobRow family, two
+ *  grammars. The mock draws raw mono, and raw is also what the ghost placeholders, the readout rows and the
+ *  staleness row already print — so the formatter yields, not the four surfaces around it. */
+const KNOB_NUMBER_FORMAT: Intl.NumberFormatOptions = { useGrouping: false, maximumFractionDigits: 6 };
+
 export interface KnobRowProps {
   readonly form: AppFormInstance<PromptConfig>;
   /** The `params.*` path both controls bind (§16 row 12 — ONE field, two modalities). */
@@ -142,15 +150,20 @@ function KnobControls({
         // `role=slider` already announces.
         thumbLabels={[label]}
         thumbDescribedBy={describedBy}
-        // EXPLICIT is `neutral`, never the ember `default`: §4.1 rations the accent to focus + the pane's
-        // one primary, and twelve accent fills in one column is the CD3 break (F-09).
-        tone={explicit ? "neutral" : "ghost"}
+        // EXPLICIT is the EMBER (owner ruling, 2026-08-02: "sliders WHITE, off-palette too" — one control
+        // color grammar with the amber-ON switches beside them). This REVERSES side-eye F-09's `neutral`
+        // arm: that call rationed the accent per CD3, but rendered it produced a deck whose set knobs were
+        // painted in a grey the app's palette does not otherwise speak, reading as disabled next to an
+        // amber switch one cluster up. The ghost arm is untouched — it still paints NO fill at all, which
+        // is what carries the inherited-vs-explicit distinction; the accent is now what says "you set this".
+        tone={explicit ? "default" : "ghost"}
         value={value ?? ghost?.value ?? min}
       />
 
       <NumberField
         aria-describedby={describedBy}
         aria-label={label}
+        format={KNOB_NUMBER_FORMAT}
         max={max}
         min={min}
         onValueChange={(next): void => onChange(next ?? undefined)}
