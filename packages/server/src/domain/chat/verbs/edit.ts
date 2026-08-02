@@ -80,6 +80,7 @@ import { buildTurnMacroContext } from "../substrate/assembly-access";
 import { assertAuthorOrHost } from "../substrate/auth";
 import { projectViewReturnForViewer } from "../substrate/member-visibility";
 import { resolveHostTierRegexScripts } from "../substrate/regex-tier";
+import { hostUserIdOf } from "../substrate/roster-host";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables";
 import { canonMessageDelta, editMessageDelta, swipeVariantDelta } from "../substrate/stats-delta";
 
@@ -225,7 +226,7 @@ async function resolveStatsOwner(
   fallback: MessageView["authorUserId"] & {},
 ): Promise<NonNullable<MessageView["authorUserId"]>> {
   const roster = await loadRoster(ctx.db, chatId);
-  return roster.find((r) => r.role === "host" && r.userId !== null)?.userId ?? fallback;
+  return hostUserIdOf(roster) ?? fallback;
 }
 
 /** One raw message_variants row (a slot's stored variant — the selected one or a swipe). */
@@ -333,7 +334,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
     const slot = await loadSlotInChat(ctx, chatId, messageId);
     const membership = await requireAuthorOrHost(ctx, principal, chatId, slot.authorUserId);
     const roster = await loadRoster(ctx.db, chatId);
-    const hostUserId = roster.find((r) => r.role === "host" && r.userId !== null)?.userId ?? null;
+    const hostUserId = hostUserIdOf(roster);
     const purified = await purifyEditedContent(ctx, { hostUserId, slot, content });
     const clean = await applyRunOnEditRegex(ctx, deps, {
       chatId,

@@ -100,7 +100,10 @@ interface ViewerRole {
  *  THE BOUNDARY (ruled 2026-08-03): this is the DATA-PROJECTION class (D106-F1 — consumers thread the verdict
  *  as DATA), which is why it takes a bare `ViewerRole` and not a `Principal` + `can()`. Its counterpart is the
  *  ENFORCEMENT class, homed at `substrate/auth/decide.ts::permitsHost` / `assertHost`: any comparison that
- *  DECIDES whether an operation is permitted goes there, under spine invariant #6. Deliberately NOT wired
+ *  DECIDES whether an operation is permitted goes there, under spine invariant #6. The THIRD host-role shape
+ *  is in neither class and has its own home — the roster LOOKUP (`substrate/roster-host.ts::hostUserIdOf`,
+ *  role → identity, D19): it asks "which seat is the host?", not "does this viewer hold host?". Three shapes,
+ *  three homes, zero inline re-spellings. Deliberately NOT wired
  *  through `can()` — doing so would thread a Principal into this pure, I/O-free module for zero behavior
  *  change (`can(…, 'host', …)` reduces to exactly this comparison; the Principal is never read). */
 export function viewerHoldsHost(viewer: ViewerRole | undefined): boolean {

@@ -61,20 +61,23 @@ export function assertHost(can: Can, principal: Principal, role: ParticipantRole
 }
 
 /**
- * The host verdict as a BOOLEAN (assertHost's non-throwing twin) — for a VERB that must BRANCH on host
- * authority rather than throw on it (the host-audience redaction seam, chat-crew-design/04 §2: the host sees
- * the hidden hand, a non-host is elided). Derives from the SAME `can()` seam, so a surface that relaxes its
- * gate inherits the correct redaction with no second authority model. Consumers: `verbs/read.ts`
- * (`replayChatEvents` + `chatEventBounds`).
+ * The host verdict as a BOOLEAN (assertHost's non-throwing twin) — for a gate whose refusal is COMPOSED with
+ * a verb-local fact rather than thrown right here, so it needs the verdict as a value. Derives from the SAME
+ * `can()` seam, so a surface that relaxes its gate inherits the correct verdict with no second authority
+ * model. Consumer: `verbs/fork.ts::assertForkAllowed` (host OR sole-present-human — the seam answers "is this
+ * caller the host?", the verb owns what that means for a fork and throws its own `not_host`).
  *
- * THE BOUNDARY (two sanctioned classes — do not collapse them; ruled 2026-08-03):
+ * THE BOUNDARY (two sanctioned classes — do not collapse them; ruled 2026-08-03, F1 closed at stage R2):
  * - **This is the ENFORCEMENT arm.** A role comparison that DECIDES what an operation may do belongs here,
  *   under spine invariant #6 ("`can()` is the ONLY privilege-comparison site"). Never re-spell
  *   `role === "host"` inline for a gate.
- * - A role read that PRODUCES A PAYLOAD/VIEW FIELD which consumers thread as DATA is the other class, homed at
- *   `substrate/member-visibility.ts::viewerReadsHidden` (D106-F1). Those paths are deliberately Principal-free
- *   and I/O-free; wiring them through `can()` would thread a Principal into a pure projection for zero
- *   behavior change. Do NOT "fix" them to call this function.
+ * - A role read that SELECTS A VIEWER'S BYTES or produces a payload/view FIELD consumers thread as DATA is
+ *   the other class, homed at `substrate/member-visibility.ts::viewerReadsHidden` (D106-F1/D110). Those paths
+ *   are deliberately Principal-free and I/O-free; wiring them through `can()` would thread a Principal into a
+ *   pure projection for zero behavior change. Do NOT "fix" them to call this function — the F1 ruling moved
+ *   `read.ts`'s two former callers here (`replayChatEvents` + `chatEventBounds`) BACK to that lens precisely
+ *   because a byte-selection lens may later diverge from operation authority (a co-GM who commands the room
+ *   but must not read deception truth), and it can only do that if it has its own home.
  */
 export function permitsHost(can: Can, principal: Principal, role: ParticipantRole): boolean {
   return permits(can, principal, "host", role);
