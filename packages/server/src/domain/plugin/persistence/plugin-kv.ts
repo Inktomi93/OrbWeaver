@@ -26,12 +26,19 @@ export async function getKv(db: Db, scope: KvScope, key: string): Promise<string
   return rows[0]?.value ?? null;
 }
 
-/** Upsert a key (PK `(plugin_id, key)`); stamps `updatedAt`. The value/key size CHECKs are enforced by the DDL. */
+/** Upsert a key (PK `(plugin_id, key)`); stamps `updatedAt`. The value/key size CHECKs are enforced by the DDL.
+ *  The PK omits `owner_id` (a plugin_id already belongs to exactly one installer — `plugins.owner_id`), so the
+ *  DO UPDATE arm carries the same `owner_id` belt every other query in this file spells in its WHERE: a
+ *  collision with a foreign owner's row moves 0 rows instead of overwriting its value in place. */
 export async function upsertKv(db: Db, scope: KvScope, entry: { readonly key: string; readonly value: string; readonly updatedAt: number }): Promise<void> {
   await db
     .insert(pluginKv)
     .values({ pluginId: scope.pluginId, ownerId: scope.ownerId, key: entry.key, value: entry.value, updatedAt: entry.updatedAt })
-    .onConflictDoUpdate({ target: [pluginKv.pluginId, pluginKv.key], set: { value: entry.value, updatedAt: entry.updatedAt } });
+    .onConflictDoUpdate({
+      target: [pluginKv.pluginId, pluginKv.key],
+      setWhere: eq(pluginKv.ownerId, scope.ownerId),
+      set: { value: entry.value, updatedAt: entry.updatedAt },
+    });
 }
 
 /** Delete one key (a no-op when absent). */

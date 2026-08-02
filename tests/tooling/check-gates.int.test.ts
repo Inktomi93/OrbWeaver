@@ -481,6 +481,12 @@ function writeFixtures(): void {
     "packages/server/src/domain/__g_ownerwrites/persistence/__g_ownerwrites.ts",
     'import { characters } from "@orb/db";\nimport { eq } from "drizzle-orm";\nexport async function gDrop(db: D, id: string) {\n  return db.delete(characters).where(eq(characters.id, id));\n}\n',
   );
+  // owner-scoped-upserts: an `onConflictDoUpdate` on the (a)-class `characters` table whose conflict target
+  // is the bare PK — no owner column in target/targetWhere/setWhere and no `@owner-scope-upsert-ok:` marker.
+  fx(
+    "packages/server/src/domain/__g_ownerupserts/persistence/__g_ownerupserts.ts",
+    'import { characters } from "@orb/db";\nexport async function gPut(db: D, row: R) {\n  return db.insert(characters).values(row).onConflictDoUpdate({ target: characters.id, set: { name: row.name } });\n}\n',
+  );
   // injected-op-caller-param: a domain contract op taking a branded entity id and returning a Promise, with
   // no caller/scope param and no CALLER_FREE_OPS row.
   fx(

@@ -88,3 +88,18 @@ test("the owner guard: a wrong owner in the scope reads nothing (belt vs a reuse
   // Same plugin id, wrong owner → the guard column filters it out.
   expect(await getKv(db, { pluginId, ownerId: other }, "k")).toBeNull();
 });
+
+test("the owner guard covers the UPSERT too: a foreign-owner collision moves 0 rows", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { handle: "owner" });
+  const other = await seedUser(db, { handle: "other" });
+  const pluginId = await seedPlugin(db, owner, "plugin_a", "alpha");
+
+  await upsertKv(db, { pluginId, ownerId: owner }, { key: "k", value: "mine", updatedAt: AT });
+  // The PK is (plugin_id, key) — it omits owner_id, so a foreign owner writing the same pair COLLIDES.
+  // Without the `setWhere` belt the DO UPDATE arm overwrote the value in place while the row kept its
+  // original owner_id, so the victim's own owner-filtered read returned the attacker's value.
+  await upsertKv(db, { pluginId, ownerId: other }, { key: "k", value: "theirs", updatedAt: AT + 1 });
+  expect(await getKv(db, { pluginId, ownerId: owner }, "k")).toBe("mine");
+  expect(await getKv(db, { pluginId, ownerId: other }, "k")).toBeNull();
+});

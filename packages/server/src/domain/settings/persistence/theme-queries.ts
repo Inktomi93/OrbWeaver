@@ -105,13 +105,15 @@ export function isThemeNameConflict(err: unknown): boolean {
 }
 
 /** Overwrite (or first-insert) one seed row by its fixed sentinel id — the boot-reseed write. Idempotent in
- *  one round trip. */
+ *  one round trip. The conflict target is the PK, so the DO UPDATE arm is bounded to `ownerId IS NULL`: the
+ *  reseed can only ever overwrite a SEED row, and never a user's theme that somehow reached a sentinel id. */
 export async function upsertSeedTheme(db: Db, row: Omit<ThemeInsert, "ownerId"> & { readonly ownerId: null }): Promise<void> {
   await db
     .insert(themes)
     .values(row)
     .onConflictDoUpdate({
       target: themes.id,
+      setWhere: isNull(themes.ownerId),
       set: { name: row.name, override: row.override, css: row.css, updatedAt: row.updatedAt },
     });
 }
