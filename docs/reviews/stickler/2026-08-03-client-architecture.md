@@ -65,7 +65,7 @@ registered definition at `lib/*-{section,modal,pane,chrome}.tsx` or be deleted.
   further goes to modals/settings." Unamended. `UI-Architecture-and-Layout.md` §4.1 still enumerates the
   seven-section rail. A registry-wide grep for a home-section D-entry finds none (D115–D120 are
   populate/injections/workloads/SSE/HUD-1/SET-SEAMS).
-- `docs/design/home-section-spec.md:8` — "**Status:** DESIGN SPEC — DRAFT, nothing here is built" — false
+- `docs/history/design/home-section-spec.md:8` — "**Status:** DESIGN SPEC — DRAFT, nothing here is built" — false
   on the tree's evidence. The spec also deliberately reverses the lockdown-§7/O7 recorded claim "there is
   NO home page concept" (its §1.1 argues why that is legal) — an argument that lives only in a
   draft-status spec, not in the ledger that outranks it.
