@@ -104,6 +104,13 @@ export const TEST_IDS = {
   corpusAskSubmit: "corpus-ask-submit",
   corpusCompareTab: "corpus-compare-tab",
   corpusCompareDeep: "corpus-compare-deep",
+  /** The deep-compare DEGRADED arm — present only when `ComparisonNarrative.degraded` is true (the model's
+   *  reply failed the payload schema twice, so the body is its raw text). Its absence is the assertion that a
+   *  narrative is real; a CT that only checks the summary text can't tell the two apart. */
+  corpusCompareDeepDegraded: "corpus-compare-deep-degraded",
+  /** The Ask answer's provenance badge — carries `data-answer-state` = grounded | speculative | degraded, the
+   *  three DIFFERENT claims (model-says-supported / model-says-not / our parse failed) the copy must not merge. */
+  corpusAskState: "corpus-ask-state",
   corpusVisualsTab: "corpus-visuals-tab",
   corpusFacetDrill: "corpus-facet-drill",
   corpusKeywordExplorer: "corpus-keyword-explorer",

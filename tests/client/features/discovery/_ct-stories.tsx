@@ -2,7 +2,9 @@
 // module). Surfaces come through the feature front door, wrapped in the real client data layer
 // (CtDataProviders — Query + real tRPC over the routeTrpc-stubbed network).
 
-import { CorpusCompareTab, CorpusContextHeader, CorpusListHeader, CorpusListSurface } from "@orb/client/features/discovery";
+import { CorpusCompareTab, CorpusContextHeader, CorpusDossierSurface, CorpusListHeader, CorpusListSurface } from "@orb/client/features/discovery";
+import type { CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 
@@ -41,6 +43,19 @@ export function CorpusCompareTabStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 640, width: 420 }}>
         <CorpusCompareTab />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+const DOSSIER_CHARACTER = castId<CharacterId>("char_aria");
+
+/** The Corpus CONTENT dossier over the real data layer — the ASK panel's provenance badge lives here. */
+export function CorpusDossierSurfaceStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 640, width: 480 }}>
+        <CorpusDossierSurface characterId={DOSSIER_CHARACTER} onBack={(): void => undefined} />
       </div>
     </CtDataProviders>
   );
