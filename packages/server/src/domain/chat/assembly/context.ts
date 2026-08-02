@@ -768,7 +768,12 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     pool,
     base,
     {
-      regexScripts: input.promptConfig.regexScripts,
+      // The RESOLVED host-tier union (D53: host-global ∪ chat-preset ∪ present cast), i.e. the SAME set every
+      // other shared leg runs — USER_INPUT above, AI_OUTPUT/REASONING in `engine/pipeline`. Reading the preset
+      // slice alone dropped host-global + card scripts whose placement includes WORLD_INFO, and WORLD_INFO is
+      // in the settings' default placement set, so those silently never fired. `assemble-gather` folds the
+      // preset scripts INTO the union, so this is a strict widening on every real turn.
+      regexScripts: hostScripts,
       applyReplace: ctx.applyRegexReplace,
       wiFormat,
       recentMessages: input.recentMessages,
