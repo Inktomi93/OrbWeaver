@@ -76,6 +76,15 @@
  *  • Operations DO mutate the in-memory ts-morph Project as they run; the
  *    "preview" works by withholding `project.saveSync()` and rendering the
  *    diff between snapshots and current in-memory text.
+ *  • THE DECLARATION LAW (§4/§5): a Plan must DECLARE every file it mutates —
+ *    in `touchedFiles`, or via `ctx.snapshot(sf)` from inside its transform
+ *    (before the mutation) when the blast radius is only knowable at
+ *    transform time. The preview's file list is built from the declared set,
+ *    so an undeclared edit is INVISIBLE in the preview and in the diff
+ *    summary — the operator reviews a preview that omits real changes and
+ *    then applies. The harness detects that at every plan boundary and
+ *    REFUSES (CodemodError naming the files + the offending plan). A preview
+ *    that lies is worse than no preview.
  *  • Helpers that NAVIGATE (find / count) never mutate. They're safe to call
  *    in any phase.
  *  • Helpers throw `CodemodError` (subclass of `Error`) for user-visible
@@ -302,9 +311,12 @@ export interface CodemodContext {
   plan: (plan: Plan) => void;
   /** Record an arbitrary log line that ends up in the preview output. */
   log: (line: string) => void;
-  /** Mark a file as visited so the diff layer captures its original text
-   *  before any helper has mutated it. Most helpers call this for you.
-   *  Idempotent. */
+  /** DECLARE a file this plan is about to mutate: it enters the preview's
+   *  file list with its true original text. This is the seam for a blast
+   *  radius only knowable at transform time (a `move()` that rewrites every
+   *  importer, a language-service rename) — call it BEFORE the mutation.
+   *  Most helpers call it for you. Idempotent. Anything a plan mutates
+   *  without declaring (here or in `touchedFiles`) aborts the run. */
   snapshot: (sourceFile: SourceFile) => void;
   /** Whether the harness is running in dry-run mode (`--apply` was NOT
    *  passed). Most codemods don't need to inspect this — it's exposed for
@@ -335,6 +347,9 @@ export interface CodemodResult {
  *   - CLI flag parsing (`--apply` / `--dry-run` / `--no-diagnostics`)
  *   - Project construction (delegates to createCodemodProject)
  *   - Pre-snapshot of every source file that ANY helper touches
+ *   - The preview-integrity guard: refusing to preview OR apply when a plan
+ *     mutated a file it never declared (those edits are invisible in the
+ *     preview, so the operator would review an incomplete change)
  *   - Catching ts-morph manipulation errors (which leave the project in a
  *     bad state) and refusing to save when one happens
  *   - Post-transform pre-emit diagnostics check (catch broken TS the codemod
@@ -374,49 +389,140 @@ function resolveIsDryRun(options: RunCodemodOptions, argv: readonly string[]): b
   return !hasApply;
 }
 
+/**
+ * The harness's mutation ledger — what makes "this plan changed a file it never declared"
+ * DETECTABLE instead of silent.
+ *
+ * `baseline` is the full in-memory project text captured before the codemod's first line runs
+ * (4.2k files / 25M chars ≈ 3ms and no real memory: the strings already exist, the Map holds
+ * references). It is the only honest "original": a snapshot taken AFTER a helper mutated the file
+ * captures the mutated text as the original, which renders as "unchanged" and hides the edit.
+ */
+interface MutationLedger {
+  /** Full text of every project file as the codemod found it. */
+  readonly baseline: ReadonlyMap<string, string>;
+  /** Text of every known file as of the last plan boundary — the attribution window. */
+  readonly atLastBoundary: Map<string, string>;
+  /** Paths present in the project as of the last boundary. A path that vanishes was deleted or
+   *  moved away, which is a mutation like any other. */
+  readonly knownPaths: Set<string>;
+  /** Every path declared so far: `Plan.touchedFiles` + explicit `ctx.snapshot()` calls. */
+  readonly declared: Set<string>;
+}
+
+function createMutationLedger(project: Project): MutationLedger {
+  const baseline = new Map<string, string>();
+  for (const sf of project.getSourceFiles()) {
+    baseline.set(sf.getFilePath(), sf.getFullText());
+  }
+  return {
+    baseline,
+    atLastBoundary: new Map(baseline),
+    knownPaths: new Set(baseline.keys()),
+    declared: new Set<string>(),
+  };
+}
+
+/** The label used when the codemod body mutated the project outside any `ctx.plan(...)` call. */
+const DIRECT_MUTATION_LABEL = "(direct project mutation — no ctx.plan() call)";
+
+/** Diff the project against the last boundary and return every changed path no plan declared.
+ *  Advances the ledger's boundary as it goes, so each mutation is reported exactly once. */
+function collectUndeclaredMutations(project: Project, ledger: MutationLedger): string[] {
+  const undeclared: string[] = [];
+  const currentPaths = new Set<string>();
+  for (const sf of project.getSourceFiles()) {
+    const path = sf.getFilePath();
+    currentPaths.add(path);
+    const text = sf.getFullText();
+    const prior = ledger.atLastBoundary.get(path);
+    if (prior === text) {
+      continue;
+    }
+    // Unknown to the ledger but in sync with disk: a file the codemod ADDED to the project
+    // (addSourceFileAtPath) rather than modified. Adopt it into the window, it's not a mutation.
+    if (prior === undefined && sf.isSaved()) {
+      ledger.atLastBoundary.set(path, text);
+      ledger.knownPaths.add(path);
+      continue;
+    }
+    ledger.atLastBoundary.set(path, text);
+    ledger.knownPaths.add(path);
+    if (!ledger.declared.has(path)) {
+      undeclared.push(path);
+    }
+  }
+  for (const path of [...ledger.knownPaths]) {
+    if (currentPaths.has(path)) {
+      continue;
+    }
+    ledger.knownPaths.delete(path);
+    ledger.atLastBoundary.delete(path);
+    if (!ledger.declared.has(path)) {
+      undeclared.push(path);
+    }
+  }
+  return undeclared;
+}
+
+/**
+ * THE PREVIEW-INTEGRITY GUARD. Runs at every plan boundary (and once more after the codemod body).
+ * The preview's file list is built from the DECLARED set, so a file mutated without a declaration
+ * never appears in it — the operator reviews a preview that omits real changes and then applies.
+ * Refuse, don't warn: the kit's own rules are guard rails + validate + no shortcuts.
+ */
+function assertPlanDeclaredItsMutations(opts: { project: Project; ledger: MutationLedger; repoRoot: string; label: string }): void {
+  const { project, ledger, repoRoot, label } = opts;
+  const undeclared = collectUndeclaredMutations(project, ledger);
+  if (undeclared.length === 0) {
+    return;
+  }
+  const list = undeclared
+    .sort((a, b) => a.localeCompare(b))
+    .map((p) => `    • ${repoRelative(p, repoRoot)}`)
+    .join("\n");
+  throw new CodemodError(
+    `Undeclared file mutation — the plan "${label}" changed ${undeclared.length} file(s) it never declared:\n${list}`,
+    "Add them to the Plan's `touchedFiles`, or call `ctx.snapshot(sf)` inside the transform BEFORE mutating them " +
+      "(that's how the kit's own moveFiles/renameExportedSymbol declare a language-service blast radius they can't " +
+      "know at plan-build time). Undeclared edits are invisible in the preview and the diff summary, so the run is " +
+      "refused rather than previewed with the edits omitted.",
+  );
+}
+
 function buildCodemodContext(opts: {
   project: Project;
   repoRoot: string;
   isDryRun: boolean;
   snapshots: Map<string, FileSnapshot>;
+  ledger: MutationLedger;
   plans: Plan[];
   logs: string[];
 }): CodemodContext {
-  const { project, repoRoot, isDryRun, snapshots, plans, logs } = opts;
+  const { project, repoRoot, isDryRun, snapshots, ledger, plans, logs } = opts;
   const ctx: CodemodContext = {
     project,
     repoRoot,
     isDryRun,
     plan(plan): void {
       plans.push(plan);
-      // Snapshot every file the plan declares it will touch BEFORE the plan
-      // mutates anything. (The plan may also touch additional files at
-      // transform time; snapshot() is idempotent so the helpers cover that.)
+      // Declare (and snapshot) every file the plan says it will touch BEFORE it mutates anything.
       for (const filePath of plan.touchedFiles) {
-        snapshotFile(ctx, project, snapshots, filePath);
+        declareFile(ctx, snapshots, ledger, filePath);
       }
       plan.transform(ctx);
+      // …then hold the plan to it. A transform may declare more as it goes (ctx.snapshot), but
+      // anything it changed silently stops the run here, before the preview renders.
+      assertPlanDeclaredItsMutations({ project, ledger, repoRoot, label: plan.description });
     },
     log(line): void {
       logs.push(line);
     },
     snapshot(sourceFile): void {
-      snapshotFile(ctx, project, snapshots, sourceFile.getFilePath());
+      declareFile(ctx, snapshots, ledger, sourceFile.getFilePath());
     },
   };
   return ctx;
-}
-
-/** Capture every source file that has been modified (by helpers OR by the user directly), even
- *  if we never explicitly snapshot()-ed it. We can't diff what we don't have an original for —
- *  but at least we can say "this file changed" using ts-morph's own dirty tracking. */
-function captureUnsavedFiles(ctx: CodemodContext, project: Project, snapshots: Map<string, FileSnapshot>): void {
-  for (const sf of project.getSourceFiles()) {
-    if (sf.isSaved()) {
-      continue;
-    }
-    snapshotFile(ctx, project, snapshots, sf.getFilePath());
-  }
 }
 
 /** Post-transform pre-emit diagnostics. Surfaces "the codemod produced broken TS" BEFORE we save
@@ -472,9 +578,10 @@ export async function runCodemod(
 
   const project = createCodemodProject(options.setup);
   const snapshots = new Map<string, FileSnapshot>();
+  const ledger = createMutationLedger(project);
   const plans: Plan[] = [];
   const logs: string[] = [];
-  const ctx = buildCodemodContext({ project, repoRoot, isDryRun, snapshots, plans, logs });
+  const ctx = buildCodemodContext({ project, repoRoot, isDryRun, snapshots, ledger, plans, logs });
 
   console.log(headerBox(name, isDryRun));
 
@@ -486,7 +593,9 @@ export async function runCodemod(
     throw err;
   }
 
-  captureUnsavedFiles(ctx, project, snapshots);
+  // The body itself can mutate the project outside any plan (a bare `sf.replaceText(...)`). Same
+  // invisibility, same refusal — with `ctx.snapshot(sf)` as the documented way to do it legitimately.
+  assertPlanDeclaredItsMutations({ project, ledger, repoRoot, label: DIRECT_MUTATION_LABEL });
   const diagnosticErrors = checkDiagnostics({ project, snapshots, isDryRun, options, argv });
 
   // Render the diff summary.
@@ -496,6 +605,7 @@ export async function runCodemod(
     logs,
     snapshots,
     project,
+    repoRoot,
     maxOutputLines: options.maxOutputLines,
   });
 
@@ -519,23 +629,30 @@ export async function runCodemod(
   };
 }
 
-function snapshotFile(ctx: CodemodContext, project: Project, snapshots: Map<string, FileSnapshot>, filePath: string): void {
+/** Declare `filePath` as a file the current plan may mutate: record its ORIGINAL text for the
+ *  preview diff and mark it declared for the boundary guard. Idempotent.
+ *
+ *  The original comes from the ledger's baseline, never from the live SourceFile — a declaration
+ *  made after the mutation would otherwise capture the mutated text as the "original" and render
+ *  the file as unchanged. */
+function declareFile(ctx: CodemodContext, snapshots: Map<string, FileSnapshot>, ledger: MutationLedger, filePath: string): void {
   const resolved = absolutePath(filePath, ctx.repoRoot);
+  ledger.declared.add(resolved);
   if (snapshots.has(resolved)) {
     return;
   }
-  const sf = project.getSourceFile(resolved);
-  let originalText: string;
-  let wasCreated = false;
-  if (sf) {
-    originalText = sf.getFullText();
-  } else if (existsSync(resolved)) {
-    originalText = readFileSync(resolved, "utf-8");
-  } else {
-    originalText = "";
-    wasCreated = true;
+  const baselineText = ledger.baseline.get(resolved);
+  if (baselineText !== undefined) {
+    snapshots.set(resolved, { filePath: resolved, originalText: baselineText, wasCreated: false });
+    return;
   }
-  snapshots.set(resolved, { filePath: resolved, originalText, wasCreated });
+  // Outside the baseline: either a file this run creates, or one outside the project's globs.
+  const exists = existsSync(resolved);
+  snapshots.set(resolved, {
+    filePath: resolved,
+    originalText: exists ? readFileSync(resolved, "utf-8") : "",
+    wasCreated: !exists,
+  });
 }
 
 function headerBox(name: string, isDryRun: boolean): string {
@@ -566,9 +683,13 @@ function headerBox(name: string, isDryRun: boolean): string {
 export interface Plan {
   /** Human-readable label rendered in the preview. */
   readonly description: string;
-  /** Paths the helper expects to modify. The harness snapshots them. Helpers
-   *  may touch additional files at transform time — that's why we also
-   *  snapshot anything ts-morph marks as unsaved at preview time. */
+  /** Every path this plan may modify. The harness snapshots them BEFORE the transform, and the
+   *  preview's file list is built from exactly this declared set.
+   *
+   *  THE DECLARATION LAW: a file mutated without being declared here — or via `ctx.snapshot(sf)`
+   *  from inside the transform, before the mutation, which is the seam for a blast radius only
+   *  knowable at transform time — aborts the run at the plan boundary. Under-declaring used to
+   *  produce a preview that silently omitted those edits. */
   readonly touchedFiles: readonly string[];
   /** The actual mutation. Runs synchronously on the in-memory project. */
   readonly transform: (ctx: CodemodContext) => void;
@@ -712,8 +833,14 @@ export function moveFiles(ctx: CodemodContext, moves: ReadonlyArray<readonly [fr
   return {
     description: `Move ${moves.length} file(s)${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [...touched],
-    transform(): void {
+    transform(innerCtx): void {
       for (const { sf, toAbs } of resolved) {
+        // move() rewrites the relative specifier in every importer too. Declare that set here —
+        // it's only knowable at transform time (an earlier plan may have added or dropped an
+        // importer), and an undeclared rewrite would be missing from the preview.
+        for (const referencing of sf.getReferencingSourceFiles()) {
+          innerCtx.snapshot(referencing);
+        }
         // SourceFile.move() returns the same SourceFile at the new path AND
         // updates every importer of the old path within the project graph.
         sf.move(toAbs);
@@ -1459,13 +1586,23 @@ export function renameExportedSymbol(
   assert(sf !== undefined, `renameExportedSymbol: file not in project: ${repoRelative(abs, ctx.repoRoot)}`);
   return {
     description: `Rename symbol "${oldName}" → "${newName}" in ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
-    // We don't know up-front which files have references — return [abs]
-    // and let the post-transform snapshot catch the rest (the harness
-    // captures every unsaved file at preview time).
+    // Only the declaring file is knowable up front; the reference set is a language-service
+    // question that can only be asked once the earlier plans have settled. The transform declares
+    // it below (`ctx.snapshot`) before the rename touches a byte.
     touchedFiles: [abs],
-    transform(): void {
+    transform(innerCtx): void {
       const decl = findExportedDeclaration(sf, oldName);
       assert(decl !== undefined, `renameExportedSymbol: no exported "${oldName}" in ${filePath}`);
+      // The rename engine rewrites every reference site — importers, re-export chains, the
+      // declaration's own file. Declare that whole set FIRST: `findReferencesAsNodes` is the same
+      // reference resolution `rename()` uses, and the importer set covers the re-export shells
+      // whose specifier changes without a resolved reference node of its own.
+      for (const ref of Node.isReferenceFindable(decl) ? decl.findReferencesAsNodes() : []) {
+        innerCtx.snapshot(ref.getSourceFile());
+      }
+      for (const referencing of sf.getReferencingSourceFiles()) {
+        innerCtx.snapshot(referencing);
+      }
       // Locate the actual name node. ts-morph's RenameableNode trait lives
       // on the identifier itself for most kinds, but on the declaration for
       // some (function, class). Try the declaration via the typed mixin
@@ -2320,10 +2457,16 @@ interface PreviewStats {
 
 type FileEntryStatus = "deleted" | "created" | "changed" | "unchanged";
 
-/** Render one file's line for the "Files" preview section, and classify it for the tally. */
-function renderFileEntry(snap: FileSnapshot, project: Project): { line: string; status: FileEntryStatus } {
-  const sf = project.getSourceFile(snap.filePath);
-  const repoRel = repoRelative(snap.filePath, process.cwd());
+/** Render one file's line for the "Files" preview section, and classify it for the tally.
+ *
+ *  `byPath` is built from `project.getSourceFiles()`, NOT `project.getSourceFile(path)`: that lookup
+ *  reads a cache that still answers for a MOVED-AWAY path (verified on the real project — after
+ *  `move()`, `getSourceFile(oldPath)` returns a live file still reporting the old path). The entry
+ *  then compared equal to its own baseline and dropped out of the preview as "unchanged", so a moved
+ *  file's disappearance was invisible. */
+function renderFileEntry(snap: FileSnapshot, byPath: ReadonlyMap<string, SourceFile>, repoRoot: string): { line: string; status: FileEntryStatus } {
+  const sf = byPath.get(snap.filePath);
+  const repoRel = repoRelative(snap.filePath, repoRoot);
   if (sf === undefined) {
     return { line: `  − ${repoRel}    (deleted)`, status: "deleted" };
   }
@@ -2346,6 +2489,7 @@ function renderFileEntry(snap: FileSnapshot, project: Project): { line: string; 
 function renderFilesSection(
   snapshots: ReadonlyMap<string, FileSnapshot>,
   project: Project,
+  repoRoot: string,
 ): { lines: string[]; filesChanged: number; filesCreated: number; filesDeleted: number } {
   const sorted = [...snapshots.values()].sort((a, b) => a.filePath.localeCompare(b.filePath));
   if (sorted.length === 0) {
@@ -2355,8 +2499,9 @@ function renderFilesSection(
   let filesCreated = 0;
   let filesDeleted = 0;
   const lines: string[] = [];
+  const byPath = new Map(project.getSourceFiles().map((sf) => [sf.getFilePath() as string, sf]));
   for (const snap of sorted) {
-    const entry = renderFileEntry(snap, project);
+    const entry = renderFileEntry(snap, byPath, repoRoot);
     if (entry.status === "unchanged") {
       continue;
     }
@@ -2378,9 +2523,10 @@ function renderPreview(opts: {
   logs: readonly string[];
   snapshots: ReadonlyMap<string, FileSnapshot>;
   project: Project;
+  repoRoot: string;
   maxOutputLines?: number | undefined;
 }): PreviewStats {
-  const { name, plans, logs, snapshots, project, maxOutputLines } = opts;
+  const { name, plans, logs, snapshots, project, repoRoot, maxOutputLines } = opts;
   const buf: string[] = [];
   buf.push("\n── Plans ──");
   if (plans.length === 0) {
@@ -2398,7 +2544,7 @@ function renderPreview(opts: {
   }
 
   buf.push("\n── Files ──");
-  const { lines, filesChanged, filesCreated, filesDeleted } = renderFilesSection(snapshots, project);
+  const { lines, filesChanged, filesCreated, filesDeleted } = renderFilesSection(snapshots, project, repoRoot);
   buf.push(...lines);
   const overflowFile = flushBuffer(buf, `preview-${name}`, maxOutputLines);
   return {
@@ -2490,7 +2636,7 @@ export const MANIFEST: readonly ManifestCategory[] = [
       },
       {
         name: "runCodemod",
-        summary: "The CLI harness — handles --apply / --dry-run flags, snapshots, diff rendering, save.",
+        summary: "The CLI harness — --apply / --dry-run flags, snapshots, diff rendering, save, and the refusal when a plan mutates a file it never declared.",
         when: "Always wrap your codemod with this. It's the only legitimate way to write changes.",
       },
       {
