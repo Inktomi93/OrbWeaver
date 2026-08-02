@@ -150,8 +150,20 @@ plugin_kv ([pluginId,key] — NO owner) · stats apply-delta ×4 · settings/the
 automation (owner-targeted, likely fine); needs UNIQUE-index derivation × target list.
 **Lane DANGLE also dispatched** (TRUTH's ruled gate arms: backticked-PATH + backticked-SYMBOL
 existence, dangling-refs family, both-ways).
-**LIVE NOW (5): REGEX · F14 · UPSERT · DANGLE (+ MONO's zombie instance TaskStopped after
-merge — owner spotted it lingering).**
+✅ **UPSERT MERGED (`6156e3af`, --no-verify on receipts [own hook 14/14 PASS], torn down)** —
+`owner-scoped-upserts` = the THIRD tenancy-family gate (disjoint marker @owner-scope-upsert-ok;
+upsertConfigOf joined tenancy-read.ts). 25 upserts censused, 6 on (a)-tables: 4 safe by
+construction, **2 SQL-layer holes FIXED structurally** (plugin_kv [pluginId,key] target +
+themes PK-collision — both setWhere belts; caller-side guards made them unreachable today, but
+the :memory: probe showed the corruption shape: a foreign collision overwrites the row IN
+PLACE while it keeps its own owner_id — invisible to every owner-filtered read after. ZERO
+markers, zero allowlist rows). Deliberate non-arm: FK-chain "safe by construction" stays
+ANALYSIS not gate-arm (would false-green caller-named foreign FK values); `set:{ownerId}` is
+proven the ANTI-fix (theft-upgrade) w/ mustFlag. Gate count 172. Lesson banked below.
+**LIVE NOW (6, at cap): REGEX (warm tail + DISPLAY toggle) · DANGLE · RESYNC (the two ruled
+reattribution affordances) · SM4 (CAP-GATE pending arm + 3 span-coverage smalls) · SIDE-EYE
+scoped re-check (FX's 31 + macro pill in situ + home-tile skeleton verdict) — owner: "fill the
+lanes back up." (+ MONO's zombie TaskStopped post-merge — owner spotted it.)
 **✅ PERSONA×RPG STICKLER DELIVERED + 3 RULINGS (owner, 08-03; report committed `1ed993c7`:
 docs/reviews/stickler/2026-08-03-persona-rpg-and-history.md):** Q1 rpg = COHERENT-AS-IS
 (receipted — actor keys persona-stable, every read live-resolves; Ashen Spire root cause =
@@ -180,9 +192,11 @@ bundle round-trip + RECEIVE/WI ORDER pins). **OPEN OWNER FORK: DISPLAY-tier sour
 viewer-only (implemented, law-literal: a host can't rewrite what others SEE) vs ST-parity
 (room carriers' DISPLAY scripts render for every viewer + viewer's on top) — posed.
 **→ DISPLAY RULED (owner, THIRD arm): viewer-only default + a HOST PER-ROOM TOGGLE** — host
-enables → the HOST's display scripts render for every viewer ("a GM might want to do something
-special"); default OFF (D121-B options-never-defaults grammar); viewer's own scripts apply
-LAST (counter-style always possible); both arms CT-pinned. Relayed to REGEX's warm tail.
+enables → the HOST's display scripts render for every viewer; default OFF (D121-B
+options-never-defaults grammar); viewer's own scripts apply LAST (counter-style always
+possible); both arms CT-pinned. **VOCAB (owner correction): it is HOST CONTROLS — never "GM"**
+(any host, any room; the no-GM-in-lite rider applies to the feature's naming/copy; the GM
+phrasing was only the owner's motivating example). Relayed to REGEX's warm tail ×2.
 ✅ **F14 MERGED (`509a6550`, --no-verify on branch-side green receipts [first under the new
 word — debt row, cleared by the quiesce run], torn down) — HOME BOOT CLS 0.0913 → 0.0000
 measured.** THE F-14 ROW IS REWRITTEN: the pinned shell.css cause was REFUTED by measurement
@@ -386,7 +400,27 @@ gate:new · gate-modernization/own-tables-only/two-class-role-authority/contract
 zod-modern-spellings/no-hover-display-swap/fk-index/ondelete/pk gates · structure:drizzle-kit ·
 structure:db-baseline (commit tier) · deps:orphan-ratchet (push tier) · chat.getVariantWire.
 
-**STANDING OWNER ITEMS (post-answers): D22 (multi-user stack) · F6 strict-fidelity nit (leave unless owner cares) · regime-2 landmine (launch-day) — everything else RULED/CLOSED today.**
+**STANDING OWNER ITEMS (post-answers): ~~D22 (multi-user stack)~~ **UNBLOCKED 08-03 — the
+blocker was STALE (owner correction): `scripts/dev/multi-user-fixture.sh` + `multi-user-seed.ts`
++ the e2e multi-user-seed modes exist; Lane D22 DISPATCHED** (live two-account verification:
+memberCardVisibility clamps · D16 from-join arm · hidden-span member strip · export 404 ·
+Members-tab captures · the D122 member-persona plane live) · F6 strict-fidelity nit (leave
+unless owner cares) · regime-2 landmine (launch-day).**
+**D22 MID-RUN CORRECTION (lane, source-pinned): the multi-user FIXTURE is NOT port-isolated** —
+it reuses stack.sh's 8788/5173 verbatim (only the DB is its own; fixture.ts:24 + the script's
+own "run this INSTEAD of pnpm stack" header) — my dispatch premise was wrong. RULED arm B:
+pixels come from the e2e `local` project's OWN isolated stack (8799/5183, E2E_HARNESS) via a
+new tests/e2e/support multi-user-pixels helper; the owner's :5173 untouched. **NEW SMALL
+boarded: the snap `--contexts` / fixture port coupling** — --contexts is unusable while the
+dev stack is up (SNAP_FIXTURE_SERVER_URL read by neither fixtureStatus() nor opts.base);
+either snap grows a real port override + the fixture an offset-pair mode, or the snap header
+says honestly "requires the owner's stack down". SIDE-EYE re-check lane STOPPED early by
+owner word (barely started, nothing lost) — re-queue after the wave drains.
+**⛔ DISPATCH FREEZE (owner word, 08-03: 5h usage limit, ~20 min left): NO new agent spawns
+until the owner lifts it.** The 5 live lanes (REGEX · DANGLE · RESYNC · SM4 · D22) run out
+their course — process their READY reports (merge --no-verify on receipts, board, teardown),
+answer questions, keep the board current; NOTHING new launches. If a lane stalls mid-window,
+board its resume state rather than respawning.
 
 ## ═══ ▶▶▶ HANDOFF #3 — 2026-08-02 NIGHT (SESSION-END; the ONE current block. Owner is
 ## swapping accounts — the resuming orchestrator has NO conversation memory; this block +
