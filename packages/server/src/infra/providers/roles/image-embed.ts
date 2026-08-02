@@ -5,7 +5,7 @@
 
 import type { ImageEmbedResult } from "@orb/contracts/providers";
 import type { ImageEmbedRequest, ProviderDeps } from "../contract";
-import { backendForSource, requireBackend, requireRoleImpl } from "./dispatch";
+import { backendForSource, requireBackend, runRole } from "./dispatch";
 import { assertCredentialAllowed } from "./firewall";
 
 const ROLE = "imageEmbed";
@@ -15,6 +15,12 @@ export function createImageEmbedRole(deps: ProviderDeps): (req: ImageEmbedReques
   return async (req) => {
     assertCredentialAllowed({ role: ROLE, source: req.credential.source });
     const backend = requireBackend(deps.backends, backendForSource(req.credential.source), ROLE);
-    return await requireRoleImpl(backend, backend.imageEmbed, ROLE)(req);
+    return await runRole({
+      backend,
+      impl: backend.imageEmbed,
+      role: ROLE,
+      req,
+      attrs: { "provider.source": req.credential.source, "provider.model": req.model },
+    });
   };
 }

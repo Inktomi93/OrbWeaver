@@ -2,9 +2,11 @@
 // and backendForSource (the non-chat axis), plus the fail-closed registry/role lookups. The runner key
 // is infra-internal and never leaves providers; this is its only test surface.
 
-import type { BackendKey, BackendRegistry, CredentialSource, ProviderBackend } from "@orb/server/infra/providers";
-import { backendForSource, deriveRunner, ProviderError, requireBackend, requireRoleImpl } from "@orb/server/infra/providers";
+import { getTraceByRequestId, initTracing, withRequestSpan } from "@orb/server/foundation/observability";
+import type { BackendKey, BackendRegistry, CredentialSource, EmbedRequest, ProviderBackend } from "@orb/server/infra/providers";
+import { backendForSource, createEmbedRole, deriveRunner, ProviderError, requireBackend, requireRoleImpl } from "@orb/server/infra/providers";
 import { describe } from "vitest";
+import { makeResolvedCredential } from "../../../../support/factories/resolved-connection";
 import { expect, test } from "../../../../support/fixtures";
 
 // The agent-sdk×vllm rejection message (loopback skin retired) — hoisted for the callback-regex lint.
@@ -87,5 +89,49 @@ describe("requireBackend / requireRoleImpl — fail-closed lookups", () => {
     expect(requireRoleImpl(fakeBackend, fakeBackend.embed, "embed")).toBe(fakeBackend.embed);
     // The openrouter fake doesn't implement rerank → fail-closed, not a TypeError-on-undefined-call.
     expect(() => requireRoleImpl(fakeBackend, fakeBackend.rerank, "rerank")).toThrow(ProviderError);
+  });
+});
+
+// ── runRole — the provider span (the `providerDurationMs: 0` defect) ──────────────────────────────────
+// `RequestTraceTotals.providerDurationMs` sums spans named `provider.*`, and NOTHING opened one: the tree
+// held only `trpc.*` and `db.*`, so every recorded trace reported provider time as exactly 0 and a slow
+// turn read as a slow request. Proved through the REAL dispatcher (`createEmbedRole`) and read back off the
+// TRACE RING — the surface `/api/_debug/traces` serves — not off the span API the fix calls.
+const PROVIDER_WORK_MS = 5;
+const PROVIDER_SPAN_REQUEST_ID = "dispatch-provider-span";
+
+describe("runRole — the provider-call seam opens a provider.<role> span", () => {
+  test("a role dispatch lands a provider.embed span in the request's trace, and its duration reaches the totals", async () => {
+    initTracing();
+    const calls: string[] = [];
+    // A backend whose impl takes REAL time, so a duration of 0 can only mean "no span was opened".
+    const backend: ProviderBackend = {
+      key: "vllm",
+      embed: async () => {
+        calls.push("embed");
+        await new Promise((resolve) => setTimeout(resolve, PROVIDER_WORK_MS));
+        return { vectors: [], model: "m", usage: { promptTokens: null, totalTokens: null } };
+      },
+    };
+    const role = createEmbedRole({ backends: new Map<BackendKey, ProviderBackend>([["vllm", backend]]) });
+    // The same minimal in-shape request the embed role's own firewall matrix builds.
+    // FABRICATION-OK: a minimal in-shape EmbedRequest — this test is about the span, not the wire payload.
+    const req = { credential: makeResolvedCredential("vllm"), model: "m", input: "x" } as EmbedRequest;
+
+    await withRequestSpan(PROVIDER_SPAN_REQUEST_ID, "test-root", {}, () => role(req));
+
+    expect(calls).toEqual(["embed"]);
+    const trace = getTraceByRequestId(PROVIDER_SPAN_REQUEST_ID);
+    if (trace === undefined) {
+      throw new Error("expected a recorded trace for the request");
+    }
+    const providerSpan = trace.spans.find((s) => s.name === "provider.embed");
+    expect(providerSpan).toBeDefined();
+    // The attributes name WHICH backend served it (metadata only — never RP content).
+    expect(providerSpan?.attributes["provider.backend"]).toBe("vllm");
+    expect(providerSpan?.attributes["provider.role"]).toBe("embed");
+    expect(providerSpan?.attributes["provider.source"]).toBe("vllm");
+    // THE PIN: the ring's provider total is no longer structurally 0.
+    expect(trace.totals.providerDurationMs).toBeGreaterThan(0);
   });
 });

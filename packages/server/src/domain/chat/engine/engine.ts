@@ -29,7 +29,7 @@ import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { CharacterId, ChatId, ChatTurnId, MessageId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
-import { getLog } from "#foundation/observability";
+import { getLog, withRequestSpan } from "#foundation/observability";
 import type { ChatContext } from "../context";
 import type { DebitBudgetOp, ResolveTurnPolicyOp, RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
@@ -565,21 +565,40 @@ function projectTurnRpgTranscript(canonAll: readonly MessageView[], view: Messag
   return projectRpgTranscript(rows, names);
 }
 
+/** The post-turn rpg round's own trace root — one name so the debug surface and any future filter agree. */
+const RPG_ROUND_SPAN = "rpg.turnCompleted";
+
+/** The trace-ring request id that round is bucketed under. Its OWN id, never the HTTP request's: the round
+ *  outlives the request, and a span arriving after that root sealed is dropped as a late orphan. */
+function rpgRoundRequestId(turnId: ChatTurnId): string {
+  return `rpg-turn:${turnId}`;
+}
+
 /** Fire-and-forget the rpg post-turn FLUSH (rpg-design/10 §R4): after the variant commits, flush the turn's
  *  staged tool writes onto the committed variant, keyed by `turnId`. Null op = rpg not wired (byte-identical
  *  no-op). Fire-and-forget with `.catch` — a background staging flush must NEVER turn a committed reply into an
- *  abort; the reply already landed. Inert until the rpg tool registrants stage anything (R4 #2/#3). */
+ *  abort; the reply already landed. Inert until the rpg tool registrants stage anything (R4 #2/#3).
+ *
+ *  IT GETS ITS OWN TRACE (the round was invisible to observability): this is the most expensive thing the
+ *  turn does after the reply lands — a whole state round with its own provider call and its own writes — and
+ *  it ran under NO live span. Not because nothing is active at the dispatch instant (the `trpc.*` span is),
+ *  but because the round OUTLIVES the request: by the time its work runs the request root has sealed, and the
+ *  ring DROPS every span arriving for a sealed bucket. So it opens a DETACHED root of its own
+ *  (`withRequestSpan`, whose `root: true` is what makes that detach real), keyed by the turn —
+ *  `/api/_debug/traces` shows the round as its own trace with its provider + db children under it, instead of
+ *  nothing. The span marks itself error on the same throw the warn below records. */
 function fireRpgTurnCompleted(ctx: ChatContext, view: MessageView, turnId: ChatTurnId, turn: RpgTurnContext): void {
   if (ctx.rpg !== null) {
+    const rpg = ctx.rpg;
     // Fire-and-forget still (a background flush must NEVER turn a committed reply into an abort), but LOG the
     // failure — a silent `.catch(() => undefined)` made a broken rpg flush/extraction invisible in prod (the
     // diagnosis that surfaced the routing bug). The reply already landed; this only records that the state
     // write behind it failed. `turn` carries THIS turn's ALREADY-RESOLVED connection + enforced owner-consent
     // verdict so the rpg state round runs on the exact same route/consent the engine gated — never a second
     // hand-rolled resolve/consent path (stickler F1).
-    void ctx.rpg
-      .onTurnCompleted(view.chatId, view.id, view.selectedVariantId, turnId, turn)
-      .catch((err: unknown) => getLog().warn({ err, chatId: view.chatId, turnId }, "rpg: post-turn flush failed (reply already committed)"));
+    void withRequestSpan(rpgRoundRequestId(turnId), RPG_ROUND_SPAN, { chatId: view.chatId, messageId: view.id, turnId }, () =>
+      rpg.onTurnCompleted(view.chatId, view.id, view.selectedVariantId, turnId, turn),
+    ).catch((err: unknown) => getLog().warn({ err, chatId: view.chatId, turnId }, "rpg: post-turn flush failed (reply already committed)"));
   }
 }
 

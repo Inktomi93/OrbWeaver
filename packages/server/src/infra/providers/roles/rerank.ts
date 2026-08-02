@@ -4,7 +4,7 @@
 
 import type { RerankResult } from "@orb/contracts/providers";
 import type { ProviderDeps, RerankRequest } from "../contract";
-import { backendForSource, requireBackend, requireRoleImpl } from "./dispatch";
+import { backendForSource, requireBackend, runRole } from "./dispatch";
 import { assertCredentialAllowed } from "./firewall";
 
 const ROLE = "rerank";
@@ -14,6 +14,12 @@ export function createRerankRole(deps: ProviderDeps): (req: RerankRequest) => Pr
   return async (req) => {
     assertCredentialAllowed({ role: ROLE, source: req.credential.source });
     const backend = requireBackend(deps.backends, backendForSource(req.credential.source), ROLE);
-    return await requireRoleImpl(backend, backend.rerank, ROLE)(req);
+    return await runRole({
+      backend,
+      impl: backend.rerank,
+      role: ROLE,
+      req,
+      attrs: { "provider.source": req.credential.source, "provider.model": req.model },
+    });
   };
 }

@@ -3,7 +3,7 @@
 // the `ChatRequest` once and calls this; it never sees the runner.
 
 import type { ChatRequest, ChatResult, ProviderDeps } from "../contract";
-import { deriveRunner, requireBackend, requireRoleImpl } from "./dispatch";
+import { deriveRunner, requireBackend, runRole } from "./dispatch";
 import { assertCredentialAllowed } from "./firewall";
 
 const ROLE = "chat";
@@ -18,6 +18,12 @@ export function createChatRole(deps: ProviderDeps): (req: ChatRequest) => Promis
       ownerConsented: req.ownerConsented,
     });
     const backend = requireBackend(deps.backends, deriveRunner(req.api, req.credential.source), ROLE);
-    return await requireRoleImpl(backend, backend.runChatTurn, ROLE)(req);
+    return await runRole({
+      backend,
+      impl: backend.runChatTurn,
+      role: ROLE,
+      req,
+      attrs: { "provider.source": req.credential.source, "provider.api": req.api, "provider.model": req.model },
+    });
   };
 }

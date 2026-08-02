@@ -1,9 +1,15 @@
 // Sealed routing derivation: maps {api, source} onto the infra-internal `BackendKey`, never leaked
 // outward. Every switch is `assertNever`-exhaustive; an invalid (api, source) pairing fail-closes with a
 // typed {@link ProviderError} rather than falling through.
+//
+// It is also where the PROVIDER SPAN is opened (`runRole`) — the one line every role dispatcher's body ends
+// on, and therefore the only place the whole provider surface can be timed once. See `runRole`'s header for
+// why the trace ring was reporting `providerDurationMs: 0` forever.
 
 import type { ChatApi } from "@orb/contracts/connection";
 import type { CredentialSource } from "@orb/contracts/credentials";
+import type { SpanAttrs } from "#foundation/observability";
+import { span } from "#foundation/observability";
 import type { BackendKey, BackendRegistry, ProviderBackend } from "../contract";
 import { ProviderError } from "../contract";
 
@@ -131,9 +137,41 @@ export function requireBackend(registry: BackendRegistry, key: BackendKey, role:
   return backend;
 }
 
+/**
+ * Resolve a role's impl and RUN it inside a `provider.<role>` span — the ONE provider-call seam, so every
+ * role's wire time is timed in exactly one place and no dispatcher can forget.
+ *
+ * WHY IT EXISTS: `RequestTraceTotals.providerDurationMs` sums spans named `provider.*`, and NOTHING opened
+ * one — the tree held only `trpc.*` and `db.*`, so every trace reported provider time as 0 and a slow turn
+ * was indistinguishable from a slow request. The provider log/event vocabulary (`provider.turn`,
+ * `provider.structured-item`, the `provider.retry` span EVENTS) all rides INSIDE this window; none of it is
+ * a span, so none of it ever contributed a duration.
+ *
+ * The span is opened HERE and not in each backend runner because the runner is the sealed implementation —
+ * the dispatcher is the boundary the domain actually crosses, and it is the only layer that knows the role
+ * name the span is keyed by. Attributes are metadata only (backend key, source, model): RP content never
+ * reaches a span attribute.
+ *
+ * The DIAGNOSTICS dispatch (`../diagnostics.ts`) deliberately stays on the bare `requireRoleImpl`: probes,
+ * catalog fetches and credit reads are not inference, and folding them into `providerDurationMs` would make
+ * "time this request spent generating" mean something else.
+ */
+export function runRole<Req, Res>(args: {
+  readonly backend: ProviderBackend;
+  readonly impl: ((req: Req) => Promise<Res>) | undefined;
+  readonly role: string;
+  readonly req: Req;
+  /** Per-role metadata for the span (source / model / api) — never RP content. */
+  readonly attrs?: SpanAttrs;
+}): Promise<Res> {
+  const { backend, role } = args;
+  const run = requireRoleImpl(backend, args.impl, role);
+  return span(`provider.${role}`, () => run(args.req), { "provider.backend": backend.key, "provider.role": role, ...args.attrs });
+}
+
 /** Pull a role's impl off a resolved backend, or fail-closed: a backend that doesn't serve the
  *  requested role (e.g. an OpenRouter backend asked to imageEmbed) throws a typed error rather than a
- *  `TypeError` on an undefined call. */
+ *  `TypeError` on an undefined call. Prefer {@link runRole}, which also opens the provider span. */
 export function requireRoleImpl<F>(backend: ProviderBackend, impl: F | undefined, role: string): F {
   if (impl === undefined) {
     throw new ProviderError({

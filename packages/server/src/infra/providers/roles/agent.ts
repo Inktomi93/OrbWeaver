@@ -5,7 +5,7 @@
 // owner-consent belt.
 
 import type { AgentTurnRequest, ChatResult, ProviderDeps } from "../contract";
-import { requireBackend, requireRoleImpl } from "./dispatch";
+import { requireBackend, runRole } from "./dispatch";
 import { assertCredentialAllowed } from "./firewall";
 
 const ROLE = "agent";
@@ -21,6 +21,12 @@ export function createAgentRole(deps: ProviderDeps): (req: AgentTurnRequest) => 
       ownerConsented: req.ownerConsented,
     });
     const backend = requireBackend(deps.backends, AGENT_BACKEND, ROLE);
-    return await requireRoleImpl(backend, backend.runAgentTurn, ROLE)(req);
+    return await runRole({
+      backend,
+      impl: backend.runAgentTurn,
+      role: ROLE,
+      req,
+      attrs: { "provider.source": req.credential.source, "provider.model": req.model },
+    });
   };
 }
