@@ -3,8 +3,10 @@
 // split decides whether a turn resumes a session (seed + tail) or runs the one-off flattened shape
 // (continue-mode / tool rows), and the tail join must match the backend comparator's user-run joiner.
 
+import type { PersonaId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { TurnMessage } from "@orb/server/domain/chat";
-import { extractTrailingSystemRows, flattenAgentHistory, splitAgentHistory } from "@orb/server/entry/compose";
+import { activePersonaIdFor, extractTrailingSystemRows, flattenAgentHistory, splitAgentHistory } from "@orb/server/entry/compose";
 import { AGENT_PROMPT_TAIL_JOINER } from "@orb/server/infra/providers";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
@@ -116,5 +118,33 @@ describe("extractTrailingSystemRows — the agent-sdk system-injection channel s
 
   test("flattenAgentHistory labels a system row 'System' (the no-split fallback stays honest)", () => {
     expect(flattenAgentHistory([row("system", "note")])).toBe("System: note");
+  });
+});
+
+// The FOREIGN resolver's three-state trigger binding (Chat-Macro-Resolution §3/§4). The bug this pins: the
+// resolver coalesced `triggerPersonaId ?? personaIds.at(0)`, so the drain/auto callers' EXPLICIT null — which
+// their own comments define as "no live triggering human, {{user}} binds to the chat anchor" — silently became
+// the presence-order-arbitrary first present human (or the "User" kit floor in an empty room). Three states,
+// three answers.
+describe("activePersonaIdFor — the three-state trigger contract", () => {
+  const anchorPersonaId = castId<PersonaId>("persona_anchor");
+  const triggerId = castId<PersonaId>("persona_trigger");
+  const firstPresent = castId<PersonaId>("persona_first_present");
+
+  test("an ID binds to the TRIGGERING human's persona — never the first present human", () => {
+    expect(activePersonaIdFor({ triggerPersonaId: triggerId, personaIds: [firstPresent], anchorPersonaId })).toBe(triggerId);
+  });
+
+  test("an EXPLICIT null (deferred drain / auto turn) binds to the ANCHOR, not a presence-order bystander", () => {
+    expect(activePersonaIdFor({ triggerPersonaId: null, personaIds: [firstPresent], anchorPersonaId })).toBe(anchorPersonaId);
+  });
+
+  test("an explicit null with NO anchor is the honest nothing (the kit floor), never a bystander", () => {
+    expect(activePersonaIdFor({ triggerPersonaId: null, personaIds: [firstPresent], anchorPersonaId: null })).toBeNull();
+  });
+
+  test("ABSENT (the trigger is unknown — a preview / a card display) keeps the documented fallback chain", () => {
+    expect(activePersonaIdFor({ personaIds: [firstPresent], anchorPersonaId })).toBe(firstPresent);
+    expect(activePersonaIdFor({ personaIds: [], anchorPersonaId })).toBeNull();
   });
 });

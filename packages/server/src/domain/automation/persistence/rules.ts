@@ -109,6 +109,10 @@ export function listRuleRowsForChat(db: Db, chatId: ChatId): Promise<RuleRow[]> 
   return db.select().from(automationRules).where(eq(automationRules.chatId, chatId)).orderBy(asc(automationRules.position), asc(automationRules.createdAt));
 }
 
+// @owner-scope-write-ok: the D18 HOST rung, not the stamp — `requireRuleHost(ctx, principal, ruleId)` runs
+// in every calling verb (`update-rule`) and is STRICTER than `eq(ownerId, …)` (a rule's owner
+// is its author, but only the room's host may touch it), so an owner predicate here would encode the
+// WEAKER check. Ends the day a verb writes a rule without that guard.
 export async function applyRuleUpdate(db: Db, ruleId: AutomationRuleId, patch: RuleUpdate): Promise<void> {
   await db
     .update(automationRules)
@@ -116,10 +120,18 @@ export async function applyRuleUpdate(db: Db, ruleId: AutomationRuleId, patch: R
     .where(eq(automationRules.id, ruleId));
 }
 
+// @owner-scope-write-ok: the D18 HOST rung, not the stamp — `requireRuleHost(ctx, principal, ruleId)` runs
+// in every calling verb (`set-rule-enabled`) and is STRICTER than `eq(ownerId, …)` (a rule's owner
+// is its author, but only the room's host may touch it), so an owner predicate here would encode the
+// WEAKER check. Ends the day a verb writes a rule without that guard.
 export async function setRuleEnabledRow(db: Db, ruleId: AutomationRuleId, enabled: boolean, now: number): Promise<void> {
   await db.update(automationRules).set({ enabled, updatedAt: now }).where(eq(automationRules.id, ruleId));
 }
 
+// @owner-scope-write-ok: the D18 HOST rung, not the stamp — `requireRuleHost(ctx, principal, ruleId)` runs
+// in every calling verb (`delete-rule`) and is STRICTER than `eq(ownerId, …)` (a rule's owner
+// is its author, but only the room's host may touch it), so an owner predicate here would encode the
+// WEAKER check. Ends the day a verb writes a rule without that guard.
 export async function deleteRuleRow(db: Db, ruleId: AutomationRuleId): Promise<void> {
   await db.delete(automationRules).where(eq(automationRules.id, ruleId));
 }
@@ -182,12 +194,20 @@ export function loadEnabledTurnStartedRules(db: Db): Promise<RuleRow[]> {
 }
 
 /** A clean fire (04 §3 step 6): stamp `last_fired_at` (the cooldown source) + clear the error ledger. */
+// @owner-scope-write-ok: the A5 DISPATCH plane (D20 un-principal) — the ruleId is one the engine itself
+// loaded off `loadEnabledChatRules`/`loadEnabledDomainRules`, never caller input, and the write is the
+// engine's own bookkeeping (the clean-fire stamp). There is no principal in scope to scope it to. Ends if a
+// user-facing door ever calls this.
 export async function stampRuleFired(db: Db, ruleId: AutomationRuleId, now: number): Promise<void> {
   await db.update(automationRules).set({ lastFiredAt: now, consecutiveErrors: 0, lastError: null, updatedAt: now }).where(eq(automationRules.id, ruleId));
 }
 
 /** Record a rule error (predicate_error/action_error/authority_refused): increment `consecutive_errors` +
  *  store the skip reason. Returns the NEW count so the dispatch can auto-disable at the threshold (02 §1). */
+// @owner-scope-write-ok: the A5 DISPATCH plane (D20 un-principal) — the ruleId is one the engine itself
+// loaded off `loadEnabledChatRules`/`loadEnabledDomainRules`, never caller input, and the write is the
+// engine's own bookkeeping (the error ledger). There is no principal in scope to scope it to. Ends if a
+// user-facing door ever calls this.
 export async function recordRuleError(db: Db, ruleId: AutomationRuleId, reason: string, now: number): Promise<number> {
   const rows = await db
     .update(automationRules)
@@ -199,12 +219,21 @@ export async function recordRuleError(db: Db, ruleId: AutomationRuleId, reason: 
 
 /** Auto-disable a rule (the 20-error ceiling, or a corrupt actions blob) — records the reason + flips
  *  `enabled` off. The caller then reloads the enabled index. */
+// @owner-scope-write-ok: the A5 DISPATCH plane (D20 un-principal) — the ruleId is one the engine itself
+// loaded off `loadEnabledChatRules`/`loadEnabledDomainRules`, never caller input, and the write is the
+// engine's own bookkeeping (the auto-disable flip). There is no principal in scope to scope it to. Ends if a
+// user-facing door ever calls this.
 export async function disableRule(db: Db, ruleId: AutomationRuleId, reason: string, now: number): Promise<void> {
   await db.update(automationRules).set({ enabled: false, lastError: reason, updatedAt: now }).where(eq(automationRules.id, ruleId));
 }
 
 /** Rewrite `position` over the given ordered ids (host-reorder — a TOTAL order). Each update is scoped to
  *  the chat so a foreign id in the list can never touch another chat's row. One batch, atomic. */
+// @owner-scope-write-ok: the D18 HOST rung, not the stamp — `requireRuleHost(ctx, principal, ruleId)` runs
+// in every calling verb (`reorder-rules`, via `requireChatHost`) and is STRICTER than `eq(ownerId, …)` (a rule's owner
+// is its author, but only the room's host may touch it), so an owner predicate here would encode the
+// WEAKER check. Ends the day a verb writes a rule without that guard.
+// The chat predicate beside each id is the SECOND belt: a foreign rule id in the list touches no row.
 export async function applyReorder(db: Db, chatId: ChatId, orderedIds: readonly AutomationRuleId[], now: number): Promise<void> {
   if (orderedIds.length === 0) {
     return;

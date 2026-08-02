@@ -15,7 +15,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { EffectiveProfileRow } from "../../lib/effective-knobs";
-import { knobLabel, provenanceSuffix } from "../../lib/effective-knobs";
+import { knobLabel, provenanceSuffix, resolvedForLabel } from "../../lib/effective-knobs";
 import { formatCount } from "../../lib/format-count";
 
 /** ONE number format across the whole readout (side-eye F-29): a cluster printed `1,500` beside `8192`
@@ -89,7 +89,7 @@ export function EffectiveProfile({
         </Stack>
       )}
       <Text voice="gloss">
-        resolved for {effective.model} · chat role
+        {resolvedForLabel(effective.model)} · chat role
         {effective.stale.length === 0
           ? ""
           : ` · ${String(effective.stale.length)} stored knob${effective.stale.length === 1 ? "" : "s"} this model ignores — clear them in the deck`}

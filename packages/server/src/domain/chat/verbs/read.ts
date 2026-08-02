@@ -138,6 +138,7 @@ import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisi
 import { toChatDetail } from "../substrate/chat-detail";
 import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember, viewerReadsHidden } from "../substrate/member-visibility";
 import { hostUserIdOf } from "../substrate/roster-host";
+import { presentHumanUserIdsOf } from "../substrate/roster-humans";
 
 /** The per-chat DECEPTION-active verdict for the member reasoning-strip (§3.6): `true` ⇒ a non-host viewer loses
  *  the whole reasoning channel for this game. Resolved through the injected `ChatRpgOps.resolveReasoningHostOnly`
@@ -324,7 +325,9 @@ async function buildSummaries(db: Db, deps: ReadDeps, rows: readonly ChatRowView
  *  the host (`runAsUserId`, the connection, the preset). Without it the resolver fell back to `personaIds[0]`,
  *  the presence-order-arbitrary first present human, so a multi-human room's preview could show ANOTHER
  *  member's persona as `{{user}}` — nondeterministic (join order) and a cross-member read on the host's
- *  instrument. A host with no active persona still falls back to `personaIds[0]` (the resolver's own arm). */
+ *  instrument. A host with no active persona still falls back to `personaIds[0]` (the resolver's own arm — the
+ *  key is OMITTED rather than passed null, since an explicit null now means "deliberately no triggering human,
+ *  bind the ANCHOR", a turn-path semantic a preview must not inherit). */
 async function resolvePreviewInputs(
   ctx: ChatContext,
   deps: ReadDeps,
@@ -360,7 +363,12 @@ async function resolvePreviewInputs(
     model: connection.model,
     anchorPersonaId,
     personaIds,
-    triggerPersonaId: hostPersonaId,
+    presentHumanUserIds: presentHumanUserIdsOf(roster),
+    // OMITTED (not an explicit null) when the host holds no chat persona: the three-state trigger contract
+    // reads an explicit null as "deliberately no triggering human ⇒ bind to the ANCHOR", which is a TURN
+    // semantic (drain/auto). A preview's trigger is merely UNKNOWN, so it keeps the documented fallback
+    // chain (host persona, else `personaIds[0]`) — byte-identical to every preview before the contract split.
+    ...(hostPersonaId !== null ? { triggerPersonaId: hostPersonaId } : {}),
     ...(opts.presetOverride !== undefined ? { presetOverride: opts.presetOverride } : {}),
   });
   const gameUserMacros = ctx.rpg === null ? [] : await ctx.rpg.resolveUserMacros(chatId);
@@ -655,7 +663,12 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
       ctx.resolveCharacterTags({ ownerId: hostUserId, characterId }),
       loadCharacterCardLore(ctx.db, { characterId, ownerId: hostUserId }),
       ctx.resolveAssetHash(card.avatarAssetId),
-      resolveAnchorPersona(deps, chatId, hostUserId, membership.chat.anchorPersonaId),
+      resolveAnchorPersona(deps, {
+        chatId,
+        hostUserId,
+        anchorPersonaId: membership.chat.anchorPersonaId,
+        presentHumanUserIds: presentHumanUserIdsOf(roster),
+      }),
     ]);
     // PURE projection — fields above the effective level become null HERE, server-side (never sent over the
     // wire). `clampMemberCard` fabricates nothing: it gates the caller-resolved `tags`/`lore`/`avatarHash`.
@@ -683,14 +696,25 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
 /** Resolve the chat ANCHOR persona to its `{name, description}` the way the assemble does — through the FOREIGN
  *  persona read (`ResolveForeignInputsOp`, the ONE sanctioned persona-resolution path chat holds). `model:""`
  *  is a stub: a card DISPLAY resolves personas, not a connection-specific preset, so the foreign resolver's
- *  model arg (which only tunes preset selection) is irrelevant here — no `resolveConnection` hop is needed. */
-async function resolveAnchorPersona(deps: ReadDeps, chatId: ChatId, hostUserId: UserId, anchorPersonaId: PersonaId | null): Promise<AssemblePersona | null> {
+ *  model arg (which only tunes preset selection) is irrelevant here — no `resolveConnection` hop is needed.
+ *  The roster is threaded in (not re-read) because the resolver's persona read is CONSENT-GATED on the room's
+ *  present humans: without it a member-owned anchor would render as the kit floor on every card display. */
+async function resolveAnchorPersona(
+  deps: ReadDeps,
+  args: {
+    readonly chatId: ChatId;
+    readonly hostUserId: UserId;
+    readonly anchorPersonaId: PersonaId | null;
+    readonly presentHumanUserIds: readonly UserId[];
+  },
+): Promise<AssemblePersona | null> {
   const foreign = await deps.resolveForeignInputs({
-    chatId,
-    runAsUserId: hostUserId,
+    chatId: args.chatId,
+    runAsUserId: args.hostUserId,
     model: "",
-    anchorPersonaId,
-    personaIds: anchorPersonaId !== null ? [anchorPersonaId] : [],
+    anchorPersonaId: args.anchorPersonaId,
+    personaIds: args.anchorPersonaId !== null ? [args.anchorPersonaId] : [],
+    presentHumanUserIds: args.presentHumanUserIds,
   });
   return foreign.personas.anchor;
 }

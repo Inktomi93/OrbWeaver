@@ -81,6 +81,7 @@ import { gatherAssembleContext } from "../substrate/assemble-gather";
 import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../substrate/assembly-access";
 import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility";
 import { hostUserIdOf } from "../substrate/roster-host";
+import { presentHumanUserIdsOf } from "../substrate/roster-humans";
 import { userMessageDelta } from "../substrate/stats-delta";
 import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access";
 
@@ -179,6 +180,11 @@ interface Room {
    *  the same seat `disabled` axis arbitration reads. Empty ⇒ nothing muted. */
   readonly mutedSpeakerKeys: ReadonlySet<string>;
   readonly personaIds: readonly PersonaId[];
+  /** Every PRESENT human's `userId` — the FOREIGN persona read's CONSENT SET (`ResolveForeignInputsOp`):
+   *  a persona resolves for this room iff its owner is one of these. Deliberately NOT presence-filtered like
+   *  `personaIds` (an OFFLINE member is still a member, and the anchor's owner is routinely offline —
+   *  presence gates which persona BOOKS join the pool, never who the room may resolve an identity for). */
+  readonly presentHumanUserIds: readonly UserId[];
 }
 
 /** The §3.6 member RETURN projection for a mutation that hands back ONE `MessageView` (undo/revert continue).
@@ -224,6 +230,8 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
   );
   const online = await Promise.all(humanPersonas.map((h) => ctx.readPresence(h.userId).then((p) => p.online)));
   const personaIds = humanPersonas.filter((_h, i) => online[i] === true).map((h) => h.personaId);
+  // The persona-CONSENT set (not presence-filtered — see `Room.presentHumanUserIds`).
+  const presentHumanUserIds = presentHumanUserIdsOf(roster);
 
   const charCandidates: ArbiterCandidate[] = charRows.map((r) => ({
     ref: { kind: "character", characterId: r.characterId },
@@ -241,6 +249,7 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId): Promise<Room> {
     castCharacterIds: charRows.map((r) => r.characterId),
     mutedSpeakerKeys: new Set(candidates.filter((c) => c.disabled).map((c) => speakerKey(c.ref))),
     personaIds,
+    presentHumanUserIds,
   };
 }
 
@@ -450,6 +459,8 @@ async function buildTurnContext(
     /** The muted-seat `speakerKey`s (character + agent) — threaded to `castNotMuted` for `{{groupNotMuted}}`. */
     readonly mutedSpeakerKeys: ReadonlySet<string>;
     readonly personaIds: readonly PersonaId[];
+    /** The FOREIGN persona read's consent set — see {@link Room.presentHumanUserIds}. */
+    readonly presentHumanUserIds: readonly UserId[];
     readonly anchorPersonaId: PersonaId | null;
     /** The triggering human's active persona — binds prompt-config `{{user}}` to the speaker, not
      *  `personaIds[0]` (the presence-order-arbitrary first human). */
@@ -488,6 +499,7 @@ async function buildTurnContext(
     model: args.model,
     anchorPersonaId: args.anchorPersonaId,
     personaIds: args.personaIds,
+    presentHumanUserIds: args.presentHumanUserIds,
     triggerPersonaId: args.triggerPersonaId,
     ...(presetOverride !== null ? { presetOverride } : {}),
   });
@@ -1228,6 +1240,7 @@ async function commitUserTurn(
 
       mutedSpeakerKeys: room.mutedSpeakerKeys,
       personaIds: room.personaIds,
+      presentHumanUserIds: room.presentHumanUserIds,
       anchorPersonaId: membership.chat.anchorPersonaId,
       // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back (mirrors the row-stamp expression below).
       triggerPersonaId: personaId !== undefined ? personaId : membership.activePersonaId,
@@ -1399,6 +1412,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
 
       mutedSpeakerKeys: room.mutedSpeakerKeys,
       personaIds: room.personaIds,
+      presentHumanUserIds: room.presentHumanUserIds,
       anchorPersonaId: membership.chat.anchorPersonaId,
       triggerPersonaId: membership.activePersonaId,
       guided,
@@ -1544,6 +1558,7 @@ async function resolveTurnBase(
 
     mutedSpeakerKeys: room.mutedSpeakerKeys,
     personaIds: room.personaIds,
+    presentHumanUserIds: room.presentHumanUserIds,
     anchorPersonaId: args.anchorPersonaId,
     triggerPersonaId: args.triggerPersonaId,
     ...(args.respondsToLatestUserTurn !== undefined ? { respondsToLatestUserTurn: args.respondsToLatestUserTurn } : {}),
@@ -2049,6 +2064,7 @@ async function runDeferredRound(
 
       mutedSpeakerKeys: room.mutedSpeakerKeys,
       personaIds: room.personaIds,
+      presentHumanUserIds: room.presentHumanUserIds,
       anchorPersonaId: chat.anchorPersonaId,
       // No live triggering human at drain — {{user}} binds to the chat anchor, not a presence-order human.
       triggerPersonaId: null,
@@ -2243,6 +2259,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
 
         mutedSpeakerKeys: room.mutedSpeakerKeys,
         personaIds: room.personaIds,
+        presentHumanUserIds: room.presentHumanUserIds,
         anchorPersonaId: chat.anchorPersonaId,
         // No live triggering human — {{user}} binds to the chat anchor, not a presence-order human.
         triggerPersonaId: null,

@@ -113,6 +113,31 @@ describe("persistence/queries", () => {
     expect(all.filter((r) => r.active)).toHaveLength(1);
   });
 
+  // The promote leg is owner-scoped in its OWN where, not just by the verb that calls it: naming a stranger's
+  // credentialId must move zero rows. Without the predicate the batch flips a foreign row active — a
+  // cross-tenant write that would also silently break that owner's one-active-per-slot invariant.
+  test("promoteActive cannot activate a credential the ownerId does not own", async () => {
+    const db = await freshDb();
+    const alice = await seedUser(db, { id: "user_a", role: "user" });
+    const bob = await seedUser(db, { id: "user_b", role: "user" });
+    const theirs = nextId();
+    await insertSealed(db, {
+      id: theirs,
+      ownerId: bob,
+      provider: "openrouter",
+      label: "bob",
+      sealed: box.encrypt("kb", aadFor(bob, "openrouter")),
+      metadata: null,
+      active: false,
+      now: FROZEN_AT,
+    });
+
+    await promoteActive(db, { ownerId: alice, credentialId: theirs, provider: "openrouter", now: FROZEN_AT });
+
+    expect((await fetchOwnedCredential(db, bob, theirs))?.active).toBe(false);
+    expect(await loadActiveCredential(db, bob, "openrouter")).toBeUndefined();
+  });
+
   test("revoke then clear round-trips the revoked_at stamp", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { id: "user_o", role: "user" });

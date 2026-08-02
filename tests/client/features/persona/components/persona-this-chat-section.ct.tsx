@@ -19,6 +19,10 @@ const PERSONAS = [
   { id: ORION, name: "Orion", title: null, description: "", starred: false, avatarAssetId: null, avatarHash: null, metadata: null, createdAt: 1, updatedAt: 1 },
 ];
 
+const ZARA = "persona_zara"; // a MEMBER's persona — never in the viewer's own persona.list
+
+/** A base chat detail: the viewer hosts a solo room, anchored on their own persona. `macroNames` is the
+ *  member-gated name producer every real `chat.getChat` payload carries (Chat-Macro-Resolution §1). */
 const CHAT = {
   id: CHAT_ID,
   viewerUserId: "user_ct",
@@ -26,6 +30,22 @@ const CHAT = {
   anchorPersonaId: NOVA,
   viewerIsHost: true,
   participants: [],
+  macroNames: { characterNames: [], personaNames: PERSONAS.map((p) => ({ id: p.id, name: p.name, description: "" })) },
+};
+
+/** The MULTI-HUMAN room: a second present human plays "Zara", and the host has pinned HER persona as the
+ *  chat anchor — the exact state `setChatAnchorPersona` permits and the widened resolver now renders. */
+const MULTI_HUMAN_CHAT = {
+  ...CHAT,
+  anchorPersonaId: ZARA,
+  participants: [
+    { kind: "human", userId: "user_ct", displayName: "You", activePersonaId: NOVA, leftSeq: null },
+    { kind: "human", userId: "user_member", displayName: "Rowan", activePersonaId: ZARA, leftSeq: null },
+  ],
+  macroNames: {
+    characterNames: [],
+    personaNames: [...CHAT.macroNames.personaNames, { id: ZARA, name: "Zara", description: "" }],
+  },
 };
 
 const UPDATE_PROC = "persona.setActivePersona";
@@ -73,4 +93,67 @@ test("with showNotifications OFF, no notify fires on switch (the setting is hono
   // The mutation still fires — the notify is what's gated.
   await expect.poll(() => (trpc.lastInput(UPDATE_PROC) as { personaId?: string } | undefined)?.personaId, { intervals: [20, 50, 100] }).toBe(ORION);
   await expect(page.getByTestId("notified")).toHaveText("");
+});
+
+// ── R2: the ROOM-PLANE surfaces (review F6). A persona the ROOM references is not always a persona the
+// VIEWER owns — the anchor row resolved names against `persona.list` alone, so a host-pinned member-owned
+// anchor read "Unknown persona" while the correct name sat on the same chat payload; and the Re-pin menu
+// could only offer the host's OWN personas, though the verb has always accepted any present human's (and,
+// since the resolver widened, such a pin actually resolves). The verb also accepts `personaId: null`, which
+// had no affordance at all.
+
+/** Stub with an explicit chat payload (the multi-human arms need their own). */
+function stubChat(page: Page, chat: unknown): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "persona.list": () => PERSONAS,
+    "chat.getChat": () => chat,
+    "settings.getUserSettings": () => ({
+      userId: "user_ct",
+      schemaVersion: 1,
+      config: DEFAULT_USER_SETTINGS,
+      updatedAt: 0,
+    }),
+    "chat.setChatAnchorPersona": () => ({}),
+  });
+}
+
+test("the anchor row names a MEMBER-OWNED pin from the chat's name producer, not the viewer's persona list", async ({ mount, page }) => {
+  await stubChat(page, MULTI_HUMAN_CHAT);
+  await mount(<PersonaThisChatStory />);
+
+  // Zara is nowhere in `persona.list` — the viewer only owns Nova/Orion.
+  await expect(page.getByText("Card sees you as Zara")).toBeVisible();
+  await expect(page.getByText("Unknown persona")).toHaveCount(0);
+});
+
+test("the host's Re-pin menu offers each present MEMBER's persona (grouped) and a Clear pin", async ({ mount, page }) => {
+  const trpc = await stubChat(page, MULTI_HUMAN_CHAT);
+  await mount(<PersonaThisChatStory />);
+
+  await page.getByRole("button", { name: "Re-pin" }).click();
+  await expect(page.getByRole("menuitem", { name: "Nova" })).toBeVisible(); // the host's own, as before
+  const memberItem = page.getByRole("menuitem", { name: "Zara (Rowan)" });
+  await expect(memberItem).toBeVisible(); // …and the member's, attributed to them
+
+  await memberItem.click();
+  await expect.poll(() => (trpc.lastInput("chat.setChatAnchorPersona") as { personaId?: string | null } | undefined)?.personaId).toBe(ZARA);
+});
+
+test("Clear pin sends the verb's null arm (the pin could be moved but never removed)", async ({ mount, page }) => {
+  const trpc = await stubChat(page, MULTI_HUMAN_CHAT);
+  await mount(<PersonaThisChatStory />);
+
+  await page.getByRole("button", { name: "Re-pin" }).click();
+  await page.getByRole("menuitem", { name: "Clear pin" }).click();
+
+  await expect.poll(() => trpc.lastInput("chat.setChatAnchorPersona") as { personaId?: string | null } | undefined).toMatchObject({ personaId: null });
+});
+
+test("a SOLO room's menu renders no members' group (the affordance appears only when it can act)", async ({ mount, page }) => {
+  await stubChat(page, CHAT);
+  await mount(<PersonaThisChatStory />);
+
+  await page.getByRole("button", { name: "Re-pin" }).click();
+  await expect(page.getByText("Members' personas")).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: "Clear pin" })).toBeVisible();
 });

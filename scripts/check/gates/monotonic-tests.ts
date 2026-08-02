@@ -3,9 +3,27 @@
 // every other gate verifies the code, this one verifies the SUITE — a deleted assertion or disabled
 // test leaves no diff-visible trace anywhere else, so a green `pnpm check` must never be reachable by
 // quietly skipping/deleting tests. THREE teeth: forbidden-skip (a new unconditional
-// it.skip/test.only/.todo/.fixme), deleted-test-file (a docs/test-baseline/manifest.json entry that
-// no longer exists on disk), and stale-marker (an `allow-skip` escape guarding no skip). Regenerate the
-// manifest ONLY on a sanctioned bulk rename/delete wave: `pnpm tsx scripts/check/gen-test-baseline-manifest.ts`.
+// it.skip/test.only/.todo/.fixme), deleted-test-file (a docs/test-baseline/manifest.json entry that no
+// longer exists on disk and isn't accounted for), and stale-marker (an `allow-skip` escape guarding no
+// skip, OR a `deletions` ledger entry whose file has come back).
+//
+// RE-ARMED 2026-08-03 (was silently INERT — the manifest was lost in the 2026-07-25 retro purge and
+// `readManifest` FAIL-OPENED on a missing file; the truth-audit rider on the Active-Gates row is retired
+// by this fix). `readManifest` is now FAIL-LOUD: a missing/unparseable manifest reds on the REAL tree
+// (guarded by `REAL_TREE_ANCHOR` so gate-conformance's synthetic mini-projects, which never carry the
+// real `packages/db` schema barrel or the manifest, stay silent — GATE-AUTHORING.md §4.5).
+//
+// ACCOUNTING FOR A DELETION (the one obvious motion): delete the test file, then add an entry to the
+// committed manifest's `deletions` map keyed by its repo-relative path, e.g.
+// `"tests/foo.test.ts": { "why": "merged into bar.test.ts — see PD-123" }` — `why` is REQUIRED and must
+// say what would un-delete it. That's it; no regen needed for a single deletion. Optionally run
+// `pnpm tsx scripts/check/gen-test-baseline-manifest.ts` afterward (it carries the ledger forward and
+// folds in any newly added test files — see that script's header). ADDING a test needs NO manifest edit
+// at all: an untracked file is never gated, so it never reds.
+//
+// A `deletions` entry whose file is back on disk is itself a violation (tooth 2's stale arm) — a stale
+// ledger row is a loaded gun: the next legitimate delete of that path would silently inherit an exemption
+// nobody re-granted.
 //
 // THE MARKER IS TWO-SIDED (tooth 3, 2026-08-03). Tooth 1's escape hatch used to be one-sided and reason-less:
 // the regex was a bare `/allow-skip/`, so `// allow-skip` with nothing after it exempted a disabled test, and
@@ -21,6 +39,11 @@ import type { GateDescriptor } from "../contract.ts";
 import type { Check, CheckContext, Violation } from "../harness.ts";
 
 const BASELINE_REL = "docs/test-baseline/manifest.json";
+// A file present on every REAL repo checkout, never touched by this gate's own conformance examples
+// (which only plant files under tests/tooling/**) — the real-tree anchor GATE-AUTHORING.md §4.5 requires
+// so the fail-loud missing-manifest arm can't misfire inside gate-conformance's synthetic mini-projects
+// (whose virtual root never has this path either).
+const REAL_TREE_ANCHOR = "packages/db/src/schema/index.ts";
 const TEST_APIS = new Set(["it", "test", "describe", "suite", "bench"]);
 const FORBIDDEN_MODIFIERS = new Set(["skip", "only", "todo", "fixme"]);
 // The escape marker, in the house grammar every sibling marker uses (`FABRICATION-OK:`, `@swallowed-ok:`,
@@ -157,33 +180,103 @@ function scanForbiddenSkips(sf: SourceFile, rel: string, out: Violation[]): void
   }
 }
 
-interface Manifest {
-  readonly testFiles: readonly string[];
+interface DeletionEntry {
+  readonly why: string;
 }
 
-function readManifest(root: string): Manifest | undefined {
+interface Manifest {
+  readonly testFiles: readonly string[];
+  readonly deletions: Readonly<Record<string, DeletionEntry>>;
+}
+
+type ManifestResult = { readonly kind: "ok"; readonly manifest: Manifest } | { readonly kind: "missing" } | { readonly kind: "malformed" };
+
+/** Only meaningful entries: a `why` that's a non-empty string. A reason-less/malformed row is treated as
+ *  absent, so the file it names falls straight through to the unaccounted-deletion violation below — no
+ *  separate "malformed ledger row" codepath needed. */
+function readDeletions(raw: unknown): Readonly<Record<string, DeletionEntry>> | undefined {
+  if (raw === undefined) {
+    return {};
+  }
+  if (typeof raw !== "object" || raw === null) {
+    return;
+  }
+  const out: Record<string, DeletionEntry> = {};
+  for (const [f, entry] of Object.entries(raw as Record<string, unknown>)) {
+    const why = (entry as { why?: unknown } | undefined)?.why;
+    if (typeof why === "string" && why.trim().length > 0) {
+      out[f] = { why };
+    }
+  }
+  return out;
+}
+
+function readManifest(root: string): ManifestResult {
   let raw: string;
   try {
     raw = readFileSync(join(root, BASELINE_REL), "utf-8");
   } catch {
-    return; // no baseline yet — tooth 2 stays a documented no-op (see header).
+    return { kind: "missing" };
   }
-  const parsed = JSON.parse(raw) as { testFiles?: unknown };
-  return Array.isArray(parsed.testFiles) ? { testFiles: parsed.testFiles as string[] } : undefined;
+  try {
+    const parsed = JSON.parse(raw) as { testFiles?: unknown; deletions?: unknown };
+    if (!Array.isArray(parsed.testFiles)) {
+      return { kind: "malformed" };
+    }
+    const deletions = readDeletions(parsed.deletions);
+    if (deletions === undefined) {
+      return { kind: "malformed" };
+    }
+    return { kind: "ok", manifest: { testFiles: parsed.testFiles as string[], deletions } };
+  } catch {
+    return { kind: "malformed" };
+  }
+}
+
+/** True only on a checkout that actually IS the real repo tree (a file gate-conformance's synthetic
+ *  mini-projects never carry). Gates the fail-loud missing/malformed-manifest finding so it can't fire
+ *  inside a conformance example — see `REAL_TREE_ANCHOR`. */
+function isRealTree(root: string): boolean {
+  return existsSync(join(root, REAL_TREE_ANCHOR));
 }
 
 function scanDeletedTestFiles(root: string, out: Violation[]): void {
-  const manifest = readManifest(root);
-  if (manifest === undefined) {
+  const result = readManifest(root);
+  if (result.kind !== "ok") {
+    if (!isRealTree(root)) {
+      return; // synthetic/mini-project tree — nothing to judge, and not a claim about the real repo.
+    }
+    out.push({
+      file: BASELINE_REL,
+      line: 0,
+      message:
+        result.kind === "missing"
+          ? `committed test-baseline manifest is missing (${BASELINE_REL}) — the deleted-test-file check cannot run blind. Regenerate it: \`pnpm tsx scripts/check/gen-test-baseline-manifest.ts\`, then commit the file (Spine-Testing.md §5).`
+          : `committed test-baseline manifest (${BASELINE_REL}) is malformed/unparseable — regenerate it: \`pnpm tsx scripts/check/gen-test-baseline-manifest.ts\`, then commit the file (Spine-Testing.md §5).`,
+    });
     return;
   }
+  const { manifest } = result;
   for (const f of manifest.testFiles) {
-    if (!existsSync(join(root, f))) {
+    if (existsSync(join(root, f))) {
+      continue;
+    }
+    if (manifest.deletions[f] !== undefined) {
+      continue; // accounted for in the ledger.
+    }
+    out.push({
+      file: f,
+      line: 0,
+      message:
+        'test file in the committed baseline manifest no longer exists — a spec can\'t be deleted to go green. State the reason in the manifest\'s `deletions` ledger (`"<path>": { "why": "<reason>" }`) or restore the file (Spine-Testing.md §5).',
+    });
+  }
+  for (const [f, entry] of Object.entries(manifest.deletions)) {
+    if (existsSync(join(root, f))) {
       out.push({
         file: f,
         line: 0,
-        message:
-          "test file in the committed baseline manifest no longer exists — a spec can't be deleted to go green. If the deletion/rename is intended, regenerate and commit the manifest diff (Spine-Testing.md §5).",
+        message: `stale \`deletions\` ledger entry ("${entry.why}") — the file has returned to the tree; delete the entry (a stale deletion record is a lie, and would silently pre-authorize the next delete of this path) (Spine-Testing.md §5).`,
       });
     }
   }
