@@ -2,6 +2,19 @@
 // deployment owner) and on first authed request (a new user). Idempotency is the persisted latch
 // `UserSettings.onboarding.defaultPersonaSeeded` — once true it never re-runs, which is also the
 // deletion-respect guard (a deleted default persona isn't resurrected). `ensureSeeded` never throws.
+//
+// THE AUTO-CREATE ARM IS CONDITIONAL (owner ruling, 2026-08-03 — the forced-first-run redesign). Auto-seeding
+// a persona is what made the shipped `FirstRunPersonaDialog` dead by construction: its trigger is "the viewer
+// owns ZERO personas" (D107 — the ruled trigger; `personaWizardSeen` was deleted as dead), and the per-request
+// hook minted Traveler before the client's first `persona.list` could ever return empty. On a REAL stack the
+// first sign-in must ASK. But the ask must never fire on a stack an agent or a script boots — every dev regen
+// and every e2e stack re-mint would land on a blocking modal — so the auto-create arm stays ON exactly where a
+// human is not there to answer: `autoSeedEnabled` (wired at compose to `E2E_HARNESS=on || DEV_SEED=on`, the
+// two stamps that mean "this stack was started by automation").
+//
+// ONE conditional covers BOTH trigger sites (boot-owner + the per-user first authed request) because both
+// route through `ensureSeeded` — and it must, or the deployment owner (a real first sign-in too) would be the
+// one user who never sees the ask.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { CreatePersonaInput } from "@orb/contracts/persona";
@@ -31,6 +44,11 @@ const DEFAULT_PERSONA: Omit<CreatePersonaInput, "avatarAssetId"> = {
 };
 
 export interface DefaultPersonaSeederDeps {
+  /** Is AUTO-CREATION on for this stack (see the file header)? `false` ⇒ `ensureSeeded` creates nothing and
+   *  records nothing — not even the latch — so the zero-personas first-run trigger genuinely holds and the
+   *  user names their own `{{user}}`. REQUIRED (never defaulted): a composer that has not decided which kind
+   *  of stack it is wiring must not silently get the automation arm. */
+  readonly autoSeedEnabled: () => boolean;
   readonly createPersona: (args: { readonly principal: Principal; readonly input: CreatePersonaInput }) => Promise<{ readonly id: PersonaId }>;
   /** Store the bundled "You" avatar art → its asset id, or `null` when the pack ships none / the store fails. */
   readonly storeAvatar: (principal: Principal) => Promise<AssetId | null>;
@@ -63,6 +81,12 @@ export function createDefaultPersonaSeeder(deps: DefaultPersonaSeederDeps): Defa
 
   return {
     ensureSeeded: (principal: Principal): Promise<void> => {
+      // The real-stack arm: no create, no latch, no settings read at all (the FIRST-RUN ASK owns this user).
+      // Checked per call, not once at build: the knob is a stack posture, and reading it here keeps the
+      // seeder honest under a test that flips it between runs.
+      if (!deps.autoSeedEnabled()) {
+        return Promise.resolve();
+      }
       if (settled.has(principal.userId)) {
         return Promise.resolve();
       }
