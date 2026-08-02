@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import type { ExportDeclaration, ImportDeclaration, Project, SourceFile } from "ts-morph";
+import type { ExportDeclaration, ImportDeclaration, Project, SourceFile, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import knipConfig from "../../knip.ts";
 import { getWorkspace } from "../ts-workspace.ts";
@@ -1863,6 +1863,802 @@ function cmdTypeOnly(project: Project, arg: string, flags: Flags): void {
   emit(hits, flags, `typeonly-alive ${scope.label}`);
 }
 
+// ── columns: drizzle columns classified by CONSUMPTION (READ+WRITE / WRITE-only / READ-only / NEITHER) ─
+// The owner-named RV-11 class: "the model writes a column nobody renders". Every liveness lens above keys on
+// an EXPORT; a column is not an export — it is a property of a table config literal, reached through drizzle's
+// generic machinery. So the import graph says a schema file is consumed and stops there, and a column that
+// every writer fills and no reader ever selects looks exactly like a column the whole product depends on.
+//
+// THE IDENTITY IS A PAIR, NOT A `declKey` (the one lens in this file that does not key on a declaration node,
+// and why that is correct here). `declKey` exists because an EXPORT NAME is ambiguous across files (three
+// `requireParticipant`s). A column name is scoped BY ITS TABLE, so `(table declaration, JS property name)` is
+// already unambiguous — and it has to be, because the write side is UNREACHABLE by declaration identity:
+// drizzle's `$inferInsert`/`$inferSelect` are HOMOMORPHIC MAPPED TYPES, and a mapped type's synthesized
+// property carries `declarations.length === 0` (measured 2026-08-03 on `packages/server/src/domain/rpg/
+// game-mint.ts`'s insert literal: every property resolved to `target=<name> decls=0`). There is no node to key
+// on. The table half is still resolved STRUCTURALLY — through `getDefinitionNodes()` to the table's own
+// VariableDeclaration — so an identifier alias or a `schema.<table>` namespace access cannot fork a table.
+//
+// THE THREE ARMS, AND WHY THE READ SIDE NEEDS TWO OF THEM (measured, not assumed):
+//   • READ arm 1 — QUERY references, via the language service. `findReferencesAsNodes()` on the column's
+//     PropertyAssignment name node returns every `<table>.<col>` reference (a `where`/`eq`/`orderBy`/join/
+//     select projection/`returning`). Exact, and unreachable any other way.
+//   • READ arm 2 — ROW-SHAPE accesses, structural, because arm 1 IS NOT ENOUGH and believing it was would
+//     have shipped a lying lens. `typeof <table>.$inferSelect` is a mapped type too, so a `row.<col>` read
+//     THROUGH a declared row alias resolves to a synthesized property with zero declarations and comes back
+//     from arm 1 as NOTHING. Measured on the real tree: `packages/server/src/domain/plugin/persistence/
+//     plugins.ts:23` does `name: row.name` on a `type PluginRow = typeof plugins.$inferSelect` — a plain
+//     render read — and arm 1 scored `plugins.name` at `reads:0`. (Arm 1 DOES catch a row access when the row
+//     type was inferred INLINE from the select, which is exactly why the hole is easy to miss: the same
+//     read shape resolves or vanishes depending on whether an alias was declared.) So arm 2 asks the type,
+//     not the language service: a `<x>.<col>` / `<x>["<col>"]` access, or an `{ <col> }` destructure, counts
+//     as a read of table T when EVERY property name of `<x>`'s type is a column of T — a row of T, or any
+//     projection/view derived from one. Deliberately OVER-inclusive (a `PluginView` whose fields are all
+//     column names counts, and it usually IS the render path): over-counting reads under-reports rot, which
+//     is the only safe direction for a lens whose job is to nominate columns for deletion.
+//   • WRITES are STRUCTURAL, via the drizzle call chain, because the language service CANNOT see them (the
+//     mapped-type hole above). Every `<db>.insert(<T>)….values(<arg>)`, `<db>.update(<T>)….set(<arg>)`, and
+//     `.onConflictDoUpdate({ set: <arg> })` is walked back down its chain to the `insert`/`update` call that
+//     names the table; an object-literal `<arg>`'s property keys ARE the written columns.
+//
+// THE OPAQUE-WRITER ARM (the honest half). `db.insert(sessions).values(row)` — a whole typed row, no literal —
+// names no column, and `.set({ ...patch, … })` names only some. Such a site marks the TABLE `opaque`: every
+// column of it becomes write-UNKNOWN, printed as `write?`, never "no write". So the lens never claims a column
+// is unwritten when a whole-row writer could be filling it. The READ half is unaffected — which is why
+// WRITE-only and NEITHER stay meaningful on an opaque table: their load-bearing half ("nothing reads it") is
+// the exact one.
+//
+// V1 BLIND SPOTS, stated so a reader can price a verdict:
+//   1. RAW SQL is NOT table-attributable. `sql\`… m.character_id …\`` names a column through a query ALIAS; no
+//      cheap pass maps `m` to `messages`. So the raw-SQL arm is deliberately TABLE-AGNOSTIC and
+//      over-inclusive: a column whose SQL name appears as a word inside ANY raw `sql` template / `sql.raw()`
+//      text in the workspace is annotated `raw?`. It never changes a class — it tells the reader "go read
+//      those templates before calling this rot". A false `raw?` costs a minute; a missed one would let the
+//      lens call a live column dead.
+//   2. A column reached ONLY through `Pick<NewX, "col">`-style string-literal type members is invisible to
+//      both arms (measured: those LiteralType nodes resolve to `symbol=<none> decls=0`). It is a type-level
+//      narrowing, never a read or a write on its own, so this is a non-loss — but a reader who sees a column
+//      named in a `Pick` and flagged here should check the real call sites, not the `Pick`.
+//   3. The schema dir itself is EXCLUDED from consumption: `t.chatId` inside a `uniqueIndex(...).on(t.chatId)`
+//      or a CHECK is DDL, not consumption. Counting it would make every indexed column permanently "read".
+//
+// CANDIDATE lens, never a death sentence — same posture as `swallowed`/`typeonly-alive`, and MANUAL-tier for
+// the same reason plus cost (one reference resolution per column). A deliberate keep is
+// `// @column-ok: <reason>` on the column property, and that marker is TWO-SIDED: a marker on a column the
+// lens no longer flags (it is READ+WRITE now) is reported STALE and exits 1.
+
+const COLUMN_OK_RE = /@column-ok:\s*\S/u;
+const SCHEMA_DIR = "/packages/db/src/schema/";
+const DRIZZLE_TABLE_FACTORY = "sqliteTable";
+/** The drizzle write METHODS whose first argument names columns. `set` is name-ambiguous on its own
+ *  (`Map.set`, `URLSearchParams.set`) — it only counts when the chain walk below lands on an `update(<T>)`
+ *  call, which no non-drizzle receiver has. */
+const DRIZZLE_WRITE_METHODS = new Set(["values", "set"]);
+/** The upsert form: its argument is a CONFIG object whose `set` property holds the written columns. */
+const DRIZZLE_UPSERT_METHOD = "onConflictDoUpdate";
+/** The chain-terminating calls that NAME the table being written. */
+const DRIZZLE_WRITE_ROOTS = new Set(["insert", "update"]);
+/** How many consumption sites a hit names before it collapses to a count. */
+const COLUMN_SITES_SHOWN = 2;
+/** Summary-table column widths: the class name pad, and the right-aligned count field. */
+const COLUMN_CLASS_PAD = 11;
+const COLUMN_COUNT_PAD = 4;
+
+/** How a column is consumed across the workspace. `read-write` is the healthy state and never a hit; the
+ *  other three are the findings — `write-only` is the RV-11 class (the model fills it, nothing renders it),
+ *  `read-only` is a column nothing populates (a permanent default/NULL being read), `neither` is pure rot. */
+type ColumnClass = "read-write" | "write-only" | "read-only" | "neither";
+
+/** ONE drizzle column: its table (both spellings), its own two spellings, and the declaration node the
+ *  `@column-ok` marker hangs on. */
+type ColumnDef = {
+  readonly tableVar: string;
+  readonly sqlTable: string;
+  readonly jsProp: string;
+  readonly sqlColumn: string;
+  readonly decl: Node;
+};
+
+/** ONE table's columns plus the identity its writers resolve to (`declKey` of the table's own
+ *  VariableDeclaration — an identifier alias or a `schema.<table>` hop cannot fork it). */
+type TableDef = {
+  readonly varName: string;
+  readonly sqlName: string;
+  readonly key: string;
+  readonly columns: readonly ColumnDef[];
+};
+
+/** ONE classified column — the counted sites that produced its verdict, so a reader can go look. `opaque`
+ *  means the TABLE has a whole-row writer, so "no attributed write" is UNKNOWN, never "unwritten". */
+export type ColumnCandidate = {
+  readonly column: ColumnDef;
+  readonly klass: ColumnClass;
+  readonly reads: readonly string[];
+  readonly writes: readonly string[];
+  readonly opaque: boolean;
+  readonly rawSql: boolean;
+};
+
+/** True if the column property carries a leading `// @column-ok: <reason>` — a deliberate keep. The reason is
+ *  required (a bare marker does NOT exempt, as with `@swallowed-ok:`/`@typeonly-ok:`/`@server-only:`). A
+ *  PropertyAssignment owns its leading comments directly, so no {@link commentHost} hop is needed here. */
+export function isColumnExempt(decl: Node): boolean {
+  return decl.getLeadingCommentRanges().some((range) => COLUMN_OK_RE.test(range.getText()));
+}
+
+/** The SQL name a drizzle column builder was given: the innermost call of the property's initializer chain
+ *  (`text("chat_id").$type<ChatId>().notNull().references(…)` → `chat_id`). Falls back to the JS property
+ *  name when the chain carries no string literal (a shape this repo does not currently use). */
+function sqlColumnName(init: Node | undefined, jsProp: string): string {
+  let cur = init;
+  while (cur !== undefined && Node.isCallExpression(cur)) {
+    const arg = cur.getArguments()[0];
+    if (arg !== undefined && Node.isStringLiteral(arg)) {
+      return arg.getLiteralText();
+    }
+    const expr = cur.getExpression();
+    cur = Node.isPropertyAccessExpression(expr) ? expr.getExpression() : undefined;
+  }
+  return jsProp;
+}
+
+/** Every `sqliteTable("<sql>", { … })` bound to a variable under `packages/db/src/schema/` — the candidate
+ *  substrate. A table whose config argument is not an object literal contributes no columns (there is no
+ *  literal to enumerate) and is skipped rather than half-reported. */
+export function collectSchemaTables(project: Project): TableDef[] {
+  const out: TableDef[] = [];
+  for (const sf of project.getSourceFiles()) {
+    if (!sf.getFilePath().includes(SCHEMA_DIR)) {
+      continue;
+    }
+    for (const v of sf.getVariableDeclarations()) {
+      const table = tableDefOf(v);
+      if (table !== undefined) {
+        out.push(table);
+      }
+    }
+  }
+  return out;
+}
+
+/** ONE variable declaration as a TableDef, or undefined when it is not a `sqliteTable(name, {…})` binding. */
+function tableDefOf(v: Node): TableDef | undefined {
+  if (!Node.isVariableDeclaration(v)) {
+    return;
+  }
+  const init = v.getInitializer();
+  if (init === undefined || !Node.isCallExpression(init) || init.getExpression().getText() !== DRIZZLE_TABLE_FACTORY) {
+    return;
+  }
+  const [nameArg, configArg] = init.getArguments();
+  if (nameArg === undefined || !Node.isStringLiteral(nameArg) || configArg === undefined || !Node.isObjectLiteralExpression(configArg)) {
+    return;
+  }
+  const varName = v.getName();
+  const sqlName = nameArg.getLiteralText();
+  const columns: ColumnDef[] = [];
+  for (const prop of configArg.getProperties()) {
+    if (!Node.isPropertyAssignment(prop)) {
+      continue;
+    }
+    const jsProp = prop.getName();
+    columns.push({ tableVar: varName, sqlTable: sqlName, jsProp, sqlColumn: sqlColumnName(prop.getInitializer(), jsProp), decl: prop });
+  }
+  return { varName, sqlName, key: declKey(v), columns };
+}
+
+/** `<tableVar>\0<jsProp>` — the pair identity the write scan and the read scan agree on. */
+function columnKey(tableVar: string, jsProp: string): string {
+  return `${tableVar}${KEY_SEP}${jsProp}`;
+}
+
+/** A file that CONSUMES columns: anything in the workspace except the schema dir itself (a `t.col` inside an
+ *  index/CHECK is DDL, not consumption — counting it would make every indexed column permanently "read"). */
+function isColumnConsumer(fp: string): boolean {
+  return !fp.includes(SCHEMA_DIR);
+}
+
+/** Walk a drizzle method chain down to the `insert(<T>)` / `update(<T>)` call that NAMES the table, and return
+ *  that table expression. Undefined for any other receiver — which is what keeps `Map.set` / `Object.values`
+ *  out of the write scan (their chains never reach an `insert`/`update` call). */
+function drizzleWriteTarget(receiver: Node): Node | undefined {
+  // ONE exit point: an early `return` inside the walk plus a trailing one is a shape tsc's noImplicitReturns
+  // and biome's noUselessReturn cannot both accept — the accumulator satisfies both.
+  let target: Node | undefined;
+  let cur: Node | undefined = receiver;
+  while (cur !== undefined && target === undefined) {
+    const node: Node = cur;
+    const inner: Node | undefined = Node.isCallExpression(node) ? node.getExpression() : node;
+    if (inner === undefined || !Node.isPropertyAccessExpression(inner)) {
+      cur = undefined; // not a member access at all — the chain is not a drizzle write chain; stop.
+      continue;
+    }
+    if (Node.isCallExpression(node) && DRIZZLE_WRITE_ROOTS.has(inner.getName())) {
+      target = node.getArguments()[0];
+      continue;
+    }
+    cur = inner.getExpression();
+  }
+  return target;
+}
+
+/** Resolve a table EXPRESSION (`rpgGames`, `schema.rpgGames`) to its TableDef through the definition graph —
+ *  never by bare identifier text, so a local alias or a renaming import hop still lands on one table. */
+function resolveTableDef(expr: Node, byKey: ReadonlyMap<string, TableDef>): TableDef | undefined {
+  const id = Node.isPropertyAccessExpression(expr) ? expr.getNameNode() : expr;
+  if (!Node.isIdentifier(id)) {
+    return;
+  }
+  return id
+    .getDefinitionNodes()
+    .map((d) => byKey.get(declKey(d)))
+    .find((hit) => hit !== undefined);
+}
+
+/** The columns one write ARGUMENT names, and whether it is (partly) OPAQUE. An object literal names its keys;
+ *  a spread inside it hides the rest; an array literal is a multi-row insert (union of its elements); anything
+ *  else (a typed variable, a call, a conditional) names nothing at all. */
+function writtenKeysOf(arg: Node | undefined): { names: string[]; opaque: boolean } {
+  if (arg === undefined) {
+    return { names: [], opaque: true };
+  }
+  if (Node.isArrayLiteralExpression(arg)) {
+    const merged = arg.getElements().map((e) => writtenKeysOf(e));
+    return { names: merged.flatMap((m) => m.names), opaque: merged.some((m) => m.opaque) };
+  }
+  if (!Node.isObjectLiteralExpression(arg)) {
+    return { names: [], opaque: true };
+  }
+  const names: string[] = [];
+  let opaque = false;
+  for (const prop of arg.getProperties()) {
+    if (Node.isPropertyAssignment(prop) || Node.isShorthandPropertyAssignment(prop)) {
+      names.push(prop.getName());
+    } else {
+      opaque = true; // a spread (`{ ...patch }`) or a computed key — the rest of the row is unknown.
+    }
+  }
+  return { names, opaque };
+}
+
+/** The write ARGUMENT of one drizzle write call: `.values(x)` / `.set(x)` take it directly; the upsert form
+ *  `.onConflictDoUpdate({ target, set })` carries it on the config's `set` property. */
+function writeArgOf(call: Node, method: string): Node | undefined {
+  if (!Node.isCallExpression(call)) {
+    return;
+  }
+  const arg = call.getArguments()[0];
+  if (method !== DRIZZLE_UPSERT_METHOD) {
+    return arg;
+  }
+  if (arg === undefined || !Node.isObjectLiteralExpression(arg)) {
+    return;
+  }
+  const setProp = arg.getProperty("set");
+  return Node.isPropertyAssignment(setProp) ? setProp.getInitializer() : undefined;
+}
+
+/** Where a table's writes land: per-column attributed write sites, plus the OPAQUE whole-row writer sites that
+ *  make "no attributed write" mean UNKNOWN rather than "unwritten". */
+type WriteScan = { readonly perColumn: Map<string, string[]>; readonly opaqueTables: Map<string, string[]> };
+
+/** ONE structural pass for every drizzle write in the workspace (outside the schema dir). */
+export function scanColumnWrites(project: Project, tables: readonly TableDef[]): WriteScan {
+  const byKey = new Map(tables.map((t) => [t.key, t]));
+  const perColumn = new Map<string, string[]>();
+  const opaqueTables = new Map<string, string[]>();
+  for (const sf of project.getSourceFiles()) {
+    if (!isColumnConsumer(sf.getFilePath())) {
+      continue;
+    }
+    for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      recordWriteCall(call, byKey, perColumn, opaqueTables);
+    }
+  }
+  return { perColumn, opaqueTables };
+}
+
+/** Record ONE call expression's contribution to the write scan (a no-op for the overwhelming majority — any
+ *  call whose chain does not reach a drizzle `insert`/`update`). */
+function recordWriteCall(call: Node, byKey: ReadonlyMap<string, TableDef>, perColumn: Map<string, string[]>, opaqueTables: Map<string, string[]>): void {
+  if (!Node.isCallExpression(call)) {
+    return;
+  }
+  const expr = call.getExpression();
+  if (!Node.isPropertyAccessExpression(expr)) {
+    return;
+  }
+  const method = expr.getName();
+  if (!(DRIZZLE_WRITE_METHODS.has(method) || method === DRIZZLE_UPSERT_METHOD)) {
+    return;
+  }
+  const target = drizzleWriteTarget(expr.getExpression());
+  const table = target === undefined ? undefined : resolveTableDef(target, byKey);
+  if (table === undefined) {
+    return;
+  }
+  const site = `${relPath(call.getSourceFile().getFilePath())}:${call.getStartLineNumber()}`;
+  const { names, opaque } = writtenKeysOf(writeArgOf(call, method));
+  for (const name of names) {
+    const key = columnKey(table.varName, name);
+    perColumn.set(key, [...(perColumn.get(key) ?? []), site]);
+  }
+  if (opaque) {
+    opaqueTables.set(table.varName, [...(opaqueTables.get(table.varName) ?? []), site]);
+  }
+}
+
+/** Every raw-SQL text in the workspace, concatenated — a `sql\`…\`` tagged template's full text and a
+ *  `sql.raw(<literal>)` argument. TABLE-AGNOSTIC by construction (see the header's blind spot 1): the blob is
+ *  searched for a column's SQL NAME only, because an alias-qualified `m.character_id` cannot be mapped back to
+ *  its table by any cheap pass. */
+export function rawSqlBlob(project: Project): string {
+  const parts: string[] = [];
+  for (const sf of project.getSourceFiles()) {
+    if (!isColumnConsumer(sf.getFilePath())) {
+      continue;
+    }
+    for (const tagged of sf.getDescendantsOfKind(SyntaxKind.TaggedTemplateExpression)) {
+      if (tagged.getTag().getText().startsWith("sql")) {
+        parts.push(tagged.getTemplate().getText());
+      }
+    }
+    for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+      const expr = call.getExpression();
+      if (Node.isPropertyAccessExpression(expr) && expr.getName() === "raw" && expr.getExpression().getText() === "sql") {
+        parts.push(
+          call
+            .getArguments()
+            .map((a) => a.getText())
+            .join(" "),
+        );
+      }
+    }
+  }
+  return parts.join("\n");
+}
+
+/** Word-boundary presence of a SQL column name in the raw-SQL blob. Escaped because a SQL name is
+ *  `[a-z0-9_]` by our own db-structure gate, but the regex must not trust that. */
+function mentionedInRawSql(blob: string, sqlColumn: string): boolean {
+  return new RegExp(`\\b${sqlColumn.replace(GATE_META_RE, "\\$&")}\\b`, "u").test(blob);
+}
+
+const GATE_META_RE = /[.*+?^${}()|[\]\\]/gu;
+
+/** The consumption verdict for one column from its counted sites. `opaque` forces the write half to UNKNOWN,
+ *  which reads as "has a write" — never as "unwritten" — so the lens cannot call an opaquely-written column
+ *  rot. The READ half is exact either way, which is what keeps `write-only`/`neither` meaningful. */
+function classifyColumn(reads: number, writes: number, opaque: boolean): ColumnClass {
+  const written = writes > 0 || opaque;
+  if (reads > 0) {
+    return written ? "read-write" : "read-only";
+  }
+  return written ? "write-only" : "neither";
+}
+
+/** The whole audit for one scope: every column classified, plus the opaque-writer map the summary prints
+ *  (returned WITH the candidates so the one expensive structural scan runs exactly once per invocation). */
+export type ColumnAudit = { readonly candidates: readonly ColumnCandidate[]; readonly opaqueTables: ReadonlyMap<string, readonly string[]> };
+
+/** Every column of `tables`, classified. Pure enumeration — no exemption policy, no printing (the verb owns
+ *  both), so the self-test drives the same function the CLI does. */
+export function collectColumnCandidates(project: Project, tables: readonly TableDef[]): ColumnAudit {
+  const { perColumn, opaqueTables } = scanColumnWrites(project, tables);
+  const rowReads = scanRowReads(project, tables);
+  const blob = rawSqlBlob(project);
+  const candidates: ColumnCandidate[] = [];
+  for (const table of tables) {
+    const opaque = opaqueTables.has(table.varName);
+    for (const column of table.columns) {
+      const reads = [...new Set([...columnQueryReadSites(column), ...(rowReads.get(columnKey(column.tableVar, column.jsProp)) ?? [])])].sort(byProdFirst);
+      const writes = perColumn.get(columnKey(column.tableVar, column.jsProp)) ?? [];
+      candidates.push({
+        column,
+        klass: classifyColumn(reads.length, writes.length, opaque),
+        reads,
+        writes,
+        opaque,
+        rawSql: mentionedInRawSql(blob, column.sqlColumn),
+      });
+    }
+  }
+  return { candidates, opaqueTables };
+}
+
+/** READ arm 1 — every language-service reference to the column property outside the schema dir. This is the
+ *  `<table>.<col>` QUERY surface (where/eq/orderBy/join/projection/returning). It does NOT see a `row.<col>`
+ *  read through a declared `$inferSelect` alias (the mapped-type hole; arm 2 exists for exactly that). */
+function columnQueryReadSites(column: ColumnDef): string[] {
+  const nameNode = Node.isPropertyAssignment(column.decl) ? column.decl.getNameNode() : undefined;
+  if (nameNode === undefined || !Node.isIdentifier(nameNode)) {
+    return [];
+  }
+  const sites = new Set<string>();
+  for (const ref of nameNode.findReferencesAsNodes()) {
+    const fp = ref.getSourceFile().getFilePath();
+    if (isColumnConsumer(fp)) {
+      sites.add(`${relPath(fp)}:${ref.getStartLineNumber()}`);
+    }
+  }
+  return [...sites];
+}
+
+/** READ arm 2 — the row-shape scan. Keyed `<tableVar>\0<jsProp>` like the write scan, built in ONE pass over
+ *  the workspace so the per-column cost stays a map lookup. */
+type RowReadScan = ReadonlyMap<string, string[]>;
+
+/** The property NAMES of a type, or undefined when the type carries no usable shape (`any`/`unknown`/a
+ *  primitive/an empty object) — those must never match, or every column of every table would read as live. */
+function shapePropertyNames(type: Type): readonly string[] | undefined {
+  if (type.isAny() || type.isUnknown()) {
+    return;
+  }
+  const names = type.getProperties().map((p) => p.getName());
+  return names.length === 0 ? undefined : names;
+}
+
+/** The tables `type` could be a ROW (or a projection/view) of: every property it carries is a column of T.
+ *  Cached per type object — `.id`/`.name`/`.createdAt` accesses number in the thousands and re-deriving a
+ *  property list per site is the difference between a minute and an hour. */
+function rowTablesOf(type: Type, tables: readonly TableDef[], cache: Map<unknown, readonly TableDef[]>): readonly TableDef[] {
+  const cached = cache.get(type.compilerType);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const names = shapePropertyNames(type);
+  const matches = names === undefined ? [] : tables.filter((t) => names.every((n) => t.columns.some((c) => c.jsProp === n)));
+  cache.set(type.compilerType, matches);
+  return matches;
+}
+
+/** The column NAME one node reads off a row-shaped object, plus the object expression itself: a
+ *  `<x>.<col>` access, a `<x>["<col>"]` element access. Undefined for anything else. */
+function rowAccessOf(node: Node): { object: Node; name: string } | undefined {
+  if (Node.isPropertyAccessExpression(node)) {
+    return { object: node.getExpression(), name: node.getName() };
+  }
+  if (!Node.isElementAccessExpression(node)) {
+    return;
+  }
+  const arg = node.getArgumentExpression();
+  return arg !== undefined && Node.isStringLiteral(arg) ? { object: node.getExpression(), name: arg.getLiteralText() } : undefined;
+}
+
+/** ONE structural pass for every row-shaped READ in the workspace. The cheap gate runs FIRST — a property name
+ *  that is no table's column never costs a type resolution, which is what keeps this arm affordable. */
+export function scanRowReads(project: Project, tables: readonly TableDef[]): RowReadScan {
+  const out = new Map<string, string[]>();
+  const scan: RowReadCtx = {
+    tables,
+    columnNames: new Set(tables.flatMap((t) => t.columns.map((c) => c.jsProp))),
+    cache: new Map<unknown, readonly TableDef[]>(),
+    add: (table, name, node) => {
+      const key = columnKey(table.varName, name);
+      out.set(key, [...(out.get(key) ?? []), `${relPath(node.getSourceFile().getFilePath())}:${node.getStartLineNumber()}`]);
+    },
+  };
+  for (const sf of project.getSourceFiles()) {
+    if (isColumnConsumer(sf.getFilePath())) {
+      scanFileRowReads(sf, scan);
+    }
+  }
+  return out;
+}
+
+/** The row-read scan's shared state: the tables under audit, their column-name gate, the per-type match cache,
+ *  and the sink. One object so the recursive helpers stay inside the house parameter budget. */
+type RowReadCtx = {
+  readonly tables: readonly TableDef[];
+  readonly columnNames: ReadonlySet<string>;
+  readonly cache: Map<unknown, readonly TableDef[]>;
+  readonly add: (table: TableDef, name: string, node: Node) => void;
+};
+
+/** ONE file's row-shaped reads: member accesses (`<x>.<col>` / `<x>["<col>"]`) and destructures. */
+function scanFileRowReads(sf: SourceFile, scan: RowReadCtx): void {
+  for (const kind of [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression] as const) {
+    for (const node of sf.getDescendantsOfKind(kind)) {
+      recordAccessRead(node, scan);
+    }
+  }
+  for (const pattern of sf.getDescendantsOfKind(SyntaxKind.ObjectBindingPattern)) {
+    recordDestructuredReads(pattern, scan);
+  }
+}
+
+/** ONE member access as a row read, if its name is a column and its object's shape is a row of some table. */
+function recordAccessRead(node: Node, scan: RowReadCtx): void {
+  const access = rowAccessOf(node);
+  if (access === undefined || !scan.columnNames.has(access.name)) {
+    return;
+  }
+  for (const table of rowTablesOf(access.object.getType(), scan.tables, scan.cache)) {
+    scan.add(table, access.name, node);
+  }
+}
+
+/** `const { <col> } = row` / `({ <col> }: Row) => …` — a destructure is a read of every name it binds. The
+ *  pattern's own type IS the row type (ts-morph resolves a binding pattern to its declaration's type). */
+function recordDestructuredReads(pattern: Node, scan: RowReadCtx): void {
+  if (!Node.isObjectBindingPattern(pattern)) {
+    return;
+  }
+  const bound = pattern.getElements().map((e) => (e.getPropertyNameNode() ?? e.getNameNode()).getText());
+  if (!bound.some((n) => scan.columnNames.has(n))) {
+    return;
+  }
+  for (const table of rowTablesOf(pattern.getType(), scan.tables, scan.cache)) {
+    for (const name of bound.filter((n) => scan.columnNames.has(n))) {
+      scan.add(table, name, pattern);
+    }
+  }
+}
+
+/** The four classes in report order — worst rot first, the healthy state last (and never printed as a hit). */
+const COLUMN_CLASS_ORDER: readonly ColumnClass[] = ["neither", "write-only", "read-only", "read-write"];
+
+/** The one-line explanation each class carries in the summary — what a reader should DO about it. */
+const COLUMN_CLASS_NOTE: Record<ColumnClass, string> = {
+  neither: "pure rot — no reader, no writer, no raw-SQL mention: the column exists and nothing in the workspace touches it",
+  "write-only": "the RV-11 class — something FILLS it and nothing ever reads it back (the model writes what no surface renders)",
+  "read-only": "read but never written — a permanent DEFAULT/NULL being rendered as if it were data",
+  "read-write": "healthy (never a hit)",
+};
+
+function columnHit(candidate: ColumnCandidate): Hit {
+  const { column, reads, writes, opaque, rawSql } = candidate;
+  const shownReads = reads.slice(0, COLUMN_SITES_SHOWN).join(", ");
+  const shownWrites = writes.slice(0, COLUMN_SITES_SHOWN).join(", ");
+  const readPart = reads.length === 0 ? "reads:0" : `reads:${reads.length} (${shownReads}${reads.length > COLUMN_SITES_SHOWN ? " +more" : ""})`;
+  const writeBase = opaque && writes.length === 0 ? "write?:opaque-whole-row-writer" : `writes:${writes.length}`;
+  const writePart = writes.length === 0 ? writeBase : `${writeBase} (${shownWrites}${writes.length > COLUMN_SITES_SHOWN ? " +more" : ""})`;
+  const h = hitOf(column.decl, `column-${candidate.klass}`);
+  h.text = `${column.sqlTable}.${column.sqlColumn}  (${column.tableVar}.${column.jsProp})  —  ${readPart}  ${writePart}${rawSql ? "  raw?" : ""}`;
+  return h;
+}
+
+/** The AUDIT TABLE — the deliverable a reader actually wants above the hit list: how many columns each class
+ *  holds, and which tables carry an opaque whole-row writer (the rows whose write half is UNKNOWN). */
+function printColumnSummary(audit: ColumnAudit, tables: readonly TableDef[]): void {
+  console.log(`columns: ${audit.candidates.length} column(s) across ${tables.length} table(s)`);
+  for (const klass of COLUMN_CLASS_ORDER) {
+    const inClass = audit.candidates.filter((c) => c.klass === klass);
+    const raw = inClass.filter((c) => c.rawSql).length;
+    console.log(
+      `  ${klass.padEnd(COLUMN_CLASS_PAD)} ${String(inClass.length).padStart(COLUMN_COUNT_PAD)}   ${COLUMN_CLASS_NOTE[klass]}${raw === 0 ? "" : ` — ${raw} annotated raw?`}`,
+    );
+  }
+  const scopedOpaque = [...audit.opaqueTables.keys()].filter((v) => tables.some((t) => t.varName === v)).sort();
+  if (scopedOpaque.length > 0) {
+    console.log(
+      `  opaque-write tables (${scopedOpaque.length}): ${scopedOpaque.join(", ")} — a whole-row/spread writer names no column, so every column of these tables reads as \`write?\`, never "unwritten".`,
+    );
+  }
+}
+
+/** The STALE side of the `@column-ok` marker: a tag on a column the lens no longer flags (it is READ+WRITE
+ *  now). Printed and exit-1 so the marker cannot rot into a permanent lie (the two-sided-gate law). */
+function printStaleColumnTags(candidates: readonly ColumnCandidate[]): void {
+  const stale = candidates.filter((c) => isColumnExempt(c.column.decl) && c.klass === "read-write").map((c) => columnHit(c));
+  if (stale.length === 0) {
+    return;
+  }
+  console.log(
+    `columns: ${stale.length} STALE \`@column-ok:\` marker(s) — the column is READ+WRITE now (a reader and a writer both reach it), so the exemption states nothing. Delete the marker or re-state the reason:`,
+  );
+  for (const h of stale) {
+    console.log(`  ! ${h.file}:${h.line}  [stale-column-ok]  ${h.text}`);
+  }
+  process.exitCode = 1;
+}
+
+/** Every drizzle column classified by CONSUMPTION across the workspace. Optional scope = a SQL-table-name /
+ *  table-variable / schema-file substring; bare = every table. A deliberate keep carries
+ *  `// @column-ok: <reason>` on the column property; a stale marker exits 1. */
+function cmdColumns(project: Project, arg: string, flags: Flags): void {
+  const all = collectSchemaTables(project);
+  const tables =
+    arg === "" ? all : all.filter((t) => t.sqlName.includes(arg) || t.varName.includes(arg) || t.columns[0]?.decl.getSourceFile().getFilePath().includes(arg));
+  if (tables.length === 0) {
+    console.error(
+      `ast columns: scope "${arg}" matched no table — pass a SQL table name (rpg_games), a table variable (rpgGames), a schema-file substring (schema/rpg), or run bare for all ${all.length} tables.`,
+    );
+    process.exit(2);
+  }
+  const audit = collectColumnCandidates(project, tables);
+  printColumnSummary(audit, tables);
+  printStaleColumnTags(audit.candidates);
+  const flagged = audit.candidates.filter((c) => c.klass !== "read-write" && !isColumnExempt(c.column.decl));
+  const exempt = audit.candidates.filter((c) => c.klass !== "read-write" && isColumnExempt(c.column.decl)).length;
+  const ordered = COLUMN_CLASS_ORDER.flatMap((klass) => flagged.filter((c) => c.klass === klass)).map(columnHit);
+  console.log(
+    `columns is a CANDIDATE lens. READS are the union of two arms — language-service \`<table>.<col>\` query references PLUS a row-shape scan for \`<row>.<col>\` reads (needed because \`$inferSelect\` is a mapped type: a read through a declared row alias is INVISIBLE to reference resolution). The row-shape arm is deliberately OVER-inclusive, so a read count can be generous — which is the safe direction. WRITES are STRUCTURAL for the same mapped-type reason, so a table with a whole-row/spread writer marks every column \`write?\`, never "unwritten". A \`raw?\` annotation means the column's SQL name appears in some raw \`sql\` template — NOT attributable to a table in v1, so read those before calling it rot. Keep one deliberately with \`// @column-ok: <reason>\` on the column property.${exempt === 0 ? "" : ` (${exempt} candidate(s) exempted by a reasoned marker.)`}`,
+  );
+  emit(ordered, flags, `columns ${arg === "" ? "(all tables)" : arg}`);
+}
+
+// ── regkeys: registry rows whose KEY LITERAL is dispatched nowhere (INFORMATIONAL — owner-ruled) ───────
+// The blind spot every other lens in this file shares: a string-keyed dispatch table is ONE import edge and
+// ONE symbol, so `orphans`/`prodonly`/knip all see it as fully alive no matter how many of its ROWS are dead.
+// A retired chrome zone, a template id nothing renders, a settings pane no route reaches — each is a live-
+// looking row in a live table. This verb asks the only question the symbol layer cannot: does this ROW'S KEY
+// get spelled anywhere outside its own table?
+//
+// IT IS INFORMATIONAL AND NEVER GATES (owner ruling, 2026-08-03). Registry dispatch is legitimately dynamic:
+// a key can arrive from the DB, from a URL segment, from a `Object.keys(REGISTRY).map(…)` iteration that
+// never names one member, or from a template literal. Every one of those makes a LIVE row look dead here.
+// So this is the one lens in the file with NO marker, NO exemption grammar, and NO exit-1 arm — reading it
+// costs a minute and acting on it requires reading the call sites. Gating on it would train agents to delete
+// live rows; that is why it is `manual`-tier with a HEURISTIC banner and why it never joins `pnpm check`.
+//
+// WHAT COUNTS AS A REGISTRY (structural, never a hardcoded census — a doc list rots the day a table moves).
+// An exported const bound to an object literal with at least {@link REGISTRY_ROW_FLOOR} rows AND either a
+// `satisfies`/annotation naming `Record<` (the house Record-not-switch dispatch shape) or a SCREAMING_SNAKE
+// name (the repo's table-constant convention). Both classes are exactly what the registry census enumerates
+// by hand (docs/reviews/misc/2026-08-03-registry-map.md), derived instead of copied.
+//
+// WHAT COUNTS AS A DISPATCH SITE. Any spelling of the key ANYWHERE else in the workspace: a string literal, a
+// property-access name (`x.<key>`), a bare identifier, or a JSX attribute name — collected in ONE syntactic
+// pass (no type resolution, which is why this verb is fast). The registry's OWN file is excluded (a table
+// naming its own rows proves nothing), and so are test paths (a test enumerating a table is not a product
+// consumer — the same rule `testonly` applies to exports).
+
+const REGISTRY_ROW_FLOOR = 3;
+const SCREAMING_SNAKE_RE = /^[A-Z][A-Z0-9_]*$/u;
+const RECORD_ANNOTATION_RE = /\bRecord\s*</u;
+/** How many registries a key's report line names before collapsing (a key can live in several tables). */
+const REGKEY_SITES_SHOWN = 3;
+
+/** ONE registry: the const's name, the file it lives in, and its row keys paired with the property nodes. */
+type RegistryDef = {
+  readonly name: string;
+  readonly filePath: string;
+  readonly rows: readonly { readonly key: string; readonly node: Node }[];
+};
+
+/** The `satisfies`/`as`/annotation text attached to a variable declaration — where a `Record<…>` dispatch
+ *  shape declares itself. Empty when the const carries no type at all. */
+function declaredTypeText(v: Node): string {
+  if (!Node.isVariableDeclaration(v)) {
+    return "";
+  }
+  const init = v.getInitializer();
+  const satisfiesText = init !== undefined && Node.isSatisfiesExpression(init) ? (init.getTypeNode()?.getText() ?? "") : "";
+  return `${v.getTypeNode()?.getText() ?? ""} ${satisfiesText}`;
+}
+
+/** Unwrap the `satisfies`/`as const` wrappers a house registry is written with, down to the object literal. */
+function objectLiteralOf(node: Node | undefined): Node | undefined {
+  let cur = node;
+  while (cur !== undefined && (Node.isSatisfiesExpression(cur) || Node.isAsExpression(cur) || Node.isParenthesizedExpression(cur))) {
+    cur = cur.getExpression();
+  }
+  return cur !== undefined && Node.isObjectLiteralExpression(cur) ? cur : undefined;
+}
+
+/** Every registry-shaped exported const in the workspace (excluding test paths — a table declared in a test
+ *  is a fixture, not a dispatch surface). */
+export function collectRegistries(project: Project): RegistryDef[] {
+  const out: RegistryDef[] = [];
+  for (const sf of project.getSourceFiles()) {
+    const filePath = sf.getFilePath();
+    if (isTestPath(filePath)) {
+      continue;
+    }
+    for (const v of sf.getVariableDeclarations()) {
+      const def = registryDefOf(v, filePath);
+      if (def !== undefined) {
+        out.push(def);
+      }
+    }
+  }
+  return out;
+}
+
+/** ONE variable declaration as a RegistryDef, or undefined when it is not registry-shaped. */
+function registryDefOf(v: Node, filePath: string): RegistryDef | undefined {
+  if (!Node.isVariableDeclaration(v)) {
+    return;
+  }
+  if (!v.isExported()) {
+    return;
+  }
+  const literal = objectLiteralOf(v.getInitializer());
+  if (literal === undefined || !Node.isObjectLiteralExpression(literal)) {
+    return;
+  }
+  const name = v.getName();
+  if (!(SCREAMING_SNAKE_RE.test(name) || RECORD_ANNOTATION_RE.test(declaredTypeText(v)))) {
+    return;
+  }
+  const rows: { key: string; node: Node }[] = [];
+  for (const prop of literal.getProperties()) {
+    if (!(Node.isPropertyAssignment(prop) || Node.isShorthandPropertyAssignment(prop))) {
+      continue;
+    }
+    const nameNode = prop.getNameNode();
+    rows.push({ key: Node.isStringLiteral(nameNode) ? nameNode.getLiteralText() : nameNode.getText(), node: prop });
+  }
+  return rows.length < REGISTRY_ROW_FLOOR ? undefined : { name, filePath, rows };
+}
+
+/** Every SPELLING a file uses — string-literal texts, property-access names, bare identifiers, and JSX
+ *  attribute names. One syntactic pass per file; the union over all OTHER files is what a registry key is
+ *  checked against. */
+function spellingsOf(sf: SourceFile): Set<string> {
+  const out = new Set<string>();
+  for (const node of sf.getDescendantsOfKind(SyntaxKind.StringLiteral)) {
+    out.add(node.getLiteralText());
+  }
+  for (const node of sf.getDescendantsOfKind(SyntaxKind.NoSubstitutionTemplateLiteral)) {
+    out.add(node.getLiteralText());
+  }
+  for (const node of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
+    out.add(node.getText());
+  }
+  for (const node of sf.getDescendantsOfKind(SyntaxKind.JsxAttribute)) {
+    out.add(node.getNameNode().getText());
+  }
+  return out;
+}
+
+/** filePath → the spellings that file uses. Built once; a key's dispatch question is then a scan of this map
+ *  skipping the registry's own file and every test path. */
+function spellingIndex(project: Project): Map<string, Set<string>> {
+  const index = new Map<string, Set<string>>();
+  for (const sf of project.getSourceFiles()) {
+    index.set(sf.getFilePath(), spellingsOf(sf));
+  }
+  return index;
+}
+
+/** The non-test, non-owning files that spell `key` — the dispatch sites. Capped at
+ *  {@link REGKEY_SITES_SHOWN} + 1 so a common word short-circuits instead of scanning the whole index. */
+function dispatchSitesOf(key: string, ownerFile: string, index: ReadonlyMap<string, Set<string>>): string[] {
+  const sites: string[] = [];
+  for (const [fp, spellings] of index) {
+    if (fp === ownerFile || isTestPath(fp) || !spellings.has(key)) {
+      continue;
+    }
+    sites.push(relPath(fp));
+    if (sites.length > REGKEY_SITES_SHOWN) {
+      return sites;
+    }
+  }
+  return sites;
+}
+
+/** Registry rows whose key literal is spelled at ZERO dispatch sites outside their own table (and outside
+ *  tests). INFORMATIONAL — a computed/DB-sourced/iterated key is a live row that looks dead here. Optional
+ *  scope = a registry NAME or file substring; bare = every registry. Never exits non-zero on findings. */
+function cmdRegKeys(project: Project, arg: string, flags: Flags): void {
+  const all = collectRegistries(project);
+  const registries = arg === "" ? all : all.filter((r) => r.name.includes(arg) || r.filePath.includes(arg));
+  if (registries.length === 0) {
+    console.error(
+      `ast regkeys: scope "${arg}" matched no registry — pass a registry const name (TEMPLATE_DEFS), a file substring, or run bare for all ${all.length}.`,
+    );
+    process.exit(2);
+  }
+  const index = spellingIndex(project);
+  const hits: Hit[] = [];
+  for (const registry of registries) {
+    for (const row of registry.rows) {
+      if (dispatchSitesOf(row.key, registry.filePath, index).length > 0) {
+        continue;
+      }
+      const h = hitOf(row.node, "regkey-undispatched");
+      h.text = `${registry.name}["${row.key}"]  —  the key is spelled in NO non-test file outside this table`;
+      hits.push(h);
+    }
+  }
+  console.log(
+    `regkeys is a HEURISTIC, INFORMATIONAL lens — it NEVER gates and has no exemption marker (owner ruling). Registry dispatch is legitimately dynamic: a key that arrives from the DB, a URL segment, a template literal, or an \`Object.keys(REGISTRY)\` iteration is a LIVE row that looks dead here. Read the call sites before acting on any line below. (${registries.length} registry/registries, ${registries.reduce((n, r) => n + r.rows.length, 0)} row(s) examined; a registry = an exported const object literal with ${REGISTRY_ROW_FLOOR}+ rows carrying a \`Record<…>\` annotation or a SCREAMING_SNAKE name.)`,
+  );
+  emit(hits, flags, `regkeys ${arg === "" ? "(all registries)" : arg}`);
+}
+
 const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => void> = {
   refs: cmdRefs,
   callers: cmdCallers,
@@ -1880,6 +2676,8 @@ const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => voi
   swallowed: cmdSwallowed,
   respell: cmdRespell,
   "typeonly-alive": cmdTypeOnly,
+  columns: cmdColumns,
+  regkeys: cmdRegKeys,
 };
 
 // depcruise pass-throughs — the module-graph layer (the same config + rules the gates run), in
@@ -1904,10 +2702,10 @@ function runDepcruise(mode: string, pattern: string): void {
 // Verbs that resolve module specifiers to origin declarations (need the types:true / full-graph arm).
 // refs+cycles use the language service; orphans+testonly resolve every import to its origin decl so
 // liveness keys on (file, name) — bare-name matching over-reports same-file use and misses collisions.
-const TYPED_VERBS = new Set(["refs", "cycles", "orphans", "testonly", "prodonly", "unwired", "clientgap", "swallowed", "respell", "typeonly-alive"]);
+const TYPED_VERBS = new Set(["refs", "cycles", "orphans", "testonly", "prodonly", "unwired", "clientgap", "swallowed", "respell", "typeonly-alive", "columns"]);
 
 // Verbs whose scope arg is OPTIONAL (default to the whole surface) — run bare, arg defaults to "".
-const ARGLESS_VERBS = new Set(["unwired", "clientgap", "swallowed", "respell", "typeonly-alive"]);
+const ARGLESS_VERBS = new Set(["unwired", "clientgap", "swallowed", "respell", "typeonly-alive", "columns", "regkeys"]);
 
 const VERB_LIST = [...Object.keys(VERBS), ...Object.keys(DEPCRUISE_VERBS)].join("|");
 const USAGE = [
@@ -1932,6 +2730,8 @@ const USAGE = [
   "  pnpm ast swallowed db              exports alive ONLY because an `import * as` swallowed their module",
   "  pnpm ast respell chat              domain contract/ shapes structurally identical to an @orb/contracts shape",
   "  pnpm ast typeonly-alive server     VALUE exports whose every reference is a TYPE position (runtime-dead)",
+  "  pnpm ast columns rpg_games         drizzle columns by consumption: READ+WRITE / WRITE-only / READ-only / NEITHER",
+  "  pnpm ast regkeys TEMPLATE_DEFS     registry ROWS whose key is dispatched nowhere (HEURISTIC, informational)",
   "  pnpm ast flow chat/engine          module graph: X's direct edges both ways (depcruise, text)",
   "  pnpm ast reaches agent-sdk         every module that can transitively reach X (depcruise)",
   "",
@@ -1980,9 +2780,31 @@ const USAGE = [
   "  Keep a deliberate conformance seam with `// @typeonly-ok: <reason>`; a stale marker exits 1 (two-sided).",
   "  Optional scope; bare = every package. SLOW — it costs one `refs` resolution per value export.",
   "",
+  "columns (CANDIDATE lens, run on demand) = the RV-11 class: every drizzle column in packages/db/src/schema",
+  "  classified by how the WORKSPACE consumes it — READ+WRITE (healthy, never a hit) · WRITE-only (something",
+  "  fills it, nothing ever reads it back) · READ-only (rendered but never written — a permanent default) ·",
+  "  NEITHER (pure rot). READS are EXACT (language-service references, which resolve BOTH `<table>.<col>`",
+  "  query refs and `<row>.<col>` accesses on an inferred row); WRITES are STRUCTURAL (drizzle's `$inferInsert`",
+  "  is a mapped type whose properties carry ZERO declarations, so no reference resolution can see a write) —",
+  "  walked from every `insert(<T>)….values(x)` / `update(<T>)….set(x)` / `.onConflictDoUpdate({set:x})`. A",
+  "  whole-row or spread writer names no column, so it marks its TABLE opaque and every column of it prints",
+  '  `write?` — never "unwritten". A `raw?` annotation = the column\'s SQL name appears in some raw `sql`',
+  "  template; v1 CANNOT attribute an alias-qualified raw query to a table, so that arm is table-agnostic and",
+  "  deliberately over-inclusive. Scope = a SQL table name / table variable / schema-file substring; bare =",
+  "  every table. Keep one deliberately with `// @column-ok: <reason>` on the column property; a marker on a",
+  "  now-READ+WRITE column is reported STALE and exits 1 (two-sided). SLOW — one reference resolution per column.",
+  "",
+  "regkeys (HEURISTIC + INFORMATIONAL — never gates, no exemption marker, owner-ruled) = the ROW-level blind",
+  "  spot every symbol lens shares: a string-keyed dispatch table is ONE live symbol however many of its rows",
+  "  are dead. A registry is derived structurally (an exported const object literal with 3+ rows carrying a",
+  "  `Record<…>` annotation or a SCREAMING_SNAKE name), and a row is reported when its KEY is spelled — as a",
+  "  string, a property name, an identifier, or a JSX attribute — in NO non-test file outside its own table.",
+  "  EXPECT FALSE POSITIVES: a key from the DB, a URL segment, a template literal, or an `Object.keys(REG)`",
+  "  iteration is a LIVE row that looks dead here. That is exactly why it never gates. Syntactic only, so fast.",
+  "",
   "Flags: --in <substr> path filter · --files per-file counts only (cheapest output) ·",
   "       --max <n> raw-line cap (default 60; big result sets auto-collapse to per-file counts) ·",
-  "       --json machine output. Syntactic verbs load in ~10s; refs/cycles/orphans/testonly/prodonly/typeonly-alive resolve types.",
+  "       --json machine output. Syntactic verbs load in ~10s; refs/cycles/orphans/testonly/prodonly/typeonly-alive/columns resolve types.",
 ].join("\n");
 
 function main(): void {

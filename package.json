@@ -51,6 +51,8 @@
     "check:respell": "tsx scripts/codemods/ast.ts respell",
     "check:swallowed": "tsx scripts/codemods/ast.ts swallowed",
     "check:typeonly": "tsx scripts/codemods/ast.ts typeonly-alive",
+    "check:columns": "tsx scripts/codemods/ast.ts columns",
+    "check:regkeys": "tsx scripts/codemods/ast.ts regkeys",
     "lint": "biome check . --diagnostic-level=error --reporter=concise",
     "lint:eslint": "eslint packages/ui packages/client tests/ui tests/client packages/server packages/kit packages/db packages/contracts --max-warnings 0 --cache --cache-strategy content",
     "lint:fix": "biome check --write .",
