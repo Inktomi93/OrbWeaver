@@ -39,7 +39,17 @@ full width, the deck clamps at ~720 hard left, everything right of it is dead vo
 1920 — `mvr-params-content.png`, `mvr-actions-content.png`). Self-inflicts item 8's truncation.
 The mock's 720 was its PANE width, not a clamp-inside-a-wider-pane. Needs ONE ruling for all five
 views: center the column, or let it breathe to a responsive max-width. Check the app's other
-content-pane editors for the house convention before ruling.
+content-pane editors for the house convention before ruling. MEASURED LIVE (owner: "everything
+just… stops at a certain point" / "prompt stuff and etc just squishes itself in"): ALL FIVE
+tabpanels carry the SAME `max-width:720px` child, leftGap 0, rightGap 238-248 at a 958-968 pane
+(probe table: Params/Prompt/Actions/Data/Transforms identical) — one shared wrapper, one fix.
+In focus mode at full width the void is ~800px. OWNER NUANCE: "looks okay when both panels are
+out, but when you close them it looks awful" — the ruling must hold across pane widths ~960 →
+full-bleed (a centered/responsive column degrades gracefully; a left-pinned fixed clamp cannot).
+
+**O-19 ★ PRESETS OPENS WITH LIST + CONTEXT DOCKED.** The section currently opens without the
+list/context panes; the section-registry default for Presets becomes list=docked +
+context=docked (the surface is unusable without the list, and the readout IS the product).
 
 **4. Switch grammar split — the rack ON/OFF ambiguity is BACK (or never died live).** Params'
 Reasoning switch = amber-ON (correct, the app convention). Every RACK switch renders pale-gray
@@ -103,7 +113,46 @@ dedicated right-aligned mono column with air.
 lock + custom (mock draws them; registry carries fires-on + position-lock — the metadata exists).
 
 **17. Built-in lock placement.** Mock: lock inline LEFT of "Default" (a property of the name).
-Built: far right edge (reads as an action slot).
+Built: far right edge (reads as an action slot) — and see item 19: it collides with the reveal.
+
+**18. Cluster wrapper paints its OWN box on hover** (owner-spotted live, CDP-held-hover zoom
+receipt): the [⚡ · dup · kebab] cluster sits in a distinct darker rounded panel ON TOP of the
+row's hover tint — box-in-box double highlight. Kill the wrapper background (glyphs ride the row
+tint) or make it seamless with it.
+
+**19. Non-active/built-in trailing-slot COLLISION** (owner-spotted live, zoom receipt): on
+Default's hover the lock rest-marker STAYS and the ⚡ bolt renders overlapping/below it —
+vertical stack, off-center, half-clipped. The trailing slot has no single reserved geometry for
+rest-marker vs reveal. Same family as the P0 swap: one reserved trailing slot layout, marker and
+cluster co-exist in it (marker inline-left of the cluster, or marker yields via opacity in a
+FIXED box) — never stack, never `hidden`.
+
+**O-1 nuance (owner, after seeing it live):** "don't hate the active thing now that I understand
+it" — the ⚡ activate-toggle CONCEPT survives; the dot-for-state ruling and the bolt's
+weight/centering fixes stand as written.
+
+**20. FOCUS-MODE STATE DESYNC — reproduced live with __orb.shell() receipts (owner report:
+"at certain window sizes focus mode doesn't bring the side panels at all"). NOT width-gated —
+a state bug.** Repro at constant viewport: enter focus → exit (panels RETURN but the button
+STILL reads "Exit focus mode" — flag stuck ON) → click "Exit focus mode" → panels COLLAPSE
+(exit *enters* the focus look) → click again → NO-OP: panels stay collapsed, label stays "Exit
+focus mode". Terminal state: `shell().panels` both `collapsed` + label "Exit focus mode" + pane
+DOM boxes still report width (CSS-hidden). Three sources of truth disagree: the focus flag, the
+button label, and the panel dock-modes. Narrow-arm auto-collapse writes panel modes behind the
+flag's back, and exit-focus restores only what it thinks it collapsed. FIX: focus = ONE derived
+presentation state — exit restores the saved pre-focus modes, label derives from the same flag,
+auto-collapse never writes into the saved state. NOTE: shell-tier bug (not preset-specific) —
+likely reproducible on every section; sibling of the HUD-H1 ≤1024 dead-toggle class.
+
+**21. Params typography census — the "font colors and weights all over the place" receipt
+(visible-only probe, Params deck): 7 distinct color·size·weight tuples on one deck.** Worst two:
+(a) "Between 1 and 64,000" BOUNDS-HELPER text renders 15px bright-white 400 — LOUDER than the
+13px/500 labels it annotates (hierarchy inversion; helpers must be quieter than their labels);
+(b) TWO near-identical whites — `oklch(0.955 0.004 75)` everywhere vs `oklch(0.96 0.004 75)` on
+the selected "Deep" — token drift, not a choice. Full zoo: kickers 10.5/600 muted · gloss
+10.5/400 muted · labels 13/500 bright · select values 13/400 bright · bounds 15/400 bright ·
+quality options 15/500 muted · selected 15/500 off-white. Rule the scale (kicker/label/value/
+helper tokens), collapse the two whites, and the bounds text drops to helper voice.
 
 ## OWNER LIST (2026-08-02 night) — merged; ★ = owner RULING that overrides mock/receipt
 
@@ -167,14 +216,23 @@ wherever the mapping line renders); the readout's QUALITY MAPPING group grows th
 ("quality off — knobs are what you set"). Check the G8 tri-state lift: "off" must be a REAL stored
 arm, not a fourth enum value that materializes defaults.
 
-## P0 ROOT CAUSE — source-pinned (post-list addendum)
+## P0 ROOT CAUSE — source-pinned + LIVE-MEASURED (real-mouse probe, owner + orchestrator, 08-02)
 `components/row-reveal.ts:24` — `ROW_REVEAL_SWAP = "group-hover/row:hidden …"` is a
-**display:none swap**: the rest-marker (Active badge) leaves LAYOUT on hover, the title line
-reflows, the hover boundary moves under the real pointer → oscillation. ROW_REVEAL (the cluster
-half) is opacity-only and innocent. O-1 (persistent filled dot) removes the swap from the preset
-row entirely — one fix closes both P0 items. Any OTHER ROW_REVEAL_SWAP consumer (starred rows'
-title-line ★) has the same latent class — sweep consumers; a marker swap must reserve its box
-(visibility/opacity in a fixed-width slot), never `hidden`.
+**display:none swap**, and the loop is **pure CSS layout/hit-test oscillation — NOT a React
+remount**. Live receipts (owner wiggled the name edge, in-page probe counted): **~1,727
+pointerover/out pairs (~85 boundary crossings/sec, frame-rate)** alternating SPAN.block(1569) ⇄
+DIV.flex(1718) ⇄ BUTTON.group(158), with **ZERO childList mutations** in the pane for the whole
+storm. Mechanism: hover → badge `display:none` → title line reflows → span/flex boundary slides
+across the stationary pointer → hover recomputes → badge returns → boundary slides back, at
+refresh rate. The perf tracer's "(detached)" was log-time misattribution; "slow pointer" handlers
+are the symptom of 170 events/sec, not the cause. ROW_REVEAL (cluster half) is opacity-only and
+innocent. O-1 (persistent filled dot, reserved box) removes the swap entirely — one fix closes
+both P0 items. Sweep OTHER ROW_REVEAL_SWAP consumers (starred rows' title-line ★): a marker swap
+must reserve its box (visibility/opacity in a fixed slot), never `hidden`.
+REGRESSION PROOF (the probe, rerunnable): arm capture-phase pointerover/out counters + a
+childList MutationObserver on `[aria-label="Presets list"]`, real-mouse wiggle the name edge ~10s
+→ crossings must be single-digit; CTs cannot see this class (synthetic pointers don't re-hit-test
+on layout shift).
 
 ## Verified GOOD against the mocks (don't touch)
 
