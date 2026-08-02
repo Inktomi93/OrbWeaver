@@ -11,7 +11,7 @@
 //   the domain's OWN background-work contributions, compose-built over its own verbs. Same shape of
 //   exception as guard.ts — I/O-touching, not a verb, and cross-domain by construction.
 // - A handful of domain-specific root singletons, each individually justified inline below
-//   (`DOMAIN_SPECIFIC_ROOT_FILES`) but not yet promoted to the cross-domain ledger.
+//   (`DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES`) but not yet promoted to the cross-domain ledger.
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import type { GateDescriptor } from "../contract.ts";
@@ -31,6 +31,18 @@ const REQUIRED_DIRS = ["contract", "verbs"] as const;
  *    without reading the queue. */
 const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts", "workload-contributions.ts"] as const;
 
+const GATE_SELF = "scripts/check/gates/feature-structure.ts";
+/** Real-tree anchor (GATE-AUTHORING.md §4.5): a domain every real run has and no example builds. */
+const ANCHOR_DOMAIN = "chat";
+const STALE_ALWAYS =
+  "stale ALWAYS_ALLOWED_ROOT_FILES slot — NO domain root carries this file any more, so the cross-domain " +
+  "slot is a name the template permits and nothing occupies (ratchet down): the next file to take that name " +
+  "inherits a root-slot exemption nobody granted it. Delete the entry: ";
+const STALE_DOMAIN_MISSING = "stale DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES row — no such domain under packages/server/src/domain (ratchet down): ";
+const STALE_DOMAIN_FILE =
+  "stale DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES row — the domain no longer has this root file, so the " +
+  "individually-justified singleton is a standing permission on a NAME (ratchet down): ";
+
 /** Domain-specific root singletons — each justified here, since this allowlist IS the source of truth:
  *  - chat: `bus.ts` (chat bus emitter + replay ring), `active-turns.ts` (in-memory controller Set) —
  *    neither fits verbs/substrate/a subsystem.
@@ -39,31 +51,14 @@ const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts", "workload-contributions.ts"] as c
  *  - settings: `constants.ts` (the theme seed sentinel TypeIDs, domain-internal), `seed-themes.ts`
  *    (boot-time `ensureSeedThemes` — the preset `seed.ts` precedent, named `-themes` since the domain
  *    root's `seed.ts` slot may host a different concern later).
- *    precedent; a feature-root collaborator the observer emits onto, PD-45).
- *  - crew: `bus.ts` (the crew's per-CHAT event feed emitter + replay ring — the buddy/bus.ts precedent;
- *    a feature-root collaborator the verbs/appliers emit onto, chat-crew-design/04 §4).
  *  - rpg: `bus.ts` (the rpg's per-CHAT SSE event bus emitter + replay ring with the host/member hidden-clock
- *    split — the crew/bus.ts precedent; a feature-root collaborator the verbs emit onto, rpg-design/05 §5),
+ *    split; a feature-root collaborator the verbs emit onto, rpg-design/05 §5),
  *    `staging.ts` (the Option-A per-turn tool-write staging accumulator singleton — an in-memory Map the tool
  *    verbs stage into + the commit/abort hooks flush/clear, the chat/active-turns.ts precedent; rpg-design/10 §R4),
- *    `turn-staging.ts` (the verb-facing I/O ops over that accumulator — resolve the turn's base snapshot, read/
- *    write the overlay, resolve name refs to party rows; the guard.ts I/O-wrapping-root precedent, shared by the
- *    tool-path verbs so `staging.ts` stays the pure in-memory accumulator; rpg-design/10 §R4 / 05 §3),
  *    `snapshot-edit.ts` (the verb-facing HAND-edit I/O over the CURRENT resolved snapshot — resolve the
- *    ladder head, apply a [merge-clear] overlay + auto-lock, write back in place; the `turn-staging.ts`
+ *    ladder head, apply a [merge-clear] overlay + auto-lock, write back in place; the guard.ts
  *    I/O-wrapping-root precedent, shared by editSnapshot/upsertQuest/deleteQuest so verb-to-verb VALUE imports
  *    stay banned; rpg-design/05 §4.4),
- *    `seat.ts` (the ONE FK-walk resolving a game's `gmUserId` into the `RpgGmSeat` the pure deciders
- *    substrate/auth read — it AWAITS the injected `identity.resolvePartyActorKind` op, so it can't live in
- *    zero-I/O `substrate/`; the `turn-staging.ts` I/O-wrapping-root precedent, called at the three GM-seat
- *    re-key dispatch points; D60 AP4a / agent-principal-design/05 §2),
- *    `trace.ts` (the compose-created RPG flight-recorder singleton — a bounded in-memory ring of the per-turn
- *    trace-event stream + its injected sink, the `bus.ts`/`staging.ts` in-memory-singleton precedent; wired
- *    opt-in as `RpgContext.trace`, read host-only by `/api/_debug`; R-OBS, D55 memoryTrace precedent),
- *    `encounter-commit.ts` (the ONE durable "commit a resolved encounter round" path — the encounter row
- *    read/write + terminal side-effect writes — shared by the post-turn FLUSH and the human-GM CONSOLE arms so
- *    a tool-path and console-path terminal round produce byte-equivalent durable state; the `turn-staging.ts`
- *    I/O-wrapping-root precedent, RPG-CONSOLE-COMMIT),
  *    `game-mint.ts` (the ONE lite-game BIRTH mechanism — row + pointer mirror + bus emit — shared by the
  *    caller-gated createGame verb AND the chat-ops draft-time `startGame` door so the #40 front door never
  *    re-spells the birth; the `snapshot-edit.ts` I/O-wrapping-root precedent),
@@ -75,12 +70,14 @@ const ALWAYS_ALLOWED_ROOT_FILES = ["guard.ts", "workload-contributions.ts"] as c
  *    an in-memory Set the verb claims/releases around the rebuild, so a second concurrent recompute is refused
  *    with CONFLICT instead of racing the first over the same rollup rows; the `chat/active-turns.ts`
  *    in-memory-registry precedent, owner ruling 2026-08-02). */
-const DOMAIN_SPECIFIC_ROOT_FILES: Readonly<Record<string, readonly string[]>> = {
+// FIRST LIVE CATCH of the stale arm (2026-08-02): six rows had outlived their code — the whole `crew` and
+// `roster-preset` domains (purged in the rebuild) and four rpg root singletons (`turn-staging.ts`,
+// `seat.ts`, `trace.ts`, `encounter-commit.ts`). Rows AND their justifications were deleted together: a
+// justification for a file that does not exist is not history, it is a permission waiting for a namesake.
+const DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES: Readonly<Record<string, readonly string[]>> = {
   chat: ["bus.ts", "active-turns.ts"],
-  crew: ["bus.ts"],
-  rpg: ["bus.ts", "staging.ts", "turn-staging.ts", "snapshot-edit.ts", "seat.ts", "trace.ts", "encounter-commit.ts", "flush-barrier.ts", "game-mint.ts"],
+  rpg: ["bus.ts", "staging.ts", "snapshot-edit.ts", "flush-barrier.ts", "game-mint.ts"],
   preset: ["constants.ts", "seed.ts"],
-  "roster-preset": ["constants.ts"], // MIN/MAX member sizing rail (domain-internal, saved-rosters §3)
   settings: ["constants.ts", "seed-themes.ts"],
   stats: ["reconcile-in-flight.ts"],
 };
@@ -90,7 +87,7 @@ function isAllowedRootFile(feature: string, fileName: string): boolean {
   if (allNames.includes(fileName) || (ALWAYS_ALLOWED_ROOT_FILES as readonly string[]).includes(fileName)) {
     return true;
   }
-  return (DOMAIN_SPECIFIC_ROOT_FILES[feature] ?? []).includes(fileName);
+  return (DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES[feature] ?? []).includes(fileName);
 }
 
 function checkRequiredSlots(featureDir: string, feature: string): Violation[] {
@@ -147,6 +144,39 @@ function scanFeatureStructure(root: string): Violation[] {
   return violations;
 }
 
+/** TWO-SIDED (GATE-AUTHORING.md §4.4): both root-slot allowlists ratchet DOWN. A cross-domain slot NO
+ *  domain occupies, a per-domain row whose domain is gone, or a per-domain row whose file is gone — each is
+ *  a standing permission on a NAME, and the next file to take that name inherits an exemption nobody
+ *  granted it. Guarded on a REAL-TREE ANCHOR (§4.5): a domain every real run has and no example builds. */
+function staleRootSlotRows(root: string): Violation[] {
+  const domainDir = join(root, DOMAIN_REL);
+  if (!existsSync(join(domainDir, ANCHOR_DOMAIN))) {
+    return []; // synthetic tree — these are whole-tree claims
+  }
+  const domains = readdirSync(domainDir, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name);
+  const out: Violation[] = [];
+  const row = (message: string): Violation => ({ file: GATE_SELF, line: 1, message });
+  for (const slot of ALWAYS_ALLOWED_ROOT_FILES) {
+    if (!domains.some((d) => existsSync(join(domainDir, d, slot)))) {
+      out.push(row(`${STALE_ALWAYS}"${slot}" — the slot list lives in scripts/check/gates/feature-structure.ts`));
+    }
+  }
+  for (const [domain, files] of Object.entries(DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES)) {
+    if (!domains.includes(domain)) {
+      out.push(row(`${STALE_DOMAIN_MISSING}"${domain}" — delete the row in scripts/check/gates/feature-structure.ts`));
+      continue;
+    }
+    for (const file of files) {
+      if (!existsSync(join(domainDir, domain, file))) {
+        out.push(row(`${STALE_DOMAIN_FILE}"${domain}/${file}" — delete the entry in scripts/check/gates/feature-structure.ts`));
+      }
+    }
+  }
+  return out;
+}
+
 export const gate: GateDescriptor = {
   name: "feature-structure",
   docRow: "core/Core-0-Architecture-and-Structure.md §7 (§4)",
@@ -159,6 +189,9 @@ export const gate: GateDescriptor = {
   run: (ctx) => {
     for (const v of scanFeatureStructure(ctx.root)) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
+    }
+    for (const v of staleRootSlotRows(ctx.root)) {
+      ctx.report({ file: GATE_SELF, line: 1, column: 0, message: v.message });
     }
   },
   mustFlag: [
@@ -180,6 +213,21 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "loose file 'helpers.ts' not allowed" },
       why: "a feature with every required slot PLUS a loose non-template root file — the checkLooseFiles arm",
     },
+    {
+      files: {
+        // The anchor domain exists (so the stale arms judge) and carries one of its two documented
+        // singletons; every other allowlisted slot/row names something this tree does not have.
+        "packages/server/src/domain/chat/index.ts": "export const x = 1;\n",
+        "packages/server/src/domain/chat/service.ts": "export const s = 1;\n",
+        "packages/server/src/domain/chat/context.ts": "export const c = 1;\n",
+        "packages/server/src/domain/chat/contract/service.ts": "export const cs = 1;\n",
+        "packages/server/src/domain/chat/verbs/x.ts": "export const v = 1;\n",
+        "packages/server/src/domain/chat/guard.ts": "export const g = 1;\n",
+        "packages/server/src/domain/chat/bus.ts": "export const b = 1;\n",
+      },
+      expect: { messageIncludes: "stale ALWAYS_ALLOWED_ROOT_FILES slot" },
+      why: "THE STALE ARMS: with the anchor domain present, `guard.ts` and chat's `bus.ts` are occupied and stay — `workload-contributions.ts` (no domain has it), the missing per-domain rows, and chat's absent `active-turns.ts` each ratchet down as permissions on a name nothing occupies",
+    },
   ],
   mustPass: [
     {
@@ -190,7 +238,7 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/whole/contract/service.ts": "export const cs = 1;\n",
         "packages/server/src/domain/whole/verbs/x.ts": "export const v = 1;\n",
       },
-      why: "a feature with all required slots (index/service/context + contract/ + verbs/) — the template, passes",
+      why: "a feature with all required slots (index/service/context + contract/ + verbs/) — the template, passes; with no anchor domain this is not the real tree, so the stale arms stay silent (THE ANCHOR GUARD)",
     },
   ],
 };
