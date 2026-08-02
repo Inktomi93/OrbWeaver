@@ -518,8 +518,11 @@ test("rpg-lite: the tracker view is swipe-consistent — every plane resolves fr
   try {
     const ref = characterRef(await getTrackerView(chatId), characterId);
     await editSnapshot(chatId, { location: "The Glass Bridge" });
+    // Two writes in ONE call, so the byte-stability read below has a multi-plane row to be stable ABOUT.
+    // (`setHp` used to lead here; it left the op union with R3 and would now reject the WHOLE call — both ops
+    // — at the tRPC input parse, taking the `focus` assertion down with it. Health is a tracker like any other.)
     await patchActor(chatId, ref, [
-      { op: "setHp", hp: { value: 15, max: 15 } },
+      { op: "setTracker", key: "hp", value: { value: 15 } },
       { op: "setTracker", key: "focus", value: { value: 2 } },
     ]);
     // Every plane reads the SAME resolved-current snapshot, so two back-to-back reads are byte-identical (no

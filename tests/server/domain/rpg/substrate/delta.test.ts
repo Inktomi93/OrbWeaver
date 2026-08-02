@@ -232,6 +232,44 @@ test("first snapshot (prev === null) → SCENE OPENS, not everything-changed", (
   expect(out).not.toContain(RPG_DELTA_HEADING);
 });
 
+// The SCENE OPENS block names a ROSTER actor through `ctx.rosterNames` — the ONE presence-key→name join
+// (`presenceName` → `actorLabel`). A roster actor carries NO identity by R2 design, so a join that read only
+// `identity?.name` fell back to the raw ref KEY and printed `with character:chr_…` into the model's prompt on
+// turn 1 of effectively every new game (establish-when-unset FORCES a non-empty cast, and the model lists the
+// roster character). A branded TypeID is never model-facing — the projection-clean law, and an id in the
+// prompt invites the model to echo ids as names.
+test("SCENE OPENS names a ROSTER actor by her display name — never her raw ref key (the projection-clean law)", () => {
+  const cur = state({
+    location: "The Ford",
+    actorState: [
+      {
+        actorRef: { kind: "character", characterId: "char_kael" as never },
+        volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" },
+      },
+      member("mira", "Mira"),
+    ],
+    presentCharacters: ["character:char_kael", "cast:mira"],
+  });
+  const out = buildDeltaBlock(null, cur, ctx({ rosterNames: { "character:char_kael": "Kael" } }));
+  expect(out).toContain("with Kael, Mira");
+  expect(out).not.toContain("char_kael");
+  expect(out).not.toContain("character:");
+});
+
+test("SCENE OPENS falls back to the GENERIC label when the roster map has no name — still never a raw id", () => {
+  // A gone member (or a caller that supplies no binding): `actorLabel`'s own fallback wins, and it is a WORD.
+  const cur = state({
+    location: "The Ford",
+    actorState: [
+      { actorRef: { kind: "user", userId: "usr_1" as never }, volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" } },
+    ],
+    presentCharacters: ["user:usr_1"],
+  });
+  const out = buildDeltaBlock(null, cur, ctx());
+  expect(out).toContain("with you");
+  expect(out).not.toContain("usr_1");
+});
+
 test("first snapshot with an empty born state → OMIT (null, no phantom SCENE OPENS)", () => {
   expect(buildDeltaBlock(null, state(), ctx())).toBeNull();
 });

@@ -315,6 +315,17 @@ interface PresenceSlice {
   readonly actors: ActorState;
 }
 
+/** THE presence-key → display NAME resolution, and the only one. A presence entry is a bare `actorRefKey`
+ *  (R2), so every surface that prints "who is on stage" has to join it back to its actor row — and the join
+ *  MUST go through {@link actorLabel}, because a ROSTER actor carries no identity by design: her name lives in
+ *  `ctx.rosterNames`, not on the row. Spelling the join a second time is how a branded `character:chr_…` id
+ *  reached the model prompt in the SCENE OPENS block (the projection-clean law's exact failure: "an id is
+ *  never model-facing"). One helper, both readers. */
+function presenceName(key: string, actors: ActorState, ctx: DeltaContext): string {
+  const row = actors.find((a) => volatileKey(a) === key);
+  return row === undefined ? key : actorLabel(row, ctx);
+}
+
 /** Present cast — joined / left the scene (`+Zandik enters`, `-Mari leaves`), matched by actor-ref key. (A
  *  member's per-field diff — mood/relationship — is the relationship renderer, registered separately; this one
  *  reports only scene ENTRY/EXIT.) A LEAVE line is now the WHOLE of what departure means: the NPC's state,
@@ -323,14 +334,10 @@ const presentCastRenderer: PlaneDiffRenderer<PresenceSlice> = {
   plane: "presentCast",
   select: (s) => ({ present: s.presentCharacters, actors: s.actorState }),
   render: (prev, cur, ctx) => {
-    const nameOf = (key: string, slice: PresenceSlice): string => {
-      const row = slice.actors.find((a) => volatileKey(a) === key);
-      return row === undefined ? key : actorLabel(row, ctx);
-    };
     const before = new Set(prev.present);
     const after = new Set(cur.present);
-    const entered = cur.present.filter((k) => !before.has(k)).map((k) => `+${nameOf(k, cur)} enters`);
-    const left = prev.present.filter((k) => !after.has(k)).map((k) => `-${nameOf(k, prev)} leaves`);
+    const entered = cur.present.filter((k) => !before.has(k)).map((k) => `+${presenceName(k, cur.actors, ctx)} enters`);
+    const left = prev.present.filter((k) => !after.has(k)).map((k) => `-${presenceName(k, prev.actors, ctx)} leaves`);
     return [...entered, ...left];
   },
 };
@@ -475,7 +482,7 @@ function renderPlane(r: RegisteredPlaneDiff, prev: RpgSnapshotState, cur: RpgSna
  *  born state is empty. */
 export function buildDeltaBlock(prev: RpgSnapshotState | null, cur: RpgSnapshotState, ctx: DeltaContext): string | null {
   if (prev === null) {
-    return buildFirstSnapshotBlock(cur);
+    return buildFirstSnapshotBlock(cur, ctx);
   }
   const lines: string[] = [];
   for (const r of PLANE_DIFF_RENDERERS) {
@@ -489,16 +496,19 @@ export function buildDeltaBlock(prev: RpgSnapshotState | null, cur: RpgSnapshotS
 
 /** The first-snapshot arm (§2.7): the born state as a one-line SCENE OPENS summary (setting + who's present),
  *  NOT a delta over an empty prior (which would read as "everything just changed"). Omitted (null) when the
- *  born state carries nothing worth opening on. */
-function buildFirstSnapshotBlock(cur: RpgSnapshotState): string | null {
+ *  born state carries nothing worth opening on.
+ *
+ *  It takes the `DeltaContext` for ONE reason and it is load-bearing: the presence plane stores ref KEYS, and a
+ *  ROSTER actor's name lives in `ctx.rosterNames`, not on her row. Resolving without it printed the raw
+ *  `character:chr_…`/`user:usr_…` key into the model's prompt on turn 1 of effectively every new game (the
+ *  establish-when-unset arm forces a non-empty cast, and the model habitually lists the roster character). */
+function buildFirstSnapshotBlock(cur: RpgSnapshotState, ctx: DeltaContext): string | null {
   const parts: string[] = [];
   if (cur.location !== "") {
     parts.push(cur.location);
   }
   if (cur.presentCharacters.length > 0) {
-    // The presence plane stores ref KEYS; the display name lives on the actor row (R2).
-    const nameOf = (key: string): string => cur.actorState.find((a) => volatileKey(a) === key)?.identity?.name ?? key;
-    parts.push(`with ${cur.presentCharacters.map(nameOf).join(", ")}`);
+    parts.push(`with ${cur.presentCharacters.map((key) => presenceName(key, cur.actorState, ctx)).join(", ")}`);
   }
   const active = cur.quests.filter((q) => q.status === "active");
   if (active.length > 0) {

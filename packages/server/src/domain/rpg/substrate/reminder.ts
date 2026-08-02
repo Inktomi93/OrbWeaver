@@ -355,8 +355,12 @@ export function castHeader(actors: readonly RpgTrackerView["actors"][number][]):
  *  walked out of the room, is exactly the character the model should be able to bring back consistently, and
  *  before R2 she was unrepresentable (departure destroyed her identity outright). Deliberately ONE line per
  *  actor — name, mood, stance — never her trackers, pack or guides: this is a memory jog, not a second Present
- *  block, and a long-running game accumulates these. */
-export function offstageLine(actor: RpgTrackerView["actors"][number], hints: Readonly<Record<string, string>>): string {
+ *  block, and a long-running game accumulates these.
+ *
+ *  Module-private on purpose: the macro feed deliberately does NOT stage this block (the reachability suite
+ *  pins that posture with a `macroAbsent` needle), so unlike `actorLine`/`castHeader` it has exactly one
+ *  consumer — the reminder's own assembly. */
+function offstageLine(actor: RpgTrackerView["actors"][number], hints: Readonly<Record<string, string>>): string {
   const identity = actor.identity;
   const segs: string[] = [identity !== null && identity.emoji !== "" ? `${identity.emoji} ${actor.name}` : actor.name];
   if (identity !== null && identity.mood !== "") {

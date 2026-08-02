@@ -43,7 +43,7 @@ import type { CharacterId, ChatId, ChatTurnId, RpgGameId, UserId } from "@orb/ki
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RpgGatherResult } from "../../../../packages/server/src/domain/rpg/contract/params";
 import type { RpgRosterActor } from "../../../../packages/server/src/domain/rpg/index";
-import { RPG_DELTA_HEADING } from "../../../../packages/server/src/domain/rpg/substrate/delta";
+import { RPG_DELTA_HEADING, RPG_SCENE_OPENS_HEADING } from "../../../../packages/server/src/domain/rpg/substrate/delta";
 import { freshDb } from "../../../support/db";
 import { zodLeafPaths } from "../../../support/zod-leaf-paths";
 import type { RpgHarness } from "./_support";
@@ -265,6 +265,21 @@ const CARRIERS: Readonly<Record<CarrierKind, Carrier>> = {
   },
 };
 
+/** The strings a carrier's ADDRESSING key would print if a display-name join ever fell back to it. Derived
+ *  from the carrier's own ref so a new carrier kind cannot be added without one. */
+function refKeyNeedles(carrier: Carrier): readonly string[] {
+  const ref = carrier.actorRef;
+  if (ref.kind === "character") {
+    return [`character:${ref.characterId}`, ref.characterId];
+  }
+  if (ref.kind === "user") {
+    return [`user:${ref.userId}`, ref.userId];
+  }
+  // A CAST actor's slug key is not an id — it is a legitimate (if ugly) fallback label, and the display name
+  // is what must win. Assert the key form only.
+  return [`cast:${ref.castKey}`];
+}
+
 interface Fixture {
   readonly chatId: ChatId;
   readonly gameId: RpgGameId;
@@ -396,8 +411,12 @@ interface FieldProbe {
   readonly drive: (f: Fixture) => Promise<void>;
   readonly reminder: (f: Fixture) => readonly string[];
   /** Strings that must NOT appear (the field-state half of the matrix: an empty/filtered field renders NOTHING —
-   *  no dangling label, no phantom row). */
+   *  no dangling label, no phantom row). Asserted against the ABSOLUTE state block. */
   readonly absent?: (f: Fixture) => readonly string[];
+  /** Strings that must NOT appear ANYWHERE in the assembled reminder — the state block, the delta/SCENE-OPENS
+   *  block and the teaching blocks together. The block-scoped `absent` above could not see the SCENE OPENS
+   *  arm at all, which is precisely where a raw ref key reached the model unnoticed. */
+  readonly reminderAbsent?: (f: Fixture) => readonly string[];
   readonly delta?: (f: Fixture) => readonly string[];
   /** What the named macro keys must carry (the third surface's positive half). */
   readonly macro?: (f: Fixture) => readonly MacroNeedle[];
@@ -634,6 +653,27 @@ const PROBES: readonly FieldProbe[] = [
     absent: () => ["Mana 4/10"],
     macro: () => [{ key: "rpgCast", text: "Mana 4/6" }],
     macroAbsent: () => [{ key: "rpgCast", text: "Mana 4/10" }],
+  },
+  // ── the FIRST-SNAPSHOT (SCENE OPENS) arm, over EVERY carrier kind ───────────────────────────────────────
+  {
+    // THE MATRIX HOLE THIS CLOSES: every scene-plane probe below stages a CAST carrier only, so the
+    // first-snapshot block was never read with a ROSTER member on stage — and a roster actor carries no
+    // identity by R2 design, so the presence-key→name join fell back to the raw `character:chr_…`/`user:usr_…`
+    // ref and printed it into the model's prompt. That fires on turn 1 of effectively every new game (the
+    // establish-when-unset arm FORCES a non-empty cast, and the model habitually lists the roster character),
+    // and a branded id is never model-facing — the projection-clean law this suite's own cites invoke.
+    //
+    // ONE beat means `prev === null` on the lineage, which is exactly the arm under test.
+    name: "SCENE OPENS — the first snapshot names an on-stage actor by her DISPLAY NAME, never her ref key",
+    reminderPaths: [],
+    carriers: ACTOR_CARRIERS,
+    drive: async (f) => {
+      await f.beat({ scene: { location: "The Ford", presentUpsert: [{ name: f.carrier.targetRef }] } });
+    },
+    reminder: (f) => [`${RPG_SCENE_OPENS_HEADING}: The Ford · with ${f.carrier.label}`],
+    // The ref key in ANY of its spellings — the raw projection AND its bare id half (a `user:` prefix could be
+    // stripped and the TypeID still leak).
+    reminderAbsent: (f) => refKeyNeedles(f.carrier),
   },
   // ── the SCENE-CAST identity plane ────────────────────────────────────────────────────────────────────────
   {
@@ -975,6 +1015,9 @@ for (const probe of PROBES) {
       const reminder = await f.reminder();
       for (const needle of probe.reminder(f)) {
         expect(reminder, `reminder must carry ${needle}`).toContain(needle);
+      }
+      for (const needle of probe.reminderAbsent?.(f) ?? []) {
+        expect(reminder, `the reminder must NOT carry ${needle} ANYWHERE`).not.toContain(needle);
       }
       // Absence is asserted against the ABSOLUTE block: an emptied/filtered field must leave no dangling label
       // there, while the delta may still legitimately narrate the transition that emptied it.

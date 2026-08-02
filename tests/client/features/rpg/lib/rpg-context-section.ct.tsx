@@ -1097,11 +1097,15 @@ function richTracker(): unknown {
       {
         actorRef: { kind: "character", characterId: "character_ct_mara" },
         name: "Mara",
+        // A ROSTER actor: `presence` is the presence plane's business, and she carries NO `identity` half —
+        // her name is the chat roster's and her standing prose is the sheet's (R2). A stub that mirrors the
+        // wire is the discipline; a stale one is a dead shape the next CT copies.
+        presence: false,
+        identity: null,
         // `flavor` (RV-11) — host-written sheet prose that reached no reader until the takeover grew its gloss line.
         sheet: {
           className: "Warden",
           attributes: { str: 14 },
-          maxHp: null,
           flavor: "Sworn to a house that no longer exists.",
           level: 3,
           trackerGrants: [],
@@ -1109,8 +1113,6 @@ function richTracker(): unknown {
         },
         trackers: [VITALITY, RESOLVE],
         volatile: {
-          actorRef: { kind: "character", characterId: "character_ct_mara" },
-          hp: null,
           trackerValues: { vitality: { value: 24, items: null }, resolve: { value: 7, items: null } },
           conditions: [{ name: "poisoned", stat: null, modifier: 0, turnsLeft: null }],
           inventory: [{ id: "item_ct_key", name: "Bone key", description: "cold to the touch", quantity: 1, location: "belt pouch", type: "quest" }],
@@ -1147,6 +1149,51 @@ function packedTracker(): unknown {
   const actor = base.actors[0];
   return { ...base, actors: [{ ...actor, volatile: { ...actor?.volatile, inventory: PACKED_ITEMS } }] };
 }
+
+// The party purse SUMS the party's wallets and deliberately EXCLUDES cast NPCs (an NPC's coin is hers, not
+// the party's — a first-class path since R2, when `update_inventory.walletDeltas` on a cast target became
+// reachable and her pack became a selectable subject). The carried NOTE's grammar is "N OF the total is on X",
+// so pairing it with an EXCLUDED purse states the opposite of what the total counted, and the reader has no
+// way to tell which number is lying.
+test("R2: the purse's carried note is coherent with the party-total exclusion — omitted for a CAST subject", async ({ mount, page }) => {
+  const base = richTracker() as { readonly actors: readonly Record<string, unknown>[] };
+  const mara = base.actors[0] as Record<string, unknown>;
+  const purse = (amount: number): Record<string, unknown> => ({
+    ...(mara["volatile"] as Record<string, unknown>),
+    wallet: [{ name: "gold", amount }],
+  });
+  await stubTakeover(page, {
+    tracker: {
+      ...(base as Record<string, unknown>),
+      actors: [
+        { ...mara, volatile: purse(50) },
+        {
+          ...mara,
+          actorRef: { kind: "cast", castKey: "sera" },
+          name: "Sera",
+          presence: true,
+          identity: { name: "Sera", emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
+          volatile: purse(30),
+        },
+      ],
+    },
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+
+  // The PARTY subject: the total is the party's own 50, and no carried note (she carries all of it).
+  const purseLine = component.locator('[data-slot="rpg-purse-line"]');
+  await expect(purseLine).toContainText("50 gold");
+  await expect(purseLine).not.toContainText("30");
+
+  // Flip to the CAST subject: the total is UNCHANGED (her 30 was never in it) and the note stays away — the
+  // old pairing rendered "50 gold — 30 on Sera", claiming 30 of the 50 was hers when none of it was.
+  await component.getByRole("combobox", { name: "Whose pack" }).click();
+  await page.getByRole("option", { name: "Sera" }).click();
+  await expect(purseLine).toContainText("50 gold");
+  await expect(purseLine).not.toContainText("on Sera");
+  await expect(purseLine).not.toContainText("30");
+});
 
 test("Status: expanding a roster entry TAKES OVER the panel with the character — everything Sheet-the-tab held", async ({ mount, page }) => {
   await stubTakeover(page, { game: d20Game(), tracker: richTracker() });
