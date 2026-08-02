@@ -123,7 +123,9 @@ function viewContent(id: PresetEditorView["id"], props: ViewContentProps): React
         <ParamsDeck capability={capability} capabilityError={capabilityError} customParameterKeys={customParameterKeys} effective={effective} form={form} />
       );
     case "prompt":
-      return <PresetStructureTabs capability={capability} form={form} onRevealSection={onRevealSection} tab="prompt" />;
+      // No `capability` here any more: the one cluster that read it (Collapsing's floor line) moved to
+      // Transforms with the rest of the wire-shaping tail (O-17★).
+      return <PresetStructureTabs form={form} onRevealSection={onRevealSection} tab="prompt" />;
     case "actions":
       return (
         <ActionsView
