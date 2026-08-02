@@ -31,6 +31,17 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 PUSH NEEDS ITS OWN WORD). Six-lane cap stands (owner). Board-only commits = `--no-verify`
 (owner word). Dev db DROPS on next stack boot (DBG baseline regen) — expected, reseeds via latch.
 
+**✅ HEAL MERGED (`14c88995`)** — both handoff heals in the atomic swap batch via a NEW
+co-statement seam (rpg→chat handoffHealStatements returning UNEXECUTED BatchStmt[] — table
+ownership intact, one-batch crash safety; the chat→notifications pattern now runs both
+directions — lesson-grade); anchor arm = NULL (code-derived: the ?? active fallback IS D51's
+intent; re-pin would trip sameProjectedPersona); fork.ts twin healed; export name-leak closed
+as a side effect; audit flags healedAnchorPersona/healedGmPreset (booleans never ids); U2
+deliberately NOT taken (unarchive-on-accept = unruled semantics — flagged). MULTI-PERSONA
+receipts in its final report. **verify FIRED CORRECTLY as `pnpm verify --push`** (first attempt
+was a wrong script name — verify:push does not exist; the push tier is `verify --push`) —
+background, successor reads the verdict. PERSONA stickler got the owner directive: read the
+ENTIRE persona docs+code corpus — exact pin examples exist in docs and are the authority.
 **FINAL-7% DISPATCH (owner: "dispatch until you run out") — SIX LIVE NOW:** RETRO (gate
 retrofit, has GDOC's baseline loop) · HEAL (handoff heals) · **PERSONA stickler** (the
 consolidated design pass: multi-human resolution + pin/anchor integration + forced-first-run
