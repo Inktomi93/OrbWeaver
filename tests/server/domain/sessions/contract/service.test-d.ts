@@ -24,6 +24,11 @@ test("the MINT seam returns a SessionToken (the cookie write side can't be hande
   expectTypeOf<string>().not.toMatchTypeOf<CreateSessionResult["token"]>();
 });
 
+test("the MINT rides the DI seam and yields the brand (verbs never reach tokens/ directly)", () => {
+  expectTypeOf<SessionsContext["mintToken"]>().returns.toEqualTypeOf<SessionToken>();
+  expectTypeOf<SessionsContext["mintToken"]>().parameters.toEqualTypeOf<[]>();
+});
+
 test("the peppered hasher is bound to session tokens inside the sessions context", () => {
   // `createTokenHasher` stays a generic `(string) => string` (chat invites share the primitive); the
   // NARROWING is on the sessions DI bundle, so a sessions verb can only hash a session token.
