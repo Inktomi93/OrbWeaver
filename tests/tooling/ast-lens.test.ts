@@ -1,8 +1,8 @@
 // Self-test for the `pnpm ast` rot lenses (scripts/codemods/ast.ts) — unwired, clientgap, the orphan
-// substrate, swallowed, and respell. Each drives the pure enumeration substrate over a tiny synthetic
-// project (a server router with one WIRED and one UNWIRED procedure; a namespace-swallowed schema barrel;
-// a derived-vs-hand-spelled contract pair) and asserts the lens flags EXACTLY the defect shape — bite-proof
-// in both directions, never a sketch.
+// substrate, swallowed, respell, and typeonly-alive. Each drives the pure enumeration substrate over a tiny
+// synthetic project (a server router with one WIRED and one UNWIRED procedure; a namespace-swallowed schema
+// barrel; a derived-vs-hand-spelled contract pair; a value export reached only from type positions) and
+// asserts the lens flags EXACTLY the defect shape — bite-proof in both directions, never a sketch.
 
 import { Project } from "ts-morph";
 import { describe } from "vitest";
@@ -14,8 +14,10 @@ import {
   collectOrphanCandidates,
   collectServerProcedures,
   collectSwallowedCandidates,
+  collectTypeOnlyCandidates,
   isProdConsumed,
   isSwallowedExempt,
+  isTypeOnlyExempt,
   isUnwiredExempt,
   respellHitsFor,
 } from "../../scripts/codemods/ast.ts";
@@ -408,6 +410,147 @@ export type MemoryBackfillCounts = MemoryBackfillResult;
     const texts = respellHitsFor(project, assignabilityChecker(project), "chat").map((h) => h.text);
     // Skipped against its own origin, reported against the structurally-identical sibling.
     expect(texts).toEqual(["MemoryBackfillCounts  ≡  @orb/contracts/chat::MemoryScanResult"]);
+  });
+});
+
+// ── typeonly-alive: value exports kept alive ONLY by type positions ───────────────────────────────
+// The owner-named rot class: an export whose every reference is `import type` / `typeof X` / an annotation
+// / an `implements` clause — it ships a runtime body to satisfy a SHAPE and nothing ever calls it. The
+// lens classifies by REFERENCE POSITION, not import form, so the fixture pins the arms an import-form pass
+// would get WRONG: a plain (un-typed) import used only as `typeof X` is the defect; a class's runtime
+// `extends` target is alive even though its heritage node IS a TypeNode by kind; a namespace-member access
+// and a renaming-barrel hop both resolve to the origin.
+
+const TYPEONLY_ORIGIN = `
+export const TYPE_ONLY = { a: 1 };
+export const PLAIN_IMPORT_TYPE_ONLY = { b: 2 };
+export const VALUE_USED = { c: 3 };
+export const NS_VALUE_USED = { d: 4 };
+export const SELF_USED = { e: 5 };
+export const SELF_CONSUMER = SELF_USED.e;
+export const UNREACHED = { f: 6 };
+export function fnTypeOnly() { return 1; }
+export class ClsImplemented {}
+export class ClsExtended {}
+export interface PlainShape { g: number; }
+export type PlainAlias = { h: number };
+`;
+
+const TYPEONLY_CONSUMER = `
+import type { TYPE_ONLY, PlainShape, PlainAlias } from "../../../../server/src/typeonly/origin";
+import { PLAIN_IMPORT_TYPE_ONLY, VALUE_USED, fnTypeOnly, ClsImplemented, ClsExtended } from "../../../../server/src/typeonly/origin";
+import * as origin from "../../../../server/src/typeonly/origin";
+export type A = typeof TYPE_ONLY;
+export type B = typeof PLAIN_IMPORT_TYPE_ONLY;
+export type C = ReturnType<typeof fnTypeOnly>;
+export const v = VALUE_USED.c;
+export const n = origin.NS_VALUE_USED;
+export class Impl implements ClsImplemented { x = 1; }
+export class Sub extends ClsExtended {}
+export interface Widened extends PlainShape { i: number; }
+export type Aliased = PlainAlias;
+`;
+
+const inTypeOnlyScope = (fp: string): boolean => fp.includes("/packages/server/src/typeonly/");
+
+describe("ast typeonly-alive lens (reference-position liveness)", () => {
+  test("flags EXACTLY the value exports whose every reference is a type position", () => {
+    const project = projectOf({
+      "packages/server/src/typeonly/origin.ts": TYPEONLY_ORIGIN,
+      "packages/client/src/features/typeonly/panel.ts": TYPEONLY_CONSUMER,
+    });
+
+    const names = collectTypeOnlyCandidates(project, inTypeOnlyScope)
+      .map((c) => c.name)
+      .sort(byString);
+
+    // TYPE_ONLY (import type + typeof), PLAIN_IMPORT_TYPE_ONLY (PLAIN import, only ever `typeof` — the arm
+    // an import-form classifier gets wrong), fnTypeOnly (`ReturnType<typeof …>`), ClsImplemented (an
+    // `implements` heritage clause is type-only).
+    expect(names).toEqual(["ClsImplemented", "fnTypeOnly", "PLAIN_IMPORT_TYPE_ONLY", "TYPE_ONLY"]);
+
+    // Everything else is alive or out of class, each for a DIFFERENT reason the lens must respect:
+    //   VALUE_USED       — a property read at a runtime position;
+    //   NS_VALUE_USED    — reached only through `import * as origin` + `origin.NS_VALUE_USED` (the member
+    //                      access import-edge liveness cannot see, and this lens CAN);
+    //   SELF_USED        — used by its own file at a value position;
+    //   ClsExtended      — a class's `extends` target is CONSTRUCTED at runtime, even though the heritage
+    //                      node is a TypeNode by kind;
+    //   UNREACHED        — nothing references it at all: an `orphans` hit, never this lens's;
+    //   PlainShape /     — an interface and a type alias are type-only BY NATURE and legal, so they are
+    //   PlainAlias         never candidates even though every reference to them is a type position.
+    for (const alive of ["VALUE_USED", "NS_VALUE_USED", "SELF_USED", "ClsExtended", "UNREACHED", "PlainShape", "PlainAlias"]) {
+      expect(names).not.toContain(alive);
+    }
+  });
+
+  test("names the type-position sites, and sees through a RENAMING barrel", () => {
+    // The alias trap that forked the liveness key in 2026-08-02: the consumer spells the BARREL's name.
+    // Reference resolution keys on the origin declaration, so the hop must not hide the type-only verdict.
+    const project = projectOf({
+      "packages/server/src/typeonly/origin.ts": "export const inner = { a: 1 };\n",
+      "packages/server/src/typeonly/index.ts": 'export { inner as outer } from "./origin";\n',
+      "packages/client/src/features/typeonly/panel.ts": `
+import { outer } from "../../../../server/src/typeonly/index";
+export type A = typeof outer;
+`,
+    });
+
+    const candidates = collectTypeOnlyCandidates(project, inTypeOnlyScope);
+    expect(candidates.map((c) => c.name)).toEqual(["inner"]);
+    // The hit names the file a human must read to render the verdict — the type position, not the barrel.
+    expect(candidates[0]?.sites.some((s) => s.endsWith("packages/client/src/features/typeonly/panel.ts:3"))).toBe(true);
+  });
+
+  test("ONE runtime reference anywhere kills the candidacy (err alive, never a false death sentence)", () => {
+    const project = projectOf({
+      "packages/server/src/typeonly/origin.ts": "export const shape = { a: 1 };\n",
+      "packages/client/src/features/typeonly/type-user.ts":
+        'import type { shape } from "../../../../server/src/typeonly/origin";\nexport type A = typeof shape;\n',
+      // A single value read, in a TEST path — the lens still reads it as alive (a test-only value consumer
+      // is `testonly`'s class, not runtime-dead code).
+      "tests/typeonly/shape.test.ts": 'import { shape } from "../../packages/server/src/typeonly/origin";\nexport const v = shape.a;\n',
+    });
+    expect(collectTypeOnlyCandidates(project, inTypeOnlyScope)).toEqual([]);
+  });
+
+  test("`@typeonly-ok: <reason>` above an `export const` exempts; a bare marker does not; a marker on a live export is STALE", () => {
+    const project = projectOf({
+      "packages/server/src/typeonly/origin.ts": `
+// @typeonly-ok: the axis tuple; its whole job is to be the source of the derived union.
+export const KINDS = ["a", "b"] as const;
+// @typeonly-ok:
+export const unreasoned = { a: 1 };
+export const untagged = { a: 2 };
+// @typeonly-ok: a marker on an export something actually CALLS — the stale side of the two-sided arm.
+export const staleTagged = { a: 3 };
+`,
+      "packages/client/src/features/typeonly/panel.ts": `
+import type { unreasoned, untagged } from "../../../../server/src/typeonly/origin";
+import { staleTagged } from "../../../../server/src/typeonly/origin";
+import type { KINDS } from "../../../../server/src/typeonly/origin";
+export type K = (typeof KINDS)[number];
+export type U = typeof unreasoned;
+export type T = typeof untagged;
+export const live = staleTagged.a;
+`,
+    });
+    const origin = project.getSourceFileOrThrow(`${ROOT}/packages/server/src/typeonly/origin.ts`);
+    const declOf = (name: string): Parameters<typeof isTypeOnlyExempt>[0] => origin.getVariableDeclarationOrThrow(name);
+    // The marker lives on the STATEMENT, not on the binding name (the `export const` commentHost hop).
+    expect(isTypeOnlyExempt(declOf("KINDS"))).toBe(true);
+    expect(isTypeOnlyExempt(declOf("unreasoned"))).toBe(false);
+    expect(isTypeOnlyExempt(declOf("untagged"))).toBe(false);
+
+    const candidates = collectTypeOnlyCandidates(project, inTypeOnlyScope);
+    const candidateNames = candidates.map((c) => c.name).sort(byString);
+    // KINDS is a candidate the marker EXEMPTS; the other two type-only exports stay reported.
+    expect(candidateNames).toEqual(["KINDS", "unreasoned", "untagged"]);
+
+    // The STALE arm's exact predicate (what `printStaleTypeOnlyTags` reds on): tagged, but no longer a
+    // candidate — `staleTagged` has a runtime consumer now, so the marker is a lie.
+    expect(isTypeOnlyExempt(declOf("staleTagged"))).toBe(true);
+    expect(candidateNames).not.toContain("staleTagged");
   });
 });
 
