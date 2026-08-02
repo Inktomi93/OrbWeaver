@@ -55,9 +55,17 @@ export const listRowVariants = tv({
     // Truncation is the `subtitleWrap` variant's default arm below (a one-line dense row), never baked in:
     // a GLOSS subtitle (a sentence of teaching copy) has to be allowed to wrap.
     subtitle: "block text-left text-label leading-label text-muted-foreground",
-    // Hover/focus-within display-swap of the subtitle in the SAME line, so a wide metadata span never
-    // contends with the trailing `actions` buttons for width.
-    subtitleReveal: "hidden truncate text-left font-mono text-label leading-label text-muted-foreground group-focus-within:block group-hover:block",
+    // The subtitle ⇄ reveal SWAP STACK: ONE grid cell holding both spans (`col-start-1 row-start-1`), so the
+    // line's box is `max(subtitle, reveal)` and is IDENTICAL at rest and on hover. The swap itself is
+    // VISIBILITY, never display — a hover-keyed `display` swap removes a box from layout under a stationary
+    // pointer and re-hit-tests the row at frame rate (the preset-list P0; packages/client/src/components/
+    // row-reveal.ts, gate `no-hover-display-swap`). Rendered only when a reveal is present, so a plain row's
+    // DOM is untouched.
+    subtitleStack: "grid min-w-0",
+    // Hover/focus-within swap of the subtitle in the SAME line, so a wide metadata span never contends with
+    // the trailing `actions` buttons for width.
+    subtitleReveal:
+      "col-start-1 row-start-1 invisible truncate text-left font-mono text-label leading-label text-muted-foreground group-focus-within:visible group-hover:visible",
     // `shrink-0`: controls keep their intrinsic width and are never squeezed below the tap-target floor.
     actions: "flex shrink-0 items-center justify-end gap-field",
   },

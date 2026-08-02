@@ -287,13 +287,24 @@ test.describe("coarse pointer", () => {
   });
 });
 
-test("the fine-pointer inline cluster reveals on hover and duplicates the Menu items' labels", async ({ mount }) => {
+// The reveal is PAINT-only (`ROW_REVEAL`): the cluster holds its box at rest and fades in, so the row's
+// geometry is identical hovered and un-hovered. A `hidden` → `flex` swap here was the hit-test OSCILLATOR
+// class (packages/client/src/components/row-reveal.ts; gate `no-hover-display-swap`) — layout entering under
+// a stationary pointer re-hit-tests the row at frame rate. So rest-state is asserted as opacity, not as
+// Playwright visibility.
+test("the fine-pointer inline cluster reveals on hover (paint-only) and duplicates the Menu items' labels", async ({ mount }) => {
   const component = await mount(<MembersPanelStory />);
   const inlineMute = component.getByRole("button", { name: "Mute Aria" });
+  const row = component.getByRole("button", { name: "Aria — character" });
+  // ROW_REVEAL paints the CLUSTER (the button's wrapper Row), not each control.
+  const cluster = inlineMute.locator("xpath=..");
 
-  await expect(inlineMute).toBeHidden(); // hidden at rest (progressive disclosure, §4.3 rule 4)
-  await component.getByRole("button", { name: "Aria — character" }).hover();
-  await expect(inlineMute).toBeVisible();
+  await expect(cluster).toHaveCSS("opacity", "0"); // unpainted at rest (progressive disclosure, §4.3 rule 4)
+  const restBox = await row.boundingBox();
+  await row.hover();
+  await expect(cluster).toHaveCSS("opacity", "1");
+  // THE LAW: the row's geometry is byte-identical rest ⇄ hovered — nothing enters or leaves layout.
+  await expect.poll(() => row.boundingBox()).toEqual(restBox);
   await inlineMute.click();
   await expect(component.locator(LAST_ACTION)).toHaveText("disabled:character_aria:true");
 });

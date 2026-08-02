@@ -163,8 +163,10 @@ function ListRowContent({
   markers: ReactNode;
   ids: ListRowDescriptors;
 }): ReactElement {
-  // The subtitle hides on hover/focus only when a reveal is present, so it takes the exact line.
-  const subtitleSwap = subtitleReveal === undefined ? "" : "group-hover:hidden group-focus-within:hidden";
+  // The subtitle YIELDS on hover/focus only when a reveal is present, so the reveal takes the exact line.
+  // VISIBILITY, not display: both spans share one grid cell (`subtitleStack`), so the line's box is the max
+  // of the two and never changes under the pointer (gate `no-hover-display-swap`).
+  const subtitleSwap = subtitleReveal === undefined ? "" : "col-start-1 row-start-1 group-hover:invisible group-focus-within:invisible";
   const subtitleSpan =
     subtitle === undefined ? null : (
       <span
@@ -208,10 +210,15 @@ function ListRowContent({
             </span>
           )}
         </span>
-        {blockSubtitle}
-        {subtitleReveal === undefined ? null : (
-          <span aria-hidden={true} className={slots.subtitleReveal()} data-slot="list-row-subtitle-reveal" title={subtitleReveal}>
-            {subtitleReveal}
+        {subtitleReveal === undefined ? (
+          blockSubtitle
+        ) : (
+          // ONE grid cell, TWO stacked spans — the reveal swaps in by visibility without moving the line.
+          <span className={slots.subtitleStack()} data-slot="list-row-subtitle-stack">
+            {blockSubtitle}
+            <span aria-hidden={true} className={slots.subtitleReveal()} data-slot="list-row-subtitle-reveal" title={subtitleReveal}>
+              {subtitleReveal}
+            </span>
           </span>
         )}
       </span>
