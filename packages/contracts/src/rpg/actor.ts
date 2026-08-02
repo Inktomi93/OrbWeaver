@@ -27,15 +27,6 @@ import { z } from "zod";
 import { RPG_RELATIONSHIP_KINDS } from "./enums";
 import { rpgTrackerValueSchema, rpgTrackerValuesSchema } from "./tracker";
 
-/** A durable/scene actor identity. `character`/`user` = roster identities; `cast` = a scene-only NPC by
- *  its stable {@link rpgCastSlug} `key`. Full ADDS `{kind:"npc"}` (additive — `assertNever` consumers error). */
-export const rpgActorRefSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
-  z.object({ kind: z.literal("user"), userId: brandedId<UserId>() }),
-  z.object({ kind: z.literal("cast"), castKey: z.string().min(1) }),
-]);
-export type RpgActorRef = z.infer<typeof rpgActorRefSchema>;
-
 // The slug grammar (ASCII match, no `u` flag — `useUnicodeRegex` is deliberately absent from biome.json).
 // Hoisted to module scope (the top-level-regex rule) and deliberately LOSSY: it folds case, collapses every
 // non-alphanumeric run to one hyphen, and trims the ends, so "Sister Vesna" / "sister  vesna" / "Sister
@@ -49,12 +40,37 @@ const CAST_SLUG_TRIM = /^-+|-+$/g;
 const CAST_SLUG_FALLBACK = "unnamed";
 
 /** THE cast key: a display NAME → its stable normalized slug. The ONE home for cast-key normalization — the
- *  tool appliers mint through it, the ghost guard matches through it, and promotion re-keys through it, so
- *  "which spelling is this NPC" is decided once. */
+ *  tool appliers mint through it, the ghost guard matches through it, the wire REFUSES anything else
+ *  ({@link rpgActorRefSchema}), and promotion re-keys through it, so "which spelling is this NPC" is decided
+ *  once. IDEMPOTENT by construction: `rpgCastSlug(rpgCastSlug(x)) === rpgCastSlug(x)`, which is what makes it
+ *  usable as the wire's own canonicality predicate. */
 export function rpgCastSlug(name: string): string {
   const slug = name.trim().toLowerCase().replace(CAST_SLUG_STRIP, "-").replace(CAST_SLUG_TRIM, "");
   return slug === "" ? CAST_SLUG_FALLBACK : slug;
 }
+
+/** A durable/scene actor identity. `character`/`user` = roster identities; `cast` = a scene-only NPC by
+ *  its stable {@link rpgCastSlug} `key`. Full ADDS `{kind:"npc"}` (additive — `assertNever` consumers error).
+ *
+ *  PREVENT-AT-SCHEMA on the cast key (the R6 enum-constraint / stamped-id write-boundary precedent): a cast
+ *  key must ALREADY BE its own slug, so a non-canonical one is unrepresentable at the wire rather than
+ *  refused somewhere downstream. Without it a raw API caller could `patchActor` with
+ *  `castKey: "Sister Vesna"` and mint a SIBLING row beside the model's `cast:sister-vesna` — a duplicate
+ *  person in the panel, unreachable by every model write (the appliers resolve names through the slug), and
+ *  removable only by `dismissActor` with the same raw key. The refine costs {@link actorRefKey} nothing: it
+ *  stays a pure projection, now over data that is canonical by the time it exists. */
+export const rpgActorRefSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
+  z.object({ kind: z.literal("user"), userId: brandedId<UserId>() }),
+  z.object({
+    kind: z.literal("cast"),
+    castKey: z
+      .string()
+      .min(1)
+      .refine((key) => key === rpgCastSlug(key), { message: "a cast key must be its normalized slug (lowercase, hyphen-separated) — see rpgCastSlug" }),
+  }),
+]);
+export type RpgActorRef = z.infer<typeof rpgActorRefSchema>;
 
 /** The ONE string projection of an actor ref — the Map / lock / find key. A total switch (a new arm fails
  *  `tsc` here). */

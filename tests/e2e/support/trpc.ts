@@ -795,7 +795,7 @@ export type ActorRefInput =
   | { readonly kind: "cast"; readonly castKey: string };
 
 /** Patch an actor's identity SHEET (`rpg.patchSheet` — host any field, member own `user` ref). The HAND door for
- *  className/attributes/maxHp/flavor, the per-actor tracker exceptions, and the hand-only `level` plane (§2.6 —
+ *  className/attributes/flavor, the per-actor tracker exceptions, and the hand-only `level` plane (§2.6 —
  *  its ONLY write door). (`poolDefs` retired with the tracked-field unification — trackers are host-defined
  *  through `rpg.updateConfig.patch.trackers`, never through a sheet patch.) */
 export function patchSheet(

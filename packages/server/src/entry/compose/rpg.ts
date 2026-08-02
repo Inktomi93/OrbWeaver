@@ -35,7 +35,7 @@ import { randomInt } from "node:crypto";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import { coEmitsProseWithTools } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
-import type { ExtractionRefs, RpgExtraction, RpgGameConfig, RpgSnapshotState, RpgToolCall, RpgTrackerCarrier } from "@orb/contracts/rpg";
+import type { ExtractionRefs, RpgActorRef, RpgExtraction, RpgGameConfig, RpgSheet, RpgSnapshotState, RpgToolCall, RpgTrackerCarrier } from "@orb/contracts/rpg";
 import {
   actorRefKey,
   buildRpgToolDescriptions,
@@ -68,6 +68,7 @@ import type { ConnectionService } from "#domain/connection";
 import { AgentModelHealError, ConnectionRoutingError } from "#domain/connection";
 import type { RosterRefIndex, RpgContext, RpgResolvePresetOwned, RpgRunExtraction, RpgRunToolRound, RpgService } from "#domain/rpg";
 import {
+  actorCarrier,
   buildRosterRefIndex,
   createRpgChatOps,
   createRpgFlushBarrier,
@@ -379,22 +380,27 @@ async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseS
       carriers.push(carrier);
     }
   };
-  const exceptionsBySheet = new Map<string, { grants: readonly string[]; revokes: readonly string[] }>(
+  // Every carrier is minted through the ONE derivation the READ surface uses (`actorCarrier`, the tracker
+  // view's) — never a second inline spelling of "which class is this person, and what are their exceptions".
+  // That is the §1.4 fix made literal: the read surface used to class by which PLANE a row sat on and the
+  // write surface by name-dedup order, so a roster character standing in the scene was `npcs` to one and
+  // `party` to the other, and a `trust(appliesTo:"npcs")` def was taught on her line and offered on nobody's.
+  // One function, both surfaces, class derived from `actorRef.kind` — the drift is unrepresentable.
+  const sheetByKey = new Map<string, RpgSheet>(
     sheets.map((row) => [
       actorRefKey(row.characterId !== null ? { kind: "character", characterId: row.characterId } : { kind: "user", userId: row.userId as UserId }),
-      { grants: row.sheet.trackerGrants, revokes: row.sheet.trackerRevokes },
+      row.sheet,
     ]),
   );
-  const exceptionsFor = (actorKey: string): { grants: readonly string[]; revokes: readonly string[] } =>
-    exceptionsBySheet.get(actorKey) ?? { grants: [], revokes: [] };
+  const carrierFor = (ref: RpgActorRef, name: string): RpgTrackerCarrier => actorCarrier(ref, name, sheetByKey.get(actorRefKey(ref)));
   // The stable semantic token leads — UNLESS a roster member already claims "player" (that char owns it, F10).
   // It rides as a SECOND carrier over the same actor so it lands in the player's own write-surface group.
   if (player !== undefined && !rosterOwnsPlayerName) {
-    add({ actorKey: actorRefKey(player.actorRef), name: PLAYER_SEMANTIC_REF, kind: "party", ...exceptionsFor(actorRefKey(player.actorRef)) });
+    add(carrierFor(player.actorRef, PLAYER_SEMANTIC_REF));
   }
   for (const r of roster) {
     // every roster display name is valid (persona-name + the F10 "Player"-named char)
-    add({ actorKey: actorRefKey(r.actorRef), name: r.name, kind: "party", ...exceptionsFor(actorRefKey(r.actorRef)) });
+    add(carrierFor(r.actorRef, r.name));
   }
   // The tracked CAST actors — on stage or off (F4: party/inventory/wallet reach a tracked NPC either way).
   // ONE walk since R2, because the scene cast and the tracked cast are the SAME rows now: the presence plane
@@ -402,7 +408,7 @@ async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseS
   // twice. The enum offers the DISPLAY name (what the model wrote and will write back), never the slug key.
   for (const actor of baseState.actorState) {
     if (actor.actorRef.kind === "cast") {
-      add({ actorKey: actorRefKey(actor.actorRef), name: actor.identity?.name ?? actor.actorRef.castKey, kind: "npcs", grants: [], revokes: [] });
+      add(carrierFor(actor.actorRef, actor.identity?.name ?? actor.actorRef.castKey));
     }
   }
   const actorRefs = carriers.map((c) => c.name);

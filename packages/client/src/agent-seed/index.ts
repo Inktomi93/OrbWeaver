@@ -11,7 +11,7 @@
 //                Sheet look). Pools/inventory/cast/quests/journal/plot/scene all seed identically.
 //
 // PLANE MAP (which verb owns which datum):
-//   • sheet identity (className/attributes/maxHp/level/tracker grants) → `patchSheet` (the `character` ref)
+//   • sheet identity (className/attributes/level/tracker grants) → `patchSheet` (the `character` ref)
 //   • the SCENE half of the swipe-volatile plane (presentCharacters+relationships, plot, ambient,
 //     recentEvents, game trackers) → `editSnapshot` (the [merge-clear] overlay)
 //   • the per-ACTOR half (hp, tracker readings, inventory, wallet, status) → `patchActor` (R1: the plane is

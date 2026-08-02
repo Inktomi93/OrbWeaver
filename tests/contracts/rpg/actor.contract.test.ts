@@ -53,6 +53,28 @@ test("a name with no slug-able character still yields a legal key (a ref key is 
   expect(rpgCastSlug("   ").length).toBeGreaterThan(0);
 });
 
+test("the slug is IDEMPOTENT — which is what lets the wire use it as its own canonicality predicate", () => {
+  for (const name of ["Sister Vesna", "  MARI!  ", "🔥🔥", "already-slugged"]) {
+    expect(rpgCastSlug(rpgCastSlug(name))).toBe(rpgCastSlug(name));
+  }
+});
+
+test("a NON-CANONICAL cast key is unrepresentable at the wire (prevent-at-schema, not refuse-downstream)", () => {
+  // The hole this closes: a raw API caller `patchActor`-ing with `castKey: "Sister Vesna"` minted a SIBLING
+  // row beside the model's `cast:sister-vesna` — a duplicate person in the panel, unreachable by every model
+  // write (the appliers all resolve names through the slug), removable only by `dismissActor` with the same
+  // raw key. The house pattern is prevent-at-schema (the R6 enum precedent, the stamped-id write boundary).
+  for (const bad of ["Sister Vesna", "Mari", "sister vesna", "sister-vesna-", " mari"]) {
+    expect(rpgActorRefSchema.safeParse({ kind: "cast", castKey: bad }).success, `"${bad}" must be refused`).toBe(false);
+  }
+  // …and every key the SLUG itself mints round-trips (the two are the same rule, so they cannot drift).
+  for (const name of ["Sister Vesna", "  MARI!  ", "🔥🔥"]) {
+    expect(rpgActorRefSchema.safeParse({ kind: "cast", castKey: rpgCastSlug(name) }).success).toBe(true);
+  }
+  // The roster arms are untouched — their keys are branded ids, not slugs.
+  expect(rpgActorRefSchema.safeParse({ kind: "character", characterId: mintTypeId(ID_PREFIX.character) }).success).toBe(true);
+});
+
 // ── the actor ENTRY: two halves, one lifecycle ────────────────────────────────────────────────────────────
 
 test("an entry parses with only its ref — the volatile half is born WHOLE (no partial rows)", () => {
