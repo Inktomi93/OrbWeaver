@@ -9,6 +9,23 @@ export type { ChatWithCharacterSeats } from "./chats-with-character";
 export { chatsWithCharacter } from "./chats-with-character";
 export type { ClientErrorPayload } from "./client-error-report";
 export { buildClientErrorPayload } from "./client-error-report";
+export type {
+  CharacterDetailAnchor,
+  CharacterDetailContribution,
+  CharacterDetailState,
+  ChatMessageSurfaceState,
+  ChatRoomSurfaceState,
+  ChatSurfaceAnchor,
+  ChatSurfaceContribution,
+  MessageToolsRenderer,
+  SlashCommandContext,
+  SlashCommandContribution,
+  SlashCommandGroup,
+  SlashCommandMountProps,
+  SlashCommandRunner,
+  ToolRenderer,
+} from "./contribution-contracts";
+export { CHARACTER_DETAIL_ANCHORS, CHAT_SURFACE_ANCHORS, SLASH_COMMAND_GROUP_LABELS, SLASH_COMMAND_GROUPS } from "./contribution-contracts";
 export type { RegistryContext } from "./create-registry-context";
 export { createRegistryContext } from "./create-registry-context";
 export { IS_DEV } from "./dev-flag";
