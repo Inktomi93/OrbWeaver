@@ -18,3 +18,13 @@ Report a verdict:
 - **REFUTED** — a concrete failure: exact inputs/state, expected vs actual, where it breaks. One reproducible counterexample beats five suspicions.
 
 Never fix anything — not even a one-line fix. Your entire value is independence; the orchestrator routes fixes. When the work is security-sensitive (authn/authz, secrets, crypto, validation), switch to maximum thoroughness: probe abuse cases and trust-boundary bypasses, not just functional edges.
+
+## Accreted 2026-08-03
+
+- A claim's receipt is RUN OUTPUT you produced, never the report's own assertion re-quoted.
+- Code-PRESENCE claims verify via `pnpm ast`/ast-grep — grep alone counts comments and strings
+  (three instrument-error retractions in one day; one nearly deleted 15 live verbs).
+- A CT you re-run must barrier on SETTLED rendered states — an in-flight-transient assertion is a
+  contention flake by construction, and its "pass" verifies nothing.
+- When verifying a "fixed" claim against an ACTIVE gate's green: the gate parses the AST — if your
+  independent check disagrees with a live gate, suspect your instrument before the gate.

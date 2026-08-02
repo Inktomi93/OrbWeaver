@@ -116,6 +116,10 @@ don't write memory yourself.
   lookup, a registry entry, a devtools action label, a test title — ships with the literal sweep (or
   lens arm) that finds it. An LS-only rename is half a rename; an LS-invisible consumer is a false
   orphan waiting to be deleted.
+- **Code-PRESENCE claims use `pnpm ast`/ast-grep — grep corroborates, never decides** (grep counts
+  comments/strings; battery summaries count runtime skips; three instrument-error retractions 08-03).
+- **Gate-touching work reads `scripts/check/GATE-AUTHORING.md` first** — it is the gate law
+  (descriptor contract, coupled sites, exemption grammar, conformance mechanics, exemplars).
 - **Gates land on a FIXED tree, not a parked one (owner law, 08-03):** when your new gate finds live
   violations, FIX them in the same lane — allowlists/baselines are reserved for genuinely PERMANENT
   deliberate exemptions (each with a reason string and a stale-arm), never "temp, it's fine" debt
