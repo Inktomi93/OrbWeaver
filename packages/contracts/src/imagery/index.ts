@@ -220,6 +220,7 @@ export const generatePictureRequestSchema = z.object({
   n: z.number().int().min(MIN_IMAGE_COUNT).max(MAX_IMAGE_COUNT).optional(),
   size: sizePresetSchema.optional(),
 });
+/** @public type twin of `generatePictureRequestSchema`, the live `generateImage` tRPC input. */
 export type GeneratePictureRequest = z.infer<typeof generatePictureRequestSchema>;
 
 // ── IC-C mints (imagery-design/05 §IC-C) ───────────────────────────────────────────────────────────

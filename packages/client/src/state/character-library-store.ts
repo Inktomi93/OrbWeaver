@@ -115,8 +115,8 @@ export function toggleTagFilter(tagId: TagId): void {
     "character-library/toggleTagFilter",
   );
 }
-export function clearTagFilter(): void {
-  useCharacterLibraryStore.setState({ tagFilter: [] }, false, "character-library/clearTagFilter");
+export function __resetTagFilter(): void {
+  useCharacterLibraryStore.setState({ tagFilter: [] }, false, "character-library/__resetTagFilter");
 }
 export function setBulkMode(bulkMode: boolean): void {
   useCharacterLibraryStore.setState({ bulkMode }, false, "character-library/setBulkMode");

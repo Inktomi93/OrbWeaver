@@ -4,6 +4,6 @@
 
 export type { CredentialContext } from "./context";
 export { CREDENTIALS_OP_CODES, CredentialsConflictError, CredentialsNotFoundError } from "./contract/errors";
-export type { CredentialsService, CredentialsServiceDeps } from "./contract/service";
+export type { CredentialsService } from "./contract/service";
 export type { CredentialView } from "./contract/views";
 export { createCredentialsService } from "./service";

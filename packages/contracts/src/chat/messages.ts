@@ -9,8 +9,6 @@ import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
-import type { UserIntent } from "#preset";
-import type { AssembledPrompt } from "./assemble";
 import { messageRoleSchema } from "./participants";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -43,44 +41,6 @@ export const messageSlotSchema = z.object({
   editedAt: z.number().int().nullable(),
 });
 export type MessageSlot = z.infer<typeof messageSlotSchema>;
-
-/** A `message_variants` row (D26) — the full generation record. Holds ALL content + economics +
- *  `promptSnapshot` (per-swipe). NO `characterId`/`authorUserId` — attribution is the SLOT's. A read view
- *  (server-produced, client-read), so it is an interface, not an inbound zod schema. */
-export interface MessageVariant {
-  id: MessageVariantId;
-  messageId: MessageId;
-  /** 0-based position among this slot's variants (swipes). */
-  idx: number;
-  content: string;
-  reasoning: string | null;
-  model: string | null;
-  provider: string | null;
-  reasoningEffort: string | null;
-  tokensIn: number | null;
-  tokensOut: number | null;
-  cacheReadTokens: number | null;
-  cacheWriteTokens: number | null;
-  costUsd: number | null;
-  contextWindow: number | null;
-  /** The §8 history-budget fit-pass boundary: the id of the earliest message actually included in the
-   *  assembled history for this generation. Null = nothing was dropped / the fit-pass never ran. Powers
-   *  a client "last-in-context boundary" divider. */
-  contextBoundaryMessageId: MessageId | null;
-  maxOutputTokens: number | null;
-  ttftMs: number | null;
-  finishReason: string | null;
-  stopReason: string | null;
-  terminalReason: string | null;
-  /** The upstream OpenRouter generation handle (`gen-…`) this variant billed under — the key
-   *  `connection.orGenerationCost` settles the per-message cost with (PD-137). Null on a non-OR turn. */
-  generationId: string | null;
-  /** The recorded generation params (D26 `params (UserIntent)`). */
-  params: UserIntent | null;
-  /** The per-variant assembled-prompt snapshot (D26 — now works per swipe). */
-  promptSnapshot: AssembledPrompt | null;
-  createdAt: number;
-}
 
 /** ONE model-emitted tool exchange, persisted on `message_variants.toolCalls` (D48; tool-use-design/03 §3).
  *  The client's ONLY tool read surface (chips render from this — never body-parse). Schema-first so the DB

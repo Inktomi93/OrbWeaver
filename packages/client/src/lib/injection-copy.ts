@@ -14,10 +14,6 @@ export const ASSISTANT_PREFILL_WARNING = "Assistant role at depth 0 is a respons
 /** Actions that unlock the moment the draft commits to a real chat (its first send). */
 export const DRAFT_UNLOCK_AFTER_SEND = "Available after you send the first message";
 
-/** Swipe/continue/regenerate — need an assistant reply already in the chat to target (true for a draft:
- *  no messages yet; also true for a committed chat whose latest turn isn't an assistant reply). */
-export const NEEDS_ASSISTANT_REPLY = "Needs an assistant reply to work on — send a message first";
-
 /** Undo/revert the last continuation — need a continue to have run on this reply's shown swipe first
  *  (the D26 snapshot columns are empty until then). Phase-gate, never hidden (owner: no reduced menus). */
 export const NEEDS_CONTINUATION = "Continue this reply first — there's no added text to undo yet";
@@ -25,9 +21,6 @@ export const NEEDS_CONTINUATION = "Continue this reply first — there's no adde
 // The composer's own disabled-affordance hover reasons — the empty composer is the FIRST thing a user
 // sees on a fresh draft, so its two secondary actions (the guided-generations wand + generate-image)
 // must explain their unlock on hover, not sit silently native-disabled. Each names WHAT to do to enable.
-
-/** The guided-generations wand trigger — the typed text is the guidance, so an empty composer disables it. */
-export const WAND_NEEDS_TEXT = "Type a message to guide the response";
 
 /** The generate-image-from-text button when the composer is empty — the typed text IS the image prompt. */
 export const IMAGE_GEN_NEEDS_TEXT = "Type a message to turn into an image";

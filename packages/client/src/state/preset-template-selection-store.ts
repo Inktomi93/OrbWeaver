@@ -21,6 +21,6 @@ const templateSelection = createDrillSelectionStore<string>("preset-template-sel
 /** SELECT an action template (the row body click) — the Actions readout echoes it. */
 export const selectPresetTemplate = templateSelection.select;
 /** Clear the template selection — the readout falls back to naming no template. */
-export const clearPresetTemplate = templateSelection.clear;
+export const __resetPresetTemplate = templateSelection.clear;
 /** Reactive: the selected action-template id (`null` = none picked this session). A primitive selector. */
 export const useSelectedPresetTemplateId = templateSelection.usePrimaryId;

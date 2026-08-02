@@ -29,8 +29,8 @@ export type { AssembleChromeInput } from "./assemble-chrome";
 export { assembleChrome } from "./assemble-chrome";
 export type { CharacterViewMode } from "./character-library-store";
 export {
+  __resetTagFilter,
   CHARACTER_VIEW_MODES,
-  clearTagFilter,
   setBulkMode,
   setCharacterSortMode,
   setCharacterViewMode,
@@ -66,9 +66,9 @@ export {
 } from "./chat-list-filter-store";
 export type { ChatStreamApi, TurnSlot } from "./chat-stream";
 export {
+  __setFrameSchedulerForTest,
   chatStream,
   isLiveTurnPhase,
-  setFrameScheduler,
   subscribeTurnSlot,
   subscribeUserMessageCommitted,
   useSwipeTargetMessageId,
@@ -79,7 +79,7 @@ export {
 export type { ChromeEntry, ChromeEntryBehavior, ChromePresentation, ChromeZone, MobileCuration } from "./chrome-registry";
 export { CHROME_ZONES } from "./chrome-registry";
 export type { ChromeRegistry } from "./chrome-registry-context";
-export { ChromeRegistryContext, useChromeRegistry } from "./chrome-registry-context";
+export { useChromeRegistry } from "./chrome-registry-context";
 export { ChromeRegistryProvider } from "./chrome-registry-provider";
 export { migrateComposerDraft, setComposerDraft, useComposerDraft } from "./composer-draft-store";
 export { requestComposerFocus, useComposerFocusRequest } from "./composer-focus-store";
@@ -111,15 +111,15 @@ export {
   useDraftConfig,
 } from "./draft-config-store";
 export {
+  __readMessageEditDraftForTest,
   cancelEditingMessage,
-  readMessageEditDraft,
   setMessageEditDraft,
   startEditingMessage,
   useIsEditingMessage,
   useMessageEditDraftText,
 } from "./message-edit-draft";
 export {
-  clearSelection,
+  __resetSelection,
   enterSelectionMode,
   exitSelectionMode,
   readSelectedMessageIds,
@@ -138,25 +138,25 @@ export type {
 } from "./modal-registry";
 export { MODAL_TRIGGER_PLACEMENTS } from "./modal-registry";
 export type { ModalRegistry } from "./modal-registry-context";
-export { ModalRegistryContext, useModalRegistry } from "./modal-registry-context";
+export { useModalRegistry } from "./modal-registry-context";
 export { ModalRegistryProvider } from "./modal-registry-provider";
 export { setPresetEditorView, usePresetEditorView } from "./preset-editor-view-store";
 export {
-  clearPresetSection,
-  clearPresetSelection,
-  dismissPresetSection,
+  __dismissPresetSectionForTest,
+  __resetPresetSection,
+  __resetPresetSelection,
   selectPreset,
   selectPresetFromList,
   selectPresetSection,
   useSelectedPresetId,
   useSelectedPresetSectionId,
 } from "./preset-selection-store";
-export { clearPresetTemplate, selectPresetTemplate, useSelectedPresetTemplateId } from "./preset-template-selection-store";
+export { __resetPresetTemplate, selectPresetTemplate, useSelectedPresetTemplateId } from "./preset-template-selection-store";
 export {
-  clearAllRecentModels,
+  __readRecentModelsForTest,
+  __resetAllRecentModels,
   pushRecentModel,
   RECENT_MODELS_CAP,
-  readRecentModels,
   useRecentModels,
 } from "./recent-models-store";
 export type {
@@ -169,7 +169,7 @@ export type {
 } from "./section-registry";
 export { RAIL_ZONES, SECTION_GROUPS } from "./section-registry";
 export type { SectionRegistry } from "./section-registry-context";
-export { SectionRegistryContext, useSectionRegistry } from "./section-registry-context";
+export { useSectionRegistry } from "./section-registry-context";
 export { SectionRegistryProvider } from "./section-registry-provider";
 export type {
   AppSettingsClaimPath,
@@ -192,10 +192,7 @@ export {
   UNCLAIMED_SETTINGS_KEYS,
 } from "./settings-pane-registry";
 export type { SettingsPaneRegistry } from "./settings-pane-registry-context";
-export {
-  SettingsPaneRegistryContext,
-  useSettingsPaneRegistry,
-} from "./settings-pane-registry-context";
+export { useSettingsPaneRegistry } from "./settings-pane-registry-context";
 export { SettingsPaneRegistryProvider } from "./settings-pane-registry-provider";
 export type { SaveLifecycleState } from "./settings-save-status-store";
 export {
@@ -206,7 +203,7 @@ export {
   useErroredSaveSections,
 } from "./settings-save-status-store";
 export type { SettingsSectionRegistry } from "./settings-section-registry-context";
-export { SettingsSectionRegistryContext, useSettingsSectionRegistry, useSettingsSections } from "./settings-section-registry-context";
+export { useSettingsSectionRegistry, useSettingsSections } from "./settings-section-registry-context";
 export { SettingsSectionRegistryProvider } from "./settings-section-registry-provider";
 export type {
   ModalSlotId,
@@ -247,9 +244,9 @@ export type { SlashCommandRegistry } from "./slash-command-registry-context";
 export { SlashCommandRegistryContext } from "./slash-command-registry-context";
 export { SlashCommandRegistryProvider } from "./slash-command-registry-provider";
 export {
-  clearRecentSteers,
+  __readRecentSteersForTest,
+  __resetRecentSteers,
   pushFiredSteer,
-  readRecentSteers,
   STEER_RECOVERY_CAP,
   useRecentSteers,
 } from "./steer-recovery-store";

@@ -3,7 +3,6 @@
 
 import { isPlainObject } from "@orb/kit/guards";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import type { ScrollMode } from "@orb/kit/scroll-mode";
 import { SCROLL_MODES } from "@orb/kit/scroll-mode";
 import { z } from "zod";
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "#chat";
@@ -198,15 +197,6 @@ export type AgentSdkConcurrency = z.infer<typeof agentSdkConcurrencySchema>;
 export const IMAGE_VARIANT_QUALITY_MIN = 1;
 export const IMAGE_VARIANT_QUALITY_MAX = 100;
 const imageVariantQualitySchema = (): z.ZodOptional<z.ZodNumber> => z.number().int().min(IMAGE_VARIANT_QUALITY_MIN).max(IMAGE_VARIANT_QUALITY_MAX).optional();
-
-/** Clamp a raw image-variant quality to the schema bounds (integer 1–100), `null` for non-finite. Shares the
- *  ONE bounds home with the schema so a clamped admin value always passes (no silent-wipe). */
-export function clampImageVariantQuality(raw: number): number | null {
-  if (!Number.isFinite(raw)) {
-    return null;
-  }
-  return Math.min(IMAGE_VARIANT_QUALITY_MAX, Math.max(IMAGE_VARIANT_QUALITY_MIN, Math.round(raw)));
-}
 
 // Positive-integer millisecond durations (born-in-DB admin floors, no env): the prompt-transform per-transform
 // deadline (floor 250ms), the non-owner local-compute budget WINDOW (floor 24h — the cap's sibling), and the
@@ -491,7 +481,6 @@ const databankSchema = z
 // import kit ONLY); re-exported here under the settings-facing name so existing consumers keep their
 // `@orb/contracts/settings` import path (D15 front-door). The wire schema below imports the tuple DOWN.
 export const STREAM_SCROLL_MODES = SCROLL_MODES;
-export type StreamScrollMode = ScrollMode;
 
 const chatSchema = z
   .object({
@@ -838,6 +827,7 @@ const regexSettingsSchema = z
   })
   .prefault({});
 
+/** @public type twin of `regexSettingsSchema`, live in this file's settings blob. */
 export type RegexSettings = z.infer<typeof regexSettingsSchema>;
 
 export const userSettingsSchema = z.object({

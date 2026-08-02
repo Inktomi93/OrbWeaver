@@ -49,6 +49,7 @@ export const personaMetadataWriteSchema = z.record(z.string(), z.unknown()).supe
     }
   }
 });
+/** @public type twin of the live `personaMetadataWriteSchema` write guard. */
 export type PersonaMetadataWrite = z.infer<typeof personaMetadataWriteSchema>;
 
 export const createPersonaSchema = z.object({

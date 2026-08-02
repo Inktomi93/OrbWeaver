@@ -4,7 +4,7 @@
 // `ownerId` (the tagger) — `taggerId` is populated ONLY for `targetType: "chat"`. `status` (pending/
 // accepted) is a `character_tags`-only junction column, not a parallel store.
 
-import type { CharacterId, ChatId, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
 import { z } from "zod";
 
 const NAME_MIN_LENGTH = 1;
@@ -103,4 +103,3 @@ export interface TagSuggestionView extends TagView {
 }
 
 // Not a schema: ids are branded at their own `typeIdSchema` seam, not re-validated here.
-export type TagTargetId = CharacterId | ChatId | WorldBookId | PersonaId | PresetId;

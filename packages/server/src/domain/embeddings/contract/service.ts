@@ -61,8 +61,6 @@ export interface EmbeddingsContext {
   readonly imageEmbedDim: number;
 }
 
-export type EmbeddingsServiceDeps = EmbeddingsContext;
-
 export interface EmbeddingsService {
   /** The only vector inserter. Hash-gates on `(key, model)` — a matched `content_hash` is a noop; else embeds,
    *  asserts the vector matches the declared space `dim`, and upserts. Never touches `hub_score`. */

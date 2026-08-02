@@ -6,7 +6,7 @@
 // non-primitive @orb/ui logic groups need any test in their mirror directory (bare primitives/ are covered by ui-primitive-structure's CT).
 // Clause C: a mirror EXISTING (clause A) isn't enough — a store gains a new exported action and the
 // mirror's OLD tests keep passing untouched (learned: `revealContextPanel`/`selectPresetFromList`/
-// `dismissPresetSection`/`selectWorldBookFromList` shipped referenced by ZERO test file). Every action
+// `__dismissPresetSectionForTest`/`selectWorldBookFromList` shipped referenced by ZERO test file). Every action
 // exported by a `state/*.ts` file that mints a store (`createGatedStore`/`createPersistedStore`/
 // `createEntityDraftStore`) must appear BY NAME in its mirror `tests/client/state/<store>.ct.tsx`.
 import { existsSync, readdirSync, readFileSync } from "node:fs";

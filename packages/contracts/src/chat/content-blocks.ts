@@ -15,6 +15,7 @@ import { z } from "zod";
 // share one stored asset but are different contracts in opposite directions. Chat assembles these (P5).
 
 export const messageMediaKindSchema = z.enum(["image", "audio", "video"]);
+/** @public type twin of `messageMediaKindSchema`, live in this file's media block. */
 export type MessageMediaKind = z.infer<typeof messageMediaKindSchema>;
 
 /** Tier-A = inert sanitized allowlist in the main DOM; Tier-B = sandboxed-iframe card (client.md §12.2). */
@@ -27,6 +28,7 @@ export const messageMediaSrcSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("asset"), assetId: typeIdSchema(ID_PREFIX.asset) }),
   z.object({ kind: z.literal("external"), url: z.string() }),
 ]);
+/** @public type twin of `messageMediaSrcSchema`, live in this file's media block. */
 export type MessageMediaSrc = z.infer<typeof messageMediaSrcSchema>;
 
 /** The typed message-content block union. `html-card` carries its own trust tier; `media` covers image +
