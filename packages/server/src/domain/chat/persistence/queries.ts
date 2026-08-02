@@ -12,10 +12,10 @@ import type {
   TurnOrigin,
   UserMacroDraws,
 } from "@orb/contracts/chat";
-import { standaloneVariableDeltasSchema, toolCallRecordSchema, userMacroDrawsSchema, variableDeltaSchema } from "@orb/contracts/chat";
+import { sentPromptSchema, standaloneVariableDeltasSchema, toolCallRecordSchema, userMacroDrawsSchema, variableDeltaSchema } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { UserMacroValues } from "@orb/contracts/preset";
-import { userMacroValuesSchema } from "@orb/contracts/preset";
+import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messages, messageVariants } from "@orb/db";
 import { notStateAnchor } from "@orb/db/kit";
@@ -25,7 +25,7 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { and, asc, count, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, max, min, ne, sql } from "drizzle-orm";
 import type { ChatMetadata } from "../contract/metadata";
 import { parseChatMetadata } from "../contract/metadata";
-import type { ChatStreamReplayEvent, StreamEventBounds } from "../contract/views";
+import type { ChatStreamReplayEvent, StreamEventBounds, VariantWireView } from "../contract/views";
 
 const LIMIT_ONE = 1;
 
@@ -727,6 +727,38 @@ export async function loadMessageVariantSummaries(db: Db, chatId: ChatId, messag
     .innerJoin(messages, eq(messages.id, messageVariants.messageId))
     .where(and(eq(messages.chatId, chatId), eq(messageVariants.messageId, messageId)))
     .orderBy(asc(messageVariants.idx));
+}
+
+/** ONE variant's persisted WIRE RECORD — the prompt the generation actually sent plus the knobs/draws it ran
+ *  under (`getVariantWire`, the host inspector). CHAT-SCOPED through the `messages` join, which is the whole
+ *  cross-tenant belt: a variant of a foreign chat matches nothing even when the caller passes a chatId they
+ *  legitimately host, so the verb collapses it to the SAME leak-free NOT_FOUND an unknown id gives. Each JSON
+ *  blob is parsed at this read seam (never surfaced raw / cast): a malformed blob degrades to `null` — the
+ *  inspector then honestly reports "nothing captured" instead of throwing (the `variableDelta` degrade
+ *  precedent). `undefined` ⇒ no such variant in this chat. */
+export async function loadVariantWire(db: Db, chatId: ChatId, variantId: MessageVariantId): Promise<VariantWireView | undefined> {
+  const rows = await db
+    .select({
+      variantId: messageVariants.id,
+      promptSnapshot: messageVariants.promptSnapshot,
+      params: messageVariants.params,
+      macroDraws: messageVariants.macroDraws,
+    })
+    .from(messageVariants)
+    .innerJoin(messages, eq(messages.id, messageVariants.messageId))
+    .where(and(eq(messages.chatId, chatId), eq(messageVariants.id, variantId)))
+    .limit(LIMIT_ONE);
+  const row = rows.at(0);
+  if (row === undefined) {
+    return;
+  }
+  const draws = userMacroDrawsSchema.safeParse(row.macroDraws);
+  return {
+    variantId: row.variantId,
+    prompt: sentPromptSchema.safeParse(row.promptSnapshot).data ?? null,
+    params: userIntentSchema.safeParse(row.params).data ?? null,
+    macroDraws: draws.success ? draws.data : null,
+  };
 }
 
 /** The owning slot of a variant (`selectVariant` ownership belt). Returns the variant's `messageId`, or

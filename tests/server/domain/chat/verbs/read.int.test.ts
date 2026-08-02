@@ -11,7 +11,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, TEMPLATE_DEFS } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { characterBooks, chatParticipants, chats as chatsTable, messages, personas as personasTable, worldBooks, worldEntries } from "@orb/db";
+import { characterBooks, chatParticipants, chats as chatsTable, messages, messageVariants, personas as personasTable, worldBooks, worldEntries } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, PersonaId, PresetId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -1329,6 +1329,135 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const err = await getShapeTrace({ principal: principal(member), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_host");
+  });
+
+  // ── getVariantWire — the per-variant WIRE RECORD (RAWVIEW) ─────────────────────────────────────────
+  // The RETROSPECTIVE preview: a stored `promptSnapshot` is a real assembled prompt, so it carries the
+  // roster's cards at FULL fidelity (the D22 bypass), the hidden spans the §3.6 member strip removes, and
+  // history below a clamped member's D16 floor. Reading a PAST prompt must not be the cheap way around the
+  // three host-gated doors — the exact hole `previewSection` was closed for (2026-08-01). The arms below:
+  // the host READ, the two REFUSAL planes (member / stranger), the CROSS-CHAT variantId belt, and the two
+  // honest-absence degrades.
+  describe("getVariantWire", () => {
+    /** The hidden truth + the pre-floor canon a stored snapshot embeds — the two classes of byte a non-host
+     *  must never recover through this read. */
+    const Snapshot = {
+      static: "PRE-JOIN CANON: the vault code is 4417.",
+      dynamic: 'He smiles. <lie character="Z" truth="he is the traitor"/> "Nothing," he says.',
+      afterHistory: [{ position: "in_chat", depth: 0, role: "system", content: "steer" }],
+      sendHistory: true,
+      trace: {},
+    };
+
+    /** Seed one room with a snapshot-bearing assistant variant; returns the room + that variant's id. */
+    async function seedWiredRoom(key: string, host: UserId): Promise<{ chatId: ChatId; variantId: string }> {
+      const chatId = await seedRoom(key, host);
+      const m = await seedMessage(db, chatId, 1, { role: "assistant", content: "He shrugs." });
+      // The engine writes a full `AssembledPrompt` here; the read PROJECTS it through `sentPromptSchema`, so
+      // only the projected fields are under test (`trace` is dropped by design — asserted below).
+      const blob = Snapshot as never; // FABRICATION-OK: an AssembledPrompt stand-in; the read projects it.
+      await db
+        .update(messageVariants)
+        .set({ promptSnapshot: blob, params: { temperature: 0.7 } })
+        .where(eq(messageVariants.id, castId(m.variantId)));
+      return { chatId, variantId: m.variantId };
+    }
+
+    test("the HOST reads the sent prompt + params; the projection drops `trace` and never surfaces a raw blob", async () => {
+      const host = await seedUser(db, "host");
+      const { chatId, variantId } = await seedWiredRoom("wire_host", host);
+
+      const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
+      const wire = await getVariantWire({ principal: principal(host), chatId, variantId: castId(variantId) });
+
+      expect(wire.variantId).toBe(variantId);
+      // The host IS entitled to the hidden plane (§3.6 "the host reads their own payload UNSTRIPPED") and to
+      // the whole canon (F2 — a host is never history-floor clamped), so these bytes are correct HERE.
+      expect(wire.prompt?.dynamic).toContain("traitor");
+      expect(wire.prompt?.static).toContain("4417");
+      expect(wire.prompt?.afterHistory).toHaveLength(1);
+      expect(wire.params?.temperature).toBe(0.7);
+      // `trace` is deliberately NOT re-served (the Preview tab renders a live one) — the projection is the
+      // payload floor, so a widened `AssembledPrompt` can never silently grow this host-only read.
+      expect(Object.keys(wire.prompt ?? {}).sort()).toEqual(["afterHistory", "dynamic", "sendHistory", "static"]);
+    });
+
+    test("a present non-host MEMBER is refused (not_host) — the stored prompt is never loaded", async () => {
+      const host = await seedUser(db, "host");
+      const member = await seedUser(db, "member");
+      const { chatId, variantId } = await seedWiredRoom("wire_member", host);
+      await seedParticipant(db, { chatId, key: "wire_member_m", userId: member, role: "member" });
+
+      const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
+      const err = await getVariantWire({ principal: principal(member), chatId, variantId: castId(variantId) }).catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(ChatOperationError);
+      expect((err as ChatOperationError).code).toBe("not_host");
+      // The refusal carries no prompt bytes (an error message that echoed the blob would be the leak itself).
+      expect((err as Error).message).not.toContain("traitor");
+    });
+
+    test("a NON-MEMBER stranger gets the leak-free NOT_FOUND (never learns the room or the variant exists)", async () => {
+      const host = await seedUser(db, "host");
+      const stranger = await seedUser(db, "stranger");
+      const { chatId, variantId } = await seedWiredRoom("wire_stranger", host);
+
+      const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
+      const err = await getVariantWire({ principal: principal(stranger), chatId, variantId: castId(variantId) }).catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(ChatNotFoundError);
+    });
+
+    // THE CROSS-CHAT BELT the stranger sweep structurally cannot reach: the caller is a LEGITIMATE host, so
+    // `requireHost` passes — the only thing standing between them and another room's assembled prompt is the
+    // query's `messages.chatId` join. A dropped join here is a silent IDOR over every stored prompt in the db.
+    test("a legitimate HOST passing ANOTHER room's real variantId gets NOT_FOUND (the messages.chatId join is the belt)", async () => {
+      const hostA = await seedUser(db, "hostA");
+      const hostB = await seedUser(db, "hostB");
+      const mine = await seedWiredRoom("wire_mine", hostA);
+      const theirs = await seedWiredRoom("wire_theirs", hostB);
+
+      const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
+      // A hosts `mine` legitimately, and aims the variantId at B's room.
+      const err = await getVariantWire({ principal: principal(hostA), chatId: mine.chatId, variantId: castId(theirs.variantId) }).catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(ChatNotFoundError);
+      // The refusal is byte-identical to an UNKNOWN id — never "wrong chat", which would confirm it exists.
+      const unknown = await getVariantWire({ principal: principal(hostA), chatId: mine.chatId, variantId: castId("variant_nope") }).catch((e: unknown) => e);
+      expect((unknown as Error).message).toBe((err as Error).message);
+    });
+
+    test("a variant that captured nothing reads as an honest null prompt, never an error", async () => {
+      const host = await seedUser(db, "host");
+      const chatId = await seedRoom("wire_empty", host);
+      // A user row: authored, never generated — no snapshot was ever stamped.
+      const m = await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hi" });
+
+      const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
+      const wire = await getVariantWire({ principal: principal(host), chatId, variantId: castId(m.variantId) });
+
+      expect(wire.prompt).toBeNull();
+      expect(wire.params).toBeNull();
+      expect(wire.macroDraws).toBeNull();
+    });
+
+    test("a MALFORMED snapshot blob degrades to null at the read seam (never a throw, never a raw cast)", async () => {
+      const host = await seedUser(db, "host");
+      const chatId = await seedRoom("wire_bad", host);
+      const m = await seedMessage(db, chatId, 1, { role: "assistant", content: "x" });
+      // A garbage blob is exactly what the read seam exists to bound: `$type<>` is a compile-time claim, and
+      // the bytes at rest are untyped JSON that a prior schema version (or a hand edit) can have written.
+      const garbage = { static: 42 } as never; // FABRICATION-OK: deliberate invalid-input probe of the parse seam.
+      await db
+        .update(messageVariants)
+        .set({ promptSnapshot: garbage })
+        .where(eq(messageVariants.id, castId(m.variantId)));
+
+      const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
+      const wire = await getVariantWire({ principal: principal(host), chatId, variantId: castId(m.variantId) });
+
+      expect(wire.prompt).toBeNull();
+    });
   });
 });
 

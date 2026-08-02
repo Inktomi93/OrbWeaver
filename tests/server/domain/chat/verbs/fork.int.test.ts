@@ -636,6 +636,74 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       expect(row?.cont).toBe("cont  cont");
     });
 
+    // The ASSEMBLED-PROMPT arm of the same laundering boundary (RAWVIEW, 2026-08-02). `promptSnapshot` is the
+    // `AssembledPrompt` the turn ACTUALLY SENT: the model always reads hidden spans verbatim (member-visibility
+    // header, §3.6 "WHO SEES WHAT"), and the blob embeds the whole assembled history — including slots below a
+    // clamped member's D16 floor, which the fork's SLOT copy correctly withholds. `copyVariantStmt` spreads
+    // `...variant`, so the blob rode into the copy untouched; the moment a host-only reader exists
+    // (`chat.getVariantWire`), a member-turned-host forker recovers exactly the bytes the body strip and the
+    // floor removed. Same verdict axis as the body/reasoning strips: drop it whenever the forker is non-host.
+    test("a NON-HOST (solo) forker's copied promptSnapshot is DROPPED (it embeds hidden spans + pre-floor history)", async () => {
+      const member = await seedUser(db, "member");
+      const charA = await seedCharacter(db, member, "aria");
+      const chatId = await seedChat(db, "hs_snapshot");
+      await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+      await seedParticipant(db, { chatId, key: "c", characterId: charA });
+      const m = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "He shrugs." });
+      // The blob as the engine writes it: the hidden truth rides `dynamic` (the wire projection is verbatim) and
+      // the pre-join canon rides `static` (the assembled history the fit-pass kept). Only the blob's PRESENCE
+      // in the copy is under test — the copy path reads no field of it.
+      // FABRICATION-OK: an AssembledPrompt stand-in whose fields the copy path never reads.
+      const snapshot = {
+        static: "PRE-JOIN CANON: the vault code is 4417.",
+        dynamic: `He smiles. ${lie} "Nothing," he says.`,
+        afterHistory: [],
+        sendHistory: true,
+        trace: {},
+      } as never;
+      await db
+        .update(messageVariants)
+        .set({ promptSnapshot: snapshot })
+        .where(eq(messageVariants.id, castId(m.variantId)));
+
+      const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+      const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+
+      const [row] = await db
+        .select({ snapshot: messageVariants.promptSnapshot })
+        .from(messages)
+        .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+        .where(eq(messages.chatId, castId(chat.id)));
+      expect(JSON.stringify(row?.snapshot ?? null)).not.toContain("traitor");
+      expect(JSON.stringify(row?.snapshot ?? null)).not.toContain("4417");
+      expect(row?.snapshot ?? null).toBeNull();
+    });
+
+    test("a HOST forker's copied promptSnapshot survives (they already read every byte of it)", async () => {
+      const host = await seedUser(db, "host");
+      const charA = await seedCharacter(db, host, "aria");
+      const chatId = await seedChat(db, "hs_snapshot2");
+      await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+      await seedParticipant(db, { chatId, key: "c", characterId: charA });
+      const m = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "He shrugs." });
+      // FABRICATION-OK: only the blob's PRESENCE is under test; `trace` is never read by the copy path.
+      const snapshot = { static: "s", dynamic: `d ${lie}`, afterHistory: [], sendHistory: true, trace: {} } as never;
+      await db
+        .update(messageVariants)
+        .set({ promptSnapshot: snapshot })
+        .where(eq(messageVariants.id, castId(m.variantId)));
+
+      const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+      const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+
+      const [row] = await db
+        .select({ snapshot: messageVariants.promptSnapshot })
+        .from(messages)
+        .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+        .where(eq(messages.chatId, castId(chat.id)));
+      expect(JSON.stringify(row?.snapshot ?? null)).toContain("traitor");
+    });
+
     test("a HOST forker's copied assistant body is VERBATIM (they already read the truth)", async () => {
       const host = await seedUser(db, "host");
       const charA = await seedCharacter(db, host, "aria");
