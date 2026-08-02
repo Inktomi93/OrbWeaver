@@ -39,6 +39,10 @@ type Waiver =
 // that mounts the real parent and drives this sub-part through it; that CT must exist (verified below).
 const WAIVERS: Readonly<Record<string, Waiver>> = {
   // Sub-parts driven through a parent's real CT.
+  "message-wire-trigger": {
+    coveredBy: "variant-wire-viewer",
+    why: "the trigger is the wire viewer's split-out affordance (host-gated quiet trigger, the MessageCostReadout pattern); variant-wire-viewer.ct drives the open/gated/loaded arms through it on real rows.",
+  },
   "chat-list-row": {
     coveredBy: "chat-list-surface",
     why: "the row is the list surface's split-out unit (projection L0); chat-list-surface.ct drives portrait/snippet/star/game-marker arms and the RowToggleAction star mutation on real rows.",

@@ -31,20 +31,41 @@ Record-not-switch rule). (b) **completeness-tested** — a test binds registry�
 = the gold standard). (c) **gate-enforced** — a check stage walks it. (d) **UNENFORCED** — a new
 member can be silently forgotten. Every (d) row is a finding.
 
-## 3 · Candidates (next registries) — first-pass verdicts
+## 3 · Candidates — SECOND PASS RESOLVED (2026-08-03, scout 2; ranked)
 
-1. **BINDING_VIEWS → real table** (S): a size-1 `ReadonlySet` at `preset-readout.tsx:116` whose
-   own comment (:142) names it an interim stopgap awaiting materialized carrier rows. Rides the
-   boarded D8-residue item.
-2. **Verify stage REGISTRY completeness check** (S): small, central, apparently untested.
-3. **AssembleTrace** — seed claim ("three literal producers") CONTRADICTED first-pass: looks like
-   ONE file with multiple write sites (`assemble.ts:520,:665` + helpers :194,:200,:297). Re-scout
-   before citing.
-4. **Content-class wire** — seed claim ("table + hardcoded switch, edit both") possibly STALE:
-   the `content-part-seam` gate exists. Verify what the gate actually checks before treating as
-   open debt.
-5. ⚠ NOT REACHED: rpg writable-field ~7 sites · bus-event +5 sites · new-domain SERVICE_KEYS ·
-   fresh switch-over-shared-union sweep — second scout pass owed.
+1. **Content-class wire — REOPENED, real unenforced debt.** v1 wrongly marked it resolved:
+   `content-part-seam.ts` is a sanctioned-importer allowlist on the `ChatContentPart` SYMBOL —
+   nothing to do with `CONTENT_CLASS_POLICY`. The live behavior is `pipeline.ts:794-818`
+   `spanToWirePart`, an if/else chain on `span.kind` that does NOT read the policy table — the
+   table is documentation the pipeline ignores. The dual-edit-site memory stands. Fix shape:
+   pipeline dispatches THROUGH the table (or a Record derived from it) + a binding test.
+2. **`CharacterFacetId` switch duplication** (NEW, class-d-leaning): the same closed union
+   switched to pick JSX per facet in BOTH `character-facet-editor.tsx:92` and
+   `character-facet-inspector.tsx:115`; no completeness gate; textbook
+   `Record<CharacterFacetId, ComponentType>` collapse (assertNever presence unconfirmed in
+   inspector).
+3. **BINDING_VIEWS → real table** (S, unchanged — rides D8 residue).
+4. **Verify stage REGISTRY completeness check** (S, unchanged, class (d)).
+5. ~~AssembleTrace~~ **DROPPED — confirmed single-home**: one construction site
+   (`assemble.ts:518-520` freshTrace); every other touch mutates the same object by reference.
+   The old "three producers" memory claim is refuted twice over.
+6. **Coupled-site families (real but NOT quick registry wins — convention/test-enforced,
+   conversion = large cross-package refactor):** rpg writable-field = **13 files verified** on a
+   real commit (`745ed3dc` — the ~7 memory is an UNDERCOUNT; mitigating gate:
+   field-reachability suite) · bus event-member (+5 mechanism architecturally unchanged,
+   producer-side gate live w/ `deferred:{}` empty; exact count unverified this pass) ·
+   new-domain: `SERVICE_KEYS` is NOT a type — it's a hardcoded array in
+   `tests/server/entry/compose/services.test.ts:35-77`, a **7th, check-invisible coupled site**
+   (node-battery-only).
+
+## 3b · GAP-3 classifications (all resolved — every unopened row is enforced)
+
+workloads axes/params = (a) satisfies-Record ×2 · plugin host-v1:216 = (a) · TEMPLATE_DEFS =
+(a) via the `Exclude<RegistryTemplateId, …>` nonempty-type trick (:868-870) · imagery templates
+= (a) fully-annotated Records · automation prose slots `Partial<Record>` = **deliberate,
+double-direction**: 5 domain shards each `satisfies Partial<Record<ProseSlotId,…>>` (bad id
+fails) + `prose/index.ts:29-38` composes the full `Record` (missing slot fails) — class (a)
+both ways. The verify-stage REGISTRY remains the one suspected (d) in the census.
 
 ## Exemption-liveness posture (probed same day, related)
 

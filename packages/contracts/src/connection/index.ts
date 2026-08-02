@@ -349,7 +349,7 @@ export interface RouteChatAssignment {
  *  it on the turn). Client single-homes the reason copy per cause. */
 export const CHAT_UNAVAILABLE_CAUSES = ["engine-off", "engine-down", "no-connection", "unavailable"] as const;
 export type ChatUnavailableCause = (typeof CHAT_UNAVAILABLE_CAUSES)[number];
-export const chatUnavailableCauseSchema = z.enum(CHAT_UNAVAILABLE_CAUSES);
+// (chatUnavailableCauseSchema deleted 08-03 — orphaned by the TYPO class-B demotion; the type derives from the tuple.)
 
 /** The composer's pre-send availability signal for a chat's OWN resolved connection — "would
  *  `resolveChat → deriveRunner → requireBackend` succeed WITHOUT firing a turn or an API call?" `cause` is
