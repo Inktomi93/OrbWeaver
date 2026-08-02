@@ -31,7 +31,7 @@ const DOT_SLASH_RE = /^\.\//u;
 const BANG_SUFFIX_RE = /!$/u;
 const LEADING_SLASHES_RE = /^\/+/u;
 const TRAILING_SLASHES_RE = /\/+$/u;
-// (originFile, name) identity separator — a NUL can never appear in a path or an identifier.
+// (declFile, declStart) identity separator — a NUL can never appear in a path or a decimal offset.
 const KEY_SEP = "\u0000";
 
 type Flags = { in: string | null; json: boolean; max: number; filesOnly: boolean };
@@ -277,12 +277,21 @@ function cmdIdent(project: Project, name: string, flags: Flags): void {
 // exported *Props class) and MISSES real dead code on name collisions (three `requireParticipant`s,
 // two `MemoryLogEntry`s) — see reports/stickler/2026-07-17-knip-testonly-liveness.md §6.
 //
-// The key is `<origin declaration file> <exported name>`. `getExportedDeclarations()` follows
-// re-export hops to the ORIGIN decl, so a symbol surfaced through N barrels still keys to one home.
+// THE KEYING RULE (one rule, both sides): a candidate export and every consumer of it key on the
+// ORIGIN DECLARATION NODE — `<declaration's file>` + `<declaration's start offset>` — never on a NAME.
+// `getExportedDeclarations()` follows re-export hops to the ORIGIN decl, so a symbol surfaced through N
+// barrels still keys to one home; keying on the NODE means an alias on any hop cannot fork that home.
+// A name cannot serve as the key half: a renaming barrel (`export { createCreate as createCreateBook }
+// from "./create"` — the world-info/portability verb groups) hands the consumer side the ALIAS while the
+// candidate side holds the origin's own name, and `export { Inner as Outer }` forks it inside one file.
+// That mismatch reported 15 wired verbs as orphans (2026-08-02). The declaration node is the only
+// identity BOTH sides observe identically (verified: barrel and origin resolve `createCreateBook` and
+// `createCreate` to the same FunctionDeclaration at the same offset). Displayed names still come from
+// the origin file's own export map — what a reader should go look for.
 
-/** `<declFile> <name>` — the identity a candidate export and every consumer of it agree on. */
-function originKey(declFile: string, name: string): string {
-  return `${declFile}${KEY_SEP}${name}`;
+/** `<declFile>` + `<declStart>` — the identity a candidate export and every consumer of it agree on. */
+function declKey(decl: Node): string {
+  return `${decl.getSourceFile().getFilePath()}${KEY_SEP}${decl.getStart()}`;
 }
 
 type Liveness = {
@@ -303,27 +312,30 @@ type Liveness = {
 /** The client package's src prefix — the seam that buckets prod consumption into client vs server. */
 const CLIENT_SRC_PREFIX = "/packages/client/";
 
-/** Origin-key every export of `target` (its own decls AND star-re-exported ones — getExportedDeclarations
- *  resolves through `export *`), added to `bucket`. Used for namespace imports and dynamic imports, both
- *  of which keep a module's WHOLE export surface alive (err toward alive, never false-dead). */
+/** Decl-key every export of `target` (its own decls AND re-exported ones — getExportedDeclarations
+ *  resolves through `export *` and through renaming `export { X as Y } from` hops), added to `bucket`.
+ *  Used for namespace imports and dynamic imports, both of which keep a module's WHOLE export surface
+ *  alive (err toward alive, never false-dead). The barrel's export NAME is irrelevant here — only the
+ *  declarations it resolves to are recorded, which is what makes an alias hop invisible to the key. */
 function markModuleAlive(target: SourceFile, bucket: Set<string>): void {
-  for (const [name, decls] of target.getExportedDeclarations()) {
-    const d = decls[0];
-    if (d !== undefined) {
-      bucket.add(originKey(d.getSourceFile().getFilePath(), name));
+  for (const decls of target.getExportedDeclarations().values()) {
+    for (const d of decls) {
+      bucket.add(declKey(d));
     }
   }
 }
 
-/** Resolve one named-import specifier to its ORIGIN and mark it alive. `getExportedDeclarations().get`
- *  on the resolved module follows the re-export chain to the real decl — the key the candidate uses. */
+/** Resolve one named-import specifier to its ORIGIN decls and mark them alive. `getExportedDeclarations()
+ *  .get(<the name the CONSUMER wrote>)` follows the re-export chain — including renames — to the real
+ *  declarations; those declaration nodes ARE the key the candidate side uses, so the consumer's spelling
+ *  never enters the identity. */
 function markNamedAlive(target: SourceFile, name: string, bucket: Set<string>): void {
   const decls = target.getExportedDeclarations().get(name);
   if (decls === undefined) {
     return;
   }
   for (const d of decls) {
-    bucket.add(originKey(d.getSourceFile().getFilePath(), name));
+    bucket.add(declKey(d));
   }
 }
 
@@ -350,11 +362,16 @@ function markImportConsumption(imp: ImportDeclaration, bucket: Set<string>): voi
 
 /** Same-file references: an export used within its own module (a component using its own `*Props`, a
  *  worker's exported-for-test helper called by the file's live loop) is NOT an orphan. Cheap identifier
- *  scan of the declaring file; the declaration's own name node is excluded by the `n > 1` count. */
-function isReferencedInOwnFile(sf: SourceFile, name: string): boolean {
+ *  scan of the declaring file; the declaration's own name node is excluded by the `n > 1` count.
+ *  Both spellings are scanned because a file may rename its own export (`const Inner = …; export { Inner
+ *  as Outer }`): the export-map name is `Outer` while every in-file use says `Inner`. */
+function isReferencedInOwnFile(sf: SourceFile, name: string, decl: Node): boolean {
+  // The declaration's OWN symbol name (a TS sentinel such as `__function` for anonymous shapes simply
+  // never matches an identifier, so no special-casing is needed).
+  const names = new Set([name, decl.getSymbol()?.getName() ?? name]);
   let count = 0;
   for (const id of sf.getDescendantsOfKind(SyntaxKind.Identifier)) {
-    if (id.getText() === name) {
+    if (names.has(id.getText())) {
       count += 1;
       if (count > 1) {
         return true;
@@ -500,8 +517,8 @@ function scanOrphans(sf: SourceFile, live: Liveness): OrphanScan {
   const fp = sf.getFilePath();
   const out: OrphanScan = { hits: [], suppressed: [] };
   for (const { name, decl } of ownExports(sf)) {
-    const key = originKey(fp, name);
-    if (live.usedProd.has(key) || live.usedTest.has(key) || isReferencedInOwnFile(sf, name)) {
+    const key = declKey(decl);
+    if (live.usedProd.has(key) || live.usedTest.has(key) || isReferencedInOwnFile(sf, name, decl)) {
       continue;
     }
     const h = hitOf(decl, "orphan-export");
@@ -540,12 +557,11 @@ function cmdOrphans(project: Project, arg: string, flags: Flags): void {
 }
 
 function scanTestOnly(sf: SourceFile, live: Liveness): Hit[] {
-  const fp = sf.getFilePath();
   const out: Hit[] = [];
   for (const { name, decl } of ownExports(sf)) {
-    const key = originKey(fp, name);
+    const key = declKey(decl);
     // Prod-reached (named import, namespace, dynamic import, or same-file production use) → alive, skip.
-    if (live.usedProd.has(key) || isReferencedInOwnFile(sf, name)) {
+    if (live.usedProd.has(key) || isReferencedInOwnFile(sf, name, decl)) {
       continue;
     }
     if (!live.usedTest.has(key)) {
@@ -1098,7 +1114,7 @@ function cmdClientGap(project: Project, arg: string, flags: Flags): void {
       continue;
     }
     for (const { name, decl } of ownExports(sf)) {
-      const key = originKey(fp, name);
+      const key = declKey(decl);
       const gap = live.usedServerProd.has(key) && !live.usedClientProd.has(key) && !live.usedTest.has(key);
       // On the default contracts scope, gate to client-facing wire names (else it floods with server-only
       // contracts). A caller-supplied scope trusts the caller — report every gap in it.
