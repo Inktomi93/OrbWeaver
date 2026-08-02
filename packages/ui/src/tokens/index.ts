@@ -144,6 +144,7 @@ export const TOKENS = {
   "width.sidebar-sm": { cssVar: "--width-sidebar-sm", value: "13.75rem" },
   "width.control-col": { cssVar: "--width-control-col", value: "12.5rem" },
   "width.label-col": { cssVar: "--width-label-col", value: "9.5rem" },
+  "width.content-col": { cssVar: "--width-content-col", value: "45rem" },
   "width.number-inline": { cssVar: "--width-number-inline", value: "5rem" },
   "z.base": { cssVar: "--z-base", value: "0" },
   "z.raised": { cssVar: "--z-raised", value: "10" },

@@ -20,7 +20,15 @@ import type { PresetContext } from "../context";
 import { PresetNotFoundError } from "../contract/errors";
 import type { ResolveEffectiveParams } from "../contract/params";
 import type { PresetService } from "../contract/service";
-import type { EffectiveKnob, EffectiveKnobReading, EffectivePreset, EffectiveProvenance, StaleKnob } from "../contract/views";
+import type {
+  EffectiveKnob,
+  EffectiveKnobReading,
+  EffectivePreset,
+  EffectiveProvenance,
+  QualityMapping,
+  QualityMappingEntry,
+  StaleKnob,
+} from "../contract/views";
 import { EFFECTIVE_KNOBS } from "../contract/views";
 import { readablePreset } from "../persistence/queries";
 
@@ -45,12 +53,41 @@ interface KnobProbe {
 
 /** The effective EFFORT the funnel landed on. Reasoning collapses several surfaces into one decision:
  *  reasoning OFF is itself the effective effort `none` (not an absent knob, and not staleness), while in
- *  `budget` mode there is no effort at all — the model takes a token budget instead of a level. */
-function resolvedEffortOf(reasoning: ResolvedChatKnobs["reasoning"]): string | undefined {
+ *  `budget` mode there is no effort at all — the model takes a token budget instead of a level.
+ *
+ *  A model that CANNOT REASON AT ALL (`reasoning.mode === "none"`) has no effort knob to report: emitting
+ *  `none` there gave the dial's `high` something to be "clamped" from, so the readout printed
+ *  `effort · none · clamped` on a model where nothing was clamped and the knob does not exist (side-eye
+ *  F-14). The absence is the honest answer — the same doctrine the deck already applies to an unlisted
+ *  sampling knob. */
+function resolvedEffortOf(reasoning: ResolvedChatKnobs["reasoning"], capability: ModelCapability): string | undefined {
+  if (capability.reasoning.mode === "none") {
+    return;
+  }
   if (!reasoning.enabled) {
     return EFFORT_OFF;
   }
   return reasoning.mode === "budget" ? undefined : reasoning.effort;
+}
+
+/** The QUALITY dial's DECLARED mapping (redesign §4 cluster 1) — read straight off the dial's own tables,
+ *  never off the funnel's output: "what does deep do" stays true even when every knob it feeds is
+ *  explicitly overridden below. A knob THIS MODEL cannot take is left out (the same F-14 honesty as the
+ *  effort reading above — the mapping may not name a knob the deck refuses to render). `null` with no dial
+ *  set, and with an EMPTY entry list, because "deep →" with nothing after it is not a datum. */
+function qualityMappingOf(quality: UserIntent["quality"], capability: ModelCapability): QualityMapping | null {
+  if (quality === undefined) {
+    return null;
+  }
+  const entries: QualityMappingEntry[] = [];
+  if (capability.reasoning.mode !== "none") {
+    entries.push({ knob: "effort", value: QUALITY_EFFORT[quality] });
+  }
+  const temperature = QUALITY_SAMPLING[quality].temperature;
+  if (temperature !== undefined && capability.sampling.temperature !== undefined) {
+    entries.push({ knob: "temperature", value: temperature });
+  }
+  return entries.length === 0 ? null : { quality, entries };
 }
 
 /** WHICH rung produced the funnel's value. A value that differs from what was asked for was moved by the
@@ -75,7 +112,7 @@ function probeKnobs(params: UserIntent, capability: ModelCapability): Record<Eff
   // params blob when any field (quality included) fails its enum — so a stored garbage dial can never index.
   const qualityTemperature = quality !== undefined ? QUALITY_SAMPLING[quality].temperature : undefined;
   const qualityEffort = quality !== undefined ? QUALITY_EFFORT[quality] : undefined;
-  const effortResolved = resolvedEffortOf(reasoning);
+  const effortResolved = resolvedEffortOf(reasoning, capability);
   return {
     temperature: { explicit: params.temperature, quality: qualityTemperature, resolved: sampling.temperature },
     topP: { explicit: params.topP, resolved: sampling.topP },
@@ -107,7 +144,8 @@ export function createResolveEffective(ctx: PresetContext): Pick<PresetService, 
       throw new PresetNotFoundError(params.id);
     }
     const { model, capability } = await ctx.resolveChatCapability({ principal: params.principal });
-    const probes = probeKnobs(parsePromptConfig(row.config).params, capability);
+    const intent = parsePromptConfig(row.config).params;
+    const probes = probeKnobs(intent, capability);
 
     const knobs: Partial<Record<EffectiveKnob, EffectiveKnobReading>> = {};
     const stale: StaleKnob[] = [];
@@ -126,7 +164,7 @@ export function createResolveEffective(ctx: PresetContext): Pick<PresetService, 
         knobs[knob] = { value: probe.floor, provenance: "floor" };
       }
     }
-    return { presetId: params.id, model, knobs, stale };
+    return { presetId: params.id, model, knobs, stale, qualityMapping: qualityMappingOf(intent.quality, capability) };
   }
   return { resolveEffective };
 }

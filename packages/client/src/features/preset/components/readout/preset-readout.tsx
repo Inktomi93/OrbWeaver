@@ -26,7 +26,8 @@
 // which is why it carries no new freshness row (§4.4).
 
 import type { PresetId } from "@orb/kit/ids";
-import { Section, Stack } from "@orb/ui/layout";
+import { Badge } from "@orb/ui/badge";
+import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -40,9 +41,6 @@ import { PromptReadout } from "./prompt-readout";
 import { CapabilityCard, EffectiveProfile } from "./readout-parts";
 import { TransformsReadout } from "./transforms-readout";
 
-/** The QUALITY gloss's short knob names — display only; the read stays the authority on its own labels. */
-const QUALITY_GLOSS_LABELS: Readonly<Record<string, string>> = { temperature: "temp", effort: "effort" };
-
 export function PresetReadout(): ReactElement {
   const presetId = useSelectedPresetId();
   if (presetId === null) {
@@ -53,40 +51,56 @@ export function PresetReadout(): ReactElement {
 
 /** The no-selection panel: the ACTIVE pick's effective profile. Useful before a row is ever clicked.
  *  The active id is resolved THROUGH the list (whose rows carry real `PresetId`s) rather than cast out of
- *  the settings blob's plain string — the seed is a pointer, the list is the identity. */
+ *  the settings blob's plain string — the seed is a pointer, the list is the identity.
+ *
+ *  ONE VOCABULARY WITH THE LIST (side-eye F-07): `defaultPresetId === null` is not "nothing is activated" —
+ *  it IS the built-in row's activate state, which the LIST paints with an Active badge. The panel used to
+ *  say the opposite, beside that badge, and showed no profile at all. The built-in is a REAL row with a
+ *  real id, so the null pick resolves to it and gets the same chip + the same effective table as any other
+ *  preset: the resolver already answers for it. */
 function ActivePresetReadout(): ReactElement {
   const trpc = useTRPC();
   const settings = useQuery(trpc.settings.getUserSettings.queryOptions());
   const presets = useQuery(trpc.preset.list.queryOptions());
   const activeId = settings.data?.config.seeds.defaultPresetId ?? null;
-  const active = presets.data?.find((preset) => preset.id === activeId);
-  return active === undefined ? (
-    // NOT an <EmptyState>: that primitive owes the user a next-action CTA, and CONTEXT is read-only +
-    // navigation-only (§16 invariant i) — the action lives on the LIST row's activate toggle, which is
-    // what this copy points at.
-    <Stack gap="field" padding="block">
-      <Section kicker="Active preset">
-        <Text voice="label">Built-in default</Text>
-        <Text voice="gloss">
-          Nothing is activated, so generation runs on the built-in preset. Activate one from the list and its resolved profile shows up here.
-        </Text>
-      </Section>
-    </Stack>
-  ) : (
-    <ActiveProfile name={active.name} presetId={active.id} />
-  );
+  const active = activeId === null ? presets.data?.find((preset) => preset.isSystemDefault) : presets.data?.find((preset) => preset.id === activeId);
+  if (active === undefined) {
+    // The list has not landed yet — the honest wait, not an "activate something" claim (that claim is what
+    // F-07 measured as false).
+    return (
+      <Stack padding="block">
+        <Text voice="gloss">Loading the active preset…</Text>
+      </Stack>
+    );
+  }
+  return <ActiveProfile isSystemDefault={active.isSystemDefault} name={active.name} presetId={active.id} />;
 }
 
-function ActiveProfile({ presetId, name }: { readonly presetId: PresetId; readonly name: string }): ReactElement {
+function ActiveProfile({
+  presetId,
+  name,
+  isSystemDefault,
+}: {
+  readonly presetId: PresetId;
+  readonly name: string;
+  readonly isSystemDefault: boolean;
+}): ReactElement {
   const trpc = useTRPC();
   const capability = useQuery(trpc.connection.resolveChatCapability.queryOptions());
   const effective = useQuery(trpc.preset.resolveEffective.queryOptions({ id: presetId }));
   return (
     <Stack gap="section" padding="block">
       <Section kicker="Active preset">
-        <Text voice="label">{name}</Text>
+        <Row align="center" gap="field">
+          <Text voice="label">{name}</Text>
+          {/* The SAME chip the LIST row and the editor header wear — one state, one reading (F-07). */}
+          <Badge intent="primary" size="sm" tone="soft">
+            Active
+          </Badge>
+        </Row>
+        {isSystemDefault ? <Text voice="gloss">The built-in preset runs generation until you activate one of your own.</Text> : null}
       </Section>
-      <EffectiveProfile effective={effective.data ?? undefined} />
+      <EffectiveProfile contextWindow={capability.data?.capability.context.window} effective={effective.data ?? undefined} />
       <CapabilityCard capability={capability.data?.capability} model={effective.data?.model} />
     </Stack>
   );
@@ -117,7 +131,7 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
       {view === "transforms" ? <TransformsReadout config={config} /> : null}
       {view === "params" ? (
         <>
-          <EffectiveProfile effective={effective.data ?? undefined} />
+          <EffectiveProfile contextWindow={capability.data?.capability.context.window} effective={effective.data ?? undefined} />
           <CapabilityCard capability={capability.data?.capability} model={effective.data?.model} />
           <QualityMapping effective={effective.data ?? undefined} quality={config.params.quality} />
         </>
@@ -126,8 +140,10 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
   );
 }
 
-/** What the dial is CURRENTLY feeding — read straight off the resolver's provenance labels (never a
- *  client re-mapping of quality→axes, which is the drift `capability-panel-model.ts` bans). */
+/** THE MAPPING DATUM — what the dial FEEDS ("deep → effort high · temp 1.0"), the server's own projection
+ *  of the dial table (never a client re-mapping of quality→axes, which is the drift
+ *  `capability-panel-model.ts` bans). It used to repeat the deck's override-STATUS sentence, so the panel
+ *  named for the mapping was the one place the mapping never appeared (side-eye F-15). */
 function QualityMapping({
   effective,
   quality,
@@ -135,13 +151,14 @@ function QualityMapping({
   readonly effective: Parameters<typeof qualityMappingGloss>[0];
   readonly quality: string | undefined;
 }): ReactElement | null {
-  const gloss = qualityMappingGloss(effective, quality, (knob) => QUALITY_GLOSS_LABELS[knob] ?? knob);
+  const gloss = qualityMappingGloss(effective, quality);
   if (gloss === null) {
     return null;
   }
   return (
     <Section kicker="Quality mapping">
-      <Text voice="gloss">{gloss}</Text>
+      <Text voice="datum">{gloss}</Text>
+      <Text voice="gloss">what the dial feeds when a knob is left inherited</Text>
     </Section>
   );
 }

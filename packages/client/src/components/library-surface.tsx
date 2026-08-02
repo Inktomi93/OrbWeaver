@@ -54,6 +54,13 @@ export interface LibraryListLayoutProps {
   readonly empty?: ReactNode;
   /** The rows (rendered in the scroll area when not empty). */
   readonly children: ReactNode;
+  /**
+   * Names the ROWS container as a `role="radiogroup"` — for a list whose rows carry a ONE-OF-N state
+   * toggle (`RowToggleAction semantics="radio"`), so the radios have the owning group ARIA requires
+   * (side-eye F-19 / ARIA rec 3). Omit for every other list: an unnamed list stays a plain container, so
+   * this is additive and changes nothing for a caller that does not pass it.
+   */
+  readonly rowsRadiogroupLabel?: string;
 }
 
 /** The library list body: a search input, then empty-or-rows. */
@@ -65,7 +72,9 @@ export function LibraryListLayout({
   isEmpty,
   empty,
   children,
+  rowsRadiogroupLabel,
 }: LibraryListLayoutProps): ReactElement {
+  const rowsGroup = rowsRadiogroupLabel === undefined ? {} : { role: "radiogroup", "aria-label": rowsRadiogroupLabel };
   return (
     // INSTRUMENT tier (density-pass-spec.md §3.1 LIST panes) — presets and world-info books are scanned
     // lists, not forms. Declared once here, so both consuming surfaces get identical density by
@@ -77,7 +86,7 @@ export function LibraryListLayout({
         {isEmpty ? (
           empty
         ) : (
-          <Stack className="min-h-0 flex-1 overflow-y-auto" gap="tight">
+          <Stack {...rowsGroup} className="min-h-0 flex-1 overflow-y-auto" gap="tight">
             {children}
           </Stack>
         )}

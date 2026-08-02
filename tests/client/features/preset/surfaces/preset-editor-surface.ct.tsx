@@ -43,18 +43,19 @@ const PRESET_B = "preset_ct_bbbbbbbbbb";
 const BUILT_IN = "preset_00000000000000000000000000";
 const FORK = "preset_ct_forkedddddd";
 
-// Quality-dial toggle accessible names + the pressed-state attribute (the segmented strip's own semantic).
+// Quality-dial cell names + the checked-state attribute. The strip is a RADIOGROUP (side-eye F-19 / ARIA
+// rec 7) — one-of-N, so `aria-checked` carries the state and `aria-pressed` is deliberately absent.
 const FAST = "Fast";
 const BALANCED = "Balanced";
 const DEEP = "Deep";
-const PRESSED = "aria-pressed";
+const PRESSED = "aria-checked";
 const RESET_ITEM_RE = /Reset to starter/;
 // The G7 provenance chip, matched loosely so its ABSENCE can be asserted without naming a model.
 const FOR_MODEL_RE = /^for /;
 
-/** One quality-dial cell — a `ToggleGroup` button, located by its exact label. */
+/** One quality-dial cell — a `ToggleGroup` cell in its RADIO arm, located by its exact label. */
 function qualityCell(root: Locator, label: string): Locator {
-  return root.getByRole("button", { name: label, exact: true });
+  return root.getByRole("radio", { name: label, exact: true });
 }
 
 const SETTINGS_VIEW = {
@@ -125,7 +126,8 @@ const CAPABILITY = makeResolvedChatCapability({
     context: { window: 32_768 },
   }),
 });
-const OUTPUT_GATE_RE = /Max output tokens, max context tokens and verbosity appear here once a chat model is connected/;
+// The deck's ONE capability note (side-eye F-02: it was three per-cluster copies of the same sentence).
+const OUTPUT_GATE_RE = /max output tokens, max context tokens and verbosity appear here once a chat model is connected/;
 // The funnel's own projection for this preset (`preset.resolveEffective`, §4.3) — `maxOutputTokens` resolves
 // to the engine FLOOR (nothing explicit, nothing dialed), which is exactly what the ghost must show.
 const EFFECTIVE_FLOOR = {
@@ -163,9 +165,9 @@ test("capability freshness — a settingsChanged tick swaps the connect-a-model 
   // The GHOST: each twin is genuinely EMPTY (blank-means-default is the storage semantic) while showing the
   // effective value as its placeholder — max output from the funnel's floor, max context from the model's
   // own window — each with its provenance gloss visible.
-  await expect(component.getByLabel("Max output tokens", { exact: true })).toHaveAttribute("placeholder", "2048");
-  await expect(component.getByLabel("Max output tokens", { exact: true })).toHaveValue("");
-  await expect(component.getByLabel("Max context tokens", { exact: true })).toHaveAttribute("placeholder", "32768");
+  await expect(component.getByRole("textbox", { name: "Max output tokens", exact: true })).toHaveAttribute("placeholder", "2048");
+  await expect(component.getByRole("textbox", { name: "Max output tokens", exact: true })).toHaveValue("");
+  await expect(component.getByRole("textbox", { name: "Max context tokens", exact: true })).toHaveAttribute("placeholder", "32768");
   await expect(component.getByText("default", { exact: true })).toBeVisible();
   await expect(component.getByText("full window", { exact: true })).toBeVisible();
 });
@@ -321,7 +323,7 @@ test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the 
 
   // FIELD 2, fired INSIDE the mint's in-flight window — the race arm. Serialized, it must wait for the fork id
   // and patch the copy; unserialized it re-targets the built-in and mints a second "(edited)" row.
-  await component.getByLabel(MAX_OUTPUT_LABEL, { exact: true }).fill("1234");
+  await component.getByRole("textbox", { name: MAX_OUTPUT_LABEL, exact: true }).fill("1234");
 
   // THE PIN: the retarget is complete — the selection, the editor's own save target, and the
   // active-for-generation pick are all the fork (a fork nothing generates with is a no-op edit).
@@ -519,7 +521,9 @@ test("FIVE VIEWS — one flat strip (Params default), and the re-homed nudge edi
   // persist "Nate is watching …" — irreversibly, and every other assertion here would stay green.
   await assertTokenRoundtrip({
     trpc,
-    field: component.getByLabel("Continue nudge", { exact: true }),
+    // The field is labelled "Template" (side-eye F-32): the drill-in header already names the template, so
+    // a field label repeating it was the same word at three levels.
+    field: component.getByRole("combobox", { name: "Template", exact: true }),
     proc: "preset.update",
     payloadKey: "config.formatStrings.continueNudge",
   });

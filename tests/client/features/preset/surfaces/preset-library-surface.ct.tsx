@@ -314,7 +314,7 @@ test("§12 the built-in row carries the state toggle ONLY — no inline verb, no
   await expect(page.getByRole("button", { name: "Duplicate Default", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: menuFor("Default") })).toHaveCount(0);
   // …but activation is not CRUD: the un-renameable, un-deletable built-in is still a pick (D1).
-  await expect(page.getByRole("button", { name: activateFor("Default"), exact: true })).toHaveCount(1);
+  await expect(page.getByRole("radio", { name: activateFor("Default"), exact: true })).toHaveCount(1);
 });
 
 // ── §9 / D1: ACTIVATE is the row's state toggle, and the pane-level Select is DEAD ────────────────
@@ -326,8 +326,8 @@ test("§9/D1 the row toggle ACTIVATES that row through the one setDefault mutati
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
-  const toggle = page.getByRole("button", { name: activateFor(EDITED_ONE_NAME), exact: true });
-  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  const toggle = page.getByRole("radio", { name: activateFor(EDITED_ONE_NAME), exact: true });
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
   // It rides the row reveal like every other trailing control (the pressed STATE is the title-line marker).
   await expect(toggle).toHaveClass(REVEAL_ON_HOVER);
   await expect(toggle).toHaveClass(REVEAL_ON_FOCUS);
@@ -344,8 +344,8 @@ test("§9/D1 the toggle NEVER bare-unpresses: pressing the ACTIVE row writes not
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
-  const toggle = page.getByRole("button", { name: activateFor(EDITED_ONE_NAME), exact: true });
-  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  const toggle = page.getByRole("radio", { name: activateFor(EDITED_ONE_NAME), exact: true });
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
 
   const row = component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first();
   await row.hover();
@@ -353,7 +353,7 @@ test("§9/D1 the toggle NEVER bare-unpresses: pressing the ACTIVE row writes not
   // The click landed (the control is hit-testable while revealed) and produced NO write. Settled by the
   // subsequent activation below, which proves the same handler DOES write when the row is not the pick.
   await component.locator(LIST_ROW_ROOT, { hasText: IMPORTED_NAME }).first().hover();
-  await page.getByRole("button", { name: activateFor(IMPORTED_NAME), exact: true }).click();
+  await page.getByRole("radio", { name: activateFor(IMPORTED_NAME), exact: true }).click();
   await expect
     .poll(() => (trpc.inputs("settings.updateUserSettingsSection") as SettingsPatchCall[]).map((call) => call.patch?.defaultPresetId))
     .toEqual([IMPORTED]);
@@ -364,8 +364,8 @@ test("§9/D1 the BUILT-IN row is the null pick — pressed when nothing is chose
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
-  const builtIn = page.getByRole("button", { name: activateFor("Default"), exact: true });
-  await expect(builtIn).toHaveAttribute("aria-pressed", "false");
+  const builtIn = page.getByRole("radio", { name: activateFor("Default"), exact: true });
+  await expect(builtIn).toHaveAttribute("aria-checked", "false");
 
   await component.locator(LIST_ROW_ROOT, { hasText: "Default" }).first().hover();
   await builtIn.click();
@@ -380,7 +380,7 @@ test("§9/D1 with nothing chosen, the BUILT-IN row wears the pressed state", asy
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
-  await expect(page.getByRole("button", { name: activateFor("Default"), exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("radio", { name: activateFor("Default"), exact: true })).toHaveAttribute("aria-checked", "true");
   // …and it is the ONLY pressed row (one-of-N).
   await expect(component.locator(TITLE_ROW).getByText("Active", { exact: true })).toHaveCount(1);
 });
@@ -391,8 +391,12 @@ test("§12 enforcement: the pane-level 'Active for generation' Select is DELETED
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
   await expect(page.getByRole("combobox")).toHaveCount(0);
-  await expect(page.getByLabel("Active preset for generation")).toHaveCount(0);
   await expect(component.getByText("Active for generation", { exact: true })).toHaveCount(0);
+  // The name "Active preset for generation" survives — but as the ROWS' `role="radiogroup"` (side-eye
+  // F-19), never as a pane-level control. Asserting the ROLE is what keeps this pin from passing for the
+  // wrong reason if the Select ever came back under a renamed label.
+  await expect(page.getByRole("radiogroup", { name: "Active preset for generation" })).toHaveCount(1);
+  await expect(page.getByRole("listbox")).toHaveCount(0);
 });
 
 test("§16 row 3 echo (a): the kebab Activate item fires the SAME mutation as the toggle", async ({ mount, page }) => {
@@ -478,7 +482,9 @@ const ORB_FILE = JSON.stringify({
 });
 // A SillyTavern Chat Completion preset — no `schemaKind`, so the sniff falls to the ST arm.
 const ST_FILE = JSON.stringify({ temperature: 0.9, prompts: [] });
-const MERGE_COPY = /If you already have a preset named "Imported RP", its settings are REPLACED/;
+// The OUTCOME semantic, stated ONCE at the dialog level (side-eye F-10): it used to be a per-arm sentence
+// that only appeared after a file was picked, while the dialog at rest said only "the format is detected".
+const MERGE_COPY = /An orbweaver export REPLACES the settings of a preset with the same name/;
 const ST_SUMMARY = /SillyTavern preset —/;
 const SERVER_PARSE_ERROR = /isn't a valid prompt config/;
 
@@ -502,11 +508,15 @@ test("G6 an orb.preset file rides the ONE import verb with its own bytes, after 
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Import a preset", exact: true }).click();
+
+  // THE OUTCOME IS STATED AT REST (side-eye F-10) — before a file is even picked, which is the state the
+  // review saw and the state in which the dialog previously said only "the format is detected".
+  await expect(page.getByText(MERGE_COPY)).toBeVisible();
+
   await page.locator(DROPZONE_INPUT).setInputFiles({ name: "imported-rp.json", mimeType: "application/json", buffer: Buffer.from(ORB_FILE) });
 
-  // The collision rule is stated BEFORE the commit, naming the merge key the server will use.
-  await expect(page.getByText('orbweaver preset export — "Imported RP".')).toBeVisible();
-  await expect(page.getByText(MERGE_COPY)).toBeVisible();
+  // The summary adds the one fact the dialog-level rule cannot: WHICH name this file collides on.
+  await expect(page.getByText('orbweaver preset export — "Imported RP". That name is the merge key.')).toBeVisible();
 
   await page.getByRole("button", { name: "Import preset", exact: true }).click();
   // The FILE'S OWN TEXT reaches the door — not a client-side reserialization, and never `preset.create`.

@@ -22,6 +22,7 @@ import { compactionModeLabel } from "../../../../../packages/client/src/features
 import { clearNumber, setNumber } from "../../../../support/ct/set-number";
 import { CompactionTabDefaultsStory, CompactionTabSetStory } from "./_add-flow-stories";
 import {
+  ParamsDeckCapabilityErrorStory,
   ParamsDeckCustomParamsStory,
   ParamsDeckExplicitStory,
   ParamsDeckGhostStory,
@@ -31,9 +32,15 @@ import {
 
 const SAVE_POLL = { intervals: [100, 200, 300, 500] };
 // The three capability-gate notes + the ADVANCED gloss (hoisted — useTopLevelRegex).
-const SAMPLING_GATE_RE = /Temperature, top-p, top-k, the penalties and seed appear here/;
-const REASONING_GATE_RE = /The reasoning switch, effort level and thinking budget appear here/;
-const OUTPUT_GATE_RE = /Max output tokens, max context tokens and verbosity appear here/;
+// ONE gate note for the three model-fed clusters (F-02) — the knob names survive, the routing sentence
+// is printed once.
+const GATE_KNOBS_RE = /Temperature, top-p, top-k, the penalties and seed, the reasoning switch/;
+const GATE_SETTINGS_RE = /Settings → Connections → Model roles/;
+/** `toHaveAttribute(name, ANY)` needs a hoisted pattern (useTopLevelRegex) — the assertions below are
+ *  about an attribute's ABSENCE, so the pattern only has to match anything at all. */
+const ANY = /.*/u;
+/** The exact server message the review captured — the deck must show it, not swallow it. */
+const CAPABILITY_ERROR = "400 incoherent routing (agent-sdk × local-light)";
 const CLAUDE_ENV_RE = /claudeEnv/;
 const DEFAULT_PREFIX = /Default — /;
 const SETTLE_MS = 500;
@@ -56,25 +63,25 @@ test("GHOST — an unset knob renders the RESOLVER's effective value + provenanc
 
   // Top-P is unset: the twin is EMPTY (blank-means-default is untouched in storage) and shows the funnel's
   // own 0.92 as its placeholder, with the rung named under the track.
-  const topP = deck.getByLabel("Top-P", { exact: true });
+  const topP = deck.getByRole("textbox", { name: "Top-P", exact: true });
   await expect(topP).toHaveValue("");
   await expect(topP).toHaveAttribute("placeholder", "0.92");
   await expect(deck.getByText("model default", { exact: true })).toBeVisible();
 
   // The slider is at that same effective value — the ghost thumb, not a zeroed track.
-  await expect(deck.getByRole("slider", { name: "Top-P slider" })).toHaveValue("0.92");
+  await expect(deck.getByRole("slider", { name: "Top-P", exact: true })).toHaveValue("0.92");
 
   // A knob the funnel reports NOTHING for claims no number (the honest empty — never a fabricated default).
-  await expect(deck.getByLabel("Min-P", { exact: true })).toHaveAttribute("placeholder", "default");
+  await expect(deck.getByRole("textbox", { name: "Min-P", exact: true })).toHaveAttribute("placeholder", "default");
 
   // G1: `topA` finally has a row (schema-supported since it was minted, editor-less until now).
-  await expect(deck.getByLabel("Top-A", { exact: true })).toBeVisible();
+  await expect(deck.getByRole("textbox", { name: "Top-A", exact: true })).toBeVisible();
 });
 
 test("PROMOTION — typing into the twin writes ONLY that knob's key (the ghost is never written back)", async ({ mount }) => {
   const deck = await mount(<ParamsDeckGhostStory />);
 
-  await setNumber(deck.getByLabel("Top-P", { exact: true }), "0.5");
+  await setNumber(deck.getByRole("textbox", { name: "Top-P", exact: true }), "0.5");
 
   // THE PIN: the saved patch carries `topP` and nothing else — not the ghosted top-p the resolver reported
   // for the OTHER rows, not the max-output floor, not a materialized default anywhere.
@@ -88,13 +95,13 @@ test("PROMOTION — typing into the twin writes ONLY that knob's key (the ghost 
 
 test("TWIN CONVERGENCE — the slider follows a typed value (two modalities, ONE field)", async ({ mount }) => {
   const deck = await mount(<ParamsDeckGhostStory />);
-  await setNumber(deck.getByLabel("Temperature", { exact: true }), "0.73");
-  await expect(deck.getByRole("slider", { name: "Temperature slider" })).toHaveValue("0.73");
+  await setNumber(deck.getByRole("textbox", { name: "Temperature", exact: true }), "0.73");
+  await expect(deck.getByRole("slider", { name: "Temperature", exact: true })).toHaveValue("0.73");
 });
 
 test("RESET — ↺ clears the knob back to inherit, and the ghost returns", async ({ mount }) => {
   const deck = await mount(<ParamsDeckGhostStory />);
-  const topP = deck.getByLabel("Top-P", { exact: true });
+  const topP = deck.getByRole("textbox", { name: "Top-P", exact: true });
   await setNumber(topP, "0.5");
   await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain("keys=topP");
 
@@ -103,6 +110,25 @@ test("RESET — ↺ clears the knob back to inherit, and the ghost returns", asy
   await expect(topP).toHaveValue("");
   await expect(deck.getByText("model default", { exact: true })).toBeVisible();
   await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain("keys= ");
+});
+
+test("F-21 — the provenance gloss BELONGS to its row: both modalities point aria-describedby at it", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckGhostStory />);
+
+  // The glosses used to be loose text under the tracks, which a screen reader runs together across rows —
+  // "model default default full window" as one blob, attached to nothing. Both the slider and its twin now
+  // name THIS row's line, and the id resolves to that exact text.
+  const slider = deck.getByRole("slider", { name: "Top-P", exact: true });
+  const twin = deck.getByRole("textbox", { name: "Top-P", exact: true });
+
+  const glossId = await slider.getAttribute("aria-describedby");
+  expect(glossId).not.toBeNull();
+  await expect(deck.locator(`#${glossId ?? ""}`)).toHaveText("model default");
+  // The TWIN composes it with its own bounds description — the same row, both controls.
+  expect((await twin.getAttribute("aria-describedby")) ?? "").toContain(glossId ?? "");
+
+  // A row with NO gloss claims none, rather than pointing at an empty node.
+  await expect(deck.getByRole("slider", { name: "Min-P", exact: true })).not.toHaveAttribute("aria-describedby", ANY);
 });
 
 test("RESET is INERT while a row is inherited — no stray affordance, no focus stop", async ({ mount }) => {
@@ -116,13 +142,26 @@ test("CLAMP — an explicit value the model moved says so, visibly (never behind
   const deck = await mount(<ParamsDeckExplicitStory />);
   await expect(deck.getByText("clamped to 2 — this model's max", { exact: true })).toBeVisible();
   // The stored intent is still shown as typed (2.5) — the editor does not silently rewrite it.
-  await expect(deck.getByLabel("Repetition penalty", { exact: true })).toHaveValue("2.5");
+  await expect(deck.getByRole("textbox", { name: "Repetition penalty", exact: true })).toHaveValue("2.5");
 });
 
-test("QUALITY — the mapping gloss reads the RESOLVER's provenance, not a client re-derivation", async ({ mount }) => {
+test("QUALITY — the strip is a RADIOGROUP and prints the dial's MAPPING datum, not an override status", async ({ mount }) => {
   const deck = await mount(<ParamsDeckExplicitStory />);
-  await expect(deck.getByRole("button", { name: "Deep", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(deck.getByText("deep → temp 1 — explicit knobs below override this", { exact: true })).toBeVisible();
+
+  // ARIA rec 7 / F-19: one-of-N is a radiogroup, not three independent pressed buttons. `aria-pressed`
+  // is CLEARED — a control may not claim two contradictory state models at once.
+  const deep = deck.getByRole("radio", { name: "Deep", exact: true });
+  await expect(deep).toHaveAttribute("aria-checked", "true");
+  await expect(deep).not.toHaveAttribute("aria-pressed", ANY);
+  await expect(deck.getByRole("radiogroup", { name: "Quality" })).toBeVisible();
+
+  // F-15: the DATUM is what the dial FEEDS — the server's own projection of the dial table. This fixture
+  // resolves temperature FROM the dial (provenance `quality`) while `repetitionPenalty` is the explicit
+  // knob, so the mapping states both axes and the override note is the SEPARATE, second line. Before this
+  // pass the mapping line WAS the override sentence, which is why a fully-overridden dial printed
+  // "everything is overridden" in the one place the mapping was supposed to appear.
+  await expect(deck.getByText("deep → effort high · temperature 1", { exact: true })).toBeVisible();
+  await expect(deck.getByText("explicit knobs below override this", { exact: true })).toBeVisible();
 });
 
 // ── §4.2 staleness (F7) ───────────────────────────────────────────────────────────────────────────────
@@ -151,14 +190,14 @@ test("STALENESS — Keep dismisses the row for the session without touching the 
 test("OUTPUT — the token caps are KnobRows at the model's real ceilings, and a typed overflow clamps", async ({ mount }) => {
   const deck = await mount(<ParamsDeckGhostStory />);
 
-  await expect(deck.getByLabel("Max output tokens", { exact: true })).toHaveAttribute("placeholder", "2048");
+  await expect(deck.getByRole("textbox", { name: "Max output tokens", exact: true })).toHaveAttribute("placeholder", "2048");
   await expect(deck.getByText("default", { exact: true })).toBeVisible();
-  await expect(deck.getByLabel("Max context tokens", { exact: true })).toHaveAttribute("placeholder", "32768");
+  await expect(deck.getByRole("textbox", { name: "Max context tokens", exact: true })).toHaveAttribute("placeholder", "32768");
   await expect(deck.getByText("full window", { exact: true })).toBeVisible();
 
-  await setNumber(deck.getByLabel("Max output tokens", { exact: true }), "999999");
+  await setNumber(deck.getByRole("textbox", { name: "Max output tokens", exact: true }), "999999");
 
-  await expect(deck.getByLabel("Max output tokens", { exact: true })).toHaveValue("8,192");
+  await expect(deck.getByRole("textbox", { name: "Max output tokens", exact: true })).toHaveValue("8,192");
   await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain("values=maxOutputTokens:8192");
 });
 
@@ -195,16 +234,27 @@ test("CONTEXT — an explicit compaction mode renders the selected value (not th
 
 // ── The capability gate + ADVANCED ────────────────────────────────────────────────────────────────────
 
-test("NO MODEL — the model-fed clusters name their hidden knobs; QUALITY/CONTEXT/ADVANCED still render", async ({ mount }) => {
+test("NO MODEL — ONE gate note names every hidden knob; QUALITY/CONTEXT/ADVANCED still render", async ({ mount }) => {
   const deck = await mount(<ParamsDeckNoModelStory />);
 
-  await expect(deck.getByText(SAMPLING_GATE_RE)).toBeVisible();
-  await expect(deck.getByText(REASONING_GATE_RE)).toBeVisible();
-  await expect(deck.getByText(OUTPUT_GATE_RE)).toBeVisible();
+  // F-02: the three model-fed clusters share ONE cause, so they share ONE note. The knob names survive
+  // (an empty state that only says "connect a model" reads as "this feature doesn't exist")…
+  await expect(deck.getByText(GATE_KNOBS_RE)).toBeVisible();
+  // …and the routing sentence is printed exactly ONCE, where it used to appear three times.
+  await expect(deck.getByText(GATE_SETTINGS_RE)).toHaveCount(1);
 
-  await expect(deck.getByRole("button", { name: "Balanced", exact: true })).toBeVisible();
+  await expect(deck.getByRole("radio", { name: "Balanced", exact: true })).toBeVisible();
   await expect(deck.getByLabel("Verbatim tail", { exact: true })).toBeVisible();
   await expect(deck.getByRole("button", { name: "Advanced" })).toBeVisible();
+});
+
+test("CAPABILITY ERROR — a FAILED read shows the server's reason, never the connect-a-model empty state", async ({ mount }) => {
+  // F-02, the P1: the review's own receipt — the server said `400 incoherent routing (agent-sdk ×
+  // local-light)` and the deck told a user with a model connected to connect one.
+  const deck = await mount(<ParamsDeckCapabilityErrorStory />);
+
+  await expect(deck.getByText(CAPABILITY_ERROR, { exact: false })).toBeVisible();
+  await expect(deck.getByText(GATE_KNOBS_RE)).toHaveCount(0);
 });
 
 test("ADVANCED — the ONE collapsed disclosure; it opens onto the escape hatches + the D7 presence row", async ({ mount }) => {
@@ -230,7 +280,7 @@ test("GEOMETRY — label column · flexing track · mono twin, all on ONE line (
   // Scope every measurement to THIS row — the deck stacks seven of them, and a bare `.first()` would
   // silently measure the temperature row against the top-p twin.
   const row = labelColumn.locator("..");
-  const twin = deck.getByLabel("Top-P", { exact: true });
+  const twin = deck.getByRole("textbox", { name: "Top-P", exact: true });
 
   const labelBox = await labelColumn.boundingBox();
   // The number field's own BOX is the root (the input sits inside its bordered group), and the root is what
@@ -250,22 +300,34 @@ test("GEOMETRY — label column · flexing track · mono twin, all on ONE line (
   expect(Math.abs(center(trackBox) - center(twinBox))).toBeLessThanOrEqual(2);
 });
 
-test("GEOMETRY — the inherited row's thumb is the GHOST tone, the explicit row's is not", async ({ mount }) => {
+test("F-09 — the ONE derivation, painted: inherited = bare rail + muted thumb, explicit = a NON-ember fill", async ({ mount }) => {
   const deck = await mount(<ParamsDeckExplicitStory />);
 
-  const ghostThumb = deck.getByRole("slider", { name: "Top-P slider" });
-  const explicitThumb = deck.getByRole("slider", { name: "Repetition penalty slider" });
-  const colorOf = (l: Locator): Promise<string> =>
-    l.evaluate((el: HTMLElement) => getComputedStyle(el.closest("[data-slot=slider-thumb]") ?? el).backgroundColor);
+  const ghostRow = deck.getByRole("slider", { name: "Top-P", exact: true });
+  const explicitRow = deck.getByRole("slider", { name: "Repetition penalty", exact: true });
+  const partColor = (l: Locator, part: string): Promise<string> =>
+    l.evaluate((el: HTMLElement, slot: string) => {
+      const control = el.closest("[data-slot=slider-control]") ?? el;
+      return getComputedStyle(control.querySelector(`[data-slot="${slot}"]`) ?? el).backgroundColor;
+    }, part);
 
-  const ghost = await colorOf(ghostThumb);
-  const explicit = await colorOf(explicitThumb);
-  expect(ghost).not.toBe(explicit);
+  // THUMB: the inherited row reads "not yours yet" and the explicit one is full weight.
+  expect(await partColor(ghostRow, "slider-thumb")).not.toBe(await partColor(explicitRow, "slider-thumb"));
+
+  // FILL — the half the review measured as actively misleading: an unset Top-P at its 0.92 model default
+  // painted a near-full grey bar, so an INHERITED row read as MORE set than the explicit rows beside it.
+  // The inherited row now claims no magnitude at all.
+  expect(await partColor(ghostRow, "slider-indicator")).toBe("rgba(0, 0, 0, 0)");
+  const explicitFill = await partColor(explicitRow, "slider-indicator");
+  expect(explicitFill).not.toBe("rgba(0, 0, 0, 0)");
+  // …and it is NOT the ember: §4.1 rations the accent to focus + the pane's one primary (CD3).
+  const ember = await deck.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--color-primary").trim());
+  expect(explicitFill).not.toContain(ember);
 });
 
 test("CLEAR-THEN-BLANK — emptying the twin returns the knob to inherited (blank-means-default survives)", async ({ mount }) => {
   const deck = await mount(<ParamsDeckExplicitStory />);
-  await clearNumber(deck.getByLabel("Repetition penalty", { exact: true }));
+  await clearNumber(deck.getByRole("textbox", { name: "Repetition penalty", exact: true }));
 
   await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain("keys=quality");
   await expect(deck.getByText("clamped to 2 — this model's max", { exact: true })).toBeHidden();

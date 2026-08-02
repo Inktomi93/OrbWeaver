@@ -105,7 +105,13 @@ export function PresetLibraryRow({
           onToggle={activate}
           pressed={active}
           pressedClassName="text-primary"
+          // A FILLED bolt vs a hollow one — a shape delta, not stroke color alone (side-eye F-06, WCAG
+          // 1.4.1). The mock draws exactly this: a hollow ring at rest, a filled disc when active.
+          pressedFill={true}
           rest="never"
+          // ONE-OF-N, not a toggle (side-eye F-19 / ARIA rec 3): pressing the active row is a NO-OP, so
+          // `aria-pressed`'s "press to release" contract was a promise this control refuses to keep.
+          semantics="radio"
         />
       }
       {...(preset.isSystemDefault
@@ -157,12 +163,19 @@ export function PresetLibraryRow({
   );
 }
 
-/** The amber ACTIVE marker on the title line — the state half of the activate toggle beside it. It hides
- *  exactly when the cluster reveals (`ROW_REVEAL_SWAP`), so the pressed toggle and this badge never paint
- *  the same datum at once. */
+/** The amber ACTIVE marker on the title line — the state half of the activate toggle beside it. On a FINE
+ *  pointer it hides exactly when the cluster reveals (`ROW_REVEAL_SWAP`), so the pressed toggle and this
+ *  badge never paint the same datum at once.
+ *
+ *  IT STAYS AT COARSE (side-eye F-06): `ROW_REVEAL_SWAP` drops the badge on touch, where the cluster is
+ *  permanently visible — which left activation signalled by GLYPH ALONE on exactly the pointer class that
+ *  gets no hover to investigate with. The filled bolt is the shape delta; this is the word.
+ *
+ *  `tone="soft"` (rider 1): a SOLID ember pill carried the same fill as the pane's one primary CTA (+ New),
+ *  so a status read as a second call to action — the CD3 one-primary-per-region break. */
 function ActiveMarker(): ReactElement {
   return (
-    <Badge className={ROW_REVEAL_SWAP} intent="primary" size="sm">
+    <Badge className={`${ROW_REVEAL_SWAP} pointer-coarse:inline-flex`} intent="primary" size="sm" tone="soft">
       Active
     </Badge>
   );

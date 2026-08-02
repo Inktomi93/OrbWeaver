@@ -73,6 +73,24 @@ export interface StaleKnob {
   readonly value: number | string;
 }
 
+/** ONE knob the quality dial feeds, as the dial declares it — NOT as the funnel resolved it. The Params
+ *  surface's "quality mapping" datum ("deep → effort high · temp 1.0") answers "what does this dial DO",
+ *  which is a fact about the dial and stays true whether or not an explicit knob currently overrides it.
+ *  Projected server-side because `QUALITY_SAMPLING`/`QUALITY_EFFORT` are funnel vocabulary the client is
+ *  banned from importing (redesign §12) — the previous client derivation could only see knobs the funnel
+ *  happened to attribute to the dial, so an overridden dial rendered "everything is overridden" instead of
+ *  its mapping (side-eye F-15). */
+export interface QualityMappingEntry {
+  readonly knob: EffectiveKnob;
+  readonly value: number | string;
+}
+
+/** The dial's declared mapping, or `null` when no dial is set (there is nothing to state). */
+export interface QualityMapping {
+  readonly quality: string;
+  readonly entries: readonly QualityMappingEntry[];
+}
+
 export interface EffectivePreset {
   readonly presetId: PresetId;
   /** The model the funnel resolved AGAINST — the readout says "resolved for <model>", and it may not lie
@@ -82,4 +100,6 @@ export interface EffectivePreset {
    *  model (nothing to ghost — the honest empty, never a fabricated default). */
   readonly knobs: Partial<Record<EffectiveKnob, EffectiveKnobReading>>;
   readonly stale: readonly StaleKnob[];
+  /** What the QUALITY dial feeds, per the dial's own table — `null` with no dial set. */
+  readonly qualityMapping: QualityMapping | null;
 }

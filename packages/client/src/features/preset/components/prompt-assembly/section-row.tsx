@@ -24,8 +24,11 @@ import { ListRow } from "@orb/ui/list-row";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 import type { AppFormInstance } from "#forms";
+import { useFocusOnSwap } from "#lib";
 import { isTemplatedMarker, sectionGlyphIcon, triggersPillLabel } from "../../lib/assembly-model";
+import { formatEstimate } from "../../lib/format-count";
 import { estimateSectionTokens } from "./estimate-tokens";
 import { MARKER_COPY } from "./marker-copy";
 
@@ -48,6 +51,10 @@ export interface SectionRowProps {
   readonly onSelect: (sectionId: string) => void;
   /** DRILL (the chevron) — open the consolidated editor. */
   readonly onDrill: (sectionId: string) => void;
+  /** This row's chevron is the drill-in's focus RESTORE target (side-eye F-04): back-out from the editor
+   *  unmounts the drill-in and remounts the rack, so the control the user left from is a brand-new node —
+   *  the row focuses it on mount when the id matches, rather than the caller holding a stale ref. */
+  readonly restoreFocus: boolean;
 }
 
 /** The plain-language name + subtitle for a section (marker copy for markers; the author's name for a
@@ -114,15 +121,20 @@ function SectionCues({ section }: { readonly section: PromptSection }): ReactEle
   );
 }
 
-export function SectionRow({ form, section, index, zone, selected, onSelect, onDrill }: SectionRowProps): ReactElement {
+export function SectionRow({ form, section, index, zone, selected, onSelect, onDrill, restoreFocus }: SectionRowProps): ReactElement {
   const { name, subtitle } = sectionLabels(section);
   const carrier = section.type === "marker" && !isTemplatedMarker(section.marker);
-  const tokens = carrier ? CARRIER_TOKENS : `~${estimateSectionTokens(section)}`;
+  // ONE number format across the surface (side-eye F-29) — grouped, exactly as the readout's bars print it.
+  const tokens = carrier ? CARRIER_TOKENS : formatEstimate(estimateSectionTokens(section));
+  const chevronRef = useRef<HTMLButtonElement>(null);
+  useFocusOnSwap(chevronRef, restoreFocus);
   return (
     <ListRow
       actions={
         <Row align="center" gap="field">
-          <Text className={section.enabled ? "tabular-nums" : "tabular-nums line-through"} size="code" tone="muted">
+          {/* LINE-THROUGH when the row is off (the mock's `.rrow.off .tok`) — a disabled section still has a
+              size, and striking it says "this is not being spent" without dropping the datum. */}
+          <Text as="span" className={section.enabled ? "" : "line-through"} voice="gloss">
             {tokens}
           </Text>
           <form.AppField name={`sections[${index}].enabled`}>
@@ -130,7 +142,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
               <Switch aria-label={`${name} enabled`} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} tone="quiet" />
             )}
           </form.AppField>
-          <Button aria-label={`Edit ${name}`} intent="ghost" onClick={(): void => onDrill(section.id)} size="icon" type="button">
+          <Button aria-label={`Edit ${name}`} intent="ghost" onClick={(): void => onDrill(section.id)} ref={chevronRef} size="icon" type="button">
             <Icon icon={ChevronRight} size="sm" />
           </Button>
         </Row>
@@ -138,14 +150,20 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
       className={section.enabled ? "" : "opacity-60"}
       clickable={true}
       leading={
-        <Badge intent={zone === "post" ? "warning" : "info"} size="sm">
+        // SOFT, not solid (side-eye F-17): nine solid `info` discs were the loudest thing in the pane. The
+        // 15% tint + hue text IS the mock's `.glyph` treatment, and the glyph itself is now per-marker so
+        // the column finally carries the information its brightness was claiming.
+        <Badge intent={zone === "post" ? "warning" : "info"} size="sm" tone="soft">
           <Icon icon={sectionGlyphIcon(section)} size="sm" />
         </Badge>
       }
       markers={<SectionCues section={section} />}
       onClick={(): void => onSelect(section.id)}
       selected={selected}
+      // INLINE after the name — the mock's rack row is one line (orchestrator ruling, 2026-08-02: follow
+      // the mock where nothing supersedes it). The 720px content cap (F-16) is what makes the trade mild.
       subtitle={subtitle}
+      subtitlePlacement="inline"
       title={name}
     />
   );

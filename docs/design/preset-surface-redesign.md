@@ -976,7 +976,7 @@ the v1 params-deck CONTEXT drawing carried Prompt-view elements (budget + previe
 | 4 | open a preset (edit) | the row body click | ⌘K (the global palette — an app-wide echo outside this surface's budget) | — |
 | 5 | duplicate preset | the inline row verb (ratified §12.2 — the measured frequent verb) | row kebab mirror (the §12.2 grammar's own parity rule) | CT: both fire the same create-with-config |
 | 6 | rename preset | row kebab → dialog | none — the editor header SHOWS the name, never edits it | — |
-| 7 | export preset | row kebab (G6) | none | — |
+| 7 | export preset | row kebab (G6) | the EDITOR-header kebab's **Export** — the row-3b justification verbatim: the editor is the ARTIFACT'S OWN SURFACE, and on mobile the LIST is a closed sheet, so the one place you are certainly standing when you want to share this preset must be able to. Hidden on the built-in in BOTH doors, matching the bundle's system-default exclusion (side-eye F-25, 2026-08-02) | both doors serialize through the ONE `buildPresetFile` — a second serde is the banned parallel path; review + CT |
 | 8 | delete preset | row kebab → confirm | none (destructive is kebab-only, §12.2) | — |
 | 9 | search presets | the pane search input | none | — |
 | 10 | switch editor view | the ONE tab strip | none — CONTEXT projects the view, never sets it (§7) | `presetEditorView` has ONE writer (the store-door discipline); review |
@@ -996,7 +996,7 @@ the v1 params-deck CONTEXT drawing carried Prompt-view elements (budget + previe
 | 24 | reset a template / a SECTION BODY to Default | CLEAR the field — empty IS the ghosted default (the landed `guidedFooterState` semantic, now the ONE grammar for Actions templates AND section bodies, §5.2a) | none | the state chip renders the semantic; CT |
 | 25 | variable / user-macro CRUD | the Data view's `EntryListEditor` + its dialog | none | — |
 | 26 | regex CRUD · post-process switches · reasoning-parse fields | their Transforms editors | none | — |
-| 27 | reset preset to starter | the editor-header kebab → confirm | none | — |
+| 27 | reset preset to starter | the editor-header kebab → confirm | none — and the item is ABSENT on the built-in, which IS the starter arrangement (side-eye F-25); with Export also excluded there, the built-in renders no ⋯ trigger at all rather than an empty menu | review; CT: the built-in's header carries no Preset-options trigger |
 | 28 | retry a failed save | the `AutosaveStatus` chip | none | — |
 | 29 | show the assembled preview | the Prompt-view CONTEXT (on-demand) | none — the center Compose\|Preview toggle is DELETED (§5.1) | the toggle dies in the same commit; review |
 | 30 | navigate to a carrier's SOURCE domain (the §5.2 attribution link — "manage in World info ↗") | the carrier body-slot attribution panel + its readout twin | none beyond the pair itself (the drill-in panel and the readout attribution are the same link, one target) | rides the standing rail store writers (`setActiveSection` — the cross-section action pattern); never a route fork |

@@ -54,6 +54,21 @@ export const textVariants = tv({
       // The quiet explanatory second line (the mocks' `.truth`/`.beat`/`.orb .vals`).
       gloss: "font-sans text-micro leading-tight tracking-normal font-normal text-muted-foreground",
     },
+    // THE READING-LENGTH MODIFIER (side-eye F-31, 2026-08-02). `text-micro` (10.5px, leading-tight) was
+    // doing five jobs — kicker, gloss, explainer prose, subtitle, status — and while contrast passes
+    // everywhere (7.06–8.66:1), the SCALE is too flat for prose: a three-sentence teach line set at the
+    // same step and the same tight leading as a status chip is a wall.
+    //
+    // `prose` is a LENGTH statement, not a taste knob (which is why it is not one of the four internal axes
+    // the density gate ratchets): "this text is sentences, not a label". It lifts the step to `label` and
+    // relaxes the leading, and it deliberately changes NOTHING else — the voice still owns family, weight,
+    // tracking and color, so a prose gloss is unmistakably the same voice, just readable at length.
+    //
+    // DECLARED AFTER `voice` so it wins the size/leading merge (the same ordering law `voice` itself needs).
+    prose: {
+      true: "text-label leading-body",
+      false: "",
+    },
   },
-  defaultVariants: { size: "body", weight: "regular", tone: "default", transform: "none" },
+  defaultVariants: { size: "body", weight: "regular", tone: "default", transform: "none", prose: false },
 });
