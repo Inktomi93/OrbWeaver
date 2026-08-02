@@ -1,3 +1,6 @@
+// ARCHIVED 2026-08-02 — pre-R2R3 vocabulary (hpDelta et al., retired by the actor-state reshape); kept as
+// historical measurement records; do NOT run against the current contracts — mint fresh corpora instead.
+//
 // Follow-up to native-wire-probe.mjs. The docs say output_config.format and tools DO compose, with the
 // schema applying to the FINAL TEXT TURN after the tool loop resolves:
 //   "Claude may call tools first ... then respond with structured JSON matching your format schema."

@@ -88,22 +88,6 @@ test("the topbar toggle collapses the list panel to zero rendered width (clamp-o
   await expect(listPanel).toHaveAttribute("aria-hidden", "true");
 });
 
-test("the focus toggle collapses both panels (immersive) then restores (command-center)", async ({ mount, page }) => {
-  const shell = await mount(<AppShellStory />);
-  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
-  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
-
-  // Default: list docked, context collapsed → NOT immersive → the button offers "Enter focus mode".
-  await shell.getByRole("button", { name: "Enter focus mode" }).click();
-  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
-  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
-
-  // Now immersive → the button offers "Exit focus mode" → both dock (command-center).
-  await shell.getByRole("button", { name: "Exit focus mode" }).click();
-  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
-  await expect(contextPanel).toHaveAttribute("data-panel-mode", "docked");
-});
-
 test("CONTEXT follows the active section (§4.2 rule 1): a rail switch swaps the panel body, never leaking the previous section's detail", async ({
   mount,
   page,
@@ -405,6 +389,95 @@ function shellPersistedOverrides(page: Page): Promise<unknown> {
     return (JSON.parse(raw) as { state?: { panelOverrides?: unknown } }).state?.panelOverrides;
   });
 }
+
+// ── Focus mode: ONE flag, coherent at every step of the MEASURED repro (crunch-list item 20) ────────
+// Live receipt (owner, __orb.shell()): enter focus → exit (panels returned but the button still read
+// "Exit focus mode") → click → panels COLLAPSED (exit *entered* the focus look) → click → nothing at all,
+// terminal state = both panels collapsed + label "Exit focus mode". Three truths disagreed because the
+// label was DERIVED from "both panels resolve collapsed" — the same reading the narrow auto-collapse
+// produces with no user intent — while entering focus WROTE `collapsed` over the user's panel overrides
+// and exiting docked BOTH panels back. Focus is one flag now; these two walk the exact click sequence.
+
+test("the focus toggle round-trips coherently at every step of the measured repro (enter → exit → click → click)", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  const shell = await mount(<AppShellStory />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+  const shellGrid = page.locator(".shell-grid");
+  const focusToggle = shell.getByRole("button", { name: FOCUS_TOGGLE_RE });
+
+  // Chats' real defaults: LIST docked, CONTEXT collapsed — nobody has entered focus, so the button says so.
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(focusToggle).toHaveAccessibleName("Enter focus mode");
+  // data-focus-mode on .shell-grid is the __orb.shell().focus DOM source (agent-bridge.ts) — it must
+  // track the store's focusMode flag at every step, not just the panel-derived label.
+  await expect(shellGrid).toHaveAttribute("data-focus-mode", "false");
+
+  // 1) ENTER — everything hides, the label flips, the button reads pressed.
+  await focusToggle.click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(focusToggle).toHaveAccessibleName("Exit focus mode");
+  await expect(focusToggle).toHaveAttribute("aria-pressed", "true");
+  await expect(shellGrid).toHaveAttribute("data-focus-mode", "true");
+
+  // 2) EXIT — the section's OWN pre-focus layout returns: the LIST docks, and the CONTEXT pane the user
+  // never had open stays collapsed. (The old implementation docked BOTH here — "restore" meant "dock
+  // everything", so exiting focus opened a pane the user had closed.)
+  await focusToggle.click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(focusToggle).toHaveAccessibleName("Enter focus mode");
+  await expect(focusToggle).toHaveAttribute("aria-pressed", "false");
+  await expect(shellGrid).toHaveAttribute("data-focus-mode", "false");
+
+  // 3) + 4) The next two clicks repeat the SAME two states — no drift, no dead click.
+  await focusToggle.click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(focusToggle).toHaveAccessibleName("Exit focus mode");
+  await focusToggle.click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(focusToggle).toHaveAccessibleName("Enter focus mode");
+});
+
+test("at 48-64rem the focus toggle is NOT pre-pressed by the auto-collapse, and its second click exits (the measured no-op)", async ({ mount, page }) => {
+  await page.setViewportSize(NARROW_DESKTOP);
+  const shell = await mount(<AppShellStory />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  const focusToggle = shell.getByRole("button", { name: FOCUS_TOGGLE_RE });
+  const before = await shellPersistedOverrides(page);
+
+  // Cold boot at this width: the auto-overlay derivation already resolves BOTH panels collapsed. That is
+  // the shell being narrow — NOT the user in focus mode, which is exactly what the old derived label
+  // claimed ("Exit focus mode" on a section nobody focused, with a first click that did nothing).
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(focusToggle).toHaveAccessibleName("Enter focus mode");
+
+  await focusToggle.click();
+  await expect(focusToggle).toHaveAccessibleName("Exit focus mode");
+  // The measured terminal state was this click doing nothing forever. It exits.
+  await focusToggle.click();
+  await expect(focusToggle).toHaveAccessibleName("Enter focus mode");
+
+  // Still a pure presentation flag at this width — no persisted panel preference was written.
+  expect(await shellPersistedOverrides(page)).toEqual(before);
+});
+
+// ── O-19: the Presets section opens with BOTH panes docked ───────────────────────────────
+// Owner ruling: the library is how you pick what you are editing and the readout IS the product, so a
+// Presets section that opens with neither pane looks unbuilt. Driven through a REAL rail click so the
+// section's registry `panelDefaults` are what the shell actually resolves.
+
+test("O-19: switching to Presets opens BOTH the list and the context pane docked", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  const shell = await mount(<AppShellStory />);
+
+  await shell.getByRole("button", { name: "Presets" }).click();
+  await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "docked");
+  await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-mode", "docked");
+});
 
 test("resolvePanel: a docked-default panel is docked >64rem, CLOSED (collapsed) by default in 48-64rem, and the unchanged openOverlayPanel regime <48rem", async ({
   mount,

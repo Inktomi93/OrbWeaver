@@ -57,6 +57,7 @@ import {
   setChatListCharacterFilter,
   setComposerDraft,
   setContextTab,
+  setFocusMode,
   setMobileViewport,
   setNarrowViewport,
   setOpenOverlayPanel,
@@ -82,6 +83,7 @@ import {
   useContextTab,
   useErroredSaveSections,
   useFavoritesOnly,
+  useFocusMode,
   useListDocked,
   useModalRegistry,
   useNarrowViewport,
@@ -128,10 +130,13 @@ export function ShellStoreProbe(): ReactElement {
   // so the probe exercises the override-priority logic, independent of any real section's actual default.
   const docked = useListDocked(section, "docked");
   const narrowViewport = useNarrowViewport();
+  // The ONE focus flag (item 20) — the probe prints it BESIDE the raw overrides so a CT can assert the two
+  // never disagree, and that focus mode never writes into the overrides it is hiding.
+  const focus = useFocusMode();
   return (
     <div>
       <output>
-        {`section=${section} list=${list} context=${context} modal=${modal ?? "none"} docked=${docked} settingsTarget=${settingsTarget ?? "none"} contextTab=${contextTab ?? "none"} openOverlayPanel=${openOverlayPanel ?? "none"} narrowViewport=${narrowViewport}`}
+        {`section=${section} list=${list} context=${context} modal=${modal ?? "none"} docked=${docked} settingsTarget=${settingsTarget ?? "none"} contextTab=${contextTab ?? "none"} openOverlayPanel=${openOverlayPanel ?? "none"} narrowViewport=${narrowViewport} focus=${focus}`}
       </output>
       <button type="button" onClick={(): void => setActiveSection("corpus")}>
         go corpus
@@ -174,6 +179,15 @@ export function ShellStoreProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => setNarrowViewport(false)}>
         enter wide viewport
+      </button>
+      <button type="button" onClick={(): void => setFocusMode(true)}>
+        enter focus
+      </button>
+      <button type="button" onClick={(): void => setFocusMode(false)}>
+        exit focus
+      </button>
+      <button type="button" onClick={(): void => setOpenOverlayPanel("context")}>
+        open context overlay
       </button>
     </div>
   );
