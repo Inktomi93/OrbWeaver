@@ -651,6 +651,34 @@ asymmetry cite · acquired_at cite) · RAWVIEW (security-executor: the per-varia
 inspector — host-gated, member-visibility/hidden-span/credential-scrub laws called out;
 writer census first; PROBED tenancy classification; honest not-captured empty states).
 **R2 MERQUEUE:** landed both arms + found the report's lists stale-by-two (15 lookup sites [roster-host.ts hostSeatOf/hostUserIdOf, belt kept w/ seat-wave rationale] + 4 projection collapses incl. a missed replayStreamEvents site); taking F6 clamp rider in the warm lane; the THREE-QUESTIONS lesson (act?/read-hidden?/which-seat? — three cross-citing homes) goes into the permissions page verbatim. **PRINCIPAL-FLOW scout LIVE** (76-table scoping-model census [one census, two consumers: the gate + the permissions page] · read-path spelling counts · injected-op caller audit · gate-arm spec w/ red counts) → one M gate lane after. **HANDOFF × CARD-OWNERSHIP stickler LIVE** (owner catch: the built two-party handoff transfers the ROOM but seated cards are the old host's PROPERTY — core question: whose authority resolves cast cards post-swap, cross-tenant-or-breaks; sad paths edit/delete/leave/account-delete/export/fork/rpg-mid-handoff; arms copy-on-handoff / room-scoped license / seat-freeze / refuse; precedents demo-seeder-copy · synthetic mint · promote-actor · characterless import).
+**WAVE-3 SEALS:** ✅ R2 (`7a0e8c08`+`c3edc452` — 15 lookup + 4 projection + 2 clamp sites; the
+THREE-QUESTIONS taxonomy COMPLETE [act?/read-hidden?/which-seat? — 3 cross-citing homes; final
+census: 6 remaining role==="host" sites all class-homes or declared exemptions]; the verbatim
+paragraph for the permissions page is in R2's final report) · ✅ SM2 (`42dc7ebb` — REGEX-F2
+union fix w/ vacuous-watchdog-test re-route · F6 swap [residual: REASONING prints slot 4 vs
+executes post-postProcess — unobservable, owner-call for strict fidelity] · card.ts prettify ·
+TYPO-B ×4 demoted [lens receipt clean; responseFormatSchema still self-nominates — needs its
+@typeonly-ok marker, one-liner queued] · Spine §3 row · cookie-asymmetry cite [brand-keeps-it-
+true noted] · @column-ok on acquired_at [lesson: the columns lens HAS two-sided markers]) ·
+✅ MACU (`95f4c00b` — withUserMacros on all 5 surfaces w/ per-surface red-first CTs · rpg
+shadow-precedence proven · {{if}}+5 block macros via MacroSuggestion.insertTemplate w/ $0
+[ui seal additive; byte-identity pinned; insertTemplate in storeFields — searched picks would
+have silently downgraded] · exclusions 11→5 each reasoned · PROMPT_MACRO_SUGGESTIONS now
+module-private. FOLLOW-UP boarded: other MacroTextarea consumers [persona editor, imagery
+templates, prose settings, character facets] pass own catalogs — do any want the user plane?).
+**PRINCIPAL CENSUS DELIVERED:** class-(a) enforcement ALREADY GATED (ownerid-registry,
+both-ways!) — the census adds: 76-table class map (a×22/b/c/d/e receipted) · read-paths:
+fetchOwned ×6 + hand-rolled ×58-files (legit — list reads have no helper) + 3 justified
+unfiltered ids + the loadWorkload POST-FETCH-FILTER arm (a distinct legal class the gate must
+recognize) · op audit ~15/28 domains: all sampled SAFE except ReapAssetsOp (no caller param —
+compose-closure safety UNRESOLVED, verify before ruling) + CopyCharacterBooks (likely-safe
+unverified). GATE SPEC: 3 mechanical arms (class-declaration extension [0 red] ·
+fetchOwned-or-justification [3 exemption rows] · caller-param-on-op-signatures [full 28-domain
+sweep needed]) + the HONEST LIMIT: membership-rung completeness is behavioral-only (control-
+flow-dependent — the cross-tenant sweep stays that proof). → Lane PRIN queued (S/M).
+**HANDOFF: owner ruled OPT-IN POINT-IN-TIME COPY then ADDENDUM (simplicity weighs heavily,
+defers to stickler)** — both relayed mid-review; stickler licensed to recommend the simplest
+non-betraying arm incl. transfer-as-fork (copy problem = the already-solved fork problem).
 STANDING OWNER QUEUE unchanged: PV wording veto · AV2 re-push offer ~$0.56 + Calamity $4 ·
 DRAFT-TRUST · AGENT-1 · D22 (multi-user stack). CEREMONY (now 6 riders) runs after this wave.
 **CEREMONY R0 SCOPE GROWN (owner nit, 08-03 — agents re-flag by-design visibility):**
