@@ -4,6 +4,26 @@
 // send path. These helpers centralize the ONE cast: build a plain array of statements, hand it to
 // `batchMany`. A db-layer primitive — it bridges `Parameters<Db["batch"]>`, a drizzle type, so it cannot
 // be `@orb/kit`-pure. (Legacy-Migration-and-Gaps.md §3.)
+//
+// TRANSACTION MODE — why every batch rides `BEGIN DEFERRED`, and why that is NOT a choice made here.
+// A raw `@libsql/client` batch takes a second `TransactionMode` arg (`Sqlite3Client.batch(stmts, mode)`,
+// sqlite3.js:85 — "write" → `BEGIN IMMEDIATE`, "deferred" → `BEGIN DEFERRED`, @libsql/core util.js:3).
+// drizzle 0.45.2 does NOT expose it: `LibSQLDatabase.batch` is declared with ONE parameter
+// (libsql/driver-core.d.ts:7) and its session calls `this.client.batch(builtQueries)` with no mode
+// (libsql/session.js:45), so libsql's own `mode = "deferred"` default applies to every batch we issue.
+// `Parameters<Db["batch"]>` is therefore a 1-tuple and {@link batchMany} returns the ONLY argument that
+// exists — there is no mode to thread. Reaching the arg would mean bypassing drizzle
+// (`$client.batch(rawStmts, "write")`), which forfeits the typed `BatchResponse<T>` rows that
+// {@link AwaitableBatchStmt} and the PD-24 co-statement seam are built on and re-implements drizzle's
+// per-query prepare + `mapResult` inside @orb/db. Not worth it — the window it would close is:
+// DEFERRED takes no lock at BEGIN, so a batch that READS before it writes must upgrade its snapshot, and
+// if another writer committed in between SQLite fails it with SQLITE_BUSY_SNAPSHOT — which `busy_timeout`
+// does NOT retry (it is an immediate error requiring rollback + replay, unlike plain SQLITE_BUSY).
+// A pure-write batch never reads, so it takes the write lock at its first statement and IS covered by
+// busy_timeout, making IMMEDIATE vs DEFERRED a no-op for it. Swept 2026-08-02: every `batchMany` call
+// site in `packages/server/src` batches writes ONLY — zero read statements — so the window is currently
+// unreachable. KEEP IT THAT WAY: do not batch a SELECT ahead of writes. If a drizzle bump ever surfaces
+// the mode param, "write" is the right value for these batches and this note is the reason.
 
 import type { Db } from "../client";
 
