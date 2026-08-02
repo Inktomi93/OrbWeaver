@@ -5,6 +5,7 @@
 // anchor persona as the {{user}}/{{persona}} fallback (never the viewer's own active persona).
 
 import type { ParticipantView } from "@orb/contracts/chat";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRenderContext } from "#lib";
@@ -15,6 +16,13 @@ export interface ResolveMessageRenderContextInput {
   readonly personaNamesById: ReadonlyMap<PersonaId, RowPersonaName>;
   readonly anchorPersonaId?: PersonaId | null | undefined;
   readonly autoFixMarkdown?: boolean | undefined;
+  /** The VIEWER'S OWN display-tier scripts (D121-E, closing F1). The leg existed in `message-render.ts`
+   *  and NOTHING ever set this field — so D53's per-user `markdownOnly` tier governed nothing: a
+   *  DISPLAY-placement script of any carrier never ran for anyone, and the editor's "Display only" switch
+   *  was a dead knob. The set is the viewer's own library, filtered to enabled ∩ DISPLAY by the caller;
+   *  it is per-USER by construction (never the host's, never another member's) and never touches the
+   *  wire — the composer, the edit textarea, and every payload read the un-transformed body. */
+  readonly displayScripts?: readonly RegexScriptRow[] | undefined;
 }
 
 const SOLO_CAST_FLOOR = 1;
@@ -64,5 +72,6 @@ export function resolveMessageRenderContext(input: ResolveMessageRenderContextIn
     ...(anchorPersona === undefined ? {} : { fallbackPersonaName: anchorPersona.name }),
     ...(anchorPersona === undefined ? {} : { fallbackPersonaDescription: anchorPersona.description }),
     ...(input.autoFixMarkdown === undefined ? {} : { autoFixMarkdown: input.autoFixMarkdown }),
+    ...(input.displayScripts === undefined ? {} : { displayScripts: input.displayScripts }),
   };
 }

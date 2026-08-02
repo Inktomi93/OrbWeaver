@@ -1,102 +1,24 @@
-// The §6.4 regexScripts editor — a `list-row`-per-script + add (DRAFT card content). regexScripts is a
-// TanStack Form ARRAY field, so it uses direct `form.Field` (mode="array") for add/remove/read and per-row
-// `form.Field` subfields for the edited scalars — NOT a bound macro field (the §6.4 array-field constraint).
-// Only the core scalars an author tweaks are surfaced inline (name · find · replace · enabled); the rest of
-// each script's options (placement/depth/substitution flags) round-trip untouched from the loaded row.
+// The §6.4 regex facet — a PICKER over the owner's script library (D121-E), not an inline array editor.
+//
+// THIS IS THE F3 FIX, BY CONSTRUCTION. The old field authored scripts into the card's own `regexScripts`
+// array while surfacing only name/find/replace/enabled, and defaulted `placement` to `[]` — so a character
+// script created in-app could NEVER fire (the executor skips a script whose placement set does not include
+// the running leg). The only card scripts that ever worked were the ones imported from an ST card. A picked
+// row was authored in the ONE full editor, so it always has a real placement set.
+//
+// It is not a form field any more: a character's scripts are `character_regex_scripts` junction rows, so
+// the attachment is a server write, not draft card content. Hence `characterId`, not `form`.
 
-import type { RegexScript } from "@orb/contracts/regex";
-import { SubstituteFindRegex } from "@orb/kit/regex";
-import { Button } from "@orb/ui/button";
-import { Field } from "@orb/ui/field";
-import { Icon, Plus, Trash2 } from "@orb/ui/icons";
-import { Input } from "@orb/ui/input";
-import { Row, Section, Stack } from "@orb/ui/layout";
-import { Switch } from "@orb/ui/switch";
+import type { CharacterId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import type { AppFormInstance } from "#forms";
-import type { CharacterCardFormValues } from "../lib/character-card-form-model";
+import { RegexScriptPicker } from "#components";
 
-type CardForm = AppFormInstance<CharacterCardFormValues>;
-
-/** A fresh blank script — a fully-valid `RegexScript` (every schema default made explicit) so a new row
- *  round-trips through the contract without a parse gap. */
-function blankRegexScript(): RegexScript {
-  return {
-    id: globalThis.crypto.randomUUID(),
-    name: "New script",
-    findRegex: "",
-    replaceString: "",
-    placement: [],
-    enabled: true,
-    markdownOnly: false,
-    promptOnly: false,
-    runOnEdit: false,
-    trimStrings: [],
-    substituteRegex: SubstituteFindRegex.none,
-    minDepth: null,
-    maxDepth: null,
-  };
-}
-
-export function CharacterRegexScriptsField({ form }: { readonly form: CardForm }): ReactElement {
+export function CharacterRegexScriptsField({ characterId }: { readonly characterId: CharacterId }): ReactElement {
   return (
-    <Section heading="Regex scripts">
-      <form.Field name="regexScripts" mode="array">
-        {(arrayField): ReactElement => (
-          <Stack gap="block">
-            {arrayField.state.value.length === 0 ? null : (
-              <Stack gap="block">
-                {arrayField.state.value.map((script, index) => (
-                  <RegexScriptRow key={script.id} form={form} index={index} onRemove={(): void => arrayField.removeValue(index)} />
-                ))}
-              </Stack>
-            )}
-            <Button type="button" size="sm" intent="secondary" onClick={(): void => arrayField.pushValue(blankRegexScript())}>
-              <Icon icon={Plus} size="sm" />
-              Add script
-            </Button>
-          </Stack>
-        )}
-      </form.Field>
-    </Section>
-  );
-}
-
-/** One script row — name/find/replace inputs + an enabled switch + remove. */
-function RegexScriptRow({ form, index, onRemove }: { readonly form: CardForm; readonly index: number; readonly onRemove: () => void }): ReactElement {
-  return (
-    <Stack gap="field" padding="field" className="rounded-card border border-border">
-      <Row gap="field" align="center">
-        <form.Field name={`regexScripts[${index}].name`}>
-          {(field): ReactElement => (
-            <Input aria-label="Script name" className="min-w-0 flex-1" value={field.state.value} onValueChange={(next): void => field.handleChange(next)} />
-          )}
-        </form.Field>
-        <form.Field name={`regexScripts[${index}].enabled`}>
-          {(field): ReactElement => (
-            <Switch aria-label="Enabled" checked={field.state.value} onCheckedChange={(checked): void => field.handleChange(checked)} />
-          )}
-        </form.Field>
-        <Button type="button" size="icon" intent="ghost" aria-label="Remove script" onClick={onRemove}>
-          <Icon icon={Trash2} size="sm" />
-        </Button>
-      </Row>
-      <Row gap="field" align="start" className="flex-wrap">
-        <form.Field name={`regexScripts[${index}].findRegex`}>
-          {(field): ReactElement => (
-            <Field label="Find" name={field.name} className="min-w-0 flex-1">
-              <Input value={field.state.value} onValueChange={(next): void => field.handleChange(next)} />
-            </Field>
-          )}
-        </form.Field>
-        <form.Field name={`regexScripts[${index}].replaceString`}>
-          {(field): ReactElement => (
-            <Field label="Replace" name={field.name} className="min-w-0 flex-1">
-              <Input value={field.state.value} onValueChange={(next): void => field.handleChange(next)} />
-            </Field>
-          )}
-        </form.Field>
-      </Row>
-    </Stack>
+    <RegexScriptPicker
+      scope={{ kind: "character", characterId }}
+      heading="Regex scripts"
+      helperText="Find/replace rules that run whenever this character is in the room, picked from your script library."
+    />
   );
 }
