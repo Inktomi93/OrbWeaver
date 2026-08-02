@@ -337,7 +337,8 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     },
   });
 
-  // Mirror of characterSeeder, for the default "You" persona.
+  // Mirror of characterSeeder, for the default `{{user}}` persona. The bundled art keeps its `persona-you`
+  // seed-asset key — that is a FILE key, not the display name, and renaming it would be a pack migration.
   const personaSeeder = createDefaultPersonaSeeder({
     createPersona: async ({ principal, input }): Promise<{ id: PersonaId }> => {
       const detail = await deps.getPersona().create({ principal, input });

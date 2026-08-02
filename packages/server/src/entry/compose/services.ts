@@ -208,7 +208,7 @@ export interface ServicesResult {
   /** The default-card seeder — the one instance both boot and the app first-request hook share, so the
    *  in-process memo + persisted latch hold across both call sites. */
   readonly characterSeeder: DefaultCharacterSeeder;
-  /** Mirrors `characterSeeder`, for the default "You" persona. */
+  /** Mirrors `characterSeeder`, for the default `{{user}}` persona. */
   readonly personaSeeder: DefaultPersonaSeeder;
   /** Mirrors `characterSeeder`, for the bundled EXAMPLE conversations. MUST run AFTER `characterSeeder` —
    *  each example attaches to seeded cards (a missing handle skips that example, never a partial room). */
