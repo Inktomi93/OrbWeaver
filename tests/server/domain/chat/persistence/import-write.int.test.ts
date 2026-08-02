@@ -8,7 +8,7 @@ import type { BulkImportChatInput } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { AssetId, ChatId, ChatInjectionId, ChatParticipantId, MessageAssetId, MessageId, MessageVariantId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -25,8 +25,16 @@ const MSG0_AT = 1_699_999_991_000;
 const MSG1_AT = 1_699_999_992_000;
 const JSONL_EXT = /\.jsonl$/i;
 
+/** Records every `mintSyntheticGroupCharacter` call so a test can pin BOTH the once-per-chat idempotency and
+ *  the "a plain ST import never touches the synthetic namespace" byte-identity claim. */
+interface MintSpy {
+  readonly calls: { readonly chatId: string }[];
+  /** The synthetic row the stub minted (one per chat), keyed by chatId — find-or-mint, like the real verb. */
+  readonly byChat: Map<string, CharacterId>;
+}
+
 /** A deterministic counter-minted `ChatImportContext` (no ambient clock/ids under tests/). */
-function importCtx(db: Db): ChatImportContext {
+function importCtx(db: Db, ownerId: UserId, spy: MintSpy = { calls: [], byChat: new Map() }): ChatImportContext {
   let n = 0;
   const counter = (): string => {
     n += 1;
@@ -44,6 +52,17 @@ function importCtx(db: Db): ChatImportContext {
     // #67 — default "nothing exists" (these tests seed no attachments); the P-8 round-trip covers the
     // asset-existing path end-to-end.
     filterExistingAssetIds: (): Promise<readonly AssetId[]> => Promise.resolve([]),
+    // Stands in for character's real find-or-mint: one synthetic row per chatId, re-found on a repeat call.
+    mintSyntheticGroupCharacter: async ({ chatId }): Promise<{ characterId: CharacterId }> => {
+      spy.calls.push({ chatId });
+      const found = spy.byChat.get(chatId);
+      if (found !== undefined) {
+        return { characterId: found };
+      }
+      const row = await seedCharacter(db, { ownerId, name: "Group", handle: `__group__${chatId}`, synthetic: true });
+      spy.byChat.set(chatId, row.id);
+      return { characterId: row.id };
+    },
   };
 }
 
@@ -110,7 +129,7 @@ describe("createBulkImportChats", () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
-    const op = createBulkImportChats(importCtx(db));
+    const op = createBulkImportChats(importCtx(db, owner.id));
 
     const result = await op({
       ownerId: owner.id,
@@ -160,7 +179,7 @@ describe("createBulkImportChats", () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
-    const op = createBulkImportChats(importCtx(db));
+    const op = createBulkImportChats(importCtx(db, owner.id));
     const file = chatInput("Aria.jsonl");
 
     await op({ ownerId: owner.id, characterId: character.id, chats: [file] });
@@ -175,7 +194,7 @@ describe("createBulkImportChats", () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
-    const op = createBulkImportChats(importCtx(db));
+    const op = createBulkImportChats(importCtx(db, owner.id));
 
     const parentName = "Aria.jsonl";
     await op({
@@ -194,7 +213,7 @@ describe("createBulkImportChats", () => {
   test("a non-owned / missing character throws DomainNotFoundError (the ownership precondition)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const op = createBulkImportChats(importCtx(db));
+    const op = createBulkImportChats(importCtx(db, owner.id));
     await expect(
       op({
         ownerId: owner.id,
@@ -202,5 +221,152 @@ describe("createBulkImportChats", () => {
         chats: [],
       }),
     ).rejects.toBeInstanceOf(DomainNotFoundError);
+  });
+
+  // ── The MULTI-CHARACTER arm (roster / per-slot attribution / metadata / narrator). Every field is
+  //    optional; the suite above IS the absent-field arm, and the first test here pins that the two arms
+  //    are byte-identical on the columns the new fields touch.
+  test("ABSENT-FIELD ARM: no roster/metadata/characterId/narrator ⇒ the pre-widening row shape exactly", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const spy: MintSpy = { calls: [], byChat: new Map() };
+    const op = createBulkImportChats(importCtx(db, owner.id, spy));
+
+    await op({ ownerId: owner.id, characterId: character.id, chats: [chatInput("Aria.jsonl")] });
+
+    // metadata NULL, exactly one character seat (the primary), every assistant slot stamped with it, and the
+    // synthetic-character namespace never touched — the four things the widening could have changed.
+    expect((await db.select().from(chats))[0]?.metadata).toBeNull();
+    const seats = await db.select().from(chatParticipants);
+    expect(seats.filter((r) => r.kind === "character").map((r) => r.characterId)).toEqual([character.id]);
+    const slots = await db.select().from(messages);
+    expect(slots.find((s) => s.role === "assistant")?.characterId).toBe(character.id);
+    expect(slots.find((s) => s.role === "user")?.characterId).toBeNull();
+    expect(spy.calls).toEqual([]);
+  });
+
+  test("roster seats every extra character and each slot is voiced by its OWN named speaker", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const primary = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const second = await seedCharacter(db, { ownerId: owner.id, name: "Bex" });
+    const op = createBulkImportChats(importCtx(db, owner.id));
+
+    const base = chatInput("Group.jsonl");
+    await op({
+      ownerId: owner.id,
+      characterId: primary.id,
+      chats: [
+        {
+          ...base,
+          roster: [second.id],
+          messages: [base.messages[0] as (typeof base.messages)[number], { ...(base.messages[0] as (typeof base.messages)[number]), characterId: second.id }],
+        },
+      ],
+    });
+
+    const seats = await db.select().from(chatParticipants);
+    expect(
+      seats
+        .filter((r) => r.kind === "character")
+        .map((r) => r.characterId)
+        .sort(),
+    ).toEqual([primary.id, second.id].sort());
+    const slots = await db.select().from(messages);
+    expect(slots.map((s) => s.characterId)).toEqual([primary.id, second.id]);
+  });
+
+  test("a slot naming an owned-but-UNSEATED character is refused (no ghost speaker)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const primary = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const unseated = await seedCharacter(db, { ownerId: owner.id, name: "Bex" });
+    const op = createBulkImportChats(importCtx(db, owner.id));
+
+    const base = chatInput("Ghost.jsonl");
+    await expect(
+      op({
+        ownerId: owner.id,
+        characterId: primary.id,
+        chats: [{ ...base, messages: [{ ...(base.messages[0] as (typeof base.messages)[number]), characterId: unseated.id }] }],
+      }),
+    ).rejects.toBeInstanceOf(DomainNotFoundError);
+    expect(await db.select().from(chats)).toHaveLength(0);
+  });
+
+  test("CROSS-TENANT: a roster / speaker id owned by ANOTHER user refuses the whole run before any write", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const stranger = await seedUser(db, {});
+    const primary = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const foreign = await seedCharacter(db, { ownerId: stranger.id, name: "Not Yours" });
+    const op = createBulkImportChats(importCtx(db, owner.id));
+
+    const base = chatInput("Foreign.jsonl");
+    await expect(op({ ownerId: owner.id, characterId: primary.id, chats: [{ ...base, roster: [foreign.id] }] })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(
+      op({
+        ownerId: owner.id,
+        characterId: primary.id,
+        chats: [{ ...base, messages: [{ ...(base.messages[0] as (typeof base.messages)[number]), characterId: foreign.id }] }],
+      }),
+    ).rejects.toBeInstanceOf(DomainNotFoundError);
+    // Fail-closed: neither attempt left a chat, a seat, or a slot behind.
+    expect(await db.select().from(chats)).toHaveLength(0);
+    expect(await db.select().from(chatParticipants)).toHaveLength(0);
+    expect(await db.select().from(messages)).toHaveLength(0);
+  });
+
+  test("carried metadata lands through the column's OWN parser (a malformed sub-blob heals, siblings survive)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const op = createBulkImportChats(importCtx(db, owner.id));
+
+    await op({
+      ownerId: owner.id,
+      characterId: character.id,
+      chats: [
+        {
+          ...chatInput("Meta.jsonl"),
+          // `opening` is a valid sub-blob; the deliberately-bogus `group.output` must heal to absent WITHOUT
+          // taking `opening` with it — that is `parseChatMetadata`'s fault isolation, not a second spelling here.
+          // FABRICATION-OK: the bogus `group.output` IS the probe — a well-typed value cannot express the malformed sub-blob whose isolation this test pins.
+          metadata: { opening: "greet-all", group: { output: "not-a-mode" } } as never,
+        },
+      ],
+    });
+
+    const meta = (await db.select().from(chats))[0]?.metadata;
+    expect(meta?.opening).toBe("greet-all");
+    expect(meta?.group).toBeUndefined();
+  });
+
+  test("NARRATOR: the slot is authored by the room's synthetic identity, minted ONCE per chat", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const primary = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
+    const spy: MintSpy = { calls: [], byChat: new Map() };
+    const op = createBulkImportChats(importCtx(db, owner.id, spy));
+
+    const base = chatInput("Narrator.jsonl");
+    const narratorSlot = { ...(base.messages[0] as (typeof base.messages)[number]), narrator: true };
+    await op({
+      ownerId: owner.id,
+      characterId: primary.id,
+      chats: [{ ...base, messages: [narratorSlot, base.messages[1] as (typeof base.messages)[number], narratorSlot] }],
+    });
+
+    // Minted once for the chat despite TWO narrator slots — the find-or-mint is per room, like the turn verb's.
+    expect(spy.calls).toHaveLength(1);
+    const chatId = (await db.select().from(chats))[0]?.id;
+    expect(spy.calls[0]?.chatId).toBe(chatId);
+    const narratorId = spy.byChat.get(chatId ?? "");
+    const slots = await db.select().from(messages);
+    expect(slots.filter((s) => s.role === "assistant").map((s) => s.characterId)).toEqual([narratorId, narratorId]);
+    // The synthetic identity is a memory/authorship bucket, NOT a seat: the roster is unchanged.
+    const seats = await db.select().from(chatParticipants);
+    expect(seats.filter((r) => r.kind === "character").map((r) => r.characterId)).toEqual([primary.id]);
   });
 });

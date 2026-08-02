@@ -4,8 +4,9 @@
 // pre-resolved to ids by import (so the op is persona-agnostic). A cross-boundary shape shared by import +
 // chat → contracts (D34).
 
-import type { PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
+import type { ChatMetadata } from "./metadata";
 
 /** One resolved variant (swipe) row for a bulk-imported message (D26 — the SELECTED variant carries the
  *  rendered content). `idx` is 0-based within the slot's pool; the economics subset is what an ST import
@@ -33,6 +34,20 @@ export interface BulkImportMessageInput {
   readonly personaId: PersonaId | null;
   readonly variants: readonly BulkImportVariantInput[];
   readonly selectedIdx: number;
+  /** WHICH roster character voices this assistant slot — the multi-character arm. ABSENT (or null) ⇒ the
+   *  run's primary `characterId`, which is byte-identically the ST-import behavior (a single-character
+   *  transcript has exactly one voice, and the op stamped it unconditionally before this field existed).
+   *  A non-primary id MUST appear in the chat's {@link BulkImportChatInput.roster} — the op ownership-gates
+   *  every seat, so an unrostered or foreign id is refused, never silently seated. Ignored on a `user` slot
+   *  (attribution there is `authorUserId` + `personaId`). */
+  readonly characterId?: CharacterId | null;
+  /** This assistant slot is voiced by the room's SYNTHETIC group identity — the `output:"narrator"` grammar,
+   *  where one message voices the whole cast and is authored by the per-room `__group__<chatId>` character
+   *  rather than any roster card (`domain/chat/verbs/turn.ts` mints it the same way for a live narrator
+   *  round). The id cannot be supplied by the caller — it is keyed by a chatId the write op mints — so the
+   *  intent rides as this flag and the op resolves it through the SAME injected minter the turn verb uses.
+   *  Wins over {@link characterId} when both are set. Absent/false ⇒ ordinary card attribution. */
+  readonly narrator?: boolean;
 }
 
 /** One resolved chat to bulk-import into an existing character. The SUPERSET shape — every field
@@ -55,11 +70,24 @@ export interface BulkImportChatInput {
   readonly authorsNote: string | null;
   readonly isRealConversation: boolean;
   readonly messages: readonly BulkImportMessageInput[];
+  /** The ADDITIONAL character seats beyond the run's primary (a GROUP room). Empty/absent ⇒ the founding
+   *  roster is host + the one primary character, byte-identically today's ST import. Every id is
+   *  ownership-gated exactly like the primary before any row is written. */
+  readonly roster?: readonly CharacterId[];
+  /** The room-behavior blob (`chats.metadata`) this chat is born with — the group config / opening policy a
+   *  multi-character room needs to render and generate correctly. Absent ⇒ `metadata` stays NULL, which is
+   *  exactly what an ST import writes today. Callers pass an ALREADY-PARSED {@link ChatMetadata}; the column's
+   *  `$type` is this same shape, so there is one home and no re-spell. */
+  readonly metadata?: ChatMetadata;
 }
 
 /** The tallies `createBulkImportChats` returns for one bulk-import run. `realConversationWritten` is the
  *  PD-78 backfill gate (import enqueues ONE `memory-backfill` when true). */
 export interface BulkImportChatsResult {
+  /** The ids of the chats this run actually WROTE, in input order (a dedup-skipped input contributes none).
+   *  A write that cannot say what it wrote forces its caller to re-derive the row by a side-channel lookup;
+   *  the demo-chat seeder needs the id to attach the room's rpg game through rpg's own create door. */
+  readonly chatIds: readonly ChatId[];
   readonly chatsImported: number;
   readonly chatsSkipped: number;
   readonly messagesImported: number;

@@ -632,6 +632,10 @@ const onboardingSchema = z
     // sibling seeded-flags below are consumed (character seeder + boot seed-default-persona).
     defaultCharactersSeeded: z.boolean().catch(false).default(false),
     defaultPersonaSeeded: z.boolean().catch(false).default(false),
+    // The bundled EXAMPLE conversations (`domain/chat/seeder`) — its OWN latch, deliberately not folded into
+    // `defaultCharactersSeeded`: the demo chats attach to the seeded cards, so they must be re-runnable
+    // independently (clear this alone to re-seed the examples onto a library that already has the pack).
+    demoChatsSeeded: z.boolean().catch(false).default(false),
   })
   .prefault({});
 
