@@ -37,6 +37,16 @@ const SECTIONS: PromptSection[] = [
 
 const StoryForm = createAutosaveEntityForm<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });
 
+/** The FORM's own `inject` state per section — the O-8 write round-trip proof. A depth field that renders
+ *  its own keystrokes while writing nothing is exactly the defect ("stuck at in flow"), and only the
+ *  form-side value can tell the two apart. `-` = un-spliced (in flow). */
+function spliceState(sections: readonly PromptSection[]): string {
+  const spliced = sections.flatMap((s) =>
+    "inject" in s && s.inject !== undefined ? [`${s.id}@${String(s.inject.depth)}·${String(s.inject.order ?? "-")}`] : [],
+  );
+  return spliced.length === 0 ? "none" : spliced.join(",");
+}
+
 /** Mirrors the live section-id order + the last-saved section count so a CT can assert the mutation AND
  *  its persistence, plus the enabled flags (the drilled-header echo's convergence proof). */
 function RackBody({ session, savedCount }: { readonly session: AutosaveSession<PromptConfig>; readonly savedCount: number }): ReactElement {
@@ -45,7 +55,7 @@ function RackBody({ session, savedCount }: { readonly session: AutosaveSession<P
     <>
       <form.Subscribe selector={(state): readonly PromptSection[] => state.values.sections}>
         {(sections): ReactElement => (
-          <output>{`ids=${sections.map((s) => s.id).join(",")} savedCount=${savedCount} on=${sections.filter((s) => s.enabled).length}`}</output>
+          <output>{`ids=${sections.map((s) => s.id).join(",")} savedCount=${savedCount} on=${sections.filter((s) => s.enabled).length} splice=${spliceState(sections)}`}</output>
         )}
       </form.Subscribe>
       <PresetStructureTabs form={form} tab="prompt" />

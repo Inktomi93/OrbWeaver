@@ -37,7 +37,9 @@ export interface DeliveryClusterProps {
    *  transcript's own per-message roles), so the role half renders its explainer instead of a control. */
   readonly role: MessageRole | null;
   readonly onRoleChange: (next: MessageRole) => void;
-  /** "Spoken as" for a section, "Delivered as" for a template — the same field, named for its surface. */
+  /** ONE VOCABULARY, BOTH DRILL-INS: "Role" (crunch-list O-10★, owner ruling — "Spoken as" / "Delivered
+   *  as" were two names for one field). Still a prop rather than a constant because the ACCESSIBLE name
+   *  belongs to the caller's surface, and the cluster is presentational by construction. */
   readonly roleLabel: string;
   /** `null` = unset. For a SECTION that means in-flow (no splice); for a TEMPLATE it means the tail. */
   readonly depth: number | null;

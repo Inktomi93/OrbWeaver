@@ -84,36 +84,47 @@ function isLocked(section: PromptSection): boolean {
   return section.forbidCharacterOverride === true || section.forbidRoomOverride === true;
 }
 
-/** The ONLY-WHEN-SET cue badges. The splice cue is the fused `@depth·order` read-only form — legal HERE
- *  (a compact badge) and nowhere else: the drill-in's fields stay split (round-3 ruling). */
+/** The ONLY-WHEN-SET cue badges — plus the ONE fixed-by-product cue the registry carries (`firesCue`,
+ *  crunch item 16: the mock's `⚡ steered turns` on Guided instruction, which no stored field expresses).
+ *  The splice cue is the fused `@depth·order` read-only form — legal HERE (a compact badge) and nowhere
+ *  else: the drill-in's fields stay split (round-3 ruling).
+ *
+ *  EVERY CUE IS `tone="soft"` (crunch item 14): the mock paints them as 13% tints of info/warning and the
+ *  lock/custom pair as a 7% neutral, i.e. quiet annotations on the name they follow. Solid pills made the
+ *  cue column louder than the row identity it annotates — the same F-17 loudness class the glyph discs
+ *  already lost. */
 function SectionCues({ section }: { readonly section: PromptSection }): ReactElement {
   const inject = "inject" in section ? section.inject : undefined;
   const triggersLabel = triggersPillLabel("trigger" in section ? section.trigger : undefined);
+  const firesCue = section.type === "marker" ? MARKER_COPY[section.marker].firesCue : undefined;
+  const firesLabel = triggersLabel ?? firesCue ?? null;
   return (
     <>
       {inject === undefined ? null : (
-        <Badge intent="info" size="sm">
+        <Badge intent="info" size="sm" tone="soft">
           <Icon icon={Hash} size="xs" />@{inject.depth}·{inject.order ?? DEFAULT_INJECT_ORDER}
         </Badge>
       )}
-      {triggersLabel === null ? null : (
-        <Badge intent="warning" size="sm">
+      {/* The stored trigger list WINS over the registry cue: a marker the user has narrowed says what the
+          user chose, and two ⚡ pills on one row would read as two different gates. */}
+      {firesLabel === null ? null : (
+        <Badge intent="warning" size="sm" tone="soft">
           <Icon icon={Zap} size="xs" />
-          {triggersLabel}
+          {firesLabel}
         </Badge>
       )}
       {isLocked(section) ? (
-        <Badge intent="neutral" size="sm">
+        <Badge intent="neutral" size="sm" tone="soft">
           <Icon icon={Lock} size="xs" />
         </Badge>
       ) : null}
       {hasCustomTemplate(section) ? (
-        <Badge intent="neutral" size="sm">
+        <Badge intent="neutral" size="sm" tone="soft">
           custom
         </Badge>
       ) : null}
       {section.role === "system" ? null : (
-        <Badge intent="neutral" size="sm">
+        <Badge intent="neutral" size="sm" tone="soft">
           {section.role === "user" ? "U" : "A"}
         </Badge>
       )}
@@ -131,15 +142,23 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
   return (
     <ListRow
       actions={
-        <Row align="center" gap="field">
-          {/* LINE-THROUGH when the row is off (the mock's `.rrow.off .tok`) — a disabled section still has a
-              size, and striking it says "this is not being spent" without dropping the datum. */}
-          <Text as="span" className={section.enabled ? "" : "line-through"} voice="gloss">
+        <Row align="center" gap="row">
+          {/* THE TOKEN COLUMN (crunch item 15): a fixed-width, right-aligned, tabular mono cell — the
+              mock's own `.tok` (52px, `text-align:right`, `font-variant-numeric:tabular-nums`), so a rack
+              of a dozen rows reads DOWN one number edge instead of ragged against the switches. The row
+              gap widens from `field` to `row` for the air the mock gives it.
+              LINE-THROUGH when the row is off (the mock's `.rrow.off .tok`) — a disabled section still has
+              a size, and striking it says "this is not being spent" without dropping the datum. */}
+          <Text as="span" className={`w-12 shrink-0 text-right font-mono tabular-nums ${section.enabled ? "" : "line-through"}`} voice="gloss">
             {tokens}
           </Text>
+          {/* AMBER-ON, the app's one switch grammar (owner ruling, 2026-08-02). The `quiet` tone painted a
+              pale `foreground/55` track that read as the SAME control in both states down a twelve-row rack
+              — while Params' Reasoning switch, one tab away, was amber. Rationing the accent per row lost
+              the state signal it was rationing it for. */}
           <form.AppField name={`sections[${index}].enabled`}>
             {(field): ReactElement => (
-              <Switch aria-label={`${name} enabled`} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} tone="quiet" />
+              <Switch aria-label={`${name} enabled`} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} />
             )}
           </form.AppField>
           <Button aria-label={`Edit ${name}`} intent="ghost" onClick={(): void => onDrill(section.id)} ref={chevronRef} size="icon" type="button">
@@ -151,8 +170,11 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
       clickable={true}
       leading={
         // SOFT, not solid (side-eye F-17): nine solid `info` discs were the loudest thing in the pane. The
-        // 15% tint + hue text IS the mock's `.glyph` treatment, and the glyph itself is now per-marker so
-        // the column finally carries the information its brightness was claiming.
+        // 15% tint + hue text IS the mock's `.glyph` treatment (13% of info / warning), and the glyph
+        // itself is now per-marker so the column finally carries the information its brightness was
+        // claiming. The HUE PAIR is the mock's own (`--color-info` setup / `--color-warning` post) — the
+        // crunch-item-14 blue sweep re-tints the SATURATED families (solid discs, filled chips, macro
+        // pills), not this deliberate zone accent.
         <Badge intent={zone === "post" ? "warning" : "info"} size="sm" tone="soft">
           <Icon icon={sectionGlyphIcon(section)} size="sm" />
         </Badge>
@@ -160,10 +182,12 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
       markers={<SectionCues section={section} />}
       onClick={(): void => onSelect(section.id)}
       selected={selected}
-      // INLINE after the name — the mock's rack row is one line (orchestrator ruling, 2026-08-02: follow
-      // the mock where nothing supersedes it). The 720px content cap (F-16) is what makes the trade mild.
-      subtitle={subtitle}
-      subtitlePlacement="inline"
+      // THE EXPLAINER RIDES THE HOVER, NOT THE LINE (crunch-list O-7★, owner ruling: the inline "your core
+      // system instruction" descriptions are lame — this OVERRIDES the mock's inline-desc drawing). It
+      // lands on `fullTitle`, whose one job is the name's native `title=` tooltip and which explicitly
+      // never touches the accessible name (so the row still announces as "Main"). The row keeps ONE datum
+      // on its line — the name — and the scent is a hover away, the §4.1 hint rule applied to a list row.
+      fullTitle={`${name} — ${subtitle}`}
       title={name}
     />
   );

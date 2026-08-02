@@ -124,11 +124,13 @@ function TemplateListRow({
           <ListRow
             actions={
               <Row align="center" gap="field">
-                {/* SOFT, both chips — the mock draws them as 12-14% tints, and eleven SOLID pills in one
-                    column out-shouted the row names they annotate (the F-17 loudness class, same cause).
-                    The two vocabularies stay distinguishable by HUE FAMILY (info vs neutral/success),
-                    which is what §6.6 asks of them, not by weight. */}
-                <Badge intent="info" size="sm" tone="soft">
+                {/* THE KIND CHIP IS OUTLINED NEUTRAL (crunch items 7 + 14): a `format` chip rendering
+                    FILLED BLUE beside outlined steer/voice/studio/nudge chips was one vocabulary drawn two
+                    ways, and the blue itself is a family the mocks never paint. The kind is a CLASSIFIER —
+                    the quietest thing on the row — so it joins the outlined neutral family and the STATE
+                    chip beside it keeps the only colour (success = you changed this one), which is the
+                    distinction a reader actually scans for. */}
+                <Badge intent="neutral" size="sm" tone="ghost">
                   {def.kind}
                 </Badge>
                 <Badge intent={customized ? "success" : "neutral"} size="sm" tone="soft">

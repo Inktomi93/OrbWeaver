@@ -131,7 +131,18 @@ FIXED box) — never stack, never `hidden`.
 it" — the ⚡ activate-toggle CONCEPT survives; the dot-for-state ruling and the bolt's
 weight/centering fixes stand as written.
 
-**20. FOCUS-MODE STATE DESYNC — reproduced live with __orb.shell() receipts (owner report:
+**~~20~~ LANDED (`56881c9f` FF-merged, main check-certified post-merge).** Root cause was DEEPER
+than diagnosed: NO focus flag existed — "focus" was DERIVED from "both panels collapsed" (which
+narrow auto-collapse also produces) while being IMPLEMENTED by writing collapsed into
+panelOverrides. Fix: `focusMode` = one transient flag, a regime input to resolvePanelMode,
+ZERO writes (the untouched overrides map IS the restore state). Approved solo calls: reveal-write
+leaves focus / hide-write doesn't (protects chat-selection + drill-close flows); no-snapshot
+derivation (less state than the brief's literal snapshot). O-19 landed same commit (Presets opens
+list+context docked; stored overrides still win). Red-first CTs; ShellLayout.immersive DELETED.
+DEFERRED SMALL: `__orb.shell()` should expose `focusMode` (the owner's own receipts came from that
+handle). LESSON (memory-worthy): a presentation mode must never be re-derived from the state it
+produces. Original finding:
+**20-orig. FOCUS-MODE STATE DESYNC — reproduced live with __orb.shell() receipts (owner report:
 "at certain window sizes focus mode doesn't bring the side panels at all"). NOT width-gated —
 a state bug.** Repro at constant viewport: enter focus → exit (panels RETURN but the button
 STILL reads "Exit focus mode" — flag stuck ON) → click "Exit focus mode" → panels COLLAPSE

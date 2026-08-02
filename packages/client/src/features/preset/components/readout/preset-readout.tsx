@@ -143,7 +143,12 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
 /** THE MAPPING DATUM — what the dial FEEDS ("deep → effort high · temp 1.0"), the server's own projection
  *  of the dial table (never a client re-mapping of quality→axes, which is the drift
  *  `capability-panel-model.ts` bans). It used to repeat the deck's override-STATUS sentence, so the panel
- *  named for the mapping was the one place the mapping never appeared (side-eye F-15). */
+ *  named for the mapping was the one place the mapping never appeared (side-eye F-15).
+ *
+ *  THE OFF ARM (owner ruling O-18): the dropdown's "Don't use quality" is a real, named arm, so this group
+ *  states it ("quality off — knobs are what you set") instead of vanishing. A missing group cannot be told
+ *  apart from a read that has not landed — and "no dial" is precisely the fact a reader of the mapping panel
+ *  came for. The teach line under it belongs to the SET arms only (with no dial there is nothing it feeds). */
 function QualityMapping({
   effective,
   quality,
@@ -158,7 +163,7 @@ function QualityMapping({
   return (
     <Section kicker="Quality mapping">
       <Text voice="datum">{gloss}</Text>
-      <Text voice="gloss">what the dial feeds when a knob is left inherited</Text>
+      {quality === undefined ? null : <Text voice="gloss">what the dial feeds when a knob is left inherited</Text>}
     </Section>
   );
 }
