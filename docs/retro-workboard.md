@@ -442,6 +442,23 @@ main = 14/14 PASS + the three merged lanes' suites re-run on main 193/193** (own
 whether the pause finishes were real — they were).
 **OWNER LAWS (08-03, late): ONE COMMIT per lane + terse messages (doctrine amended
 `14390b81`; an agent drafted a commit message for 15 minutes — banned) · cap = THREE.**
+✅ **REGEX MERGED (`12cf0a8a` + landing fix `ff2aa8b4`, hook-certified both ends, torn down) —
+THE D121-E RESHAPE IS COMPLETE R1-R6:** first-class script library (owner-stamped + 4 FK
+junctions, 19 verbs, tRPC router all-PROBED) · 3 embed carriers DEAD on ONE baseline regen
+(also carried the raw_request/raw_response deletions — **dev db DROPS on next stack boot,
+reseeds via latch, owner re-enters scripts by hand [BACKREST-MANUAL]**) · regex PORTABLE_KIND
+at IMPORT_ORDER[5] · lift/re-embed at the card seam (a resolved carried ref skips the by-value
+payload — its OWN tests caught the stale-duplicate re-mint) · DISPLAY tier ALIVE: viewer-only
+default + the HOST per-room broadcast toggle (host vocab swept, viewer-last precedence,
+render-only both arms) · ORDER pins (SEND + scope-key + RECEIVE/WI) · 2211 node + 314 CT.
+**MERGE-LANDING CATCH (the cross-branch class — REGEX certified pre-RESYNC/SM4/D22; the
+merged RESULT was never hooked; consolidated check caught 2):** monotonic-tests' NEW tooth
+red on the deleted regex-tab.ct (LEGIT deletion → ledgered w/ why — the re-armed gate's first
+real catch, hours after re-arm) + owner-scoped-writes red on updateScript's bare eq(id) (the
+EXACT promoteActive shape, in code written TODAY — owner in the WHERE now; the gate family
+earns its keep same-day). Both fixed at landing `ff2aa8b4`, hook 14/14.
+**UNBLOCKED by REGEX's merge: HANDOFF-COPY · PORTABILITY R0-R6 · TRANSCRIPTS (stack reboot
+now also re-mints the db — bundle the reboot).** Cap THREE governs the next dispatch.
 (Superseded pause block:) NO new spawns AND the
 5 live lanes ORDERED TO SLEEP (checkpoint-commit coherent work [--no-verify sanctioned for
 the checkpoint], reply resume-state, stop; worktrees + branches STAY — teardown forbidden).
