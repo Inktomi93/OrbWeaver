@@ -26,6 +26,13 @@
 // other region reads. `PRESET_EDITOR_VIEWS[0]` is the default an unset store read resolves to, so the
 // default lives with the vocabulary.
 //
+// HEADER TRUTH (G7): the header states the two facts that change UNDER the editor and are otherwise only
+// legible in another pane — whether this preset is the ACTIVE one for generation, and which model the deck's
+// effective column resolved against ("for <model>"). The fork-once retarget MOVES activation while you edit,
+// and on mobile the LIST is a closed sheet, so a status chip naming an actionable state must be able to act:
+// the Activate affordance renders ONLY in the not-active state and rides the SAME `useSetDefaultPreset`
+// mutation as the row toggle and its kebab mirror (§16 row 3 echo b — the sanctioned echo, one writer).
+//
 // The deck's ghost column reads `preset.resolveEffective` (§4.3/D5) — the REAL funnel, not a client
 // mirror. A plain `useQuery`: the read fails when no chat connection resolves (the same condition that
 // hides the model-fed clusters), and that degrades to un-ghosted rows rather than an error boundary.
@@ -34,8 +41,9 @@ import type { ModelCapability } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
+import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Icon, MoreHorizontal, RotateCcw } from "@orb/ui/icons";
+import { Icon, MoreHorizontal, RotateCcw, Zap } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
@@ -57,7 +65,7 @@ import { RegexTab } from "../components/regex-tab";
 import { UserMacrosTab } from "../components/user-macros-tab";
 import { VariablesTab } from "../components/variables-tab";
 import { usePresetAutosave } from "../hooks/use-preset-autosave";
-import { useResetPreset } from "../hooks/use-preset-mutations";
+import { useResetPreset, useSetDefaultPreset } from "../hooks/use-preset-mutations";
 import type { EffectiveProfileRow } from "../lib/effective-knobs";
 import { seedConfig } from "../lib/preset-editor-model";
 import type { PresetEditorView } from "../lib/preset-nav";
@@ -149,6 +157,7 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   // fork must INHERIT it: a fork the user can't generate with makes every edit a silent no-op.
   const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const reset = useResetPreset({ trpc, invalidation });
+  const setDefault = useSetDefaultPreset({ trpc, invalidation });
 
   // The LIVE resolved chat capability — the SAME `(model, source, api)` a real turn resolves (incl. the
   // vLLM engine's self-reported window), not a hand-built key off `roleDefaults.chat` (often unset on the
@@ -167,7 +176,15 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   const effectiveQuery = useQuery(trpc.preset.resolveEffective.queryOptions({ id: presetId }));
 
   // The save path incl. the built-in's fork-once retarget (see the hook header) — never an inline mutateAsync.
-  const autosave = usePresetAutosave({ presetId, server: preset.config, activePresetId: settings.config.seeds.defaultPresetId });
+  const activePresetId = settings.config.seeds.defaultPresetId;
+  const autosave = usePresetAutosave({ presetId, server: preset.config, activePresetId });
+
+  // G7: the built-in IS the null pick, exactly as the LIST row reads it — the two surfaces must not
+  // disagree about which preset the next turn runs with.
+  const active = preset.isSystemDefault ? activePresetId === null : presetId === activePresetId;
+  const onActivate = (): void => {
+    setDefault.mutate({ section: "seeds", patch: { defaultPresetId: preset.isSystemDefault ? null : presetId } });
+  };
 
   return (
     <>
@@ -177,6 +194,8 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
             session={session}
             presetId={presetId}
             presetName={preset.name}
+            active={active}
+            onActivate={onActivate}
             capability={capability}
             effective={effectiveQuery.data ?? undefined}
             customParameterKeys={Object.keys(preset.config.customParameters ?? {})}
@@ -205,6 +224,10 @@ interface PresetEditorBodyProps {
   readonly session: AutosaveSession<PromptConfig>;
   readonly presetId: PresetId;
   readonly presetName: string;
+  /** This preset is the ACTIVE-for-generation pick (the built-in ⇔ `defaultPresetId === null`). */
+  readonly active: boolean;
+  /** Make it the pick — the one `setDefault` mutation the LIST row toggle also calls (§16 row 3). */
+  readonly onActivate: () => void;
   readonly capability: ModelCapability | undefined;
   readonly effective: EffectiveProfileRow | undefined;
   readonly customParameterKeys: readonly string[];
@@ -216,6 +239,8 @@ function PresetEditorBody({
   session,
   presetId,
   presetName,
+  active,
+  onActivate,
   capability,
   effective,
   customParameterKeys,
@@ -254,9 +279,32 @@ function PresetEditorBody({
       <Tabs onValueChange={(next): void => setPresetEditorView(String(next))} value={view}>
         <Stack gap="block" padding="block" className="sticky top-0 z-(--z-raised) bg-card">
           <Row align="center" justify="between" gap="field">
-            <Text size="label" weight="medium">
-              {presetName}
-            </Text>
+            <Row align="center" className="min-w-0" gap="field">
+              <Text className="truncate" size="label" weight="medium">
+                {presetName}
+              </Text>
+              {/* G7 — the two truths that change UNDER the editor. The ACTIVE chip is the LIST row's marker
+                  verbatim (one state, one reading); its not-active twin is an AFFORDANCE, because a status
+                  that only ever says "not active" is a dead end when the LIST is a closed sheet. */}
+              {active ? (
+                <Badge intent="primary" size="sm">
+                  Active
+                </Badge>
+              ) : (
+                <Button aria-label={`Activate ${presetName} for generation`} intent="ghost" onClick={onActivate} size="sm" type="button">
+                  <Icon icon={Zap} size="sm" />
+                  Activate
+                </Button>
+              )}
+              {/* The PROVENANCE of everything the deck ghosts: `resolveEffective` resolves against the
+                  caller's own chat model, so the header names it rather than letting the numbers imply a
+                  model that may have been swapped since. Absent read ⇒ absent chip, never a guessed name. */}
+              {effective === undefined ? null : (
+                <Badge intent="neutral" size="sm" tone="ghost">
+                  for {effective.model}
+                </Badge>
+              )}
+            </Row>
             <Row align="center" gap="field">
               {/* Autosave everywhere (§7): the live status stands where Save/Discard used to. */}
               <AutosaveStatus state={saveState} onRetry={retrySave} />
