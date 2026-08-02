@@ -150,6 +150,10 @@ note already promises "clicking the name selects that row") or it dies.
 stray "next" text in the field.
 **O-15 noted, no action:** Guided instruction toggleable in the rack — owner grumble, stands
 ("I guess it's fine").
+**O-16 ★ EXPORT DOUBLE-HOME OVERRULED.** Export in the list-row kebab AND the content-header kebab
+is dumb (owner). The fix-all SANCTIONED that echo (§16 rows 7+27 "header-Export echo") — overruled:
+ONE home, the list-row kebab (matches the characters/chats ruling: lifecycle lives list-side).
+Remove Export from the editor-header kebab; §16 rows 7+27 revert.
 
 ## Verified GOOD against the mocks (don't touch)
 
