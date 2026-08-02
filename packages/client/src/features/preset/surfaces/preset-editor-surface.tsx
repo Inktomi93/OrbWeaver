@@ -158,7 +158,7 @@ function viewContent(id: PresetEditorView["id"], props: ViewContentProps): React
               they sit above the prompt-side regex lanes and everything reply-side, in the same execution
               order the Transforms readout prints. */}
           <PresetStructureTabs capability={capability} form={form} tab="delivery" />
-          <RegexTab form={form} />
+          <RegexTab presetId={presetId} />
           <PresetStructureTabs form={form} tab="postProcess" />
           <PresetStructureTabs form={form} tab="templates" />
         </Stack>

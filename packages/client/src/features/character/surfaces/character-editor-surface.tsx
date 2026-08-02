@@ -210,10 +210,11 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
           {/* A master facet list; click a row and the list is replaced by the full-width facet body
               editor (← Back to return). */}
           {selectedFacetId === null ? (
-            <CharacterFacetList form={form} selectedFacetId={null} focusFacetId={backFocusFacetId} onSelect={onSelectFacet} />
+            <CharacterFacetList form={form} characterId={data.id} selectedFacetId={null} focusFacetId={backFocusFacetId} onSelect={onSelectFacet} />
           ) : (
             <CharacterFacetEditor
               form={form}
+              characterId={data.id}
               facetId={selectedFacetId as CharacterCardFacet["id"]}
               trusted={data.trustHtml === true}
               readOnly={{

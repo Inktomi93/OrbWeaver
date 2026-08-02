@@ -10,7 +10,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import type { AppFormInstance } from "#forms";
@@ -71,16 +71,18 @@ function InspectorLoader({
     residualData: data.residualData,
     refinery: data.refinery,
   };
-  return <InspectorBody form={form} facetId={facetId} readOnly={readOnly} />;
+  return <InspectorBody form={form} characterId={characterId} facetId={facetId} readOnly={readOnly} />;
 }
 
 /** The thin per-facet detail body — small knobs + counts only; the big text authors in CONTENT. */
 function InspectorBody({
   form,
+  characterId,
   facetId,
   readOnly,
 }: {
   readonly form: CardForm;
+  readonly characterId: CharacterId;
   readonly facetId: CharacterFacetId;
   readonly readOnly: CharacterProvenanceSectionProps;
 }): ReactElement {
@@ -96,13 +98,15 @@ function InspectorBody({
         </Text>
       </Stack>
 
-      <FacetDetail form={form} facetId={facetId} readOnly={readOnly} />
+      <FacetDetail form={form} characterId={characterId} facetId={facetId} readOnly={readOnly} />
     </Stack>
   );
 }
 
 interface FacetDetailProps {
   readonly form: CardForm;
+  /** D121-E: the regex detail counts ATTACHED library rows, so the dispatch carries the row identity. */
+  readonly characterId: CharacterId;
   readonly readOnly: CharacterProvenanceSectionProps;
 }
 
@@ -112,7 +116,7 @@ interface FacetDetailProps {
 const FACET_DETAIL_RENDERERS: Record<CharacterFacetId, (props: FacetDetailProps) => ReactElement> = {
   depthPrompt: ({ form }) => <DepthDetail form={form} />,
   provenance: ({ form, readOnly }) => <ProvenanceDetail form={form} readOnly={readOnly} />,
-  regexScripts: ({ form }) => <RegexDetail form={form} />,
+  regexScripts: ({ characterId }) => <RegexDetail characterId={characterId} />,
   creatorNotes: ({ form }) => <CountDetail form={form} name="creatorNotes" tokens={false} />,
   description: ({ form }) => <CountDetail form={form} name="description" tokens={true} />,
   personality: ({ form }) => <CountDetail form={form} name="personality" tokens={true} />,
@@ -125,15 +129,17 @@ const FACET_DETAIL_RENDERERS: Record<CharacterFacetId, (props: FacetDetailProps)
 /** The small detail per facet (owner's hard rule — no big text here). */
 function FacetDetail({
   form,
+  characterId,
   facetId,
   readOnly,
 }: {
   readonly form: CardForm;
+  readonly characterId: CharacterId;
   readonly facetId: CharacterFacetId;
   readonly readOnly: CharacterProvenanceSectionProps;
 }): ReactElement {
   const render = FACET_DETAIL_RENDERERS[facetId];
-  return render({ form, readOnly });
+  return render({ form, characterId, readOnly });
 }
 
 /** depthPrompt's SMALL knobs — the Depth stepper + Role select + the note's exact char/token count (the
@@ -182,17 +188,17 @@ function ProvenanceDetail({ form, readOnly }: { readonly form: CardForm; readonl
   );
 }
 
-/** regexScripts' SMALL detail — the count of scripts (the scripts author in CONTENT). */
-function RegexDetail({ form }: { readonly form: CardForm }): ReactElement {
+/** regexScripts' SMALL detail — how many LIBRARY rows are attached to this character (D121-E: scripts are
+ *  `character_regex_scripts` junction rows, not card content, so this is a read and not a form selector). */
+function RegexDetail({ characterId }: { readonly characterId: CharacterId }): ReactElement {
+  const trpc = useTRPC();
+  const attached = useQuery(trpc.regex.listForCharacter.queryOptions({ characterId }));
+  const count = attached.data?.length ?? 0;
   return (
     <Section heading="Scripts">
-      <form.Subscribe selector={(s): number => s.values.regexScripts.length}>
-        {(count): ReactElement => (
-          <Text size="micro" tone="muted">
-            {count} {count === 1 ? "script" : "scripts"} on this card.
-          </Text>
-        )}
-      </form.Subscribe>
+      <Text size="micro" tone="muted">
+        {count} {count === 1 ? "script" : "scripts"} attached to this character.
+      </Text>
     </Section>
   );
 }

@@ -23,6 +23,7 @@ import { CHARACTER_CARD_MACROS } from "../lib/character-card-macros";
 import { parseExampleBlocks } from "../lib/example-messages";
 import type { CharacterProvenanceSectionProps } from "./character-provenance-section";
 import { CharacterProvenanceSection } from "./character-provenance-section";
+import type { CharacterId } from "@orb/kit/ids";
 import { CharacterRegexScriptsField } from "./character-regex-scripts-field";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
@@ -31,6 +32,9 @@ type CharacterFacetId = (typeof CHARACTER_CARD_FACET_IDS)[number];
 
 export interface CharacterFacetEditorProps {
   readonly form: CardForm;
+  /** D121-E: the regex facet is a PICKER over the script library scoped to this character, not a draft
+   *  array field — so the drill-in needs the row identity, not just the form. */
+  readonly characterId: CharacterId;
   readonly facetId: CharacterFacetId;
   readonly trusted: boolean;
   /** The read-only provenance tail (import/refinery) — rendered under the Provenance facet's form fields. */
@@ -42,7 +46,7 @@ function spoilerClass(blur: boolean): string | undefined {
   return blur ? "select-none blur-md" : undefined;
 }
 
-export function CharacterFacetEditor({ form, facetId, trusted, readOnly, onBack }: CharacterFacetEditorProps): ReactElement {
+export function CharacterFacetEditor({ form, characterId, facetId, trusted, readOnly, onBack }: CharacterFacetEditorProps): ReactElement {
   const facet = facetById(facetId);
   // Move focus to Back on mount — else it drops to `<body>` when the facet row unmounts.
   const backRef = useRef<HTMLButtonElement>(null);
@@ -70,13 +74,14 @@ export function CharacterFacetEditor({ form, facetId, trusted, readOnly, onBack 
         </Text>
       </Stack>
 
-      <FacetBody form={form} facetId={facetId} trusted={trusted} readOnly={readOnly} />
+      <FacetBody form={form} characterId={characterId} facetId={facetId} trusted={trusted} readOnly={readOnly} />
     </Stack>
   );
 }
 
 interface FacetBodyProps {
   readonly form: CardForm;
+  readonly characterId: CharacterId;
   readonly trusted: boolean;
   readonly readOnly: CharacterProvenanceSectionProps;
   readonly spoilerBlur: boolean;
@@ -131,24 +136,26 @@ const FACET_BODY_RENDERERS: Record<CharacterFacetId, (props: FacetBodyProps) => 
     />
   ),
   depthPrompt: ({ form }) => <DepthPromptFacet form={form} />,
-  regexScripts: ({ form }) => <CharacterRegexScriptsField form={form} />,
+  regexScripts: ({ characterId }) => <CharacterRegexScriptsField characterId={characterId} />,
   provenance: ({ form, readOnly }) => <ProvenanceFacet form={form} readOnly={readOnly} />,
 };
 
 function FacetBody({
   form,
+  characterId,
   facetId,
   trusted,
   readOnly,
 }: {
   readonly form: CardForm;
+  readonly characterId: CharacterId;
   readonly facetId: CharacterFacetId;
   readonly trusted: boolean;
   readonly readOnly: CharacterProvenanceSectionProps;
 }): ReactElement {
   const spoilerBlur = useSpoilerBlur();
   const render = FACET_BODY_RENDERERS[facetId];
-  return render({ form, trusted, readOnly, spoilerBlur });
+  return render({ form, characterId, trusted, readOnly, spoilerBlur });
 }
 
 /** One macro-aware field; the whole container blurs at rest when the spoiler eye is on. Per-field token

@@ -10,7 +10,6 @@
 // edit to an untouched field. Omitted = unchanged; a present `null` = clear.
 
 import type { Greeting, UpdateCharacterInput } from "@orb/contracts/character";
-import type { RegexScript } from "@orb/contracts/regex";
 import { isAssistantPrefill } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -43,7 +42,6 @@ export interface CharacterCardFormValues {
   /** NumberField shape: `null` = empty (mapped to a default on save when the note is non-empty). */
   readonly depthPromptDepth: number | null;
   readonly depthPromptRole: MessageRole;
-  readonly regexScripts: RegexScript[];
   readonly creator: string;
   readonly cardVersion: string;
 }
@@ -63,7 +61,6 @@ export const DEFAULT_CHARACTER_CARD_FORM: CharacterCardFormValues = {
   depthPromptText: "",
   depthPromptDepth: DEFAULT_DEPTH_PROMPT_DEPTH,
   depthPromptRole: DEFAULT_DEPTH_PROMPT_ROLE,
-  regexScripts: [],
   creator: "",
   cardVersion: "",
 };
@@ -94,7 +91,6 @@ export function characterCardFormFromDetail(card: CharacterDetail): CharacterCar
     depthPromptText: orEmpty(card.depthPrompt?.prompt ?? null),
     depthPromptDepth: card.depthPrompt?.depth ?? DEFAULT_DEPTH_PROMPT_DEPTH,
     depthPromptRole: card.depthPrompt?.role ?? DEFAULT_DEPTH_PROMPT_ROLE,
-    regexScripts: [...card.regexScripts],
     creator: orEmpty(card.creator),
     cardVersion: orEmpty(card.cardVersion),
   };
@@ -117,7 +113,6 @@ export function characterUpdateFromForm(values: CharacterCardFormValues): Update
     systemPrompt: orNull(values.systemPrompt),
     postHistoryInstructions: orNull(values.postHistoryInstructions),
     depthPrompt: depthPromptFromForm(values),
-    regexScripts: values.regexScripts,
     creator: orNull(values.creator),
     cardVersion: orNull(values.cardVersion),
   };
