@@ -21,12 +21,21 @@
 //     place that policy becomes a number and `isBelowHistoryFloor` the ONE per-bus-event verdict — asked by
 //     the durable replay AND by the live SSE fan-out, so one durable row gets one answer. Both are
 //     per-CALLER (the floor comes from the caller's own row), so a host is never clamped by a member's floor.
+//
+// THE HOST BIT IS COMPOSED, NEVER RE-SPELLED (stage R2 / F6, 2026-08-03). Both clamps take `role` as an INPUT
+// to a policy VALUE — the POLICY-RESOLUTION class, which is neither ENFORCEMENT (nothing throws here; that is
+// `auth/decide.ts::assertHost`/`permitsHost` over the injected `can()`, spine invariant #6) nor a roster
+// LOOKUP (`substrate/roster-host.ts::hostUserIdOf`, role -> identity, D19). It is the DATA-PROJECTION class's
+// third shape, so it reads that class's one home: `substrate/member-visibility.ts::viewerHoldsHost`. Composing
+// it rather than re-spelling `role === "host"` is what makes "one spelling of the host bit per class" literally
+// true — a widening of what `host` means reaches the D16 floor and the D22 card level through the same edit.
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, HistoryFloorSeq, JoinHistoryVisibility, MemberCardView, MemberCardVisibility } from "@orb/contracts/chat";
 import { historyFloor, MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { CharacterId } from "@orb/kit/ids";
+import { viewerHoldsHost } from "../member-visibility";
 
 /** The floor for an unclamped reader (`full`, every born-here character seat, AND every host — F2) —
  *  `messages.seq` is 1-based, so 0 admits the whole canon. Also the "no clamp in force" sentinel consumers
@@ -57,7 +66,7 @@ export function resolveHistoryFloorSeq(membership: {
   readonly joinSeq: number;
   readonly joinHistoryVisibility: JoinHistoryVisibility;
 }): HistoryFloorSeq {
-  if (membership.role === "host" || membership.joinHistoryVisibility === "full") {
+  if (viewerHoldsHost(membership) || membership.joinHistoryVisibility === "full") {
     return NO_HISTORY_FLOOR;
   }
   return historyFloor(Math.max(membership.joinSeq, NO_HISTORY_FLOOR));
@@ -118,9 +127,14 @@ function rank(level: MemberCardVisibility): number {
  * The EFFECTIVE visibility for a viewer: the room host always sees `full`; every other present member sees
  * the host-configured level. (The GLOBAL owner/admin
  * override is the caller's concern — it passes `full` directly; this resolves the per-chat resource role.)
+ *
+ * Takes the BARE role (not a membership row) because its one caller has only that — so the host bit is asked
+ * for by wrapping it at the call to the class home (see the file header): one comparison, one place, no second
+ * spelling. The parameter shape stays as-is deliberately; widening it to a row would move work onto the caller
+ * for no gain and churn the D22 pins that call this positionally.
  */
 export function resolveCardVisibility(viewerRole: ParticipantRole, configured: MemberCardVisibility): MemberCardVisibility {
-  return viewerRole === "host" ? "full" : configured;
+  return viewerHoldsHost({ role: viewerRole }) ? "full" : configured;
 }
 
 /**

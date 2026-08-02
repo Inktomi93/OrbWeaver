@@ -60,6 +60,7 @@ import {
 import { loadMaxMessageSeq, loadPendingHostUserId } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name";
+import { hostUserIdOf } from "../substrate/roster-host";
 
 /** The emit op the mutating roster verbs close over. */
 type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;
@@ -669,7 +670,7 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
     }
     // The previous host (for the post-swap notification) may be absent if they left after nominating.
     const roster = await loadRoster(ctx.db, chatId);
-    const oldHost = roster.find((p) => p.role === "host" && p.userId !== null);
+    const oldHostUserId = hostUserIdOf(roster);
     const droppedSeatIds = await resolveDroppedCharacterSeatIds(ctx, principal.userId, roster);
     const dropSeq = await loadMaxMessageSeq(ctx.db, chatId);
     const swap = [
@@ -680,11 +681,11 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
       }),
       ...droppedSeatIds.map((id) => markParticipantLeftStatement(ctx.db, id, dropSeq)),
     ];
-    if (oldHost?.userId !== undefined && oldHost.userId !== null && oldHost.userId !== principal.userId) {
+    if (oldHostUserId !== null && oldHostUserId !== principal.userId) {
       await ctx.emitNotification(
         {
           type: "handoff-accepted",
-          recipientUserId: oldHost.userId,
+          recipientUserId: oldHostUserId,
           chatId,
           newHostHandle: principal.handle,
         },
@@ -700,7 +701,7 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
         action: "chat.acceptHostHandoff",
         entityType: "chat",
         entityId: chatId,
-        metadata: { previousHostUserId: oldHost?.userId ?? null },
+        metadata: { previousHostUserId: oldHostUserId },
       },
       ctx.now(),
     );

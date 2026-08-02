@@ -46,6 +46,7 @@ import { loadChatRow, loadMemberChat } from "../persistence/queries";
 import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars";
 import { resolveHistoryFloorSeq } from "../substrate/auth";
 import { toChatDetail } from "../substrate/chat-detail";
+import { hostSeatOf } from "../substrate/roster-host";
 
 /** The collaborators the invite verbs close over (see the file header). */
 interface InviteDeps {
@@ -160,7 +161,7 @@ function createPreviewInvite(ctx: ChatContext, deps: InviteDeps): ChatService["p
       throw new DomainNotFoundError("invite", "");
     }
     const participants = await deps.loadParticipantViews(invite.chatId);
-    const host = participants.find((p) => p.role === "host");
+    const host = hostSeatOf(participants);
     const memberCount = await countPresentMembers(ctx.db, invite.chatId);
     return {
       chatId: invite.chatId,
