@@ -5,7 +5,8 @@
 // whole-table mutation, which on a tenant table is every owner's rows). TWO-SIDED: a marker guarding no
 // unscoped write is RED. DECLARED LIMITS: no post-fetch arm (a write's guard sits in the CALLER's control
 // flow, which is unprovable structurally — that is what the marker records), and an `onConflictDoUpdate`
-// upsert is out of scope (its collision is a schema UNIQUE-index question, not a WHERE predicate).
+// upsert is out of scope HERE because the sibling `owner-scoped-upserts` owns it (its collision is a UNIQUE
+// -index question, not a WHERE predicate — a third gate with its own `@owner-scope-upsert-ok:` vocabulary).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -245,7 +246,7 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
           'import { pluginKv } from "@orb/db";\nexport async function put(db: Db, row: Row) {\n  return db.insert(pluginKv).values(row).onConflictDoUpdate({ target: [pluginKv.pluginId, pluginKv.key], set: { value: row.value } });\n}\n',
       },
-      why: "DECLARED LIMIT, written down not assumed: an UPSERT is an update in disguise, but its collision is decided by a schema UNIQUE INDEX, not a WHERE — judging it needs the index derivation, not this reader. This row is the baseline that widening would start from",
+      why: "DECLARED LIMIT, now SUPERSEDED rather than assumed: an UPSERT is an update in disguise, but its collision is decided by the conflict TARGET, not a WHERE — so it is judged by the sibling gate `owner-scoped-upserts` (which reds this exact shape unless the owner reaches the target/targetWhere/setWhere). This row stays as the two gates' SEAM: it is what stops this reader from silently widening onto a shape it cannot judge",
     },
   ],
 };
