@@ -19,6 +19,26 @@ export interface Finding {
   readonly severity?: Severity; // default "error"
 }
 
+/** ONE exemption row — the shared shape for every allowlist / sanctioned-home / deferred-debt table a gate
+ *  carries. `why` is MANDATORY and TYPE-enforced: an exemption that cannot say why it exists is a rubber
+ *  stamp, and one that cannot say what would END it is permanent by accident. Write the END CONDITION into
+ *  the reason. The full law (and the mandatory STALE arm every table also owes) is
+ *  `scripts/check/GATE-AUTHORING.md` §"The exemption grammar".
+ *
+ *  Widen it per gate by intersection, never by re-declaring a parallel shape:
+ *  `Record<string, ExemptionRow & { readonly owners: readonly string[] }>` (own-tables-only.ts's
+ *  SCHEMA_OWNERS is the archetype). */
+export interface ExemptionRow {
+  /** Why this exemption is granted AND the condition that would end it. Never empty. */
+  readonly why: string;
+}
+
+/** A keyed exemption table: the KEY is the thing exempted (a repo-relative path, a domain name, a table
+ *  name, a settings key); the VALUE carries the reason. Every table declared with this type owes a stale
+ *  arm — a row matching zero live sites must be RED, not silence (GATE-AUTHORING.md §"The exemption
+ *  grammar"). Kept as an alias rather than a branded type so a gate can widen the row by intersection. */
+export type ExemptionTable<Row extends ExemptionRow = ExemptionRow> = Readonly<Record<string, Row>>;
+
 export type ScopeSafety =
   | "incremental-safe" // per-file verdicts: running on just the changed files is correct for those files
   | "whole-project"; // cross-file: registry/parity/uniqueness/coverage — needs the full tree

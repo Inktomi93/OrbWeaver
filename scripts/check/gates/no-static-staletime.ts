@@ -4,11 +4,11 @@ import type { GateDescriptor } from "../contract.ts";
 const TEST_REGEX = /\.test\.tsx?$/u;
 
 const MESSAGE =
-  "staleTime:'static' silently ignores invalidateQueries — it would disable the SSE bus→cache seam with a green check. Use Infinity (invalidation still overrides it). See UI-Lib-TanStack-Query.md §F-2 / UI-Architecture-and-Layout.md §6.1.";
+  "staleTime:'static' silently ignores invalidateQueries — it would disable the SSE bus→cache seam with a green check. Use Infinity (invalidation still overrides it). See UI-Lib-TanStack-Query.md §F (item 2) / UI-Architecture-and-Layout.md §6.1.";
 
 export const gate: GateDescriptor = {
   name: "no-static-staletime",
-  docRow: "UI-Lib-TanStack-Query.md §F-2 / UI-Architecture-and-Layout.md §6.1",
+  docRow: "UI-Lib-TanStack-Query.md §F (item 2) / UI-Architecture-and-Layout.md §6.1",
   status: "active",
   scopeSafety: "incremental-safe",
   message: MESSAGE,
