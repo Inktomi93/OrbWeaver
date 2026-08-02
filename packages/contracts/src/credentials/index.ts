@@ -46,29 +46,28 @@ export const customOpenAiResponseMapSchema = z
 export type CustomOpenAiResponseMap = z.infer<typeof customOpenAiResponseMapSchema>;
 
 /** The runtime gate for the `user_credentials.metadata` JSON blob, also used client-side for
- *  custom-endpoint form validation. `.loose()` tolerates forward-compat keys; `null` = no metadata. */
-export const providerMetadataSchema = z.union([
-  z
-    .object({
-      kind: z.literal("custom_openai"),
-      /** The user-supplied OpenAI-compatible base URL — the endpoint selection itself. */
-      baseUrl: z.string().min(MIN_NON_EMPTY),
-      /** Convenience default model string for the Connections picker. */
-      model: z.string().optional(),
-      /** Per-endpoint request headers the runner applies. */
-      headers: z.record(z.string(), z.string()).optional(),
-      /** User-declared context window (tokens) for the BYO model — trusted input, not probed. */
-      contextWindow: z.number().int().positive().optional(),
-      /** Extra request-body fields merged over the base (user wins) — e.g. a `provider`-specific knob. */
-      includeBody: z.record(z.string(), z.unknown()).optional(),
-      /** Request-body keys stripped LAST (a field the endpoint rejects, even if `includeBody` re-added it). */
-      excludeBody: z.array(z.string()).optional(),
-      /** Dot-path overrides for a non-standard reply shape (see {@link customOpenAiResponseMapSchema}). */
-      responseMap: customOpenAiResponseMapSchema.optional(),
-    })
-    .loose(),
-  z.null(),
-]);
+ *  custom-endpoint form validation. `.loose()` tolerates forward-compat keys; `null` = no metadata (spelled
+ *  `.nullable()`, not a hand-written `z.union([…, z.null()])` — same accepted set, one fewer node). */
+export const providerMetadataSchema = z
+  .object({
+    kind: z.literal("custom_openai"),
+    /** The user-supplied OpenAI-compatible base URL — the endpoint selection itself. */
+    baseUrl: z.string().min(MIN_NON_EMPTY),
+    /** Convenience default model string for the Connections picker. */
+    model: z.string().optional(),
+    /** Per-endpoint request headers the runner applies. */
+    headers: z.record(z.string(), z.string()).optional(),
+    /** User-declared context window (tokens) for the BYO model — trusted input, not probed. */
+    contextWindow: z.number().int().positive().optional(),
+    /** Extra request-body fields merged over the base (user wins) — e.g. a `provider`-specific knob. */
+    includeBody: z.record(z.string(), z.unknown()).optional(),
+    /** Request-body keys stripped LAST (a field the endpoint rejects, even if `includeBody` re-added it). */
+    excludeBody: z.array(z.string()).optional(),
+    /** Dot-path overrides for a non-standard reply shape (see {@link customOpenAiResponseMapSchema}). */
+    responseMap: customOpenAiResponseMapSchema.optional(),
+  })
+  .loose()
+  .nullable();
 
 /** Provider-specific metadata, inferred from the schema so the type and the runtime gate can't drift. */
 export type ProviderMetadata = z.infer<typeof providerMetadataSchema>;

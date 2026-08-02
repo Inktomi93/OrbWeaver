@@ -65,7 +65,13 @@ export const entryMetadataSchema = z.looseObject({
 export type EntryMetadata = z.infer<typeof entryMetadataSchema>;
 
 /** Write-side metadata guard: stays a lenient open record (unknown keys ride through), but the
- *  load-bearing fields are validated when present — a typo'd `scopeMode`/`inject` rejects at WRITE. */
+ *  load-bearing fields are validated when present — a typo'd `scopeMode`/`inject` rejects at WRITE.
+ *
+ *  The two hops are deliberate (the `personaMetadataWriteSchema` rationale, audited 2026-08-02): the opaque
+ *  `Record<string, unknown>` OUTPUT keeps the wire input unnarrowed so every writer passes the ONE narrowing
+ *  seam. The `code:"custom"` re-emit is an ACCEPTED loss for the same reason stated there: forwarding the
+ *  original issue does not typecheck on 4.4.3 (`$ZodIssue` lacks `$ZodRawIssue`'s index signature) and
+ *  `message` + `path` — what a client renders — survive the flatten. */
 export const entryMetadataWriteSchema = z.record(z.string(), z.unknown()).superRefine((val, ctx): void => {
   const known = entryMetadataSchema.safeParse(val);
   if (!known.success) {

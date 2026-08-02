@@ -1001,6 +1001,75 @@ test("R1 degrade: a MALFORMED tool arg is dropped + logged; the rest of the turn
   expect((line?.[0] as { droppedTools?: string[] }).droppedTools).toEqual(["update_party", "upsert_quest"]);
 });
 
+// D112 (3) — THE SILENT FORK, closed. `z.object` is STRIP mode, so a call carrying a key the arg schema never
+// declared PARSED CLEAN with that key (and its write) silently deleted: not a `malformedToolCalls` drop (the
+// call succeeded), not a salvage drop (the entry conformed), not `rpg.extraction.empty` (the other writes
+// landed). The measured shape is a model reaching for the tool-arg vocabulary of a DIFFERENT plane —
+// `update_party {targetRef, mana:-3}` where a `trackerDeltas` entry belonged. Before this test, that beat's
+// resource spend vanished into a SUCCESS record with nothing anywhere saying so.
+test("D112 (3): an INVENTED key on an otherwise-valid folded call is NAMED, never silently stripped", async ({ app, db }) => {
+  const warnSpy = vi.spyOn(logger, "warn");
+  const { chatId, hostId } = await seedHostGameChat(db, "r1-stripped");
+  const spy = emptySpy();
+  const rpgCompose = buildCannedRpg(app, db, "chat-completions", spy);
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "He spends himself holding the line." });
+
+  await rpgCompose.chatOps.onTurnCompleted(
+    chatId,
+    messageId,
+    variantId,
+    TURN,
+    foldedTurn([
+      // Top-level invented key (the wrong plane's vocabulary) beside a field that IS declared.
+      { name: "update_party", args: { targetRef: "player", status: "wounded", mana: -3 } },
+      // NESTED invented key, inside an array item — the depth the projection pin also covers.
+      { name: "update_scene", args: { location: "the ford", presentUpsert: [{ name: "Kael", vibe: "grim" }] } },
+    ]),
+  );
+
+  // The declared writes still applied — strictness would have cost the whole call (EXT-4a: drop as little as
+  // possible), so detection is the closing arm, not rejection.
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.ambient?.location).toBe("the ford");
+  expect(view.actors.map((a) => a.volatile?.status ?? null)).toContain("wounded");
+  // …and the vanished writes are NAMED, with the path that says which key on which tool.
+  const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.stripped");
+  expect(line).toBeDefined();
+  expect((line?.[0] as { strippedKeys?: string[] }).strippedKeys).toEqual(["update_party.mana", "update_scene.presentUpsert.0.vibe"]);
+  // A strip is NOT a drop: nothing was thrown away whole, so the drop channel must stay silent about it.
+  expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.unparseable")).toBe(false);
+});
+
+test("D112 (3): the STRUCTURED arm names the same strips — incl. a whole plane sent under an undeclared root key", async ({ app, db }) => {
+  const warnSpy = vi.spyOn(logger, "warn");
+  const { chatId, hostId } = await seedHostGameChat(db, "structured-stripped");
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "agent-sdk",
+    spy: emptySpy(),
+    cannedText: JSON.stringify({
+      party: [{ targetRef: "player", status: "wounded", mana: -3 }],
+      scene: { location: "the ford" },
+      // A whole plane emitted under a key that names nothing — the most invisible shape, since the per-plane
+      // walk never looks at it. It must still be reported, or the turn reads as a quiet beat.
+      trackerDeltas: [{ key: "hp", delta: -2 }],
+    }),
+  });
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "He holds the line." });
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
+
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.ambient?.location).toBe("the ford"); // the conforming writes landed
+  const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.stripped");
+  expect(line).toBeDefined();
+  expect((line?.[0] as { strippedKeys?: string[] }).strippedKeys).toEqual(["trackerDeltas", "party.0.mana"]);
+});
+
 test("R1 degrade: ZERO tool calls is a QUIET beat, not an error — its own log line, no snapshot, no model call", async ({ app, db }) => {
   const infoSpy = vi.spyOn(logger, "info");
   const warnSpy = vi.spyOn(logger, "warn");

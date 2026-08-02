@@ -37,9 +37,9 @@ export const regexScriptSchema = z.object({
   trimStrings: z.array(z.string().max(MAX_TRIM_STRING_LENGTH)).max(MAX_TRIM_STRINGS).default([]),
 
   // How macros run on the FIND pattern before it is compiled (kit `SubstituteFindRegex`: none/raw/escaped).
-  substituteRegex: z
-    .union([z.literal(SubstituteFindRegex.none), z.literal(SubstituteFindRegex.raw), z.literal(SubstituteFindRegex.escaped)])
-    .default(SubstituteFindRegex.none),
+  // Multi-value `z.literal([...])` (zod 4.x) — one node, one `invalid_value` issue naming all three options,
+  // where the old three-arm `z.union` emitted a nested `invalid_union`. Same accepted set.
+  substituteRegex: z.literal([SubstituteFindRegex.none, SubstituteFindRegex.raw, SubstituteFindRegex.escaped]).default(SubstituteFindRegex.none),
 
   // Min/Max depth for recursive generation (null = unbounded on that side).
   minDepth: z.number().int().min(MIN_RECURSION_DEPTH).max(MAX_RECURSION_DEPTH).nullable().default(null),
