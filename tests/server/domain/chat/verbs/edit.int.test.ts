@@ -12,7 +12,7 @@ import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { characterStats, chats, dailyStats, messages, messageVariants, modelStats, ownerStats } from "@orb/db";
+import { characterStats, chatDigests, chats, dailyStats, messages, messageVariants, modelStats, ownerStats, rpgSnapshots } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -28,7 +28,9 @@ import { reconcileStats } from "../../../../../packages/server/src/domain/stats/
 import { freshDb } from "../../../../support/db";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures";
+import { emptyState, seedGame, snapshotId } from "../../rpg/_support";
 import { addVariant, FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support";
+import { seedDigest } from "../memory/_support";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -857,7 +859,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
     await edit.reattributePersona({
       principal: principal(member),
       chatId,
-      messageIds: [messageId],
+      scope: { kind: "messages", messageIds: [messageId] },
       personaId: persona,
     });
 
@@ -877,7 +879,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
     await edit.reattributePersona({
       principal: principal(host),
       chatId,
-      messageIds: [messageId],
+      scope: { kind: "messages", messageIds: [messageId] },
       personaId: persona,
     });
 
@@ -897,7 +899,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
       .reattributePersona({
         principal: principal(other), // neither author nor host
         chatId,
-        messageIds: [messageId],
+        scope: { kind: "messages", messageIds: [messageId] },
         personaId: persona,
       })
       .catch((e: unknown) => e);
@@ -918,7 +920,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
       .reattributePersona({
         principal: principal(host), // host clears the author-or-host gate…
         chatId,
-        messageIds: [messageId],
+        scope: { kind: "messages", messageIds: [messageId] },
         personaId: hostPersona, // …but the persona isn't the AUTHOR's
       })
       .catch((e: unknown) => e);
@@ -938,7 +940,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
       .reattributePersona({
         principal: principal(host),
         chatId,
-        messageIds: [asst.messageId],
+        scope: { kind: "messages", messageIds: [asst.messageId] },
         personaId: persona,
       })
       .catch((e: unknown) => e);
@@ -959,7 +961,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
     await edit.reattributePersona({
       principal: principal(member),
       chatId,
-      messageIds: [m1.messageId, m2.messageId, m3.messageId],
+      scope: { kind: "messages", messageIds: [m1.messageId, m2.messageId, m3.messageId] },
       personaId: persona,
     });
 
@@ -978,7 +980,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
     await edit.reattributePersona({
       principal: principal(member),
       chatId,
-      messageIds: [],
+      scope: { kind: "messages", messageIds: [] },
       personaId: persona,
     });
     expect(emitted).toHaveLength(0);
@@ -1012,7 +1014,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
     await edit.reattributePersona({
       principal: principal(member),
       chatId,
-      messageIds: [messageId],
+      scope: { kind: "messages", messageIds: [messageId] },
       personaId: zara,
     });
 
@@ -1024,6 +1026,155 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
       .where(eq(messages.id, messageId));
     expect(after[0]?.message_variants.content).toBe("{{user}} waves"); // RAW storage untouched (D51)
     expect(resolveRowMacros("{{user}} waves", { characterId: null, personaId: after[0]?.messages.personaId ?? null }, ctx)).toBe("Zara waves");
+  });
+});
+
+/** The client window the server arm retired — and a chat comfortably longer than it, so "a row the old
+ *  client could never reach" is a REAL seeded row rather than a claim in a comment. */
+const RETIRED_CLIENT_WINDOW = 100;
+const LONG_CHAT = RETIRED_CLIENT_WINDOW + 20;
+
+// ── the `mine` SCOPE — the server-resolved bulk arm (stickler Q3 / FINAL-Persona §A.7) ─────────────────
+// The panel used to assemble ids from the last 100 messages and send them: a wrong-persona stretch older than
+// that window was UNREPAIRABLE, and the button looked like it had worked. The server now resolves the rows
+// from the same predicate that is the arm's belt set (chat + role='user' + author = the caller), so reach
+// widens to the whole chat while authority stays exactly where it was: these are the caller's OWN rows.
+describe("reattributePersona — the `mine` scope resolves the caller's own rows server-side", () => {
+  test("restamps EVERY row the caller authored — including the ones past the retired 100-message window", async () => {
+    const { member, chatId } = await seedRoom();
+    const persona = await seedPersona(db, member, "mara");
+    // Seeded serially: `seq` is UNIQUE per chat and each row's insert must land before the next claims one.
+    for (let seq = 1; seq <= LONG_CHAT; seq += 1) {
+      // biome-ignore lint/performance/noAwaitInLoops: seq-ordered inserts against one db — the ordering IS the fixture.
+      await seedMessage(db, chatId, seq, { role: "user", authorUserId: member, content: "{{user}} waves" });
+    }
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+
+    await edit.reattributePersona({ principal: principal(member), chatId, scope: { kind: "mine" }, personaId: persona });
+
+    const rows = await db.select().from(messages).where(eq(messages.chatId, chatId)).orderBy(asc(messages.seq));
+    expect(rows).toHaveLength(LONG_CHAT);
+    expect(rows.every((r) => r.personaId === persona)).toBe(true);
+    // The row the OLD client could never reach: seq 1 sits RETIRED_CLIENT_WINDOW+ rows behind the tail.
+    expect(rows.at(0)?.personaId).toBe(persona);
+    expect(emitted.filter((e) => e.type === "messageEdited")).toHaveLength(LONG_CHAT);
+  });
+
+  test("only the CALLER's user rows move — a co-member's lines and every assistant row are untouched", async () => {
+    const { host, member, chatId, charA } = await seedRoom();
+    const persona = await seedPersona(db, member, "mara");
+    const mine = await seedMessage(db, chatId, 1, { role: "user", authorUserId: member });
+    const theirs = await seedMessage(db, chatId, 2, { role: "user", authorUserId: host });
+    const reply = await seedMessage(db, chatId, 3, { role: "assistant", characterId: charA });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+
+    await edit.reattributePersona({ principal: principal(member), chatId, scope: { kind: "mine" }, personaId: persona });
+
+    const byId = new Map((await db.select().from(messages).where(eq(messages.chatId, chatId))).map((r) => [r.id, r]));
+    expect(byId.get(mine.messageId)?.personaId).toBe(persona);
+    expect(byId.get(theirs.messageId)?.personaId).toBeNull(); // another human's authorship is not the caller's to re-voice
+    expect(byId.get(reply.messageId)?.personaId).toBeNull();
+    expect(emitted.filter((e) => e.type === "messageEdited")).toHaveLength(1);
+  });
+
+  test("`fromSeq` floors the sweep — only the wrong-persona stretch is re-stamped, earlier history keeps its name", async () => {
+    const { member, chatId } = await seedRoom();
+    const mara = await seedPersona(db, member, "mara");
+    const zara = await seedPersona(db, member, "zara");
+    const early = await seedMessage(db, chatId, 1, { role: "user", authorUserId: member, personaId: mara });
+    const cut = await seedMessage(db, chatId, 2, { role: "user", authorUserId: member, personaId: mara });
+    const late = await seedMessage(db, chatId, 3, { role: "user", authorUserId: member, personaId: mara });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+
+    await edit.reattributePersona({ principal: principal(member), chatId, scope: { kind: "mine", fromSeq: 2 }, personaId: zara });
+
+    const byId = new Map((await db.select().from(messages).where(eq(messages.chatId, chatId))).map((r) => [r.id, r]));
+    expect(byId.get(early.messageId)?.personaId).toBe(mara); // BELOW the floor — history, not a mistake
+    expect(byId.get(cut.messageId)?.personaId).toBe(zara); // the floor is INCLUSIVE
+    expect(byId.get(late.messageId)?.personaId).toBe(zara);
+  });
+
+  test("a NON-MEMBER's mine-scope call is a leak-free NOT_FOUND — it can never resolve another room's rows", async () => {
+    const { member, chatId } = await seedRoom();
+    const stranger = await seedUser(db, "stranger");
+    const persona = await seedPersona(db, member, "mara");
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: member });
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+
+    const err = await edit.reattributePersona({ principal: principal(stranger), chatId, scope: { kind: "mine" }, personaId: persona }).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(ChatNotFoundError); // membership is resolved BEFORE any row is read
+    const rows = await db.select().from(messages).where(eq(messages.chatId, chatId));
+    expect(rows.every((r) => r.personaId === null)).toBe(true);
+    expect(emitted).toHaveLength(0);
+  });
+
+  test("a member with no rows of their own is an idempotent no-op (no event, no write)", async () => {
+    const { host, member, chatId } = await seedRoom();
+    const persona = await seedPersona(db, member, "mara");
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host }); // someone ELSE's line
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+
+    await edit.reattributePersona({ principal: principal(member), chatId, scope: { kind: "mine" }, personaId: persona });
+
+    expect(emitted).toHaveLength(0);
+    const rows = await db.select().from(messages).where(eq(messages.chatId, chatId));
+    expect(rows.every((r) => r.personaId === null)).toBe(true);
+  });
+
+  // THE NEVER-TOUCH LIST (stickler Q3 §3.2, each arm with its own law). A persona repair is a STAMP repair —
+  // it is the only thing that must move, because every name a reader or the model sees re-derives from the
+  // stamp at read time. This pins the four planes that must NOT move, with real seeded rows in each:
+  // message CONTENT (D26 slot purity + D51 raw identity macros) · rpg SNAPSHOTS (append-only, variant-FK'd —
+  // the state-anchor law) · memory DIGESTS (baked summarizer prose; the rebuild is the RESERVED D55 host
+  // action and must never ride this button) · and the slot's own non-persona columns.
+  test("NEVER-TOUCH: a full mine-restamp moves personaId and NOTHING else — content, slot columns, rpg snapshots, digests", async () => {
+    const { member, chatId, charA } = await seedRoom();
+    const persona = await seedPersona(db, member, "mara");
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: member, content: "{{user}} waves" });
+    const beat = await seedMessage(db, chatId, 2, { role: "assistant", characterId: charA, content: "Mara, the door groans open." });
+
+    // An rpg game + a committed snapshot keyed to the assistant beat's variant (the plane `resyncFromStory`
+    // rebuilds — this verb must not so much as read it), and a memory digest for the chat (D55).
+    const gameId = await seedGame(db, chatId, "restamp");
+    await db.insert(rpgSnapshots).values({
+      id: snapshotId("restamp"),
+      gameId,
+      messageId: beat.messageId,
+      variantId: beat.variantId,
+      ...emptyState(),
+      location: "the konbini",
+      recentEvents: ["Mara asked about the drinks"],
+      committed: 1,
+      createdAt: FROZEN_AT,
+    });
+    await seedDigest(db, { chatId, scopedCharacterId: charA, tier: 0, blockIdx: 0, text: "Mara bargained with the clerk." });
+
+    const before = {
+      variants: await db.select().from(messageVariants).orderBy(asc(messageVariants.id)),
+      slots: await db.select().from(messages).orderBy(asc(messages.seq)),
+      snapshots: await db.select().from(rpgSnapshots),
+      digests: await db.select().from(chatDigests),
+    };
+    const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });
+
+    await edit.reattributePersona({ principal: principal(member), chatId, scope: { kind: "mine" }, personaId: persona });
+
+    const after = {
+      variants: await db.select().from(messageVariants).orderBy(asc(messageVariants.id)),
+      slots: await db.select().from(messages).orderBy(asc(messages.seq)),
+      snapshots: await db.select().from(rpgSnapshots),
+      digests: await db.select().from(chatDigests),
+    };
+    // Content is BYTE-identical: `{{user}}` stays raw in the user row (it resolves live off the new stamp),
+    // and the assistant's baked "Mara" vocative is story history we never rewrite.
+    expect(after.variants).toEqual(before.variants);
+    // The rpg state plane and the memory digests are not this verb's rows — untouched, byte for byte.
+    expect(after.snapshots).toEqual(before.snapshots);
+    expect(after.digests).toEqual(before.digests);
+    // Every SLOT column but `personaId` survives (seq, author, role, hidden flag, createdAt, editedAt…).
+    expect(after.slots.map((r) => ({ ...r, personaId: null }))).toEqual(before.slots.map((r) => ({ ...r, personaId: null })));
+    expect(after.slots.map((r) => r.personaId)).toEqual([persona, null]);
   });
 });
 

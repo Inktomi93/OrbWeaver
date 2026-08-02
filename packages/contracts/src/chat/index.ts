@@ -98,6 +98,7 @@ export { CONTENT_CLASS_POLICY } from "./content-classes";
 export type {
   MessageSlot,
   MessageView,
+  ReattributeScope,
   StandaloneVariableDelta,
   ToolCallRecord,
   UserMacroDraws,
@@ -107,6 +108,7 @@ export {
   lastVisibleAssistant,
   lastVisibleRow,
   messageSlotSchema,
+  reattributeScopeSchema,
   standaloneVariableDeltaSchema,
   standaloneVariableDeltasSchema,
   toolCallRecordSchema,

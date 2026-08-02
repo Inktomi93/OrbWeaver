@@ -15,17 +15,20 @@ import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
 import { RpgTakeoverFloorStory, RpgTakeoverReferenceStory, RpgTakeoverStory } from "../_ct-stories";
 
 const GAME_ID = "rpg_game_ct_keystone";
+const PERSONA_ID = "persona_ct_keystone";
 
 /** "a `title` with any content at all" — hoisted (a regex literal in a test body is a per-call recompile,
  *  `useTopLevelRegex`) and used with `not.toHaveAttribute`, which also passes when the attribute is absent. */
 const ANY_TITLE = /./;
 
 // A `chat.getChat` stub carrying the rpg POINTER (fires the takeover) + the host gate + the viewer identity.
-function gameChat(): unknown {
+// `viewerActivePersonaId` is what the resync control's opt-in restamp stamps TO (null ⇒ nothing to stamp to).
+function gameChat(viewerActivePersonaId: string | null = PERSONA_ID): unknown {
   return {
     participants: [{ kind: "human", role: "host", userId: "user_ct", characterId: null }],
     viewerUserId: "user_ct",
     viewerIsHost: true,
+    viewerActivePersonaId,
     pendingHostUserId: null,
     roomOverrides: {},
     background: null,
@@ -246,10 +249,14 @@ function stubTakeover(
     readonly messages?: unknown;
     readonly chat?: unknown;
     readonly config?: unknown;
+    /** Fail the resync dialog's opt-in restamp (the ordering probe — a failed stamp must abort the rebuild). */
+    readonly restampFails?: boolean;
   } = {},
 ): ReturnType<typeof routeTrpc> {
   const readOnly = opts.readOnly ?? false;
   return routeTrpc(page, {
+    "rpg.resyncFromStory": () => undefined,
+    "chat.reattributePersona": () => (opts.restampFails === true ? trpcError({ message: "restamp blew up" }) : undefined),
     "chat.getChat": () => opts.chat ?? gameChat(),
     "rpg.getGame": () => opts.game ?? gameView(readOnly),
     "rpg.getTrackerView": () => opts.tracker ?? trackerView(readOnly),
@@ -2332,4 +2339,62 @@ test("side-eye 08-01: a cast card's tracked readings are named by WHOSE they are
   await expect(component.getByRole("button", { name: "Mara the elder Trust" })).toBeVisible();
   // The old subjectless name is gone (it named two different readings).
   await expect(component.getByRole("button", { name: "Trust value" })).toHaveCount(0);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// RESYNC × PERSONA — the host half of the reattribution pair (stickler Q3 §3.2 arm 2).
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// The rebuild re-reads the story and re-extracts the tracked planes, so it bakes whatever name the
+// transcript resolves to. Opting in re-stamps the host's own rows FIRST, then rebuilds — the ORDER is the
+// whole feature (a rebuild that ran first would re-bake the old name), so it is what these pin.
+
+test("the resync's opt-in restamp: checked ⇒ the stamp write fires with the all-my-rows scope, then the rebuild", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  await component.getByRole("checkbox", { name: "Restamp my messages first" }).click();
+  await component.getByRole("button", { name: "Resync from story" }).click();
+
+  await expect
+    .poll(() => trpc.lastInput("chat.reattributePersona"), { intervals: [20, 50, 100] })
+    .toMatchObject({
+      scope: { kind: "mine" },
+      personaId: PERSONA_ID,
+    });
+  await expect.poll(() => trpc.count("rpg.resyncFromStory"), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+test("a FAILED restamp aborts the rebuild — the rebuild never runs on the stamps the host asked to replace", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page, { restampFails: true });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  await component.getByRole("checkbox", { name: "Restamp my messages first" }).click();
+  await component.getByRole("button", { name: "Resync from story" }).click();
+
+  await expect.poll(() => trpc.count("chat.reattributePersona"), { intervals: [20, 50, 100] }).toBe(1);
+  // The button settles back out of its pending state — the sequence is over, and the rebuild never fired.
+  await expect(component.getByRole("button", { name: "Resync from story" })).toBeEnabled();
+  expect(trpc.count("rpg.resyncFromStory")).toBe(0); // ONESHOT-OK: settled — the button left `Resyncing…` above, so the whole sequence has finished
+});
+
+test("unchecked ⇒ the rebuild ALONE — the resync never restamps anything the host didn't ask it to", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  await component.getByRole("button", { name: "Resync from story" }).click();
+
+  await expect.poll(() => trpc.count("rpg.resyncFromStory"), { intervals: [20, 50, 100] }).toBe(1);
+  expect(trpc.count("chat.reattributePersona")).toBe(0); // ONESHOT-OK: settled — the restamp would precede the rebuild the poll above awaited
+});
+
+test("with no persona in this chat the option is DISABLED and says why (never hidden)", async ({ mount, page }) => {
+  await stubTakeover(page, { chat: gameChat(null) });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  await expect(component.getByRole("checkbox", { name: "Restamp my messages first" })).toBeDisabled();
+  await expect(component.getByText("Pick a persona for this chat first — there's nothing to re-stamp to.")).toBeVisible();
 });

@@ -527,9 +527,17 @@ const PROBES: readonly Probe[] = [
     call: (c, i) =>
       c.chat.reattributePersona({
         chatId: i.chatId,
-        messageIds: [i.messageId],
+        scope: { kind: "messages", messageIds: [i.messageId] },
         personaId: i.personaId,
       }),
+  },
+  {
+    // The `mine` SCOPE arm (FINAL-Persona §A.7) resolves its OWN rows server-side, so it takes no foreign
+    // messageId — the probe is that the chatId chokepoint still refuses: `requireParticipant` runs BEFORE any
+    // row is resolved, so a stranger's "restamp mine" on A's chat can never enumerate (let alone stamp) a row
+    // in it. Same path twice is intentional: the two arms are two reachable shapes of one procedure.
+    path: "chat.reattributePersona",
+    call: (c, i) => c.chat.reattributePersona({ chatId: i.chatId, scope: { kind: "mine" }, personaId: i.personaId }),
   },
   { path: "chat.forkChat", call: (c, i) => c.chat.forkChat({ chatId: i.chatId }) },
   {

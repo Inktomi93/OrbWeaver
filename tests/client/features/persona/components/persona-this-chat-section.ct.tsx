@@ -49,6 +49,7 @@ const MULTI_HUMAN_CHAT = {
 };
 
 const UPDATE_PROC = "persona.setActivePersona";
+const RESTAMP_PROC = "chat.reattributePersona";
 
 function stub(page: Page, showNotifications: boolean): Promise<TrpcRecorder> {
   return routeTrpc(page, {
@@ -61,6 +62,10 @@ function stub(page: Page, showNotifications: boolean): Promise<TrpcRecorder> {
       updatedAt: 0,
     }),
     [UPDATE_PROC]: () => ({}),
+    [RESTAMP_PROC]: () => ({}),
+    // Present so a window read would SUCCEED if one were fired — the "no window read" assertion below is
+    // then about the client's shape, not about a stub that would have failed anyway.
+    "chat.listMessages": () => ({ messages: [], hasMore: false }),
   });
 }
 
@@ -92,6 +97,46 @@ test("with showNotifications OFF, no notify fires on switch (the setting is hono
   await switchToOrion(page);
   // The mutation still fires — the notify is what's gated.
   await expect.poll(() => (trpc.lastInput(UPDATE_PROC) as { personaId?: string } | undefined)?.personaId, { intervals: [20, 50, 100] }).toBe(ORION);
+  await expect(page.getByTestId("notified")).toHaveText("");
+});
+
+// ── The RESTAMP affordance (stickler Q3 / FINAL-Persona §A.7). It used to page `chat.listMessages` for the
+// last 100 rows and send the ids it found there, so a wrong-persona stretch older than the window could not be
+// repaired AT ALL — the defect was invisible in the UI (the button "worked"). The scope is now named on the
+// wire and resolved server-side, which is observable exactly here: ONE bulk call, and no window read.
+
+test("Restamp sends the server-resolved all-my-rows scope — and reads no message window to build it", async ({ mount, page }) => {
+  const trpc = await stub(page, true);
+  await mount(<PersonaThisChatStory />);
+
+  await page.getByRole("button", { name: "Restamp my messages to this persona" }).click();
+
+  await expect
+    .poll(() => trpc.lastInput(RESTAMP_PROC), { intervals: [20, 50, 100] })
+    .toMatchObject({
+      chatId: CHAT_ID,
+      scope: { kind: "mine" },
+      personaId: NOVA,
+    });
+  // No `messageIds` anywhere on the wire: the client no longer enumerates rows it cannot fully page.
+  expect(trpc.lastInput(RESTAMP_PROC)).not.toHaveProperty("scope.messageIds"); // ONESHOT-OK: settled — the poll above already resolved this exact input
+  // The window read is a NEGATIVE, and it is settled: the old client fetched it BEFORE mutating, so by the
+  // time the mutation input polled above exists, a window read would already have been recorded.
+  expect(trpc.count("chat.listMessages")).toBe(0); // ONESHOT-OK: settled — the restamp call the poll awaited strictly follows any window read
+});
+
+test("the restamp's confirming notify honors persona.showNotifications (ON ⇒ a toast; OFF ⇒ none)", async ({ mount, page }) => {
+  await stub(page, true);
+  await mount(<PersonaThisChatStory />);
+  await page.getByRole("button", { name: "Restamp my messages to this persona" }).click();
+  await expect(page.getByTestId("notified")).toHaveText("Your messages in this chat now read as Nova.");
+});
+
+test("with showNotifications OFF, the restamp still fires and stays quiet", async ({ mount, page }) => {
+  const trpc = await stub(page, false);
+  await mount(<PersonaThisChatStory />);
+  await page.getByRole("button", { name: "Restamp my messages to this persona" }).click();
+  await expect.poll(() => trpc.count(RESTAMP_PROC), { intervals: [20, 50, 100] }).toBe(1);
   await expect(page.getByTestId("notified")).toHaveText("");
 });
 
