@@ -416,11 +416,16 @@ dev stack is up (SNAP_FIXTURE_SERVER_URL read by neither fixtureStatus() nor opt
 either snap grows a real port override + the fixture an offset-pair mode, or the snap header
 says honestly "requires the owner's stack down". SIDE-EYE re-check lane STOPPED early by
 owner word (barely started, nothing lost) — re-queue after the wave drains.
-**⛔ DISPATCH FREEZE (owner word, 08-03: 5h usage limit, ~20 min left): NO new agent spawns
-until the owner lifts it.** The 5 live lanes (REGEX · DANGLE · RESYNC · SM4 · D22) run out
-their course — process their READY reports (merge --no-verify on receipts, board, teardown),
-answer questions, keep the board current; NOTHING new launches. If a lane stalls mid-window,
-board its resume state rather than respawning.
+**⛔ DISPATCH FREEZE → FULL PAUSE (owner words, 08-03: 5h usage limit): NO new spawns AND the
+5 live lanes ORDERED TO SLEEP** (checkpoint-commit coherent work [--no-verify sanctioned for
+the checkpoint], reply resume-state, stop; worktrees + branches STAY — teardown forbidden).
+Lanes at pause: REGEX (warm tail: 52-item mirror set + host-controls display toggle + RECEIVE/
+WI order pins + behavioral bundle round-trip) · DANGLE (phantom-ref gate arms) · RESYNC (the
+two reattribution affordances) · SM4 (CAP-GATE pending arm + 3 span smalls) · D22 (multi-user
+live verify, arm B — e2e local-project pixels + wire drives). Resume-state replies get boarded
+under this block as they land. RESUMING ORCHESTRATOR: worktrees under .claude/worktrees/ hold
+these five branches — SendMessage each agent id to resume warm, or re-dispatch fresh lanes
+briefed from the boarded resume states if the agents are unreachable post-window.
 
 ## ═══ ▶▶▶ HANDOFF #3 — 2026-08-02 NIGHT (SESSION-END; the ONE current block. Owner is
 ## swapping accounts — the resuming orchestrator has NO conversation memory; this block +
