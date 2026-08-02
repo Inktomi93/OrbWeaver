@@ -26,6 +26,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Db } from "@orb/db";
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -45,7 +46,7 @@ function hostPrincipal(userId: UserId): Principal {
  *  by a non-`a` tail (`$` can never match) is what the node:vm per-call timeout must interrupt. */
 const REDOS_SCRIPT = (): RegexScriptRow =>
   regexScriptSchema.parse({
-    id: "redos",
+    id: mintTypeId(ID_PREFIX.regexScript),
     name: "redos",
     findRegex: "(a+)+$",
     replaceString: "SHOULD_NOT_APPLY",
@@ -57,7 +58,7 @@ const REDOS_SCRIPT = (): RegexScriptRow =>
  *  (a real find/replace completes in microseconds; the vm guard is transparent to a non-pathological rule). */
 const BENIGN_SCRIPT = (): RegexScriptRow =>
   regexScriptSchema.parse({
-    id: "benign",
+    id: mintTypeId(ID_PREFIX.regexScript),
     name: "benign",
     findRegex: "badword",
     replaceString: "****",
