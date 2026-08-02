@@ -5,7 +5,7 @@
 
 import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
 import { regexScripts } from "@orb/db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { RegexContext } from "../../context";
 import { RegexNotFoundError } from "../../contract/errors";
 import type { UpdateScriptParams } from "../../contract/params";
@@ -36,7 +36,10 @@ export function createUpdate(ctx: RegexContext): RegexService["updateScript"] {
     const enabled = patchEnabled ?? record.enabled;
     const at = ctx.now();
 
-    await ctx.db.update(regexScripts).set({ name, enabled, behavior }).where(eq(regexScripts.id, scriptId));
+    await ctx.db
+      .update(regexScripts)
+      .set({ name, enabled, behavior })
+      .where(and(eq(regexScripts.id, scriptId), eq(regexScripts.ownerId, ownerId)));
 
     await ctx.audit({ actorUserId: ownerId, action: "regex.updateScript", entityType: "regex_script", entityId: scriptId, metadata: { name } }, at);
 
