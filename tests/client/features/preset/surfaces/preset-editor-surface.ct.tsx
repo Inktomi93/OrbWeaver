@@ -245,10 +245,10 @@ test("RESET pin — reset-to-starter shows the starter config and never writes t
   await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 300)));
   const updatesBeforeReset = trpc.count("preset.update");
 
-  // Reset to starter: options menu → the reset item → confirm. The Menu popup + ConfirmDialog render in a
-  // PORTAL (document.body), outside the mounted component root — locate them on `page`, not `component`.
-  await component.getByRole("button", { name: "Preset options" }).click();
-  await page.getByRole("menuitem", { name: RESET_ITEM_RE }).click();
+  // Reset to starter: the header's reset DOOR → confirm. The command is its own named control now, not an
+  // item behind a ⋯ that held nothing else (side-eye F-18). The ConfirmDialog still renders in a PORTAL
+  // (document.body), outside the mounted component root — locate it on `page`, not `component`.
+  await component.getByRole("button", { name: RESET_ITEM_RE }).click();
   await page.getByRole("button", { name: "Reset" }).click();
 
   // The editor reseeds from the FRESH starter row — the dial returns to its OFF arm (params unset), and it
@@ -530,7 +530,7 @@ test("FIVE VIEWS — one flat strip (Params default), and the re-homed nudge edi
     trpc,
     // The field is labelled "Template" (side-eye F-32): the drill-in header already names the template, so
     // a field label repeating it was the same word at three levels.
-    field: component.getByRole("combobox", { name: "Template", exact: true }),
+    field: component.getByRole("textbox", { name: "Template", exact: true }),
     proc: "preset.update",
     payloadKey: "config.formatStrings.continueNudge",
   });
@@ -643,7 +643,7 @@ test("O-13 — the Delivers-via chip OPENS the Guided instruction row in the Pro
 // The editor-header kebab carried an Export echo (the fix-all's §16 rows 7+27 sanctioned it). Overruled:
 // lifecycle lives list-side, matching characters/chats. The kebab keeps exactly one item.
 
-test("O-16 — the editor header's kebab offers Reset only; Export is not a second home", async ({ mount, page }) => {
+test("O-16 + F-18 — the header offers Reset as its OWN named door; Export is not a second home, and there is no ⋯", async ({ mount, page }) => {
   await routeTrpc(page, {
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
@@ -652,8 +652,15 @@ test("O-16 — the editor header's kebab offers Reset only; Export is not a seco
   });
   const component = await mount(<PresetEditorSurfaceStory />);
 
-  await component.getByRole("button", { name: "Preset options" }).click();
-  await expect(page.getByRole("menuitem", { name: "Reset to starter arrangement" })).toBeVisible();
+  // F-18: a ⋯ that hid exactly ONE command bought nothing and cost discoverability twice — `⋯` promises
+  // "there is more here" (there wasn't) and says nothing about WHAT. The command wears its own glyph, its
+  // own name, and the O-3 icon-door anatomy (aria-label === title, from one string).
+  await expect(component.getByRole("button", { name: "Preset options" })).toHaveCount(0);
+  const reset = component.getByRole("button", { name: "Reset to starter arrangement" });
+  await expect(reset).toBeVisible();
+  await expect(reset).toHaveAttribute("title", "Reset to starter arrangement");
+  // O-16 stands: Export is single-homed in the LIST row's kebab, nowhere in the editor header.
+  await expect(component.getByRole("button", { name: "Export" })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: "Export" })).toHaveCount(0);
 });
 

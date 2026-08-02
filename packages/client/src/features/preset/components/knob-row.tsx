@@ -33,18 +33,11 @@ import type { AppFormInstance } from "#forms";
 import type { KnobBinding } from "../lib/capability-panel-model";
 import type { EffectiveKnobRow, KnobGhost } from "../lib/effective-knobs";
 import { clampGloss, knobGhost } from "../lib/effective-knobs";
+import { PRESET_NUMBER_FORMAT } from "../lib/format-count";
 
 /** The placeholder for a knob whose funnel reports NO value on this model — the honest empty (§4.3): the
  *  model's own default applies and we do not know the number, so nothing is fabricated. */
 const UNKNOWN_DEFAULT_PLACEHOLDER = "default";
-
-/** ONE number grammar for the whole deck (crunch-list 9): RAW digits, no locale grouping. Base UI formats
- *  the twin's committed value through `Intl.NumberFormat`, whose default groups — so an explicit
- *  `maxOutputTokens` rendered "1,500" one row above an inherited `maxContextTokens` ghosting "200000"
- *  (a placeholder is a plain string and never went through the formatter). Same KnobRow family, two
- *  grammars. The mock draws raw mono, and raw is also what the ghost placeholders, the readout rows and the
- *  staleness row already print — so the formatter yields, not the four surfaces around it. */
-const KNOB_NUMBER_FORMAT: Intl.NumberFormatOptions = { useGrouping: false, maximumFractionDigits: 6 };
 
 export interface KnobRowProps {
   readonly form: AppFormInstance<PromptConfig>;
@@ -163,7 +156,7 @@ function KnobControls({
       <NumberField
         aria-describedby={describedBy}
         aria-label={label}
-        format={KNOB_NUMBER_FORMAT}
+        format={PRESET_NUMBER_FORMAT}
         max={max}
         min={min}
         onValueChange={(next): void => onChange(next ?? undefined)}
@@ -214,9 +207,13 @@ function KnobLabel({ label, hint }: { readonly label: string; readonly hint: str
       </Text>
       {hint === undefined ? null : (
         <Tooltip>
+          {/* ONE hint-trigger name across the app (side-eye F-19): `@orb/ui`'s `Field` and `Section` both
+              derive `More info about <label>`, and this composite spelled the same affordance
+              `About <label>` — two vocabularies for one control, in one pane. The primitives' spelling
+              wins; a feature composite does not get its own dialect. */}
           <TooltipTrigger
             render={
-              <Button aria-label={`About ${label}`} intent="ghost" size="icon" type="button">
+              <Button aria-label={`More info about ${label}`} intent="ghost" size="icon" type="button">
                 <Icon icon={Info} size="xs" />
               </Button>
             }

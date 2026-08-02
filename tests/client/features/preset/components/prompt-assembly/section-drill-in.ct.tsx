@@ -391,7 +391,7 @@ test("a CARRIER's drill-in offers no depth, no order and no triggers — the sch
   // Located by ROLE: the field's explainer moved to the hover HINT (side-eye F-32 — a one-line format
   // string does not need a 90px textarea plus a paragraph), and the hint trigger's own accessible name
   // contains the label, so a bare `getByLabel` now matches two elements.
-  await expect(probe.getByRole("combobox", { name: "Entry wrapper" })).toBeVisible();
+  await expect(probe.getByRole("textbox", { name: "Entry wrapper" })).toBeVisible();
 });
 
 test("Add mints a section AND drills straight into it, where the Name field is", async ({ mount, page }) => {

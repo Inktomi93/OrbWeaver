@@ -71,3 +71,90 @@ test("md size carries more horizontal padding than sm", async ({ mount }) => {
   const mediumPad = await medium.evaluate((el) => getComputedStyle(el).paddingLeft);
   expect(Number.parseFloat(mediumPad)).toBeGreaterThan(Number.parseFloat(smallPad));
 });
+
+// ── side-eye F-6 (2026-08-03): the IN-FLOW chip must not perturb the line box it lives in ──────────────
+// The defect these pin: `size="sm"` inside a run of prose built a 28.25px box in a 20.15px line
+// (`inline-flex` + `py-field` + its own `leading-label`), so every line carrying a `{{macro}}` shoved its
+// neighbours apart, and the 8px side padding detached the following punctuation (`{{user}} 's voice`).
+// Asserted as COMPUTED geometry against the SURROUNDING RUN, never against hardcoded px — a type retune
+// must move both numbers together or this reds.
+
+test("size=inline participates in the line box: display inline, zero padding, type inherited from the run", async ({ mount }) => {
+  const run = await mount(
+    <p data-testid="run" style={{ fontSize: "13px", lineHeight: "20px" }}>
+      You are{" "}
+      <Badge data-testid="chip" intent="info" size="inline">
+        {"{{char}}"}
+      </Badge>
+      , here.
+    </p>,
+  );
+  const chip = run.getByTestId("chip");
+  await expect(chip).toHaveCSS("display", "inline");
+  // NO padding on either axis — the braces the chip prints are its own optical padding, and any inline
+  // padding reappears as a gap before the next character. Read in ONE evaluation: four awaits in a loop is
+  // four round trips across four layout passes, and the claim is about a single resolved box.
+  const padding = await chip.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return [style.paddingTop, style.paddingBottom, style.paddingLeft, style.paddingRight];
+  });
+  for (const px of padding) {
+    expect(Number.parseFloat(px)).toBe(0);
+  }
+  // Type metrics INHERIT: the chip sets neither font-size nor line-height, so the run's rhythm is
+  // arithmetically unchanged with a macro in it.
+  // `run` IS the mounted <p> (the component root), so the run's own metrics come off it directly.
+  const [chipSize, chipLeading, runSize, runLeading] = await Promise.all([
+    chip.evaluate((el) => getComputedStyle(el).fontSize),
+    chip.evaluate((el) => getComputedStyle(el).lineHeight),
+    run.evaluate((el) => getComputedStyle(el).fontSize),
+    run.evaluate((el) => getComputedStyle(el).lineHeight),
+  ]);
+  expect(chipSize).toBe(runSize);
+  expect(chipLeading).toBe(runLeading);
+});
+
+test("size=inline never exceeds its line box, where size=sm does", async ({ mount }) => {
+  const run = await mount(
+    <p style={{ fontSize: "13px", lineHeight: "20px" }}>
+      prose{" "}
+      <Badge data-testid="flow" intent="info" size="inline">
+        {"{{char}}"}
+      </Badge>{" "}
+      <Badge data-testid="pill" intent="info" size="sm">
+        {"{{char}}"}
+      </Badge>{" "}
+      prose
+    </p>,
+  );
+  const height = (testid: string): Promise<number> => run.getByTestId(testid).evaluate((el) => el.getBoundingClientRect().height);
+  const lineBox = Number.parseFloat(await run.evaluate((el) => getComputedStyle(el).lineHeight));
+  expect(await height("flow")).toBeLessThanOrEqual(lineBox);
+  // The control arm: this is the shape that caused the damage, and it must still measurably overflow, or
+  // the assertion above is passing for a reason other than the fix.
+  expect(await height("pill")).toBeGreaterThan(lineBox);
+});
+
+test("size=inline steps the radius one below the pill", async ({ mount }) => {
+  const both = await mount(
+    <div>
+      <Badge data-testid="pill" size="sm">
+        Tag
+      </Badge>
+      <Badge data-testid="flow" size="inline">
+        Tag
+      </Badge>
+    </div>,
+  );
+  const radius = (testid: string): Promise<number> => both.getByTestId(testid).evaluate((el) => Number.parseFloat(getComputedStyle(el).borderTopLeftRadius));
+  const inset = await both.evaluate((el) => {
+    const probe = el.ownerDocument.createElement("div");
+    probe.style.borderRadius = "var(--radius-inset)";
+    el.ownerDocument.body.append(probe);
+    const px = Number.parseFloat(getComputedStyle(probe).borderTopLeftRadius);
+    probe.remove();
+    return px;
+  });
+  expect(await radius("flow")).toBe(inset);
+  expect(await radius("flow")).toBeLessThan(await radius("pill"));
+});

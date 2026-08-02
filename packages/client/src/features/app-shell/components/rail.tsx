@@ -119,6 +119,11 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
   const youModal = useModalRegistry()
     .list()
     .find((m) => m.trigger.placement === "mobile-tab");
+  // Does the ACTIVE section live in the You sheet rather than on the mobile bar (F-15)? `mobile` defaults
+  // to `"sheet"` exactly as `RailChromeEntry` reads it, so the two can never disagree about a curation.
+  const activeIsSheetSection = navEntries.some(
+    (e) => e.behavior.kind === "section" && e.behavior.sectionId === activeSection && (e.mobile ?? "sheet") === "sheet",
+  );
   return (
     <nav className="shell-rail" aria-label="Primary">
       {brandEntry === undefined ? (
@@ -171,8 +176,24 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
         ))}
       </div>
 
+      {/* THE YOU TAB CARRIES `aria-current` FOR ITS SECTIONS (side-eye F-15). Standing in a
+          `mobile:"sheet"` section (Corpus · World Info · Presets · Refinery · Analytics), the mobile bar
+          marked NOTHING current: the section's own rail button DOES carry `aria-current="page"` + the amber
+          skin, but it is `display:none` on the bar (it is the desktop rail's copy), and the four visible
+          tabs are all other sections. So a screen-reader user got a nav landmark with zero current markers
+          and a sighted user saw four unlit tabs while standing in a fifth place (Nielsen #1).
+          The You tab is that section's REPRESENTATIVE on the bar — its sheet is the only door to it — so
+          it wears the state. Derived from the active section's OWN curation, never a hardcoded id list: a
+          section that flips to `mobile:"tab"` stops feeding this the same day it starts feeding the bar. */}
       {youModal === undefined ? null : (
-        <RailButton label={youModal.trigger.label} icon={youModal.trigger.icon} mobile="tab" mobileOnly={true} onClick={(): void => onOpenModal(youModal.id)} />
+        <RailButton
+          active={activeIsSheetSection}
+          icon={youModal.trigger.icon}
+          label={youModal.trigger.label}
+          mobile="tab"
+          mobileOnly={true}
+          onClick={(): void => onOpenModal(youModal.id)}
+        />
       )}
     </nav>
   );

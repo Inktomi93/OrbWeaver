@@ -36,13 +36,14 @@ import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { testId } from "#lib";
 import { useSelectedPresetTemplateId } from "#state";
 import { openSectionInPrompt } from "../../lib/preset-nav";
 import type { TemplateRow } from "../../lib/template-rows";
 import { templatePreview, templateRowById } from "../../lib/template-rows";
+import { MacroText } from "../macro-text";
 import { deriveZones } from "../prompt-assembly/derive-zones";
 import { DatumRow } from "./readout-parts";
 
@@ -195,31 +196,6 @@ function boundGloss(runs: readonly MacroRun[], user: string | undefined): string
   return `${bound}${fireTime} · settle-live`;
 }
 
-/** Literal prose as text, `{{macro}}` references as inline Badges — off the SAME escape-aware kit scanner the
- *  assembled preview uses, so a macro can never be FOUND two ways across the surface.
- *
- *  The chip prints the token WITH ITS BRACES (the mock's own `.tok`), unlike the Prompt view's assembled
- *  preview which chips the bare name. Deliberate, and specific to this panel: in the bound arm the surviving
- *  chips ARE the fire-time tokens, and the gloss directly under them names those tokens as `{{input}}` and
- *  `{{person}}` — a chip reading `input` beside a gloss reading `{{input}}` would be two spellings of the one
- *  thing this panel exists to distinguish. */
-function MacroText({ tokens }: { readonly tokens: readonly MacroRun[] }): ReactElement {
-  return (
-    // A BOXED payload, not loose prose (the mock's `.code`: bordered, tinted, mono, `pre-wrap`). What the
-    // model receives is a quoted artifact — dropping the box let it read as another paragraph of the panel's
-    // own copy, which is the one thing a preview must never be mistaken for. Same box as the Prompt view's
-    // assembled preview, so the surface quotes the wire ONE way.
-    <Text className="whitespace-pre-wrap break-words rounded-base border border-border bg-muted/40 p-row" prose={true} voice="datum">
-      {tokens.map(
-        (token, i): ReactNode =>
-          token.kind === "macro" ? (
-            <Badge intent="info" key={`${String(i)}-${token.value}`} size="sm">
-              {`{{${token.value}}}`}
-            </Badge>
-          ) : (
-            token.value
-          ),
-      )}
-    </Text>
-  );
-}
+// The token renderer is `../macro-text` — ONE braced-chip spelling for the whole surface (side-eye F-1
+// ruling 1). This panel's chips were already braced and correct; the assembled preview's were bare, and
+// unifying them is what makes the rule a property of the surface instead of of this file.

@@ -37,6 +37,13 @@ const ALLOWLIST: Record<string, string> = {
   // creates NOTHING), sibling-carried (a visible create form beside the list), or a DESIRED empty state. Each row
   // names its class so the next auditor can re-derive it. (C11 polish pass; allowlist WITH reasoning, not a bolted-on
   // decorative button — the confidence-theater ban.)
+  "packages/client/src/features/world-info/components/world-info-context-body.tsx":
+    'the "No book open" arm of the World Info CONTEXT pane (side-eye F-12, 2026-08-03) — the pane is a ' +
+    "READOUT of an open book's attachments, and the next step (open a book) lives in the sibling LIST pane " +
+    "with its own New primary, so this state legitimately carries no action of its own. Same class, and the " +
+    "same reasoning, as preset-section-inspector.tsx / preset-library-welcome.tsx above; the alternative " +
+    "this gate names as wrong — a bolted-on decorative button — would be a second home for the list's own " +
+    "create verb.",
   "packages/client/src/features/rpg/components/cast/cast-tab.tsx":
     "read-only-by-pillar: the NPC roster is model-authored via `upsert_npc` (P1 — the client derives/creates nothing); " +
     "the cast fills as the story introduces characters, so there is no client action to offer.",
