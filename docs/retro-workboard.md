@@ -68,13 +68,28 @@ imports it — two-homes class closed), edge map opt-in {edges:true} w/ byte-ide
 receipts (edges OFF/ON identical; ratchet output byte-identical vs HEAD). First audit: 14,759
 decls / 52,989 edges / 15 unconsumed heads / **0 chain-dead** (zero proven real via planted
 probe; graph prints its own size). Its 39 first-run hits were ALL lens bugs (lesson banked).
-**LIVE NOW (2): TRUTH · PERSONA.** DISPATCHED post-seal: **REGEX** (the R1-R6 program per the
-regex report; R0 done via D121 clause E; R1 = library+junctions reshape + baseline regen +
-carries the raw_request/raw_response deletions; R2/R4 MUST register the `regex` portable kind) ·
-**SM3** (mech smalls: gateAndResolveConnection no-op + 3 stale canAgent comments · databank-spec
-seven-sections line · responseFormatSchema @typeonly-ok · content-class table-dispatch ·
-CharacterFacetId Record). GRAD queued behind TRUTH; HANDOFF-COPY queued behind PERSONA;
-PRIN's write-half classification lane queued.
+✅ **TRUTH MERGED (`fe46f9df`, hook 14/14, torn down) — the core-docs corpus is TRUTH-REPAIRED:**
+all 35 docs swept; 14 STALE-BUILT-TENSE + 6 COUNT-DRIFT + 6 PHANTOM-REF + 2 CONTRADICTS-LEDGER
+fixed (dated riders on snapshots, in-place on inventories); ~95 spot-checks held. Report:
+docs/reviews/misc/2026-08-03-core-docs-truth-audit.md. Headlines: Core-STATUS was a wholesale
+pre-retro lie · both ST registers stale BOTH directions · Tier-3b taught a 6-member BackendKey
+w/ purged anth-direct · Spine-TS gold-standard pointed at a D117-deleted file · enforcement docs
+claimed a standing CI against D62's no-CI ruling · SegmentedClock stale PREBUILT marker retired.
+**LEDGER SWEEP D1-D121: one more D60-class lie — D67** (anth-direct "sealed a sixth
+BACKEND_KEYS member", zero code refs) + D68's shadow + 2 rename drifts (D109/D112) + D31
+parenthetical + D59 crew-vs-crew-DEAD. Rot concentrates in SNAPSHOT docs, not rulings; the one
+systematic failure mode = "purge nobody swept the registry for." **GATE SPEC verdict:** general
+build-tense linter REFUTED (tense = prose NLP); two honest mechanical arms recommended instead
+(backticked-PATH existence + backticked-SYMBOL existence via ts-morph name index — the audit's
+own scripts found 5 phantoms in one pass; dangling-refs family, both-ways) → QUEUE as a build
+item. **⚠ NEW OWNER ITEM: monotonic-tests' deleted-test arm is silently INERT** (its manifest
+was lost in the retro; readManifest fail-opens) — re-arm is an owner call, rider added in-doc.
+**LIVE NOW (4): PERSONA · REGEX · SM3 · GRAD.** GRAD (dispatched on TRUTH's drain, mech) =
+ceremony graduation (strike-verify → docs/history moves + ref repoints) + TRUTH report §4's
+post-CERD ledger repairs (D67/D68 riders · D31/D109/D112 drifts · reserved-range next-free
+D122+ · D59 crew disposition · AGENTS.md §6 items · lockdown §13 buddy-bus row).
+HANDOFF-COPY queued behind PERSONA; PRIN's write-half classification lane queued; dangling-refs
+gate arms queued.
 
 **LANE TRUTH DISPATCHED (Fable-tier, OWNER-EXEMPTED — the day's closing act):** the core-docs
 TRUTH AUDIT — every verifiable claim in docs/architecture/core verified against the tree
