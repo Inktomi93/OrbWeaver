@@ -53,8 +53,8 @@ import type {
 import type { MessageRole } from "@orb/kit/message-role";
 import type { RegexReplacer } from "@orb/kit/regex";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
-import type { AuditEntry } from "#foundation/observability";
 import type { ResolveRegexSources } from "#domain/regex";
+import type { AuditEntry } from "#foundation/observability";
 import type { RoleClientsWithSignal, ToolCallInput, WireTool } from "#infra/providers";
 import type { ActiveTurns } from "./active-turns";
 import type { ResolveForeignInputsOp } from "./foreign";

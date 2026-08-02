@@ -33,10 +33,10 @@ import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { DraftGroupConfigTabBody, DraftInjectionsTab, DraftOverridesTabBody } from "./draft-context-tabs";
 import { CommittedGroupConfigTab } from "./group-config-form";
+import { HostDisplayScriptsControl } from "./host-display-scripts-control";
 import { InjectionsManager } from "./injections-manager";
 import { MacroPicksSection } from "./macro-picks-section";
 import { ChatBackgroundSection, RoomOverridesTab } from "./room-overrides-tab";
-import { HostDisplayScriptsControl } from "./host-display-scripts-control";
 import { ToolRecurseControl } from "./tool-recurse-control";
 
 // The Group-behavior form's initially-visible control rows (reply-mode + 2 switches + Advanced trigger).

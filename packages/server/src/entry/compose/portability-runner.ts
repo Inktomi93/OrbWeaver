@@ -20,6 +20,7 @@ import type { ExportService } from "#domain/export";
 import type { ImportWorkloadDeps } from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
+import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "#domain/regex";
 import type { SettingsContext } from "#domain/settings";
 import { reconcileStats } from "#domain/stats";
 import type { TagContext, TagService } from "#domain/tag";
@@ -35,7 +36,6 @@ import {
   runBundleImport,
   runProfileDirImport,
 } from "../import";
-import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "#domain/regex";
 import { buildPortabilityRegistry } from "./portability";
 
 /** Repo-root ST profile snapshot (gitignored) — the `import-st` default when no `stProfileDir` is set. */

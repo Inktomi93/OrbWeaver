@@ -8,9 +8,8 @@
 import type { AttachedBookRef, CharacterCard, CreateCharacterInput } from "@orb/contracts/character";
 import { ATTACHED_BOOKS_WIRE_KEY, attachedBookRefSchema, createCharacterSchema } from "@orb/contracts/character";
 import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, attachedRegexScriptRefSchema } from "@orb/contracts/regex";
-import type { RegexScriptId } from "@orb/kit/ids";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
-import type { AssetId } from "@orb/kit/ids";
+import type { AssetId, RegexScriptId } from "@orb/kit/ids";
 import { readCardChunk } from "@orb/kit/png-card-chunk";
 import { slugifyHandle } from "@orb/kit/slug";
 import { z } from "zod";

@@ -14,11 +14,10 @@
 // display leg runs on the way to the DOM and nowhere else.
 
 import type { ChatId } from "@orb/kit/ids";
-import { SettingRow } from "@orb/ui/setting-row";
-import { Switch } from "@orb/ui/switch";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
+import { SettingSwitchRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useSetHostDisplayScripts } from "../hooks/use-context-panel-mutations";
 
@@ -35,18 +34,16 @@ export function HostDisplayScriptsControl({ chatId }: HostDisplayScriptsControlP
   const id = useId();
 
   return (
-    <SettingRow
+    // `SettingSwitchRow`, not a hand-paired SettingRow+Switch: the composite exists precisely so the
+    // label-association suppression lives in ONE place instead of once per call site (C21).
+    <SettingSwitchRow
       id={id}
       label="Show my display scripts to everyone"
       description="Your display-only regex normally changes just your own view. Turn this on to apply it to the transcript for everyone in this room — their own display scripts still run on top. Never changes what's sent to the model or what anyone types."
-    >
-      <Switch
-        id={id}
-        checked={chat.hostDisplayScripts}
-        onCheckedChange={(next): void => {
-          setEnabled.mutate({ chatId, enabled: next });
-        }}
-      />
-    </SettingRow>
+      checked={chat.hostDisplayScripts}
+      onChange={(next): void => {
+        setEnabled.mutate({ chatId, enabled: next });
+      }}
+    />
   );
 }

@@ -5,6 +5,7 @@
 // assistant/LLM/imported content by default (the indirect-prompt-injection boundary).
 
 import type { MessageView, ParticipantView } from "@orb/contracts/chat";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -18,7 +19,6 @@ import { toggleMessageSelected, useIsEditingMessage, useIsMessageSelected, useSe
 import { AttachmentUrlProvider } from "../hooks/attachment-url-provider";
 import { useEnterMotion } from "../hooks/use-enter-motion";
 import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution";
-import type { RegexScriptRow } from "@orb/contracts/regex";
 import { resolveMessageRenderContext } from "../lib/message-render-context";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
 import { splitIntoTrainParagraphs } from "../lib/split-paragraphs";

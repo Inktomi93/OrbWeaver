@@ -8,16 +8,16 @@
 // Clicking a row calls `onSelect(facetId)` — the surface writes the local selection AND reveals the CONTEXT
 // Field tab (two-things-at-once, mirroring the preset rack's `onSelectSection`).
 
+import type { CharacterId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useTRPC } from "#data";
 import type { AppFormInstance } from "#forms";
 import type { CharacterCardFacet } from "../lib/character-card-facets";
 import { CHARACTER_CARD_FACETS, CHARACTER_FACET_TIER_LABELS, CHARACTER_FACET_TIERS } from "../lib/character-card-facets";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
-import type { CharacterId } from "@orb/kit/ids";
-import { useQuery } from "@tanstack/react-query";
-import { useTRPC } from "#data";
 import { CharacterFacetRow } from "./character-facet-row";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;

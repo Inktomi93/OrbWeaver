@@ -1,7 +1,12 @@
 // CT: the REGEX pane after its re-home into features/regex (SET-SEAMS stage 5 / D114). The pane definition
 // moved features; its `(category, subId)` anchor pair, nav label and search keywords did NOT (§7.1/§7.2) —
 // these are the pins that a move which silently broke a deep link would red. The pane stays `surface` mode,
-// so the script library's own autosave behavior is pinned by regex-settings-surface.ct.tsx at the mirror path.
+// so the script library's own CRUD behavior is pinned by regex-settings-surface.ct.tsx at the mirror path.
+//
+// D121-E re-pointed the DATA the surface reads, not the pane's identity: the body used to render from
+// `settings.getUserSettings`'s `config.regex.scripts` blob and now reads the `regex` router (`listScripts`
+// + `listGlobal`). The nav/anchor/keyword pins below are unchanged — which is the point: the storage
+// reshape moved a surface's source without moving the door a stored deep link aims at.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -18,6 +23,10 @@ function stub(page: Page): Promise<unknown> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => ({ userId: USER_VIEWER.userId, schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
     "sessions.me": () => USER_VIEWER,
+    // The library reads (D121-E). An EMPTY library is deliberate here: this file pins the pane's door, and
+    // the door must open on an empty library exactly as it does on a full one.
+    "regex.listScripts": () => [],
+    "regex.listGlobal": () => [],
   });
 }
 

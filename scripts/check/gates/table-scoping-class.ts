@@ -127,7 +127,10 @@ export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
   // ── (c) junction-derived — a pure LINK; BOTH parents must be reachable by the caller. ──────────────────
   character_books: { scope: "junction", why: "character ↔ world_book attachment; both parents are (a) ownerId tables, so the caller must own both ends." },
   character_documents: { scope: "junction", why: "character ↔ document attachment; both parents are (a) ownerId tables." },
-  character_regex_scripts: { scope: "junction", why: "D121-E character ↔ regex_script attachment; both parents are (a) ownerId tables, so the caller must own both ends." },
+  character_regex_scripts: {
+    scope: "junction",
+    why: "D121-E character ↔ regex_script attachment; both parents are (a) ownerId tables, so the caller must own both ends.",
+  },
   character_personas: { scope: "junction", why: "the M:N character ↔ persona association (producer: persona); both parents are (a) ownerId tables." },
   character_tags: { scope: "junction", why: "D23 derive-don't-stamp precedent — a required FK to an owned row on BOTH ends makes the owner always derivable." },
   chat_digest_speakers: { scope: "junction", why: "digest ↔ character speaker stamp; the digest side is (b) membership, the character side is (a)." },
@@ -158,8 +161,14 @@ export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
     why: "ownership DERIVES via `asset_id → assets.ownerId` (Nate ruling 2026-07-01, stated in the schema header); `subject_character_id` is a nullable label, not a second parent.",
   },
   global_regex_scripts: { scope: "parent", why: "D121-E: the always-on script set — a single PK/FK to `regex_scripts`, so scope is the script's owner." },
-  preset_regex_scripts: { scope: "junction", why: "D121-E preset ↔ regex_script attachment; both parents are (a) ownerId tables (a null-owner system preset matches no caller, so it is un-attachable by construction)." },
-  regex_scripts: { scope: "ownerId", why: "D23 true producer — a script is the user's authored artifact with no owning parent to derive through (the world_books twin)." },
+  preset_regex_scripts: {
+    scope: "junction",
+    why: "D121-E preset ↔ regex_script attachment; both parents are (a) ownerId tables (a null-owner system preset matches no caller, so it is un-attachable by construction).",
+  },
+  regex_scripts: {
+    scope: "ownerId",
+    why: "D23 true producer — a script is the user's authored artifact with no owning parent to derive through (the world_books twin).",
+  },
   global_books: { scope: "parent", why: "the always-on book set — a single PK/FK to `world_books`, so scope is the book's owner." },
   image_embeddings: { scope: "parent", why: "derived image vectors — scope derives through `assets.ownerId`." },
   message_variants: {

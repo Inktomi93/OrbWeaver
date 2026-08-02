@@ -17,7 +17,7 @@ import { useQuery, useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import type { ChatBusDeps } from "#data";
-import { QueryBoundary, QueryErrorState, SkeletonRows, useChatBus, useTRPC, useDisplayScripts } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, useTRPC } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { useFocusOnMount } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";

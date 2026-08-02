@@ -21,8 +21,9 @@ import {
 import { renderMessageForDisplay } from "@orb/client/lib";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CreateTagInput, TagView } from "@orb/contracts/tag";
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
@@ -550,8 +551,10 @@ export function SectionEchoStory(): ReactElement {
 // ── D121-E / F1: the DISPLAY TIER ───────────────────────────────────────────────────────────────────────
 const DISPLAY_STORY_CHAT = "chat_ctdisplaystoryyyyyyyyy" as ChatId;
 
-/** The raw canon every display-tier arm starts from. */
-export const DISPLAY_STORY_RAW = "the GOBLIN snarls";
+// The raw canon every display-tier arm starts from. NOT exported: playwright-ct rewrites every named
+// import from a story module into a generated component `const`, so a story module may only export
+// components to its CT — the CT restates this literal instead.
+const DISPLAY_STORY_RAW = "the GOBLIN snarls";
 
 /**
  * Renders ONE body through the production `renderMessageForDisplay` with the hook's RESOLVED display set,
@@ -561,8 +564,9 @@ export const DISPLAY_STORY_RAW = "the GOBLIN snarls";
 function DisplayTierBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const scripts = useDisplayScripts(chatId);
   const rendered = renderMessageForDisplay(DISPLAY_STORY_RAW, {
-    characterNamesById: new Map(),
-    personaNamesById: new Map(),
+    // Branded key types, not bare `new Map()` — the maps are keyed by CharacterId/PersonaId.
+    characterNamesById: new Map<CharacterId, RowCharacterName>(),
+    personaNamesById: new Map<PersonaId, RowPersonaName>(),
     displayScripts: scripts,
   });
   return (

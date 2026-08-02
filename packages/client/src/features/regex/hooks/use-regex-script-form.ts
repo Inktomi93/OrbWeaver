@@ -6,14 +6,14 @@
 // `RegexEditorDialog` binds — so create and edit drive the identical field set at the identical capability
 // level. No draft mirror: the library is server-synced and autosaves within the debounce window.
 
+import type { CreateRegexScriptInput } from "@orb/contracts/regex";
 import { REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
-import type { RegexScriptFormValues } from "#components";
 import { createAutosaveEntityForm } from "#forms";
 
 /** A fresh script seeded with the schema defaults. `placement` is EVERY placement: a script authored with
  *  no placement can never fire (that was F3 — the character facet's `placement: []` default meant an in-app
  *  card script was unreachable by construction), and every member of the tuple now has a real leg. */
-export function makeRegexScriptDefaults(): RegexScriptFormValues {
+export function makeRegexScriptDefaults(): CreateRegexScriptInput {
   return {
     name: "New script",
     findRegex: "",
@@ -28,6 +28,6 @@ export function makeRegexScriptDefaults(): RegexScriptFormValues {
   };
 }
 
-export const RegexScriptForm = createAutosaveEntityForm<RegexScriptFormValues>({
+export const RegexScriptForm = createAutosaveEntityForm<CreateRegexScriptInput>({
   defaultValues: makeRegexScriptDefaults(),
 });

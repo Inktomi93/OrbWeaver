@@ -10,13 +10,12 @@ import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characterStats, chats, dailyStats, messages, messageVariants, modelStats, ownerStats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName, VarOp } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import type { AuditEntry } from "@orb/server/foundation/observability";
@@ -153,7 +152,7 @@ describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () 
     ({ name, description: "", avatarAssetId: null, regexScripts }) as unknown as CharacterCard;
 
   /** A ChatContext whose regex resolver returns the per-test `globalScripts` as the GLOBAL slice. */
-  const regexSourcesCtx = (cardName: string) =>
+  const regexSourcesCtx = (cardName: string): ReturnType<typeof makeChatContext> =>
     makeChatContext(db, {
       getCard: () => Promise.resolve(card(cardName)),
       resolveRegexSources: () => Promise.resolve({ hostGlobal: globalScripts, preset: [], cast: [], chat: [] }),

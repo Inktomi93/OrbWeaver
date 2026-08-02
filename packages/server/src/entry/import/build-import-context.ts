@@ -5,11 +5,11 @@
 
 import type { AttachedBookRef, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import type { ImportCardScripts } from "#domain/regex";
 import type { TagSource, TagStatus } from "@orb/contracts/tag";
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import type { ImportContext } from "#domain/import";
+import type { ImportCardScripts } from "#domain/regex";
 
 /** The `character` front-door slice the driver wires the import create/dedup/edit-in-place ops to. */
 export interface ImportCharacterPort {
