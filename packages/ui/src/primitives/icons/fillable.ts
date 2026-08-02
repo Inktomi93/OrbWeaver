@@ -25,6 +25,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   Bookmark as BookmarkGlyph,
+  Circle as CircleGlyph,
   Droplet as DropletGlyph,
   Flag as FlagGlyph,
   Flame as FlameGlyph,
@@ -44,6 +45,10 @@ declare const fillable: unique symbol;
 export type FillableIcon = LucideIcon & { readonly [fillable]: true };
 
 export const Bookmark: FillableIcon = BookmarkGlyph as FillableIcon;
+/** The ONE-SUBPATH extreme: a bare `<circle r=10>`, so a solid fill is a filled DISC and a partial fill is
+ *  a clean vertical wipe. It is the row STATE dot (a pressed one-of-N pick reads as filled vs hollow —
+ *  a shape delta, WCAG 1.4.1). */
+export const Circle: FillableIcon = CircleGlyph as FillableIcon;
 export const Droplet: FillableIcon = DropletGlyph as FillableIcon;
 export const Flag: FillableIcon = FlagGlyph as FillableIcon;
 export const Flame: FillableIcon = FlameGlyph as FillableIcon;

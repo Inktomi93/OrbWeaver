@@ -122,6 +122,6 @@ export {
   X,
 } from "lucide-react";
 export type { FillableIcon } from "./fillable";
-export { Bookmark, Droplet, Flag, Flame, Heart, Pause, Play, Shield, Square, Star, Zap } from "./fillable";
+export { Bookmark, Circle, Droplet, Flag, Flame, Heart, Pause, Play, Shield, Square, Star, Zap } from "./fillable";
 export type { IconProps } from "./icon";
 export { ICON_LG, ICON_MD, ICON_SM, ICON_XS, Icon } from "./icon";

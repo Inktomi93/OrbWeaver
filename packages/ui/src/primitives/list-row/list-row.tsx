@@ -82,6 +82,15 @@ export interface ListRowProps {
    */
   actionsFloat?: boolean;
   /**
+   * WHICH box wears the hover/selected tint. Default `body`. Pass `row` when the `actions` cluster is IN
+   * FLOW and reveal-gated: the cluster is a sibling of the body, so a body-painted tint stops before it and
+   * the controls sit on the pane background instead of on the row. `row` paints the ROOT, so the glyphs ride
+   * the row's own tint and the cluster needs no backdrop of its own (a cluster backdrop is a box-in-box
+   * double highlight). Mutually exclusive with `actionsFloat` by construction — a floated cluster is already
+   * inside the body's box.
+   */
+  rowTint?: "body" | "row";
+  /**
    * Renders the row's body as a native `<button>`, with the `actions` slot kept a sibling so
    * nothing interactive nests inside it. The body's children are all phrasing content, so a
    * native `<button>` is valid.
@@ -303,6 +312,7 @@ export function ListRow({
   renderActions,
   collapseBelow,
   actionsFloat = false,
+  rowTint = "body",
   clickable = false,
   selected = false,
   expanded,
@@ -311,7 +321,7 @@ export function ListRow({
   onClick,
   className,
 }: ListRowProps): ReactElement {
-  const slots = listRowVariants({ density, clickable, float: actionsFloat, subtitleWrap, subtitlePlacement });
+  const slots = listRowVariants({ density, clickable, float: actionsFloat, subtitleWrap, subtitlePlacement, rowTint });
   const rootRef = useRef<HTMLDivElement>(null);
   const collapsed = useCollapsedBelow(rootRef, renderActions === undefined ? undefined : collapseBelow);
   const resolvedActions = renderActions !== undefined ? renderActions(collapsed) : actions;
@@ -322,7 +332,9 @@ export function ListRow({
   const markersId = markers === undefined ? undefined : `${baseId}-markers`;
   const describedBy = [subtitleId, metaId, markersId].filter((id) => id !== undefined).join(" ") || undefined;
   return (
-    <div className={slots.root({ className })} data-slot="list-row-root" ref={rootRef}>
+    // `data-selected` rides the ROOT as well as the body: the `rowTint="row"` arm paints the selected skin
+    // here, and an attribute the default arm simply doesn't style costs nothing.
+    <div className={slots.root({ className })} data-selected={selected ? "" : undefined} data-slot="list-row-root" ref={rootRef}>
       <ListRowBody
         ariaDescribedBy={describedBy}
         ariaLabel={title}

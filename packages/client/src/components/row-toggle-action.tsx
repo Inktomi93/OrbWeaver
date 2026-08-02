@@ -14,7 +14,7 @@
 // anatomy (the character card's star, the chats row's star), which is the R2 bar for a tier-2 composite.
 
 import { Button } from "@orb/ui/button";
-import type { LucideIcon } from "@orb/ui/icons";
+import type { FillableIcon } from "@orb/ui/icons";
 import { Icon } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
@@ -27,7 +27,10 @@ export interface RowToggleActionProps {
   readonly labelOn: string;
   /** The accessible name while unpressed — names the set ("Star The Crimson Court"). */
   readonly labelOff: string;
-  readonly icon: LucideIcon;
+  /** A {@link FillableIcon} — the branded, gallery-checked subset — because `pressedFill` paints the glyph
+   *  through the seal's own fill axis, which renders as a blob on a multi-path outline. Typing the prop is
+   *  what makes that a compile error instead of an ugly pressed state. */
+  readonly icon: FillableIcon;
   /** The pressed tone (e.g. `text-warning` for a star). Applies only while pressed. */
   readonly pressedClassName?: string;
   /** `when-on` (D11, the list default) = visible at rest only while pressed; `always` = never hidden;
@@ -37,10 +40,11 @@ export interface RowToggleActionProps {
    *  and reveal-gating it is what keeps the row from painting two stars at once. */
   readonly rest?: "always" | "never" | "when-on";
   /**
-   * FILLS the glyph while pressed, so the pressed state carries a SHAPE delta and not only a color one.
-   * WCAG 1.4.1: the preset list's activate control differed from its rest state by stroke color alone, and
-   * on a coarse pointer (where the text badge is hidden) color was the ONLY signal at all (side-eye F-06).
-   * A filled bolt vs a hollow one is legible in greyscale.
+   * FILLS the glyph while pressed (through the seal's `fill="solid"` axis), so the pressed state carries a
+   * SHAPE delta and not only a color one. WCAG 1.4.1: the preset list's activate control differed from its
+   * rest state by stroke color alone (side-eye F-06). A filled disc vs a hollow ring is legible in
+   * greyscale — and on the preset row it is the WHOLE state readout (owner ruling O-1, 2026-08-02: the
+   * separate "Active" text badge is gone, so this control is both the state and the affordance).
    */
   readonly pressedFill?: boolean;
   /**
@@ -79,7 +83,7 @@ export function RowToggleAction({
       size="icon"
       type="button"
     >
-      <Icon className={pressed && pressedFill ? "fill-current" : ""} icon={icon} size="sm" />
+      <Icon fill={pressed && pressedFill ? "solid" : "none"} icon={icon} size="sm" />
     </Button>
   );
 }
