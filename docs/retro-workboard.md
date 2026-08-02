@@ -55,6 +55,13 @@ blob reshape both required it — owner's games are gone from dev, seeded-data c
   lazy; 3 stale truth claims; staged build program A-D in
   docs/reviews/stickler/2026-08-02-zod-leverage-audit.md — AWAITS OWNER READ) · **ICON SEAL** —
   weight/fill/partialFill axes, FillableIcon brand, byte-identity CT (client adoption FROZEN).
+**ZOD PROGRAM A-D: APPROVED (owner read the report in full, 08-02 night — "we do it right and we
+do it once even if it means more work").** Direction on the stage-D forks = the do-it-right arm:
+F1 strip-observability hole on the D112 folded wire gets CLOSED properly (no quiet
+invented-key-vanishes path survives), F5 stringbool with pinned {truthy,falsy,case} params,
+F11 z.hostname swap PROBE-FIRST (SSRF-adjacent — the report's own caveat stands). Dispatches as
+ONE do-it-right lane (A truth-repair → B prettifyError → C respellings → D arms) at the next
+heavy slot after Lane B/C drain (contract-file adjacency).
 
 **⚠ OWNER-REPORTED LIVE DEFECTS (08-02 night, post-fix-all — REAL, seen by the owner's own
 eyes; these are the FIRST work when the freeze lifts):** (1) **INFINITE RENDER on hover in the
@@ -78,9 +85,18 @@ input + dead Delivers-via button + missing drill OVERRIDES block. Mock crops for
 `reports/snaps/preset-mocks/` (INDEX.md); rendered set `reports/snaps/mvr-*.png`. THE FIX LANE
 BRIEFS FROM THAT DOC.
 
-**WHEN THE FREEZE LIFTS, THE RULED ORDER:** the two owner-reported defects above → preset
-side-eye RE-VERIFY round (fix-rounds law) +
-close-out D-entry → D8 binding + Actions resolved preview (§7.1) + preset-cohort prose slots →
+**⛔̶ FREEZE LIFTED (owner word, 08-02 night — new account, fresh usage). WAVE 1 IN FLIGHT:**
+Lane A (list trailing-slot P0 + O-1 dot) · Lane B (layout/typography/control grammar + O-18
+quality dropdown) · Lane D (shell focus-mode desync + O-19 registry defaults) — all worktree
+lanes off `cfc7b2b3`; the crunch list is the brief. Lane C (semantics/vocab batch: O-4/5/6/7/
+8/9/10/11/12/13/16/17 + items 11/12) dispatches as slots free. Stale worktree debris cleaned
+(9 merged wt/ branches deleted w/ 0-unmerged receipts; 2 dirs removed, 0 unique files).
+
+**THE RULED ORDER (running):** preset fix round (above) → real-pointer probe re-verify (Chrome
+session live; counters 1700→single-digit) → preset side-eye RE-VERIFY round (fix-rounds law;
+side-eye agent doc UPDATED 08-02 w/ full snap usage + the real-pointer-only hover-class law) +
+close-out D-entry + crunch-list graduation (verifier → docs/history) → D8 binding + Actions
+resolved preview (§7.1) + preset-cohort prose slots →
 R4 promotion doorway → icon-seal client adoption (F-06 bolt, tracker orbs, meters) → zod stages
 A/B/C (comment truth-repair · prettifyError · respellings) → square-glyph Button small → density
 S6 (transcript+composer) → SSE close-out residue (impersonate +1 socket verify; 3 stale
@@ -88,12 +104,35 @@ precedent labels) → combined rpg side-eye on a MODEL-POPULATED game (NPC-only 
 Known-characters disclosure · CastCard mood-wrap · waystone-compact · the accumulated W-H list)
 → @live rpg-lite-loop pass → **DATABANK alone, last**.
 
-**OPEN OWNER ITEMS (complete):** zod stage-D calls (F1 strip-observability on the folded wire ·
-stringbool params · z.hostname swap probe) · probe-corpora maintain-or-archive (hpDelta debris,
-pre-existing) · D6 maxBudgetUsd (verify wire → editor-or-delete) · JSON-card export format ·
-absent-character transcript import policy · DRAFT-TRUST architecture call · macro-feed
-cast-guides celBindings · Doc-Law §-refs-in-comments ruling · VRAM-refusal drill word · AGENT-1
-word · D22 multi-user (needs multi-user stack) · the next PUSH word.
+**NIGHT-TAIL (owner, 08-02 night — end of night if time):** (1) CHARACTER + CHAT mock-vs-made
+pass (yesterday's mocks: list-pane-projection + home-section + the lifecycle surfaces), desktop
+AND mobile side-eye rounds; full GPU control granted (sleeping vLLM lies dead — `/is_sleeping`
+is truth; stack restarts fine). (2) THEME-CUSTOMIZE ZERO-EDIT FORK (owner saw live): pick
+built-in theme → Customize → change nothing → back → a copy exists. Owner: "technically fine…
+might not be worth the juice" — LOW priority; the preset fork-choice precedent (interception,
+nothing written until an arm/keystroke) is the fix shape if ever taken. Board-log only unless
+adjacent work touches theme-picker.
+
+**OWNER RULINGS (08-02 night, four via question tool):** zod A-D APPROVED do-it-right (block
+above) · **D6 maxBudgetUsd: DELETE IT** (no verify — the knob dies; schema+consumer sweep, queue
+behind Lane B's contract merge, warm-B candidate) · **probe corpora: ARCHIVE w/ stale-vocab
+header note** (freeze as historical; fresh corpora mint on next probe need — light item, Lane E
+follow-up) · **VRAM-refusal drill: DEFERRED** · **PUSH: owner pushed himself through `7c312220`
+(origin now 6 behind); next push = MORNING, his word — verify:push prep when quiesced is fine.**
+
+**SEEDS/E2E RETIRED-VOCAB SWEEP: CLEAN (scout, 08-02 night, both-methods receipts):** nothing in
+tests/e2e/** / __orb.seed (agent-seed/index.ts) / agent-bridge injects retired R1-R3 vocab; all
+hand-mirror deltas are DELIBERATE pinned subsets enforced by mirror-parity.test-d.ts (drift =
+typecheck red). Nits for a docs batch: trpc.ts:829 comment overstates presentCharacters (mood/
+relationship live on the actor row now); not-covered list in the scout report. LANE E MERGED
+CONTENT: perf-meter LoAF-first (rAF-gap kept for the 34-49ms band, `04745207`) · __orb.shell()
+now exposes `focus` via data-focus-mode (`c745e85c`) · labels item was ALREADY DONE (e8e7d825).
+EXECUTOR.MD UPGRADED from Lane D retro: red-first-compiles-against-OLD-source law · worktree-Bash
+compound-command workaround · mechanism-claims-are-hypothesis · SendMessage back-channel.
+
+**OPEN OWNER ITEMS (remaining):** JSON-card export format · absent-character transcript import
+policy · DRAFT-TRUST architecture call · macro-feed cast-guides celBindings · Doc-Law
+§-refs-in-comments ruling · AGENT-1 word · D22 multi-user (needs multi-user stack).
 
 **WATCH:** preset-editor-surface.ct:140 flaked ONCE under full-parallel (green isolated ×2 —
 load flake) · rpg-scene-tab.tsx near the 450 cap · registry-contracts.ts AT the cap.
@@ -101,6 +140,34 @@ load flake) · rpg-scene-tab.tsx near the 450 cap · registry-contracts.ts AT th
 **RESUME READ ORDER:** this block → the freeze note → THE QUEUE → `git log --oneline -40` →
 MEMORY.md (auto-loads; hubs updated today: gate-authoring #5 new entries, ct-gotchas #24-26,
 op-shaped-hand-door-write-seam minted) → AGENTS.md for architecture work.
+
+**═══ ORCHESTRATOR QUICK-ONBOARD (post-compact tips — skip the usual re-setup, minted 08-02) ═══**
+· MEMORY is SYMLINKED across both accounts (`~/.claude-b/...orbweaver/memory` → `~/.claude/...`);
+  one store, either login. context-sentinel hook active on BOTH (compact ritual fires ≥90%).
+· LANES: `Agent {isolation:"worktree"}` — the WorktreeCreate hook owns creation (local HEAD +
+  auto-install). POST-DISPATCH: verify bases (`git -C <wt> rev-parse HEAD` = main HEAD). Briefs
+  ALWAYS include: the back-channel line (lanes SendMessage you MID-RUN — owner wants this), scope
+  boundaries vs sibling lanes, `git -C` discipline, lane-unique scratchpad names.
+· MERGES: a FAST-FORWARD merge SKIPS the pre-merge-commit hook — run `pnpm check` on main after
+  any FF (or `merge --no-ff` to force the hook). Teardown: `status --short` (untracked survivors)
+  + `git show --stat` receipts FIRST; never tear down a resumable lane.
+· snap: STUDIED IN FULL in side-eye.md now (agent doc carries complete usage). --eval = BARE
+  arrow (arrow-IIFE double-invokes); --jsclick for list rows; --isolated/--dirty stages beat
+  dev-stack HMR; --goto/__orb.nav for all SPA reach; HOVER-LOOP CLASS IS REAL-POINTER-ONLY
+  (synthetic/CT/CDP-discrete all blind — assert the structural invariant instead).
+· Chrome MCP (claude-in-chrome) available for live pairing w/ owner: CDP hover survives
+  screenshots, zoom regions, in-page counter probes — the tool for "I see it but can't shoot it".
+· MERGE RECEIPTS: `pnpm ast refs/jsx/orphans/unwired` (resolution-based, beats grep) to verify
+  lane deletion/sweep claims. Scouts carry the code-recon skill (still enforce evidence standards
+  in the prompt). Probes: snap + design-audit + perf-meter + motion-audit + `pnpm record`
+  (transitions/jank GIF w/ click-latency tile strips).
+· Doc lifecycle: working defect docs live in docs/reviews/misc; section complete → verifier pass
+  → graduate to docs/history. Stickler = truly-stuck only. Commits BATCH at merge points (owner
+  word) — no per-edit doc commits.
+· AGENT-DEF REFINEMENT LOOP (owner practice, 08-02): at lane completion, occasionally ask the
+  agent for onboarding friction (what was missing/wrong/rediscovered-the-hard-way vs what proved
+  load-bearing + one concrete agent-file edit) and fold the good ones into .claude/agents/*.md.
+  Only scout has had a real pass so far; executor/mech/verifier/side-eye briefs accrete here.
 
 ## ═══ CURRENT STATE — 2026-08-02 DAWN (STALE — archeology only; superseded by HANDOFF #3) ═══
 
@@ -1265,6 +1332,13 @@ the wire honors one · (3) usage/context accounting parity (per-turn DELTA
 semantics; PREV bars must not lie on SDK chats) · (4) THE LIVE DRIVE — full rpg-lite loop on the
 SDK wire scored (beats, extraction parity vs the reachability surfaces, resume hit-rate,
 multi-call terminal capture) · (5) mixed-mode turns only if a need lands. Order: 2→3→1→4.
+
+☰ **AGENT-DOC LAYERING (owner musing 08-02 night, "simplify or not idk"):** constitution
+(AGENTS.md) + doctrine (.claude/agent-doctrine.md) + per-agent defs + skills. Orchestrator
+assessment: the layering is sound; the REAL redundancy is dispatch-brief boilerplate (§L lane
+discipline · back-channel · receipts) repeated per brief — fold that invariant block into
+agent-doctrine.md ONCE (mandatory read-in-full beats an optional skill load for floors; skills
+stay for deep per-role content à la side-eye). Cheap small; do on a quiet slot, not mid-wave.
 
 ☰ **UNSENT-DRAFT RELOAD PERSISTENCE** (from the home side-eye's "temp draft data loss" — NOT a
 bug: nav round-trips keep everything, proven by a composed CT; only a PAGE RELOAD loses an unsent
