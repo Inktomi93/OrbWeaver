@@ -9,10 +9,21 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { AssetId, PersonaId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 
-/** The authored default "You" persona — a neutral, editable starting `{{user}}`. Deliberately generic (the
- *  user makes it theirs); the description reads in the first person so it drops into `{{user}}` naturally. */
+/** The authored default persona — a neutral, editable starting `{{user}}`. Deliberately generic (the user
+ *  makes it theirs); the description reads in the first person so it drops into `{{user}}` naturally.
+ *
+ *  THE NAME IS OWNER-RULED COPY, and it is not decorative: this string is what a model receives as `{{user}}`,
+ *  so it gets used as a form of address. It was "You" and that produced literal vocatives — "Goodnight, You."
+ *  — and it collided with the no-persona DISPLAY fallback, which is itself "You" (owner ruling 2026-07-27,
+ *  `entry/compose/rpg.ts` `PLAYER_SEMANTIC_REF`), making "has a persona" and "has none" render identically.
+ *  A neutral NOUN reads correctly in the vocative position a model will inevitably put it in.
+ *
+ *  Renaming it is safe for existing users BY CONSTRUCTION, with no gating code and no backfill: `seed()`
+ *  returns early on the persisted `onboarding.defaultPersonaSeeded` latch, so anyone already seeded never
+ *  reaches this constant again. (There is no separate "first-run complete" flag — `personaWizardSeen` was
+ *  deleted as dead in D107; this latch IS the first-run signal.) */
 const DEFAULT_PERSONA: Omit<CreatePersonaInput, "avatarAssetId"> = {
-  name: "You",
+  name: "Traveler",
   title: "Your default persona",
   description:
     "This is you — the person on the other side of the conversation. Edit this description to tell characters who you are: your name, how you speak, what you're like, whatever you want them to react to. Until you do, you're simply {{user}}: curious, present, and here to see where the story goes.",
