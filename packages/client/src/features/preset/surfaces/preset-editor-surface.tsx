@@ -68,6 +68,7 @@ import { VariablesTab } from "../components/variables-tab";
 import { usePresetAutosave } from "../hooks/use-preset-autosave";
 import { useResetPreset, useSetDefaultPreset } from "../hooks/use-preset-mutations";
 import type { EffectiveProfileRow } from "../lib/effective-knobs";
+import { resolvedForLabel } from "../lib/effective-knobs";
 import { seedConfig } from "../lib/preset-editor-model";
 import type { PresetEditorView } from "../lib/preset-nav";
 import { openSectionInPrompt, PRESET_EDITOR_VIEWS } from "../lib/preset-nav";
@@ -338,10 +339,19 @@ function PresetEditorBody({
                   model that may have been swapped since. Absent read ⇒ absent chip, never a guessed name.
                   THE NAME OUTRANKS IT AT NARROW (side-eye F-11): at 430px the chip pushed the preset name
                   out of the header entirely and overlapped the save status. It truncates, and the name
-                  does not. */}
+                  does not.
+
+                  ITS WORDS ARE THE READOUT'S (crunch-list O-2). It read `for anthropic/claude-sonnet-5`,
+                  which is a sentence about the PRESET — "this preset is for that model" — and the preset is
+                  for nothing: it is a config that resolves against whatever chat model you currently have.
+                  The readout owns resolution truth and already said it correctly, so the vocabulary homes
+                  ONCE in `resolvedForLabel` (`../lib/effective-knobs`, beside the rung vocabulary the same
+                  read's other glosses share) and both spellings come out of it. The chip KEEPS its home:
+                  the readout lives in the CONTEXT panel, which is away on narrow and closable everywhere,
+                  and this is the §16 sanctioned-echo class — a justified echo, not a second home. */}
               {effective === undefined ? null : (
                 <Badge className="min-w-0 shrink truncate" intent="neutral" size="sm" tone="ghost">
-                  for {effective.model}
+                  {resolvedForLabel(effective.model)}
                 </Badge>
               )}
             </Row>
