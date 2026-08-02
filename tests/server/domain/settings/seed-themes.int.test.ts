@@ -1,6 +1,7 @@
-// seed: ensureSeedThemes — the boot seeder for the three seed palettes. Pins: first boot inserts exactly
-// THREE null-owner rows at their fixed sentinel ids; idempotent (a double-run leaves exactly three); a
-// mutated seed row is RESTORED on the next boot (seeds are overwritten every boot, never version-gated —
+// seed: ensureSeedThemes — the boot seeder for the seed palettes (the three base palettes + the ten
+// default-character palettes). Pins: first boot inserts a null-owner row at every sentinel id in the
+// SEED_THEMES registry; idempotent (a double-run leaves exactly the registry, no duplicates); a mutated
+// seed row is RESTORED on the next boot (seeds are overwritten every boot, never version-gated —
 // themes-design.md §5, un-editable-by-construction makes this safe); a user-owned row is never touched.
 
 import { themes } from "@orb/db";
@@ -8,30 +9,33 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { THEME_HEARTH_ID, THEME_HEARTH_NAME, THEME_LIGHT_ID, THEME_MOCHA_ID } from "../../../../packages/server/src/domain/settings/constants.ts";
 import { readableTheme } from "../../../../packages/server/src/domain/settings/persistence/theme-queries.ts";
-import { ensureSeedThemes } from "../../../../packages/server/src/domain/settings/seed-themes.ts";
+import { ensureSeedThemes, SEED_THEMES } from "../../../../packages/server/src/domain/settings/seed-themes.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures";
 import { FROZEN_AT, makeHarness, principal, seedUser } from "./_support.ts";
 
 describe("ensureSeedThemes", () => {
-  test("first boot inserts exactly the three seed palettes at their fixed sentinel ids", async () => {
+  test("first boot inserts every registered seed palette at its fixed sentinel id, owner-less", async () => {
     const db = await freshDb();
     await ensureSeedThemes(db, () => FROZEN_AT);
     const a = await seedUser(db, { id: "user_a" });
-    const rows = await Promise.all([THEME_HEARTH_ID, THEME_MOCHA_ID, THEME_LIGHT_ID].map((id) => readableTheme(db, a, id)));
+    const rows = await Promise.all(SEED_THEMES.map((t) => readableTheme(db, a, t.id)));
+    expect(rows).toHaveLength(SEED_THEMES.length);
     for (const row of rows) {
       expect(row?.ownerId).toBeNull();
     }
+    // The base trio is still addressable by its own sentinel (the ids are API, not incidental order).
+    expect(rows.map((r) => r?.id)).toEqual(expect.arrayContaining([THEME_HEARTH_ID, THEME_MOCHA_ID, THEME_LIGHT_ID]));
   });
 
-  test("is idempotent — a double-run leaves exactly three seed rows", async () => {
+  test("is idempotent — a double-run leaves exactly the registry, no duplicates", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     await ensureSeedThemes(db, () => FROZEN_AT);
     await ensureSeedThemes(db, () => FROZEN_AT + 999);
     const a = await seedUser(db, { id: "user_a" });
     const seeds = (await h.svc.listThemes({ principal: principal(a, "user") })).filter((v) => v.isSeed);
-    expect(seeds).toHaveLength(3);
+    expect(seeds).toHaveLength(SEED_THEMES.length);
   });
 
   test("a hand-mutated seed row is RESTORED (overwritten) on the next boot", async () => {

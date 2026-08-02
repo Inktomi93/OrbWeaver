@@ -353,7 +353,8 @@ async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
     }
   }
   const assistantId = handleToId.get("assistant");
-  const groupCharIds = ["rev-card-refinery", "mara-soul-check", "niko"].map((h) => handleToId.get(h)).filter((id): id is CharacterId => id !== undefined);
+  // The pack's flagship trio ("The Ashen Spire" group demo, docs/design/default-character-roster.md).
+  const groupCharIds = ["sabine", "calamity", "morgatha"].map((h) => handleToId.get(h)).filter((id): id is CharacterId => id !== undefined);
 
   // Solo chat — seeds the primary's greeting (verbatim, no model), then one best-effort scripted turn.
   if (assistantId !== undefined) {

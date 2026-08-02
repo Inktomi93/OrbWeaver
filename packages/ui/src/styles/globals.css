@@ -45,9 +45,10 @@
  * palette, edit the value-set JSON + run `pnpm --filter @orb/ui tokens:build` — NEVER hand-write the CSS.
  *
  * The @custom-variant below is the ONE hand-authored piece and stays here: dark is enumerated (not
- * "default = dark") so a dark: utility resolves everywhere except the one light palette. It must
- * exclude every light seed value-set (a css-structure test enforces this from the JSON). */
-@custom-variant dark (&:not([data-theme="light"], [data-theme="light"] *));
+ * "default = dark") so a dark: utility resolves everywhere except the light palettes. It must
+ * exclude every light seed value-set (a css-structure test enforces this from the JSON) — currently
+ * `light` and `birdie` (the default-character pack's one daylight palette). */
+@custom-variant dark (&:not([data-theme="light"], [data-theme="light"] *, [data-theme="birdie"], [data-theme="birdie"] *));
 
 /* Ambient accent aura behind the empty-state brand glyph — a static low-alpha radial glow tinted
  * from --color-primary. Scoped to the brand/hero decoration slot only, never the muted empty-state
