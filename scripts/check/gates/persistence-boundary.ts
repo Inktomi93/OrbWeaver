@@ -33,6 +33,11 @@ const DEVICE_LOCAL_REGISTRY: Record<string, string> = {
     "library sort/view/filter-chip/bulk-mode/spoiler-blur browse prefs — per-device LIST/editor chrome, " +
     "not a synced setting (a returning user on another device does not expect their tag-filter OR their " +
     "screen-share spoiler-blur to follow; FINAL-Character §4/§6.1/§12.1)",
+  "home-tile-box":
+    "the last SETTLED body height of each home tile, so the tile's loading skeleton reserves the box its " +
+    "content will occupy on the next boot (F14 boot-CLS: the tiles grew out of a fixed 3-row skeleton and " +
+    "pushed the grid down +189px). A measurement of THIS device's viewport, never a user preference — " +
+    "syncing one device's pixel heights to another would reserve the wrong box (§12.1)",
   "recent-models":
     "the per-source Recent-models MRU in the connections model picker — 'what I recently picked on THIS " +
     "machine' is a convenience affordance, never synced routing truth (the actual selection persists " +

@@ -10,6 +10,15 @@
 // PER-TILE boundary, never one for the grid (§3.7): a slow or throwing tile must not blank the whole home,
 // so each body mounts inside its own `QueryBoundary` with a shape-matched skeleton and its own retry.
 //
+// …and that per-tile skeleton is what made home the app's boot-CLS site (F14, measured 2026-08-02): a
+// fixed 3-row skeleton is not the box the tile settles at, so when the reads landed the full-span
+// "Recent chats" tile grew +189px and pushed every tile below it down the grid (CLS 0.0913 at 1440x900 on
+// a 6-chat dev DB; 0.24 on the side-eye's fuller one). The settled box is DATA-dependent (N recents, N
+// quick-picks), so it cannot be reserved by a static height without padding short tiles with dead space —
+// the honest reservation is the one this device MEASURED last time: `TileBody` remembers each tile's
+// settled height (`#state` home-tile-box-store, localStorage) and `TileFallback` reserves exactly that
+// while the read is in flight. First-ever boot reserves nothing (there is nothing honest to reserve).
+//
 // The DORMANT arm renders a DOORWAY, not a fake feature: reduced weight, a DASHED frame (the mock's
 // `.tile.dormant`), a muted glyph, the teaser in the gloss voice, a `Dormant` badge, the tracked reason as
 // a FOOTNOTE-scale mono line — and NO interactive element at all (no button, no skeleton, no spinner).
@@ -26,10 +35,11 @@ import { Card } from "@orb/ui/card";
 import { Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
-import { useId } from "react";
+import type { CSSProperties, ReactElement, ReactNode } from "react";
+import { useEffect, useId, useRef } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
 import type { DormantDoorway, HomeTileContribution } from "#lib";
+import { rememberHomeTileBox, useHomeTileBox } from "#state";
 
 const TILE_SKELETON_ROWS = 3;
 
@@ -84,9 +94,46 @@ function DormantBody({ tile, doorway }: { readonly tile: HomeTileContribution; r
   );
 }
 
+/** The tile's LOADING box (F14 boot CLS). The skeleton sits inside the height this tile SETTLED at on
+ *  this device last time (`useHomeTileBox` — localStorage, read synchronously, so the value is already
+ *  in the FIRST commit): the tile's box is then the same before and after its read lands, and the tiles
+ *  below it in the grid never move. No memory (a first-ever boot) ⇒ the bare skeleton, i.e. exactly the
+ *  behaviour that shipped before. */
+function TileFallback({ reserved }: { readonly reserved: number | null }): ReactElement {
+  return (
+    <Stack data-tile-reserved={reserved === null ? undefined : Math.round(reserved)} style={reserved === null ? undefined : reserveStyle(reserved)}>
+      <SkeletonRows count={TILE_SKELETON_ROWS} />
+    </Stack>
+  );
+}
+
+/** A measured px reservation — a runtime measurement, not a design value (no token exists for "the height
+ *  N chat rows happened to occupy on this viewport"). EXACT (`blockSize`), not a floor: a remembered box
+ *  SHORTER than the skeleton's natural height (the temp-chat tile: 168px settled vs a 217px 3-row
+ *  skeleton) would otherwise still shrink when the read lands. The skeleton is decorative, so the
+ *  overflowing rows clip rather than push the box. */
+function reserveStyle(height: number): CSSProperties {
+  return { blockSize: `${Math.round(height)}px`, overflow: "clip" };
+}
+
+/** Wraps a tile's SETTLED body and remembers the box it occupies, so the next boot's skeleton reserves
+ *  it. Measured on mount — this component mounts only once the tile's read has resolved (it is the
+ *  QueryBoundary's child), so the first measurement is already the settled geometry. */
+function TileBody({ tileId, children }: { readonly tileId: string; readonly children: ReactNode }): ReactElement {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (el !== null) {
+      rememberHomeTileBox(tileId, el.getBoundingClientRect().height);
+    }
+  }, [tileId]);
+  return <Stack ref={bodyRef}>{children}</Stack>;
+}
+
 export function HomeTile({ tile }: { readonly tile: HomeTileContribution }): ReactNode {
   const visible = tile.useVisible?.() ?? true;
   const headingId = useId();
+  const reserved = useHomeTileBox(tile.id);
   if (!visible) {
     return null;
   }
@@ -113,10 +160,10 @@ export function HomeTile({ tile }: { readonly tile: HomeTileContribution }): Rea
         />
         {dormant === null ? (
           <QueryBoundary
-            fallback={<SkeletonRows count={TILE_SKELETON_ROWS} />}
+            fallback={<TileFallback reserved={reserved} />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label={tile.title.toLowerCase()} onRetry={retry} />}
           >
-            {typeof tile.body === "function" ? tile.body() : null}
+            <TileBody tileId={tile.id}>{typeof tile.body === "function" ? tile.body() : null}</TileBody>
           </QueryBoundary>
         ) : (
           <DormantBody doorway={dormant} tile={tile} />

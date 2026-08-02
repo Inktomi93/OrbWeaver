@@ -6,11 +6,14 @@
 import { automationDormantTile, buddyDormantTile, HomeSurface, sectionJumpTile } from "@orb/client/features/home";
 import type { HomeTileContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
-import { useActiveSection } from "@orb/client/state";
+import { rememberHomeTileBox, useActiveSection } from "@orb/client/state";
+import { Button } from "@orb/ui/button";
 import { BrainCircuit, Clock, MessagesSquare } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { use } from "react";
 import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
+import { RESERVED_TILE_PX } from "./_reserve-box";
 
 /** Deliberately declared OUT of `order` — the grid must re-sort them (order asc, then id). */
 const FAKE_TILES: readonly HomeTileContribution[] = [
@@ -93,4 +96,48 @@ function ActiveSectionProbe(): ReactElement {
  *  arm survives the round trip through the door and the frame. */
 export function HomeRealDoorwaysStory(): ReactElement {
   return <Story tiles={[buddyDormantTile, automationDormantTile]} />;
+}
+
+// ── The BOOT-CLS reservation (F14) ──────────────────────────────────────────────────────────────────
+// A tile that is still reading is the state that used to move the whole grid: its 3-row skeleton is not
+// the box its content settles at. The frame reserves the height THIS DEVICE measured last time
+// (home-tile-box-store), so this story pre-seeds a remembered box for a tile whose body suspends until
+// the test releases it — the shape of a real boot, where localStorage already holds the last settled box.
+
+let releaseSlowBody: () => void = (): void => undefined;
+const slowBodyReady: Promise<void> = new Promise<void>((resolve) => {
+  releaseSlowBody = resolve;
+});
+
+/** Suspends until the story's "Settle" button fires, then renders a body of EXACTLY the remembered height
+ *  — i.e. the tile settles where it settled last boot, which is the case the reservation is built for. */
+function SlowTileBody(): ReactElement {
+  use(slowBodyReady);
+  return (
+    <div style={{ blockSize: `${RESERVED_TILE_PX}px` }}>
+      <Text>settled slow body</Text>
+    </div>
+  );
+}
+
+const RESERVE_TILES: readonly HomeTileContribution[] = [
+  { id: "slow", title: "Slow tile", icon: Clock, order: 10, span: "full", body: () => <SlowTileBody /> },
+  { id: "below", title: "Below tile", icon: MessagesSquare, order: 20, body: () => <Text>below body</Text> },
+];
+
+// Seeded at MODULE scope — "this device measured `slow` at 420px last boot", the state a real boot reads
+// out of localStorage before the first render (never a side effect inside render).
+rememberHomeTileBox("slow", RESERVED_TILE_PX);
+
+/** The reserving frame: `slow` suspends (skeleton in a 420px box) until the "Settle" button releases it;
+ *  `below` sits under it in the grid and is the tile that used to be pushed down. */
+export function HomeTileReserveStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <Button intent="secondary" onClick={releaseSlowBody}>
+        Settle
+      </Button>
+      <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", RESERVE_TILES)} />
+    </CtDataProviders>
+  );
 }
