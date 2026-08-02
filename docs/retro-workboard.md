@@ -278,6 +278,82 @@ self-identifying naming · dynamic-seam-ships-with-lens). NEW SMALL boarded: cod
 Plans that under-declare touchedFiles go SILENTLY INVISIBLE in the preview (silent-error class —
 kit should refuse or warn). Discovery errors question → already owner-ruled AUDIT-THEN-BUILD,
 queue the lane.
+**LENS MID-RUN FORKS RULED (08-03):** ARM 1 (registry-aware liveness) = NOT BUILT on census
+receipts — every registry value on this tree is an inline literal or imported identifier, so the
+import edge already carries liveness (client orphans = 0 where every registry lives); mechanism
+proof + EXPIRY boundary condition ("breaks when a registry resolves members from constructed
+strings — build the pass then") written into the lens header. ARM 4 rpg fork = rpg/guard.ts
+SANCTIONED as rpg's ratified single chokepoint (rpg-design/05 §4.4); six verb re-spells
+collapse onto one rpg-local assert (red-first, byte-identical error); gate's sanctioned-homes
+config carries BOTH cited chokepoints; **QUEUED (architecture): unify rpg's chokepoint onto an
+injected authority op (can/permitsHost through compose)** — the minted law reads
+"one CITED chokepoint per authority domain," chat=can(), rpg=guard.ts pending unification.
+**✅ MAC MERGED (`47b72704`, hook-certified, torn down) — macro three-home stack COLLAPSED:**
+PROMPT_MACROS + PromptMacroDef DELETED (header truth-repaired to name kit as the one home);
+autocomplete now DERIVES via queryMacros over the default registry (the better seam — composes
+volatile per D51; a raw-table export would have minted a second surface); filter = EXCLUDE
+lists (fail-open: tomorrow's macro auto-appears): LEAD_MACROS 8 (bare-{{ popover: char user
+persona scenario description personality example input) + 48 name-sorted; excluded
+ALIAS_SPELLINGS 8 + BLOCK_OR_LITERAL_FORMS 11. **OWNER TASTE FLAGS: `{{if}}` excluded (real
+vocabulary but un-insertable in bare call form — fix would be a block-template suggestion, not
+a filter change) — veto/confirm.** Rendered red-first receipts (getvar option appears, noop
+absent; 19/19 + 90 sibling CTs). viewerIsHost now DERIVES from member-visibility
+(viewerHoldsHost helper; cross-cite became an import; pin passes against OLD source =
+byte-identical proof). ToolbarSeparator CT'd (self-stretch geometry proof).
+**FOLLOW-UPS from MAC:** (1) user/game-macro UNION gap CONFIRMED not built — none of the 5
+surfaces union live macros; wiring shape named (withUserMacros derivation, memo'd on array
+identity; rpg needs BOTH planes w/ shadowing) — needs a derivation-home ruling then it's
+trivial; queue. (2) proposed/world-state-clips-trackers-spec.md:267 still names the deleted
+PROMPT_MACROS — one-line repair rides whoever next opens that parked set. (3) LENS BASELINE
+RECONCILE AT MERGE: drop any PROMPT_MACROS ratchet row (source is gone — phantom otherwise).
+Lesson banked ct-hub #27 (FABRICATION-OK line adjacency).
+**✅ FIX MERGED (`321b562d`, hook-certified, torn down) — codemod-kit preview lies KILLED:**
+MutationLedger baselines full project text pre-run (3ms/25.5M chars), diffs at every plan
+boundary, REFUSES on undeclared mutation naming files + plan. Red-first proved the class was
+worse than reported: `--apply` WROTE invisible files, and the kit's OWN moveFiles +
+renameExportedSymbol under-declared fan-out (12 silently-rewritten files in the probe). Also
+fixed: cwd-relative preview paths; `project.getSourceFile(path)` answering for MOVED-AWAY paths
+(exact map from getSourceFiles now). 12/12 int tests. NEW SMALLS from FIX: (1) same
+moved-path cache lie in moveFiles/deleteFiles/copyFile path VALIDATION (guard now converts
+mis-resolution to loud refusal, but the asserts themselves deserve the map — own ticket) ·
+(2) `pnpm codemod` script referenced by kit docs but ABSENT from package.json (docs-vs-scripts
+drift — add script or repair docs) · (3) export-rot-cleanup's disposition table is STALE
+post-apply (aborts loudly on re-run — correct behavior, note in table header that it's a
+one-shot record). Lessons banked in [[knip-ast-liveness-lens-gotchas]].
+**TAG-ROT + REGISTRY MAP (owner questions, 08-03, probed + scouted):** exemption-liveness
+posture: biome suppressions SELF-CLEAN natively (suppressions/unused fires in check — probed
+live); eslint-suppressions.json is EMPTY (nothing to rot; config line
+reportUnusedDisableDirectives still worth adding — small); ~31 of ~77 exemption-carrying gates
+have stale-entry arms (gold standards: bus-coverage STALE_MESSAGE · dialog-via-composite:99 ·
+firehose keyed-name blindness guard) — **LENS ORDERED: every vocabulary it mints is TWO-SIDED
+FROM BIRTH** (@public-on-consumed-export = red · baseline row w/o live orphan = red ratchet-down
+· allowlist row matching zero sites = red); RETROFIT SWEEP boarded for the ~46 one-sided gates +
+ast.ts @server-only/@test-fixture liveness. Law banked gate-hub #10. **REGISTRY MAP v1 landed:
+docs/reviews/misc/2026-08-03-registry-map.md** (census + enforcement classes + candidates;
+first-pass). Shortlist: BINDING_VIEWS→real table (S, rides D8 residue) · verify REGISTRY
+completeness check (S) · TWO SEED CLAIMS CONTRADICTED needing re-scout (AssembleTrace looks like
+ONE file multi-site not three producers; content-class wire may already be gate-enforced by
+content-part-seam — verify what it checks). SECOND SCOUT PASS owed: rpg writable-field ·
+bus-event +5 · SERVICE_KEYS · fresh switch-sweep.
+**✅✅ LENS MERGED (`09822fe3`, hook-certified incl. its own new gates, torn down) — THE
+ENFORCEMENT LAYER IS COMPLETE:** ARM 2 star-suppressed candidates now NAMED per-symbol (the 14
+rpg-barrel hiddens visible) · ARM 3 `deps:orphan-ratchet` at push+full tier, TWO-SIDED from
+birth (probe receipts ×4: new orphan red · bare-@public does NOT exempt [caught its own regex
+bug — `*/` satisfied `\S`] · stale baseline row red ratchet-down · @public-on-consumed-export
+red) — **with tags honored the WHOLE TREE collapses to 1 orphan** (addSpanEvent, owner-call
+cited); ratchet's FIRST LIVE CATCH = its own PROMPT_MACROS row post-MAC-merge · ARM 4
+`two-class-role-authority` gate live; SEVEN inline role compares collapsed (6 rpg verbs →
+guard.ts::assertHostRole, byte-identical refusals pinned 15/15; chat fork gate → permitsHost);
+SANCTIONED_HOMES two-sided (rpg's row goes stale-RED by itself when the can()-unification
+lands) · ARM 5 `contract-derives-not-respells` live (name-collision + $inferSelect arms; scoped
+on EVIDENCE not allowlist — 11 legitimate read-aggregates excluded by matching against real
+sqliteTable exports; ONE real defect fixed: WorkloadScheduleRow was an 11-column hand-copy, now
+derives) + `pnpm ast respell` as a manual-tier registry row (mutual-assignability; never
+auto-runs — structural identity is evidence not proof). Timing: no measurable check delta.
+ARM 1 census + expiry condition in the lens header. **NEW OWNER-JUDGMENT ROWS from respell:**
+chat MemoryBackfillCounts ≡ contracts MemoryBackfillResult · search DigestsParams/SegmentsParams
+≡ contracts MemoryQueryOptions — derive-or-cite calls. Lesson banked gate-hub #11 (real-tree
+anchor for stale arms).
 **Lane SEC LIVE** (security-executor) = SessionToken branded through the auth boundary
 (kit id-cast helpers; compile-refusal pin; no auth-semantics change) + permitsHost
 wire-or-delete disposition. **QUEUED behind CLEAN's merge: Lane LENS** = registry-aware
