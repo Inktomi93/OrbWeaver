@@ -1630,6 +1630,239 @@ function cmdRespell(project: Project, arg: string, flags: Flags): void {
   emit(hits, flags, `respell ${arg === "" ? "(all domains)" : arg}`);
 }
 
+// ── typeonly-alive: VALUE exports kept alive ONLY by type positions (the structural-liveness rot) ─
+// The owner-named class: "code in server only kept alive by schema or kit or contract" — an export whose
+// every reference is a TYPE position (`import type`, `typeof X`, an annotation, a heritage clause). It
+// satisfies a SHAPE; nothing ever calls it, reads it, or constructs it. At runtime the module still ships
+// the function body, the object literal, the class — dead weight that reads as consumed to every
+// import-liveness lens in this file, because the import edge is real. Only the POSITION of each reference
+// tells the truth.
+//
+// SCOPE OF THE CANDIDATE SET — VALUE declarations only (function/variable/class/enum). An `interface` or a
+// `type` alias is type-only BY NATURE and legal: flagging one would be pure noise. A class IS a candidate:
+// a class only ever named in an annotation is a shape written the expensive way.
+//
+// V1 CLASSIFIES BY REFERENCE POSITION, NOT BY IMPORT FORM — the complete arm, deliberately (the cheap arm
+// would key on `import type` / inline `type` specifiers, which UNDER-reports: a plain `import { X }` whose
+// only use is `typeof X` is exactly the defect and looks like value consumption to the import form). Each
+// reference comes from `findReferencesAsNodes()` and is classified by ANCESTRY, so the lens sees through
+// every hop the language service sees through — measured on probes (2026-08-02):
+//   • renaming barrels (`export { inner as outer } from`) and `export *` chains resolve to the origin;
+//   • `import * as ns` + `ns.member` and `(await import("./m")).member` come back as real references, so
+//     this lens needs NO namespace/dynamic err-alive suppression — unlike the import-edge liveness above,
+//     it can SEE the member access. (A namespace passed WHOLESALE into a call names no member at all, so
+//     it produces zero references: that export is `swallowed`'s business, never this lens's.)
+// The cost is the `refs` verb's cost, once per value export. That is why the lens is MANUAL-tier.
+//
+// WHY THIS LENS DOES NOT EXTEND `Liveness.arms`. The arm record exists for ONE consumer — `swallowed`'s
+// "is `namespace` this key's only arm?" question — and the ERR-ALIVE ARM contract above binds anything that
+// MARKS a key alive. This lens marks nothing: it never calls `markImportConsumption`, adds no consumption
+// path, and reads no liveness set. A `type`-vs-`value` split of the `named` arm would therefore be recorded
+// and never read (and could not change a `swallowed` verdict either way, since that lens only asks whether
+// `namespace` stands alone). Reference position strictly dominates import form for this question — the
+// import form is a lossy proxy for it.
+//
+// CANDIDATE lens, never a death sentence: a type-only-alive export is often a DELIBERATE conformance seam —
+// a `satisfies`-anchor const, a runtime value whose type is the contract, a factory kept beside its shape.
+// A deliberate keep is tagged `// @typeonly-ok: <reason>` on the declaration, and that tag is TWO-SIDED: a
+// tag on an export the lens no longer calls type-only (something references it at runtime now, or nothing
+// references it at all and it is an `orphans` hit) is reported STALE and exits 1.
+
+const TYPEONLY_OK_RE = /@typeonly-ok:\s*\S/u;
+
+/** True if the declaration carries a leading `// @typeonly-ok: <reason>` — a deliberate keep of an export
+ *  only type positions reach. The reason is required (a bare marker does NOT exempt, as with
+ *  `@swallowed-ok:`/`@server-only:`). Reads through {@link commentHost}: an `export const`'s marker lives on
+ *  the VariableStatement, not on the VariableDeclaration `getExportedDeclarations()` hands back. */
+export function isTypeOnlyExempt(decl: Node): boolean {
+  return commentHost(decl)
+    .getLeadingCommentRanges()
+    .some((range) => TYPEONLY_OK_RE.test(range.getText()));
+}
+
+/** The declaration kinds that can be runtime-dead while still satisfying a shape. An interface / type alias
+ *  declares nothing at runtime, so "every reference is a type position" is its DEFINITION, not a defect. */
+function isValueDeclaration(decl: Node): boolean {
+  return Node.isFunctionDeclaration(decl) || Node.isVariableDeclaration(decl) || Node.isClassDeclaration(decl) || Node.isEnumDeclaration(decl);
+}
+
+/** What one reference to an export says about its liveness. `neutral` = a binding hop that carries no
+ *  verdict (an import/export specifier is where the name TRAVELS, never where it is USED — treating it as
+ *  a value reference is exactly the under-report the import-form arm suffers). */
+type RefPosition = "type" | "value" | "neutral";
+
+/** Node kinds that are pure binding hops: the specifier itself, the clause holding it, a namespace binding.
+ *  Matched against BOTH the reference node and its parent — a renaming re-export comes back as the
+ *  `ExportSpecifier` node itself (`inner as outer`), a plain one as the identifier inside it. */
+const NEUTRAL_REF_KINDS = new Set<SyntaxKind>([
+  SyntaxKind.ImportSpecifier,
+  SyntaxKind.ExportSpecifier,
+  SyntaxKind.NamedImports,
+  SyntaxKind.NamedExports,
+  SyntaxKind.ImportClause,
+  SyntaxKind.NamespaceImport,
+  SyntaxKind.NamespaceExport,
+  SyntaxKind.ImportEqualsDeclaration,
+]);
+
+/** Classify ONE reference node by ancestry. Climbs only through the nodes a qualified type name is built
+ *  from (`Identifier`, `QualifiedName`); anything else terminates the climb as a runtime expression. */
+function refPosition(ref: Node): RefPosition {
+  const parent = ref.getParent();
+  if (parent === undefined) {
+    return "value";
+  }
+  if (NEUTRAL_REF_KINDS.has(ref.getKind()) || NEUTRAL_REF_KINDS.has(parent.getKind())) {
+    return "neutral";
+  }
+  return climbsToTypeContext(parent) ? "type" : "value";
+}
+
+/** Does the ancestry of a reference land in a TYPE context? */
+function climbsToTypeContext(from: Node): boolean {
+  let cur: Node | undefined = from;
+  while (cur !== undefined) {
+    // MUST precede the isTypeNode test: `class D extends Base` puts `Base` in an ExpressionWithTypeArguments,
+    // which IS a TypeNode by kind — but a class's `extends` target is CONSTRUCTED at runtime (measured; a
+    // naive isTypeNode check calls every base class type-only). `implements`, and an interface's `extends`,
+    // are the genuinely type-only heritage arms.
+    if (Node.isExpressionWithTypeArguments(cur)) {
+      return isTypeOnlyHeritage(cur);
+    }
+    if (Node.isTypeNode(cur)) {
+      return true;
+    }
+    if (Node.isIdentifier(cur) || Node.isQualifiedName(cur)) {
+      cur = cur.getParent();
+      continue;
+    }
+    return false;
+  }
+  return false;
+}
+
+/** A heritage reference is type-only unless it is a CLASS's `extends` target (the one runtime-constructing
+ *  heritage position). */
+function isTypeOnlyHeritage(node: Node): boolean {
+  const clause = node.getParentIfKind(SyntaxKind.HeritageClause);
+  if (clause === undefined) {
+    return true;
+  }
+  const owner = clause.getParent();
+  return !(clause.getToken() === SyntaxKind.ExtendsKeyword && (Node.isClassDeclaration(owner) || Node.isClassExpression(owner)));
+}
+
+/** ONE type-only-alive candidate: the export, and the type-position reference SITES that are its entire
+ *  liveness (the files a human must read to render the verdict — "is this shape-conformance deliberate?"). */
+export type TypeOnlyCandidate = {
+  readonly name: string;
+  readonly decl: Node;
+  readonly sites: readonly string[];
+};
+
+/** Value exports of `inScope` whose every reference is a type position. Pure enumeration — no exemption
+ *  policy, no printing (the verb owns both), so the self-test drives the same function the CLI does. */
+export function collectTypeOnlyCandidates(project: Project, inScope: (filePath: string) => boolean): TypeOnlyCandidate[] {
+  const out: TypeOnlyCandidate[] = [];
+  for (const sf of project.getSourceFiles()) {
+    const fp = sf.getFilePath();
+    if (!inScope(fp) || TEST_FILE_RE.test(fp)) {
+      continue;
+    }
+    for (const { name, decl } of ownExports(sf)) {
+      const candidate = typeOnlyCandidateOf(name, decl);
+      if (candidate !== undefined) {
+        out.push(candidate);
+      }
+    }
+  }
+  return out;
+}
+
+/** The candidate for one export, or undefined when it is not one: not a value declaration, ONE runtime
+ *  reference is enough to make it alive, and ZERO type references means nothing reaches it at all — an
+ *  `orphans` hit, not this lens's class (the two lenses never overlap, as with `swallowed`). */
+function typeOnlyCandidateOf(name: string, decl: Node): TypeOnlyCandidate | undefined {
+  if (!(isValueDeclaration(decl) && Node.isReferenceFindable(decl))) {
+    return;
+  }
+  const sites = new Set<string>();
+  for (const ref of decl.findReferencesAsNodes()) {
+    // The declaration's OWN name node — its parent IS the declaration (true for function/class/enum/variable
+    // alike). Measured: the language service does not currently hand it back, but a lens that would call
+    // every candidate "value-referenced" if it ever did is one TypeScript bump from a silent permanent zero.
+    if (ref.getSourceFile() === decl.getSourceFile() && ref.getParent()?.getStart() === decl.getStart()) {
+      continue;
+    }
+    const position = refPosition(ref);
+    if (position === "value") {
+      return;
+    }
+    if (position === "type") {
+      sites.add(`${relPath(ref.getSourceFile().getFilePath())}:${ref.getStartLineNumber()}`);
+    }
+  }
+  return sites.size === 0 ? undefined : { name, decl, sites: [...sites].sort(byProdFirst) };
+}
+
+/** How many type-position sites a hit names before it collapses to a count. */
+const TYPEONLY_SITES_SHOWN = 2;
+
+function typeOnlyHit(candidate: TypeOnlyCandidate): Hit {
+  const shown = candidate.sites.slice(0, TYPEONLY_SITES_SHOWN).join(", ");
+  const more = candidate.sites.length > TYPEONLY_SITES_SHOWN ? ` +${candidate.sites.length - TYPEONLY_SITES_SHOWN} more` : "";
+  const h = hitOf(candidate.decl, "typeonly-alive");
+  h.text = `${candidate.name}  ←  ${candidate.sites.length} type-position ref(s): ${shown}${more}  —  ${h.text}`;
+  return h;
+}
+
+/** The STALE side of the `@typeonly-ok` marker: a tag on an export the lens no longer calls type-only-alive —
+ *  something references it at runtime now, or nothing references it at all (an `orphans` hit), or it was
+ *  never a value declaration. Printed and exit-1 so the marker cannot rot into a permanent lie. */
+function printStaleTypeOnlyTags(project: Project, inScope: (fp: string) => boolean, candidateKeys: Set<string>): void {
+  const stale: Hit[] = [];
+  for (const sf of project.getSourceFiles()) {
+    const fp = sf.getFilePath();
+    if (!inScope(fp) || TEST_FILE_RE.test(fp)) {
+      continue;
+    }
+    for (const { name, decl } of ownExports(sf)) {
+      if (!isTypeOnlyExempt(decl) || candidateKeys.has(declKey(decl))) {
+        continue;
+      }
+      const h = hitOf(decl, "stale-typeonly-ok");
+      h.text = `${name}  —  ${h.text}`;
+      stale.push(h);
+    }
+  }
+  if (stale.length === 0) {
+    return;
+  }
+  console.log(
+    `typeonly-alive: ${stale.length} STALE \`@typeonly-ok:\` marker(s) — the export is no longer alive by type positions ALONE (a runtime reference reaches it now, nothing reaches it at all and it is an \`orphans\` hit, or it is not a value declaration). Delete the marker or re-state the reason:`,
+  );
+  for (const h of stale) {
+    console.log(`  ! ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
+  }
+  process.exitCode = 1;
+}
+
+/** VALUE exports (functions/consts/classes/enums) whose EVERY reference is a type position — runtime-dead
+ *  code kept alive only by the shapes it satisfies. Optional scope (a package name / path); bare = every
+ *  package. A deliberate conformance seam carries `// @typeonly-ok: <reason>`; a stale marker exits 1. */
+function cmdTypeOnly(project: Project, arg: string, flags: Flags): void {
+  const scope = arg === "" ? { prefix: "/packages/", label: "(all packages)" } : resolveScope(project, arg, "typeonly-alive");
+  const inScope = (fp: string): boolean => fp.includes(scope.prefix);
+  const candidates = collectTypeOnlyCandidates(project, inScope);
+  printStaleTypeOnlyTags(project, inScope, new Set(candidates.map((c) => declKey(c.decl))));
+  const hits = candidates.filter((c) => !isTypeOnlyExempt(c.decl)).map(typeOnlyHit);
+  const exempt = candidates.length - hits.length;
+  console.log(
+    `typeonly-alive is a CANDIDATE lens — a hit may be a DELIBERATE conformance seam (a \`satisfies\` anchor, a runtime value whose type IS the contract). It finds value exports whose every reference is a type position; the verdict is a human's. Keep one deliberately with \`// @typeonly-ok: <reason>\` on the declaration.${exempt === 0 ? "" : ` (${exempt} candidate(s) exempted by a reasoned marker.)`}`,
+  );
+  emit(hits, flags, `typeonly-alive ${scope.label}`);
+}
+
 const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => void> = {
   refs: cmdRefs,
   callers: cmdCallers,
@@ -1646,6 +1879,7 @@ const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => voi
   clientgap: cmdClientGap,
   swallowed: cmdSwallowed,
   respell: cmdRespell,
+  "typeonly-alive": cmdTypeOnly,
 };
 
 // depcruise pass-throughs — the module-graph layer (the same config + rules the gates run), in
@@ -1670,10 +1904,10 @@ function runDepcruise(mode: string, pattern: string): void {
 // Verbs that resolve module specifiers to origin declarations (need the types:true / full-graph arm).
 // refs+cycles use the language service; orphans+testonly resolve every import to its origin decl so
 // liveness keys on (file, name) — bare-name matching over-reports same-file use and misses collisions.
-const TYPED_VERBS = new Set(["refs", "cycles", "orphans", "testonly", "prodonly", "unwired", "clientgap", "swallowed", "respell"]);
+const TYPED_VERBS = new Set(["refs", "cycles", "orphans", "testonly", "prodonly", "unwired", "clientgap", "swallowed", "respell", "typeonly-alive"]);
 
 // Verbs whose scope arg is OPTIONAL (default to the whole surface) — run bare, arg defaults to "".
-const ARGLESS_VERBS = new Set(["unwired", "clientgap", "swallowed", "respell"]);
+const ARGLESS_VERBS = new Set(["unwired", "clientgap", "swallowed", "respell", "typeonly-alive"]);
 
 const VERB_LIST = [...Object.keys(VERBS), ...Object.keys(DEPCRUISE_VERBS)].join("|");
 const USAGE = [
@@ -1697,6 +1931,7 @@ const USAGE = [
   "  pnpm ast clientgap contracts       *View/*Summary contracts the SERVER uses but the CLIENT never does",
   "  pnpm ast swallowed db              exports alive ONLY because an `import * as` swallowed their module",
   "  pnpm ast respell chat              domain contract/ shapes structurally identical to an @orb/contracts shape",
+  "  pnpm ast typeonly-alive server     VALUE exports whose every reference is a TYPE position (runtime-dead)",
   "  pnpm ast flow chat/engine          module graph: X's direct edges both ways (depcruise, text)",
   "  pnpm ast reaches agent-sdk         every module that can transitively reach X (depcruise)",
   "",
@@ -1735,9 +1970,19 @@ const USAGE = [
   "  deliberately with `// @swallowed-ok: <reason>` on the declaration; a marker the lens no longer agrees",
   "  with is reported STALE and exits 1 (two-sided). Optional scope; bare = every package.",
   "",
+  "typeonly-alive (CANDIDATE lens, run on demand) = the STRUCTURAL-liveness class: a VALUE export (function,",
+  "  const, class, enum — never an interface/type alias, which is type-only by nature) whose EVERY reference",
+  "  is a TYPE position: an `import type` specifier, `typeof X`, an annotation, an `implements`/interface",
+  "  `extends` clause. Nothing ever calls, reads or constructs it — it ships a runtime body to satisfy a",
+  "  shape. Classified by REFERENCE POSITION, not import form (a plain `import { X }` used only as `typeof X`",
+  "  is exactly the defect), so it sees through renaming barrels, `export *`, `import * as ns` member access",
+  "  and dynamic-import member access. An export nothing references at all is an `orphans` hit, not this one.",
+  "  Keep a deliberate conformance seam with `// @typeonly-ok: <reason>`; a stale marker exits 1 (two-sided).",
+  "  Optional scope; bare = every package. SLOW — it costs one `refs` resolution per value export.",
+  "",
   "Flags: --in <substr> path filter · --files per-file counts only (cheapest output) ·",
   "       --max <n> raw-line cap (default 60; big result sets auto-collapse to per-file counts) ·",
-  "       --json machine output. Syntactic verbs load in ~10s; refs/cycles/orphans/testonly/prodonly resolve types.",
+  "       --json machine output. Syntactic verbs load in ~10s; refs/cycles/orphans/testonly/prodonly/typeonly-alive resolve types.",
 ].join("\n");
 
 function main(): void {
