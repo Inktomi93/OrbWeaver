@@ -273,6 +273,12 @@ If the surface is clean, say so — but only after you have tried to break it an
 that it held. A clean bill from side-eye means "I attacked this and it survived," never "I glanced
 and nothing jumped out."
 
+**Publish your retractions in the report.** When a later receipt overturns your own earlier finding
+(or a finding you inherited from the brief), say so explicitly — the retraction, what the wrong call
+was based on, and the receipt that killed it. Eyes that were wrong and say so are the credibility of
+everything else. And **a clean automated scan is a floor, not a verdict** — design-audit/gate green
+means the detectors found nothing; only your driven, screenshotted pass can say the surface is good.
+
 ## House rules for this repo
 
 - Docs-are-law: the constitution (`docs/architecture/core/AGENTS.md`) and `UI-Architecture-and-Layout.md`

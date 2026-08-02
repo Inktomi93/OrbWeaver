@@ -140,6 +140,36 @@ barrier on settled states. **NEW FOLLOW-ON SMALL (FLK product observation, rulin
 later): CapabilityGate's no-error arm is UNREACHABLE as a settled state** (capability required |
 error — undefined+null = PENDING), so every editor open FLASHES "connect a chat model" at users
 who have one — the F-02 lying-empty-state class; fix = pending arm + delete-or-reach the note.
+**OWNER 08-03 MORNING #2: AVATAR PACK v2 APPROVED ("pictures are okay") — no re-push of the 4
+tiles needed. NEW BUG REPORT (owner live): after stack restart, NO character's background pulls
+up when opening a chat with them.** TRIAGE NOTE for the investigating lane: FIRST discriminate
+draft-vs-committed (SW's pinned lesson: chat-room-surface.tsx:98 gates resolveRoomTheme on
+isCommitted — a DRAFT room shows the viewer theme BY DESIGN; owner asked which) · then whether
+the dev user's cards actually carry backgroundOverride post-MIG (did migratePack fire? stamp vs
+CARD_PACK_VERSION; cards possibly classed edited → untouched by design) · then the seeded-bg
+resolve chain (listSeededBackgrounds slug → public/backgrounds/<handle>-bg.jpg served). **RULED (question tool, 08-03 #2):** BG bug = COMMITTED example chats (real defect — prime
+suspect: bulk-imported demo chats never set the field resolveRoomTheme keys on) · Traveler KEPT
++ NEW BUG: seeded persona not set as PLAYING-AS (owner's was None) · --color-info: blue STAYS ·
+zone vocab: BOTH stay (SETUP/POST=wire zones, Relative/In-Chat=placement; hint doc line).
+**LANE BG DISPATCHED** (all four bugs + doc line). **BUG 1 ROOT-CAUSED + OWNER-RULED (08-03):**
+demo payloads CORRECT, solos PAINT (receipts reports/snaps/demo-bg-*.png); the 3 GROUP demos are
+excluded by the 07-18 true-solo takeover LAW — owner RULED: **widen the gate to single-human
+(humanCount===1) both arms, cascade chat-set > card-carried, card-carried stays true-solo-only,
+DC seeder sets curated chat backgrounds for the 3 group demos** (law text + predicate header
+amend; two-human refusal stays the load-bearing pin; heal arm for existing rows). BG also found:
+5 of 6 demo human seats read displayName "owner" vs Ashen Spire "Traveler" — two seeding paths
+disagree (bug 3's thread). **BUG 5 (owner 08-03 #4, ride BG):** solo chat PAINTS the card
+background but the CONTEXT PANEL's background row reads "None" — the panel echoes only the
+CHAT-SET field, blind to the card-carried arm of the cascade; the row must show the EFFECTIVE
+source with provenance ("<name> — from the character card"), same honesty grammar as the preset
+readouts' provenance rows. The settings-echo and the paint must be ONE truth.
+**+2 owner reports (08-03 #3, ridden onto BG):** (3) the Ashen Spire demo's rpg game lists
+"owner" as the player — the generating fixture-user's identity was frozen into the seeded game
+state instead of resolving to the RECEIVING user's persona (the game's player identity must
+re-bind at seed, or render via the persona plane, not a frozen name); (4) the demo's rpg-lite
+PANELS are near-empty — the snapshot DC replayed was sparse; the flagship demo exists to show
+the panel at a glance and needs a RICHER final state (trackers/sheet/inventory/quests populated;
+regenerate the Ashen Spire chat with fuller play or enrich via real hand-door ops).
 **✅✅ PUSHED TO ORIGIN (08-03): `7c312220..851f625e`, 74 commits — FLK merged (`851f625e`),
 verify:push run 3 = TRUE 12/12 PASS, push executed on the banked owner word.** The entire
 overnight program is on origin: preset program complete+fix-all'd+re-verified · actor-state
@@ -175,17 +205,49 @@ calls) · `git -C <abs-main>` ALWAYS (cwd can die/sit in a worktree and lie). Re
 items: --color-info hue · SETUP/POST vs In-Chat vocab · AV2 sheet verdict (4 slightly
 harder-edged avatars, re-push offer ~$0.56; Calamity missing $4 sticker) · PV name/wording veto ·
 JSON-card/absent-char/DRAFT-TRUST/AGENT-1/D22 (old queue).
-**GATE CANDIDATES (owner's standing question, answered for this stretch — propose-don't-drift):**
-(1) hover-keyed `display` swap ban in row/marker hover-variable regions (the P0 oscillator class;
-`invisible`/opacity in reserved boxes; pointer-coarse display legal) — ts-morph/class-scan,
-2 consumers already migrated. (2) token near-duplicate lint (two whites 0.005 apart must
-reference one token) — tokens:build-time. (3) the `cn` shared-cached-merger hazard
-(ui/src/lib/index.ts:41 — `cn` reached outside the createTV import graph silently drops
-text-size classes; silent wrong-font failure mode = gate-worthy or fix-at-root). (4) settings
-appearance partition grows an `embeddable-by-card` column (mood vs viewer-sacred keys — rides
-Lane TD's design pass). AGENT-FILE ACCRETION DONE this stretch: doctrine gained the lane
-invariants + verification floor (briefs shrink now); executor.md red-first/hypothesis/SendMessage
-+ KISS-purge; side-eye full snap mastery + record; SendMessage granted to all executors.
+**✅ GATE PROGRAM + LANE BG: ALL MERGED (08-03, main @ `2429fa18`, every merge --no-ff
+hook-certified, all worktrees torn down, branches deleted):**
+· **G2 (`b623bf25`)**: `cn` fixed AT ROOT — tailwind-variants keeps its twMerge config in
+  MODULE-LEVEL MUTABLE STATE primed by the first `tv()` CALL (not createTV), so import-graph
+  order silently decided merge behavior; now class-merge.ts owns ONE config + both seams, sealed
+  by depcruise `ui-class-merge-seal` + biome noRestrictedImports (cn/cnMerge/tv banned from
+  tailwind-variants). + near-duplicate colour lint in tokens:build (ε=0.008 Oklab ΔE — measured
+  between the 0.005 drift class and the 0.010 deliberate Hearth ladder; BASE RAMP only, seed
+  value-sets proven design not drift; secondary→{color.muted} collapsed, raster receipt one
+  8-bit blue step; caught a 4th hand-copy in seed-themes.ts).
+· **BG (`47562f44`)**: all 5 owner morning bugs live-proven on an isolated stage — takeover gate
+  widened to `isSingleHumanRoom` (card arm stays true-solo; two-human refusal = red-first pin);
+  bugs 2+3 were ONE root cause (seeder hardcoded `anchorPersonaId:null` — produced BOTH
+  "Playing as None" AND the rpg "owner" name via resolveUserPublics fallback); Ashen Spire ships
+  an authored opening state replayed through the REAL rpg hand doors (orbs/cast-NPC/quests/
+  journal populated); background echo now reads the ONE cascade home `resolveCarriedBackground`
+  with provenance copy; zone-vocab hint doc line. Existing installs: DEMO_CHAT_PACK_VERSION
+  stamp + only-if-unset heal (unit-proven; LIVE heal fires on owner's next app touch post-merge
+  — OBSERVE IT). Merge-side: 2-file biome format drift fixed in the staged merge (formatter
+  scoped, diff inspected).
+· **G1 (`2429fa18`)**: gate `no-hover-display-swap` LIVE (#159) — and the baseline was NOT
+  terminal-zero: THREE live P0-oscillator instances found+migrated (persona-panel-row badge⇄
+  cluster, list-row subtitleReveal one-cell grid stack, member-row CastInlineCluster → ROW_REVEAL
+  + pointer-coarse:hidden; CTs re-keyed to visibility + byte-identical boundingBox). +
+  `structure:db-baseline` stage at the COMMIT tier (13th stage, ~1.5s; ONE comparator two
+  callers; drift probe refuses with the regen remedy named). Honest cost flagged: persona/member
+  rows spend reveal-cluster width at rest (reserved boxes) — if side-eye wants it back, the
+  answer is actionsFloat, never a display swap.
+**QUEUED, design-pass-before-build (owner word):** (5) ct-oneshot arm flagging
+first-assertion-after-mount on a state the story scripts away (FLK's transient class). Still
+riding Lane TD: settings appearance partition `embeddable-by-card` column.
+**DEAD-CODE SWEEP (08-03, orchestrator, all six packages × 3 lenses):** prodonly = ZERO dead
+files everywhere; orphans 74 (+14 star-suppressed contracts candidates) — mostly z.infer/alias
+type twins, 2 real clusters (world-info verbs ×10 = dead-wire-vs-dead-ended question; ui
+handle.ts ×5 = unadopted imperative API); testonly 122 (ui 39 = sealed-lib surface question).
+**3 SCOUTS LIVE** (contracts zod-cruft dispositions · server incl. world-info both-ends ·
+client/ui/kit incl. handle cluster) — synthesize on their reports, then a cleanup lane. AGENT-FILE ACCRETION DONE this stretch: doctrine gained
+the lane invariants + verification floor (briefs shrink now); executor.md
+red-first/hypothesis/SendMessage + KISS-purge **+ 08-03: settled-state CT law (never assert
+in-flight transients; node-side counts ≠ browser settles) + ruling-fork law (defect traces to an
+owner-ruled law → report the fork with the law verbatim, never code around it)**; side-eye full
+snap mastery + record **+ 08-03: publish-retractions law + clean-scan-is-floor-not-verdict**;
+SendMessage granted to all executors.
 DONE-MERGED late-morning: AV2 avatar redo (`b1d9c098` — reference-school art, spider-isekai
 Charlotte, $2.24, sheet in docs/reviews/misc/2026-08-03-avatar-pack-v2-contact-sheet.png).
 LIVE: FX · MIG (general 3-handle arm + name-counts-as-edit ruled) · PV (C1 + Traveler approved).
@@ -333,11 +395,22 @@ policy · DRAFT-TRUST architecture call · macro-feed cast-guides celBindings ·
 **WATCH:** preset-editor-surface.ct:140 flaked ONCE under full-parallel (green isolated ×2 —
 load flake) · rpg-scene-tab.tsx near the 450 cap · registry-contracts.ts AT the cap.
 
-**RESUME READ ORDER:** this block → the freeze note → THE QUEUE → `git log --oneline -40` →
-MEMORY.md (auto-loads; hubs updated today: gate-authoring #5 new entries, ct-gotchas #24-26,
-op-shaped-hand-door-write-seam minted) → AGENTS.md for architecture work.
+**RESUME READ ORDER: read THIS WHOLE FILE, in full — every block, including the archeology**
+(a resuming orchestrator that reads only the current block loses the queue tail, the open
+smalls, the discussion pile, and the standing posture; it happened 08-03, corrected by owner) →
+`git log --oneline -40` → MEMORY.md (auto-loads; hubs updated today: gate-authoring #5 new
+entries, ct-gotchas #24-26, op-shaped-hand-door-write-seam minted) → AGENTS.md for architecture
+work.
 
-**═══ ORCHESTRATOR QUICK-ONBOARD (post-compact tips — skip the usual re-setup, minted 08-02) ═══**
+**═══ ORCHESTRATOR QUICK-ONBOARD (post-compact tips — skip the usual re-setup, minted 08-02;
+refined 08-03 after the smoothest resume yet) ═══**
+· COMPACT RITUAL ADDENDUM: any OWED DELIVERABLE (unanswered owner question, undelivered
+  report/recommendation) gets written INTO this board's current block before compact — never
+  trust the summary alone to carry a whole deliverable across the boundary.
+· The context-sentinel can fire a STALE ~99%-full warning on the first post-compact turn —
+  ignore it, don't re-run the ritual on a fresh window; sanity-check against actual context age.
+· Message live lanes by AGENT ID, not role name (SendMessage "executor" → not reachable; the id
+  from the spawn result / task notification is the address).
 · MEMORY is SYMLINKED across both accounts (`~/.claude-b/...orbweaver/memory` → `~/.claude/...`);
   one store, either login. context-sentinel hook active on BOTH (compact ritual fires ≥90%).
 · LANES: `Agent {isolation:"worktree"}` — the WorktreeCreate hook owns creation (local HEAD +
