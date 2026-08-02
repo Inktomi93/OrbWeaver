@@ -118,18 +118,23 @@ export async function seedChat(
     readonly archived?: boolean;
     readonly temporary?: boolean;
     readonly parentChatId?: ChatId | null;
+    readonly anchorPersonaId?: PersonaId | null;
     readonly metadata?: Record<string, unknown> | null;
     readonly createdAt?: number;
     readonly updatedAt?: number;
+    readonly id?: ChatId;
   } = {},
 ): Promise<ChatId> {
-  const id = castId<ChatId>(`chat_${key}`);
+  // `overrides.id` accepts a REAL minted TypeID (the `seedCharacter` precedent) for a test whose chat id
+  // crosses a contract-schema belt — e.g. the notifications `record` a host handoff delivers.
+  const id = overrides.id ?? castId<ChatId>(`chat_${key}`);
   await db.insert(chats).values({
     id,
     title: overrides.title ?? null,
     archived: overrides.archived ?? false,
     temporary: overrides.temporary ?? false,
     parentChatId: overrides.parentChatId ?? null,
+    anchorPersonaId: overrides.anchorPersonaId ?? null,
     // The JSON column is `$type<ChatMetadata>()`; tests inject raw blobs (incl. malformed) — cast at the seam.
     metadata: (overrides.metadata ?? null) as never,
     createdAt: overrides.createdAt ?? FROZEN_AT,

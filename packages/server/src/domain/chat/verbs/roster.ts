@@ -657,13 +657,32 @@ function createNominateHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatS
   };
 }
 
+/** Is the room's D51 anchor persona still READABLE once `newOwnerUserId` holds the room? The anchor is
+ *  resolved under the HOST's principal (owner-scoped `persona.get`), so an anchor the incoming host does not
+ *  own resolves null on their very next turn: `{{user}}` silently falls through to the speaker's active
+ *  persona (the null-anchor fallback) while the knob keeps serving an id they can never inspect. `false` ⇒ the
+ *  swap batch nulls it — the honest degrade. The ownership axis is the new owner regardless of who pinned it
+ *  (the `resolveForkGmPreset` shape); an anchor the nominee owns is a live pin and is left alone. Personas are
+ *  owner-sacred — this heals the pointer, it never copies a persona. */
+function anchorSurvivesHandoff(ctx: ChatContext, newOwnerUserId: UserId, anchorPersonaId: PersonaId | null): Promise<boolean> {
+  if (anchorPersonaId === null) {
+    return Promise.resolve(true);
+  }
+  return ctx.verifyPersonaOwned({ ownerId: newOwnerUserId, personaId: anchorPersonaId });
+}
+
 /** `acceptHostHandoff` — step 2: the nominee accepts (a self-action). The caller must equal
  *  chats.pendingHostUserId, else not_turn_owner. On pass, atomically swaps roles, drops the outgoing host's
- *  character seats the new host doesn't own, and clears the nomination in one batch; emits chatUpdated and
- *  notifies the previous host. */
+ *  character seats the new host doesn't own, HEALS the two room pointers that would otherwise degrade
+ *  silently under the new authority (the D51 anchor persona + — through the injected rpg op — the game's
+ *  GM-voice preset), and clears the nomination in one batch; emits chatUpdated and notifies the previous host.
+ *
+ *  Everything the accept touches rides ONE batch (stickler 2026-08-03 F1/F2): the heals are properties of the
+ *  authority move, so a crash must never be able to land the promotion without them. The audit row records
+ *  which heals fired — the transfer stays inspectable rather than silent. */
 function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatService["acceptHostHandoff"] {
   return async ({ principal, chatId }: AcceptHostHandoffParams): Promise<void> => {
-    await requireParticipant(ctx, principal, chatId);
+    const { chat } = await requireParticipant(ctx, principal, chatId);
     const pending = await loadPendingHostUserId(ctx.db, chatId);
     if (pending === null || pending !== principal.userId) {
       throw new ChatOperationError(CHAT_OP_CODES.notTurnOwner, `chat ${chatId}: only the nominated member may accept the host handoff`);
@@ -673,13 +692,19 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
     const oldHostUserId = hostUserIdOf(roster);
     const droppedSeatIds = await resolveDroppedCharacterSeatIds(ctx, principal.userId, roster);
     const dropSeq = await loadMaxMessageSeq(ctx.db, chatId);
+    const clearAnchorPersona = !(await anchorSurvivesHandoff(ctx, principal.userId, chat.anchorPersonaId));
+    // The rpg-side heal (F1) arrives as UNEXECUTED statements so it commits with the swap; `[]` for a
+    // non-game room / an unwired rpg ⇒ byte-identical to a plain handoff.
+    const rpgHeal = (await ctx.rpg?.handoffHealStatements(chatId, principal.userId)) ?? [];
     const swap = [
       ...acceptHostHandoffSwapStatements(ctx.db, {
         chatId,
         nomineeUserId: principal.userId,
         now: ctx.now(),
+        clearAnchorPersona,
       }),
       ...droppedSeatIds.map((id) => markParticipantLeftStatement(ctx.db, id, dropSeq)),
+      ...rpgHeal,
     ];
     if (oldHostUserId !== null && oldHostUserId !== principal.userId) {
       await ctx.emitNotification(
@@ -701,7 +726,8 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
         action: "chat.acceptHostHandoff",
         entityType: "chat",
         entityId: chatId,
-        metadata: { previousHostUserId: oldHostUserId },
+        // The heal FLAGS (never the ids): a transfer that re-pointed the room's POV or its GM voice says so.
+        metadata: { previousHostUserId: oldHostUserId, healedAnchorPersona: clearAnchorPersona, healedGmPreset: rpgHeal.length > 0 },
       },
       ctx.now(),
     );
