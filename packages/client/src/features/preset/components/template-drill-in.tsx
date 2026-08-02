@@ -32,6 +32,10 @@ import { DeliveryCluster } from "./delivery-cluster";
 type PresetForm = AppFormInstance<PromptConfig>;
 
 const DEPTH_HINT = "0 = the tail, right before the reply; N = N turns back from your latest message. Blank means the tail.";
+/** The GHOST an unset depth means. Short by construction (crunch item 10 / O-14): the inline NumberField is
+ *  a `--width-number-inline` (5rem) mono cell, and the old "0 — the tail" clipped to "0 — the t…" — the one
+ *  datum the ghost exists to state was the half that got cut. Same string in the section drill-in. */
+const DEPTH_PLACEHOLDER = "0 · tail";
 
 export interface TemplateDrillInProps {
   readonly form: PresetForm;
@@ -57,7 +61,9 @@ export function TemplateDrillIn({ form, row, onBack }: TemplateDrillInProps): Re
       <Stack gap="tight">
         <Row align="center" gap="field">
           <Text voice="label">{def.label}</Text>
-          <Badge intent="info" size="sm">
+          {/* The SAME chip the list row wears (crunch items 7/14) — outlined neutral, one kind vocabulary
+              drawn one way on both surfaces. */}
+          <Badge intent="neutral" size="sm" tone="ghost">
             {def.kind}
           </Badge>
         </Row>
@@ -149,11 +155,11 @@ function DeliveryFields({ form, row }: CapabilityProps): ReactElement | null {
             depthHint={DEPTH_HINT}
             depthLabel="At depth"
             depthMax={MAX_INJECTION_DEPTH}
-            depthPlaceholder="0 — the tail"
+            depthPlaceholder={DEPTH_PLACEHOLDER}
             onDepthChange={(next): void => form.setFieldValue(`guidedActions.${guidedKind}.depth`, next ?? undefined)}
             onRoleChange={(next): void => form.setFieldValue(`guidedActions.${guidedKind}.role`, next)}
             role={role}
-            roleLabel="Delivered as"
+            roleLabel="Role"
           />
         )}
       </form.Subscribe>
@@ -172,9 +178,13 @@ function TokenVocabulary({ form, row, capability }: CapabilityProps): ReactEleme
   const tokens = capability.tokens;
   return (
     <Stack gap="tight">
+      {/* MACRO PILLS ARE MONO NEUTRAL (crunch item 14): a row of bright-blue `{{input}}`/`{{person}}`
+          pills was the loudest thing in the editor for what is a reference LIST — you read it once. The
+          mocks paint the substitution vocabulary as quiet outlined chips, and the mono face is what says
+          "this is a literal you type", which the colour was standing in for. */}
       <Row align="center" gap="field">
         {tokens.map((token) => (
-          <Badge intent="info" key={token} size="sm">
+          <Badge className="font-mono" intent="neutral" key={token} size="sm" tone="ghost">
             {token}
           </Badge>
         ))}

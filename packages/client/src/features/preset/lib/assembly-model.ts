@@ -66,12 +66,24 @@ export function isStructuralSection(section: PromptSection): boolean {
   return section.type === "marker";
 }
 
-/** The Placement cluster's ZONE vocabulary. A zone is DERIVED from the section's position relative to the
- *  pivot, so picking one is a MOVE across the pivot (the same `moveFieldValues` the drag and the ⋯
- *  Move-above/below item go through — one home, §16 row 17), never a stored field. */
+/** The Placement cluster's ZONE vocabulary (crunch-list O-9★, owner ruling). The two arms are the two
+ *  DELIVERIES the assembler actually performs, named for what they do rather than for which side of the
+ *  pivot they sit on:
+ *
+ *   · RELATIVE — the section renders into the system block, ordered among the other prompts. This is a
+ *     `setup` (pre-pivot) section with no splice: `injectionDepthFor` returns `null` for it
+ *     (`domain/chat/assembly/assemble.ts`), i.e. no depth exists to speak of.
+ *   · IN CHAT — the section is spliced into the conversation at a DEPTH. That is exactly a `post`
+ *     (post-pivot) section: the same function returns `inject.depth`, or 0 (the tail) when none is set.
+ *
+ *  So DEPTH and ORDER are In-Chat vocabulary only, and the drill-in renders them only on that arm
+ *  (absent, never disabled — the `628a3666` carrier precedent). The zone itself stays DERIVED from the
+ *  section's position relative to the pivot, so picking one is a MOVE across it (the same
+ *  `moveFieldValues` the drag and the ⋯ Move-above/below item go through — one home, §16 row 17), never a
+ *  stored field. */
 export const ZONE_ITEMS: readonly { readonly value: string; readonly label: string }[] = [
-  { value: "setup", label: "Setup — before the conversation" },
-  { value: "post", label: "Post — after your message" },
+  { value: "setup", label: "Relative — ordered among the prompts" },
+  { value: "post", label: "In Chat — at a depth in the conversation" },
 ];
 
 /** Can this section be SPLICED into the conversation and TRIGGER-filtered? The schema's own branches are

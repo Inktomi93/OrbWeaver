@@ -6,9 +6,14 @@
 // `params.thinkingDisplay` → Params ▸ REASONING (F4 — a reasoning knob two groups from its own axis);
 // `formatStrings.continueNudge`/`impersonateNudge` + the guided templates → the ACTIONS view (F6 — they
 // are per-action steering prose, not prompt structure). `params.compaction.*` moved whole to Params ▸
-// CONTEXT, so the Compaction body is gone from here with them. What is left is genuinely the rack's:
-// speaker names + the continue delimiter and message handling — the §5.3 DELIVERY cluster, an OPEN kicker
-// cluster now rather than two closed disclosures (F6: a closed disclosure is where a knob goes to die).
+// CONTEXT, so the Compaction body is gone from here with them.
+//
+// AND THE TAIL CLUSTERS LEFT TOO (crunch-list O-17★, owner ruling): DELIVERY (speaker names · continue
+// delimiter) and COLLAPSING (adjacent-role merging · squash system notes) render in the TRANSFORMS view
+// now — they shape the WIRE, not the prompt's content. They still live in this file (`DeliveryTab`), one
+// module for the structural `PromptConfig` bodies; only their view changed. Each stays an OPEN kicker
+// cluster, never a closed disclosure (F6: a closed disclosure is where a knob goes to die). What is left
+// under Prompt is genuinely the rack's: the rack.
 //
 // THE PROMPT VIEW IS RACK-OR-DRILL-IN (§5.2). SELECT ≠ DRILL: a row's name click SELECTS (the shared
 // selection store — the CONTEXT readout echoes it, and that echo IS the inspect view); the row's chevron
@@ -40,17 +45,20 @@ type AppForm = AppFormInstance<PromptConfig>;
 
 interface PresetStructureTabsProps {
   readonly form: AppForm;
-  readonly tab: "prompt" | "templates" | "postProcess";
+  readonly tab: "prompt" | "delivery" | "templates" | "postProcess";
   /** Reveal the CONTEXT readout (the mobile/overlay half of the select echo) — Prompt tab only. */
   readonly onRevealSection?: (() => void) | undefined;
-  /** The chat-role model's capability (the Message-handling floor line) — Prompt tab only, may be unset. */
+  /** The chat-role model's capability (the Collapsing floor line) — Delivery tab only, may be unset. */
   readonly capability?: ModelCapability | undefined;
 }
 
 /** Render one structural tab's fields (direct-bound to the nested `PromptConfig`). */
 export function PresetStructureTabs({ form, tab, onRevealSection, capability }: PresetStructureTabsProps): ReactElement {
   if (tab === "prompt") {
-    return <PromptTab capability={capability} form={form} onRevealSection={onRevealSection} />;
+    return <PromptTab form={form} onRevealSection={onRevealSection} />;
+  }
+  if (tab === "delivery") {
+    return <DeliveryTab capability={capability} form={form} />;
   }
   if (tab === "templates") {
     return <TemplatesTab form={form} />;
@@ -58,15 +66,47 @@ export function PresetStructureTabs({ form, tab, onRevealSection, capability }: 
   return <PostProcessTab form={form} />;
 }
 
-function PromptTab({
-  form,
-  onRevealSection,
-  capability,
-}: {
-  readonly form: AppForm;
-  readonly onRevealSection?: (() => void) | undefined;
-  readonly capability?: ModelCapability | undefined;
-}): ReactElement {
+/** DELIVERY + COLLAPSING — the rack's WIRE-SHAPING tail, homed in TRANSFORMS (crunch-list O-17★, owner
+ *  ruling, verbatim: "they're wire-shaping, not prompt content"). Speaker names and the continue delimiter
+ *  decide how the assembled rows are SPELLED on the wire, and the collapsing pair decides how they are
+ *  MERGED — the same job the regex lanes and the post-process steps do, one view over. §5.3 homed them
+ *  under Prompt as "how sections speak"; the owner sort wins (the counterpoint is recorded in the spec,
+ *  not argued). They stay ONE open kicker cluster each, never a closed disclosure (F6). */
+function DeliveryTab({ form, capability }: { readonly form: AppForm; readonly capability?: ModelCapability | undefined }): ReactElement {
+  return (
+    <Stack gap="section">
+      <Section kicker="Delivery">
+        {/* GHOSTED DEFAULTS, never blank (side-eye F-05): an unset select rendered an EMPTY combobox, so
+            the one datum the row exists to state — what actually happens when you leave it alone — was
+            the one thing missing. The placeholder is the wire's own default, read from the constant the
+            assembler resolves through, and the explainer moves to the hover hint (§4.1). */}
+        <form.AppField name="namesBehavior">
+          {(field): ReactElement => (
+            <field.SelectField
+              hint="Whether and how speaker names are attached to each message."
+              items={NAMES_BEHAVIOR_ITEMS}
+              label="Speaker names"
+              placeholder={namesBehaviorLabel(DEFAULT_NAMES_BEHAVIOR)}
+            />
+          )}
+        </form.AppField>
+        <form.AppField name="continuePostfix">
+          {(field): ReactElement => (
+            <field.SelectField
+              hint="What's inserted between the existing text and a continuation."
+              items={CONTINUE_POSTFIX_ITEMS}
+              label="Continue delimiter"
+              placeholder={continuePostfixLabel(DEFAULT_CONTINUE_POSTFIX)}
+            />
+          )}
+        </form.AppField>
+      </Section>
+      <MessageHandlingSection capability={capability} form={form} />
+    </Stack>
+  );
+}
+
+function PromptTab({ form, onRevealSection }: { readonly form: AppForm; readonly onRevealSection?: (() => void) | undefined }): ReactElement {
   // WHICH body the center paints. Local by construction: one region, one writer. The SELECTION (below) is
   // the shared store the readout echoes — the two axes are deliberately separate (§16 row 19).
   const [drilledSectionId, setDrilledSectionId] = useState<string | null>(null);
@@ -130,39 +170,6 @@ function PromptTab({
           );
         }}
       </form.Subscribe>
-
-      {/* §5.3 — the DELIVERY cluster: wire-shaping knobs for the rack's output, so they stay with the rack.
-          An OPEN kicker cluster, never a closed disclosure (F6). Hidden while drilled: the drill-in is a
-          full-pane takeover of one object, and these belong to the arrangement. */}
-      {drilledSectionId === null ? (
-        <Section kicker="Delivery">
-          {/* GHOSTED DEFAULTS, never blank (side-eye F-05): an unset select rendered an EMPTY combobox, so
-              the one datum the row exists to state — what actually happens when you leave it alone — was
-              the one thing missing. The placeholder is the wire's own default, read from the constant the
-              assembler resolves through, and the explainer moves to the hover hint (§4.1). */}
-          <form.AppField name="namesBehavior">
-            {(field): ReactElement => (
-              <field.SelectField
-                hint="Whether and how speaker names are attached to each message."
-                items={NAMES_BEHAVIOR_ITEMS}
-                label="Speaker names"
-                placeholder={namesBehaviorLabel(DEFAULT_NAMES_BEHAVIOR)}
-              />
-            )}
-          </form.AppField>
-          <form.AppField name="continuePostfix">
-            {(field): ReactElement => (
-              <field.SelectField
-                hint="What's inserted between the existing text and a continuation."
-                items={CONTINUE_POSTFIX_ITEMS}
-                label="Continue delimiter"
-                placeholder={continuePostfixLabel(DEFAULT_CONTINUE_POSTFIX)}
-              />
-            )}
-          </form.AppField>
-          <MessageHandlingSection capability={capability} form={form} />
-        </Section>
-      ) : null}
     </Stack>
   );
 }

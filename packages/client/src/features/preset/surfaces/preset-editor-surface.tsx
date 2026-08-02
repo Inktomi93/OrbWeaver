@@ -39,11 +39,11 @@
 
 import type { ModelCapability } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
-import { buildPresetFile, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Download, Icon, MoreHorizontal, RotateCcw, Zap } from "@orb/ui/icons";
+import { Icon, MoreHorizontal, RotateCcw, Zap } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
@@ -55,8 +55,8 @@ import { ConfirmDialog } from "#components";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AppFormInstance, AutosaveSession } from "#forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
-import { downloadJson, slugifyFilename, useFocusOnMount } from "#lib";
-import { selectPresetSection, setPresetEditorView, usePresetEditorView } from "#state";
+import { useFocusOnMount } from "#lib";
+import { setPresetEditorView, usePresetEditorView } from "#state";
 import { ActionsView } from "../components/actions-view";
 import { ParamsDeck } from "../components/params-deck";
 import { PresetForkChoiceDialog } from "../components/preset-fork-choice-dialog";
@@ -69,7 +69,7 @@ import { useResetPreset, useSetDefaultPreset } from "../hooks/use-preset-mutatio
 import type { EffectiveProfileRow } from "../lib/effective-knobs";
 import { seedConfig } from "../lib/preset-editor-model";
 import type { PresetEditorView } from "../lib/preset-nav";
-import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav";
+import { openSectionInPrompt, PRESET_EDITOR_VIEWS } from "../lib/preset-nav";
 
 // The session-boundary autosave form (D78 §1). Module-scope so both the Boundary and its inner Session have
 // stable identities (never a per-render factory call). Entity identity, the teardown flush, and reseed live
@@ -128,8 +128,12 @@ function viewContent(id: PresetEditorView["id"], props: ViewContentProps): React
       return (
         <ActionsView
           form={form}
+          // THE REAL DOOR (crunch-list O-13): the cross-link used to select a rack row and leave you
+          // standing in Actions, where no rack exists — a click with no visible effect. `openSectionInPrompt`
+          // does both halves (view + selection); the reveal stays for the narrow regime, where the readout
+          // that echoes the selection is a closed sheet.
           onSelectSection={(sectionId): void => {
-            selectPresetSection(sectionId);
+            openSectionInPrompt(sectionId);
             onRevealSection?.();
           }}
         />
@@ -144,6 +148,10 @@ function viewContent(id: PresetEditorView["id"], props: ViewContentProps): React
     case "transforms":
       return (
         <Stack gap="section">
+          {/* DELIVERY + COLLAPSING lead the view (crunch-list O-17★): they shape the OUTGOING wire, so
+              they sit above the prompt-side regex lanes and everything reply-side, in the same execution
+              order the Transforms readout prints. */}
+          <PresetStructureTabs capability={capability} form={form} tab="delivery" />
           <RegexTab form={form} />
           <PresetStructureTabs form={form} tab="postProcess" />
           <PresetStructureTabs form={form} tab="templates" />
@@ -188,12 +196,6 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   const onActivate = (): void => {
     setDefault.mutate({ section: "seeds", patch: { defaultPresetId: preset.isSystemDefault ? null : presetId } });
   };
-  // The §16 row-7 editor-side Export door. It serializes the SAME `buildPresetFile` bytes the LIST kebab
-  // and the whole-profile bundle write — no second serde — off the row this surface already holds, so it
-  // needs no extra read either.
-  const onExport = (): void => {
-    downloadJson(`${slugifyFilename(preset.name, "preset")}.json`, buildPresetFile(preset.name, preset.config));
-  };
   // isError ≠ no-model (side-eye F-02): a FAILED capability read must not render as "connect a chat model"
   // to someone who has one connected. The message is the server's own.
   const capabilityError = capabilityQuery.error === null ? null : capabilityQuery.error.message;
@@ -209,7 +211,6 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
             active={active}
             isSystemDefault={preset.isSystemDefault}
             onActivate={onActivate}
-            onExport={onExport}
             capability={capability}
             capabilityError={capabilityError}
             effective={effectiveQuery.data ?? undefined}
@@ -245,8 +246,6 @@ interface PresetEditorBodyProps {
   readonly isSystemDefault: boolean;
   /** Make it the pick — the one `setDefault` mutation the LIST row toggle also calls (§16 row 3). */
   readonly onActivate: () => void;
-  /** Download this preset as an `orb.preset` file — the §16 row-7 echo of the LIST kebab's Export. */
-  readonly onExport: () => void;
   readonly capability: ModelCapability | undefined;
   /** The capability read's failure message, `null` when it simply resolved no model (§F-02). */
   readonly capabilityError: string | null;
@@ -263,7 +262,6 @@ function PresetEditorBody({
   active,
   isSystemDefault,
   onActivate,
-  onExport,
   capability,
   capabilityError,
   effective,
@@ -340,11 +338,15 @@ function PresetEditorBody({
             <Row align="center" gap="field">
               {/* Autosave everywhere (§7): the live status stands where Save/Discard used to. */}
               <AutosaveStatus state={saveState} onRetry={retrySave} />
-              {/* The BUILT-IN's menu would hold NOTHING — Export is excluded (it re-seeds on the target
-                  box) and "Reset to starter" is a no-op wearing a destructive confirm, because the built-in
-                  IS the starter arrangement (side-eye F-25). An empty menu renders no ⋯ at all rather than
-                  a trigger that opens nothing (the section drill-in's own rule); items are OMITTED, never
-                  disabled. */}
+              {/* The BUILT-IN's menu would hold NOTHING — "Reset to starter" is a no-op wearing a
+                  destructive confirm, because the built-in IS the starter arrangement (side-eye F-25). An
+                  empty menu renders no ⋯ at all rather than a trigger that opens nothing (the section
+                  drill-in's own rule); items are OMITTED, never disabled.
+
+                  EXPORT IS NOT HERE (crunch-list O-16★, owner ruling): it lived in BOTH this kebab and the
+                  LIST row's, and the fix-all's §16 rows 7+27 sanction of that echo is OVERRULED. ONE home —
+                  the list-row kebab, matching the characters/chats precedent that lifecycle lives
+                  list-side. */}
               {isSystemDefault ? null : (
                 <Menu>
                   <MenuTrigger
@@ -355,15 +357,6 @@ function PresetEditorBody({
                     }
                   />
                   <MenuPopup align="end">
-                    {/* EXPORT — the §16 row-7 echo of the LIST kebab's Export, registered in the audit
-                        table in this commit. Justification is the row-3b precedent verbatim: the editor is
-                        the ARTIFACT'S OWN SURFACE, and on mobile the LIST is a closed sheet, so the one
-                        place you are certainly standing when you want to share this preset offered no way
-                        to. Both doors serialize through the SAME `buildPresetFile` — one serde, two doors. */}
-                    <MenuItem onClick={onExport}>
-                      <Icon icon={Download} size="sm" />
-                      Export
-                    </MenuItem>
                     <MenuItem onClick={(): void => setResetOpen(true)}>
                       <Icon icon={RotateCcw} size="sm" />
                       Reset to starter arrangement

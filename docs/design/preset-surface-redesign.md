@@ -395,6 +395,17 @@ non-system role) · the ~token estimate (mono, line-through when off) · the ena
 the pivot) · the drill chevron/pencil (= EDIT). A disabled row dims whole; selection = ember tint +
 left bar; zone accents stay (steel-blue setup / warm-amber post) with the pivot band as the horizon.
 
+**ROW AMENDMENTS (crunch items 7/14/15/16 + owner O-7★, 2026-08-02).** The NAME's explainer prose moves
+to the row's HOVER (`fullTitle`, the native title on the name — owner-ruled: the inline descriptions are
+lame; this OVERRIDES the mock's inline-desc drawing), so the row line carries one datum. The ~token
+estimate takes a fixed-width right-aligned TABULAR MONO cell (the mock's own `.tok`), so a rack reads
+down one number edge. Cue badges are all `tone="soft"` (the mock paints 13% tints, never solid pills),
+and the registry may carry ONE fixed-by-product firing cue per marker (`MarkerCopy.firesCue`) for the
+case no stored field can express — today exactly `guided_instruction` → `⚡ steered turns`, because the
+assembler renders that slot only when a guided steer resolved. NOT a cue: the mock's Post-history
+lock/custom pills, which its own note declares "only-when-set" — a preset with neither flag set correctly
+shows neither (verified live, 2026-08-02).
+
 **Manage capabilities, each with its one home (§16):** per-row ON/OFF (row 18, + the drilled header
 echo) · DRAG reorder with the keyboard path (dnd-kit keyboard sensors are in-house — the
 sortable-keyboard-focus lesson applies: focus restores at DROP; the ⋯ Move-above/below item is the
@@ -427,6 +438,35 @@ machinery (`preset-editor-bridge.ts`, `preset-section-inspector.tsx`, `section-i
 move into the drill-in) — one object, one place. The `onRevealSection` choreography and the
 `useSelectedPresetSectionId` store survive (selection is still the drill key); what dies is the second
 geography.
+
+**§5.2b — THE ZONE IS THE DELIVERY, AND DEPTH/ORDER ARE IN-CHAT VOCABULARY (owner ruling O-9★,
+crunch list 2026-08-02).** The zone select's two arms are renamed for what the assembler actually does
+with the section, not for which side of the pivot it sits on:
+
+| zone option (UI) | derived from | what the assembler does (`assemble.ts` → `injectionDepthFor`) |
+| - | - | - |
+| **Relative — ordered among the prompts** | the section sits BEFORE the pivot (was "Setup") | renders into the system block, in rack order; `injectionDepthFor` returns `null` — there is no depth to speak of |
+| **In Chat — at a depth in the conversation** | the section sits AFTER the pivot (was "Post") | spliced into the history at `inject.depth`, or 0 (the tail) when none is set |
+
+Consequences, all ruled:
+
+- **Depth and Order render ONLY on the In-Chat arm** — ABSENT, never disabled (the `628a3666`
+  `supportsArrangement` precedent: a field that cannot mean anything here does not appear here).
+- **Moving a section back to Relative CLEARS its `inject`.** `injectionDepthFor` honours an explicit
+  depth on EITHER side of the pivot, so a leftover splice under a "Relative" label is a lie the assembler
+  would act on.
+- **Label-only at the wire.** The zone is derived from array position and was never stored; `ZONE_ITEMS`
+  is a client vocabulary. No contract enum widens, no mirror pin or e2e hand-mirror moves.
+- The unset In-Chat depth GHOSTS `0 · tail` — short by construction, because the inline NumberField is a
+  `--width-number-inline` cell and the old sentence-length ghost clipped (crunch item 10 / O-14).
+
+**§5.2c — ONE ROLE, ONE TRIGGER CONTROL (owner rulings O-10★ / O-11★).** The delivery role field is
+**"Role"** in BOTH drill-ins ("Spoken as" / "Delivered as" were two names for one field; the Actions
+readout's `delivered as` datum follows). TRIGGERS is a **multi-check dropdown** (the `multiple` Select —
+Base UI's own check-indicator idiom), not the segmented strip the mock drew: six chips in a row is a
+control the size of the cluster it sits in, for an axis that is unset on almost every section. The unset
+field remains the "fires on every generation" state — deselecting the last option writes `undefined`,
+never an empty array.
 
 **The STRUCTURAL SET — markers cannot be deleted (ST-parity ruling, round 4).** The contract's own
 three-branch union IS the classification (`contracts/preset/index.ts:604-642`): `literal` sections are
@@ -480,11 +520,18 @@ editable, never blank).** The schema branch is the authority — plain markers c
 The nav link is a sanctioned cross-SECTION navigation echo (§16 row 30) riding the standing rail
 store writers.
 
-### 5.3 The DELIVERY cluster
+### 5.3 The DELIVERY + COLLAPSING clusters — HOMED IN TRANSFORMS (owner ruling O-17★, 2026-08-02)
 
-Below the rack, an open kicker cluster (not a closed collapsible — F6): `namesBehavior` ·
-`continuePostfix` · adjacent-role merging with its floor annotation (landed) · squash system notes.
-These are wire-shaping knobs for the rack's output; they stay with the rack.
+Two open kicker clusters (never closed collapsibles — F6): **Delivery** (`namesBehavior` ·
+`continuePostfix`) and **Collapsing** (adjacent-role merging with its floor annotation · squash system
+notes). They render at the TOP of the **Transforms** view, above the prompt-side regex lanes, in the same
+execution order the Transforms readout prints.
+
+**AMENDED FROM "they stay with the rack" (owner sort wins).** Owner, verbatim: *"they're wire-shaping,
+not prompt content."* The recorded counterpoint, not argued: this spec originally homed Delivery under
+Prompt as "how sections speak", i.e. a property of the rack's output. The owner's concept-sort is the
+ruling — the Prompt view is the rack and nothing else; anything that reshapes the assembled rows on their
+way to the wire is a TRANSFORM, which is exactly what the other three clusters in that view are.
 
 ## 6. The Actions view — guided templates + nudges (the "fields" half of the charge)
 
@@ -641,6 +688,15 @@ The chip rides the state-chip grammar at a DISTINCT hue family (info) so Default
 success) and kind can never blur.
 
 ## 7. The CONTEXT panel — a per-view readout, never decoration (decision D2, amended per owner steer 2026-08-01)
+
+**AMENDMENT (crunch items 11-12, 2026-08-02).** (a) The panel's BAND names its own projection — the
+ACTIVE VIEW's label + `readout` ("Params · readout", the mocks' `ACTIONS · READOUT`), never the shell's
+neutral "Details": a pane whose whole content swaps per view cannot be titled by a word that describes
+none of them. It arrives through a `header` slot on the `single` context arm (the same P4 channel a
+`tabs` context already had), and it READS the view store — the tab strip stays the one writer (§16 row
+10). (b) The Actions panel ships the honest **Resolved preview** arm naming the D8 binding it waits on,
+instead of leaving ~90% of the pane blank — an empty pane reads as unbuilt, a named condition reads as
+pending.
 
 With the inspector consolidated into the drill-in (§5.2), CONTEXT stops renting editing and becomes
 the preset's INSTRUMENT — and it PROJECTS BY VIEW: what the eye needs depends on which hand is
@@ -976,7 +1032,7 @@ the v1 params-deck CONTEXT drawing carried Prompt-view elements (budget + previe
 | 4 | open a preset (edit) | the row body click | ⌘K (the global palette — an app-wide echo outside this surface's budget) | — |
 | 5 | duplicate preset | the inline row verb (ratified §12.2 — the measured frequent verb) | row kebab mirror (the §12.2 grammar's own parity rule) | CT: both fire the same create-with-config |
 | 6 | rename preset | row kebab → dialog | none — the editor header SHOWS the name, never edits it | — |
-| 7 | export preset | row kebab (G6) | the EDITOR-header kebab's **Export** — the row-3b justification verbatim: the editor is the ARTIFACT'S OWN SURFACE, and on mobile the LIST is a closed sheet, so the one place you are certainly standing when you want to share this preset must be able to. Hidden on the built-in in BOTH doors, matching the bundle's system-default exclusion (side-eye F-25, 2026-08-02) | both doors serialize through the ONE `buildPresetFile` — a second serde is the banned parallel path; review + CT |
+| 7 | export preset | row kebab (G6) | **NONE — the editor-header Export echo is OVERRULED (owner O-16★, 2026-08-02).** The fix-all sanctioned it on the row-3b justification; the owner's call is ONE home, matching the characters/chats precedent that lifecycle lives list-side. Hidden on the built-in there, matching the bundle's system-default exclusion (side-eye F-25) | one door, one serde (`buildPresetFile`); CT: the editor kebab offers Reset only |
 | 8 | delete preset | row kebab → confirm | none (destructive is kebab-only, §12.2) | — |
 | 9 | search presets | the pane search input | none | — |
 | 10 | switch editor view | the ONE tab strip | none — CONTEXT projects the view, never sets it (§7) | `presetEditorView` has ONE writer (the store-door discipline); review |
@@ -996,7 +1052,7 @@ the v1 params-deck CONTEXT drawing carried Prompt-view elements (budget + previe
 | 24 | reset a template / a SECTION BODY to Default | CLEAR the field — empty IS the ghosted default (the landed `guidedFooterState` semantic, now the ONE grammar for Actions templates AND section bodies, §5.2a) | none | the state chip renders the semantic; CT |
 | 25 | variable / user-macro CRUD | the Data view's `EntryListEditor` + its dialog | none | — |
 | 26 | regex CRUD · post-process switches · reasoning-parse fields | their Transforms editors | none | — |
-| 27 | reset preset to starter | the editor-header kebab → confirm | none — and the item is ABSENT on the built-in, which IS the starter arrangement (side-eye F-25); with Export also excluded there, the built-in renders no ⋯ trigger at all rather than an empty menu | review; CT: the built-in's header carries no Preset-options trigger |
+| 27 | reset preset to starter | the editor-header kebab → confirm | none — and the item is ABSENT on the built-in, which IS the starter arrangement (side-eye F-25). With Export re-homed list-side (row 7, O-16★) this is the kebab's ONLY item, so the built-in renders no ⋯ trigger at all rather than an empty menu | review; CT: the built-in's header carries no Preset-options trigger; CT: the kebab offers Reset only |
 | 28 | retry a failed save | the `AutosaveStatus` chip | none | — |
 | 29 | show the assembled preview | the Prompt-view CONTEXT (on-demand) | none — the center Compose\|Preview toggle is DELETED (§5.1) | the toggle dies in the same commit; review |
 | 30 | navigate to a carrier's SOURCE domain (the §5.2 attribution link — "manage in World info ↗") | the carrier body-slot attribution panel + its readout twin | none beyond the pair itself (the drill-in panel and the readout attribution are the same link, one target) | rides the standing rail store writers (`setActiveSection` — the cross-section action pattern); never a route fork |

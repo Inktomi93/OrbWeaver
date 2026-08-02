@@ -17,6 +17,7 @@ import { PresetLibraryAnchor } from "../anchors/preset-library-anchor";
 import { PresetContent } from "../components/preset-content";
 import { PresetListHeader } from "../components/preset-list-header";
 import { PresetReadout } from "../components/readout/preset-readout";
+import { PresetReadoutHeader } from "../components/readout/preset-readout-header";
 import { PresetLibrarySurface } from "../surfaces/preset-library-surface";
 
 export const presetsSection: SectionDefinition = {
@@ -38,6 +39,7 @@ export const presetsSection: SectionDefinition = {
   // The LIST chrome-band content (D66 A1/A2 — the L4 sweep): "PRESETS" + count + the create verbs.
   listHeader: () => <PresetListHeader />,
   content: () => <PresetContent />,
-  // ONE readout, projected by the active editor view (§7) — read-only + navigation-only.
-  context: { kind: "single", body: () => <PresetReadout /> },
+  // ONE readout, projected by the active editor view (§7) — read-only + navigation-only. The BAND names
+  // that projection (crunch item 11): a pane whose content swaps per view cannot be titled "Details".
+  context: { kind: "single", body: () => <PresetReadout />, header: () => <PresetReadoutHeader /> },
 };

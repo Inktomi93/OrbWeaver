@@ -29,8 +29,97 @@ test("a row CLICK selects without mounting the drill-in; the CHEVRON drills", as
   await expect(probe.getByRole("button", { name: "Back to rack" })).toBeVisible();
   // ONE OBJECT, ONE PLACE: body + delivery + placement + triggers all live here now.
   await expect(probe.getByLabel("Name", { exact: true })).toHaveValue("DeleteMe");
+  await expect(probe.getByRole("combobox", { name: "Role" })).toBeVisible();
+  await expect(probe.getByRole("combobox", { name: "Zone" })).toBeVisible();
+  await expect(probe.getByRole("combobox", { name: "Fires on" })).toBeVisible();
+});
+
+// ── O-9★: DEPTH AND ORDER ARE IN-CHAT VOCABULARY ─────────────────────────────────────────────────────
+// The zone is the DELIVERY the assembler performs: RELATIVE renders into the system block (no depth
+// exists), IN CHAT splices at one. The fields are ABSENT on the relative arm rather than rendered-and-
+// disabled — the same rule the carrier's missing `inject` already follows — and the drill-in must not be
+// able to leave a depth behind on a section it calls relative, because `injectionDepthFor` would still
+// honour it. Nothing but a composition test can see either half.
+
+test("O-9 — a RELATIVE section has no depth and no order; an IN CHAT one has both", async ({ mount }) => {
+  const probe = await mount(<RackStory />);
+
+  // `sec_del` sits BEFORE the pivot ⇒ Relative.
+  await probe.getByRole("button", { name: "Edit DeleteMe" }).click();
+  await expect(probe.getByRole("combobox", { name: "Zone" })).toHaveText(/Relative/);
+  await expect(probe.getByRole("textbox", { name: "Inject at depth" })).toHaveCount(0);
+  await expect(probe.getByRole("textbox", { name: "Order" })).toHaveCount(0);
+  await probe.getByRole("button", { name: "Back to rack" }).click();
+
+  // `sec_z` sits AFTER it ⇒ In Chat, where both fields mean something.
+  await probe.getByRole("button", { name: "Edit Zeta" }).click();
+  await expect(probe.getByRole("combobox", { name: "Zone" })).toHaveText(/In Chat/);
   await expect(probe.getByRole("textbox", { name: "Inject at depth" })).toBeVisible();
   await expect(probe.getByRole("textbox", { name: "Order" })).toBeVisible();
+});
+
+test("O-8/O-9 — the depth input WRITES (typed value round-trips to the form), and Relative clears the splice", async ({ mount, page }) => {
+  const probe = await mount(<RackStory />);
+  const state = probe.locator("output");
+  await expect(state).toContainText("splice=none");
+
+  await probe.getByRole("button", { name: "Edit Zeta" }).click();
+  const depth = probe.getByRole("textbox", { name: "Inject at depth" });
+  await depth.click();
+  await depth.pressSequentially("3");
+  // The FORM's value, not the input's: a field that renders its own keystrokes while writing nothing is
+  // exactly the "stuck at in flow" defect, and only the form side can tell the two apart.
+  await expect(state).toContainText("splice=sec_z@3·-");
+
+  // Moving back to Relative un-splices it — a stored depth under a "Relative" label is a lie the
+  // assembler would act on.
+  await probe.getByRole("combobox", { name: "Zone" }).click();
+  await page.getByRole("option", { name: /Relative/ }).click();
+  await expect(state).toContainText("splice=none");
+});
+
+// ── O-11★: TRIGGERS IS A MULTI-CHECK DROPDOWN ────────────────────────────────────────────────────────
+// The UNSET field IS the "fires on every generation" state, so the last deselection has to write
+// `undefined` rather than an empty array that reads the same and stores differently.
+
+test("O-11 — Fires on is a multi-check dropdown, and clearing the last pick returns to every-generation", async ({ mount, page }) => {
+  const probe = await mount(<RackStory />);
+  await probe.getByRole("button", { name: "Edit DeleteMe" }).click();
+
+  const fires = probe.getByRole("combobox", { name: "Fires on" });
+  await expect(fires).toHaveText(/Every generation/);
+  await expect(probe.getByText("Nothing selected — this section fires on every generation.")).toBeVisible();
+
+  await fires.click();
+  await page.getByRole("option", { name: "Continue" }).click();
+  await page.getByRole("option", { name: "Swipe" }).click();
+  await page.keyboard.press("Escape");
+  await expect(fires).toHaveText(/Continue/);
+  await expect(fires).toHaveText(/Swipe/);
+  await expect(probe.getByText("Only the selected generation types carry this section.")).toBeVisible();
+
+  await fires.click();
+  await page.getByRole("option", { name: "Continue" }).click();
+  await page.getByRole("option", { name: "Swipe" }).click();
+  await page.keyboard.press("Escape");
+  await expect(probe.getByText("Nothing selected — this section fires on every generation.")).toBeVisible();
+});
+
+// ── O-12: THE OVERRIDES BLOCK ────────────────────────────────────────────────────────────────────────
+// Both flags are OPTIONAL, so a section that has never had one set carries NO such key — and the gate
+// was `"forbidCharacterOverride" in section`, i.e. the block never rendered for any real preset. The
+// gate is the schema ARM (a templated marker), which is what the fixture's untouched Post-history is.
+
+test("O-12 — a templated marker's OVERRIDES block renders with neither flag ever set", async ({ mount }) => {
+  const probe = await mount(<RackStory />);
+  await probe.getByRole("button", { name: "Edit Post-history" }).click();
+
+  await expect(probe.getByRole("switch", { name: "Block the character card's override" })).toBeVisible();
+  await expect(probe.getByRole("switch", { name: "Block the room's override" })).toBeVisible();
+  // A LITERAL has no such fields in the schema — absent, never a disabled pair.
+  await probe.getByRole("button", { name: "Back to rack" }).click();
+  await probe.getByRole("button", { name: "Edit DeleteMe" }).click();
+  await expect(probe.getByRole("switch", { name: "Block the character card's override" })).toHaveCount(0);
 });
 
 // ── F-04: the drill-in is a NAVIGATION, so focus has to travel with it ────────────────────────────────
@@ -124,7 +213,7 @@ test("a CARRIER's drill-in offers no depth, no order and no triggers — the sch
   // fields are ABSENT rather than rendered-and-disabled (writing either would fail the contract).
   await expect(probe.getByRole("textbox", { name: "Inject at depth" })).toHaveCount(0);
   await expect(probe.getByRole("textbox", { name: "Order" })).toHaveCount(0);
-  await expect(probe.getByRole("group", { name: "Fires on" })).toHaveCount(0);
+  await expect(probe.getByRole("combobox", { name: "Fires on" })).toHaveCount(0);
   // Its body is the source-attribution panel plus the shared entry wrapper — never a body textarea.
   // Located by ROLE: the field's explainer moved to the hover HINT (side-eye F-32 — a one-line format
   // string does not need a 90px textarea plus a paragraph), and the hint trigger's own accessible name

@@ -15,6 +15,21 @@
 import type { CompactionMode, ContinuePostfix, NamesBehavior, ThinkingDisplay } from "@orb/contracts/preset";
 import { COMPACTION_MODES, CONTINUE_POSTFIX_TYPES, NAMES_BEHAVIOR, THINKING_DISPLAYS } from "@orb/contracts/preset";
 import type { SelectItems } from "@orb/ui/select";
+import { selectPresetSection, setPresetEditorView } from "#state";
+
+/** THE CROSS-VIEW SECTION DOOR (crunch-list O-13). A rack section is only reachable in the PROMPT view, so
+ *  every "go to that section" affordance elsewhere on the surface — the Actions header's Guided-instruction
+ *  cross-link, the Actions readout's marker name — has to do BOTH halves: switch the view AND write the
+ *  selection. Selecting alone is what made the Actions button read as dead (the row it selected was in a
+ *  view the click never opened), and it is the navigation the readout's own note promises verbatim
+ *  ("Clicking the name selects that row in Prompt").
+ *
+ *  It writes through the SAME two store actions the tab strip and the rack use (§16 row 10 / row 19) — one
+ *  writer each, no second navigation surface. */
+export function openSectionInPrompt(sectionId: string): void {
+  setPresetEditorView(PROMPT_VIEW);
+  selectPresetSection(sectionId);
+}
 
 /** The five flat views, in strip order (redesign §3). Each `id` drives exactly one content body; the
  *  §3 schema→home map decides which fields live under which view. Keyed off `as const` so the view-id
@@ -40,6 +55,10 @@ export interface PresetEditorView {
 /** The ONE tab strip's views, in render order. `[0]` is the default the strip resolves an unset store
  *  read to — the default lives WITH the vocabulary, never re-spelled in the state store. */
 export const PRESET_EDITOR_VIEWS: readonly PresetEditorView[] = PRESET_EDITOR_VIEW_TUPLE;
+
+/** The view that owns the rack — read from the tuple, never re-spelled, so `openSectionInPrompt` cannot
+ *  drift from the strip's own vocabulary. */
+const PROMPT_VIEW: PresetEditorViewId = "prompt";
 
 // ── The static enum→label select vocabularies (the non-descriptor knobs) ────────────────────────────
 

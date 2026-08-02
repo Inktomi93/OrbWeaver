@@ -136,7 +136,16 @@ export interface ResolvedContextTabs {
  *  `useResolved` hook has already applied its own `S` before the shell ever sees it. */
 export type ContextDefinition =
   | { readonly kind: "none" }
-  | { readonly kind: "single"; readonly body: () => ReactNode }
+  | {
+      readonly kind: "single";
+      readonly body: () => ReactNode;
+      /** The CONTEXT-panel BAND identity for a single-body context — the same P4 slot a `tabs` context
+       *  supplies through `defineContextTabs`, available here because a single body is just as capable of
+       *  naming what it reads. Absent ⇒ the neutral "Details" default (world-info's arm, unchanged).
+       *  Preset's readout swaps its whole content per editor VIEW, so a band reading "Details" above a
+       *  panel of Actions data names nothing (crunch item 11). */
+      readonly header?: () => ReactNode;
+    }
   | {
       readonly kind: "tabs";
       /** Minted ONLY by `defineContextTabs` (G3 wall). May suspend; `null` = nothing selected. */

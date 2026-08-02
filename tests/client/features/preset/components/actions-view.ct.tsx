@@ -109,21 +109,21 @@ test("the drill-in is CAPABILITY-DRIVEN: a guided template gets role+depth, a nu
 
   await probe.getByRole("button", { name: "Edit Impersonate", exact: true }).click();
   await expect(probe.getByRole("button", { name: "Back to actions" })).toBeVisible();
-  await expect(probe.getByRole("combobox", { name: "Delivered as" })).toBeVisible();
+  await expect(probe.getByRole("combobox", { name: "Role" })).toBeVisible();
   await expect(probe.getByRole("textbox", { name: "At depth" })).toHaveValue("2");
   // Its declared token vocabulary rides the same capability list.
   await expect(probe.getByText("{{person}}", { exact: true })).toBeVisible();
   // ARRANGEMENT vocabulary is a SECTION's and never appears here (§5.0).
   await expect(probe.getByRole("combobox", { name: "Zone" })).toHaveCount(0);
   await expect(probe.getByRole("textbox", { name: "Order" })).toHaveCount(0);
-  await expect(probe.getByRole("group", { name: "Fires on" })).toHaveCount(0);
+  await expect(probe.getByRole("combobox", { name: "Fires on" })).toHaveCount(0);
 
   await probe.getByRole("button", { name: "Back to actions" }).click();
 
   // A nudge declares NO role/depth capability, so its editor is text-only BY DERIVATION.
   await probe.getByRole("button", { name: "Edit Continue nudge" }).click();
   await expect(probe.getByRole("button", { name: "Back to actions" })).toBeVisible();
-  await expect(probe.getByRole("combobox", { name: "Delivered as" })).toHaveCount(0);
+  await expect(probe.getByRole("combobox", { name: "Role" })).toHaveCount(0);
   await expect(probe.getByRole("textbox", { name: "At depth" })).toHaveCount(0);
 });
 
