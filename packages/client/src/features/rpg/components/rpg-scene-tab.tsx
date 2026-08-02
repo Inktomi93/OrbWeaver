@@ -11,33 +11,26 @@
 // values live on the per-actor plane, which left the image contract in R1); goals ride `upsertQuest`. Beats
 // are a log (read-only by nature).
 
-import type { RpgCastGuideField, RpgSnapshotState, RpgTrackerDef, RpgTrackerEntry, RpgTrackerView } from "@orb/contracts/rpg";
-import {
-  RPG_CAST_GUIDE_FIELDS,
-  RPG_TRACKER_VALUE_EMPTY,
-  RPG_WEATHER_TYPES,
-  TIME_OF_DAY_HOURS,
-  timeOfDayAtHour,
-  trackerCeiling,
-  trackerNumber,
-  trackerReading,
-} from "@orb/contracts/rpg";
+import type { RpgActorOp, RpgActorRef, RpgSnapshotState, RpgTrackerEntry, RpgTrackerView } from "@orb/contracts/rpg";
+import { RPG_TRACKER_VALUE_EMPTY, RPG_WEATHER_TYPES, TIME_OF_DAY_HOURS, timeOfDayAtHour, trackerCeiling, trackerNumber } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
-import { AmbientStrip, BeatLine, CastCard, GoalLine, MeterRow } from "#components";
+import { AmbientStrip, BeatLine, GoalLine, MeterRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { revealContextPanel } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useEditSnapshot, usePatchActor, useResyncFromStory } from "../hooks/use-rpg-mutations";
-import { RELATIONSHIP_GLYPHS, TRACKER_SHAPE_GLYPHS } from "../lib/glyphs";
+import { useDismissActor, useEditSnapshot, usePatchActor, useResyncFromStory } from "../hooks/use-rpg-mutations";
+import { TRACKER_SHAPE_GLYPHS } from "../lib/glyphs";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color";
 import { RpgChoiceEcho } from "./rpg-choice-echo";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
 import { RpgFieldLock } from "./rpg-field-lock";
 import { Kicker } from "./rpg-kicker";
 import { RpgSceneCards } from "./rpg-scene-cards";
+import type { SceneCastEdit } from "./rpg-scene-cast";
+import { SceneCast, SceneKnownCharacters } from "./rpg-scene-cast";
 
 const RECENT_BEATS = 3;
 
@@ -95,9 +88,11 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
   const invalidation = useInvalidation();
   const editSnapshot = useEditSnapshot({ trpc, invalidation });
   const patchActor = usePatchActor({ trpc, invalidation });
+  const dismissActor = useDismissActor({ trpc, invalidation });
   if (!canEditShared) {
     return {};
   }
+  const write = (targetRef: RpgActorRef, op: RpgActorOp): void => patchActor.mutate({ chatId, targetRef, ops: [op] });
   return {
     onEditAmbient: (field, next): void => {
       const patch = ambientPatch(field, next, tracker.ambient?.clock?.day ?? 1);
@@ -105,30 +100,29 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
         editSnapshot.mutate({ chatId, patch: patch as Record<string, unknown> });
       }
     },
+    // EVERY cast edit is an OP on the actor's own row (R2) — identity and volatile alike. It used to be a
+    // whole-`presentCharacters` IMAGE rebuilt from the live cast on every keystroke, which pinned the entire
+    // plane on one NPC's mood edit and could only ever author the members this client could see.
     castEdit: {
-      onEditCast: (patch): void => editSnapshot.mutate({ chatId, patch }),
-      // A cast member's tracked value writes the SAME per-actor plane a roster member's does, under the
-      // member's `cast:<key>` ref (one value home for every actor — the unification's whole point). The
-      // written value stays TOTAL because the snapshot merge recurses into it.
-      onEditCastTracker: (castKey, def, next): void => {
-        patchActor.mutate({
-          chatId,
-          targetRef: { kind: "cast", castKey },
-          ops: [
-            def.shape === "list"
-              ? {
-                  op: "setTracker",
-                  key: def.key,
-                  value: {
-                    items: String(next)
-                      .split(",")
-                      .map((x) => x.trim()),
-                  },
-                }
-              : { op: "setTracker", key: def.key, value: { value: next } },
-          ],
-        });
+      onEditIdentityText: (targetRef, field, text): void => write(targetRef, { op: "setIdentityText", field, text }),
+      onEditRelationship: (targetRef, relationship): void => write(targetRef, { op: "setRelationship", relationship }),
+      onEditTracker: (targetRef, def, next): void => {
+        write(
+          targetRef,
+          def.shape === "list"
+            ? {
+                op: "setTracker",
+                key: def.key,
+                value: {
+                  items: String(next)
+                    .split(",")
+                    .map((x) => x.trim()),
+                },
+              }
+            : { op: "setTracker", key: def.key, value: { value: next } },
+        );
       },
+      onDismiss: (targetRef): void => dismissActor.mutate({ chatId, targetRef }),
     },
     // GAME-subject tracker values ride editSnapshot's `trackerValues` record, keyed by tracker KEY (never a
     // label — the old widget plane keyed by label, so a rename orphaned the value). The written value is TOTAL
@@ -194,16 +188,17 @@ export function RpgSceneTab({ state }: RpgSceneTabProps): ReactElement {
   const beats = tracker.recentBeats.slice(-RECENT_BEATS).reverse();
   const locked = new Set(tracker.lockedPaths);
   const ambient = tracker.ambient;
+  // ONE actor list, partitioned by presence (R2) — the same two-boolean split the reminder makes, so what the
+  // host sees on stage and what the model is told are the same set by construction.
+  const castActors = tracker.actors.filter((a) => a.actorRef.kind === "cast");
+  const onStage = castActors.filter((a) => a.presence);
+  const offstage = castActors.filter((a) => !a.presence);
 
   return (
     <Stack gap="section" data-slot="rpg-scene-tab">
       {ambient === null && onEditAmbient === undefined ? null : <AmbientStrip {...ambientStripProps(ambient, locked, onEditAmbient, onReleaseLock)} />}
-      <SceneCast
-        cast={tracker.cast}
-        castTrackers={tracker.castTrackers}
-        {...(castEdit === undefined ? {} : { edit: castEdit })}
-        lockPin={sectionLockPin(locked, "presentCharacters", onReleaseLock)}
-      />
+      <SceneCast cast={onStage} {...(castEdit === undefined ? {} : { edit: castEdit })} lockPin={sectionLockPin(locked, "presentCharacters", onReleaseLock)} />
+      <SceneKnownCharacters offstage={offstage} {...(castEdit === undefined ? {} : { edit: castEdit })} />
       {/* The Goals section is a filtered ECHO of the quest plane (§12.1.8): ACTIVE only, compact rows —
           the Quests tab is the plane's ONE edit home (#39 dual-homing). A goal row NAVIGATES there. */}
       <SceneGoals quests={tracker.quests.filter((q) => q.status === "active")} />
@@ -238,127 +233,6 @@ function SceneResyncDoorway({ state }: { readonly state: RpgPanelState }): React
     <RpgDoorwayLine actionLabel={resync.isPending ? "Resyncing…" : "Resync from story →"} onAction={(): void => resync.mutate({ chatId: state.chatId })}>
       Panel out of sync with the story?
     </RpgDoorwayLine>
-  );
-}
-
-/** The whole-`presentCharacters` overlay for one cast member's one-field change ([merge-clear]: the array
- *  is a full replace, rebuilt from the live cast with the target member patched). Used by every cast edit
- *  (mood, relationship kind, cast-field value) so all cast writes share one patch shape. */
-function castPatch(
-  cast: RpgTrackerView["cast"],
-  key: string,
-  mutate: (m: RpgTrackerView["cast"][number]) => RpgTrackerView["cast"][number],
-): Record<string, unknown> {
-  return { presentCharacters: cast.map((m) => (m.key === key ? mutate(m) : m)) };
-}
-
-/** The standing guides this member actually carries (RV-11) — spread onto the card so an UNWRITTEN guide is
- *  simply absent (no line, never a "none" placeholder). The story authors them; the host may correct what is
- *  there, and there is nothing honest to show for one nobody has written. */
-function guideProps(member: RpgTrackerView["cast"][number]): Partial<Record<RpgCastGuideField, string>> {
-  const out: Partial<Record<RpgCastGuideField, string>> = {};
-  for (const field of RPG_CAST_GUIDE_FIELDS) {
-    const text = member[field]?.trim() ?? "";
-    if (text !== "") {
-      out[field] = text;
-    }
-  }
-  return out;
-}
-
-interface SceneCastEdit {
-  readonly onEditCast: (patch: Record<string, unknown>) => void;
-  /** Write ONE tracked value on a cast member (the actorState plane — cast NPCs carry their values on the
-   *  SAME per-actor plane roster members use, keyed `cast:<key>`; there is no second cast-value store). The
-   *  CURRENT reading is not passed: `patchActor`'s `setTracker` merges onto whatever the true head carries,
-   *  so the panel never has to hand back a value it read a beat ago. */
-  readonly onEditCastTracker: (castKey: string, def: RpgTrackerDef, next: string | number) => void;
-}
-
-function SceneCast({
-  cast,
-  castTrackers,
-  edit,
-  lockPin,
-}: {
-  readonly cast: RpgTrackerView["cast"];
-  readonly castTrackers: RpgTrackerView["castTrackers"];
-  readonly edit?: SceneCastEdit;
-  /** The section-scoped `presentCharacters` hand-lock pin (§12.3) — `null` when unlocked/not-host. */
-  readonly lockPin?: ReactNode;
-}): ReactElement {
-  if (cast.length === 0) {
-    // The honest empty-cast doorway (§12.1.5): the scene fills from the story; nothing to author by hand here.
-    return <RpgDoorwayLine>No one on stage yet — the story brings them in.</RpgDoorwayLine>;
-  }
-
-  return (
-    <Stack gap="field">
-      <Kicker trailing={lockPin}>On stage — {cast.length}</Kicker>
-      {cast.map((member) => {
-        // The trackers THIS member carries, resolved server-side through the ONE carrier predicate — so the
-        // card shows exactly the set the model's write schema offered for them (never a re-derivation).
-        const entries = castTrackers[member.key] ?? [];
-        const meters = entries.filter((e) => e.def.shape === "meter");
-        const texts = entries
-          .filter((e) => e.def.shape !== "meter")
-          .map((e) => ({ name: e.def.label, value: trackerReading(e.def, e.value ?? undefined)?.replace(`${e.def.label}: `, "") ?? "" }));
-        const editProps =
-          edit === undefined
-            ? {}
-            : {
-                onEditMood: (next: string): void => edit.onEditCast(castPatch(cast, member.key, (m) => ({ ...m, mood: next }))),
-                // The guides ride the SAME whole-`presentCharacters` overlay mood does — no new verb: they are
-                // fields on the same snapshot row, so `editSnapshot` already accepts (and locks) them.
-                onEditGuide: (field: RpgCastGuideField, next: string): void =>
-                  edit.onEditCast(castPatch(cast, member.key, (m) => ({ ...m, [field]: next.trim() }))),
-                onEditRelationshipKind: (next: RpgTrackerView["cast"][number]["relationship"]["kind"]): void =>
-                  edit.onEditCast(
-                    castPatch(cast, member.key, (m) => ({ ...m, relationship: { kind: next, label: next === "custom" ? m.relationship.label : "" } })),
-                  ),
-                onEditField: (label: string, next: string): void => {
-                  const entry = entries.find((e) => e.def.label === label);
-                  if (entry !== undefined) {
-                    edit.onEditCastTracker(member.key, entry.def, next);
-                  }
-                },
-              };
-        return (
-          <CastCard
-            key={member.key}
-            name={member.name}
-            {...(member.emoji === "" ? {} : { emoji: member.emoji })}
-            {...(member.mood === "" ? {} : { mood: member.mood })}
-            {...guideProps(member)}
-            relationship={member.relationship}
-            fields={texts}
-            // The relationship KIND glyph (the §12.5.5 closed-vocab Record) leads the edit-mode picker.
-            relationshipGlyph={<Icon icon={RELATIONSHIP_GLYPHS[member.relationship.kind]} size="xs" className="shrink-0 text-muted-foreground" />}
-            {...editProps}
-            {...(meters.length === 0
-              ? {}
-              : {
-                  meters: meters.map((m, i) => (
-                    <MeterRow
-                      key={m.def.key}
-                      label={m.def.label}
-                      // WHOSE meter — two cast cards on one tab otherwise offer two "Vitality value" buttons.
-                      subject={member.name}
-                      // NULL stays null (side-eye 08-01): `?? 0` published "0/0" as this NPC's reading.
-                      value={trackerNumber(m.value ?? undefined)}
-                      // The EFFECTIVE ceiling (this carrier's override, else the def default) — one resolver.
-                      max={trackerCeiling(m.def, m.value ?? undefined)}
-                      // The def's own color, else the ordinal ramp — the SAME derivation the GM-console
-                      // definition row and the band orb use (definition and display one system, §3).
-                      {...trackColorProps(resolveTrackerColor(m.def.color, i))}
-                      {...(edit === undefined ? {} : { onEditValue: (next: number): void => edit.onEditCastTracker(member.key, m.def, Math.max(0, next)) })}
-                    />
-                  )),
-                })}
-          />
-        );
-      })}
-    </Stack>
   );
 }
 

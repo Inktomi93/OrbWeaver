@@ -9,23 +9,13 @@
 // turn is O(archive)-wrong). See `db/schema/rpg.ts` `rpg_journal` + the lineage projection (§2.5).
 
 import type { RpgQuestId } from "@orb/kit/ids";
-import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import type { RpgActorRef } from "./actor";
-import { actorRefKey, rpgActorVolatileSchema } from "./actor";
+import { actorRefKey, rpgActorEntrySchema } from "./actor";
 import { rpgClockTimeSchema, rpgWeatherSchema } from "./ambient";
-import { RPG_QUEST_STATUSES, RPG_RELATIONSHIP_KINDS } from "./enums";
+import { RPG_QUEST_STATUSES } from "./enums";
 import { rpgTrackerValuesSchema } from "./tracker";
-
-/** A present character's RELATIONSHIP (parity-plus §2.1) — a first-class field, NOT a `customFields` entry.
- *  `kind` rides the closed vocab (§2.3 constrains it to the six tokens at the token level); `label` is the free
- *  gloss used ONLY when `kind === "custom"` (empty otherwise). The default reading is the cast member's stance
- *  toward the PLAYER. Swipe-consistent by construction (it rides the `presentCharacters` volatile plane). */
-export const rpgRelationshipSchema = z.object({
-  kind: z.enum(RPG_RELATIONSHIP_KINDS).default("neutral"),
-  label: z.string().default(""),
-});
-export type RpgRelationship = z.infer<typeof rpgRelationshipSchema>;
 
 // The PLOT plane (parity-plus P5 — the campaign-scale progression datum; workboard ruling #2). SNAPSHOT-
 // RESIDENT like quests: clone-forward on every variant, so the acts are swipe-consistent by the same
@@ -74,31 +64,6 @@ export const rpgQuestSchema = z.object({
 });
 export type RpgQuest = z.infer<typeof rpgQuestSchema>;
 
-/** A scene cast member (present character). The `npcId` linkage grafts as an additive optional field
- *  (§4.1). `key` is the stable normalized-name join to a `cast` actor ref. */
-export const rpgPresentCharacterSchema = z.object({
-  key: z.string().min(1),
-  name: z.string().min(1),
-  characterId: typeIdSchema(ID_PREFIX.character).optional(),
-  emoji: z.string().default(""),
-  mood: z.string().default(""),
-  appearance: z.string().optional(),
-  outfit: z.string().optional(),
-  thoughts: z.string().optional(),
-  relationship: rpgRelationshipSchema.default({ kind: "neutral", label: "" }),
-});
-export type RpgPresentCharacter = z.infer<typeof rpgPresentCharacterSchema>;
-
-/** The PERSISTENT per-character guides (RV-11) — the three prose fields the extraction round is asked for on
- *  every beat (`extraction-prompt.ts`: "appearance + outfit (when described), thoughts"). They are STANDING
- *  state, not a per-beat observation: a character's look and dress persist until the story changes them, and
- *  `thoughts` is the character's unspoken inner state (GM flavor — never dialogue). Named ONCE here because
- *  both readers walk the same three fields in the same order: the steering reminder's cast continuation lines
- *  (`substrate/reminder.ts`) and the Scene tab's cast card (`CastGuides`). `satisfies` pins them to the schema
- *  above — renaming a field without updating this tuple fails `tsc` here, not at a call site. */
-export const RPG_CAST_GUIDE_FIELDS = ["appearance", "outfit", "thoughts"] as const satisfies readonly (keyof RpgPresentCharacter)[];
-export type RpgCastGuideField = (typeof RPG_CAST_GUIDE_FIELDS)[number];
-
 /** The manual-edit-wins lock record — a presence-key set (`Record<path, true>`). Only `editSnapshot`
  *  writes it (auto-locking touched fields); tools HONOR it (the merge drops locked paths); it carries
  *  forward on clone-forward. Per-quest paths are `quests.<id>`. */
@@ -114,9 +79,15 @@ export const rpgSnapshotStateSchema = z.object({
   calendarDate: z.string().nullable(),
   location: z.string().default(""),
   weather: rpgWeatherSchema.nullable(),
-  presentCharacters: z.array(rpgPresentCharacterSchema).default([]),
+  // THE PRESENCE PLANE (R2) — who stands in the scene RIGHT NOW, as `actorRefKey` strings (roster refs
+  // included: a roster character on stage is `character:<id>`). Nothing else lives here any more. It used to
+  // carry the cast NPC's whole identity row, which made departure a DESTRUCTION of her name, mood,
+  // relationship and standing guides while her tracked state survived invisibly on `actorState` — one person,
+  // two planes, opposite lifecycles (the review's MS-2). Identity now rides the actor row; presence is a flag
+  // over it, so departure retains everything and return re-surfaces the whole NPC.
+  presentCharacters: z.array(z.string().min(1)).default([]),
   recentEvents: z.array(z.string()).default([]),
-  actorState: z.array(rpgActorVolatileSchema).default([]),
+  actorState: z.array(rpgActorEntrySchema).default([]),
   // The GAME-SUBJECT tracker values (the tracked-field unification §5.2) — one value per `subject:"game"`
   // tracker, keyed by tracker `key`. Replaces `widgetValues`, which keyed by widget LABEL (so a rename
   // orphaned the value) and whose defs lived in a whole separate TABLE. Actor-subject values live on
@@ -157,10 +128,26 @@ export const RPG_OP_SHAPED_PLANES: ReadonlySet<string> = new Set<string>(["actor
  *  so a plane that grows a verb door leaves this set by editing ONE line above. */
 export const RPG_HAND_PATCH_PLANES: ReadonlySet<string> = new Set([...RPG_SNAPSHOT_STATE_PLANES].filter((key) => !RPG_OP_SHAPED_PLANES.has(key)));
 
-/** The #10 per-field lock-path BASE for one actor's volatile row — `actorState.<actorRefKey>`. The fine paths
- *  append the op's field (`.status`, `.trackerValues.<key>`, `.wallet.<name>`, …). ONE home for a grammar with
- *  two readers: the server stamps these paths (the `patchActor` auto-lock) and the panel reads them back to
- *  render the pin + its Release. The plane segment is pinned to the state key by `satisfies`. */
+/** The lock-path base for one actor's whole ROW — `actorState.<actorRefKey>`. A lock here (or any prefix of a
+ *  path under it) pins the element against the model's merge; `dismissActor` clears everything at or below it.
+ *  The plane segment is pinned to the state key by `satisfies`. */
 export function rpgActorLockBase(ref: RpgActorRef): string {
   return `${"actorState" satisfies keyof RpgSnapshotState}.${actorRefKey(ref)}`;
+}
+
+/** The #10 per-field lock-path BASE for one actor's VOLATILE half — `actorState.<actorRefKey>.volatile`. The
+ *  fine paths append the op's field (`.status`, `.trackerValues.<key>`, `.wallet.<name>`, …). ONE home for a
+ *  grammar with two readers: the server stamps these paths (the `patchActor` auto-lock) and the panel reads
+ *  them back to render the pin + its Release. It is a REAL path segment, not a naming choice — the merge walks
+ *  the stored JSON, so a lock that skipped `volatile` would bite nothing (R2 moved the fields under it). */
+export function rpgActorVolatileLockBase(ref: RpgActorRef): string {
+  return `${rpgActorLockBase(ref)}.volatile`;
+}
+
+/** The lock-path base for a cast actor's IDENTITY half — `actorState.<actorRefKey>.identity`. The Scene tab's
+ *  hand edits (mood · relationship · the standing guides) stamp fine paths under it, exactly as the volatile
+ *  edits do under their own base: before R2 those fields lived on `presentCharacters` and could only be pinned
+ *  plane-wide, so pinning one NPC's mood froze the whole cast. */
+export function rpgActorIdentityLockBase(ref: RpgActorRef): string {
+  return `${rpgActorLockBase(ref)}.identity`;
 }

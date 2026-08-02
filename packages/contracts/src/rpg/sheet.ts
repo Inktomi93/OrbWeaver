@@ -12,13 +12,16 @@
 import { z } from "zod";
 
 /** The per-actor character sheet — identity-plane data. `attributes` keys off the game's `statProfile`
- *  vocabulary (an int per attribute); `maxHp` is the lite-live mechanical dial the volatile plane's hp tracks
- *  against. `className` is flavor prose. Full ADDS skills/abilities/strengths/weaknesses/attack/defense/speed
- *  as parse-seam-healed JSON fields (§C — no DDL). */
+ *  vocabulary (an int per attribute); `className` is flavor prose. Full ADDS
+ *  skills/abilities/strengths/weaknesses/attack/defense/speed as parse-seam-healed JSON fields (§C — no DDL).
+ *
+ *  `maxHp` IS GONE (R3, owner-RULED with hp's demotion). It was one half of a DUAL-MAX home — `sheet.maxHp`
+ *  beside the volatile `hp.max`, with no reconciler anywhere in the tree — which is exactly the drift class the
+ *  tracked-field unification killed for pools, surviving on the one exempt field. A meter's per-carrier ceiling
+ *  now has ONE home (`RpgTrackerValue.max`, resolved through `trackerCeiling`), health included. */
 export const rpgSheetSchema = z.object({
   className: z.string().default(""),
   attributes: z.record(z.string(), z.number().int()).default({}),
-  maxHp: z.number().int().min(1).nullable(),
   flavor: z.string().default(""),
   // `level` (parity-plus §2.6) — a HAND-ONLY progression dial the host/player owns. Born null (nullable-honesty:
   // the panel renders nothing, never a phantom "Level 0"). It is IDENTITY (like className), NOT a beat-driven

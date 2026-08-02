@@ -30,7 +30,7 @@ function orDefault(value: number | null, fallback: number): number {
 /** The console's flat scalar values (the autosave form's bag). P5 adds the play-style knobs (`cyoa`
  *  standing mode + `cyoaChoiceBehavior` — the compose|send choice-click knob — + the wand Plot submenu
  *  gate) — same autosave pattern as the deception toggles. */
-export interface GmConsoleFormValues {
+export interface HostConsoleFormValues {
   readonly steeringNote: string;
   readonly extractionMode: RpgExtractionMode;
   readonly deception: boolean;
@@ -63,7 +63,7 @@ export interface GmConsoleFormValues {
   readonly reconcileEveryBeats: number | null;
 }
 
-export const EMPTY_GM_CONSOLE_FORM: GmConsoleFormValues = {
+export const EMPTY_HOST_CONSOLE_FORM: HostConsoleFormValues = {
   steeringNote: "",
   extractionMode: "folded",
   deception: false,
@@ -83,7 +83,7 @@ export const EMPTY_GM_CONSOLE_FORM: GmConsoleFormValues = {
 };
 
 /** Project the host config read into the form's scalar bag. */
-export function toGmConsoleForm(config: RpgConfigView): GmConsoleFormValues {
+export function toHostConsoleForm(config: RpgConfigView): HostConsoleFormValues {
   return {
     steeringNote: config.steeringNote,
     extractionMode: config.extractionMode,
@@ -106,7 +106,7 @@ export function toGmConsoleForm(config: RpgConfigView): GmConsoleFormValues {
 
 /** The `updateConfig` patch for the scalar bag — the steering note rides `patch.steeringNote`; the
  *  extraction mode + deception knobs are top-level/`patch`-level per the wire schema. */
-export interface GmConsoleScalarPatch {
+export interface HostConsoleScalarPatch {
   readonly patch: {
     readonly steeringNote: string;
     readonly deception: boolean;
@@ -127,7 +127,7 @@ export interface GmConsoleScalarPatch {
   readonly extractionMode: RpgExtractionMode;
 }
 
-export function fromGmConsoleForm(values: GmConsoleFormValues): GmConsoleScalarPatch {
+export function fromHostConsoleForm(values: HostConsoleFormValues): HostConsoleScalarPatch {
   return {
     patch: {
       steeringNote: values.steeringNote,

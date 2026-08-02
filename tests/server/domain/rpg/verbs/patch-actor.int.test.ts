@@ -62,7 +62,7 @@ test("the ops land on a MINTED row — a first hand edit on an actor with no sta
     targetRef: MIRA,
     ops: [
       { op: "setStatus", status: "wary" },
-      { op: "setHp", hp: { value: 9, max: 12 } },
+      { op: "setIdentityText", field: "name", text: "Mira Solheart" },
       { op: "setTracker", key: "trust", value: { value: 4 } },
       { op: "addCondition", condition: { name: "Chilled" } },
       { op: "addItem", item: { name: "Bone key" } },
@@ -72,12 +72,13 @@ test("the ops land on a MINTED row — a first hand edit on an actor with no sta
   expect(written).toStrictEqual({ ok: true });
 
   const row = await miraRow(game, chatId);
-  expect(row?.status).toBe("wary");
-  expect(row?.hp).toEqual({ value: 9, max: 12 });
-  expect(row?.trackerValues["trust"]).toStrictEqual({ value: 4, items: null, max: null });
-  expect(row?.conditions).toEqual([{ name: "Chilled", stat: null, modifier: 0, turnsLeft: null }]);
-  expect(row?.inventory[0]).toMatchObject({ name: "Bone key", quantity: 1, description: "", location: "", type: "" });
-  expect(row?.wallet).toEqual([{ name: "gold", amount: 45 }]);
+  expect(row?.volatile.status).toBe("wary");
+  // R2 — a MINTED cast row carries its identity half too, so the very first hand edit can name her.
+  expect(row?.identity?.name).toBe("Mira Solheart");
+  expect(row?.volatile.trackerValues["trust"]).toStrictEqual({ value: 4, items: null, max: null });
+  expect(row?.volatile.conditions).toEqual([{ name: "Chilled", stat: null, modifier: 0, turnsLeft: null }]);
+  expect(row?.volatile.inventory[0]).toMatchObject({ name: "Bone key", quantity: 1, description: "", location: "", type: "" });
+  expect(row?.volatile.wallet).toEqual([{ name: "gold", amount: 45 }]);
 });
 
 test("each op stamps its OWN fine lock path — never the coarse `actorState` plane key", async () => {
@@ -96,11 +97,11 @@ test("each op stamps its OWN fine lock path — never the coarse `actorState` pl
   });
   const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
   expect(snap?.fieldLocks).toStrictEqual({
-    "actorState.cast:mira.trackerValues.trust": true,
-    "actorState.cast:mira.status": true,
-    "actorState.cast:mira.wallet.gold": true,
-    "actorState.cast:mira.conditions": true,
-    "actorState.cast:mira.inventory": true,
+    "actorState.cast:mira.volatile.trackerValues.trust": true,
+    "actorState.cast:mira.volatile.status": true,
+    "actorState.cast:mira.volatile.wallet.gold": true,
+    "actorState.cast:mira.volatile.conditions": true,
+    "actorState.cast:mira.volatile.inventory": true,
   });
   expect(snap?.fieldLocks?.["actorState"]).toBeUndefined();
 });
@@ -109,11 +110,11 @@ test("`autoLock:false` stamps NOTHING — the model-unreachable field (an item i
   const { chatId, game, service } = await seedGame();
   await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "addItem", item: { name: "Bone key" } }], autoLock: false });
   const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
-  const itemId = (snap?.actorState ?? [])[0]?.inventory[0]?.id ?? "";
+  const itemId = (snap?.actorState ?? [])[0]?.volatile.inventory[0]?.id ?? "";
   await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "patchItem", id: itemId, patch: { icon: "key" } }], autoLock: false });
 
   const after = await resolveSnapshotForTurn(db, { id: game.id, chatId });
-  expect((after?.actorState ?? [])[0]?.inventory[0]?.icon).toBe("key");
+  expect((after?.actorState ?? [])[0]?.volatile.inventory[0]?.icon).toBe("key");
   expect(after?.fieldLocks ?? {}).toStrictEqual({});
 });
 
@@ -131,9 +132,9 @@ test("ops apply IN ORDER against one another (the batch is a sequence, not a set
     ],
   });
   const row = await miraRow(game, chatId);
-  expect(row?.conditions).toEqual([]);
+  expect(row?.volatile.conditions).toEqual([]);
   // The second `setTracker` named only `max`: the reading beside it SURVIVED (a partial op is not a blank).
-  expect(row?.trackerValues["trust"]).toStrictEqual({ value: 1, items: null, max: 10 });
+  expect(row?.volatile.trackerValues["trust"]).toStrictEqual({ value: 1, items: null, max: 10 });
 });
 
 test("a write on ONE actor leaves every other actor's row untouched (the additive plane, through the op door)", async () => {
@@ -148,8 +149,8 @@ test("a write on ONE actor leaves every other actor's row untouched (the additiv
 
   const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
   const byKey = new Map((snap?.actorState ?? []).map((a) => [a.actorRef.kind === "cast" ? a.actorRef.castKey : "", a]));
-  expect(byKey.get("thorn")?.wallet).toEqual([{ name: "gold", amount: 45 }]);
-  expect(byKey.get("mira")?.trackerValues["trust"]?.value).toBe(4);
+  expect(byKey.get("thorn")?.volatile.wallet).toEqual([{ name: "gold", amount: 45 }]);
+  expect(byKey.get("mira")?.volatile.trackerValues["trust"]?.value).toBe(4);
 });
 
 test("an op naming a datum the actor does not carry is ERRORS-AS-DATA — no write, no slot, no bus event", async () => {
@@ -163,7 +164,7 @@ test("an op naming a datum the actor does not carry is ERRORS-AS-DATA — no wri
   expect(refused.ok === false && refused.reason).toContain("itm-ghost");
 
   const row = await miraRow(game, chatId);
-  expect(row?.status).toBe("wary"); // the earlier write stands; the refused call wrote nothing
+  expect(row?.volatile.status).toBe("wary"); // the earlier write stands; the refused call wrote nothing
   expect(fakes.narratorPosts).toHaveLength(slotsBefore);
   expect(fakes.busEvents).toHaveLength(eventsBefore);
 });
@@ -185,8 +186,8 @@ test("a refused op in the MIDDLE of a batch rolls the whole batch back (all of i
   expect(refused.ok).toBe(false);
 
   const row = await miraRow(game, chatId);
-  expect(row?.status).toBe("wary"); // NOT "bleeding" — the ops before the refusal are not half-written
-  expect(row?.trackerValues["trust"]).toBeUndefined();
+  expect(row?.volatile.status).toBe("wary"); // NOT "bleeding" — the ops before the refusal are not half-written
+  expect(row?.volatile.trackerValues["trust"]).toBeUndefined();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -200,12 +201,13 @@ test("a model flush landing between the panel's READ and the hand's WRITE surviv
       actorState: [
         {
           actorRef: MIRA,
-          hp: null,
-          trackerValues: { trust: { value: 4, items: null, max: null } },
-          conditions: [{ name: "Bleeding", stat: null, modifier: 0, turnsLeft: null }],
-          inventory: [],
-          wallet: [],
-          status: "bleeding badly",
+          volatile: {
+            trackerValues: { trust: { value: 4, items: null, max: null } },
+            conditions: [{ name: "Bleeding", stat: null, modifier: 0, turnsLeft: null }],
+            inventory: [],
+            wallet: [],
+            status: "bleeding badly",
+          },
         },
       ],
     },
@@ -229,22 +231,22 @@ test("a model flush landing between the panel's READ and the hand's WRITE surviv
     autoLock: false,
   });
   const panelImage = await miraRow(game, chatId);
-  expect(panelImage?.status).toBe("calm");
+  expect(panelImage?.volatile.status).toBe("calm");
 
   // t1 — a turn completes and its state round flushes: mira is now bleeding and wounded. The slot must sit
   // AFTER the anchor the t0 hand write clone-forwarded onto (the harness mints anchors from seq 1000), or the
   // flush would write a snapshot the resolution ladder never resolves as head.
   const { messageId, variantId } = await seedMessage(db, chatId, 2000, { role: "assistant" });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, castId<ChatTurnId>("chat_turn_1"), turnConnection());
-  expect((await miraRow(game, chatId))?.status).toBe("bleeding badly");
+  expect((await miraRow(game, chatId))?.volatile.status).toBe("bleeding badly");
 
   // t2 — the host, still looking at the t0 panel, edits the ONE datum they touched: trust 4 → 7.
   await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "setTracker", key: "trust", value: { value: 7 } }] });
 
   const after = await miraRow(game, chatId);
-  expect(after?.trackerValues["trust"]?.value).toBe(7); // the human's datum landed
-  expect(after?.status).toBe("bleeding badly"); // …and the flush's status was NOT reverted to "calm"
-  expect(after?.conditions.map((c) => c.name)).toEqual(["Bleeding"]); // …nor its condition dropped
+  expect(after?.volatile.trackerValues["trust"]?.value).toBe(7); // the human's datum landed
+  expect(after?.volatile.status).toBe("bleeding badly"); // …and the flush's status was NOT reverted to "calm"
+  expect(after?.volatile.conditions.map((c) => c.name)).toEqual(["Bleeding"]); // …nor its condition dropped
 
   // THE CONTRAST — what the retired image door did with the same three events: the t0 image, merged onto the
   // post-flush head (hand-always-wins ⇒ `fieldLocks: null`, exactly as `applyHandEdit` called it), reverts the
@@ -253,9 +255,11 @@ test("a model flush landing between the panel's READ and the hand's WRITE surviv
   // the state as plain JSON); nothing is fabricated here, the base is the real resolved row.
   const headRow = await resolveSnapshotForTurn(db, { id: game.id, chatId });
   const headBeforeHandWrite = { ...headRow } as unknown as Record<string, unknown>; // FABRICATION-OK: the real row, as the merge takes it
-  const staleImage = { actorState: [{ ...panelImage, trackerValues: { trust: { value: 7, items: null, max: null } } }] };
+  const staleImage = {
+    actorState: [{ ...panelImage, volatile: { ...panelImage?.volatile, trackerValues: { trust: { value: 7, items: null, max: null } } } }],
+  };
   const clobbered = applyLockedPatch(headBeforeHandWrite, staleImage, null) as unknown as RpgSnapshotState; // FABRICATION-OK: the merge's own return cast
   const clobberedRow = clobbered.actorState.find((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "mira");
-  expect(clobberedRow?.status).toBe("calm"); // the flush's status: gone
-  expect(clobberedRow?.conditions).toEqual([]); // the flush's condition: gone
+  expect(clobberedRow?.volatile.status).toBe("calm"); // the flush's status: gone
+  expect(clobberedRow?.volatile.conditions).toEqual([]); // the flush's condition: gone
 });

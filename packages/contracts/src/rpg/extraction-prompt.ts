@@ -163,7 +163,7 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
     fragment: (ctx) => {
       const base =
         "PARTY — party: ONLY mechanical changes. Tracked-value writes (trackerDeltas/trackerSets), conditions " +
-        'gained/lost (addCondition/removeCondition, e.g. "bleeding", "on edge"), hp (hpDelta), and a short ' +
+        'gained/lost (addCondition/removeCondition, e.g. "bleeding", "on edge"), and a short ' +
         "status line (status). A character's personality, mood, or relationship goes in scene.presentUpsert, NOT here.";
       // R2/R6 — the game's OWN trackers, by name + host gloss. Static prose here would teach a vocabulary
       // this game may not have and omit the one it does.
@@ -311,7 +311,7 @@ function partyExample(ctx: ExtractionPromptContext): string {
   const defs = writableActorTrackers(ctx.config);
   const delta = defs.find((d) => d.write === "delta");
   const set = defs.find((d) => d.write === "set");
-  const parts = ["targetRef:'player'", "hpDelta:-5"];
+  const parts = ["targetRef:'player'"];
   if (delta !== undefined) {
     parts.push(`trackerDeltas:[{key:'${delta.key}',delta:-3}]`);
   }
@@ -332,8 +332,8 @@ export function buildRpgToolDescriptions(ctx: ExtractionPromptContext): Readonly
   return new Map([
     [
       "update_party",
-      "Record changes to any actor's body, condition, or tracked values. hpDelta: damage (negative) or healing " +
-        "(positive). trackerDeltas: spend/restore a tracked RESOURCE (negative = spent). trackerSets: record the " +
+      "Record changes to any actor's body, condition, or tracked values. " +
+        "trackerDeltas: spend/restore a tracked RESOURCE (negative = spent, e.g. damage on an HP meter). trackerSets: record the " +
         "new reading of a tracked STATE. addCondition: a new status effect (e.g. Blessed, Bleeding, Poisoned) with " +
         "an optional numeric modifier. removeCondition: when an effect ends. status: a short current-state line " +
         `('bleeding, on edge').${actorTrackers === null ? "" : `\n${actorTrackers}`}\nEXAMPLE — took a cut and spent ` +

@@ -8,10 +8,11 @@ import {
   RPG_HAND_PATCH_PLANES,
   RPG_OP_SHAPED_PLANES,
   RPG_SNAPSHOT_STATE_PLANES,
+  rpgActorIdentityLockBase,
   rpgActorLockBase,
+  rpgActorVolatileLockBase,
   rpgFieldLocksSchema,
   rpgPlotSchema,
-  rpgPresentCharacterSchema,
   rpgQuestSchema,
   rpgSnapshotStateSchema,
 } from "@orb/contracts/rpg";
@@ -62,13 +63,22 @@ test("the GAME-subject tracker values live on the snapshot, keyed by tracker key
   expect(state.trackerValues["alarm"]).toEqual({ value: 35, items: null, max: 100 });
 });
 
-test("present character defaults its display fields and carries NO tracked-value store", () => {
-  const cast = rpgPresentCharacterSchema.parse({ key: "elder", name: "The Elder" });
-  expect(cast.emoji).toBe("");
-  expect(cast.mood).toBe("");
-  // A cast member's tracked values ride the per-actor `actorState` plane under `cast:<key>` — ONE value
-  // home for every actor, so the opaque `customFields` string record on the cast row is gone.
-  expect("customFields" in cast).toBe(false);
+test("presentCharacters is a pure PRESENCE plane — actor-ref KEYS, nothing else (R2)", () => {
+  // It used to carry the cast NPC's whole identity row, which is why departure destroyed her name, mood,
+  // relationship and standing guides while her tracked state survived invisibly on `actorState`. Identity
+  // now rides the actor row; this plane answers exactly one question — who stands in the scene.
+  const state = rpgSnapshotStateSchema.parse({
+    clock: null,
+    calendarDate: null,
+    weather: null,
+    fieldLocks: null,
+    presentCharacters: ["cast:the-elder", "user:u_1"],
+  });
+  expect(state.presentCharacters).toEqual(["cast:the-elder", "user:u_1"]);
+  // A roster ref is a legal presence entry (a character on stage), and an object row is not a key.
+  expect(
+    rpgSnapshotStateSchema.safeParse({ clock: null, calendarDate: null, weather: null, fieldLocks: null, presentCharacters: [{ key: "x" }] }).success,
+  ).toBe(false);
 });
 
 test("fieldLocks is a presence-key record of true", () => {
@@ -112,8 +122,12 @@ test("the hand-patch planes are the state planes MINUS the op-shaped ones (deriv
   expect(RPG_HAND_PATCH_PLANES.has("fieldLocks")).toBe(false);
 });
 
-test("rpgActorLockBase is the ONE lock-path grammar both the server stamp and the panel pin read", () => {
-  expect(rpgActorLockBase({ kind: "cast", castKey: "mira" })).toBe("actorState.cast:mira");
+test("the actor lock bases are the ONE grammar the server stamp and the panel pin both read", () => {
   const userId = newId<UserId>();
+  expect(rpgActorLockBase({ kind: "cast", castKey: "mira" })).toBe("actorState.cast:mira");
   expect(rpgActorLockBase({ kind: "user", userId })).toBe(`actorState.user:${userId}`);
+  // R2 — the half segments are REAL path segments, not naming: the merge walks the stored JSON, so a path
+  // that skipped `volatile`/`identity` would pin nothing at all.
+  expect(rpgActorVolatileLockBase({ kind: "cast", castKey: "mira" })).toBe("actorState.cast:mira.volatile");
+  expect(rpgActorIdentityLockBase({ kind: "cast", castKey: "mira" })).toBe("actorState.cast:mira.identity");
 });

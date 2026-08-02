@@ -6,16 +6,7 @@
 import type { ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import type {
-  RpgActorVolatile,
-  RpgBusEvent,
-  RpgExtraction,
-  RpgExtractionMode,
-  RpgGameConfig,
-  RpgQuest,
-  RpgSnapshotState,
-  RpgToolCall,
-} from "@orb/contracts/rpg";
+import type { RpgActorEntry, RpgBusEvent, RpgExtraction, RpgExtractionMode, RpgGameConfig, RpgQuest, RpgSnapshotState, RpgToolCall } from "@orb/contracts/rpg";
 import { RPG_PROFILE_FREEFORM, RPG_RECENT_BEATS_KEEP_DEFAULT } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { presets, rpgGames } from "@orb/db";
@@ -123,15 +114,17 @@ export function quest(key: string, over: Partial<RpgQuest> = {}): RpgQuest {
 }
 
 /** A minimal actor-volatile with a wallet + a `focus` tracker reading (for the swipe-consistency drives). */
-export function actorWithWallet(castKey: string, walletAmount: number, poolValue: number): RpgActorVolatile {
+export function actorWithWallet(castKey: string, walletAmount: number, poolValue: number): RpgActorEntry {
   return {
     actorRef: { kind: "cast", castKey },
-    hp: null,
-    trackerValues: { focus: { value: poolValue, items: null, max: null } },
-    conditions: [],
-    inventory: [],
-    wallet: [{ name: "gold", amount: walletAmount }],
-    status: "",
+    identity: { name: castKey, emoji: "", mood: "", relationship: { kind: "neutral", label: "" } },
+    volatile: {
+      trackerValues: { focus: { value: poolValue, items: null, max: null } },
+      conditions: [],
+      inventory: [],
+      wallet: [{ name: "gold", amount: walletAmount }],
+      status: "",
+    },
   };
 }
 

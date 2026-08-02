@@ -134,8 +134,8 @@ test("F1: a negative pool delta on a fresh pool flushes a CONTRACT-VALID row (ge
   // The persisted row is CONTRACT-VALID — the tracker value is TOTAL (`{value,items}` whole), so a partial
   // write can never strand a sibling on it, and the ceiling lives on the def where nothing can drift from it.
   const snap = await findSnapshotByVariant(db, variantId);
-  const wizard = snap?.actorState?.find((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "Wizard");
-  expect(wizard?.trackerValues["mana"]).toEqual({ value: -3, items: null, max: null });
+  const wizard = snap?.actorState?.find((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "wizard");
+  expect(wizard?.volatile.trackerValues["mana"]).toEqual({ value: -3, items: null, max: null });
   // And the member tracker read no longer THROWS (the poison used to brick every later read forever).
   await expect(h.service.getTrackerView({ principal: principal("host"), chatId })).resolves.toBeDefined();
 });
@@ -153,15 +153,10 @@ test("F1 (structural backstop): a would-be-INVALID staged state DROPS the whole 
     recentEvents: [],
     actorState: [
       {
-        actorRef: { kind: "cast", castKey: "Broken" },
-        // `hp.max = 0` violates the contract belt (`hp.max >= 1`) — parse-on-read would throw AFTER the
-        // insert commits, so the backstop must refuse it at the write boundary.
-        hp: { value: 1, max: 0 },
-        trackerValues: {},
-        conditions: [],
-        inventory: [],
-        wallet: [],
-        status: "",
+        actorRef: { kind: "cast", castKey: "broken" },
+        // A `max: 0` meter ceiling violates the contract belt (`max >= 1`) — parse-on-read would throw AFTER
+        // the insert commits, so the backstop must refuse it at the write boundary.
+        volatile: { trackerValues: { hp: { value: 1, items: null, max: 0 } }, conditions: [], inventory: [], wallet: [], status: "" },
       },
     ],
     trackerValues: {},

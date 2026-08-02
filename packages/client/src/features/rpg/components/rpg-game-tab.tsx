@@ -36,8 +36,8 @@ import { mintDefKey } from "../lib/mint-key";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
 import { RpgGameMacros } from "./rpg-game-macros";
-import { GmConsoleScalars } from "./rpg-gm-scalars";
 import { RpgHintMapEditor } from "./rpg-hint-map-editor";
+import { HostConsoleScalars } from "./rpg-host-scalars";
 import { Kicker } from "./rpg-kicker";
 import { DEF_ROW_CLASS, RpgStatProfileEditor } from "./rpg-stat-profile-editor";
 
@@ -313,8 +313,13 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
   );
 }
 
-/** The host config read + the console body. Host-gated (the tab `when` + the server verb). */
-function GmConsole({ state }: { readonly state: RpgPanelState }): ReactElement {
+/** The host config read + the console body. Host-gated (the tab `when` + the server verb).
+ *
+ *  THERE IS NO "GM" IN LITE (owner rule): the person running the room is the HOST, and a solo game is just the
+ *  user. Every user-visible string here says HOST; the `Gm*` code identifiers below and the `gmPresetId` /
+ *  `gmUserId` wire+column names are the residue of the retired vocabulary and are NOT renamed here — a wire
+ *  field and a db column are a migration, not a copy change, and this lane is not the place to spend one. */
+function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement {
   const trpc = useTRPC();
   const { data: config } = useSuspenseQuery(trpc.rpg.getConfigView.queryOptions({ chatId: state.chatId }));
   return (
@@ -322,7 +327,7 @@ function GmConsole({ state }: { readonly state: RpgPanelState }): ReactElement {
       <Row gap="field" align="center">
         <Icon icon={Crown} size="sm" className="text-highlight" />
         <Text voice="kicker" className="tracking-micro text-highlight">
-          GM console — host only
+          Host console — host only
         </Text>
       </Row>
       {/* Section order: Stat profile (the sheet vocabulary) → TRACKERS (the unified def surface that absorbed
@@ -335,7 +340,7 @@ function GmConsole({ state }: { readonly state: RpgPanelState }): ReactElement {
       <TrackersEditor chatId={state.chatId} config={config} />
       <RelationshipHintsEditor chatId={state.chatId} config={config} />
       <JournalTypeHintsEditor chatId={state.chatId} config={config} />
-      <GmConsoleScalars chatId={state.chatId} config={config} />
+      <HostConsoleScalars chatId={state.chatId} config={config} />
       <RpgGameMacros chatId={state.chatId} config={config} />
       <ResyncControl chatId={state.chatId} />
       {/* The graduate doorway — the omitted full-only arms all point here (§4 "Graduate to full"). */}
@@ -348,14 +353,14 @@ export interface RpgGameTabProps {
   readonly state: RpgPanelState;
 }
 
-/** The Game tab — the host GM console (its own boundary; a config read failure is contained). */
+/** The Game tab — the HOST console (its own boundary; a config read failure is contained). */
 export function RpgGameTab({ state }: RpgGameTabProps): ReactElement {
   return (
     <QueryBoundary
       fallback={<Text voice="gloss">Loading the console…</Text>}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="the GM console" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="the host console" onRetry={retry} />}
     >
-      <GmConsole state={state} />
+      <HostConsole state={state} />
     </QueryBoundary>
   );
 }

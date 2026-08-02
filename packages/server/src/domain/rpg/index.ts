@@ -9,6 +9,11 @@
 
 export { publishRpgEvent, subscribeRpgEvents } from "./bus";
 export { createRpgChatOps } from "./chat-ops";
+// THE carrier derivation (the ONE home for "which tracker class is this person, and what are their
+// exceptions") — re-exported because BOTH surfaces must go through it: the tracker view's READ projection and
+// the compose walk that builds the model's WRITE surface. Two spellings of that rule is exactly the §1.4
+// read/write drift the R2 reshape dissolved.
+export { actorCarrier } from "./chat-ops/tracker-view";
 export type {
   RpgContext,
   RpgGetMembership,

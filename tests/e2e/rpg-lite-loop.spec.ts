@@ -192,22 +192,24 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     // and all through the OP door (R1: `editSnapshot` refuses an `actorState` image; the panel sends these
     // exact ops).
     await patchActor(chatId, ref, [
-      { op: "setHp", hp: { value: 12, max: 20 } },
+      { op: "setTracker", key: "hp", value: { value: 12 } },
       { op: "setTracker", key: "mana", value: { value: 3 } },
       { op: "setWalletAmount", name: "gold", amount: 45 },
       { op: "addItem", item: { name: "Iron Dagger", quantity: 2 } },
       { op: "addCondition", condition: { name: "Chilled" } },
       { op: "setStatus", status: "shivering" },
     ]);
-    // Present cast + mood + RELATIONSHIP (custom + hint). Her TRACKED values ride the per-actor plane under
-    // her `cast:` ref — the same one home a party member's use (there is no second cast-value store).
-    await editSnapshot(chatId, {
-      presentCharacters: [{ key: "mira", name: "Mira", emoji: "🗡️", mood: "wary", relationship: { kind: "custom", label: "vassal" } }],
-    });
+    // A cast NPC is an ACTOR (R2): her identity half AND her tracked values ride the SAME per-actor row under
+    // her `cast:` ref, and `presentCharacters` is the pure presence list of actor-ref keys.
     await patchActor(chatId, { kind: "cast", castKey: "mira" }, [
+      { op: "setIdentityText", field: "name", text: "Mira" },
+      { op: "setIdentityText", field: "emoji", text: "🗡️" },
+      { op: "setIdentityText", field: "mood", text: "wary" },
+      { op: "setRelationship", relationship: { kind: "custom", label: "vassal" } },
       { op: "setTracker", key: "trust", value: { value: 4 } },
       { op: "setTracker", key: "secret", value: { value: "knows the password" } },
     ]);
+    await editSnapshot(chatId, { presentCharacters: ["cast:mira"] });
     // LEVEL (hand-only plane, §2.6 — patchSheet is its ONLY door) + className.
     await patchSheet(chatId, ref, { level: 5, className: "Ranger" });
     // Quest plane (goal + n/m objectives).
@@ -242,7 +244,8 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     const hero = after.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
     expect(hero?.sheet.level).toBe(5);
     expect(hero?.sheet.className).toBe("Ranger");
-    expect(hero?.volatile?.hp).toEqual({ value: 12, max: 20 });
+    // Health is an ordinary meter since R3 — one ceiling home (the def's `max`, overridable per carrier).
+    expect(hero?.volatile?.trackerValues["hp"]).toEqual({ value: 12, items: null, max: null });
     // The STORED reading is the full three-field value: `max` is the per-carrier ceiling OVERRIDE (TRK-2 owner
     // amendment) and is null here — this hero uses the def's default ceiling (10), which the orb row asserts below.
     expect(hero?.volatile?.trackerValues["mana"]).toEqual({ value: 3, items: null, max: null });
@@ -253,13 +256,15 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     // The band renders exactly what the host PINNED (never a def-order coincidence).
     expect(after.trackerOrbs).toEqual([{ key: "mana", label: "Mana", value: 3, max: 10, color: null }]);
 
-    expect(after.cast).toHaveLength(1);
-    const mira = after.cast[0];
+    // The presence plane is a KEY list; the person is an actor row beside the roster (ONE shape, R2).
+    expect(after.cast).toEqual(["cast:mira"]);
+    const mira = after.actors.find((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "mira");
+    expect(mira?.presence).toBe(true);
     expect(mira?.name).toBe("Mira");
-    expect(mira?.mood).toBe("wary");
-    expect(mira?.relationship).toEqual({ kind: "custom", label: "vassal" });
-    // Her carried trackers resolve SERVER-side (the `npcs` class) and pair with the readings on her row.
-    expect(after.castTrackers["mira"]?.map((t) => [t.def.key, t.value?.value])).toEqual([
+    expect(mira?.identity?.mood).toBe("wary");
+    expect(mira?.identity?.relationship).toEqual({ kind: "custom", label: "vassal" });
+    // Her carried trackers resolve SERVER-side (the `npcs` class) and pair with the readings on her own row.
+    expect(mira?.trackers.map((d) => [d.key, mira?.volatile?.trackerValues[d.key]?.value])).toEqual([
       ["secret", "knows the password"],
       ["trust", 4],
     ]);
@@ -339,20 +344,20 @@ test("rpg-lite: a hand edit auto-locks (canon wins) and the delta reaches the ne
     const view = await getTrackerView(chatId);
     const ref = characterRef(view, characterId);
 
-    // Hand-set the location to a GM-chosen value — this LOCKS `location`.
+    // Hand-set the location to a HOST-chosen value — this LOCKS `location`.
     await editSnapshot(chatId, { location: "The Sunken Vault" });
     expect((await getTrackerView(chatId)).ambient?.location).toBe("The Sunken Vault");
 
-    // Hand-set an HP the GM wants pinned, then attempt a SECOND hand edit of the SAME field to a different
+    // Hand-set an HP the HOST wants pinned, then attempt a SECOND hand edit of the SAME field to a different
     // value: the hand editor is the authority a lock protects, so the human re-edit ALWAYS wins (the lock
     // blocks a later TOOL write, never the human). This proves the lock exists without a model in the loop:
     // we assert the value the human last wrote is canon.
-    await patchActor(chatId, ref, [{ op: "setHp", hp: { value: 8, max: 20 } }]);
+    await patchActor(chatId, ref, [{ op: "setTracker", key: "hp", value: { value: 8 } }]);
     const pinned = await characterActor(chatId, characterId);
-    expect(pinned.volatile?.hp).toEqual({ value: 8, max: 20 });
+    expect(pinned.volatile?.trackerValues["hp"]?.value).toBe(8);
 
     // The DELTA reaches the next turn's reminder: a hand edit lands in the snapshot, so the prev→current diff
-    // renders in the assembled prompt's steering reminder (the delta is snapshot-agnostic — a GM tweak lands
+    // renders in the assembled prompt's steering reminder (the delta is snapshot-agnostic — a host tweak lands
     // in the fiction next turn, §2.7). We prove the reminder CARRIES the state via the wire capture on the next
     // live turn in SPEC 3 (steering); here the deterministic proof is the persisted value the delta reads from.
     expect((await getTrackerView(chatId)).ambient?.location).toBe("The Sunken Vault");
@@ -513,8 +518,11 @@ test("rpg-lite: the tracker view is swipe-consistent — every plane resolves fr
   try {
     const ref = characterRef(await getTrackerView(chatId), characterId);
     await editSnapshot(chatId, { location: "The Glass Bridge" });
+    // Two writes in ONE call, so the byte-stability read below has a multi-plane row to be stable ABOUT.
+    // (`setHp` used to lead here; it left the op union with R3 and would now reject the WHOLE call — both ops
+    // — at the tRPC input parse, taking the `focus` assertion down with it. Health is a tracker like any other.)
     await patchActor(chatId, ref, [
-      { op: "setHp", hp: { value: 15, max: 15 } },
+      { op: "setTracker", key: "hp", value: { value: 15 } },
       { op: "setTracker", key: "focus", value: { value: 2 } },
     ]);
     // Every plane reads the SAME resolved-current snapshot, so two back-to-back reads are byte-identical (no

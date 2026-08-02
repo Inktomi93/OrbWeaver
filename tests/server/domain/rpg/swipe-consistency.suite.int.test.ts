@@ -43,8 +43,8 @@ async function panelForVariant(variantId: MessageVariantId): Promise<{ pool: num
 function panelOf(state: ReturnType<typeof snapshotRowToState>): { pool: number | string | undefined; gold: number | undefined; quests: number } {
   const actor = state.actorState[0];
   return {
-    pool: actor?.trackerValues["focus"]?.value ?? undefined,
-    gold: actor?.wallet[0]?.amount,
+    pool: actor?.volatile.trackerValues["focus"]?.value ?? undefined,
+    gold: actor?.volatile.wallet[0]?.amount,
     quests: state.quests.filter((q) => q.status === "active").length,
   };
 }

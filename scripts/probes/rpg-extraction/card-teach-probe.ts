@@ -174,14 +174,14 @@ function armReminder(teach: string, beats: readonly string[]): string {
         actorRef: { kind: "cast", castKey: "vex" },
         name: "Vex",
         // `flavor: ""` (RV-11's new sheet field) — empty renders no line, so the probe's prompt is unchanged.
-        sheet: { className: "scavenger", attributes: {}, maxHp: null, flavor: "", level: 2, trackerGrants: [], trackerRevokes: [] },
+        sheet: { className: "scavenger", attributes: {}, flavor: "", level: 2, trackerGrants: [], trackerRevokes: [] },
         trackers: [
           TRACKERS[0] as RpgTrackerDef,
           rpgTrackerDefSchema.parse({ key: "Stamina", label: "Stamina", shape: "meter", write: "delta", subject: "actor", max: 14 }),
         ],
+        presence: false,
+        identity: null,
         volatile: {
-          actorRef: { kind: "cast", castKey: "vex" },
-          hp: { value: 22, max: 30 },
           trackerValues: { Stamina: { value: 9, items: null, max: null }, corruption: { value: 31, items: null, max: null } },
           conditions: [],
           inventory: [
@@ -193,11 +193,19 @@ function armReminder(teach: string, beats: readonly string[]): string {
           status: "",
         },
       },
+      // R2 — the scene NPC is an ACTOR row beside the roster, identity and all.
+      {
+        actorRef: { kind: "cast", castKey: "marrow" },
+        name: "Marrow",
+        presence: true,
+        identity: { name: "Marrow", emoji: "🩶", mood: "wary", relationship: { kind: "custom", label: "fixer" } },
+        sheet: { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
+        trackers: [TRACKERS[1] as RpgTrackerDef],
+        volatile: { trackerValues: { corruption: { value: 55, items: null, max: null } }, conditions: [], inventory: [], wallet: [], status: "" },
+      },
     ],
-    cast: [{ key: "Marrow", name: "Marrow", emoji: "🩶", mood: "wary", relationship: { kind: "custom", label: "fixer" } }],
+    cast: ["cast:marrow"],
     trackerDefs: [...TRACKERS],
-    castTrackers: { Marrow: [{ def: TRACKERS[1] as RpgTrackerDef, value: { value: 55, items: null, max: null } }] },
-    castVolatile: {},
     gameTrackers: [],
     quests: [],
     plot: null,

@@ -586,40 +586,40 @@ interface TrackerItem {
   readonly quantity: number;
 }
 
-/** One actor row in the tracker view — the roster ∪ sheets projection (subset of `RpgActorView`). `volatile`
- *  is null until a snapshot carries this actor's state. `sheet` carries the HAND-plane identity fields
- *  (className/attributes/maxHp/`level` — level is the hand-only plane, §2.6). The volatile plane carries every
- *  MODEL/HAND-writable state plane (hp/trackers/conditions/wallet/inventory/status) — the exhaustive spec asserts
- *  each one against the DOM + the DB read. The `actorRef` is the write key `patchSheet`/`editSnapshot` target. */
+/** ONE actor row in the tracker view — R2's single shape for EVERY actor: roster members and scene NPCs, on
+ *  stage and off. `volatile` is null until a snapshot carries this actor's state; `identity` is the cast half
+ *  (name/emoji/mood/relationship + the standing guides) and is null on a roster actor, whose name is the chat
+ *  roster's and whose standing prose is the sheet's. `presence` says whether the actor stands in the scene —
+ *  an offstage actor keeps every other field, which IS the retention guarantee. `sheet` carries the HAND-plane
+ *  identity fields (className/attributes/`level` — level is the hand-only plane, §2.6). The volatile plane
+ *  carries every MODEL/HAND-writable state plane (trackers/conditions/wallet/inventory/status; health is an
+ *  ordinary tracker since R3) — the exhaustive spec asserts each one against the DOM + the DB read. */
 export interface TrackerActor {
   readonly actorRef: { readonly kind: string; readonly characterId?: string; readonly userId?: string; readonly castKey?: string };
   readonly name: string;
+  readonly presence: boolean;
+  readonly identity: {
+    readonly name: string;
+    readonly emoji: string;
+    readonly mood: string;
+    readonly relationship: { readonly kind: string; readonly label: string };
+  } | null;
   readonly sheet: {
     readonly className: string;
     readonly attributes: Readonly<Record<string, number>>;
-    readonly maxHp: number | null;
     readonly flavor: string;
     readonly level: number | null;
     readonly trackerGrants: readonly string[];
     readonly trackerRevokes: readonly string[];
   };
   readonly volatile: {
-    readonly hp: { readonly value: number; readonly max: number } | null;
     readonly trackerValues: Readonly<Record<string, TrackerValue>>;
     readonly conditions: readonly { readonly name: string }[];
     readonly wallet: readonly TrackerWallet[];
     readonly inventory: readonly TrackerItem[];
     readonly status: string;
   } | null;
-}
-
-/** A present-cast NPC row (the Scene tab's `Present:` band — §2.1). `relationship` is the enum/custom badge,
- *  its tracked values ride the per-actor plane (keyed `cast:<key>`), surfaced as `castTrackers`. */
-interface TrackerCast {
-  readonly name: string;
-  readonly emoji: string;
-  readonly mood: string;
-  readonly relationship: { readonly kind: string; readonly label: string };
+  readonly trackers: readonly TrackerDef[];
 }
 
 /** THE unified tracked-field DEF (the tracked-field unification) — one shape for what used to be pool defs,
@@ -691,9 +691,10 @@ export interface TrackerView {
     readonly weather: { readonly type: string; readonly label: string; readonly description?: string | undefined } | null;
   } | null;
   readonly actors: readonly TrackerActor[];
-  readonly cast: readonly TrackerCast[];
+  /** The presence ECHO — the `actorRefKey`s standing in the scene (R2). A thin derivation of
+   *  `actors[].presence`, never a second identity home. */
+  readonly cast: readonly string[];
   readonly trackerDefs: readonly TrackerDef[];
-  readonly castTrackers: Readonly<Record<string, readonly TrackerEntry[]>>;
   readonly gameTrackers: readonly TrackerEntry[];
   readonly quests: readonly TrackerQuest[];
   /** The P5 snapshot-resident plot plane (act rail data) — null until the story authors one. */
@@ -794,7 +795,7 @@ export type ActorRefInput =
   | { readonly kind: "cast"; readonly castKey: string };
 
 /** Patch an actor's identity SHEET (`rpg.patchSheet` — host any field, member own `user` ref). The HAND door for
- *  className/attributes/maxHp/flavor, the per-actor tracker exceptions, and the hand-only `level` plane (§2.6 —
+ *  className/attributes/flavor, the per-actor tracker exceptions, and the hand-only `level` plane (§2.6 —
  *  its ONLY write door). (`poolDefs` retired with the tracked-field unification — trackers are host-defined
  *  through `rpg.updateConfig.patch.trackers`, never through a sheet patch.) */
 export function patchSheet(
@@ -803,7 +804,6 @@ export function patchSheet(
   patch: {
     readonly className?: string;
     readonly attributes?: Readonly<Record<string, number>>;
-    readonly maxHp?: number | null;
     readonly flavor?: string;
     readonly level?: number | null;
     readonly trackerGrants?: readonly string[];
