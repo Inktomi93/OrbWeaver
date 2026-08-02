@@ -212,4 +212,14 @@ export interface ChatMetadata {
    *  heals to absent at the parser (`.catch(undefined)`). Schema is rpg's (`ChatRpgPointer`) — the
    *  providerRouting/databankVisibility/background foreign-schema precedent. */
   rpg?: ChatRpgPointer;
+  /** D121-E display-tier HOST OPTION (owner ruling 2026-08-02). Absent/false ⇒ the default: display-tier
+   *  regex is PER-USER — each viewer sees only their own scripts applied to the transcript, and nobody can
+   *  restyle anybody else's reading. TRUE ⇒ the host opts this room in: the HOST's display scripts render
+   *  for EVERY viewer here — a host staging shared visual effects on the transcript — and each viewer's
+   *  OWN scripts still apply ON TOP, so a viewer can always counter-style.
+   *
+   *  An OPTION in the D121-B grammar, never a default: off is byte-identical to a room that never heard of
+   *  it. Host-set, host-only (`chat.setHostDisplayScripts`); it governs RENDER only — no wire payload, no
+   *  canon, no composer/edit text is touched on either arm. */
+  hostDisplayScripts?: boolean;
 }

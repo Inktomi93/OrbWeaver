@@ -452,6 +452,14 @@ export interface SetChatBackgroundParams extends ChatScopedParams {
   readonly background: ThemeBackground;
 }
 
+/** `setHostDisplayScripts` — host-only write of the D121-E display-tier room OPTION
+ *  (`chatMetadata.hostDisplayScripts`). `true` ⇒ the HOST's display-tier regex scripts render for every
+ *  viewer in this room (each viewer's own still apply on top); `false`/absent ⇒ the per-user default, where
+ *  a viewer only ever sees their own. RENDER-only on both arms — never canon, never the wire. */
+export interface SetHostDisplayScriptsParams extends ChatScopedParams {
+  readonly enabled: boolean;
+}
+
 /** `setToolRecurseLimit` — host-only write of the per-chat tool-call recursion cap
  *  (`chatMetadata.toolRecurseLimit`, 1..20). Bounds how many times a turn may re-enter the engine on a
  *  `finishReason:"tool"` before it stops. */

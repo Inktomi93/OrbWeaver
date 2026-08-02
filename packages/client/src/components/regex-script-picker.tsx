@@ -12,7 +12,7 @@
 // editor and the character facet editor need it — `components/` is the shared home (the
 // `RegexEditorDialog` precedent).
 
-import type { RegexScriptRow } from "@orb/contracts/regex";
+import type { RegexPickerScope, RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PresetId, RegexScriptId } from "@orb/kit/ids";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";
@@ -21,12 +21,6 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { REGEX_PLACEMENT_LABELS } from "#lib";
-
-/** WHICH scope this picker attaches to. Mirrors the server's `RegexAttachScopeRef` (one shape, one wire). */
-export type RegexPickerScope =
-  | { readonly kind: "character"; readonly characterId: CharacterId }
-  | { readonly kind: "preset"; readonly presetId: PresetId }
-  | { readonly kind: "chat"; readonly chatId: ChatId };
 
 // Every regex verb is `busDriven` (`regexChanged` path-invalidates the whole router), so no call site
 // hand-invalidates its own attached-list read. The six factories live at the BOTTOM of this file, next to

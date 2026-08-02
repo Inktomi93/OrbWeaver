@@ -25,6 +25,7 @@ import {
   createListForChat,
   createListForPreset,
   createListGlobal,
+  createListRoomDisplayScripts,
 } from "./verbs/attachments";
 import { createCreate, createDuplicate, createGet, createList, createRemove, createUpdate } from "./verbs/scripts";
 
@@ -48,6 +49,7 @@ export function createRegexService(ctx: RegexContext): RegexService {
     attachToChat: createAttachToChat(ctx),
     detachFromChat: createDetachFromChat(ctx),
     listForChat: createListForChat(ctx),
+    listRoomDisplayScripts: createListRoomDisplayScripts(ctx),
     applyScopeOrder: createApplyScopeOrder(ctx),
   };
 }

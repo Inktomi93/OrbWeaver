@@ -10,22 +10,15 @@
 //   • PROBED via MEMBERSHIP (D18 — the chat scope has no ownerId to probe): attachToChat/detachFromChat are
 //     HOST-gated and listForChat is MEMBER-gated, all through chat's own injected guards. The scripts named
 //     in attach/detach must still be the caller's, so the room scope cannot launder a foreign script in.
+//   • MEMBER-gated by design (the D121-E host option): listRoomDisplayScripts returns the HOST's display
+//     scripts to a non-host member — that is the feature, and the room's opt-in flag is the gate. Off ⇒ [].
 //   • EXEMPT: none.
 
-import { createRegexScriptSchema, updateRegexScriptSchema } from "@orb/contracts/regex";
+import { createRegexScriptSchema, regexAttachScopeSchema, updateRegexScriptSchema } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PresetId, RegexScriptId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc";
-
-/** The order-rewrite target. Mirrors `RegexAttachScopeRef` (domain/regex/contract/params) — the discriminated
- *  scope ref, so one proc serves all four junctions without four near-identical procedures. */
-const scopeRefSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("global") }),
-  z.object({ kind: z.literal("character"), characterId: brandedId<CharacterId>() }),
-  z.object({ kind: z.literal("preset"), presetId: brandedId<PresetId>() }),
-  z.object({ kind: z.literal("chat"), chatId: brandedId<ChatId>() }),
-]);
 
 const scriptIdInput = z.object({ scriptId: brandedId<RegexScriptId>() });
 
@@ -96,7 +89,13 @@ export const regexRouter = t.router({
     .input(z.object({ chatId: brandedId<ChatId>() }))
     .query(({ ctx, input }) => ctx.services.regex.listForChat({ principal: ctx.auth, chatId: input.chatId })),
 
+  // D121-E host option: the room's BROADCAST display set. MEMBER-gated (the verb's injected chat guard) —
+  // a non-member is refused, and a member of a room that never opted in gets `[]`.
+  listRoomDisplayScripts: authedProcedure
+    .input(z.object({ chatId: brandedId<ChatId>() }))
+    .query(({ ctx, input }) => ctx.services.regex.listRoomDisplayScripts({ principal: ctx.auth, chatId: input.chatId })),
+
   applyScopeOrder: authedProcedure
-    .input(z.object({ scope: scopeRefSchema, orderedScriptIds: z.array(brandedId<RegexScriptId>()) }))
+    .input(z.object({ scope: regexAttachScopeSchema, orderedScriptIds: z.array(brandedId<RegexScriptId>()) }))
     .mutation(({ ctx, input }) => ctx.services.regex.applyScopeOrder({ principal: ctx.auth, scope: input.scope, orderedScriptIds: input.orderedScriptIds })),
 });

@@ -36,6 +36,7 @@ import { CommittedGroupConfigTab } from "./group-config-form";
 import { InjectionsManager } from "./injections-manager";
 import { MacroPicksSection } from "./macro-picks-section";
 import { ChatBackgroundSection, RoomOverridesTab } from "./room-overrides-tab";
+import { HostDisplayScriptsControl } from "./host-display-scripts-control";
 import { ToolRecurseControl } from "./tool-recurse-control";
 
 // The Group-behavior form's initially-visible control rows (reply-mode + 2 switches + Advanced trigger).
@@ -155,6 +156,16 @@ function HostControls({
             </QueryBoundary>
           </Section>
         ) : null}
+        {/* Appearance — the room's display-tier broadcast switch (D121-E). Reads the same getChat this tab
+            already loaded, so the QueryBoundary matches the tool-round control's exactly. */}
+        <Section kicker="Appearance">
+          <QueryBoundary
+            fallback={<SkeletonRows count={1} shape="line" />}
+            renderError={(_error, retry): ReactElement => <QueryErrorState label="the display-script setting" onRetry={retry} />}
+          >
+            <HostDisplayScriptsControl chatId={chatId} />
+          </QueryBoundary>
+        </Section>
         {/* Tool use — reads getChat (already loaded for this tab) for the current cap; the QueryBoundary
             matches the getChat suspense. */}
         <Section kicker="Tool use">

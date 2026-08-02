@@ -81,6 +81,7 @@ import type {
   SendParams,
   SetChatAnchorPersonaParams,
   SetChatBackgroundParams,
+  SetHostDisplayScriptsParams,
   SetChatDocumentVisibilityParams,
   SetChatInjectionParams,
   SetGroupConfigParams,
@@ -315,6 +316,8 @@ export interface ChatService {
    *  the whole blob (`kind:"none"` clears it). Returns the stored value. Applied client-side at the app-root
    *  background layer in a true-solo room; INERT for every viewer in any other composition. */
   readonly setChatBackground: (params: SetChatBackgroundParams) => Promise<ThemeBackground>;
+  /** D121-E display-tier room OPTION — host-only. Returns the stored value. */
+  readonly setHostDisplayScripts: (params: SetHostDisplayScriptsParams) => Promise<boolean>;
 
   /** Host-only write of the per-chat tool-call recursion cap (`chatMetadata.toolRecurseLimit`, 1..20).
    *  Returns the stored value. */

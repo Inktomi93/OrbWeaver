@@ -10,9 +10,13 @@
 // only the DATA the engine runs on (AGENTS §1 "engine vs data").
 
 import type { Db } from "@orb/db";
+import { chatParticipants, chats } from "@orb/db";
+import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import { and, eq, isNull } from "drizzle-orm";
+import { parseChatMetadata } from "#domain/chat";
 import { can } from "#domain/admin";
-import type { ExportCardScripts, ExportRegexScripts, ImportCardScripts, ImportRegexScript, RegexService, ResolveRegexSources } from "#domain/regex";
+import type { ExportCardScripts, ExportRegexScripts, ImportCardScripts, ImportRegexScript, RegexContext, RegexService, ResolveRegexSources } from "#domain/regex";
 import {
   createExportCardScripts,
   createExportRegexScripts,
@@ -25,6 +29,36 @@ import type { AuditEntry } from "#foundation/observability";
 import { requireHost, requireParticipant } from "../../domain/chat";
 import { publishUserEvent } from "../../transport/trpc";
 import { minter } from "./minter";
+
+const LIMIT_ONE = 1;
+
+/**
+ * The D121-E display-tier room policy (owner ruling 2026-08-02) — "does this room broadcast the HOST's
+ * display scripts, and who is its host". Built HERE rather than inside `domain/regex` because both halves
+ * are CHAT's data (the roster's host seat + the `chatMetadata.hostDisplayScripts` flag), and regex reads
+ * neither the roster nor chat metadata — the same one-directional posture as its injected guards.
+ *
+ * A hostless room (an archived orphan whose host left) broadcasts NOTHING: there is no one whose scripts a
+ * viewer could be reading, so the room silently falls back to the per-user default.
+ */
+function makeResolveRoomDisplayPolicy(db: Db): RegexContext["resolveRoomDisplayPolicy"] {
+  return async (chatId: ChatId) => {
+    const [row] = await db.select({ metadata: chats.metadata }).from(chats).where(eq(chats.id, chatId)).limit(LIMIT_ONE);
+    // The fault-isolated parse seam — a corrupt sibling sub-blob must never take the toggle down with it.
+    const enabled = parseChatMetadata(row?.metadata).hostDisplayScripts === true;
+    if (!enabled) {
+      // Short-circuit: while the option is OFF nobody needs to know who the host is, and the verb returns
+      // `[]` regardless — so the roster read never happens on the default path.
+      return { enabled: false, hostUserId: null };
+    }
+    const [host] = await db
+      .select({ userId: chatParticipants.userId })
+      .from(chatParticipants)
+      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.role, "host"), isNull(chatParticipants.leftSeq)))
+      .limit(LIMIT_ONE);
+    return { enabled: true, hostUserId: host?.userId ?? null };
+  };
+}
 
 /** What the regex seam needs from the composition root. */
 export interface RegexComposeDeps {
@@ -58,6 +92,7 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
     audit,
     requireChatHost: (principal, chatId) => requireHost({ db, can }, principal, chatId).then((): void => undefined),
     requireChatMember: (principal, chatId) => requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
+    resolveRoomDisplayPolicy: makeResolveRoomDisplayPolicy(db),
     emitUserEvent: publishUserEvent,
   });
 

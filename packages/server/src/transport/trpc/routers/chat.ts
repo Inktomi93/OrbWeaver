@@ -515,6 +515,11 @@ export const chatRouter = t.router({
   setChatBackground: authedProcedure
     .input(setChatBackgroundSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setChatBackground({ principal: ctx.auth, ...input })),
+
+  // D121-E display-tier room OPTION — host-gated in the verb (a member's call is a refusal, not a no-op).
+  setHostDisplayScripts: authedProcedure
+    .input(z.object({ chatId: brandedId<ChatId>(), enabled: z.boolean() }))
+    .mutation(({ ctx, input }) => ctx.services.chat.setHostDisplayScripts({ principal: ctx.auth, ...input })),
   setToolRecurseLimit: authedProcedure
     .input(setToolRecurseLimitSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.setToolRecurseLimit({ principal: ctx.auth, ...input })),

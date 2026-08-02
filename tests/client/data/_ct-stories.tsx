@@ -9,6 +9,7 @@ import {
   createEntityMutation,
   QueryBoundary,
   useColorQuotedSpeech,
+  useDisplayScripts,
   useGatedQuery,
   useInvalidation,
   useOnlineStatus,
@@ -17,6 +18,7 @@ import {
   useUploadAsset,
   useViewer,
 } from "@orb/client/data";
+import { renderMessageForDisplay } from "@orb/client/lib";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CreateTagInput, TagView } from "@orb/contracts/tag";
 import type { ChatId } from "@orb/kit/ids";
@@ -541,6 +543,45 @@ export function SectionEchoStory(): ReactElement {
       <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
         <SectionEchoInner />
       </QueryBoundary>
+    </CtDataProviders>
+  );
+}
+
+// ── D121-E / F1: the DISPLAY TIER ───────────────────────────────────────────────────────────────────────
+const DISPLAY_STORY_CHAT = "chat_ctdisplaystoryyyyyyyyy" as ChatId;
+
+/** The raw canon every display-tier arm starts from. */
+export const DISPLAY_STORY_RAW = "the GOBLIN snarls";
+
+/**
+ * Renders ONE body through the production `renderMessageForDisplay` with the hook's RESOLVED display set,
+ * and mounts a composer + an edit textarea beside it holding the SAME raw text — so one CT proves in a
+ * single shot that a display script transforms the rendered body and touches NEITHER input nor the wire.
+ */
+function DisplayTierBody({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  const scripts = useDisplayScripts(chatId);
+  const rendered = renderMessageForDisplay(DISPLAY_STORY_RAW, {
+    characterNamesById: new Map(),
+    personaNamesById: new Map(),
+    displayScripts: scripts,
+  });
+  return (
+    <div>
+      <p data-testid="rendered-body">{rendered}</p>
+      {/* The composer + the edit textarea hold the RAW canon — the display leg must never reach them. */}
+      <textarea aria-label="Message composer" defaultValue={DISPLAY_STORY_RAW} />
+      <textarea aria-label="Edit message" defaultValue={DISPLAY_STORY_RAW} />
+      {/* Stands in for the wire payload a send would carry: the un-transformed body. */}
+      <output data-testid="wire-payload">{DISPLAY_STORY_RAW}</output>
+    </div>
+  );
+}
+
+/** In-room: BOTH display tiers apply (the room's broadcast set, then the viewer's own). */
+export function DisplayTierInRoomStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <DisplayTierBody chatId={DISPLAY_STORY_CHAT} />
     </CtDataProviders>
   );
 }

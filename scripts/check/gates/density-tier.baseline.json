@@ -23,7 +23,6 @@
   "packages/client/src/features/character/components/character-history-tab.tsx": 1,
   "packages/client/src/features/character/components/character-overview-card.tsx": 14,
   "packages/client/src/features/character/components/character-provenance-section.tsx": 8,
-  "packages/client/src/features/character/components/character-regex-scripts-field.tsx": 1,
   "packages/client/src/features/character/components/character-tag-suggestions.tsx": 6,
   "packages/client/src/features/character/components/character-tags-row.tsx": 2,
   "packages/client/src/features/character/surfaces/character-editor-surface.tsx": 3,

@@ -24,10 +24,6 @@ import { REGEX_PLACEMENT_ITEMS } from "#lib";
 // Lazy — CodeMirror is heavy and this dialog is modal-only.
 const CodeEditor = lazy(() => import("@orb/ui/code-editor").then((m) => ({ default: m.CodeEditor })));
 
-/** The form value shape the dialog binds — one library row's AUTHORED fields (id/ownerId/createdAt are the
- *  server's). Identical to the create-wire input, so the same form drives create and edit. */
-export type RegexScriptFormValues = CreateRegexScriptInput;
-
 /** The placement multi-toggle items. The labels are the SHARED map (side-eye F-23): this dialog used to
  *  offer the raw enum member (`USER_INPUT`) while the Transforms readout printed prose for the same stage,
  *  so one pipeline had two vocabularies and neither surface could be read against the other. */
@@ -35,7 +31,7 @@ const PLACEMENT_ITEMS = REGEX_PLACEMENT_ITEMS;
 
 // The form the dialog binds — a direct-bind form OR the autosave factory's reset-less form (the dialog
 // never calls `reset`, so it accepts the wider shape).
-type RegexEditorForm = Omit<AppFormInstance<RegexScriptFormValues>, "reset">;
+type RegexEditorForm = Omit<AppFormInstance<CreateRegexScriptInput>, "reset">;
 
 export interface RegexEditorDialogProps {
   readonly form: RegexEditorForm;
