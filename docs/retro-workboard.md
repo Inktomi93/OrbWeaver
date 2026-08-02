@@ -192,9 +192,11 @@ bundle round-trip + RECEIVE/WI ORDER pins). **OPEN OWNER FORK: DISPLAY-tier sour
 viewer-only (implemented, law-literal: a host can't rewrite what others SEE) vs ST-parity
 (room carriers' DISPLAY scripts render for every viewer + viewer's on top) — posed.
 **→ DISPLAY RULED (owner, THIRD arm): viewer-only default + a HOST PER-ROOM TOGGLE** — host
-enables → the HOST's display scripts render for every viewer ("a GM might want to do something
-special"); default OFF (D121-B options-never-defaults grammar); viewer's own scripts apply
-LAST (counter-style always possible); both arms CT-pinned. Relayed to REGEX's warm tail.
+enables → the HOST's display scripts render for every viewer; default OFF (D121-B
+options-never-defaults grammar); viewer's own scripts apply LAST (counter-style always
+possible); both arms CT-pinned. **VOCAB (owner correction): it is HOST CONTROLS — never "GM"**
+(any host, any room; the no-GM-in-lite rider applies to the feature's naming/copy; the GM
+phrasing was only the owner's motivating example). Relayed to REGEX's warm tail ×2.
 ✅ **F14 MERGED (`509a6550`, --no-verify on branch-side green receipts [first under the new
 word — debt row, cleared by the quiesce run], torn down) — HOME BOOT CLS 0.0913 → 0.0000
 measured.** THE F-14 ROW IS REWRITTEN: the pinned shell.css cause was REFUTED by measurement
