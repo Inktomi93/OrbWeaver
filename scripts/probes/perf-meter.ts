@@ -57,6 +57,7 @@ const MS_PAD_4 = 4;
 const MS_PAD_5 = 5;
 const MS_PAD_6 = 6;
 const SHIFT_DECIMALS = 4;
+const MS_PAD_3 = 3;
 
 type Step =
   | { readonly kind: "click" | "jsclick" | "hover"; readonly selector: string }
@@ -200,11 +201,31 @@ const METER_INIT_JS = `(() => {
     stepMarks: [],   // {idx, label, t}
     markStep(idx, label) { this.stepMarks.push({ idx, label, t: performance.now() }); },
   });
-  try {
-    new PerformanceObserver((l) => {
-      for (const e of l.getEntries()) m.longTasks.push({ t: e.startTime, dur: e.duration });
-    }).observe({ type: "longtask", buffered: true });
-  } catch (_e) { /* longtask unsupported — the bucket just stays empty */ }
+  // Prefer LoAF (attributed, not deprecated) over the coarse \`longtask\` type — same pattern as
+  // packages/client/src/lib/long-task-tracer.ts: LoAF reports blockingDuration + per-script
+  // attribution and doesn't emit a deprecation notice per entry; \`longtask\` is the fallback ONLY
+  // where LoAF is unsupported. Never observe both.
+  if (PerformanceObserver.supportedEntryTypes.includes("long-animation-frame")) {
+    try {
+      new PerformanceObserver((l) => {
+        for (const e of l.getEntries()) {
+          const worst = (e.scripts ?? []).reduce((a, b) => (b.duration > (a?.duration ?? -1) ? b : a), null);
+          m.longTasks.push({
+            t: e.startTime,
+            dur: e.duration,
+            blockingDuration: e.blockingDuration,
+            worstScript: worst === null ? null : (worst.sourceFunctionName ?? worst.invoker ?? worst.name ?? null),
+          });
+        }
+      }).observe({ type: "long-animation-frame", buffered: true });
+    } catch (_e) { /* long-animation-frame unsupported despite the feature check — the bucket just stays empty */ }
+  } else {
+    try {
+      new PerformanceObserver((l) => {
+        for (const e of l.getEntries()) m.longTasks.push({ t: e.startTime, dur: e.duration, blockingDuration: null, worstScript: null });
+      }).observe({ type: "longtask", buffered: true });
+    } catch (_e) { /* longtask unsupported — the bucket just stays empty */ }
+  }
   try {
     new PerformanceObserver((l) => {
       for (const e of l.getEntries()) {
@@ -225,6 +246,8 @@ const METER_INIT_JS = `(() => {
       }
     }).observe({ type: "layout-shift", buffered: true });
   } catch (_e) { /* layout-shift unsupported */ }
+  // Kept alongside LoAF: LoAF only reports frames >50ms, so this 33ms-threshold rAF-gap loop is
+  // the only detector for the 34-49ms dropped-frame band (a full frame budget at 30fps).
   let last = performance.now();
   const loop = (now) => {
     const gap = now - last;
@@ -235,7 +258,14 @@ const METER_INIT_JS = `(() => {
   requestAnimationFrame(loop);
 })();`;
 
-type LongTask = { readonly t: number; readonly dur: number };
+/** \`dur\` is the LoAF frame duration (or the raw \`longtask\` duration on the fallback path);
+ *  \`blockingDuration\`/\`worstScript\` are LoAF-only attribution, null on the \`longtask\` fallback. */
+type LongTask = {
+  readonly t: number;
+  readonly dur: number;
+  readonly blockingDuration: number | null;
+  readonly worstScript: string | null;
+};
 type PerfEvent = {
   readonly t: number;
   readonly type: string;
@@ -263,6 +293,8 @@ type StepReport = {
   readonly longTaskCount: number;
   readonly longTaskTotalMs: number;
   readonly longTaskWorstMs: number;
+  readonly worstBlockingMs: number | null;
+  readonly worstScript: string | null;
   readonly clickDurMs: number | null;
   readonly clickInputDelayMs: number | null;
   readonly worstRafGapMs: number;
@@ -353,6 +385,7 @@ function buildReports(data: MeterData): StepReport[] {
     const end = windowEnd(i);
     const inWin = <T extends { readonly t: number }>(xs: readonly T[]): T[] => xs.filter((x) => x.t >= mk.t && x.t < end);
     const lts = inWin(data.longTasks);
+    const worstLt = lts.reduce<LongTask | null>((acc, x) => (acc === null || x.dur > acc.dur ? x : acc), null);
     const clicks = inWin(data.events).filter((e) => e.type === "click" || e.type === "pointerup");
     const worstClick = clicks.reduce<PerfEvent | null>((acc, c) => (acc === null || c.dur > acc.dur ? c : acc), null);
     const gaps = inWin(data.rafGaps);
@@ -362,6 +395,8 @@ function buildReports(data: MeterData): StepReport[] {
       longTaskCount: lts.length,
       longTaskTotalMs: Math.round(lts.reduce((a, x) => a + x.dur, 0)),
       longTaskWorstMs: Math.round(lts.reduce((a, x) => Math.max(a, x.dur), 0)),
+      worstBlockingMs: worstLt?.blockingDuration === null || worstLt?.blockingDuration === undefined ? null : Math.round(worstLt.blockingDuration),
+      worstScript: worstLt?.worstScript ?? null,
       clickDurMs: worstClick === null ? null : Math.round(worstClick.dur),
       clickInputDelayMs: worstClick === null ? null : Math.round(worstClick.inputDelay),
       worstRafGapMs: Math.round(gaps.reduce((a, x) => Math.max(a, x.gap), 0)),
@@ -375,14 +410,17 @@ function buildReports(data: MeterData): StepReport[] {
 }
 
 function printTable(reports: readonly StepReport[]): void {
-  print("idx  longTasks(total/worst)  click(dur/delay)  rafGap  shift  label");
+  print("idx  longTasks(total/worst)  blocking  script  click(dur/delay)  rafGap  shift  label");
   for (const r of reports) {
     const lt = `${String(r.longTaskCount).padStart(2)} (${String(r.longTaskTotalMs).padStart(MS_PAD_4)}/${String(r.longTaskWorstMs).padStart(MS_PAD_4)})`;
+    const blocking = r.worstBlockingMs === null ? "  —" : `${String(r.worstBlockingMs).padStart(MS_PAD_3)}ms`;
     const click = r.clickDurMs === null ? "      —     " : `${String(r.clickDurMs).padStart(MS_PAD_5)}/${String(r.clickInputDelayMs).padStart(MS_PAD_4)}`;
     print(
       [
         String(r.idx).padStart(IDX_PAD),
         lt,
+        blocking,
+        r.worstScript ?? "—",
         click,
         String(r.worstRafGapMs).padStart(MS_PAD_5),
         String(r.shiftScore).padStart(MS_PAD_6),

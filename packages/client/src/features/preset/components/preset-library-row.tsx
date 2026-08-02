@@ -12,19 +12,30 @@
 // state the funnel has. The BUILT-IN row carries the same toggle and IS the null pick (`defaultPresetId ===
 // null`), so it activates through the same one mutation as every other row.
 //
-// The pressed state paints as the title-line "Active" Badge, not as a rest-visible toggle: LibraryRow floats
-// its trailing cluster OUT OF FLOW (so a hidden cluster doesn't spend the 320px pane's title width), and the
-// float arm is INERT at rest and sits over the title text — a rest-visible control there is unclickable and
-// covers the name (`listRowVariants.float`). So this row takes the chats-row arm of the same D11 invariant:
-// the marker carries the state at rest (`ROW_REVEAL_SWAP` — it yields exactly when the cluster reveals), the
-// toggle carries the affordance (`rest="never"`), and the row never paints the datum twice.
+// THE TRAILING SLOT IS ONE RESERVED, FIXED-GEOMETRY REGION (owner ruling O-1 + the P0 root cause,
+// 2026-08-02) — `actionsReserved`, so the cluster stays IN FLOW and the row's layout is identical at rest
+// and on hover. Three defects died with the old shape:
+//   · the P0 HOVER LOOP — the pressed state used to paint as a title-line "Active" Badge that
+//     `display:none`d itself on hover (`ROW_REVEAL_SWAP`). That reflowed the title line UNDER a stationary
+//     pointer, so the hover boundary slid across the cursor and the row re-hit-tested at frame rate
+//     (~85 crossings/sec measured, zero DOM mutations). Nothing on this row enters or leaves layout now:
+//     the toggle is permanently mounted and reveal is opacity-only.
+//   · the DOUBLE HIGHLIGHT (item 18) — the floated cluster painted its own `bg-accent` panel on top of the
+//     row's hover tint. In flow it has no backdrop; the glyphs ride the row's own tint.
+//   · the BUILT-IN COLLISION (item 19) — the lock marker and the revealed toggle both wanted the row's
+//     trailing end and stacked on top of each other. The lock is now inline-LEFT of the name (item 17: it
+//     is a property of the NAME, per the list mock), and the trailing region holds controls only.
+// The cost is honest and was the mock's own call: the strip's width is spent on every row, always.
+//
+// STATE IS THE TOGGLE (O-1): pressed = a FILLED lucide dot (the seal's `fill` axis on the `Circle`
+// FillableIcon), unpressed = a hollow ring that reveals with the row. One element carries both the datum
+// and the affordance, so the row cannot paint the state twice — and the pressed dot NEVER hides.
 
 import type { PresetId } from "@orb/kit/ids";
-import { Badge } from "@orb/ui/badge";
-import { Download, Icon, Lock, Zap } from "@orb/ui/icons";
+import { Circle, Download, Icon, Lock, Zap } from "@orb/ui/icons";
 import { MenuItem } from "@orb/ui/menu";
-import type { ReactElement, ReactNode } from "react";
-import { LibraryRow, ROW_REVEAL_SWAP, RowToggleAction } from "#components";
+import type { ReactElement } from "react";
+import { LibraryRow, RowToggleAction } from "#components";
 import { timeLib } from "#lib";
 import { presetRowSubtitle } from "../lib/preset-row-view";
 
@@ -72,16 +83,6 @@ export function PresetLibraryRow({
   onActivate,
   onExport,
 }: PresetLibraryRowProps): ReactElement {
-  // TITLE-LINE markers, not a leading slot: only some rows are Active/built-in, and a leading badge of a
-  // different width per row left the title column ragged across the pane (side-eye P2-6).
-  const markers: ReactNode =
-    active || preset.isSystemDefault ? (
-      <>
-        {active ? <ActiveMarker /> : null}
-        {preset.isSystemDefault ? <Icon icon={Lock} size="sm" /> : null}
-      </>
-    ) : undefined;
-
   // ONE label in both states: the press only ever ACTIVATES, so a pressed-state name that promised an
   // un-activate would describe an action this control does not have. `aria-pressed` carries the state.
   const activateLabel = `Activate ${preset.name} for generation`;
@@ -93,22 +94,36 @@ export function PresetLibraryRow({
 
   return (
     <LibraryRow
+      // The cluster carries a rest-visible control (the pressed dot), so the strip is reserved in flow —
+      // see the file header.
+      actionsReserved={true}
       onSelect={(): void => onSelect(preset.id)}
       selected={selected}
       title={preset.name}
-      {...(markers === undefined ? {} : { markers })}
+      // Item 17: the lock is a property of the NAME (the mock draws it inline-left of "Default"), not an
+      // action slot at the row's far end — where it collided with the revealed cluster (item 19). It costs
+      // the built-in row's title its shared x with the other rows; that is the mock's own drawing, and it
+      // supersedes side-eye P2-6's "no leading slot" for this one glyph (P2-6's harm was a VARIABLE-width
+      // status badge on many rows; this is a fixed glyph on exactly one).
+      {...(preset.isSystemDefault ? { leading: <Icon icon={Lock} size="sm" /> } : {})}
       stateToggle={
         <RowToggleAction
-          icon={Zap}
+          // The dot, not the bolt (owner ruling O-1): a ⚡ reads as a one-shot zap ACTION and had no visible
+          // relationship to the state it sets. `Circle` fills to a solid disc — the mock's exact grammar,
+          // hollow ring at rest, filled amber disc when this row is the pick.
+          icon={Circle}
           labelOff={activateLabel}
           labelOn={activateLabel}
           onToggle={activate}
           pressed={active}
           pressedClassName="text-primary"
-          // A FILLED bolt vs a hollow one — a shape delta, not stroke color alone (side-eye F-06, WCAG
-          // 1.4.1). The mock draws exactly this: a hollow ring at rest, a filled disc when active.
+          // A FILLED disc vs a hollow ring — a shape delta, not stroke color alone (side-eye F-06, WCAG
+          // 1.4.1).
           pressedFill={true}
-          rest="never"
+          // `when-on`, the D11 default: the PRESSED dot is permanently visible (it is the row's whole state
+          // readout now that the Active badge is gone) and only the unpressed ring rides the reveal. It must
+          // never be `never`/`hidden` — that swap is the P0 loop.
+          rest="when-on"
           // ONE-OF-N, not a toggle (side-eye F-19 / ARIA rec 3): pressing the active row is a NO-OP, so
           // `aria-pressed`'s "press to release" contract was a promise this control refuses to keep.
           semantics="radio"
@@ -160,23 +175,5 @@ export function PresetLibraryRow({
             },
           })}
     />
-  );
-}
-
-/** The amber ACTIVE marker on the title line — the state half of the activate toggle beside it. On a FINE
- *  pointer it hides exactly when the cluster reveals (`ROW_REVEAL_SWAP`), so the pressed toggle and this
- *  badge never paint the same datum at once.
- *
- *  IT STAYS AT COARSE (side-eye F-06): `ROW_REVEAL_SWAP` drops the badge on touch, where the cluster is
- *  permanently visible — which left activation signalled by GLYPH ALONE on exactly the pointer class that
- *  gets no hover to investigate with. The filled bolt is the shape delta; this is the word.
- *
- *  `tone="soft"` (rider 1): a SOLID ember pill carried the same fill as the pane's one primary CTA (+ New),
- *  so a status read as a second call to action — the CD3 one-primary-per-region break. */
-function ActiveMarker(): ReactElement {
-  return (
-    <Badge className={`${ROW_REVEAL_SWAP} pointer-coarse:inline-flex`} intent="primary" size="sm" tone="soft">
-      Active
-    </Badge>
   );
 }

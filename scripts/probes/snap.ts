@@ -80,8 +80,11 @@
  *                                          # an in-page throw prints EVAL ERROR, doesn't abort.
  *                                          # A function LITERAL is auto-invoked — `async()=>{…}`
  *                                          # / `()=>{…}` run and return their result (no more
- *                                          # silent-undefined from an un-called async arrow;
- *                                          # you may still write `(...)()` explicitly).
+ *                                          # silent-undefined from an un-called async arrow).
+ *                                          # FOOTGUN: an ARROW IIFE `(()=>{…})()` MATCHES the
+ *                                          # literal regex and gets double-invoked ("… is not a
+ *                                          # function") — pass the BARE arrow. A classic
+ *                                          # `(function(){…}())` IIFE is NOT matched and works.
  *   pnpm snap / --contrast 'label.field'   # WCAG AA contrast of the FIRST match's text/icon color
  *                                          # vs its resolved backdrop (repeatable). Each line states
  *                                          # its METHOD honestly: `css-resolve` (an opaque ancestor bg,
