@@ -7,6 +7,7 @@ import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { unwrapExpression } from "../ast-read.ts";
 import type { GateDescriptor } from "../contract.ts";
+import { fileLoaded } from "../pass.ts";
 
 /** Legit off-Tailwind inline-style sinks → reason. EMPTY: the two known off-Tailwind radius sinks (ECharts
  *  canvas + CodeMirror decoration) are framework-config OBJECT PROPERTIES, not JSX `style={{…}}`/imperative
@@ -176,6 +177,11 @@ function isSetPropertyOffender(call: Node): boolean {
   return TOKEN_BACKED_PROPS.has(staticLiteral(propArg)) && isRawLiteralValue(staticLiteral(valueArg));
 }
 
+/** Real-tree anchor (GATE-AUTHORING.md §4.5): `ctx.scope.kind === "project"` is TRUE inside conformance's
+ *  synthetic mini-projects too, so scope ALONE is not a guard — the stale arm below is vacuous while the
+ *  table is empty, but the first row added would otherwise red this gate's own self-proof. */
+const STALE_ARM_ANCHOR = "packages/ui/src/tokens/index.ts";
+
 export const gate: GateDescriptor = {
   name: "no-off-token-inline-style",
   docRow: "design-enforcement.md §3 (inline/imperative arm)",
@@ -213,7 +219,7 @@ export const gate: GateDescriptor = {
     ctx.report(offender);
   },
   finalize: (ctx) => {
-    if (ctx.scope.kind !== "project") {
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
       return;
     }
     for (const rel of Object.keys(ALLOWLIST)) {
