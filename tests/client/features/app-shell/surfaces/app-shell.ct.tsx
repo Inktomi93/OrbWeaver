@@ -403,12 +403,16 @@ test("the focus toggle round-trips coherently at every step of the measured repr
   const shell = await mount(<AppShellStory />);
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
   const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+  const shellGrid = page.locator(".shell-grid");
   const focusToggle = shell.getByRole("button", { name: FOCUS_TOGGLE_RE });
 
   // Chats' real defaults: LIST docked, CONTEXT collapsed — nobody has entered focus, so the button says so.
   await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
   await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
   await expect(focusToggle).toHaveAccessibleName("Enter focus mode");
+  // data-focus-mode on .shell-grid is the __orb.shell().focus DOM source (agent-bridge.ts) — it must
+  // track the store's focusMode flag at every step, not just the panel-derived label.
+  await expect(shellGrid).toHaveAttribute("data-focus-mode", "false");
 
   // 1) ENTER — everything hides, the label flips, the button reads pressed.
   await focusToggle.click();
@@ -416,6 +420,7 @@ test("the focus toggle round-trips coherently at every step of the measured repr
   await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
   await expect(focusToggle).toHaveAccessibleName("Exit focus mode");
   await expect(focusToggle).toHaveAttribute("aria-pressed", "true");
+  await expect(shellGrid).toHaveAttribute("data-focus-mode", "true");
 
   // 2) EXIT — the section's OWN pre-focus layout returns: the LIST docks, and the CONTEXT pane the user
   // never had open stays collapsed. (The old implementation docked BOTH here — "restore" meant "dock
@@ -425,6 +430,7 @@ test("the focus toggle round-trips coherently at every step of the measured repr
   await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
   await expect(focusToggle).toHaveAccessibleName("Enter focus mode");
   await expect(focusToggle).toHaveAttribute("aria-pressed", "false");
+  await expect(shellGrid).toHaveAttribute("data-focus-mode", "false");
 
   // 3) + 4) The next two clicks repeat the SAME two states — no drift, no dead click.
   await focusToggle.click();

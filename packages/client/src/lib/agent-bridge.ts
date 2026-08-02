@@ -63,6 +63,7 @@ interface ShellSnapshot {
   readonly section: string | null;
   readonly panels: ReadonlyArray<{ side: string | null; mode: string | null }>;
   readonly chatOpen: boolean;
+  readonly focus: boolean;
 }
 
 /** Loud outcome of a `__orb.nav.*` action — `ok:true` on success, `ok:false` + a human reason on a
@@ -171,6 +172,7 @@ export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHan
       mode: p.getAttribute("data-panel-mode"),
     })),
     chatOpen: document.querySelectorAll('[role="article"]').length > 0,
+    focus: document.querySelector(".shell-grid")?.getAttribute("data-focus-mode") === "true",
   });
   const queries = (): readonly QuerySummary[] =>
     queryClient
