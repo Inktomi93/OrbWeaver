@@ -9,6 +9,7 @@ import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/cha
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatDetail } from "../contract/views";
 import { NO_HISTORY_FLOOR } from "./auth";
+import { viewerHoldsHost } from "./member-visibility";
 
 /** The projected `chats` row (metadata already parsed) — structurally the persistence `ChatRow`, which
  *  both `loadChatRow` and `listMemberChats` return. Only the fields `ChatDetail` reads. */
@@ -69,10 +70,12 @@ export function toChatDetail({
     anchorPersonaId: chat.anchorPersonaId,
     participants,
     viewerActivePersonaId: viewer?.activePersonaId ?? null,
-    // A role-derived PAYLOAD field, not a gate: this is the `member-visibility.ts::viewerReadsHidden` class
-    // (D106-F1 — consumers thread the verdict as DATA), NOT the `auth/decide.ts::permitsHost` enforcement
-    // class. Deliberately no `Principal`/`can()` here; the server gates every host-only surface separately.
-    viewerIsHost: viewer?.role === "host",
+    // A role-derived PAYLOAD field, not a gate — DERIVED from its class home (`member-visibility.ts`, the
+    // role-PROJECTION class, D106-F1: consumers thread the verdict as DATA), never the
+    // `auth/decide.ts::permitsHost` enforcement class. The import IS the cross-cite: there is one
+    // `role === "host"` comparison and this is a caller of it, not a copy. Deliberately no `Principal`/
+    // `can()` here; the server gates every host-only surface separately.
+    viewerIsHost: viewerHoldsHost(viewer),
     viewerUserId,
     pendingHostUserId: chat.pendingHostUserId,
     group: chat.metadata.group ?? DEFAULT_GROUP_CONFIG,
