@@ -4,7 +4,6 @@ import type { CreateSessionParams } from "../contract/params";
 import type { CreateSessionResult } from "../contract/results";
 import type { SessionsContext, SessionsService } from "../contract/service";
 import { insertSession } from "../persistence/sessions";
-import { mintSessionToken } from "../tokens/tokens";
 
 // Mint a revocable BFF session: a 32-byte opaque token whose peppered hash alone is persisted. Every
 // mint is a login (local route + OIDC callback funnel here), so it audits AUTH_LOGIN; admin-initiated
@@ -15,7 +14,7 @@ const SESSION_ENTITY = "session";
 
 export function createCreate(ctx: SessionsContext): Pick<SessionsService, "create"> {
   async function create(params: CreateSessionParams): Promise<CreateSessionResult> {
-    const token = mintSessionToken();
+    const token = ctx.mintToken();
     const sessionId = mintTypeId(ID_PREFIX.session);
     const now = ctx.now();
     const expiresAt = now + ctx.ttlMs;

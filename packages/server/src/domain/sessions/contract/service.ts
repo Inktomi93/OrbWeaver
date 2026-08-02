@@ -12,6 +12,10 @@ import type { CreateSessionResult, ProvisionResult, UserPrincipalFields, Validat
 export interface SessionsContext {
   db: Db;
   now: () => number;
+  /** Mint a fresh opaque session token (256 bits of CSPRNG entropy). Rides the DI seam exactly like
+   *  {@link SessionsContext.hashToken}, so `verbs/create` never reaches the `tokens/` subsystem directly
+   *  (`domain-substrate-mediates-subsystems`) and a test can substitute a deterministic mint without a cast. */
+  mintToken: () => SessionToken;
   /** The peppered token hasher, bound to `SESSION_SECRET` at the root; throws if the pepper is unset.
    *  NARROWED to `SessionToken`: the underlying `createTokenHasher` is generic (chat invites share it), but
    *  inside this domain only a branded session token may be hashed into a `sessions.token_hash` lookup key. */
