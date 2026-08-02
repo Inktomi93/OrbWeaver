@@ -21,9 +21,10 @@
 // points the SAME effective projection at the ACTIVE preset — "is what generation will use right now what
 // I want?" It is the §4.3 read pointed at a different preset id; zero new machinery.
 //
-// Every query here is already classified in the freshness map (`preset.get`, `preset.resolveEffective`,
-// `connection.resolveChatCapability`, `settings.getUserSettings`) — this panel adds no new server read,
-// which is why it carries no new freshness row (§4.4).
+// FRESHNESS (§4.4): every read this panel mounts is classified. `preset.get`, `preset.resolveEffective`,
+// `connection.resolveChatCapability`, `settings.getUserSettings` and `chat.listChats` were already covered;
+// the D8 binding adds ONE — `chat.previewActionTemplates`, which joins `promptPreviewReads` in the
+// invalidation seam (see its comment there for why that row is the right home and what it inherits).
 
 import type { PresetId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -33,11 +34,14 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { usePresetEditorView, useSelectedPresetId, useSelectedPresetSectionId } from "#state";
+import { useReadoutBinding } from "../../hooks/use-readout-binding";
 import { qualityMappingGloss } from "../../lib/effective-knobs";
 import { PRESET_EDITOR_VIEWS } from "../../lib/preset-nav";
+import { templateStoredText } from "../../lib/template-rows";
 import { ActionsReadout } from "./actions-readout";
 import { DataReadout } from "./data-readout";
 import { PromptReadout } from "./prompt-readout";
+import { ReadoutBindingChip } from "./readout-binding";
 import { CapabilityCard, EffectiveProfile } from "./readout-parts";
 import { TransformsReadout } from "./transforms-readout";
 
@@ -106,9 +110,15 @@ function ActiveProfile({
   );
 }
 
+/** WHICH views a bound chat actually changes. Membership here is a PROMISE: a view in this set resolves
+ *  something through the binding, so naming the binding above it is a statement of fact. Actions is the D8
+ *  build's consuming view; Prompt joins it with its materialized carrier rows (§7.1's other half). */
+const BINDING_VIEWS: ReadonlySet<string> = new Set(["actions"]);
+
 /** The open preset's readout, projected by the ACTIVE VIEW. */
 function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): ReactElement {
   const trpc = useTRPC();
+  const binding = useReadoutBinding();
   const view = usePresetEditorView() ?? PRESET_EDITOR_VIEWS[0]?.id;
   const selectedSectionId = useSelectedPresetSectionId();
   const preset = useQuery(trpc.preset.get.queryOptions({ id: presetId }));
@@ -125,8 +135,21 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
   }
   return (
     <Stack gap="section" padding="block">
+      {/* THE BINDING (D8 / §7.1) sits above the projected panel — the readout's own header row, exactly where
+          the mock draws it, and only on the views that CONSUME it. A chip reading "inspecting against: <chat>"
+          over the Params effective profile would be claiming a resolution that is not happening there (Params
+          is preset + capability and genuinely chat-independent) — the §7 honesty pin, inverted. Prompt joins
+          `BINDING_VIEWS` when its materialized carrier rows land. */}
+      {BINDING_VIEWS.has(view ?? "") ? <ReadoutBindingChip binding={binding} /> : null}
       {view === "prompt" ? <PromptReadout sections={config.sections} selectedSectionId={selectedSectionId} /> : null}
-      {view === "actions" ? <ActionsReadout sections={config.sections} /> : null}
+      {view === "actions" ? (
+        <ActionsReadout
+          boundChatId={binding.boundChatId}
+          presetId={presetId}
+          sections={config.sections}
+          templateText={(id): string => templateStoredText(config, id)}
+        />
+      ) : null}
       {view === "data" ? <DataReadout config={config} /> : null}
       {view === "transforms" ? <TransformsReadout config={config} /> : null}
       {view === "params" ? (

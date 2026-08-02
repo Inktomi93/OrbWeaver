@@ -25,7 +25,7 @@ import { generatePictureRequestSchema } from "@orb/contracts/imagery";
 import { choiceBlockValuesSchema, userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import { rpgStatProfileSchema } from "@orb/contracts/rpg";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
-import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageId, MessageVariantId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageId, MessageVariantId, PersonaId, PresetId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
@@ -300,6 +300,17 @@ const previewAssemblySchema = z.object({
   guided: guidedSteerSchema.optional(),
 });
 
+// `previewActionTemplates` (D8 / preset-surface-redesign §7.1) — the preset editor's BOUND readout: every
+// ACTION template of `presetId`, resolved against this chat. Host-gated (`requireHost`) INSIDE the verb
+// (matrix `previewActionTemplates: "host"` — a rendered template carries full-fidelity card bytes). The
+// `presetId` OVERRIDE is resolved owned-or-system under the HOST by the landed `presetOverride` seam, so it
+// cannot reach outside the host's library; a stranger's chatId is a leak-free NOT_FOUND before any render,
+// which is what the cross-tenant sweep classifies it PROBED for.
+const previewActionTemplatesSchema = z.object({
+  chatId: brandedId<ChatId>(),
+  presetId: brandedId<PresetId>(),
+});
+
 // `getShapeTrace` (PD-132) — the content-free SHAPE trace for the next-turn shaping of the current canon.
 // `speakerCharacterId` picks the primary speaker the peek shapes for (mirrors `peekPrompt`); host-gated
 // (`requireHost`) INSIDE the verb (matrix `getShapeTrace: "host"`).
@@ -503,6 +514,9 @@ export const chatRouter = t.router({
     .input(getVariablePicksSchema)
     .query(({ ctx, input }) => ctx.services.chat.getVariablePicks({ principal: ctx.auth, ...input })),
   previewAssembly: authedProcedure.input(previewAssemblySchema).query(({ ctx, input }) => ctx.services.chat.previewAssembly({ principal: ctx.auth, ...input })),
+  previewActionTemplates: authedProcedure
+    .input(previewActionTemplatesSchema)
+    .query(({ ctx, input }) => ctx.services.chat.previewActionTemplates({ principal: ctx.auth, ...input })),
   // The content-free SHAPE trace (PD-132) — a host/admin inspector read (`requireHost` INSIDE the verb).
   getShapeTrace: authedProcedure.input(getShapeTraceSchema).query(({ ctx, input }) => ctx.services.chat.getShapeTrace({ principal: ctx.auth, ...input })),
   previewContextFit: authedProcedure

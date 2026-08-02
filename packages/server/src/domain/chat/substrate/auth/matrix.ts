@@ -50,6 +50,11 @@ export const CHAT_VERB_AUTHORITY = {
   getMemberCard: "member-card", // D22 — read a roster character's card: present member, field-clamped to `memberCardVisibility` (host ⇒ full). The gate is `requireParticipant` (member floor) + a roster-seat check on `characterId`; the level clamp is `clampMemberCard` (clamp.ts). PROBED in the cross-tenant sweep (a stranger's chatId is NOT_FOUND before any card load). // D22 — read a roster character's card: present member, field-clamped to `memberCardVisibility` (host ⇒ full). The gate is `requireParticipant` (member floor) + a roster-seat check on `characterId`; the level clamp is `clampMemberCard` (clamp.ts). PROBED in the cross-tenant sweep (a stranger's chatId is NOT_FOUND before any card load).
   previewAssembly: "host", // the assembled prompt + TRACE is a host/admin debug surface
   getActivePresetConfig: "member", // the bare `PromptConfig` — preset TEMPLATES only, no assemble ctx is built, so no card/persona bytes can ride out
+  // D8 / §7.1 — the preset editor's BOUND readout. RENDERED against the live assemble ctx, so it lands in the
+  // same class as `previewSection` above: an action template referencing `{{charsysinfo}}`/`{{description}}`/
+  // `{{persona}}` resolves the roster's cards at FULL, which is the D22 `memberCardVisibility` bypass the whole
+  // preview family is host-gated for. RENDERED ⇒ `host`.
+  previewActionTemplates: "host",
   // SECURITY (2026-08-01, was `member` — the latent hole beside the door): `previewSection` RENDERS an
   // arbitrary preset section against the LIVE assemble ctx, and the marker sections' static sources ARE the
   // full-fidelity card (`main_prompt` ← `character.systemPrompt` + every co-speaker's; `post_history` ←

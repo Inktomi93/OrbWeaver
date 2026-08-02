@@ -33,6 +33,7 @@ import type {
   MessageId,
   MessageVariantId,
   PersonaId,
+  PresetId,
   UserId,
 } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -109,6 +110,16 @@ export interface PreviewAssemblyParams extends ChatScopedParams {
 
 /** `getActivePresetConfig` — the resolved PromptConfig the chat assembles against. */
 export interface GetActivePresetConfigParams extends ChatScopedParams {}
+
+/** `previewActionTemplates` (D8 / preset-surface-redesign §7.1) — every ACTION template of ONE preset,
+ *  resolved against THIS chat. `presetId` is the editor's OVERRIDE: assemble this room as if that preset were
+ *  active, so the preset editor can show a real resolution for a preset the chat has not adopted. It rides the
+ *  landed `ResolveForeignInputsOp.presetOverride` seam (the rpg GM-voice redirect's), which resolves
+ *  owned-or-system UNDER THE HOST and degrades to the host's own default on a stale/unowned id — so a preset
+ *  the caller does not own can never be read through a chat. */
+export interface PreviewActionTemplatesParams extends ChatScopedParams {
+  readonly presetId: PresetId;
+}
 
 /** `previewSection` — one section's render preview (the composer/editor surface). */
 export interface PreviewSectionParams extends ChatScopedParams {

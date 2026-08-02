@@ -19,6 +19,7 @@ import {
 import {
   buildTurnMacroContext as buildTurnMacroContextImpl,
   freezeVolatileMacros as freezeVolatileMacrosImpl,
+  previewActionText as previewActionTextImpl,
   renderMacros as renderMacrosImpl,
   resolveGuidedActionText as resolveGuidedActionTextImpl,
   resolveNudgeText as resolveNudgeTextImpl,
@@ -108,6 +109,13 @@ export function resolveGuidedActionText(...args: Parameters<typeof resolveGuided
  *  literal braces. The legal `verbs/ → assembly/` bridge for the impersonate/continue/response nudges. */
 export function resolveNudgeText(...args: Parameters<typeof resolveNudgeTextImpl>): ReturnType<typeof resolveNudgeTextImpl> {
   return resolveNudgeTextImpl(...args);
+}
+
+/** Render an ACTION template against a BOUND chat for DISPLAY (D8 / §7.1 — the preset readout's resolved
+ *  preview). Same resolver as a real fire, fire-time policy: `{{input}}`/`{{person}}` survive as tokens.
+ *  The legal `verbs/ → assembly/` bridge for `previewActionTemplates`. */
+export function previewActionText(...args: Parameters<typeof previewActionTextImpl>): ReturnType<typeof previewActionTextImpl> {
+  return previewActionTextImpl(...args);
 }
 
 /** Build the per-turn user-macro registries + draw record (WAVE MU delivery). The legal `verbs/ → assembly/`

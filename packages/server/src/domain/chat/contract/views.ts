@@ -25,7 +25,7 @@ import type {
   RoomOverrides,
 } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
-import type { ChoiceBlockSpec, UserMacroValues } from "@orb/contracts/preset";
+import type { ChoiceBlockSpec, TemplateDefId, UserMacroValues } from "@orb/contracts/preset";
 import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, ChatInjectionId, MessageVariantId, UserId } from "@orb/kit/ids";
@@ -211,6 +211,31 @@ export interface AssemblyPreview {
   /** The next turn's CONTEXT BUDGET, partitioned by source (D-4 — the Preview tab's stacked bar + drill-in
    *  rows). Same build, same fit, same estimator as the turn itself; `sources` partitions `totalTokens`. */
   readonly budget: AssemblyBudgetPreview;
+}
+
+/** One ACTION template resolved against a bound chat (`previewActionTemplates` — D8 / §7.1). NON-exported:
+ *  its ONE consumer is {@link ActionTemplatesPreview}, which carries it across the wire (the `matrix.ts`
+ *  idiom — a second exported name for the same row would be dead surface). */
+interface ActionTemplatePreview {
+  /** The `TEMPLATE_DEFS` row this resolution belongs to — the readout keys its rows off the SAME registry
+   *  the Actions list renders from, so a new template needs no new field here. */
+  readonly id: TemplateDefId;
+  /** The template rendered through the chat's own macro resolution: identity/chat macros REAL, the two
+   *  fire-time tokens (`{{input}}`/`{{person}}`) preserved verbatim — the §7 honesty pin's bound arm. */
+  readonly resolved: string;
+}
+
+/** The preset editor's BOUND readout payload (D8 / preset-surface-redesign §7.1): every ACTION template of
+ *  the inspected preset, resolved against the bound chat, plus the identity bindings that resolution used.
+ *
+ *  HOST-GATED like the rest of the preview family: a rendered template can carry `{{charsysinfo}}` /
+ *  `{{description}}` / `{{persona}}`, i.e. the D22 full-fidelity card bytes `previewSection` is host-gated
+ *  for. Nothing here persists — it is a dry-run render of the chat as it stands. */
+export interface ActionTemplatesPreview {
+  /** WHAT `{{user}}`/`{{char}}` resolved TO in this chat — the readout's bound gloss names the resolution
+   *  ("`{{user}}` resolves through the chat") instead of merely claiming one happened. */
+  readonly identity: { readonly user: string; readonly char: string };
+  readonly templates: readonly ActionTemplatePreview[];
 }
 
 /** One persisted positional injection (the `chat_injections` row resolved) — the `ChatInjection` wire shape

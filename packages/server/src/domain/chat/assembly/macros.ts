@@ -245,6 +245,47 @@ export function resolveNudgeText(
   });
 }
 
+// ── THE BOUND-PREVIEW ARM (preset-surface-redesign §7.1 / D8) ────────────────────────────────────────
+// The preset editor's readout, BOUND to a chat, shows what a template resolves to before it is fired. That
+// is the SAME resolver a real fire runs (`resolveGuidedInstruction`) under a different INPUT POLICY, which
+// is exactly the shape `resolveNudgeText` above already takes — a sibling arm, not a second engine.
+//
+// The policy, stated: a bound preview resolves everything the CHAT knows (`{{user}}` `{{char}}` `{{persona}}`
+// `{{description}}` the user macros — Ruling B satisfied, the chat resolves them and the editor merely
+// displays) and keeps the two FIRE-TIME tokens as TOKENS, because they have no value until the user actually
+// clicks: `{{input}}` is the steer they have not typed and `{{person}}` is the perspective they have not
+// picked. Substituting either would fabricate a resolution, which is the one thing §7's honesty pin forbids.
+//
+// MECHANISM: the fire-time pair is carried through the render as brace-free SENTINELS and restored after.
+// It cannot be done by omission — `{{input}}` resolves to `""` through the engine's own `input` option and
+// `{{person}}` is a pre-macro string replace inside the kit resolver, so "pass nothing" DELETES both rather
+// than preserving them. The sentinels are NUL-fenced: `neutralizeMacros` only touches braces (so a
+// sentinel crosses the untrusted-input defense untouched), no macro syntax can produce a NUL, and no authored
+// template can contain one (the wire is JSON text from a form field).
+const FIRE_TIME_INPUT = "\u0000orb:input\u0000";
+const FIRE_TIME_PERSON = "\u0000orb:person\u0000";
+
+/**
+ * Render a preset ACTION template against a bound chat's assemble ctx for DISPLAY (D8's bound readout).
+ * Chat-resolved macros come back real; `{{input}}`/`{{person}}` come back as themselves. Nothing persists —
+ * the caller is a dry-run preview verb.
+ *
+ * A BLANK template returns `{{input}}` alone, which is the truth: the assembler's empty-template arm ships
+ * the bare steer (`resolveGuidedInstruction`'s early return), so the preview says "your steer, unwrapped"
+ * instead of going silent.
+ */
+export function previewActionText(
+  ctx: AssembleContext,
+  template: string,
+  opts: { readonly model?: string | undefined; readonly chatId?: ChatId | undefined; readonly registry?: MacroRegistry | undefined } = {},
+): string {
+  const rendered = resolveGuidedInstruction(template, FIRE_TIME_INPUT, macroOptionsFor(ctx, ctx.activePersona, { model: opts.model, chatId: opts.chatId }), {
+    person: FIRE_TIME_PERSON,
+    ...(opts.registry !== undefined ? { registry: opts.registry } : {}),
+  });
+  return rendered.replaceAll(FIRE_TIME_INPUT, "{{input}}").replaceAll(FIRE_TIME_PERSON, "{{person}}");
+}
+
 /**
  * Build the turn-stage `MacroContext` the engine threads through regex execution + guided-instruction
  * resolution. Built once per turn and reused everywhere so live variable state stays consistent.
