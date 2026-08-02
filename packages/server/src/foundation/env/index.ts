@@ -121,8 +121,19 @@ const envSchema = z
     // when the harness boots a stack it owns; it makes `/healthz` report `harness:true` so the e2e globalSetup
     // can PROVE the origin it is about to seed is a throwaway harness stack and not the operator's dev stack
     // (tests/e2e/support/target-guard.ts). Never set in dev or prod — the stamp's whole value is that a stack a
-    // human started does NOT carry it. Read-only signal: it changes no app behavior.
+    // human started does NOT carry it.
+    // ONE behavior rides it (2026-08-03, the forced-first-run redesign): together with `DEV_SEED` it enables
+    // the default-persona seeder's AUTO-CREATE arm, so a harness stack never lands a spec on the blocking
+    // first-run persona ask. It stays a self-stamp otherwise (`/healthz`), and nothing else branches on it.
     E2E_HARNESS: z.enum(["on", "off"]).default("off"),
+    // The DEV-STACK SEED stamp — the dev twin of `E2E_HARNESS` for automation-started stacks. `on` is set by
+    // `scripts/dev/stack.sh` (host export wins, so `DEV_SEED=off pnpm stack restart` rehearses a REAL first
+    // sign-in). It enables the default-persona seeder's auto-create arm: without it every dev DB regen would
+    // greet the operator with the forced first-run persona dialog, which is exactly the constraint that kept
+    // the forced ask from shipping. Default off ⇒ a real deployment ASKS (D107's zero-personas trigger holds).
+    // Deliberately NOT a `NODE_ENV` inference: this repo's env law is explicit natures, and "is this a dev
+    // stack" is not the same question as "is this a development build".
+    DEV_SEED: z.enum(["on", "off"]).default("off"),
 
     DATABASE_URL: z.string().min(1).default("file:./data/orbweaver.db"),
     // The built client bundle (`vite build` output) the SPA registrar serves in prod. cwd-relative like

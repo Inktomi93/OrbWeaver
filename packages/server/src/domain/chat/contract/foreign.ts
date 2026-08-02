@@ -35,7 +35,10 @@ export type ChatBehaviorInputs = Pick<ChatSettings, "autoContinue" | "autoContin
 /** The resolved personas for a turn (the persona domain owns the read — FOREIGN). `anchor` is `{{user}}` for
  *  card-derived sections (the chat-open anchor — `chats.anchorPersonaId`); `active` is `{{user}}` for
  *  prompt-config / user-authored sections — the TRIGGERING human's persona (whose turn it is —
- *  `triggerPersonaId`), NOT `personaIds[0]` (the presence-order-arbitrary first present human). */
+ *  `triggerPersonaId`), NOT `personaIds[0]` (the presence-order-arbitrary first present human). Either arm
+ *  is `null` when its pointer is unset OR its owner is not a present member (the roster consent gate —
+ *  {@link ResolveForeignInputsOp}); a null anchor falls to `active` at `pinnedPersona`, which is exactly the
+ *  HEAL heal-the-pointer semantics (a departed member's pin stops pinning, and is never copied). */
 export interface ResolvedPersonas {
   readonly anchor: AssemblePersona | null;
   readonly active: AssemblePersona | null;
@@ -99,10 +102,21 @@ export const DEFAULT_CHAT_BEHAVIOR: ChatBehaviorInputs = {
  * The thin composition-root dep that resolves {@link ForeignInputs} from chat-supplied KEYS. The keys are the
  * minimum the FOREIGN reads need under the FROZEN `runAsUserId` (D19 — the host, never the caller); the resolver
  * returns RESOLVED DATA, so it touches NO chat tables (entry.md invariant 1). `anchorPersonaId` is the chat-open
- * anchor (`chats.anchorPersonaId`); `personaIds` are the present humans' active persona ids; `triggerPersonaId`
- * is the TRIGGERING human's active persona (whose turn drives this assemble) — the resolver binds `active` to
- * it (falling back to `personaIds[0]` only when the trigger has no persona), so prompt-config `{{user}}` is the
- * speaker's own persona, not the presence-order-arbitrary first human.
+ * anchor (`chats.anchorPersonaId`); `personaIds` are the present humans' active persona ids.
+ *
+ * THE PERSONA READ IS ROSTER-GATED, and chat supplies the gate. Personas are single-owned
+ * (`personas.ownerId`), but a room's assembly is a room-plane read under the frozen host — so the resolver
+ * cannot read them as any one human. `presentHumanUserIds` is the room's CONSENT SET (its present human
+ * participants, `leftSeq IS NULL`); the persona domain's principal-less roster op resolves an id only when
+ * its owner is in that set. Chat owns membership, so chat computes this — never the resolver.
+ *
+ * `triggerPersonaId` is a THREE-STATE contract (Chat-Macro-Resolution §3/§4 — the prompt-config `{{user}}`):
+ *   • a PersonaId — the TRIGGERING human's active persona (whose turn drives this assemble); `active` binds
+ *     to it, so prompt-config `{{user}}` is the speaker's own persona.
+ *   • `null` — DELIBERATELY no triggering human (a deferred drain / an automation turn): `active` binds to
+ *     the chat ANCHOR, the chat-invariant identity (D51 rider), never a presence-order-arbitrary human.
+ *   • absent/`undefined` — the trigger is unknown (a preview, a host instrument): `active` falls back
+ *     through `personaIds[0]`.
  */
 export type ResolveForeignInputsOp = (args: {
   readonly chatId: ChatId;
@@ -110,6 +124,9 @@ export type ResolveForeignInputsOp = (args: {
   readonly model: string;
   readonly anchorPersonaId: PersonaId | null;
   readonly personaIds: readonly PersonaId[];
+  /** The room's PRESENT human participants — the persona-read consent set (see above). Empty ⇒ no persona
+   *  resolves (a hostless/stale room assembles with the kit floor rather than an unscoped read). */
+  readonly presentHumanUserIds: readonly UserId[];
   readonly triggerPersonaId?: PersonaId | null | undefined;
   /** A feature-supplied GM-voice preset REDIRECT (rpg-design/02 §1.1 #1 — resolved by the caller's early
    *  `rpg.resolvePresetOverride` hop): when present, the resolver assembles THIS preset (owned-or-system under

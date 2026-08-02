@@ -19,6 +19,8 @@ import { HomePageStory } from "./_ct-stories";
 
 const ARIA = makeCharacterSummary({ id: "char_home_aria", name: "Aria Nightshade" });
 const LIST_TOGGLE_RE = /^(?:Show|Hide) list panel$/u;
+/** Any close/dismiss affordance — the forced first-run gate must offer NONE. */
+const CLOSE_AFFORDANCE_RE = /close/iu;
 
 /** The library page (`character.list` is keyset-paged: `{items, nextCursor}`). */
 const ONE_CHARACTER = { items: [ARIA], nextCursor: null };
@@ -159,4 +161,46 @@ test("the temp tile starts its room through the SHARED picker, and the draft sur
   // …and the composer draft came back with it (the EntityDraftStore scope is the draft key, which the
   // round-trip does not re-mint).
   await expect(composerInput).toHaveValue("a line I have not sent yet");
+});
+// ── THE FORCED FIRST-RUN PERSONA ASK (owner ruling 2026-08-03; D107's zero-personas trigger) ──
+// The server half (the seeder's auto-create arm is now automation-only, so a REAL first sign-in leaves the
+// library empty) is pinned at tests/server/entry/compose/assets-character.int.test.ts. THIS is the half the
+// user meets: with zero personas the gate opens, blocks the app, and offers exactly one way out — creating
+// the persona. Every other test in this file seeds `PERSONAS` precisely to keep it shut.
+
+test("zero personas: the first-run persona ask is FORCED open — no dismiss, one way out", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.listChats": [],
+    "character.list": NO_CHARACTERS,
+    "persona.list": [],
+  });
+  await mount(<HomePageStory />);
+
+  const gate = page.getByTestId(testId("firstRunPersonaDialog"));
+  await expect(gate).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Who are you in the story?" })).toBeVisible();
+
+  // FORCED: no close affordance, and Escape does not dismiss it (onOpenChange is inert by design).
+  await expect(gate.getByRole("button", { name: CLOSE_AFFORDANCE_RE })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(gate).toBeVisible();
+
+  // The one way out is disabled until the persona has a NAME (the only required field).
+  const create = page.getByTestId(testId("firstRunPersonaCreate"));
+  await expect(create).toBeDisabled();
+  await page.getByTestId(testId("firstRunPersonaName")).fill("Sarah");
+  await expect(create).toBeEnabled();
+});
+
+test("a user who owns a persona never sees the gate (the automation-seeded + returning-user arm)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.listChats": [],
+    "character.list": NO_CHARACTERS,
+    "persona.list": PERSONAS,
+  });
+  await mount(<HomePageStory />);
+
+  // The home surface renders unblocked — this is what a harness boot and every later sign-in look like.
+  await expect(page.locator('[data-home-tile="chat.recents"]')).toBeVisible();
+  await expect(page.getByTestId(testId("firstRunPersonaDialog"))).toHaveCount(0);
 });

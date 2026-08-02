@@ -459,7 +459,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveChatCapability: (args) => connection.resolveChatCapability(args),
     getContributions: getWorkloadContributions,
   });
-  const { embeddings, indexer, persona, presetCtx, preset, stats, search, discovery, notifications, workloads } = searchDiscovery;
+  const { embeddings, indexer, persona, resolvePersonasForRoster, presetCtx, preset, stats, search, discovery, notifications, workloads } = searchDiscovery;
   // PD-139(a): bind the embed-model-change → bulk purge+reindex enqueue now that `workloads` exists.
   enqueueEmbedReindex = searchDiscovery.enqueueEmbedReindex;
 
@@ -557,6 +557,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     credentials,
     character,
     persona,
+    resolvePersonasForRoster,
     preset,
     settings,
     notifications,
