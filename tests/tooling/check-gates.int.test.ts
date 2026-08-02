@@ -475,6 +475,12 @@ function writeFixtures(): void {
     "packages/server/src/domain/__g_ownerreads/persistence/__g_ownerreads.ts",
     'import { characters } from "@orb/db";\nimport { eq } from "drizzle-orm";\nexport async function gLoad(db: D, id: string) {\n  return db.select().from(characters).where(eq(characters.id, id)).limit(1);\n}\n',
   );
+  // owner-scoped-writes: a bare `eq(T.id, …)` DELETE on the (a)-class `characters` table, no owner
+  // predicate and no `@owner-scope-write-ok:` marker.
+  fx(
+    "packages/server/src/domain/__g_ownerwrites/persistence/__g_ownerwrites.ts",
+    'import { characters } from "@orb/db";\nimport { eq } from "drizzle-orm";\nexport async function gDrop(db: D, id: string) {\n  return db.delete(characters).where(eq(characters.id, id));\n}\n',
+  );
   // injected-op-caller-param: a domain contract op taking a branded entity id and returning a Promise, with
   // no caller/scope param and no CALLER_FREE_OPS row.
   fx(

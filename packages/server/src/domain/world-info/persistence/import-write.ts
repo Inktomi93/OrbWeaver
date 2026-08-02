@@ -59,6 +59,11 @@ function entryStmts(ctx: WorldInfoImportContext, worldBookId: WorldBookId, book:
 }
 
 /** @throws {@link DomainNotFoundError} when the target character isn't the caller's. */
+// @owner-scope-write-ok: `existingBookId` is not caller input — it is the PRIMARY book attached to a character
+// this function just proved the caller owns (`assertOwnedCharacter`), and every path that can create that
+// attachment gates both ends (`attachToCharacter` loads the owned book, `linkCarriedBooks` and
+// `copyCharacterBooks` both carry the owned-source `ownerId` gate). Ends the day an attach can land a book the
+// character's owner does not own — then this re-import would edit a stranger's book in place.
 export function createBulkImportLorebook(ctx: WorldInfoImportContext): BulkImportLorebook {
   return async ({ ownerId, characterId, book }): Promise<BulkImportLorebookResult> => {
     const { db } = ctx;
@@ -115,6 +120,9 @@ async function findBookByName(db: Db, ownerId: UserId, name: string): Promise<Wo
   return rows[0]?.id ?? null;
 }
 
+// @owner-scope-write-ok: `existingBookId` is resolved one line down by `findBookByName(db, ownerId, name)`, an
+// OWNER-SCOPED read — the dedup key is `(ownerId, name)`, so a book that is not the caller's is never a
+// candidate. Ends if the dedup lookup stops carrying `eq(worldBooks.ownerId, …)`.
 export function createImportStandaloneLorebook(ctx: WorldInfoImportContext): ImportStandaloneLorebook {
   return async ({ ownerId, book }): Promise<BulkImportLorebookResult> => {
     const { db } = ctx;
