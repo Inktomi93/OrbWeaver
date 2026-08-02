@@ -19,10 +19,18 @@
 // OOM, never a hang, never a silent no-op. The orphan reconcile runs FIRST so a dead engine's own core is
 // reaped as ours, never named as a foreign tenant. Every arm LOGS (the live bug was also invisible: the
 // production deps never wired a logger).
+//
+// TRACE VOCABULARY: a wake is the largest pre-dispatch latency a request can pay (~3s), so every arm also
+// annotates the active request span (`addSpanEvent`, a no-op when there is none — the supervisor's own
+// span-less calls cost nothing): `vllm.wake.start`/`vllm.wake.done` around the wake, `vllm.wake.refused`
+// {state, reason} for the hold/headroom refusal, `vllm.wake.timeout`, and `vllm.wake.coalesced` for a
+// caller that rode another request's in-flight wake (whose start/done land on THAT request's trace, so
+// without this marker its own trace shows an unexplained multi-second gap before dispatch). The awake-cache
+// hit is deliberately NOT an event — it fires on every dispatch and says nothing when normal.
 
 import process from "node:process";
 import { env } from "#foundation/env";
-import { getLog } from "#foundation/observability";
+import { addSpanEvent, getLog } from "#foundation/observability";
 import { ProviderError } from "../../contract";
 import type { VLLM_ENGINES } from "./engines";
 import { decideWake, fleetRunDir, getIsSleeping, isHeld, postWakeAndAwait } from "./fleet-control";
@@ -109,6 +117,7 @@ async function performWake(engine: VllmEngine, deps: WakeGateDeps): Promise<void
     // VRAM yet"), never something a stray turn may override — so it refuses like a headroom shortfall, but
     // names the DISTINCT state (`sleeping-held`) so the operator reads "your hold did this", not "no VRAM".
     const state = decision.heldMarker ? "sleeping-held" : "sleeping";
+    addSpanEvent("vllm.wake.refused", { engine, state, reason: decision.reason });
     deps.log?.("vllm-engines: wake refused", { engine, state, reason: decision.reason });
     throw new ProviderError({
       kind: "server",
@@ -116,15 +125,18 @@ async function performWake(engine: VllmEngine, deps: WakeGateDeps): Promise<void
       message: `vllm ${engine} engine is asleep (${state}) and cannot wake: ${decision.reason}`,
     });
   }
+  addSpanEvent("vllm.wake.start", { engine });
   deps.log?.("vllm-engines: waking on demand", { engine });
   const woke = await deps.wakeAndAwait(engine);
   if (!woke) {
+    addSpanEvent("vllm.wake.timeout", { engine });
     throw new ProviderError({
       kind: "server",
       retryable: true, // a wake that ran long once may succeed on retry (transient PCIe/scheduler pressure).
       message: `vllm ${engine} engine is asleep and waking timed out — aborted so the caller's request doesn't hang on a paused scheduler.`,
     });
   }
+  addSpanEvent("vllm.wake.done", { engine });
   deps.log?.("vllm-engines: woke on demand", { engine });
 }
 
@@ -143,6 +155,9 @@ export async function ensureAwake(engine: VllmEngine, deps: WakeGateDeps = defau
   }
   const existing = inFlight.get(engine);
   if (existing !== undefined) {
+    // This request pays the ~3s wake WITHOUT any wake event of its own (the start/done pair lands on the
+    // first caller's span) — without this marker its trace shows an unexplained 3s gap before dispatch.
+    addSpanEvent("vllm.wake.coalesced", { engine });
     await existing; // ride the in-flight wake — N callers collapse to one /wake_up.
     return;
   }

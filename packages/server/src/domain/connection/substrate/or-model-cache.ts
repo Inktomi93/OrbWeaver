@@ -14,6 +14,11 @@
 // cadence (a week ⇒ refresh has been failing every hour for 7 days straight), never a per-hour gate.
 
 import type { ModelCatalogEntry } from "@orb/contracts/connection";
+import { addSpanEvent } from "#foundation/observability";
+
+/** The `cache` attribute every span event about THIS mirror carries — one home so the warm ladder (resolve-role)
+ *  and the single-flight below can never name the same cache two ways on one timeline. */
+export const OR_MODEL_CACHE_NAME = "connection.or-catalog";
 
 const MS_PER_WEEK = 604_800_000;
 /** Stale ceiling ≥ the daily refresh cadence (DEFAULT_REFRESH_EVERY_MS = 1 day, catalog-refresh-scheduler)
@@ -51,6 +56,9 @@ let inFlightWarm: Promise<void> | null = null;
  *  warm never poisons the next attempt — the next caller retries rather than inheriting a rejected promise. */
 export async function warmOrModelCacheOnce(warm: () => Promise<void>): Promise<void> {
   if (inFlightWarm !== null) {
+    // The coalesce is the one fact only THIS frame knows: this request paid another request's fetch latency
+    // without issuing one itself. Invisible in the warm ladder's own events (its closure never runs here).
+    addSpanEvent("cache.warm.coalesced", { cache: OR_MODEL_CACHE_NAME });
     await inFlightWarm;
     return;
   }
