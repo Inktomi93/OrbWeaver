@@ -56,7 +56,19 @@ blob reshape both required it — owner's games are gone from dev, seeded-data c
   docs/reviews/stickler/2026-08-02-zod-leverage-audit.md — AWAITS OWNER READ) · **ICON SEAL** —
   weight/fill/partialFill axes, FillableIcon brand, byte-identity CT (client adoption FROZEN).
 
-**WHEN THE FREEZE LIFTS, THE RULED ORDER:** preset side-eye RE-VERIFY round (fix-rounds law) +
+**⚠ OWNER-REPORTED LIVE DEFECTS (08-02 night, post-fix-all — REAL, seen by the owner's own
+eyes; these are the FIRST work when the freeze lifts):** (1) **INFINITE RENDER on hover in the
+preset LIST, especially at the EDGE of preset names** — prime suspect: the P4 ROW_REVEAL_SWAP
+mechanism (Active badge hides ⇄ action cluster reveals on hover; if the swap moves layout, the
+hover boundary oscillates → flicker/re-render loop at the name's edge; the fix-all's
+subtitlePlacement="inline" + min-w-24 changes touched the same row geometry). Diagnose with
+React profiler / __orb.animations() + a pointer parked on the boundary; the fix must make the
+swap layout-stable (reserve the space, opacity-swap, never conditional-mount width). (2) **the
+LIST-VIEW buttons are JANK** (owner verbatim) — the reveal cluster's appearance/hit-targets;
+judge live, not from CTs. The re-verify side-eye STARTS with these two before its normal sweep.
+
+**WHEN THE FREEZE LIFTS, THE RULED ORDER:** the two owner-reported defects above → preset
+side-eye RE-VERIFY round (fix-rounds law) +
 close-out D-entry → D8 binding + Actions resolved preview (§7.1) + preset-cohort prose slots →
 R4 promotion doorway → icon-seal client adoption (F-06 bolt, tracker orbs, meters) → zod stages
 A/B/C (comment truth-repair · prettifyError · respellings) → square-glyph Button small → density
