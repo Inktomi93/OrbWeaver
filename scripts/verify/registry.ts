@@ -481,6 +481,31 @@ export const REGISTRY: readonly StageDef[] = [
       "HEURISTIC + INFORMATIONAL (`pnpm ast regkeys <registry>`) — never gates, has no exemption marker by design; dynamic dispatch makes live rows look dead, so every line needs its call sites read before anyone acts",
   },
   {
+    name: "quality:chains",
+    group: "quality",
+    // The fifth CANDIDATE lens, `manual` for the same reason as respell/swallowed/typeonly/columns PLUS one
+    // that is specific to a FIXPOINT and makes gating actively dangerous here: this lens does not evaluate
+    // declarations independently, it propagates. A single consumption edge the substrate cannot see — a
+    // registry row dispatched from a DB-sourced key, a `Trpc[…]` proxy read, a template-literal module id —
+    // does not cost one false positive, it kills that declaration AND everything reachable only through it.
+    // One blind spot, a whole false subtree. Gating on that would train agents to delete live code in bulk,
+    // which is strictly worse than the rot the lens exists to find.
+    //
+    // It also, uniquely, has NO exemption marker of its own — deliberately, and the absence is the design
+    // (owner-ratified 2026-08-03). Every chain terminates at an UNCONSUMED HEAD, which is an `orphans`
+    // candidate already governed two-sided by the push-tier `deps:orphan-ratchet` and its `/** @public
+    // <reason> */` tag. This lens READS that same tag (through the ratchet's own predicate, one home in
+    // scripts/codemods/ast.ts) as an alive root, so tagging or wiring or deleting the head resolves every
+    // link below it by construction. A per-link `@chain-ok:` would let somebody exempt a middle link while
+    // its head stayed dead — an exemption stating nothing true, which is the one thing an exemption may
+    // never be. FIX AT THE HEAD is the whole grammar.
+    tiers: ["manual"],
+    argv: ["pnpm", "check:chains"],
+    classify: asViolations,
+    manualReason:
+      "CANDIDATE lens (`pnpm ast chains <scope>`) — a FIXPOINT: one consumption edge the substrate cannot see kills a whole subtree in the report, so verify the call sites before acting, and fix at the chain's HEAD (wire/delete/`@public` it), never per link",
+  },
+  {
     name: "tests:coverage",
     group: "tests",
     tiers: ["manual"],
