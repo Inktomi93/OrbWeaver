@@ -58,6 +58,7 @@ The sanctioned `Principal`/credential construction + cookie sites — everything
 
 - `entry/auth/seam.ts` — the mint (all three request paths: cookie via `sessions.validate` → header SSO upsert → origin-gated owner fallback) + the frozen-host bridge.
 - `entry/http/auth-routes.ts` — the `__Host-orb_session` cookie WRITE side (mints session tokens via `domain/sessions`; never re-implements resolution).
+- `entry/app.ts` — the SLIDE's `Set-Cookie` writer: the per-request auth middleware re-issues the SAME token `sessions.validate` just accepted with a fresh max-age. It never mints, and re-issuing a second copy read independently would silently log the caller out — the token it writes must be the one the seam authenticated.
 - `entry/boot/seed-owner.ts` — the one-time boot-only `role=owner` backfill for `OWNER_HANDLES` (the chicken-egg: no owner `Principal` exists at boot to call the guarded `admin.setRole`).
 - `entry/compose/role-clients.ts` — mints a synthetic owner `Principal` to bind the boot-time role-clients bundle.
 - `entry/lifecycle.ts` — mints a synthetic owner `Principal` for the boot-seed steps (default preset/characters/persona).
