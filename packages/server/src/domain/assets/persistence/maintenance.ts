@@ -10,13 +10,21 @@ import type { Db } from "@orb/db";
 import { assets, characters } from "@orb/db";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
 // File-local read shape (not exported — types-in-contract): one index row's `(id, hash)`, the pair a per-owner
 // CAS sweep needs to answer "does this blob have a row, and which asset is it?".
 interface AssetRowRef {
   readonly id: AssetId;
   readonly hash: string;
+}
+
+// File-local: one staged character the avatar backfill may re-pair. `importHash` is NOT NULL by the query's
+// own predicate, but the column is nullable — the caller re-narrows it before the CAS probe.
+interface AvatarBackfillCandidate {
+  readonly id: CharacterId;
+  readonly ownerId: UserId;
+  readonly importHash: string | null;
 }
 
 /** Every `(id, hash)` index row for ONE owner (the sweep partition — GC/fsck/rebuild each walk this owner's
@@ -37,6 +45,19 @@ export async function listAssetOwners(db: Db): Promise<UserId[]> {
  *  missing blob. The caller has already proven the asset is unreferenced. */
 export async function deleteAssetRow(db: Db, assetId: AssetId): Promise<void> {
   await db.delete(assets).where(eq(assets.id, assetId));
+}
+
+/** The GATHER half of the avatar backfill: staged character rows the relink could re-pair — a recorded
+ *  card (`importHash`) but no linked avatar. `ownerId === null` is the admin-wide sweep; otherwise
+ *  owner-scoped in the WHERE. Lives HERE, beside the `batchLinkAvatars` write it feeds: `characters` is
+ *  CHARACTER's table, so an assets-side read of it belongs in assets' db-access slot, never in the
+ *  workload-contribution seam that consumes it (Tier-1-DB.md §"Cross-tier composition"; `own-tables-only`). */
+export async function loadAvatarBackfillCandidates(db: Db, ownerId: UserId | null): Promise<AvatarBackfillCandidate[]> {
+  const scope =
+    ownerId === null
+      ? and(isNull(characters.avatarAssetId), isNotNull(characters.importHash))
+      : and(eq(characters.ownerId, ownerId), isNull(characters.avatarAssetId), isNotNull(characters.importHash));
+  return await db.select({ id: characters.id, ownerId: characters.ownerId, importHash: characters.importHash }).from(characters).where(scope);
 }
 
 /** Batch-write `avatarAssetId` back onto owned character rows (the `backfillAvatars` relink) — ONE

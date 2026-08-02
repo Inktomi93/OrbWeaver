@@ -5,7 +5,8 @@
 // fill audits. Defends the import path — `createEntry` requires a non-empty title, so blanks come from
 // legacy/ST-imported rows.
 
-import { batchMany, worldEntries } from "@orb/db";
+import { worldEntries } from "@orb/db";
+import { batchMany } from "@orb/db/kit";
 import { eq } from "drizzle-orm";
 import type { WorldInfoContext } from "../../context";
 import { WorldInfoNotFoundError } from "../../contract/errors";

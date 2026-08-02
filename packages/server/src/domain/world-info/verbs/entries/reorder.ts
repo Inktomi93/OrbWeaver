@@ -4,7 +4,8 @@
 // preserved); entries in the book but absent from the list keep their existing priority. Position i →
 // `priority = N - i` (position 0 → highest = N, last → 1; always positive + distinct). One atomic batch.
 
-import { batchMany, worldEntries } from "@orb/db";
+import { worldEntries } from "@orb/db";
+import { batchMany } from "@orb/db/kit";
 import { eq } from "drizzle-orm";
 import type { WorldInfoContext } from "../../context";
 import { WorldInfoNotFoundError } from "../../contract/errors";

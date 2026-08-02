@@ -7,7 +7,8 @@
 // UPDATE, no id/clock.
 
 import type { BatchStmt, Db } from "@orb/db";
-import { batchMany, digestThemeAssignments, messages } from "@orb/db";
+import { digestThemeAssignments, messages } from "@orb/db";
+import { batchMany } from "@orb/db/kit";
 import type { ChatDigestId, ChatId, UserId } from "@orb/kit/ids";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { Tier0RangeOp } from "../contract/service";

@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-08-02
 ---
 
 # Orbweaver — `@orb/db`: the schema floor (drizzle + libSQL + migrations)
@@ -27,11 +27,16 @@ A consumer-named schema file hides its real producer (the port-from-neo antipatt
 
 ## Cross-tier composition (who reads `db`)
 
-`@orb/db`'s declared deps are only `kit` + `contracts` — a `db→server` import is impossible at resolve-time. Three sanctioned consumer patterns, all downward:
+`@orb/db`'s declared deps are only `kit` + `contracts` — a `db→server` import is impossible at resolve-time. **The line is OWNERSHIP, not slot**: a domain touches the tables IT owns, and reaches another domain's DATA through an injected op (AGENTS §2 — cross-feature dependency is never a sideways import). Ownership is read off the schema layout: `schema/<feature>.ts` belongs to `domain/<feature>/` (producer-names-the-schema, above), with the non-domain producers mapped by the `db-structure` gate.
 
-1. **Server persistence** — each domain's `persistence/` + `context.ts` closes over the `Db` handle and touches only its own tables. A verb never imports `@orb/db`; only `persistence/` does.
-2. **The sanctioned bulk-serializer** — `import` + `export` share one serde core that reads schema tables directly (bulk serializers, not CRUD callers — `Spine-Config-and-Serialization.md`). Same posture as `search`/`discovery` on the vector tables (bulk read-only).
-3. **The read-only-join ("pool.ts") pattern** — a domain owning a *view* of another domain's junction may read that junction directly (e.g. character list reading `character_tags + tags`), as long as the read is ownership-safe.
+Four sanctioned consumer patterns, all downward:
+
+1. **A verb writes its own domain's tables directly** via drizzle — `domain/chat/verbs/` writing `chats`/`messages` is the architecture working, not a leak. (This supersedes the former "a verb never imports `@orb/db`; only `persistence/` does": that sentence was never true — verbs imported tables before it was written, 69 verb files do it today, and it contradicted patterns 2–3 five lines below it.)
+2. **`persistence/` holds the reusable READ helpers and the cross-domain OWNERSHIP CHECKS** — the domain's db-access slot, and the ONE place a cross-domain read belongs (`persona/persistence/queries.ts`'s `ensureCharacterOwned`/`loadOwnedCharacterCard`: read the owner predicate in the WHERE, collapse foreign-or-absent to one not-found error). A verb needing another domain's row chains a `persistence/` helper — it does not open the table itself.
+3. **The bulk serializers / analytics read foreign tables directly, by design** — `import` + `export` share one serde core that reads schema tables directly (bulk serializers, not CRUD callers — `Spine-Config-and-Serialization.md`); `search` and `discovery` hold the same bulk read-only posture (discovery computes themes/duplicates/hubness BY reading other domains' rows). READ-only: `import` writes six domains' canon and imports `@orb/db` **zero** times — every write routes through the owning domain's own `persistence/import-write.ts`.
+4. **The read-only-join ("pool.ts") pattern** — a domain owning a *view* of another domain's junction may read that junction directly (`chat/assembly/world-info/pool.ts` over the world-info book junctions; character list reading `character_tags + tags`), as long as the read is ownership-safe. A **shared polymorphic junction gets ONE write seam**: the five entity↔tag junctions are written through `tag/persistence/junctions.ts`, never re-spelled per owning domain.
+
+Enforcement: the `own-tables-only` gate makes the ownership half structural — outside `persistence/`, a domain-side value import of a foreign table from `@orb/db` is RED (the type-only row import is always legal — §7.4), and a foreign table in an `insert`/`update`/`delete` position is RED unconditionally: no class exemption buys a foreign WRITE. Its table→domain map is DERIVED from the schema files; patterns 3–4 are its cited `BULK_READERS` / `FILE_ALLOWLIST` rows, each with a both-ways stale ratchet. `no-direct-users-read` and `discovery-no-stats-rollups` are the two narrower table-symbol seals that predate it.
 
 `@orb/client` never depends on `@orb/db`; `infra` is a sealed executor and never reads the schema.
 
@@ -64,4 +69,5 @@ A consumer-named schema file hides its real producer (the port-from-neo antipatt
 2. **Producer names the schema file; the barrel re-exports every file.** *(`db-structure` gate.)*
 3. **The DB row is the one home for column shapes; no wire schema in `db`.** *(`types-in-contract` / `no-inline-types`; `schema-branding` pins the `$type<>` brands.)*
 4. **All five primary vector tables (character\_embeddings · image\_embeddings · chat\_digests · chat\_segments · document\_chunks, the last producer FK `documents.id`, owner derives via `documents.ownerId`) carry `content_hash` (staleness gate, NOT NULL) and `hub_score` (advisory `real`, written only by discovery via `embeddings.writeHubScores`, never nulled by a vector write).** *(compile-time DDL; `StoreParams` has no `hubScore`/`ownerId` field — D20.)*
-5. **`@orb/db/kit` holds only drizzle-typed primitives** — they would fail `kit-purity` in `@orb/kit`. *(lint + resolve-time.)*
+5. **`@orb/db/kit` holds only drizzle-typed primitives** — they would fail `kit-purity` in `@orb/kit`. *(lint + resolve-time.)* `@orb/db/kit` is also their documented IMPORT PATH: the top barrel re-exports them for the single-import case, but a consumer names `@orb/db/kit`.
+6. **A domain touches only the tables it OWNS; cross-domain data comes from an injected op, and a cross-domain READ lives in `persistence/`.** *(`own-tables-only` gate outside `persistence/`, with the derived schema→domain ownership map; `no-direct-users-read` + `discovery-no-stats-rollups` for the two narrower table seals.)*
