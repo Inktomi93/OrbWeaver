@@ -95,6 +95,13 @@ don't write memory yourself.
 - `git -C <your-worktree>` on EVERY git call (cwd silently resets/dies across notification boundaries).
 - Commit with PATHSPEC (`git commit -m … -- <paths>`); lane-unique scratchpad filenames; verify your own
   commits with `git show --stat` before reporting; `git status --short` empty before READY.
+  **NEW files must be `git add`ed first — a pathspec commit silently drops untracked files** (a lane
+  shipped a fix without its brand-new proving CT this way; check for residual `??` lines after).
+- **ONE COMMIT per lane (owner law, 2026-08-03): all your work lands as a SINGLE commit at READY.**
+  Intermediate checkpoints only when the orchestrator orders a pause. The message is TERSE — subject
+  + a few what/why body lines, drafted in SECONDS (an agent was observed drafting a commit message
+  for fifteen minutes; that is banned). Receipts, tables, and narrative belong in your FINAL REPORT
+  to the orchestrator, never in the commit message.
 - Your own `git merge main` runs `-c core.hooksPath=/dev/null` (the `-c` goes BEFORE the subcommand),
   then re-run gates manually. The orchestrator's merges keep the hook.
 - **Verification floor** (scoped green is NOT done): your suites + scoped tsc + biome/eslint PLUS
