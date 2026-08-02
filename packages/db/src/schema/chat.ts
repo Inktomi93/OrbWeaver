@@ -162,6 +162,10 @@ export const chats = sqliteTable(
   (t) => [
     // The lineage walk (membership-gated per ancestor — D18); also speeds the fork-children listing.
     index("chats_parent_idx").on(t.parentChatId),
+    // SQLite auto-indexes NOTHING for a child FK: every `DELETE FROM personas/users` must scan this table to
+    // apply the SET NULL unless the referencing column LEADS an index (`fk-columns-indexed` gate).
+    index("chats_anchor_persona_idx").on(t.anchorPersonaId),
+    index("chats_pending_host_idx").on(t.pendingHostUserId),
   ],
 );
 
@@ -252,6 +256,13 @@ export const messages = sqliteTable(
   (t) => [
     // The canon order + the lifecycle-horizon lookup; seq is unique within a chat.
     uniqueIndex("messages_chat_seq_unique").on(t.chatId, t.seq),
+    // The four attribution/selection FKs. SQLite auto-indexes nothing for a child FK, so without these a
+    // user/character/persona/variant delete scans the whole (largest) table to apply its SET NULL, and the
+    // attribution reads ("this character's lines") scan too (`fk-columns-indexed` gate).
+    index("messages_author_user_idx").on(t.authorUserId),
+    index("messages_character_idx").on(t.characterId),
+    index("messages_persona_idx").on(t.personaId),
+    index("messages_selected_variant_idx").on(t.selectedVariantId),
     check("messages_role_check", sql.raw(`role in (${checkList(MESSAGE_ROLES)})`)),
     check("messages_initiator_check", sql.raw(`initiator in (${checkList(TURN_INITIATORS)})`)),
     // The STRUCTURAL attribution shape (see the table header) — born-whole, the `chat_participants`
@@ -351,6 +362,9 @@ export const messageVariants = sqliteTable(
   (t) => [
     // The swipe set + its position; idx is unique within a message.
     uniqueIndex("message_variants_message_idx_unique").on(t.messageId, t.idx),
+    // The context-boundary self-FK: a message delete must find the variants pointing AT it to apply its
+    // rule, and SQLite auto-indexes no child FK (`fk-columns-indexed` gate).
+    index("message_variants_context_boundary_idx").on(t.contextBoundaryMessageId),
   ],
 );
 
@@ -384,6 +398,9 @@ export const messageAssets = sqliteTable(
   (t) => [
     // The per-message lookup ("what did this message attach?") + the CASCADE parent index.
     index("message_assets_message_idx").on(t.messageId),
+    // The OTHER cascade parent: an asset delete (the only way this link dies — `assetId` is RETAINING in
+    // asset-refs.ts) scans every row without this (`fk-columns-indexed` gate).
+    index("message_assets_asset_idx").on(t.assetId),
   ],
 );
 
@@ -448,6 +465,11 @@ export const chatParticipants = sqliteTable(
     // unique nor `chat_participants_chat_idx` serves it — it table-scanned. House convention: every queried
     // characterId FK is indexed (chat_digest_speakers/gallery_items precedents).
     index("chat_participants_character_idx").on(t.characterId),
+    // `userId` LEADING: the (chatId,userId) unique cannot serve either user-keyed path — "list my chats" is
+    // pure membership (D18) and a user hard-delete cascades these rows — and SQLite only uses an index whose
+    // LEFTMOST column is the one constrained (`fk-columns-indexed` gate).
+    index("chat_participants_user_idx").on(t.userId),
+    index("chat_participants_active_persona_idx").on(t.activePersonaId),
     // The per-kind SHAPE CHECK (D60; agent-principal-design/02 §1) — born at creation to REPLACE the 2-way
     // actor XOR once `agent` returns (userId-backed AND AI-driven — the bit a plain XOR can't carry). Only the
     // `human`/`character` arms are LIVE post-rollback (2026-07-25 purge); the `agent`/`observer` arms are
@@ -498,6 +520,9 @@ export const chatInvites = sqliteTable(
   (t) => [
     uniqueIndex("chat_invites_token_hash_unique").on(t.tokenHash),
     index("chat_invites_chat_idx").on(t.chatId),
+    // The targeted-invite FK: a user delete SET-NULLs these rows, and "my pending invites" reads by it
+    // (`fk-columns-indexed` gate).
+    index("chat_invites_invited_user_idx").on(t.invitedUserId),
     check("chat_invites_status_check", sql.raw(`status in (${checkList(INVITE_STATUSES)})`)),
   ],
 );
@@ -528,7 +553,13 @@ export const pendingTurns = sqliteTable(
       .references(() => users.id, { onDelete: "cascade" }),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  (t) => [index("pending_turns_chat_idx").on(t.chatId)],
+  (t) => [
+    index("pending_turns_chat_idx").on(t.chatId),
+    // Both turn-identity FKs CASCADE on user delete; SQLite auto-indexes neither, so a user hard-delete
+    // would scan the whole table twice (`fk-columns-indexed` gate).
+    index("pending_turns_triggered_by_idx").on(t.triggeredBy),
+    index("pending_turns_run_as_user_idx").on(t.runAsUserId),
+  ],
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -593,6 +624,9 @@ export const chatStreamEvents = sqliteTable(
   },
   (t) => [
     uniqueIndex("chat_stream_events_chat_seq_unique").on(t.chatId, t.seq),
+    // The message CASCADE parent + the `loadStreamEvents` innerJoin on `messages.id` (queries.ts) — both
+    // scan without it, and SQLite auto-indexes no child FK (`fk-columns-indexed` gate).
+    index("chat_stream_events_message_idx").on(t.messageId),
     check("chat_stream_events_kind_check", sql.raw(`kind in (${checkList(STREAM_DELTA_KINDS)})`)),
   ],
 );

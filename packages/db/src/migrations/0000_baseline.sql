@@ -48,6 +48,7 @@ CREATE TABLE `automation_fires` (
 );
 --> statement-breakpoint
 CREATE INDEX `automation_fires_rule_time` ON `automation_fires` (`rule_id`,`fired_at`);--> statement-breakpoint
+CREATE INDEX `automation_fires_chat_idx` ON `automation_fires` (`chat_id`);--> statement-breakpoint
 CREATE TABLE `automation_rules` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text NOT NULL,
@@ -76,6 +77,7 @@ CREATE TABLE `automation_rules` (
 );
 --> statement-breakpoint
 CREATE INDEX `automation_rules_chat_enabled` ON `automation_rules` (`chat_id`,`enabled`,`trigger_type`);--> statement-breakpoint
+CREATE INDEX `automation_rules_owner_idx` ON `automation_rules` (`owner_id`);--> statement-breakpoint
 CREATE TABLE `global_variables` (
 	`owner_id` text NOT NULL,
 	`key` text NOT NULL,
@@ -150,6 +152,7 @@ CREATE TABLE `characters` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `characters_owner_handle_unique` ON `characters` (`owner_id`,`handle`);--> statement-breakpoint
 CREATE INDEX `characters_owner_idx` ON `characters` (`owner_id`);--> statement-breakpoint
+CREATE INDEX `characters_avatar_asset_idx` ON `characters` (`avatar_asset_id`);--> statement-breakpoint
 CREATE TABLE `chat_events` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,
@@ -194,6 +197,7 @@ CREATE TABLE `chat_invites` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `chat_invites_token_hash_unique` ON `chat_invites` (`token_hash`);--> statement-breakpoint
 CREATE INDEX `chat_invites_chat_idx` ON `chat_invites` (`chat_id`);--> statement-breakpoint
+CREATE INDEX `chat_invites_invited_user_idx` ON `chat_invites` (`invited_user_id`);--> statement-breakpoint
 CREATE TABLE `chat_locks` (
 	`chat_id` text PRIMARY KEY NOT NULL,
 	`holder` text NOT NULL,
@@ -229,6 +233,8 @@ CREATE TABLE `chat_participants` (
 CREATE UNIQUE INDEX `chat_participants_chat_user_unique` ON `chat_participants` (`chat_id`,`user_id`);--> statement-breakpoint
 CREATE INDEX `chat_participants_chat_idx` ON `chat_participants` (`chat_id`);--> statement-breakpoint
 CREATE INDEX `chat_participants_character_idx` ON `chat_participants` (`character_id`);--> statement-breakpoint
+CREATE INDEX `chat_participants_user_idx` ON `chat_participants` (`user_id`);--> statement-breakpoint
+CREATE INDEX `chat_participants_active_persona_idx` ON `chat_participants` (`active_persona_id`);--> statement-breakpoint
 CREATE TABLE `chat_stream_events` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,
@@ -243,6 +249,7 @@ CREATE TABLE `chat_stream_events` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `chat_stream_events_chat_seq_unique` ON `chat_stream_events` (`chat_id`,`seq`);--> statement-breakpoint
+CREATE INDEX `chat_stream_events_message_idx` ON `chat_stream_events` (`message_id`);--> statement-breakpoint
 CREATE TABLE `chats` (
 	`id` text PRIMARY KEY NOT NULL,
 	`title` text,
@@ -270,6 +277,8 @@ CREATE TABLE `chats` (
 );
 --> statement-breakpoint
 CREATE INDEX `chats_parent_idx` ON `chats` (`parent_chat_id`);--> statement-breakpoint
+CREATE INDEX `chats_anchor_persona_idx` ON `chats` (`anchor_persona_id`);--> statement-breakpoint
+CREATE INDEX `chats_pending_host_idx` ON `chats` (`pending_host_user_id`);--> statement-breakpoint
 CREATE TABLE `message_assets` (
 	`id` text PRIMARY KEY NOT NULL,
 	`message_id` text NOT NULL,
@@ -280,6 +289,7 @@ CREATE TABLE `message_assets` (
 );
 --> statement-breakpoint
 CREATE INDEX `message_assets_message_idx` ON `message_assets` (`message_id`);--> statement-breakpoint
+CREATE INDEX `message_assets_asset_idx` ON `message_assets` (`asset_id`);--> statement-breakpoint
 CREATE TABLE `message_variants` (
 	`id` text PRIMARY KEY NOT NULL,
 	`message_id` text NOT NULL,
@@ -323,6 +333,7 @@ CREATE TABLE `message_variants` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `message_variants_message_idx_unique` ON `message_variants` (`message_id`,`idx`);--> statement-breakpoint
+CREATE INDEX `message_variants_context_boundary_idx` ON `message_variants` (`context_boundary_message_id`);--> statement-breakpoint
 CREATE TABLE `messages` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,
@@ -348,6 +359,10 @@ CREATE TABLE `messages` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `messages_chat_seq_unique` ON `messages` (`chat_id`,`seq`);--> statement-breakpoint
+CREATE INDEX `messages_author_user_idx` ON `messages` (`author_user_id`);--> statement-breakpoint
+CREATE INDEX `messages_character_idx` ON `messages` (`character_id`);--> statement-breakpoint
+CREATE INDEX `messages_persona_idx` ON `messages` (`persona_id`);--> statement-breakpoint
+CREATE INDEX `messages_selected_variant_idx` ON `messages` (`selected_variant_id`);--> statement-breakpoint
 CREATE TABLE `pending_turns` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,
@@ -360,6 +375,8 @@ CREATE TABLE `pending_turns` (
 );
 --> statement-breakpoint
 CREATE INDEX `pending_turns_chat_idx` ON `pending_turns` (`chat_id`);--> statement-breakpoint
+CREATE INDEX `pending_turns_triggered_by_idx` ON `pending_turns` (`triggered_by`);--> statement-breakpoint
+CREATE INDEX `pending_turns_run_as_user_idx` ON `pending_turns` (`run_as_user_id`);--> statement-breakpoint
 CREATE TABLE `user_credentials` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text NOT NULL,
@@ -417,6 +434,7 @@ CREATE TABLE `documents` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `documents_owner_hash_unique` ON `documents` (`owner_id`,`import_hash`);--> statement-breakpoint
+CREATE INDEX `documents_source_asset_idx` ON `documents` (`source_asset_id`);--> statement-breakpoint
 CREATE TABLE `global_documents` (
 	`owner_id` text NOT NULL,
 	`document_id` text NOT NULL,
@@ -568,6 +586,7 @@ CREATE TABLE `chat_digests` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `chat_digests_scope_unique` ON `chat_digests` (`chat_id`,`scoped_character_id`,`tier`,`block_idx`,`model`);--> statement-breakpoint
 CREATE INDEX `chat_digests_chat_idx` ON `chat_digests` (`chat_id`);--> statement-breakpoint
+CREATE INDEX `chat_digests_scoped_character_idx` ON `chat_digests` (`scoped_character_id`);--> statement-breakpoint
 CREATE TABLE `chat_segments` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,
@@ -651,6 +670,8 @@ CREATE TABLE `imagery_generations` (
 );
 --> statement-breakpoint
 CREATE INDEX `imagery_generations_reuse_idx` ON `imagery_generations` (`subject_character_id`,`mode`,`identity_hash`);--> statement-breakpoint
+CREATE INDEX `imagery_generations_asset_idx` ON `imagery_generations` (`asset_id`);--> statement-breakpoint
+CREATE INDEX `imagery_generations_chat_idx` ON `imagery_generations` (`chat_id`);--> statement-breakpoint
 CREATE TABLE `notifications` (
 	`id` text PRIMARY KEY NOT NULL,
 	`recipient_user_id` text NOT NULL,
@@ -681,6 +702,7 @@ CREATE TABLE `personas` (
 );
 --> statement-breakpoint
 CREATE INDEX `personas_owner_idx` ON `personas` (`owner_id`);--> statement-breakpoint
+CREATE INDEX `personas_avatar_asset_idx` ON `personas` (`avatar_asset_id`);--> statement-breakpoint
 CREATE TABLE `plugin_kv` (
 	`plugin_id` text NOT NULL,
 	`owner_id` text NOT NULL,
@@ -694,6 +716,7 @@ CREATE TABLE `plugin_kv` (
 	CONSTRAINT "plugin_kv_value_check" CHECK(length(value) <= 65536)
 );
 --> statement-breakpoint
+CREATE INDEX `plugin_kv_owner_idx` ON `plugin_kv` (`owner_id`);--> statement-breakpoint
 CREATE TABLE `plugins` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text NOT NULL,
@@ -716,6 +739,7 @@ CREATE TABLE `plugins` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `plugins_owner_slug_unique` ON `plugins` (`owner_id`,`slug`);--> statement-breakpoint
+CREATE INDEX `plugins_bundle_asset_idx` ON `plugins` (`bundle_asset_id`);--> statement-breakpoint
 CREATE TABLE `presets` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text,
@@ -732,6 +756,7 @@ CREATE TABLE `presets` (
 --> statement-breakpoint
 CREATE INDEX `presets_owner_idx` ON `presets` (`owner_id`);--> statement-breakpoint
 CREATE INDEX `presets_owner_forked_from_idx` ON `presets` (`owner_id`,`forked_from`);--> statement-breakpoint
+CREATE INDEX `presets_forked_from_idx` ON `presets` (`forked_from`);--> statement-breakpoint
 CREATE TABLE `rate_limit_buckets` (
 	`key` text PRIMARY KEY NOT NULL,
 	`count` integer DEFAULT 0 NOT NULL,
@@ -751,6 +776,7 @@ CREATE TABLE `rpg_checkpoints` (
 );
 --> statement-breakpoint
 CREATE INDEX `rpg_checkpoints_game_idx` ON `rpg_checkpoints` (`game_id`);--> statement-breakpoint
+CREATE INDEX `rpg_checkpoints_snapshot_idx` ON `rpg_checkpoints` (`snapshot_id`);--> statement-breakpoint
 CREATE TABLE `rpg_games` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,
@@ -770,6 +796,8 @@ CREATE TABLE `rpg_games` (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `rpg_games_chat_unique` ON `rpg_games` (`chat_id`);--> statement-breakpoint
+CREATE INDEX `rpg_games_gm_user_idx` ON `rpg_games` (`gm_user_id`);--> statement-breakpoint
+CREATE INDEX `rpg_games_gm_preset_idx` ON `rpg_games` (`gm_preset_id`);--> statement-breakpoint
 CREATE TABLE `rpg_journal` (
 	`id` text PRIMARY KEY NOT NULL,
 	`game_id` text NOT NULL,
@@ -787,6 +815,8 @@ CREATE TABLE `rpg_journal` (
 );
 --> statement-breakpoint
 CREATE INDEX `rpg_journal_game_variant_idx` ON `rpg_journal` (`game_id`,`variant_id`);--> statement-breakpoint
+CREATE INDEX `rpg_journal_variant_idx` ON `rpg_journal` (`variant_id`);--> statement-breakpoint
+CREATE INDEX `rpg_journal_source_message_idx` ON `rpg_journal` (`source_message_id`);--> statement-breakpoint
 CREATE TABLE `rpg_sheets` (
 	`id` text PRIMARY KEY NOT NULL,
 	`game_id` text NOT NULL,
@@ -803,6 +833,8 @@ CREATE TABLE `rpg_sheets` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `rpg_sheets_game_character_unique` ON `rpg_sheets` (`game_id`,`character_id`);--> statement-breakpoint
 CREATE UNIQUE INDEX `rpg_sheets_game_user_unique` ON `rpg_sheets` (`game_id`,`user_id`);--> statement-breakpoint
+CREATE INDEX `rpg_sheets_character_idx` ON `rpg_sheets` (`character_id`);--> statement-breakpoint
+CREATE INDEX `rpg_sheets_user_idx` ON `rpg_sheets` (`user_id`);--> statement-breakpoint
 CREATE TABLE `rpg_snapshots` (
 	`id` text PRIMARY KEY NOT NULL,
 	`game_id` text NOT NULL,
@@ -828,6 +860,7 @@ CREATE TABLE `rpg_snapshots` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `rpg_snapshots_variant_unique` ON `rpg_snapshots` (`variant_id`);--> statement-breakpoint
 CREATE INDEX `rpg_snapshots_game_idx` ON `rpg_snapshots` (`game_id`);--> statement-breakpoint
+CREATE INDEX `rpg_snapshots_message_idx` ON `rpg_snapshots` (`message_id`);--> statement-breakpoint
 CREATE TABLE `session_entries` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,
@@ -1020,6 +1053,7 @@ CREATE TABLE `chat_tags` (
 );
 --> statement-breakpoint
 CREATE INDEX `chat_tags_tag_idx` ON `chat_tags` (`tag_id`);--> statement-breakpoint
+CREATE INDEX `chat_tags_owner_idx` ON `chat_tags` (`owner_id`);--> statement-breakpoint
 CREATE TABLE `persona_tags` (
 	`persona_id` text NOT NULL,
 	`tag_id` text NOT NULL,
@@ -1089,6 +1123,7 @@ CREATE TABLE `users` (
 CREATE UNIQUE INDEX `users_handle_unique` ON `users` (`handle`);--> statement-breakpoint
 CREATE UNIQUE INDEX `users_external_id_unique` ON `users` (`external_id`) WHERE "users"."external_id" is not null;--> statement-breakpoint
 CREATE UNIQUE INDEX `users_single_owner_unique` ON `users` (`role`) WHERE "users"."role" = 'owner';--> statement-breakpoint
+CREATE INDEX `users_owner_user_idx` ON `users` (`owner_user_id`);--> statement-breakpoint
 CREATE TABLE `workload_schedules` (
 	`id` text PRIMARY KEY NOT NULL,
 	`owner_id` text NOT NULL,
@@ -1107,6 +1142,7 @@ CREATE TABLE `workload_schedules` (
 	CONSTRAINT "workload_schedules_cadence_check" CHECK(cadence in ('hourly', 'daily', 'weekly', 'monthly'))
 );
 --> statement-breakpoint
+CREATE INDEX `workload_schedules_owner_idx` ON `workload_schedules` (`owner_id`);--> statement-breakpoint
 CREATE TABLE `workloads` (
 	`id` text PRIMARY KEY NOT NULL,
 	`kind` text NOT NULL,
@@ -1133,6 +1169,7 @@ CREATE TABLE `workloads` (
 --> statement-breakpoint
 CREATE UNIQUE INDEX `workloads_mode_active_singular` ON `workloads` (`kind`,`owner_id`,`source`) WHERE status in ('queued', 'running', 'cancelling') and mode = 'singular';--> statement-breakpoint
 CREATE UNIQUE INDEX `workloads_mode_active_bulk` ON `workloads` (`kind`,`source`) WHERE status in ('queued', 'running', 'cancelling') and mode = 'bulk';--> statement-breakpoint
+CREATE INDEX `workloads_owner_idx` ON `workloads` (`owner_id`);--> statement-breakpoint
 CREATE TABLE `character_books` (
 	`character_id` text NOT NULL,
 	`world_book_id` text NOT NULL,

@@ -147,6 +147,33 @@ function writeFixtures(): void {
   );
   // db-structure: a schema file NOT re-exported from the barrel schema/index.ts.
   fx("packages/db/src/schema/__g_orphan.ts", "export const gOrphan = 1;\n");
+  // fk-columns-indexed: an FK column that leads NO index. Isolated on purpose — it states its onDelete and
+  // declares its PK, so only this gate's arm is the deliberate fire.
+  fx(
+    "packages/db/src/schema/__g_fkidx.ts",
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+      'export const gFkIdx = sqliteTable("g_fk_idx", {\n' +
+      '  id: text("id").primaryKey(),\n' +
+      '  ownerId: text("owner_id").references(() => gFkIdx.id, { onDelete: "cascade" }),\n' +
+      "});\n",
+  );
+  // fk-ondelete-stated: a `.references()` with no deletion policy (the silent NO ACTION default). The FK
+  // leads its own index and the table has a PK, so the two sibling gates stay quiet on this fixture.
+  fx(
+    "packages/db/src/schema/__g_fkdel.ts",
+    'import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+      'export const gFkDel = sqliteTable(\n  "g_fk_del",\n  {\n' +
+      '    id: text("id").primaryKey(),\n' +
+      '    ownerId: text("owner_id").references(() => gFkDel.id),\n' +
+      "  },\n" +
+      '  (t) => [index("g_fk_del_owner_idx").on(t.ownerId)],\n);\n',
+  );
+  // table-explicit-primary-key: a keyless table (the hidden-rowid fallback). No FK at all, so the two FK
+  // gates have nothing to say about it.
+  fx(
+    "packages/db/src/schema/__g_nopk.ts",
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gNoPk = sqliteTable("g_no_pk", { label: text("label") });\n',
+  );
   // baseline-single-migration: an extra migration .sql alongside 0000_baseline.sql (the
   // squash-not-incremental law) — real migrations/ dir already exists, this just adds a stray file.
   fx("packages/db/src/migrations/__g_0001_fake.sql", "-- fake incremental migration\n");

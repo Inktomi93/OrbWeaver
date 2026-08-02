@@ -14,8 +14,10 @@
 // target is the `characterId` unique index.
 
 import type { ApplyStatsDelta, StatsDelta } from "@orb/contracts/stats";
-import type { BatchStmt, Db } from "@orb/db";
-import { batchStmt, characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
+import type { Db } from "@orb/db";
+import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchStmt } from "@orb/db/kit";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 

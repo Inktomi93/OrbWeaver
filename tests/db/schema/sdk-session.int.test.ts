@@ -7,7 +7,8 @@
 // resume-handle UNIQUE.
 
 import type { Db } from "@orb/db";
-import { chats, isConstraintViolation, sessionEntries } from "@orb/db";
+import { chats, sessionEntries } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { ChatId, SessionEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

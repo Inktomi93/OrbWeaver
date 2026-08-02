@@ -20,11 +20,11 @@ import {
   digestThemeAssignments,
   duplicateCharacterPairs,
   duplicateChatPairs,
-  isConstraintViolation,
   keywordCooccurrence,
   themeClusters,
   users,
 } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type {
   CharacterId,
   CharacterKeywordProfileId,

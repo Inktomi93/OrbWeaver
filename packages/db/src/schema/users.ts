@@ -17,7 +17,7 @@ import { USER_KINDS, USER_ROLES } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
-import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 // The default global role for a freshly-provisioned user (owner/admin are granted explicitly — D17).
 const DEFAULT_ROLE = "user";
@@ -69,6 +69,10 @@ export const users = sqliteTable(
     // refuses to grant/revoke owner, so the only writers are boot `seed-owner` + SSO `provisionIdentity`
     // (both under the single-owner OWNER_HANDLES default) — this index is the DDL floor beneath them.
     uniqueIndex("users_single_owner_unique").on(table.role).where(sql`${table.role} = 'owner'`),
+    // The agent-principal self-FK's CASCADE parent scan (D60: an owner hard-delete deletes their agent
+    // rows) + "list my agents". SQLite auto-indexes no child FK, self-referential included
+    // (`fk-columns-indexed` gate).
+    index("users_owner_user_idx").on(table.ownerUserId),
     check("users_role_check", sql.raw(`role in (${ROLE_CHECK_LIST})`)),
     check("users_kind_check", sql.raw(`kind in (${KIND_CHECK_LIST})`)),
     // The structural no-login core (agent-principal-design/01 §1/§3.1): an agent is loginless (no

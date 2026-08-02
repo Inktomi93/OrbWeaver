@@ -129,6 +129,9 @@ test("the static tier is EXACTLY the known ordered stage set (the pre-commit `pn
     // The db-baseline parity stage (2026-08-02): the committed squashed baseline vs the live schema.
     // Promoted from a push-only int test after two baseline-regen misses shipped and sat ~10h.
     "structure:db-baseline",
+    // drizzle-kit's own journal/snapshot-chain validator (2026-08-02): near-no-op against the single
+    // squashed baseline, ARMED for the first post-launch incremental migration (Tier-1-DB.md).
+    "structure:drizzle-kit",
     "structure:full",
     "imports:depcruise",
     "deps:knip",
@@ -293,6 +296,8 @@ test("types:testd + types:tests-* + browser:e2e* + tests:parity are whole-only (
     "tests:execution-membership",
     // The whole schema module vs the ONE committed baseline — no partial-file form exists.
     "structure:db-baseline",
+    // The ONE migrations dir's journal/snapshot chain — likewise no partial-file form.
+    "structure:drizzle-kit",
     // browser:ct is NOT here since 2026-07-17 — it gained a scopedArgv (the CT view mirror-mapping). The
     // e2e suites stay whole-only (cross-cutting by nature).
     "browser:e2e-smoke",
