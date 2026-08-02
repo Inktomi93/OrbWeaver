@@ -7,8 +7,6 @@ import type { Principal } from "@orb/contracts/identity";
 import type { CreateRegexScriptInput, UpdateRegexScriptInput } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PresetId, RegexScriptId } from "@orb/kit/ids";
 
-export type { CreateRegexScriptInput, UpdateRegexScriptInput } from "@orb/contracts/regex";
-
 interface RegexActorParams {
   readonly principal: Principal;
 }

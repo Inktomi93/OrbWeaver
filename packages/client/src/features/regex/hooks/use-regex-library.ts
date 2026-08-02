@@ -27,12 +27,6 @@ export const useRemoveRegexScript = createEntityMutation<{ readonly scriptId: Re
   errorToast: "Couldn't delete that regex script.",
 });
 
-export const useDuplicateRegexScript = createEntityMutation<{ readonly scriptId: RegexScriptId }, RegexScriptRow>({
-  options: (trpc) => trpc.regex.duplicateScript.mutationOptions(),
-  busDriven: true,
-  errorToast: "Couldn't duplicate that regex script.",
-});
-
 export const useAttachRegexGlobal = createEntityMutation<{ readonly scriptId: RegexScriptId }, void>({
   options: (trpc) => trpc.regex.attachGlobal.mutationOptions(),
   busDriven: true,
