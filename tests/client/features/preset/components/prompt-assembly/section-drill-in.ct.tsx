@@ -167,9 +167,7 @@ test("the main-prompt GHOST fits its own box — the second-person address claus
   const probe = await mount(<MainPromptStory />);
   await probe.getByRole("button", { name: "Edit Main prompt" }).click();
 
-  // `MacroTextarea` plays `role="combobox"` on the textarea itself (it owns the `{{macro}}` popup), so the
-  // body field is NOT a `textbox` — the same reason the drill's other fields are matched by their own roles.
-  const template = probe.getByRole("combobox", { name: "Template" });
+  const template = probe.getByRole("textbox", { name: "Template" });
   const fit = await template.evaluate((area: HTMLTextAreaElement) => ({
     overflow: area.scrollHeight - area.clientHeight,
     // The ghost is what is actually on screen — pin that it IS the factory default, not an empty box.
