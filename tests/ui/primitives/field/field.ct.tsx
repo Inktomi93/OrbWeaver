@@ -74,6 +74,37 @@ test("the hint accname fix holds in the horizontal orientation too", async ({ mo
   await expect(page.getByRole("button", { name: "More info about Display name" })).toBeVisible();
 });
 
+// THE HINT COSTS NO VERTICAL SPACE — the prop's own documented contract (field.tsx: "surfaced as an
+// info-icon hover tooltip beside the label (no vertical-space cost)"), and it was false: the trigger was a
+// `size="icon"` Button (a full `--spacing-control-md` box), so a hinted label row stood 16px taller than a
+// plain one and every side-by-side pair of a hinted and an unhinted field sheared — the preset drill-ins'
+// DELIVERY row (crunch item 10, owner-reported live). Only computed geometry can see it.
+test("a hinted label row is the SAME height as a plain one, so a hinted/plain pair does not shear", async ({ mount, page }) => {
+  await mount(
+    <>
+      <Field label="Role">
+        <Input />
+      </Field>
+      <Field hint="0 = the tail" label="At depth">
+        <Input />
+      </Field>
+    </>,
+  );
+  const box = async (locator: ReturnType<typeof page.locator>): Promise<{ height: number }> => {
+    const rect = await locator.boundingBox();
+    if (rect === null) {
+      throw new Error("expected a rendered box");
+    }
+    return { height: Math.round(rect.height) };
+  };
+  const plain = await box(page.getByText("Role", { exact: true }));
+  const hinted = await box(page.getByText("At depth", { exact: true }).locator(".."));
+  expect(hinted.height).toBe(plain.height);
+  // The trigger is still a real, hoverable control — shrinking the box must not cost the affordance.
+  await page.getByRole("button", { name: "More info about At depth" }).hover();
+  await expect(page.getByText("0 = the tail")).toBeVisible();
+});
+
 test("two hinted fields on one surface get DISTINCT hint-trigger accnames", async ({ mount, page }) => {
   await mount(
     <>
