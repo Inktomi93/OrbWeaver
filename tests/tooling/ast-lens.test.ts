@@ -132,6 +132,95 @@ export const worldInfoRouter = t.router({
   });
 });
 
+// ── liveness identity: an ALIAS must never fork an export's liveness key ──────────────────────
+// The false-orphan class (2026-08-02): a barrel that RENAMES on re-export (`export { createCreate as
+// createCreateBook }`) made consumption key on the alias while the orphan candidate keyed on the
+// origin's own name — 15 wired verbs reported dead. The format-agnostic proof: consuming an export
+// DIRECTLY from its origin and consuming it through an aliasing barrel must land the SAME key (that
+// direct-import key is, by construction, the one the orphans/testonly/clientgap candidate side uses).
+
+const ALIAS_ORIGIN = `
+export function createCreate() { return 1; }
+export function createRemove() { return 2; }
+export default () => 3;
+`;
+
+const ALIAS_BARREL = `
+export { createCreate as createCreateBook, createRemove as createRemoveBook } from "./create";
+export { default as makeThing } from "./create";
+`;
+
+/** The direct-from-origin consumer (client bucket) — the reference identity for every alias hop. */
+const ALIAS_DIRECT_CONSUMER = `
+import makeThing, { createCreate, createRemove } from "../../../../server/src/domain/wi/verbs/create";
+export const direct = [createCreate, createRemove, makeThing];
+`;
+
+const ALIAS_FILES = {
+  "packages/server/src/domain/wi/verbs/create.ts": ALIAS_ORIGIN,
+  "packages/server/src/domain/wi/verbs/index.ts": ALIAS_BARREL,
+  "packages/client/src/features/wi/direct.ts": ALIAS_DIRECT_CONSUMER,
+};
+
+/** Every liveness key whose declaration lives in `fileFragment`, sorted — separator/format agnostic. */
+function keysIn(bucket: Set<string>, fileFragment: string): string[] {
+  return [...bucket].filter((k) => k.includes(fileFragment)).sort(byString);
+}
+
+const ORIGIN_FRAGMENT = "/domain/wi/verbs/create.ts";
+
+describe("ast liveness identity (aliased re-exports)", () => {
+  test("a RENAMING barrel's named import keys to the same identity as a direct origin import", () => {
+    const project = projectOf({
+      ...ALIAS_FILES,
+      // Consumes all three exports through the barrel, every one of them under an ALIAS.
+      "packages/server/src/domain/wi/service.ts": `
+        import { createCreateBook, createRemoveBook, makeThing } from "./verbs/index";
+        export const wired = [createCreateBook, createRemoveBook, makeThing];
+      `,
+    });
+
+    const live = buildLiveness(project);
+    const direct = keysIn(live.usedClientProd, ORIGIN_FRAGMENT);
+    const viaBarrel = keysIn(live.usedServerProd, ORIGIN_FRAGMENT);
+
+    // All three origin exports are reached both ways, and the alias hop does not fork the identity.
+    expect(direct).toHaveLength(3);
+    expect(viaBarrel).toEqual(direct);
+    // …and the three stay DISTINCT (a file-only key would "fix" the mismatch by making every export
+    // of a consumed file look alive — that is a false-negative, not a fix).
+    expect(new Set(viaBarrel).size).toBe(3);
+  });
+
+  test("a namespace import over a RENAMING barrel keys to the same identity as a direct origin import", () => {
+    const project = projectOf({
+      ...ALIAS_FILES,
+      "packages/server/src/domain/wi/service.ts": `
+        import * as verbs from "./verbs/index";
+        export const wired = [verbs.createCreateBook, verbs.createRemoveBook, verbs.makeThing];
+      `,
+    });
+
+    const live = buildLiveness(project);
+    // markModuleAlive keeps a namespaced module's WHOLE export surface alive — through the aliases.
+    expect(keysIn(live.usedServerProd, ORIGIN_FRAGMENT)).toEqual(keysIn(live.usedClientProd, ORIGIN_FRAGMENT));
+  });
+
+  test("a star-chained barrel above a RENAMING barrel keeps the same identity", () => {
+    const project = projectOf({
+      ...ALIAS_FILES,
+      "packages/server/src/domain/wi/index.ts": 'export * from "./verbs/index";',
+      "packages/server/src/domain/wi/service.ts": `
+        import { createCreateBook, createRemoveBook, makeThing } from "./index";
+        export const wired = [createCreateBook, createRemoveBook, makeThing];
+      `,
+    });
+
+    const live = buildLiveness(project);
+    expect(keysIn(live.usedServerProd, ORIGIN_FRAGMENT)).toEqual(keysIn(live.usedClientProd, ORIGIN_FRAGMENT));
+  });
+});
+
 describe("ast clientgap lens (liveness split)", () => {
   test("splits prod consumption into client vs server buckets by importing package", () => {
     const project = projectOf({
@@ -145,18 +234,22 @@ describe("ast clientgap lens (liveness split)", () => {
         'import type { WiredView } from "../../../../contracts/src/thing/index"; export const x: WiredView | null = null;',
       "packages/server/src/domain/thing/service.ts":
         'import type { OrphanView } from "../../../../contracts/src/thing/index"; export const y: OrphanView | null = null;',
+      // A test-path consumer of WiredView — pins WHICH shape the client key belongs to without the
+      // test knowing the key's format (keys are declaration identities, not names).
+      "tests/thing/view.test.ts": 'import type { WiredView } from "../../packages/contracts/src/thing/index"; export const z: WiredView | null = null;',
     });
 
     const live = buildLiveness(project);
-    // originKey is `<declFile><NUL><name>` — match by name suffix + file substring to stay separator-agnostic.
-    const has = (bucket: Set<string>, name: string): boolean => [...bucket].some((k) => k.endsWith(name) && k.includes("/thing/index.ts"));
+    const contractKeys = (bucket: Set<string>): string[] => keysIn(bucket, "/thing/index.ts");
 
-    // WiredView is client-consumed (positive: NOT a gap); OrphanView is server-only (the clientgap hit).
-    expect(has(live.usedClientProd, "WiredView")).toBe(true);
-    expect(has(live.usedServerProd, "OrphanView")).toBe(true);
-    expect(has(live.usedClientProd, "OrphanView")).toBe(false);
-    // The union stays correct for orphans/testonly/prodonly (both live in usedProd).
-    expect(has(live.usedProd, "WiredView")).toBe(true);
-    expect(has(live.usedProd, "OrphanView")).toBe(true);
+    // Exactly one shape per bucket, and they are DIFFERENT shapes (per-symbol granularity holds).
+    expect(contractKeys(live.usedClientProd)).toHaveLength(1);
+    expect(contractKeys(live.usedServerProd)).toHaveLength(1);
+    expect(contractKeys(live.usedClientProd)).not.toEqual(contractKeys(live.usedServerProd));
+    // The client-consumed shape is WiredView — the test path imports WiredView by name and lands the
+    // same identity; OrphanView (server-only) is the clientgap hit.
+    expect(contractKeys(live.usedTest)).toEqual(contractKeys(live.usedClientProd));
+    // The union stays correct for orphans/testonly/prodonly (both shapes live in usedProd).
+    expect(contractKeys(live.usedProd).sort(byString)).toEqual([...contractKeys(live.usedClientProd), ...contractKeys(live.usedServerProd)].sort(byString));
   });
 });
