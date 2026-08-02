@@ -281,6 +281,9 @@ function buildCannedRpgWithText(args: {
     // A throwaway registry — the real graph already registered rpg's tools into `app.toolUse`; re-registering
     // would collide (boot-fatal). These tests exercise the state ROUNDS, not the tool handlers.
     toolUse: { register: () => undefined },
+    // R4 promotion deps — these tests exercise state rounds, never the mint; loud if ever reached.
+    character: { create: () => Promise.reject(new Error("unused: promotion not exercised")), findByHandle: () => Promise.resolve(null) },
+    chat: { addCharacterToChat: () => Promise.reject(new Error("unused: promotion not exercised")) },
   });
 }
 
@@ -787,6 +790,9 @@ function buildRpgWithCapability(app: ServicesResult, db: Db, capability: ModelCa
     resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
     resolvePresetOwned: () => Promise.resolve(false),
     toolUse: { register: () => undefined },
+    // R4 promotion deps — these tests exercise state rounds, never the mint; loud if ever reached.
+    character: { create: () => Promise.reject(new Error("unused: promotion not exercised")), findByHandle: () => Promise.resolve(null) },
+    chat: { addCharacterToChat: () => Promise.reject(new Error("unused: promotion not exercised")) },
   });
 }
 
@@ -837,6 +843,9 @@ function buildRpgWithThrowingResolveChat(app: ServicesResult, db: Db, err: unkno
     resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
     resolvePresetOwned: () => Promise.resolve(false),
     toolUse: { register: () => undefined },
+    // R4 promotion deps — these tests exercise state rounds, never the mint; loud if ever reached.
+    character: { create: () => Promise.reject(new Error("unused: promotion not exercised")), findByHandle: () => Promise.resolve(null) },
+    chat: { addCharacterToChat: () => Promise.reject(new Error("unused: promotion not exercised")) },
   });
 }
 
@@ -1794,6 +1803,9 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
     resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
     resolvePresetOwned: () => Promise.resolve(false),
     toolUse: { register: () => undefined },
+    // R4 promotion deps — these tests exercise state rounds, never the mint; loud if ever reached.
+    character: { create: () => Promise.reject(new Error("unused: promotion not exercised")), findByHandle: () => Promise.resolve(null) },
+    chat: { addCharacterToChat: () => Promise.reject(new Error("unused: promotion not exercised")) },
   });
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
 

@@ -155,7 +155,7 @@ test("a NAME the chat roster already carries is REFUSED as data — no card, no 
   expect(fakes.promoteMints).toHaveLength(0);
   expect(fakes.narratorPosts).toHaveLength(slotsBefore);
   const after = await resolveSnapshotForTurn(db, { id: game.id, chatId });
-  expect(after?.actorState.map((a) => (a.actorRef.kind === "cast" ? a.actorRef.castKey : ""))).toEqual(["vesna"]);
+  expect(after?.actorState?.map((a) => (a.actorRef.kind === "cast" ? a.actorRef.castKey : ""))).toEqual(["vesna"]);
 });
 
 test("promoting an actor the game does not track is ERRORS-AS-DATA — the mint never runs", async () => {
@@ -177,8 +177,8 @@ test("a durable-half refusal (an exhausted card handle) leaves the actor exactly
   expect(refused.ok === false && refused.reason).toContain("character library");
 
   const after = await resolveSnapshotForTurn(db, { id: game.id, chatId });
-  expect(after?.actorState[0]?.actorRef).toEqual(VESNA);
-  expect(after?.actorState[0]?.identity?.name).toBe("Sister Vesna");
+  expect(after?.actorState?.[0]?.actorRef).toEqual(VESNA);
+  expect(after?.actorState?.[0]?.identity?.name).toBe("Sister Vesna");
   expect(after?.presentCharacters).toEqual(["cast:vesna"]);
 });
 
@@ -200,5 +200,5 @@ test("a promoted character is a normal roster actor afterwards: hand ops reach h
   expect(refused.ok === false && refused.reason).toContain("carries no identity of its own");
 
   const after = await resolveSnapshotForTurn(db, { id: game.id, chatId });
-  expect(after?.actorState[0]?.volatile.status).toBe("healed");
+  expect(after?.actorState?.[0]?.volatile.status).toBe("healed");
 });
