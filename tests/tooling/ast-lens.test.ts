@@ -5,7 +5,14 @@
 
 import { Project } from "ts-morph";
 import { describe } from "vitest";
-import { buildLiveness, collectClientConsumed, collectServerProcedures, isUnwiredExempt } from "../../scripts/codemods/ast.ts";
+import {
+  buildLiveness,
+  collectClientConsumed,
+  collectOrphanCandidates,
+  collectServerProcedures,
+  isProdConsumed,
+  isUnwiredExempt,
+} from "../../scripts/codemods/ast.ts";
 import { expect, test } from "../support/fixtures.ts";
 
 const ROOT = "/repo";
@@ -218,6 +225,46 @@ describe("ast liveness identity (aliased re-exports)", () => {
 
     const live = buildLiveness(project);
     expect(keysIn(live.usedServerProd, ORIGIN_FRAGMENT)).toEqual(keysIn(live.usedClientProd, ORIGIN_FRAGMENT));
+  });
+});
+
+// ── the orphan-candidate substrate (shared by `pnpm ast orphans` and the push-tier ratchet) ──────
+// The ratchet (scripts/verify/orphan-export-ratchet.ts) judges EXACTLY this candidate set, so the two can
+// never disagree about what an orphan is. Two properties are load-bearing for it: star-suppressed
+// candidates are FLAGGED as suppressed (never silently dropped, never ratcheted), and `isProdConsumed`
+// answers the stale-`@public` question on the same declaration identity the candidate side keys on.
+
+describe("ast orphan-candidate substrate", () => {
+  test("names star-suppressed candidates separately, and marks prod-consumed origins alive", () => {
+    const project = projectOf({
+      // `rot` is reached by nobody; `live` is imported by a prod file. Both live under a file the barrel
+      // re-exports with `export *`, so both are STAR-SUPPRESSED candidates.
+      "packages/contracts/src/thing/shapes.ts": "export interface RotShape { a: number; }\nexport interface LiveShape { b: number; }\n",
+      "packages/contracts/src/thing/index.ts": 'export * from "./shapes";',
+      // A shape NOT under any star re-export — the plain orphan the ratchet actually pins.
+      "packages/contracts/src/thing/solo.ts": "export interface SoloRot { c: number; }\n",
+      "packages/server/src/domain/thing/service.ts":
+        'import type { LiveShape } from "../../../../contracts/src/thing/shapes"; export const y: LiveShape | null = null;',
+    });
+
+    const live = buildLiveness(project);
+    const candidates = collectOrphanCandidates(project, live, (fp) => fp.includes("/packages/contracts/src/"));
+    const named = (suppressed: boolean): string[] =>
+      candidates
+        .filter((c) => c.starSuppressed === suppressed)
+        .map((c) => c.name)
+        .sort(byString);
+
+    // The consumed shape is NOT a candidate at all; the star-suppressed rot is NAMED as suppressed (per
+    // symbol — the grain the ratchet needs to refuse to judge it); the unsuppressed rot stands alone.
+    expect(named(true)).toEqual(["RotShape"]);
+    expect(named(false)).toEqual(["SoloRot"]);
+
+    // `isProdConsumed` reads the SAME identity: true for the imported shape, false for the rot beside it.
+    const shapes = project.getSourceFileOrThrow(`${ROOT}/packages/contracts/src/thing/shapes.ts`);
+    const declOf = (name: string): Parameters<typeof isProdConsumed>[1] => shapes.getInterfaceOrThrow(name);
+    expect(isProdConsumed(live, declOf("LiveShape"))).toBe(true);
+    expect(isProdConsumed(live, declOf("RotShape"))).toBe(false);
   });
 });
 

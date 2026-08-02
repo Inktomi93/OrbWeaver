@@ -41,19 +41,36 @@ export async function resolveMember(ctx: RpgContext, principal: Principal, chatI
   return { game, role: membership.role };
 }
 
+/** THE host comparison — rpg's ONE privilege-comparison site (the `two-class-role-authority` gate's cited
+ *  chokepoint for this domain; chat's is `can()`/`permitsHost`). `reason` is the refusal SENTENCE, because
+ *  that is the only thing the six verbs that used to re-spell `role !== "host"` inline actually needed:
+ *  `patchActor` says "…to hand-edit an actor", `promoteActor` says "…to promote an actor to the roster".
+ *  Taking the sentence as an argument collapses seven comparisons to one with byte-identical refusals
+ *  (pinned: tests/server/domain/rpg/authority.suite.int.test.ts).
+ *
+ *  A verb that has already resolved its membership (`resolveMember`, or the direct `ctx.getMembership` read
+ *  the two game-lifecycle verbs must do) calls THIS; a verb that needs the game row too calls
+ *  {@link resolveHost}. Neither routes through `can()`: `RpgContext` carries no `can` seam, so unifying rpg
+ *  onto the chat spine's `can()` is a compose-seam change, queued as its own item — not something a verb
+ *  may improvise around by comparing the role itself. */
+export function assertHostRole(role: ParticipantRole, reason: string): void {
+  if (role !== "host") {
+    throw new DomainForbiddenError(reason);
+  }
+}
+
 /** Resolve the HOST floor for a shared-plane write. A member reaching a host-only plane is FORBIDDEN (not
  *  not-found — they are a present member, so the chat's existence is already theirs to know; only the action
  *  is gated). A non-member still collapses to leak-free not-found. */
 export async function resolveHost(ctx: RpgContext, principal: Principal, chatId: ChatId): Promise<RpgAuthorized> {
   const authorized = await resolveMember(ctx, principal, chatId);
-  if (authorized.role !== "host") {
-    throw new DomainForbiddenError("host authority required");
-  }
+  assertHostRole(authorized.role, "host authority required");
   return authorized;
 }
 
 /** A member's self-write check: the target actor ref must be the caller's OWN `user` ref. A host bypasses this
- *  (it holds every plane). Throws `DomainForbidden` on a foreign/non-user ref for a member. */
+ *  (it holds every plane). Throws `DomainForbidden` on a foreign/non-user ref for a member. The host arm is a
+ *  BYPASS, not a gate (it grants, never denies), so it is the one comparison here that is not an assert. */
 export function assertOwnUserRef(role: ParticipantRole, principal: Principal, ref: RpgActorRef): void {
   if (role === "host") {
     return;

@@ -110,7 +110,7 @@ static is the born-compliant TEST-FREE commit gate. The honest containment for t
 | - | - | - |
 | `changed` | the scoped inner loop: lint/types(per-owner)/structure/imports/docs over the changed set + vitest `--changed` related tests | fast iteration; `verify --changed` |
 | `static` | biome + eslint + tsc×5 (`types:packages`/`graph`/`testd`/`tests-dom`/`tests-membership`) + `tests:execution-membership` + `structure:db-baseline` + `structure:full` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
-| `push` | static + `tests:node` (vitest projects AND the CT suite) + `browser:e2e-smoke` | pre-push bar; `verify --push` |
+| `push` | static + `tests:node` (vitest projects AND the CT suite) + `browser:e2e-smoke` + `deps:orphan-ratchet` (the export-rot ratchet — whole-graph liveness, too slow for the commit bar) | pre-push bar; `verify --push` |
 | `full` | push + `quality:cpd` + `browser:e2e` + `tests:parity` + `quality:mutation-gate` + `deps:knip-prod` (the production-strict kept-alive-only-by-tests lens — full-tier during the buildout, promotes post-buildout) | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
 
 The static tier is EXACTLY the ordered set `lint:biome, lint:eslint, types:packages, types:graph,
@@ -237,6 +237,18 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   it (latest: the `schema_version` DEFAULT 5→6 drift). The comparison is in-process via `drizzle-kit/api`
   (\~1s, no stack, no db file) — it was wired too LATE, not too heavy — and it is the SAME comparator
   `tests/tooling/schema-baseline-parity.int.test.ts` calls (one home, two callers).
+- **`deps:orphan-ratchet`** (`push`/`full` — `scripts/verify/orphan-export-ratchet.ts`) — the export-rot
+  lens as a standing verdict: every export of `kit`/`contracts`/`db`/`server`/`client` that NOTHING reaches
+  (prod or test) and that is unused in its own file, judged against a checked-in baseline
+  (`scripts/verify/orphan-export-ratchet.baseline.json` — the tree the 2026-08-03 sweep left, one row per
+  deliberately-undecided export). Both directions RED: a NEW orphan, and a baseline row that is no longer
+  one (consumed / tagged / deleted ⇒ remove the row). It shares the `pnpm ast orphans` substrate
+  (`collectOrphanCandidates`) rather than re-deriving liveness. **It cannot lean on `deps:knip`** — probe-
+  verified: the package `exports` maps already make these subpaths public API to knip, so knip flags none of
+  them and its `tags: ["-@public"]` exemption never fires; this stage therefore reads
+  `/** @public <reason> */` itself (a bare tag with no reason does NOT exempt). `packages/ui` is exempt as a
+  whole (`ui-package-design.md` R2 — a sealed surface exists to be available), and star-suppressed
+  candidates are reported but never ratcheted (an `export *` chain may hide a namespace consumer).
 
 ## 4. Hook + CI wiring
 

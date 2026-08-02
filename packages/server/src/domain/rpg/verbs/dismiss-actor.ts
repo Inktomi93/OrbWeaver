@@ -18,19 +18,16 @@
 // rather than reporting a write that removed nothing.
 
 import { actorRefKey, rpgActorLockBase } from "@orb/contracts/rpg";
-import { DomainForbiddenError } from "@orb/kit/errors";
 import type { DismissActorParams } from "../contract/params";
 import type { HandDoorResult } from "../contract/results";
 import type { RpgContext, RpgService } from "../contract/service";
-import { resolveMember } from "../guard";
+import { assertHostRole, resolveMember } from "../guard";
 import { writeHandState } from "../snapshot-edit";
 
 export function createDismissActor(ctx: RpgContext): Pick<RpgService, "dismissActor"> {
   async function dismissActor(params: DismissActorParams): Promise<HandDoorResult> {
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
-    if (role !== "host") {
-      throw new DomainForbiddenError("host authority required to dismiss an actor");
-    }
+    assertHostRole(role, "host authority required to dismiss an actor");
     const ref = params.targetRef;
     const targetKey = actorRefKey(ref);
     const lockBase = rpgActorLockBase(ref);
