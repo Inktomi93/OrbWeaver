@@ -31,6 +31,26 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 PUSH NEEDS ITS OWN WORD). Six-lane cap stands (owner). Board-only commits = `--no-verify`
 (owner word). Dev db DROPS on next stack boot (DBG baseline regen) — expected, reseeds via latch.
 
+**PUSH BATTERY VERDICT (owner: "see the carnage"):** 9,677 tests + e2e smoke + all 15
+structural stages GREEN; exactly TWO reds, both TODAY'S landing debris caught by TODAY'S gates —
+(1) the orphan-ratchet's FIRST push-tier catch: chatUnavailableCauseSchema orphaned by SM2's
+demotion → DELETED per the ratchet's own fix text (never baselined) · (2) chat-component-
+presence: message-wire-trigger needed its coveredBy waiver (variant-wire-viewer.ct). BOTH FIXED
++ committed, both stages re-run green individually. **PUSH-READY pending one clean full re-run**
+(cheap successor confirm) — then the owner's push word ships ~80 commits.
+**PERSONA REVIEW DELIVERED + ALL 5 FORKS OWNER-RULED (recommended arms):**
+docs/reviews/stickler/2026-08-03-persona-model.md — model COHERENT single-human (ground truth =
+FINAL-Persona PART A's worked examples + Chat-Macro-Resolution's five-context table); defect
+class = ONE KEYHOLE (multi-human under a single host principal). RULED: (1) resolution widens
+via persona-domain factory op gated on the owner's PRESENT membership · (2) member descriptions
+enter the shared prompt unconditionally · (3) explicit-null trigger binds the ANCHOR · (4)
+seeder auto-creates ONLY under E2E_HARNESS/DEV_SEED, forced dialog on real first sign-in ·
+(5) rpg linkage parked. R0-R4 program QUEUED (multi-human arms ADDED to the sacred suite,
+never editing existing; one ceremony D-entry — CERD gets the membership-consent clause as
+verbatim input). F7 = MY MEMORY was wrong (persona-pin file corrected: the persona marker
+renders ACTIVE not anchor; the anchor governs CARD context). The half-remembered macro FOUND
+(card-context {{persona}} = the anchor's whole description, pinned). Traveler clause verified
+template-homed; ST comparison says keep our wording.
 **CHAIN fork RULED:** NO fifth exemption marker — chain heads are orphan candidates under the
 ratified @public + ratchet stale arm; exemption lives at the HEAD (mid-chain exemption states
 nothing true); chains reads @public roots as alive. Scope EXTENDED one file: the @public reader
