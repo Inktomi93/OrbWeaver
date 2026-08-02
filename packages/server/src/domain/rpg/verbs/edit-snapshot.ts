@@ -42,7 +42,7 @@ export function createEditSnapshot(ctx: RpgContext): Pick<RpgService, "editSnaps
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
     // The member-own-actor volatile arm is deferred (the per-actor sub-field lock grammar is unfixed — see the
     // file header); v1 gates editSnapshot host-only. The doorway is kept: a member gets a FORBIDDEN, not a lie.
-    assertHostRole(role, "host authority required to hand-edit the snapshot");
+    assertHostRole(ctx.can, params.principal, role, "host authority required to hand-edit the snapshot");
     // Gate 1 — plane legality, in two arms. The reason NAMES the writable planes: the caller is a hand (a host
     // at a keyboard, a console, an agent seed), and a refusal that doesn't say what IS writable just moves the
     // guess. The OP-SHAPED arm goes further and names the verb that owns the plane, because "actorState is not

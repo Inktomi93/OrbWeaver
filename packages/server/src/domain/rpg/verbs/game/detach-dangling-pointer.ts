@@ -30,7 +30,7 @@ export function createDetachDanglingPointer(ctx: RpgContext): Pick<RpgService, "
       return notFoundGame(params.chatId);
     }
     // A present non-host member reaching a host-only heal is FORBIDDEN (they legitimately know the chat exists).
-    assertHostRole(membership.role, "host authority required");
+    assertHostRole(ctx.can, params.principal, membership.role, "host authority required");
     // Refuse to detach a LIVE game — the pointer is only "dangling" if the game row is actually gone.
     const game = await findGameByChat(ctx.db, params.chatId);
     if (game !== undefined) {
