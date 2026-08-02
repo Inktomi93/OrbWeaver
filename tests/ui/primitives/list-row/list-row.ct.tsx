@@ -222,19 +222,28 @@ test("subtitleWrap clamps a GLOSS subtitle to two lines instead of truncating a 
   expect(style.height).toBeGreaterThan(oneLine);
 });
 
-test("subtitleReveal display-swaps the subtitle on :focus-within (in the content column, not actions)", async ({ mount, page }) => {
+test("subtitleReveal swaps the subtitle by VISIBILITY on :focus-within, with the row's geometry unchanged", async ({ mount, page }) => {
   await mount(<ListRow clickable={true} subtitle="the pitch" subtitleReveal="handle · 42" title="Elara" />);
   const subtitle = page.locator('[data-slot="list-row-subtitle"]');
   const reveal = page.locator('[data-slot="list-row-subtitle-reveal"]');
-  // Rest: the subtitle shows, the reveal is display:none (zero layout — no rest-state cost).
+  const body = page.locator('[data-slot="list-row-body"]');
+  // Rest: the subtitle shows, the reveal is visibility:hidden — its BOX is reserved (the stack cell holds
+  // both spans), which is the whole point: a display swap here moved layout under a stationary pointer and
+  // oscillated the hover boundary at ~85 crossings/sec (packages/client/src/components/row-reveal.ts).
   await expect(subtitle).toBeVisible();
   await expect(reveal).toBeHidden();
+  await expect(reveal).toHaveCSS("visibility", "hidden");
+  await expect(reveal).toHaveCSS("display", "block");
+  const restBox = await body.boundingBox();
   // Focusing the body (:focus-within) swaps them on the SAME content line — no layout shift, no `actions`
   // contention. The reveal is in the content column, not the trailing slot.
-  await page.locator('[data-slot="list-row-body"]').focus();
+  await body.focus();
   await expect(reveal).toBeVisible();
   await expect(subtitle).toBeHidden();
+  await expect(subtitle).toHaveCSS("visibility", "hidden");
   await expect(reveal).toHaveAttribute("title", "handle · 42");
+  // THE LAW: byte-identical geometry rest ⇄ revealed. Nothing enters or leaves layout.
+  await expect.poll(() => body.boundingBox()).toEqual(restBox);
 });
 
 // Density rides the control-height min-heights (compact = min-h-control-sm, default = min-h-control-md),

@@ -109,14 +109,15 @@ static is the born-compliant TEST-FREE commit gate. The honest containment for t
 | tier | what it runs | role |
 | - | - | - |
 | `changed` | the scoped inner loop: lint/types(per-owner)/structure/imports/docs over the changed set + vitest `--changed` related tests | fast iteration; `verify --changed` |
-| `static` | biome + eslint + tsc×5 (`types:packages`/`graph`/`testd`/`tests-dom`/`tests-membership`) + `tests:execution-membership` + `structure:full` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
+| `static` | biome + eslint + tsc×5 (`types:packages`/`graph`/`testd`/`tests-dom`/`tests-membership`) + `tests:execution-membership` + `structure:db-baseline` + `structure:full` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
 | `push` | static + `tests:node` (vitest projects AND the CT suite) + `browser:e2e-smoke` | pre-push bar; `verify --push` |
 | `full` | push + `quality:cpd` + `browser:e2e` + `tests:parity` + `quality:mutation-gate` + `deps:knip-prod` (the production-strict kept-alive-only-by-tests lens — full-tier during the buildout, promotes post-buildout) | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
 
 The static tier is EXACTLY the ordered set `lint:biome, lint:eslint, types:packages, types:graph,
-types:testd, types:tests-dom, types:tests-membership, tests:execution-membership, structure:full,
-imports:depcruise, deps:knip, docs:format` (pinned in the int test) — so `pnpm check` stays byte-compatible
-with the retired orchestrator, modulo the two membership-floor additions.
+types:testd, types:tests-dom, types:tests-membership, tests:execution-membership, structure:db-baseline,
+structure:full, imports:depcruise, deps:knip, docs:format` (pinned in the int test) — so `pnpm check` stays
+byte-compatible with the retired orchestrator, modulo the two membership-floor additions and the
+db-baseline promotion.
 `.github/workflows/ci.yml` runs the full tier (§3.2, V4 — the "nothing omitted" bar).
 
 ### 3.3 The exit contract
@@ -227,6 +228,15 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   skipped at routine run time, still count — and `playwright-ct.config.ts`), never re-parses glob strings
   (drift-proof). A `tests/**` runner-suffixed file in NO view REDs (never executed); a runner view matching
   ZERO files REDs (the marinara silent-no-op disease — its server `pnpm test` globs matched nothing).
+- **`structure:db-baseline`** (`static`/`push`/`full` — `scripts/verify/db-baseline-parity.ts`) — the
+  committed squashed migration (`packages/db/src/migrations/0000_baseline.sql`) vs what the live
+  `@orb/db/schema` generates, statement-set equal after whitespace/semicolon normalization
+  (order-insensitive — FK order is proven applicable elsewhere). Pre-launch, schema changes SQUASH into that
+  baseline and `freshDb` PUSHES schema-derived DDL, so every per-table `.int` test passes while the
+  committed file rots: TWICE a bump shipped without a regen and sat \~10 hours until `verify --push` caught
+  it (latest: the `schema_version` DEFAULT 5→6 drift). The comparison is in-process via `drizzle-kit/api`
+  (\~1s, no stack, no db file) — it was wired too LATE, not too heavy — and it is the SAME comparator
+  `tests/tooling/schema-baseline-parity.int.test.ts` calls (one home, two callers).
 
 ## 4. Hook + CI wiring
 
