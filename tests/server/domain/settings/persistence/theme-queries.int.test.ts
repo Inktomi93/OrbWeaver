@@ -174,4 +174,15 @@ describe("upsertSeedTheme — idempotent + non-clobbering", () => {
     const rows = await listReadableThemes(db, a);
     expect(rows.find((r) => r.id === themeId(2))?.name).toBe("Mine");
   });
+
+  test("re-seeding never touches a user-owned row at the SAME id (the PK-collision arm)", async () => {
+    const db = await freshDb();
+    const a = await seedUser(db, { id: "user_a" });
+    await insertOwned(db, themeId(1), a, "Mine");
+    // The conflict target is the PK, which carries no owner — without the `ownerId IS NULL` bound on the
+    // DO UPDATE arm the reseed overwrote this user's row in place while it kept its own ownerId.
+    await insertSeed(db, themeId(1), "Hearth");
+    const rows = await listReadableThemes(db, a);
+    expect(rows.find((r) => r.id === themeId(1))?.name).toBe("Mine");
+  });
 });

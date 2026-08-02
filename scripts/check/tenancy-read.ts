@@ -1,8 +1,9 @@
-// Shared readers for the TENANCY gates (`owner-scoped-reads` + `owner-scoped-writes`) — ONE home for the two
-// questions both halves must answer IDENTICALLY: what does this drizzle statement PREDICATE on, and which
-// function does a two-sided `@owner-scope…-ok:` marker hang off. Re-spelled per gate they would drift on
-// exactly the question they exist to enforce (`schema-read.ts` is the same call for what a `sqliteTable(...)`
-// DECLARES). The (a)-class table set they cross this with is derived by `gates/table-scoping-class.ts`.
+// Shared readers for the TENANCY gates (`owner-scoped-reads` + `owner-scoped-writes` + `owner-scoped-upserts`)
+// — ONE home for the questions all three must answer IDENTICALLY: what does this drizzle statement PREDICATE
+// on (`.where` for a read/write, the `onConflictDoUpdate` config for an upsert), and which function does a
+// two-sided `@owner-scope…-ok:` marker hang off. Re-spelled per gate they would drift on exactly the question
+// they exist to enforce (`schema-read.ts` is the same call for what a `sqliteTable(...)` DECLARES). The
+// (a)-class table set they cross this with is derived by `gates/table-scoping-class.ts`.
 import type { CallExpression, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 
@@ -42,6 +43,18 @@ export function whereArgOf(anchor: Node): Node | undefined {
     return callee.isKind(SyntaxKind.PropertyAccessExpression) && callee.getName() === "where";
   });
   return whereCall?.getArguments()[0];
+}
+
+/** The `onConflictDoUpdate({ … })` CONFIG of the statement this `insert(T)` anchor starts, or undefined —
+ *  which means a plain insert or an `onConflictDoNothing`, neither of which can overwrite an existing row.
+ *  This is the upsert's answer to `whereArgOf`: an upsert's collision is decided by the conflict TARGET (a
+ *  unique index) and the optional `targetWhere`/`setWhere`, never by a `.where` on the statement. */
+export function upsertConfigOf(anchor: Node): Node | undefined {
+  const upsertCall = chainCalls(anchor).find((call) => {
+    const callee = call.getExpression();
+    return callee.isKind(SyntaxKind.PropertyAccessExpression) && callee.getName() === "onConflictDoUpdate";
+  });
+  return upsertCall?.getArguments()[0];
 }
 
 /** Does this WHERE constrain the table's OWN id — `eq(T.id, x)` or `inArray(T.id, ids)`? That is the shape
