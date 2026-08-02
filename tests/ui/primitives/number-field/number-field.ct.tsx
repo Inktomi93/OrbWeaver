@@ -297,3 +297,18 @@ test("an explicit aria-describedby reaches the INPUT and composes with the bound
   // Routed to the input, not parked on the wrapper div (the `placeholder` footgun's twin).
   await expect(page.locator('[data-slot="number-field-root"]')).not.toHaveAttribute("aria-describedby");
 });
+
+// ── side-eye F-20 (2026-08-03): the steppers name their subject ────────────────────────────────────────
+test("steppers take the field's own name as their subject when the call site supplies one", async ({ mount, page }) => {
+  await mount(<NumberField aria-label="Managed threshold" defaultValue={5} max={20} min={1} />);
+  // The defect: three NumberFields on one deck announced three bare "Decrease"es, with nothing saying
+  // decrease WHAT. The `<Field>` label reaches the INPUT (aria-labelledby) but never the buttons.
+  await expect(page.getByRole("button", { name: "Decrease Managed threshold" })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Increase Managed threshold" })).toHaveCount(1);
+});
+
+test("an unnamed field keeps the bare verb rather than inventing a subject", async ({ mount, page }) => {
+  await mount(<NumberField defaultValue={5} />);
+  await expect(page.getByRole("button", { name: "Decrease", exact: true })).toHaveCount(1);
+  await expect(page.getByRole("button", { name: "Increase", exact: true })).toHaveCount(1);
+});

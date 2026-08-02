@@ -40,8 +40,21 @@ test("every registry def renders — including the two slots that had no editor 
   // G5 + G9: neither had a client-side editor before, and neither is named anywhere in the view's code.
   await expect(probe.getByRole("button", { name: "Response nudge", exact: true })).toBeVisible();
   await expect(probe.getByRole("button", { name: "New-chat marker", exact: true })).toBeVisible();
-  // A slot shipping NO default bytes says so rather than ghosting a lie.
-  await expect(probe.getByText("(blank — off)")).toBeVisible();
+  // A slot shipping NO default bytes says so rather than ghosting a lie — in the DRILL-IN, which is the
+  // template text's editing home. The row's mono preview cell that used to carry it is DELETED (side-eye
+  // F-7): 152px of every row spent on the text's THIRD home, clipping on all six sampled rows and reading
+  // identically on five of them, while the column that discriminates (the fires gloss) starved.
+  await probe.getByRole("button", { name: "Edit New-chat marker" }).click();
+  await expect(probe.getByPlaceholder("Blank — nothing is emitted until you write something here.")).toBeVisible();
+});
+
+test("F-7 — the row carries NO template preview cell; the template text has two homes, not three", async ({ mount }) => {
+  const probe = await mount(<ActionsStory />);
+  await expect(probe.getByRole("button", { name: "Impersonate", exact: true })).toBeVisible();
+  // The measured shape of the defect: five of six rows read the identical first 30 characters of a
+  // bracketed template. Nothing on a row may render that string any more.
+  await expect(probe.getByText("[Take the following into", { exact: false })).toHaveCount(0);
+  await expect(probe.getByText("[Forget all other previous", { exact: false })).toHaveCount(0);
 });
 
 // ── THE P0 (side-eye F-01): three rows rendered with NO VISIBLE NAME ──────────────────────────────────
@@ -55,7 +68,6 @@ test("every registry def renders — including the two slots that had no editor 
 // shipped three anonymous rows.
 
 const TITLE = '[data-slot="list-row-title"]';
-const ROW_SUBTITLE = '[data-slot="list-row-subtitle"]';
 
 test("F-01 — EVERY row's name has real width, and it is the GLOSS that shortens", async ({ mount, page }) => {
   const probe = await mount(<ActionsStory />);
@@ -83,20 +95,34 @@ test("F-01 — EVERY row's name has real width, and it is the GLOSS that shorten
   // all the way to nothing if it must — while every NAME still measures. This is the exact inversion of
   // the shipped defect, so it is the assertion that would have caught it.
   await page.setViewportSize({ width: 420, height: 900 });
-  const glossWidth = (await probe.locator(ROW_SUBTITLE).first().boundingBox())?.width ?? 0;
   const narrow = await titles.evaluateAll((els) => els.map((el) => ({ text: el.textContent ?? "", width: el.getBoundingClientRect().width })));
+  // The floor is the `inline` subtitle arm's `min-w-24` (96px) — a STRUCTURAL guarantee, not a comparison
+  // against the gloss. It used to be spelled as "the name is at least as wide as the gloss", which held
+  // only while a 152px preview cell was eating the row's width; F-7 gave that width back to the gloss, so
+  // the gloss is now legitimately the wider column and the NAME's guarantee is its own floor.
+  const floorPx = await probe
+    .locator(TITLE)
+    .first()
+    .evaluate((el) => {
+      const probeEl = el.ownerDocument.createElement("div");
+      probeEl.className = "min-w-24";
+      el.ownerDocument.body.append(probeEl);
+      const px = Number.parseFloat(getComputedStyle(probeEl).minWidth);
+      probeEl.remove();
+      return px;
+    });
+  expect(floorPx, "the min-w-24 token must resolve, or this assertion is vacuous").toBeGreaterThan(0);
   for (const row of narrow) {
-    expect(row.width, `"${row.text}" keeps a visible name at 420px`).toBeGreaterThan(0);
-    expect(row.width).toBeGreaterThanOrEqual(glossWidth);
+    expect(row.width, `"${row.text}" keeps a visible name at 420px`).toBeGreaterThanOrEqual(floorPx);
   }
 });
 
-test("F-20 — the row's mono template PREVIEW is not announced (a 600-char body is not a description)", async ({ mount }) => {
+test("the row's DESCRIPTION is what the action does, never its template body", async ({ mount }) => {
   const probe = await mount(<ActionsStory />);
   const row = probe.getByRole("button", { name: "Impersonate", exact: true });
 
-  // The row's accessible DESCRIPTION is its fires gloss — the preview span is aria-hidden and carries no
-  // describedby id, so a screen reader hears what the action DOES, not the whole template body.
+  // Formerly the F-20 pin on an aria-hidden preview span; the span itself is gone with F-7, so this now
+  // states the invariant directly: a screen reader hears what the action DOES, not the template body.
   const describedBy = (await row.getAttribute("aria-describedby")) ?? "";
   expect(describedBy).not.toBe("");
   const described = await probe.locator(`#${describedBy.split(" ").join(", #")}`).allTextContents();

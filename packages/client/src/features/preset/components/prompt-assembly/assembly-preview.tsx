@@ -1,17 +1,24 @@
 // AssemblyPreview — the display-only assembled read-out. The toolbar's Preview toggle swaps the rack for
 // this: ordered enabled sections grouped under role block headers, with spliced sections shown inside an
-// inset conversation band at their depth positions. Macros render as inline Badges, never resolved. Every
-// block is click-through: clicking it flips back to Compose, selects the section, and reveals the
-// inspector. Derives entirely from `assemblePreview`; this component only paints.
+// inset conversation band at their depth positions. Every block is click-through: clicking it flips back to
+// Compose, selects the section, and reveals the inspector. Derives entirely from `assemblePreview`; this
+// component only paints.
+//
+// MACROS PRINT THEIR BRACES, in the shared `../macro-text` chip (side-eye F-1, 2026-08-03). This file used
+// to render the token's BARE name, which made the preview lie about the one thing it exists to show: the
+// starter Main prompt read `You are char in an immersive, ongoing roleplay with user.` — broken English in
+// which `char` is indistinguishable from a word, and the templated carriers read as the bare snake_case
+// keys `description` / `personality` / `guided_instruction`. Nothing here resolves a macro; the run is the
+// kit tokenizer's, and the chip is the same one the Actions readout ships.
 
-import type { MacroRun } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
+import { MacroText } from "../macro-text";
 import type { AssembledPreview, PreviewBlock, RoleGroup } from "./preview-model";
 
 /** The role → header label map (the block-header voice above a run of same-role sections). */
@@ -158,29 +165,7 @@ function BlockBody({ block }: { readonly block: PreviewBlock }): ReactElement {
       </Text>
     );
   }
-  return <MacroText tokens={tokens} />;
-}
-
-/** Render a token run — literal prose as inline text, `{{macro}}` references as inline info Badges. A
- *  text token stays a bare string child (strings in a `ReactNode[]` need no key — only elements do). */
-function MacroText({ tokens }: { readonly tokens: readonly MacroRun[] }): ReactElement {
-  return (
-    <Text size="micro" className="whitespace-pre-wrap break-words">
-      {tokens.map(
-        (token, i): ReactNode =>
-          token.kind === "macro" ? (
-            <Badge key={tokenKey(i, token)} intent="info" size="sm">
-              {token.value}
-            </Badge>
-          ) : (
-            token.value
-          ),
-      )}
-    </Text>
-  );
-}
-
-/** A stable-enough key for a token at a position (index + value — the token list is render-stable). */
-function tokenKey(index: number, token: MacroRun): string {
-  return `${index}-${token.kind}-${token.value}`;
+  // `frame="bare"` — the block button already IS the box (`rounded-control border`); the quoted frame here
+  // would be the box-in-box CD2 defect.
+  return <MacroText frame="bare" tokens={tokens} />;
 }

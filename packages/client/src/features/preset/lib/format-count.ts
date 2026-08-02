@@ -23,3 +23,36 @@ export function formatCount(value: number): string {
 export function formatEstimate(value: number): string {
   return `~${formatCount(value)}`;
 }
+
+/** The CARRIER's cost cell — its substance is the conversation's or the world-info set's, so the preset
+ *  cannot price it. An em dash, never `~0` (a zero with a bar under it is a lie with a number on it). */
+export const CARRIER_COST_GLYPH = "~—";
+
+/**
+ * The SPOKEN form of a cost cell (side-eye F-27). The visible cell is a compressed mono glyph — `~30`,
+ * `~—` — and a screen reader reads exactly that: "tilde three zero", "tilde em dash". The glyph is
+ * therefore `aria-hidden` at every call site and THIS string stands beside it in an `sr-only` span.
+ *
+ * `null` tokens are the carrier arm and get the sentence the visible `~—` is shorthand for, so the two
+ * modalities carry the same fact rather than one of them carrying a punctuation mark.
+ */
+export function spokenEstimate(tokens: number | null): string {
+  return tokens === null ? "cost not counted — this section's substance comes from the conversation" : `approximately ${formatCount(tokens)} tokens`;
+}
+
+/**
+ * The EDITABLE-VALUE number grammar (crunch-list 9, extended by side-eye F-23): RAW digits, no locale
+ * grouping, for every `NumberField` on the preset surface.
+ *
+ * Distinct from `formatCount` above and deliberately so — the two answer different questions. A token COUNT
+ * is a magnitude you read and compare down a column, so it groups; a knob VALUE is a string you TYPE, and a
+ * field that reformats what you typed into `1,500` while the placeholder beside it ghosts `200000` speaks
+ * two grammars for one column. Base UI runs this same format over the field's committed value AND over its
+ * derived `min`/`max` bounds description, which is where the split was still visible after the deck was
+ * fixed: `"Between 1 and 64000"` (a knob row) sat in the same a11y tree as `"Between 0 and 100,000"` (the
+ * inject-depth field, which had never been passed a format at all). One family, two spellings, announced.
+ *
+ * Every preset-surface `NumberField` takes this — that is what makes "one grammar" a property of the
+ * surface rather than of whichever call site remembered.
+ */
+export const PRESET_NUMBER_FORMAT: Intl.NumberFormatOptions = { useGrouping: false, maximumFractionDigits: 6 };

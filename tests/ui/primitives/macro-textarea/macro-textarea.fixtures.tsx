@@ -49,6 +49,26 @@ export function FieldWrappedStory(): ReactElement {
 }
 
 /**
+ * The side-eye F-3 shape: a `<Field>`-labelled editor GHOSTING a 60-word factory default. This is the
+ * exact composition that announced its whole template as the field's own accessible name (twice) while
+ * `role="combobox"` was unconditional — the accname algorithm's combobox arm falls through to the value.
+ */
+export function GhostDefaultStory(): ReactElement {
+  const [value, setValue] = useState("");
+  return (
+    <Field label="Template">
+      <MacroTextarea
+        onChange={setValue}
+        placeholder="[Forget all other previous instructions. For this turn only, write in the {{person}}-person perspective AS {{user}} (not {{char}}). Limit yourself strictly to {{user}}'s voice and actions; do NOT narrate {{char}}'s reaction or the surrounding scene. Guidance: {{input}}]"
+        rows={4}
+        suggestions={MACROS}
+        value={value}
+      />
+    </Field>
+  );
+}
+
+/**
  * The R7 acceptance shape: `suggestions` is a NEW array reference every render (filtered/mapped
  * from state), while the parent re-renders — the real consumer shape, not a module-const stable
  * reference. Proves the fuzzy index rebuild-on-miss (keyed by array IDENTITY, not deep-equal)

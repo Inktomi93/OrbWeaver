@@ -111,3 +111,11 @@
 [data-surface-tier] [data-slot="card-root"][data-elevated] {
   border-radius: var(--radius-card);
 }
+
+/* NESTED is the opposite opt-in, and needs the same unlayered spelling for the same reason: an island
+ * rendered INSIDE another box steps one radius below its host (`--radius-inset`, the SUB-CONTROL mark
+ * step), so the nesting reads as nesting rather than as two competing boxes. CD2, as ruled by side-eye
+ * 2026-08-03: keep the fill, drop the border, step the radius down one. */
+[data-surface-tier] [data-slot="card-root"][data-nested] {
+  border-radius: var(--radius-inset);
+}

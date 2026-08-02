@@ -177,14 +177,22 @@ function TokenVocabulary({ form, row, capability }: CapabilityProps): ReactEleme
   const { def, guidedKind } = row;
   const tokens = capability.tokens;
   return (
-    <Stack gap="tight">
+    // THE CHIPS ARE A NAMED LIST, not two floating glyphs (side-eye F-17). They sat 30px under DELIVERY
+    // with no kicker and no role, so nothing on screen said what they were or whether they were pressable —
+    // and in the a11y tree they were bare text CONCATENATED into the preceding NumberField's bounds hint
+    // ("Between 0 and 100,000 {{input}} {{person}}"), i.e. a screen-reader user heard them as part of a
+    // number range. A `Section` kicker names them, and `list`/`listitem` gives the run a boundary and a
+    // count so they can never fuse into a neighbour's description again. They stay NON-interactive on
+    // purpose (§5.0: this is a reference vocabulary, not an insert palette) — which is exactly why the
+    // structure has to say so instead of leaving a reader to guess.
+    <Section kicker="Macros this template can use">
       {/* MACRO PILLS ARE MONO NEUTRAL (crunch item 14): a row of bright-blue `{{input}}`/`{{person}}`
           pills was the loudest thing in the editor for what is a reference LIST — you read it once. The
           mocks paint the substitution vocabulary as quiet outlined chips, and the mono face is what says
           "this is a literal you type", which the colour was standing in for. */}
-      <Row align="center" gap="field">
+      <Row align="center" gap="field" role="list">
         {tokens.map((token) => (
-          <Badge className="font-mono" intent="neutral" key={token} size="sm" tone="ghost">
+          <Badge className="font-mono" intent="neutral" key={token} role="listitem" size="sm" tone="ghost">
             {token}
           </Badge>
         ))}
@@ -205,6 +213,6 @@ function TokenVocabulary({ form, row, capability }: CapabilityProps): ReactEleme
           }
         </form.Subscribe>
       )}
-    </Stack>
+    </Section>
   );
 }

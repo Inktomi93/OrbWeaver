@@ -147,7 +147,7 @@ test("§6.4 a facet row drills CONTENT into that field's body editor (a drill-in
   // The full-width body editor renders in place (a CONTENT drill-in, never a modal), with a Back affordance
   // and the field's macro-aware editor (the combobox the MacroField wires up).
   await expect(component.getByRole("button", { name: "Back" })).toBeVisible();
-  await expect(component.getByRole("combobox", { name: "System prompt" })).toBeVisible();
+  await expect(component.getByRole("textbox", { name: "System prompt" })).toBeVisible();
 
   // Back returns to the facet list; the Note-at-depth + Regex facets are reachable from there.
   await component.getByRole("button", { name: "Back" }).click();

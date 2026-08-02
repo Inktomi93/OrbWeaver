@@ -37,7 +37,7 @@ import type { AppFormInstance } from "#forms";
 import { selectPresetTemplate, useSelectedPresetTemplateId } from "#state";
 import { GUIDED_INPUT_TOKEN } from "../lib/assembly-model";
 import type { TemplateRow } from "../lib/template-rows";
-import { isCustomized, TEMPLATE_KIND_LABEL, templateGroups, templatePreview, templateRowById } from "../lib/template-rows";
+import { isCustomized, TEMPLATE_KIND_LABEL, templateGroups, templateRowById } from "../lib/template-rows";
 import { TemplateDrillIn } from "./template-drill-in";
 
 type PresetForm = AppFormInstance<PromptConfig>;
@@ -74,6 +74,17 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
   // never disagree about which template is being inspected.
   const selectedId = useSelectedPresetTemplateId();
   const drilled = drilledId === null ? undefined : templateRowById(drilledId);
+  // DRILL CARRIES THE SELECTION (side-eye F-2, the P1). The chevron used to set only the LOCAL drill id, so
+  // the CONTEXT readout kept projecting whatever row was last SELECTED: content drilled into Impersonate
+  // while the readout beside it printed "RESOLVED — RESPONSE" and Response's resolved text. Two panes on
+  // one screen describing two different artifacts, with nothing saying which is which — and a direct break
+  // of UI-Architecture-and-Layout.md §4.2.1 (CONTEXT follows CONTENT). Drilling is a strictly stronger act
+  // than selecting, so it writes the SAME one selection store action the row body does; there is still
+  // exactly one writer of that axis.
+  const onDrill = (id: string): void => {
+    selectPresetTemplate(id);
+    setDrilledId(id);
+  };
   if (drilled !== undefined) {
     return <TemplateDrillIn form={form} onBack={(): void => setDrilledId(null)} row={drilled} />;
   }
@@ -93,7 +104,7 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
           <Section key={group.kind} kicker={TEMPLATE_KIND_LABEL[group.kind]}>
             <Stack gap="tight">
               {group.rows.map((row) => (
-                <TemplateListRow form={form} key={row.def.id} onDrill={setDrilledId} row={row} selected={row.def.id === selectedId} />
+                <TemplateListRow form={form} key={row.def.id} onDrill={onDrill} row={row} selected={row.def.id === selectedId} />
               ))}
             </Stack>
           </Section>
@@ -103,9 +114,9 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
   );
 }
 
-/** One template row: label · fires gloss · KIND chip · Default/Customized state · mono preview · chevron —
- *  the mock's own column order. The kind chip's INFO hue is deliberately a different family from the state
- *  chips (neutral/success) so the two vocabularies can never blur.
+/** One template row: label · fires gloss · KIND chip · Default/Customized state · chevron. The kind chip's
+ *  INFO hue is deliberately a different family from the state chips (neutral/success) so the two
+ *  vocabularies can never blur.
  *
  *  THE ROW'S LAYOUT CONTRACT (side-eye F-01, the P0): the NAME is the identifier and may never be squeezed
  *  out — it takes the `inline` subtitle arm's `min-w-24` floor, and the FIRES gloss is what shortens. */
@@ -146,13 +157,13 @@ function TemplateListRow({
                 <Badge intent={customized ? "success" : "neutral"} size="sm" tone="soft">
                   {customized ? "Customized" : "Default"}
                 </Badge>
-                {/* The mono PREVIEW is a trailing cell in the mock's grid (`150px`, right-aligned,
-                    truncating) — not the row's second line. Moving it here is what frees the title line
-                    for name + fires, and `aria-hidden` keeps a 600-character template body out of the
-                    row's spoken description (side-eye F-20). */}
-                <Text aria-hidden={true} as="span" className="hidden max-w-(--width-label-col) truncate @sm/list-row:block" voice="gloss">
-                  {templatePreview(value, factoryDefault)}
-                </Text>
+                {/* THE MONO PREVIEW CELL IS GONE (side-eye F-7, §13 single-homing). It spent 152px of every
+                    row on the template text's THIRD home — the drill-in textarea and the readout's RESOLVED
+                    block are the other two — and it discriminated nothing: five of six rows clipped to the
+                    identical first 30 characters ("[Take the following into speci…"), while the column that
+                    DOES tell the rows apart, the fires gloss, was starved to ~30px ("You steer y…"). The
+                    row's width now goes to the scent. Nothing is lost: the drill-in one chevron away is the
+                    text's editing home, and the readout beside the list is its resolved one. */}
                 <Button aria-label={`Edit ${def.label}`} intent="ghost" onClick={(): void => onDrill(def.id)} size="icon" type="button">
                   <Icon icon={ChevronRight} size="sm" />
                 </Button>

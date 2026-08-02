@@ -43,7 +43,12 @@ export function MacroField(props: MacroFieldProps): ReactElement {
           onBlur={field.handleBlur}
           suggestions={props.suggestions}
           disabled={props.disabled ?? false}
-          {...(props.placeholder === undefined ? {} : { placeholder: props.placeholder })}
+          // A GHOST IS WHAT AN EMPTY FIELD SHOWS (side-eye F-3's second half). The browser never paints a
+          // placeholder over a non-empty value, but the ATTRIBUTE stays in the a11y tree — so a template
+          // field whose stored value happens to equal its own factory default carried the identical
+          // 270-character string twice, once as the value and once as a description. Forwarding the ghost
+          // only while the field is empty makes the tree say what the screen says.
+          {...(props.placeholder === undefined || field.state.value !== "" ? {} : { placeholder: props.placeholder })}
           {...(props.rows === undefined ? {} : { rows: props.rows })}
           {...(props.className === undefined ? {} : { className: props.className })}
         />
