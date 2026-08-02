@@ -20,19 +20,18 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { AccountCredits, EndpointInspection, GenerationCost, VerifyAuthResult } from "@orb/contracts/providers";
-import { RPG_PACKAGED_PROFILE_BY_KEY } from "@orb/contracts/rpg";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
-import type { ChatId, PresetId, UserId } from "@orb/kit/ids";
-import { ID_PREFIX, newId } from "@orb/kit/ids";
+import type { ChatId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
 import { can, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
 import type { ChatContext, DemoChatSeeder } from "#domain/chat";
-import { createDemoChatSeeder, createResolveViewerVisibility } from "#domain/chat";
+import { createDemoChatSeeder, createResolveViewerVisibility, loadSeededChatDressing } from "#domain/chat";
 import type { LocalEngineReachability } from "#domain/connection";
 import { createConnectionService } from "#domain/connection";
 import { createCredentialsService } from "#domain/credentials";
@@ -86,6 +85,7 @@ import { buildAutomationPlugin } from "./automation-plugin";
 import type { ChatComposeResult } from "./chat";
 import { buildChatService } from "./chat";
 import { buildDatabank } from "./databank";
+import { createDemoChatGameDoor } from "./demo-chat-game";
 import type { EffectiveConfigWiring } from "./effective-config";
 import { createEffectiveConfigWiring } from "./effective-config";
 import type { DomainEventBus } from "./event-bus";
@@ -727,6 +727,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // precedent). Built HERE, last: it needs chat's bulk write (world-info seam), character's handle lookup,
   // rpg's create door, and the settings latch — every one of them composed above. The transcript READ is
   // injected by the lifecycle (the bytes live in entry/boot/seed-assets, which this seam does not import).
+  const demoChatGameDoor = createDemoChatGameDoor({ rpg });
   const demoChatSeeder = createDemoChatSeeder({
     readTranscript: readSeedDemoChat,
     findCharacterByHandle: async ({ principal, handle }) => {
@@ -738,11 +739,26 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       return { characterId: ref.characterId, name: detail.name };
     },
     writeChats: bulkImportChats,
-    // rpg's REAL create door — the same verb `startChat`'s `startAsGame` runs (it writes the game AND the
-    // chat's opaque rpg pointer). The profile is resolved from rpg's own packaged contract data.
-    createGame: async ({ principal, chatId, game }): Promise<void> => {
-      await rpg.createGame({ principal, chatId, mode: "lite", profile: RPG_PACKAGED_PROFILE_BY_KEY[game.profile] });
+    // The receiving user's own persona for the host seat — the SAME chain `startChat` walks (current, else
+    // default). A seeded example is their room; it opens playing as them, which is also what keeps the rpg
+    // player actor from resolving to their bare account handle.
+    resolveSeatPersona: async (principal): Promise<PersonaId | null> => {
+      const seeds = (await settings.getUserSettings({ principal })).config.seeds;
+      const raw = seeds.currentPersonaId ?? seeds.defaultPersonaId;
+      if (raw === null) {
+        return null;
+      }
+      // The `UserSettings` seeds tier stores these lenient (a deleted persona leaves a stale id behind), so
+      // the id is VERIFIED before it is seated — the `resolveCurrentPersona` precedent in compose/chat.ts.
+      try {
+        return (await persona.get({ principal, personaId: castId<PersonaId>(raw) })).id;
+      } catch {
+        return null;
+      }
     },
+    // rpg's REAL create door + the authored-setup replay through rpg's real HAND doors (entry/compose/
+    // demo-chat-game.ts owns the seat→actor-ref resolution; domain/chat stays rpg-table-blind).
+    createGame: demoChatGameDoor,
     now,
     isSeeded: async (principal): Promise<boolean> => (await settings.getUserSettings({ principal })).config.onboarding.demoChatsSeeded,
     markSeeded: async (principal): Promise<void> => {
@@ -750,6 +766,24 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
         principal,
         input: { section: "onboarding", patch: { demoChatsSeeded: true } },
       });
+    },
+    readPackVersion: async (principal): Promise<number> => (await settings.getUserSettings({ principal })).config.onboarding.demoChatsPackVersion,
+    markPackVersion: async (principal, version): Promise<void> => {
+      await settings.updateUserSettingsSection({
+        principal,
+        input: { section: "onboarding", patch: { demoChatsPackVersion: version } },
+      });
+    },
+    // ── the pack-bump HEAL's doors (only-if-unset; the seeder owns that policy) ──
+    readSeededChat: async ({ principal, importHash }) => (await loadSeededChatDressing(db, principal.userId, importHash)) ?? null,
+    // BOTH halves of the persona binding the fresh bulk write does in one shot: the host seat's own
+    // "playing as" (persona's door) and the room's anchor pin (chat's door).
+    bindSeatPersona: async ({ principal, chatId, personaId }): Promise<void> => {
+      await persona.setActivePersona({ principal, chatId, targetUserId: principal.userId, personaId });
+      await chat.setChatAnchorPersona({ principal, chatId, personaId });
+    },
+    setChatBackground: async ({ principal, chatId, background }): Promise<void> => {
+      await chat.setChatBackground({ principal, chatId, background });
     },
   });
 

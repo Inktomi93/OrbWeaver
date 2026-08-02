@@ -15,12 +15,12 @@
 import type { BulkImportChatInput, BulkImportMessageInput } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { errorMessage } from "@orb/kit/error-message";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { ParsedChat, ParsedChatMessage } from "#kit/serde/chat";
 import { parseChatJsonl } from "#kit/serde/chat";
-import type { DemoChat, DemoChatSeeder, DemoChatSeederDeps } from "../contract/seeder";
-import { DEMO_CHAT_NARRATOR_NAME, DEMO_CHATS } from "./demo-chats";
+import type { DemoChat, DemoChatSeeder, DemoChatSeederDeps, SeededChatDressing } from "../contract/seeder";
+import { DEMO_CHAT_NARRATOR_NAME, DEMO_CHAT_PACK_VERSION, DEMO_CHATS } from "./demo-chats";
 
 /** The per-example dedup oracle written to `chats.importHash`. Stable across releases (keyed by the slug,
  *  never by the transcript bytes) so re-generating a transcript does not resurrect a deleted example. */
@@ -35,8 +35,10 @@ function importedFromFor(demo: DemoChat): string {
 }
 
 /** One resolved roster seat: the card the manifest's handle pointed at, plus the display name the transcript
- *  attributes its lines to. */
+ *  attributes its lines to. `handle` is carried so the authored game setup's `handle` seats resolve to real
+ *  actor refs at the entry seam. */
 interface Seat {
+  readonly handle: string;
   readonly characterId: CharacterId;
   readonly name: string;
 }
@@ -83,8 +85,20 @@ function toMessageInput(m: ParsedChatMessage, seatsByName: ReadonlyMap<string, C
   return characterId === undefined ? base : { ...base, characterId };
 }
 
-/** The whole bulk-write input for one example: the parsed transcript + the manifest's roster/metadata. */
-function toChatInput(demo: DemoChat, parsed: ParsedChat, seats: readonly Seat[], now: number): BulkImportChatInput {
+/** The whole bulk-write input for one example: the parsed transcript + the manifest's roster/metadata.
+ *
+ *  `anchorPersonaId` is the RECEIVING USER'S persona (never a shipped constant): the bulk write seats it on
+ *  the host participant AND pins it as the room's anchor, so an example opens "Playing as <them>" and every
+ *  identity projection built off the seat — the persona panel, the rpg player actor's name — reads them
+ *  instead of falling back to their bare account handle. */
+function toChatInput(args: {
+  readonly demo: DemoChat;
+  readonly parsed: ParsedChat;
+  readonly seats: readonly Seat[];
+  readonly anchorPersonaId: PersonaId | null;
+  readonly now: number;
+}): BulkImportChatInput {
+  const { demo, parsed, seats, anchorPersonaId, now } = args;
   const seatsByName = new Map(seats.map((s) => [s.name, s.characterId]));
   const sendDates = parsed.messages.flatMap((m) => (m.sendDate !== null ? [m.sendDate] : []));
   const createdAt = parsed.createDate ?? sendDates[0] ?? now;
@@ -92,7 +106,7 @@ function toChatInput(demo: DemoChat, parsed: ParsedChat, seats: readonly Seat[],
     title: demo.title,
     importedFrom: importedFromFor(demo),
     importHash: importHashFor(demo),
-    anchorPersonaId: null,
+    anchorPersonaId,
     createdAt,
     updatedAt: sendDates.length > 0 ? Math.max(...sendDates) : createdAt,
     parentRef: null,
@@ -119,13 +133,13 @@ export function createDemoChatSeeder(deps: DemoChatSeederDeps): DemoChatSeeder {
     // `Promise.all` PRESERVES input order, and order is load-bearing: seats[0] is the header character the
     // dedup + branch scoping key off. Independent owner-scoped reads, so they resolve concurrently.
     const found = await Promise.all(demo.handles.map((handle) => deps.findCharacterByHandle({ principal, handle })));
-    const seats = found.flatMap((f) => (f === null ? [] : [{ characterId: f.characterId, name: f.name }]));
+    const seats = found.flatMap((f, i) => (f === null ? [] : [{ handle: demo.handles[i] ?? "", characterId: f.characterId, name: f.name }]));
     return seats.length === demo.handles.length && seats.length > 0 ? seats : null;
   }
 
   /** Seed ONE example. Returns whether a chat was written (a dedup skip / a missing transcript / a missing
    *  cast member all return false). One bulk call per example: each has its OWN primary character. */
-  async function seedOne(principal: Principal, demo: DemoChat, now: number): Promise<boolean> {
+  async function seedOne(principal: Principal, demo: DemoChat, anchorPersonaId: PersonaId | null, now: number): Promise<boolean> {
     const text = await deps.readTranscript(demo.slug);
     if (text === null) {
       log.warn({ slug: demo.slug }, "chat: demo transcript missing from the bundle — example skipped");
@@ -147,30 +161,103 @@ export function createDemoChatSeeder(deps: DemoChatSeederDeps): DemoChatSeeder {
     const result = await deps.writeChats({
       ownerId: principal.userId,
       characterId: primary.characterId,
-      chats: [toChatInput(demo, parsed, seats, now)],
+      chats: [toChatInput({ demo, parsed, seats, anchorPersonaId, now })],
     });
     const chatId = result.chatIds[0];
     if (chatId === undefined) {
       return false; // dedup skip — the example (and its game) already landed on a prior partial run
     }
     if (demo.game !== undefined && deps.createGame !== undefined) {
-      await deps.createGame({ principal, chatId, game: demo.game });
+      await deps.createGame({ principal, chatId, game: demo.game, seats, mint: true });
     }
     return true;
   }
 
+  /** The pack-bump HEAL for ONE already-seeded example. Fills only the dressing fields still at their seeded
+   *  default — an absent host-seat persona, an absent room background, a still-born game state — because the
+   *  user's copy of an example is THEIRS: a background they picked, a persona they switched to, a game they
+   *  played are all left exactly as they are. Returns whether anything was filled. */
+  async function healOne(principal: Principal, demo: DemoChat, anchorPersonaId: PersonaId | null): Promise<boolean> {
+    const existing = (await deps.readSeededChat?.({ principal, importHash: importHashFor(demo) })) ?? null;
+    if (existing === null) {
+      return false; // deleted, never seeded, or no read door — the latch owns deletion-respect
+    }
+    const filled = await Promise.all([
+      healSeatPersona(principal, existing, anchorPersonaId),
+      healBackground(principal, existing, demo),
+      healGame(principal, existing, demo),
+    ]);
+    return filled.includes(true);
+  }
+
+  /** The seat's "playing as", only when it carries none. */
+  async function healSeatPersona(principal: Principal, existing: SeededChatDressing, anchorPersonaId: PersonaId | null): Promise<boolean> {
+    if (existing.hasSeatPersona || anchorPersonaId === null || deps.bindSeatPersona === undefined) {
+      return false;
+    }
+    await deps.bindSeatPersona({ principal, chatId: existing.chatId, personaId: anchorPersonaId });
+    return true;
+  }
+
+  /** The curated room background, only when the room carries none. */
+  async function healBackground(principal: Principal, existing: SeededChatDressing, demo: DemoChat): Promise<boolean> {
+    const background = demo.metadata?.background;
+    if (existing.hasBackground || background === undefined || deps.setChatBackground === undefined) {
+      return false;
+    }
+    await deps.setChatBackground({ principal, chatId: existing.chatId, background });
+    return true;
+  }
+
+  /** The authored game state. Idempotent by the door's own contract: it replays the setup only onto a
+   *  still-born state, so a game the user has actually played is never re-dressed. */
+  async function healGame(principal: Principal, existing: SeededChatDressing, demo: DemoChat): Promise<boolean> {
+    if (demo.game === undefined || deps.createGame === undefined) {
+      return false;
+    }
+    const seats = await resolveSeats(principal, demo);
+    if (seats === null) {
+      return false;
+    }
+    await deps.createGame({ principal, chatId: existing.chatId, game: demo.game, seats, mint: false });
+    return true;
+  }
+
+  /** The reseed migration for examples latched under an older EXAMPLE pack. The transcripts never change (a
+   *  re-generated transcript keys off the same slug and must not resurrect a deleted example) — what a pack
+   *  bump carries is DRESSING, so this walks the same manifest and heals hole-by-hole. */
+  async function migratePack(principal: Principal): Promise<void> {
+    if ((await deps.readPackVersion(principal)) >= DEMO_CHAT_PACK_VERSION) {
+      return;
+    }
+    const anchorPersonaId = await deps.resolveSeatPersona(principal);
+    const outcomes = await Promise.all(DEMO_CHATS.map((demo) => healOne(principal, demo, anchorPersonaId)));
+    // LAST, so a throw anywhere above leaves the old stamp and the next touch retries — every heal above is
+    // only-if-unset, so the retry is a no-op on everything already healed.
+    await deps.markPackVersion(principal, DEMO_CHAT_PACK_VERSION);
+    log.info(
+      { userId: principal.userId, healed: outcomes.filter(Boolean).length, total: DEMO_CHATS.length, packVersion: DEMO_CHAT_PACK_VERSION },
+      "chat: migrated the example-conversation pack",
+    );
+  }
+
   async function seed(principal: Principal): Promise<void> {
     if (await deps.isSeeded(principal)) {
+      await migratePack(principal);
       return;
     }
     // Concurrent by design and NOT order-dependent: each example is one INDEPENDENT atomic bulk write with
     // its own primary character and its own `importHash`, and the rendered list order comes from each
     // transcript's own carried dates (not from write order), so it is stable either way.
     const now = deps.now();
-    const outcomes = await Promise.all(DEMO_CHATS.map((demo) => seedOne(principal, demo, now)));
+    const anchorPersonaId = await deps.resolveSeatPersona(principal);
+    const outcomes = await Promise.all(DEMO_CHATS.map((demo) => seedOne(principal, demo, anchorPersonaId, now)));
     const seeded = outcomes.filter(Boolean).length;
     await deps.markSeeded(principal);
-    log.info({ userId: principal.userId, seeded, total: DEMO_CHATS.length }, "chat: seeded the example conversations");
+    // A fresh seed IS the shipped pack by construction — stamping it here keeps the next bump's heal off it
+    // until there is actually something to fill (the character seeder's precedent).
+    await deps.markPackVersion(principal, DEMO_CHAT_PACK_VERSION);
+    log.info({ userId: principal.userId, seeded, total: DEMO_CHATS.length, packVersion: DEMO_CHAT_PACK_VERSION }, "chat: seeded the example conversations");
   }
 
   return {

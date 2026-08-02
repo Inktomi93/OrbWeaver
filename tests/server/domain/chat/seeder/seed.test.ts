@@ -1,0 +1,200 @@
+// seeder: the bundled EXAMPLE conversations — the DRESSING contract, over fake doors (no db). The write
+// path itself (bulk import) has its own coverage; what is pinned here is everything the seeder DECIDES:
+//
+//   • every example seats the RECEIVING user's persona (owner-reported 08-03: a persona-less host seat reads
+//     as "Playing as None" in the persona panel AND names the rpg player actor by the bare account handle —
+//     the live dev stack showed `viewerActivePersonaId: null` + a seat displayName of "owner" on five of six
+//     seeded examples);
+//   • the three GROUP examples carry a curated room background and the solo ones deliberately do not (their
+//     one card's own `backgroundOverride` paints through the BG-C card arm);
+//   • the flagship hands its authored game state to the game door, with the resolved seat map;
+//   • the pack-bump HEAL fills a hole and never stomps a value, and never resurrects a deleted example.
+
+import type { BulkImportChatInput } from "@orb/contracts/chat";
+import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import type { DemoChatSeederDeps, SeededChatDressing } from "@orb/server/domain/chat";
+import { createDemoChatSeeder, DEMO_CHAT_PACK_VERSION, DEMO_CHATS } from "@orb/server/domain/chat";
+import { principal } from "../../../../support/factories/principal";
+import { expect, test } from "../../../../support/fixtures";
+
+const USER_ID = castId<UserId>("user_demo_seed");
+const PERSONA_ID = castId<PersonaId>("persona_traveler");
+const PRINCIPAL = principal(USER_ID);
+
+/** A minimal well-formed export transcript. Written as RAW jsonl (not object literals) because the wire is
+ *  ST-flavoured snake_case — the bytes are the fixture. */
+const TRANSCRIPT = [
+  '{"user_name":"You","character_name":"Someone","create_date":"August 2, 2026 8:05am","chat_metadata":{}}',
+  '{"name":"You","is_user":true,"mes":"hello","send_date":1754000000000}',
+  '{"name":"Someone","is_user":false,"mes":"hi","send_date":1754000001000}',
+].join("\n");
+
+interface Recorded {
+  readonly chats: BulkImportChatInput[];
+  readonly games: { readonly chatId: ChatId; readonly slugSeats: readonly string[]; readonly mint: boolean; readonly hasSetup: boolean }[];
+  readonly boundPersonas: { readonly chatId: ChatId; readonly personaId: PersonaId }[];
+  readonly backgrounds: { readonly chatId: ChatId; readonly seededId: string }[];
+  readonly stampedVersions: number[];
+}
+
+interface HarnessOptions {
+  readonly seeded?: boolean;
+  readonly packVersion?: number;
+  readonly persona?: PersonaId | null;
+  readonly dressing?: (importHash: string) => SeededChatDressing | null;
+}
+
+function makeHarness(options: HarnessOptions = {}): { readonly deps: DemoChatSeederDeps; readonly rec: Recorded } {
+  const rec: Recorded = { chats: [], games: [], boundPersonas: [], backgrounds: [], stampedVersions: [] };
+  let packVersion = options.packVersion ?? 0;
+  const deps: DemoChatSeederDeps = {
+    readTranscript: (): Promise<string | null> => Promise.resolve(TRANSCRIPT),
+    findCharacterByHandle: ({ handle }) => Promise.resolve({ characterId: castId(`character_${handle}`), name: `Card ${handle}` }),
+    writeChats: ({ chats }) => {
+      rec.chats.push(...chats);
+      return Promise.resolve({
+        chatIds: chats.map((c) => castId<ChatId>(`chat_${c.importHash ?? "x"}`)),
+        chatsImported: chats.length,
+        chatsSkipped: 0,
+        messagesImported: chats.reduce((n, c) => n + c.messages.length, 0),
+        variantsImported: chats.reduce((n, c) => n + c.messages.length, 0),
+        branchesLinked: 0,
+        realConversationWritten: false,
+      });
+    },
+    resolveSeatPersona: (): Promise<PersonaId | null> => Promise.resolve(options.persona ?? (options.persona === null ? null : PERSONA_ID)),
+    createGame: ({ chatId, game, seats, mint }): Promise<void> => {
+      rec.games.push({ chatId, slugSeats: seats.map((s) => s.handle), mint, hasSetup: game.setup !== undefined });
+      return Promise.resolve();
+    },
+    isSeeded: (): Promise<boolean> => Promise.resolve(options.seeded ?? false),
+    markSeeded: (): Promise<void> => Promise.resolve(),
+    readPackVersion: (): Promise<number> => Promise.resolve(packVersion),
+    markPackVersion: (_principal, version): Promise<void> => {
+      packVersion = version;
+      rec.stampedVersions.push(version);
+      return Promise.resolve();
+    },
+    readSeededChat: ({ importHash }) => Promise.resolve(options.dressing?.(importHash) ?? null),
+    bindSeatPersona: ({ chatId, personaId }): Promise<void> => {
+      rec.boundPersonas.push({ chatId, personaId });
+      return Promise.resolve();
+    },
+    setChatBackground: ({ chatId, background }): Promise<void> => {
+      rec.backgrounds.push({ chatId, seededId: background.seededId });
+      return Promise.resolve();
+    },
+    now: (): number => 1_754_000_000_000,
+  };
+  return { deps, rec };
+}
+
+test("every seeded example seats the receiving user's persona (never a null host seat)", async () => {
+  const { deps, rec } = makeHarness();
+  await createDemoChatSeeder(deps).ensureSeeded(PRINCIPAL);
+
+  expect(rec.chats).toHaveLength(DEMO_CHATS.length);
+  for (const chat of rec.chats) {
+    expect(chat.anchorPersonaId).toBe(PERSONA_ID);
+  }
+});
+
+test("a user with no persona at all still gets their examples (the seat falls back, the seed does not fail)", async () => {
+  const { deps, rec } = makeHarness({ persona: null });
+  await createDemoChatSeeder(deps).ensureSeeded(PRINCIPAL);
+
+  expect(rec.chats).toHaveLength(DEMO_CHATS.length);
+  expect(rec.chats.every((c) => c.anchorPersonaId === null)).toBe(true);
+});
+
+const soloSeatCount = 1;
+
+test("BG-C: every GROUP example ships a curated room background; a SOLO example ships none (its card paints)", () => {
+  const dressed = DEMO_CHATS.map((demo) => ({
+    slug: demo.slug,
+    group: demo.handles.length > soloSeatCount,
+    // A curated background is a `seeded` plate with a real slug; anything else counts as undressed.
+    background: demo.metadata?.background?.kind === "seeded" ? demo.metadata.background.seededId || null : null,
+  }));
+  // A group example WITHOUT a plate would paint nothing at all (the card arm is true-solo-only); a solo
+  // example WITH one would override the character's own carried background for no reason.
+  expect(dressed.filter((d) => d.group).map((d) => `${d.slug}:${d.background ?? "MISSING"}`)).toEqual([
+    "second-opinion:assistant-bg",
+    "midnight-run:niko-bg",
+    "ashen-spire:morgatha-bg",
+  ]);
+  expect(dressed.filter((d) => !d.group).map((d) => d.background)).toEqual([null, null, null]);
+});
+
+test("the flagship hands its AUTHORED game state + the resolved seat map to the game door, minting the game", async () => {
+  const { deps, rec } = makeHarness();
+  await createDemoChatSeeder(deps).ensureSeeded(PRINCIPAL);
+
+  expect(rec.games).toHaveLength(1);
+  const [game] = rec.games;
+  expect(game?.mint).toBe(true);
+  expect(game?.hasSetup, "the rpg example must carry authored state — a born-empty panel reads as unbuilt").toBe(true);
+  expect(game?.slugSeats).toEqual(["sabine", "calamity", "morgatha"]);
+});
+
+test("a fresh seed stamps the shipped pack version (so the next bump's heal has something to compare)", async () => {
+  const { deps, rec } = makeHarness();
+  await createDemoChatSeeder(deps).ensureSeeded(PRINCIPAL);
+  expect(rec.stampedVersions).toEqual([DEMO_CHAT_PACK_VERSION]);
+});
+
+test("pack bump: an already-seeded library gets its holes filled — persona AND background — and is re-stamped", async () => {
+  const { deps, rec } = makeHarness({
+    seeded: true,
+    packVersion: 1,
+    dressing: (importHash) => ({ chatId: castId<ChatId>(`chat_${importHash}`), hasSeatPersona: false, hasBackground: false }),
+  });
+  await createDemoChatSeeder(deps).ensureSeeded(PRINCIPAL);
+
+  // No re-write of any transcript — the heal only dresses.
+  expect(rec.chats).toHaveLength(0);
+  expect(rec.boundPersonas).toHaveLength(DEMO_CHATS.length);
+  expect(rec.boundPersonas.every((b) => b.personaId === PERSONA_ID)).toBe(true);
+  // Exactly the group examples carry a curated background, so exactly those get one healed in.
+  expect([...rec.backgrounds.map((b) => b.seededId)].sort((a, b) => a.localeCompare(b))).toEqual(["assistant-bg", "morgatha-bg", "niko-bg"]);
+  // The flagship's game is re-dressed WITHOUT a second mint.
+  expect(rec.games.map((g) => g.mint)).toEqual([false]);
+  expect(rec.stampedVersions).toEqual([DEMO_CHAT_PACK_VERSION]);
+});
+
+test("pack bump NEVER stomps a choice: a copy that already carries a persona and a background is left alone", async () => {
+  const { deps, rec } = makeHarness({
+    seeded: true,
+    packVersion: 1,
+    dressing: (importHash) => ({ chatId: castId<ChatId>(`chat_${importHash}`), hasSeatPersona: true, hasBackground: true }),
+  });
+  await createDemoChatSeeder(deps).ensureSeeded(PRINCIPAL);
+
+  expect(rec.boundPersonas).toHaveLength(0);
+  expect(rec.backgrounds).toHaveLength(0);
+  expect(rec.stampedVersions).toEqual([DEMO_CHAT_PACK_VERSION]);
+});
+
+test("pack bump never resurrects a DELETED example (deletion-respect stays with the latch)", async () => {
+  const { deps, rec } = makeHarness({ seeded: true, packVersion: 1, dressing: () => null });
+  await createDemoChatSeeder(deps).ensureSeeded(PRINCIPAL);
+
+  expect(rec.chats).toHaveLength(0);
+  expect(rec.boundPersonas).toHaveLength(0);
+  expect(rec.backgrounds).toHaveLength(0);
+  expect(rec.games).toHaveLength(0);
+});
+
+test("a library already on the shipped pack does no heal work at all", async () => {
+  const { deps, rec } = makeHarness({
+    seeded: true,
+    packVersion: DEMO_CHAT_PACK_VERSION,
+    dressing: (importHash) => ({ chatId: castId<ChatId>(`chat_${importHash}`), hasSeatPersona: false, hasBackground: false }),
+  });
+  await createDemoChatSeeder(deps).ensureSeeded(PRINCIPAL);
+
+  expect(rec.boundPersonas).toHaveLength(0);
+  expect(rec.backgrounds).toHaveLength(0);
+  expect(rec.stampedVersions).toHaveLength(0);
+});
