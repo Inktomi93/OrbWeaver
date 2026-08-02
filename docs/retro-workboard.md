@@ -125,8 +125,30 @@ modes into the grid pre-first-commit + suppress track transition during boot. QU
 **QUIESCED @ `52116394` — EVERY LANE MERGED. PV IN (`1a53d5cc`: Traveler + address clause,
 assembled-bytes proven; retracted its own stale combobox lesson post-FX). MIG IN (`52116394`:
 pack-version-stamped migration, 3-handle fixture map + anti-drift oracle + mutation-proven
-rename guard; crash-safe stamp-last). ENDGAME RUNNING: docs commit → verify:push → on 12/12
-green PUSH ORIGIN (owner word banked). Then remaining: scoped side-eye re-check · strike pass ·
+rename guard; crash-safe stamp-last). ENDGAME STATE: docs+doctrine COMMITTED · verify:push run 1 red on schema-baseline-parity →
+ROOT-CAUSED + FIXED (baseline schema_version DEFAULT 5→6; B's v5→v6 lift skipped baseline regen
+— the schema-version-bump=baseline-regen-trigger class, SECOND occurrence, lesson re-proven) ·
+verify:push run 2: 11/12 — sole red = the capability-freshness CT losing 3/3 retries under
+full-battery contention (passes isolated; thrice-A/B-proven load race) → **LANE FLK: MECHANISM NAMED + FIXED + LOAD-PROVEN (approved; READY report pending)** — the test
+asserted a TRANSIENT: the connect-a-model note paints only in the in-flight window before the
+scripted rejection settles (F-02 changed the settled arm); isolated catches the ~ms flash, load
+misses it. Fix = barrier on the RENDERED FAILURE ARM (settled state) before the tick — also the
+first-ever pin on F-02's arm; A/B 5-fail→10/10 under 40-busyloop×14-worker contention; zero
+timeouts touched; two stale comments that GENERATED the flaky assertion corrected. LESSON
+(flake class): a CT asserting an in-flight transient is a contention flake by construction —
+barrier on settled states. **NEW FOLLOW-ON SMALL (FLK product observation, ruling=build it
+later): CapabilityGate's no-error arm is UNREACHABLE as a settled state** (capability required |
+error — undefined+null = PENDING), so every editor open FLASHES "connect a chat model" at users
+who have one — the F-02 lying-empty-state class; fix = pending arm + delete-or-reach the note.
+**✅✅ PUSHED TO ORIGIN (08-03): `7c312220..851f625e`, 74 commits — FLK merged (`851f625e`),
+verify:push run 3 = TRUE 12/12 PASS, push executed on the banked owner word.** The entire
+overnight program is on origin: preset program complete+fix-all'd+re-verified · actor-state
+R1-R4 · zod A-D + SSRF seal · shell fixes (focus flag, overlay sheets, registry defaults) ·
+density S6 + registry split · THE CHARACTER PROGRAM (10 cards · v2 reference-school art ·
+10 themes · 10 backgrounds · overrides · migration · 6 live demo chats) · Traveler persona ·
+baseline parity fix · the flake killed structurally. Post-push remaining: strike pass · close-out D-entry · graduation verifier ·
+F-14 CLS lane · TD design pass · CAP-GATE pending-arm small · FirstRunPersonaDialog small ·
+scoped side-eye re-check on FX's 31. Then remaining: scoped side-eye re-check · strike pass ·
 close-out D-entry · graduation verifier · F-14 CLS lane · TD design pass · smalls
 (FirstRunPersonaDialog dead-trigger · schema-baseline-parity red · worldInfo... done in FX ·
 D8 residue · O-4/O-5 chat-side... done in F). Was LIVE: MIG = reseed migration
