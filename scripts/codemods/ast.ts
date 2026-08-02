@@ -301,11 +301,42 @@ function cmdIdent(project: Project, name: string, flags: Flags): void {
 // a template-literal dynamic import (`import(\`./features/${name}.ts\`)` — `resolveModule` reads string
 // LITERALS only; there are currently ZERO such sites in packages/*/src) or a string-keyed module map that
 // names files rather than importing them. The day one lands, the registry-value marking pass is the fix.
+//
+// THE ERR-ALIVE ARM AND ITS COST (the `swallowed` lens's whole reason to exist). Two consumption arms mark a
+// module's ENTIRE export surface alive without naming a single member: `import * as ns` (markModuleAlive) and
+// a dynamic `import()`. That is deliberate — a namespace object can be indexed at runtime in ways no static
+// pass can enumerate, so erring alive is the only honest verdict for the LIVENESS sets. But it hides rot: db's
+// `drizzle(client, { schema })` (packages/db/src/client/index.ts) hands the whole `#schema` namespace to a
+// library, which kept the functionally-unused `usersRelations` reading as consumed for five weeks. So liveness
+// records, IN PARALLEL, WHICH arm marked each key (`Liveness.arms`) plus every namespace-import SITE and the
+// export names it exposes (`Liveness.namespaceSites`). Neither changes a liveness verdict — orphans/testonly/
+// clientgap/the ratchet still read the same sets they always did. They exist so `swallowed` can ask the
+// narrower question the sets cannot: "is `namespace` this key's ONLY arm, and does no swallowing file ever
+// spell the member's name?" EXPIRY: the arm record is only as complete as `markImportConsumption` — a new
+// consumption arm (a `require`, a registry-value marking pass, an `export * as ns` treated as consumption)
+// MUST record its own arm there, or every key it marks becomes a false swallowed candidate.
 
 /** `<declFile>` + `<declStart>` — the identity a candidate export and every consumer of it agree on. */
 function declKey(decl: Node): string {
   return `${decl.getSourceFile().getFilePath()}${KEY_SEP}${decl.getStart()}`;
 }
+
+/** The consumption arms a key can be marked alive by. `named` NAMES the member (a named/default import);
+ *  `namespace` and `dynamic` mark a module's WHOLE surface without naming anything (the err-alive arms). */
+type ConsumptionArm = "named" | "namespace" | "dynamic";
+
+/** Records that `key` was marked alive by `arm`. Kept BESIDE the liveness buckets — recording an arm never
+ *  changes who is alive, only what we can say about WHY. */
+type ArmRecorder = (key: string, arm: ConsumptionArm) => void;
+
+/** ONE `import * as <alias> from "…"` site: the importing file, the local alias, and the export NAMES the
+ *  namespace exposes each origin key under (the spelling an `alias.<member>` access would have to use —
+ *  it is the BARREL's name, which a renaming re-export hop can make differ from the origin's own). */
+type NamespaceSite = {
+  readonly file: SourceFile;
+  readonly alias: string;
+  readonly exposed: ReadonlyMap<string, readonly string[]>;
+};
 
 type Liveness = {
   /** origin-keys reached by a NAMED import / namespace access / dynamic import from PROD code —
@@ -320,6 +351,11 @@ type Liveness = {
   /** files targeted by an `export *` clause somewhere — a candidate there may be reached by a
    *  star-namespace consumer we can't cheaply name; suppress + count it for honesty. */
   starTargets: Set<string>;
+  /** origin-key → the consumption ARMS that marked it (prod AND test importers alike — "no named import
+   *  reaches it ANYWHERE" is the swallowed question). Never consulted by a liveness verdict. */
+  arms: Map<string, Set<ConsumptionArm>>;
+  /** every `import * as` site in the workspace — the files `swallowed` re-scans for `alias.<member>`. */
+  namespaceSites: NamespaceSite[];
 };
 
 /** The client package's src prefix — the seam that buckets prod consumption into client vs server. */
@@ -330,25 +366,44 @@ const CLIENT_SRC_PREFIX = "/packages/client/";
  *  Used for namespace imports and dynamic imports, both of which keep a module's WHOLE export surface
  *  alive (err toward alive, never false-dead). The barrel's export NAME is irrelevant here — only the
  *  declarations it resolves to are recorded, which is what makes an alias hop invisible to the key. */
-function markModuleAlive(target: SourceFile, bucket: Set<string>): void {
+function markModuleAlive(target: SourceFile, bucket: Set<string>, record: ArmRecorder, arm: ConsumptionArm): void {
   for (const decls of target.getExportedDeclarations().values()) {
     for (const d of decls) {
-      bucket.add(declKey(d));
+      const key = declKey(d);
+      bucket.add(key);
+      record(key, arm);
     }
   }
+}
+
+/** origin-key → the export NAME(s) `target` surfaces it under. The inverse of `getExportedDeclarations()`,
+ *  which is keyed by NAME: a namespace consumer writes `ns.<the barrel's name>`, so the swallowed lens needs
+ *  the barrel's spelling for a key it identifies by declaration node. (A key can carry several names — a
+ *  barrel may re-export the same declaration twice under different aliases.) */
+function exposedNames(target: SourceFile): Map<string, string[]> {
+  const out = new Map<string, string[]>();
+  for (const [name, decls] of target.getExportedDeclarations()) {
+    for (const d of decls) {
+      const key = declKey(d);
+      out.set(key, [...(out.get(key) ?? []), name]);
+    }
+  }
+  return out;
 }
 
 /** Resolve one named-import specifier to its ORIGIN decls and mark them alive. `getExportedDeclarations()
  *  .get(<the name the CONSUMER wrote>)` follows the re-export chain — including renames — to the real
  *  declarations; those declaration nodes ARE the key the candidate side uses, so the consumer's spelling
  *  never enters the identity. */
-function markNamedAlive(target: SourceFile, name: string, bucket: Set<string>): void {
+function markNamedAlive(target: SourceFile, name: string, bucket: Set<string>, record: ArmRecorder): void {
   const decls = target.getExportedDeclarations().get(name);
   if (decls === undefined) {
     return;
   }
   for (const d of decls) {
-    bucket.add(declKey(d));
+    const key = declKey(d);
+    bucket.add(key);
+    record(key, "named");
   }
 }
 
@@ -356,22 +411,32 @@ function markNamedAlive(target: SourceFile, name: string, bucket: Set<string>): 
  *  to origins. `export { X } from "…"` is a re-export PASS-THROUGH (not consumption — the MemoryLogEntry
  *  miss class: a file re-exporting its own symbol must not mark it "used" and hide deadness elsewhere),
  *  so this only walks IMPORT declarations. */
-function markImportConsumption(imp: ImportDeclaration, bucket: Set<string>): void {
+function markImportConsumption(imp: ImportDeclaration, sink: ConsumptionSink): void {
   const target = imp.getModuleSpecifierSourceFile();
   if (target === undefined) {
     return;
   }
-  if (imp.getNamespaceImport() !== undefined) {
-    markModuleAlive(target, bucket);
+  const ns = imp.getNamespaceImport();
+  if (ns !== undefined) {
+    const exposed = exposedNames(target);
+    for (const key of exposed.keys()) {
+      sink.bucket.add(key);
+      sink.record(key, "namespace");
+    }
+    sink.namespaceSites.push({ file: imp.getSourceFile(), alias: ns.getText(), exposed });
     return;
   }
   for (const spec of imp.getNamedImports()) {
-    markNamedAlive(target, spec.getName(), bucket);
+    markNamedAlive(target, spec.getName(), sink.bucket, sink.record);
   }
   if (imp.getDefaultImport() !== undefined) {
-    markNamedAlive(target, "default", bucket);
+    markNamedAlive(target, "default", sink.bucket, sink.record);
   }
 }
+
+/** Where one importing file's consumption lands: its liveness bucket, the arm recorder, and the shared
+ *  namespace-site log. One object so a new arm cannot be added without a place to record it. */
+type ConsumptionSink = { readonly bucket: Set<string>; readonly record: ArmRecorder; readonly namespaceSites: NamespaceSite[] };
 
 /** Same-file references: an export used within its own module (a component using its own `*Props`, a
  *  worker's exported-for-test helper called by the file's live loop) is NOT an orphan. Cheap identifier
@@ -397,7 +462,7 @@ function isReferencedInOwnFile(sf: SourceFile, name: string, decl: Node): boolea
 /** Dynamic `import()` keeps the whole target module alive (the two rot verbs were blind to it while the
  *  `importers` verb saw it — the DevTools/installLongTaskTracer false-orphan class). Walks the file's
  *  `import(…)` calls and marks each resolved target's exports alive in `bucket`. */
-function markDynamicImports(sf: SourceFile, project: Project, bucket: Set<string>): void {
+function markDynamicImports(sf: SourceFile, project: Project, bucket: Set<string>, record: ArmRecorder): void {
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
     if (call.getExpression().getKind() !== SyntaxKind.ImportKeyword) {
       continue;
@@ -408,7 +473,7 @@ function markDynamicImports(sf: SourceFile, project: Project, bucket: Set<string
     }
     const target = resolveModule(project, sf.getDirectoryPath(), arg.getLiteralText());
     if (target !== undefined) {
-      markModuleAlive(target, bucket);
+      markModuleAlive(target, bucket, record, "dynamic");
     }
   }
 }
@@ -444,19 +509,26 @@ function buildLiveness(project: Project): Liveness {
   const usedServerProd = new Set<string>();
   const usedTest = new Set<string>();
   const starTargets = new Set<string>();
+  const arms = new Map<string, Set<ConsumptionArm>>();
+  const namespaceSites: NamespaceSite[] = [];
+  const record: ArmRecorder = (key, arm) => {
+    const set = arms.get(key) ?? new Set<ConsumptionArm>();
+    set.add(arm);
+    arms.set(key, set);
+  };
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
     // Prod consumption is bucketed by the IMPORTING file's package (client vs everything-else); a test
     // path always wins into usedTest. clientgap reads the split; orphans/testonly/prodonly read the union.
     const bucket = prodBucketFor(fp, { usedTest, usedClientProd, usedServerProd });
     for (const imp of sf.getImportDeclarations()) {
-      markImportConsumption(imp, bucket);
+      markImportConsumption(imp, { bucket, record, namespaceSites });
     }
     collectStarTargets(sf, starTargets);
-    markDynamicImports(sf, project, bucket);
+    markDynamicImports(sf, project, bucket, record);
   }
   const usedProd = new Set<string>([...usedClientProd, ...usedServerProd]);
-  return { usedProd, usedClientProd, usedServerProd, usedTest, starTargets };
+  return { usedProd, usedClientProd, usedServerProd, usedTest, starTargets, arms, namespaceSites };
 }
 
 const MODULE_FILE_EXTS = [".ts", ".tsx"] as const;
@@ -1182,6 +1254,200 @@ function cmdClientGap(project: Project, arg: string, flags: Flags): void {
   emit(hits, flags, `clientgap ${scope.label}${isContracts ? " (client-facing *View/*Summary names)" : ""}`);
 }
 
+// ── swallowed: exports alive ONLY because a namespace import swallowed the whole module ─────────
+// The rot-hider class, proven on the real tree: `packages/db/src/client/index.ts` does
+// `import * as schema from "#schema"` and hands the namespace to `drizzle(client, { schema })`. That single
+// import marks EVERY schema export alive (markModuleAlive's deliberate err-alive arm), so a functionally
+// unused export inside the barrel reads as consumed forever — `usersRelations` did, for five weeks.
+//
+// The lens reports exports whose ONLY liveness arm is `namespace` AND whose member NAME no swallowing file
+// ever spells (`ns.member`, `ns["member"]`, `const { member } = ns`) AND that no named import reaches
+// anywhere (prod or test) AND that their own file never uses. An export the swallowing file passes
+// WHOLESALE into a call — the drizzle shape — is exactly what stays a candidate: that is the class.
+//
+// CANDIDATE lens, never a death sentence: the swallowing API may itself use the member (drizzle DOES read a
+// `relations()` config when one is present). It finds candidates for a HUMAN verdict. A deliberate keep is
+// tagged `// @swallowed-ok: <reason>` on the declaration, and that tag is TWO-SIDED — a tag on an export the
+// lens no longer considers swallowed is reported STALE and exits 1.
+
+const SWALLOWED_OK_RE = /@swallowed-ok:\s*\S/u;
+
+/** The node whose LEADING comments document a declaration. A `// …` line above `export const x = …` attaches
+ *  to the VariableStatement, not to the VariableDeclaration `getExportedDeclarations()` hands back — reading
+ *  comments off the declaration alone would make every `const`-shaped marker invisible. */
+function commentHost(decl: Node): Node {
+  return decl.getFirstAncestorByKind(SyntaxKind.VariableStatement) ?? decl;
+}
+
+/** True if the declaration carries a leading `// @swallowed-ok: <reason>` — a deliberate keep of an export
+ *  only a namespace consumer reaches. The reason is required (bare marker does NOT exempt, as with
+ *  `@server-only:`/`@test-fixture:` at the unwired lens). */
+export function isSwallowedExempt(decl: Node): boolean {
+  return commentHost(decl)
+    .getLeadingCommentRanges()
+    .some((range) => SWALLOWED_OK_RE.test(range.getText()));
+}
+
+/** Every member name a namespace-importing file SPELLS on its `import * as <alias>` binding: `alias.member`,
+ *  `alias["member"]`, and `const { member } = alias`. A member named here is genuinely consumed — it is the
+ *  arm that separates "the module was swallowed" from "this export was actually used through it". */
+function namedMembersOf(site: NamespaceSite): Set<string> {
+  const named = new Set<string>();
+  for (const pa of site.file.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
+    if (pa.getExpression().getText() === site.alias) {
+      named.add(pa.getName());
+    }
+  }
+  for (const ea of site.file.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)) {
+    const arg = ea.getArgumentExpression();
+    if (ea.getExpression().getText() === site.alias && arg !== undefined && Node.isStringLiteral(arg)) {
+      named.add(arg.getLiteralText());
+    }
+  }
+  for (const v of site.file.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
+    const init = v.getInitializer();
+    const binding = v.getNameNode();
+    if (init?.getText() !== site.alias || !Node.isObjectBindingPattern(binding)) {
+      continue;
+    }
+    for (const element of binding.getElements()) {
+      named.add((element.getPropertyNameNode() ?? element.getNameNode()).getText());
+    }
+  }
+  return named;
+}
+
+/** ONE swallowed candidate: the export, plus the namespace-import sites that are its ENTIRE liveness (the
+ *  files a human must read to render the verdict — "does the API this namespace is handed to use it?"). */
+export type SwallowedCandidate = {
+  readonly name: string;
+  readonly decl: Node;
+  readonly sites: readonly string[];
+};
+
+/** Exports of `inScope` whose only liveness arm is `namespace` and whose name no swallowing file spells.
+ *  Pure enumeration — no exemption policy, no printing (the verb owns both), so the self-test drives the
+ *  same function the CLI does. */
+export function collectSwallowedCandidates(project: Project, live: Liveness, inScope: (filePath: string) => boolean): SwallowedCandidate[] {
+  const spelledAt = memoizedSpelledMembers();
+  const out: SwallowedCandidate[] = [];
+  for (const sf of project.getSourceFiles()) {
+    const fp = sf.getFilePath();
+    if (inScope(fp) && !TEST_FILE_RE.test(fp)) {
+      out.push(...swallowedInFile(sf, live, spelledAt));
+    }
+  }
+  return out;
+}
+
+/** `namedMembersOf` behind a per-run cache: without it every candidate re-walks every swallowing file's
+ *  identifiers (the `#schema` barrel has one namespace site per consumer and dozens of exports). */
+function memoizedSpelledMembers(): (site: NamespaceSite) => Set<string> {
+  const cache = new Map<NamespaceSite, Set<string>>();
+  return (site) => {
+    const hit = cache.get(site);
+    if (hit !== undefined) {
+      return hit;
+    }
+    const fresh = namedMembersOf(site);
+    cache.set(site, fresh);
+    return fresh;
+  };
+}
+
+/** ONE file's swallowed candidates — the three exclusions in order: a non-namespace arm reached it (a NAMED
+ *  import anywhere, or a dynamic import — a different err-alive shape), its own file uses it, or a swallowing
+ *  file spells its name. Nothing reaching it at all is an `orphans` hit, not this lens's business. */
+function swallowedInFile(sf: SourceFile, live: Liveness, spelledAt: (site: NamespaceSite) => Set<string>): SwallowedCandidate[] {
+  const out: SwallowedCandidate[] = [];
+  for (const { name, decl } of ownExports(sf)) {
+    const key = declKey(decl);
+    const arms = live.arms.get(key);
+    if (arms === undefined || arms.size !== 1 || !arms.has("namespace") || isReferencedInOwnFile(sf, name, decl)) {
+      continue;
+    }
+    const sites = live.namespaceSites.filter((s) => s.exposed.has(key));
+    if (sites.some((s) => (s.exposed.get(key) ?? []).some((exportName) => spelledAt(s).has(exportName)))) {
+      continue;
+    }
+    out.push({ name, decl, sites: sites.map((s) => relPath(s.file.getFilePath())).sort(byProdFirst) });
+  }
+  return out;
+}
+
+/** Swallowing sites sort SHIPPED code first: the hit only shows the first couple, and the site that decides
+ *  the verdict is the production one (db's `drizzle(client, { schema })`), not a test helper that happens to
+ *  namespace-import the same barrel. */
+function byProdFirst(a: string, b: string): number {
+  const rank = (p: string): number => (p.startsWith("packages/") && !isTestPath(`/${p}`) ? 0 : 1);
+  return rank(a) - rank(b) || a.localeCompare(b);
+}
+
+/** Repo-relative form of an absolute workspace path (the form every Hit prints). */
+function relPath(full: string): string {
+  return full.startsWith(`${REPO_ROOT}/`) ? full.slice(REPO_ROOT.length + 1) : full;
+}
+
+/** How many swallowing sites a hit names before it collapses to a count — the drizzle-shaped `#schema`
+ *  namespace is imported from many files and the list is not the point, the FIRST one is. */
+const SWALLOW_SITES_SHOWN = 2;
+
+function swallowedHit(candidate: SwallowedCandidate): Hit {
+  const shown = candidate.sites.slice(0, SWALLOW_SITES_SHOWN).join(", ");
+  const more = candidate.sites.length > SWALLOW_SITES_SHOWN ? ` +${candidate.sites.length - SWALLOW_SITES_SHOWN} more` : "";
+  const h = hitOf(candidate.decl, "swallowed-export");
+  h.text = `${candidate.name}  ←  namespace-swallowed by ${shown}${more}  —  ${h.text}`;
+  return h;
+}
+
+/** The STALE side of the `@swallowed-ok` marker: a tag on an export the lens no longer calls swallowed — it
+ *  is named-imported now, spelled at a namespace site, used in its own file, or dead outright. Printed and
+ *  exit-1 so the marker cannot rot into a permanent lie (the two-sided-gate law). */
+function printStaleSwallowedTags(project: Project, inScope: (fp: string) => boolean, candidateKeys: Set<string>): void {
+  const stale: Hit[] = [];
+  for (const sf of project.getSourceFiles()) {
+    const fp = sf.getFilePath();
+    if (!inScope(fp) || TEST_FILE_RE.test(fp)) {
+      continue;
+    }
+    for (const { name, decl } of ownExports(sf)) {
+      if (!isSwallowedExempt(decl) || candidateKeys.has(declKey(decl))) {
+        continue;
+      }
+      const h = hitOf(decl, "stale-swallowed-ok");
+      h.text = `${name}  —  ${h.text}`;
+      stale.push(h);
+    }
+  }
+  if (stale.length === 0) {
+    return;
+  }
+  console.log(
+    `swallowed: ${stale.length} STALE \`@swallowed-ok:\` marker(s) — the export is no longer namespace-swallowed (a named import or an \`ns.<member>\` access reaches it, its own file uses it, or nothing reaches it at all and it is an \`orphans\` hit). Delete the marker or re-state the reason:`,
+  );
+  for (const h of stale) {
+    console.log(`  ! ${h.file}:${h.line}  [${h.kind}]  ${h.text}`);
+  }
+  process.exitCode = 1;
+}
+
+/** Exports alive ONLY because an `import * as ns` handed their whole module to something — and whose member
+ *  name no swallowing file ever spells. Optional scope (a package name / path); bare = every package. A
+ *  deliberate keep carries `// @swallowed-ok: <reason>`; a stale marker is reported and exits 1. */
+function cmdSwallowed(project: Project, arg: string, flags: Flags): void {
+  const scope = arg === "" ? { prefix: "/packages/", label: "(all packages)" } : resolveScope(project, arg, "swallowed");
+  const live = buildLiveness(project);
+  const inScope = (fp: string): boolean => fp.includes(scope.prefix);
+  const candidates = collectSwallowedCandidates(project, live, inScope);
+  printStaleSwallowedTags(project, inScope, new Set(candidates.map((c) => declKey(c.decl))));
+  const hits = candidates.filter((c) => !isSwallowedExempt(c.decl)).map(swallowedHit);
+  const exempt = candidates.length - hits.length;
+  console.log(
+    `swallowed is a CANDIDATE lens — a hit may be load-bearing THROUGH the swallowing API itself (drizzle reads a \`relations()\` config it is handed without your code ever naming it). It finds exports whose only liveness is a whole-module \`import * as\`; the verdict is a human's. Keep one deliberately with \`// @swallowed-ok: <reason>\` on the declaration.${exempt === 0 ? "" : ` (${exempt} candidate(s) exempted by a reasoned marker.)`}`,
+  );
+  emit(hits, flags, `swallowed ${scope.label}`);
+}
+
 // ── respell: a domain `contract/` shape STRUCTURALLY identical to an @orb/contracts shape ───────
 // The gate (`contract-derives-not-respells`) catches a re-spell that kept the OWNER'S NAME. This lens
 // catches the one that renamed it — the shape a syntactic reader cannot see, because nothing about
@@ -1206,7 +1472,7 @@ type ShapeEntry = { readonly name: string; readonly decl: Node; readonly signatu
  *  than no lens. (Present on TS 5.x/TS7's checker object; re-verify on a TypeScript bump.) */
 type AssignabilityChecker = { isTypeAssignableTo: (source: unknown, target: unknown) => boolean };
 
-function assignabilityChecker(project: Project): AssignabilityChecker {
+export function assignabilityChecker(project: Project): AssignabilityChecker {
   const compiler = project.getTypeChecker().compilerObject as unknown as Partial<AssignabilityChecker>;
   if (typeof compiler.isTypeAssignableTo !== "function") {
     console.error(
@@ -1284,9 +1550,43 @@ function domainsWithContracts(project: Project, arg: string): string[] {
 
 const DOMAIN_CONTRACT_DIR_RE = /\/packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\//u;
 
+/** The origin declaration keys a BARE type alias names — `export type X = Y` where `Y` is a plain type
+ *  reference with no type arguments — resolved through import/re-export alias hops to the declaration(s) it
+ *  ultimately points at. Empty for anything else (an object-literal type, a generic instantiation, an indexed
+ *  access): those are not derives.
+ *
+ *  WHY (2026-08-03): the lens used to flag the very fix it recommends. `export type MemoryBackfillCounts =
+ *  MemoryBackfillResult` IS the derive, and it is of course mutually assignable with its own RHS — so the
+ *  steady state was "3 hits, all already resolved", which trains a reader to ignore the lens. A hit is only
+ *  meaningful when the domain shape RE-DECLARES the body; an alias that names the contracts symbol is the
+ *  destination, not the defect. */
+function bareAliasTargetKeys(decl: Node): Set<string> {
+  const keys = new Set<string>();
+  if (!Node.isTypeAliasDeclaration(decl)) {
+    return keys;
+  }
+  const typeNode = decl.getTypeNode();
+  if (typeNode === undefined || !Node.isTypeReference(typeNode) || typeNode.getTypeArguments().length > 0) {
+    return keys;
+  }
+  const entity = typeNode.getTypeName();
+  const identifier = Node.isQualifiedName(entity) ? entity.getRight() : entity;
+  const symbol = identifier.getSymbol();
+  if (symbol === undefined) {
+    return keys;
+  }
+  // An IMPORTED name's own symbol is the import alias; getAliasedSymbol follows the whole re-export chain to
+  // the declaration the contracts side keys on. A same-file reference has no alias — use the symbol itself.
+  for (const d of (symbol.getAliasedSymbol() ?? symbol).getDeclarations()) {
+    keys.add(declKey(d));
+  }
+  return keys;
+}
+
 /** ONE domain's structural twins: every `contract/` shape MUTUALLY ASSIGNABLE with a shape the sibling
- *  `@orb/contracts/<domain>` exports (property-name signature prefilter, then the real probe). */
-function respellHitsFor(project: Project, checker: AssignabilityChecker, domain: string): Hit[] {
+ *  `@orb/contracts/<domain>` exports (property-name signature prefilter, then the real probe), MINUS the
+ *  aliases that already ARE the derive ({@link bareAliasTargetKeys}). */
+export function respellHitsFor(project: Project, checker: AssignabilityChecker, domain: string): Hit[] {
   const contractsShapes = shapesUnder(project, `/packages/contracts/src/${domain}/`);
   if (contractsShapes.length === 0) {
     return [];
@@ -1297,8 +1597,10 @@ function respellHitsFor(project: Project, checker: AssignabilityChecker, domain:
   }
   const hits: Hit[] = [];
   for (const domainShape of shapesUnder(project, `/packages/server/src/domain/${domain}/contract/`)) {
+    const derivedFrom = bareAliasTargetKeys(domainShape.decl);
     for (const twin of bySignature.get(domainShape.signature) ?? []) {
-      if (!mutuallyAssignable(checker, domainShape.decl, twin.decl)) {
+      // The domain shape IS this contracts symbol, under a local name — the recommended derive, not a hit.
+      if (derivedFrom.has(declKey(twin.decl)) || !mutuallyAssignable(checker, domainShape.decl, twin.decl)) {
         continue;
       }
       const h = hitOf(domainShape.decl, domainShape.name === twin.name ? "respell-same-name" : "respell-renamed");
@@ -1342,6 +1644,7 @@ const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => voi
   aliases: cmdAliases,
   unwired: cmdUnwired,
   clientgap: cmdClientGap,
+  swallowed: cmdSwallowed,
   respell: cmdRespell,
 };
 
@@ -1367,10 +1670,10 @@ function runDepcruise(mode: string, pattern: string): void {
 // Verbs that resolve module specifiers to origin declarations (need the types:true / full-graph arm).
 // refs+cycles use the language service; orphans+testonly resolve every import to its origin decl so
 // liveness keys on (file, name) — bare-name matching over-reports same-file use and misses collisions.
-const TYPED_VERBS = new Set(["refs", "cycles", "orphans", "testonly", "prodonly", "unwired", "clientgap", "respell"]);
+const TYPED_VERBS = new Set(["refs", "cycles", "orphans", "testonly", "prodonly", "unwired", "clientgap", "swallowed", "respell"]);
 
 // Verbs whose scope arg is OPTIONAL (default to the whole surface) — run bare, arg defaults to "".
-const ARGLESS_VERBS = new Set(["unwired", "clientgap", "respell"]);
+const ARGLESS_VERBS = new Set(["unwired", "clientgap", "swallowed", "respell"]);
 
 const VERB_LIST = [...Object.keys(VERBS), ...Object.keys(DEPCRUISE_VERBS)].join("|");
 const USAGE = [
@@ -1392,6 +1695,7 @@ const USAGE = [
   "  pnpm ast aliases packages/server   rename-bindings (X as Y / const Y = X / type Y = X)",
   "  pnpm ast unwired                   server tRPC procedures NO client consumes (the PD-138 blind spot)",
   "  pnpm ast clientgap contracts       *View/*Summary contracts the SERVER uses but the CLIENT never does",
+  "  pnpm ast swallowed db              exports alive ONLY because an `import * as` swallowed their module",
   "  pnpm ast respell chat              domain contract/ shapes structurally identical to an @orb/contracts shape",
   "  pnpm ast flow chat/engine          module graph: X's direct edges both ways (depcruise, text)",
   "  pnpm ast reaches agent-sdk         every module that can transitively reach X (depcruise)",
@@ -1421,6 +1725,15 @@ const USAGE = [
   "  server produces but the front-end never wired. A hit may be client-consumed via a re-exported barrel",
   "  or a `Trpc[…]` inference the import-liveness can't see — VERIFY before acting. A path/package scope",
   "  overrides the filter and reports every server-only gap in it (noisier).",
+  "",
+  'swallowed (CANDIDATE lens, run on demand) = the rot-hider class. `import * as ns from "#schema"` +',
+  "  `drizzle(client, { schema })` marks EVERY export of that module alive without naming one, so a dead",
+  "  export inside a namespace-consumed barrel reads as consumed forever. A hit is an export whose ONLY",
+  '  liveness arm is that namespace import, that no swallowing file ever spells (`ns.x` / `ns["x"]` /',
+  "  `const {x} = ns`), that no named import reaches anywhere (prod OR test), and that its own file never",
+  "  uses. It may still be load-bearing THROUGH the swallowing API — VERIFY, never auto-delete. Keep one",
+  "  deliberately with `// @swallowed-ok: <reason>` on the declaration; a marker the lens no longer agrees",
+  "  with is reported STALE and exits 1 (two-sided). Optional scope; bare = every package.",
   "",
   "Flags: --in <substr> path filter · --files per-file counts only (cheapest output) ·",
   "       --max <n> raw-line cap (default 60; big result sets auto-collapse to per-file counts) ·",
