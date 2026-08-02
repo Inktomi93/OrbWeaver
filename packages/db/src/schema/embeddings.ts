@@ -222,6 +222,10 @@ export const chatDigests = sqliteTable(
     // scopedCharacterId would bleed a scoped bucket's rows into the shared (group-as-character) bucket.
     uniqueIndex("chat_digests_scope_unique").on(t.chatId, t.scopedCharacterId, t.tier, t.blockIdx, t.model),
     index("chat_digests_chat_idx").on(t.chatId),
+    // The scope key's SECOND column is not usable for a character-keyed delete (SQLite only uses an index
+    // whose LEFTMOST column is constrained), so a character delete scanned every digest to CASCADE
+    // (`fk-columns-indexed` gate).
+    index("chat_digests_scoped_character_idx").on(t.scopedCharacterId),
   ],
 );
 

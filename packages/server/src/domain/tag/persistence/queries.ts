@@ -4,7 +4,8 @@
 
 import type { TagSource, TagSuggestionView, TagView, TagWithUsage } from "@orb/contracts/tag";
 import type { Db } from "@orb/db";
-import { batchMany, characters as charactersTable, characterTags, chatTags, fetchOwned, personaTags, presetTags, tags, worldBookTags } from "@orb/db";
+import { characters as charactersTable, characterTags, chatTags, personaTags, presetTags, tags, worldBookTags } from "@orb/db";
+import { batchMany, fetchOwned } from "@orb/db/kit";
 import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";

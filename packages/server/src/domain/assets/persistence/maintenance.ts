@@ -2,13 +2,13 @@
 // `queries.ts` surface: per-owner index-row enumeration (GC/fsck/rebuild walk one owner's CAS against these),
 // the distinct owner list (fsck's dangling-row pass drives off the DB, not the tree — an owner whose blobs
 // all vanished has no CAS dir but still has rows), the single-row delete the drop-row-BEFORE-blob ordering
-// runs first, and the batched avatar relink `backfillAvatars` writes. NO `cas.putBytes` / `db.insert(assets)`
-// here (those stay the single coherence writer in `queries.ts` — `assets-single-writer`); this file only
-// ENUMERATES / DELETES index rows and UPDATEs the character avatar pointer.
+// runs first, and the GATHER half of the avatar backfill. NO `cas.putBytes` / `db.insert(assets)` here
+// (those stay the single coherence writer in `queries.ts` — `assets-single-writer`), and NO write into
+// another domain's table: this file ENUMERATES / DELETES assets' OWN index rows and READS `characters` for
+// the backfill candidates — the relink WRITE is character's (`linkCharacterAvatars`, injected).
 
 import type { Db } from "@orb/db";
 import { assets, characters } from "@orb/db";
-import { batchMany, batchStmt } from "@orb/db/kit";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
@@ -60,21 +60,9 @@ export async function loadAvatarBackfillCandidates(db: Db, ownerId: UserId | nul
   return await db.select({ id: characters.id, ownerId: characters.ownerId, importHash: characters.importHash }).from(characters).where(scope);
 }
 
-/** Batch-write `avatarAssetId` back onto owned character rows (the `backfillAvatars` relink) — ONE
- *  `db.batch`, owner-scoped per row, via the `@orb/db/kit` batch helpers (no inline `BatchItem` casts). A
- *  no-op on an empty list (caller guarantees non-empty when it calls). */
-export async function batchLinkAvatars(
-  db: Db,
-  ownerId: UserId,
-  links: readonly { readonly characterId: CharacterId; readonly assetId: AssetId }[],
-): Promise<void> {
-  const stmts = links.map((link) =>
-    batchStmt(
-      db
-        .update(characters)
-        .set({ avatarAssetId: link.assetId })
-        .where(and(eq(characters.id, link.characterId), eq(characters.ownerId, ownerId))),
-    ),
-  );
-  await db.batch(batchMany(stmts));
-}
+// The avatar-pointer WRITE that used to live here (`batchLinkAvatars`) moved to
+// `domain/character/persistence/avatar-link-write.ts` (2026-08-02): `characters` is CHARACTER's table, and a
+// cross-domain write routes through the OWNING domain's persistence helper, delivered as an injected op
+// (`AssetsContext.linkCharacterAvatars`, wired at `entry/compose/assets-character.ts`) — Tier-1-DB.md
+// §"Cross-tier composition", AGENTS §2. The READ above stays: `persistence/` IS the sanctioned home for a
+// cross-domain read, and the candidate scan is assets' own sweep.

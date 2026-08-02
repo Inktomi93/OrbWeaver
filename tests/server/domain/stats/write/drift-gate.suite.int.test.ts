@@ -17,8 +17,10 @@
 // backstop stats.md inv #3 names, and the AP2 checkpoint (07 §2) requires.
 
 import type { StatsDelta } from "@orb/contracts/stats";
-import type { BatchStmt, Db } from "@orb/db";
-import { batchMany, characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
+import type { Db } from "@orb/db";
+import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";

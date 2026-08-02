@@ -61,7 +61,19 @@ Enforcement: the `own-tables-only` gate makes the ownership half structural — 
 
    `createDb` also sets a six-PRAGMA connection-tuning block after the FK set (order matters — `journal_mode=WAL` first, the rest assume it): `journal_mode=WAL` · `busy_timeout=5000` · `synchronous=NORMAL` · `cache_size=-1048576` (1GB) · `mmap_size=2147483648` (2GB) · `temp_store=MEMORY`. WAL + `busy_timeout` are the load-bearing pair: the WAL shutdown checkpoint (`preCloseHousekeeping`'s `wal_checkpoint(TRUNCATE)`) is a no-op without WAL, and `busy_timeout` makes a concurrent writer (the workloads worker races HTTP request writes) wait up to 5s instead of throwing `SQLITE_BUSY` immediately. `journal_mode` is read back and boot-refused on a `file:` URL (must be `wal`); a `:memory:`/non-file db correctly reports `memory` (WAL is file-only) and is accepted. libSQL honors all six (readback caveat: `mmap_size` floors to a page boundary, `busy_timeout` reads back under the `timeout` column).
 
-6. **The `db-structure` barrel gate.** A schema file missing from `schema/index.ts` silently drops its tables from `typeof schema` and from migrations. The gate enforces the re-export AND the producer-mapping split.
+6. **PRAGMAs guard a CONNECTION, and `client.transaction()` can hand you a different one.** libSQL `file:`
+   mode holds ONE native connection; `client.transaction()` takes it for the tx object, so the next
+   `execute` lazily opens a FRESH connection that never ran `createDb`'s PRAGMA block. What survives that
+   replacement differs per pragma and was measured, not assumed: `journal_mode=WAL` survives (it is
+   persisted in the db FILE, not the connection), `foreign_keys=ON` survives (libsql's native default —
+   proven by an FK-rejection probe on the replacement connection), and `busy_timeout` did NOT (it read back
+   0) until the `Config.timeout` belt landed in `createClient`. The full which-mechanism-guards-which-
+   connection answer is carried at `packages/db/src/client/index.ts` (the `TUNING_PRAGMAS` block) — read it
+   there before adding a seventh pragma, because a new one is guarded by NOTHING on a replacement
+   connection unless it is either file-persisted, a libsql native default, or passed through the client
+   `Config`.
+
+7. **The `db-structure` barrel gate.** A schema file missing from `schema/index.ts` silently drops its tables from `typeof schema` and from migrations. The gate enforces the re-export AND the producer-mapping split.
 
 ## Invariants
 

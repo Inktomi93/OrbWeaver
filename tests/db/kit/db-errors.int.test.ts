@@ -2,7 +2,7 @@
 // for neo's scattered marker predicates; domains branch on `.kind`. The `unique`/`foreign-key` arms are
 // exercised by the schema tests, but `check` and `not-null` were not — these pin them against real libSQL
 // constraint errors (raw inserts that bypass drizzle's typed-insert guards).
-import { isConstraintViolation } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import { sql } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";

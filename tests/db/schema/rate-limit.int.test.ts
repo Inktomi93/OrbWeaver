@@ -3,7 +3,8 @@
 // limiter relies on (transport.md esoteric #2 — the SELECT-then-UPDATE-race-free consume path). Real
 // libSQL :memory: via freshDb.
 
-import { isConstraintViolation, rateLimitBuckets } from "@orb/db";
+import { rateLimitBuckets } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import { eq, sql } from "drizzle-orm";
 import { freshDb } from "../../support/db";
 import { expect, test } from "../../support/fixtures";

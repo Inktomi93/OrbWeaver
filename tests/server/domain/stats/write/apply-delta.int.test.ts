@@ -5,8 +5,10 @@
 //   • a null-provider model coalesces to the `(unknown)` sentinel (one row across recompute).
 
 import type { StatsDelta } from "@orb/contracts/stats";
-import type { BatchStmt, Db } from "@orb/db";
-import { batchMany, characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
+import type { Db } from "@orb/db";
+import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchMany } from "@orb/db/kit";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1add845d-c225-41fa-8165-b20e1623ddf8",
+  "id": "5369caa5-357d-409b-bd4f-f5d1af2ed548",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -288,6 +288,11 @@
           "name": "automation_fires_rule_time",
           "columns": ["rule_id", "fired_at"],
           "isUnique": false
+        },
+        "automation_fires_chat_idx": {
+          "name": "automation_fires_chat_idx",
+          "columns": ["chat_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -467,6 +472,11 @@
         "automation_rules_chat_enabled": {
           "name": "automation_rules_chat_enabled",
           "columns": ["chat_id", "enabled", "trigger_type"],
+          "isUnique": false
+        },
+        "automation_rules_owner_idx": {
+          "name": "automation_rules_owner_idx",
+          "columns": ["owner_id"],
           "isUnique": false
         }
       },
@@ -967,6 +977,11 @@
           "name": "characters_owner_idx",
           "columns": ["owner_id"],
           "isUnique": false
+        },
+        "characters_avatar_asset_idx": {
+          "name": "characters_avatar_asset_idx",
+          "columns": ["avatar_asset_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -1240,6 +1255,11 @@
           "name": "chat_invites_chat_idx",
           "columns": ["chat_id"],
           "isUnique": false
+        },
+        "chat_invites_invited_user_idx": {
+          "name": "chat_invites_invited_user_idx",
+          "columns": ["invited_user_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -1433,6 +1453,16 @@
           "name": "chat_participants_character_idx",
           "columns": ["character_id"],
           "isUnique": false
+        },
+        "chat_participants_user_idx": {
+          "name": "chat_participants_user_idx",
+          "columns": ["user_id"],
+          "isUnique": false
+        },
+        "chat_participants_active_persona_idx": {
+          "name": "chat_participants_active_persona_idx",
+          "columns": ["active_persona_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -1553,6 +1583,11 @@
           "name": "chat_stream_events_chat_seq_unique",
           "columns": ["chat_id", "seq"],
           "isUnique": true
+        },
+        "chat_stream_events_message_idx": {
+          "name": "chat_stream_events_message_idx",
+          "columns": ["message_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -1738,6 +1773,16 @@
           "name": "chats_parent_idx",
           "columns": ["parent_chat_id"],
           "isUnique": false
+        },
+        "chats_anchor_persona_idx": {
+          "name": "chats_anchor_persona_idx",
+          "columns": ["anchor_persona_id"],
+          "isUnique": false
+        },
+        "chats_pending_host_idx": {
+          "name": "chats_pending_host_idx",
+          "columns": ["pending_host_user_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -1810,6 +1855,11 @@
         "message_assets_message_idx": {
           "name": "message_assets_message_idx",
           "columns": ["message_id"],
+          "isUnique": false
+        },
+        "message_assets_asset_idx": {
+          "name": "message_assets_asset_idx",
+          "columns": ["asset_id"],
           "isUnique": false
         }
       },
@@ -2106,6 +2156,11 @@
           "name": "message_variants_message_idx_unique",
           "columns": ["message_id", "idx"],
           "isUnique": true
+        },
+        "message_variants_context_boundary_idx": {
+          "name": "message_variants_context_boundary_idx",
+          "columns": ["context_boundary_message_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -2236,6 +2291,26 @@
           "name": "messages_chat_seq_unique",
           "columns": ["chat_id", "seq"],
           "isUnique": true
+        },
+        "messages_author_user_idx": {
+          "name": "messages_author_user_idx",
+          "columns": ["author_user_id"],
+          "isUnique": false
+        },
+        "messages_character_idx": {
+          "name": "messages_character_idx",
+          "columns": ["character_id"],
+          "isUnique": false
+        },
+        "messages_persona_idx": {
+          "name": "messages_persona_idx",
+          "columns": ["persona_id"],
+          "isUnique": false
+        },
+        "messages_selected_variant_idx": {
+          "name": "messages_selected_variant_idx",
+          "columns": ["selected_variant_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -2346,6 +2421,16 @@
         "pending_turns_chat_idx": {
           "name": "pending_turns_chat_idx",
           "columns": ["chat_id"],
+          "isUnique": false
+        },
+        "pending_turns_triggered_by_idx": {
+          "name": "pending_turns_triggered_by_idx",
+          "columns": ["triggered_by"],
+          "isUnique": false
+        },
+        "pending_turns_run_as_user_idx": {
+          "name": "pending_turns_run_as_user_idx",
+          "columns": ["run_as_user_id"],
           "isUnique": false
         }
       },
@@ -2716,6 +2801,11 @@
           "name": "documents_owner_hash_unique",
           "columns": ["owner_id", "import_hash"],
           "isUnique": true
+        },
+        "documents_source_asset_idx": {
+          "name": "documents_source_asset_idx",
+          "columns": ["source_asset_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -3674,6 +3764,11 @@
           "name": "chat_digests_chat_idx",
           "columns": ["chat_id"],
           "isUnique": false
+        },
+        "chat_digests_scoped_character_idx": {
+          "name": "chat_digests_scoped_character_idx",
+          "columns": ["scoped_character_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -4200,6 +4295,16 @@
           "name": "imagery_generations_reuse_idx",
           "columns": ["subject_character_id", "mode", "identity_hash"],
           "isUnique": false
+        },
+        "imagery_generations_asset_idx": {
+          "name": "imagery_generations_asset_idx",
+          "columns": ["asset_id"],
+          "isUnique": false
+        },
+        "imagery_generations_chat_idx": {
+          "name": "imagery_generations_chat_idx",
+          "columns": ["chat_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -4410,6 +4515,11 @@
           "name": "personas_owner_idx",
           "columns": ["owner_id"],
           "isUnique": false
+        },
+        "personas_avatar_asset_idx": {
+          "name": "personas_avatar_asset_idx",
+          "columns": ["avatar_asset_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -4475,7 +4585,13 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "plugin_kv_owner_idx": {
+          "name": "plugin_kv_owner_idx",
+          "columns": ["owner_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "plugin_kv_plugin_id_plugins_id_fk": {
           "name": "plugin_kv_plugin_id_plugins_id_fk",
@@ -4622,6 +4738,11 @@
           "name": "plugins_owner_slug_unique",
           "columns": ["owner_id", "slug"],
           "isUnique": true
+        },
+        "plugins_bundle_asset_idx": {
+          "name": "plugins_bundle_asset_idx",
+          "columns": ["bundle_asset_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -4701,7 +4822,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 5
+          "default": 6
         },
         "forked_from": {
           "name": "forked_from",
@@ -4736,6 +4857,11 @@
         "presets_owner_forked_from_idx": {
           "name": "presets_owner_forked_from_idx",
           "columns": ["owner_id", "forked_from"],
+          "isUnique": false
+        },
+        "presets_forked_from_idx": {
+          "name": "presets_forked_from_idx",
+          "columns": ["forked_from"],
           "isUnique": false
         }
       },
@@ -4846,6 +4972,11 @@
         "rpg_checkpoints_game_idx": {
           "name": "rpg_checkpoints_game_idx",
           "columns": ["game_id"],
+          "isUnique": false
+        },
+        "rpg_checkpoints_snapshot_idx": {
+          "name": "rpg_checkpoints_snapshot_idx",
+          "columns": ["snapshot_id"],
           "isUnique": false
         }
       },
@@ -4960,6 +5091,16 @@
           "name": "rpg_games_chat_unique",
           "columns": ["chat_id"],
           "isUnique": true
+        },
+        "rpg_games_gm_user_idx": {
+          "name": "rpg_games_gm_user_idx",
+          "columns": ["gm_user_id"],
+          "isUnique": false
+        },
+        "rpg_games_gm_preset_idx": {
+          "name": "rpg_games_gm_preset_idx",
+          "columns": ["gm_preset_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -5078,6 +5219,16 @@
           "name": "rpg_journal_game_variant_idx",
           "columns": ["game_id", "variant_id"],
           "isUnique": false
+        },
+        "rpg_journal_variant_idx": {
+          "name": "rpg_journal_variant_idx",
+          "columns": ["variant_id"],
+          "isUnique": false
+        },
+        "rpg_journal_source_message_idx": {
+          "name": "rpg_journal_source_message_idx",
+          "columns": ["source_message_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -5183,6 +5334,16 @@
           "name": "rpg_sheets_game_user_unique",
           "columns": ["game_id", "user_id"],
           "isUnique": true
+        },
+        "rpg_sheets_character_idx": {
+          "name": "rpg_sheets_character_idx",
+          "columns": ["character_id"],
+          "isUnique": false
+        },
+        "rpg_sheets_user_idx": {
+          "name": "rpg_sheets_user_idx",
+          "columns": ["user_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -5359,6 +5520,11 @@
         "rpg_snapshots_game_idx": {
           "name": "rpg_snapshots_game_idx",
           "columns": ["game_id"],
+          "isUnique": false
+        },
+        "rpg_snapshots_message_idx": {
+          "name": "rpg_snapshots_message_idx",
+          "columns": ["message_id"],
           "isUnique": false
         }
       },
@@ -6664,6 +6830,11 @@
           "name": "chat_tags_tag_idx",
           "columns": ["tag_id"],
           "isUnique": false
+        },
+        "chat_tags_owner_idx": {
+          "name": "chat_tags_owner_idx",
+          "columns": ["owner_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -7101,6 +7272,11 @@
           "columns": ["role"],
           "isUnique": true,
           "where": "\"users\".\"role\" = 'owner'"
+        },
+        "users_owner_user_idx": {
+          "name": "users_owner_user_idx",
+          "columns": ["owner_user_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -7221,7 +7397,13 @@
           "default": "(unixepoch() * 1000)"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "workload_schedules_owner_idx": {
+          "name": "workload_schedules_owner_idx",
+          "columns": ["owner_id"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "workload_schedules_owner_id_users_id_fk": {
           "name": "workload_schedules_owner_id_users_id_fk",
@@ -7379,6 +7561,11 @@
           "columns": ["kind", "source"],
           "isUnique": true,
           "where": "status in ('queued', 'running', 'cancelling') and mode = 'bulk'"
+        },
+        "workloads_owner_idx": {
+          "name": "workloads_owner_idx",
+          "columns": ["owner_id"],
+          "isUnique": false
         }
       },
       "foreignKeys": {

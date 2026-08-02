@@ -109,13 +109,13 @@ static is the born-compliant TEST-FREE commit gate. The honest containment for t
 | tier | what it runs | role |
 | - | - | - |
 | `changed` | the scoped inner loop: lint/types(per-owner)/structure/imports/docs over the changed set + vitest `--changed` related tests | fast iteration; `verify --changed` |
-| `static` | biome + eslint + tsc×5 (`types:packages`/`graph`/`testd`/`tests-dom`/`tests-membership`) + `tests:execution-membership` + `structure:db-baseline` + `structure:full` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
+| `static` | biome + eslint + tsc×5 (`types:packages`/`graph`/`testd`/`tests-dom`/`tests-membership`) + `tests:execution-membership` + `structure:db-baseline` + `structure:drizzle-kit` + `structure:full` + `imports:depcruise` + `deps:knip` + `docs:format` — no behavioral suite | `pnpm check` = `verify --static`; the commit gate |
 | `push` | static + `tests:node` (vitest projects AND the CT suite) + `browser:e2e-smoke` + `deps:orphan-ratchet` (the export-rot ratchet — whole-graph liveness, too slow for the commit bar) | pre-push bar; `verify --push` |
 | `full` | push + `quality:cpd` + `browser:e2e` + `tests:parity` + `quality:mutation-gate` + `deps:knip-prod` (the production-strict kept-alive-only-by-tests lens — full-tier during the buildout, promotes post-buildout) | the "nothing omitted" bar; `verify --full` (CI `workflow_dispatch`) |
 
 The static tier is EXACTLY the ordered set `lint:biome, lint:eslint, types:packages, types:graph,
 types:testd, types:tests-dom, types:tests-membership, tests:execution-membership, structure:db-baseline,
-structure:full, imports:depcruise, deps:knip, docs:format` (pinned in the int test) — so `pnpm check` stays
+structure:drizzle-kit, structure:full, imports:depcruise, deps:knip, docs:format` (pinned in the int test) — so `pnpm check` stays
 byte-compatible with the retired orchestrator, modulo the two membership-floor additions and the
 db-baseline promotion.
 `.github/workflows/ci.yml` runs the full tier (§3.2, V4 — the "nothing omitted" bar).
@@ -237,6 +237,15 @@ The behavioral suites are ONE `tests` concept expressed as stages with tier + sc
   it (latest: the `schema_version` DEFAULT 5→6 drift). The comparison is in-process via `drizzle-kit/api`
   (\~1s, no stack, no db file) — it was wired too LATE, not too heavy — and it is the SAME comparator
   `tests/tooling/schema-baseline-parity.int.test.ts` calls (one home, two callers).
+- **`structure:drizzle-kit`** (`static`/`push`/`full` — `pnpm --filter @orb/db exec drizzle-kit check
+  --config=drizzle.config.ts`) — drizzle-kit's OWN migration-chain validator, the ORTHOGONAL half of its
+  sibling above: `structure:db-baseline` compares the schema to the baseline's CONTENT, this one validates
+  the `migrations/meta` CHAIN (every `_journal.json` entry has its snapshot; no two snapshots claim the
+  same parent — the forked-chain collision two concurrently-generated migrations produce, probe-verified
+  to exit 1). Against today's single squashed baseline it is a near-no-op (\~1s) and that is the POINT
+  (owner ruling): the guardrail is built BEFORE the need, so the first post-launch incremental migration
+  lands into an armed one rather than minting it under pressure. Whole-only (one migrations dir). The
+  post-baseline procedure it guards is `Tier-1-DB.md` §"When we migrate for real".
 - **`deps:orphan-ratchet`** (`push`/`full` — `scripts/verify/orphan-export-ratchet.ts`) — the export-rot
   lens as a standing verdict: every export of `kit`/`contracts`/`db`/`server`/`client` that NOTHING reaches
   (prod or test) and that is unused in its own file, judged against a checked-in baseline

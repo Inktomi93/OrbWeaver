@@ -8,8 +8,10 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { TagStatus, TagTargetType } from "@orb/contracts/tag";
-import type { Db, OwnedTable } from "@orb/db";
-import { characters, characterTags, chatTags, fetchOwned, personas, personaTags, presets, presetTags, worldBooks, worldBookTags } from "@orb/db";
+import type { Db } from "@orb/db";
+import { characters, characterTags, chatTags, personas, personaTags, presets, presetTags, worldBooks, worldBookTags } from "@orb/db";
+import type { OwnedTable } from "@orb/db/kit";
+import { fetchOwned } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

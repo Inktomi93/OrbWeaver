@@ -3,7 +3,8 @@
 // lower(name)) functional unique index surfaces a race as a constraint violation, classified into a
 // DomainConflictError.
 
-import { isConstraintViolation, tags } from "@orb/db";
+import { tags } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import { normalizeTagName } from "@orb/kit/tag";
 import type { CreateTagParams } from "../contract/params";

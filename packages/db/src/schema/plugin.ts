@@ -13,7 +13,7 @@ import { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "@orb/contracts/plugin";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
-import { check, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { assets } from "./assets";
 import { users } from "./users";
 
@@ -59,6 +59,9 @@ export const plugins = sqliteTable(
   },
   (t) => [
     uniqueIndex("plugins_owner_slug_unique").on(t.ownerId, t.slug),
+    // The bundle FK is RESTRICT — every asset delete must PROBE this table to decide whether to refuse, and
+    // without a leading index that probe is a full scan on the CAS-delete path (`fk-columns-indexed` gate).
+    index("plugins_bundle_asset_idx").on(t.bundleAssetId),
     check("plugins_status_check", sql.raw(`status in (${STATUS_CHECK_LIST})`)),
     check("plugins_origin_check", sql.raw(`origin in (${ORIGIN_CHECK_LIST})`)),
   ],
@@ -86,6 +89,9 @@ export const pluginKv = sqliteTable(
   },
   (t) => [
     primaryKey({ columns: [t.pluginId, t.key] }),
+    // The denormalized owner guard is ALSO an FK: a user hard-delete cascades these rows, and `ownerId` is
+    // not the PK's leading column, so the delete scanned every KV row (`fk-columns-indexed` gate).
+    index("plugin_kv_owner_idx").on(t.ownerId),
     check("plugin_kv_key_check", sql.raw(`length(key) <= ${KV_KEY_MAX_CHARS}`)),
     check("plugin_kv_value_check", sql.raw(`length(value) <= ${KV_VALUE_MAX_BYTES}`)),
   ],

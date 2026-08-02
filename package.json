@@ -47,6 +47,7 @@
     "check:tests-membership": "tsx scripts/verify/tests-type-membership.ts",
     "check:tests-execution-membership": "tsx scripts/verify/tests-execution-membership.ts",
     "check:db-baseline": "tsx scripts/verify/db-baseline-parity.ts",
+    "check:drizzle-kit": "pnpm --filter @orb/db exec drizzle-kit check --config=drizzle.config.ts",
     "check:orphan-ratchet": "tsx scripts/verify/orphan-export-ratchet.ts",
     "check:respell": "tsx scripts/codemods/ast.ts respell",
     "check:swallowed": "tsx scripts/codemods/ast.ts swallowed",

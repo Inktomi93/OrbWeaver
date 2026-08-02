@@ -4,8 +4,10 @@
 // accumulator Maps; atomic per-owner replace-write (one db.batch) so a read never sees a half-rebuilt owner.
 // Owner-scoping is membership-derived: the owner's chats are those with a character participant they own.
 
-import type { BatchStmt, Db } from "@orb/db";
-import { batchMany, characterStats, chunkRows, dailyStats, modelStats, ownerStats, rowsPerInsert } from "@orb/db";
+import type { Db } from "@orb/db";
+import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { utcDay, wordCount } from "@orb/kit/stats-tally";

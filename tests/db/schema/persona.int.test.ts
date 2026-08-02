@@ -4,8 +4,8 @@
 // avatar SET NULL on asset delete.
 
 import type { PersonaMetadata } from "@orb/contracts/persona";
-import { assets, isConstraintViolation, personas } from "@orb/db";
-import { parseRecord } from "@orb/db/kit";
+import { assets, personas } from "@orb/db";
+import { isConstraintViolation, parseRecord } from "@orb/db/kit";
 import type { AssetId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

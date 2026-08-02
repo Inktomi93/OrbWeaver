@@ -48,7 +48,7 @@ import {
 } from "@orb/contracts/workloads";
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { users } from "./users";
 
 // The default lifecycle state of a freshly-enqueued row (start() inserts a `queued` row).
@@ -144,6 +144,11 @@ export const workloads = sqliteTable(
     uniqueIndex("workloads_mode_active_bulk")
       .on(table.kind, table.source)
       .where(sql.raw(`status in (${ACTIVE_STATUS_LIST}) and mode = 'bulk'`)),
+    // The owner FK's SET-NULL parent scan + the owner-scoped `list`. Both active-lock uniques LEAD with
+    // `kind`, and SQLite only uses an index whose LEFTMOST column is the constrained one — plus both are
+    // PARTIAL (terminal rows excluded), so neither can serve the delete that must touch every row of a
+    // never-deleted audit log (`fk-columns-indexed` gate).
+    index("workloads_owner_idx").on(table.ownerId),
     // SQL-side enum enforcement derived from the tuples (mirrors the drizzle `{ enum }` type-side).
     check("workloads_kind_check", sql.raw(`kind in (${KIND_CHECK_LIST})`)),
     check("workloads_status_check", sql.raw(`status in (${STATUS_CHECK_LIST})`)),
@@ -196,7 +201,10 @@ export const workloadSchedules = sqliteTable(
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  () => [
+  (table) => [
+    // The owner CASCADE parent + the per-owner schedule list: SQLite auto-indexes no child FK, so a user
+    // hard-delete would scan every schedule (`fk-columns-indexed` gate).
+    index("workload_schedules_owner_idx").on(table.ownerId),
     check("workload_schedules_kind_check", sql.raw(`kind in (${KIND_CHECK_LIST})`)),
     check("workload_schedules_mode_check", sql.raw(`mode in (${MODE_CHECK_LIST})`)),
     check("workload_schedules_cadence_check", sql.raw(`cadence in (${CADENCE_CHECK_LIST})`)),
