@@ -19,7 +19,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
-import { createCharacterService, createDefaultCharacterSeeder } from "@orb/server/domain/character";
+import { createCharacterService, createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { describe, onTestFinished } from "vitest";
 import { readSeedAvatar, readSeedGalleryPiece } from "../../../../packages/server/src/entry/boot/seed-assets/index.ts";
 import { freshDb } from "../../../support/db.ts";
@@ -117,6 +117,20 @@ async function makeSeededHarness(): Promise<{
 }
 
 describe("seed imagery: default-character avatars + starter gallery", () => {
+  // PACK COMPLETENESS (the strict row the inventory-driven tests above deliberately do NOT assert): the
+  // shipped bundle must carry art for EVERY card in the authored pack. A new default card without its
+  // avatar goes red here — the tolerance above keeps the WIRING tests honest, this row keeps the tolerance
+  // from rotting into a hole.
+  test("the bundle ships an avatar for every card in DEFAULT_CHARACTER_CARDS", async () => {
+    const missing = (
+      await Promise.all(
+        DEFAULT_CHARACTER_CARDS.map(async (card) => ((await readSeedAvatar(card.input.handle)) === null ? card.input.handle : null)),
+      )
+    ).filter((handle): handle is string => handle !== null);
+    expect(missing, "handles with no bundled avatar PNG").toEqual([]);
+  });
+
+
   test("a character the bundle ships art for is born with a non-null avatarAssetId (real PNG stored + linked)", async () => {
     const h = await makeSeededHarness();
     await h.runSeed();
