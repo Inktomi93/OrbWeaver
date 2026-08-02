@@ -90,3 +90,19 @@ Audit every progress claim against a tool result from THIS session. Report outco
 gate fails, say so with the output; if a step was skipped, say that; when something is verified, state it
 plainly. Lead with the outcome. Surface durable lessons to the orchestrator (it owns the memory store);
 don't write memory yourself.
+
+## Lane invariants (accreted 2026-08-03 — every worktree lane, every dispatch; briefs no longer repeat these)
+- `git -C <your-worktree>` on EVERY git call (cwd silently resets/dies across notification boundaries).
+- Commit with PATHSPEC (`git commit -m … -- <paths>`); lane-unique scratchpad filenames; verify your own
+  commits with `git show --stat` before reporting; `git status --short` empty before READY.
+- Your own `git merge main` runs `-c core.hooksPath=/dev/null` (the `-c` goes BEFORE the subcommand),
+  then re-run gates manually. The orchestrator's merges keep the hook.
+- **Verification floor** (scoped green is NOT done): your suites + scoped tsc + biome/eslint PLUS
+  `pnpm check:structure` (test-file rules — test-layout mirror, ct-no-oneshot, no-test-fabrication,
+  testid-typed — are invisible to every source-scoped tool) PLUS whole-tree `npx knip --cache`
+  (last-importer removals) PLUS `pnpm typecheck:graph` when you touched anything under tests/.
+- Red-first proofs compile against the OLD source and assert user-visible affordances (see the executor
+  def for the cp/git-show mechanism). Worktree Bash rejects compound commands — script to scratchpad,
+  run by absolute path.
+- You can SendMessage the orchestrator MID-RUN: ask on ruled-territory forks and keep working elsewhere;
+  never improvise on rulings, never stall silently.
