@@ -27,7 +27,6 @@ import { CharacterRegexScriptsField } from "./character-regex-scripts-field";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
 
-/** Explicit (not `Omit<Props>`) so biome's `noUnnecessaryConditions` follows the union through the switch. */
 type CharacterFacetId = (typeof CHARACTER_CARD_FACET_IDS)[number];
 
 export interface CharacterFacetEditorProps {
@@ -76,7 +75,66 @@ export function CharacterFacetEditor({ form, facetId, trusted, readOnly, onBack 
   );
 }
 
-/** Explicit param type (not `Omit<Props>`) — else biome's `noUnnecessaryConditions` reads the switch as unreachable. */
+interface FacetBodyProps {
+  readonly form: CardForm;
+  readonly trusted: boolean;
+  readonly readOnly: CharacterProvenanceSectionProps;
+  readonly spoilerBlur: boolean;
+}
+
+/** THE CONTENT-BODY DISPATCH — exhaustive `Record<CharacterFacetId, …>` (the house Record-not-switch
+ *  dispatch, `template-drill-in.tsx`'s `CAPABILITY_RENDERERS`). A new facet id fails `tsc` HERE until it
+ *  has a renderer, instead of silently falling through a switch. */
+const FACET_BODY_RENDERERS: Record<CharacterFacetId, (props: FacetBodyProps) => ReactElement> = {
+  description: ({ form, spoilerBlur }) => (
+    <SpoilerMacroField
+      form={form}
+      name="description"
+      label="Description"
+      hint="Who they are — the core of the card. Use {{char}}/{{user}} to self-reference."
+      spoilerBlur={spoilerBlur}
+      rows={16}
+    />
+  ),
+  personality: ({ form, spoilerBlur }) => (
+    <SpoilerMacroField form={form} name="personality" label="Personality" hint="A summary of traits and temperament." spoilerBlur={spoilerBlur} rows={16} />
+  ),
+  scenario: ({ form, spoilerBlur }) => (
+    <SpoilerMacroField form={form} name="scenario" label="Scenario" hint="The setting or situation the chat opens in." spoilerBlur={spoilerBlur} rows={16} />
+  ),
+  exampleMessages: ({ form, trusted, spoilerBlur }) => <ExampleMessagesField form={form} trusted={trusted} spoilerBlur={spoilerBlur} />,
+  creatorNotes: ({ form }) => (
+    <form.AppField name="creatorNotes">
+      {(field): ReactElement => (
+        <field.MacroField label="Creator notes" hint="Notes for humans — never sent to the model." suggestions={CHARACTER_CARD_MACROS} rows={8} />
+      )}
+    </form.AppField>
+  ),
+  systemPrompt: ({ form }) => (
+    <SpoilerMacroField
+      form={form}
+      name="systemPrompt"
+      label="System prompt"
+      hint="Overrides the assembled system prompt for this character."
+      spoilerBlur={false}
+      rows={16}
+    />
+  ),
+  postHistoryInstructions: ({ form }) => (
+    <SpoilerMacroField
+      form={form}
+      name="postHistoryInstructions"
+      label="Post-history instructions"
+      hint="Injected after the chat history, just before the model responds."
+      spoilerBlur={false}
+      rows={16}
+    />
+  ),
+  depthPrompt: ({ form }) => <DepthPromptFacet form={form} />,
+  regexScripts: ({ form }) => <CharacterRegexScriptsField form={form} />,
+  provenance: ({ form, readOnly }) => <ProvenanceFacet form={form} readOnly={readOnly} />,
+};
+
 function FacetBody({
   form,
   facetId,
@@ -89,72 +147,8 @@ function FacetBody({
   readonly readOnly: CharacterProvenanceSectionProps;
 }): ReactElement {
   const spoilerBlur = useSpoilerBlur();
-  switch (facetId) {
-    case "description":
-      return (
-        <SpoilerMacroField
-          form={form}
-          name="description"
-          label="Description"
-          hint="Who they are — the core of the card. Use {{char}}/{{user}} to self-reference."
-          spoilerBlur={spoilerBlur}
-          rows={16}
-        />
-      );
-    case "personality":
-      return (
-        <SpoilerMacroField form={form} name="personality" label="Personality" hint="A summary of traits and temperament." spoilerBlur={spoilerBlur} rows={16} />
-      );
-    case "scenario":
-      return (
-        <SpoilerMacroField
-          form={form}
-          name="scenario"
-          label="Scenario"
-          hint="The setting or situation the chat opens in."
-          spoilerBlur={spoilerBlur}
-          rows={16}
-        />
-      );
-    case "exampleMessages":
-      return <ExampleMessagesField form={form} trusted={trusted} spoilerBlur={spoilerBlur} />;
-    case "creatorNotes":
-      return (
-        <form.AppField name="creatorNotes">
-          {(field): ReactElement => (
-            <field.MacroField label="Creator notes" hint="Notes for humans — never sent to the model." suggestions={CHARACTER_CARD_MACROS} rows={8} />
-          )}
-        </form.AppField>
-      );
-    case "systemPrompt":
-      return (
-        <SpoilerMacroField
-          form={form}
-          name="systemPrompt"
-          label="System prompt"
-          hint="Overrides the assembled system prompt for this character."
-          spoilerBlur={false}
-          rows={16}
-        />
-      );
-    case "postHistoryInstructions":
-      return (
-        <SpoilerMacroField
-          form={form}
-          name="postHistoryInstructions"
-          label="Post-history instructions"
-          hint="Injected after the chat history, just before the model responds."
-          spoilerBlur={false}
-          rows={16}
-        />
-      );
-    case "depthPrompt":
-      return <DepthPromptFacet form={form} />;
-    case "regexScripts":
-      return <CharacterRegexScriptsField form={form} />;
-    case "provenance":
-      return <ProvenanceFacet form={form} readOnly={readOnly} />;
-  }
+  const render = FACET_BODY_RENDERERS[facetId];
+  return render({ form, trusted, readOnly, spoilerBlur });
 }
 
 /** One macro-aware field; the whole container blurs at rest when the spoiler eye is on. Per-field token

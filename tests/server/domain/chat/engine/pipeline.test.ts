@@ -2,13 +2,14 @@
 // reduce (deltas → final text + economics), the shaped request, the §8 fit, and ctx immutability.
 
 import type { AssembleContext, ChatDeltaEvent, ChatInjection, MessageView, ToolCallRecord } from "@orb/contracts/chat";
-import { contentSpansToBlocks } from "@orb/contracts/chat";
+import { CONTENT_CLASS_POLICY, contentSpansToBlocks } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScript } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
+import type { ContentSpan } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -18,7 +19,7 @@ import { describe, vi } from "vitest";
 import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros";
 import type { ChatToolOps, RunChatTurnOp } from "../../../../../packages/server/src/domain/chat/contract/context";
 import type { HistoryMacroNames, TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
-import { runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline";
+import { __spanToWirePartForTest, runTurnPipeline } from "../../../../../packages/server/src/domain/chat/engine/pipeline";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability";
 import { makeModelCapability } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -1729,5 +1730,53 @@ describe("runTurnPipeline — terminal tools (R1 fold)", () => {
     expect(result.toolRecords.map((r) => r.name)).toEqual(["tick_clock"]);
     // The terminal channel reports the LAST depth's calls (the completion that ended the turn).
     expect(result.terminalToolCalls).toEqual([]);
+  });
+});
+
+// ── The CONTENT_CLASS_POLICY ↔ spanToWirePart binding (content-class wire memory: table + hardcoded
+// dispatch, edit BOTH — this reds if a policy row's `wire` plane and the dispatch disagree). `image` is
+// exempted: its policy row (`wire:"drop"`) covers only the deliberate-user-attachment arm; every other
+// embedded image is DISPLAY-ONLY and never rides the wire plane at all (see `WIRE_PART_HANDLERS`'s `image`
+// comment in `pipeline.ts`).
+describe("spanToWirePart — CONTENT_CLASS_POLICY binding", () => {
+  const wireEnv = { visionOk: true, resolveImageUrl: async () => null, fullCards: new Set<ContentSpan>() };
+  const wireRow = { role: "assistant" as const, userAuthored: false };
+
+  test('wire:"full" classes (text/hidden/unknown-directive) ride VERBATIM', async () => {
+    expect(CONTENT_CLASS_POLICY.text.wire).toBe("full");
+    expect(CONTENT_CLASS_POLICY.hidden.wire).toBe("full");
+    expect(CONTENT_CLASS_POLICY["unknown-directive"].wire).toBe("full");
+
+    const textPart = await __spanToWirePartForTest({ kind: "text", text: "hello" }, wireEnv, wireRow);
+    expect(textPart).toEqual({ type: "text", text: "hello" });
+
+    const hiddenSpan = { kind: "hidden" as const, tag: "lie", attrs: {}, raw: "<lie>the truth</lie>" };
+    const hiddenPart = await __spanToWirePartForTest(hiddenSpan, wireEnv, wireRow);
+    expect(hiddenPart).toEqual({ type: "text", text: hiddenSpan.raw });
+
+    const directiveSpan = { kind: "unknown-directive" as const, raw: "<gmnote>note</gmnote>" };
+    const directivePart = await __spanToWirePartForTest(directiveSpan, wireEnv, wireRow);
+    expect(directivePart).toEqual({ type: "text", text: directiveSpan.raw });
+  });
+
+  test('wire:"drop" (choices) strips the span entirely from the wire', async () => {
+    expect(CONTENT_CLASS_POLICY.choices.wire).toBe("drop");
+    const part = await __spanToWirePartForTest(
+      { kind: "choices", options: ["Go north", "Go south"], raw: ":::choices\nGo north\nGo south\n:::" },
+      wireEnv,
+      wireRow,
+    );
+    expect(part).toBeNull();
+  });
+
+  test('wire:"stub" (card) collapses OUTSIDE the keep-last-X window', async () => {
+    expect(CONTENT_CLASS_POLICY.card.wire).toBe("stub");
+    const cardSpan = { kind: "card" as const, title: "The Ledger", body: "…", origin: "fence" as const, raw: ':::card title="The Ledger"\n…\n:::' };
+    const part = await __spanToWirePartForTest(cardSpan, wireEnv, wireRow);
+    expect(part).toEqual({ type: "text", text: "[card: The Ledger]" });
+    // Inside the keep-last-X window the card rides full, byte-identical to its raw bytes — the wire=stub
+    // plane's declared exception, not a disagreement with the table.
+    const fullPart = await __spanToWirePartForTest(cardSpan, { ...wireEnv, fullCards: new Set([cardSpan]) }, wireRow);
+    expect(fullPart).toEqual({ type: "text", text: cardSpan.raw });
   });
 });
