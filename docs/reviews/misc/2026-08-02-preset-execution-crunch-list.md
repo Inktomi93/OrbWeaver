@@ -160,6 +160,13 @@ wins" · Squash system notes) move out of Prompt into Transforms (owner: they're
 prompt content). Spec §5 concept-sort text amends with it. (Recorded counterpoint, not argued:
 the spec homed Delivery under Prompt as "how sections speak"; owner sort wins.)
 
+**O-18 ★ QUALITY = A DROPDOWN, with an OFF arm.** The Fast/Balanced/Deep segmented strip dies;
+Quality becomes a select whose options include "don't use quality" (no mapping feeds the knobs —
+fully manual). Supersedes the strip half of item 5 (the gloss/placement half still applies to
+wherever the mapping line renders); the readout's QUALITY MAPPING group grows the off arm
+("quality off — knobs are what you set"). Check the G8 tri-state lift: "off" must be a REAL stored
+arm, not a fourth enum value that materializes defaults.
+
 ## P0 ROOT CAUSE — source-pinned (post-list addendum)
 `components/row-reveal.ts:24` — `ROW_REVEAL_SWAP = "group-hover/row:hidden …"` is a
 **display:none swap**: the rest-marker (Active badge) leaves LAYOUT on hover, the title line
