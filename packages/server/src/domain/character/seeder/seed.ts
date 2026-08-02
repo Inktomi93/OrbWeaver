@@ -54,16 +54,32 @@ export function createDefaultCharacterSeeder(deps: DefaultCharacterSeederDeps): 
       outcome = { id: existing?.characterId ?? null, created: false };
     }
     if (outcome.id !== null) {
-      for (const tagName of card.tags) {
-        // biome-ignore lint/performance/noAwaitInLoops: card tags attach sequentially — each is an independent idempotent resolve-or-create-and-attach; the tag lists are short.
-        await deps.attachCardTag({ ownerId: principal.userId, characterId: outcome.id, tagName });
-      }
+      await attachTags(principal, card, outcome.id);
     }
-    // Only for a freshly-created card; failures are swallowed so a gallery seed never breaks the card seed.
-    if (outcome.created && outcome.id !== null && deps.seedGallery !== undefined) {
-      await deps.seedGallery(principal, outcome.id, card.input.handle);
+    if (outcome.created && outcome.id !== null) {
+      await dressFreshCard(principal, card, outcome.id);
     }
     return outcome;
+  }
+
+  async function attachTags(principal: Principal, card: SeedCard, characterId: CharacterId): Promise<void> {
+    for (const tagName of card.tags) {
+      // biome-ignore lint/performance/noAwaitInLoops: card tags attach sequentially — each is an independent idempotent resolve-or-create-and-attach; the tag lists are short.
+      await deps.attachCardTag({ ownerId: principal.userId, characterId, tagName });
+    }
+  }
+
+  /** The two FRESHLY-CREATED-ONLY steps. A card resolved through the handle_conflict arm is a row the user
+   *  already owns (a partial prior run, or their own card at that handle) — re-dressing it would stomp their
+   *  edits, so both steps are gated on `created`.
+   *  1. PRESENTATION (carried theme + seeded background): a post-create edit because both fields live on the
+   *     UPDATE arm only — the create schema carries neither.
+   *  2. The starter gallery — failures are swallowed by the caller so a gallery seed never breaks the seed. */
+  async function dressFreshCard(principal: Principal, card: SeedCard, characterId: CharacterId): Promise<void> {
+    await deps.characters.update({ principal, characterId, input: card.presentation });
+    if (deps.seedGallery !== undefined) {
+      await deps.seedGallery(principal, characterId, card.input.handle);
+    }
   }
 
   async function seed(principal: Principal): Promise<void> {

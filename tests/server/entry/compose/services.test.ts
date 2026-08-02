@@ -13,7 +13,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
 import type { CharacterService } from "@orb/server/domain/character";
-import { createCharacterService, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
+import { createCharacterService, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsIndexer } from "@orb/server/domain/embeddings";
 import { createDomainEventBus, createServices } from "@orb/server/entry/compose";
@@ -245,9 +245,9 @@ describe("default-card seeder wiring (PD-32)", () => {
     expect(result.characterSeeder).toBeDefined();
     await result.characterSeeder.ensureSeeded(actor);
 
-    // 5 cards through the real create path.
+    // The whole authored pack through the real create path.
     const list = await result.services.character.list({ principal: actor });
-    expect(list.items).toHaveLength(5);
+    expect(list.items).toHaveLength(DEFAULT_CHARACTER_CARDS.length);
 
     // The persisted latch is set + the welcome-assistant id points at the seeded Assistant.
     const settings = await result.services.settings.getUserSettings({ principal: actor });
