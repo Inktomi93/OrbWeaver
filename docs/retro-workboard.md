@@ -84,12 +84,31 @@ build-tense linter REFUTED (tense = prose NLP); two honest mechanical arms recom
 own scripts found 5 phantoms in one pass; dangling-refs family, both-ways) → QUEUE as a build
 item. **⚠ NEW OWNER ITEM: monotonic-tests' deleted-test arm is silently INERT** (its manifest
 was lost in the retro; readManifest fail-opens) — re-arm is an owner call, rider added in-doc.
-**LIVE NOW (4): PERSONA · REGEX · SM3 · GRAD.** GRAD (dispatched on TRUTH's drain, mech) =
-ceremony graduation (strike-verify → docs/history moves + ref repoints) + TRUTH report §4's
-post-CERD ledger repairs (D67/D68 riders · D31/D109/D112 drifts · reserved-range next-free
-D122+ · D59 crew disposition · AGENTS.md §6 items · lockdown §13 buddy-bus row).
-HANDOFF-COPY queued behind PERSONA; PRIN's write-half classification lane queued; dangling-refs
-gate arms queued.
+✅ **SM3 MERGED (`44aeaaf4`, hook 14/14, torn down)** — all 6 smalls: gateAndResolveConnection
+DELETED (pure passthrough confirmed at both call sites; canAgent lie gone) · users.ts +
+set-enabled.ts comments truth-repaired to the D60 rider · databank-spec rail count → D121-C ·
+responseFormatSchema @typeonly-ok (lens verified) · spanToWirePart now dispatches THROUGH
+CONTENT_CLASS_POLICY (exhaustive Record + binding test that reds on table/dispatch disagreement;
+the ignored-documentation class closed) · CharacterFacetId switches ×2 → exhaustive Records.
+✅ **GRAD MERGED (`23078849`, hook 14/14, torn down)** — TRUTH §4 ALL APPLIED (D67 D60-shaped
+rider [BACKEND_KEYS=5 verified] · D68 purge-shadow note · D31/D109/D112 fixed against the TREE ·
+D59 crew disposition · reserved-range → D122+ · AGENTS.md §6 [buddy struck, roles 7→8, 4 stale
+program pointers → the workboard] · lockdown §13 buddy-bus struck, automation-bus documented).
+GRADUATED: home-section-spec + actor-state-model review → docs/history (refs repointed,
+dangling-refs green). **CORRECTLY LEFT: preset-surface-redesign.md** (header still says
+nothing-built — stale header vs built tree, needs a BUILT stamp pass before graduating; also
+D121-G residue is genuinely open) **+ crunch-list (2 rows genuinely open, no receipts: item 14
+macro pill [lane-C claim/code mismatch CONFIRMED] + O-2 provenance chip)** → both rows to POLISH.
+**OWNER WORDS (08-03): monotonic-tests re-arm = GO ("flip it") · lane cap back to SIX + "fan
+out if there's more work."**
+**LIVE NOW (6, at cap): PERSONA · REGEX · MONO (monotonic-tests manifest regen + fail-loud
+readManifest + two-sided arms) · WRITES (PRIN's write-half: the owner-scoped predicate over
+update/delete, 30 sites classified w/ markers, world_books rows coordinate w/ REGEX) · POLISH
+(crunch item-14 macro pill + O-2 provenance chip + preset-surface-redesign BUILT-stamp pass) ·
+F14 (the CLS lane — shell.css:11-12 boot-track squeeze, cause pinned: resolved modes into the
+grid pre-first-commit + suppress track transition during boot).** Queued: HANDOFF-COPY (behind
+PERSONA) · PORTABILITY R0-R6 (behind REGEX — PORTABLE_KINDS collision) · dangling-refs gate
+arms · TD design pass · CAP-GATE small · D8 residue · span-coverage smalls.
 
 **LANE TRUTH DISPATCHED (Fable-tier, OWNER-EXEMPTED — the day's closing act):** the core-docs
 TRUTH AUDIT — every verifiable claim in docs/architecture/core verified against the tree
