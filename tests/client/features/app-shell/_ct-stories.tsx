@@ -59,14 +59,21 @@ function LandOn({ section }: { readonly section: SectionId }): null {
 }
 
 /** The full shell with chats CONTENT+CONTEXT slots + a corpus LIST/CONTENT slot; other sections fall
- *  back. The chats `context` slot backs the CONTEXT-follows-section CT (§4.2 rule 1). */
+ *  back. The chats `context` slot backs the CONTEXT-follows-section CT (§4.2 rule 1); the chats content
+ *  slot carries one real focusable control so the "content behind an open sheet is inert" CT can prove
+ *  the keyboard actually cannot reach back there (a bare `<p>` is unfocusable either way). */
 export function AppShellStory(): ReactElement {
   return (
     <CtDataProviders>
       <CtFakeSectionRegistry
         sections={{
           chats: {
-            content: <p>chats content pane</p>,
+            content: (
+              <>
+                <p>chats content pane</p>
+                <button type="button">content control</button>
+              </>
+            ),
             context: <p>chats context pane</p>,
           },
           // Characters is a mobile-bar tab (Home · Chats · Characters · You after the H2 curation), so it
