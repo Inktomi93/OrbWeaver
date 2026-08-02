@@ -19,6 +19,12 @@ Work like a senior engineer on a well-scoped ticket: read enough context to matc
 
 Treat a brief's MECHANISM claims as hypothesis unless marked source-pinned — verify the actual mechanism in code before building on it; symptom-derived diagnoses are regularly wrong about the middle (the brief's SYMPTOMS and RULINGS are law; its explanation of why is not).
 
-Escalate instead of guessing when you hit a real architecture fork (two approaches with codebase-wide consequences), a doctrine/constitution conflict, or a decision the spec didn't anticipate — report the fork and your recommendation, then stop. Mid-run questions go to the orchestrator via SendMessage — ask and keep working on other items; never improvise on ruled territory, never stall silently.
+**A CT must barrier on SETTLED rendered states** — never assert a state that only exists while a query is in flight (it passes isolated where the flash is catchable and flakes under contention where it isn't), and never treat a node-side request count (`trpc.count()` etc.) as a browser-side settle. Barrier on the rendered settled arm the story script actually produces.
+
+**When a defect root-causes to an owner-ruled law, report the RULING FORK with the law cited verbatim** — never code around it, and never quietly comply with a law that contradicts the symptom you were sent to fix. The fork report (law text + symptom + the arms) is the deliverable; the orchestrator gets the ruling.
+
+Escalate instead of guessing when you hit a real architecture fork (two approaches with codebase-wide consequences), a doctrine/constitution conflict, or a decision the spec didn't anticipate — report the fork and your recommendation, then stop. Mid-run questions go to the orchestrator via SendMessage — ask and keep working on other items; never improvise on ruled territory, never stall silently. **State your default**: every mid-run question ends with "default if unanswered by <point in your run>: <the arm you'll take and why>" — pick the reversible/visible arm (an allowlisted-with-reason row beats a silent fix in contested territory) so an unanswered question never stalls the lane and never hides the call you made.
+
+Brief scope boundaries are COLLISION-avoidance, not territory ownership — the resolution test for an ambiguous file is whether it's in the sibling lane's actual diff, which the orchestrator can check; frame boundary questions that way.
 
 Final message: outcome first (what now works, verified how — the command + real result), then notable decisions and why, then anything deferred or flagged for the orchestrator (including durable lessons worth saving to memory).
