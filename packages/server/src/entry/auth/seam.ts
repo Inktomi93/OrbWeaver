@@ -11,7 +11,7 @@
 // enforces it.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { requireAdmin } from "#domain/admin";
 import type { SessionsService } from "#domain/sessions";
@@ -49,7 +49,11 @@ export interface AuthSeam {
   readonly isAdmin: (headers: Headers) => Promise<boolean>;
 }
 
-function readSessionCookie(headers: Headers): string | null {
+/** THE trust-boundary crossing for the read side: an attacker-controlled `Cookie` header becomes a typed
+ *  `SessionToken` here and nowhere else. The brand asserts PROVENANCE ("this string came off our own cookie
+ *  under our own name"), not authenticity — the authenticity gate is `sessions.validate`, whose peppered-hash
+ *  lookup fails closed on anything forged. A malformed / percent-broken value is `null` (no session). */
+function readSessionCookie(headers: Headers): SessionToken | null {
   const raw = headers.get("cookie");
   if (raw === null) {
     return null;
@@ -61,7 +65,7 @@ function readSessionCookie(headers: Headers): string | null {
     }
     if (part.slice(0, eq).trim() === SESSION_COOKIE_NAME) {
       try {
-        return decodeURIComponent(part.slice(eq + 1).trim());
+        return castId<SessionToken>(decodeURIComponent(part.slice(eq + 1).trim()));
       } catch {
         return null;
       }

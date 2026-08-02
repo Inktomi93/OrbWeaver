@@ -60,10 +60,22 @@ export function assertHost(can: Can, principal: Principal, role: ParticipantRole
   }
 }
 
-/** The host verdict as a BOOLEAN (assertHost's non-throwing twin) — for a projection that must BRANCH on host
- *  authority rather than gate on it (the host-audience redaction seam, chat-crew-design/04 §2: the host sees the
- *  hidden hand, a non-host is elided). Derives from the SAME `can()` seam, so a surface that relaxes its gate
- *  inherits the correct redaction with no second authority model. */
+/**
+ * The host verdict as a BOOLEAN (assertHost's non-throwing twin) — for a VERB that must BRANCH on host
+ * authority rather than throw on it (the host-audience redaction seam, chat-crew-design/04 §2: the host sees
+ * the hidden hand, a non-host is elided). Derives from the SAME `can()` seam, so a surface that relaxes its
+ * gate inherits the correct redaction with no second authority model. Consumers: `verbs/read.ts`
+ * (`replayChatEvents` + `chatEventBounds`).
+ *
+ * THE BOUNDARY (two sanctioned classes — do not collapse them; ruled 2026-08-03):
+ * - **This is the ENFORCEMENT arm.** A role comparison that DECIDES what an operation may do belongs here,
+ *   under spine invariant #6 ("`can()` is the ONLY privilege-comparison site"). Never re-spell
+ *   `role === "host"` inline for a gate.
+ * - A role read that PRODUCES A PAYLOAD/VIEW FIELD which consumers thread as DATA is the other class, homed at
+ *   `substrate/member-visibility.ts::viewerReadsHidden` (D106-F1). Those paths are deliberately Principal-free
+ *   and I/O-free; wiring them through `can()` would thread a Principal into a pure projection for zero
+ *   behavior change. Do NOT "fix" them to call this function.
+ */
 export function permitsHost(can: Can, principal: Principal, role: ParticipantRole): boolean {
   return permits(can, principal, "host", role);
 }

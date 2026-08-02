@@ -1,6 +1,6 @@
 import type { Db } from "@orb/db";
 import { sessions, users } from "@orb/db";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { eq } from "drizzle-orm";
@@ -45,7 +45,8 @@ describe("sessions.validate — Route A (returns userId + the principal-fields)"
   });
 
   test("a missing / unknown token → null", async () => {
-    expect(await svc.validate("not-a-real-token")).toBeNull();
+    // A forged cookie value AFTER the entry-tier brand — the brand is provenance, `token_hash` is the gate.
+    expect(await svc.validate(castId<SessionToken>("not-a-real-token"))).toBeNull();
   });
 
   test("a revoked session → null on the NEXT request (not at TTL)", async () => {
