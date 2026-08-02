@@ -8,9 +8,10 @@
 // so a 0..131072 range needs no log scale.
 //
 // Gap-closes landed here (§10): G2 `params.stop` (a chip list — capability-gated on `sampling.stop`),
-// G3 `params.providerContextCompression`, G4 `params.compaction.verbatimTail`. `maxBudgetUsd` is NOT here:
-// D6 is "verify the wire first, then decide", and this lane did not verify it — a field with no proven
-// enforcement gets no editor rather than a knob that lies.
+// G3 `params.providerContextCompression`, G4 `params.compaction.verbatimTail`. `maxBudgetUsd` has no row
+// here because the FIELD is gone: D6 ("build its OUTPUT editor, or delete the field") was resolved DELETE
+// by the owner, 2026-08-02 — it was reachable from no surface, so nobody could set, read, or clear it.
+// Retired via the v5→v6 config lift in `@orb/contracts/preset`.
 //
 // CONTEXT + ADVANCED render with NO capability: compaction and the escape hatches are ours, not the
 // model's. ADVANCED is the deck's ONE collapsed disclosure (genuinely rare escape hatches).
@@ -195,7 +196,7 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
         <form.AppField name="params.compaction.mode">
           {(field): ReactElement => (
             <field.SelectField
-              hint="Managed summarizes into a durable memory marker at a threshold; auto lets the runner compact its own session. Context is always kept in bounds — this only picks how."
+              hint="Managed folds older turns into a durable compaction marker once the context fills past the threshold, and that marker is chat canon — it survives a model swap. Auto lets the runner compact its own session instead. Context is always kept in bounds; this only picks how."
               items={COMPACTION_MODE_ITEMS}
               label="Compaction mode"
               placeholder={`Default — ${compactionModeLabel(DEFAULT_COMPACTION_MODE)}`}
@@ -218,7 +219,7 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
         <form.AppField name="params.compaction.verbatimTail">
           {(field): ReactElement => (
             <field.NumberField
-              hint="How many of the newest messages stay literal when managed compaction runs — everything older folds into the memory marker."
+              hint="How many of the newest messages stay literal when managed compaction runs — everything older folds into the compaction marker."
               label="Verbatim tail"
               max={100}
               min={1}
@@ -238,13 +239,13 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
         </form.AppField>
       </FieldLayout>
       {/* HONEST-DEGRADE: the runner's own auto-compaction never exposes its summary, so `auto` stores no
-          marker — no carry-forward on a model swap and no transcript memory-fact. Shown plainly. */}
+          marker — no carry-forward on a model swap and nothing readable in the transcript. Shown plainly. */}
       <form.Subscribe selector={(state): string | undefined => state.values.params.compaction?.mode}>
         {(mode): ReactElement | null =>
           mode === "auto" ? (
             <Text voice="gloss">
-              Auto uses the runner's own compaction. It won't produce a readable memory summary, so there's no memory marker in the transcript and nothing
-              carries forward if you switch this chat to another model. Choose managed to keep a durable, portable memory.
+              Auto uses the runner's own compaction. It won't produce a readable summary, so there's no compaction marker in the transcript and nothing carries
+              forward if you switch this chat to another model. Choose managed to keep a durable, portable summary.
             </Text>
           ) : null
         }

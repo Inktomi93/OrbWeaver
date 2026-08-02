@@ -44,6 +44,7 @@ const SCHEMA_VERSION_V2 = 2;
 const SCHEMA_VERSION_V3 = 3;
 const SCHEMA_VERSION_V4 = 4;
 const SCHEMA_VERSION_V5 = 5;
+const SCHEMA_VERSION_V6 = 6;
 
 test("promptConfigSchema accepts DEFAULT_PROMPT_CONFIG and parsePromptConfig round-trips it", () => {
   expect(promptConfigSchema.parse(DEFAULT_PROMPT_CONFIG)).toEqual(DEFAULT_PROMPT_CONFIG);
@@ -197,6 +198,40 @@ test("CONFIG_LIFTS v4→v5 turns a silenced (template:'') marker into a DISABLED
   expect(sections[1]?.["template"]).toBe("keep me");
   expect(sections[1]?.["enabled"]).toBe(true);
   expect(sections[2]?.["enabled"]).toBe(true);
+});
+
+// v5→v6 (owner ruling 2026-08-02, resolving D6): `params.maxBudgetUsd` is DELETED — it had no editor on any
+// surface, so nobody could set, read or clear it. The LIFT is the load-bearing half: `userIntentSchema` is
+// `.strict()` and `promptConfigSchema` `.catch({})`s the whole params blob on failure, so a silent field
+// removal would make ONE stored budget key wipe every other knob on that preset.
+test("CONFIG_LIFTS v5→v6 strips the retired maxBudgetUsd knob and leaves every sibling knob intact", () => {
+  const liftV5 = CONFIG_LIFTS[SCHEMA_VERSION_V5];
+  if (liftV5 === undefined) {
+    throw new Error("CONFIG_LIFTS[5] is missing");
+  }
+  const lifted = liftV5({
+    schemaVersion: SCHEMA_VERSION_V5,
+    params: { maxBudgetUsd: 5, temperature: SAMPLE_TEMPERATURE, quality: "deep" },
+  });
+  expect(lifted["schemaVersion"]).toBe(SCHEMA_VERSION_V6);
+  expect(lifted["params"]).toEqual({ temperature: SAMPLE_TEMPERATURE, quality: "deep" });
+
+  // A blob that never carried it passes through untouched (by reference — the shape every lift here uses).
+  const params = { temperature: SAMPLE_TEMPERATURE };
+  expect(liftV5({ schemaVersion: SCHEMA_VERSION_V5, params })["params"]).toBe(params);
+});
+
+test("a stored preset carrying maxBudgetUsd parses forward WITHOUT losing its other params (the .catch({}) trap)", () => {
+  // Without the lift this whole blob's params degrade to `{}` — the strict schema rejects the unknown key
+  // and the catch swallows the entire object. That is the regression this test exists to make loud.
+  const parsed = parsePromptConfig({
+    ...DEFAULT_PROMPT_CONFIG,
+    schemaVersion: SCHEMA_VERSION_V5,
+    params: { maxBudgetUsd: 12.5, temperature: SAMPLE_TEMPERATURE, quality: "deep" },
+  });
+  expect(parsed.schemaVersion).toBe(PROMPT_CONFIG_SCHEMA_VERSION);
+  expect(parsed.params).toEqual({ temperature: SAMPLE_TEMPERATURE, quality: "deep" });
+  expect("maxBudgetUsd" in parsed.params).toBe(false);
 });
 
 test("a stored preset carrying a silenced marker parses forward to a disabled, default-templated one", () => {

@@ -251,7 +251,10 @@ test("CONTEXT — UNSET compaction communicates its resolved defaults on first p
 
 test("CONTEXT — an explicit compaction mode renders the selected value (not the placeholder)", async ({ mount }) => {
   const deck = await mount(<CompactionTabSetStory />);
-  await expect(deck.getByText(compactionModeLabel("auto"), { exact: false })).toBeVisible();
+  // Asserted on the TRIGGER, not on page text: since O-4 shortened the option labels to the bare mode name
+  // ("Auto"), a loose text match also hits the auto-mode honesty gloss that begins "Auto uses the runner's
+  // own compaction…" — two matches, and the one that matters is what the CONTROL reads.
+  await expect(deck.getByRole("combobox", { name: "Compaction mode" })).toHaveText(compactionModeLabel("auto"));
   await expect(deck.getByText(DEFAULT_PREFIX)).toHaveCount(0);
 });
 
