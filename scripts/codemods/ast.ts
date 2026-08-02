@@ -10,6 +10,8 @@ import { pathToFileURL } from "node:url";
 import type { ExportDeclaration, ImportDeclaration, Project, SourceFile, Type } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import knipConfig from "../../knip.ts";
+import type { SchemaTable } from "../check/schema-read.ts";
+import { schemaTables } from "../check/schema-read.ts";
 import { getWorkspace } from "../ts-workspace.ts";
 import { CodemodError } from "./codemod-kit.ts";
 
@@ -1929,7 +1931,6 @@ function cmdTypeOnly(project: Project, arg: string, flags: Flags): void {
 
 const COLUMN_OK_RE = /@column-ok:\s*\S/u;
 const SCHEMA_DIR = "/packages/db/src/schema/";
-const DRIZZLE_TABLE_FACTORY = "sqliteTable";
 /** The drizzle write METHODS whose first argument names columns. `set` is name-ambiguous on its own
  *  (`Map.set`, `URLSearchParams.set`) — it only counts when the chain walk below lands on an `update(<T>)`
  *  call, which no non-drizzle receiver has. */
@@ -2002,49 +2003,49 @@ function sqlColumnName(init: Node | undefined, jsProp: string): string {
   return jsProp;
 }
 
-/** Every `sqliteTable("<sql>", { … })` bound to a variable under `packages/db/src/schema/` — the candidate
- *  substrate. A table whose config argument is not an object literal contributes no columns (there is no
- *  literal to enumerate) and is skipped rather than half-reported. */
+/** Every `sqliteTable("<sql>", { … })` under `packages/db/src/schema/`, as the lens's TableDef. The
+ *  "what does this `sqliteTable(...)` declare" READER is NOT re-spelled here — it is `scripts/check/
+ *  schema-read.ts`, the ONE home the db gates (`fk-columns-indexed`, `fk-ondelete-stated`,
+ *  `table-explicit-primary-key`) already read through. This function adds only what those gates have no use
+ *  for and this lens cannot work without: the SQL column NAME (the migration's spelling, so a reader can
+ *  grep the baseline) and the table's declaration KEY (so a writer's identifier resolves to one table
+ *  through an alias or a `schema.<table>` hop). A table whose SQL name is not a plain literal is skipped —
+ *  there is nothing to report it under. */
 export function collectSchemaTables(project: Project): TableDef[] {
   const out: TableDef[] = [];
   for (const sf of project.getSourceFiles()) {
+    // Path test by SUBSTRING, not schema-read's `isSchemaFile` — that predicate anchors on a REPO-RELATIVE
+    // path, and every lens in this file must stay root-agnostic so the self-test can drive it over an
+    // in-memory project rooted anywhere. (The barrel matches too; it declares no table, so it yields none.)
     if (!sf.getFilePath().includes(SCHEMA_DIR)) {
       continue;
     }
-    for (const v of sf.getVariableDeclarations()) {
-      const table = tableDefOf(v);
-      if (table !== undefined) {
-        out.push(table);
+    for (const table of schemaTables(sf)) {
+      const def = tableDefOf(table);
+      if (def !== undefined) {
+        out.push(def);
       }
     }
   }
   return out;
 }
 
-/** ONE variable declaration as a TableDef, or undefined when it is not a `sqliteTable(name, {…})` binding. */
-function tableDefOf(v: Node): TableDef | undefined {
-  if (!Node.isVariableDeclaration(v)) {
+/** ONE `SchemaTable` as a TableDef, or undefined when it carries no literal SQL name / no binding to key on. */
+function tableDefOf(table: SchemaTable): TableDef | undefined {
+  const sqlName = table.sqlName;
+  const binding = table.call.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+  if (sqlName === undefined || binding === undefined) {
     return;
   }
-  const init = v.getInitializer();
-  if (init === undefined || !Node.isCallExpression(init) || init.getExpression().getText() !== DRIZZLE_TABLE_FACTORY) {
-    return;
-  }
-  const [nameArg, configArg] = init.getArguments();
-  if (nameArg === undefined || !Node.isStringLiteral(nameArg) || configArg === undefined || !Node.isObjectLiteralExpression(configArg)) {
-    return;
-  }
-  const varName = v.getName();
-  const sqlName = nameArg.getLiteralText();
-  const columns: ColumnDef[] = [];
-  for (const prop of configArg.getProperties()) {
-    if (!Node.isPropertyAssignment(prop)) {
-      continue;
-    }
-    const jsProp = prop.getName();
-    columns.push({ tableVar: varName, sqlTable: sqlName, jsProp, sqlColumn: sqlColumnName(prop.getInitializer(), jsProp), decl: prop });
-  }
-  return { varName, sqlName, key: declKey(v), columns };
+  const varName = table.variableName;
+  const columns = table.columns.map((column) => ({
+    tableVar: varName,
+    sqlTable: sqlName,
+    jsProp: column.name,
+    sqlColumn: sqlColumnName(column.node.getInitializer(), column.name),
+    decl: column.node as Node,
+  }));
+  return { varName, sqlName, key: declKey(binding), columns };
 }
 
 /** `<tableVar>\0<jsProp>` — the pair identity the write scan and the read scan agree on. */
