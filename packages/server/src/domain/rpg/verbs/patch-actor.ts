@@ -19,7 +19,7 @@
 //
 // THE MEMBER-OWN-VOLATILE DOORWAY (deferred, kept honest): the image door had to gate host-only because a
 // member's whole-plane image could rewrite every actor in it. An op names its target ref, so the member arm is
-// trivially scopable — `assertOwnUserRef(role, params.principal, params.targetRef)` in place of the host
+// trivially scopable — `assertOwnUserRef(ctx.can, params.principal, role, params.targetRef)` in place of the host
 // refusal below, plus a per-op field policy if the host ever wants to withhold one. Not built here (owner
 // scope): a member gets a FORBIDDEN, not a lie.
 
@@ -34,7 +34,7 @@ import { applyActorOps, emptyActorEntry } from "../substrate/actor-ops";
 export function createPatchActor(ctx: RpgContext): Pick<RpgService, "patchActor"> {
   async function patchActor(params: PatchActorParams): Promise<HandDoorResult> {
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
-    assertHostRole(role, "host authority required to hand-edit an actor");
+    assertHostRole(ctx.can, params.principal, role, "host authority required to hand-edit an actor");
     const targetKey = actorRefKey(params.targetRef);
 
     const written = await writeHandState(ctx, game, (head) => {

@@ -13,14 +13,19 @@
 //     not an accident of the pattern — the ENFORCEMENT-POSITION test (the comparison must gate a `throw`)
 //     is exactly the line between the classes, so a projection can never be "fixed" into a violation.
 //
-// THE CHOKEPOINT IS PER-DOMAIN, and it is CITED — that is the law this gate mints. `chat`'s chokepoint is
-// `can()`. `rpg`'s is its own `guard.ts` (the ratified 9th-slot authority primitive, rpg-design/05 §4.4):
-// `RpgContext` carries no `can` seam at all, so unifying rpg onto the chat spine is a compose-seam change,
-// queued as its own item — NOT something a verb may improvise around by comparing the role itself. Six rpg
-// verbs used to re-spell `role !== "host"` after `resolveMember`, each only to raise its own refusal
-// sentence; they now call `guard.ts::assertHostRole(role, reason)`, byte-identical refusals pinned by
-// tests/server/domain/rpg/authority.suite.int.test.ts. The remedy this gate prints therefore says "route
-// through your domain's cited chokepoint", not "call can()".
+// THE CHOKEPOINT IS PER-DOMAIN, and it is CITED — that is the law this gate mints. A domain reaches the
+// KERNEL only through its own chokepoint file, which owns the domain-coded, leak-free refusal shape
+// (not-found vs forbidden) but never the comparison: chat's is `substrate/auth/decide.ts`, rpg's is its
+// `guard.ts` (the ratified 9th-slot authority primitive, rpg-design/05 §4.4). Both now route the verdict
+// through the injected `can()`, so `admin/guard.ts` is the ONE sanctioned comparison site left.
+//
+// STAGE R1 (2026-08-03) RETIRED THE SECOND SITE. `SANCTIONED_HOMES` used to carry `domain/rpg/guard.ts` as a
+// transitional home, two-sided ON PURPOSE so the unification would self-red the commit that landed it — it
+// did (`RpgContext` gained the injected `can`; `assertHostRole`/`assertOwnUserRef` became a catch-and-reword
+// over the kernel, chat's `permits()` pattern), and the row was deleted in that same commit. The rpg refusal
+// SENTENCES are unchanged byte-for-byte, pinned by tests/server/domain/rpg/authority.suite.int.test.ts, which
+// passed UNMODIFIED across the reroute. The remedy this gate prints still says "route through your domain's
+// cited chokepoint", not "call can()" — a verb reaches its chokepoint, and the chokepoint reaches the kernel.
 //
 // SCOPE: `packages/server/src/domain/**`. DECLARED BLIND SPOTS (measured, not assumed):
 //   • `entry/compose/automation-plugin.ts` (2 sites) computes an authority PAYLOAD (`canWrite: role ===
@@ -50,8 +55,6 @@ const DOMAIN_ROOT = "packages/server/src/domain/";
 const SANCTIONED_HOMES: Record<string, string> = {
   "packages/server/src/domain/admin/guard.ts":
     "the `can()` seam itself — spine invariant #6: `owner ⊇ admin` and `role === 'host'` are decided HERE and nowhere else (its own header states it).",
-  "packages/server/src/domain/rpg/guard.ts":
-    "rpg's ratified authority chokepoint (`assertHostRole`/`resolveHost`, rpg-design/05 §4.4 + the file header) — RpgContext carries no injected `can`; unifying rpg onto `can()` is a queued compose-seam change.",
 };
 
 /** Enforcement-shaped comparisons that are NOT a caller-privilege gate. Each carries the reason it survives.
@@ -67,11 +70,13 @@ const MESSAGE =
   "that relaxes (or tightens) its gate cannot drift from every other surface. A re-spelled compare is also " +
   "how a refusal's leak-free shape gets lost: the chokepoint owns not-found-vs-forbidden, the verb does not. " +
   "The chokepoints: packages/server/src/domain/chat/substrate/auth/decide.ts (chat, via can()) and " +
-  "packages/server/src/domain/rpg/guard.ts (rpg).";
+  "packages/server/src/domain/rpg/guard.ts (rpg) — both of which route the verdict through the injected " +
+  "can() seam, which is the ONE place the comparison lives.";
 
 const FIX =
-  "route it through your domain's CITED chokepoint: chat → `substrate/auth::assertHost`/`permitsHost` (the " +
-  "injected `can()` seam); rpg → `guard.ts::assertHostRole(role, reason)` / `resolveHost`. If the comparison " +
+  "route it through your domain's CITED chokepoint: chat → `substrate/auth::assertHost`/`permitsHost`; rpg → " +
+  "`guard.ts::assertHostRole(ctx.can, principal, role, reason)` / `resolveHost` — both of which ask the " +
+  "injected `can()` seam for the verdict and own only the refusal. If the comparison " +
   "produces a PAYLOAD field rather than a decision, it belongs in the data-projection class instead " +
   "(`substrate/member-visibility.ts::viewerReadsHidden`, D106-F1) and must not gate a throw. A genuine " +
   "survivor (a TARGET-validity check, not a caller gate) takes an ALLOWLIST row WITH its reason.";
