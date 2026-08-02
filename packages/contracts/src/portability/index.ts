@@ -43,14 +43,6 @@ export const PORTABLE_IMPORT_ORDER = [
   "chat",
 ] as const satisfies readonly PortableKind[];
 
-/** Every portable file carries this envelope: `schemaKind` lets the parser confirm the file is what
- *  the directory claimed, `schemaVersion` drives per-entity forward-compat lift-walks. */
-export interface PortableEnvelope {
-  readonly schemaKind: string;
-  /** The entity serde's schema version at export time — the start point for the importer's lift-walk. */
-  readonly schemaVersion: number;
-}
-
 /** One portable file inside a bundle: its path relative to the entity's dir, plus the raw bytes. */
 export interface PortableFile {
   /** Relative to the descriptor's dir, e.g. "Aria.png" or "my-preset.json". */

@@ -140,6 +140,7 @@ export type GalleryItemView = z.infer<typeof galleryItemViewSchema>;
 export const resolveBlobRefsParamsSchema = z.object({
   assetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX),
 });
+/** @public type twin of `resolveBlobRefsParamsSchema`, the live `resolveBlobRefs` tRPC input. */
 export type ResolveBlobRefsParams = z.infer<typeof resolveBlobRefsParamsSchema>;
 
 /** One resolved `(assetId, hash)` pair. Only the caller's own assets come back; a foreign/gone id is
@@ -157,6 +158,7 @@ export const resolveChatBlobRefsParamsSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   assetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX),
 });
+/** @public type twin of `resolveChatBlobRefsParamsSchema`, the live `resolveChatBlobRefs` tRPC input. */
 export type ResolveChatBlobRefsParams = z.infer<typeof resolveChatBlobRefsParamsSchema>;
 
 // ── The `assets-fsck` workload's terminal result (the workloads junk-drawer exit: a workload's result

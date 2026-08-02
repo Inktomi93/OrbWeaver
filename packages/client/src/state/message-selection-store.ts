@@ -43,7 +43,7 @@ export function toggleMessageSelected(messageId: MessageId): void {
 }
 
 /** Clear the selection WITHOUT leaving select mode (the selection bar's clear button semantics). */
-export function clearSelection(): void {
+export function __resetSelection(): void {
   useMessageSelectionStore.setState({ selectedIds: {} }, false, "selection/clear");
 }
 
@@ -62,7 +62,7 @@ export function useSelectedCount(): number {
   return useMessageSelectionStore((s) => Object.keys(s.selectedIds).length);
 }
 
-/** Non-reactive snapshot of the selected ids (the delete action's read — the `readMessageEditDraft`
+/** Non-reactive snapshot of the selected ids (the delete action's read — the `__readMessageEditDraftForTest`
  *  escape-hatch precedent; a fresh array, so never a shared-ref selector footgun). */
 export function readSelectedMessageIds(): MessageId[] {
   return Object.keys(useMessageSelectionStore.getState().selectedIds) as MessageId[];

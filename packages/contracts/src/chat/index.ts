@@ -64,7 +64,6 @@ export type {
   TurnInitiator,
   TurnIntent,
   TurnOrigin,
-  TurnRef,
 } from "./bus";
 export {
   AUTOMATION_DEPTH_HARD_CAP,
@@ -89,7 +88,6 @@ export type { ContentClassPolicy } from "./content-classes";
 export { CONTENT_CLASS_POLICY } from "./content-classes";
 export type {
   MessageSlot,
-  MessageVariant,
   MessageView,
   StandaloneVariableDelta,
   ToolCallRecord,

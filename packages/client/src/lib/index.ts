@@ -52,7 +52,6 @@ export {
   IMPERSONATE_IN_FLIGHT,
   IMPERSONATE_STOP_LABEL,
   IMPERSONATE_WAIT_FOR_TURN,
-  NEEDS_ASSISTANT_REPLY,
   NEEDS_CONTINUATION,
   OPENING_AFTER_COMMIT_FAILED_HINT,
   OPENING_AFTER_COMMIT_FAILED_LEAD,
@@ -63,7 +62,6 @@ export {
   STEER_CUE_SWIPE,
   SWIPE_NEEDS_REPLY,
   sendUnavailableReason,
-  WAND_NEEDS_TEXT,
 } from "./injection-copy";
 export { logClock } from "./log-clock";
 export { messageBubbleClass } from "./message-bubble-class";

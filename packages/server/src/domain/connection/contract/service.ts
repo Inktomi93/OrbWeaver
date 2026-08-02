@@ -116,9 +116,6 @@ export interface ConnectionContext {
   };
 }
 
-/** What `createConnectionService` receives from the entry root; identical to {@link ConnectionContext}. */
-export type ConnectionServiceDeps = ConnectionContext;
-
 /** The connection surface — selection, not execution. None carry `runner`/`family` (sealed in infra). */
 export interface ConnectionService {
   readonly resolveRole: (params: ResolveRoleParams) => Promise<ResolvedConnection>;

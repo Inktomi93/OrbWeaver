@@ -28,7 +28,6 @@ export type {
   TestClaudeAuthParams,
 } from "./contract/params";
 export type { AgentSdkCatalogSnapshot, CatalogSnapshot } from "./contract/results";
-export type { ConnectionService, ConnectionServiceDeps, ConnectionWorkloadDeps, LocalEngineReachability } from "./contract/service";
-export type { ModelCapabilityView, ModelCatalogView } from "./contract/views";
+export type { ConnectionService, ConnectionWorkloadDeps, LocalEngineReachability } from "./contract/service";
 export { createConnectionService } from "./service";
 export { createConnectionWorkloadContributions } from "./workload-contributions";

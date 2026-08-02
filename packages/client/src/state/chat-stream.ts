@@ -94,7 +94,7 @@ let flushScheduled = false;
 
 /** Schedule the next batch flush. Defaults to one `requestAnimationFrame` in the browser (frame-cadence
  *  commits) and to a SYNCHRONOUS run off-browser (vitest/node — no rAF), which preserves the store's
- *  synchronous per-delta contract the unit/CT suites assert. `setFrameScheduler` swaps it for a manual
+ *  synchronous per-delta contract the unit/CT suites assert. `__setFrameSchedulerForTest` swaps it for a manual
  *  driver in a test so batch coalescing (N deltas → 1 commit) is deterministically assertable. */
 type FrameScheduler = (flush: () => void) => void;
 // Read rAF off globalThis via a local all-optional shape (the OrbBusHandle posture): this file rides in
@@ -111,7 +111,7 @@ let frameScheduler: FrameScheduler = defaultScheduler;
 
 /** Test seam: install a manual frame scheduler (returns a restore fn). Buffered deltas then flush only when
  *  the captured callback is invoked, so a test can deliver a burst and assert it coalesced to one commit. */
-export function setFrameScheduler(scheduler: FrameScheduler): () => void {
+export function __setFrameSchedulerForTest(scheduler: FrameScheduler): () => void {
   const previous = frameScheduler;
   frameScheduler = scheduler;
   return (): void => {

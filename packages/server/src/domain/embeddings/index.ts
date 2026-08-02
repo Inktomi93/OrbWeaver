@@ -13,7 +13,6 @@ export type {
   EmbeddingsIndexer,
   EmbeddingsIndexerContext,
   EmbeddingsService,
-  EmbeddingsServiceDeps,
   EmbeddingsWorkloadDeps,
   ListCharacterIds,
   ListImageAssetIds,

@@ -3,7 +3,7 @@
 // unit test) because the store's only read surface is the reactive `useSelectedPresetId` hook —
 // useSyncExternalStore needs a real browser render (the character-selection-store.ct.tsx posture; no
 // non-reactive snapshot escape hatch exists, and adding one would be API surface no consumer needs). Also
-// covers the LIST-callback dual-writes `selectPresetFromList`/`dismissPresetSection`, which additionally
+// covers the LIST-callback dual-writes `selectPresetFromList`/`__dismissPresetSectionForTest`, which additionally
 // close the shell's open slide-over (mirrors ActiveChatStoreProbe's `selectChatFromList` coverage).
 
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -57,7 +57,7 @@ test("selectPresetFromList selects AND closes the LIST slide-over", async ({ mou
   await expect(state).toHaveText("selected=preset_ct_probe section=none openOverlayPanel=none");
 });
 
-test("dismissPresetSection clears the section AND closes the CONTEXT slide-over", async ({ mount }) => {
+test("__dismissPresetSectionForTest clears the section AND closes the CONTEXT slide-over", async ({ mount }) => {
   const probe = await mount(<PresetSelectionProbe />);
   const state = probe.locator("output");
 

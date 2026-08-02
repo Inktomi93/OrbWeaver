@@ -17,7 +17,6 @@ export {
   createDebugAuthMiddleware,
   type DebugAuthOptions,
   type DebugRoutesOptions,
-  debugAuthMiddleware,
   type IntegrityReport,
   inspectChatState,
   integrityProbe,

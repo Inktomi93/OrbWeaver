@@ -7,7 +7,7 @@
 // `beginTurn`, and a fresh id never collides with a prior test's lingering slot).
 
 import type { TurnSlot } from "@orb/client/state";
-import { chatStream, setFrameScheduler, subscribeTurnSlot, subscribeUserMessageCommitted } from "@orb/client/state";
+import { __setFrameSchedulerForTest, chatStream, subscribeTurnSlot, subscribeUserMessageCommitted } from "@orb/client/state";
 import type { ChatDeltaEvent, TurnIntent } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -238,7 +238,7 @@ describe("chatStream rAF-batched token accumulation (task #20 — frame-cadence 
     // a closure-mutated `let` stays flow-narrowed to its initializer at later reads (the known TS
     // limitation), which the graph program reports as never-callable; property narrowing resets on calls.
     const frame: { fn: (() => void) | null } = { fn: null };
-    const restore = setFrameScheduler((flush) => {
+    const restore = __setFrameSchedulerForTest((flush) => {
       frame.fn = flush;
     });
     try {
@@ -269,7 +269,7 @@ describe("chatStream rAF-batched token accumulation (task #20 — frame-cadence 
 
   test("completeTurn flushes buffered tail tokens BEFORE the terminal (no dropped/reordered text)", () => {
     // Scheduler that never auto-fires — proves the terminal itself drains the buffer.
-    const restore = setFrameScheduler(() => undefined);
+    const restore = __setFrameSchedulerForTest(() => undefined);
     try {
       const chatId = freshChatId();
       const seen: TurnSlot[] = [];
