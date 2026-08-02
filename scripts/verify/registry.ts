@@ -380,6 +380,20 @@ export const REGISTRY: readonly StageDef[] = [
     manualReason: "exploratory Stryker report (break:null) — minutes-long, report-only",
   },
   {
+    name: "quality:respell",
+    group: "quality",
+    // A CANDIDATE lens, so it is `manual` BY NATURE and not by cost: it reports domain `contract/` shapes
+    // structurally identical to an @orb/contracts shape, which is EVIDENCE of a re-spell, never proof (two
+    // shapes may agree today and be free to diverge tomorrow). Gating a commit on that would train agents to
+    // rename a field to dodge it — worse than the rot. The syntactic half IS enforced, at the
+    // `contract-derives-not-respells` gate; this row keeps the judgment half discoverable in `verify --list`
+    // (and reachable by the parity gate) rather than living only in a lens verb nobody remembers.
+    tiers: ["manual"],
+    argv: ["pnpm", "check:respell"],
+    classify: asViolations,
+    manualReason: "CANDIDATE lens (`pnpm ast respell <domain>`) — structural identity is evidence, not proof; verify each hit before acting, never gate on it",
+  },
+  {
     name: "tests:coverage",
     group: "tests",
     tiers: ["manual"],

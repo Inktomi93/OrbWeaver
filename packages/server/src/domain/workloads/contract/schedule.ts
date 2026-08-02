@@ -5,8 +5,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ScheduleCadence, StartWorkloadInput, WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
-import type { Db } from "@orb/db";
-import { workloadSchedules } from "@orb/db";
+import type { Db, workloadSchedules } from "@orb/db";
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { StartWorkloadParams } from "./params";
 
