@@ -40,8 +40,8 @@ export type EffectiveProvenance = (typeof EFFECTIVE_PROVENANCES)[number];
 
 /** The SCALAR generation knobs the funnel resolves — the KnobRow surface, in deck order. Deliberately NOT
  *  every `params` field: `logitBias`/`stop` are collection editors (no datum row), and
- *  `maxContextTokens`/`compaction.*`/`maxBudgetUsd` never enter `resolveChat` at all, so projecting them
- *  would be inventing a resolution the turn pipeline does not perform. */
+ *  `maxContextTokens`/`compaction.*` never enter `resolveChat` at all, so projecting them would be
+ *  inventing a resolution the turn pipeline does not perform. */
 export const EFFECTIVE_KNOBS = [
   "temperature",
   "topP",

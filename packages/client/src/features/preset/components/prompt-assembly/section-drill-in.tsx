@@ -133,12 +133,13 @@ export function SectionDrillIn({ form, section, index, onBack }: SectionDrillInP
 }
 
 /** The drilled-in enable echo (§16 row 18) — the SAME `sections[i].enabled` path the rack row's Switch
- *  binds, rendered here because the primary home is off-screen while you edit. */
+ *  binds, rendered here because the primary home is off-screen while you edit. Amber-ON like the row it
+ *  echoes: an echo that paints a different state grammar from its primary home is a second reading. */
 function EnableEcho({ form, index, label }: { readonly form: AssemblyForm; readonly index: number; readonly label: string }): ReactElement {
   return (
     <form.AppField name={`sections[${index}].enabled`}>
       {(field): ReactElement => (
-        <Switch aria-label={`${label} enabled`} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} tone="quiet" />
+        <Switch aria-label={`${label} enabled`} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} />
       )}
     </form.AppField>
   );
