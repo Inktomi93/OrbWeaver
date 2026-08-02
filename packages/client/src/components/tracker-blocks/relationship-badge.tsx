@@ -6,6 +6,7 @@
 
 import type { RpgRelationship, RpgRelationshipKind } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
+import type { LucideIcon } from "@orb/ui/icons";
 import { Heart, Icon, Star, Users, UserX } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement } from "react";
@@ -14,7 +15,7 @@ type BadgeIntent = NonNullable<ComponentProps<typeof Badge>["intent"]>;
 
 /** The per-kind badge decoration — the intent color + the glyph. `custom` has none (a plain neutral label
  *  chip). Ordered lover→enemy along the warmth axis (§2.1). */
-const RELATIONSHIP_DECOR: Readonly<Record<Exclude<RpgRelationshipKind, "custom">, { readonly intent: BadgeIntent; readonly glyph: typeof Heart }>> = {
+const RELATIONSHIP_DECOR: Readonly<Record<Exclude<RpgRelationshipKind, "custom">, { readonly intent: BadgeIntent; readonly glyph: LucideIcon }>> = {
   lover: { intent: "primary", glyph: Heart },
   friend: { intent: "success", glyph: Star },
   ally: { intent: "info", glyph: Users },
