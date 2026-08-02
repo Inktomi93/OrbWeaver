@@ -32,7 +32,8 @@
 // Timestamps are plain `integer("x_at")` epoch-MS NUMBERS (contracts view timestamps as `number`), born at
 // insert via `(unixepoch() * 1000)`; caller-set timestamps are required `integer` numbers. JSON columns
 // are `$type<T>()` + read at the `@orb/db/kit` parse-seam (`chats.metadata` lazy/fault-isolated sub-blobs;
-// `message_variants.params`/`promptSnapshot`/`rawRequest`/`rawResponse`/`metadata`).
+// `message_variants.params`/`promptSnapshot`/`metadata`). The `raw_request`/`raw_response` provider
+// envelopes are DELETED (2026-08-03): nothing ever wrote them and the wire inspector reads `promptSnapshot`.
 
 import type {
   AssembledPrompt,
@@ -347,9 +348,6 @@ export const messageVariants = sqliteTable(
     // `connection.orGenerationCost` settles the per-message cost with (PD-137). Null on a non-OR turn
     // (agent-sdk / responses api / user-authored row). NOT an orbweaver-branded id (an upstream handle).
     generationId: text("generation_id"),
-    // Raw provider envelopes (debug/replay) — open JSON, parsed at the read seam.
-    rawRequest: text("raw_request", { mode: "json" }).$type<Record<string, unknown>>(),
-    rawResponse: text("raw_response", { mode: "json" }).$type<Record<string, unknown>>(),
     // ── Continue-undo state (preContinue* + lastContinuation* + reasoning twins — Tier-1-DB.md §chat). ──
     preContinueContent: text("pre_continue_content"),
     preContinueReasoning: text("pre_continue_reasoning"),

@@ -10,7 +10,7 @@ import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
-import type { RegexScript } from "@orb/contracts/regex";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import { GUIDED_GAME_STEERS } from "@orb/kit/guided";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroContext, MacroRegistry } from "@orb/kit/macro";
@@ -327,9 +327,9 @@ interface BuildAssembleContextInput {
   readonly model: string;
   /** Per-turn injection token budget (0 = unbudgeted). */
   readonly injectionTokenBudget: number;
-  /** Effective host-tier regex set (host-global ∪ chat-preset ∪ cast), resolved by the verb/root; applied
+  /** Effective host-tier regex set (global ∪ preset ∪ cast ∪ room), resolved by the verb/root; applied
    *  at SEND (USER_INPUT) and copied onto the returned AssembleContext for RECEIVE. */
-  readonly hostTierRegexScripts?: readonly RegexScript[] | undefined;
+  readonly hostTierRegexScripts?: readonly RegexScriptRow[] | undefined;
   /** The per-turn user-macro RENDER registry (WAVE MU) — every section/WI/persona/note render resolves
    *  user macros against it; absent ⇒ the process `globalMacroRegistry` (byte-identical). NEVER placed on
    *  the returned serializable `AssembleContext` — it rides the build INPUT + `TurnPrep` only. */
@@ -719,7 +719,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
 
   // SEND — freeze volatile macros then run USER_INPUT regex, between RESOLVE/base and GATHER so the WI
   // haystack and the persisted row (via `out`) are the same post-transform text.
-  const hostScripts: readonly RegexScript[] = input.hostTierRegexScripts ?? [];
+  const hostScripts: readonly RegexScriptRow[] = input.hostTierRegexScripts ?? [];
   let pendingText = input.pendingUserText;
   if (input.pendingUserText !== undefined) {
     let frozen = freezeVolatileMacros(input.pendingUserText, base, { random: input.prng, registry: input.freezeMacroRegistry });

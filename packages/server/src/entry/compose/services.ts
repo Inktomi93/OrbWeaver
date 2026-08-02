@@ -80,6 +80,7 @@ import type { DefaultPersonaSeeder } from "../boot";
 import { readSeedDemoChat } from "../boot/seed-assets";
 import type { ImportWorldInfoPort } from "../import";
 import { buildAdmin } from "./admin";
+import { buildRegex } from "./regex";
 import { buildAssetsCharacter } from "./assets-character";
 import { buildAutomationPlugin } from "./automation-plugin";
 import type { ChatComposeResult } from "./chat";
@@ -463,6 +464,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // PD-139(a): bind the embed-model-change → bulk purge+reindex enqueue now that `workloads` exists.
   enqueueEmbedReindex = searchDiscovery.enqueueEmbedReindex;
 
+  // ── the regex script LIBRARY (D121-E). Built before admin/chat: admin's export service needs its card
+  // RE-EMBED op and chat's context needs its four-scope RESOLVE op.
+  const regexCompose = buildRegex({ db, now, audit });
+
   // ── admin + the ONE tool-use registry + the export service (the admin seam).
   const { admin, toolUse, exportService } = buildAdmin({
     db,
@@ -477,6 +482,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     embedModel: roleClients.embedModel,
     cas,
     imageTransform: imageAdapter.transform,
+    exportCardScripts: regexCompose.exportCardScripts,
   });
 
   // ── imagery (the imagery seam). `resolveViewerVisibility` is a late-bound forward-ref (chat composes below);
@@ -570,6 +576,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     generatePicture: imagery.generatePicture,
     gatherDatabank: databank.gatherRetrieval,
     rpg: rpgOpsDelegate,
+    resolveRegexSources: regexCompose.resolveRegexSources,
   });
   const { service: chat, emitBusEvent: emitChatBusEvent } = chatCompose;
 
@@ -667,6 +674,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     assets,
     attachCardTag: tag.attachCardTagByName,
     importWorldInfo,
+    importCardScripts: regexCompose.importCardScripts,
+    exportRegexScripts: regexCompose.exportRegexScripts,
+    importRegexScript: regexCompose.importRegexScript,
     bulkImportChats,
     bulkImportPersonas,
     resolveOwnerPrincipal,
@@ -714,6 +724,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     persona,
     plugin,
     preset,
+    regex: regexCompose.regex,
     rpg,
     search,
     sessions,

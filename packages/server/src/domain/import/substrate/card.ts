@@ -7,6 +7,8 @@
 
 import type { AttachedBookRef, CharacterCard, CreateCharacterInput } from "@orb/contracts/character";
 import { ATTACHED_BOOKS_WIRE_KEY, attachedBookRefSchema, createCharacterSchema } from "@orb/contracts/character";
+import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, attachedRegexScriptRefSchema } from "@orb/contracts/regex";
+import type { RegexScriptId } from "@orb/kit/ids";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { AssetId } from "@orb/kit/ids";
 import { readCardChunk } from "@orb/kit/png-card-chunk";
@@ -27,6 +29,9 @@ interface ParsedCard {
   /** PD-144: carried attached-book REFERENCES (`{worldBookId, role}`), re-linked by id on import. Empty for a
    *  foreign ST card / an orbweaver card with no attached books. Each ref is validated (invalid ones dropped). */
   readonly attachedBooks: readonly AttachedBookRef[];
+  /** D121-E twin of `attachedBooks`: carried attached-SCRIPT references (`{regexScriptId}`), re-linked by id
+   *  on a same-install re-import. Empty for a foreign ST card — the by-value `card.regexScripts` lifts then. */
+  readonly attachedRegexScripts: readonly RegexScriptId[];
 }
 
 const DEFAULT_BOOK_NAME = "Imported Lorebook";
@@ -82,6 +87,30 @@ function extractAttachedBooks(raw: unknown): AttachedBookRef[] {
   return out;
 }
 
+// D121-E twin of `extractAttachedBooks`: pull the orbweaver-namespaced attached-SCRIPT references off
+// `data.orbweaver_attached_regex_scripts`. Each candidate is validated through the canonical ref schema — a
+// foreign/malformed entry is dropped, never thrown. The OWNERSHIP gate runs later at the lift op (a
+// reference naming a row this owner does not have simply resolves to nothing).
+function extractAttachedRegexScripts(raw: unknown): RegexScriptId[] {
+  const root = asRecord(raw);
+  if (root === null) {
+    return [];
+  }
+  const data = asRecord(root["data"]) ?? root;
+  const candidates = data[ATTACHED_REGEX_SCRIPTS_WIRE_KEY];
+  if (!Array.isArray(candidates)) {
+    return [];
+  }
+  const out: RegexScriptId[] = [];
+  for (const candidate of candidates) {
+    const parsed = attachedRegexScriptRefSchema.safeParse(candidate);
+    if (parsed.success) {
+      out.push(parsed.data.regexScriptId);
+    }
+  }
+  return out;
+}
+
 function toText(input: Uint8Array | string): string {
   const raw = typeof input === "string" ? input : new TextDecoder("utf-8").decode(input);
   return raw.charCodeAt(0) === UTF8_BOM ? raw.slice(1) : raw;
@@ -111,6 +140,7 @@ function fromText(text: string, fallbackName: string): ParsedCard | null {
       tags: extractCardTags(parsed),
       book: extractBulkImportLorebook(parsed),
       attachedBooks: extractAttachedBooks(parsed),
+      attachedRegexScripts: extractAttachedRegexScripts(parsed),
     };
   } catch {
     return null;
@@ -155,7 +185,6 @@ export function cardToCreateInput(card: CharacterCard, avatarAssetId: AssetId | 
     source: card.source,
     creationDate: card.creationDate,
     modificationDate: card.modificationDate,
-    regexScripts: card.regexScripts,
     extensions: card.extensions,
     residualData: card.residualData,
     avatarAssetId,

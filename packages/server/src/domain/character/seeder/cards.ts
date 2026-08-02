@@ -41,7 +41,6 @@ const AUTHORED_CARD_DEFAULTS = {
   source: null,
   creationDate: null,
   modificationDate: null,
-  regexScripts: [],
   extensions: null,
   residualData: null,
   avatarAssetId: null,

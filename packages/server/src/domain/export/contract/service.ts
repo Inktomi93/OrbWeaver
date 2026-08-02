@@ -5,6 +5,7 @@
 // indirection); jpg/webp→png transcode is the injected `infra/image` op, so export never imports `sharp`.
 
 import type { Db } from "@orb/db";
+import type { ExportCardScripts } from "#domain/regex";
 import type { ImageTransformOptions } from "#infra/image";
 import type { Cas } from "#infra/storage";
 import type { ExportCharacterParams, ExportChatParams } from "./params";
@@ -15,6 +16,10 @@ export interface ExportContext {
   readonly db: Db;
   readonly cas: Cas;
   readonly imageTransform: (bytes: Uint8Array, opts?: ImageTransformOptions) => Promise<Uint8Array>;
+  /** D121-E: the card RE-EMBED — the character's attached regex library rows projected back onto the ST card
+   *  wire + the reference list a same-install re-import re-links by. Injected (cross-domain), because a
+   *  card's scripts are no longer a column export could read off the flat row. */
+  readonly exportCardScripts: ExportCardScripts;
 }
 
 // The chat transcript format union's declaration home is params.ts (keeps contract/ acyclic); the

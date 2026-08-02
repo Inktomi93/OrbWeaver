@@ -17,7 +17,6 @@ import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
 import type { EffortLevel as ModelEffortLevel } from "#connection";
 import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, roleHandlingSchema, VERBOSITY_LEVELS } from "#connection";
-import { regexScriptSchema } from "#regex";
 import { defineVersionedConfig } from "#versioned-config";
 import { PRESET_PROSE_SLOTS } from "./prose";
 
@@ -27,7 +26,6 @@ const MAX_NAME_LENGTH = 200;
 const MIN_ID_LENGTH = 1;
 const MAX_TEXT_LENGTH = 100_000; // literal content + marker template (may carry {{macros}})
 const MAX_SECTIONS = 500;
-const MAX_REGEX_SCRIPTS = 500;
 const MAX_VARIABLES = 200;
 const MAX_CHOICE_OPTIONS = 200;
 const MIN_CHOICE_OPTIONS = 1;
@@ -1075,7 +1073,10 @@ export const promptConfigSchema = z.object({
   // `.catch({})` bounds a malformed params blob to JUST this field — `userIntentSchema` is strict,
   // so without this a single unknown nested key would degrade the WHOLE preset to DEFAULT_PROMPT_CONFIG.
   params: userIntentSchema.catch({}).default({}),
-  regexScripts: z.array(regexScriptSchema).max(MAX_REGEX_SCRIPTS).default([]),
+  // NO `regexScripts` (D121-E): a preset's regex set is a REFERENCE list in `preset_regex_scripts`, not an
+  // embedded copy. `promptConfigSchema` is a plain (non-strict) object, so a stored pre-D121-E blob simply
+  // strips the retired key at the parse seam — no lift, no schema bump; the owner re-attaches by hand
+  // (BACKREST-MANUAL, the ruled NO-LEGACY carryover posture).
   variables: z.array(choiceBlockSchema).max(MAX_VARIABLES).default([]),
   // WAVE MU (§12A.5 M5): preset-authored user macros — additive defaulted (a pre-MU blob parses; no
   // version bump needed, the `variables`/`guidedActions` precedent).
@@ -1380,7 +1381,6 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
     },
   ],
   params: {},
-  regexScripts: [],
   variables: [],
   userMacros: [],
   formatStrings: { ...DEFAULT_FORMAT_STRINGS },
@@ -1395,7 +1395,13 @@ export const promptConfigConfig = defineVersionedConfig({
 });
 
 /** Parse a stored config blob, lifting older shapes forward. LENIENT: a malformed blob degrades to
- *  DEFAULT_PROMPT_CONFIG rather than throwing mid-load (vs `parsePresetFile`'s STRICT validation). */
+ *  DEFAULT_PROMPT_CONFIG rather than throwing mid-load (vs `parsePresetFile`'s STRICT validation).
+ *
+ *  D121-E asymmetry, deliberate — do NOT "fix" it: the retired `regexScripts` field needs NO lift here
+ *  because `promptConfigSchema` is a plain (non-strict) `z.object`, so a stored pre-D121-E key is simply
+ *  stripped at this seam. `UserSettings` DID take a version bump + a lift-to-drop for the same deletion,
+ *  because its `USER_SETTINGS_SECTIONS` tuple is the section-PATCH door: an unlisted stored key there
+ *  survives in the blob as an unaddressable orphan. Non-strict parse ⇒ strip; addressable door ⇒ lift. */
 export function parsePromptConfig(raw: unknown): PromptConfig {
   return promptConfigConfig.parse(raw);
 }

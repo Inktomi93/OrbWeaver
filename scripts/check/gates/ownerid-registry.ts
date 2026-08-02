@@ -21,6 +21,7 @@ export const OWNERID_ALLOWLIST: Readonly<Record<string, string>> = {
   personas: "D23 true producer",
   presets: "D23 true producer (nullable — the shared system default)",
   world_books: "D23 true producer",
+  regex_scripts: "D23 true producer (D121-E — the regex SCRIPT LIBRARY; a script is authored with no owning parent to derive through)",
   tags: "D23 true producer",
   user_credentials: "D23 true producer",
   workloads: "D23 true producer",

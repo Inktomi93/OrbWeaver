@@ -37,6 +37,8 @@ export interface AdminComposeDeps {
   /** CAS + the sharp image transform for the export service's character/chat bundle serialization. */
   readonly cas: Parameters<typeof createExportService>[0]["cas"];
   readonly imageTransform: Parameters<typeof createExportService>[0]["imageTransform"];
+  /** D121-E: the card RE-EMBED op (a card's regex scripts are library rows now, not a column). */
+  readonly exportCardScripts: Parameters<typeof createExportService>[0]["exportCardScripts"];
 }
 
 /** The admin compose product: the admin service + the two singletons built here (the ONE tool-use registry and
@@ -115,7 +117,7 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
   // resolves them per turn through the SAME registry, projecting via toAgentToolServer (T5).
   const toolUse = createToolUseService({ can, clock: now });
 
-  const exportService = createExportService({ db, cas: deps.cas, imageTransform: deps.imageTransform });
+  const exportService = createExportService({ db, cas: deps.cas, imageTransform: deps.imageTransform, exportCardScripts: deps.exportCardScripts });
 
   return { admin, toolUse, exportService };
 }
