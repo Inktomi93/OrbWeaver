@@ -1,10 +1,12 @@
 // seeder: createDefaultCharacterSeeder — the idempotent default-card pack. Exercised over the REAL character
 // service (real create + findByHandle + the handle_conflict translation) with an IN-MEMORY latch standing in
 // for the settings seam (the compose wiring of the real settings latch is proven in the compose slice test).
-// Covers: all 5 cards seeded on a fresh user; the persisted latch makes a re-run a no-op (deletion-respect);
-// per-card handle_conflict tolerance resolves a pre-existing handle instead of failing; welcomeAssistantId is
-// stamped to the Assistant's id; ensureSeeded never throws on a create failure (and leaves the latch unset so
-// the next touch retries).
+// Covers: the whole authored pack seeded on a fresh user; the persisted latch makes a re-run a no-op
+// (deletion-respect); per-card handle_conflict tolerance resolves a pre-existing handle instead of failing;
+// welcomeAssistantId is stamped to the welcome card's id; ensureSeeded never throws on a create failure (and
+// leaves the latch unset so the next touch retries); the PRESENTATION step (carried theme + seeded
+// background) runs for FRESHLY-CREATED cards only — a conflict-resolved row belongs to the user and is never
+// re-stamped; and the pack's own shape invariants (unique handles, greetings[0] never groupOnly).
 
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId, UserId } from "@orb/kit/ids";
@@ -17,6 +19,9 @@ import { makeHarness, principal, seedRawCharacter, seedUser } from "../_support.
 
 const ALL_HANDLES = DEFAULT_CHARACTER_CARDS.map((c) => c.input.handle);
 const ASSISTANT_CARD = DEFAULT_CHARACTER_CARDS.find((c) => c.input.handle === WELCOME_ASSISTANT_HANDLE);
+/** Stand-in id for the impossible "seeded card has no row" branch (keeps the lookup total without a cast at
+ *  every call site) — reaching it means the assertion just above already failed. */
+const MISSING_ID = "chr_never_seeded" as CharacterId;
 
 interface MarkCall {
   readonly userId: UserId;
@@ -68,7 +73,7 @@ function fakeLatch(): {
 }
 
 describe("createDefaultCharacterSeeder", () => {
-  test("seeds all 5 cards on a fresh user + marks the latch once", async () => {
+  test("seeds the whole authored pack on a fresh user + marks the latch once", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
     const latch = fakeLatch();
@@ -162,9 +167,10 @@ describe("createDefaultCharacterSeeder", () => {
   test("ensureSeeded never throws on a create failure + leaves the latch unset (retry next touch)", async () => {
     const latch = fakeLatch();
     // A characters double whose create always fails with a NON-conflict error (the real-failure path).
-    const failing: Pick<CharacterService, "create" | "findByHandle"> = {
+    const failing: Pick<CharacterService, "create" | "findByHandle" | "update"> = {
       create: (): Promise<CharacterDetail> => Promise.reject(new Error("db is on fire")),
       findByHandle: (): Promise<null> => Promise.resolve(null),
+      update: (): Promise<CharacterDetail> => Promise.reject(new Error("unreachable: nothing is ever created")),
     };
     const seeder = createDefaultCharacterSeeder({
       characters: failing,
@@ -175,6 +181,59 @@ describe("createDefaultCharacterSeeder", () => {
 
     await expect(seeder.ensureSeeded(actor)).resolves.toBeUndefined();
     expect(latch.marks).toHaveLength(0); // latch NOT set — the next touch retries
+  });
+
+  test("each freshly-created card is stamped with its authored presentation (theme + seeded background)", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const latch = fakeLatch();
+    const seeder = createDefaultCharacterSeeder({
+      characters: svc,
+      attachCardTag: noopAttach,
+      ...latch,
+    });
+    const owner = await seedUser(db, { handle: "owner" });
+    const actor = principal(owner);
+
+    await seeder.ensureSeeded(actor);
+
+    const seeded = await Promise.all(
+      DEFAULT_CHARACTER_CARDS.map(async (card) => {
+        const ref = await svc.findByHandle({ ownerId: owner, handle: card.input.handle });
+        return { card, detail: await svc.get({ principal: actor, characterId: ref?.characterId ?? MISSING_ID }) };
+      }),
+    );
+    for (const { card, detail } of seeded) {
+      expect(detail.themeOverride, `${card.input.handle} themeOverride`).toEqual(card.presentation.themeOverride);
+      // The carried background is this card's own seeded catalog slug — kind + slug are what paint.
+      expect(detail.backgroundOverride?.kind, `${card.input.handle} background kind`).toBe("seeded");
+      expect(detail.backgroundOverride?.seededId, `${card.input.handle} background slug`).toBe(`${card.input.handle}-bg`);
+    }
+  });
+
+  test("a conflict-resolved (pre-existing) card is NOT re-stamped — the user's own look survives", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const latch = fakeLatch();
+    const seeder = createDefaultCharacterSeeder({
+      characters: svc,
+      attachCardTag: noopAttach,
+      ...latch,
+    });
+    const owner = await seedUser(db, { handle: "owner" });
+    const actor = principal(owner);
+    // The user already owns a card at the welcome handle (their own card, or a partial prior run).
+    const existingId = await seedRawCharacter(db, {
+      id: "character_existing_assistant",
+      ownerId: owner,
+      handle: WELCOME_ASSISTANT_HANDLE,
+    });
+
+    await seeder.ensureSeeded(actor);
+
+    const detail = await svc.get({ principal: actor, characterId: existingId });
+    expect(detail.themeOverride).toBeNull();
+    expect(detail.backgroundOverride).toBeNull();
   });
 
   test("attaches each default card's native tags via the injected op (card/pending carry)", async () => {

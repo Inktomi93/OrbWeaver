@@ -1,7 +1,7 @@
 // verb: listThemes — owned ∪ seeds, as views; never another user's rows.
 
 import { describe } from "vitest";
-import { ensureSeedThemes } from "../../../../../packages/server/src/domain/settings/seed-themes.ts";
+import { ensureSeedThemes, SEED_THEMES } from "../../../../../packages/server/src/domain/settings/seed-themes.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, principal, seedUser } from "../_support.ts";
@@ -24,7 +24,8 @@ describe("listThemes", () => {
 
     const views = await h.svc.listThemes({ principal: principal(a, "user") });
     const names = views.map((v) => v.name).sort();
-    expect(names).toEqual(["Hearth", "Light", "Mine", "Mocha"]);
+    // Every seed palette in the registry (base trio + the default-character palettes) plus the caller's own.
+    expect(names).toEqual([...SEED_THEMES.map((t) => t.name), "Mine"].sort((x, y) => x.localeCompare(y)));
     expect(views.every((v) => v.name !== "Theirs")).toBe(true);
     expect(views.find((v) => v.name === "Hearth")?.isSeed).toBe(true);
     expect(views.find((v) => v.name === "Mine")?.isSeed).toBe(false);
