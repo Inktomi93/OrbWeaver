@@ -428,6 +428,43 @@ export const REGISTRY: readonly StageDef[] = [
       "CANDIDATE lens (`pnpm ast typeonly-alive <scope>`) — type-position-only liveness is evidence, not proof; a hit is often a deliberate conformance seam, so verify before deleting",
   },
   {
+    name: "quality:columns",
+    group: "quality",
+    // The fourth CANDIDATE lens, `manual` for the same reason as respell/swallowed/typeonly PLUS a second one
+    // this row must state plainly: its two halves have DIFFERENT confidence. Reads are the union of a
+    // language-service pass and a row-shape pass; writes are purely STRUCTURAL, because drizzle's
+    // `$inferInsert`/`$inferSelect` are mapped types whose properties carry zero declarations — nothing to
+    // resolve. So a table with a whole-row writer (`db.insert(t).values(row)`) marks EVERY column `write?`,
+    // and a `raw?` annotation means only that the column's SQL name appears in some raw `sql` template (v1
+    // cannot attribute an alias-qualified raw query to a table). A WRITE-only hit is the RV-11 class worth a
+    // human's time; it is never proof. Gating on it would train agents to delete audit timestamps. The row
+    // exists so the audit is discoverable in `verify --list` rather than living only in a lens verb nobody
+    // remembers. Its `@column-ok:` markers ARE two-sided (a stale one exits 1) — self-enforcing when run.
+    tiers: ["manual"],
+    argv: ["pnpm", "check:columns"],
+    classify: asViolations,
+    manualReason:
+      "CANDIDATE lens (`pnpm ast columns <table>`) — reads are resolved two ways but writes are structural-only (drizzle's inferred row types are mapped types with no declarations), so an opaque whole-row writer makes the write half UNKNOWN; verify each hit before deleting a column",
+  },
+  {
+    name: "quality:regkeys",
+    group: "quality",
+    // INFORMATIONAL, not merely manual (owner ruling 2026-08-03) — the distinction matters and is the whole
+    // reason this row reads differently from the four lenses above. Those are CANDIDATE lenses: evidence a
+    // human converts to a verdict. This one is a HEURISTIC: it reports registry ROWS whose key literal is
+    // spelled at no dispatch site, and registry dispatch is legitimately dynamic (a key from the DB, a URL
+    // segment, a template literal, an `Object.keys(REG)` iteration). False positives are EXPECTED and
+    // structural, not a defect to tune away — `TOKENS` alone contributes ~138 of them because its keys are
+    // consumed by CSS-variable generation, and that is CORRECT behavior for the lens. It therefore ships with
+    // no exemption marker, no stale arm, and no non-zero exit on findings: there is nothing to keep two-sided
+    // when the tool never claims a verdict. It must NEVER be promoted to a gating tier.
+    tiers: ["manual"],
+    argv: ["pnpm", "check:regkeys"],
+    classify: asViolations,
+    manualReason:
+      "HEURISTIC + INFORMATIONAL (`pnpm ast regkeys <registry>`) — never gates, has no exemption marker by design; dynamic dispatch makes live rows look dead, so every line needs its call sites read before anyone acts",
+  },
+  {
     name: "tests:coverage",
     group: "tests",
     tiers: ["manual"],
