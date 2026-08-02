@@ -424,6 +424,24 @@ dangling-refs.ts (backticked-PATH + backticked-SYMBOL existence, both-ways allow
 rider-blocks exempt structurally), 4 probes receipted, **3 real phantom refs fixed at landing**
 (Spine-Testing · Tier-3b · UI-Gates). Follow-up note in its allowlist rows' why: CERD-territory
 rows self-identify for deletion when they go stale.
+✅ **D22 MERGED (`d1f8356f`, own hook 14/14, torn down) — THE MULTI-USER BATTERY IS VERIFIED
+LIVE, ZERO PRODUCT DEFECTS:** all 4 card tiers per-viewer on the wire · D16 from-join
+(inclusive floor pinned) · member/reasoning strips live · **3b mid-slot resume PROVEN**
+(pre-fix shape injected → leak reproduced byte-for-byte → green on HEAD) · export 404 ·
+Members-tab both roles (host gestures ABSENT not disabled; snaps reports/snaps/d22-*) ·
+D122 both halves (anchor pin live via previewAssembly; member trigger via stamped wire).
+Search = N/A-by-construction RULED (tenancy precedes the floor, source-pinned). D22 LEAVES
+THE STANDING LIST. New reusable seam: tests/e2e/support/browser-actors.ts (two-human pixels
+without the fixture's port collision). Spec-pinned gotchas: peekPrompt has no tRPC proc ·
+member send defers w/o host socket (§5, by design) · contextTab("members") mounts a 0px
+sliver (boundingBox floor added). Lessons: quote-bearing wire comparands are vacuous
+(JSON.stringify escapes them — host DIFFERENTIAL caught it; comparands now quote-free) ·
+types:tests-dom is the ONLY noImplicitReturns enforcer (biome/tsc pincer) · eslint doesn't
+cover tests/e2e (reported). **STATIC DEBT CLEARED separately: consolidated pnpm check on
+main = 14/14 PASS + the three merged lanes' suites re-run on main 193/193** (owner asked
+whether the pause finishes were real — they were).
+**OWNER LAWS (08-03, late): ONE COMMIT per lane + terse messages (doctrine amended
+`14390b81`; an agent drafted a commit message for 15 minutes — banned) · cap = THREE.**
 (Superseded pause block:) NO new spawns AND the
 5 live lanes ORDERED TO SLEEP (checkpoint-commit coherent work [--no-verify sanctioned for
 the checkpoint], reply resume-state, stop; worktrees + branches STAY — teardown forbidden).
