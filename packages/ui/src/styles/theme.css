@@ -11,7 +11,7 @@
   --color-popover-foreground: oklch(0.955 0.004 75);
   --color-primary: oklch(0.72 0.175 52);
   --color-primary-foreground: oklch(0.19 0.03 50);
-  --color-secondary: oklch(0.255 0.007 60);
+  --color-secondary: oklch(0.255 0.006 60);
   --color-secondary-foreground: oklch(0.955 0.004 75);
   --color-muted: oklch(0.255 0.006 60);
   --color-muted-foreground: oklch(0.74 0.008 65);
@@ -60,7 +60,7 @@
   --color-sky-cloud-dark: oklch(0.4 0.03 258);
   --color-sky-rain: oklch(0.66 0.045 243);
   --color-sky-ash: oklch(0.4 0.02 60);
-  --color-user-bubble: oklch(0.255 0.007 60);
+  --color-user-bubble: oklch(0.255 0.006 60);
   --color-user-bubble-foreground: oklch(0.955 0.004 75);
   --color-ai-bubble: oklch(0.205 0.006 60);
   --color-ai-bubble-foreground: oklch(0.955 0.004 75);
