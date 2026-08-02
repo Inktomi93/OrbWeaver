@@ -32,6 +32,12 @@ function dominantModel(rows: readonly { readonly model: string }[]): string | nu
  * (present-host belt), self excluded, similarity-descending. Standalone `(db, ownerId, chatId, limit?)` so the
  * service factory + tests call it directly. A target chat the owner doesn't host, or with no segments in its
  * space, ⇒ `[]`.
+ *
+ * BEST-EFFORT ON A HEAVY LIBRARY, deliberately: the candidate read is capped (`SIMILAR_CHATS_SEG_CAP`, an OOM
+ * belt — there is no precomputed per-chat centroid store, so this loads raw segment vectors). Past the cap the
+ * neighbour set is the most-RECENT chats, not all of them: an old chat can be missing from the list. Not an
+ * error — "more like this" is a browsing affordance with no completeness contract, and the target chat's own
+ * rows are ordered first so they are never the rows evicted.
  */
 async function similarChats(db: Db, ownerId: UserId, chatId: ChatId, limit = DEFAULT_LIMIT): Promise<SimilarChat[]> {
   const segs = await readOwnedSegmentVectorsByChat(db, ownerId, chatId);

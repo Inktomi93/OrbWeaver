@@ -2,12 +2,21 @@
 // character's card into filterable `character_summaries` facets and stages the distilled labels as
 // `source:'auto', status:'pending'` tag suggestions (the Accept/Reject review queue). Idempotent: upsert
 // by `characterId`; tag staging never downgrades an already-accepted tag back to pending.
+//
+// TWO FAILURE POSTURES, one pass (the `opts.characterId` narrow is the switch):
+//   • the BATCH (a sweep, no `characterId`) CONTAINS a per-card failure — one bad card must never abort the
+//     other 500, so the pass commits everything valid and REPORTS `failed` in its counts. Never throws.
+//   • the ON-DEMAND single card (`suggestCharacterTags`, the editor's "Suggest tags") THROWS. That pass IS
+//     one card, so containing its failure returned a 200 carrying `{distilled: 0, failed: 1}` that no client
+//     reads — the button went quiet and told the user nothing (the exact lying-empty-state the typed errors
+//     in `contract/errors.ts` exist to kill). Both arms are pinned by tests; don't collapse them.
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";
+import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
@@ -16,6 +25,7 @@ import { runStructuredTurn } from "@orb/server/kit/structured-turn";
 import type { BatchItem } from "drizzle-orm/batch";
 import { z } from "zod";
 import type { DiscoveryContext } from "../context";
+import { DistillFailedError } from "../contract/errors";
 import type { DistillCharactersOptions } from "../contract/params";
 import type { CharacterDistillation, DistillStats } from "../contract/results";
 import type { DiscoveryService, DistillCharactersDeps } from "../contract/service";
@@ -109,11 +119,22 @@ interface StagedLabel {
  */
 async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: DistillCharactersOptions = {}): Promise<DistillStats> {
   const { signal } = opts;
+  // The on-demand arm: this pass is ONE named card the caller is waiting on, so a failure is theirs to see.
+  const onDemand = opts.characterId !== undefined;
   signal?.throwIfAborted();
   const targets = await readCardDistillTargets(db, {
     ...(opts.characterId !== undefined ? { characterId: opts.characterId } : {}),
     ...(opts.ownerId !== undefined ? { ownerId: opts.ownerId } : {}),
   });
+  // The on-demand narrow resolved NO ROW — foreign / deleted / synthetic. Collapses to NOT_FOUND so a
+  // stranger's rejection is indistinguishable from a miss (the cross-tenant sweep enforces exactly this): any
+  // verdict about the CARD's content would confirm the card exists, so this belt runs before all of them.
+  if (onDemand && targets.length === 0) {
+    throw new DomainNotFoundError("character", opts.characterId ?? "");
+  }
+  // Unreachable for a resolved row today — `composeCardText` always emits a `Name:` line, so a target's text
+  // never trims to empty (contract/errors.ts §DEFERRED: that is why there is no "nothing to distill" refusal,
+  // and why a name-only card gets wholly invented facets instead). Kept as the batch's total-input guard.
   const ready = targets.filter((t) => t.text.trim().length > 0);
   if (ready.length === 0) {
     return { scanned: targets.length, distilled: 0, failed: 0, tagsStaged: 0 };
@@ -149,6 +170,12 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
     sampleOpts,
     system: distillSystem,
   });
+  // The on-demand card produced nothing usable (double schema failure, or a provider fault on its retry —
+  // `parseOneDistill` contains both). Nothing was committed, so there is no partial state to reconcile: the
+  // caller gets a retryable refusal instead of a success carrying zeros.
+  if (onDemand && writes.failed > 0) {
+    throw new DistillFailedError("The summarizer returned nothing usable for that card. Try again.");
+  }
   signal?.throwIfAborted();
   await commitSummaries(db, writes.stmts);
   // Stage AFTER summaries commit — a failed tag attach must not roll back the facets.
@@ -217,7 +244,12 @@ async function buildDistillWrites(
  *  validation issues appended. Returns the facets, or `null` when the card FAILED. `null` covers BOTH a double
  *  validation failure ({@link StructuredOutputError}) AND a retry infra error (a provider 429/timeout thrown by
  *  the retry summarize call): containing it here counts just this card `failed` and lets the pass complete and
- *  commit every valid card — one bad card can never abort the whole batch (HEAD's post-summarize resilience). */
+ *  commit every valid card — one bad card can never abort the whole batch (HEAD's post-summarize resilience).
+ *
+ *  The two causes COLLAPSE into one `null` on purpose — a per-card cause would be per-card noise in a sweep's
+ *  counts, and the caller's action is identical (re-run the pass). The one place the distinction WOULD have
+ *  mattered is the on-demand single-card path, and that path doesn't read this at all: it sees `failed > 0`
+ *  and throws the retryable {@link DistillFailedError}, whose copy covers both causes honestly. */
 async function parseOneDistill(
   deps: DistillCharactersDeps,
   target: DistillTarget,

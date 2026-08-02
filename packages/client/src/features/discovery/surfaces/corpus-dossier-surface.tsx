@@ -3,8 +3,13 @@
 // `characterKeywords` (its keyword profile, charted as a bar-list). Neighbour rows re-select into this
 // same dossier; the "Similar art" strip seeds `search.similarArt` from this character's avatar so
 // look-alike portraits are one click away. The ASK panel grounds a free-text question against the
-// character's recent PLAYED scenes via `askCard` and shows the answer with a grounded/ungrounded badge —
-// the surface's ONE primary is Ask.
+// character's recent PLAYED scenes via `askCard` and badges the answer with its provenance — the surface's
+// ONE primary is Ask.
+//
+// THREE provenance states, not two (`answerState`): `grounded`/`speculative` are the MODEL'S claim about its
+// own answer; `degraded` is OURS — the reply failed the payload schema twice, so the body is raw text the
+// server couldn't parse. Merging degraded into "Speculative" blamed the model for our parse failure and hid
+// that the text below was never validated at all.
 
 import type { CharacterId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -250,6 +255,7 @@ function AskAnswer({
   readonly data: {
     readonly answer: string;
     readonly grounded: boolean;
+    readonly degraded: boolean;
     readonly sampledMessages: number;
   } | null;
 }): ReactElement | null {
@@ -265,17 +271,36 @@ function AskAnswer({
   if (data === null) {
     return <Text voice="gloss">No played scenes to answer from yet.</Text>;
   }
+  const state = answerState(data);
   return (
     <Card>
       <Stack gap="field">
         <Row align="center" gap="field">
-          <Badge intent={data.grounded ? "success" : "warning"} size="sm">
-            {data.grounded ? "Grounded" : "Speculative"}
+          <Badge intent={state.intent} size="sm" data-testid={testId("corpusAskState")} data-answer-state={state.key}>
+            {state.label}
           </Badge>
-          <Text voice="gloss">{data.sampledMessages} scenes sampled</Text>
+          <Text voice="gloss">{state.gloss ?? `${data.sampledMessages} scenes sampled`}</Text>
         </Row>
         <Text>{data.answer}</Text>
       </Stack>
     </Card>
   );
+}
+
+/** THREE states, not two — `degraded` is OUR parse failing, `grounded` is the MODEL'S claim about its own
+ *  answer (contract/results.ts). Showing "Speculative" for a degraded reply attributes our failure to the
+ *  model and hides that the text below is unparsed raw output, so degraded wins the badge outright. */
+function answerState(data: { readonly grounded: boolean; readonly degraded: boolean }): {
+  readonly key: string;
+  readonly label: string;
+  readonly intent: "success" | "warning";
+  readonly gloss: string | null;
+} {
+  if (data.degraded) {
+    return { key: "degraded", label: "Unstructured reply", intent: "warning", gloss: "The model didn't answer in the expected shape — this is its raw text." };
+  }
+  if (data.grounded) {
+    return { key: "grounded", label: "Grounded", intent: "success", gloss: null };
+  }
+  return { key: "speculative", label: "Speculative", intent: "warning", gloss: null };
 }

@@ -2,6 +2,11 @@
 // discovery rename). authed; reads take a positional `userId` = the resolved `Principal.userId` (audit #1:
 // no caller-supplied owner). The `compute*` passes are workload-driven (the jobs runners), NOT tRPC. Thin:
 // validate → `ctx.services.discovery.<verb>` → map errors. The `level` axis derives from `THEME_LEVELS`.
+//
+// "Map errors" is the domain-error MIDDLEWARE's job, never a procedure body: every read verb here refuses by
+// RETURNING (null / []), and the one mutation (`suggestCharacterTags`) THROWS — `DomainNotFoundError` for a
+// foreign/missing card (leak-free NOT_FOUND, the cross-tenant sweep's bar) and `DistillFailedError` when the
+// summarizer produced nothing usable (SERVICE_UNAVAILABLE, retryable). `classifyDomainError` maps both.
 
 import { RELATIONS } from "@orb/contracts/discovery";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
