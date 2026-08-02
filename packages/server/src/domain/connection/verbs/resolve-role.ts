@@ -5,27 +5,36 @@
 // The model heal is per-source and never silent: agent-sdk → the curated Claude id, openrouter →
 // `pickOrModel`, and a CONFIG-DERIVED source (vllm/local-light) → its configured model with a WARN when a
 // stored pin from another source would otherwise have ridden to the engine (healConfigDerivedModel).
+//
+// TRACE VOCABULARY (the cold-warm ladder is the resolve's only unbounded latency, and its outcome decides
+// whether the capability window below is MEASURED or a marked-estimated guess — so it is annotated on the
+// request span, `addSpanEvent`): `cache.hit` / `cache.miss` — one of each per resolve, since
+// WARM_WINDOW_TRUTH dispatches exactly ONE warm per selection — then `cache.warm` with the ladder rung it
+// landed on (`snapshot` | `fetch` | `engine` | `unavailable` | `failed`). A caller that rode someone else's
+// in-flight warm emits `cache.warm.coalesced` from the single-flight itself (this closure never runs for it).
+// Every event carries the `cache` attribute from its substrate's own *_CACHE_NAME const (one home).
 
 import type { AgentSdkModel, ChatApi, CredentialSource, ModelCatalogEntry, ResolvedChatCapability, ResolvedConnection } from "@orb/contracts/connection";
 import { isConfigDerivedModelSource } from "@orb/contracts/connection";
 import type { UserSettings } from "@orb/contracts/settings";
+import { errorMessage } from "@orb/kit/error-message";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { env } from "#foundation/env";
-import { getLog } from "#foundation/observability";
+import { addSpanEvent, getLog } from "#foundation/observability";
 import type { ConnectionContext } from "../context";
 import { AgentModelHealError, ConnectionRoutingError } from "../contract/errors";
 import type { ResolveChatCapabilityParams, ResolveRoleParams, RouteOverride } from "../contract/params";
 import type { ConnectionService, VllmWindowEngine } from "../contract/service";
 import { persistAgentSdkCatalogSnapshot, readAgentSdkCatalogSnapshot } from "../persistence/agent-sdk-catalog-snapshot";
 import { persistCatalogSnapshot, readCatalogSnapshot } from "../persistence/catalog-snapshot";
-import { getCachedAgentSdkModels, warmAgentSdkModelCacheOnce } from "../substrate/agent-sdk-model-cache";
+import { AGENT_SDK_MODEL_CACHE_NAME, getCachedAgentSdkModels, warmAgentSdkModelCacheOnce } from "../substrate/agent-sdk-model-cache";
 import { resolveCapability } from "../substrate/capability";
 import { configuredModelForSource } from "../substrate/config-model";
 import { healToChatDefault } from "../substrate/heal-model";
-import { getCachedOrModels, warmOrModelCacheOnce } from "../substrate/or-model-cache";
+import { getCachedOrModels, OR_MODEL_CACHE_NAME, warmOrModelCacheOnce } from "../substrate/or-model-cache";
 import { pickOrModel } from "../substrate/pick-or-model";
-import { getCachedVllmGenWindow, getCachedVllmWindow, seedVllmWindow } from "../substrate/vllm-gen-window-cache";
+import { getCachedVllmGenWindow, getCachedVllmWindow, seedVllmWindow, VLLM_WINDOW_CACHE_NAME } from "../substrate/vllm-gen-window-cache";
 
 type RoleDefaults = UserSettings["routing"]["roleDefaults"];
 
@@ -206,12 +215,18 @@ const ROLE_ENGINE: Record<ResolveRoleParams["role"], VllmWindowEngine> = {
 async function warmVllmGenWindow(ctx: ConnectionContext, role: ResolveRoleParams["role"]): Promise<void> {
   const engine = ROLE_ENGINE[role];
   if (getCachedVllmWindow(engine, ctx.now()) !== null) {
+    addSpanEvent("cache.hit", { cache: VLLM_WINDOW_CACHE_NAME, engine });
     return;
   }
+  addSpanEvent("cache.miss", { cache: VLLM_WINDOW_CACHE_NAME, engine });
   const window = await ctx.fetchVllmGenWindow({ engine });
   if (window !== null) {
     seedVllmWindow(engine, window, ctx.now());
   }
+  // `unavailable` is the honest arm, not a failure: the engine is warming or disabled, so the consumer falls
+  // back to the env window. On the timeline it is exactly the difference between "we asked and learned" and
+  // "we asked and the number below is the env floor".
+  addSpanEvent("cache.warm", { cache: VLLM_WINDOW_CACHE_NAME, engine, outcome: window !== null ? "engine" : "unavailable" });
 }
 
 /** Warm the OR catalog mirror when the selection lands on OpenRouter and the mirror is cold — the twin of
@@ -229,16 +244,23 @@ async function warmVllmGenWindow(ctx: ConnectionContext, role: ResolveRoleParams
  *  (`context.windowEstimated`) so the surfaces say "unknown" instead of showing a fabricated denominator. */
 async function warmOrCatalog(ctx: ConnectionContext): Promise<void> {
   if (getCachedOrModels(ctx.now()) !== null) {
+    addSpanEvent("cache.hit", { cache: OR_MODEL_CACHE_NAME });
     return;
   }
+  addSpanEvent("cache.miss", { cache: OR_MODEL_CACHE_NAME });
   await warmOrModelCacheOnce(async () => {
     try {
       if ((await readCatalogSnapshot(ctx.db)) !== null) {
+        addSpanEvent("cache.warm", { cache: OR_MODEL_CACHE_NAME, outcome: "snapshot" });
         return; // the persisted snapshot seeded the mirror — no fetch needed.
       }
       const models = await ctx.fetchOrCatalog({});
       await persistCatalogSnapshot(ctx.db, { fetchedAt: ctx.now(), models });
+      addSpanEvent("cache.warm", { cache: OR_MODEL_CACHE_NAME, outcome: "fetch", models: models.length });
     } catch (err) {
+      // The turn/preview CONTINUES on the marked-estimated fallback, so nothing else on the timeline says the
+      // catalog is missing — the span event is the only in-trace record that the window below is a guess.
+      addSpanEvent("cache.warm", { cache: OR_MODEL_CACHE_NAME, outcome: "failed", reason: errorMessage(err) });
       getLog().warn({ err }, "connection: OR catalog cold-warm failed — capability windows degrade to the marked-estimated fallback");
     }
   });
@@ -250,16 +272,22 @@ async function warmOrCatalog(ctx: ConnectionContext): Promise<void> {
  *  same single-flight, same best-effort posture. */
 async function warmAgentSdkCatalog(ctx: ConnectionContext): Promise<void> {
   if (getCachedAgentSdkModels(ctx.now()) !== null) {
+    addSpanEvent("cache.hit", { cache: AGENT_SDK_MODEL_CACHE_NAME });
     return;
   }
+  addSpanEvent("cache.miss", { cache: AGENT_SDK_MODEL_CACHE_NAME });
   await warmAgentSdkModelCacheOnce(async () => {
     try {
       if ((await readAgentSdkCatalogSnapshot(ctx.db)) !== null) {
+        addSpanEvent("cache.warm", { cache: AGENT_SDK_MODEL_CACHE_NAME, outcome: "snapshot" });
         return; // the persisted snapshot seeded the mirror — no discovery call needed.
       }
       const models = await ctx.fetchAgentSdkModels({});
       await persistAgentSdkCatalogSnapshot(ctx.db, { fetchedAt: ctx.now(), models });
+      addSpanEvent("cache.warm", { cache: AGENT_SDK_MODEL_CACHE_NAME, outcome: "fetch", models: models.length });
     } catch (err) {
+      // Same reason as the OR twin: the resolve continues on the marked-estimated fallback window.
+      addSpanEvent("cache.warm", { cache: AGENT_SDK_MODEL_CACHE_NAME, outcome: "failed", reason: errorMessage(err) });
       getLog().warn({ err }, "connection: agent-sdk catalog cold-warm failed — capability windows degrade to the marked-estimated fallback");
     }
   });

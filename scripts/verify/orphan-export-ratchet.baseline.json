@@ -1,6 +1,4 @@
 {
   "note": "The swept tree, NOT a permission slip (scripts/verify/orphan-export-ratchet.ts). Every row is an export the 2026-08-03 export-rot sweep left deliberately UNDECIDED — docs/reviews/misc/2026-08-03-export-rot-dispositions.md §H FLAGGED ('ambiguous or out of scope after both methods; UNTOUCHED'), whose wire-or-delete call is the owner's. A NEW orphan never belongs here: consume it, tag it `/** @public <reason> */`, or delete it. A row that stops being an orphan must be REMOVED in the same commit (both-ways ratchet). packages/ui is exempt as a whole by ui-package-design.md R2; a `@public <reason>` tag exempts a single declaration.",
-  "entries": {
-    "packages/server/src/foundation/observability/tracing.ts::addSpanEvent": "FLAGGED by the sweep itself — dispositions §H: 'orphan, single-commit (8b8e5714), NOT in the brief. Observability seam — deleting a tracing affordance is an owner call.'"
-  }
+  "entries": {}
 }

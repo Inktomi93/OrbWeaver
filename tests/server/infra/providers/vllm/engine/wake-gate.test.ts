@@ -6,6 +6,7 @@
 // suppresses the probe (the live 2026-07-31 bug); held → refusal naming `sleeping-held`; no-headroom →
 // holder-named refusal; wake timeout → retryable ProviderError; single-flight (N callers = 1 wake).
 
+import { getTraceByRequestId, initTracing, withRequestSpan } from "@orb/server/foundation/observability";
 import { ProviderError } from "@orb/server/infra/providers";
 import type { GpuVram, WakeGateDeps } from "@orb/server/infra/providers/vllm/engine";
 import { __resetWakeGateCache, ensureAwake, setEngineStatus } from "@orb/server/infra/providers/vllm/engine";
@@ -176,5 +177,77 @@ describe("ensureAwake — single-flight (N concurrent callers collapse to ONE wa
     expect(wakeCount).toBe(0);
     // Slot released: a later request runs the gate again (and refuses again) rather than resolving silently.
     await expectProviderError(ensureAwake("embed", d));
+  });
+});
+
+// ── THE WAKE SPAN-EVENT LANDING PROOF (the standing observability law). A wake is the largest pre-dispatch
+// latency a request can pay, and the awake-cache path leaves NO other in-trace record of it. Reads the sealed
+// trace back through the public read API — the same shape /api/_debug/traces serves.
+/** Every span event on the request's sealed trace, in capture order. */
+function traceEvents(requestId: string): { readonly name: string; readonly attributes: Record<string, string | number | boolean> }[] {
+  const trace = getTraceByRequestId(requestId);
+  if (trace === undefined) {
+    throw new Error(`expected a sealed trace for request ${requestId}`);
+  }
+  return trace.spans.flatMap((s) => s.events.map((e) => ({ name: e.name, attributes: e.attributes ?? {} })));
+}
+
+describe("ensureAwake ANNOTATES the request span (addSpanEvent landing proof)", () => {
+  test("a real wake lands start → done, both naming the engine", async () => {
+    initTracing();
+    const requestId = "obs-wake-start-done";
+
+    await withRequestSpan(requestId, "test dispatch", {}, () => ensureAwake("gen", deps()));
+
+    const events = traceEvents(requestId);
+    expect(events.map((e) => e.name)).toEqual(["vllm.wake.start", "vllm.wake.done"]);
+    expect(events.every((e) => e.attributes["engine"] === "gen")).toBe(true);
+  });
+
+  test("an AWAKE engine annotates nothing — the common path never sprays the timeline", async () => {
+    initTracing();
+    const requestId = "obs-wake-noop";
+
+    await withRequestSpan(requestId, "test dispatch", {}, () => ensureAwake("gen", deps({ isSleeping: () => Promise.resolve(false) })));
+
+    expect(traceEvents(requestId)).toEqual([]);
+  });
+
+  test("a HELD refusal lands vllm.wake.refused naming the sleeping-held state + the reason", async () => {
+    initTracing();
+    const requestId = "obs-wake-refused";
+
+    await withRequestSpan(requestId, "test dispatch", {}, async () => {
+      await expectProviderError(ensureAwake("embed", deps({ held: () => true })));
+    });
+
+    const refused = traceEvents(requestId).find((e) => e.name === "vllm.wake.refused");
+    expect(refused?.attributes).toMatchObject({ engine: "embed", state: "sleeping-held" });
+    expect(String(refused?.attributes["reason"])).toContain("engines held");
+  });
+
+  test("a wake that times out lands vllm.wake.timeout after the start", async () => {
+    initTracing();
+    const requestId = "obs-wake-timeout";
+
+    await withRequestSpan(requestId, "test dispatch", {}, async () => {
+      await expectProviderError(ensureAwake("rerank", deps({ wakeAndAwait: () => Promise.resolve(false) })));
+    });
+
+    expect(traceEvents(requestId).map((e) => e.name)).toEqual(["vllm.wake.start", "vllm.wake.timeout"]);
+  });
+
+  test("a caller riding another's in-flight wake lands vllm.wake.coalesced — its 3s gap is explained", async () => {
+    initTracing();
+    const requestId = "obs-wake-coalesced";
+    const slowWake = (): Promise<boolean> => new Promise((r) => setTimeout(() => r(true), 5));
+    const d = deps({ wakeAndAwait: slowWake });
+
+    // Two concurrent callers under ONE root: the first runs the wake, the second rides it.
+    await withRequestSpan(requestId, "test dispatch", {}, () => Promise.all([ensureAwake("embed", d), ensureAwake("embed", d)]));
+
+    const names = traceEvents(requestId).map((e) => e.name);
+    expect(names.filter((n) => n === "vllm.wake.coalesced")).toHaveLength(1);
+    expect(names).toContain("vllm.wake.start");
   });
 });

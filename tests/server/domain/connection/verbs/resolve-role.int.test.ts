@@ -5,7 +5,7 @@
 import { ConnectionRoutingError, createConnectionService } from "@orb/server/domain/connection";
 import { deriveTrackersReadOnly } from "@orb/server/domain/rpg";
 import { env } from "@orb/server/foundation/env";
-import { logger } from "@orb/server/foundation/observability";
+import { getTraceByRequestId, initTracing, logger, withRequestSpan } from "@orb/server/foundation/observability";
 import { afterEach, describe, vi } from "vitest";
 import { writeCatalogSnapshot } from "../../../../../packages/server/src/domain/connection/persistence/catalog-snapshot.ts";
 import { __resetOrModelCache } from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
@@ -521,5 +521,127 @@ describe("resolveRole — a stored model that cannot belong to a server-configur
     const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
 
     expect(conn.model).toBe("my-own-server/whatever");
+  });
+});
+
+// ── THE CACHE SPAN-EVENT LANDING PROOF (the observability standing law: an event is only wired when it is
+// proven to reach the trace ring). The warm ladder decides whether the capability window below is MEASURED or
+// a marked-estimated guess, and that fork is otherwise unreadable from a request's trace. Each spec drives a
+// real resolve inside a request-root span and reads the SEALED trace back through the public read API — the
+// same shape /api/_debug/traces serves.
+const OR_CACHE = "connection.or-catalog";
+
+/** Every span event on the request's sealed trace, in capture order (flattened across the tree). */
+function traceEvents(requestId: string): { readonly name: string; readonly attributes: Record<string, string | number | boolean> }[] {
+  const trace = getTraceByRequestId(requestId);
+  if (trace === undefined) {
+    throw new Error(`expected a sealed trace for request ${requestId}`);
+  }
+  return trace.spans.flatMap((s) => s.events.map((e) => ({ name: e.name, attributes: e.attributes ?? {} })));
+}
+
+/** The events naming ONE cache, so a spec asserts its own subject without seeing a sibling cache's warm. */
+function eventsForCache(requestId: string, cache: string): { readonly name: string; readonly attributes: Record<string, string | number | boolean> }[] {
+  return traceEvents(requestId).filter((e) => e.attributes["cache"] === cache);
+}
+
+describe("resolveRole — the cold-warm ladder ANNOTATES the request span (addSpanEvent landing proof)", () => {
+  const model = "meta-llama/llama-4-maverick";
+
+  test("a COLD OR mirror lands cache.miss then cache.warm{outcome:fetch} on the request trace", async () => {
+    initTracing();
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "openrouter", model } });
+    h.setOrCatalog([makeOrEntry({ id: model, contextLength: 131_072 }), makeOrEntry({ id: "openai/gpt-5" })]);
+    const svc = createConnectionService(h.ctx);
+    const requestId = "obs-or-cold-warm";
+
+    await withRequestSpan(requestId, "test resolveRole", {}, () => svc.resolveRole({ role: "chat", principal: principal("user_1") }));
+
+    const events = eventsForCache(requestId, OR_CACHE);
+    expect(events.map((e) => e.name)).toEqual(["cache.miss", "cache.warm"]);
+    // The rung is the diagnostic payload: `fetch` means we paid a live gateway round-trip this request.
+    expect(events[1]?.attributes).toMatchObject({ outcome: "fetch", models: 2 });
+  });
+
+  test("a WARM mirror lands cache.hit — and nothing else (the second resolve pays no ladder)", async () => {
+    initTracing();
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "openrouter", model } });
+    h.setOrCatalog([makeOrEntry({ id: model, contextLength: 131_072 })]);
+    const svc = createConnectionService(h.ctx);
+    const requestId = "obs-or-warm-hit";
+
+    await svc.resolveRole({ role: "chat", principal: principal("user_1") }); // warms the module-scope mirror
+    await withRequestSpan(requestId, "test resolveRole", {}, () => svc.resolveRole({ role: "chat", principal: principal("user_1") }));
+
+    expect(eventsForCache(requestId, OR_CACHE).map((e) => e.name)).toEqual(["cache.hit"]);
+  });
+
+  test("an UNREACHABLE gateway lands cache.warm{outcome:failed} + the reason — the only in-trace record of the degrade", async () => {
+    initTracing();
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "openrouter", model } });
+    h.setCatalogFetchFails(true);
+    const svc = createConnectionService(h.ctx);
+    const requestId = "obs-or-warm-failed";
+
+    // The resolve SUCCEEDS (a catalog outage never fails a turn) — so without the event the trace is silent
+    // about the window being a guess.
+    await withRequestSpan(requestId, "test resolveRole", {}, () => svc.resolveRole({ role: "chat", principal: principal("user_1") }));
+
+    const warm = eventsForCache(requestId, OR_CACHE).find((e) => e.name === "cache.warm");
+    expect(warm?.attributes).toMatchObject({ outcome: "failed", reason: "or catalog unreachable" });
+  });
+
+  test("a resolve that rides another's in-flight warm lands cache.warm.coalesced (its own trace has no start/done)", async () => {
+    initTracing();
+    const h = makeConnHarness(await freshDb());
+    h.setRoleDefaults({ chat: { api: "chat-completions", source: "openrouter", model } });
+    h.setOrCatalog([makeOrEntry({ id: model, contextLength: 131_072 })]);
+    const svc = createConnectionService(h.ctx);
+    const requestId = "obs-or-coalesced";
+
+    // Three concurrent cold resolves under ONE root: the first runs the ladder, the other two coalesce.
+    await withRequestSpan(requestId, "test resolveRole", {}, () =>
+      Promise.all([
+        svc.resolveRole({ role: "chat", principal: principal("user_1") }),
+        svc.resolveRole({ role: "chat", principal: principal("user_1") }),
+        svc.resolveRole({ role: "chat", principal: principal("user_1") }),
+      ]),
+    );
+
+    const names = eventsForCache(requestId, OR_CACHE).map((e) => e.name);
+    expect(names.filter((n) => n === "cache.warm.coalesced")).toHaveLength(2);
+    expect(names).toContain("cache.warm"); // the one caller that actually fetched
+    expect(h.orCatalogFetches()).toBe(1);
+  });
+
+  test("the vllm-window mirror annotates its own engine — cache.miss then cache.warm{outcome:engine}", async () => {
+    initTracing();
+    const h = makeConnHarness(await freshDb());
+    h.setVllmGenWindow(40_960);
+    const svc = createConnectionService(h.ctx);
+    const requestId = "obs-vllm-window-warm";
+
+    await withRequestSpan(requestId, "test resolveRole", {}, () => svc.resolveRole({ role: "chat", principal: principal("user_1") }));
+
+    const events = eventsForCache(requestId, "connection.vllm-window");
+    expect(events.map((e) => e.name)).toEqual(["cache.miss", "cache.warm"]);
+    // The engine attribute is what makes the event actionable — gen/embed/rerank cache independently.
+    expect(events[1]?.attributes).toMatchObject({ outcome: "engine", engine: "gen" });
+  });
+
+  test("an engine that reports NO window lands outcome:unavailable — the window below is the env floor", async () => {
+    initTracing();
+    const h = makeConnHarness(await freshDb());
+    h.setVllmGenWindow(null); // engine warming/disabled
+    const svc = createConnectionService(h.ctx);
+    const requestId = "obs-vllm-window-unavailable";
+
+    await withRequestSpan(requestId, "test resolveRole", {}, () => svc.resolveRole({ role: "chat", principal: principal("user_1") }));
+
+    const warm = eventsForCache(requestId, "connection.vllm-window").find((e) => e.name === "cache.warm");
+    expect(warm?.attributes).toMatchObject({ outcome: "unavailable", engine: "gen" });
   });
 });

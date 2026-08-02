@@ -13,6 +13,10 @@
 // therefore a very-stale sanity CEILING set well above the daily cadence, never a per-hour gate.
 
 import type { AgentSdkModel } from "@orb/contracts/connection";
+import { addSpanEvent } from "#foundation/observability";
+
+/** The `cache` attribute every span event about THIS mirror carries (the OR twin's `OR_MODEL_CACHE_NAME`). */
+export const AGENT_SDK_MODEL_CACHE_NAME = "connection.agent-sdk-catalog";
 
 const MS_PER_WEEK = 604_800_000;
 /** Stale ceiling ≥ the daily refresh cadence (DEFAULT_REFRESH_EVERY_MS = 1 day, catalog-refresh-scheduler)
@@ -46,6 +50,8 @@ let inFlightWarm: Promise<void> | null = null;
 
 export async function warmAgentSdkModelCacheOnce(warm: () => Promise<void>): Promise<void> {
   if (inFlightWarm !== null) {
+    // See the OR twin: the coalesce is invisible in the warm ladder's own events (its closure never runs here).
+    addSpanEvent("cache.warm.coalesced", { cache: AGENT_SDK_MODEL_CACHE_NAME });
     await inFlightWarm;
     return;
   }
