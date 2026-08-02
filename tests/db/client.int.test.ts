@@ -51,6 +51,30 @@ test("createDb applies the tuning PRAGMAs on a file db (WAL + busy_timeout stick
   }
 });
 
+test("the busy_timeout survives a CONNECTION REPLACEMENT (the Config.timeout belt, not the boot PRAGMA)", async () => {
+  // The libSQL local driver's `Sqlite3Client` holds ONE native connection and REPLACES it (a fresh
+  // `new Database(path, options)`, none of createDb's PRAGMAs re-applied) the moment anything calls
+  // `client.transaction()` — @libsql/client@0.17.4 sqlite3.js:155-159 nulls `#db`, and `#getDb()`
+  // lazily re-opens. drizzle's `db.transaction()` is exactly that call (drizzle-orm/libsql/session.js:61).
+  // The boot PRAGMA cannot guard that second connection; only the `timeout` baked into the client's
+  // stored options (which `#getDb()` re-passes) can. Product code BANS `db.transaction()` (the :memory:
+  // trap — a replaced `:memory:` connection is an EMPTY db), so this drives it deliberately, on a FILE
+  // db, as the one reachable way to force the replacement the belt exists for.
+  const path = join(mkdtempSync(join(tmpdir(), `orb-belt-${pid}-`)), "t.db");
+  try {
+    const db = await createDb(`file:${path}`);
+    await db.transaction(async () => {
+      // empty: the replacement happens at BEGIN, not from anything the body does
+    });
+    const timeout = await db.get<Record<string, number>>(sql`PRAGMA busy_timeout`);
+    expect(timeout?.["timeout"]).toBe(BUSY_TIMEOUT_MS);
+  } finally {
+    for (const suffix of ["", "-wal", "-shm"]) {
+      rmSync(`${path}${suffix}`, { force: true });
+    }
+  }
+});
+
 test("localPath: a relative `file:./x` url scheme-strips (never fileURLToPath, which absolutizes the dot-segment against ROOT)", () => {
   expect(localPath("file:./data/orbweaver.db")).toBe("./data/orbweaver.db");
   expect(localPath("file:relative.db")).toBe("relative.db");

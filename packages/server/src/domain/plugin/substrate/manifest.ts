@@ -15,6 +15,7 @@ import type { PluginManifest } from "@orb/contracts/plugin";
 import { pluginManifestSchema } from "@orb/contracts/plugin";
 import type { UnzipFileInfo } from "fflate";
 import { unzipSync } from "fflate";
+import { z } from "zod";
 import { ManifestInvalidError } from "../contract/errors";
 
 /** The stored bundle is the whole zip (re-parsed + re-validated on activation load — 02 §3); the CAS row's
@@ -121,7 +122,10 @@ export function parseBundle(bundle: Uint8Array): PluginBundle {
 
   const parsed = pluginManifestSchema.safeParse(manifestJson);
   if (!parsed.success) {
-    throw new ManifestInvalidError(`manifest.json failed validation: ${parsed.error.issues.map((i) => i.message).join("; ")}`);
+    // `z.prettifyError` over a hand `issues.map(i => i.message)`: the hand-flatten dropped the PATH, so a
+    // bundle refused for `net.hosts[2]` read as a bare "Invalid input" naming no field — and this refusal is
+    // OPERATOR-facing (someone installing a plugin), not model-facing, so the human layout is the right one.
+    throw new ManifestInvalidError(`manifest.json failed validation:\n${z.prettifyError(parsed.error)}`);
   }
   return { manifest: parsed.data, mainJs };
 }
