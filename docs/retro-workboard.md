@@ -62,6 +62,12 @@ invented-key-vanishes path survives), F5 stringbool with pinned {truthy,falsy,ca
 F11 z.hostname swap PROBE-FIRST (SSRF-adjacent — the report's own caveat stands). Dispatches as
 ONE do-it-right lane (A truth-repair → B prettifyError → C respellings → D arms) at the next
 heavy slot after Lane B/C drain (contract-file adjacency).
+**Z-LANE F11 PROBED + RULED (08-02 late):** z.hostname swap APPROVED on receipts — 15 garbage
+inputs narrowed, ONE widening (uppercase, immaterial: egress hostAllowed lowercases both sides).
+**PROBE FOUND A LIVE HOLE the swap closes: leading-dot manifest entries (`netHosts:[".com"]`)
+act as SUFFIX WILDCARDS in hostAllowed while the contract claims no-wildcards** — landing with a
+named contract refusal test + cross-cited comments + validateUrl truth-repair. MERGE RIDER: the
+F11 hunk gets a security-executor eyeball at merge (routing law formality; analysis complete).
 
 **⚠ OWNER-REPORTED LIVE DEFECTS (08-02 night, post-fix-all — REAL, seen by the owner's own
 eyes; these are the FIRST work when the freeze lifts):** (1) **INFINITE RENDER on hover in the
@@ -85,6 +91,31 @@ input + dead Delivers-via button + missing drill OVERRIDES block. Mock crops for
 `reports/snaps/preset-mocks/` (INDEX.md); rendered set `reports/snaps/mvr-*.png`. THE FIX LANE
 BRIEFS FROM THAT DOC.
 
+**✅ PRESET FIX WAVE FULLY MERGED @ `7689b5aa` (A trailing-slot/dot + B layout/type/amber/quality-
+dropdown+maxBudgetUsd-lift + C vocab/zone/Role/triggers/Overrides/readout-headers + D focus-flag +
+E smalls — every merge receipted; B+C reconciled-in-lane after main moved; C refuted O-8 [depth
+input works — the ghost/zone confusion was the real defect, died with O-9] + item 16
+[only-when-set cues correct; firesCue landed]). REMAINING on the wave: real-pointer probe (owed — owner's Chrome
+extension DISCONNECTED overnight; fallback = chrome-devtools MCP continuous hover sweep
+[20+ stepped coordinates across the New-preset name edge] + in-page pointerover/out counter on
+[aria-label="Presets list"]; single-digit crossings = pass, hundreds = loop; owner's real mouse
+in the morning is the gold verify; ALSO re-check :5173 serves post-merge modules — zombie-vite
+bit once tonight already, fix = stack restart) → crunch-list strike pass → side-eye RE-VERIFY
+(desktop+mobile) → close-out D-entry + graduation verifier. Lane F (density S6 + monogram voice + memory-noun rider) still building.
+CHARACTER program: recon DELIVERED (docs/reviews/misc/2026-08-02-default-character-recon.md);
+**ROSTER WRITTEN (Fable lane, owner-exempted tier): 10 characters @ its worktree
+docs/design/default-character-roster.md, commit `3c66f08f` — 5 derived/3 net-new/2 rebuilds;
+4 taste forks RULED (JFC uncensored · Charlotte STAYS a spider · 10 stands · backtick device →
+one card); ORCHESTRATOR FULL LINE-READ + SIGN-OFF OWED next context window (then edit round →
+lane merges main → doc lands → avatar-gen + demo-chat + seed-wiring lanes). Lane HOLDING WARM.
+Reseed-latch caveat: existing installs need a migration decision to get the new pack.**
+LATE-NIGHT STATE: F (density S6 + registry-contracts SPLIT) MERGED + post-FF check PASS ·
+Z (zod A-D) DONE incl. the F11 SSRF wildcard-hole close — HOLDING WARM pending security-executor
+eyeball on `c21d7893` (dispatched; probe corpus preserved to main reports/zodlane-probe*.ts) ·
+R4 building on 3 approved arms · MAIN DEBT found: tests/tooling/schema-baseline-parity.int.test.ts
+red on main (Z proved pre-existing) — needs its own small. preset-editor-surface.ct:140
+parallel-load flake now A/B-proven pre-existing (F) — upgrade WATCH → needs real fix
+(bus/invalidation race under contention). Was:**
 **⛔̶ FREEZE LIFTED (owner word, 08-02 night — new account, fresh usage). WAVE 1 IN FLIGHT:**
 Lane A (list trailing-slot P0 + O-1 dot) · Lane B (layout/typography/control grammar + O-18
 quality dropdown) · Lane D (shell focus-mode desync + O-19 registry defaults) — all worktree
@@ -103,6 +134,24 @@ S6 (transcript+composer) → SSE close-out residue (impersonate +1 socket verify
 precedent labels) → combined rpg side-eye on a MODEL-POPULATED game (NPC-only band question ·
 Known-characters disclosure · CastCard mood-wrap · waystone-compact · the accumulated W-H list)
 → @live rpg-lite-loop pass → **DATABANK alone, last**.
+
+**★ DEFAULT-CHARACTER PROGRAM (owner-approved 08-02 night; readback confirmed):** replace the
+new-user seed roster (defaults + avatars copy per account at first login — scout mapping the
+mechanism) with 5-10 publicly-respectable, field-complete demo characters, each a different
+angle; JFC survives REBUILT from global-CLAUDE.md DNA + Ruby's structural bits (Ruby = the card
+CLAUDE.md was modeled on); Niko survives w/ coherence rewrite + proper mark grammar
+("quotes"/*emphasis*); rest PURGED. Mining rule: derive attitude/voice/structure from the top
+.st-data cards (Hikari's attitude = gold), SANITIZE — no explicit content in derivatives OR in
+reports, coworker-safe bar, no avatar reuse. Avatars: generate fresh via OR credits (Google
+latest / Flux 2), consistent set. Characters exercise the full field surface + macro engine;
+several rpg-lite-ready (sheet/trackerGrants/d20). DEMO CHATS: generated LIVE and exported, never
+hand-seeded — few solo, group chats per group mode, one rpg-lite-ON; labeled EXAMPLE. Tiering:
+scout mining (DISPATCHED) → ONE Fable-tier authoring lane (writing is the product) → normal
+tiers for avatar gen + chat runs + seed wiring. Runs after the preset wave drains.
+SIGN-OFF: the ORCHESTRATOR approves every character before it ships (owner delegation 08-02) —
+and the bar is FUN, not sterile: "don't mormon-sanitize them into gray blobs." Sanitize the
+explicit; KEEP the edge, attitude, bite, chaos that made the source cards top cards. A character
+that couldn't make someone grin is a fail even if it's squeaky clean.
 
 **NIGHT-TAIL (owner, 08-02 night — end of night if time):** (1) CHARACTER + CHAT mock-vs-made
 pass (yesterday's mocks: list-pane-projection + home-section + the lifecycle surfaces), desktop
@@ -150,7 +199,10 @@ op-shaped-hand-door-write-seam minted) → AGENTS.md for architecture work.
   boundaries vs sibling lanes, `git -C` discipline, lane-unique scratchpad names.
 · MERGES: a FAST-FORWARD merge SKIPS the pre-merge-commit hook — run `pnpm check` on main after
   any FF (or `merge --no-ff` to force the hook). Teardown: `status --short` (untracked survivors)
-  + `git show --stat` receipts FIRST; never tear down a resumable lane.
+  + `git show --stat` receipts FIRST; never tear down a resumable lane. **NEVER DEFER the post-FF
+  check when the branch's gate list missed ANY of the 12 stages** (R4's scoped-tsc-green merge
+  shipped a types:graph red to main for ~an hour — the char lane caught it; scoped tsc NEVER
+  covers tests/ [hub lesson #5]; fixture fix `promote-actor/rpg.int` landed direct-on-main).
 · snap: STUDIED IN FULL in side-eye.md now (agent doc carries complete usage). --eval = BARE
   arrow (arrow-IIFE double-invokes); --jsclick for list rows; --isolated/--dirty stages beat
   dev-stack HMR; --goto/__orb.nav for all SPA reach; HOVER-LOOP CLASS IS REAL-POINTER-ONLY
