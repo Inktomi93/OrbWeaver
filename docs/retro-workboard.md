@@ -31,6 +31,16 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 PUSH NEEDS ITS OWN WORD). Six-lane cap stands (owner). Board-only commits = `--no-verify`
 (owner word). Dev db DROPS on next stack boot (DBG baseline regen) — expected, reseeds via latch.
 
+**LANE TRUTH DISPATCHED (Fable-tier, OWNER-EXEMPTED — the day's closing act):** the core-docs
+TRUTH AUDIT — every verifiable claim in docs/architecture/core verified against the tree
+(build-tense assertions · counts · named symbols · behavioral claims), classified TRUE /
+STALE-BUILT-TENSE (→ dated riders, the D60 fix shape) / COUNT-DRIFT / PHANTOM-REF /
+CONTRADICTS-LEDGER; mechanical fixes land per fix-don't-park, design-flavored rows flagged;
+CERD's five drafted surfaces EXCLUDED (notes route to its merge). Deliverables: the truth-debt
+table (docs/reviews/misc/2026-08-03-core-docs-truth-audit.md) · the build-tense-claim GATE
+spec-or-refutation · **the full D1-D121 ledger sweep** (any other entry lying built-tense —
+the highest-value item). Rationale: five core-doc lies found INCIDENTALLY today = the corpus
+holds more; the ledger outranks everything, so its truth is load-bearing.
 **✅ CERD DELIVERED (branch `wt/agent-ada8d9c0033d2f420` @ `9e966692` — DRAFT for the
 SUCCESSOR'S REVIEW-THEN-LAND, per design):** **D121 minted** (7 clauses A-G: role law verbatim ·
 permissions pointer + name-the-bypassed-option rule · home/D62-P6 amend · chrome anatomy ·
