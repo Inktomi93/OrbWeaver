@@ -25,7 +25,7 @@ import { coEmitsProseWithTools } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import type { ContentImageRef, ContentSpan } from "@orb/kit/content";
+import type { ContentImageRef, ContentSpan, ContentSpanKind } from "@orb/kit/content";
 import { cardWireStub, tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -783,39 +783,57 @@ function resolveFullCards(tokenized: readonly { readonly spans: readonly Content
   return new Set(cards.slice(-keepLastX));
 }
 
-/** One span → its wire part (§3.5, the total dispatch over the content-class registry's WIRE plane):
- *  `text` rides as-is; `image` = the ATTACHMENT-ONLY vision arm (a non-attachment image is DISPLAY-ONLY and
- *  collapses to its short marker; an attachment resolves-or-drops-to-alt gated by vision);
- *  `hidden`/`unknown-directive` ride VERBATIM (wire=full — the model must remember its own lie / the true
- *  event / its own bytes; the transcript is honest); `choices` is STRIPPED entirely (wire=drop — the CYOA
- *  fence must not re-pile unselected options into context on later turns; the user's pick already became a
- *  real user turn); `card` collapses to the deterministic stub unless inside the keep-last-X window
- *  (wire=stub). */
-async function spanToWirePart(span: ContentSpan, env: WirePartsEnv, row: WireRowFacts): Promise<ChatContentPart | { droppedAlt: string } | null> {
-  if (span.kind === "text") {
-    return span.text.length > 0 ? { type: "text", text: span.text } : null;
-  }
-  if (span.kind === "choices") {
-    return null;
-  }
-  if (span.kind === "hidden" || span.kind === "unknown-directive") {
-    return { type: "text", text: span.raw };
-  }
-  if (span.kind === "card") {
-    return { type: "text", text: env.fullCards.has(span) ? span.raw : cardWireStub(span.title) };
-  }
-  if (!isUserAttachment(span, row.role, row.userAuthored)) {
-    // DISPLAY-ONLY, unconditionally — not a capability drop, so it never flags `imageDropped` (the
-    // `image_dropped` warning means "your model can't see the image you attached", and nagging it on every
-    // turn of a chat whose greeting embeds a picture would be a lie).
-    return { type: "text", text: displayOnlyImageText(span.alt) };
-  }
-  if (!env.visionOk) {
-    return { droppedAlt: span.alt };
-  }
-  const url = await env.resolveImageUrl(span.ref);
-  return url === null ? { droppedAlt: span.alt } : { type: "image", url };
+type WirePartResult = ChatContentPart | { droppedAlt: string } | null;
+type SpanOfKind<K extends ContentSpanKind> = Extract<ContentSpan, { readonly kind: K }>;
+type WirePartHandler<K extends ContentSpanKind> = (span: SpanOfKind<K>, env: WirePartsEnv, row: WireRowFacts) => WirePartResult | Promise<WirePartResult>;
+
+/** The total dispatch over the content-class registry's WIRE plane (§3.5) — one handler per
+ *  `CONTENT_CLASS_POLICY` row, keyed by `ContentSpanKind` so a new class fails to build until it registers
+ *  here (the content-class wire memory: table + hardcoded dispatch, edit BOTH). `image` is the one handler
+ *  whose runtime behavior is NARROWER than its policy row (`wire:"drop"`): only a deliberate user attachment
+ *  is a resolve-or-drop candidate — every other embedded image is DISPLAY-ONLY and never touches the wire
+ *  plane at all, so the policy row and this handler agree on the ATTACHMENT arm and the binding test below
+ *  only asserts that arm. */
+const WIRE_PART_HANDLERS: { readonly [K in ContentSpanKind]: WirePartHandler<K> } = {
+  // wire:"full" — verbatim bytes.
+  text: (span) => (span.text.length > 0 ? { type: "text", text: span.text } : null),
+  // wire:"drop" — the CYOA fence must not re-pile unselected options into context on later turns.
+  choices: () => null,
+  // wire:"full" — the model must remember its own lie / the true event.
+  hidden: (span) => ({ type: "text", text: span.raw }),
+  // wire:"full" — the §3.2.1 allowlist-strip keeps the model's bytes even though it renders as noise.
+  "unknown-directive": (span) => ({ type: "text", text: span.raw }),
+  // wire:"stub" — the reader keeps the rich card forever, the model gets the deterministic stub, except
+  // inside the M2 keep-last-X window.
+  card: (span, env) => ({ type: "text", text: env.fullCards.has(span) ? span.raw : cardWireStub(span.title) }),
+  // wire:"drop" — ATTACHMENT-ONLY (owner ruling, ST parity): a non-attachment image is DISPLAY-ONLY and
+  // collapses to its short marker; an attachment resolves-or-drops-to-alt gated by vision.
+  image: async (span, env, row) => {
+    if (!isUserAttachment(span, row.role, row.userAuthored)) {
+      // DISPLAY-ONLY, unconditionally — not a capability drop, so it never flags `imageDropped` (the
+      // `image_dropped` warning means "your model can't see the image you attached", and nagging it on
+      // every turn of a chat whose greeting embeds a picture would be a lie).
+      return { type: "text", text: displayOnlyImageText(span.alt) };
+    }
+    if (!env.visionOk) {
+      return { droppedAlt: span.alt };
+    }
+    const url = await env.resolveImageUrl(span.ref);
+    return url === null ? { droppedAlt: span.alt } : { type: "image", url };
+  },
+};
+
+/** One span → its wire part — total Record-dispatch over `WIRE_PART_HANDLERS` (§3.5). The cast is the one
+ *  spot a discriminated union's per-member narrowing is lost to a dynamic key lookup; the handler itself
+ *  stays narrowed via {@link SpanOfKind}. */
+function spanToWirePart(span: ContentSpan, env: WirePartsEnv, row: WireRowFacts): Promise<WirePartResult> {
+  const handler = WIRE_PART_HANDLERS[span.kind] as WirePartHandler<typeof span.kind>;
+  return Promise.resolve(handler(span, env, row));
 }
+
+/** Test-only seam: the CONTENT_CLASS_POLICY/dispatch binding test calls the real dispatch directly (no
+ *  reason to reassemble a full turn to exercise one span → wire-part rule). */
+export const __spanToWirePartForTest = spanToWirePart;
 
 /** Projects a row's spans into provider content-parts. Adjacent text parts MERGE, so a body whose spans all
  *  ride as text (the common no-image case — hidden tags and all) stays ONE text part, byte-identical to the
