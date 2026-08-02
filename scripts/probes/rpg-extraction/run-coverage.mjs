@@ -1,3 +1,6 @@
+// ARCHIVED 2026-08-02 — pre-R2R3 vocabulary (hpDelta et al., retired by the actor-state reshape); kept as
+// historical measurement records; do NOT run against the current contracts — mint fresh corpora instead.
+//
 // Spike 2: field-coverage A/B of the 1call-tools path (terse vs enriched tool descriptions).
 // Reuses Spike-1 OR plumbing (key load / orCall / applyOp / computeDelta patterns) from run.mjs.
 // Reads OPENROUTER_API_KEY from repo .env at runtime; NEVER prints/logs/writes the key.
