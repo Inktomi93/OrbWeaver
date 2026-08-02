@@ -31,6 +31,12 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 PUSH NEEDS ITS OWN WORD). Six-lane cap stands (owner). Board-only commits = `--no-verify`
 (owner word). Dev db DROPS on next stack boot (DBG baseline regen) — expected, reseeds via latch.
 
+**CHAIN fork RULED:** NO fifth exemption marker — chain heads are orphan candidates under the
+ratified @public + ratchet stale arm; exemption lives at the HEAD (mid-chain exemption states
+nothing true); chains reads @public roots as alive. Scope EXTENDED one file: the @public reader
+consolidates into ast.ts (exported), orphan-export-ratchet.ts imports it (two spellings of the
+predicate = the two-homes class; ratchet's bare-tag probe staying red = the receipt). Edge map
+is opt-in {edges:true} — flag-OFF path pinned byte-identical.
 **✅ HEAL MERGED (`14c88995`)** — both handoff heals in the atomic swap batch via a NEW
 co-statement seam (rpg→chat handoffHealStatements returning UNEXECUTED BatchStmt[] — table
 ownership intact, one-batch crash safety; the chat→notifications pattern now runs both
