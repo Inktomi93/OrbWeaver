@@ -78,13 +78,21 @@ export interface UserMacroEditorDialogProps {
   readonly index: number;
   readonly onClose: () => void;
   /**
-   * The `{{ }}` completion catalog the template body offers (`PROMPT_MACRO_SUGGESTIONS` at both call sites).
+   * The `{{ }}` completion catalog the template body offers (`withUserMacros(...)` at both call sites — the
+   * builtins PLUS the plane this editor's own macro belongs to, so one macro can complete a sibling).
    * Spelled STRUCTURALLY rather than as `@orb/ui/macro-textarea`'s `MacroSuggestion`: that type is re-exported
    * from a browser `.tsx`, and importing it here (even type-only) drags the component into the DOM-LESS type
    * programs that reach this shared module through the `#components` barrel, where it fails for want of
-   * lib.dom. This shape is a subset of `MacroSuggestion`, so the hand-off to `MacroField` still typechecks.
+   * lib.dom. This shape is a subset of `MacroSuggestion`, so the hand-off to `MacroField` still typechecks —
+   * `insertTemplate` is carried explicitly because dropping it would silently downgrade a block entry
+   * (`{{if::}}{{/if}}`) to a bare-call insertion at this one seam.
    */
-  readonly suggestions: readonly { readonly name: string; readonly category?: string; readonly description?: string }[];
+  readonly suggestions: readonly {
+    readonly name: string;
+    readonly category?: string;
+    readonly description?: string;
+    readonly insertTemplate?: string;
+  }[];
 }
 
 /** The user-macro editor — bound to `userMacros[index].*`; closes via the caller's `onClose`. */
