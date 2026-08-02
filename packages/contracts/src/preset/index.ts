@@ -1,5 +1,8 @@
 // @orb/contracts/preset — generation config: the `PromptConfig` blob, its lift chain, user-intent
-// generation knobs, guided-actions config, custom parameters, the macro catalog, and ST/neo preset serde.
+// generation knobs, guided-actions config, custom parameters, and ST/neo preset serde. NOT the macro
+// catalog: the ONE catalog is the `@orb/kit/macro` registry+metadata pair, and every consumer (the macro
+// browser, the `{{ }}` autocomplete) derives from it — a contracts-side copy lived here until 2026-08-02,
+// redundant and consumer-less.
 // preset = GENERATION config, NOT the connection (`{api, source, model}` is `contracts/connection`'s axis).
 //
 // Sibling module (D15 directory-module law: internals flat, this index re-exports):
@@ -1396,105 +1399,6 @@ export const promptConfigConfig = defineVersionedConfig({
 export function parsePromptConfig(raw: unknown): PromptConfig {
   return promptConfigConfig.parse(raw);
 }
-
-// ══════════════════════════════════════════════════════════════════════════════════════════════════
-// PROMPT_MACROS — the canonical macro catalog (client autocomplete + docs). The macro ENGINE is
-// `@orb/kit/macro`; when you add a macro to the assembler, add it HERE too.
-// ══════════════════════════════════════════════════════════════════════════════════════════════════
-
-export interface PromptMacroDef {
-  /** The bare name inside `{{…}}`. May contain `::arg` for parameterized forms (e.g. `getvar::name`). */
-  name: string;
-  /** One-line description shown in the autocomplete popover. */
-  description: string;
-  /** Optional concrete example shown under the description. */
-  example?: string;
-  /** Group used to bucket macros in the autocomplete list. */
-  category: "identity" | "character" | "scenario" | "memory" | "variables" | "system";
-}
-
-export const PROMPT_MACROS: readonly PromptMacroDef[] = [
-  {
-    name: "char",
-    description: "The active character's display name.",
-    example: macro("char"),
-    category: "identity",
-  },
-  {
-    name: "user",
-    description: "The active persona's display name.",
-    example: macro("user"),
-    category: "identity",
-  },
-  {
-    name: "persona",
-    description: "The active persona's description text.",
-    example: macro("persona"),
-    category: "identity",
-  },
-  {
-    name: "description",
-    description: "The character card's Description field.",
-    category: "character",
-  },
-  {
-    name: "personality",
-    description: "The character card's Personality field.",
-    category: "character",
-  },
-  {
-    name: "scenario",
-    description: "The chat scenario (card field or override).",
-    category: "scenario",
-  },
-  {
-    name: "example",
-    description: "One example dialogue block, rendered inside the dialogue-examples marker.",
-    category: "character",
-  },
-  {
-    name: "charsysinfo",
-    description: "The character card's own system-prompt override (when present).",
-    category: "character",
-  },
-  {
-    name: "charposthistory",
-    description: "The character card's post-history instructions (the 'jailbreak' field).",
-    category: "character",
-  },
-  {
-    name: "memory",
-    description: "Retrieved older-message memory from the chat-memory subsystem (when enabled).",
-    category: "memory",
-  },
-  {
-    name: "compact_summary",
-    description: "The chat's compaction summary — stands in for compacted-away history.",
-    category: "memory",
-  },
-  {
-    name: "guided_instruction",
-    description: "One-turn Guided Generation steer; empty when not guiding.",
-    category: "memory",
-  },
-  {
-    name: "getvar::name",
-    description: "Explicit lookup of a preset variable / ChoiceBlock by name.",
-    example: macro("getvar::pov"),
-    category: "variables",
-  },
-  {
-    name: "name",
-    description: "Shorthand for a preset variable (catch-all direct lookup).",
-    example: macro("tense"),
-    category: "variables",
-  },
-  {
-    name: "newline",
-    description: "Inserts a literal newline (rare; usually just press Enter).",
-    category: "system",
-  },
-] as const;
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Serde — the ST Chat-Completion preset importer + the neo native preset-file codec.

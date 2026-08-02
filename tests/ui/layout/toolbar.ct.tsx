@@ -1,6 +1,6 @@
 // <Toolbar> CT — Base UI Toolbar behind the layout skin: role=toolbar, the h-control-md Row dress,
 // and the roving tabindex (arrow keys move focus between items — the reason Base UI is under here).
-import { Toolbar, ToolbarButton } from "@orb/ui/layout";
+import { Toolbar, ToolbarButton, ToolbarSeparator } from "@orb/ui/layout";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 
@@ -24,6 +24,24 @@ test.describe("coarse pointer — the control-md skin", () => {
     await expect(component).toHaveCSS("display", "flex");
     await expect(component).toHaveCSS("height", controlMdPx);
     await expect(component).toHaveCSS("column-gap", "8px");
+  });
+
+  // The separator is a HAIRLINE THAT STRETCHES, and both halves are only observable rendered: `w-px` is an
+  // authored 1px rule (not a spacing token — a token-sized divider would be a bar), and `self-stretch` only
+  // resolves to the strip's full height while the parent stays a flex row. A separator that renders 0px tall
+  // is the flex-child-under-a-block-parent tell, and no source-level check can see it.
+  test("ToolbarSeparator renders a full-height hairline with the correct ARIA orientation", async ({ mount }) => {
+    const component = await mount(
+      <Toolbar aria-label="formatting">
+        <ToolbarButton>Bold</ToolbarButton>
+        <ToolbarSeparator />
+        <ToolbarButton>Link</ToolbarButton>
+      </Toolbar>,
+    );
+    const separator = component.getByRole("separator");
+    await expect(separator).toHaveAttribute("aria-orientation", "vertical");
+    await expect(separator).toHaveCSS("width", "1px");
+    await expect(separator).toHaveCSS("height", controlMdPx);
   });
 });
 
