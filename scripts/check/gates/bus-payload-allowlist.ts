@@ -20,7 +20,8 @@
 // field exists today; D16 holds.
 import type { Node } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract.ts";
+import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract.ts";
+import { fileLoaded } from "../pass.ts";
 
 // The bus event UNION declarations, by their one-home paths. The gate reads these files and picks out the
 // named declarations below — it does NOT flag every property in these large contract files.
@@ -56,11 +57,26 @@ const SMELL_TOKENS = ["secret", "token", "apikey", "password", "credential", "ke
 
 // Sanctioned field names: a credential-word field that is provably an ID / safe scalar, each with its cite.
 // This list is the ONLY sanctioned exit — the predicate is NEVER weakened to let a field through.
-const SANCTIONED_FIELDS = new Map<string, string>([
+// TWO-SIDED (GATE-AUTHORING.md §4.4): a row that matched no scanned bus field this run is RED. A dead
+// sanction here is the loaded-gun case at its worst — the name stays granted, so the day a REAL secret is
+// spelled `credentialId` on a bus member it ships silently.
+const SANCTIONED_FIELDS: ExemptionTable = {
   // user-bus `credentialsChanged.credentialId` — a branded UserCredentialId (an id, not a secret). D16's
-  // safe id-only re-read pattern; the subscriber re-reads canon by id. (Core-Laws-and-Precedents.md D16.)
-  ["credentialId", "credentialId is a branded UserCredentialId — an id, not a secret (D16 id-only re-read)."],
-]);
+  // safe id-only re-read pattern; the subscriber re-reads canon by id.
+  credentialId: {
+    why: "a branded UserCredentialId — an id, not a secret (Core-Laws-and-Precedents.md D16's id-only re-read pattern). Ends when the user-bus stops carrying the id at all.",
+  },
+};
+
+const GATE_SELF = "scripts/check/gates/bus-payload-allowlist.ts";
+/** Real-tree anchor (GATE-AUTHORING.md §4.5): a bus union home that is never an example subject here. */
+const ANCHOR = "packages/contracts/src/world-info/index.ts";
+const STALE_PREFIX =
+  "stale SANCTIONED_FIELDS row — no scanned bus payload declares this field any more, so the sanction is a " +
+  "standing grant on a NAME (ratchet down): the day a real secret is spelled that way on a bus member it " +
+  "would ship silently. Delete the row: ";
+/** The sanctioned field names actually seen on a bus payload this run — the stale arm's truth set. */
+const seenSanctioned = new Set<string>();
 
 const MESSAGE =
   "a bus-event payload field name smells like a credential/secret — bus events are room-public / durable " +
@@ -80,7 +96,11 @@ function smellToken(fieldName: string): string | undefined {
 
 /** Report a property node whose name smells, unless it is a sanctioned field. */
 function checkFieldName(name: string, node: Node, ctx: GateRunCtx): void {
-  if (smellToken(name) === undefined || SANCTIONED_FIELDS.has(name)) {
+  if (smellToken(name) === undefined) {
+    return;
+  }
+  if (name in SANCTIONED_FIELDS) {
+    seenSanctioned.add(name);
     return;
   }
   ctx.report(node, { token: name, offset: 0 });
@@ -169,6 +189,24 @@ export const gate: GateDescriptor = {
       }
     }
   },
+  begin: () => {
+    seenSanctioned.clear();
+  },
+  finalize: (ctx) => {
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
+      return;
+    }
+    for (const field of Object.keys(SANCTIONED_FIELDS)) {
+      if (!seenSanctioned.has(field)) {
+        ctx.report({
+          file: GATE_SELF,
+          line: 1,
+          column: 0,
+          message: `${STALE_PREFIX}"${field}" — delete it in scripts/check/gates/bus-payload-allowlist.ts`,
+        });
+      }
+    }
+  },
   mustFlag: [
     {
       files: 'export type ChatBusEvent = { type: "x"; chatId: string; apiKey: string };\n',
@@ -188,6 +226,13 @@ export const gate: GateDescriptor = {
       at: "packages/contracts/src/notifications/index.ts",
       expect: { messageIncludes: "credential/secret" },
       why: "a notification z.object arm with a `password` key — the zod-schema arm flags too",
+    },
+    {
+      files: {
+        [ANCHOR]: 'export type WiBusEvent = { type: "wi.updated"; bookId: string };\n',
+      },
+      expect: { count: 1, messageIncludes: "stale SANCTIONED_FIELDS row" },
+      why: "THE STALE ARM: the anchor bus union is loaded and no scanned payload declares `credentialId` any more — the sanction has become a standing grant on a NAME, which is the loaded gun §4.4 warns about, so it ratchets down",
     },
   ],
   mustPass: [
@@ -209,7 +254,14 @@ export const gate: GateDescriptor = {
     {
       files: "export type SomeOtherThing = { apiKey: string };\n",
       at: "packages/contracts/src/settings/index.ts",
-      why: "scope: a non-bus contract file is not scanned at all — passes",
+      why: "scope: a non-bus contract file is not scanned at all — passes (no anchor here, so the stale arm also stays silent: THE ANCHOR GUARD)",
+    },
+    {
+      files: {
+        [ANCHOR]: 'export type WiBusEvent = { type: "wi.updated"; bookId: string };\n',
+        "packages/contracts/src/user-bus/index.ts": 'export type UserBusEvent = { type: "credentialsChanged"; credentialId?: string };\n',
+      },
+      why: "the row STILL EARNED, judged against the real-tree anchor: a live bus payload declares the sanctioned id field, so it is suppressed for a REASON and the stale arm stays quiet",
     },
   ],
 };

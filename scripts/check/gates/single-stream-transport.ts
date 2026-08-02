@@ -21,8 +21,15 @@
 // decision 2 — request-scoped, user-gesture-initiated, at most one at a time, and its abort semantics ARE the
 // socket teardown; folding it would mean modelling "detach = cancel generation"). A NEW row in this map is
 // therefore a spec amendment, never a build step.
+//
+// TWO-SIDED (gate-hub #10): the ledger ratchets DOWN as well as up — an EXEMPT key with no `.subscription(`
+// left under `routers/` is RED, because a fold that lands without deleting its row leaves a live licence for
+// re-opening the socket it just closed (the six staged rows were deleted BY HAND; nothing enforced it). The
+// arm self-guards on a REAL-TREE ANCHOR (gate-hub #11) — the multiplex's own `ROOM_SOURCES` registry — so
+// the conformance mini-projects, which hold one router file, never "prove" the exemption had died.
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
+import { fileLoaded } from "../pass.ts";
 
 const ROUTERS_DIR = /\/packages\/server\/src\/transport\/trpc\/routers\//u;
 const STREAM_ROUTER = /\/packages\/server\/src\/transport\/trpc\/routers\/stream\.ts$/u;
@@ -34,6 +41,17 @@ const EXEMPT: Readonly<Record<string, string>> = {
   // room it named, so re-adding any of the six folded procs goes RED.
   "chat.impersonateStream": "request-scoped + user-gesture-initiated, at most one at a time; detach would have to mean 'cancel generation' (spec §14.2)",
 };
+
+const GATE_SELF = "scripts/check/gates/single-stream-transport.ts";
+/** Real-tree anchor (gate-hub #11): the multiplex's room registry — the file every folded room registers in. */
+const ANCHOR = "packages/server/src/transport/trpc/stream/room-sources.ts";
+const STALE_PREFIX =
+  "stale EXEMPT row — no `.subscription(` under transport/trpc/routers/ declares this proc any more " +
+  "(ratchet down): the fold shipped but the row survived, leaving a live licence to re-open the socket it " +
+  "closed. Ratchet down: ";
+
+/** Every `<router>.<proc>` key the walk actually saw — the stale arm's truth set. */
+const seenKeys = new Set<string>();
 
 const MESSAGE =
   "a `.subscription(` outside transport/trpc/routers/stream.ts — a browser allows ~6 concurrent connections per origin and every SSE subscription pins one for its lifetime, so a second always-on stream re-opens the starvation class the multiplex closed (docs/history/design/sse-multiplex-spec.md §11).";
@@ -56,6 +74,9 @@ export const gate: GateDescriptor = {
   fix: "make it a ROOM on the multiplexed socket: add the channel to `@orb/contracts/stream` + a `ROOM_SOURCES` entry (transport/trpc/stream/room-sources.ts), and have the client use `useBusRoom`. Only stream.ts may call `.subscription(`.",
   scanRoot: (p) => ROUTERS_DIR.test(`/${p}`) && !STREAM_ROUTER.test(`/${p}`),
   kinds: [SyntaxKind.CallExpression],
+  begin: () => {
+    seenKeys.clear();
+  },
   visit: (node, sf, ctx) => {
     if (!Node.isCallExpression(node)) {
       return;
@@ -65,10 +86,28 @@ export const gate: GateDescriptor = {
       return;
     }
     const key = procKeyOf(node, sf.getFilePath());
-    if (key !== undefined && key in EXEMPT) {
-      return;
+    if (key !== undefined) {
+      seenKeys.add(key);
+      if (key in EXEMPT) {
+        return;
+      }
     }
     ctx.report(callee.getNameNode());
+  },
+  finalize: (ctx) => {
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
+      return;
+    }
+    for (const key of Object.keys(EXEMPT)) {
+      if (!seenKeys.has(key)) {
+        ctx.report({
+          file: GATE_SELF,
+          line: 1,
+          column: 0,
+          message: `${STALE_PREFIX}"${key}" — delete the row in scripts/check/gates/single-stream-transport.ts`,
+        });
+      }
+    }
   },
   mustFlag: [
     {
@@ -80,6 +119,14 @@ export const gate: GateDescriptor = {
       files: "export const chatRouter = t.router({\n  streamSomethingNew: authedProcedure.subscription(() => source()),\n});\n",
       at: "packages/server/src/transport/trpc/routers/chat.ts",
       why: "an EXEMPT map keyed on `<router>.<proc>`, not on the file — a NEW subscription in an exempted router's file still fires",
+    },
+    {
+      files: {
+        "packages/server/src/transport/trpc/stream/room-sources.ts": "export const ROOM_SOURCES = {};\n",
+        "packages/server/src/transport/trpc/routers/chat.ts": "export const chatRouter = t.router({\n  getChat: authedProcedure.query(() => read()),\n});\n",
+      },
+      expect: { count: 1, messageIncludes: "stale EXEMPT row" },
+      why: "THE STALE ARM: the anchor (the room registry) is loaded and `chat.impersonateStream` declares no `.subscription(` any more — the fold shipped, so the ledger row must ratchet down instead of standing as a live licence",
     },
   ],
   mustPass: [
@@ -97,6 +144,20 @@ export const gate: GateDescriptor = {
       files: "export const chatRouter = t.router({\n  getChat: authedProcedure.query(() => read()),\n});\n",
       at: "packages/server/src/transport/trpc/routers/chat.ts",
       why: "a query on a router — not the gate's target",
+    },
+    {
+      files: {
+        "packages/server/src/transport/trpc/stream/room-sources.ts": "export const ROOM_SOURCES = {};\n",
+        "packages/server/src/transport/trpc/routers/chat.ts":
+          "export const chatRouter = t.router({\n  impersonateStream: authedProcedure.subscription(() => deltas()),\n});\n",
+      },
+      why: "the row STILL EARNED, judged against the real-tree anchor: the exempt proc is declared, so the ledger row stands and neither arm fires",
+    },
+    {
+      files: {
+        "packages/server/src/transport/trpc/routers/chat.ts": "export const chatRouter = t.router({\n  getChat: authedProcedure.query(() => read()),\n});\n",
+      },
+      why: "THE ANCHOR GUARD: a project without the room registry is not the real tree — the stale arm stays silent instead of 'proving' the permanent exemption had died",
     },
   ],
 };

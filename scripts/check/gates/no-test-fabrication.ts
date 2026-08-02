@@ -12,7 +12,13 @@ import type { Check, Violation } from "../harness.ts";
 
 const TESTS_REL_RE = /\/(?<rel>tests\/.*)$/u;
 const ESCAPE = "FABRICATION-OK";
-const EXEMPT_TYPES: ReadonlySet<string> = new Set(["const", "any", "unknown"]);
+/** Cast targets that are NOT a fabrication claim: `as const` (a literal-narrowing operator), `as any` /
+ *  `as unknown` (widening escapes with their own rules). This is the PREDICATE'S VOCABULARY, not an
+ *  exemption ledger — no site is granted a pass here, and there is nothing that could go stale (the words
+ *  are TypeScript keywords). Named out of the exemption vocabulary deliberately (GATE-AUTHORING.md §4 —
+ *  "if the collection is not an exemption, the name must not promise one"). The gate's real exemptions are
+ *  the `FABRICATION-OK:` marker (reason mandatory) and the shrink-only baseline ratchet below. */
+const NON_FABRICATING_CAST_TARGETS: ReadonlySet<string> = new Set(["const", "any", "unknown"]);
 const BASELINE_REL = "scripts/check/gates/no-test-fabrication.baseline.json";
 
 const DOUBLE_CAST_MSG =
@@ -40,7 +46,7 @@ function isLiteralFabrication(node: AsExpression): boolean {
   if (!(Node.isObjectLiteralExpression(expr) || Node.isArrayLiteralExpression(expr))) {
     return false;
   }
-  return !EXEMPT_TYPES.has(node.getTypeNode()?.getText() ?? "");
+  return !NON_FABRICATING_CAST_TARGETS.has(node.getTypeNode()?.getText() ?? "");
 }
 
 /** The `// FABRICATION-OK` escape can sit on the cast's own line or the line directly above. */

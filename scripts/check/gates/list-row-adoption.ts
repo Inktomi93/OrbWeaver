@@ -8,6 +8,7 @@
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
+import { fileLoaded } from "../pass.ts";
 
 const LIST_SURFACE_IMPORTS: ReadonlySet<string> = new Set(["LibrarySurfaceShell", "LibraryListLayout", "createCollectionSurface"]);
 
@@ -140,6 +141,11 @@ function jsxElementName(node: Node): string {
 const seenAllowlistEntries = new Set<string>();
 const GATE_SELF = "scripts/check/gates/list-row-adoption.ts";
 
+/** Real-tree anchor (GATE-AUTHORING.md §4.5): `ctx.scope.kind === "project"` is TRUE inside conformance's
+ *  synthetic mini-projects too, so scope ALONE is not a guard — the stale arm below is vacuous while the
+ *  table is empty, but the first row added would otherwise red this gate's own self-proof. */
+const STALE_ARM_ANCHOR = "packages/ui/src/primitives/list-row/index.ts";
+
 export const gate: GateDescriptor = {
   name: "list-row-adoption",
   docRow: "client-architecture-lockdown.md §14/§16 G6",
@@ -190,7 +196,7 @@ export const gate: GateDescriptor = {
     }
   },
   finalize: (ctx) => {
-    if (ctx.scope.kind !== "project") {
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
       return;
     }
     for (const [path, rootName] of Object.entries(ALLOWLIST)) {
