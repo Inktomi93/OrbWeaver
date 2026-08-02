@@ -23,6 +23,66 @@ Global **KISS/YAGNI are SUSPENDED here** — build the maximal, most-provable ve
 sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 `docs/architecture/core/AGENTS.md` IN FULL before any work.
 
+## ═══ ▶▶▶ COMPACT-SAFETY SNAPSHOT #2 (08-03 late — THE current block; supersedes everything
+## between here and the wave-3 seals below. A resuming orchestrator: read THIS, then the whole
+## board, then git log -60.) ═══
+
+**MAIN @ `7afaff54`** (tree clean; board committed; ~65 local commits past origin `851f625e` —
+PUSH NEEDS ITS OWN WORD). Six-lane cap stands (owner). Board-only commits = `--no-verify`
+(owner word). Dev db DROPS on next stack boot (DBG baseline regen) — expected, reseeds via latch.
+
+**LIVE LANES (4, resumable via task notifications — process each per the THREE MERGE LAWS:
+--no-ff merge → verify separately → teardown separately; format-drift reds get fixed in the
+staged merge, scoped biome only):**
+· GDOC — gate-authoring law doc (scripts/check/GATE-AUTHORING.md) + contract.ts ExemptionRow
+  (mandatory why) + pnpm gate:new scaffold + gate-modernization meta-gate (derived baseline
+  handed to RETRO). My memory-hub gate lessons are MIGRATING INTO the doc.
+· RETRO — ~57 one-sided gates get stale arms (40-join priority) + 22 guard shapes + 16 complex
+  scanRoots + the §12.6 citation fix ×3. Adopts GDOC's type if it lands first.
+· RAWVIEW (security) — per-variant PROMPT-SNAPSHOT inspector grafted into the EXISTING chat
+  diagnostic surface (owner correction: no new home) + THE FORK-LAUNDERING FIX (member→host
+  promptSnapshot leak, red-first) — the raw_request/raw_response columns are WRITE-NEVER and
+  RULED DELETED (deletion rides regex R1's baseline regen, NOT this lane).
+· HEAL — handoff F1 (foreign gmPresetId nulled in swap batch) + F2 (anchor persona conditional
+  null, fork.ts twin if cheap); verb/resolver fork RULED (resolver is the widening point, its
+  own ticket); found+confirmed: MULTI-HUMAN ACTIVE-PERSONA IS SILENTLY DEAD for non-host
+  members (single-principal resolveForeignInputs) → TICKET below.
+
+**RULED TODAY (all owner, question tool):** regex all-8 forks · portability all-8 · raw blobs
+= build reader (then columns ruled DELETED post-census) · TYPO class-B = plain types (done,
+SM2) · handoff = heals now + MINIMIZED COPY ARM approved as near-wave program (stickler-shaped:
+one toggle at nominate, pendingHandoffOffer column, copy-at-ACCEPT, cards+books-as-copies+
+optional-GM-preset, seats re-point in place, decline=D64 drop) · DB boundary = amended law +
+own-tables gate (landed) · migration-readiness NOW (landed) · six-lane cap · board --no-verify.
+
+**QUEUE (after live lanes drain, priority order):** CEREMONY — strike DONE; close-out D-ENTRY
+carries SIX riders (two-class clause [role report §6] · R0 permissions-model page [three
+layers + who-owns-what citing the scoping census + BY-DESIGN register + R2's three-questions
+paragraph verbatim from its final report] · Spine-Identity truth-repair [claims agent
+principals built — false] · home/D62-P6 amendment [ledger outlaws the built 8th section] ·
+portability chrome-anatomy D-entry · regex R0 D53-storage amendment] → graduation verifier →
+docs/history move. THEN: Lane PRIN (principal-flow gate — census DONE: ownerid-registry
+already gates class-a; 3 mechanical arms specced [class-declaration 0-red ·
+fetchOwned-or-justification 3 rows · caller-param sweep]; ReapAssetsOp compose-closure
+verification inside; membership-rung = behavioral-only, honest limit) · MULTI-PERSONA ticket
+(persona.getForRoom-class op + membership gate — HEAL's confirmed find; design fork to owner) ·
+HANDOFF-COPY program (approved shape above) · F-8 collection-contribution design set
+(pre-config-rail) · CHAIN (substrate blocker verbatim in queue notes: buildLiveness is
+FILE-granular; declaration-granular edges = substrate change under the live push ratchet) ·
+BRAND gate (string-where-kit/ids-brand-exists, positions derived) · REGEX R1-R6 program
+(report §7; R1 regens baseline + carries the raw-column deletions) · PORTABILITY R0-R6
+(lifecycle registry; databank F1 at R1 priority) · side-eye re-check on FX's 31 · F-14 CLS ·
+TD design pass · CAP-GATE + FirstRunPersonaDialog smalls · D8 residue (+BINDING_VIEWS) ·
+span-coverage smalls (fireRpgTurnCompleted outside any span · structured-turn retry
+unobservable · provider.* spans never opened) · TYPO class-A dispositions + responseFormatSchema
+@typeonly-ok one-liner · MacroTextarea other-consumers user-plane question · content-class
+table-dispatch + CharacterFacetId Record smalls · cookie-parser… done · ENDGAME: quiesce →
+verify:push → PUSH-READY (word).
+
+**STANDING OWNER ITEMS:** PV wording veto · AV2 re-push ~$0.56 + Calamity $4 · DRAFT-TRUST ·
+AGENT-1 · D22 · F6 readout strict-fidelity nit · regime-2 landmine (launch-day: re-point
+db-baseline at the applied chain).
+
 ## ═══ ▶▶▶ HANDOFF #3 — 2026-08-02 NIGHT (SESSION-END; the ONE current block. Owner is
 ## swapping accounts — the resuming orchestrator has NO conversation memory; this block +
 ## MEMORY.md + git log are the whole truth. Everything below it is archeology.) ═══
