@@ -1091,3 +1091,102 @@ test("MOBILE: a collapsed drawer is the FULL viewport wide and entirely off-scre
   await assertOffScreenDrawer("list");
   await assertOffScreenDrawer("context");
 });
+
+// ── OVERLAY IS A SHEET, NOT A DOCKED PANE (crunch-list item 22, owner receipt at ~960 CSS px) ───────
+// In the 48–64rem band (and on mobile) a panel FLOATS over content that stays laid out full-width
+// underneath, so controls are cut mid-element at the panel's edge. That reads as breakage unless the
+// float itself is unmistakable — owner verbatim: "panels become not full height and act kinda strange".
+// Measured on the live stack before the fix: `box-shadow: none` on the open overlay panel (the docked
+// pane's 1px track hairline was its ONLY edge), and the context pane still wore the 2px ember
+// content↔context binding with nothing to bind to. The scrim was already correct and DOES dim (sampled
+// content text 171→72 sRGB with the sheet open), so these pin the two affordances that were missing,
+// plus the background-inertness the scrim's `pointer-events` half already implied.
+
+/** The computed `box-shadow` of an element — `"none"` when it has none. */
+function boxShadowOf(locator: Locator): Promise<string> {
+  return locator.evaluate((el) => getComputedStyle(el).boxShadow);
+}
+
+for (const side of ["list", "context"] as const) {
+  test(`the ${side} pane floating at 48-64rem wears the house sheet elevation — a docked one does not`, async ({ mount, page }) => {
+    await page.setViewportSize(NARROW_DESKTOP);
+    const shell = await mount(<AppShellStory />);
+    const panel = page.locator(`.shell-panel[data-panel-side="${side}"]`);
+    const toggle = side === "list" ? LIST_TOGGLE_RE : CONTEXT_TOGGLE_RE;
+
+    await shell.getByRole("button", { name: toggle }).click();
+    await expect(panel).toHaveAttribute("data-panel-mode", "overlay");
+    // --shadow-overlay is the app's ONE float recipe (dialog/popover/menu/tooltip/toast/drawer all ride
+    // it); a sheet that shares it reads like every other float in the app instead of like a clipped dock.
+    await expect.poll(() => boxShadowOf(panel), { intervals: [20, 50, 100] }).not.toBe("none");
+    const floating = await boxShadowOf(panel);
+
+    // …and the SAME pane docked at full width carries no float shadow — it is in the grid, not over it.
+    // (chats' CONTEXT default is collapsed, so dock it explicitly; the LIST one is docked by default.)
+    await page.setViewportSize(WIDE);
+    if (side === "context") {
+      await shell.getByRole("button", { name: CONTEXT_TOGGLE_RE }).click();
+    }
+    await expect(panel).toHaveAttribute("data-panel-mode", "docked");
+    await expect.poll(() => boxShadowOf(panel), { intervals: [20, 50, 100] }).toBe("none");
+    expect(floating).not.toBe("none");
+  });
+}
+
+test("the ember content↔context binding is a DOCKED cue: the band keeps it docked, drops it floating", async ({ mount, page }) => {
+  const shell = await mount(<AppShellStory />);
+  const band = page.locator('.shell-panel[data-panel-side="context"] .shell-panel-header');
+
+  // Docked (wide): the 2px ember inset edge binds the pane to the content column it explains.
+  await page.setViewportSize(WIDE);
+  await shell.getByRole("button", { name: CONTEXT_TOGGLE_RE }).click();
+  await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-mode", "docked");
+  await expect.poll(() => boxShadowOf(band), { intervals: [20, 50, 100] }).not.toBe("none");
+
+  // Floating (narrow band): the same edge has nothing to bind to and renders as an orphan amber stripe
+  // under the topbar — off it comes. The sheet's own elevation is what says "this floats" now.
+  // (Narrowing auto-downgrades the wide dock to a CLOSED slide-over — the toggle re-opens it as one.)
+  await page.setViewportSize(NARROW_DESKTOP);
+  await shell.getByRole("button", { name: CONTEXT_TOGGLE_RE }).click();
+  await expect(page.locator('.shell-panel[data-panel-side="context"]')).toHaveAttribute("data-panel-mode", "overlay");
+  await expect.poll(() => boxShadowOf(band), { intervals: [20, 50, 100] }).toBe("none");
+});
+
+test("content behind an open sheet is INERT — the scrim blocks the pointer, so it must block the keyboard too", async ({ mount, page }) => {
+  await page.setViewportSize(NARROW_DESKTOP);
+  const shell = await mount(<AppShellStory />);
+  const contentControl = page.getByRole("button", { name: "content control" });
+  const main = page.locator(".shell-content");
+
+  // Closed: the content column is live — the control takes focus.
+  await contentControl.focus();
+  await expect(contentControl).toBeFocused();
+
+  await shell.getByRole("button", { name: "Show list panel" }).click();
+  await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "overlay");
+  // The scrim already swallows every click back there; a keyboard user could still Tab into controls
+  // whose effect they cannot see. `inert` makes the two agree.
+  await expect(main).toHaveAttribute("inert", "");
+  await contentControl.focus();
+  await expect(contentControl).not.toBeFocused();
+
+  // The carve-out: the sheet's OWN close control lives in the topbar, above the scrim — it stays live,
+  // so the sheet is never a trap (this is why the shell inerts the content column, not the whole frame).
+  const closeToggle = shell.getByRole("button", { name: "Hide list panel" });
+  await closeToggle.click();
+  await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(main).not.toHaveAttribute("inert", "");
+  await contentControl.focus();
+  await expect(contentControl).toBeFocused();
+});
+
+test("MOBILE: the full-screen sheet gets the same elevation + inert content", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE);
+  const shell = await mount(<AppShellStory />);
+  const panel = page.locator('.shell-panel[data-panel-side="list"]');
+
+  await shell.getByRole("button", { name: "Show list panel" }).click();
+  await expect(panel).toHaveAttribute("data-panel-mode", "overlay");
+  await expect.poll(() => boxShadowOf(panel), { intervals: [20, 50, 100] }).not.toBe("none");
+  await expect(page.locator(".shell-content")).toHaveAttribute("inert", "");
+});
