@@ -679,6 +679,25 @@ flow-dependent — the cross-tenant sweep stays that proof). → Lane PRIN queue
 **HANDOFF: owner ruled OPT-IN POINT-IN-TIME COPY then ADDENDUM (simplicity weighs heavily,
 defers to stickler)** — both relayed mid-review; stickler licensed to recommend the simplest
 non-betraying arm incl. transfer-as-fork (copy problem = the already-solved fork problem).
+**HANDOFF REVIEW DELIVERED + RULED (docs/reviews/stickler/2026-08-03-handoff-card-ownership.md):**
+the owner's question answered — the new host does NOT get the cards and that's D64 LAW (seats
+drop in the atomic swap batch, nominee-scoped resolution, no cross-tenant read; test-pinned).
+Transfer-as-fork = FALSE ECONOMY (fork drops foreign seats identically — copies the room never
+the cards). TWO LIVE DEFECTS found in the current arm → **Lane HEAL dispatched** (F1 foreign
+gmPresetId survives the swap = silent GM-voice change + lying knob [fork-game guards exactly
+this]; F2 anchor persona dies silently = {{user}} POV drift + the setChatAnchorPersona
+verb/resolver mismatch [verb permits any present human's persona, resolver reads host-only];
+both heals ride the atomic swap batch; U2 if one-line). **OWNER RULED: heals now; the MINIMIZED
+COPY ARM is an APPROVED PROGRAM for a near wave** — one class-level toggle at nominate
+("also give copies of your characters & worldbooks used in this room"), pendingHandoffOffer
+column beside pendingHostUserId, COPY-AT-ACCEPT (acceptance freezes the point-in-time),
+copy set = seated cards (duplicate+promote-actor mint precedents, provenance-stamped for
+idempotent re-accept) + their character books AS COPIES (reference-carry silently kills lore —
+owner-filtered pool) + host-owned chat books + optional GM preset; seats re-point IN PLACE;
+messages.characterId + digest speakers re-stamp; rpg = rekeyActor only (chat id unchanged);
+variants transfer by construction; decline = the built D64 drop. ~90% machinery exists.
+F3 (cards-drop vs books-license asymmetry) reconciles via the copy arm. Verified: declining
+strands NOTHING host-authored (room state is the room's, in code, today).
 STANDING OWNER QUEUE unchanged: PV wording veto · AV2 re-push offer ~$0.56 + Calamity $4 ·
 DRAFT-TRUST · AGENT-1 · D22 (multi-user stack). CEREMONY (now 6 riders) runs after this wave.
 **CEREMONY R0 SCOPE GROWN (owner nit, 08-03 — agents re-flag by-design visibility):**
