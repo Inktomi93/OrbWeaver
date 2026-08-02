@@ -160,12 +160,15 @@ RIGHT (names never freeze into rows; ids+stamps, live derive; freezes = assistan
 digests-by-design, export header only). RULED: **(1) REGENERATE the six demo transcripts**
 on a persona'd stack (re-generate-never-edit law) → Lane TRANSCRIPTS queued for a QUIET
 stack slot (needs live engines + the post-REGEX reseed; after the baseline-drop reboot).
-**(2) Mid-session persona-change linkage STAYS PARKED — owner's own reasoning, RECORD IT
-(the standing constraint for whenever this unparks):** "if you form relations with NPCs with
-persona A and then swap to persona B, all those keyed things will now point to persona B even
-though they haven't done anything — the same debacle as persona pin and why we made it."
-A swap must NOT silently transfer NPC-keyed relations/state built under the previous persona;
-recast-is-story is NOT ratified as the full answer. **(3) RESYNC = the two thin affordances**
+**(2) Mid-session persona-change linkage STAYS PARKED — owner's reasoning AND the ruled
+solution FLAVOR, record both (the design direction for whenever this unparks):** "if you form
+relations with NPCs with persona A and then swap to persona B, all those keyed things will now
+point to persona B even though they haven't done anything — the same debacle as persona pin
+and why we made it." **Owner clarified (08-03 #2): the answer is PERSONA-PIN SEMANTICS applied
+to rpg-lite state tracking** — relations/keyed state PIN to the persona they were formed under
+(the pin's story-accuracy job, extended to the game plane): a swap opens new/parallel context,
+never a silent re-point. Recast-is-story is NOT the full answer; the future design derives
+from the pin concept (owner-sacred), not from live-resolution. **(3) RESYNC = the two thin affordances**
 (bulk arm on reattributePersona {mine:true, fromSeq?} killing the client 100-row window hack ·
 opt-in restamp checkbox on the host resyncFromStory dialog, restamp-then-rebuild; never-touch
 list stands: content D26, snapshots, digests D55, exports) → Lane RESYNC queued next drain.
@@ -176,6 +179,24 @@ CONTINUING WARM to close its enumerated 52-item tail (owed domain test mirrors +
 bundle round-trip + RECEIVE/WI ORDER pins). **OPEN OWNER FORK: DISPLAY-tier sourcing** —
 viewer-only (implemented, law-literal: a host can't rewrite what others SEE) vs ST-parity
 (room carriers' DISPLAY scripts render for every viewer + viewer's on top) — posed.
+**→ DISPLAY RULED (owner, THIRD arm): viewer-only default + a HOST PER-ROOM TOGGLE** — host
+enables → the HOST's display scripts render for every viewer ("a GM might want to do something
+special"); default OFF (D121-B options-never-defaults grammar); viewer's own scripts apply
+LAST (counter-style always possible); both arms CT-pinned. Relayed to REGEX's warm tail.
+✅ **F14 MERGED (`509a6550`, --no-verify on branch-side green receipts [first under the new
+word — debt row, cleared by the quiesce run], torn down) — HOME BOOT CLS 0.0913 → 0.0000
+measured.** THE F-14 ROW IS REWRITTEN: the pinned shell.css cause was REFUTED by measurement
+(first-commit grid template already carries resolved tracks — zustand persist rehydrates
+sync at module init; the 0px defaults are never observable; shell.css is CORRECT AS-IS).
+Real mechanism: home tiles suspend onto a fixed 3-row skeleton ≠ settled box → recents grows
++189px and shoves the tiles below. Fix = TileBody remembers each tile's settled height
+(home-tile-box-store, DEVICE_LOCAL_REGISTRY) and TileFallback reserves EXACTLY it (not a
+floor); first boot reserves nothing; stale entries self-heal on mount. Red-first CT pins ×2 +
+the app-shell first-commit pin (addInitScript+reload — a story landing state in an effect
+can't pin first commits, lesson banked) + a store unit guard vs absurd measurements.
+SIDE-EYE RIDER boarded: loading recents = 3 skeleton rows in a remembered 422px box (blank
+below), temp-chat clips its 3rd bar — honest ~300ms flash; polish = row-pitch token (none
+exists today).
 **LIVE NOW (5): REGEX · MONO (monotonic-tests manifest regen + fail-loud
 readManifest + two-sided arms) · WRITES (PRIN's write-half: the owner-scoped predicate over
 update/delete, 30 sites classified w/ markers, world_books rows coordinate w/ REGEX) · POLISH
