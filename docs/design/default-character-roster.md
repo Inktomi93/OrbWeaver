@@ -120,9 +120,9 @@ pack's one loud explanation of why `systemPrompt` stays null on authored default
 > try me: something to draft, a plan to poke holes in, a question you've been circling, a world
 > that needs building. I answer first and hedge later, and I don't do pep."
 >
-> "And if you'd rather be greeted by someone else entirely — no offense taken — open any
-> character's editor and choose **Set / Unset as Welcome Page Assistant** from the More… menu.
-> It's your web. I just live in it."
+> "And if you'd rather be greeted by someone else entirely — no offense taken — find them in
+> your library and choose **Set as welcome greeter** from their row's actions menu. It's your
+> web. I just live in it."
 
 *Greeting 2 (alternate):*
 
@@ -1758,6 +1758,13 @@ Per program: demo chats are generated LIVE and exported, never hand-seeded; labe
    contract carries them (recon-confirmed).
 7. The long-form field prose above is authoritative; the wiring lane flattens to TS strings
    (`\n\n` between paragraphs, exampleMessages exactly as fenced).
+8. **UI-copy verification (sign-off rider, receipt):** Charlotte's greeting names the welcome-
+   slot affordance as **"Set as welcome greeter"** — verified verbatim against
+   `packages/client/src/features/character/components/character-actions-menu.tsx:67` (the
+   character row's actions menu in the library, aria-label "Character actions"). The OLD
+   Assistant card's copy ("Set / Unset as Welcome Page Assistant" in a "More… menu") matches
+   nothing on the tree — it was already rot; there is no Unset arm and no "More…" menu. If that
+   menu copy ever changes, this greeting is its one downstream prose consumer.
 
 ## Taste forks — RULED (orchestrator, 08-02 night)
 
