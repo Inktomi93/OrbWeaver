@@ -6,6 +6,8 @@ updated: 2026-07-13
 
 # Core — SillyTavern Feature Slot Map (the one clear reference)
 
+> **⚠ BUILD-STATE RIDER (truth audit 2026-08-03):** the map is FROZEN at 2026-07-13 — pre-retro. Tree-verified drift: `domain/hub` and the `anth-direct` direct-provider backend are PURGED (2026-07-22 retro sync); the expressions seams (`@orb/contracts/expressions`, `character_sprites`) and `roster-preset` are PURGED (2026-07-25 burn-down); `domain/databank` is BUILT (2026-07-26, D107); Phase 8 IS started — `domain/automation`, `domain/plugin`, and `infra/plugin-host` (QuickJS) are BUILT. Rows annotated where flagrant; on any residual disagreement trust the code, then the PD registry (the header rule).
+>
 > **Purpose.** ONE place that says, for every SillyTavern feature orbweaver committed to: which decision commits it, its PD flag, its home, and whether it's built yet. It reconciles the ledger (`Core-Laws-and-Precedents.md` D44–D63), the runbook (`../history/Core-BUILD-PLAN.md`, superseded), and the PD registry (`Core-Audits-and-Debt.md`).
 >
 > **Authority:** the ledger D-entry wins on a *decision* conflict; the PD registry (`Core-Audits-and-Debt.md`) wins on *build status*; this doc is the reconciled map, verified against the code + file tree 2026-07-13.
@@ -71,16 +73,16 @@ ST-derived but built as first-class core, not "ST ports."
 | `domain/imagery` | D49 #1 | **PD-93** | server orchestrator: injected `generatePicture` op (hosted-only `generateImage`, D39) + assets CAS → `MessageMedia` | BUILT (`verbs/generate-picture.ts`; img2img/image-studio cluster deferred — imagery staging) |
 | gallery **v2** | D49 #2 | PD-55 | curated per-character media: `"gallery"` AssetKind + `gallery_items` table + assets verbs (`list-gallery`, `add/remove-to-gallery`) | BUILT |
 | `domain/tool-use` | D48 | PD-54 | the ONE tool registry, two wire projections; the chat domain owns the recurse loop (§2b) | BUILT |
-| `domain/hub` | D61 | — | character import from chub/wyvern/chartavern/pygmalion + gif search, via sealed `HubAdapter` registry behind the egress guard | BUILT |
-| Direct model providers | D47 #4 | — | native provider keys — a clean D39 source-add | BUILT (Anthropic-direct backend; OpenAI/Google storable, resolver arm reserved) |
-| `domain/databank` | D49 #5 | PD-57 | document-RAG: `documents` producer + `document_chunks` vectors + extraction loader + `{{databank}}` slot | RESERVED — schema born (`db/schema/databank.ts`), ingest runner stubbed; databank staging |
-| `domain/expressions` | D49 #4 | PD-56 | `classify` role + `character_sprites` + `EXPRESSION_LABELS` + per-turn chat hook | RESERVED — contract + `character_sprites` schema born, runner stubbed; expressions staging |
+| `domain/hub` | D61 | — | character import from chub/wyvern/chartavern/pygmalion + gif search, via sealed `HubAdapter` registry behind the egress guard | PURGED 2026-07-22 (was BUILT); returns with the hub wave |
+| Direct model providers | D47 #4 | — | native provider keys — a clean D39 source-add | PURGED 2026-07-22 (the anth-direct backend; D67 is the design record) |
+| `domain/databank` | D49 #5 | PD-57 | document-RAG: `documents` producer + `document_chunks` vectors + extraction loader + `{{databank}}` slot | BUILT (2026-07-26, D107 Phase B — real ingest via `embeddingsStore`, verbs, router, settings knobs) |
+| `domain/expressions` | D49 #4 | PD-56 | `classify` role + `character_sprites` + `EXPRESSION_LABELS` + per-turn chat hook | PURGED 2026-07-25 (the born seams died with the burn-down); expressions staging |
 | Translate | D47 #5 | — | a request-shaper over the `chat` role (like summarize) | STILL-GAP — unscheduled |
 | Standalone caption | D47 #6 | — | an ad-hoc user-facing vision verb (the capability runs inside the embeddings indexer) | STILL-GAP — unscheduled |
 
 ### 2e. Phase 8 — scripting / automation / plugin (D46)
 
-Not started. Tier-1 automation is contract-only (`@orb/contracts/automation`); the design sets are parked in `../proposed/` (see its `INDEX.md`).
+BUILT (truth-audit correction 2026-08-03 — this section previously said "Not started"): `domain/automation` (Tier-1 declarative), `domain/plugin` + `infra/plugin-host` (the Tier-2 QuickJS-WASM membrane), and their routers/schemas are live on the tree.
 
 | Piece | Home / staging owner |
 | - | - |

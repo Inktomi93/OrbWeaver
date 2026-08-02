@@ -29,6 +29,6 @@ Each is enforced at its code site (a rung-4 comment and/or a named test); this l
 - **ST role bimap** `{0:system,1:user,2:assistant}` — ONE home, `kit/message-role` (D32).
 - **`scopedCharacterId=''` sentinel** — SUPERSEDED (D55: the shared bucket keys on a real synthetic-group `CharacterId`, never a sentinel; see `Tier-1-DB.md` esoteric #3) for the shared memory bucket (knowledge-cluster).
 - **Two-layer prototype-pollution defense COMPLETE** (PD-101 done 2026-07-05): schema `superRefine` (Layer 1) + `deepMergeRequestBody` runtime scrub (Layer 2, `server/kit/custom-parameters`).
-- **`parseNeoPresetFile` strict** vs `parsePromptConfig` lenient — both behaviors preserved.
+- **`parsePresetFile` strict** (the former `parseNeoPresetFile` — renamed; `@orb/contracts/preset`) vs `parsePromptConfig` lenient — both behaviors preserved.
 - **storedVersion (DB column) beats in-blob version probe** (versioned-config) — else lifts re-run and corrupt.
 - **Regex executor ordering**: macros run on the template before `$N` splice (captured model text never re-evaluated) — `kit/regex`.

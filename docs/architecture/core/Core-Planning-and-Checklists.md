@@ -45,7 +45,7 @@ map), never the oracle.
 
 The standing rule: every load-bearing quirk becomes a named test or asserted invariant, and its comment
 travels with the code — the AAD byte-string, ZWSP-between-the-braces (`neutralizeMacros`), the
-`scopedCharacterId=''` sentinel, the PNG dual-chunk + CRC, the vLLM death-couple pipe-watchdog,
+always-real `scopedCharacterId` (the `''`-sentinel was SUPERSEDED by D55 — real synthetic-group ids), the PNG dual-chunk + CRC, the vLLM death-couple pipe-watchdog,
 `storedVersion`-beats-probe, the last-owner / owner-immutability EXISTS-on-UPDATE guard (D17), the
 `globalMacroRegistry` single-tenant note, the `deepMergeRequestBody` Layer-2 defense, the
 `ASSUMES(single-replica)` annotations.

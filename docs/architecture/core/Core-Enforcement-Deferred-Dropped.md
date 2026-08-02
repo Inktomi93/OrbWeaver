@@ -17,13 +17,13 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 
 | Gate | What it does | Activates when |
 | - | - | - |
-| `touch-target-floor` (component half) | RENDERED half of the D62 P1 per-pointer floor: a coarse-pointer CT sweep asserting every interactive primitive's effective hit area (boundingBox ∪ the `::before` expansion) is ≥44px on the governed axis (NOT the stale D43 unconditional rule). BUILT + green as a browser-lane belt (`tests/ui/touch-target-floor.suite.ct.tsx`), not a `pnpm check` gate | the CI browser lane (`test:ct`) is wired in `ci.yml` — same trigger as the D62 ARIA/screenshot goldens |
+| `touch-target-floor` (component half) | RENDERED half of the D62 P1 per-pointer floor: a coarse-pointer CT sweep asserting every interactive primitive's effective hit area (boundingBox ∪ the `::before` expansion) is ≥44px on the governed axis (NOT the stale D43 unconditional rule). BUILT + green as a browser-lane belt (`tests/ui/touch-target-floor.suite.ct.tsx`), not a `pnpm check` gate | trigger SUPERSEDED by the D62 no-CI ruling (ci.yml is manual-dispatch-only) — the CT suite at pre-push carries it; nothing further to activate |
 | `assets-single-writer` | only `domain/assets` writes the assets table + `storeBlob` (the one CAS coherence site) | assets domain built (PRE-SCAFFOLD §A1) |
 | `asset-owner-gated` | assets are per-user (`assets.ownerId` + `unique(ownerId,hash)`); the `/blob/:hash` route resolves the caller (session cookie) + `fetchOwned` (or the roster-avatar membership exception) — NEVER serves on bare row-existence; `Cache-Control: private`; the CAS is per-user keyed (ledger D21 — "no leaks ever") | assets domain + blob route built |
 | `discovery-no-vector-write` | `discovery` embeds nothing — no write into the embeddings vector tables | discovery + embeddings domains built (§A1) |
 | `dead-code` (knip) | unused exports / files / deps | PROMOTED 2026-07-13 — LIVE as the `deps:knip` static-tier stage in `pnpm check` (see Active-Gates Layer 4); this row is retained only as the deferral record |
 | `api-surface` | public package-surface drift snapshot ("lock the surface") | packages export a stable surface |
-| `monotonic-tests` | test-count baseline only grows (behavior lock) | BUILT (dormant) — activation = flip `status` in the gate descriptor; triggers: first real client test suite + committed baseline |
+| `monotonic-tests` | test-count baseline only grows (behavior lock) | PROMOTED — `status:"active"` (see Active-Gates); ⚠ the committed manifest is currently ABSENT so the deleted-test arm is inert (truth-audit 2026-08-03, see the Active-Gates row) |
 | `suppressions` | `biome-ignore` count ratchet + audit (reasons are already biome-native) | post-Phase-1 baseline (count-down ratchet needs existing code) |
 | `provider-vocab` | provider-routing vocabulary has one home | connection domain built |
 | `env-natures` | settings "four natures" split, machine-locked | settings domain built |
@@ -34,7 +34,7 @@ false-fire or be vacuous. Numbers reference neo's `scripts/check/`.
 | `design-tokens` | design-token file shape (globals.css) | client styling built |
 | `substrate-clean` | substrate/canonical cleanliness ratchet | client built |
 | `entity-editor` | entity-editor checklist ratchet | client entity editors built |
-| `audit-client-tests` | client test audit | BUILT (dormant) — activation = flip `status` in the gate descriptor; triggers: client tests exist |
+| `audit-client-tests` | client test audit | PROMOTED — `status:"active"` (see Active-Gates); row retained as the deferral record |
 | `doc-tables` | docs ↔ code table-consistency | a docs-table convention is adopted |
 | `no-inline-union-redecl` (tuple-vs-tuple) | UPGRADED: the active gate now flags an inline union or a `z.enum([…])` literal re-spelling a canonical tuple's members. Remaining (unbuilt): a 2nd `as const` tuple duplicating a 1st's members — contested (distinct axes may legitimately share a member set) | decide the distinct-axis-vs-dup policy |
 | `dangling-refs` | prose pointers (paths/symbols) that lead nowhere | revisit (risk: doc-path refs); candidate post-Phase-1 |
@@ -57,7 +57,7 @@ catch it at the next audit of this table.
 | Seal | Cited consumer | Header lives at |
 | - | - | - |
 | `@orb/ui/diff` | `refinery` pipeline compare sub-part (D62 §4.1; refinery is a declared-PLANNED section, `client-architecture-lockdown.md` §6a) | `packages/ui/src/diff/diff.tsx` |
-| `charts/meter` (`Meter` + `SegmentedClock`) | rpg HUD widgets (`rpg-design/11-client-ui.md` — resource/pool + progress-clock rows) | `packages/ui/src/charts/meter/meter.tsx`, `packages/ui/src/charts/meter/segmented-clock.tsx` |
+| `charts/meter` (`Meter` only — `SegmentedClock`'s consumer LANDED: the rpg quests tab renders it, so its marker was deleted per the W6 contract, truth-audit 2026-08-03) | rpg HUD widgets (`rpg-design/11-client-ui.md` — resource/pool rows; the module's other parts — TrackBar, RingGauge, waystone — are consumed) | `packages/ui/src/charts/meter/meter.tsx` |
 | `stream/stream-text.tsx` | no named feature — sanctioned convenience wrapper over `useSmoothText`+`StreamShimmer` for a future plain-text streaming surface (`ui-package-design.md` §6.3.1) | `packages/ui/src/stream/stream-text.tsx` |
 | `primitives/status-chip` | workloads/automation run-status chips (`automation-design/03-actions.md`; statuses mirror `workloads-deferred-designs.md` run lifecycle) | `packages/ui/src/primitives/status-chip/status-chip.tsx` |
 

@@ -124,8 +124,9 @@ narrator row's `{{char}}` (`characterId === null`) is the CAST — the joined ca
 - `reattributeMessages` (host) — re-stamps a slot's `characterId` (the `{{char}}`/speaker axis). BUILT.
 - **persona reattribution** (author-or-host; re-stamp user messages' `personaId`, per-row) — BUILT
   (`createReattributePersona`, `domain/chat/verbs/edit.ts`; `chat.reattributePersona` route; client
-  `useReattributePersona` + `persona-this-chat-section.tsx`). Scoped to `REATTRIBUTE_WINDOW` recent turns —
-  no server bulk restamp. The deliberate lever to fix history attribution after a switch. Re-stamp → the
+  `useReattributePersona` + `persona-this-chat-section.tsx`). Takes an explicit `messageIds` selection,
+  belted per row (author-or-host + persona-ownership per author) — no server bulk restamp (the former
+  `REATTRIBUTE_WINDOW` const is gone from the tree; truth-audit correction 2026-08-03). The deliberate lever to fix history attribution after a switch. Re-stamp → the
   producer re-resolves the name → BOTH consumers update; the content is never touched.
 
 ## 6. Parity is enforced, not hoped
