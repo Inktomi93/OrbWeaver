@@ -42,8 +42,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import type { Node } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
-import { buildLiveness, collectOrphanCandidates, isProdConsumed, ownExports } from "../codemods/ast.ts";
+import { buildLiveness, collectOrphanCandidates, isProdConsumed, isPublicTagged, ownExports } from "../codemods/ast.ts";
 import { getWorkspace } from "../ts-workspace.ts";
 
 const EXIT_CLEAN = 0;
@@ -55,13 +54,14 @@ const BASELINE_REL = "scripts/verify/orphan-export-ratchet.baseline.json";
 const RATCHETED_PACKAGES = ["kit", "contracts", "db", "server", "client"] as const;
 /** The R2-sealed package, exempt as a whole; named here so the exemption is legible, not implicit. */
 const SEALED_PACKAGE_REASON = "packages/ui — the R2 sealed surface (docs/architecture/core/ui-package-design.md R2): every export exists to be available";
-// The `@public` marker plus the REST OF ITS LINE — the reason. Read per-line and stripped of the JSDoc
-// terminator on purpose: a naive `/@public\s+\S/` is satisfied by the `*/` of a BARE `/** @public */`
-// (space, then `*` — a non-space char), which silently turns the reason requirement off. Probe-caught.
-const PUBLIC_TAG_RE = /@public(?<reason>[^\n]*)/u;
+// The `@public <reason>` READER lives in scripts/codemods/ast.ts beside the orphan substrate this stage
+// already shares (`collectOrphanCandidates` / `isProdConsumed`), and is IMPORTED here — never re-spelled.
+// It is the same predicate the `chains` fixpoint reads to decide which declarations are alive roots, and two
+// spellings of it would let the two disagree about what "deliberately unconsumed" means. Its footgun (a naive
+// `/@public\s+\S/` is satisfied by the `*/` of a BARE `/** @public */`, silently turning the reason
+// requirement off) was probe-caught here on 2026-08-03 and is documented at that one home.
 /** A test source file — never a prod export home (mirrors the lens's own rule). */
 const TEST_FILE_RE = /\.(?:test|ct)\.tsx?$/u;
-const JSDOC_TERMINATOR_RE = /\*\/\s*$/u;
 
 const REMEDY =
   "CONSUME it (wire the consumer the export exists for) · TAG it `/** @public <reason> */` at the " +
@@ -78,27 +78,6 @@ function keyOf(file: string, name: string): string {
 
 function repoRel(root: string, absolute: string): string {
   return absolute.startsWith(`${root}/`) ? absolute.slice(root.length + 1) : absolute;
-}
-
-/** The node a leading comment actually attaches to. A `VariableDeclaration` (the origin node the liveness
- *  keys on) is NOT the comment host — the JSDoc sits above the enclosing `VariableStatement`, so reading
- *  the declaration's own ranges finds nothing and every tagged `const` would look untagged (measured: 5 of
- *  the 7 first-run rows were tagged rows read at the wrong node). A type alias / class / function
- *  declaration IS its own statement and is returned unchanged. */
-function commentHost(decl: Node): Node {
-  return decl.getFirstAncestorByKind(SyntaxKind.VariableStatement) ?? decl;
-}
-
-/** Does this declaration carry `/** @public <reason> *\/` in a LEADING comment, WITH a reason? (the
- *  `isUnwiredExempt` discipline: a bare marker is not a legal exemption.) The reason must sit on the
- *  marker's own line — every one of the tree's 33 tags is written that way. */
-function isPublicTagged(decl: Node): boolean {
-  return commentHost(decl)
-    .getLeadingCommentRanges()
-    .some((range) => {
-      const reason = PUBLIC_TAG_RE.exec(range.getText())?.groups?.["reason"];
-      return reason !== undefined && reason.replace(JSDOC_TERMINATOR_RE, "").trim().length > 0;
-    });
 }
 
 type Orphan = { readonly key: string; readonly file: string; readonly line: number; readonly name: string };
