@@ -25,9 +25,9 @@ import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
-import { PROMPT_MACRO_SUGGESTIONS } from "#lib";
 import { setActiveSection } from "#state";
 import { isTemplatedMarker } from "../../lib/assembly-model";
+import { PresetMacroSuggestions } from "../preset-macro-suggestions";
 import { CARRIER_ATTRIBUTION, MARKER_COPY } from "./marker-copy";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;
@@ -47,9 +47,13 @@ export interface SectionBodyProps {
 export function SectionBody({ form, section, index }: SectionBodyProps): ReactElement {
   if (section.type === "literal") {
     return (
-      <form.AppField name={`sections[${index}].content`}>
-        {(field): ReactElement => <field.MacroField className={BODY_MIN_H} label="Text" rows={BODY_ROWS} suggestions={PROMPT_MACRO_SUGGESTIONS} />}
-      </form.AppField>
+      <PresetMacroSuggestions form={form}>
+        {(suggestions): ReactElement => (
+          <form.AppField name={`sections[${index}].content`}>
+            {(field): ReactElement => <field.MacroField className={BODY_MIN_H} label="Text" rows={BODY_ROWS} suggestions={suggestions} />}
+          </form.AppField>
+        )}
+      </PresetMacroSuggestions>
     );
   }
   if (isTemplatedMarker(section.marker)) {
@@ -74,17 +78,21 @@ function TemplatedMarkerBody({ form, section, index }: SectionBodyProps): ReactE
       {/* NO `<Field label="Template">` (side-eye F-32): the cluster kicker already says BODY and the
           drill-in header already names the section, so a third "Template" was the same idea three times.
           The accessible name rides `aria-label` — the datum reaches AT, the eye stops re-reading it. */}
-      <MacroTextarea
-        aria-label="Template"
-        className={BODY_MIN_H}
-        // The empty string is NOT a stored state (§5.2a): clearing the field writes `undefined`, which
-        // is exactly "the built-in default rides".
-        onChange={(next): void => form.setFieldValue(name, next === "" ? undefined : next)}
-        placeholder={factoryDefault === "" ? copy.oneLiner : factoryDefault}
-        rows={BODY_ROWS}
-        suggestions={PROMPT_MACRO_SUGGESTIONS}
-        value={template ?? ""}
-      />
+      <PresetMacroSuggestions form={form}>
+        {(suggestions): ReactElement => (
+          <MacroTextarea
+            aria-label="Template"
+            className={BODY_MIN_H}
+            // The empty string is NOT a stored state (§5.2a): clearing the field writes `undefined`, which
+            // is exactly "the built-in default rides".
+            onChange={(next): void => form.setFieldValue(name, next === "" ? undefined : next)}
+            placeholder={factoryDefault === "" ? copy.oneLiner : factoryDefault}
+            rows={BODY_ROWS}
+            suggestions={suggestions}
+            value={template ?? ""}
+          />
+        )}
+      </PresetMacroSuggestions>
       <Text voice="gloss">
         Substance: {copy.subtitle}. {GHOST_PLACEHOLDER_HINT}
       </Text>
@@ -121,17 +129,21 @@ function CarrierBody({ form, section }: { readonly form: AssemblyForm; readonly 
         // mock draws a single-line input. `rows={1}` + the Textarea's own `field-sizing: content` grows it
         // only if the author writes a multi-line wrapper. The explainer moves to the hover hint — the
         // datum ({{entry}}) is what stays visible (§4.1).
-        <form.AppField name="formatStrings.wiFormat">
-          {(field): ReactElement => (
-            <field.MacroField
-              hint="A format string framing EACH lorebook entry — {{entry}} is the entry text, and it is shared by both World-info markers. Blank uses {{entry}} alone."
-              label="Entry wrapper"
-              placeholder="{{entry}}"
-              rows={1}
-              suggestions={PROMPT_MACRO_SUGGESTIONS}
-            />
+        <PresetMacroSuggestions form={form}>
+          {(suggestions): ReactElement => (
+            <form.AppField name="formatStrings.wiFormat">
+              {(field): ReactElement => (
+                <field.MacroField
+                  hint="A format string framing EACH lorebook entry — {{entry}} is the entry text, and it is shared by both World-info markers. Blank uses {{entry}} alone."
+                  label="Entry wrapper"
+                  placeholder="{{entry}}"
+                  rows={1}
+                  suggestions={suggestions}
+                />
+              )}
+            </form.AppField>
           )}
-        </form.AppField>
+        </PresetMacroSuggestions>
       ) : null}
     </Stack>
   );

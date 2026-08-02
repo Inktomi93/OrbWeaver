@@ -36,11 +36,25 @@ export function detectTrigger(text: string, caret: number): MacroTrigger | null 
   return { start: openIdx, partial: between };
 }
 
-// Parameterized macros (name contains `:`) insert a template with the caret just inside the closing
-// braces so the user keeps typing the argument; non-parameterized macros insert the bare `{{name}}`.
-export function computeMacroInsertion(value: string, trigger: MacroTrigger, macroName: string): MacroInsertion {
+/** The caret marker inside an `insertTemplate` — the one spot the author types next. Stripped on insert;
+ *  a template without it lands the caret at its end. */
+export const MACRO_CARET_MARKER = "$0";
+
+// Three insertion shapes, one seam. An explicit `insertTemplate` wins (BLOCK forms: the whole
+// `{{if::}}{{/if}}` pair, which no `{{name}}` spelling can express); otherwise parameterized macros (name
+// contains `:`) insert `{{base::}}` with the caret just inside the closing braces so the user keeps typing
+// the argument, and everything else inserts the bare `{{name}}`.
+export function computeMacroInsertion(value: string, trigger: MacroTrigger, macroName: string, insertTemplate?: string): MacroInsertion {
   const before = value.slice(0, trigger.start);
   const after = value.slice(trigger.start + 2 + trigger.partial.length);
+  if (insertTemplate !== undefined) {
+    const marker = insertTemplate.indexOf(MACRO_CARET_MARKER);
+    const inserted = marker === -1 ? insertTemplate : insertTemplate.replace(MACRO_CARET_MARKER, "");
+    return {
+      next: `${before}${inserted}${after}`,
+      caret: before.length + (marker === -1 ? inserted.length : marker),
+    };
+  }
   const isParameterized = macroName.includes(":");
   const inserted = isParameterized ? `{{${macroName.slice(0, macroName.indexOf(":"))}::}}` : `{{${macroName}}}`;
   const next = `${before}${inserted}${after}`;

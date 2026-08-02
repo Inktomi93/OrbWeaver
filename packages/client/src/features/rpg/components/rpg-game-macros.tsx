@@ -33,7 +33,7 @@ import { EntryListEditor, UserMacroEditorDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm } from "#forms";
-import { PROMPT_MACRO_SUGGESTIONS } from "#lib";
+import { withUserMacros } from "#lib";
 import { useUpdateConfig } from "../hooks/use-rpg-mutations";
 
 // The autosave macro-list form. Module scope (stable identity — the D54 §13.1 factory pattern); keyed by the
@@ -107,7 +107,16 @@ function GameMacrosBody({
               void form.removeFieldValue("userMacros", index);
             }}
             renderEditor={(index): ReactElement => (
-              <UserMacroEditorDialog form={form} index={index} onClose={(): void => setEditIndex(null)} suggestions={PROMPT_MACRO_SUGGESTIONS} />
+              <UserMacroEditorDialog
+                form={form}
+                index={index}
+                onClose={(): void => setEditIndex(null)}
+                // BOTH planes, in the resolver's precedence (game defs first — `withUserMacros` registers
+                // them first, so a shadowed preset name never reaches the popover as a second row). The
+                // preset half is NAMES only by the least-privilege view: those rows say where they come
+                // from and nothing they cannot know.
+                suggestions={withUserMacros(userMacros, presetMacroNames)}
+              />
             )}
           />
         )}

@@ -16,6 +16,7 @@ import type { ChatContext } from "../context";
 import type { ResolveRpgCardCorpus } from "../contract/context";
 import { loadCanonHistory } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
+import { hostUserIdOf } from "../substrate/roster-host";
 
 /** The card sections the round reads, in the order a human reads a card. A section with no prose is OMITTED
  *  (a thin card yields a short corpus, never a scaffold of empty headings that teaches the model to invent). */
@@ -41,7 +42,7 @@ export function createResolveRpgCardCorpus(ctx: ChatContext): ResolveRpgCardCorp
   return async (chatId, characterId) => {
     // Card reads need an owner — the room host (the character-card ownership authority, D18/D19).
     const roster = await loadRoster(ctx.db, chatId);
-    const hostUserId = roster.find((r) => r.role === "host")?.userId ?? null;
+    const hostUserId = hostUserIdOf(roster);
     if (hostUserId === null) {
       return null;
     }

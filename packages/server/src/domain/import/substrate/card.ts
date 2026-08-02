@@ -11,6 +11,7 @@ import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { AssetId } from "@orb/kit/ids";
 import { readCardChunk } from "@orb/kit/png-card-chunk";
 import { slugifyHandle } from "@orb/kit/slug";
+import { z } from "zod";
 import { sha256Hex } from "#kit/content-hash";
 import { cardFromJson, extractLorebook, loreEntryColumns, loreEntryMetadata, selectBestCharacterBook } from "#kit/serde/card";
 import { ImportCardError } from "../contract/errors";
@@ -162,7 +163,11 @@ export function cardToCreateInput(card: CharacterCard, avatarAssetId: AssetId | 
   };
   const result = createCharacterSchema.safeParse(candidate);
   if (!result.success) {
-    throw new ImportCardError("card_invalid", `imported card failed validation: ${result.error.message}`);
+    // `z.prettifyError` over `error.message`: the raw message is the ZodError's JSON issue DUMP — a wall of
+    // `[{"expected":"string","code":"invalid_type","path":["name"],…}]` shown verbatim to whoever dragged the
+    // card in. This refusal is USER-facing, so it gets the human layout (same shape as the plugin manifest
+    // and the preset-file refusals).
+    throw new ImportCardError("card_invalid", `imported card failed validation:\n${z.prettifyError(result.error)}`);
   }
   return result.data;
 }

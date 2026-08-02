@@ -14,6 +14,7 @@ import { loadWitnessHorizons } from "./memory/persistence/queries";
 import { recallMemory } from "./memory/recall/recall";
 import { loadRoster } from "./persistence/roster";
 import { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL } from "./substrate/participant-name";
+import { hostUserIdOf } from "./substrate/roster-host";
 import { createChatLifecycle } from "./verbs/chat-lifecycle";
 import { createCompaction } from "./verbs/compaction";
 import { createEdit } from "./verbs/edit";
@@ -75,7 +76,7 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
   // displayName/handle/avatarAssetId resolve via ctx.resolveUserPublics.
   const loadParticipantViews = async (chatId: ChatId): Promise<readonly ParticipantView[]> => {
     const rows = await loadRoster(ctx.db, chatId);
-    const hostUserId = rows.find((r) => r.role === "host")?.userId ?? null;
+    const hostUserId = hostUserIdOf(rows);
     return Promise.all(
       rows.map(async (r): Promise<ParticipantView> => {
         // ONE character read per seat: the card name/avatar + render policy + theme/background overrides.

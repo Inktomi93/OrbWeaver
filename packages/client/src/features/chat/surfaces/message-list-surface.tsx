@@ -246,6 +246,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
         colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
         showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
         metadataVisibility={messageAppearance.metadataVisibility}
+        viewerIsHost={chatDetail.viewerIsHost === true}
         messageActions={messageAppearance.messageActions}
         showSwipes={item.view.id === lastAssistantId}
         contextBoundary={item.view.id === contextBoundaryMessageId}

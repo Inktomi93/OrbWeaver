@@ -647,10 +647,6 @@ describe("buildAssembleContext — WORLD_INFO regex runs through the watchdog (D
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     await attachChatEntry(host, chatId, "k", { content: "GOLD hoard" }); // always-scope, always fires
-    const config = {
-      ...DEFAULT_PROMPT_CONFIG,
-      regexScripts: [regexScript("w", "GOLD", "SILVER", "WORLD_INFO")],
-    };
     // The injected watchdog THROWS → the kit executor's per-script try/catch skips it → "GOLD" survives. The
     // default native replace would have produced "SILVER", so the unchanged content proves the seam was used.
     const ctx = makeChatContext(db, {
@@ -659,9 +655,40 @@ describe("buildAssembleContext — WORLD_INFO regex runs through the watchdog (D
         throw new Error("timed out");
       },
     });
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { hostTierRegexScripts: [regexScript("w", "GOLD", "SILVER", "WORLD_INFO")] }));
+    expect(out.worldInfoBefore).toContain("GOLD hoard");
+  });
+});
+
+// F2: the WORLD_INFO leg read `promptConfig.regexScripts` — the PRESET slice — while every other shared leg
+// (USER_INPUT here, AI_OUTPUT/REASONING in engine/pipeline) runs the RESOLVED host-tier union (D53:
+// host-global ∪ chat-preset ∪ present cast, `substrate/regex-tier`). A host-global or card script whose
+// placement includes WORLD_INFO (the settings default placement set INCLUDES it) therefore never fired.
+describe("buildAssembleContext — the WORLD_INFO leg runs the RESOLVED host-tier union (F2, D53)", () => {
+  test("a host-tier WORLD_INFO script rewrites the entry content", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    await attachChatEntry(host, chatId, "k", { content: "GOLD hoard" }); // always-scope, always fires
+    const ctx = ctxWithCard(cardOf("Aria"));
+
+    const out = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { hostTierRegexScripts: [regexScript("w", "GOLD", "SILVER", "WORLD_INFO")] }));
+    expect(out.worldInfoBefore).toContain("SILVER hoard");
+    expect(out.worldInfoBefore).not.toContain("GOLD");
+  });
+
+  test("the raw preset field is NOT a second source — only the resolved union feeds the leg", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    await attachChatEntry(host, chatId, "k", { content: "GOLD hoard" });
+    const ctx = ctxWithCard(cardOf("Aria"));
+
+    // `assemble-gather` folds `promptConfig.regexScripts` INTO the union (the `preset` source), so a real turn
+    // loses nothing; reading the field here too would be a second, differently-ordered source of the same set.
     const out = await buildAssembleContext(ctx, {
       ...inputOf(chatId, host, [charId]),
-      promptConfig: config,
+      promptConfig: { ...DEFAULT_PROMPT_CONFIG, regexScripts: [regexScript("w", "GOLD", "SILVER", "WORLD_INFO")] },
     });
     expect(out.worldInfoBefore).toContain("GOLD hoard");
   });

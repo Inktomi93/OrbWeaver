@@ -38,10 +38,19 @@ export type {
   ChatInjectionOrigin,
   ContextFitPreview,
   SectionPreview,
+  SentPrompt,
   ShapeBreakpointDecision,
   ShapeTrace,
+  VariantWireView,
 } from "./assemble";
-export { ASSEMBLY_SOURCES, CHAT_INJECTION_ORIGINS, CHAT_INJECTION_POSITIONS, chatInjectionInputSchema, SHAPE_BREAKPOINT_DECISIONS } from "./assemble";
+export {
+  ASSEMBLY_SOURCES,
+  CHAT_INJECTION_ORIGINS,
+  CHAT_INJECTION_POSITIONS,
+  chatInjectionInputSchema,
+  SHAPE_BREAKPOINT_DECISIONS,
+  sentPromptSchema,
+} from "./assemble";
 // The two corpus-sweep workload results chat OWNS (the junk-drawer exit: a workload's result shape is
 // authored by the OWNING domain) — `memory-backfill` + `group-character-backfill`.
 export type { BackfillPassResult, MemoryBackfillResult } from "./backfill";
