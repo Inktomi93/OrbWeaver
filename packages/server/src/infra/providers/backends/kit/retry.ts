@@ -8,7 +8,14 @@
 // `RetryOptions` (no ambient `Math.random` / `Date.now` on the production path — the same seam tests use).
 // `random` defaults to `Math.random`; `now` is optional — omit it and the `resetsAt` shortcut is simply
 // skipped (pure exponential backoff), so no raw clock read ever happens here (no-raw-clock).
+//
+// TRACE VOCABULARY: every retry decision annotates the active request span (`addSpanEvent`, a no-op when
+// there is none) — `provider.retry` {attempt, kind, delayMs} per scheduled backoff, and exactly one
+// `provider.retry.abandoned` {attempt, kind, reason} when the loop gives up. Attempts are otherwise
+// unreadable from a trace: a succeed-on-attempt-3 turn looks merely slow, and the thrown error cannot
+// distinguish "a delta had already streamed" from "attempts exhausted".
 
+import { addSpanEvent } from "#foundation/observability";
 import { ProviderError } from "../../contract";
 
 const DEFAULT_MAX_ATTEMPTS = 3; // total tries including the first
@@ -79,6 +86,15 @@ function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+/** Why the loop stopped, in the ORDER the guard tests it — `committed` wins over both, because a delta that
+ *  already streamed forecloses a retry no matter how retryable the error or how many attempts remain. */
+function abandonReason(committed: boolean, retryable: boolean): string {
+  if (committed) {
+    return "committed";
+  }
+  return retryable ? "exhausted" : "non-retryable";
+}
+
 /**
  * Run an async op with pre-first-delta retry. The op signals "a delta streamed" via the `markCommitted()`
  * it receives; once committed, no further retry happens (a replay would duplicate tokens). `classify` turns
@@ -107,9 +123,16 @@ export async function runWithPreCommitRetry<T>(
       // Can't retry once a delta streamed (replay duplicates tokens); non-retryable kinds also bail.
       // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- FALSE POSITIVE: the typed-lint checker over-narrows `committed` to the `false` literal inside this `catch` (it can't see across the `await op(markCommitted)` that a real runner uses to mutate it synchronously mid-stream before throwing). Confirmed a real runner calls `markCommitted()` then throws in the same `op` call — this guard is load-bearing (prevents a retry from replaying already-streamed tokens to the caller).
       if (committed || !mapped.retryable || exhausted) {
+        // WHY the loop stopped is not recoverable from the thrown error: "a delta already streamed" and
+        // "three attempts burned" surface as the same provider failure at the caller. The span carries it.
+        addSpanEvent("provider.retry.abandoned", { attempt, kind: mapped.kind, reason: abandonReason(committed, mapped.retryable) });
         throw raw;
       }
-      await abortableSleep(computeBackoffMs(attempt, mapped, opts), opts.signal);
+      const delayMs = computeBackoffMs(attempt, mapped, opts);
+      // The retries are INVISIBLE otherwise: a run that succeeds on attempt 3 reports a clean span that is
+      // simply (backoff + 3 round-trips) slow, with nothing on the timeline naming the two 429s underneath.
+      addSpanEvent("provider.retry", { attempt, kind: mapped.kind, delayMs });
+      await abortableSleep(delayMs, opts.signal);
     }
   }
   // Unreachable for maxAttempts >= 1 (the final attempt returns or throws); satisfies the return type.

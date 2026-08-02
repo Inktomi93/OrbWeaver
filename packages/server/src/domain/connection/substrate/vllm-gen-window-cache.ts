@@ -8,6 +8,9 @@
 
 import type { VllmWindowEngine } from "../contract/service";
 
+/** The `cache` attribute every span event about this mirror carries (the catalog mirrors' twin). */
+export const VLLM_WINDOW_CACHE_NAME = "connection.vllm-window";
+
 const MS_PER_HOUR = 3_600_000;
 const VLLM_WINDOW_TTL_MS = MS_PER_HOUR;
 
