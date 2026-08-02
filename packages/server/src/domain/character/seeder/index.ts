@@ -8,6 +8,8 @@ export type {
   DefaultCharacterSeeder,
   DefaultCharacterSeederDeps,
   SeedCard,
+  SeededCardContent,
 } from "../contract/seeder";
-export { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "./cards";
+export { CARD_PACK_VERSION, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "./cards";
+export { matchesPriorPack, PRIOR_PACK_CONTENT } from "./pack-v1";
 export { createDefaultCharacterSeeder } from "./seed";

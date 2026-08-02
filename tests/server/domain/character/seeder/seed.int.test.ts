@@ -53,13 +53,18 @@ function recordingAttach(): {
   };
 }
 
-/** An in-memory stand-in for the settings latch (isSeeded/markSeeded), keyed by `principal.userId`. */
+/** An in-memory stand-in for the settings latch (isSeeded/markSeeded + the pack-version stamp), keyed by
+ *  `principal.userId`. The pack-migration arm has its OWN suite (`pack-migration.int.test.ts`); here the
+ *  stamp just has to behave (a fresh seed stamps the shipped pack, so a re-run migrates nothing). */
 function fakeLatch(): {
   readonly isSeeded: (p: Principal) => Promise<boolean>;
   readonly markSeeded: (p: Principal, id: CharacterId | null) => Promise<void>;
+  readonly readPackVersion: (p: Principal) => Promise<number>;
+  readonly markPackVersion: (p: Principal, version: number) => Promise<void>;
   readonly marks: MarkCall[];
 } {
   const seeded = new Set<UserId>();
+  const versions = new Map<UserId, number>();
   const marks: MarkCall[] = [];
   return {
     marks,
@@ -67,6 +72,11 @@ function fakeLatch(): {
     markSeeded: (p, welcomeAssistantId): Promise<void> => {
       seeded.add(p.userId);
       marks.push({ userId: p.userId, welcomeAssistantId });
+      return Promise.resolve();
+    },
+    readPackVersion: (p): Promise<number> => Promise.resolve(versions.get(p.userId) ?? 0),
+    markPackVersion: (p, version): Promise<void> => {
+      versions.set(p.userId, version);
       return Promise.resolve();
     },
   };
@@ -167,10 +177,11 @@ describe("createDefaultCharacterSeeder", () => {
   test("ensureSeeded never throws on a create failure + leaves the latch unset (retry next touch)", async () => {
     const latch = fakeLatch();
     // A characters double whose create always fails with a NON-conflict error (the real-failure path).
-    const failing: Pick<CharacterService, "create" | "findByHandle" | "update"> = {
+    const failing: Pick<CharacterService, "create" | "findByHandle" | "update" | "getCard"> = {
       create: (): Promise<CharacterDetail> => Promise.reject(new Error("db is on fire")),
       findByHandle: (): Promise<null> => Promise.resolve(null),
       update: (): Promise<CharacterDetail> => Promise.reject(new Error("unreachable: nothing is ever created")),
+      getCard: (): Promise<null> => Promise.reject(new Error("unreachable: the migration arm is never reached on a fresh seed")),
     };
     const seeder = createDefaultCharacterSeeder({
       characters: failing,
