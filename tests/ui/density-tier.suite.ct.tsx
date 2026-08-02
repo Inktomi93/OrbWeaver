@@ -213,6 +213,44 @@ test("VOICE: each of the four voices resolves its own type step, and BEATS the s
   expect(gloss.size).toBe(resolved.micro);
 });
 
+test("VOICE: `monogram` is the decorative display glyph — title step, semibold, and it leaves COLOR to the skin", async ({ mount }) => {
+  // The fifth voice (density-pass-spec.md §2.3 as amended, S6): a single-letter mark an immersive row skin
+  // paints on its own band fill. None of the four CONTENT voices fits it — they would all shrink a glyph
+  // whose entire job is to be large — and the feature-side alternative was spelling `size`/`weight` through
+  // className, a dodge the density gate structurally cannot see. It deliberately sets NO color: the skin
+  // that owns the band owns the ink, so the tone default stays overridable by one className.
+  const glyphs = await mount(
+    <div>
+      <Text data-testid="monogram" as="span" voice="monogram">
+        A
+      </Text>
+      <Text data-testid="prose">body</Text>
+    </div>,
+  );
+  const resolved = await glyphs.evaluate((root) => {
+    const probe = root.ownerDocument.createElement("div");
+    root.ownerDocument.body.append(probe);
+    const px = (value: string): string => {
+      probe.style.fontSize = value;
+      return getComputedStyle(probe).fontSize;
+    };
+    const out = { title: px("var(--text-title)"), body: px("var(--text-body)") };
+    probe.remove();
+    return out;
+  });
+  const glyph = await glyphs.getByTestId("monogram").evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { size: style.fontSize, weight: style.fontWeight, transform: style.textTransform, color: style.color };
+  });
+  expect(glyph.size).toBe(resolved.title);
+  expect(glyph.size).not.toBe(resolved.body); // the size default did NOT leak through
+  expect(glyph.weight).toBe("600");
+  expect(glyph.transform).toBe("none");
+  // No color of its own ⇒ it lands on the tone default, which a skin's one className can still beat.
+  const prose = await glyphs.getByTestId("prose").evaluate((el) => getComputedStyle(el).color);
+  expect(glyph.color).toBe(prose);
+});
+
 /** The px a font-size token resolves to in the live document (the `resolveToken` probe, font-size arm). */
 function resolveFontSize(el: Locator, token: string): Promise<string> {
   return el.evaluate((node, name) => {

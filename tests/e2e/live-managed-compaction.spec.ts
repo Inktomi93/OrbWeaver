@@ -5,13 +5,13 @@
 // (global-setup now pins the local chat-completions × vllm wire). The chat accrues history under a tiny
 // maxContextTokens with `compaction.mode:"managed"`; the post-turn hook rebuilds the LINEAR marker via the
 // chat's OWN local model (quietGenerate → runChatTurn), stores it on `chats.compactSummary` + `compactedAtSeq`,
-// and the present-tense divider gains the MEMORY FACT ("older messages compacted into memory") + a PEEK popup
+// and the present-tense divider gains the MEMORY FACT ("older messages compacted into a summary") + a PEEK popup
 // revealing the marker text. Then the carry-forward pin: the stored marker is DURABLE chat state — it survives
 // and still drives the divider (previewFit reports `compactSummary`) regardless of the api that reads it.
 //
 // Two pins, one flow:
 //   P1 — MANAGED compaction fires on the local agent-sdk model: after tiny-ceiling turns, the API preview
-//        reports a non-null `compactSummary`, and the DOM divider shows the memory fact + a working peek.
+//        reports a non-null `compactSummary`, and the DOM divider shows the compaction fact + a working peek.
 //   P2 — CARRY-FORWARD: the marker is stored on the chat row (portable), so the previewFit `compactSummary`
 //        stays populated (the read side never regenerates it — only the agent-sdk WRITE path generates).
 //
@@ -43,9 +43,9 @@ const TINY_CEILING = 220; // small enough that the fit drops older turns → a b
 const STABLE_CEILING = 1500; // the STABLE preset cap for the resume leg — small enough the DOMAIN fit trims (→ marker
 // exclusion → reseed), large enough the (env-cap-DROPPED, managed) SDK session runs without an overflow error.
 const MANAGED = { mode: "managed" as const, thresholdPct: 0.6, instructions: "Summarize tersely; keep names and the current scene." };
-const COMPACTED_INTO_MEMORY = /compacted into memory/i;
+const COMPACTED_INTO_SUMMARY = /compacted into a summary/i;
 
-test("managed compaction fires on the local model, the divider carries the memory fact + peek, and the marker carries forward", { tag: "@live" }, async ({
+test("managed compaction fires on the local model, the divider carries the compaction fact + peek, and the marker carries forward", { tag: "@live" }, async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -77,7 +77,7 @@ test("managed compaction fires on the local model, the divider carries the memor
     await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
     const divider = page.locator('[data-slot="context-boundary-divider"]');
     await expect(divider).toHaveCount(1, { timeout: 15_000 });
-    await expect(divider).toContainText(COMPACTED_INTO_MEMORY);
+    await expect(divider).toContainText(COMPACTED_INTO_SUMMARY);
 
     // The peek popup reveals the stored marker text (portals outside the row → asserted on the page).
     await expect(page.locator('[data-slot="compact-summary-text"]')).toHaveCount(0);

@@ -89,13 +89,13 @@ export function settingsAnchorId(categoryId: SettingsCategoryId, subId: string):
 // granularity BELOW panes. A pane owns a CATEGORY; a domain that only needs ONE anchored section inside an
 // existing pane (memory's master switch, world-info's scan knobs) CONTRIBUTES it here instead of growing
 // the settings god-feature. Structural mirror of the character-detail `editor-sections` seam
-// (`CharacterDetailContribution` + `resolveDetailSections`, registry-contracts.ts): an OPEN
+// (`CharacterDetailContribution` + `resolveDetailSections`, contribution-contracts.ts): an OPEN
 // `ContributorRegistry` (no fixed vocabulary — purely additive, so no existing pane's in-body sections
 // must migrate, §A's total-registry migration clause never triggers), assembled at the door as ONE
 // registry (G8) and delivered by a `createRegistryContext` mint — the host reads it for nav/search, the
 // host pane's surface reads it for render. Zero contributions ⇒ the pane renders byte-identical to today.
 //
-// Homed HERE (not lib/registry-contracts.ts, where `CharacterDetailContribution` lives) because a
+// Homed HERE (not lib/contribution-contracts.ts, where `CharacterDetailContribution` lives) because a
 // contribution reuses `SettingsSubcategory` — a state-owned nav shape — so the def binds state vocabulary
 // and homes in state (§5 rule 6; `client-lib-floor` forbids lib importing state). `ContributorRegistry`
 // rides DOWN from `#lib` (the sanctioned direction, the slash-command-registry-context precedent).
