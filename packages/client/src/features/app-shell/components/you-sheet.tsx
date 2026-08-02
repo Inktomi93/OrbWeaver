@@ -73,6 +73,17 @@ export function YouSheet(): ReactElement {
           ))}
         </Stack>
       )}
+
+      {/* THE DEAD BAND AT THE FOOT (side-eye F-16). The drawer is `side="bottom"` — `inset-x-0 bottom-0` —
+          so its LAST row sits flush against the viewport floor, which is exactly where the tab bar's `You`
+          hit box (105×56, bottom-anchored) was. Opening the sheet therefore parked a nav row directly under
+          the finger that had just tapped: a slightly long press or an accidental double-tap fired an
+          unintended navigation, and the row painted its active fill while a different row carried the
+          current-amber — two rows reading as selected at once.
+          The band is exactly the bar's own height (`--dimension-rail`, which IS "the mobile bottom-tab-bar
+          height" per the token's description), so it clears the tap point by construction rather than by a
+          number somebody picked. `aria-hidden` + empty: it is a keep-out zone, not content. */}
+      <div aria-hidden={true} className="h-(--dimension-rail) shrink-0" data-slot="you-sheet-tap-guard" />
     </Stack>
   );
 }

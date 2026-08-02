@@ -45,9 +45,8 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 // `Download` is GONE with the header Export door (O-16★ — one home, the list-row kebab); `Container` is
 // lane B's shared content-column ruling.
-import { Icon, MoreHorizontal, RotateCcw, Zap } from "@orb/ui/icons";
+import { Icon, RotateCcw, Zap } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
-import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Heading, Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
@@ -72,6 +71,9 @@ import type { EffectiveProfileRow } from "../lib/effective-knobs";
 import { seedConfig } from "../lib/preset-editor-model";
 import type { PresetEditorView } from "../lib/preset-nav";
 import { openSectionInPrompt, PRESET_EDITOR_VIEWS } from "../lib/preset-nav";
+
+/** ONE string for the reset door's accessible name AND its hover tooltip (the O-3 icon-door anatomy). */
+const RESET_LABEL = "Reset to starter arrangement";
 
 // The session-boundary autosave form (D78 §1). Module-scope so both the Boundary and its inner Session have
 // stable identities (never a per-render factory call). Entity identity, the teardown flush, and reseed live
@@ -354,22 +356,17 @@ function PresetEditorBody({
                   LIST row's, and the fix-all's §16 rows 7+27 sanction of that echo is OVERRULED. ONE home —
                   the list-row kebab, matching the characters/chats precedent that lifecycle lives
                   list-side. */}
+              {/* NO ⋯ OVER A SINGLE COMMAND (side-eye F-18). The overflow held exactly one item, so it
+                  bought nothing and cost discoverability twice over: `⋯` signals "there is more here" (there
+                  isn't) and signals nothing about WHAT, so the only way to learn the surface offers a reset
+                  was to open a menu on the chance. The command is now its own control, wearing its own
+                  glyph, with the O-3 icon-door anatomy this feature already speaks — `aria-label` and the
+                  native `title` from ONE string, so the tooltip and the accessible name cannot drift. If a
+                  second header command ever lands, the kebab comes back with two items in it. */}
               {isSystemDefault ? null : (
-                <Menu>
-                  <MenuTrigger
-                    render={
-                      <Button intent="ghost" size="icon" aria-label="Preset options">
-                        <Icon icon={MoreHorizontal} size="sm" />
-                      </Button>
-                    }
-                  />
-                  <MenuPopup align="end">
-                    <MenuItem onClick={(): void => setResetOpen(true)}>
-                      <Icon icon={RotateCcw} size="sm" />
-                      Reset to starter arrangement
-                    </MenuItem>
-                  </MenuPopup>
-                </Menu>
+                <Button aria-label={RESET_LABEL} intent="ghost" onClick={(): void => setResetOpen(true)} size="icon" title={RESET_LABEL} type="button">
+                  <Icon icon={RotateCcw} size="sm" />
+                </Button>
               )}
             </Row>
           </Row>

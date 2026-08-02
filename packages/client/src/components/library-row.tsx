@@ -11,6 +11,7 @@
 
 import { Button } from "@orb/ui/button";
 import { Copy, Icon, Pencil } from "@orb/ui/icons";
+import { Row } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
@@ -63,6 +64,9 @@ export interface LibraryRowProps {
    * toggle): the float arm is inert at rest and sits ON the title text, so a rest-visible control there is
    * both unclickable and an overlay. Reserving the strip is also what makes the row's geometry constant —
    * see `ROW_REVEAL_SWAP` for the hit-test oscillation a hover-variable row layout causes.
+   *
+   * The reserved strip is padded to the §12.2 cluster's full three slots (`clusterSpacers`), so the state
+   * column lands at ONE x on every row of the list even when some rows carry no actions menu (F-4).
    */
   readonly actionsReserved?: boolean;
   /**
@@ -86,6 +90,32 @@ export interface LibraryRowProps {
   readonly actions?: LibraryRowActions;
 }
 
+/** The §12.2 cluster's HARD CAP — state toggle · inline verb · kebab. It is a property of this composite
+ *  (the header states it), which is what lets a reserved strip be padded to a constant width without any
+ *  row needing to know what its peers render. */
+const CLUSTER_SLOTS = 3;
+
+/**
+ * Pads a RESERVED cluster out to `CLUSTER_SLOTS`, TRAILING (side-eye F-4).
+ *
+ * The defect: `actionsReserved` keeps the cluster in flow but reserves only what the row itself renders, so
+ * a built-in row whose cluster is `[radio]` right-aligned its radio at x=312 while every fork row's
+ * `[radio, duplicate, kebab]` put the same radio at x=232 — the one-of-N state column staggered 80px row to
+ * row, visible at rest, in a list you scan precisely to find which row is active.
+ *
+ * TRAILING, not leading, is the whole point: slot 1 is then always the state toggle, at one x, on every row.
+ * Padding the other end would straighten the kebab column instead — the column nobody scans.
+ *
+ * `size-control-md` is the `size="icon"` Button box BY TOKEN, so the reservation cannot drift from the
+ * control it reserves. `aria-hidden` and empty: this is layout, never a disabled affordance (a spacer that
+ * reached the a11y tree would announce three phantom controls per built-in row).
+ */
+function clusterSpacers(rendered: number): readonly ReactElement[] {
+  return Array.from({ length: Math.max(0, CLUSTER_SLOTS - rendered) }, (_unused, at) => (
+    <Row aria-hidden={true} className="size-control-md shrink-0" data-slot="library-row-cluster-spacer" key={`cluster-spacer-${String(at)}`} />
+  ));
+}
+
 /** One entity-library row: title/subtitle + title-line status markers · state toggle · Rename/Duplicate/
  *  Delete menu. */
 export function LibraryRow({
@@ -100,6 +130,8 @@ export function LibraryRow({
   actionsReserved = false,
 }: LibraryRowProps): ReactElement {
   const hasCluster = stateToggle !== undefined || actions !== undefined;
+  // What this row actually renders into the §12.2 cluster: the toggle, the optional inline verb, the kebab.
+  const renderedSlots = (stateToggle === undefined ? 0 : 1) + (actions === undefined ? 0 : (actions.inlineVerb === undefined ? 0 : 1) + 1);
   return (
     <ListRow
       // `group` roots the row so an inline verb's ROW_REVEAL fires on row hover/focus-within (§12.2).
@@ -125,6 +157,9 @@ export function LibraryRow({
               <>
                 {stateToggle}
                 {actions === undefined ? null : <LibraryRowActionsMenu {...actions} />}
+                {/* Only the RESERVED arm pads: a FLOATED cluster is out of flow at the row's end and
+                    reserves nothing, so spacers there would be dead boxes hovering over the title text. */}
+                {actionsReserved ? clusterSpacers(renderedSlots) : null}
               </>
             ),
           }

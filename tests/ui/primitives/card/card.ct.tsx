@@ -72,3 +72,23 @@ test("caller-supplied role/tabIndex/onKeyDown are not overridden", async ({ moun
   await expect(card).toHaveAttribute("role", "link");
   await expect(card).toHaveAttribute("tabindex", "-1");
 });
+
+// ── CD2 as ruled by side-eye (2026-08-03): an island INSIDE another box gets ONE axis of separation ────
+test("nested drops the border and steps the radius one below the grouped step", async ({ mount }) => {
+  const both = await mount(
+    <div>
+      <Card data-testid="host">Grouped</Card>
+      <Card data-testid="island" nested={true}>
+        Choices
+      </Card>
+    </div>,
+  );
+  const island = both.getByTestId("island");
+  // The BORDER is the axis that goes: the host box already has one, and two edges in two colours is the
+  // box-in-box the rule exists to kill.
+  const borderWidth = await island.evaluate((el) => getComputedStyle(el).borderTopWidth);
+  expect(Number.parseFloat(borderWidth)).toBe(0);
+  await expect(island).toHaveAttribute("data-nested", "");
+  const radius = (testid: string): Promise<number> => both.getByTestId(testid).evaluate((el) => Number.parseFloat(getComputedStyle(el).borderTopLeftRadius));
+  expect(await radius("island")).toBeLessThan(await radius("host"));
+});

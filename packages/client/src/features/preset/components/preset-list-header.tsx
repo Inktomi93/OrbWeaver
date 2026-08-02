@@ -66,8 +66,12 @@ export function PresetListHeader(): ReactElement {
           // ONE flex child, so the band's space-between keeps the cluster hard against the trailing edge.
           <Row align="center" gap="field">
             {/* O-3: icon-only, so the aria-label served AT and left sighted users with nothing on hover —
-                the native `title` is the same string, so the tooltip and the accessible name can't drift. */}
-            <Button aria-label={IMPORT_LABEL} intent="ghost" onClick={(): void => setImportOpen(true)} size="sm" title={IMPORT_LABEL}>
+                the native `title` is the same string, so the tooltip and the accessible name can't drift.
+                `size="icon"`, not `sm` (side-eye F-22): the `sm` box is width-fitted to a LABEL, so an
+                icon-only trigger measured 40×44 under coarse-pointer emulation — the only sub-44 target on
+                the surface. `size="icon"` is `size-control-md`, which is 34px fine / 48px coarse BY TOKEN
+                (D62 P1), so the touch floor holds without any hand math here. */}
+            <Button aria-label={IMPORT_LABEL} intent="ghost" onClick={(): void => setImportOpen(true)} size="icon" title={IMPORT_LABEL}>
               <Icon icon={Upload} size="sm" />
             </Button>
             <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">

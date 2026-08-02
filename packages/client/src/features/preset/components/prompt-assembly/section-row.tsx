@@ -28,7 +28,7 @@ import { useRef } from "react";
 import type { AppFormInstance } from "#forms";
 import { useFocusOnSwap } from "#lib";
 import { isTemplatedMarker, sectionGlyphIcon, triggersPillLabel } from "../../lib/assembly-model";
-import { formatEstimate } from "../../lib/format-count";
+import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "../../lib/format-count";
 import { estimateSectionTokens } from "./estimate-tokens";
 import { MARKER_COPY } from "./marker-copy";
 
@@ -36,8 +36,6 @@ type AssemblyForm = AppFormInstance<PromptConfig>;
 
 /** The assembler's default within-depth order (`injections.ts`) — shown when `inject.order` is unset. */
 const DEFAULT_INJECT_ORDER = 100;
-/** The token cell for a CARRIER — its substance is chat-side, so the estimate is honestly absent. */
-const CARRIER_TOKENS = "~—";
 
 export interface SectionRowProps {
   readonly form: AssemblyForm;
@@ -136,7 +134,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
   const { name, subtitle } = sectionLabels(section);
   const carrier = section.type === "marker" && !isTemplatedMarker(section.marker);
   // ONE number format across the surface (side-eye F-29) — grouped, exactly as the readout's bars print it.
-  const tokens = carrier ? CARRIER_TOKENS : formatEstimate(estimateSectionTokens(section));
+  const tokens = carrier ? CARRIER_COST_GLYPH : formatEstimate(estimateSectionTokens(section));
   const chevronRef = useRef<HTMLButtonElement>(null);
   useFocusOnSwap(chevronRef, restoreFocus);
   return (
@@ -149,8 +147,20 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
               gap widens from `field` to `row` for the air the mock gives it.
               LINE-THROUGH when the row is off (the mock's `.rrow.off .tok`) — a disabled section still has
               a size, and striking it says "this is not being spent" without dropping the datum. */}
-          <Text as="span" className={`w-12 shrink-0 text-right font-mono tabular-nums ${section.enabled ? "" : "line-through"}`} voice="gloss">
+          {/* THE GLYPH IS FOR THE EYE, THE SENTENCE IS THE DATUM (side-eye F-27): `~—` announces as
+              "tilde em dash" and `~30` as "tilde three zero" — the compression that makes the column
+              scannable makes it unspeakable. The visible cell is `aria-hidden`; the sr-only line beside it
+              says the same fact in words, including the carrier arm's whole reason. */}
+          <Text
+            aria-hidden={true}
+            as="span"
+            className={`w-12 shrink-0 text-right font-mono tabular-nums ${section.enabled ? "" : "line-through"}`}
+            voice="gloss"
+          >
             {tokens}
+          </Text>
+          <Text as="span" className="sr-only">
+            {spokenEstimate(carrier ? null : estimateSectionTokens(section))}
           </Text>
           {/* AMBER-ON, the app's one switch grammar (owner ruling, 2026-08-02). The `quiet` tone painted a
               pale `foreground/55` track that read as the SAME control in both states down a twelve-row rack

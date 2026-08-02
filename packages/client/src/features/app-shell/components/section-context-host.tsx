@@ -21,7 +21,17 @@ import { ContextRegionHost } from "./context-region-host";
 import { ContextTabsPanel } from "./context-tabs-panel";
 import { SectionPlaceholder } from "./section-placeholder";
 
-const CONTEXT_PLACEHOLDER = <SectionPlaceholder title="Details" description="Select something to see its details here." />;
+// THE UN-SWEPT FALLBACK (side-eye F-12). Its title is no longer the word "Details": the CONTEXT band
+// directly above it already says that, so the pane printed "Details" twice over one voiceless sentence.
+// A section states its OWN no-selection arm through `context.empty` (`ContextEmptyArm`) and this is what a
+// section that has not stated one still gets — deliberately generic, so an un-swept pane reads as un-swept
+// rather than as a considered answer.
+const CONTEXT_PLACEHOLDER = <SectionPlaceholder title="Nothing selected" description="Pick something on the left and its details appear here." />;
+
+/** The section's OWN no-selection arm when it declares one, else the generic fallback above (F-12). */
+function contextEmpty(context: SectionDefinition["context"]): ReactNode {
+  return context.empty === undefined ? CONTEXT_PLACEHOLDER : <SectionPlaceholder description={context.empty.description} title={context.empty.title} />;
+}
 // The neutral BAND label when no section supplies a header identity (a `none`/`single` context, or a
 // `tabs` context with no active selection). Matches the pre-N4 static "Details" the band showed.
 const CONTEXT_HEADER_DEFAULT = (
@@ -37,14 +47,17 @@ export interface SectionContextHostProps {
 export function SectionContextHost({ definition }: SectionContextHostProps): ReactNode {
   const { context } = definition;
   if (context.kind === "none") {
-    return CONTEXT_PLACEHOLDER;
+    return contextEmpty(context);
   }
   if (context.kind === "single") {
+    // A `single` body owns its OWN no-selection arm (it is the only thing that can read its selection —
+    // the shell holds an unrendered element here, not a result). `context.empty` is still the section's
+    // declaration of what that arm should say; see world-info's body for the consuming half.
     return context.body();
   }
   return (
     <QueryBoundary fallback={<Text tone="muted">Loading details…</Text>}>
-      <ResolvedTabsHost useResolved={context.useResolved} />
+      <ResolvedTabsHost empty={contextEmpty(context)} useResolved={context.useResolved} />
     </QueryBoundary>
   );
 }
@@ -72,10 +85,10 @@ interface ResolvedTabsHostProps {
   readonly useResolved: () => ResolvedContextTabs | null;
 }
 
-function ResolvedTabsHost({ useResolved }: ResolvedTabsHostProps): ReactElement {
+function ResolvedTabsHost({ useResolved, empty }: ResolvedTabsHostProps & { readonly empty: ReactNode }): ReactElement {
   const resolved = useResolved();
   if (resolved === null || resolved.tabs.length === 0) {
-    return CONTEXT_PLACEHOLDER;
+    return <>{empty}</>;
   }
   // A CLAIMED pane (HUD-1 §3.1): the claimant composes the whole thing from the same resolved tabs +
   // selection the generic panel would have rendered. Unclaimed ⇒ the generic panel, byte-identical.

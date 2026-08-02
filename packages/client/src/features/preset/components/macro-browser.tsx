@@ -53,14 +53,16 @@ export function MacroBrowser({ userMacros, presetId }: MacroBrowserProps): React
           “{r.name}” was refused: {r.reason}
         </Text>
       ))}
-      <Section heading="Macros">
+      {/* KICKERS, not sentence-case headings (side-eye F-8): ONE group-heading voice across all five
+          editor views — see `entry-list-editor.tsx` for the full ruling. */}
+      <Section kicker="Macros">
         <Stack gap="field">
           {macros.map((meta) => (
             <MacroRow key={meta.name} meta={meta} />
           ))}
         </Stack>
       </Section>
-      <Section heading="Flags">
+      <Section kicker="Flags">
         <Text size="micro" tone="muted">
           A flag run sits between the braces and the name — {"{{#name}}…{{/name}}"}. Reserved flags parse and carry but do nothing yet.
         </Text>
