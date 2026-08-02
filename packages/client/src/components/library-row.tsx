@@ -50,6 +50,22 @@ export interface LibraryRowProps {
   readonly selected: boolean;
   readonly onSelect: () => void;
   /**
+   * A glyph-scale marker rendered INLINE-LEFT of the name — for a mark that is a property of the NAME
+   * rather than a state of the row (the built-in preset's lock: "this one is packaged", not "this one is
+   * doing something"). Decorative by construction (`ListRow.leading` is `aria-hidden`), so the row must
+   * still say it in words — the built-in's "Built-in default" subtitle is that word.
+   * A row STATE belongs in `markers`/`stateToggle` instead, which are in the accessible tree.
+   */
+  readonly leading?: ReactNode;
+  /**
+   * Keeps the trailing cluster IN FLOW with its strip permanently RESERVED, instead of floating it out of
+   * flow at the row's end. Pass it for a row whose cluster carries a REST-VISIBLE control (a pressed state
+   * toggle): the float arm is inert at rest and sits ON the title text, so a rest-visible control there is
+   * both unclickable and an overlay. Reserving the strip is also what makes the row's geometry constant —
+   * see `ROW_REVEAL_SWAP` for the hit-test oscillation a hover-variable row layout causes.
+   */
+  readonly actionsReserved?: boolean;
+  /**
    * Rest-visible STATUS markers (Active / Global / a built-in lock) — rendered on the TITLE LINE, never in
    * the leading slot. A leading status badge is variable-width and only SOME rows have one, so the title
    * column started at a different x on every row and the list lost its scan column (side-eye P2-6). The
@@ -72,19 +88,31 @@ export interface LibraryRowProps {
 
 /** One entity-library row: title/subtitle + title-line status markers · state toggle · Rename/Duplicate/
  *  Delete menu. */
-export function LibraryRow({ title, subtitle, selected, onSelect, markers, stateToggle, actions }: LibraryRowProps): ReactElement {
+export function LibraryRow({
+  title,
+  subtitle,
+  selected,
+  onSelect,
+  markers,
+  leading,
+  stateToggle,
+  actions,
+  actionsReserved = false,
+}: LibraryRowProps): ReactElement {
   const hasCluster = stateToggle !== undefined || actions !== undefined;
   return (
     <ListRow
       // `group` roots the row so an inline verb's ROW_REVEAL fires on row hover/focus-within (§12.2).
       className="group"
-      // Every trailing control here is hover-revealed, so the cluster floats at the row's end instead of
-      // reserving ~76px of the title column at rest (side-eye P1-2b).
-      actionsFloat={true}
+      // Default: every trailing control is hover-revealed, so the cluster floats at the row's end instead of
+      // reserving ~76px of the title column at rest (side-eye P1-2b). `actionsReserved` opts out for a row
+      // that shows a control at rest — see the prop.
+      actionsFloat={!actionsReserved}
       clickable={true}
       onClick={onSelect}
       selected={selected}
       title={title}
+      {...(leading === undefined ? {} : { leading })}
       {...(subtitle === undefined ? {} : { subtitle })}
       {...(markers === undefined ? {} : { markers })}
       {...(hasCluster
