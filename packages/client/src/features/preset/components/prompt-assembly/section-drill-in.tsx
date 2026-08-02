@@ -34,7 +34,7 @@ import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { ArrowLeft, Copy, GitFork, Icon } from "@orb/ui/icons";
-import { Grid, Row, Section, Stack } from "@orb/ui/layout";
+import { Container, Grid, Row, Section, Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import { NumberField } from "@orb/ui/number-field";
 import { Select } from "@orb/ui/select";
@@ -219,49 +219,55 @@ function PlacementFields({ form, section, index, inChat, zones }: ZonedClusterPr
   const inject = "inject" in section ? section.inject : undefined;
   const zone = zones.zoneOf(index);
   return (
-    <Grid cols="auto" gap="field">
-      <Field
-        hint={
-          zones.missingPivot
-            ? "There is no chat-history marker yet, so there is no conversation to splice into — add one on the rack."
-            : "How this section is delivered: ordered among the prompts, or spliced into the conversation at a depth. Picking one MOVES the section across the chat-history pivot."
-        }
-        label="Zone"
-        name="section-zone"
-      >
-        <Select
-          aria-label="Zone"
-          disabled={zones.missingPivot}
-          items={ZONE_ITEMS}
-          onValueChange={(next): void => {
-            if (typeof next !== "string" || next === zone || zones.missingPivot) {
-              return;
-            }
-            const to = next === "post" ? zones.pivotIndex + 1 : zones.pivotIndex;
-            if (next === "setup" && inject !== undefined) {
-              form.setFieldValue(`sections[${index}].inject`, undefined);
-            }
-            form.moveFieldValues("sections", index, to > index ? to - 1 : to);
-          }}
-          value={zone}
-        />
-      </Field>
-      {inChat && supportsArrangement(section) ? (
-        <Field hint={ORDER_HINT} label="Order" name="section-order">
-          <NumberField
-            aria-label="Order"
+    // THE SAME ROW GRAMMAR AS DELIVERY, one cluster below it (crunch item 10): two deliberate halves that
+    // keep their columns on BOTH arms. On `cols="auto"` (auto-fit) the Relative arm — which drops Order —
+    // collapsed the second track and stretched the Zone select across the whole pane, so switching zone
+    // re-laid-out the row as well as the field.
+    <Container>
+      <Grid cols="pair" gap="field">
+        <Field
+          hint={
+            zones.missingPivot
+              ? "There is no chat-history marker yet, so there is no conversation to splice into — add one on the rack."
+              : "How this section is delivered: ordered among the prompts, or spliced into the conversation at a depth. Picking one MOVES the section across the chat-history pivot."
+          }
+          label="Zone"
+          name="section-zone"
+        >
+          <Select
+            aria-label="Zone"
+            disabled={zones.missingPivot}
+            items={ZONE_ITEMS}
             onValueChange={(next): void => {
-              const depth = inject?.depth ?? TAIL_DEPTH;
-              form.setFieldValue(`sections[${index}].inject`, next === null ? { depth } : { depth, order: next });
+              if (typeof next !== "string" || next === zone || zones.missingPivot) {
+                return;
+              }
+              const to = next === "post" ? zones.pivotIndex + 1 : zones.pivotIndex;
+              if (next === "setup" && inject !== undefined) {
+                form.setFieldValue(`sections[${index}].inject`, undefined);
+              }
+              form.moveFieldValues("sections", index, to > index ? to - 1 : to);
             }}
-            placeholder={String(DEFAULT_INJECT_ORDER)}
-            size="inline"
-            step={1}
-            value={inject?.order ?? null}
+            value={zone}
           />
         </Field>
-      ) : null}
-    </Grid>
+        {inChat && supportsArrangement(section) ? (
+          <Field hint={ORDER_HINT} label="Order" name="section-order">
+            <NumberField
+              aria-label="Order"
+              onValueChange={(next): void => {
+                const depth = inject?.depth ?? TAIL_DEPTH;
+                form.setFieldValue(`sections[${index}].inject`, next === null ? { depth } : { depth, order: next });
+              }}
+              placeholder={String(DEFAULT_INJECT_ORDER)}
+              size="inline"
+              step={1}
+              value={inject?.order ?? null}
+            />
+          </Field>
+        ) : null}
+      </Grid>
+    </Container>
   );
 }
 
@@ -271,7 +277,10 @@ function PlacementFields({ form, section, index, inChat, zones }: ZonedClusterPr
 function TriggerFields({ form, section, index }: ClusterProps): ReactElement {
   const trigger = "trigger" in section ? section.trigger : undefined;
   const name = `sections[${index}].trigger` as const;
-  const everyGeneration = trigger === undefined || trigger.length === 0;
+  // ALL-SELECTED ≡ NO FILTER (owner rider): a list naming every generation type filters nothing, so it is
+  // the same state as the unset field and must READ as it — otherwise the gloss below calls a section
+  // "only the selected types" while it fires on all of them (a preset IMPORT can carry that array).
+  const everyGeneration = trigger === undefined || trigger.length === 0 || trigger.length === GENERATION_TYPE_ITEMS.length;
   return (
     <Stack gap="field">
       {/* A MULTI-CHECK DROPDOWN, not the segmented strip (crunch-list O-11★, owner ruling — it overrides
@@ -281,14 +290,25 @@ function TriggerFields({ form, section, index }: ClusterProps): ReactElement {
           comma-joins their labels), so nothing new is minted here.
 
           The UNSET field IS the "every generation" state, so deselecting the last option must write
-          `undefined` — not an empty array that reads the same but stores differently. */}
+          `undefined` — not an empty array that reads the same but stores differently.
+
+          BOTH EDGES NORMALIZE TO THE ABSENCE (owner rider). Selecting EVERY type is the same no-filter
+          state as selecting none: the assembler's gate (`assemble.ts` `sectionTriggers`) keeps a section
+          when its list contains the running type, and a list of ALL SIX can never exclude one. The
+          contract's canonical spelling of "fires always" is the ABSENT field — which is why the empty
+          array is already written as `undefined` — so the all-selected write normalizes there too rather
+          than storing a second, longer spelling of one behaviour. It is not only cosmetic: the same file's
+          `isSectionDynamic` calls ANY non-empty trigger list dynamic and drops that section out of the
+          cached prefix, so the redundant spelling would cost prompt caching for no filtering at all. */}
       <Select
         aria-label="Fires on"
         items={GENERATION_TYPE_ITEMS}
         multiple={true}
-        onValueChange={(next): void => form.setFieldValue(name, next.length === 0 ? undefined : (next as GenerationType[]))}
+        onValueChange={(next): void =>
+          form.setFieldValue(name, next.length === 0 || next.length === GENERATION_TYPE_ITEMS.length ? undefined : (next as GenerationType[]))
+        }
         placeholder="Every generation"
-        value={trigger === undefined ? [] : [...trigger]}
+        value={everyGeneration ? [] : [...trigger]}
       />
       <Text voice="gloss">
         {everyGeneration ? "Nothing selected — this section fires on every generation." : "Only the selected generation types carry this section."}

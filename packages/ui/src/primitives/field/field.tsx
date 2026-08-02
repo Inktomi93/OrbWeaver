@@ -71,9 +71,17 @@ export function Field({
     <span className={slots.labelRow()}>
       {labelText}
       <Tooltip>
+        {/* THE HINT COSTS NO VERTICAL SPACE — this prop's own contract, and `size="icon"` broke it: a full
+            `--spacing-control-md` box (34px fine / 44px coarse) made a hinted label row stand 16px taller
+            than a plain one, so every side-by-side pair of a hinted and an unhinted field sheared — its
+            labels off one baseline, its controls off another (the preset drill-ins' DELIVERY row, crunch
+            item 10, owner-reported live). `size="inline"` is the arm for exactly this: no control box,
+            text-height, and the touch floor kept by its own layout-neutral hit-area pseudo. A className
+            height CANNOT express it — a custom-token height is opaque to tailwind-merge, so both heights
+            would survive and stylesheet order would pick the winner. */}
         <TooltipTrigger
           render={
-            <Button aria-label={hintAriaLabel} className={slots.hintTrigger()} intent="ghost" size="icon" type="button">
+            <Button aria-label={hintAriaLabel} className={slots.hintTrigger()} intent="ghost" size="inline" type="button">
               <Icon icon={Info} size="xs" />
             </Button>
           }
