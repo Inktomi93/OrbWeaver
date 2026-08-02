@@ -15,7 +15,6 @@
 // sections have no such mapper at all — each reads `getAppSettingsWithOverrides` (floor AND stored override)
 // and writes a sparse patch of its own keys, so there is no project→save→echo cycle left to oscillate.
 
-import type { RegexScript } from "@orb/contracts/regex";
 import type { AppearanceSettings, ChatSettings } from "@orb/contracts/settings";
 import {
   backgroundLibraryEntrySchema,
@@ -107,38 +106,10 @@ describe("convergence: appearance", () => {
   });
 });
 
-// ── regex ──────────────────────────────────────────────────────────────────────────────────────────
-// project = { regexScripts: server.scripts }, save = { scripts: form.regexScripts }, serverShape =
-// regexSettingsSchema.parse. A pure rename plus a defaulting array — must be a fixed point.
-describe("convergence: regex", () => {
-  const script: RegexScript = {
-    id: "rgx-0001",
-    name: "trim asterisks",
-    findRegex: "\\*+",
-    replaceString: "",
-    placement: ["USER_INPUT"],
-    enabled: true,
-    markdownOnly: false,
-    promptOnly: false,
-    runOnEdit: false,
-    trimStrings: [],
-    substituteRegex: 0,
-    minDepth: null,
-    maxDepth: null,
-  };
-  const projectRegex = (scripts: readonly RegexScript[]): { readonly regexScripts: readonly RegexScript[] } => ({ regexScripts: scripts });
-  const toRegexPatch = (form: { readonly regexScripts: readonly RegexScript[] }): { scripts: RegexScript[] } => ({ scripts: [...form.regexScripts] });
-
-  const noScripts: RegexScript[] = [];
-  test.each([
-    ["empty", noScripts],
-    ["one script", [script]],
-  ])("%s is a project/save/echo fixed point", (_label, scripts) => {
-    const form = projectRegex(scripts);
-    const echoed = projectRegex(serverShapeSection("regex", toRegexPatch(form)).scripts);
-    expect(echoed).toEqual(form);
-  });
-});
+// ── regex: NO LONGER A SETTINGS SECTION (D121-E) ──────────────────────────────────────────────────
+// The owner-global script library left `UserSettings` for `regex_scripts` rows, so there is no
+// project/save/echo triple to converge here. The per-ROW autosave form (`RegexScriptForm`) is a plain
+// identity over `CreateRegexScriptInput` — no rename, no re-shaping, nothing for this suite to pin.
 
 // ── character theme ────────────────────────────────────────────────────────────────────────────────
 // project = characterThemeFormFromOverride, save = overrideFromCharacterThemeForm (→ ThemeOverride|null),

@@ -114,9 +114,7 @@ export function UserMacrosTabStory(): ReactElement {
 
 /** The Regex tab wired to a real, empty-scripts AUTOSAVE boundary — drives the actual add/remove path. */
 export function RegexTabStory(): ReactElement {
-  const { save, saves, savedLen } = usePersistenceSpy((c) => c.regexScripts.length);
   return (
-    <StoryForm entityId={STORY_PRESET} serverValues={{ ...DEFAULT_PROMPT_CONFIG, regexScripts: [] }} save={save}>
       {(session): ReactElement => (
         <>
           <output>{`saves=${saves} savedLen=${savedLen}`}</output>

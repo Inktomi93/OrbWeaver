@@ -8,7 +8,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import type { RegexScript } from "@orb/contracts/regex";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
@@ -33,7 +33,7 @@ import { addVariant, FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMe
 let db: Db;
 let emitted: ChatBusEvent[];
 /** The host-global regex source the fake FOREIGN resolver serves (per-test scripts; reset empty). */
-let globalScripts: RegexScript[];
+let globalScripts: RegexScriptRow[];
 
 beforeEach(async () => {
   db = await freshDb();
@@ -147,10 +147,10 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
 
 describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () => {
   /** A minimal live card (the assemble RESOLVE + the purify name read; regexScripts ride the cast tier). */
-  const card = (name: string, regexScripts: RegexScript[] = []): CharacterCard =>
+  const card = (name: string, regexScripts: RegexScriptRow[] = []): CharacterCard =>
     ({ name, description: "", avatarAssetId: null, regexScripts }) as unknown as CharacterCard;
 
-  const script = (over: Record<string, unknown>): RegexScript =>
+  const script = (over: Record<string, unknown>): RegexScriptRow =>
     regexScriptSchema.parse({
       id: "s1",
       name: "s1",
