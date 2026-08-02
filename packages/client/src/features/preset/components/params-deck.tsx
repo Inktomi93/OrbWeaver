@@ -55,8 +55,9 @@ type AppForm = AppFormInstance<PromptConfig>;
 
 export interface ParamsDeckProps {
   readonly form: AppForm;
-  /** `undefined` when no chat connection resolves — QUALITY/CONTEXT/ADVANCED still render, the model-fed
-   *  clusters show the connect-a-model note naming their knobs. */
+  /** `undefined` until the capability read lands, and forever if it FAILS — QUALITY/CONTEXT/ADVANCED still
+   *  render, the model-fed clusters stand down to `CapabilityGate`. Which of that gate's two arms shows is
+   *  the `capabilityError` split (F-02), never this field: a failed read is a routing fault, not "no model". */
   readonly capability: ModelCapability | undefined;
   /** The funnel projected for this preset (`preset.resolveEffective`) — `undefined` while it is
    *  unavailable (no chat model, or the read has not landed), which degrades to un-ghosted rows. */
