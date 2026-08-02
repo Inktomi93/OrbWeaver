@@ -354,6 +354,105 @@ ARM 1 census + expiry condition in the lens header. **NEW OWNER-JUDGMENT ROWS fr
 chat MemoryBackfillCounts ≡ contracts MemoryBackfillResult · search DigestsParams/SegmentsParams
 ≡ contracts MemoryQueryOptions — derive-or-cite calls. Lesson banked gate-hub #11 (real-tree
 anchor for stale arms).
+**═══ PROCEED-IN-FULL WAVE (owner word 08-03) — 4 DISPATCHED + STICKLER: ═══**
+Lane STRIKE (mech) = crunch-list strike pass w/ per-row receipts · Lane DISC = discovery
+failure-path audit-then-build (errors-as-data; close-with-receipts is a valid outcome) ·
+Lane SM1 = smalls (3 respell derive-or-cite rows · verify-REGISTRY completeness confirm/build ·
+eslint reportUnusedDisableDirectives · pnpm codemod script drift · export-rot table one-shot
+header) · Scout RM2 = registry map gaps (candidates 3-5 · the 2 contradicted seeds ·
+unclassified rows · fresh switch-sweep). **STICKLER DISPATCHED (owner mid-wave): ROLE/AUTHORITY
+MODEL design review** — "role is messy and will get worse when we add agents"; unify rpg onto
+can()? centralize all role stuff? Actor-state-review form: coherent-as-is w/ receipts OR
+spec-grade staged reshape + owner forks; the two-class gate's SANCTIONED_HOMES = the derived
+inventory; the AGENTS-future extensibility question (kind × role × context kernel) is the
+driver; report → docs/reviews/stickler/2026-08-03-role-authority-model.md. **RM2 SCOUT DELIVERED — map doc UPDATED:** content-class debt REOPENED (v1 credited the WRONG
+gate — content-part-seam guards the ChatContentPart SYMBOL; pipeline.ts:794 spanToWirePart
+if/else does NOT read CONTENT_CLASS_POLICY — the table is ignored documentation; fix = dispatch
+THROUGH the table + binding test) · NEW candidate: CharacterFacetId switched in BOTH
+facet-editor:92 + facet-inspector:115 (Record-of-components collapse) · AssembleTrace DROPPED
+(single-home confirmed; stale memory corrected) · SERVICE_KEYS = hardcoded array in
+services.test.ts (7th check-invisible new-domain site) · rpg writable-field re-verified at 13
+files on a real commit (memory's ~7 was an undercount — appended) · ALL GAP-3 rows enforced
+(prose shards = deliberate double-direction Partial+composed-Record; TEMPLATE_DEFS = the
+Exclude nonempty-type trick). Verify-REGISTRY = the one remaining suspected (d) (SM1 confirming).
+NEW SMALLS from RM2: content-class table-dispatch fix · CharacterFacetId Record collapse.
+**LANE OBS DISPATCHED (owner-ruled: wire addSpanEvent IN FULL):** intended use recovered from
+Tier-2-Foundation.md + its docstring (point-in-time span annotation — cache hit, retry attempt;
+sibling setSpanAttrs live at trpc ×2, the pair split at adoption). Wiring: model-catalog caches
+hit/miss/refresh · effective-config cache · provider retry loops · engine wake/single-flight ·
+judged degrade arms; only under ACTIVE spans (span-less valuable seams = findings, not blind
+wires); landing PROVEN per event class via the trace ring; removes its own ratchet baseline row
+(the last one — baseline goes EMPTY). OWNER FIX-DON'T-PARK GATE LAW landed in doctrine + hub
+same hour (allowlists = permanent deliberate only, reason + stale-arm; out-of-scope violations =
+SendMessage fork, never a silent row; retrofit sweep now applies it retroactively).
+**ROLE/AUTHORITY STICKLER DELIVERED + ALL 3 FORKS OWNER-RULED (08-03):** VERDICT = COHERENT
+CORE, reshape-LITE (kind≠role≠action cleanly split; agents future EXTENDS via reserved DDL
+seams; the mess is SPELLING debt). Report: docs/reviews/stickler/2026-08-03-role-authority-model.md
+(clause text §6 = the ceremony D-entry's awaited input). RULINGS: **F1 = PROJECTION CLASS**
+(byte-selection verdicts home at viewerReadsHidden per D110; the read.ts:1127/1167 permitsHost
+payload uses re-route onto the projection lens; listMessages inline compare collapses same
+sweep) · **R0-R2 DISPATCH NOW** (R0 = clause + Spine-Identity-and-Auth truth-repair [claims
+agent principals BUILT — purge escapee; §0.3 router sends every identity task there] — rides
+the ceremony, orchestrator-side · R1 = rpg onto can() via RpgContext.can [automation's exact
+pattern; Principal already in every rpg verb; gate row self-reds = the receipt] →
+SECURITY-EXECUTOR on next drain · R2 = one-spelling sweep [hostUserIdOf ×~14 + F1 collapse] →
+executor on next drain) · **ChatRoster kind widens AT THE SEAT WAVE** (R3 deferred; clause
+names the seam + the agent-ceiling non-inheritance constraint F5). Stickler lessons banked:
+same-day lanes landed CONTRADICTORY LAW on one boundary (SEC's #6 comments vs projection-class
+comments — single-arbiter rule for same-boundary same-day lanes); purge waves must sweep the
+spine docs their domains cite.
+LIVE: DISC (typed discovery errors) · OBS (addSpanEvent full adoption) · SWAL (swallowed-exports
+lens + respell alias fix). Behind drains, in order:
+**CEREMONY** (strike DONE → close-out D-ENTRY minting rewind-asymmetry + promoted-unseated +
+D8-residue pointers + the §6 two-class clause + R0's truth-repair → graduation verifier →
+docs/history) → R1 (security-executor) + R2 (executor) → SEC3 cookie-parser · MACU user-macro
+union + {{if}} block template · preset-polish small (O-2 chip · item-14 macro pill — lane-C
+CLAIM/CODE MISMATCH: commit message claimed the fix, diff never touched macro-text.tsx ·
+re-check) · content-class table-dispatch + CharacterFacetId Record smalls · F-14 CLS · CAP-GATE
++ FirstRunPersonaDialog + SSE labels + ct:140 smalls · TD design pass · one-sided-gate retrofit
+sweep · side-eye re-check on FX's 31 · D8 residue (+BINDING_VIEWS table). relations.ts KEPT
+(owner-ruled): header now names the nested-tree consumer class (databank trees, export bundles)
+vs the explicit-join dialect for flat/aggregate — dialect split by read SHAPE, cited.
+**DB-OPS CONSISTENCY AUDIT DELIVERED (scout, 08-03):** reads consistent · raw-sql exactly where
+sanctioned · not-found one idiom (throw, 4/23 sampled) · db.batch-over-transaction defensible
+for libsql but UNDOCUMENTED as intentional (only 2 db.transaction sites, both import paths) ·
+upsert spelling split 17/14 with no stated rule · ~~clock leaks~~ **RETRACTED (orchestrator
+re-verified): all 11 "Date.now" grep hits are COMMENTS documenting observance of the law —
+the `no-raw-clock` gate is active (AST-parsed, ignores comments; sane exemptions kit/time +
+entry/ + tests) and the tree has ZERO real clock leaks. Instrument error: scout grepped raw
+text; the grep-vs-AST class (ast.ts's own header warns it). Clock-leak small DROPPED.**
+**DB BOUNDARY RESOLVED (scout delivered → orchestrator ruled on owner delegation):** the strict
+law was ASPIRATIONAL-FROM-BIRTH (sentence written 07-03; verbs imported tables since 06-27; doc
+self-contradicts within 5 lines via its own sanctioned patterns). Real convention: persistence/
+= curated READ helpers + ownership checks · verbs write their OWN tables · bulk-serializer
+domains direct by design · shared junctions one seam. RULING: gate-the-rule beats make-truth-real
+(enforce-strict = ceremony not properties — discovery's ad-hoc SQL forced into "reusable"
+helpers nobody reuses is the *ServiceDeps disease at scale; the real property [own-tables-only +
+cross-domain via injected ops] is what practice honors and a gate holds cheaply; write-door
+builds consumer-driven IF an outbox/audit need ever lands). **LANE BOUND LIVE**: Tier-1-DB
+amend + `own-tables-only` gate (table→domain map DERIVED from schema files; reasoned two-sided
+exemptions; fix-don't-park on real leaks) + 4-file batchMany barrel-path nit.
+**✅ OBS MERGED (`93e40fb1`)**: addSpanEvent wired across cache/retry/wake with trace-ring
+landing proofs (cold/warm/coalesced/failed arms; retry+abandoned; wake 5-state); ratchet
+baseline now EMPTY {}; cpu-fallback wire correctly REVERTED (couldn't prove landing — the law
+holding); 3 SPAN-LESS FINDINGS boarded: fireRpgTurnCompleted runs outside any live span (post-
+commit rpg round invisible — fix = withRequestSpan at dispatch) · structured-turn retry
+unobservable by construction (server/kit below foundation; needs injected onRetry; callers are
+discovery) · providerDurationMs total permanently 0 (no provider.* span ever opened).
+**✅ DISC MERGED (`2f1ba51b`)**: 24 paths already-honest (receipted) · 0 generic · 3 SILENT
+fixed (dead errorToast → DistillFailedError/NotFound leak-free-ordered w/ inversion pin;
+compare degraded-as-data; askCard 3-state badge + grounded semantics restored) · 5 comment-only.
+CardNotDistillableError deleted (unthrown) — re-mints in Lane TAGF with the owner-ruled
+content-floor. Lesson banked (batch-vs-on-demand dual posture + refusal-order-as-tenancy-oracle). SMALLS boarded: clock-leak audit (the 2 write-path sites) · tx-vs-batch rule
+codification · upsert decision-rule doc line.
+**TAG-FABRICATION RULED (owner): REQUIRE REAL CONTENT** — name-only cards get an honest refusal
+instead of staged model-invented tags (both arms: button + batch sweep); Lane TAGF queued on
+next drain: re-mint CardNotDistillableError WITH the content-floor throw site (DISC deleted the
+unthrown class correctly — birth order restored: error + throw site together), flip the two
+name-only distill.int.test.ts seeds to assert the refusal, client copy per DISC's toast wiring.
+DISC also mid-run: cross-tenant sweep caught its BAD_REQUEST leak (stranger probing = card
+existence oracle) → leak-free NOT_FOUND-first ordering + inversion pin. Endgame:
+verify:push on quiesced tree → PUSH-READY report (push needs its own word).
 **Lane SEC LIVE** (security-executor) = SessionToken branded through the auth boundary
 (kit id-cast helpers; compile-refusal pin; no auth-semantics change) + permitsHost
 wire-or-delete disposition. **QUEUED behind CLEAN's merge: Lane LENS** = registry-aware
