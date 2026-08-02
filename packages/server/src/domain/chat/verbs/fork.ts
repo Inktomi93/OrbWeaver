@@ -16,6 +16,7 @@
 
 import type { ChatBusEvent, ChatMetadata, ParticipantView, StandaloneVariableDelta } from "@orb/contracts/chat";
 import { variableDeltaSchema } from "@orb/contracts/chat";
+import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -35,7 +36,7 @@ import { loadChatMacroNameProducer } from "../persistence/macro-names";
 import { loadChatInjections, loadChatRow, loadMessageSlots, loadStoredVariables, loadVariableDeltas, loadVariantsByMessageIds } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
 import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars";
-import { NO_HISTORY_FLOOR } from "../substrate/auth";
+import { NO_HISTORY_FLOOR, permitsHost } from "../substrate/auth";
 import { toChatDetail } from "../substrate/chat-detail";
 import { viewerReadsHidden } from "../substrate/member-visibility";
 import { foldChain } from "../substrate/runtime-variables";
@@ -394,14 +395,20 @@ async function forkGameOntoFork(
  *  when the host left without a handoff). ONLY a non-host caller with ANOTHER present human member is refused —
  *  `ChatOperationError('not_host')`, a known-existence authority refusal (the caller IS a present member; the
  *  non-member case already threw the leak-free `ChatNotFoundError` at `requireParticipant`). Human = a
- *  `kind:"human"` present row (a seated character / agent is never a human recipient of a laundered secret). */
+ *  `kind:"human"` present row (a seated character / agent is never a human recipient of a laundered secret).
+ *
+ *  The HOST half of the verdict routes through the ONE injected `can()` seam (`substrate/auth::permitsHost`,
+ *  spine invariant #6) — never an inline `role === "host"`. The composite is still chat's own policy: the
+ *  seam answers "is this caller the host?", this function decides what that means for a fork. */
 function assertForkAllowed(
+  can: ChatContext["can"],
+  principal: Principal,
   role: (typeof chatParticipants.$inferSelect)["role"],
   roster: readonly (typeof chatParticipants.$inferSelect)[],
   chatId: ChatId,
 ): void {
   const presentHumanCount = roster.filter((r) => r.kind === "human").length;
-  if (role !== "host" && presentHumanCount > 1) {
+  if (!permitsHost(can, principal, role) && presentHumanCount > 1) {
     throw new ChatOperationError(CHAT_OP_CODES.notHost, `chat ${chatId}: only the host may fork a multi-human room`);
   }
 }
@@ -428,7 +435,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       loadVariableDeltas(ctx.db, chatId),
     ]);
 
-    assertForkAllowed(membership.role, roster, chatId);
+    assertForkAllowed(ctx.can, principal, membership.role, roster, chatId);
 
     // §3.6 member-strip across the fork boundary (now DEFENSE-IN-DEPTH — the gate above closes the multi-human
     // member→host laundering case; the solo arm has no other human to launder to). The forker's SOURCE-room
