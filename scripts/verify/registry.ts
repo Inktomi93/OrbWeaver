@@ -196,7 +196,21 @@ export const REGISTRY: readonly StageDef[] = [
     // A WHOLE-TREE invariant (unions every runner's file listing) — whole-only, deferred at a scoped tier.
   },
 
-  // ── structure stage-group (the ts-morph single-pass gates) ──
+  // ── structure stage-group (the ts-morph single-pass gates + the db-baseline parity) ──
+  {
+    name: "structure:db-baseline",
+    group: "structure",
+    tiers: STATIC,
+    argv: ["pnpm", "check:db-baseline"],
+    // Our OWN 0/1/2/3-speaking tsx script (scripts/verify/db-baseline-parity.ts): the committed squashed
+    // baseline must equal what the live `@orb/db/schema` generates. It was a PUSH-only int test until
+    // 2026-08-02; two baseline-regen misses (latest: schema_version DEFAULT 5→6) shipped and were caught
+    // ~10 hours later at push. In-process via drizzle-kit/api (~1s, no stack, no db file) — it was wired
+    // too late, not too heavy, so it belongs on the commit bar.
+    classify: ownScheme,
+    // A WHOLE-TREE invariant (the entire schema module vs the one committed baseline) — whole-only,
+    // deferred at a scoped tier like the other cross-file reconciliations.
+  },
   {
     name: "structure:full",
     group: "structure",

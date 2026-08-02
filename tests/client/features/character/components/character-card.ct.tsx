@@ -134,9 +134,29 @@ test("P0 regression: the title column keeps a real width at rest (reveal cluster
   // The story row is 360px. The regression measured the title at ~0px; it must claim a substantial share.
   const titleW = await component.locator('[data-slot="list-row-title"]').evaluate((el) => el.getBoundingClientRect().width);
   expect(titleW).toBeGreaterThan(150);
-  // The wide metadata reveal is display:none at rest → ZERO layout, so it cannot steal the column.
-  const metaW = await component.getByText("aria-nightshade · 128").evaluate((el) => el.getBoundingClientRect().width);
-  expect(metaW).toBe(0);
+  // The wide metadata reveal shares the subtitle's ONE grid cell (`list-row-subtitle-stack`) and is
+  // `visibility:hidden` at rest — its box is RESERVED on purpose (a hover-keyed display swap is the P0 hover
+  // oscillator, packages/client/src/components/row-reveal.ts), and it lives on the subtitle's line, a
+  // different row from the title. So it costs the title column nothing: the stack never exceeds the content
+  // column it sits in.
+  const [stackW, contentW] = await Promise.all([
+    component.locator('[data-slot="list-row-subtitle-stack"]').evaluate((el) => el.getBoundingClientRect().width),
+    component.locator('[data-slot="list-row-content"]').evaluate((el) => el.getBoundingClientRect().width),
+  ]);
+  expect(stackW).toBeLessThanOrEqual(contentW);
+});
+
+test("P0 regression: the reveal swap does not move the row's layout (the hover-oscillator class)", async ({ mount }) => {
+  const component = await mount(<CharacterCardTileStory handle="aria-nightshade" name="Aria Nightshade" />);
+  const body = component.locator('[data-slot="list-row-body"]');
+  await expect(component.locator('[data-slot="list-row-subtitle-reveal"]')).toHaveCSS("visibility", "hidden");
+  const restBox = await body.boundingBox();
+  // :focus-within drives the same swap :hover does (deterministic in CT, where :hover is not).
+  await body.focus();
+  await expect(component.locator('[data-slot="list-row-subtitle-reveal"]')).toHaveCSS("visibility", "visible");
+  // Byte-identical geometry rest ⇄ revealed — nothing enters or leaves layout, so the hover boundary cannot
+  // slide under a stationary pointer.
+  await expect.poll(() => body.boundingBox()).toEqual(restBox);
 });
 
 test("P1 regression: the revealed metadata is legible and NEVER overlaps the action buttons", async ({ mount }) => {

@@ -261,6 +261,8 @@ function writeFixtures(): void {
   // no-off-token-radius-shadow: a default-scale shadow utility in a real className site, off-token,
   // not in ALLOWLIST.
   fx("packages/client/src/features/__g_offtoken/components/__g_offtoken.tsx", 'export const G = <div className="rounded-lg shadow-md" />;\n');
+  // no-hover-display-swap: a hover-keyed DISPLAY utility (the P0 hit-test oscillator), not in ALLOWLIST.
+  fx("packages/client/src/features/__g_hoverswap/components/__g_hoverswap.tsx", 'export const G = <div className="group-hover/row:hidden" />;\n');
   // density-tier: `rounded-card` outside the ELEVATED family, in a file with no baseline budget (A1). The
   // fixture path is deliberately NOT in the committed density-tier.baseline.json, so its budget is 0.
   fx(
