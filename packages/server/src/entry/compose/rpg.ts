@@ -54,6 +54,7 @@ import {
   rpgPopulateSchema,
   salvageExtraction,
   salvagePopulate,
+  strippedToolCallKeys,
   toolCallsToExtraction,
 } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
@@ -541,17 +542,19 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
     // three delivery paths now carry EQUAL drop semantics: a bad entry costs that entry, never the writes beside
     // it. What was dropped is itemized by the SAME function that built the extraction (one home — the log
     // cannot disagree with what applied, the `ghostTargetRefs`/D112 (3) posture).
-    const { extraction, dropped } = salvageExtraction(safeJson(text));
+    const { extraction, dropped, stripped } = salvageExtraction(safeJson(text));
     if (dropped.length > 0) {
       // OBSERVABILITY: this is the path the structured arm was silently dying on (an 8B dropping `journal[].title` failed
       // `safeParse` with NO log while every other rpg log stayed silent; that contradiction is how the diagnosis
-      // surfaced). The set is TOTAL: failed (throw) / unparseable (this) / healed (logExtractionOutcome) / empty
-      // / phantom (logExtractionOutcome) / dropped (flush). A `root` drop means NOTHING was salvageable.
+      // surfaced). The set is TOTAL: failed (throw) / unparseable (this) / stripped (below) / healed
+      // (logExtractionOutcome) / empty / phantom (logExtractionOutcome) / dropped (flush). A `root` drop means
+      // NOTHING was salvageable.
       logger.warn(
         { event: "rpg.extraction.unparseable", chatId, model: conn.model, api: conn.api, dropped },
         "rpg structured extraction: plane(s)/entry(ies) did not conform — DROPPED (the rest of the delta still applies)",
       );
     }
+    logStrippedKeys({ chatId, model: conn.model, api: conn.api, vehicle: "structured extraction", event: "rpg.extraction.stripped", stripped });
     // The roster index resolves an extracted party/inventory target NAME to its roster ref (F2 — the same
     // first-class resolution the cheap-mode tools use; a structured write on a party member must render too).
     const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
@@ -614,10 +617,19 @@ function logExtractionOutcome(args: {
   }
 }
 
-/** The TOOL vehicles' drop log (EXT-4a — one home for both, so the cheap round and the folded turn can never
- *  report a loss differently). Names the calls `toolCallsToExtraction` threw away, via the one-homed
- *  `malformedToolCalls` predicate that mirrors its silent `continue`s. Silent on the happy path. */
-function logMalformedCalls(args: {
+/** The TOOL vehicles' loss log (EXT-4a — one home for both, so the cheap round and the folded turn can never
+ *  report a loss differently). TWO classes, each with its own event and neither silent:
+ *
+ *   • DROPPED — the call's args were non-JSON or failed their schema; nothing of it applied
+ *     (`malformedToolCalls`, mirroring the fold's silent `continue`s).
+ *   • STRIPPED — the call PARSED and applied, minus one or more keys the schema never declared
+ *     (`strippedToolCallKeys`). zod `z.object` is strip-mode, so an invented key (`update_party.mana` where a
+ *     `trackerDeltas` entry belonged) used to land as a SUCCESS record with its write silently gone — a quiet
+ *     delivery fork, banned by D112 (3). It is a WARN and not an error because the rest of the call still
+ *     applied; `z.strictObject` would have cost the whole call, against EXT-4a's drop-as-little-as-possible.
+ *
+ *  Both are silent on the happy path. */
+function logToolCallLosses(args: {
   readonly chatId: ChatId;
   readonly model: string;
   readonly api: string;
@@ -625,12 +637,33 @@ function logMalformedCalls(args: {
   readonly vehicle: string;
 }): void {
   const dropped = malformedToolCalls(args.calls);
-  if (dropped.length === 0) {
+  if (dropped.length > 0) {
+    logger.warn(
+      { event: "rpg.extraction.unparseable", chatId: args.chatId, model: args.model, api: args.api, droppedTools: dropped },
+      `rpg ${args.vehicle}: tool call(s) with unusable args — DROPPED (every other call this turn still applies)`,
+    );
+  }
+  logStrippedKeys({ ...args, event: "rpg.extraction.stripped", stripped: strippedToolCallKeys(args.calls) });
+}
+
+/** The STRIP log, one home for all four emitters (cheap round · folded turn · structured extraction · resync)
+ *  so an invented key reads identically whichever vehicle carried it. `event` is the caller's own namespace
+ *  (`rpg.extraction.stripped` / `rpg.resync.stripped`) — the resync keeps its own trail, as it does for every
+ *  other class. Silent on the happy path. */
+function logStrippedKeys(args: {
+  readonly chatId: ChatId;
+  readonly model: string;
+  readonly api: string;
+  readonly vehicle: string;
+  readonly event: string;
+  readonly stripped: readonly string[];
+}): void {
+  if (args.stripped.length === 0) {
     return;
   }
   logger.warn(
-    { event: "rpg.extraction.unparseable", chatId: args.chatId, model: args.model, api: args.api, droppedTools: dropped },
-    `rpg ${args.vehicle}: tool call(s) with unusable args — DROPPED (every other call this turn still applies)`,
+    { event: args.event, chatId: args.chatId, model: args.model, api: args.api, strippedKeys: args.stripped },
+    `rpg ${args.vehicle}: the model sent key(s) the schema does not declare — those writes were DROPPED (everything else applied)`,
   );
 }
 
@@ -806,7 +839,7 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     // and any unknown tool contribute nothing — the quiet-turn no-op). A call the fold threw away is NAMED, the
     // same way the folded arm names its drops (EXT-4a: equal drop semantics means equal VISIBILITY too — the
     // dedicated round was the one vehicle that dropped silently).
-    logMalformedCalls({ chatId, model: conn.model, api: conn.api, calls, vehicle: "cheap tool round" });
+    logToolCallLosses({ chatId, model: conn.model, api: conn.api, calls, vehicle: "cheap tool round" });
     const extraction = toolCallsToExtraction(calls);
     const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
@@ -874,7 +907,7 @@ function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolC
     const conn = turnConnection.connection;
     // A malformed arg NEVER fails the turn (the narrative is already committed) — `toolCallsToExtraction` drops
     // it, and this names what was dropped so the loss is diagnosable instead of silent (D109-7 totality).
-    logMalformedCalls({ chatId, model: conn.model, api: conn.api, calls: toolCalls, vehicle: "folded extraction" });
+    logToolCallLosses({ chatId, model: conn.model, api: conn.api, calls: toolCalls, vehicle: "folded extraction" });
     // ZERO calls is a legitimate no-change beat, NOT a failure: with `tool_choice:"auto"` a quiet beat is the
     // model correctly declining to write. It gets its OWN event so it can never be confused with a parse
     // failure or a dead fold, and it returns before the ref resolve (nothing to constrain, nothing to apply).
@@ -971,13 +1004,14 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
     // way: one malformed entry in a deep-window rebuild must not throw away the other five planes' worth of
     // re-established state (the resync is the expensive call — discarding it whole is the worst place to be
     // all-or-nothing).
-    const { extraction, dropped } = salvageExtraction(safeJson(text));
+    const { extraction, dropped, stripped } = salvageExtraction(safeJson(text));
     if (dropped.length > 0) {
       logger.warn(
         { event: "rpg.resync.unparseable", chatId, model: conn.model, api: conn.api, dropped },
         "rpg resync: plane(s)/entry(ies) did not conform — DROPPED (the rest of the rebuild still applies)",
       );
     }
+    logStrippedKeys({ chatId, model: conn.model, api: conn.api, vehicle: "resync", event: "rpg.resync.stripped", stripped });
     const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
     logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
