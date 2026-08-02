@@ -14,8 +14,9 @@
 // `panels = { list, context }: "unavailable"` (owner decision H3 / arm L-b): home has NEITHER pane, and
 // the shell must not ship a toggle that reveals "Home list — this surface isn't wired yet" on the app's
 // front door, nor a detail-panel toggle onto `context: { kind: "none" }`, nor a focus-mode toggle whose
-// whole job is collapsing panes home does not have (it cold-booted labelled "Exit focus mode", because
-// zero panels trivially reads as "both collapsed").
+// whole job is hiding panes home does not have (it cold-booted labelled "Exit focus mode" back when focus
+// was DERIVED from "both collapsed", which zero panels trivially satisfied — focus is one flag now, item
+// 20, but the toggle still has nothing to act on here).
 
 import { Compass } from "@orb/ui/icons";
 import type { ContributorRegistry, HomeTileContribution } from "#lib";
