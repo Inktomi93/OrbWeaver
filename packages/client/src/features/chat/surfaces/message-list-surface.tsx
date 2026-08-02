@@ -17,7 +17,7 @@ import { useQuery, useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import type { ChatBusDeps } from "#data";
-import { QueryBoundary, QueryErrorState, SkeletonRows, useChatBus, useTRPC, useViewerDisplayScripts } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, useChatBus, useTRPC, useDisplayScripts } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { useFocusOnMount } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";
@@ -145,7 +145,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
   const gameQuery = useQuery({ ...trpc.rpg.getGame.queryOptions({ chatId }), enabled: isGame });
   const lenientHtmlCards = isGame && gameQuery.data?.publicConfig.immersiveHtml === true;
   const messageAppearance = useMessageAppearance();
-  const displayScripts = useViewerDisplayScripts();
+  const displayScripts = useDisplayScripts(chatId);
   const behaviorPrefs = useChatBehaviorPrefs();
   const phase = useTurnPhase(chatId);
   // The live turn's voiced speaker, resolved through the SAME resolveRowAttribution the settled row
@@ -347,7 +347,7 @@ function DraftGreetingThread({ draftKey, characterIds, chatStyle, seedAnchorPers
   const personaNamesById = buildPersonaNameMap(personas.map((p) => ({ id: p.id, name: p.name, description: p.description })));
   // The draft-greeting preview renders through the same display leg as a committed row, so a viewer's
   // DISPLAY script transforms the greeting they are about to pick too (one render path, one answer).
-  const displayScripts = useViewerDisplayScripts();
+  const displayScripts = useDisplayScripts(null);
 
   const rows = characters.flatMap((c, i) => {
     const character = c.data;

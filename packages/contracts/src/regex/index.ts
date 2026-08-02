@@ -20,6 +20,7 @@
 //     applies AI_OUTPUT/USER_INPUT at PERSIST time, so there is no depth axis to gate). Unknown keys are
 //     stripped by zod's default object behavior, so an ST card carrying them still imports.
 
+import type { CharacterId, ChatId, PresetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { MAX_FIND_REGEX_LENGTH, REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
@@ -121,6 +122,41 @@ export type AttachedRegexScriptRef = z.infer<typeof attachedRegexScriptRefSchema
 /** The V3-wire key the references ride under (orbweaver-namespaced so it never collides with an ST `data.*`
  *  field). The ONE literal home — the serde OUT-emitter + the import extractor read it from here. */
 export const ATTACHED_REGEX_SCRIPTS_WIRE_KEY = "orbweaver_attached_regex_scripts";
+
+// ── WHICH scope an attachment addresses (the ONE spelling, three consumers) ────────────────────────────
+// The tRPC router validates against this, the domain's `ApplyScopeOrderParams` types against it, and the
+// client picker binds it. Before it lived here the shape was re-spelled in all three — a discriminated
+// union written out three times is three chances to add a scope in two of them.
+//
+// GLOBAL is deliberately ABSENT from the picker-facing arms but present here: the global attachment is a
+// property of the script (`global_regex_scripts` PKs on the script id), so it is toggled from the library
+// surface, while character/preset/chat are attached from the thing they belong to.
+//
+// The TS union is DECLARED, not `z.infer`red, and the schema is pinned to it by `satisfies` below. The
+// reason is measured, not stylistic: the arms carry `typeIdSchema`, which is a transform-backed `ZodType`
+// rather than a `ZodObject` — `tsc` reads the discriminant correctly through it, but biome's type service
+// does not, and flagged every `case` of a switch over the inferred type as unreachable. ONE declared union
+// keeps BOTH tools seeing the same four arms; the `satisfies` keeps the schema honest against it.
+export type RegexAttachScope =
+  | { readonly kind: "global" }
+  | { readonly kind: "character"; readonly characterId: CharacterId }
+  | { readonly kind: "preset"; readonly presetId: PresetId }
+  | { readonly kind: "chat"; readonly chatId: ChatId };
+
+export const regexAttachScopeSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("global") }),
+  z.object({ kind: z.literal("character"), characterId: typeIdSchema(ID_PREFIX.character) }),
+  z.object({ kind: z.literal("preset"), presetId: typeIdSchema(ID_PREFIX.preset) }),
+  z.object({ kind: z.literal("chat"), chatId: typeIdSchema(ID_PREFIX.chat) }),
+]) satisfies z.ZodType<RegexAttachScope>;
+
+/** The three scopes a PICKER attaches (global is the library surface's own switch — see above). Spelled
+ *  out rather than `Exclude<RegexAttachScope, …>` for the same reason the parent union is: a mapped/
+ *  conditional type hides the arms from biome's switch-exhaustiveness analysis. */
+export type RegexPickerScope =
+  | { readonly kind: "character"; readonly characterId: CharacterId }
+  | { readonly kind: "preset"; readonly presetId: PresetId }
+  | { readonly kind: "chat"; readonly chatId: ChatId };
 
 /** The PORTABLE file shape — one script per `regex/*.json` in a backup bundle. `global` is the only
  *  attachment carried: it is a property of the script itself (the `global_regex_scripts` PK-is-the-script

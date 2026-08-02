@@ -139,6 +139,12 @@ export interface ChatDetail {
    *  unset (the turn engine falls to its default). Exposed so the host's room-settings control can display +
    *  edit the current value; the WRITE is `chat.setToolRecurseLimit` (host-gated). */
   readonly toolRecurseLimit: number | null;
+  /** D121-E — the host's display-tier room OPTION (`metadata.hostDisplayScripts`). `true` ⇒ the HOST's
+   *  display-tier regex scripts render for every viewer here; `false` (the default) ⇒ display regex is
+   *  strictly per-user. Exposed so the host's room-settings switch can show its state; the WRITE is
+   *  `chat.setHostDisplayScripts` (host-gated). Room-public — a member reads it too, because it explains
+   *  why their transcript looks the way it does. */
+  readonly hostDisplayScripts: boolean;
   /** BG-C — the host-set per-chat carried BACKGROUND source (parsed `metadata.background`), or `null` when
    *  unset. Applied at the app-root background layer in a TRUE-SOLO room, above the card-carried twin; INERT
    *  for every viewer in any other composition (client-resolved). */

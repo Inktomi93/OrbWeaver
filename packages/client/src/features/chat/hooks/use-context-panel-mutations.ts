@@ -40,6 +40,20 @@ interface SetToolRecurseLimitVars {
   readonly limit: number;
 }
 
+/** `chat.setHostDisplayScripts` vars (D121-E) — the host's per-room display-tier broadcast option. */
+interface SetHostDisplayScriptsVars {
+  readonly chatId: ChatId;
+  readonly enabled: boolean;
+}
+
+export const useSetHostDisplayScripts = createEntityMutation<SetHostDisplayScriptsVars, unknown>({
+  options: (trpc) => trpc.chat.setHostDisplayScripts.mutationOptions(),
+  // `busDriven` on the OPEN chat: the verb emits `chatUpdated` (→ chatReads covers getChat, where the flag
+  // reads back via `ChatDetail.hostDisplayScripts`) — the setToolRecurseLimit twin.
+  busDriven: true,
+  errorToast: "Couldn't change who sees your display scripts.",
+});
+
 export const useSetToolRecurseLimit = createEntityMutation<SetToolRecurseLimitVars, unknown>({
   options: (trpc) => trpc.chat.setToolRecurseLimit.mutationOptions(),
   // `busDriven` on the OPEN chat: the verb emits `chatUpdated` (→ chatReads covers getChat, where the cap

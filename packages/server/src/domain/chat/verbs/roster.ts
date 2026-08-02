@@ -39,6 +39,7 @@ import type {
   RemoveCharacterFromChatParams,
   SelfLeaveParams,
   SetChatBackgroundParams,
+  SetHostDisplayScriptsParams,
   SetChatDocumentVisibilityParams,
   SetGroupConfigParams,
   SetMemberHistoryVisibilityParams,
@@ -80,6 +81,7 @@ type RosterVerbs = Pick<
   | "setRoomOverrides"
   | "setChatDocumentVisibility"
   | "setChatBackground"
+  | "setHostDisplayScripts"
   | "setToolRecurseLimit"
   | "getGroupConfigForChat"
   | "getRoomOverridesForChat"
@@ -98,6 +100,7 @@ export function createRoster(ctx: ChatContext, deps: RosterDeps): RosterVerbs {
     setRoomOverrides: createSetRoomOverrides(ctx, emit),
     setChatDocumentVisibility: createSetChatDocumentVisibility(ctx, emit),
     setChatBackground: createSetChatBackground(ctx, emit),
+    setHostDisplayScripts: createSetHostDisplayScripts(ctx, emit),
     setToolRecurseLimit: createSetToolRecurseLimit(ctx, emit),
     getGroupConfigForChat: createGetGroupConfigForChat(ctx),
     getRoomOverridesForChat: createGetRoomOverridesForChat(ctx),
@@ -246,6 +249,36 @@ function createSetChatDocumentVisibility(ctx: ChatContext, emit: EmitChatEvent):
       ctx.now(),
     );
     return parsed.data;
+  };
+}
+
+/** `setHostDisplayScripts` — host-only. Writes the D121-E display-tier room OPTION into
+ *  `chatMetadata.hostDisplayScripts`.
+ *
+ *  WHAT IT GOVERNS, precisely: with it ON, the HOST's display-tier (DISPLAY-placement, `enabled`) regex
+ *  scripts render for EVERY viewer in this room — a host staging shared visual effects on the transcript.
+ *  With it OFF (the default,
+ *  and the byte-identical path) display regex is strictly per-user: a viewer only ever sees their own.
+ *  Either way a viewer's OWN scripts still apply, and apply LAST, so a viewer can always counter-style.
+ *
+ *  RENDER-ONLY, both arms. Nothing here touches canon, the composer, an edit textarea, or any wire payload
+ *  — the toggle is read by the CLIENT's message-render context, never by assembly or the engine. That is
+ *  why a host cannot use it to rewrite what the model sees, only what the room LOOKS like.
+ *
+ *  The write MERGES into the sibling sub-blobs (`...chat.metadata`) so it never nukes roomOverrides/group. */
+function createSetHostDisplayScripts(ctx: ChatContext, emit: EmitChatEvent): ChatService["setHostDisplayScripts"] {
+  return async ({ principal, chatId, enabled }: SetHostDisplayScriptsParams): Promise<boolean> => {
+    const { chat } = await requireHost(ctx, principal, chatId);
+    // Bind the merged blob to a variable (not a fresh literal in `.set()`) — the sibling sub-blobs ride the
+    // spread and the freshness excess-property check never fires on the new key.
+    const nextMetadata = { ...chat.metadata, hostDisplayScripts: enabled };
+    await ctx.db.update(chats).set({ metadata: nextMetadata, updatedAt: ctx.now() }).where(eq(chats.id, chatId));
+    await emit({ type: "chatUpdated", chatId });
+    await ctx.audit(
+      { actorUserId: principal.userId, action: "chat.setHostDisplayScripts", entityType: "chat", entityId: chatId, metadata: { enabled } },
+      ctx.now(),
+    );
+    return enabled;
   };
 }
 

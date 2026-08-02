@@ -41,3 +41,11 @@ export interface ResolvedRegexSources {
 }
 
 export type ResolveRegexSources = (args: ResolveRegexSourcesArgs) => Promise<ResolvedRegexSources>;
+
+/** WHOSE display scripts a room broadcasts (D121-E host option) — chat's answer, injected. `enabled:false`
+ *  is the default and the byte-identical arm; `hostUserId` is null for a hostless (archived orphan) room,
+ *  which also resolves to broadcasting nothing. */
+export interface RoomDisplayPolicy {
+  readonly enabled: boolean;
+  readonly hostUserId: UserId | null;
+}

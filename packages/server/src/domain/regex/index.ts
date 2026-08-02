@@ -3,6 +3,7 @@
 // resolve.ts), which is what keeps the four-scope dereference in ONE home.
 
 export type { RegexContext } from "./context";
+export type { CardLiftInput, CardLiftPlan, PlannedInsert, SplitScript } from "./contract/dedup";
 export { RegexNotFoundError } from "./contract/errors";
 export type { ApplyScopeOrderParams, RegexAttachScopeRef } from "./contract/params";
 export type {
@@ -18,6 +19,7 @@ export type {
 } from "./contract/portability";
 export type { RegexResolveContext, ResolvedRegexSources, ResolveRegexSources, ResolveRegexSourcesArgs } from "./contract/resolve";
 export type { DetachResult, RemoveResult, ReorderResult } from "./contract/results";
+export type { ScriptRecord } from "./contract/rows";
 export type { RegexService } from "./contract/service";
 export type { CreateRegexScriptInput, PortableRegexScript, RegexScriptRow, UpdateRegexScriptInput } from "./contract/views";
 export {

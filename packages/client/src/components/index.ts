@@ -21,9 +21,9 @@ export type { LibraryListLayoutProps, LibrarySurfaceShellProps } from "./library
 export { LibraryListLayout, LibrarySurfaceShell } from "./library-surface";
 export type { ListPaneHeaderBack, ListPaneHeaderProps } from "./list-pane-header";
 export { ListPaneHeader } from "./list-pane-header";
-export type { RegexEditorDialogProps, RegexScriptFormValues } from "./regex-editor-dialog";
+export type { RegexEditorDialogProps } from "./regex-editor-dialog";
 export { RegexEditorDialog } from "./regex-editor-dialog";
-export type { RegexPickerScope, RegexScriptPickerProps } from "./regex-script-picker";
+export type { RegexScriptPickerProps } from "./regex-script-picker";
 export { RegexScriptPicker } from "./regex-script-picker";
 export type { RelationManagerItem, RelationManagerSectionProps } from "./relation-manager-section";
 export { RelationManagerSection } from "./relation-manager-section";

@@ -50,7 +50,7 @@ export type { SkeletonRowShape, SkeletonRowsProps } from "./skeleton-rows";
 export { SkeletonRows } from "./skeleton-rows";
 export type { Trpc } from "./trpc";
 export { createTrpcClient, createTrpcProxy, TRPCProvider, useTRPC, useTRPCClient } from "./trpc";
-export { useViewerDisplayScripts } from "./use-viewer-display-scripts";
+export { useDisplayScripts } from "./use-display-scripts";
 export { uploadAsset } from "./upload-asset";
 export { useColorQuotedSpeech } from "./use-color-quoted-speech";
 export { useGatedQuery } from "./use-gated-query";

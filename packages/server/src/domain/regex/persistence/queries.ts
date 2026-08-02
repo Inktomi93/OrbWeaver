@@ -13,10 +13,9 @@ import type { Db } from "@orb/db";
 import { characterRegexScripts, chatRegexScripts, globalRegexScripts, presetRegexScripts, regexScripts } from "@orb/db";
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import type { ScriptRecord } from "../contract/rows";
 
 const LIMIT_ONE = 1;
-
-export type ScriptRecord = typeof regexScripts.$inferSelect;
 
 /** The degrade target for a corrupt behavior blob: parses, runs nothing (no placement ⇒ every leg skips it). */
 const INERT_BEHAVIOR: RegexScriptBehavior = regexScriptBehaviorSchema.parse({ findRegex: "", replaceString: "", placement: [] });

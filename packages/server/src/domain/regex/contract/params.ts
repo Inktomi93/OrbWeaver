@@ -4,7 +4,7 @@
 // reads the chat roster itself (the world-info PD-30 precedent).
 
 import type { Principal } from "@orb/contracts/identity";
-import type { CreateRegexScriptInput, UpdateRegexScriptInput } from "@orb/contracts/regex";
+import type { CreateRegexScriptInput, RegexAttachScope, UpdateRegexScriptInput } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PresetId, RegexScriptId } from "@orb/kit/ids";
 
 interface RegexActorParams {
@@ -86,6 +86,12 @@ export interface ListForChatParams extends RegexActorParams {
   readonly chatId: ChatId;
 }
 
+/** The room's BROADCAST display set (D121-E host option). MEMBER-gated, not owner-gated: the point is
+ *  that a NON-host viewer reads the HOST's scripts, which is exactly why the room must have opted in. */
+export interface ListRoomDisplayScriptsParams extends RegexActorParams {
+  readonly chatId: ChatId;
+}
+
 /** Rewrite the execution ORDER of one scope's attachments. Position 0 runs FIRST (the executor applies its
  *  input list in order). Stale/foreign ids are silently dropped; an omitted attachment keeps its position. */
 export interface ApplyScopeOrderParams extends RegexActorParams {
@@ -93,11 +99,7 @@ export interface ApplyScopeOrderParams extends RegexActorParams {
   readonly orderedScriptIds: readonly RegexScriptId[];
 }
 
-/** WHICH scope an order rewrite addresses. A discriminated ref rather than four verbs — the ordering
- *  operation is identical across scopes (only the junction table differs), where attach/detach differ in
- *  their authority (owner vs the chat membership chain). */
-export type RegexAttachScopeRef =
-  | { readonly kind: "global" }
-  | { readonly kind: "character"; readonly characterId: CharacterId }
-  | { readonly kind: "preset"; readonly presetId: PresetId }
-  | { readonly kind: "chat"; readonly chatId: ChatId };
+/** WHICH scope an order rewrite addresses — the ONE spelling, from `@orb/contracts/regex`. A discriminated
+ *  ref rather than four verbs: the ordering operation is identical across scopes (only the junction table
+ *  differs), where attach/detach differ in their AUTHORITY (owner vs the chat membership chain). */
+export type RegexAttachScopeRef = RegexAttachScope;

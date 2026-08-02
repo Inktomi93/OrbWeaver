@@ -679,6 +679,56 @@ describe("buildAssembleContext — the WORLD_INFO leg runs the RESOLVED host-tie
     expect(out.worldInfoBefore).not.toContain("GOLD");
   });
 
+  // ── THE PER-WI-ENTRY ORDER PIN (D121-E's order table) ────────────────────────────────────────────────
+  // The law for this leg: macro render → WORLD_INFO regex → wiFormat wrap. Each of the three neighbours is
+  // covered on its own elsewhere; this pins the CHAIN, so swapping any two breaks here. Order-as-prose
+  // rots (the readout drifted on exactly this kind of claim), which is why the table gets an executable
+  // twin per leg rather than a doc sentence.
+  test("WI ENTRY ORDER: macros render → WORLD_INFO regex → wiFormat wrap, in that order", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    // The entry's content is a MACRO. If regex ran first it would see the literal `{{char}}` and miss.
+    await attachChatEntry(host, chatId, "k", { content: "{{char}} hoards GOLD" });
+    const config = { ...DEFAULT_PROMPT_CONFIG, formatStrings: { wiFormat: "[Lore: {{entry}}]" } };
+    const ctx = ctxWithCard(cardOf("Aria"));
+
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      promptConfig: config,
+      // The find pattern only matches the POST-macro text ("Aria hoards GOLD"), so a hit proves the macro
+      // pass ran FIRST; the replacement would be re-wrapped if wiFormat had already run.
+      hostTierRegexScripts: [regexScript("w", "Aria hoards GOLD", "Aria guards SILVER", "WORLD_INFO")],
+    });
+
+    // macros-then-regex: the macro resolved to the cast primary AND the regex matched the resolved text.
+    expect(out.worldInfoBefore).toContain("Aria guards SILVER");
+    expect(out.worldInfoBefore).not.toContain("{{char}}");
+    expect(out.worldInfoBefore).not.toContain("GOLD");
+    // regex-then-wrap: the wiFormat scaffold is on the OUTSIDE, wrapping the rewritten body exactly once.
+    expect(out.worldInfoBefore).toContain("[Lore: Aria guards SILVER]");
+  });
+
+  test("a WORLD_INFO script does NOT rewrite the wiFormat SCAFFOLD (the wrap is applied after it)", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    await attachChatEntry(host, chatId, "k", { content: "plain body" });
+    const config = { ...DEFAULT_PROMPT_CONFIG, formatStrings: { wiFormat: "[Lore: {{entry}}]" } };
+    const ctx = ctxWithCard(cardOf("Aria"));
+
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      promptConfig: config,
+      // Targets the SCAFFOLD word, which only exists after the wrap. It must NOT match.
+      hostTierRegexScripts: [regexScript("w", "Lore", "Legend", "WORLD_INFO")],
+    });
+
+    // The scaffold survives untouched — the script ran on the entry body, before the wrap existed.
+    expect(out.worldInfoBefore).toContain("[Lore: plain body]");
+    expect(out.worldInfoBefore).not.toContain("Legend");
+  });
+
   test("the raw preset field is NOT a second source — only the resolved union feeds the leg", async () => {
     const host = await seedUser(db, "host");
     const chatId = await seedChat(db, "a");

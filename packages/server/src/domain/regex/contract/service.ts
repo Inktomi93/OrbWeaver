@@ -28,10 +28,12 @@ import type {
   ListForChatParams,
   ListForPresetParams,
   ListGlobalParams,
+  ListRoomDisplayScriptsParams,
   ListScriptsParams,
   RemoveScriptParams,
   UpdateScriptParams,
 } from "./params";
+import type { RoomDisplayPolicy } from "./resolve";
 import type { DetachResult, RemoveResult, ReorderResult } from "./results";
 import type { RegexScriptRow } from "./views";
 
@@ -43,6 +45,12 @@ export interface RegexContext {
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly requireChatHost: (principal: Principal, chatId: ChatId) => Promise<void>;
   readonly requireChatMember: (principal: Principal, chatId: ChatId) => Promise<void>;
+  /** D121-E display-tier room OPTION (owner ruling 2026-08-02): resolve WHOSE display scripts this room
+   *  broadcasts. Injected from chat because both halves are chat's data — the room's host seat and the
+   *  `chatMetadata.hostDisplayScripts` flag. Regex reads neither the roster nor chat metadata itself (the
+   *  same posture as the guards above). `enabled:false` ⇒ the per-user default, and `listRoomDisplayScripts`
+   *  returns nothing at all. */
+  readonly resolveRoomDisplayPolicy: (chatId: ChatId) => Promise<RoomDisplayPolicy>;
   /** Live-freshness invalidation. O-7 arm (a): the library is a low-churn owner surface, so ONE
    *  `regexChanged` user event carries every mutation; FK CASCADE + the D50 no-deletion-events discipline
    *  carry the rest. There are no per-entity bus events. */
@@ -78,6 +86,12 @@ export interface RegexService {
   readonly detachFromChat: (params: DetachFromChatParams) => Promise<DetachResult>;
   /** Room-public, not owner-filtered — the room's set is what every member's turns assemble against. */
   readonly listForChat: (params: ListForChatParams) => Promise<RegexScriptRow[]>;
+
+  /** The room's BROADCAST display set (D121-E host option). Member-readable: any present member needs it to
+   *  render the transcript the way the host intends. Returns the HOST's enabled DISPLAY-placement scripts
+   *  when the room opted in, and `[]` otherwise — so the OFF arm is byte-identical to a room that never
+   *  heard of the option, and a member can never learn what scripts the host owns while it is off. */
+  readonly listRoomDisplayScripts: (params: ListRoomDisplayScriptsParams) => Promise<RegexScriptRow[]>;
 
   /** Rewrite one scope's execution order (position 0 runs first). Authority is that scope's own gate. */
   readonly applyScopeOrder: (params: ApplyScopeOrderParams) => Promise<ReorderResult>;

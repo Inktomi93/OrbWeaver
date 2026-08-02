@@ -16,3 +16,4 @@ export { createListForCharacter } from "./list-for-character";
 export { createListForChat } from "./list-for-chat";
 export { createListForPreset } from "./list-for-preset";
 export { createListGlobal } from "./list-global";
+export { createListRoomDisplayScripts } from "./list-room-display-scripts";

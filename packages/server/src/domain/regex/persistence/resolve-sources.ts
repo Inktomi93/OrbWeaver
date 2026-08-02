@@ -2,23 +2,33 @@
 // chat-turn seam, contract/resolve.ts). Principal-LESS by construction: every id it takes was already gated
 // by the caller (the turn resolves under the frozen `runAsUserId`, D19), so this is a pure keyed read.
 //
-// The CAST slice concatenates per character IN ROSTER ORDER — the order is load-bearing (the union feeds
-// `executeRegexScripts`, which applies its list in order), so this cannot be a single `inArray` read: that
-// would return rows in table order and silently scramble a multi-character room's precedence.
+// THE CAST SLICE IS ROSTER-ORDERED, and that is load-bearing: the union feeds `executeRegexScripts`, which
+// applies its list IN ORDER, so a multi-character room's precedence is the roster's. ONE `inArray` read
+// brings every seated character's attachments back at once and the rows are REGROUPED into roster order
+// here — a per-character read loop was N round-trips for the same answer, and a bare `inArray` WITHOUT the
+// regroup would silently hand the executor table order instead of the roster's.
 
-import type { Db } from "@orb/db";
+import { characterRegexScripts, regexScripts } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import type { RegexResolveContext, ResolvedRegexSources, ResolveRegexSources } from "../contract/resolve";
-import type { ScriptRecord } from "./queries";
-import { listCharacterScripts, listChatScripts, listGlobalScripts, listPresetScripts, toRow } from "./queries";
+import type { ScriptRecord } from "../contract/rows";
+import { listChatScripts, listGlobalScripts, listPresetScripts, toRow } from "./queries";
 
-async function castSlice(db: Db, ownerId: UserId, characterIds: readonly CharacterId[]): Promise<ScriptRecord[]> {
-  const out: ScriptRecord[] = [];
-  for (const characterId of characterIds) {
-    // biome-ignore lint/performance/noAwaitInLoops: roster ORDER is the precedence order (see the header) — one small keyed read per seated character, deliberately sequential.
-    out.push(...(await listCharacterScripts(db, ownerId, characterId)));
+/** Every seated character's attached rows, concatenated in ROSTER order (see the header). */
+async function castSlice(ctx: RegexResolveContext, ownerId: UserId, characterIds: readonly CharacterId[]): Promise<ScriptRecord[]> {
+  if (characterIds.length === 0) {
+    return [];
   }
-  return out;
+  const rows = await ctx.db
+    .select({ characterId: characterRegexScripts.characterId, script: regexScripts })
+    .from(characterRegexScripts)
+    .innerJoin(regexScripts, eq(characterRegexScripts.regexScriptId, regexScripts.id))
+    .where(and(inArray(characterRegexScripts.characterId, [...characterIds]), eq(regexScripts.ownerId, ownerId)))
+    .orderBy(asc(characterRegexScripts.position), asc(regexScripts.createdAt));
+
+  // Regroup by the ROSTER's order, not the query's. WITHIN a character the query's ORDER BY already holds.
+  return characterIds.flatMap((characterId) => rows.filter((row) => row.characterId === characterId).map((row) => row.script));
 }
 
 export function createResolveRegexSources(ctx: RegexResolveContext): ResolveRegexSources {
@@ -26,7 +36,7 @@ export function createResolveRegexSources(ctx: RegexResolveContext): ResolveRege
     const [hostGlobal, preset, cast, chat] = await Promise.all([
       listGlobalScripts(ctx.db, ownerId),
       presetId === null ? Promise.resolve<ScriptRecord[]>([]) : listPresetScripts(ctx.db, ownerId, presetId),
-      castSlice(ctx.db, ownerId, characterIds),
+      castSlice(ctx, ownerId, characterIds),
       listChatScripts(ctx.db, chatId),
     ]);
     return {
