@@ -31,6 +31,8 @@ import { PresetImportDialog } from "./preset-import-dialog";
 
 const NEW_PRESET_NAME = "New preset";
 const NEW_PRESET_KIND = "generation";
+/** ONE string for the import door's accessible name AND its hover tooltip (O-3). */
+const IMPORT_LABEL = "Import a preset";
 
 export function PresetListHeader(): ReactElement {
   const trpc = useTRPC();
@@ -63,7 +65,9 @@ export function PresetListHeader(): ReactElement {
         action={
           // ONE flex child, so the band's space-between keeps the cluster hard against the trailing edge.
           <Row align="center" gap="field">
-            <Button aria-label="Import a preset" intent="ghost" onClick={(): void => setImportOpen(true)} size="sm">
+            {/* O-3: icon-only, so the aria-label served AT and left sighted users with nothing on hover —
+                the native `title` is the same string, so the tooltip and the accessible name can't drift. */}
+            <Button aria-label={IMPORT_LABEL} intent="ghost" onClick={(): void => setImportOpen(true)} size="sm" title={IMPORT_LABEL}>
               <Icon icon={Upload} size="sm" />
             </Button>
             <Button disabled={create.isPending} intent="primary" onClick={onCreate} size="sm">

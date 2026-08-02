@@ -183,7 +183,6 @@ export const DEFAULT_MAX_OUTPUT_TOKENS = 2048;
 export const generationKnobSchemas = {
   thinkingBudgetTokens: z.number().int().positive().optional(),
   maxOutputTokens: z.number().int().positive().optional(),
-  maxBudgetUsd: z.number().positive().optional(),
   maxContextTokens: z.number().int().positive().optional(),
   temperature: z.number().min(TEMPERATURE_MIN).max(TEMPERATURE_MAX).optional(),
   topP: z.number().min(TOP_P_MIN).max(TOP_P_MAX).optional(),
@@ -211,7 +210,6 @@ export const userIntentSchema = z
     thinkingDisplay: z.enum(THINKING_DISPLAYS).optional(),
 
     maxOutputTokens: generationKnobSchemas.maxOutputTokens,
-    maxBudgetUsd: generationKnobSchemas.maxBudgetUsd,
     maxContextTokens: generationKnobSchemas.maxContextTokens,
     providerContextCompression: z.boolean().optional(),
 
@@ -1035,12 +1033,13 @@ const _valueIsKitValue = (value: z.infer<typeof userMacroInputValueSchema>): Use
 void _valueIsKitValue;
 
 /** Current blob shape. Bump + add a lift below when the shape changes (NO DB migration needed). */
-export const PROMPT_CONFIG_SCHEMA_VERSION = 5;
+export const PROMPT_CONFIG_SCHEMA_VERSION = 6;
 const SCHEMA_VERSION_V1 = 1; // walk floor — a versionless/garbage blob probes as v1
 const SCHEMA_VERSION_V2 = 2;
 const SCHEMA_VERSION_V3 = 3;
 const SCHEMA_VERSION_V4 = 4;
 const SCHEMA_VERSION_V5 = 5;
+const SCHEMA_VERSION_V6 = 6;
 
 /** The per-preset format-string overrides. Every key is optional and blank-means-default. NO carrier refine
  *  here on purpose — this schema is also the READ path (`parsePromptConfig` degrades a failed parse to
@@ -1190,7 +1189,23 @@ export const CONFIG_LIFTS: Record<number, (config: Record<string, unknown>) => R
   // empty template becomes `{ template: undefined, enabled: false }`: the marker is off, and clearing the
   // field in the editor now means "the built-in default rides" for every section alike.
   4: (c): Record<string, unknown> => ({ ...c, schemaVersion: SCHEMA_VERSION_V5, sections: liftSilentTemplates(c["sections"]) }),
+  // v5 → v6: `params.maxBudgetUsd` is DELETED (owner ruling 2026-08-02, resolving the redesign's D6 fork:
+  // the knob had no editor on any surface, so no user could ever set, see, or clear it). A LIFT and not a
+  // silent drop, because `userIntentSchema` is `.strict()` and `promptConfigSchema` `.catch({})`s the whole
+  // params blob on a parse failure: without this, one stored budget key would take EVERY other knob on that
+  // preset down with it. Strip the key, keep the rest.
+  5: (c): Record<string, unknown> => ({ ...c, schemaVersion: SCHEMA_VERSION_V6, params: liftDropMaxBudgetUsd(c["params"]) }),
 };
+
+/** v5→v6: drop the retired `maxBudgetUsd` knob. Non-object params / a blob that never carried it pass
+ *  through UNTOUCHED (by reference where nothing changes — the same shape every lift above uses). */
+function liftDropMaxBudgetUsd(params: unknown): unknown {
+  if (params === null || typeof params !== "object" || !("maxBudgetUsd" in params)) {
+    return params;
+  }
+  const { maxBudgetUsd: _retired, ...rest } = params as Record<string, unknown>;
+  return rest;
+}
 
 /** v4→v5: `template: ""` ⇒ drop the template AND disable the section. Non-array sections / non-object
  *  entries / a non-empty template pass through untouched (by reference where nothing changes). */

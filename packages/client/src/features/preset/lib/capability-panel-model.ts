@@ -9,6 +9,7 @@
 import type { EffortLevel, ModelCapability, Range, Verbosity } from "@orb/contracts/connection";
 import type { Quality } from "@orb/contracts/preset";
 import { QUALITY_LEVELS } from "@orb/contracts/preset";
+import type { SelectItems } from "@orb/ui/select";
 
 // The sampling axis: each entry names the params path it binds, the label, and the capability.sampling
 // key that gates it (renders only when that key carries a Range).
@@ -215,6 +216,34 @@ export const QUALITY_OPTIONS: readonly QualityOption[] = QUALITY_LEVELS.map((val
   label: QUALITY_META[value].label,
   description: QUALITY_META[value].description,
 }));
+
+/** The select's OFF arm (owner ruling O-18: the segmented strip dies, quality becomes a dropdown with a
+ *  "don't use quality" option). A UI-ONLY sentinel: OFF is STORED AS THE ABSENCE of `params.quality`, which
+ *  is already the funnel's own off arm — `resolve-chat.ts` feeds neither `QUALITY_EFFORT` nor
+ *  `QUALITY_SAMPLING` when the field is undefined, and `DEFAULT_PROMPT_CONFIG.params` ships `{}`. A FOURTH
+ *  `QUALITY_LEVELS` member would be the opposite of that: it would force an `"off"` row into both dial
+ *  Records — a mapping that materializes defaults for "no mapping" — which is exactly what the G8 tri-state
+ *  retirement ruled against (a stored third state for what an existing mechanism already expresses). So the
+ *  dropdown NAMES the absence; it does not mint a value for it. */
+const QUALITY_OFF = "off";
+
+/** The dial as SELECT items — the OFF arm first, then the levels in canonical order. `SelectItems` (not
+ *  `QualityOption[]`): the OFF arm is not a `Quality`, and a select renders labels, not descriptions. */
+export const QUALITY_SELECT_ITEMS: SelectItems<string> = [
+  { value: QUALITY_OFF, label: "Don't use quality" },
+  ...QUALITY_OPTIONS.map((option) => ({ value: option.value as string, label: option.label })),
+];
+
+/** The select's value for a stored dial — the OFF sentinel when nothing is stored, never an empty string
+ *  (an empty Select renders its placeholder, and "no quality" is a real, named arm here, not an unset one). */
+export function qualitySelectValue(quality: Quality | undefined): string {
+  return quality ?? QUALITY_OFF;
+}
+
+/** The stored dial for a select value — OFF (and any unknown string) writes the ABSENCE. */
+export function qualityFromSelect(value: string | null): Quality | undefined {
+  return QUALITY_LEVELS.find((level) => level === value);
+}
 
 // The quality→axes mapping lives server-side, not here — this client model owns only the dial's
 // display copy; it must not re-map quality → effort (a second derivation would drift from the funnel).

@@ -161,6 +161,48 @@ reports a nav error, run `pnpm stack start` first. **All three write only under 
     drive one, read the passive one. Multi-tab is NOT a chrome-devtools reason anymore.
   - **`--mobile`** (true iPhone 14 Pro Max emulation: touch, `pointer: coarse`, DPR 3 — hover-reveals go
     always-visible, rail becomes the bottom tab bar) / **`--desktop`** (1280×800 explicit).
+  - **`--jsclick <css>`** = raw in-page `el.click()` — THE tool for VIRTUALIZED/composite rows
+    (list panes, message lists): `--click` with role= locators FLAKES on them (actionability
+    timeouts). Reach for `--jsclick` first on any list-row target.
+  - **`--isolated`** (frozen HEAD worktree stage on :8888/:5273, own db) / **`--dirty`** (stage the
+    WORKING TREE, re-syncs on each call) — review WITHOUT fighting the dev stack's HMR while lanes
+    edit it. `--stage-status` / `--stage-down` manage it. If your review window overlaps active
+    lanes, STAGE — a crash-looping dev vite mid-review is not a product finding.
+  - **`--contexts 2`** / **`--as member`** = isolated per-user contexts against the multi-user
+    FIXTURE stack (host-vs-member views); refuses loudly if the fixture isn't up — never boots it.
+  - `--ls key=json` seeds localStorage pre-nav (zustand-persisted prefs); `--probe` freezes
+    relative-time labels + animations for deterministic shots; `--idle` settles on network-quiet;
+    `--crop WxH+X+Y`; `--mask <sel>` pink-boxes volatile regions for `--diff`.
+  - **`--contrast` honesty details**: control-TRACK roles (switch/slider/progressbar) are SKIPPED
+    by design (two-state signal, not track-vs-page — don't report the skip as a gap); empty inputs
+    measure ::placeholder; ancestor opacity dims the reading (`dimmed α0.40` tag); each line names
+    its method (`css-resolve` vs `pixel-sample`) and `--contrast-pixel` forces the pixel path when
+    you suspect a layer paints behind. UNRESOLVED = a refusal, never a fake number — investigate,
+    don't ignore.
+  - **STALENESS footguns (cost real re-verification rounds):** (1) `--map` names go stale across
+    state changes AND double-count hidden hover-reveal text — re-map FRESH against the settled
+    surface; the REAL accessible name comes from `--aria`, not `--map`. (2) Base UI combobox
+    accessible names flip label⇄value mid-transition — never reuse a pre-settle name.
+  - **THE HOVER CLASS IS REAL-POINTER-ONLY (measured 2026-08-02, preset-list P0):** a layout/
+    hit-test oscillation (a hover that moves layout under the pointer — display-swapped markers,
+    reveal clusters that reflow the title line) CANNOT be reproduced by `--hover`, by CTs, or even
+    by discrete CDP hover dispatches — none re-fire pointerover when layout shifts under a
+    stationary pointer. A real mouse loops at ~85 crossings/sec while every synthetic check stays
+    green. So for ANY hover-reveal surface: (a) assert the STRUCTURAL invariant instead — no
+    `display`-based swap keyed on group-hover in the row's hover-variable region (grep receipt +
+    computed-style CT), reveal must be opacity/visibility in reserved geometry; (b) if you must
+    prove the live behavior, use a continuous pointer-move series (chrome-devtools `hover` at
+    stepped coordinates) plus an in-page pointerover/out COUNTER probe on the container, and judge
+    the crossing count — single digits sane, hundreds = the loop. Also remember synthetic `--hover`
+    LOSES :hover on any list re-render (query settle, row recycle) — prefer the focus path for
+    reveal-state shots.
+- **`pnpm record <route> --click <sel> [--pause ms] [--out name]`** — the TRANSITION/JANK EYE:
+  records a webm + GIF of a scripted interaction (`reports/recordings/`), with a 6-tile × 120ms
+  PNG strip around EVERY click and a corner marker that color-cycles at exact click dispatch —
+  count tiles from marker-change to visible response (1 tile = 120ms) for click→motion latency.
+  `--frames [offsetMs]` adds one full-res PNG per step. THE instrument for "does this transition
+  feel right / where does the jank land" when a static shot can't answer. ffmpeg missing = webm
+  still lands, gif/strip skip with a reason (skip ≠ fail).
 - **`pnpm perf-meter <route> --click <sel> [--cycles N] [--cpuprofile]`** — interaction responsiveness:
   per-step input delay, long tasks (>50ms), worst rAF gap (dropped frames), layout-shift score; JSON →
   `reports/perf-meter/`. Use when "does it FEEL right" is the question — a janky mode switch, a slow

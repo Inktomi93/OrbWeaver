@@ -189,6 +189,7 @@ export function AppShell(): ReactElement {
             data-section={layout.activeSection}
             data-list-mode={layout.listMode}
             data-context-mode={layout.contextMode}
+            data-focus-mode={layout.focusMode}
             data-density={density}
             data-elevation={appearance.elevation}
             data-reduced-motion={appearance.reducedMotion}

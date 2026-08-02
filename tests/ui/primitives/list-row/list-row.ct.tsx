@@ -329,6 +329,48 @@ test("a FLOATED cluster is inert over the text at rest and comes live on the row
   expect(await hitAt()).toBe("button");
 });
 
+// A RESERVED in-flow cluster is a sibling OUTSIDE the body, so the default body-painted hover tint stops
+// short of it and the controls sit on the pane background — which is exactly what pushed the preset row's
+// cluster into painting its own darker panel (the box-in-box double highlight, crunch-list item 18).
+// `rowTint="row"` moves the tint to the ROOT. Asserted on COMPUTED colors: the body's own tint must be
+// neutralized in this arm (two painted boxes double the alpha) and the root's must be live on hover.
+test("rowTint=row paints the hover tint on the ROOT, and the body stops painting its own", async ({ mount, page }) => {
+  await mount(
+    <ListRow
+      actions={<Button aria-label="Actions" intent="ghost" size="icon" />}
+      className="group"
+      clickable={true}
+      rowTint="row"
+      subtitle="the pitch"
+      title="Elara"
+    />,
+  );
+  const root = page.locator('[data-slot="list-row-root"]');
+  const body = page.locator('[data-slot="list-row-body"]');
+  const cluster = page.locator('[data-slot="list-row-actions"]');
+
+  const accent = TOKENS["color.accent"].value;
+  await expect(root).not.toHaveCSS("background-color", accent);
+  await expect(body).not.toHaveCSS("background-color", accent);
+
+  await root.hover();
+  await expect(root, "the ROW wears the hover tint").toHaveCSS("background-color", accent);
+  // The body would otherwise stack a second identical tint over the first, and the cluster would still be
+  // outside both.
+  await expect(body).not.toHaveCSS("background-color", accent);
+  await expect(cluster).not.toHaveCSS("background-color", accent);
+  // The cluster is INSIDE the painted box — that is what "the glyphs ride the row tint" means in geometry.
+  // ONESHOT-OK: settled — the tint assertions above already awaited the row's hover transition, and this
+  // reads STATIC layout (no animation moves the cluster relative to the root).
+  const boxes = await root.evaluate((el) => {
+    const rootRect = el.getBoundingClientRect();
+    const actionsRect = (el.querySelector(`[data-slot="list-row-actions"]`) as HTMLElement).getBoundingClientRect();
+    return { rootRight: rootRect.right, actionsRight: actionsRect.right, rootLeft: rootRect.left, actionsLeft: actionsRect.left };
+  });
+  expect(boxes.actionsLeft).toBeGreaterThanOrEqual(boxes.rootLeft);
+  expect(boxes.actionsRight).toBeLessThanOrEqual(boxes.rootRight);
+});
+
 test("renders the leading slot", async ({ mount, page }) => {
   await mount(<ListRow leading={<span data-testid="glyph">*</span>} title="Elara" />);
   await expect(page.getByTestId("glyph")).toBeVisible();

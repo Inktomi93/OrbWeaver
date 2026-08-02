@@ -22,6 +22,7 @@ import {
   parsePromptConfig,
   promptConfigSchema,
   promptConfigWriteSchema,
+  QUALITY_LEVELS,
   SIDE_GEN_POSTURES,
   TEMPLATE_DEF_BY_ID,
   TEMPLATE_DEFS,
@@ -43,6 +44,7 @@ const SCHEMA_VERSION_V2 = 2;
 const SCHEMA_VERSION_V3 = 3;
 const SCHEMA_VERSION_V4 = 4;
 const SCHEMA_VERSION_V5 = 5;
+const SCHEMA_VERSION_V6 = 6;
 
 test("promptConfigSchema accepts DEFAULT_PROMPT_CONFIG and parsePromptConfig round-trips it", () => {
   expect(promptConfigSchema.parse(DEFAULT_PROMPT_CONFIG)).toEqual(DEFAULT_PROMPT_CONFIG);
@@ -198,6 +200,40 @@ test("CONFIG_LIFTS v4→v5 turns a silenced (template:'') marker into a DISABLED
   expect(sections[2]?.["enabled"]).toBe(true);
 });
 
+// v5→v6 (owner ruling 2026-08-02, resolving D6): `params.maxBudgetUsd` is DELETED — it had no editor on any
+// surface, so nobody could set, read or clear it. The LIFT is the load-bearing half: `userIntentSchema` is
+// `.strict()` and `promptConfigSchema` `.catch({})`s the whole params blob on failure, so a silent field
+// removal would make ONE stored budget key wipe every other knob on that preset.
+test("CONFIG_LIFTS v5→v6 strips the retired maxBudgetUsd knob and leaves every sibling knob intact", () => {
+  const liftV5 = CONFIG_LIFTS[SCHEMA_VERSION_V5];
+  if (liftV5 === undefined) {
+    throw new Error("CONFIG_LIFTS[5] is missing");
+  }
+  const lifted = liftV5({
+    schemaVersion: SCHEMA_VERSION_V5,
+    params: { maxBudgetUsd: 5, temperature: SAMPLE_TEMPERATURE, quality: "deep" },
+  });
+  expect(lifted["schemaVersion"]).toBe(SCHEMA_VERSION_V6);
+  expect(lifted["params"]).toEqual({ temperature: SAMPLE_TEMPERATURE, quality: "deep" });
+
+  // A blob that never carried it passes through untouched (by reference — the shape every lift here uses).
+  const params = { temperature: SAMPLE_TEMPERATURE };
+  expect(liftV5({ schemaVersion: SCHEMA_VERSION_V5, params })["params"]).toBe(params);
+});
+
+test("a stored preset carrying maxBudgetUsd parses forward WITHOUT losing its other params (the .catch({}) trap)", () => {
+  // Without the lift this whole blob's params degrade to `{}` — the strict schema rejects the unknown key
+  // and the catch swallows the entire object. That is the regression this test exists to make loud.
+  const parsed = parsePromptConfig({
+    ...DEFAULT_PROMPT_CONFIG,
+    schemaVersion: SCHEMA_VERSION_V5,
+    params: { maxBudgetUsd: 12.5, temperature: SAMPLE_TEMPERATURE, quality: "deep" },
+  });
+  expect(parsed.schemaVersion).toBe(PROMPT_CONFIG_SCHEMA_VERSION);
+  expect(parsed.params).toEqual({ temperature: SAMPLE_TEMPERATURE, quality: "deep" });
+  expect("maxBudgetUsd" in parsed.params).toBe(false);
+});
+
 test("a stored preset carrying a silenced marker parses forward to a disabled, default-templated one", () => {
   const parsed = parsePromptConfig({
     ...DEFAULT_PROMPT_CONFIG,
@@ -236,6 +272,19 @@ test("a clean params blob parses through unchanged (the catch only fires on fail
     params: { temperature: SAMPLE_TEMPERATURE, quality: "deep" },
   });
   expect(parsed.params).toEqual({ temperature: SAMPLE_TEMPERATURE, quality: "deep" });
+});
+
+test("the QUALITY dial's OFF arm is the ABSENCE — the enum stays three-membered (owner ruling O-18)", () => {
+  // The editor's "Don't use quality" option is a REAL arm, stored as no `quality` key at all: the funnel
+  // feeds nothing when the field is absent, and DEFAULT_PROMPT_CONFIG.params ships `{}`. Pinning it here is
+  // what stops a later lane from "fixing" the dropdown by adding a fourth `QUALITY_LEVELS` member — which
+  // would force an `off` row into QUALITY_EFFORT/QUALITY_SAMPLING and thereby MATERIALIZE a mapping for
+  // "no mapping" (the exact shape the G8 tri-state retirement ruled out).
+  expect(QUALITY_LEVELS).toEqual(["fast", "balanced", "deep"]);
+  expect(userIntentSchema.parse({})).toEqual({});
+  expect(userIntentSchema.parse({ quality: undefined }).quality).toBeUndefined();
+  expect(userIntentSchema.safeParse({ quality: "off" }).success).toBe(false);
+  expect(DEFAULT_PROMPT_CONFIG.params.quality).toBeUndefined();
 });
 
 test("userIntentSchema rejects an out-of-bounds knob (the shared numeric bounds hold)", () => {

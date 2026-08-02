@@ -101,9 +101,18 @@ export const CONTINUE_POSTFIX_ITEMS: SelectItems<string> = CONTINUE_POSTFIX_TYPE
 /** The label an UNSET Continue-delimiter select GHOSTS (side-eye F-05). */
 export const continuePostfixLabel = (value: ContinuePostfix): string => CONTINUE_POSTFIX_LABELS[value];
 
+// SHORT LABELS (owner ruling O-4). These are SELECT OPTION labels — the trigger renders the picked one
+// inline, and "Default — Managed — summarize into a memory marker at a threshold" ran past the control
+// column and truncated mid-sentence. The mode NAME is the label; what each mode DOES rides the row's hover
+// hint (§4.1's rule: the datum is visible, the teaching costs no width).
+//
+// The old label also carried the O-5 VOCAB LIE: compaction writes `chats.compactSummary`/`compactedAtSeq`
+// — its own chained COMPACTION marker spliced into the top history slot — and never feeds the Memory plane
+// (remembered past events, a different system). The domain's own noun is "compaction marker"
+// (`domain/chat/verbs/compaction.ts`), and that is what every preset-side copy site now says.
 const COMPACTION_MODE_LABELS: Record<CompactionMode, string> = {
-  auto: "Auto — the SDK's own compaction",
-  managed: "Managed — summarize into a memory marker at a threshold",
+  auto: "Auto",
+  managed: "Managed",
 };
 export const COMPACTION_MODE_ITEMS: SelectItems<string> = COMPACTION_MODES.map((value) => ({
   value,

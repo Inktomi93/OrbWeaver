@@ -15,6 +15,15 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { RackStory } from "./_rack-stories";
 
+// The zone select's two arms + the triggers dial's readings, matched on the trigger's TEXT (a Select
+// renders its arm's whole label, and these pins are about WHICH arm — not its full copy). Top-level per
+// `useTopLevelRegex`.
+const RELATIVE_ZONE_RE = /Relative/;
+const IN_CHAT_ZONE_RE = /In Chat/;
+const EVERY_GENERATION_RE = /Every generation/;
+const CONTINUE_TRIGGER_RE = /Continue/;
+const SWIPE_TRIGGER_RE = /Swipe/;
+
 test("a row CLICK selects without mounting the drill-in; the CHEVRON drills", async ({ mount }) => {
   const probe = await mount(<RackStory />);
 
@@ -46,14 +55,14 @@ test("O-9 — a RELATIVE section has no depth and no order; an IN CHAT one has b
 
   // `sec_del` sits BEFORE the pivot ⇒ Relative.
   await probe.getByRole("button", { name: "Edit DeleteMe" }).click();
-  await expect(probe.getByRole("combobox", { name: "Zone" })).toHaveText(/Relative/);
+  await expect(probe.getByRole("combobox", { name: "Zone" })).toHaveText(RELATIVE_ZONE_RE);
   await expect(probe.getByRole("textbox", { name: "Inject at depth" })).toHaveCount(0);
   await expect(probe.getByRole("textbox", { name: "Order" })).toHaveCount(0);
   await probe.getByRole("button", { name: "Back to rack" }).click();
 
   // `sec_z` sits AFTER it ⇒ In Chat, where both fields mean something.
   await probe.getByRole("button", { name: "Edit Zeta" }).click();
-  await expect(probe.getByRole("combobox", { name: "Zone" })).toHaveText(/In Chat/);
+  await expect(probe.getByRole("combobox", { name: "Zone" })).toHaveText(IN_CHAT_ZONE_RE);
   await expect(probe.getByRole("textbox", { name: "Inject at depth" })).toBeVisible();
   await expect(probe.getByRole("textbox", { name: "Order" })).toBeVisible();
 });
@@ -74,7 +83,7 @@ test("O-8/O-9 — the depth input WRITES (typed value round-trips to the form), 
   // Moving back to Relative un-splices it — a stored depth under a "Relative" label is a lie the
   // assembler would act on.
   await probe.getByRole("combobox", { name: "Zone" }).click();
-  await page.getByRole("option", { name: /Relative/ }).click();
+  await page.getByRole("option", { name: RELATIVE_ZONE_RE }).click();
   await expect(state).toContainText("splice=none");
 });
 
@@ -87,15 +96,15 @@ test("O-11 — Fires on is a multi-check dropdown, and clearing the last pick re
   await probe.getByRole("button", { name: "Edit DeleteMe" }).click();
 
   const fires = probe.getByRole("combobox", { name: "Fires on" });
-  await expect(fires).toHaveText(/Every generation/);
+  await expect(fires).toHaveText(EVERY_GENERATION_RE);
   await expect(probe.getByText("Nothing selected — this section fires on every generation.")).toBeVisible();
 
   await fires.click();
   await page.getByRole("option", { name: "Continue" }).click();
   await page.getByRole("option", { name: "Swipe" }).click();
   await page.keyboard.press("Escape");
-  await expect(fires).toHaveText(/Continue/);
-  await expect(fires).toHaveText(/Swipe/);
+  await expect(fires).toHaveText(CONTINUE_TRIGGER_RE);
+  await expect(fires).toHaveText(SWIPE_TRIGGER_RE);
   await expect(probe.getByText("Only the selected generation types carry this section.")).toBeVisible();
 
   await fires.click();
@@ -161,6 +170,36 @@ test("the drilled header's enable switch and the rack row's switch write ONE fie
   await probe.getByRole("button", { name: "Edit DeleteMe" }).click();
   await probe.getByRole("switch", { name: "DeleteMe enabled" }).click();
   await expect(state).toContainText("on=6");
+});
+
+test("CONTROL COLOR — the rack switch is AMBER-ON, asserted COMPUTED in BOTH states (owner ruling)", async ({ mount }) => {
+  // The rendered defect this pins: every rack switch painted a pale `foreground/55` track ON and the
+  // `input` track OFF — a pair the eye reads as one control in two indistinguishable states, while the
+  // Reasoning switch one tab away was amber. One switch grammar, amber-ON, everywhere on this surface.
+  //
+  // COMPUTED, not the class list: the `tone` axis resolves through tailwind-merge, and a custom-token class
+  // that loses that race still reads correct in source (the tailwind-merge custom-token lesson) — which is
+  // how this exact defect was once marked fixed while rendering grey.
+  const probe = await mount(<RackStory />);
+  const toggle = probe.getByRole("switch", { name: "DeleteMe enabled" });
+  const trackColor = (): Promise<string> => toggle.evaluate((el: HTMLElement) => getComputedStyle(el).backgroundColor);
+  const ember = await probe.evaluate(() => {
+    const swatch = document.createElement("div");
+    swatch.style.backgroundColor = "var(--color-primary)";
+    document.body.append(swatch);
+    const resolved = getComputedStyle(swatch).backgroundColor;
+    swatch.remove();
+    return resolved;
+  });
+
+  // ON (the story seeds every row enabled).
+  await expect(toggle).toBeChecked();
+  expect(await trackColor()).toBe(ember);
+
+  // OFF — a genuinely different track, so the state never rides the thumb offset alone.
+  await toggle.click();
+  await expect(toggle).not.toBeChecked();
+  expect(await trackColor()).not.toBe(ember);
 });
 
 // The two menus are separate mounts on purpose: Base UI's popup leaves an inert backdrop behind for a beat
