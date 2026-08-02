@@ -240,8 +240,90 @@ riding Lane TD: settings appearance partition `embeddable-by-card` column.
 files everywhere; orphans 74 (+14 star-suppressed contracts candidates) — mostly z.infer/alias
 type twins, 2 real clusters (world-info verbs ×10 = dead-wire-vs-dead-ended question; ui
 handle.ts ×5 = unadopted imperative API); testonly 122 (ui 39 = sealed-lib surface question).
-**3 SCOUTS LIVE** (contracts zod-cruft dispositions · server incl. world-info both-ends ·
-client/ui/kit incl. handle cluster) — synthesize on their reports, then a cleanup lane. AGENT-FILE ACCRETION DONE this stretch: doctrine gained
+**SCOUTS DELIVERED (all 3) — SYNTHESIS:** (1) **zod-cruft theory REFUTED** — the one zod
+commit touching contracts is pure respellings/additive, zero consumer removals; every orphan
+predates it. (2) **`pnpm ast` LENS BUG FOUND (load-bearing):** liveness keys consumption on the
+CONSUMED name but candidates on the DECLARED name → any rename-through-re-export barrel
+(`export { createCreate as createCreateBook }`) reads as a false orphan — 15 server false
+positives (10 world-info verbs ARE wired via service.ts; 5 portability verbs ARE wired via
+entry/compose/portability.ts, a second composition root). **✅ LANE AST MERGED (`f4958491`, hook-certified, torn down):** liveness now keys on the
+DECLARATION NODE (declFile+declStart — total identity; lane rejected name-based keying with a
+probe: local renames fork names, the node never forks) across all THREE candidate consumers
+(scanOrphans/scanTestOnly/cmdClientGap — the third was a bug site the brief missed); red-first
+3 shapes (aliased barrel · namespace · star-chain) + a distinct-keys pin so a lazy file-only key
+can't fake the fix. **TRUE ROT COUNTS (lane re-derived, post-fix): orphans kit 2 · contracts
+30(+14sup) · db 0 · server 15 · client 7 · ui 6 — testonly kit 1 · contracts 30 · server 32 ·
+client 18 · ui 39.** 16 false positives removed (all wired verbs). Lesson banked in
+[[knip-ast-liveness-lens-gotchas]]. (3) Real dispositions: ui handle×5 +
+all 39 ui testonly = R2 SEALED SURFACE by doc law (ui-package-design.md:362 mandates
+createHandle exposure; CT-only = designed steady state — NO action) · client registry-context
+×5 = ONE root cause (raw `.Context` export unused, wrapper is the live surface — single
+un-export call, read createRegistryContext header first re: escape-hatch intent) · client store
+clearX/readX = repo-wide test-reset-seam CONVENTION (formalize once, not per-file) · kit
+SessionToken = branded type NEVER wired into the auth path (auth uses plain string —
+wire-or-delete owner call) + OwnerStatId dead · server debugAuthMiddleware dead (shadowed by
+registerDebugRoutes' own build) + *ServiceDeps ×5 dead convention scaffolding · contracts ~14
+convention twins (Spine doc house style — tag-not-delete) + databank/memory pre-built + ~28
+owner-questions. **✅ CLEAN MERGED (`de36d51a`, hook-certified, torn down):** `cfa2049f` 69 files — TAG 32 ·
+DELETE 23 decls + 20 barrel rows + 2 whole files (connection/contract/views.ts,
+discovery/contract/errors.ts) · WIRE 1 (EmitNotification — CLEAN corrected my over-count: only
+automation-watcher was a re-spell; chat's is a DELIBERATELY WIDER two-arg NotificationsEmitOp,
+wiring it would've been a defect) · TRUTH-REPAIR 2 · RENAME 12 test seams · FLAGGED 7 (in the
+table). Lens re-run proof: contracts 30→24 · server 15→4 · client 7→0 · kit 2→2. Table + codemod
+checked in (docs/reviews/misc/2026-08-03-export-rot-dispositions.md ·
+scripts/codemods/export-rot-cleanup.ts, data-driven, re-runnable). **LOAD-BEARING PROBE FIND:
+@public is NOT enforced by knip (exports maps already public-ize subpaths) — the LENS ratchet
+must read the tag ITSELF (hard requirement, in its brief).** Doctrine lines LANDED (test-seam
+self-identifying naming · dynamic-seam-ships-with-lens). NEW SMALL boarded: codemod-kit custom
+Plans that under-declare touchedFiles go SILENTLY INVISIBLE in the preview (silent-error class —
+kit should refuse or warn). Discovery errors question → already owner-ruled AUDIT-THEN-BUILD,
+queue the lane.
+**Lane SEC LIVE** (security-executor) = SessionToken branded through the auth boundary
+(kit id-cast helpers; compile-refusal pin; no auth-semantics change) + permitsHost
+wire-or-delete disposition. **QUEUED behind CLEAN's merge: Lane LENS** = registry-aware
+liveness (the collectServerProcedures pattern generalized to as-const registries) +
+star-suppressed per-symbol grain + the orphan-export ratchet gate at PUSH tier (reasoned-marker
+exemptions, terminal baseline from CLEAN's landed tree).
+**MID-RUN FORKS RULED (both lanes, 08-03 — the new ruling-fork law fired twice, both textbook):**
+CLEAN: 14+1 seeded delete-rows re-classed to @public on sibling evidence + the 07-25 stickler F8
+precedent ("wire-or-annotate-or-delete, never reflex delete"); EmitNotification WIRED not
+flagged (3 compose re-spellers); DiscoveryError deleted + lying header truth-repaired ("should
+discovery grow typed errors" = board question); .Context factory KEEPS its escape hatch (2 live
+direct-useContext optional reads — root fix unavailable, 5 dead re-exports die + header
+documents the pattern). SEC: permitsHost NOT vestigial — wired at the 2 ENFORCEMENT sites
+(read.ts:1125,:1164; spine invariant #6); sites 3+4 are the D106-F1 DATA-PROJECTION class
+(member-visibility = its documented Principal-free home) — NOT wired, boundary cross-cites added
+instead. **OWNER RULED ALL FOUR (08-03, question tool — every mantra-fit arm):** (1) discovery errors =
+AUDIT-THEN-BUILD (sweep failure paths; typed errors WITH throw sites + surfaced client states
+wherever failures are generic/swallowed; close-with-receipts if already honest) — queue a lane.
+(2) viewerIsHost = DERIVE from member-visibility (host-projection helper moves INTO the class
+home, chat-detail consumes it; no Principal threading) — small, chat territory. (3) two-classes
+boundary = MINT INTO LAW (D-ledger clause rides the close-out D-entry: enforcement →
+can()/permitsHost per invariant #6; role-derived payload projections = member-visibility class,
+Principal-free) + SEC's flagged enforcer: a ts-morph gate making an inline role-compare in an
+ENFORCEMENT position red — fold into Lane LENS as a 4th arm. (4) Lane LENS = FULL SCOPE
+confirmed (registry-aware liveness · star-grain · push-tier ratchet · + the two-class gate).
+**LENS ARM 5 (owner-asked 08-03): contract-derive gate** — domain/<x>/contract/ must DERIVE,
+never re-spell: (1) commit-tier syntactic: name-collision with the sibling @orb/contracts dir
+must be a type REFERENCE not an object-literal re-declaration; (2) commit-tier: `*Row`/`*Insert`
+types in contract/ must derive via $inferSelect/$inferInsert; (3) anonymous structural twins =
+`pnpm ast respell <domain>` lens verb + push-tier arm (mutual-assignability, ≥3-prop floor,
+flag-and-verify like clientgap — never per-commit). Dead view-aliases (the ModelCatalogView
+class) need NO new gate — the fixed lens + push-tier ratchet already red them.
+**✅ SEC MERGED (`22389aff`, hook-certified on retry, torn down):** SessionToken branded end to
+end (mint→seam→cookie, 14 positions; red-first type pin 4/4; 5 test-fake cast sites = the
+compile-refusal receipt; brand=provenance, authenticity stays the peppered-HMAC lookup —
+deliberately NO shape validator at the read) + permitsHost WIRED at the 2 enforcement sites +
+two-class boundary cross-cites + entropy pins on the mint. Bounced ONCE at the hook (its
+verbs→tokens/ edge broke domain-substrate-mediates-subsystems; fix = mintToken rides the DI
+seam like hashToken — the domain's own context.ts header had already written that rule; gate
+probe receipts). LESSON LANDED IN DOCTRINE: the lane floor now includes whole-graph depcruise
+whenever files move or imports change (check:structure ≠ depcruise — a scoped-green lane
+shipped an import-boundary red). SEC follow-up small boarded: THREE byte-identical
+session-cookie parsers (entry/auth/seam.ts:56 · http/auth-routes.ts:115 · app.ts:140) —
+divergence hazard, consolidate to one exported reader (behavior-neutral, spans two tiers).
+Invite-token hasher stays generic `(string)=>string` DELIBERATELY (chat invite tokens share the
+primitive and are not SessionTokens — narrowing lives on SessionsContext). AGENT-FILE ACCRETION DONE this stretch: doctrine gained
 the lane invariants + verification floor (briefs shrink now); executor.md
 red-first/hypothesis/SendMessage + KISS-purge **+ 08-03: settled-state CT law (never assert
 in-flight transients; node-side counts ≠ browser settles) + ruling-fork law (defect traces to an
