@@ -14,7 +14,8 @@ import {
   WORKLOAD_SOURCES,
   WORKLOAD_STATUSES,
 } from "@orb/contracts/workloads";
-import { isConstraintViolation, users, workloadSchedules, workloads } from "@orb/db";
+import { users, workloadSchedules, workloads } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";

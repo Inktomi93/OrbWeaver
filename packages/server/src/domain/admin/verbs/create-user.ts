@@ -5,7 +5,8 @@
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
 
-import { isConstraintViolation, users } from "@orb/db";
+import { users } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

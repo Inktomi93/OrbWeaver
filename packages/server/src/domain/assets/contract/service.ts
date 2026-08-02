@@ -51,7 +51,19 @@ export interface AssetsContext {
   readonly resolveCharacterHandle?: (characterId: CharacterId) => Promise<string | null>;
   /** Gallery import re-link: the owner's own character id carrying `handle`, or null if none exists. Optional. */
   readonly findCharacterByHandle?: (args: { readonly ownerId: UserId; readonly handle: string }) => Promise<CharacterId | null>;
+  /** The character-owned avatar-pointer WRITE `backfillAvatars` delegates to (`characters.avatarAssetId` is
+   *  CHARACTER's column — a cross-domain write routes through the owning domain, AGENTS §2 / Tier-1-DB.md
+   *  §"Cross-tier composition"). REQUIRED, not optional: an absent op would silently turn the relink into a
+   *  no-op that still reports `linked: n`. Locally declared (structural), never a sideways type import. */
+  readonly linkCharacterAvatars: LinkCharacterAvatarsOp;
 }
+
+/** Character-owned avatar-relink write op; assets maps its verified `(characterId, assetId)` pairs and never
+ *  touches the `characters` table itself. Owner-scoped per row; a no-op on an empty list. */
+type LinkCharacterAvatarsOp = (args: {
+  readonly ownerId: UserId;
+  readonly links: readonly { readonly characterId: CharacterId; readonly assetId: AssetId }[];
+}) => Promise<void>;
 
 export interface AssetsService {
   /** Persist bytes to the owner's CAS + upsert the index row. `created:false` on within-user dedup;

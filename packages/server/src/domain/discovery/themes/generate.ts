@@ -4,8 +4,9 @@
 // are excluded (they belong to the synthetic group character, not an owner's solo theme space).
 
 import type { SummarizeInput } from "@orb/contracts/role-clients";
-import type { BatchStmt, Db } from "@orb/db";
+import type { Db } from "@orb/db";
 import { digestThemeAssignments, themeClusters } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
 import type { ThemeClusterId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

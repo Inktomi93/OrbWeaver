@@ -6,8 +6,9 @@
 // within the span (NOT the time-interval midpoint — schema/discovery.ts column comment). Idempotent plain
 // UPDATE, no id/clock.
 
-import type { BatchStmt, Db } from "@orb/db";
+import type { Db } from "@orb/db";
 import { digestThemeAssignments, messages } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { ChatDigestId, ChatId, UserId } from "@orb/kit/ids";
 import { asc, eq, inArray } from "drizzle-orm";

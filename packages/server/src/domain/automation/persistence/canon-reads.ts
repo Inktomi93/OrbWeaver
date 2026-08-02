@@ -6,7 +6,8 @@
 
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { assets, characters, chatBooks, chatParticipants, chats, messages, messageVariants, notStateAnchor, worldEntries } from "@orb/db";
+import { assets, characters, chatBooks, chatParticipants, chats, messages, messageVariants, worldEntries } from "@orb/db";
+import { notStateAnchor } from "@orb/db/kit";
 import type { AssetId, CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, isNull, sql } from "drizzle-orm";

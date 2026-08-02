@@ -4,7 +4,8 @@
 // partial index (multiple nulls coexist, equal non-nulls collide), and the epoch-ms NUMBER timestamps.
 
 import { USER_KINDS, USER_ROLES } from "@orb/contracts/identity";
-import { isConstraintViolation, users } from "@orb/db";
+import { users } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";

@@ -7,19 +7,8 @@
 
 import type { RpgGameConfig, RpgQuest } from "@orb/contracts/rpg";
 import { RPG_CHECKPOINT_TRIGGERS, RPG_GAME_MODES, RPG_GAME_STATUSES, RPG_JOURNAL_TYPES, RPG_PROFILE_FREEFORM } from "@orb/contracts/rpg";
-import {
-  characters,
-  chats,
-  isConstraintViolation,
-  messages,
-  messageVariants,
-  rpgCheckpoints,
-  rpgGames,
-  rpgJournal,
-  rpgSheets,
-  rpgSnapshots,
-  users,
-} from "@orb/db";
+import { characters, chats, messages, messageVariants, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, users } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type {
   CharacterId,
   ChatId,
