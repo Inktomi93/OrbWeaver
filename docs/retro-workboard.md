@@ -66,6 +66,13 @@ merges) → density S2/S6 (+S3 post-HUD) → #16/D22 live probes → **DATABANK 
 Owed to owner: verify:push when quiesced (his earlier run hit contention+stale-port, both
 resolved); the E2E_LIVE specs on the next push window.
 
+**═══ ⛔ DISPATCH FREEZE (owner, 08-02 late — weekly usage near the cap) ═══**
+**NO further agent spawning after the two in-flight lanes return** (preset side-eye FIX-ALL ·
+icon-seal lucide lane). Process their reports, merge on receipts, keep THIS BOARD updated —
+then STOP and idle. Everything queued below (R4 · density S6 · SSE residue · combined side-eye ·
+zod stage-A/B/C · icon-seal client adoption · probe-corpora call · DATABANK) WAITS for the
+owner's word. The freeze binds future orchestrator turns until the owner lifts it.
+
 **═══ COMPACTION HANDOFF #2 (08-02 evening — CURRENT; supersedes everything between here and
 the old handoff below) ═══**
 
@@ -183,7 +190,20 @@ rest="never" (D11 chats-row arm; the INVARIANT holds). FLAGS: preset.importFile 
 EXEMPT "self-scoped" not PROBED (correct on evidence — no id to aim; spec/tree divergence noted)
 · PresetImportOutcome flat bag doesn't narrow ok:false→error (bundle-path shape, future
 single-arm-union pass) · LibraryRow grew generic stateToggle/menuItemsBefore/After slots.
-Lessons banked (hub #25). ~~SIDE-EYE~~ **DELIVERED — verdict DO NOT SHIP** (report + orchestrator rulings persisted:
+Lessons banked (hub #25). ~~FIX-ALL~~ **MERGED (`11ee38d8` tail, hooked 12/12; worktree down) — 33/34 FIXED + F-24
+ARGUED-CORRECT (size=icon is 48-coarse/34-fine BY TOKEN, D62-ratified).** GhostValue grammar
+unified (built-in ships template:undefined — wire-identical; 3 selects ghost effective defaults
+w/ minted DEFAULT_NAMES_BEHAVIOR/CONTINUE_POSTFIX rewiring the assembler's ??-sites; slider
+fills dead both arms); F-01 via ListRow subtitlePlacement="inline" (name floor min-w-24); F-04
+via NEW useFocusOnSwap (useFocusOnMount's body-guard can't see in-place swaps — lesson banked
+hub #26); F-15 forced a server datum (EffectivePreset.qualityMapping — §12 bans client
+re-derivation, correct shape); F-08 shipped /55 not /70 (probed: 0.4 luminance sep vs old 0.017);
+§16 rows 7+27 updated same-commit for the header-Export echo. 844 CT + 1608 node green; density
+baseline ratcheted DOWN (7 files off). WATCH: preset-editor-surface.ct:140 flaked once under
+full-parallel (passed isolated ×2 — load flake). **PRESET-1 BUILD = COMPLETE P0-P5.** OWED WHEN
+FREEZE LIFTS: the side-eye RE-VERIFY round (fix-rounds law: re-verify catches fixes that create
+regressions) · D8 binding + Actions resolved preview (§7.1 post-P5) · preset-cohort prose slots ·
+close-out ledger D-entry (mint at re-verify green). Was: ~~SIDE-EYE~~ **DELIVERED — verdict DO NOT SHIP** (report + orchestrator rulings persisted:
 docs/reviews/side-eye/2026-08-02-preset-program.md; owner's mock-vs-rendered axis included).
 34 findings: P0 F-01 three Actions rows render NO name · P1 band incl. custom-badge lies on the
 BUILT-IN (defaults materialized as values — the F2 defect reborn), capability ERROR rendered as
@@ -240,14 +260,21 @@ isError `9e58c49d` — audit-lists-are-snapshots bit at BATCH granularity; queue
 below). **MERGED (hooked, 12/12 green; worktree torn down)** — the parked test-presence-client
 red was cleared by the warm lane (`97f06b32`: mirror CT at tests/client/data/, four real arms
 incl. missing-key→true [pins the !== false spelling] and failed-read→degrade-to-default).
-**+ ICON-SEAL LUCIDE-LEVERAGE LANE (owner-ordered 08-02):** extend the @orb/ui Icon seal so
-client controls OUTLINE WEIGHT / FILL / PARTIAL FILL on any allowlisted icon with zero per-need
-minting. Posture (owner verbatim spirit): "use the fuck out of lucide" — thin curation over
-lucide 1.22.0's full native machinery (probe node_modules AS AUTHORITY + online docs/changelog
-research for the pin); hand-build only what lucide lacks (likely the partial-fill overlay, built
-FROM iconNode data); default arms byte-identical; fill-suitability per icon = tsc-enforced data
-beside the allowlist; partialFill never information-alone (tracker a11y law). ui-only scope —
-client adoption (F-06 bolt migration, tracker orbs, meter glyphs) rides later lanes.
+**~~ICON-SEAL LUCIDE-LEVERAGE~~ MERGED (`89c787ae`, hooked 12/12; worktree down).** The Icon
+primitive now carries `weight` (hairline/regular/bold via absoluteStrokeWidth — optical at every
+size) · `fill` none|solid (lucide's own fill=currentColor — "officially unsupported but works",
+cited) · `partialFill` 0..1 (the ONE hand-built piece — lucide's official half-star recipe is
+per-icon minting, banned; ours rides lucide's DOCUMENTED children-in-svg door + objectBoundingBox
+linearGradient, useId-sanitized, currentColor/D71 throughout). FillableIcon = phantom-brand
+tsc-enforcement (11 glyphs chosen from RENDERED evidence; Menu/Settings counter-examples in the
+gallery; Pause/Square fill per-subpath — single-outline glyphs for meters). Default arm
+byte-identity PROVEN vs HEAD render + frozen as CT (12/12 green). Probe receipts: nothing wanted
+is newer than the 1.22.0 pin (no upgrade). Merge-side fix: typeof-Star stand-ins (persona-panel-
+row ×2 → LucideIcon; the lane pre-fixed relationship-badge). FOLLOW-UPS named not built (freeze):
+LucideProvider at client composition root · vector-effect CSS stroke route · iconNode door for
+brand glyphs (weave-glyph) · fillRule=evenodd probe to grow the fillable set · CLIENT ADOPTION
+(F-06 bolt → fill axis, tracker orbs, meter glyphs, weight= for selection emphasis). Gallery
+receipt reports/icon-seal-gallery.png. Lesson banked (typeof-stand-in sweep before branding).
 **+ ~~ZOD LEVERAGE AUDIT~~ DELIVERED** (report rescued to
 docs/reviews/stickler/2026-08-02-zod-leverage-audit.md, 412 lines; worktree down). **VERDICT: NOT
 lazy** — settings prefault/catch self-heal, per-boundary strict/loose posture, and the
