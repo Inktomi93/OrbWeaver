@@ -80,11 +80,15 @@ export interface CharacterDistillation {
   readonly overview: string | null;
 }
 
-/** The `distillCharacters` pass summary. */
+/** The `distillCharacters` pass summary. `failed` and `skipped` are DIFFERENT outcomes and must not be
+ *  summed into one "didn't work" bucket: `failed` = the summarizer was asked and produced nothing usable
+ *  (transient — re-run it); `skipped` = the card was never asked, because it carries no writing beyond its
+ *  name (permanent until the user writes the card — the on-demand arm refuses it outright). */
 export interface DistillStats {
   readonly scanned: number;
   readonly distilled: number;
   readonly failed: number;
+  readonly skipped: number;
   readonly tagsStaged: number;
 }
 

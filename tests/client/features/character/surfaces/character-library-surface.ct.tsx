@@ -298,14 +298,19 @@ test("⑪ with no stored pageSize, the request falls to the schema default (30)"
 // Dropping a character card onto "Import card" used to do nothing at all: zero requests, no error. These
 // drive the real product path (the band's Import ghost → DROP) and assert the multipart POST fires, and that
 // a card the server can't read gets a LOUD toast naming why instead of a fabricated "Card imported."
-// `notify` is unbound in CT so it falls through to the console seam (success→info, error→error).
+// The story carries the real toast surface, so these assert RENDERED toasts — not the console fallback they
+// used to read (that fallback only fires while `notify` is unbound, which it no longer is in this module).
 
 const A_DROPPED_CARD = { name: "villain.png", mimeType: "image/png", content: "PNG" };
+const TOAST_ROOT = '[data-slot="toast-root"]';
+const IMPORT_DIALOG_TITLE = "Import a character card";
 
 /** Open the band's Import dialog (the ghost beside New — import's ONE home) and return its dropzone. */
 async function openImportDialog(page: Page): Promise<Locator> {
   await page.getByRole("button", { name: "Import a character card" }).click();
-  const dialog = page.getByRole("dialog");
+  // BY NAME, not by role alone: a toast is itself a `dialog`/`alertdialog` node, so a bare role lookup goes
+  // ambiguous the moment the import reports its outcome.
+  const dialog = page.getByRole("dialog", { name: IMPORT_DIALOG_TITLE });
   await expect(dialog).toBeVisible();
   return dialog.locator('[data-slot="file-dropzone"]');
 }
@@ -313,8 +318,6 @@ async function openImportDialog(page: Page): Promise<Locator> {
 test("dropping a card on the Import dialog fires the multipart POST and reports success", async ({ mount, page }) => {
   await routeThree(page);
   const uploads: string[] = [];
-  const logged: string[] = [];
-  page.on("console", (msg) => logged.push(`${msg.type()}:${msg.text()}`));
   await page.route("**/api/import", async (route) => {
     uploads.push(route.request().method());
     await route.fulfill({
@@ -328,19 +331,13 @@ test("dropping a card on the Import dialog fires the multipart POST and reports 
   await dropFiles(await openImportDialog(page), [A_DROPPED_CARD]);
 
   await expect.poll(() => uploads, { intervals: [20, 50, 100] }).toEqual(["POST"]);
-  await expect.poll(() => logged.some((line) => line.includes("Card imported.")), { intervals: [20, 50, 100] }).toBe(true);
+  await expect(page.locator(TOAST_ROOT)).toContainText("Card imported.");
   // A successful import closes the dialog.
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: IMPORT_DIALOG_TITLE })).toHaveCount(0);
 });
 
 test("a PNG with no character data gets a LOUD toast naming why, and the dialog stays open", async ({ mount, page }) => {
   await routeThree(page);
-  const errors: string[] = [];
-  page.on("console", (msg) => {
-    if (msg.type() === "error") {
-      errors.push(msg.text());
-    }
-  });
   // The per-card-isolation shape: a 200 whose `failed[]` carries the server's own reason.
   await page.route("**/api/import", async (route) => {
     await route.fulfill({
@@ -356,8 +353,10 @@ test("a PNG with no character data gets a LOUD toast naming why, and the dialog 
   await mount(<CharacterLibrarySurfaceStory />);
   await dropFiles(await openImportDialog(page), [A_DROPPED_CARD]);
 
-  await expect.poll(() => errors.some((line) => line.includes("No character data found in this PNG")), { intervals: [20, 50, 100] }).toBe(true);
-  // Never a fabricated success, and the dialog stays open so the owner can try another file.
-  expect(errors.some((line) => line.includes("Card imported."))).toBe(false);
-  await expect(page.getByRole("dialog")).toBeVisible();
+  const toast = page.locator(TOAST_ROOT);
+  await expect(toast).toContainText("No character data found in this PNG");
+  // The refusal is LOUD (the destructive tint), and never a fabricated success beside it.
+  await expect(toast).toHaveAttribute("data-type", "error");
+  await expect(page.locator(TOAST_ROOT, { hasText: "Card imported." })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: IMPORT_DIALOG_TITLE })).toBeVisible();
 });

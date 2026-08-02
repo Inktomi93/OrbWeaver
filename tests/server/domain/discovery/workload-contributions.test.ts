@@ -24,12 +24,12 @@ type Contributions = ReturnType<typeof createDiscoveryWorkloadContributions>;
 
 /** A fake discovery service — every verb a `vi.fn` returning the domain's RICHER stats shape, so a test
  *  asserts the contribution's projection down to `AnalyticsResult`, not a pass-through. */
-function fakeDiscovery(): Discovery {
+function fakeDiscovery(distill: DistillOverride = {}): Discovery {
   // The contributions read ONLY the counts fields off each verb's stats — a full DiscoveryService factory
   // FABRICATION-OK: would state far more than these five run bodies touch.
   return {
     computeThemes: vi.fn(async () => ({ digestsAssigned: 10, clustersWritten: 5 })),
-    distillCharacters: vi.fn(async () => ({ scanned: 8, distilled: 8 })),
+    distillCharacters: vi.fn(async () => ({ scanned: 8, distilled: 8, failed: 0, skipped: 0, tagsStaged: 0, ...distill })),
     computeCooccurrence: vi.fn(async () => ({ charKeywordsWritten: 6, pairsWritten: 4 })),
     computeDuplicatePairs: vi.fn(async () => ({ charactersScanned: 7, pairsWritten: 1 })),
     computeChatDuplicatePairs: vi.fn(async () => ({ chatsScanned: 2, pairsWritten: 0 })),
@@ -37,8 +37,15 @@ function fakeDiscovery(): Discovery {
   } as unknown as Discovery;
 }
 
-function build(settings: UserSettings = DEFAULT_USER_SETTINGS): { readonly discovery: Discovery; readonly contributions: Contributions } {
-  const discovery = fakeDiscovery();
+/** The distill stats a test wants the fake pass to report (the sweep's counts are what the progress line
+ *  reads — a skipped/name-only card has no other reader). */
+type DistillOverride = Partial<{ scanned: number; distilled: number; failed: number; skipped: number; tagsStaged: number }>;
+
+function build(
+  settings: UserSettings = DEFAULT_USER_SETTINGS,
+  distill: DistillOverride = {},
+): { readonly discovery: Discovery; readonly contributions: Contributions } {
+  const discovery = fakeDiscovery(distill);
   return { discovery, contributions: createDiscoveryWorkloadContributions({ discovery, loadUserSettings: () => Promise.resolve(settings) }) };
 }
 
@@ -86,6 +93,25 @@ describe("distill-characters", () => {
     await contributions[1].run({ ...ctx, ownerId: null }, {}, vi.fn(), sig());
     const arg = vi.mocked(discovery.distillCharacters).mock.calls[0]?.[0];
     expect(arg).not.toHaveProperty("ownerId");
+  });
+
+  // `AnalyticsResult` is scanned/written only, so the cards the sweep DECLINED to invent facets for (name-
+  // only — owner ruling 2026-08-03) have exactly one reader: the closing progress line. A count nobody can
+  // read is the silent-sweep version of the quiet button the on-demand refusal exists to end.
+  test("the sweep REPORTS the name-only cards it skipped — with the fix, not a bare number", async () => {
+    const { contributions } = build(DEFAULT_USER_SETTINGS, { scanned: 8, distilled: 6, skipped: 2 });
+    const report = vi.fn();
+    await contributions[1].run(ctx, {}, report, sig());
+    const messages = report.mock.calls.map((c) => (c[0] as { message?: string }).message ?? "");
+    expect(messages.at(-1)).toBe("distilled 6 of 8 characters — skipped 2 with no card text to summarize (add a description first)");
+  });
+
+  test("a sweep with nothing skipped says so plainly (no dangling zero-count clause)", async () => {
+    const { contributions } = build();
+    const report = vi.fn();
+    await contributions[1].run(ctx, {}, report, sig());
+    const messages = report.mock.calls.map((c) => (c[0] as { message?: string }).message ?? "");
+    expect(messages.at(-1)).toBe("distilled 8 of 8 characters");
   });
 });
 
