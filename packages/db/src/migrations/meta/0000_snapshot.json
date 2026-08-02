@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "5369caa5-357d-409b-bd4f-f5d1af2ed548",
+  "id": "8d3e769b-6fe8-469c-ac19-7befced2c859",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -921,14 +921,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "regex_scripts": {
-          "name": "regex_scripts",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'[]'"
         },
         "extensions": {
           "name": "extensions",
@@ -2088,20 +2080,6 @@
         },
         "generation_id": {
           "name": "generation_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "raw_request": {
-          "name": "raw_request",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "raw_response": {
-          "name": "raw_response",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -4921,6 +4899,329 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "character_regex_scripts": {
+      "name": "character_regex_scripts",
+      "columns": {
+        "character_id": {
+          "name": "character_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "regex_script_id": {
+          "name": "regex_script_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "character_regex_scripts_script_idx": {
+          "name": "character_regex_scripts_script_idx",
+          "columns": ["regex_script_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "character_regex_scripts_character_id_characters_id_fk": {
+          "name": "character_regex_scripts_character_id_characters_id_fk",
+          "tableFrom": "character_regex_scripts",
+          "tableTo": "characters",
+          "columnsFrom": ["character_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "character_regex_scripts_regex_script_id_regex_scripts_id_fk": {
+          "name": "character_regex_scripts_regex_script_id_regex_scripts_id_fk",
+          "tableFrom": "character_regex_scripts",
+          "tableTo": "regex_scripts",
+          "columnsFrom": ["regex_script_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "character_regex_scripts_character_id_regex_script_id_pk": {
+          "columns": ["character_id", "regex_script_id"],
+          "name": "character_regex_scripts_character_id_regex_script_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "chat_regex_scripts": {
+      "name": "chat_regex_scripts",
+      "columns": {
+        "chat_id": {
+          "name": "chat_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "regex_script_id": {
+          "name": "regex_script_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "chat_regex_scripts_script_idx": {
+          "name": "chat_regex_scripts_script_idx",
+          "columns": ["regex_script_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "chat_regex_scripts_chat_id_chats_id_fk": {
+          "name": "chat_regex_scripts_chat_id_chats_id_fk",
+          "tableFrom": "chat_regex_scripts",
+          "tableTo": "chats",
+          "columnsFrom": ["chat_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "chat_regex_scripts_regex_script_id_regex_scripts_id_fk": {
+          "name": "chat_regex_scripts_regex_script_id_regex_scripts_id_fk",
+          "tableFrom": "chat_regex_scripts",
+          "tableTo": "regex_scripts",
+          "columnsFrom": ["regex_script_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "chat_regex_scripts_chat_id_regex_script_id_pk": {
+          "columns": ["chat_id", "regex_script_id"],
+          "name": "chat_regex_scripts_chat_id_regex_script_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "global_regex_scripts": {
+      "name": "global_regex_scripts",
+      "columns": {
+        "regex_script_id": {
+          "name": "regex_script_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "global_regex_scripts_regex_script_id_regex_scripts_id_fk": {
+          "name": "global_regex_scripts_regex_script_id_regex_scripts_id_fk",
+          "tableFrom": "global_regex_scripts",
+          "tableTo": "regex_scripts",
+          "columnsFrom": ["regex_script_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "preset_regex_scripts": {
+      "name": "preset_regex_scripts",
+      "columns": {
+        "preset_id": {
+          "name": "preset_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "regex_script_id": {
+          "name": "regex_script_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "position": {
+          "name": "position",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "preset_regex_scripts_script_idx": {
+          "name": "preset_regex_scripts_script_idx",
+          "columns": ["regex_script_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "preset_regex_scripts_preset_id_presets_id_fk": {
+          "name": "preset_regex_scripts_preset_id_presets_id_fk",
+          "tableFrom": "preset_regex_scripts",
+          "tableTo": "presets",
+          "columnsFrom": ["preset_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "preset_regex_scripts_regex_script_id_regex_scripts_id_fk": {
+          "name": "preset_regex_scripts_regex_script_id_regex_scripts_id_fk",
+          "tableFrom": "preset_regex_scripts",
+          "tableTo": "regex_scripts",
+          "columnsFrom": ["regex_script_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "preset_regex_scripts_preset_id_regex_script_id_pk": {
+          "columns": ["preset_id", "regex_script_id"],
+          "name": "preset_regex_scripts_preset_id_regex_script_id_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "regex_scripts": {
+      "name": "regex_scripts",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "behavior": {
+          "name": "behavior",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(unixepoch() * 1000)"
+        }
+      },
+      "indexes": {
+        "regex_scripts_owner_idx": {
+          "name": "regex_scripts_owner_idx",
+          "columns": ["owner_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "regex_scripts_owner_id_users_id_fk": {
+          "name": "regex_scripts_owner_id_users_id_fk",
+          "tableFrom": "regex_scripts",
+          "tableTo": "users",
+          "columnsFrom": ["owner_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "rpg_checkpoints": {
       "name": "rpg_checkpoints",
       "columns": {
@@ -5943,7 +6244,7 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": 7
+          "default": 8
         },
         "config": {
           "name": "config",

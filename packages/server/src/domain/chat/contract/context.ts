@@ -53,6 +53,7 @@ import type {
 import type { MessageRole } from "@orb/kit/message-role";
 import type { RegexReplacer } from "@orb/kit/regex";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
+import type { ResolveRegexSources } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
 import type { RoleClientsWithSignal, ToolCallInput, WireTool } from "#infra/providers";
 import type { ActiveTurns } from "./active-turns";
@@ -828,6 +829,11 @@ export interface ChatContext {
    *  which only reaches subscribers of the open chat. */
   readonly emitChatChanged: EmitChatChanged;
   readonly applyRegexReplace: ApplyRegexReplaceOp;
+  /** D121-E: dereference the FOUR regex scope junctions (global / preset / cast / chat) into the host-tier
+   *  sources. Injected from `domain/regex` at compose — chat owns the UNION (`substrate/regex-tier`), never
+   *  the storage. Replaced the three embed-by-value carriers chat used to read off settings/preset/card
+   *  blobs. Called with the turn's frozen `runAsUserId` (D19), so a member can never widen the set. */
+  readonly resolveRegexSources: ResolveRegexSources;
   readonly runChatTurn: RunChatTurnOp;
   /** The chat host's default-preset params (the side-gen sampling ladder's middle rung) — used by the
    *  quiet-generate factory (compaction) and the smart-arbitrate seam. Wired at compose. */

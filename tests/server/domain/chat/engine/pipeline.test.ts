@@ -7,12 +7,12 @@ import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connect
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import type { RegexScript } from "@orb/contracts/regex";
+import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { ContentSpan } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { getLog } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
@@ -926,10 +926,11 @@ describe("runTurnPipeline — immutability", () => {
 
 // ── RECEIVE (D53 step 2): <think>-demux → AI_OUTPUT regex → post-process → REASONING regex ─────────────────
 /** A host-tier regex script (fully defaulted via the parse seam) for a single placement. */
-function script(id: string, find: string, replace: string, placement: "AI_OUTPUT" | "REASONING"): RegexScript {
+function script(label: string, find: string, replace: string, placement: "AI_OUTPUT" | "REASONING"): RegexScriptRow {
   return regexScriptSchema.parse({
-    id,
-    name: id,
+    // D121-E: a row id is a real `regex_script_…` TypeID; the readable label rides on `name`.
+    id: mintTypeId(ID_PREFIX.regexScript),
+    name: label,
     findRegex: find,
     replaceString: replace,
     placement: [placement],
@@ -981,6 +982,58 @@ describe("runTurnPipeline — RECEIVE regex + post-process", () => {
     });
     const result = await runTurnPipeline(args);
     expect(result.content).toBe("Done.");
+  });
+
+  // ── THE RECEIVE ORDER PIN (D121-E's order table) ──────────────────────────────────────────────────
+  // The law: think-demux → AI_OUTPUT regex → postProcess → per-speaker clean → REASONING regex. The tests
+  // around this one pin adjacent PAIRS; this one pins the whole CHAIN in a single turn, so a reorder
+  // anywhere along it breaks here even when every neighbouring pair still looks locally right.
+  //
+  // Order-as-prose rots — that is exactly how the Transforms readout came to print REASONING before
+  // AI_OUTPUT while the engine ran the reverse. This is the executable version of the table.
+  test("RECEIVE ORDER: think-demux → AI_OUTPUT regex → postProcess → REASONING regex, in that order", async () => {
+    const { args } = baseArgs({
+      // The model emits an INLINE <think> block plus a content marker; the reasoning channel is inline, so
+      // the demux must run FIRST or the AI_OUTPUT script would see (and rewrite) the reasoning text too.
+      runChatTurn: finalTurn("<think>ponder RAW</think>SEED"),
+      assembleContext: ctxOf({
+        hostTierRegexScripts: [
+          // AI_OUTPUT turns the marker into a two-sentence string whose tail is a fragment …
+          script("ai", "SEED", "Kept. frag", "AI_OUTPUT"),
+          // … and REASONING rewrites a token that ONLY exists inside the demuxed reasoning channel.
+          script("re", "RAW", "refined", "REASONING"),
+        ],
+        promptConfig: cfgWith({
+          postProcess: { collapseNewlines: false, trimTrailingWhitespace: false, dropIncompleteSentence: true, singleLine: false },
+          reasoningParse: { autoParse: true, prefix: "<think>", suffix: "</think>" },
+        }),
+      }),
+    });
+
+    const result = await runTurnPipeline(args);
+
+    // CONTENT proves demux-before-regex AND regex-before-postProcess: the reasoning text never reached the
+    // AI_OUTPUT pass, the marker WAS rewritten, and the fragment the rewrite created was then dropped.
+    expect(result.content).toBe("Kept.");
+    // REASONING proves the reasoning pass ran on the DEMUXED channel — a token only present in it.
+    expect(result.reasoning).toBe("ponder refined");
+  });
+
+  test("the AI_OUTPUT pass does NOT reach the reasoning channel (the demux boundary holds)", async () => {
+    const { args } = baseArgs({
+      runChatTurn: finalTurn("<think>SHARED</think>SHARED"),
+      // ONE token present in BOTH channels, rewritten by an AI_OUTPUT script only.
+      assembleContext: ctxOf({
+        hostTierRegexScripts: [script("ai", "SHARED", "content-only", "AI_OUTPUT")],
+        promptConfig: cfgWith({ reasoningParse: { autoParse: true, prefix: "<think>", suffix: "</think>" } }),
+      }),
+    });
+
+    const result = await runTurnPipeline(args);
+
+    expect(result.content).toBe("content-only");
+    // If the pass ran before the demux (or on the whole envelope), the reasoning would read "content-only".
+    expect(result.reasoning).toBe("SHARED");
   });
 
   test("REASONING regex transforms the reasoning channel (content untouched)", async () => {
@@ -1553,7 +1606,7 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
       text: body,
       scripts: [
         regexScriptSchema.parse({
-          id: "rs_1",
+          id: mintTypeId(ID_PREFIX.regexScript),
           name: "s",
           enabled: true,
           placement: ["AI_OUTPUT"],

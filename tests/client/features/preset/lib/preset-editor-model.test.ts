@@ -16,7 +16,6 @@ function serverConfig(): PromptConfig {
     ...DEFAULT_PROMPT_CONFIG,
     params: { temperature: 0.7, advanced: { squashSystemMessages: true }, stop: ["END"] },
     customParameters: { provider: { order: ["x"] } },
-    regexScripts: [],
     variables: [],
   });
 }
@@ -47,31 +46,15 @@ test("merge preserves server-only fields the params panel never edits", () => {
   expect(merged.customParameters).toEqual({ provider: { order: ["x"] } });
   expect(merged.params.advanced).toEqual({ squashSystemMessages: true });
   expect(merged.params.stop).toEqual(["END"]);
-  expect(merged.regexScripts).toEqual(server.regexScripts);
   expect(merged.variables).toEqual(server.variables);
 });
 
-test("merge carries EDITED regexScripts + variables (BUILD-SPEC §8 flip — else edits are discarded)", () => {
-  const server = serverConfig(); // both arrays empty on the server
+// D121-E narrowed this pin: `regexScripts` LEFT `PromptConfig` (a preset's scripts are junction rows now),
+// so the BUILD-SPEC §8 flip it guards is about the remaining editable array — `variables`.
+test("merge carries EDITED variables (BUILD-SPEC §8 flip — else edits are discarded)", () => {
+  const server = serverConfig(); // the array is empty on the server
   const edited: PromptConfig = {
     ...seedConfig(server),
-    regexScripts: [
-      {
-        id: "r1",
-        name: "strip ooc",
-        findRegex: "OOC",
-        replaceString: "",
-        placement: ["AI_OUTPUT"],
-        enabled: true,
-        markdownOnly: false,
-        promptOnly: false,
-        runOnEdit: false,
-        trimStrings: [],
-        substituteRegex: 0,
-        minDepth: null,
-        maxDepth: null,
-      },
-    ],
     variables: [
       {
         name: "mood",
@@ -84,8 +67,6 @@ test("merge carries EDITED regexScripts + variables (BUILD-SPEC §8 flip — els
     ],
   };
   const merged = mergeOnSubmit(edited, server);
-  expect(merged.regexScripts).toHaveLength(1);
-  expect(merged.regexScripts[0]?.name).toBe("strip ooc");
   expect(merged.variables).toHaveLength(1);
   expect(merged.variables[0]?.name).toBe("mood");
 });

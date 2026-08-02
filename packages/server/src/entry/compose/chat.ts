@@ -70,6 +70,7 @@ import type { ImageryService } from "#domain/imagery";
 import type { NotificationsService } from "#domain/notifications";
 import type { PersonaService, ResolvePersonasForRoster } from "#domain/persona";
 import type { PresetService } from "#domain/preset";
+import type { ResolveRegexSources } from "#domain/regex";
 import type { SearchService } from "#domain/search";
 import { createTokenHasher } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
@@ -243,6 +244,8 @@ export interface ChatComposeInput {
   readonly resolveHostPrincipal: (userId: UserId) => Promise<Principal>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
   readonly can: Can;
+  /** D121-E: the regex domain's four-scope resolve op (the host-tier sources a turn assembles against). */
+  readonly resolveRegexSources: ResolveRegexSources;
   readonly roleClients: RoleClientsWithSignal;
   readonly connection: ConnectionService;
   readonly credentials: CredentialsService;
@@ -687,6 +690,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // (principal-blind) — this composition-root helper enumerates membership.
     emitChatChanged: createChatChangedEmitter(db),
     applyRegexReplace: createRegexApplyReplace(),
+    // D121-E: the four-scope junction dereference (global/preset/cast/room). Chat owns the UNION
+    // (`substrate/regex-tier`), the regex domain owns the STORAGE — one seam, no blob copies.
+    resolveRegexSources: input.resolveRegexSources,
     tools: input.toolUse === undefined ? null : buildChatToolOps(input.toolUse, input.resolveHostPrincipal),
     // Bridges the chat role's streaming AsyncIterable onto infra's Promise+onDelta shape — the extracted
     // domain→infra turn bridge (createRunChatTurnBridge), injecting the leaf infra runChatTurn + OR-skin map.
@@ -1060,7 +1066,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         personas: { anchor, active },
         // FLAG[timezone-per-request]: {{time}}/{{date}} use the caller's per-request browser zone; the
         // macro engine falls back to server-local until the turn request carries it.
-        globalRegexScripts: us.regex.scripts,
         scanDepth: us.worldInfo.scanDepth,
         injectionTokenBudget: us.worldInfo.tokenBudget,
         memoryConfig,

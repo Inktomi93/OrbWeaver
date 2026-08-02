@@ -5,16 +5,18 @@
 // restore-in-place only, the git working-tree + commit-log split). `ownerId` is KEPT (D23 — characters are
 // single-owned / `fetchOwned`).
 //
-// Card content rides FLAT on the row (D28): the typed promotions `regexScripts` (RegexScript[], the typed
-// column — no `raw` leak), `depthPrompt` (the shared `{depth, role?}` directive + note), `extensions`
-// (residual `data.extensions.*` vendor keys), `residualData` (PD-127 — residual TOP-LEVEL `data.*` keys,
-// `extensions`'s sibling), and `refinery` (derived pipeline signals) are JSON columns read through the
-// `@orb/db/kit` parse-seam. `greetings`/`regexScripts` are ALWAYS-A-LIST columns (default `[]`, never null —
-// the parseStringArray asymmetry). `importHash` (sha-256 of the whole imported file, re-import dedup) is
-// DISTINCT from `contentHash` (the semantic-fields hash); both live on the flat row.
+// Card content rides FLAT on the row (D28): the typed promotions `depthPrompt` (the shared `{depth, role?}`
+// directive + note), `extensions` (residual `data.extensions.*` vendor keys), `residualData` (PD-127 —
+// residual TOP-LEVEL `data.*` keys, `extensions`'s sibling), and `refinery` (derived pipeline signals) are
+// JSON columns read through the `@orb/db/kit` parse-seam. `greetings` is an ALWAYS-A-LIST column (default
+// `[]`, never null — the parseStringArray asymmetry). `importHash` (sha-256 of the whole imported file,
+// re-import dedup) is DISTINCT from `contentHash` (the semantic-fields hash); both live on the flat row.
+//
+// A card's REGEX SCRIPTS are NOT a column (D121-E): they are library rows attached through the
+// `character_regex_scripts` junction (`schema/regex.ts`). The card WIRE still carries them — the import
+// lifts them into rows, the export re-embeds them byte-shape-identically.
 
 import type { CardDepthPrompt, CharacterCard, Greeting, RefinerySignals } from "@orb/contracts/character";
-import type { RegexScript } from "@orb/contracts/regex";
 import type { ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, CharacterSnapshotId, PersonaId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
@@ -109,8 +111,6 @@ export const characters = sqliteTable(
     // Unix-seconds authorship timestamps (ST V3 `data.creation_date` / `data.modification_date`).
     creationDate: integer("creation_date"),
     modificationDate: integer("modification_date"),
-    // Typed promotion (D28): the card's regex scripts. ALWAYS a list; default `[]`, never null.
-    regexScripts: text("regex_scripts", { mode: "json" }).$type<RegexScript[]>().notNull().default(sql`'[]'`),
     // Residual `data.extensions` MINUS the promoted-to-column fields — genuinely-unknown vendor extras only.
     extensions: text("extensions", { mode: "json" }).$type<Record<string, unknown>>(),
     // Residual TOP-LEVEL `data.*` keys MINUS the promoted-to-column fields (PD-127) — the sibling of

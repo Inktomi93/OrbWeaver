@@ -19,8 +19,8 @@ import { notificationsRouter } from "./routers/notifications";
 import { personaRouter } from "./routers/persona";
 import { pluginRouter } from "./routers/plugin";
 import { presetRouter } from "./routers/preset";
+import { regexRouter } from "./routers/regex";
 import { rpgRouter } from "./routers/rpg";
-
 import { searchRouter } from "./routers/search";
 import { sessionsRouter } from "./routers/sessions";
 import { settingsRouter } from "./routers/settings";
@@ -87,6 +87,7 @@ export const appRouter = t.router({
   stream: streamRouter,
   tag: tagRouter,
   workloads: workloadsRouter,
+  regex: regexRouter,
   worldInfo: worldInfoRouter,
 });
 

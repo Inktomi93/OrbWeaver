@@ -69,7 +69,6 @@ export function mergeOnSubmit(edited: PromptConfig, server: PromptConfig): Promp
     schemaVersion: server.schemaVersion,
     sections: edited.sections,
     params: normalizeParams(edited.params),
-    regexScripts: edited.regexScripts,
     variables: edited.variables,
     userMacros: edited.userMacros,
   };

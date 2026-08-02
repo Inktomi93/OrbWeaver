@@ -11,7 +11,6 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { ParamsDeck } from "../../../../../packages/client/src/features/preset/components/params-deck";
-import { RegexTab } from "../../../../../packages/client/src/features/preset/components/regex-tab";
 import { UserMacrosTab } from "../../../../../packages/client/src/features/preset/components/user-macros-tab";
 import { VariablesTab } from "../../../../../packages/client/src/features/preset/components/variables-tab";
 
@@ -106,21 +105,6 @@ export function UserMacrosTabStory(): ReactElement {
         <>
           <output>{`saves=${saves} savedLen=${savedLen}`}</output>
           <UserMacrosTab form={session.form as AppFormInstance<PromptConfig>} presetId={STORY_PRESET} />
-        </>
-      )}
-    </StoryForm>
-  );
-}
-
-/** The Regex tab wired to a real, empty-scripts AUTOSAVE boundary — drives the actual add/remove path. */
-export function RegexTabStory(): ReactElement {
-  const { save, saves, savedLen } = usePersistenceSpy((c) => c.regexScripts.length);
-  return (
-    <StoryForm entityId={STORY_PRESET} serverValues={{ ...DEFAULT_PROMPT_CONFIG, regexScripts: [] }} save={save}>
-      {(session): ReactElement => (
-        <>
-          <output>{`saves=${saves} savedLen=${savedLen}`}</output>
-          <RegexTab form={session.form as AppFormInstance<PromptConfig>} />
         </>
       )}
     </StoryForm>

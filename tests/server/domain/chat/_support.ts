@@ -345,6 +345,9 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
   const base: ChatContext = {
     db,
     now: () => FROZEN_AT,
+    // D121-E: the four-scope regex dereference. Empty by default — a suite that wants host-tier regex
+    // overrides this op, exactly as it overrides `resolveForeignInputs`.
+    resolveRegexSources: () => Promise.resolve({ hostGlobal: [], preset: [], cast: [], chat: [] }),
     can,
     newChatId: mint<ChatId>("chat"),
     newMessageId: mint<MessageId>("message"),

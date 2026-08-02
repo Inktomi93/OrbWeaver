@@ -8,9 +8,12 @@
 // Clicking a row calls `onSelect(facetId)` — the surface writes the local selection AND reveals the CONTEXT
 // Field tab (two-things-at-once, mirroring the preset rack's `onSelectSection`).
 
+import type { CharacterId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useTRPC } from "#data";
 import type { AppFormInstance } from "#forms";
 import type { CharacterCardFacet } from "../lib/character-card-facets";
 import { CHARACTER_CARD_FACETS, CHARACTER_FACET_TIER_LABELS, CHARACTER_FACET_TIERS } from "../lib/character-card-facets";
@@ -21,6 +24,8 @@ type CardForm = AppFormInstance<CharacterCardFormValues>;
 
 export interface CharacterFacetListProps {
   readonly form: CardForm;
+  /** D121-E: the regex facet's "Set" cue + preview count come from `regex.listForCharacter`, not the draft. */
+  readonly characterId: CharacterId;
   /** The CONTENT-drilled / CONTEXT-inspected facet (highlights its row), or `null`. */
   readonly selectedFacetId: CharacterCardFacet["id"] | null;
   /** The facet whose row should reclaim keyboard focus when the list (re)mounts — the drill-in ← Back
@@ -32,14 +37,15 @@ export interface CharacterFacetListProps {
 }
 
 /** Whether a facet holds authored content (drives the "Set" cue). depthPrompt reads its note text; provenance
- *  is filled when either creator or version is set; regexScripts when the array is non-empty; the rest are
+ *  is filled when either creator or version is set; regexScripts when the character has ATTACHED library rows
+ *  (D121-E — a count the caller reads from the server, since scripts are no longer card content); the rest are
  *  filled when their text field is non-blank. */
-function facetFilled(id: CharacterCardFacet["id"], values: CharacterCardFormValues): boolean {
+function facetFilled(id: CharacterCardFacet["id"], values: CharacterCardFormValues, attachedRegexCount: number): boolean {
   switch (id) {
     case "depthPrompt":
       return values.depthPromptText.trim() !== "";
     case "regexScripts":
-      return values.regexScripts.length > 0;
+      return attachedRegexCount > 0;
     case "provenance":
       return values.creator.trim() !== "" || values.cardVersion.trim() !== "";
     case "description":
@@ -56,15 +62,14 @@ function facetFilled(id: CharacterCardFacet["id"], values: CharacterCardFormValu
 /** A short content preview for a FILLED facet row (reads as content, not metadata) — `null` when empty.
  *  depthPrompt previews its note text; regexScripts a count; provenance the creator/version; the rest the
  *  field's own text (the row truncates it). Kept in sync with `facetFilled` (same non-empty definition). */
-function facetPreview(id: CharacterCardFacet["id"], values: CharacterCardFormValues): string | null {
+function facetPreview(id: CharacterCardFacet["id"], values: CharacterCardFormValues, attachedRegexCount: number): string | null {
   switch (id) {
     case "depthPrompt": {
       const text = values.depthPromptText.trim();
       return text === "" ? null : text;
     }
     case "regexScripts": {
-      const count = values.regexScripts.length;
-      return count === 0 ? null : `${count} ${count === 1 ? "script" : "scripts"}`;
+      return attachedRegexCount === 0 ? null : `${attachedRegexCount} ${attachedRegexCount === 1 ? "script" : "scripts"}`;
     }
     case "provenance": {
       const parts = [values.creator.trim(), values.cardVersion.trim()].filter((part) => part !== "");
@@ -83,7 +88,13 @@ function facetPreview(id: CharacterCardFacet["id"], values: CharacterCardFormVal
   }
 }
 
-export function CharacterFacetList({ form, selectedFacetId, focusFacetId, onSelect }: CharacterFacetListProps): ReactElement {
+export function CharacterFacetList({ form, characterId, selectedFacetId, focusFacetId, onSelect }: CharacterFacetListProps): ReactElement {
+  const trpc = useTRPC();
+  // D121-E: the regex facet's row cue reads the ATTACHED junction, not the draft. `useQuery` (not
+  // suspense) so the facet list paints immediately and the regex row's cue fills in — a facet list that
+  // blocks on a satellite read is a worse trade than one row's cue arriving a beat late.
+  const attachedRegex = useQuery(trpc.regex.listForCharacter.queryOptions({ characterId }));
+  const attachedRegexCount = attachedRegex.data?.length ?? 0;
   return (
     <form.Subscribe selector={(s): CharacterCardFormValues => s.values}>
       {(values): ReactElement => (
@@ -100,8 +111,8 @@ export function CharacterFacetList({ form, selectedFacetId, focusFacetId, onSele
                     key={facet.id}
                     facet={facet}
                     selected={facet.id === selectedFacetId}
-                    filled={facetFilled(facet.id, values)}
-                    preview={facetPreview(facet.id, values)}
+                    filled={facetFilled(facet.id, values, attachedRegexCount)}
+                    preview={facetPreview(facet.id, values, attachedRegexCount)}
                     focusOnMount={facet.id === focusFacetId}
                     onSelect={onSelect}
                   />

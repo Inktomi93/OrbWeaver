@@ -353,12 +353,18 @@ export async function gatherAssembleContext(
     gatherDatabank(ctx, { chatId, pendingUserText: args.pendingUserText, eligibleContent: eligible.map((m) => m.content), foreign }),
   ]);
 
-  // The host-tier regex union (host-global ∪ chat-preset ∪ present cast), deterministically ordered/deduped.
-  const hostTierRegexScripts = resolveHostTierRegexScripts({
-    hostGlobal: foreign.globalRegexScripts,
-    preset: foreign.promptConfig.regexScripts,
-    cast: cast.cards,
-  });
+  // The host-tier regex union (global ∪ preset ∪ cast ∪ room), deterministically ordered/deduped. D121-E:
+  // the four slices are LIBRARY ROWS dereferenced from their scope junctions by the injected regex op — the
+  // three embed-by-value carriers this used to read (settings blob / preset blob / card column) are gone.
+  // Resolved under `runAsUserId` (the frozen host, D19), so a member never widens the room's set.
+  const hostTierRegexScripts = resolveHostTierRegexScripts(
+    await ctx.resolveRegexSources({
+      ownerId: runAsUserId,
+      presetId: foreign.presetId ?? null,
+      characterIds: castCharacterIds,
+      chatId,
+    }),
+  );
 
   // {{idle_duration}} (§12, D6) — time-since-last-activity as human text; "" when there is no prior activity.
   const idleDuration = computeIdleDuration(canon, ctx.now(), args.pendingUserText !== undefined);

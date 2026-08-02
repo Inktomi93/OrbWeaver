@@ -5,8 +5,8 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures";
 
 // ── Kind membership: the closed set is EXACTLY the design's §2 eight, no more, no less ──────────────────
-test("PORTABLE_KINDS pins the ten portable entity kinds", () => {
-  expect([...PORTABLE_KINDS]).toEqual(["character", "chat", "persona", "world-info", "preset", "theme", "user-settings", "tag", "gallery", "assets"]);
+test("PORTABLE_KINDS pins the eleven portable entity kinds", () => {
+  expect([...PORTABLE_KINDS]).toEqual(["character", "chat", "persona", "world-info", "regex", "preset", "theme", "user-settings", "tag", "gallery", "assets"]);
 });
 
 // Exhaustiveness over the derived union: a Record<PortableKind, …> fails tsc if a member is added or removed,
@@ -16,6 +16,7 @@ const KIND_SEEN: Record<PortableKind, true> = {
   chat: true,
   persona: true,
   "world-info": true,
+  regex: true,
   preset: true,
   theme: true,
   "user-settings": true,
@@ -29,8 +30,21 @@ test("PortableKind has no member beyond the tuple", () => {
 
 // ── The fixed dependency import order (the ONE cross-entity rule, as data) ──────────────────────────────
 test("PORTABLE_IMPORT_ORDER pins the exact dependency order", () => {
-  // personas / world-info / tags before characters; characters + personas before chats.
-  expect([...PORTABLE_IMPORT_ORDER]).toEqual(["assets", "user-settings", "tag", "persona", "world-info", "character", "gallery", "preset", "theme", "chat"]);
+  // personas / world-info / tags / regex before characters; characters + personas before chats. `regex`
+  // lands before `character` so a bundled card's carried script references re-link to rows that already exist.
+  expect([...PORTABLE_IMPORT_ORDER]).toEqual([
+    "assets",
+    "user-settings",
+    "tag",
+    "persona",
+    "world-info",
+    "regex",
+    "character",
+    "gallery",
+    "preset",
+    "theme",
+    "chat",
+  ]);
 });
 
 test("PORTABLE_IMPORT_ORDER is a permutation of PORTABLE_KINDS (every kind exactly once)", () => {

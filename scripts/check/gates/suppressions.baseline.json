@@ -41,6 +41,7 @@
   "packages/db/src/schema/discovery.ts": 1,
   "packages/db/src/schema/embeddings.ts": 1,
   "packages/db/src/schema/plugin.ts": 1,
+  "packages/db/src/schema/regex.ts": 1,
   "packages/db/src/schema/tag.ts": 1,
   "packages/db/src/schema/world-info.ts": 1,
   "packages/kit/src/macro/builtin-metadata.ts": 3,

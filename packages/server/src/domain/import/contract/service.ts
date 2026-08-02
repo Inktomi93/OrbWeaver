@@ -8,6 +8,7 @@ import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
+import type { ImportCardScripts } from "#domain/regex";
 import type { ImportCharacterInput } from "./params";
 import type { ImportCharacterResult, ImportChatsResult, ImportedCharacterRef, ImportPersonasResult } from "./results";
 import type { ImportChatsInput, ImportPersonaInput } from "./views";
@@ -86,6 +87,10 @@ export interface ImportContext {
   readonly attachCardTag: AttachImportedCardTag;
   readonly importLorebook?: BulkImportLorebookOp;
   readonly linkCarriedBooks?: LinkCarriedBooksOp;
+  /** D121-E: the card LIFT — a card's by-value ST scripts become library rows + a `character_regex_scripts`
+   *  attachment, with carried references re-linked instead of cloned. Optional/absent ⇒ a card's scripts are
+   *  simply not imported (the `importLorebook` optionality shape); the real composition root always wires it. */
+  readonly importCardScripts?: ImportCardScripts;
   readonly profile?: ImportProfileDeps;
 }
 

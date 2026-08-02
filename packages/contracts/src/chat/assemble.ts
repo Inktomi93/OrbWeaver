@@ -14,7 +14,7 @@ import type { EntryPosition } from "@orb/kit/world-info";
 import { z } from "zod";
 import type { GenerationType, PromptConfig, UserIntent } from "#preset";
 import type { ProseOverrides } from "#prose-slot";
-import type { RegexScript } from "#regex";
+import type { RegexScriptRow } from "#regex";
 import type { WorldInfoScope } from "#world-info";
 import type { UserMacroDraws } from "./messages";
 import type { RoomOverrides } from "./metadata";
@@ -432,9 +432,9 @@ export interface AssembleContext {
   worldInfoAfter?: string;
   /** All positional injections for this turn (chat_injections ∪ WI converted at build time). */
   chatInjections?: ChatInjection[];
-  /** The effective HOST-TIER regex set — host-global ∪ chat-preset ∪ cast, resolved under the frozen
-   *  `runAsUserId` (D19, never the caller). Absent ⇒ no host-tier regex this turn. */
-  hostTierRegexScripts?: readonly RegexScript[] | undefined;
+  /** The effective HOST-TIER regex set — the library rows resolved from the global/preset/cast/chat scope
+   *  junctions under the frozen `runAsUserId` (D19, never the caller). Absent ⇒ no host-tier regex. */
+  hostTierRegexScripts?: readonly RegexScriptRow[] | undefined;
   /** WI-conversion trace, copied into `AssembleTrace` for the section-preview panel. `activated` is the
    *  budget-survived, actually-fired WI entries by identity (id + keyword list) — NOT `matchedKeys` (keyword
    *  strings, not entry identity). The engine's live-turn `worldInfoActivated` bus emit derives its id list

@@ -169,7 +169,8 @@ function editPlacementFor(role: MessageView["role"]): RegexPlacement | null {
 
 /**
  * Re-runs the host-tier receive regex, filtered to runOnEdit === true, on an edited slot's content before
- * persist. The script set is the same union a turn resolves (host-global ∪ chat-preset ∪ present cast).
+ * persist. The script set is the same union a turn resolves — ONE seam (`ctx.resolveRegexSources`), so the
+ * edit path can never drift from the turn path the way three hand-assembled blob reads could.
  * Two-phase so the no-script common case stays cheap: only when a runOnEdit script exists is the full
  * assemble ctx gathered. No PRNG is threaded (stable resolution — an edit must not draw randomPick).
  */
@@ -204,12 +205,9 @@ async function applyRunOnEditRegex(
     // a member-owned anchor) resolve exactly as they do on a turn.
     presentHumanUserIds: presentHumanUserIdsOf(args.roster),
   });
-  const cards = await Promise.all(castCharacterIds.map((characterId) => ctx.getCard({ ownerId: hostUserId, characterId })));
-  const scripts = resolveHostTierRegexScripts({
-    hostGlobal: foreign.globalRegexScripts,
-    preset: foreign.promptConfig.regexScripts,
-    cast: cards.flatMap((card) => (card !== null ? [card] : [])),
-  }).filter((script) => script.runOnEdit === true);
+  const scripts = resolveHostTierRegexScripts(
+    await ctx.resolveRegexSources({ ownerId: hostUserId, presetId: foreign.presetId ?? null, characterIds: castCharacterIds, chatId }),
+  ).filter((script) => script.runOnEdit === true);
   if (scripts.length === 0) {
     return args.content;
   }

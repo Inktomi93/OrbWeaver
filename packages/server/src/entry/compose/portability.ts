@@ -22,6 +22,7 @@ import { createImportService } from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
 import { createExportPresets, createImportPresets } from "#domain/preset";
+import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "#domain/regex";
 import type { SettingsContext } from "#domain/settings";
 import { createExportTheme, createExportUserSettings, createImportTheme, createImportUserSettings } from "#domain/settings";
 import type { TagContext } from "#domain/tag";
@@ -50,6 +51,12 @@ export interface PortabilityDeps {
   readonly storeAvatar: ImportAssetPort["store"];
   readonly attachCardTag: ImportTagPort["attachCardTagByName"];
   readonly importLorebook: ImportWorldInfoPort["importLorebook"];
+  /** D121-E: the card LIFT — threaded into every per-owner `ImportContext` so a bundled character card's
+   *  scripts land as library rows + a junction attachment (never a by-value copy on the character row). */
+  readonly importCardScripts: ImportCardScripts;
+  /** The `regex` descriptor's two halves (the `regex/` bundle dir, one `*.json` per library script). */
+  readonly exportRegexScripts: ExportRegexScripts;
+  readonly importRegexScript: ImportRegexScript;
   readonly linkCarriedBooks: ImportWorldInfoPort["linkCarriedBooks"];
   readonly bulkImportChats: BulkImportChats;
   readonly bulkImportPersonas: BulkImportPersonas;
@@ -71,6 +78,7 @@ async function buildOwnerImport(deps: PortabilityDeps, ownerId: UserId): Promise
     attachCardTag: deps.attachCardTag,
     importLorebook: deps.importLorebook,
     linkCarriedBooks: deps.linkCarriedBooks,
+    importCardScripts: deps.importCardScripts,
     profile: {
       now: deps.now,
       personaByUserName: new Map(),
@@ -233,6 +241,29 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     importFile: (ownerId, file) => importWorldBook({ ownerId, bytes: file.bytes }),
   };
 
+  // D121-E: the script library rides the backup bundle as its own entity, so a restore brings the scripts
+  // back even though no character/preset/chat in the bundle references them by junction. `global` is the one
+  // attachment carried (it is a property of the script itself); the other three scopes point at rows the
+  // bundle cannot guarantee, so they are re-attached by hand — the same posture world-info takes.
+  const regex: PortableEntity = {
+    kind: "regex",
+    dir: "regex/",
+    ext: ".json",
+    async *exportAll(ownerId: UserId): AsyncIterable<PortableFile> {
+      for (const file of await deps.exportRegexScripts({ ownerId })) {
+        yield file;
+      }
+    },
+    importFile: async (ownerId, file) => {
+      try {
+        const { created } = await deps.importRegexScript({ ownerId, bytes: file.bytes });
+        return { ok: true, created };
+      } catch (err) {
+        return errorOutcome(err);
+      }
+    },
+  };
+
   const personaExportAll = async function* personaAll(ownerId: UserId): AsyncIterable<PortableFile> {
     const principal = await deps.resolveOwnerPrincipal(ownerId);
     for (const detail of await deps.persona.list({ principal })) {
@@ -346,5 +377,5 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     },
   };
 
-  return [assets, gallery, tag, theme, userSettings, preset, worldInfo, persona, character, chat];
+  return [assets, gallery, tag, theme, userSettings, preset, worldInfo, regex, persona, character, chat];
 }

@@ -1,82 +1,34 @@
-// The Regex tab — a ListRow list over `regexScripts[i]` (a find/replace rule run over prompt/display
-// text) plus an editor Dialog binding `regexScripts[i].*`. CRUD over the array via
-// `form.pushFieldValue`/`removeFieldValue`. The autosave BOUNDARY's store driver persists structural array
-// ops (D78 §3), so add/remove carry NO manual `handleSubmit` flush.
+// The Regex tab — a PICKER over the owner's script library (D121-E), not an editor over an embedded array.
+//
+// `PromptConfig.regexScripts` is gone: a preset's regex set is a REFERENCE list (`preset_regex_scripts`),
+// so this tab no longer lives on the preset's autosave form at all — it attaches rows, and the attachment
+// is its own server write. That is why it takes `presetId` rather than `form`: there is nothing of the
+// preset's draft state left in it.
+//
+// ITS OWN QueryBoundary, deliberately. The picker reads through `useSuspenseQuery`, and the Transforms view
+// renders it BESIDE the Delivery / Collapsing / post-process decks. Leaning on the surface-level boundary
+// would let one slow library read blank every sibling deck on the tab — which is not a hypothetical: a CT
+// caught the whole Delivery group vanishing the moment this became a suspending read. A section that can
+// suspend owns a boundary at its own edge.
 
-import type { PromptConfig } from "@orb/contracts/preset";
-import type { RegexScript } from "@orb/contracts/regex";
-import { REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
+import type { PresetId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import { useState } from "react";
-import type { RegexScriptsFormValues } from "#components";
-import { EntryListEditor, RegexEditorDialog } from "#components";
-import type { AppFormInstance } from "#forms";
-import { REGEX_PLACEMENT_LABELS } from "#lib";
+import { RegexScriptPicker } from "#components";
+import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
 
-type AppForm = AppFormInstance<PromptConfig>;
+const PICKER_SKELETON_ROWS = 3;
 
-/** A fresh regex script seeded with the schema defaults (an id so the persisted row is well-formed). */
-function makeScript(): RegexScript {
-  return {
-    id: globalThis.crypto.randomUUID(),
-    name: "New script",
-    findRegex: "",
-    replaceString: "",
-    placement: [...REGEX_PLACEMENTS],
-    enabled: true,
-    markdownOnly: false,
-    promptOnly: false,
-    runOnEdit: false,
-    trimStrings: [],
-    substituteRegex: SubstituteFindRegex.none,
-    minDepth: null,
-    maxDepth: null,
-  };
-}
-
-/** The Regex tab — the script list + the editor Dialog (opened per-row / via Add). */
-export function RegexTab({ form }: { readonly form: AppForm }): ReactElement {
-  const [editIndex, setEditIndex] = useState<number | null>(null);
-
-  const onAdd = (): void => {
-    // Capture the PRE-push length: pushFieldValue applies synchronously, so reading `.length`
-    // AFTER the push yields one PAST the new item's real index (an out-of-bounds phantom row on Done).
-    const newIndex = form.state.values.regexScripts.length;
-    form.pushFieldValue("regexScripts", makeScript());
-    setEditIndex(newIndex);
-  };
-
+export function RegexTab({ presetId }: { readonly presetId: PresetId }): ReactElement {
   return (
-    <form.Subscribe selector={(state): readonly RegexScript[] => state.values.regexScripts}>
-      {(scripts): ReactElement => (
-        <EntryListEditor
-          addLabel="Add script"
-          editIndex={editIndex}
-          emptyText="No scripts yet."
-          // ONE VOCABULARY WITH THE READOUT (side-eye F-23): a script's subtitle names the pipeline STAGES
-          // it bites at, in the same words the Transforms readout's step rows print — so "Regex · model
-          // output — 2 on" over there and these two rows here are legibly the same two scripts.
-          getSubtitle={(script): string =>
-            `${script.enabled ? "on" : "off"} · ${script.placement.map((placement) => REGEX_PLACEMENT_LABELS[placement].toLowerCase()).join(" · ")}`
-          }
-          getTitle={(script): string => (script.name === "" ? "Unnamed script" : script.name)}
-          heading="Regex"
-          helperText="Find/replace rules run over prompt or display text before it's used. The CONTEXT readout shows where each stage sits in the pipeline."
-          items={scripts}
-          onAdd={onAdd}
-          onEdit={setEditIndex}
-          onRemove={(index): void => {
-            void form.removeFieldValue("regexScripts", index);
-          }}
-          renderEditor={(index): ReactElement => (
-            // The shared dialog binds only `regexScripts[*]`, which PromptConfig carries; TanStack form
-            // instances are invariant in their value type, so narrowing this PromptConfig form to the
-            // dialog's minimal `RegexScriptsFormValues` shape needs one cast (a library-invariance escape,
-            // never an Id launder — runtime-identical, the field paths exist).
-            <RegexEditorDialog form={form as unknown as AppFormInstance<RegexScriptsFormValues>} index={index} onClose={(): void => setEditIndex(null)} />
-          )}
-        />
-      )}
-    </form.Subscribe>
+    <QueryBoundary
+      fallback={<SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="your regex scripts" onRetry={retry} />}
+    >
+      <RegexScriptPicker
+        scope={{ kind: "preset", presetId }}
+        heading="Regex"
+        helperText="Find/replace rules this preset runs, picked from your script library. The CONTEXT readout shows where each stage sits in the pipeline."
+      />
+    </QueryBoundary>
   );
 }

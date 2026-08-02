@@ -19,6 +19,7 @@ import type { NotificationsService } from "#domain/notifications";
 import type { PersonaService } from "#domain/persona";
 import type { PluginService } from "#domain/plugin";
 import type { PresetService } from "#domain/preset";
+import type { RegexService } from "#domain/regex";
 import type { RpgService } from "#domain/rpg";
 import type { SearchService } from "#domain/search";
 import type { SessionsService } from "#domain/sessions";
@@ -58,6 +59,7 @@ export interface Services {
   readonly stats: StatsService;
   readonly tag: TagService;
   readonly workloads: WorkloadService;
+  readonly regex: RegexService;
   readonly worldInfo: WorldInfoService;
 }
 
