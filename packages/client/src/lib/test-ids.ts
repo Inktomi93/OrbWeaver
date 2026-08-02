@@ -117,6 +117,10 @@ export const TEST_IDS = {
   analyticsModelsTab: "analytics-models-tab",
   analyticsTimeTab: "analytics-time-tab",
   analyticsPersonasTab: "analytics-personas-tab",
+  /** The preset readout's RESOLVED template block (D8 / §7.1) — the payload box, not its gloss. A test
+   *  asserting "the identity resolved but the fire-time tokens did not" must read exactly that box: the
+   *  same words appear in the gloss beside it, so a text query would pass on the wrong element. */
+  presetResolvedPreview: "preset-resolved-preview",
 } as const;
 
 export type TestIdKey = keyof typeof TEST_IDS;

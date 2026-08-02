@@ -1104,7 +1104,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
         resolveForeignInputs: () =>
           Promise.resolve({
             promptConfig: bindingConfig,
-            personas: { anchor: null, active: { name: "Nate", description: "" } as AssemblePersona },
+            personas: { anchor: null, active: { name: "Nate", description: "" } },
             globalRegexScripts: [],
             scanDepth: 6,
             injectionTokenBudget: 0,

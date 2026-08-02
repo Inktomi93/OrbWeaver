@@ -16,7 +16,7 @@ import type { ChatId, PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
-import { CtDataProviders } from "../../../../support/ct/ct-data-providers";
+import { CtDataProviders } from "../../../../../support/ct/ct-data-providers";
 
 const STORY_PRESET = castId<PresetId>("preset_ct_readoutbind");
 const STORY_CHAT = castId<ChatId>("chat_ct_readoutbind");
