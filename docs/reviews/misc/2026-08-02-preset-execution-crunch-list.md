@@ -1,5 +1,13 @@
 # PRESET-1 — mock-vs-rendered execution crunch list (orchestrator pass, 2026-08-02 night)
 
+> **WAVE STATUS (08-02 ~23:30): P0 ITEMS 1+2 VERIFIED FIXED LIVE** — post-merge real-pointer
+> probe (CDP, owner's Chrome): 14 dispatches across the New-preset name edge → over:3/out:2/
+> mut:0 (pre-fix: 1,727 pairs @ ~85/s). Lanes A-F ALL MERGED @ `7689b5aa`+ — nearly every item
+> below is landed or refuted; the AUTHORITATIVE per-item state is the lane reports + the
+> workboard wave block. Remaining: full strike-pass of this doc, side-eye RE-VERIFY
+> (desktop+mobile; incl. F's CD2 box-in-box + chip-radius flags), close-out D-entry,
+> graduation verifier → docs/history. Owner's morning mouse = final confirmation.
+
 Rendered on the live dev stack (main @ `7c312220`, wide 1920, preset "New preset" on
 anthropic/claude-sonnet-5) via `pnpm snap --goto presets`. Receipts: rendered `reports/snaps/mvr-*.png`,
 mock crops `reports/snaps/preset-mocks/` (INDEX.md maps crop → surface; sanctioned deviations listed
@@ -154,6 +162,42 @@ flag's back, and exit-focus restores only what it thinks it collapsed. FIX: focu
 presentation state — exit restores the saved pre-focus modes, label derives from the same flag,
 auto-collapse never writes into the saved state. NOTE: shell-tier bug (not preset-specific) —
 likely reproducible on every section; sibling of the HUD-H1 ≤1024 dead-toggle class.
+
+**22. NARROW-BAND OVERLAY PANELS ARE UNDRESSED (owner screenshot receipt, ~960px CSS,
+Pictures/Screenshot from 2026-08-02 00-17-35.png — SHELL-TIER, both panes, every section):** in
+the 48-64rem band the list/context panes flip to overlay mode but render with docked-pane
+clothing — NO backdrop scrim, NO elevation shadow, an orphan amber top edge, and the content
+behind stays full-width-laid-out so controls clip mid-element at the panel boundary (Quality
+segmented + selects cut in the receipt). Reads as broken, not as a sheet. Owner verbatim:
+"panels become not full height and act kinda strange." FIX SHAPE: overlay mode gets real sheet
+affordances (scrim + shadow + full-bleed height from topbar) OR the band's content re-lays-out
+(true docked shrink); either way the two modes must be visually unambiguous. Same band as the
+focus-mode desync family. → the side-eye round leads with this after the two P0s.
+ADDENDUM: owner's live repro viewport = **418×634** (mobile band). Orchestrator could NOT hold
+that width (WM floor ~514); at 514×635 and 616×635 the mobile arm measures CORRECT (fixed panes
+48→579, tab bar 579→635, scrollH=vh). So the defect is pinned to <~500px width OR a
+zoom/visual-viewport interaction (fixed+vh drift under zoom≠100% — owner asked to check).
+**~~REPRODUCED~~ CORRECTED (Lane H debunk, receipts accepted): the "navy pane" in
+reports/snaps/item22-418x634-navy-pane-repro.png was the ORCHESTRATOR'S OWN DevTools chrome
+inside the emulation screenshot** — the icon rail's glyphs don't exist in our icon seal, and
+H's real device-emulation sweep (418×634, all 8 sections × both panes) measured every panel
+correct with the app sidebar token painting. LESSON: a devtools-emulation screenshot includes
+the devtools window; identify foreign chrome before calling it app paint. THE OWNER'S 418×634
+SIGHTING REMAINS OPEN-UNREPRODUCED (his morning re-look or side-eye owns it); ARM 2 (the
+48-64rem undressed overlay, owner screenshot) STANDS and Lane H is fixing it on the real
+mechanism (.shell-scrim exists, gated on layout.scrimVisible — H verifying why it doesn't
+paint in-band). NEW out-of-lane find (H): worldInfo's CONTEXT pane body is genuinely EMPTY at
+every width, no empty-state arm — [[empty-states-are-load-bearing]] class, world-info feature;
+boarded as a small. Original (retracted) claim: Geometry LIES CLEAN (panes fixed
+48→578, scrollH=vh) while PAINT is broken: the context pane renders as an EMPTY NAVY column
+(wrong/unthemed background token — not the app's warm dark), its tab strip rotated into a
+vertical icon rail down the LEFT edge with a close-X at bottom, body blank, the bottom tab bar
+buried beneath it, the content explainer banded above. Suspects: a panel background token that
+only resolves under the docked/overlay arms (theme-null-origin class?), the tab strip's
+orientation styles keyed to a container that collapses at this width, and the takeover arm
+mounting without its body. NOT zoom, NOT height math. Repro recipe: devtools emulate 418x634x1
+→ nav presets (no selection; persisted panel-open state). Owner screenshot (960-band, clipped
+controls under an undressed overlay) is the OTHER band's arm of the same item.
 
 **21. Params typography census — the "font colors and weights all over the place" receipt
 (visible-only probe, Params deck): 7 distinct color·size·weight tuples on one deck.** Worst two:

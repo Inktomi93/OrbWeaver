@@ -109,6 +109,131 @@ docs/design/default-character-roster.md, commit `3c66f08f` — 5 derived/3 net-n
 one card); ORCHESTRATOR FULL LINE-READ + SIGN-OFF OWED next context window (then edit round →
 lane merges main → doc lands → avatar-gen + demo-chat + seed-wiring lanes). Lane HOLDING WARM.
 Reseed-latch caveat: existing installs need a migration decision to get the new pack.**
+**═══ ▶▶▶ COMPACT-SAFETY SNAPSHOT (08-03 morning — THE current block; owner AWAKE and ruling) ═══**
+MAIN @ `dfcc393d` (+1 board commit may follow), clean except uncommitted docs (board · crunch-list
+strikes · character-recon doc untracked). ALL of last night MERGED+certified (see v2 block below).
+**FX MERGED (`193a8907`, hook-certified, torn down): ALL 31 side-eye findings closed** — F-1/2/3
+P1s live-proven (receipts reports/snaps/fx-*.png); F-24 refuted (zone derived not stored —
+protects the owner's SETUP/POST queue item); F-12 Home arm refuted (context:"unavailable" per H3,
+no pane exists); F-10 resolved by reordering Placement BEFORE Delivery (both owner rulings
+untouched — flag if he'd rather overrule); ONE gate allowlist row added (empty-state-has-action
+← WorldInfo no-selection, precedent-matched — second-look flag); blast radius deliberate+swept
+(macro-textarea 8 sites, Badge inline, Card nested, EntryListEditor, LibraryRow shared).
+**F-14 CLS = ITS OWN LANE, cause PINNED:** shell.css:11-12 boots both tracks 0px → content
+paints full-width → squeezed when panelDefaults land; :21 animates the squeeze. Remedy: resolved
+modes into the grid pre-first-commit + suppress track transition during boot. QUEUE IT.
+**QUIESCED @ `52116394` — EVERY LANE MERGED. PV IN (`1a53d5cc`: Traveler + address clause,
+assembled-bytes proven; retracted its own stale combobox lesson post-FX). MIG IN (`52116394`:
+pack-version-stamped migration, 3-handle fixture map + anti-drift oracle + mutation-proven
+rename guard; crash-safe stamp-last). ENDGAME RUNNING: docs commit → verify:push → on 12/12
+green PUSH ORIGIN (owner word banked). Then remaining: scoped side-eye re-check · strike pass ·
+close-out D-entry · graduation verifier · F-14 CLS lane · TD design pass · smalls
+(FirstRunPersonaDialog dead-trigger · schema-baseline-parity red · worldInfo... done in FX ·
+D8 residue · O-4/O-5 chat-side... done in F). Was LIVE: MIG = reseed migration
+(GENERAL 3-handle arm [assistant/jfc-coder/niko] + name/nickname-counts-as-edit + pack-version
+int stamp; approved) ·
+PV = DONE-PENDING-RECONCILE (branched pre-FX; FX removed the combobox role its CTs worked
+around — merging main + re-gating now; commits 7902e0b7+01a36590: Traveler constant + main_prompt
+clause, assembled-bytes red-first, drill-in geometry fits). NEW SMALL from PV:
+**FirstRunPersonaDialog can never fire** — it triggers on zero-owned-personas but the seeder
+creates one on first authed request; "onboarding" is effectively the seeder. Own lane. Was: no first-run flag exists BUT defaultPersonaSeeded
+latch already gates structurally (seeded users untouched, fresh users get the constant), so
+rename = one constant "You"→"Traveler"; framing = C1: append to DEFAULT_MARKER_TEMPLATES
+.main_prompt ("Address {{user}} in the second person; use their name only when it is one they
+have chosen for themselves") — F-03 precedent, per-section override IS the edit path, no new
+slot (C2 rejected: breaks PROSE-1 byte-identity for a nit). NAME + WORDING still owner-vetoable. **QUEUED: Lane TD** (theme doors: character themes OUT of global picker · save-as-theme
+promote door · save-override-WITHOUT-theme arm · + owner NEW musing 08-03: character-embedded
+APPEARANCE SETTINGS generally — which appearance keys may a card carry vs viewer-sacred keys
+[SW precedent: density/chatStyle deliberately NOT card-forced]; design pass needed before build).
+**PUSH WORD BANKED (conditional): FX+AV2 merged → verify:push 12/12 → PUSH ORIGIN, no ask.**
+THEN: scoped side-eye re-check on FX → crunch STRIKE PASS → close-out D-ENTRY (rewind asymmetry ·
+promoted-unseated gap · D8 residue) → graduation verifier → docs/history. MERGE PROTOCOL LAWS
+(3, paid-for): no defer of post-FF check · no chained teardown (merge→verify→teardown separate
+calls) · `git -C <abs-main>` ALWAYS (cwd can die/sit in a worktree and lie). Remaining owner
+items: --color-info hue · SETUP/POST vs In-Chat vocab · AV2 sheet verdict (4 slightly
+harder-edged avatars, re-push offer ~$0.56; Calamity missing $4 sticker) · PV name/wording veto ·
+JSON-card/absent-char/DRAFT-TRUST/AGENT-1/D22 (old queue).
+**GATE CANDIDATES (owner's standing question, answered for this stretch — propose-don't-drift):**
+(1) hover-keyed `display` swap ban in row/marker hover-variable regions (the P0 oscillator class;
+`invisible`/opacity in reserved boxes; pointer-coarse display legal) — ts-morph/class-scan,
+2 consumers already migrated. (2) token near-duplicate lint (two whites 0.005 apart must
+reference one token) — tokens:build-time. (3) the `cn` shared-cached-merger hazard
+(ui/src/lib/index.ts:41 — `cn` reached outside the createTV import graph silently drops
+text-size classes; silent wrong-font failure mode = gate-worthy or fix-at-root). (4) settings
+appearance partition grows an `embeddable-by-card` column (mood vs viewer-sacred keys — rides
+Lane TD's design pass). AGENT-FILE ACCRETION DONE this stretch: doctrine gained the lane
+invariants + verification floor (briefs shrink now); executor.md red-first/hypothesis/SendMessage
++ KISS-purge; side-eye full snap mastery + record; SendMessage granted to all executors.
+DONE-MERGED late-morning: AV2 avatar redo (`b1d9c098` — reference-school art, spider-isekai
+Charlotte, $2.24, sheet in docs/reviews/misc/2026-08-03-avatar-pack-v2-contact-sheet.png).
+LIVE: FX · MIG (general 3-handle arm + name-counts-as-edit ruled) · PV (C1 + Traveler approved).
+**═══ OVERNIGHT RUN-STATE v2 (~01:30) — ALL BUILD LANES DRAINED @ `f3c0ef20` ═══**
+MERGED TONIGHT (every one hook/gate-certified): preset wave A-F · focus-flag D · R4 · zod A-D +
+SSRF seal · types:graph repair · registry split · ROSTER + ART PACK (20 originals, $3.35) +
+SEED WIRING (pack+themes+overrides LIVE, picker 3→13, tokens/themes.gen.ts split) · G (Field
+hint primitive fix app-wide + Grid pair + triggers normalize) · H (overlay sheets: elevation +
+inert; amber edge scoped) · D8 (binding + resolved preview + select-half; 4 structure reds fixed;
+receipts reports/snaps/laneD8-*.png). LANE-DOCTRINE ACCRETION owed at the quiet slot: add `pnpm
+check:structure` to the executor verification floor (D8's lesson: test-file rules are invisible
+to source-focused scoped sets — bit THREE lanes tonight).
+SIDE-EYE RE-VERIFY DELIVERED: **SHIP WITH FIXES** (0 P0 — every night-fix VERIFIED w/ rendered
+receipts incl. P0 boxes byte-identical rest/hover; 3 P1 [F-1 preview strips braces · F-2 drill
+desyncs readout · F-3 combobox a11y] + 17 P2 + 11 P3; rulings: braces+chip wins everywhere ·
+CD2 keep-fill-drop-border · radius pop intended · 418 stays OPEN for owner; report
+docs/reviews/side-eye/2026-08-03-preset-shell-reverify.md). **LANE FX (fix-all, ALL findings)
+DISPATCHED.** After FX merge: scoped side-eye re-check (fix-rounds law) → strike pass → D-entry
+→ graduation → verify:push. **LANE DC MERGED (`dfcc393d`, hook-certified): the CHARACTER
+PROGRAM IS COMPLETE END-TO-END** — 6 live-generated EXAMPLE chats seed per new user
+(virgin-boot proven; deletion-respect via latch; narrator via the real synthetic-mint N2;
+bulkImportChats widened additively w/ cross-tenant pins; receipts reports/snaps/dc-*.png).
+MORNING-QUEUE LIFT (DC verbatim, receipts in its report): **flipping the latch ≠ migration —
+seedCard's handle_conflict arm never re-dresses; existing installs keep OLD Assistant in
+Charlotte's seat + Rev/Mara in the library; the `assistant` handle needs an owner
+re-dress-or-retire decision.** + product nit (persona-sacred): default persona named "You"
+reads as a vocative in formal registers. Was: **Lane DC demo chats**
+(live-generate on the dev stack [restart+latch-flip authorized] → export → demo-chat seeder on
+bulkImportChats; EXAMPLE-prefixed; Ashen Spire rpg-lite ON). THEN: fix-all on side-eye findings →
+crunch STRIKE PASS → close-out D-ENTRY → graduation verifier → verify:push → PUSH-READY.
+**═══ (superseded) OVERNIGHT RUN-STATE (owner OFF ~00:30; full-auto; NOTHING DROPS) ═══**
+MERGED + CERTIFIED through `edd5c2d5`: preset wave A-F · R4 (actor program COMPLETE R1-R4) ·
+zod A-D + SSRF seal (`18868af7`) · types:graph repair (`7abe9146`) · ROSTER DOC on main.
+IN FLIGHT (4): **G** preset drill alignment (Field-primitive hint fix app-wide + Grid pair +
+triggers all-selected→"Every generation" normalize-on-write rider) · **H** shell narrow-band
+panel presentation (item 22 both arms; repro receipt reports/snaps/item22-418x634-*.png) ·
+**AV** avatar gen via OR (cap raised ~$8; contact sheet → reports/avatar-pack-contact-sheet.png;
++RIDER: 10 LANDSCAPE backgrounds, environment-only NO PEOPLE, vibe-matched per art direction) ·
+**SW** seed wiring (roster→cards.ts, purge rev/mara, latch-note only; +RIDER owner-ruled: 10
+custom THEMES via the D71 pipeline [palette from each art direction, born-valid] + themeOverride/
+backgroundOverride wired at seed [update-arm; both-ends discovery; storeAvatar-pattern for any
+asset step] — the pack exercises the theme+background override planes end-to-end).
+QUEUED ON DRAINS (dispatch as slots free, in order): ~~D8 lane~~ DISPATCHED (binding chip
+[BINDING_VIEWS-gated, Actions-only today] + chat.previewActionTemplates [host-gated plural read,
+ResolveForeignInputsOp.presetOverride reuse] + the §6.1 select-half mint via G27 store — all 5
+lane calls approved). **D8 RESIDUE, explicitly boarded: the Prompt readout's real MATERIALIZED
+carrier rows + true token costs via previewAssembly+presetOverride — its own small after this
+lane merges (Prompt then joins BINDING_VIEWS).** → preset-cohort prose slots → SIDE-EYE RE-VERIFY desktop+mobile
+(after G+H; leads: item-22 verify · P0 confirms · CD2 box-in-box · chip radius pop · O-7
+sr-description note) + fix-all → crunch STRIKE PASS → close-out D-ENTRY (incl. R4 rewind
+asymmetry + promoted-then-unseated gap) → graduation VERIFIER → docs/history move → demo-chat
+generation lane (after SW+AV merge; fresh-user path around the reseed latch; engines authorized;
+one rpg-lite chat incl.) → combined rpg side-eye (model-populated) → **verify:push on the
+quiesced tree → report PUSH-READY for the morning word (NO push tonight)**.
+**MORNING RULINGS (owner, 08-03, via question tool):** (1) RESEED = re-dress `assistant` to
+Charlotte ONLY if unedited (byte-compare vs old seed prose; edited rows sacred; Rev/Mara stay) —
+Lane MIG dispatched. (2) PICKER = character themes LEAVE the global picker (card-only via
+override) **+ TWO NEW DOORS ordered: "save as theme" from a character (promote its override
+into a real picker theme) AND save a character override WITHOUT minting a theme (custom values
+arm)** — Lane TD queued next drain (both-ends design: check whether themeOverride is
+values-vs-theme-ref today). (3) PUSH = the word IS given, conditioned: after FX+AV2 merge +
+verify:push 12/12 green → PUSH ORIGIN, no further ask. (4) PERSONA = prompt-side framing fix
+(no vocative use of literal persona names — prose-slot) + rename the seeded default persona for
+users who HAVEN'T completed first-run (completed-first-run users keep theirs); name proposal
+flagged for veto in-lane; demos stay (Example-labeled, minor mismatch acceptable) — Lane PV
+dispatched. Superseded row: OWNER MORNING QUEUE: **THEME PICKER 3→13** (SW full-arm ruled: 10 character themes join the
+picker as real D71 seed themes — taste checkpoint: keep all 13 visible or curate? trim is
+cheap) · spider veto (Charlotte tile flagged on contact sheet) · avatar eyeball ·
+push word · reseed-latch migration decision · --color-info hue ruling (item 14) · SETUP/POST vs
+Relative/In-Chat vocab split (C's flag) · zod F16 prettify-unbounded already ruled.
 LATE-NIGHT STATE: F (density S6 + registry-contracts SPLIT) MERGED + post-FF check PASS ·
 Z (zod A-D) DONE incl. the F11 SSRF wildcard-hole close — HOLDING WARM pending security-executor
 eyeball on `c21d7893` (dispatched; probe corpus preserved to main reports/zodlane-probe*.ts) ·
@@ -203,6 +328,16 @@ op-shaped-hand-door-write-seam minted) → AGENTS.md for architecture work.
   check when the branch's gate list missed ANY of the 12 stages** (R4's scoped-tsc-green merge
   shipped a types:graph red to main for ~an hour — the char lane caught it; scoped tsc NEVER
   covers tests/ [hub lesson #5]; fixture fix `promote-actor/rpg.int` landed direct-on-main).
+  **NEVER CHAIN TEARDOWN BEHIND A MERGE IN ONE COMMAND** — burned TWICE tonight (B: `| tail`
+  swallowed the hook failure, teardown ran on a failed merge; SW: hook red left staged-no-commit,
+  the chained `rm -rf` deleted a lane worktree that then needed resurrection). Protocol: merge →
+  SEPARATE call verifying `git log -1` + hook verdict → THEN teardown. A staged-failed merge =
+  `git merge --abort` (working-tree docs survive; never reset --hard with uncommitted work).
+  Recovery receipt: branch always survives; `git worktree add <same-path> <branch>` + the
+  post-checkout hook auto-installs. **AND: the ORCHESTRATOR'S OWN shell cwd can silently sit in
+  (or die with) a worktree — a bare `git log`/`git merge` then reads/acts on the WRONG repo and
+  even the verification lies** (burned once: SW's "verified" merge was the worktree's own HEAD;
+  main never moved). LAW: merge + verify commands use `git -C <ABSOLUTE-main-path>` always.
 · snap: STUDIED IN FULL in side-eye.md now (agent doc carries complete usage). --eval = BARE
   arrow (arrow-IIFE double-invokes); --jsclick for list rows; --isolated/--dirty stages beat
   dev-stack HMR; --goto/__orb.nav for all SPA reach; HOVER-LOOP CLASS IS REAL-POINTER-ONLY
