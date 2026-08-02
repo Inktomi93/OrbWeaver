@@ -1,8 +1,8 @@
 // The preset editor surface — the Presets tabbed editor. Binds the nested `PromptConfig` directly (no
 // flat mapper); AUTOSAVE through `preset.update` (D66 A4 / north-star §7) — no Save button, the header
 // carries the shared `AutosaveStatus` where Save used to be. A preset carries no model; the Params deck
-// resolves capability for the user's configured chat-role connection, and shows a connect-a-model note when
-// none is configured.
+// resolves capability for the user's configured chat-role connection, and stands its model-fed clusters down
+// to `CapabilityGate` (skeleton while pending, the server's message when the resolve fails) until it lands.
 //
 // D78 L1: mounts the autosave form through the session BOUNDARY (`PresetForm` = createAutosaveEntityForm)
 // — the factory owns entity identity (its keyed Session), the teardown flush, and reseed. Reset-to-starter
@@ -181,7 +181,7 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   // vLLM engine's self-reported window), not a hand-built key off `roleDefaults.chat` (often unset on the
   // vLLM default). Refetches on a settings change (the routing knobs feed the resolution). A resolve failure
   // leaves `capability` undefined AND `capabilityError` set ⇒ the deck stands down to `CapabilityGate`'s
-  // FAILURE arm, quoting the server (F-02) — never to the connect-a-model note, which is a different problem.
+  // FAILURE arm, quoting the server (F-02); an unlanded read leaves both empty ⇒ the gate's PENDING skeleton.
   const capabilityQuery = useQuery(trpc.connection.resolveChatCapability.queryOptions());
   // The read carries the resolved `(api, source, model)` alongside the descriptor (the Connections pane names
   // the fallback from it); this panel gates on the descriptor only.
@@ -205,7 +205,8 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
     setDefault.mutate({ section: "seeds", patch: { defaultPresetId: preset.isSystemDefault ? null : presetId } });
   };
   // isError ≠ no-model (side-eye F-02): a FAILED capability read must not render as "connect a chat model"
-  // to someone who has one connected. The message is the server's own.
+  // to someone who has one connected. The message is the server's own. `null` therefore means PENDING, which
+  // is the gate's other (and only other) arm — see `capability-gate.tsx`'s header.
   const capabilityError = capabilityQuery.error === null ? null : capabilityQuery.error.message;
 
   return (
@@ -255,7 +256,7 @@ interface PresetEditorBodyProps {
   /** Make it the pick — the one `setDefault` mutation the LIST row toggle also calls (§16 row 3). */
   readonly onActivate: () => void;
   readonly capability: ModelCapability | undefined;
-  /** The capability read's failure message, `null` when it simply resolved no model (§F-02). */
+  /** The capability read's failure message, `null` while it is still PENDING (§F-02). */
   readonly capabilityError: string | null;
   readonly effective: EffectiveProfileRow | undefined;
   readonly customParameterKeys: readonly string[];
