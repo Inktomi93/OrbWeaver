@@ -150,8 +150,20 @@ plugin_kv ([pluginId,key] — NO owner) · stats apply-delta ×4 · settings/the
 automation (owner-targeted, likely fine); needs UNIQUE-index derivation × target list.
 **Lane DANGLE also dispatched** (TRUTH's ruled gate arms: backticked-PATH + backticked-SYMBOL
 existence, dangling-refs family, both-ways).
-**LIVE NOW (5): REGEX · F14 · UPSERT · DANGLE (+ MONO's zombie instance TaskStopped after
-merge — owner spotted it lingering).**
+✅ **UPSERT MERGED (`6156e3af`, --no-verify on receipts [own hook 14/14 PASS], torn down)** —
+`owner-scoped-upserts` = the THIRD tenancy-family gate (disjoint marker @owner-scope-upsert-ok;
+upsertConfigOf joined tenancy-read.ts). 25 upserts censused, 6 on (a)-tables: 4 safe by
+construction, **2 SQL-layer holes FIXED structurally** (plugin_kv [pluginId,key] target +
+themes PK-collision — both setWhere belts; caller-side guards made them unreachable today, but
+the :memory: probe showed the corruption shape: a foreign collision overwrites the row IN
+PLACE while it keeps its own owner_id — invisible to every owner-filtered read after. ZERO
+markers, zero allowlist rows). Deliberate non-arm: FK-chain "safe by construction" stays
+ANALYSIS not gate-arm (would false-green caller-named foreign FK values); `set:{ownerId}` is
+proven the ANTI-fix (theft-upgrade) w/ mustFlag. Gate count 172. Lesson banked below.
+**LIVE NOW (6, at cap): REGEX (warm tail + DISPLAY toggle) · DANGLE · RESYNC (the two ruled
+reattribution affordances) · SM4 (CAP-GATE pending arm + 3 span-coverage smalls) · SIDE-EYE
+scoped re-check (FX's 31 + macro pill in situ + home-tile skeleton verdict) — owner: "fill the
+lanes back up." (+ MONO's zombie TaskStopped post-merge — owner spotted it.)
 **✅ PERSONA×RPG STICKLER DELIVERED + 3 RULINGS (owner, 08-03; report committed `1ed993c7`:
 docs/reviews/stickler/2026-08-03-persona-rpg-and-history.md):** Q1 rpg = COHERENT-AS-IS
 (receipted — actor keys persona-stable, every read live-resolves; Ashen Spire root cause =
