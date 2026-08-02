@@ -8,7 +8,7 @@ const BANNED_TAGS = new Set(["img", "video", "audio", "source"]);
 
 export const gate: GateDescriptor = {
   name: "no-external-media-without-gate",
-  docRow: "UI-Gates-and-Lessons.md §12.6 / D44",
+  docRow: "UI-Theming-and-Content.md §12.6 / D44",
   status: "active",
   scopeSafety: "incremental-safe",
   message: MESSAGE,
