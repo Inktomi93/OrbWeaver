@@ -15,6 +15,7 @@ import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import type { ExtractQuiet, ExtractQuietDeps, ExtractQuietParams, ExtractQuietResult } from "../contract/context";
 import { loadCanonHistory } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
+import { hostUserIdOf } from "../substrate/roster-host";
 
 /** How many recent canon rows the extractor reads as scene context (the same window `smart` arbitration uses). */
 const RECENT_WINDOW = 10;
@@ -23,7 +24,7 @@ export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
   return async (p: ExtractQuietParams): Promise<ExtractQuietResult> => {
     // {{char}} = the subject (or the roster's first present character), read under the HOST's ownership.
     const roster = await loadRoster(deps.db, p.chatId);
-    const hostUserId = roster.find((r) => r.role === "host" && r.userId !== null)?.userId ?? null;
+    const hostUserId = hostUserIdOf(roster);
     const subjectId = p.subjectCharacterId ?? roster.find((r) => r.kind === "character" && r.characterId !== null)?.characterId ?? null;
     const charName = hostUserId !== null && subjectId !== null ? ((await deps.getCard({ ownerId: hostUserId, characterId: subjectId }))?.name ?? "") : "";
 
