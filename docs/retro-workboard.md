@@ -27,9 +27,31 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 ## between here and the wave-3 seals below. A resuming orchestrator: read THIS, then the whole
 ## board, then git log -60.) ═══
 
-**MAIN @ `7afaff54`** (tree clean; board committed; ~65 local commits past origin `851f625e` —
-PUSH NEEDS ITS OWN WORD). Six-lane cap stands (owner). Board-only commits = `--no-verify`
-(owner word). Dev db DROPS on next stack boot (DBG baseline regen) — expected, reseeds via latch.
+**MAIN @ `0137d36a`** (tree clean; ~85 local commits past origin `851f625e` — PUSH NEEDS ITS
+OWN WORD). Six-lane cap stands (owner). Board-only commits = `--no-verify` (owner word). Dev db
+DROPS on next stack boot (DBG baseline regen) — expected, reseeds via latch.
+**POST-COMPACT SEALS (08-03 late):** ✅ **RETRO MERGED (`88659d7a`, hook 14/14, torn down)** —
+terminal state: 25 gates given stale arms (grain chosen per gate: strong for who-does-it claims,
+path-rot for tier permissions, rejected arm written into each header) · 7 stale rows DELETED ·
+2 renames out-of-vocabulary + 1 rename INTO it (feature-structure's hidden exemption) · axis 2:
+6 vacuous scope.kind-only guards anchored, 14 dispositioned · axis 3: ZERO dead scanRoots
+mechanically over all 119 · baseline+generator deleted per §4.8 · +3s (~7%) check:structure cost.
+Lane lessons (bank on quiet slot): anchor must never double as an example subject ·
+diagnostic-legibility reads message TEMPLATE text (const-prefix assembly invisible — pointer must
+sit inside the literal) · measure scanRoots with ts-workspace.harnessGlobs NOT harness.getProject ·
+ui-primitive-structure's 15-name mustPass = the corpus's most expensive example if trimming ever
+needed. ✅ **CERD LANDED (`0137d36a`, hook 14/14, torn down) — D121 IS LAW** (7 clauses A-G) +
+the permissions page (Spine-Identity §2c-§2e) + §4 dormant-doorway rewrite + D60 build-state
+rider + eight-rail (UI-Arch §4.1) + home-spec BUILT flip + admin/index.ts comment truth-repair.
+Landing checklist DISCHARGED: both re-derived framings verified source-pinned (promote-actor.ts:12-14
+says exactly clause F's post-mint refusal framing; tracker-view.ts:200 cast filter), all §2c/§2d
+symbols verified on tree (hostSeatOf/hostUserIdOf · viewerHoldsHost/viewerReadsHidden ·
+assertHost/permitsHost · isAdmin export real), R4-parked board lines struck below. The verify --push
+output that landed post-compact was the ALREADY-PROCESSED run (its 2 reds = the pair fixed in
+`26e5856f`) — no new carnage; PUSH-READY still pending the clean re-run at quiesce.
+**LIVE NOW (4): PRIN · CHAIN · TRUTH · PERSONA (R0-R4 program, dispatched post-CERD on the
+owner's "proceed on CERD or whatever needs doin").** GRAD (ceremony graduation) queued behind
+TRUTH; HANDOFF-COPY queued behind PERSONA (chat-domain adjacency).
 
 **LANE TRUTH DISPATCHED (Fable-tier, OWNER-EXEMPTED — the day's closing act):** the core-docs
 TRUTH AUDIT — every verifiable claim in docs/architecture/core verified against the tree
@@ -142,13 +164,12 @@ one toggle at nominate, pendingHandoffOffer column, copy-at-ACCEPT, cards+books-
 optional-GM-preset, seats re-point in place, decline=D64 drop) · DB boundary = amended law +
 own-tables gate (landed) · migration-readiness NOW (landed) · six-lane cap · board --no-verify.
 
-**QUEUE (after live lanes drain, priority order):** CEREMONY — strike DONE; close-out D-ENTRY
-carries SIX riders (two-class clause [role report §6] · R0 permissions-model page [three
-layers + who-owns-what citing the scoping census + BY-DESIGN register + R2's three-questions
-paragraph verbatim from its final report] · Spine-Identity truth-repair [claims agent
-principals built — false] · home/D62-P6 amendment [ledger outlaws the built 8th section] ·
-portability chrome-anatomy D-entry · regex R0 D53-storage amendment] → graduation verifier →
-docs/history move. THEN: Lane PRIN (principal-flow gate — census DONE: ownerid-registry
+**QUEUE (after live lanes drain, priority order):** CEREMONY — strike DONE; ~~close-out D-ENTRY
+w/ six riders~~ **DONE 08-03: D121 LANDED with all six riders** (two-class clause · permissions
+page · Spine truth-repair · home/D62-P6 amendment · chrome anatomy · regex D53-storage);
+REMAINING ceremony = graduation verifier → docs/history move — QUEUED BEHIND TRUTH's drain
+(the moves repoint refs inside docs/architecture/core, TRUTH's territory; dispatching it now
+would collide). THEN: Lane PRIN (principal-flow gate — census DONE: ownerid-registry
 already gates class-a; 3 mechanical arms specced [class-declaration 0-red ·
 fetchOwned-or-justification 3 rows · caller-param sweep]; ReapAssetsOp compose-closure
 verification inside; membership-rung = behavioral-only, honest limit) · MULTI-PERSONA ticket
@@ -231,7 +252,9 @@ blob reshape both required it — owner's games are gone from dev, seeded-data c
 · **ACTOR-STATE R1-R3 COMPLETE** — op-shaped `rpg.patchActor`/`rpg.dismissActor` (writeHandState
   seam), NPC IS an actor (identity plane, slug keys w/ contract refine), presence plane, cast*
   projections dead, hp demoted to unified trackers (d20-seeded def), GM→HOST copy. Stickler
-  pre-merge pass: all 6 findings fixed red-first. R4 (promotion doorway) NOT built — parked.
+  pre-merge pass: all 6 findings fixed red-first. ~~R4 (promotion doorway) NOT built — parked~~
+  STRUCK 08-03 (CERD landing checklist): R4 IS BUILT — promote-actor.ts + actor-rekey.ts + tests;
+  D121 clause F records its two named gaps (rewind asymmetry · promoted-then-unseated).
 · **PRESET-1 BUILD COMPLETE P0-P5** — five views, KnobRow ghost grammar, rack select≠drill,
   drill-in consolidation (bridge/inspector dead), TEMPLATE_DEFS Actions, per-view readouts, list
   projection (inline activate, Select dead, G6 export/import doors, G7 header truth), side-eye
@@ -1317,7 +1340,9 @@ isPartyActor gates the purse note · F6 stub/comments. 719 battery + 74 CT + kni
 require it; old actorState blobs would SILENTLY ZERO, not throw — N1 corrected). REMAINING in
 the program: R4 promotion doorway (parked, not this wave) · @live rpg-lite-loop pass on the next
 stack window (SPEC 2/5 now drive identity/tracker ops) · combined rpg side-eye incl. the
-NPC-only-game band question + the Known-characters disclosure + CastCard mood-wrap nit. FLAGGED
+NPC-only-game band question + the Known-characters disclosure + CastCard mood-wrap nit.
+[08-03 NOTE: the "R4 parked" framing in this archeology block is STALE — R4 was built later
+that day; see D121 clause F.] FLAGGED
 stale probe artifacts (hpDelta in run-coverage.mjs/native-wire-probe.mjs/real-cheap-toolround
 .json — already stale at merge-base with 13 pre-existing retired symbols): OWNER CALL whether
 probe corpora are maintained or archived. Stickler report:
