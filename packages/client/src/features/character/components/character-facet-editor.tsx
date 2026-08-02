@@ -3,6 +3,7 @@
 // body. Binds the form directly (in-region, no bridge). Big multi-line text authors here; small
 // inputs/selects live in the CONTEXT Field tab.
 
+import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { FieldLayout } from "@orb/ui/field";
 import { ChevronLeft, Icon } from "@orb/ui/icons";
@@ -23,7 +24,6 @@ import { CHARACTER_CARD_MACROS } from "../lib/character-card-macros";
 import { parseExampleBlocks } from "../lib/example-messages";
 import type { CharacterProvenanceSectionProps } from "./character-provenance-section";
 import { CharacterProvenanceSection } from "./character-provenance-section";
-import type { CharacterId } from "@orb/kit/ids";
 import { CharacterRegexScriptsField } from "./character-regex-scripts-field";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;

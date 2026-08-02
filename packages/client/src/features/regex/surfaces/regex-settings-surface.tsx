@@ -7,7 +7,7 @@
 // copy per carrier and gave each carrier a different editor. The "global" switch is the only scope this
 // surface owns; the other three are attached from the thing they belong to.
 
-import type { RegexScriptRow } from "@orb/contracts/regex";
+import type { CreateRegexScriptInput, RegexScriptRow } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";
@@ -15,7 +15,6 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import type { RegexScriptFormValues } from "#components";
 import { EntryListEditor, RegexEditorDialog } from "#components";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
@@ -27,7 +26,7 @@ import { makeRegexScriptDefaults, RegexScriptForm } from "../hooks/use-regex-scr
 import { REGEX_SUBCATEGORY_IDS } from "../lib/regex-nav";
 
 /** Strip a row down to the authored fields the editor binds (id is identity, not content). */
-function toFormValues(row: RegexScriptRow): RegexScriptFormValues {
+function toFormValues(row: RegexScriptRow): CreateRegexScriptInput {
   const { id: _id, ...authored } = row;
   return authored;
 }
@@ -120,7 +119,7 @@ function RegexScriptEditor({ row, onClose }: { readonly row: RegexScriptRow; rea
   const invalidation = useInvalidation();
   const update = useUpdateRegexScript({ trpc, invalidation });
 
-  const save = (values: RegexScriptFormValues): Promise<unknown> => update.mutateAsync({ scriptId: row.id, input: values });
+  const save = (values: CreateRegexScriptInput): Promise<unknown> => update.mutateAsync({ scriptId: row.id, input: values });
 
   return (
     <RegexScriptForm entityId={row.id} serverValues={toFormValues(row)} save={save}>
@@ -129,7 +128,13 @@ function RegexScriptEditor({ row, onClose }: { readonly row: RegexScriptRow; rea
   );
 }
 
-function RegexScriptEditorBody({ session, onClose }: { readonly session: AutosaveSession<RegexScriptFormValues>; readonly onClose: () => void }): ReactElement {
+function RegexScriptEditorBody({
+  session,
+  onClose,
+}: {
+  readonly session: AutosaveSession<CreateRegexScriptInput>;
+  readonly onClose: () => void;
+}): ReactElement {
   return (
     <Stack gap="field">
       <RegexEditorDialog form={session.form} onClose={onClose} />

@@ -32,7 +32,19 @@ test("PortableKind has no member beyond the tuple", () => {
 test("PORTABLE_IMPORT_ORDER pins the exact dependency order", () => {
   // personas / world-info / tags / regex before characters; characters + personas before chats. `regex`
   // lands before `character` so a bundled card's carried script references re-link to rows that already exist.
-  expect([...PORTABLE_IMPORT_ORDER]).toEqual(["assets", "user-settings", "tag", "persona", "world-info", "regex", "character", "gallery", "preset", "theme", "chat"]);
+  expect([...PORTABLE_IMPORT_ORDER]).toEqual([
+    "assets",
+    "user-settings",
+    "tag",
+    "persona",
+    "world-info",
+    "regex",
+    "character",
+    "gallery",
+    "preset",
+    "theme",
+    "chat",
+  ]);
 });
 
 test("PORTABLE_IMPORT_ORDER is a permutation of PORTABLE_KINDS (every kind exactly once)", () => {

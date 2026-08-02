@@ -21,8 +21,8 @@ import type { ImportService } from "#domain/import";
 import { createImportService } from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
-import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "#domain/regex";
 import { createExportPresets, createImportPresets } from "#domain/preset";
+import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "#domain/regex";
 import type { SettingsContext } from "#domain/settings";
 import { createExportTheme, createExportUserSettings, createImportTheme, createImportUserSettings } from "#domain/settings";
 import type { TagContext } from "#domain/tag";
@@ -249,7 +249,7 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     kind: "regex",
     dir: "regex/",
     ext: ".json",
-    exportAll: async function* regexAll(ownerId: UserId): AsyncIterable<PortableFile> {
+    async *exportAll(ownerId: UserId): AsyncIterable<PortableFile> {
       for (const file of await deps.exportRegexScripts({ ownerId })) {
         yield file;
       }

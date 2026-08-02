@@ -26,10 +26,9 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Db } from "@orb/db";
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";

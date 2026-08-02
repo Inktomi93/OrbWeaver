@@ -8,11 +8,10 @@ import type { CharacterCard } from "@orb/contracts/character";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Db } from "@orb/db";
 import { chatBooks, chatInjections, chats, messages, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { ForeignInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign";
@@ -471,8 +470,7 @@ describe("gatherAssembleContext — SEND USER_INPUT regex flows through the gath
     const ctx = makeChatContext(db, {
       getCard: () => Promise.resolve(cardOf("Aria")),
       // The SEND leg's script arrives through the D121-E scope resolver, not a foreign blob.
-      resolveRegexSources: () =>
-        Promise.resolve({ hostGlobal: [regexScript("u", "wyrm", "dragon", "USER_INPUT")], preset: [], cast: [], chat: [] }),
+      resolveRegexSources: () => Promise.resolve({ hostGlobal: [regexScript("u", "wyrm", "dragon", "USER_INPUT")], preset: [], cast: [], chat: [] }),
     });
     const sink: { sendUserText?: string } = {};
 

@@ -8,17 +8,30 @@
 //
 // It is not a form field any more: a character's scripts are `character_regex_scripts` junction rows, so
 // the attachment is a server write, not draft card content. Hence `characterId`, not `form`.
+//
+// ITS OWN QueryBoundary (the preset Regex tab's twin, same reason): the picker reads through
+// `useSuspenseQuery`, and the facet editor renders it under the shared surface boundary alongside the rest
+// of the drill-in. A section that can suspend owns a boundary at its own edge, or one slow library read
+// blanks its siblings.
 
 import type { CharacterId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { RegexScriptPicker } from "#components";
+import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
+
+const PICKER_SKELETON_ROWS = 3;
 
 export function CharacterRegexScriptsField({ characterId }: { readonly characterId: CharacterId }): ReactElement {
   return (
-    <RegexScriptPicker
-      scope={{ kind: "character", characterId }}
-      heading="Regex scripts"
-      helperText="Find/replace rules that run whenever this character is in the room, picked from your script library."
-    />
+    <QueryBoundary
+      fallback={<SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="your regex scripts" onRetry={retry} />}
+    >
+      <RegexScriptPicker
+        scope={{ kind: "character", characterId }}
+        heading="Regex scripts"
+        helperText="Find/replace rules that run whenever this character is in the room, picked from your script library."
+      />
+    </QueryBoundary>
   );
 }

@@ -110,4 +110,3 @@ export function UserMacrosTabStory(): ReactElement {
     </StoryForm>
   );
 }
-

@@ -54,17 +54,31 @@ test("a row not attached globally reads as attached-only, not as global", async 
   await mount(<RegexSettingsStory />);
   // The subtitle is the scope's user-visible affordance — "attached only" means this script runs ONLY where
   // a preset/character/room picks it up, which is the whole point of the library being reference-based.
-  await expect(page.getByText("attached only")).toBeVisible();
+  await expect(page.getByText("on · attached only", { exact: true })).toBeVisible();
 });
 
-test("Add creates a real library ROW (not an array push) and opens the shared editor on it", async ({ mount, page }) => {
+test("Add mints a real library ROW (a server write, not an array push)", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<RegexSettingsStory />);
   await page.getByRole("button", { name: "Add script" }).click();
-  // The write is a row mint — the D121-E shape. Under the old embedded blob this was a `pushFieldValue`
-  // into a settings array, which is exactly why three carriers could disagree.
-  await expect.poll(() => trpc.lastInput(CREATE_PROC), { intervals: [100, 250, 500, 750] }).toMatchObject({ input: { name: "New script" } });
+  // THE D121-E SHAPE: adding a script is a `createScript` call. Under the old embedded blob it was a
+  // `pushFieldValue` into a settings array — which is exactly how three carriers came to disagree.
+  // Every placement is on by default, so a freshly-added script can actually fire (the F3 lesson).
+  await expect
+    .poll(() => trpc.lastInput(CREATE_PROC), { intervals: [100, 250, 500, 750] })
+    .toMatchObject({ input: { name: "New script", placement: ["USER_INPUT", "AI_OUTPUT", "WORLD_INFO", "REASONING", "DISPLAY"] } });
+});
+
+test("clicking a row opens the ONE shared editor on it", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<RegexSettingsStory />);
+  // The row is click-to-edit (EntryListEditor). This is the pin that there is ONE editor at ONE capability
+  // level — the reshape's whole point, where the character facet used to offer four of the ten fields.
+  await page.getByText("strip ooc").first().click();
   await expect(page.getByRole("heading", { name: "Edit regex script" })).toBeVisible();
+  // The full field set is present, not the old four-field subset.
+  await expect(page.getByLabel("Name", { exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Runs on" })).toBeVisible();
 });
 
 test("the GLOBAL switch attaches the script at the global scope", async ({ mount, page }) => {
@@ -77,7 +91,9 @@ test("the GLOBAL switch attaches the script at the global scope", async ({ mount
 test("un-switching an already-global script detaches it", async ({ mount, page }) => {
   const trpc = await stub(page, [SCRIPT]);
   await mount(<RegexSettingsStory />);
-  await expect(page.getByText("global")).toBeVisible();
+  // The ROW SUBTITLE is the scope affordance — matched exactly, because the bare word "global" also occurs
+  // in the list's helper line and the switch section's gloss (three hits, a strict-mode violation).
+  await expect(page.getByText("on · global", { exact: true })).toBeVisible();
   await page.getByRole("switch", { name: "strip ooc runs in every chat" }).click();
   await expect.poll(() => trpc.lastInput(DETACH_PROC), { intervals: [100, 250, 500] }).toMatchObject({ scriptId: SCRIPT.id });
 });

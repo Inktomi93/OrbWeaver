@@ -15,13 +15,12 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chats, personas } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, MessageId, PersonaId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
@@ -169,8 +168,7 @@ function harness(
     // D121-E: the host-tier regex set reaches a turn through the injected four-scope resolver, not through
     // ForeignInputs. The harness feeds the override in as the GLOBAL slice — the same tier the old
     // `globalRegexScripts` field modelled, so the pins it carries keep asserting the same thing.
-    resolveRegexSources: () =>
-      Promise.resolve({ hostGlobal: over.hostTierRegexScripts ?? [], preset: [], cast: [], chat: [] }),
+    resolveRegexSources: () => Promise.resolve({ hostGlobal: over.hostTierRegexScripts ?? [], preset: [], cast: [], chat: [] }),
     runChatTurn: (request) => {
       over.onChatRequest?.(request);
       if (over.runChatTurn !== undefined) {
