@@ -49,9 +49,32 @@ symbols verified on tree (hostSeatOf/hostUserIdOf · viewerHoldsHost/viewerReads
 assertHost/permitsHost · isAdmin export real), R4-parked board lines struck below. The verify --push
 output that landed post-compact was the ALREADY-PROCESSED run (its 2 reds = the pair fixed in
 `26e5856f`) — no new carnage; PUSH-READY still pending the clean re-run at quiesce.
-**LIVE NOW (4): PRIN · CHAIN · TRUTH · PERSONA (R0-R4 program, dispatched post-CERD on the
-owner's "proceed on CERD or whatever needs doin").** GRAD (ceremony graduation) queued behind
-TRUTH; HANDOFF-COPY queued behind PERSONA (chat-domain adjacency).
+✅ **PRIN MERGED (`6e310118`, hook 14/14, torn down)** — 3 gates live: table-scoping-class
+(76 tables = 22 ownerId/18 membership/13 junction/18 parent/5 global, derived coherence arm —
+a class can't outlive its column; the census map now lives IN CODE as TABLE_SCOPING_CLASSES,
+citable by the permissions page) · owner-scoped-reads ((a)-set derived per-run; F3-AUTHZ
+post-fetch-filter recognized structurally; READS-only declared limit) · injected-op-caller-param
+(id vocabulary derived from kit/ids TypeIdOf<>; UserId/Handle excluded by construction).
+**REAL DEFECT FIXED red-first: CopyCharacterBooks carried lore CROSS-TENANT both directions**
+(signature never carried ownership; now takes ownerId + proves BOTH ends owned, matching
+LinkCarriedBooks' guard; 2 new specs). ReapAssetsOp = EXEMPT structurally-safe (authority-safe
+via ref-registry proof, returns no rows; reasoned row w/ end condition). Arm-2 sweep: 19
+unfiltered-id sites (census's 3 was a sample), ALL verified zero-defect, each markered.
+**FLAGGED follow-on (queue): the WRITE half** — same predicate over update/delete finds 30 more
+sites, all guard-in-verb today; classification job, own lane.
+✅ **CHAIN MERGED (`1b0c8771`, hook 14/14, torn down)** — `pnpm ast chains` live: whole
+dead-chain naming (head ← link ← link), @public reader consolidated into ast.ts (ratchet
+imports it — two-homes class closed), edge map opt-in {edges:true} w/ byte-identical-liveness
+receipts (edges OFF/ON identical; ratchet output byte-identical vs HEAD). First audit: 14,759
+decls / 52,989 edges / 15 unconsumed heads / **0 chain-dead** (zero proven real via planted
+probe; graph prints its own size). Its 39 first-run hits were ALL lens bugs (lesson banked).
+**LIVE NOW (2): TRUTH · PERSONA.** DISPATCHED post-seal: **REGEX** (the R1-R6 program per the
+regex report; R0 done via D121 clause E; R1 = library+junctions reshape + baseline regen +
+carries the raw_request/raw_response deletions; R2/R4 MUST register the `regex` portable kind) ·
+**SM3** (mech smalls: gateAndResolveConnection no-op + 3 stale canAgent comments · databank-spec
+seven-sections line · responseFormatSchema @typeonly-ok · content-class table-dispatch ·
+CharacterFacetId Record). GRAD queued behind TRUTH; HANDOFF-COPY queued behind PERSONA;
+PRIN's write-half classification lane queued.
 
 **LANE TRUTH DISPATCHED (Fable-tier, OWNER-EXEMPTED — the day's closing act):** the core-docs
 TRUTH AUDIT — every verifiable claim in docs/architecture/core verified against the tree
