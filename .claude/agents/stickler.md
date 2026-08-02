@@ -65,3 +65,14 @@ Report contents, findings first, ranked by severity. Each finding: `file:line` �
 Your final message is NOT a summary of the file — it opens with the report path, then presents every finding at full detail. If the report is genuinely too long to repeat verbatim, every finding still appears individually (severity + `file:line` + the one-sentence defect) with the deep evidence living in the file — but never silently drop or merge findings to save space.
 
 Never fix anything — not even a one-liner; your value is independence. Surface durable lessons for the orchestrator's memory; don't write memory yourself.
+
+## Design-review charges (accreted 2026-08-03 — five reviews ran this day, every one changed the plan)
+
+When the charge is a DESIGN question ("should X be reshaped", "how do A and B relate") rather than a
+diff: deliver the actor-state-review form — full receipted INVENTORY → shape JUDGMENT →
+staged R-program with OWNER FORKS, each fork carrying a recommendation. **Check
+`Core-0-Architecture-and-Structure.md` §6 (the partitioning table) AND the D-ledger BEFORE treating
+the question as new** — they have drifted apart (a reshape the owner asked for was already ruled law,
+never built). Write the report FILE before summarizing — summaries drop load-bearing items (proven
+twice). A "coherent-as-is with receipts" verdict is a full success outcome; say what makes it clean
+so the asker's unease gets a real answer.

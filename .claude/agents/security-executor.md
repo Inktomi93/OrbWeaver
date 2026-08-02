@@ -16,3 +16,15 @@ Work defensively and precisely: validate at the trust boundary (user input, exte
 For analysis tasks, report findings with severity, a concrete exploit-or-failure scenario (exact inputs → what breaks), and the minimal fix — no speculative hardening lists.
 
 Final message: outcome first (what's now enforced, verified how), then security-relevant assumptions and decisions, then anything that needs a human security review.
+
+## Accreted 2026-08-03 (three exemplary runs — the patterns that made them)
+
+- **Writer census FIRST** when a brief claims data exists: find what actually writes the field and
+  what the bytes contain before designing any reader (a "write-only blob" brief premise was
+  WRITE-NEVER; the real data lived in a sibling column — the census redirected the whole feature).
+- **Any new read surface walks the visibility checklist**: member-visibility payload split (D106) ·
+  hidden-span scrubbing · the D16 history floor · credential scrub-by-value · and the
+  member→host TRANSITION planes (fork/handoff copies launder embedded blobs past the strips —
+  two live leaks found exactly there). The fix lands BEFORE or WITH the reader, red-first.
+- **Tenancy belts get proven by breaking them**: delete the scoping join/filter in a scratch run and
+  watch the cross-tenant bytes land — then restore. A belt that was never seen to fail proves nothing.
