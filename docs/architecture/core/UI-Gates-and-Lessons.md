@@ -285,6 +285,10 @@ The 2026-06 re-verification write-up is the archaeology record; the standing dec
 
 ## 12. Authoring a gate — the full ritual (a gate is NOT just the gate file)
 
+SUPERSEDED IN DETAIL by `scripts/check/GATE-AUTHORING.md` (THE gate-authoring law: the descriptor contract,
+the complete coupled-sites list, the exemption grammar, `scanRoot` formats, harness mechanics, exemplars).
+Scaffold with `pnpm gate:new <name>`. What follows is the short form; where the two differ, that doc wins.
+
 To ship a `scripts/check/gates/<name>.ts` gate GREEN you must ALSO do all three, or `pnpm check` reds:
 
 1. **Inline proof (always):** the descriptor exports `gate: GateDescriptor` with `name` == filename, a real

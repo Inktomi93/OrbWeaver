@@ -282,6 +282,7 @@ the agent-principal design set (parked in `../proposed/`), or the built code. Li
 | types · schemas · string-union dispatch · house TS style | `Spine-TypeScript-and-Patterns.md` |
 | testing policy (lanes, presence, determinism, factories) | `Spine-Testing.md` |
 | the derived-data cluster boundary (embeddings/search/discovery/memory/stats) | `Knowledge-Cluster.md` |
+| authoring a structural gate (descriptor contract · the coupled sites · the exemption grammar · scanRoot formats · harness mechanics) | `../../../scripts/check/GATE-AUTHORING.md` (scaffold: `pnpm gate:new <name>`) |
 | the domain map | §6 above |
 | server tier law | `Tier-1-DB.md` · `Tier-2-Foundation.md` · `Tier-3-Infra.md` · `Tier-3b-Providers.md` · `Tier-4-Transport.md` · `Tier-5-Entry.md` |
 | UI law | `UI-Architecture-and-Layout.md` · `UI-Gates-and-Lessons.md` · `UI-Primitives-and-Reuse.md` · `UI-Theming-and-Content.md` · `ui-package-design.md` · `motion-and-animation-guide.md` (+ the active program: `../proposed/ui-cohesion-north-star.md`, D66) |

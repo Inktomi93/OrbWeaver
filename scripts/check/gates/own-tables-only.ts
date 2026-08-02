@@ -43,7 +43,7 @@
 //     convention + `no-direct-users-read` + `discovery-no-stats-rollups`, not by this gate.
 import type { ImportDeclaration, ImportSpecifier, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { GateDescriptor, GateRunCtx } from "../contract.ts";
+import type { ExemptionRow, ExemptionTable, GateDescriptor, GateRunCtx } from "../contract.ts";
 import { fileLoaded } from "../pass.ts";
 
 const DOMAIN_ROOT = "packages/server/src/domain/";
@@ -61,7 +61,7 @@ const WRITE_METHODS = new Set(["insert", "update", "delete"]);
  *  deliberately instead of silently becoming un-ownable. Empty owners = "no DOMAIN owns this" (the producer
  *  lives outside `domain/`), which makes every domain-side import of its tables RED — the intended verdict.
  *  Both-ways ratchet: a row naming a schema file that no longer exists is RED. */
-const SCHEMA_OWNERS: Record<string, { readonly owners: readonly string[]; readonly why: string }> = {
+const SCHEMA_OWNERS: ExemptionTable<ExemptionRow & { readonly owners: readonly string[] }> = {
   users: {
     owners: ["sessions", "admin"],
     why:
@@ -99,7 +99,7 @@ const SCHEMA_OWNERS: Record<string, { readonly owners: readonly string[]; readon
 
 /** Per-TABLE producer overrides — a table whose FILE home and whose PRODUCER differ. Both-ways ratchet: a
  *  row naming a table no schema file declares any more is RED. */
-const TABLE_OWNERS: Record<string, { readonly owners: readonly string[]; readonly why: string }> = {
+const TABLE_OWNERS: ExemptionTable<ExemptionRow & { readonly owners: readonly string[] }> = {
   characterPersonas: {
     owners: ["persona"],
     why:
@@ -116,27 +116,35 @@ const TABLE_OWNERS: Record<string, { readonly owners: readonly string[]; readonl
  *  NOT listed, deliberately: `search` and `import`. They are the SAME doc class, but every foreign table
  *  they touch today is reached from `persistence/` (import touches `@orb/db` zero times) — so they need no
  *  sanction, and the day one moves a foreign read out of `persistence/` that becomes a reviewed act. */
-const BULK_READERS: Record<string, string> = {
-  discovery:
-    "library-analytics (AGENTS §6 domain map): themes / duplicates / hubness / distillation are computed BY " +
-    "reading other domains' rows in bulk — Tier-1-DB.md §Cross-tier composition puts discovery in the same " +
-    "bulk read-only posture as search on the vector tables. Its verbs' own headers state the owner scope " +
-    "derives via a `characters` join because `character_summaries` keeps no ownerId.",
-  export:
-    "THE sanctioned bulk serializer (Tier-1-DB.md §Cross-tier composition #2 + Spine-Config-and-Serialization.md): " +
-    "import + export share one serde core that reads schema tables directly — bulk serializers, not CRUD " +
-    "callers. `export-character.ts`'s own header says the direct `@orb/db` reads are export's job.",
+const BULK_READERS: ExemptionTable = {
+  discovery: {
+    why:
+      "library-analytics (AGENTS §6 domain map): themes / duplicates / hubness / distillation are computed BY " +
+      "reading other domains' rows in bulk — Tier-1-DB.md §Cross-tier composition puts discovery in the same " +
+      "bulk read-only posture as search on the vector tables. Its verbs' own headers state the owner scope " +
+      "derives via a `characters` join because `character_summaries` keeps no ownerId. Ends the day discovery's " +
+      "foreign reads all move into its own `persistence/`.",
+  },
+  export: {
+    why:
+      "THE sanctioned bulk serializer (Tier-1-DB.md §Cross-tier composition #2 + Spine-Config-and-Serialization.md): " +
+      "import + export share one serde core that reads schema tables directly — bulk serializers, not CRUD " +
+      "callers. `export-character.ts`'s own header says the direct `@orb/db` reads are export's job. Ends if " +
+      "export ever routes its reads through the owning domains (the shape `domain/import` already uses).",
+  },
 };
 
 /** Individually-sanctioned files. READ-ONLY, same as BULK_READERS. Both-ways ratchet: a row whose file has
  *  no foreign table import left is RED. Keep this list SHORT — a second file wanting the same reason is the
  *  signal that the reason belongs in the law, not in a row. */
-const FILE_ALLOWLIST: Record<string, string> = {
-  "packages/server/src/domain/chat/assembly/world-info/pool.ts":
-    "the doc-NAMED read-only-join pattern — Tier-1-DB.md §Cross-tier composition #3 calls it 'the pool.ts " +
-    "pattern' by this exact file: a domain owning a VIEW of another domain's junctions may read them " +
-    "directly when the read is ownership-safe. The world-info pool is scoped by the chat's own ids and " +
-    "writes nothing.",
+const FILE_ALLOWLIST: ExemptionTable = {
+  "packages/server/src/domain/chat/assembly/world-info/pool.ts": {
+    why:
+      "the doc-NAMED read-only-join pattern — Tier-1-DB.md §Cross-tier composition #3 calls it 'the pool.ts " +
+      "pattern' by this exact file: a domain owning a VIEW of another domain's junctions may read them " +
+      "directly when the read is ownership-safe. The world-info pool is scoped by the chat's own ids and " +
+      "writes nothing. Ends if the doc drops the named pattern, or if the pool ever writes.",
+  },
 };
 
 const MESSAGE =

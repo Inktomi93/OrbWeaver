@@ -65,6 +65,7 @@
     "depcruise:graph": "mkdir -p reports && depcruise packages --config .dependency-cruiser.cjs --output-type mermaid --output-to reports/dependency-graph.mmd",
     "depcruise:focus": "depcruise packages --config .dependency-cruiser.cjs --output-type mermaid --focus",
     "depcruise:reaches": "depcruise packages --config .dependency-cruiser.cjs --output-type mermaid --reaches",
+    "gate:new": "tsx scripts/check/new-gate.ts",
     "check:structure": "tsx scripts/check/report.ts",
     "check:show": "tsx scripts/check/show.ts",
     "test": "vitest run --project unit --project integration --project integration-serial --project contract --reporter=default --reporter=json --outputFile.json=reports/test-report.json && pnpm test:ct --retries=2",
