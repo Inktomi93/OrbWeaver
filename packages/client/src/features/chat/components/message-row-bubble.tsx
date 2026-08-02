@@ -38,7 +38,9 @@ export function renderSingleBubble(args: {
           style={headerBand.style}
         >
           {headerBand.initial === undefined ? null : (
-            <Text as="span" size="title" weight="semibold" className="text-primary-foreground">
+            // A decorative aria-hidden mark on the band's own fill — the `monogram` voice (§2.3 as amended,
+            // S6); the band owns the ink, which is why the voice carries no colour of its own.
+            <Text as="span" voice="monogram" className="text-primary-foreground">
               {headerBand.initial}
             </Text>
           )}
@@ -68,7 +70,9 @@ export function renderSingleBubble(args: {
             className="absolute inset-y-0 right-0 w-(--immersive-echo-feather) items-end justify-center pe-block"
             style={edgeTile.style}
           >
-            <Text as="span" weight="bold" className="text-primary-foreground leading-none" style={{ fontSize: "var(--spacing-avatar-hero)" }}>
+            {/* The Echo tile's feathered letter — the same decorative `monogram` voice, sized past the
+                title step by the tile's own hero dimension (a mark this large has no type-scale step). */}
+            <Text as="span" voice="monogram" className="text-primary-foreground leading-none" style={{ fontSize: "var(--spacing-avatar-hero)" }}>
               {edgeTile.initial}
             </Text>
           </Stack>
