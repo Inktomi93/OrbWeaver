@@ -102,11 +102,9 @@ export type DocumentView = z.infer<typeof documentViewSchema>;
 // flat — no folder/collection primitive); per-folder is a deferred future item riding a not-yet-minted
 // collection primitive (D85). `hidden` is a SET of excluded document ids; an id not owned/attached is simply
 // inert (the union filter is a membership subtraction, never a lookup).
-export const chatDocumentVisibilitySchema = z
-  .object({
-    hidden: z.array(documentIdSchema),
-  })
-  .strict();
+export const chatDocumentVisibilitySchema = z.strictObject({
+  hidden: z.array(documentIdSchema),
+});
 
 export type ChatDocumentVisibility = z.infer<typeof chatDocumentVisibilitySchema>;
 

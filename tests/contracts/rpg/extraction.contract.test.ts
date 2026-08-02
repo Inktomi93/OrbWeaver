@@ -26,6 +26,7 @@ import {
   rpgTrackerDefSchema,
   salvageExtraction,
   salvagePopulate,
+  strippedToolCallKeys,
   toolCallsToExtraction,
   updatePartyArgsSchema,
   updateSceneArgsSchema,
@@ -719,6 +720,62 @@ test("R1: an all-good round reports nothing dropped (a quiet log on the happy pa
       { name: "add_journal_entry", arguments: JSON.stringify({ type: "event", label: "", title: "t", content: "c" }) },
     ]),
   ).toEqual([]);
+});
+
+// ── strippedToolCallKeys (D112 (3) — the SILENT class the drop predicate can't see) ─────────────────────
+// `z.object` is strip-mode: a call carrying an undeclared key parses CLEAN with that key deleted. So a
+// successful ToolCallRecord could hide a write that never happened, invisible to every existing channel.
+
+test("D112 (3): a call that PARSES but carried an undeclared key is named, with its path", () => {
+  // `hpDelta` is the live case: R3 retired it in favour of a `trackerDeltas` entry with `key:"hp"`, so a model
+  // reaching for the old vocabulary lands a successful update_party whose damage silently never applied.
+  const calls = [{ name: "update_party", arguments: JSON.stringify({ targetRef: "player", hpDelta: -3 }) }];
+  expect(malformedToolCalls(calls)).toEqual([]); // the drop channel is blind to it, by construction
+  expect([...strippedToolCallKeys(calls)]).toEqual(["update_party.hpDelta"]);
+  expect(toolCallsToExtraction(calls).party).toEqual([{ targetRef: "player" }]); // …and this is what applied
+});
+
+test("D112 (3): strips are reported at DEPTH — inside a nested object and an array item", () => {
+  expect([
+    ...strippedToolCallKeys([
+      {
+        name: "update_scene",
+        arguments: JSON.stringify({ weather: { type: "rain", intensity: 3 }, presentUpsert: [{ name: "Kael" }, { name: "Mira", vibe: "grim" }] }),
+      },
+    ]),
+  ]).toEqual(["update_scene.weather.intensity", "update_scene.presentUpsert.1.vibe"]);
+});
+
+test("D112 (3): a DROPPED call is not double-counted as stripped, and no-ops/clean calls report nothing", () => {
+  // Non-JSON and schema-invalid calls are whole-call losses `malformedToolCalls` already names.
+  expect(
+    strippedToolCallKeys([
+      { name: "update_party", arguments: "{not json" },
+      { name: "update_scene", arguments: JSON.stringify({ presentUpsert: "should be an array" }) },
+    ]),
+  ).toEqual([]);
+  // `no_changes` / an unknown name meant to apply nothing, so nothing was stripped from it.
+  expect(strippedToolCallKeys([{ name: RPG_NO_CHANGES_TOOL, arguments: JSON.stringify({ anything: 1 }) }])).toEqual([]);
+  expect(strippedToolCallKeys([{ name: "update_scene", arguments: JSON.stringify({ location: "the ford" }) }])).toEqual([]);
+});
+
+test("D112 (3): the STRUCTURED arm reports the same strips — per entry, and for an undeclared ROOT plane key", () => {
+  const { extraction, dropped, stripped } = salvageExtraction({
+    party: [{ targetRef: "player", hpDelta: -3 }],
+    scene: { location: "the ford", vibe: "tense" },
+    // A whole plane under a key that names nothing: the per-plane walk never looks at it, so without the root
+    // check this payload's entire tracker write would read as a quiet beat.
+    trackerDeltas: [{ key: "hp", delta: -2 }],
+  });
+  expect(dropped).toEqual([]); // every entry CONFORMED — a strip is not a drop
+  expect([...stripped]).toEqual(["trackerDeltas", "party.0.hpDelta", "scene.vibe"]);
+  expect(extraction.party).toEqual([{ targetRef: "player" }]);
+});
+
+test("D112 (3): a clean payload reports nothing stripped (quiet on the happy path)", () => {
+  expect(salvageExtraction({ scene: { location: "the ford" }, party: [{ targetRef: "player", status: "wounded" }] }).stripped).toEqual([]);
+  expect(salvageExtraction({}).stripped).toEqual([]);
+  expect(salvageExtraction("not an object").stripped).toEqual([]); // an unusable root is a DROP, not a strip
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
