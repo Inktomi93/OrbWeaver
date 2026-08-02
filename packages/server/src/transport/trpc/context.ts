@@ -26,6 +26,7 @@ import type { SettingsService } from "#domain/settings";
 import type { StatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
+import type { RegexService } from "#domain/regex";
 import type { WorldInfoService } from "#domain/world-info";
 import type { PresenceRegistry } from "./presence-registry";
 import type { SocketRegistry } from "./stream/socket-registry";
@@ -58,6 +59,7 @@ export interface Services {
   readonly stats: StatsService;
   readonly tag: TagService;
   readonly workloads: WorkloadService;
+  readonly regex: RegexService;
   readonly worldInfo: WorldInfoService;
 }
 

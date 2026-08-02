@@ -89,7 +89,7 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
         png ? "No character data found in this PNG (no ccv3/chara card chunk)" : "This file isn't a V2/V3 character card (unreadable JSON)",
       );
     }
-    const { card: characterCard, tags, book, attachedBooks } = parsed;
+    const { card: characterCard, tags, book, attachedBooks, attachedRegexScripts } = parsed;
 
     const importHash = importFileHash(bytes);
 
@@ -124,6 +124,19 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
 
     if (ctx.importLorebook !== undefined && book !== null && attachedBooksLinked === 0) {
       await ctx.importLorebook({ ownerId: ctx.ownerId, characterId, book });
+    }
+
+    // D121-E: the regex LIFT. Unlike the lorebook clone above there is no either/or — the op takes BOTH
+    // channels at once and resolves them internally (a carried reference this owner holds attaches the
+    // existing row; a by-value script content-dedups against the library and only mints when genuinely new),
+    // so a same-install re-import produces zero duplicate rows and a foreign card still gets its scripts.
+    if (ctx.importCardScripts !== undefined && (characterCard.regexScripts !== undefined || attachedRegexScripts.length > 0)) {
+      await ctx.importCardScripts({
+        ownerId: ctx.ownerId,
+        characterId,
+        scripts: characterCard.regexScripts ?? [],
+        carried: attachedRegexScripts,
+      });
     }
 
     return { characterId, created, importHash, attachedBooksLinked, attachedBooksSkipped };

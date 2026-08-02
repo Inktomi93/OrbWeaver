@@ -24,6 +24,7 @@ export * from "./persona";
 export * from "./plugin";
 export * from "./preset";
 export * from "./rate-limit";
+export * from "./regex";
 export * from "./relations";
 export * from "./rpg";
 export * from "./sdk-session";

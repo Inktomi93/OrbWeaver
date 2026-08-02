@@ -16,7 +16,6 @@
 import type { AssemblePersona } from "@orb/contracts/chat";
 import type { DatabankRetrievalSettings } from "@orb/contracts/databank";
 import type { PromptConfig } from "@orb/contracts/preset";
-import type { RegexScript } from "@orb/contracts/regex";
 import type { ChatSettings } from "@orb/contracts/settings";
 import type { ChatId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import type { MemoryConfig } from "./memory";
@@ -47,7 +46,6 @@ export interface ResolvedPersonas {
  * settings-/preset-/persona-derived (a read chat must NOT perform itself):
  *   • `promptConfig`        — the chat's active preset under the host's settings (preset domain).
  *   • `personas`            — anchor + active (persona domain).
- *   • `globalRegexScripts`  — the host's `UserSettings.regex.scripts` (settings) — the host-global regex tier.
  *   • `scanDepth`           — the host's `UserSettings.worldInfo.scanDepth` (settings) — the WI keyword-scan
  *                             window the gather slices `recentMessages` to.
  *   • `injectionTokenBudget`— the host's `UserSettings.worldInfo.tokenBudget` (settings) — the ONE injection
@@ -70,7 +68,6 @@ export interface ForeignInputs {
    *  authored, since the default config has none). */
   readonly presetId?: PresetId | null | undefined;
   readonly personas: ResolvedPersonas;
-  readonly globalRegexScripts: readonly RegexScript[];
   readonly scanDepth: number;
   readonly injectionTokenBudget: number;
   readonly memoryConfig?: MemoryConfig | null | undefined;

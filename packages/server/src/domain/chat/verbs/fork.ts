@@ -105,11 +105,9 @@ function copyVariantStmt(
       // copy and reads it through the host-only wire inspector (`chat.getVariantWire`), so the blob must not
       // survive the transition. `stripHidden` is the whole verdict: a host is never floor-clamped
       // (`resolveHistoryFloorSeq` F2), so a clamped forker is necessarily a non-host and the one flag covers both
-      // leaks. A HOST forker keeps it verbatim (they already read every byte). The `raw*` envelopes take the same
-      // verdict so the spread-strip is uniform across all three debug blobs.
+      // leaks. A HOST forker keeps it verbatim (they already read every byte). It is the ONLY debug blob on the
+      // row — the `raw_request`/`raw_response` envelopes were write-never and are deleted.
       promptSnapshot: stripHidden ? null : variant.promptSnapshot,
-      rawRequest: stripHidden ? null : variant.rawRequest,
-      rawResponse: stripHidden ? null : variant.rawResponse,
       contextBoundaryMessageId: newBoundaryId,
     }),
   );

@@ -12,7 +12,6 @@ import { chunkParamsSchema, databankRetrievalSettingsSchema } from "#databank";
 import type { ExtractionMode, MultimodalCaptionMode } from "#imagery";
 import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
 import { legacyProseOverrides, proseOverridesSchema, resolveProseText } from "#prose";
-import { regexScriptSchema } from "#regex";
 import { MEMORY_RETRIEVAL_MODES } from "#search";
 // BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS` / `BackgroundImageKind`) is homed in
 // `#theme` (shared with the carried `ThemeBackground` twin); consumers import it from `@orb/contracts/theme`.
@@ -378,7 +377,7 @@ const roleDefaultsSchema = z
   })
   .prefault({});
 
-export const USER_SETTINGS_SCHEMA_VERSION = 7;
+export const USER_SETTINGS_SCHEMA_VERSION = 8;
 
 const SCAN_DEPTH_MIN = 1;
 const SCAN_DEPTH_MAX = 200;
@@ -818,18 +817,6 @@ const appearanceSchema = z
 
 export type AppearanceSettings = z.infer<typeof appearanceSchema>;
 
-// The owner-global regex script library — its OWN object section (`config.regex.scripts`) so the
-// section-update machinery can address it (sections deep-merge object patches; a bare top-level array
-// could not be section-patched). v2→v3 lift moved it out of the top-level `regexScripts` array.
-const regexSettingsSchema = z
-  .object({
-    scripts: z.array(regexScriptSchema).catch([]).default([]),
-  })
-  .prefault({});
-
-/** @public type twin of `regexSettingsSchema`, live in this file's settings blob. */
-export type RegexSettings = z.infer<typeof regexSettingsSchema>;
-
 export const userSettingsSchema = z.object({
   // The DB also pins a `user_settings.schemaVersion` COLUMN (`storedVersion`), which BEATS this in-blob
   // value so a client can't spoof past a lift.
@@ -851,7 +838,6 @@ export const userSettingsSchema = z.object({
   persona: personaSchema,
   groupDefaults: groupConfigSchema.catch(DEFAULT_GROUP_CONFIG).default(DEFAULT_GROUP_CONFIG),
   onboarding: onboardingSchema,
-  regex: regexSettingsSchema,
   workloads: workloadsSchema,
   profile: profileSchema,
   appearance: appearanceSchema,
@@ -879,7 +865,6 @@ export const USER_SETTINGS_SECTIONS = [
 
   "groupDefaults",
   "onboarding",
-  "regex",
   "workloads",
   "profile",
   "appearance",
@@ -971,6 +956,15 @@ const USER_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => R
   // blob has no prose key, which reads back as `.prefault({})` ⇒ every slot resolves to its shipped default,
   // byte-identical to pre-PROSE-1. Carry every namespace through untouched (the v4→v5/v5→v6 shape).
   6: (c) => ({ ...c }),
+  // v7→v8: the `regex` section is DELETED (D121-E). The owner-global script library is no longer an
+  // embedded blob — it is `regex_scripts` rows attached through `global_regex_scripts`. A LIFT-TO-DROP and
+  // not a silent strip, because the section tuple (`USER_SETTINGS_SECTIONS`) is the section-patch door: a
+  // stored `regex` key would otherwise survive as an unaddressable orphan in the blob. NO-LEGACY — the
+  // scripts are NOT migrated (BACKREST-MANUAL: the owner re-enters them by hand, the ruled carryover arm).
+  7: (c) => {
+    const { regex: _retiredLibrary, ...rest } = c;
+    return rest;
+  },
 };
 
 export const userSettingsConfig = defineVersionedConfig<UserSettings>({

@@ -212,6 +212,7 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
     ...promptPreviewReads(trpc),
   ],
   worldInfoChanged: (_e, trpc) => [trpc.worldInfo.pathFilter()],
+  regexChanged: (_e, trpc) => [trpc.regex.pathFilter()],
   tagsChanged: (_e, trpc) => [trpc.tag.pathFilter()],
   // Themes live under the settings router but are a distinct read surface.
   themesChanged: (_e, trpc) => [trpc.settings.listThemes.pathFilter(), trpc.settings.getTheme.pathFilter()],

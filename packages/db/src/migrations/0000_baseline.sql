@@ -140,7 +140,6 @@ CREATE TABLE `characters` (
 	`source` text,
 	`creation_date` integer,
 	`modification_date` integer,
-	`regex_scripts` text DEFAULT '[]' NOT NULL,
 	`extensions` text,
 	`residual_data` text,
 	`avatar_asset_id` text,
@@ -320,8 +319,6 @@ CREATE TABLE `message_variants` (
 	`gen_started_at` integer,
 	`gen_finished_at` integer,
 	`generation_id` text,
-	`raw_request` text,
-	`raw_response` text,
 	`pre_continue_content` text,
 	`pre_continue_reasoning` text,
 	`last_continuation_content` text,
@@ -763,6 +760,57 @@ CREATE TABLE `rate_limit_buckets` (
 	`expires_at` integer NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE `character_regex_scripts` (
+	`character_id` text NOT NULL,
+	`regex_script_id` text NOT NULL,
+	`position` integer DEFAULT 0 NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	PRIMARY KEY(`character_id`, `regex_script_id`),
+	FOREIGN KEY (`character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`regex_script_id`) REFERENCES `regex_scripts`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `character_regex_scripts_script_idx` ON `character_regex_scripts` (`regex_script_id`);--> statement-breakpoint
+CREATE TABLE `chat_regex_scripts` (
+	`chat_id` text NOT NULL,
+	`regex_script_id` text NOT NULL,
+	`position` integer DEFAULT 0 NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	PRIMARY KEY(`chat_id`, `regex_script_id`),
+	FOREIGN KEY (`chat_id`) REFERENCES `chats`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`regex_script_id`) REFERENCES `regex_scripts`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `chat_regex_scripts_script_idx` ON `chat_regex_scripts` (`regex_script_id`);--> statement-breakpoint
+CREATE TABLE `global_regex_scripts` (
+	`regex_script_id` text PRIMARY KEY NOT NULL,
+	`position` integer DEFAULT 0 NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`regex_script_id`) REFERENCES `regex_scripts`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `preset_regex_scripts` (
+	`preset_id` text NOT NULL,
+	`regex_script_id` text NOT NULL,
+	`position` integer DEFAULT 0 NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	PRIMARY KEY(`preset_id`, `regex_script_id`),
+	FOREIGN KEY (`preset_id`) REFERENCES `presets`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`regex_script_id`) REFERENCES `regex_scripts`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `preset_regex_scripts_script_idx` ON `preset_regex_scripts` (`regex_script_id`);--> statement-breakpoint
+CREATE TABLE `regex_scripts` (
+	`id` text PRIMARY KEY NOT NULL,
+	`owner_id` text NOT NULL,
+	`name` text NOT NULL,
+	`enabled` integer DEFAULT true NOT NULL,
+	`behavior` text NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `regex_scripts_owner_idx` ON `regex_scripts` (`owner_id`);--> statement-breakpoint
 CREATE TABLE `rpg_checkpoints` (
 	`id` text PRIMARY KEY NOT NULL,
 	`game_id` text NOT NULL,
@@ -922,7 +970,7 @@ CREATE INDEX `themes_owner_idx` ON `themes` (`owner_id`);--> statement-breakpoin
 CREATE UNIQUE INDEX `themes_owner_name_uq` ON `themes` (`owner_id`,`name`);--> statement-breakpoint
 CREATE TABLE `user_settings` (
 	`user_id` text PRIMARY KEY NOT NULL,
-	`schema_version` integer DEFAULT 7 NOT NULL,
+	`schema_version` integer DEFAULT 8 NOT NULL,
 	`config` text NOT NULL,
 	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade

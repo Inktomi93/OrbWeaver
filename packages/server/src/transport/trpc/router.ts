@@ -28,6 +28,7 @@ import { statsRouter } from "./routers/stats";
 import { streamRouter } from "./routers/stream";
 import { tagRouter } from "./routers/tag";
 import { workloadsRouter } from "./routers/workloads";
+import { regexRouter } from "./routers/regex";
 import { worldInfoRouter } from "./routers/world-info";
 import { publicProcedure, t } from "./trpc";
 
@@ -87,6 +88,7 @@ export const appRouter = t.router({
   stream: streamRouter,
   tag: tagRouter,
   workloads: workloadsRouter,
+  regex: regexRouter,
   worldInfo: worldInfoRouter,
 });
 

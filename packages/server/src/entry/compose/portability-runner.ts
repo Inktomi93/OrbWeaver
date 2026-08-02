@@ -35,6 +35,7 @@ import {
   runBundleImport,
   runProfileDirImport,
 } from "../import";
+import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "#domain/regex";
 import { buildPortabilityRegistry } from "./portability";
 
 /** Repo-root ST profile snapshot (gitignored) — the `import-st` default when no `stProfileDir` is set. */
@@ -57,6 +58,10 @@ export interface PortabilityRunnerComposeDeps {
   readonly assets: AssetsService;
   readonly attachCardTag: TagService["attachCardTagByName"];
   readonly importWorldInfo: ImportWorldInfoPort;
+  /** D121-E: the card LIFT + the `regex` bundle descriptor's two halves (from the regex compose seam). */
+  readonly importCardScripts: ImportCardScripts;
+  readonly exportRegexScripts: ExportRegexScripts;
+  readonly importRegexScript: ImportRegexScript;
   readonly bulkImportChats: BulkImportChats;
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
@@ -96,6 +101,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     attachCardTag: deps.attachCardTag,
     importLorebook: deps.importWorldInfo.importLorebook,
     linkCarriedBooks: deps.importWorldInfo.linkCarriedBooks,
+    importCardScripts: deps.importCardScripts,
     bulkImportChats: deps.bulkImportChats,
     bulkImportPersonas: deps.bulkImportPersonas,
     enqueueBackfill: enqueueImportBackfill,
@@ -115,6 +121,8 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     persona: deps.persona,
     exportService: deps.exportService,
     listOwnedCharacterIds: deps.character.listEmbeddableCharacterIds,
+    exportRegexScripts: deps.exportRegexScripts,
+    importRegexScript: deps.importRegexScript,
     ...profileImport,
   });
 

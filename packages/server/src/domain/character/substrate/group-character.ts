@@ -39,7 +39,6 @@ export function buildGroupCard(): CharacterCard {
     source: null,
     creationDate: null,
     modificationDate: null,
-    regexScripts: [],
     extensions: null,
     residualData: null,
     avatarAssetId: null,

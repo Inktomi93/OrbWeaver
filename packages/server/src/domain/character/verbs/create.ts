@@ -69,7 +69,6 @@ function cardFromInput(input: CreateCharacterParams["input"]): CharacterCard {
     creator: input.creator ?? null,
     cardVersion: input.cardVersion ?? null,
     ...promotionsFromInput(input),
-    regexScripts: input.regexScripts ?? [],
     extensions: input.extensions ?? null,
     residualData: input.residualData ?? null,
     avatarAssetId: input.avatarAssetId ?? null,
