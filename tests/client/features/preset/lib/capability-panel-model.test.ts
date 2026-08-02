@@ -10,6 +10,9 @@ import type { ModelCapability, Range } from "@orb/contracts/connection";
 import { QUALITY_LEVELS } from "@orb/contracts/preset";
 import {
   QUALITY_OPTIONS,
+  QUALITY_SELECT_ITEMS,
+  qualityFromSelect,
+  qualitySelectValue,
   reasoningControlFor,
   samplingKnobsFor,
   supportsSeed,
@@ -103,4 +106,24 @@ test("the quality dial covers every QUALITY_LEVELS member, in order, with displa
     expect(option.label.length).toBeGreaterThan(0);
     expect(option.description.length).toBeGreaterThan(0);
   }
+});
+
+test("the dial's SELECT vocabulary leads with the OFF arm, and OFF round-trips as the ABSENCE (O-18)", () => {
+  // The dropdown's "don't use quality" must be a REAL arm the user can pick and re-read — and its storage
+  // form is no `quality` key at all (the funnel's own off arm; a fourth enum member would have to map to
+  // something). These two functions are the only place that sentinel exists.
+  const values = (QUALITY_SELECT_ITEMS as readonly { readonly value: string; readonly label: string }[]).map((item) => item.value);
+  expect(values.slice(1)).toEqual([...QUALITY_LEVELS]);
+  expect(values[0]).not.toBe("");
+
+  // OFF → nothing stored → OFF again (the round trip the Select renders).
+  const off = values[0] ?? "";
+  expect(qualityFromSelect(off)).toBeUndefined();
+  expect(qualitySelectValue(qualityFromSelect(off))).toBe(off);
+  // …and a real level survives the same trip untouched.
+  expect(qualityFromSelect("deep")).toBe("deep");
+  expect(qualitySelectValue("deep")).toBe("deep");
+  // An unknown wire value is the absence too — never a fabricated dial.
+  expect(qualityFromSelect(null)).toBeUndefined();
+  expect(qualityFromSelect("nonsense")).toBeUndefined();
 });

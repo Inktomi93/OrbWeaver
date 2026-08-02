@@ -137,9 +137,13 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
           <Text as="span" className={section.enabled ? "" : "line-through"} voice="gloss">
             {tokens}
           </Text>
+          {/* AMBER-ON, the app's one switch grammar (owner ruling, 2026-08-02). The `quiet` tone painted a
+              pale `foreground/55` track that read as the SAME control in both states down a twelve-row rack
+              — while Params' Reasoning switch, one tab away, was amber. Rationing the accent per row lost
+              the state signal it was rationing it for. */}
           <form.AppField name={`sections[${index}].enabled`}>
             {(field): ReactElement => (
-              <Switch aria-label={`${name} enabled`} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} tone="quiet" />
+              <Switch aria-label={`${name} enabled`} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} />
             )}
           </form.AppField>
           <Button aria-label={`Edit ${name}`} intent="ghost" onClick={(): void => onDrill(section.id)} ref={chevronRef} size="icon" type="button">
