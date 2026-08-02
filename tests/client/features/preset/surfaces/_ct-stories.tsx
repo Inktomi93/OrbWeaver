@@ -10,7 +10,7 @@
 
 import { useInvalidation } from "@orb/client/data";
 import { PresetEditorSurface, PresetLibrarySurface } from "@orb/client/features/preset";
-import { clearPresetSelection, selectPreset, useSectionRegistry, useSelectedPresetId } from "@orb/client/state";
+import { __resetPresetSelection, selectPreset, useSectionRegistry, useSelectedPresetId } from "@orb/client/state";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
@@ -90,7 +90,7 @@ export function PresetForkOnceStory(): ReactElement {
   const selectedId = useSelectedPresetId();
   useEffect(() => {
     selectPreset(BUILT_IN);
-    return (): void => clearPresetSelection();
+    return (): void => __resetPresetSelection();
   }, []);
   return (
     <CtDataProviders>
@@ -108,7 +108,7 @@ export function PresetForkChoiceStory(): ReactElement {
   const selectedId = useSelectedPresetId();
   useEffect(() => {
     selectPreset(BUILT_IN);
-    return (): void => clearPresetSelection();
+    return (): void => __resetPresetSelection();
   }, []);
   return (
     <CtDataProviders>

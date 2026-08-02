@@ -1,5 +1,5 @@
-// The typed API surface: CredentialContext (the DI bundle), CredentialsServiceDeps (entry-root deps), and
-// CredentialsService (the verb interface). Every cross-feature/infra dep arrives as an injected op —
+// The typed API surface: CredentialContext (the DI bundle, which the entry root passes straight to
+// createCredentialsService) and CredentialsService (the verb interface). Every cross-feature/infra dep arrives as an injected op —
 // credentials sideways-imports no sibling runtime.
 
 import type { CredentialHealth, ResolvedCredential } from "@orb/contracts/credentials";
@@ -63,9 +63,6 @@ export interface CredentialContext {
    *  durable write, so a second device's list refetches. */
   readonly emitUserEvent: EmitUserEvent;
 }
-
-/** What `createCredentialsService` receives from the entry root; identical to {@link CredentialContext}. */
-export type CredentialsServiceDeps = CredentialContext;
 
 /** The credential surface. The turn-time `resolve` is the only consumer-facing construction of a
  *  `ResolvedCredential`; CRUD is ownership-scoped; health has the runner-internal (`markRevoked`) vs

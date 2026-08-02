@@ -1,9 +1,14 @@
 // domain/discovery — front door: the only legal external import; re-exports the slice's public surface.
 // similarArt is NOT here by design — "more like this avatar" is retrieval, built as search.similarArt
 // (2026-07-10; the dossier client queries it directly); discovery's image analytics stay retrieval-free.
+//
+// NO TYPED ERRORS, deliberately (2026-08-03): discovery mints none. An engine/infra fault PROPAGATES
+// unchanged (verbs/analyze.ts), a validation failure DEGRADES to the ungrounded result, and an empty
+// corpus is a zero-count result, not a fault. The former `contract/errors.ts` claimed a DiscoveryError
+// these paths throw — nothing ever threw it. Growing a real taxonomy here is a design change, not a
+// re-add of the class.
 
 export type { DiscoveryContext } from "./context";
-export { DiscoveryError } from "./contract/errors";
 export type {
   ArchetypesOptions,
   BrowseFilter,
@@ -63,7 +68,7 @@ export type {
   UnusedCharacter,
   VisualArchetype,
 } from "./contract/results";
-export type { DiscoveryService, DiscoveryServiceDeps, DiscoveryWorkloadDeps } from "./contract/service";
+export type { DiscoveryService, DiscoveryWorkloadDeps } from "./contract/service";
 export {
   computeCooccurrence,
   DEFAULT_HUB_FRACTION,

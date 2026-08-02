@@ -17,6 +17,7 @@ export const userRoleSchema = z.enum(USER_ROLES);
 // the rebuild grafts an `agent` member here if the agent-principal design set returns (PD-17).
 export const USER_KINDS = ["human"] as const;
 export type UserKind = (typeof USER_KINDS)[number];
+/** @public schema twin of `USER_KINDS`, which drives the users.kind enum. */
 export const userKindSchema = z.enum(USER_KINDS);
 
 /** The custom CSRF request header. Cross-boundary wire fact: the client sends it every request and the

@@ -323,6 +323,7 @@ export const guidedActionConfigSchema = z.object({
    *  role: that steer rides the `guided_instruction` marker inside the system block, which has no depth. */
   depth: z.number().int().min(MIN_INJECT_DEPTH).max(MAX_INJECTION_DEPTH).optional(),
 });
+/** @public type twin of `guidedActionConfigSchema`, which shapes all six guided actions in this file. */
 export type GuidedActionConfig = z.infer<typeof guidedActionConfigSchema>;
 
 export const guidedActionsSchema = z.object({
@@ -522,6 +523,7 @@ export const GREETING_TRANSFORMS = [
   { id: "they-them", axis: "gender", label: "They/them", fragment: "Change all references to the user to use they/them pronouns" },
 ] as const satisfies readonly GreetingTransform[];
 
+/** @public id twin of `GREETING_TRANSFORMS`, the catalog the greeting studio renders. */
 export type GreetingTransformId = (typeof GREETING_TRANSFORMS)[number]["id"];
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1493,9 +1495,6 @@ export const PROMPT_MACROS: readonly PromptMacroDef[] = [
     category: "system",
   },
 ] as const;
-
-/** Fast lookup of every catalog macro's bare name. */
-export const PROMPT_MACRO_NAMES: readonly string[] = PROMPT_MACROS.map((m): string => m.name);
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Serde — the ST Chat-Completion preset importer + the neo native preset-file codec.

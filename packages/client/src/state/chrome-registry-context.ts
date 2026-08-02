@@ -9,7 +9,6 @@ import type { ChromeEntry } from "./chrome-registry";
 export type ChromeRegistry = ContributorRegistry<ChromeEntry>;
 
 export const chromeRegistryContext = createRegistryContext<ChromeRegistry>("chrome registry");
-export const ChromeRegistryContext = chromeRegistryContext.Context;
 
 export function useChromeRegistry(): ChromeRegistry {
   return chromeRegistryContext.useRegistry();

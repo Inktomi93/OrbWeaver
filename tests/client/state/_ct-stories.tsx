@@ -11,6 +11,10 @@ import type { ContributorRegistry } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import type { SettingsSectionContribution } from "@orb/client/state";
 import {
+  __dismissPresetSectionForTest,
+  __resetPresetSection,
+  __resetPresetSelection,
+  __resetTagFilter,
   chatDeletedFromList,
   clearAnalyticsSelection,
   clearCharacterFacet,
@@ -18,15 +22,11 @@ import {
   clearChatListCharacterFilter,
   clearCorpusSelection,
   clearNewChatPreset,
-  clearPresetSection,
-  clearPresetSelection,
   clearSectionSaveStatus,
-  clearTagFilter,
   clearWorldBookSelection,
   clearWorldEntrySelection,
   closeModal,
   commitDraft,
-  dismissPresetSection,
   goToLanding,
   isCommitted,
   isLanding,
@@ -327,7 +327,7 @@ const PROBE_PRESET = castId<PresetId>("preset_ct_probe");
  *  module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser) and
  *  assert select → clear for BOTH the open preset (W10) and the rack SECTION (The Assembly §2.2): selecting
  *  a section reveals the inspector; opening a different preset clears a stale section. Also drives the
- *  LIST-callback dual-writes `selectPresetFromList`/`dismissPresetSection`, which additionally close the
+ *  LIST-callback dual-writes `selectPresetFromList`/`__dismissPresetSectionForTest`, which additionally close the
  *  shell's open CONTEXT/LIST slide-over (mirrors ActiveChatStoreProbe's `selectChatFromList` posture). */
 export function PresetSelectionProbe(): ReactElement {
   const selected = useSelectedPresetId();
@@ -342,10 +342,10 @@ export function PresetSelectionProbe(): ReactElement {
       <button type="button" onClick={(): void => selectPresetSection("sec_probe")}>
         select section
       </button>
-      <button type="button" onClick={(): void => clearPresetSection()}>
+      <button type="button" onClick={(): void => __resetPresetSection()}>
         clear section
       </button>
-      <button type="button" onClick={(): void => clearPresetSelection()}>
+      <button type="button" onClick={(): void => __resetPresetSelection()}>
         clear preset selection
       </button>
       {/* Open the LIST slide-over first so `selectPresetFromList`'s dual-write close is observable. */}
@@ -355,11 +355,11 @@ export function PresetSelectionProbe(): ReactElement {
       <button type="button" onClick={(): void => selectPresetFromList(PROBE_PRESET)}>
         select preset from list
       </button>
-      {/* Open the CONTEXT slide-over first so `dismissPresetSection`'s dual-write close is observable. */}
+      {/* Open the CONTEXT slide-over first so `__dismissPresetSectionForTest`'s dual-write close is observable. */}
       <button type="button" onClick={(): void => setOpenOverlayPanel("context")}>
         open context sheet
       </button>
-      <button type="button" onClick={(): void => dismissPresetSection()}>
+      <button type="button" onClick={(): void => __dismissPresetSectionForTest()}>
         dismiss section
       </button>
     </div>
@@ -422,7 +422,7 @@ export function CharacterLibraryStoreProbe(): ReactElement {
       <button type="button" onClick={(): void => toggleTagFilter(PROBE_TAG)}>
         toggle tag
       </button>
-      <button type="button" onClick={(): void => clearTagFilter()}>
+      <button type="button" onClick={(): void => __resetTagFilter()}>
         clear tags
       </button>
       <button type="button" onClick={(): void => toggleSpoilerBlur()}>

@@ -4,7 +4,7 @@
 // through the non-hook `readSelectedMessageIds` snapshot (the reactive hooks need a React render — the
 // `message-edit-draft.test.ts` / `chat-stream.test.ts` posture).
 
-import { clearSelection, enterSelectionMode, exitSelectionMode, readSelectedMessageIds, toggleMessageSelected } from "@orb/client/state";
+import { __resetSelection, enterSelectionMode, exitSelectionMode, readSelectedMessageIds, toggleMessageSelected } from "@orb/client/state";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
@@ -40,11 +40,11 @@ describe("message-selection store", () => {
     expect(readSelectedMessageIds()).toEqual([MSG_B]);
   });
 
-  test("clearSelection empties the set (without leaving the mode)", () => {
+  test("__resetSelection empties the set (without leaving the mode)", () => {
     enterSelectionMode();
     toggleMessageSelected(MSG_A);
     toggleMessageSelected(MSG_B);
-    clearSelection();
+    __resetSelection();
     expect(readSelectedMessageIds()).toEqual([]);
   });
 

@@ -18,7 +18,6 @@ export {
   createDebugAuthMiddleware,
   type DebugAuthOptions,
   type DebugRoutesOptions,
-  debugAuthMiddleware,
   type RpgTraceInspector,
   registerDebugRoutes,
   type SocketInspector,

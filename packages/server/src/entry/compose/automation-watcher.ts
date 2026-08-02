@@ -6,7 +6,6 @@
 // firehose + the domain-event bus onto the watcher's two sources.
 
 import type { TriggerFact } from "@orb/contracts/automation";
-import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { UpsertEntriesResult, UpsertLoreEntryInput } from "@orb/contracts/world-info";
@@ -26,6 +25,7 @@ import type {
   BackgroundChoice,
 } from "#domain/automation";
 import { loadTurnOrigin } from "#domain/chat";
+import type { EmitNotification } from "#domain/notifications";
 import { subscribeAllChatEvents } from "../../transport/trpc";
 import type { DomainEventBus } from "./event-bus";
 
@@ -73,7 +73,7 @@ export interface AutomationActionOpsDeps {
     readonly entries: readonly UpsertLoreEntryInput[];
   }) => Promise<UpsertEntriesResult>;
   /** the durable-first unified-inbox delivery (the `automation-notice` member). */
-  readonly emitNotification: (event: NotificationEvent) => Promise<void>;
+  readonly emitNotification: EmitNotification;
   /** the `/imagine` engine — `imagery.generatePicture` narrowed to automation's request/result. */
   readonly generatePicture: (req: AutomationImageRequest) => Promise<AutomationImageResult>;
   /** the `trigger_turn` arm's autonomous chat turn (03 §1.6 / §4) — chat's `requestTurn` bound with

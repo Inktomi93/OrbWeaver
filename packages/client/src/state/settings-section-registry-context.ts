@@ -14,7 +14,6 @@ import type { SettingsCategoryId } from "./shell-store";
 export type SettingsSectionRegistry = ContributorRegistry<SettingsSectionContribution>;
 
 export const settingsSectionRegistryContext = createRegistryContext<SettingsSectionRegistry>("settings-section registry");
-export const SettingsSectionRegistryContext = settingsSectionRegistryContext.Context;
 
 export function useSettingsSectionRegistry(): SettingsSectionRegistry {
   return settingsSectionRegistryContext.useRegistry();
