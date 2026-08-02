@@ -1693,6 +1693,45 @@ test("WAVE MU: a name that collides with the active preset's macro carries the h
   await expect(section.getByText("Overrides preset", { exact: false })).toHaveCount(1);
 });
 
+test("WAVE MU: the macro editor COMPLETES against both planes — the game's defs and the preset's names", async ({ mount, page }) => {
+  await stubTakeover(page, { config: configView([gameMacro("waystone", "how the stone reads")], ["narrator"]) });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  // Open the existing def's editor (the row title is the edit affordance; the dialog portals to body).
+  await component.locator('[data-slot="rpg-game-macros"]').getByText("{{waystone}}").click();
+  const body = page.getByRole("textbox", { name: "Template" });
+  await body.click();
+
+  // The GAME plane completes with its own definition's description.
+  await body.pressSequentially("{{wayst");
+  await expect(page.getByRole("option", { name: "{{waystone}}" })).toBeVisible();
+  await expect(page.getByRole("listbox")).toContainText("how the stone reads");
+
+  // The PRESET plane completes too — by NAME, glossed with the one thing this view knows about it (the
+  // config view carries `presetMacroNames`, never the preset's bodies).
+  await body.fill("");
+  await body.pressSequentially("{{narr");
+  await expect(page.getByRole("option", { name: "{{narrator}}" })).toBeVisible();
+  await expect(page.getByRole("listbox")).toContainText("From your active preset.");
+});
+
+test("WAVE MU: a shadowed preset name is offered ONCE, as the GAME's definition (the resolver's precedence)", async ({ mount, page }) => {
+  await stubTakeover(page, { config: configView([gameMacro("tone", "the game's own tone")], ["tone"]) });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+  await component.locator('[data-slot="rpg-game-macros"]').getByText("{{tone}}").click();
+
+  const body = page.getByRole("textbox", { name: "Template" });
+  await body.click();
+  await body.pressSequentially("{{tone");
+  // ONE row, carrying the GAME's description — advertising the preset's would promise a definition the
+  // turn will not use (`shadowPresetUserMacros` drops it server-side).
+  await expect(page.getByRole("option", { name: "{{tone}}" })).toHaveCount(1);
+  await expect(page.getByRole("listbox")).toContainText("the game's own tone");
+  await expect(page.getByRole("listbox")).not.toContainText("From your active preset.");
+});
+
 test("WAVE MU: with no macros the section says what empty MEANS (never a blank that reads as unbuilt)", async ({ mount, page }) => {
   await stubTakeover(page);
   const component = await mount(<RpgTakeoverStory />);
