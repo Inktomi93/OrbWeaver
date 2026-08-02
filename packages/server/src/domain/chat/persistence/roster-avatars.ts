@@ -22,6 +22,10 @@ import { collectMacroIds } from "./macro-names";
 
 /** Load the persona-avatar producer for a chat: `assets.hash` joined off `personas.avatarAssetId` for every
  *  persona id `args.participants`/`args.messages` cover. */
+// @owner-scope-ok: the ids are NOT caller-supplied — `collectMacroIds` derives them from the room's own
+// already-membership-gated canon (roster seats + message attribution stamps), and the read returns only a
+// CAS hash. A member seeing a co-member's persona avatar is the D18 room-is-a-shared-document posture. Ends
+// if this ever takes an id set from a request.
 export async function loadPersonaAvatarProducer(
   db: Db,
   args: {
@@ -44,6 +48,9 @@ export async function loadPersonaAvatarProducer(
 /** Load the character-avatar producer for a chat: `assets.hash` joined off `characters.avatarAssetId` for
  *  every character id `args.participants`/`args.messages` cover — including a character removed from the
  *  room whose messages remain in `args.messages` (the transcript-integrity floor). */
+// @owner-scope-ok: same as `loadPersonaAvatarProducer` — the character ids come from the room's roster and
+// message stamps, never from a request, and a seated card's avatar is room-visible by construction (a card
+// is the HOST's property but the room shows it, D18/D64). Ends if the id set becomes caller-supplied.
 export async function loadCharacterAvatarProducer(
   db: Db,
   args: {
