@@ -339,7 +339,6 @@ test("ActivePresetConfig mirrors PromptConfig (the FE-layer round-trip read)", (
       | "effort"
       | "frequencyPenalty"
       | "logitBias"
-      | "maxBudgetUsd"
       | "minP"
       | "presencePenalty"
       | "providerContextCompression"
