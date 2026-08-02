@@ -5,6 +5,13 @@
 // true never re-runs — also the deletion-respect guard), and per-card handle_conflict tolerance (a crash
 // mid-run resolves the existing row via findByHandle instead of failing, so the latch always lands valid).
 //
+// A LATCHED library is not frozen: `onboarding.defaultCharactersPackVersion` stamps WHICH pack it holds, and
+// a stamp behind CARD_PACK_VERSION runs the reseed migration (`migratePack`) — the shipped pack's net-new
+// cards are created, and a card at a handle a PRIOR pack shipped is re-dressed to the new one ONLY when its
+// live content still matches that pack's frozen fixture byte-for-byte (`pack-v1.ts`). An edited card — one
+// changed word, one added greeting, a rename — is the user's; it is left untouched and receipted in the log.
+// A handle no shipped pack carries (a card a later pack DROPPED, or the user's own) is never even read.
+//
 // Cards are created through the real CharacterService.create verb (audit log, handle-conflict translation,
 // the character.updated emit — no raw SQL). Settings reads/writes go through injected callbacks so this
 // file never imports domain/settings.
@@ -15,7 +22,8 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors";
 import type { DefaultCharacterSeeder, DefaultCharacterSeederDeps, SeedCard } from "../contract/seeder";
-import { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "./cards";
+import { CARD_PACK_VERSION, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "./cards";
+import { matchesPriorPack, PRIOR_PACK_CONTENT } from "./pack-v1";
 
 interface CardOutcome {
   readonly id: CharacterId | null;
@@ -62,6 +70,16 @@ export function createDefaultCharacterSeeder(deps: DefaultCharacterSeederDeps): 
     return outcome;
   }
 
+  /** The ONE sequential walk of the authored pack, shared by the fresh seed and the migration. Sequential is
+   *  load-bearing on BOTH paths: each card's resolve (handle_conflict / findByHandle) depends on the prior
+   *  attempt's row state, so a parallel walk could double-create a handle. */
+  async function forEachCard(run: (card: SeedCard) => Promise<void>): Promise<void> {
+    for (const card of DEFAULT_CHARACTER_CARDS) {
+      // biome-ignore lint/performance/noAwaitInLoops: sequential BY DESIGN — see the doc comment above; the pack is ten cards and this runs once per library.
+      await run(card);
+    }
+  }
+
   async function attachTags(principal: Principal, card: SeedCard, characterId: CharacterId): Promise<void> {
     for (const tagName of card.tags) {
       // biome-ignore lint/performance/noAwaitInLoops: card tags attach sequentially — each is an independent idempotent resolve-or-create-and-attach; the tag lists are short.
@@ -82,15 +100,72 @@ export function createDefaultCharacterSeeder(deps: DefaultCharacterSeederDeps): 
     }
   }
 
+  /** The re-dress: everything `seedCard` + `dressFreshCard` would have done for a fresh card, applied to a
+   *  row that is provably still the prior pack's. ONE update carries the content + the presentation (the
+   *  create/update split doesn't apply here — `update` accepts both arms), with the bundled art re-stored
+   *  through the SAME `storeAvatar` callback a fresh seed uses. A null from `storeAvatar` (no bundled file /
+   *  a store hiccup) leaves the existing avatar alone rather than clearing it — the least-destructive arm on
+   *  a one-shot migration. Tags re-attach idempotently; a tag the user added is additive and survives. */
+  async function redressCard(principal: Principal, card: SeedCard, characterId: CharacterId): Promise<void> {
+    const { handle: _handle, ...content } = await createCardInput(principal, card);
+    await deps.characters.update({ principal, characterId, input: { ...content, ...card.presentation } });
+    await attachTags(principal, card, characterId);
+    if (deps.seedGallery !== undefined) {
+      await deps.seedGallery(principal, characterId, card.input.handle);
+    }
+  }
+
+  /** One already-seeded card under a pack bump: re-dress it, or preserve it and say so. Returns whether it
+   *  was re-dressed. A missing card read (`getCard` → null, i.e. mid-delete) is treated as "not ours". */
+  async function migrateExistingCard(principal: Principal, card: SeedCard, characterId: CharacterId): Promise<boolean> {
+    const prior = PRIOR_PACK_CONTENT[card.input.handle];
+    const live = prior === undefined ? null : await deps.characters.getCard({ principal, characterId });
+    if (prior === undefined || live === null || !matchesPriorPack(live, prior)) {
+      log.info({ userId: principal.userId, handle: card.input.handle, characterId }, "character: pack migration preserved a card the user owns");
+      return false;
+    }
+    await redressCard(principal, card, characterId);
+    return true;
+  }
+
+  /** The reseed migration for a library latched under an older pack. Additive + non-destructive: net-new
+   *  cards are created (a card the user separately deleted comes back — the pack-version bump is the intent),
+   *  colliding cards are re-dressed only while untouched, and a handle this pack doesn't ship is never read. */
+  async function migratePack(principal: Principal): Promise<void> {
+    if ((await deps.readPackVersion(principal)) >= CARD_PACK_VERSION) {
+      return;
+    }
+
+    let added = 0;
+    let redressed = 0;
+    await forEachCard(async (card): Promise<void> => {
+      const existing = await deps.characters.findByHandle({ ownerId: principal.userId, handle: card.input.handle });
+      if (existing === null) {
+        const outcome = await seedCard(principal, card);
+        added += outcome.created ? 1 : 0;
+        return;
+      }
+      redressed += (await migrateExistingCard(principal, card, existing.characterId)) ? 1 : 0;
+    });
+
+    // LAST, so a throw anywhere above leaves the old stamp and the next touch retries — the retry is a no-op
+    // on everything already migrated (a re-dressed card no longer matches the prior pack's fixture).
+    await deps.markPackVersion(principal, CARD_PACK_VERSION);
+    log.info(
+      { userId: principal.userId, added, redressed, preserved: DEFAULT_CHARACTER_CARDS.length - added - redressed, packVersion: CARD_PACK_VERSION },
+      "character: migrated the default card pack",
+    );
+  }
+
   async function seed(principal: Principal): Promise<void> {
     if (await deps.isSeeded(principal)) {
+      await migratePack(principal);
       return;
     }
 
     let welcomeAssistantId: CharacterId | null = null;
     let created = 0;
-    for (const card of DEFAULT_CHARACTER_CARDS) {
-      // biome-ignore lint/performance/noAwaitInLoops: cards seed sequentially — the handle_conflict resolve depends on the prior attempt's row state.
+    await forEachCard(async (card): Promise<void> => {
       const outcome = await seedCard(principal, card);
       if (outcome.created) {
         created += 1;
@@ -98,15 +173,19 @@ export function createDefaultCharacterSeeder(deps: DefaultCharacterSeederDeps): 
       if (card.input.handle === WELCOME_ASSISTANT_HANDLE) {
         welcomeAssistantId = outcome.id;
       }
-    }
+    });
 
     await deps.markSeeded(principal, welcomeAssistantId);
+    // A fresh library holds the shipped pack by construction — stamping it here is what keeps the NEXT pack
+    // bump's migration off it until there is actually something to migrate.
+    await deps.markPackVersion(principal, CARD_PACK_VERSION);
     log.info(
       {
         userId: principal.userId,
         created,
         total: DEFAULT_CHARACTER_CARDS.length,
         welcomeAssistantId,
+        packVersion: CARD_PACK_VERSION,
       },
       "character: seeded default card pack",
     );
