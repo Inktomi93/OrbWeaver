@@ -23,7 +23,63 @@ Global **KISS/YAGNI are SUSPENDED here** — build the maximal, most-provable ve
 sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 `docs/architecture/core/AGENTS.md` IN FULL before any work.
 
-## ═══ ▶▶▶ CURRENT STATE — 2026-08-02 DAWN (the overnight run; read first) ═══
+## ═══ ▶▶▶ HANDOFF #3 — 2026-08-02 NIGHT (SESSION-END; the ONE current block. Owner is
+## swapping accounts — the resuming orchestrator has NO conversation memory; this block +
+## MEMORY.md + git log are the whole truth. Everything below it is archeology.) ═══
+
+**⛔ DISPATCH FREEZE IN FORCE (owner word — weekly usage cap): NO agent spawning, NO new lanes,
+until the owner lifts it.** Answer questions, keep the board current, nothing else launches.
+
+**TREE:** main @ `e1c07cbc`, clean, ALL lanes drained (zero worktrees, zero branches, zero
+running agents). Every merge today was hook-certified (12/12 static check). **Origin @
+`32539eda` — everything since is LOCAL (~45 commits); NEVER push without the per-push owner
+word.** Stack: dev up on :5173/:8788, **dev db RE-MINTED today** (V2 baseline squash + R2R3
+blob reshape both required it — owner's games are gone from dev, seeded-data caveat applies).
+
+**LANDED TODAY (all merged + certified; details in the struck blocks below + git log):**
+· **ACTOR-STATE R1-R3 COMPLETE** — op-shaped `rpg.patchActor`/`rpg.dismissActor` (writeHandState
+  seam), NPC IS an actor (identity plane, slug keys w/ contract refine), presence plane, cast*
+  projections dead, hp demoted to unified trackers (d20-seeded def), GM→HOST copy. Stickler
+  pre-merge pass: all 6 findings fixed red-first. R4 (promotion doorway) NOT built — parked.
+· **PRESET-1 BUILD COMPLETE P0-P5** — five views, KnobRow ghost grammar, rack select≠drill,
+  drill-in consolidation (bridge/inspector dead), TEMPLATE_DEFS Actions, per-view readouts, list
+  projection (inline activate, Select dead, G6 export/import doors, G7 header truth), side-eye
+  DO-NOT-SHIP round FIXED (33/34 + F-24 argued; GhostValue unified; EffectivePreset.qualityMapping
+  server datum). Reports: docs/reviews/side-eye/2026-08-02-preset-program.md.
+· **PROSE-1 S2** — Prose settings section live in Chat behavior (D107 arm B; derived cohort;
+  spec-text delta owed: §8 said settings/**, D114/D120 homes it with the reader = chat).
+· **smalls #2 + #3** — Jobs vocab, toolround usage record, bang-prefix gate arm (14-row baseline
+  re-opened → square-glyph Button small queued), QUOTE-1 tint, prose sweeps; 4 stale board rows
+  caught already-built (struck with receipts).
+· **e2e mirror-parity pin** (types:tests-dom enforces; 26 shapes) · **ZOD AUDIT** (verdict NOT
+  lazy; 3 stale truth claims; staged build program A-D in
+  docs/reviews/stickler/2026-08-02-zod-leverage-audit.md — AWAITS OWNER READ) · **ICON SEAL** —
+  weight/fill/partialFill axes, FillableIcon brand, byte-identity CT (client adoption FROZEN).
+
+**WHEN THE FREEZE LIFTS, THE RULED ORDER:** preset side-eye RE-VERIFY round (fix-rounds law) +
+close-out D-entry → D8 binding + Actions resolved preview (§7.1) + preset-cohort prose slots →
+R4 promotion doorway → icon-seal client adoption (F-06 bolt, tracker orbs, meters) → zod stages
+A/B/C (comment truth-repair · prettifyError · respellings) → square-glyph Button small → density
+S6 (transcript+composer) → SSE close-out residue (impersonate +1 socket verify; 3 stale
+precedent labels) → combined rpg side-eye on a MODEL-POPULATED game (NPC-only band question ·
+Known-characters disclosure · CastCard mood-wrap · waystone-compact · the accumulated W-H list)
+→ @live rpg-lite-loop pass → **DATABANK alone, last**.
+
+**OPEN OWNER ITEMS (complete):** zod stage-D calls (F1 strip-observability on the folded wire ·
+stringbool params · z.hostname swap probe) · probe-corpora maintain-or-archive (hpDelta debris,
+pre-existing) · D6 maxBudgetUsd (verify wire → editor-or-delete) · JSON-card export format ·
+absent-character transcript import policy · DRAFT-TRUST architecture call · macro-feed
+cast-guides celBindings · Doc-Law §-refs-in-comments ruling · VRAM-refusal drill word · AGENT-1
+word · D22 multi-user (needs multi-user stack) · the next PUSH word.
+
+**WATCH:** preset-editor-surface.ct:140 flaked ONCE under full-parallel (green isolated ×2 —
+load flake) · rpg-scene-tab.tsx near the 450 cap · registry-contracts.ts AT the cap.
+
+**RESUME READ ORDER:** this block → the freeze note → THE QUEUE → `git log --oneline -40` →
+MEMORY.md (auto-loads; hubs updated today: gate-authoring #5 new entries, ct-gotchas #24-26,
+op-shaped-hand-door-write-seam minted) → AGENTS.md for architecture work.
+
+## ═══ CURRENT STATE — 2026-08-02 DAWN (STALE — archeology only; superseded by HANDOFF #3) ═══
 
 **Tree:** green — check 12/12 + battery certified through the whole night (final integration
 fixes `83a03778`; last full battery 8760/8786 with the 3 reds fixed+committed after). **Origin: PUSHED
