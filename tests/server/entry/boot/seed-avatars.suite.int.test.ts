@@ -123,13 +123,10 @@ describe("seed imagery: default-character avatars + starter gallery", () => {
   // from rotting into a hole.
   test("the bundle ships an avatar for every card in DEFAULT_CHARACTER_CARDS", async () => {
     const missing = (
-      await Promise.all(
-        DEFAULT_CHARACTER_CARDS.map(async (card) => ((await readSeedAvatar(card.input.handle)) === null ? card.input.handle : null)),
-      )
+      await Promise.all(DEFAULT_CHARACTER_CARDS.map(async (card) => ((await readSeedAvatar(card.input.handle)) === null ? card.input.handle : null)))
     ).filter((handle): handle is string => handle !== null);
     expect(missing, "handles with no bundled avatar PNG").toEqual([]);
   });
-
 
   test("a character the bundle ships art for is born with a non-null avatarAssetId (real PNG stored + linked)", async () => {
     const h = await makeSeededHarness();

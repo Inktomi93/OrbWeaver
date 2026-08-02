@@ -276,9 +276,11 @@ export const SEED_THEMES: ReadonlyArray<{ readonly id: ThemeId; readonly name: s
 
 export async function ensureSeedThemes(db: Db, now: () => number): Promise<void> {
   const at = now();
-  for (const { id, name, override } of SEED_THEMES) {
-    // biome-ignore lint/performance/noAwaitInLoops: boot-time seeding of a fixed short registry — each upsert is an independent idempotent write and serial keeps the log order stable.
-    await upsertSeedTheme(db, { id, ownerId: null, name, override, css: null, createdAt: at, updatedAt: at });
-  }
+  // Each upsert is an independent idempotent write keyed by its own sentinel id — no ordering between
+  // them, so they go out together (the `boot/seed-owner` per-owner precedent), and one clock read keeps
+  // the whole registry's timestamps identical.
+  await Promise.all(
+    SEED_THEMES.map(({ id, name, override }) => upsertSeedTheme(db, { id, ownerId: null, name, override, css: null, createdAt: at, updatedAt: at })),
+  );
   getLog().info({ themeIds: SEED_THEMES.map((t) => t.id) }, "settings: seeded/reseeded theme palettes");
 }
