@@ -6,10 +6,18 @@
 // a machine ships WITH its seal). RED when a `renderError` JSX attr in packages/client/src/** is not
 // QueryErrorState-rooted — neither a reference to it nor an arrow/function returning it. A genuinely-
 // custom error surface (a Composer fallback, an avatar placeholder, a silent null) earns an allowlist
-// entry with a cited reason; post-migration the set is the three below.
+// entry with a cited reason; post-migration the set is the four below.
+//
+// TWO-SIDED (gate-hub #10): the ALLOWLIST is scanRoot-EXCLUSION, so a rotten row is worse than noise — it
+// silently un-scans a whole file. A row is RED when its file is gone from the project OR when the file
+// carries no `renderError` arm any more (the sanction is unused: ratchet down). Its first live catch was
+// its own `chat-room-surface.tsx` row, deleted at the retrofit. The arm self-guards on a REAL-TREE ANCHOR
+// (gate-hub #11) — the battery's own source file — so the conformance mini-projects, which hold 1-2 files,
+// never "prove" the whole allowlist had vanished.
 import { Node, SyntaxKind } from "ts-morph";
 import { unwrapExpression } from "../ast-read.ts";
 import type { GateDescriptor } from "../contract.ts";
+import { fileLoaded } from "../pass.ts";
 
 const CLIENT_SRC = "packages/client/src/";
 const ATTR = "renderError";
@@ -19,11 +27,12 @@ const BATTERY = "QueryErrorState";
 const BATTERY_HOME = `${CLIENT_SRC}data/query-boundary.tsx`;
 
 // The sanctioned NON-battery `renderError` species, each a genuine custom surface (NOT a Couldn't-load
-// + Retry): the composer must always render (error falls back to the composer sans tail); the persona
-// avatar degrades to its own loading placeholder; the command-palette threads group goes silently empty
-// (CommandEmpty covers it). A new custom arm adds a cited entry here — expect it to stay tiny.
+// + Retry): the persona avatar degrades to its own loading placeholder; the command-palette threads group
+// goes silently empty (CommandEmpty covers it). A new custom arm adds a cited entry here — expect it to
+// stay tiny. (`features/chat/surfaces/chat-room-surface.tsx` used to sit here for the composer-fallback
+// arm; the file carries no `renderError` at all any more, so the stale arm caught it at birth and the row
+// was deleted.)
 const ALLOWLIST = new Set([
-  `${CLIENT_SRC}features/chat/surfaces/chat-room-surface.tsx`,
   `${CLIENT_SRC}features/chat/surfaces/command-palette-surface.tsx`,
   `${CLIENT_SRC}features/persona/surfaces/persona-panel-surface.tsx`,
   // The rpg CONTEXT pane suspends on TWO seams (the HUD's BAND + the game-tab BODY) and needs a
@@ -37,6 +46,15 @@ const ALLOWLIST = new Set([
   `${CLIENT_SRC}features/rpg/lib/rpg-context-section.tsx`,
   `${CLIENT_SRC}features/rpg/components/rpg-hud.tsx`,
 ]);
+
+const GATE_SELF = "scripts/check/gates/render-error-via-battery.ts";
+/** Real-tree anchor (gate-hub #11): the battery's own source. Loaded on every real run; an example only has
+ *  it when it materializes it deliberately (which is how the stale arm's own proof works). */
+const ANCHOR = `${CLIENT_SRC}data/query-error-state.tsx`;
+const STALE_GONE_PREFIX = "stale ALLOWLIST row — the file is no longer in the project (ratchet down): ";
+const STALE_UNUSED_PREFIX =
+  "stale ALLOWLIST row — the file carries NO `renderError` arm any more, so the custom-surface sanction is " +
+  "unused AND the row silently un-scans the whole file (the allowlist is a scanRoot exclusion). Ratchet down: ";
 
 const MESSAGE =
   "a hand-rolled `renderError` arm — QueryBoundary's read-error surface is `QueryErrorState` " +
@@ -103,11 +121,60 @@ export const gate: GateDescriptor = {
     }
     ctx.report(node, { token: ATTR, offset: 0 });
   },
+  // The allowlisted files are scanRoot-EXCLUDED, so the walk never sees them — the stale arm reads them off
+  // the shared project directly.
+  finalize: (ctx) => {
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
+      return;
+    }
+    for (const rel of ALLOWLIST) {
+      const sf = ctx.project.getSourceFile(`${ctx.root}/${rel}`);
+      if (sf === undefined) {
+        ctx.report({
+          file: GATE_SELF,
+          line: 1,
+          column: 0,
+          message: `${STALE_GONE_PREFIX}"${rel}" — delete the row in scripts/check/gates/render-error-via-battery.ts`,
+        });
+        continue;
+      }
+      const hasArm = sf.getDescendantsOfKind(SyntaxKind.JsxAttribute).some((a) => a.getNameNode().getText() === ATTR);
+      if (!hasArm) {
+        ctx.report({
+          file: GATE_SELF,
+          line: 1,
+          column: 0,
+          message: `${STALE_UNUSED_PREFIX}"${rel}" — delete the row in scripts/check/gates/render-error-via-battery.ts`,
+        });
+      }
+    }
+  },
   mustFlag: [
     {
       files: "export const G = <B renderError={() => <Text>failed</Text>} />;\n",
       at: "packages/client/src/features/a/x.tsx",
       why: "an inline arm rendering a hand-rolled `<Text>failed</Text>` — the drift QueryErrorState ends",
+    },
+    {
+      files: {
+        [ANCHOR]: "export const QueryErrorState = null;\n",
+        [`${CLIENT_SRC}features/chat/surfaces/command-palette-surface.tsx`]: "export const G = <B renderError={() => null} />;\n",
+        [`${CLIENT_SRC}features/persona/surfaces/persona-panel-surface.tsx`]: "export const G = <B renderError={() => null} />;\n",
+        [`${CLIENT_SRC}features/rpg/lib/rpg-context-section.tsx`]: "export const G = <B renderError={() => null} />;\n",
+        [`${CLIENT_SRC}features/rpg/components/rpg-hud.tsx`]: "export const G = null;\n",
+      },
+      expect: { count: 1, messageIncludes: "carries NO `renderError` arm any more" },
+      why: "THE STALE ARM, at row grain: the anchor is loaded so the allowlist is judged; three rows still carry their custom arm and pass, the fourth (rpg-hud) has none — its sanction is dead AND it is silently un-scanning the file, so exactly that row ratchets down",
+    },
+    {
+      files: {
+        [ANCHOR]: "export const QueryErrorState = null;\n",
+        [`${CLIENT_SRC}features/chat/surfaces/command-palette-surface.tsx`]: "export const G = <B renderError={() => null} />;\n",
+        [`${CLIENT_SRC}features/persona/surfaces/persona-panel-surface.tsx`]: "export const G = <B renderError={() => null} />;\n",
+        [`${CLIENT_SRC}features/rpg/components/rpg-hud.tsx`]: "export const G = <B renderError={() => null} />;\n",
+      },
+      expect: { count: 1, messageIncludes: "no longer in the project" },
+      why: "the other staleness: a row whose FILE is gone entirely (rpg-context-section) — path rot ratchets down too",
     },
   ],
   mustPass: [
@@ -130,6 +197,12 @@ export const gate: GateDescriptor = {
       files: "export const G = (renderError: unknown) => <B renderError={renderError} />;\n",
       at: "packages/client/src/data/query-boundary.tsx",
       why: "the battery's own home plumbs the renderError prop through — scanRoot-excluded, so the passthrough never flags",
+    },
+    {
+      files: {
+        [`${CLIENT_SRC}features/a/x.tsx`]: "export const G = <B fallback={null} />;\n",
+      },
+      why: "THE ANCHOR GUARD: a project without the battery's own source is not the real tree — the stale arm stays silent instead of 'proving' every allowlisted file had vanished",
     },
   ],
 };
