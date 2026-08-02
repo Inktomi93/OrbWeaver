@@ -40,6 +40,7 @@ import {
   seedDefaultCharacters,
   seedDefaultPersona,
   seedDefaultPreset,
+  seedDemoChats,
   seedOwner,
   seedThemes,
 } from "./boot";
@@ -193,6 +194,8 @@ export function createLifecycle(): Lifecycle {
     await seedThemes({ db, now });
     await seedDefaultCharacters({ seeder: built.characterSeeder, owner });
     await seedDefaultPersona({ seeder: built.personaSeeder, owner });
+    // AFTER the cards — each bundled example attaches to seeded characters by handle.
+    await seedDemoChats({ seeder: built.demoChatSeeder, owner });
     await reclaimLocksOnBoot({ db, contributions: built.workloadContributions, now, holder });
 
     // Boot-reclaim the host-offline deferred-turn queue (chat Part III §5): each row runs (consent/budget
@@ -337,7 +340,9 @@ export function createLifecycle(): Lifecycle {
       isShuttingDown: () => isShuttingDown,
       credentialsKeyOk: () => credentialsKeyOk,
       seedUserCharacters: (principal: Principal): void => {
-        void built.characterSeeder.ensureSeeded(principal);
+        // CHAINED, not parallel: the demo chats attach to the cards this user is getting right now, so they
+        // must not race the pack. `ensureSeeded` never throws, so the `.then` is unconditional.
+        void built.characterSeeder.ensureSeeded(principal).then((): Promise<void> => built.demoChatSeeder.ensureSeeded(principal));
         void built.personaSeeder.ensureSeeded(principal);
       },
       ...(authenticate !== undefined ? { authenticate } : {}),

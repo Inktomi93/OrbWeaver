@@ -14,6 +14,8 @@ export type { SeedDefaultPersonaDeps } from "./seed-default-persona-step";
 export { seedDefaultPersona } from "./seed-default-persona-step";
 export type { SeedDefaultPresetDeps } from "./seed-default-preset";
 export { seedDefaultPreset } from "./seed-default-preset";
+export type { SeedDemoChatsDeps } from "./seed-demo-chats";
+export { seedDemoChats } from "./seed-demo-chats";
 export type { SeedOwnerDeps } from "./seed-owner";
 export { seedOwner } from "./seed-owner";
 export type { SeedThemesDeps } from "./seed-themes";

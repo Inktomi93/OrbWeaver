@@ -1,6 +1,7 @@
-// Reader for the bundled seed imagery (avatars + gallery pieces) the default-character/persona seeders
-// store on a fresh user. Lives in entry (not a domain) because the bytes are read from disk relative to
-// this module; domain seeders stay fs-unaware and take the store as an injected op.
+// Reader for the bundled seed payloads the default-character/persona/demo-chat seeders lay down on a fresh
+// user: the imagery (avatars + gallery pieces) and the EXAMPLE chat transcripts. Lives in entry (not a
+// domain) because the bytes are read from disk relative to this module; domain seeders stay fs-unaware and
+// take the read as an injected op.
 
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -36,4 +37,15 @@ export function readSeedAvatar(handle: string): Promise<SeedAssetBytes | null> {
 /** The bundled gallery WebP for a character HANDLE, or `null` when the pack ships none for it. */
 export function readSeedGalleryPiece(handle: string): Promise<SeedAssetBytes | null> {
   return readBundled(join("gallery", `${handle}-gallery.webp`), SEED_GALLERY_MIME);
+}
+
+/** One bundled EXAMPLE transcript's text, by its manifest `slug` — the VERBATIM bytes the real export verb
+ *  (`GET /api/export/chat/:id?format=jsonl`) produced for the live-generated conversation. `null` when the
+ *  file is absent, so a missing transcript skips ONE example instead of failing the seed. */
+export async function readSeedDemoChat(slug: string): Promise<string | null> {
+  try {
+    return await readFile(join(HERE, "demo-chats", `${slug}.jsonl`), "utf8");
+  } catch {
+    return null;
+  }
 }
