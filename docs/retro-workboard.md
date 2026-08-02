@@ -31,6 +31,14 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 PUSH NEEDS ITS OWN WORD). Six-lane cap stands (owner). Board-only commits = `--no-verify`
 (owner word). Dev db DROPS on next stack boot (DBG baseline regen) — expected, reseeds via latch.
 
+**RETRO mid-run (approved, finishing axes 2+3):** the machine-checked baseline BURNED 13/16→0/0
+across four commits — baseline + generator DELETED per §4.8 (arm B now unsuppressed: a new
+one-sided table reds on arrival). 22 gates retrofitted; SIX dead purge-debris allowlist rows
+found+deleted (the whole crew + roster-preset domains + 4 rpg files). Two calls approved:
+rename-out-of-vocabulary ×2 (TIER_ENTRIES w/ mirror ratchet · NON_FABRICATING_CAST_TARGETS) ·
+§12.6 prose → UI-Theming §12.6 (the D44 table the prose actually meant; gate docRow stays
+§11.6 — do NOT unify). Remaining: anchor guards on ~9 stale-armed gates + the zero-match
+scanRoot sweep.
 **PUSH BATTERY VERDICT (owner: "see the carnage"):** 9,677 tests + e2e smoke + all 15
 structural stages GREEN; exactly TWO reds, both TODAY'S landing debris caught by TODAY'S gates —
 (1) the orphan-ratchet's FIRST push-tier catch: chatUnavailableCauseSchema orphaned by SM2's
