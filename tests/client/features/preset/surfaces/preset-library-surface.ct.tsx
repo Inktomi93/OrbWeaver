@@ -3,9 +3,15 @@
 // the ones already in his library). Deleting them is a per-row ⋯ → Delete → confirm, and the ACTIVE row's
 // delete must additionally clear the active-for-generation pointer so no stale id survives.
 //
-// Also pins the F5 SCENT (visual-blech audit): every non-built-in row prints `edited <relative updatedAt>`
-// (+ a kind when the kind says anything, + `forked from <source>` when `forkedFrom` names a row the list
-// actually holds), which is what tells same-named forks apart.
+// Also pins the F5 SCENT (visual-blech audit): every non-built-in row prints `<kind> · [forked from
+// <source> ·] edited <relative updatedAt>` (the lineage only when `forkedFrom` names a row the list actually
+// holds), which is what tells same-named forks apart.
+//
+// …and the 2026-08-02 trailing-slot rebuild (owner ruling O-1 + crunch-list items 6/17/18/19): ONE reserved
+// in-flow region holding a permanently-painted state DOT plus the reveal cluster, the built-in's lock moved
+// inline-left of its name, and NO hover-variable layout anywhere on the row. The last one is the P0 hover
+// loop's mechanism; a CT cannot observe the loop itself (synthetic pointers do not re-hit-test on layout
+// shift — that verification is real-pointer-only), so what is pinned here is rest-vs-hover geometry.
 //
 // The built-in row is deliberately NOT deletable (it renders a "Built-in default" subtitle instead of the
 // actions menu) — asserted here so a future refactor can't hand the user a delete that the server refuses.
@@ -43,6 +49,9 @@ const EDITED_TWO_AT = FROZEN_NOW - 40 * MINUTE_MS;
 const LIST_ROW_ROOT = '[data-slot="list-row-root"]';
 const TITLE_ROW = '[data-slot="list-row-title-row"]';
 const TITLE = '[data-slot="list-row-title"]';
+const LEADING = '[data-slot="list-row-leading"]';
+const ACTIONS = '[data-slot="list-row-actions"]';
+const TRANSPARENT = "rgba(0, 0, 0, 0)";
 
 // Action names carry the row's own edit stamp after the name (side-eye P3a): nine forks share the name
 // "Default (edited)", so `Actions for Default (edited)` was nine identical accessible names. These matchers
@@ -123,24 +132,118 @@ test("L4 the LIST band names the section, counts the presets, and carries the pa
   // A2 — ONE ember primary in the band; Import is its ghost companion, not a second CTA.
   await expect(band.getByRole("button", { name: "New", exact: true })).toBeVisible();
   // ONE import door for both formats (§16 row 2) — the dialog sniffs the file, so the band names no format.
-  await expect(band.getByRole("button", { name: "Import a preset", exact: true })).toBeVisible();
+  const importDoor = band.getByRole("button", { name: "Import a preset", exact: true });
+  await expect(importDoor).toBeVisible();
+  // O-3: icon-only, so sighted users get the same string on hover that AT gets as the name.
+  await expect(importDoor).toHaveAttribute("title", "Import a preset");
   // The in-pane title is retired, not doubled.
   await expect(page.getByRole("heading", { name: "Presets" })).toHaveCount(1);
 });
 
-test("the shared LIST layout's INSTRUMENT tier is LIVE, and the ACTIVE marker rides the title line", async ({ mount, page }) => {
+test("the shared LIST layout's INSTRUMENT tier is LIVE, and the title column keeps its scan x", async ({ mount, page }) => {
   // `LibraryListLayout` is the ONE tier declaration behind both presets and world-info, so this covers both
-  // panes' rows. side-eye P2-6: the marker moved out of the leading slot, which is what un-raggeds the
-  // title column — asserted as x-alignment, the thing the eye actually complained about.
+  // panes' rows. side-eye P2-6: no VARIABLE-width status badge in the leading slot — asserted as
+  // x-alignment, the thing the eye actually complained about. The built-in's lock is the ONE sanctioned
+  // exception (crunch-list item 17, from the list mock), pinned separately below.
   await routeLibrary(page, EDITED_ONE);
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.locator(TITLE).first()).toBeVisible();
   await expectInstrumentTierLive(component);
 
-  await expect(component.locator(TITLE_ROW).getByText("Active", { exact: true })).toHaveCount(1);
   const lefts = await component.locator(TITLE).evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().left)));
   expect(lefts).toHaveLength(PRESETS.length);
-  expect(new Set(lefts).size, "every row's title starts at the same x — no leading status slot widens it").toBe(1);
+  // Rows 2..n (every non-built-in row) share one x; the built-in leads with its lock.
+  expect(new Set(lefts.slice(1)).size, "no leading status slot widens an ordinary row").toBe(1);
+});
+
+// ── O-1 / P0: the trailing slot is ONE reserved region, and NOTHING leaves layout on hover ────────
+// The P0 hover loop was a `display:none` swap on the title-line "Active" badge: it reflowed the row under a
+// stationary pointer, the hover boundary slid across the cursor, and the row re-hit-tested at frame rate
+// (~85 crossings/sec live, zero DOM mutations). A CT cannot see the LOOP (a synthetic pointer does not
+// re-hit-test on layout shift) — what it CAN pin is the mechanism's absence: identical geometry at rest and
+// under :hover, and a state dot that never hides.
+
+test("O-1 the ACTIVE row's dot is a FILLED disc in the trailing slot, painted at rest AND under hover", async ({ mount, page }) => {
+  await routeLibrary(page, EDITED_ONE);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  const dot = page.getByRole("radio", { name: activateFor(EDITED_ONE_NAME), exact: true });
+  // AT REST: fully opaque, in the accessible tree, and FILLED — the seal's `fill="solid"` axis, so the
+  // pressed state is a shape delta and not stroke color alone (WCAG 1.4.1).
+  await expect(dot).toHaveCSS("opacity", "1");
+  await expect(dot).toHaveCSS("visibility", "visible");
+  // Never `display:none` — that is the swap that oscillates (the box must stay in layout in both states).
+  expect(await dot.evaluate((el) => getComputedStyle(el).display)).not.toBe("none");
+  await expect(dot.locator("svg")).toHaveAttribute("fill", "currentColor");
+  // …and it lives in the TRAILING cluster, not on the title line (where the swapped badge used to).
+  await expect(component.locator(TITLE_ROW).getByRole("radio")).toHaveCount(0);
+  await expect(component.locator(ACTIONS).getByRole("radio", { name: activateFor(EDITED_ONE_NAME), exact: true })).toHaveCount(1);
+
+  // UNDER HOVER: still painted. The old badge vanished at exactly the moment the user was inspecting it.
+  await component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first().hover();
+  await expect(dot).toHaveCSS("opacity", "1");
+  await expect(dot.locator("svg")).toHaveAttribute("fill", "currentColor");
+  // The UNPRESSED rows' dots stay hollow — the fill is the datum, not decoration on every row.
+  await expect(page.getByRole("radio", { name: activateFor(IMPORTED_NAME), exact: true }).locator("svg")).toHaveAttribute("fill", "none");
+});
+
+test("P0 the row's geometry is IDENTICAL at rest and under hover — nothing enters or leaves layout", async ({ mount, page }) => {
+  await routeLibrary(page, EDITED_ONE);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  const row = component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first();
+  // Every box the swap used to move: the title line, the title itself, and the trailing strip.
+  const boxes = (): Promise<number[]> =>
+    row.evaluate((el) =>
+      [`[data-slot="list-row-title-row"]`, `[data-slot="list-row-title"]`, `[data-slot="list-row-actions"]`].flatMap((sel) => {
+        const rect = (el.querySelector(sel) as HTMLElement).getBoundingClientRect();
+        return [Math.round(rect.left), Math.round(rect.width)];
+      }),
+    );
+
+  const atRest = await boxes();
+  await row.hover();
+  expect(await boxes(), "a hover-variable layout is the hit-test oscillator — see ROW_REVEAL_SWAP").toEqual(atRest);
+});
+
+test("item 18 the trailing cluster paints NO box of its own — the glyphs ride the row's hover tint", async ({ mount, page }) => {
+  await routeLibrary(page, EDITED_ONE);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  const row = component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first();
+  const cluster = row.locator(ACTIONS);
+  await expect(cluster).toHaveCSS("background-color", TRANSPARENT);
+  // The double highlight the owner spotted was a HOVER-only backdrop, so rest alone would pass for the
+  // wrong reason.
+  await row.hover();
+  await expect(cluster).toHaveCSS("background-color", TRANSPARENT);
+});
+
+test("item 17/19 the built-in's lock sits inline-LEFT of the name and never collides with the cluster", async ({ mount, page }) => {
+  await routeLibrary(page, null);
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  const row = component.locator(LIST_ROW_ROOT, { hasText: "Built-in default" }).first();
+  await expect(row.locator(LEADING)).toHaveCount(1);
+  // Hover is the state the collision was reported in: the lock stayed and the revealed control landed on
+  // top of it, half-clipped.
+  await row.hover();
+  const geometry = await row.evaluate((el) => {
+    const rect = (sel: string): DOMRect => (el.querySelector(sel) as HTMLElement).getBoundingClientRect();
+    return {
+      lock: rect(`[data-slot="list-row-leading"]`),
+      title: rect(`[data-slot="list-row-title"]`),
+      cluster: rect(`[data-slot="list-row-actions"]`),
+    };
+  });
+  expect(geometry.lock.width, "the lock renders (a zero-width leading slot is not a marker)").toBeGreaterThan(0);
+  expect(geometry.lock.right, "inline-LEFT of the name, not an action slot at the far end").toBeLessThanOrEqual(geometry.title.left);
+  expect(geometry.cluster.left, "the marker and the cluster are DISJOINT boxes, never a stack").toBeGreaterThanOrEqual(geometry.lock.right);
+  expect(geometry.cluster.left, "…and the cluster is in flow past the title, not floated over it").toBeGreaterThanOrEqual(geometry.title.right);
 });
 
 test("an '(edited)' row deletes from its ⋯ menu — and the built-in row offers no delete at all", async ({ mount, page }) => {
@@ -174,19 +277,14 @@ test("every non-built-in row carries its own edit stamp — the F5 scent that te
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
   // The two forks differ by their stamp — 5 min vs 40 min ago — and the first also carries its LINEAGE
   // (`forkedFrom` = the built-in, whose name the surface resolves from the list it already has).
-  await expect(component.getByText("forked from Default · edited 5m ago", { exact: true })).toBeVisible();
+  await expect(component.getByText("generation · forked from Default · edited 5m ago", { exact: true })).toBeVisible();
   // The second's source is a PACKAGED template, absent from the list: the lineage is OMITTED, never guessed.
-  await expect(component.getByText("edited 40m ago", { exact: true })).toBeVisible();
-  // A kind that says something leads the subtitle; the ordinary `generation`/`system` kinds never print.
+  await expect(component.getByText("generation · edited 40m ago", { exact: true })).toBeVisible();
+  // The KIND leads every subtitle (crunch-list item 6) — the ordinary `generation` included.
   await expect(component.getByText("roleplay · edited 5m ago", { exact: true })).toBeVisible();
-  // …and the ordinary `generation`/`system` kinds never lead one (the EXACT stamps above already prove the
-  // fork rows carry no prefix; "generation" itself is not assertable-absent — the Active-for-generation
-  // label owns that word).
-  await expect(component.getByText("generation · edited 5m ago", { exact: true })).toHaveCount(0);
   // The built-in keeps its own marker instead of a stamp (its updatedAt is the seed's, not the user's edit).
   // (located by exact ROLE name — the row BODY button, never the "Activate Default for generation" toggle
-  // beside it. `description` is NOT asserted here: `exact` applies to it too, and with nothing else picked
-  // the built-in row is the active one, so its markers append "Active" to the same accessible description.)
+  // beside it.)
   await expect(component.getByRole("button", { name: "Default", exact: true })).toBeVisible();
   await expect(component.getByText("Built-in default", { exact: true })).toBeVisible();
 });
@@ -195,7 +293,8 @@ test("deleting the ACTIVE '(edited)' row also clears the active-for-generation p
   const trpc = await routeLibrary(page, EDITED_ONE);
   const component = await mount(<PresetLibrarySurfaceStory />);
 
-  await expect(component.getByText("Active", { exact: true })).toBeVisible();
+  // The row IS the active pick — carried by the toggle's `aria-checked`, the row's whole state readout.
+  await expect(page.getByRole("radio", { name: activateFor(EDITED_ONE_NAME), exact: true })).toHaveAttribute("aria-checked", "true");
 
   await component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first().hover();
   await page.getByRole("button", { name: menuFor(EDITED_ONE_NAME) }).click();
@@ -240,10 +339,12 @@ test("§12 the row's frequent verb is INLINE: a revealed Duplicate fires preset.
 
   const row = component.locator(LIST_ROW_ROOT, { hasText: EDITED_ONE_NAME }).first();
   const duplicate = component.getByRole("button", { name: duplicateFor(EDITED_ONE_NAME) });
-  // Rest posture: hidden until the row is hovered/focused (it is a shortcut, not permanent chrome) — and
-  // while hidden it is inert to the pointer, so it can't eat a click aimed at the text it floats over (P3b).
+  // Rest posture: invisible until the row is hovered/focused (it is a shortcut, not permanent chrome) — but
+  // still HIT-TESTABLE, because this cluster is in flow in its own reserved strip and overlays no text.
+  // (P3b's `pointer-events-none` belongs to the FLOAT arm, the one that sits over the title; making an
+  // in-flow control inert breaks programmatic/assistive clicks and protects nothing — see `ROW_REVEAL`.)
   await expect(duplicate).toHaveCSS("opacity", "0");
-  await expect(duplicate).toHaveCSS("pointer-events", "none");
+  await expect(duplicate).toHaveCSS("pointer-events", "auto");
   await expect(duplicate).toHaveClass(REVEAL_ON_HOVER);
   await expect(duplicate).toHaveClass(REVEAL_ON_FOCUS);
 
@@ -328,7 +429,8 @@ test("§9/D1 the row toggle ACTIVATES that row through the one setDefault mutati
 
   const toggle = page.getByRole("radio", { name: activateFor(EDITED_ONE_NAME), exact: true });
   await expect(toggle).toHaveAttribute("aria-checked", "false");
-  // It rides the row reveal like every other trailing control (the pressed STATE is the title-line marker).
+  // UNPRESSED it rides the row reveal like every other trailing control (the D11 `when-on` posture); the
+  // PRESSED dot never hides — pinned in the O-1 test above.
   await expect(toggle).toHaveClass(REVEAL_ON_HOVER);
   await expect(toggle).toHaveClass(REVEAL_ON_FOCUS);
 
@@ -381,8 +483,13 @@ test("§9/D1 with nothing chosen, the BUILT-IN row wears the pressed state", asy
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
   await expect(page.getByRole("radio", { name: activateFor("Default"), exact: true })).toHaveAttribute("aria-checked", "true");
-  // …and it is the ONLY pressed row (one-of-N).
-  await expect(component.locator(TITLE_ROW).getByText("Active", { exact: true })).toHaveCount(1);
+  // …and it is the ONLY pressed row (one-of-N) — counted on the DOTS themselves, which is where the state
+  // lives now that the "Active" badge is gone (O-1).
+  const checked = await component
+    .locator(ACTIONS)
+    .getByRole("radio")
+    .evaluateAll((els) => els.filter((el) => el.getAttribute("aria-checked") === "true"));
+  expect(checked).toHaveLength(1);
 });
 
 test("§12 enforcement: the pane-level 'Active for generation' Select is DELETED, not kept beside the toggle", async ({ mount, page }) => {
