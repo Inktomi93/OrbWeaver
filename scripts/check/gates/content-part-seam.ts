@@ -3,8 +3,15 @@
 // domain/chat/engine/pipeline.ts) and consumed only by infra/providers/** (the sealed runners). Everything
 // else stays `content: string`. Enforced as a sanctioned-importer allowlist on the symbol: a
 // `ChatContentPart` import from a file outside the seam set is RED.
+//
+// TWO-SIDED (gate-hub #10): a SANCTIONED pattern matching NO file in the project is RED — a seam member
+// that moved or died leaves a hole in the scan (every file it used to cover silently stops being checked),
+// so the row ratchets down with the code. The stale arm self-guards on a REAL-TREE ANCHOR (gate-hub #11):
+// the conformance mini-projects hold 1-2 files and would "prove" every seam member had vanished, so it only
+// judges when the ONE producer (`domain/chat/engine/pipeline.ts`) is loaded.
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
+import { fileLoaded } from "../pass.ts";
 
 const SYMBOL = "ChatContentPart";
 const CONTRACTS_CHAT = /^@orb\/contracts\/chat(?:\/|$)/u;
@@ -24,6 +31,15 @@ const SANCTIONED = [
   // The domain-side request DTO the seam populates (content: ChatContentPart[] handed to the runner).
   /\/packages\/server\/src\/domain\/chat\/contract\/results\.ts$/u,
 ] as const;
+
+const GATE_SELF = "scripts/check/gates/content-part-seam.ts";
+/** Real-tree anchor (gate-hub #11): the DECLARATION home of the symbol. Loaded on every real run; a
+ *  conformance mini-project only has it when an example materializes it on purpose. */
+const ANCHOR = "packages/contracts/src/chat/bus.ts";
+const STALE_PREFIX =
+  "stale SANCTIONED seam pattern — it matches NO file in the project (ratchet down): a seam member that " +
+  "moved or died leaves a HOLE in the scan (every file the pattern covers silently stops being checked). " +
+  "Re-point it at the member's new home, or delete the row: ";
 
 const MESSAGE =
   "`ChatContentPart` is imported outside the D51 seam set (the engine producer `domain/chat/engine/" +
@@ -56,11 +72,34 @@ export const gate: GateDescriptor = {
       ctx.report(node, { token: SYMBOL, offset: 0 });
     }
   },
+  finalize: (ctx) => {
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
+      return;
+    }
+    const paths = ctx.project.getSourceFiles().map((sf) => sf.getFilePath() as string);
+    for (const re of SANCTIONED) {
+      if (!paths.some((p) => re.test(p))) {
+        ctx.report({
+          file: GATE_SELF,
+          line: 1,
+          column: 0,
+          message: `${STALE_PREFIX}${re.source} — the SANCTIONED table lives in scripts/check/gates/content-part-seam.ts`,
+        });
+      }
+    }
+  },
   mustFlag: [
     {
       files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type T = ChatContentPart;\n',
       at: "packages/server/src/domain/chat/verbs/assemble.ts",
       why: "an upstream verb importing ChatContentPart — reaching for parts before the engine seam (D51)",
+    },
+    {
+      files: {
+        "packages/contracts/src/chat/bus.ts": "export type ChatContentPart = { readonly type: string };\n",
+      },
+      expect: { count: 3, messageIncludes: "stale SANCTIONED seam pattern" },
+      why: "THE STALE ARM: the anchor (the symbol's declaration home) is loaded, so the seam set is judged — the three patterns naming homes no file matches (infra/providers, pipeline.ts, contract/results.ts) each ratchet down; the contracts pattern matches the anchor itself and stays",
     },
   ],
   mustPass: [
@@ -88,6 +127,12 @@ export const gate: GateDescriptor = {
       files: 'import type { ChatContentPart } from "@orb/contracts/chat";\nexport type U = ChatContentPart;\n',
       at: "tests/contracts/chat/index.test-d.ts",
       why: "the centralized tests/ mirror (not prod src) legitimately imports the contract type to test it — exempt",
+    },
+    {
+      files: {
+        "packages/server/src/domain/chat/verbs/read.ts": "export const x = 1;\n",
+      },
+      why: "THE ANCHOR GUARD: a project without the symbol's declaration home is not the real tree — the stale arm stays silent instead of 'proving' all four seam members vanished",
     },
   ],
 };

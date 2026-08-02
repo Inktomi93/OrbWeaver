@@ -6,6 +6,7 @@
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
+import { fileLoaded } from "../pass.ts";
 
 /** Current legit off-token files → reason. EMPTY: the whole overlay-primitive family (dialog/menu/
  *  popover/tooltip/alert-dialog/drawer/toast/selection-bar/macro-textarea + the chat command-palette
@@ -100,6 +101,11 @@ function isClassStringSite(node: Node): boolean {
 const GATE_SELF = "scripts/check/gates/no-off-token-radius-shadow.ts";
 const passSeenAllowlisted = new Set<string>();
 
+/** Real-tree anchor (GATE-AUTHORING.md §4.5): `ctx.scope.kind === "project"` is TRUE inside conformance's
+ *  synthetic mini-projects too, so scope ALONE is not a guard — the stale arm below is vacuous while the
+ *  table is empty, but the first row added would otherwise red this gate's own self-proof. */
+const STALE_ARM_ANCHOR = "packages/ui/src/tokens/index.ts";
+
 export const gate: GateDescriptor = {
   name: "no-off-token-radius-shadow",
   docRow: "design-enforcement.md §3 (DC8)",
@@ -139,7 +145,7 @@ export const gate: GateDescriptor = {
   },
 
   finalize: (ctx) => {
-    if (ctx.scope.kind !== "project") {
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
       return; // the stale arm is a whole-tree claim — never fire it below project scope (§4.4)
     }
     for (const rel of Object.keys(ALLOWLIST)) {
