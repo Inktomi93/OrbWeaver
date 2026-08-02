@@ -392,6 +392,28 @@ test("a CARRIER's drill-in offers no depth, no order and no triggers — the sch
   await expect(probe.getByRole("textbox", { name: "Entry wrapper" })).toBeVisible();
 });
 
+// ── THE `{{ }}` POPOVER COMPLETES AGAINST THE DERIVED CATALOG ────────────────────────────────────────
+// The body's suggestion set is DERIVED from the one macro registry+metadata home (kit), not a hand-rolled
+// short list — so a variable macro no hand list ever carried is offered here, with its parameterized
+// `::` insert form. The other half is the curation: the excluded block-form/whitespace-literal macros
+// (`{{noop}}` and friends) must NOT be offered, because the popover inserts a bare call form that a
+// block macro cannot use. Only a mounted authoring surface can see either half.
+
+test("the body's macro popover offers the derived builtin vocabulary and withholds the excluded noise", async ({ mount, page }) => {
+  const probe = await mount(<RackStory />);
+  await probe.getByRole("button", { name: "Edit Alpha" }).click();
+  const body = probe.getByRole("textbox", { name: "Text" });
+
+  await body.fill("");
+  await body.pressSequentially("{{getvar");
+  await expect(page.getByRole("option", { name: "{{getvar::key}}" })).toBeVisible();
+
+  // An EXCLUDED macro: the popover finds nothing, so it never opens.
+  await body.fill("");
+  await body.pressSequentially("{{noop");
+  await expect(page.getByRole("option")).toHaveCount(0);
+});
+
 test("Add mints a section AND drills straight into it, where the Name field is", async ({ mount, page }) => {
   const probe = await mount(<RackStory />);
   const state = probe.locator("output");
