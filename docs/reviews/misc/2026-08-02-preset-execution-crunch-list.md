@@ -154,6 +154,20 @@ stray "next" text in the field.
 is dumb (owner). The fix-all SANCTIONED that echo (§16 rows 7+27 "header-Export echo") — overruled:
 ONE home, the list-row kebab (matches the characters/chats ruling: lifecycle lives list-side).
 Remove Export from the editor-header kebab; §16 rows 7+27 revert.
+**O-17 ★ Prompt-view tail clusters → TRANSFORMS.** Delivery (Speaker names · Continue delimiter)
+and Collapsing (Adjacent-role merging · "This model enforces at least Strict — stricter always
+wins" · Squash system notes) move out of Prompt into Transforms (owner: they're wire-shaping, not
+prompt content). Spec §5 concept-sort text amends with it. (Recorded counterpoint, not argued:
+the spec homed Delivery under Prompt as "how sections speak"; owner sort wins.)
+
+## P0 ROOT CAUSE — source-pinned (post-list addendum)
+`components/row-reveal.ts:24` — `ROW_REVEAL_SWAP = "group-hover/row:hidden …"` is a
+**display:none swap**: the rest-marker (Active badge) leaves LAYOUT on hover, the title line
+reflows, the hover boundary moves under the real pointer → oscillation. ROW_REVEAL (the cluster
+half) is opacity-only and innocent. O-1 (persistent filled dot) removes the swap from the preset
+row entirely — one fix closes both P0 items. Any OTHER ROW_REVEAL_SWAP consumer (starred rows'
+title-line ★) has the same latent class — sweep consumers; a marker swap must reserve its box
+(visibility/opacity in a fixed-width slot), never `hidden`.
 
 ## Verified GOOD against the mocks (don't touch)
 
