@@ -1,8 +1,11 @@
 // The library-surface scaffold (clone-audit item 2): the search-input + row-list + empty-state shell shared
 // by preset-library-surface ↔ world-info-library-surface. TWO layout composites (not one rigid component —
-// the surfaces diverge on query hooks and the preset active-for-generation Select): `LibrarySurfaceShell`
-// (focus-on-mount + QueryBoundary + load/error copy) wraps the querying list; `LibraryListLayout`
-// (pre-search block + search + empty-or-rows body) is the body.
+// the surfaces diverge on their query hooks): `LibrarySurfaceShell` (focus-on-mount + QueryBoundary +
+// load/error copy) wraps the querying list; `LibraryListLayout` (search + empty-or-rows body) is the body.
+//
+// The `beforeSearch` slot is GONE with its one consumer: presets' pane-level "Active for generation" Select
+// died when activation became the row's own toggle (redesign §9/D1). A pane-scoped block above the search is
+// exactly the chrome a mixed-kind config list can't keep, so the slot goes with it rather than waiting.
 //
 // The in-pane micro-caps TITLE + actions row this used to carry is GONE (list-pane-projection L4): both
 // consumers now supply a `listHeader` and their title/create live in the `.shell-panel-header` band, like
@@ -41,8 +44,6 @@ export function LibrarySurfaceShell({ loadingLabel, errorLabel, children }: Libr
 }
 
 export interface LibraryListLayoutProps {
-  /** Optional block above the search (e.g. the preset active-for-generation Select). */
-  readonly beforeSearch?: ReactNode;
   readonly searchValue: string;
   readonly onSearchChange: (value: string) => void;
   readonly searchPlaceholder: string;
@@ -55,9 +56,8 @@ export interface LibraryListLayoutProps {
   readonly children: ReactNode;
 }
 
-/** The library list body: an optional pre-search block, a search input, then empty-or-rows. */
+/** The library list body: a search input, then empty-or-rows. */
 export function LibraryListLayout({
-  beforeSearch,
   searchValue,
   onSearchChange,
   searchPlaceholder,
@@ -72,8 +72,6 @@ export function LibraryListLayout({
     // construction instead of each picking steps by taste.
     <Surface tier="instrument">
       <Stack className="h-full" gap="row">
-        {beforeSearch}
-
         <Input aria-label={searchLabel} onValueChange={onSearchChange} placeholder={searchPlaceholder} value={searchValue} />
 
         {isEmpty ? (

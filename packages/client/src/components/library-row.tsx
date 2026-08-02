@@ -1,6 +1,7 @@
 // LibraryRow — the client-shared entity-library row (clone-audit item 2): a `@orb/ui/list-row` whose
-// click opens the entity in CONTENT, an optional leading status marker, and an optional Rename · Duplicate
-// · Delete actions menu (RowActionsMenu, item 1) with its delete-confirm. Consolidates the near-identical
+// click opens the entity in CONTENT, an optional leading status marker, an optional state toggle, and an
+// optional Rename · Duplicate · Delete actions menu (RowActionsMenu, item 1) with its delete-confirm. The
+// trailing cluster is the §12.2 grammar in order: state toggle → inline verb → kebab (hard cap, three). Consolidates the near-identical
 // preset-library-row ↔ world-info-library-row shells; the per-feature leading marker + delete copy stay
 // feature-owned (passed in). character-card intentionally does NOT consume this — its avatar/bulk/collapse/
 // chat-CTA anatomy diverges enough that it shares only the RowActionsMenu composite, not the row shell.
@@ -35,6 +36,12 @@ export interface LibraryRowActions {
    *  The kebab KEEPS the same item (N3 mirror parity — inline is a shortcut, never the only path).
    *  Omitted ⇒ kebab-only, the world-info posture (books are low-churn; no frequency evidence). */
   readonly inlineVerb?: "duplicate";
+  /** Feature-owned `MenuItem`s rendered ABOVE Rename, and BELOW Duplicate (above the destructive Delete).
+   *  The kebab retains EVERY action a row offers (N3 mirror parity), so a row carrying an inline state
+   *  toggle or a feature-specific verb mirrors it here. Two slots because the §9 kebab order is
+   *  `state · Rename · Duplicate · feature verbs · Delete`, and Rename/Duplicate are this composite's own. */
+  readonly menuItemsBefore?: ReactNode;
+  readonly menuItemsAfter?: ReactNode;
 }
 
 export interface LibraryRowProps {
@@ -51,12 +58,22 @@ export interface LibraryRowProps {
    * `aria-hidden` — the status was silent for a screen reader until it moved here.
    */
   readonly markers?: ReactNode;
+  /**
+   * The row's ONE state toggle (`RowToggleAction`), rendered FIRST in the trailing cluster (§12.2 slot 1).
+   * Independent of `actions`: a row with no CRUD menu can still carry state (the built-in preset is
+   * activatable but neither renameable nor deletable). It rides the FLOATED cluster, so it must be
+   * reveal-gated at rest (`rest="never"`) with its pressed state shown in `markers` — a rest-VISIBLE control
+   * inside the float arm is inert and sits on the title text (`listRowVariants.float`).
+   */
+  readonly stateToggle?: ReactNode;
   /** The trailing actions menu. Omit for a row that can't be renamed/duplicated/deleted (e.g. a built-in). */
   readonly actions?: LibraryRowActions;
 }
 
-/** One entity-library row: title/subtitle + title-line status markers · Rename/Duplicate/Delete menu. */
-export function LibraryRow({ title, subtitle, selected, onSelect, markers, actions }: LibraryRowProps): ReactElement {
+/** One entity-library row: title/subtitle + title-line status markers · state toggle · Rename/Duplicate/
+ *  Delete menu. */
+export function LibraryRow({ title, subtitle, selected, onSelect, markers, stateToggle, actions }: LibraryRowProps): ReactElement {
+  const hasCluster = stateToggle !== undefined || actions !== undefined;
   return (
     <ListRow
       // `group` roots the row so an inline verb's ROW_REVEAL fires on row hover/focus-within (§12.2).
@@ -70,7 +87,16 @@ export function LibraryRow({ title, subtitle, selected, onSelect, markers, actio
       title={title}
       {...(subtitle === undefined ? {} : { subtitle })}
       {...(markers === undefined ? {} : { markers })}
-      {...(actions === undefined ? {} : { actions: <LibraryRowActionsMenu {...actions} /> })}
+      {...(hasCluster
+        ? {
+            actions: (
+              <>
+                {stateToggle}
+                {actions === undefined ? null : <LibraryRowActionsMenu {...actions} />}
+              </>
+            ),
+          }
+        : {})}
     />
   );
 }
@@ -80,7 +106,17 @@ function actionSubject(name: string, qualifier: string | undefined): string {
   return qualifier === undefined ? name : `"${name}" · ${qualifier}`;
 }
 
-function LibraryRowActionsMenu({ name, qualifier, onRename, onDuplicate, onDelete, deleteDescription, inlineVerb }: LibraryRowActions): ReactElement {
+function LibraryRowActionsMenu({
+  name,
+  qualifier,
+  onRename,
+  onDuplicate,
+  onDelete,
+  deleteDescription,
+  inlineVerb,
+  menuItemsBefore,
+  menuItemsAfter,
+}: LibraryRowActions): ReactElement {
   const subject = actionSubject(name, qualifier);
   return (
     <>
@@ -96,6 +132,8 @@ function LibraryRowActionsMenu({ name, qualifier, onRename, onDuplicate, onDelet
         onDuplicate={onDuplicate}
         onRename={onRename}
         {...(qualifier === undefined ? {} : { qualifier })}
+        {...(menuItemsBefore === undefined ? {} : { menuItemsBefore })}
+        {...(menuItemsAfter === undefined ? {} : { menuItemsAfter })}
       />
     </>
   );
@@ -105,7 +143,16 @@ function LibraryRowActionsMenu({ name, qualifier, onRename, onDuplicate, onDelet
  *  home for the destructive Delete + the dialog-opening Rename. §12.2 rest posture: it RIDES the reveal
  *  like every other row affordance (hidden at rest, hover/focus-within/coarse revealed) and sits in the
  *  `size-control-md` icon box the grammar's touch math assumes — a 40×32 `sm` box was the odd one out. */
-function LibraryRowMenu({ name, qualifier, onRename, onDuplicate, onDelete, deleteDescription }: Omit<LibraryRowActions, "inlineVerb">): ReactElement {
+function LibraryRowMenu({
+  name,
+  qualifier,
+  onRename,
+  onDuplicate,
+  onDelete,
+  deleteDescription,
+  menuItemsBefore,
+  menuItemsAfter,
+}: Omit<LibraryRowActions, "inlineVerb">): ReactElement {
   return (
     <RowActionsMenu
       label={`Actions for ${actionSubject(name, qualifier)}`}
@@ -118,6 +165,7 @@ function LibraryRowMenu({ name, qualifier, onRename, onDuplicate, onDelete, dele
         onConfirm: onDelete,
       }}
     >
+      {menuItemsBefore}
       <MenuItem onClick={onRename}>
         <Icon icon={Pencil} size="sm" />
         Rename
@@ -126,6 +174,7 @@ function LibraryRowMenu({ name, qualifier, onRename, onDuplicate, onDelete, dele
         <Icon icon={Copy} size="sm" />
         Duplicate
       </MenuItem>
+      {menuItemsAfter}
     </RowActionsMenu>
   );
 }
