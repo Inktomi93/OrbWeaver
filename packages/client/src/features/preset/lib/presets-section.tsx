@@ -22,7 +22,10 @@ import { PresetLibrarySurface } from "../surfaces/preset-library-surface";
 export const presetsSection: SectionDefinition = {
   id: "presets",
   rail: { label: "Presets", icon: SlidersHorizontal, group: "authoring", mobile: "sheet" },
-  panelDefaults: { list: "docked", context: "collapsed" },
+  // BOTH docked at boot (crunch-list O-19★, owner ruling): the library IS how you pick what you are
+  // editing, and the readout IS the product — a Presets section that opens with neither pane looks
+  // unbuilt. The persisted per-panel override still wins thereafter.
+  panelDefaults: { list: "docked", context: "docked" },
   placeholder: {
     title: "Presets",
     description: "Your generation presets live here — pick one to tune sampling, reasoning, and prompts.",

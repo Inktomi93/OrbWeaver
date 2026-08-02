@@ -3,6 +3,29 @@
 //
 // Also homes the shell's layout vocabulary unions (SectionId/ModalSlotId/PanelName/PanelMode) — state
 // owns them so app-shell (feature) imports from state, never the reverse.
+//
+// FOCUS MODE IS ONE FLAG, AND IT OWNS NO PANEL WRITES (item 20, 2026-08-02 — the measured desync).
+// Focus used to be DERIVED ("both panels resolve collapsed") while ALSO being implemented by WRITING
+// `collapsed` into `panelOverrides` — so three truths could disagree: the button label, the overrides,
+// and the resolved modes. The narrow-viewport auto-collapse produces the same "both collapsed" reading
+// with no user intent, which cold-booted the toggle into its "Exit focus mode" arm at ≤64rem and made it
+// a no-op (clicking "exit" re-entered the focus look, then did nothing at all); and exiting focus docked
+// BOTH panels, re-opening a pane the user had collapsed long before entering.
+//
+// The shape now: `focusMode` is a boolean REGIME INPUT to `resolvePanelMode` (precedence above mobile /
+// narrow / wide) — while it is on, every panel resolves `collapsed` and no override is touched. There is
+// therefore no "saved pre-focus state" to corrupt: the untouched `panelOverrides` map IS the saved state,
+// and exiting restores it by definition. The button label derives from this flag alone.
+//
+// MANUAL PANEL TOGGLE WHILE FOCUSED — the arm chosen: a write that would REVEAL a panel EXITS focus first
+// (`setPanelMode(panel, docked|overlay)` / `setOpenOverlayPanel(<name>)`); a write that HIDES one leaves
+// focus alone (it agrees with what focus is already showing, and `setOpenOverlayPanel(null)` is fired by
+// unrelated flows — chat selection, drill close — that must never blow focus open). Rationale: the shell's
+// existing idiom is that every visible chrome control produces a pixel (the ≤64rem dead-toggle correction
+// in `resolvePanelMode`); if a reveal kept the flag on, the panel would show while the label still read
+// "Exit focus mode" — the exact multi-truth this rework deletes. Focus is also transient (never persisted)
+// and cleared on section change, matching `openOverlayPanel`'s precedent: a rail tap lands on the new
+// section's own layout.
 
 import { isPlainObject } from "@orb/kit/guards";
 import { withViewTransition } from "#lib";
@@ -68,6 +91,10 @@ interface ShellState {
    *  slide-over open (content or the section's docked default shows instead). Device-state, transient,
    *  and reset on section change. */
   readonly openOverlayPanel: PanelName | null;
+  /** Focus mode — the shell's ONE presentation flag for "hide every side panel and read". A pure regime
+   *  input (`resolvePanelMode`), never a panel write: the label, the icon and the resolved modes all read
+   *  THIS, so they cannot disagree. Transient (never persisted), cleared on section change. */
+  readonly focusMode: boolean;
   /** Settings-category deep-link target. Set alongside `openModal:'settings'`; transient. */
   readonly settingsCategory: SettingsCategoryId | null;
   /** SUB-level deep-link target (SET-SEAMS §10 Q4): the `SettingsSubcategory.id` inside
@@ -102,6 +129,7 @@ const DEFAULT_STATE: ShellState = {
   openModal: null,
   contextTab: null,
   openOverlayPanel: null,
+  focusMode: false,
   settingsCategory: null,
   settingsSubcategory: null,
   mobileViewport: false,
@@ -169,6 +197,7 @@ function migrate(persisted: unknown): ShellState {
     openModal: null,
     contextTab: null,
     openOverlayPanel: null,
+    focusMode: false,
     settingsCategory: null,
     settingsSubcategory: null,
     mobileViewport: false,
@@ -187,20 +216,33 @@ const useShellStore = createPersistedStore<ShellState, PersistedShellState>("she
 
 // ── The write API — intent-named module actions (the store handle never escapes this file). ──
 
-/** Switch the active rail section. Also closes any open slide-over — a rail-tab tap must land on
- *  content, never carry the prior section's open sheet/overlay across. */
+/** Switch the active rail section. Also closes any open slide-over AND leaves focus mode — a rail-tab tap
+ *  must land on the new section's own layout, never carry the prior section's open sheet/overlay or its
+ *  panels-hidden reading mode across. */
 export function setActiveSection(id: SectionId): void {
   // A rail-section swap is an in-app pane change at a constant route, so the router's VT never fires —
   // drive it by hand so every writer of the section inherits the crossfade for free.
   withViewTransition(() => {
-    useShellStore.setState({ activeSection: id, openOverlayPanel: null }, false, "shell/setActiveSection");
+    useShellStore.setState({ activeSection: id, openOverlayPanel: null, focusMode: false }, false, "shell/setActiveSection");
   });
 }
 
-/** Set the active section's explicit mode for one panel (dock ⇄ overlay ⇄ collapse). */
+/** Set the active section's explicit mode for one panel (dock ⇄ overlay ⇄ collapse). A REVEALING mode
+ *  (anything but `collapsed`) leaves focus mode first — see the file header: focus on ⇒ nothing showing. */
 export function setPanelMode(panel: PanelName, mode: PanelMode): void {
-  const { activeSection, panelOverrides } = useShellStore.getState();
-  useShellStore.setState({ panelOverrides: withOverride(panelOverrides, activeSection, panel, mode) }, false, "shell/setPanelMode");
+  const { activeSection, panelOverrides, focusMode } = useShellStore.getState();
+  useShellStore.setState(
+    { panelOverrides: withOverride(panelOverrides, activeSection, panel, mode), focusMode: mode === "collapsed" && focusMode },
+    false,
+    "shell/setPanelMode",
+  );
+}
+
+/** Enter/leave focus mode — the shell's ONE "hide every side panel" flag (file header). Entering also
+ *  closes any open slide-over, so the overlay regimes get the same single-truth reading (nothing showing)
+ *  instead of a control whose label never changed. */
+export function setFocusMode(on: boolean): void {
+  useShellStore.setState(on ? { focusMode: true, openOverlayPanel: null } : { focusMode: false }, false, "shell/setFocusMode");
 }
 
 export function openModal(id: ModalSlotId): void {
@@ -243,9 +285,14 @@ export function closeModal(): void {
 }
 
 /** Open/close a panel's slide-over (mobile sheet OR narrow-desktop auto-overlay). `null` closes (back to
- *  content/dock); a `PanelName` opens that panel and closes the other (one slide-over at a time). */
+ *  content/dock); a `PanelName` opens that panel and closes the other (one slide-over at a time).
+ *
+ *  OPENING one leaves focus mode (a reveal, file header); CLOSING leaves the flag alone — `null` is fired
+ *  by flows that are not about focus at all (chat selection, drill close) and must never pop the panels
+ *  back open behind the user. */
 export function setOpenOverlayPanel(panel: PanelName | null): void {
-  useShellStore.setState({ openOverlayPanel: panel }, false, "shell/setOpenOverlayPanel");
+  const focusMode = panel === null && useShellStore.getState().focusMode;
+  useShellStore.setState({ openOverlayPanel: panel, focusMode }, false, "shell/setOpenOverlayPanel");
 }
 
 /** Publish the shell's current viewport regime — called from app-shell's `useIsMobileViewport` sync
@@ -274,8 +321,12 @@ export function usePanelOverride(section: SectionId, panel: PanelName): PanelMod
 /** The ONE mode-resolution algebra — both `useShellLayout`'s `resolvePanel` (feature-tier hook, reads the
  *  section registry for `panelDefaults`) and `useListDocked` below (this tier) call this SAME function so
  *  they can never drift (the M10 correction: a hand-copied mirror read only `mobileViewport` and
- *  disagreed with `resolvePanel` in the 48–64rem regime). Precedence isMobile → narrow → wide:
- *  mobile never resolves "docked" (a transient sheet, open only when `openOverlayPanel` names it); a
+ *  disagreed with `resolvePanel` in the 48–64rem regime). Precedence isFocus → isMobile → narrow → wide.
+ *
+ *  FOCUS WINS OVER EVERYTHING (item 20): focus mode is "no side panel is showing", in every regime, with
+ *  ZERO writes to `panelOverrides` — which is what makes the flag, the label and the pixels one truth and
+ *  leaves the pre-focus layout intact for the exit (the untouched override map IS the saved state).
+ *  Then, as before: mobile never resolves "docked" (a transient sheet, open only when `openOverlayPanel` names it); a
  *  narrow-desktop `docked` DEFAULT auto-downgrades to a CLOSED slide-over (`collapsed`), opening to
  *  `overlay` only when `openOverlayPanel` names it (§4.1: overlay is zero-width closed by default, slides
  *  over on demand); wide resolves the raw override-or-default untouched.
@@ -289,11 +340,15 @@ export function resolvePanelMode(
   panel: PanelName,
   resolved: PanelMode,
   regime: {
+    readonly isFocus: boolean;
     readonly isMobile: boolean;
     readonly isNarrow: boolean;
     readonly openOverlayPanel: PanelName | null;
   },
 ): PanelMode {
+  if (regime.isFocus) {
+    return "collapsed";
+  }
   if (regime.isMobile) {
     return regime.openOverlayPanel === panel ? "overlay" : "collapsed";
   }
@@ -320,12 +375,18 @@ export function resolvePanelMode(
  *  `usePanelOverride` + the viewport reads — is exactly the hand-copied mirror that produced the M10 bug.
  *  Its CTs (tests/client/state/shell-store.ct.tsx) pin the shared algebra, so it cannot rot silently. */
 export function useListDocked(section: SectionId, ownDefault: PanelMode): boolean {
+  const isFocus = useShellStore((s) => s.focusMode);
   const isMobile = useShellStore((s) => s.mobileViewport);
   const isNarrow = useShellStore((s) => s.narrowViewport);
   const openOverlayPanel = useShellStore((s) => s.openOverlayPanel);
   const override = usePanelOverride(section, "list");
   const resolved = override ?? ownDefault;
-  return resolvePanelMode("list", resolved, { isMobile, isNarrow, openOverlayPanel }) === "docked";
+  return resolvePanelMode("list", resolved, { isFocus, isMobile, isNarrow, openOverlayPanel }) === "docked";
+}
+
+/** Focus mode — the ONE flag the topbar's label/icon/pressed state and the panel resolve both read. */
+export function useFocusMode(): boolean {
+  return useShellStore((s) => s.focusMode);
 }
 
 /** The shell's published narrow-desktop regime (48–64rem) — raw read, for a feature-tier projection

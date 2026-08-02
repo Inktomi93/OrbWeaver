@@ -1,3 +1,6 @@
+// ARCHIVED 2026-08-02 — pre-R2R3 vocabulary (hpDelta et al., retired by the actor-state reshape); kept as
+// historical measurement records; do NOT run against the current contracts — mint fresh corpora instead.
+//
 // Does the ANTHROPIC-NATIVE Messages API behave differently from OpenRouter's OpenAI-compat shim?
 //
 // Two things the OR wire cannot express, both load-bearing for the doc:

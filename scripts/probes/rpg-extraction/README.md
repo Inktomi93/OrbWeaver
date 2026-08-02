@@ -3,6 +3,12 @@
 Throwaway spike harness behind the one-call-tools decision. Full writeup:
 [`docs/design/rpg-extraction-one-call-spike.md`](../../../docs/design/rpg-extraction-one-call-spike.md).
 
+**ARCHIVED 2026-08-02 — pre-R2R3 vocabulary.** `real-cheap-toolround.json`, `real-reliable-structured.json`,
+and `captures.json` all carry the retired `hpDelta`/`setHp` party vocab (pre-actor-state-reshape). Kept
+as historical measurement records — do NOT run against the current contracts (the actor-state reshape
+retired this vocab; see `run-coverage.mjs`/`run.mjs`/`native-wire-probe.mjs`/`native-format-roundtrip.mjs`,
+similarly archived) — mint fresh corpora instead. The corpora files themselves are untouched.
+
 `run-coverage.mjs` — plays a fixed 8-turn game through the `1call-tools` shape (GM persona + the 7 real
 rpg tools + `tool_choice:"auto"`) TWICE: Arm A = terse tool descriptions, Arm B = enriched
 "when-to-use + example" descriptions. Emits a per-field coverage matrix (which tracked fields the model
