@@ -108,7 +108,19 @@ export const trackBarVariants = tv({
   },
   variants: {
     danger: { true: { fill: "bg-destructive" } },
+    // `accent` swaps the CATEGORICAL ramp for a SEMANTIC intent, for a bar whose magnitude belongs to a
+    // named zone rather than to a user-defined pool. The preset budget readout is the case: its bars
+    // inherit the rack's steel-blue setup / warm-amber zone accent, and the ramp's step 1 (vitality
+    // GREEN) is a hue the surface language does not otherwise contain (side-eye 2026-08-02, the
+    // mock-vs-rendered classification). Held at 55% so a column of bars stays quieter than the value
+    // text beside it, which is the accessible datum (§3.2 — the bar itself is aria-hidden).
+    accent: {
+      ramp: {},
+      info: { fill: "bg-info/55" },
+      warning: { fill: "bg-warning/55" },
+    },
   },
+  defaultVariants: { accent: "ramp" },
 });
 
 /** The stacked composition rail (SegmentBar) — the SAME rail geometry as the TrackBar (one `field`-tall

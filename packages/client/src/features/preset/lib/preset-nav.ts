@@ -51,6 +51,10 @@ export const THINKING_DISPLAY_ITEMS: SelectItems<string> = THINKING_DISPLAYS.map
   value,
   label: THINKING_DISPLAY_LABELS[value],
 }));
+/** The label an UNSET Reasoning-display select GHOSTS (side-eye F-05). The VALUE comes from the effective
+ *  read (the model's own resolved display mode), so a reading this build does not know prints ITSELF rather
+ *  than a fabricated label — the read stays the authority on its own vocabulary. */
+export const thinkingDisplayLabel = (value: string): string => (value in THINKING_DISPLAY_LABELS ? THINKING_DISPLAY_LABELS[value as ThinkingDisplay] : value);
 
 const NAMES_BEHAVIOR_LABELS: Record<NamesBehavior, string> = {
   none: "None — never include speaker names",
@@ -62,6 +66,8 @@ export const NAMES_BEHAVIOR_ITEMS: SelectItems<string> = NAMES_BEHAVIOR.map((val
   value,
   label: NAMES_BEHAVIOR_LABELS[value],
 }));
+/** The label an UNSET Speaker-names select GHOSTS (side-eye F-05) — the same map the options read. */
+export const namesBehaviorLabel = (value: NamesBehavior): string => NAMES_BEHAVIOR_LABELS[value];
 
 const CONTINUE_POSTFIX_LABELS: Record<ContinuePostfix, string> = {
   none: "None",
@@ -73,6 +79,8 @@ export const CONTINUE_POSTFIX_ITEMS: SelectItems<string> = CONTINUE_POSTFIX_TYPE
   value,
   label: CONTINUE_POSTFIX_LABELS[value],
 }));
+/** The label an UNSET Continue-delimiter select GHOSTS (side-eye F-05). */
+export const continuePostfixLabel = (value: ContinuePostfix): string => CONTINUE_POSTFIX_LABELS[value];
 
 const COMPACTION_MODE_LABELS: Record<CompactionMode, string> = {
   auto: "Auto — the SDK's own compaction",

@@ -36,22 +36,50 @@ export interface RowToggleActionProps {
    *  visible at rest — is still met there, in the marker slot; this control is then purely the affordance,
    *  and reveal-gating it is what keeps the row from painting two stars at once. */
   readonly rest?: "always" | "never" | "when-on";
+  /**
+   * FILLS the glyph while pressed, so the pressed state carries a SHAPE delta and not only a color one.
+   * WCAG 1.4.1: the preset list's activate control differed from its rest state by stroke color alone, and
+   * on a coarse pointer (where the text badge is hidden) color was the ONLY signal at all (side-eye F-06).
+   * A filled bolt vs a hollow one is legible in greyscale.
+   */
+  readonly pressedFill?: boolean;
+  /**
+   * ONE-OF-N semantics: `radio` renders `role="radio"` + `aria-checked` instead of `aria-pressed`, for a
+   * control that can only ever be SET (activating another row is the only way to unset this one, so a
+   * toggle's "press to release" contract is a promise it refuses to keep — side-eye F-19 / ARIA rec 3).
+   * The caller owns the `role="radiogroup"` container. @defaultValue "toggle"
+   */
+  readonly semantics?: "toggle" | "radio";
 }
 
-/** One row state-toggle: a ghost icon button that IS the marker (`aria-pressed` carries the datum). */
-export function RowToggleAction({ pressed, onToggle, labelOn, labelOff, icon, pressedClassName, rest = "when-on" }: RowToggleActionProps): ReactElement {
+/** One row state-toggle: a ghost icon button that IS the marker (`aria-pressed`/`aria-checked` carries the
+ *  datum). */
+export function RowToggleAction({
+  pressed,
+  onToggle,
+  labelOn,
+  labelOff,
+  icon,
+  pressedClassName,
+  pressedFill = false,
+  semantics = "toggle",
+  rest = "when-on",
+}: RowToggleActionProps): ReactElement {
   const revealed = rest === "never" || (rest === "when-on" && !pressed);
+  const radio = semantics === "radio";
   return (
     <Button
+      aria-checked={radio ? pressed : undefined}
       aria-label={pressed ? labelOn : labelOff}
-      aria-pressed={pressed}
+      aria-pressed={radio ? undefined : pressed}
       className={cn(revealed && ROW_REVEAL, pressed && pressedClassName) ?? ""}
       intent="ghost"
       onClick={onToggle}
+      role={radio ? "radio" : undefined}
       size="icon"
       type="button"
     >
-      <Icon icon={icon} size="sm" />
+      <Icon className={pressed && pressedFill ? "fill-current" : ""} icon={icon} size="sm" />
     </Button>
   );
 }

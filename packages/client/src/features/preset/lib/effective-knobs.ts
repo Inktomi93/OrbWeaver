@@ -24,6 +24,37 @@ export interface EffectiveProfileRow {
   readonly model: string;
   readonly knobs: Readonly<Record<string, EffectiveKnobRow | undefined>>;
   readonly stale: readonly { readonly knob: string; readonly value: number | string }[];
+  /** What the QUALITY dial feeds, as the dial declares it — the server's own projection (§4 cluster 1).
+   *  `null`/absent = no dial set, or nothing it feeds exists on this model. */
+  readonly qualityMapping: { readonly quality: string; readonly entries: readonly { readonly knob: string; readonly value: number | string }[] } | null;
+}
+
+/** The DISPLAY name for one resolved knob. The read is keyed by SCHEMA names (`maxOutputTokens`), and a
+ *  readout that prints those is showing the eye a wire identifier instead of a datum label (side-eye
+ *  F-13; the mock reads "max output"). Display only — the read stays the authority on its own keys, and
+ *  an unmapped key prints itself rather than being hidden. ONE home: the readout rows, the quality-mapping
+ *  gloss and the staleness copy all read it, so the surfaces cannot drift on what a knob is called. */
+const KNOB_LABELS: Readonly<Record<string, string>> = {
+  temperature: "temperature",
+  topP: "top-p",
+  topK: "top-k",
+  minP: "min-p",
+  topA: "top-a",
+  frequencyPenalty: "freq. penalty",
+  presencePenalty: "presence penalty",
+  repetitionPenalty: "rep. penalty",
+  seed: "seed",
+  effort: "effort",
+  thinkingBudgetTokens: "thinking budget",
+  thinkingDisplay: "reasoning display",
+  maxOutputTokens: "max output",
+  maxContextTokens: "context",
+  verbosity: "verbosity",
+};
+
+/** {@link KNOB_LABELS} with the honest fallback. */
+export function knobLabel(knob: string): string {
+  return KNOB_LABELS[knob] ?? knob;
 }
 
 /** What a KnobRow needs to paint its inherited state: the number to ghost at + the provenance gloss. */
@@ -110,20 +141,37 @@ export function provenanceSuffix(provenance: string): string | null {
   return provenance;
 }
 
-/** The QUALITY cluster's mapping gloss (§4 cluster 1) — what the dial is CURRENTLY feeding, read straight
- *  off the resolver's provenance labels rather than a client re-mapping of quality→axes. `null` with no
- *  dial set; the "everything overridden" case says so instead of rendering an empty arrow. */
-export function qualityMappingGloss(profile: EffectiveProfileRow | undefined, quality: string | undefined, labelOf: (knob: string) => string): string | null {
+/** The QUALITY cluster's MAPPING DATUM (§4 cluster 1, the mock's `deep → effort high · temp 1.0`) — the
+ *  server's projection of the dial's own table, formatted. Never a client re-mapping of quality→axes (the
+ *  drift `capability-panel-model.ts` bans), and never derived from the funnel's OUTPUT either: the previous
+ *  spelling filtered for knobs the funnel attributed to the dial, so a dial whose knobs were all overridden
+ *  rendered "every knob the dial feeds is overridden" — an override STATUS where the mock asks for the
+ *  mapping (side-eye F-15). What the dial does is a fact about the dial; the override note rides beside it.
+ *
+ *  `null` with no dial set, or before the read lands (nothing to state — the caller renders the connect
+ *  note its cluster already owns). */
+export function qualityMappingGloss(profile: EffectiveProfileRow | undefined, quality: string | undefined): string | null {
   if (quality === undefined) {
     return null;
   }
-  if (profile === undefined) {
-    return `${quality} — connect a chat model to see what it maps onto`;
+  const mapping = profile?.qualityMapping;
+  if (mapping === undefined || mapping === null) {
+    return profile === undefined ? `${quality} — connect a chat model to see what it maps onto` : null;
   }
-  const dialed = Object.entries(profile.knobs).filter(([, reading]) => reading?.provenance === "quality");
-  if (dialed.length === 0) {
-    return `${quality} — every knob the dial feeds is overridden explicitly below`;
+  const parts = mapping.entries.map((entry) => `${knobLabel(entry.knob)} ${String(entry.value)}`);
+  return `${mapping.quality} → ${parts.join(" · ")}`;
+}
+
+/** Which of the dial's knobs a stored explicit value currently OVERRIDES — the status half the mapping
+ *  gloss deliberately no longer carries. `null` when the dial is unset or nothing overrides it. */
+export function qualityOverrideGloss(profile: EffectiveProfileRow | undefined): string | null {
+  const mapping = profile?.qualityMapping;
+  if (mapping === undefined || mapping === null) {
+    return null;
   }
-  const parts = dialed.map(([knob, reading]) => `${labelOf(knob)} ${String(reading?.value)}`);
-  return `${quality} → ${parts.join(" · ")} — explicit knobs below override this`;
+  const overridden = mapping.entries.filter((entry) => profile?.knobs[entry.knob]?.provenance === "explicit").map((entry) => knobLabel(entry.knob));
+  if (overridden.length === 0) {
+    return "explicit knobs below override this";
+  }
+  return `${overridden.join(" · ")} set explicitly below — the dial no longer feeds ${overridden.length === 1 ? "it" : "them"}`;
 }

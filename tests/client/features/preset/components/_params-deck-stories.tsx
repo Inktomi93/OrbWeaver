@@ -46,6 +46,8 @@ const GHOST_EFFECTIVE = {
     maxOutputTokens: { value: 2048, provenance: "floor" },
   },
   stale: [],
+  // No dial set on this fixture, so the server reports no mapping (side-eye F-15's datum).
+  qualityMapping: null,
 };
 
 // The same preset on `quality: deep` with an explicit, OVER-RANGE repetition penalty: temperature now comes
@@ -59,6 +61,15 @@ const EXPLICIT_EFFECTIVE = {
     maxOutputTokens: { value: 2048, provenance: "floor" },
   },
   stale: [],
+  // The DIAL's own declared mapping, as `preset.resolveEffective` projects it — never a client re-mapping,
+  // and true even though `temperature` is currently overridden (the F-15 distinction).
+  qualityMapping: {
+    quality: "deep",
+    entries: [
+      { knob: "effort", value: "high" },
+      { knob: "temperature", value: 1 },
+    ],
+  },
 };
 
 // A stored `topA` this model does not honor — the funnel drops it, so it is invisible in both directions
@@ -86,9 +97,15 @@ export function ParamsDeckStaleStory(): ReactElement {
   return <DeckHarness effective={STALE_EFFECTIVE} params={{ topA: 0.2 }} />;
 }
 
-/** The deck with NO capability — the connect-a-model clusters, with QUALITY/CONTEXT/ADVANCED still live. */
+/** The deck with NO capability — the ONE connect-a-model note, with QUALITY/CONTEXT/ADVANCED still live. */
 export function ParamsDeckNoModelStory(): ReactElement {
   return <DeckHarness capability={null} effective={undefined} params={{}} />;
+}
+
+/** The deck whose capability read FAILED (side-eye F-02): a different problem from "no model configured",
+ *  and the server's own reason is the only honest thing to show. */
+export function ParamsDeckCapabilityErrorStory(): ReactElement {
+  return <DeckHarness capability={null} capabilityError="400 incoherent routing (agent-sdk × local-light)" effective={undefined} params={{}} />;
 }
 
 /** The deck carrying a server-only `customParameters` blob — D7's read-only presence row in ADVANCED. */
@@ -103,11 +120,13 @@ interface DeckHarnessProps {
    *  which is exactly the mistake that made the gate story render a model's knobs. */
   readonly capability?: Parameters<typeof ParamsDeck>[0]["capability"] | null;
   readonly customParameterKeys?: readonly string[];
+  /** The capability read's FAILURE message — distinct from "no model configured" (side-eye F-02). */
+  readonly capabilityError?: string | null;
 }
 
 /** The shared harness: the REAL deck under the REAL autosave boundary, with the last-saved params KEY SET
  *  mirrored to an `<output>` (the key-minimal patch proof) plus the last-saved value of each knob. */
-function DeckHarness({ params, effective, capability = STORY_CAPABILITY, customParameterKeys = [] }: DeckHarnessProps): ReactElement {
+function DeckHarness({ params, effective, capability = STORY_CAPABILITY, customParameterKeys = [], capabilityError = null }: DeckHarnessProps): ReactElement {
   const resolvedCapability = capability ?? undefined;
   const [saved, setSaved] = useState("keys=- ");
   const save = (values: PromptConfig): Promise<void> => {
@@ -124,6 +143,7 @@ function DeckHarness({ params, effective, capability = STORY_CAPABILITY, customP
           <output>{saved}</output>
           <ParamsDeck
             capability={resolvedCapability}
+            capabilityError={capabilityError}
             customParameterKeys={customParameterKeys}
             effective={effective}
             form={session.form as AppFormInstance<PromptConfig>}

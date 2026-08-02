@@ -37,3 +37,21 @@ export function useFocusOnMount(ref: RefObject<{ readonly focus: () => void } | 
     ref.current?.focus();
   }, [ref, enabled]);
 }
+
+/** Focus a freshly-mounted surface UNCONDITIONALLY — for an IN-PLACE swap, where the control the user just
+ *  activated is REMOVED by the same render that mounts this surface.
+ *
+ *  Why the sibling exists: `useFocusOnMount`'s `<body>` check is an initial-load discriminator, and it
+ *  cannot tell "the page just loaded" from "the button I was standing on was destroyed" — both leave
+ *  `activeElement` at `<body>`. The preset section/template drill-ins are exactly the second case (the
+ *  chevron that opened the editor unmounts with the list), so the guarded hook silently declined and focus
+ *  stayed on `<body>` in BOTH directions (side-eye F-04). The caller opts in per site because the guard is
+ *  what protects the rail's tab order on a cold load; a surface using THIS hook must only mount as the
+ *  direct result of a user activation. */
+export function useFocusOnSwap(ref: RefObject<{ readonly focus: () => void } | null>, enabled = true): void {
+  useEffect(() => {
+    if (enabled) {
+      ref.current?.focus();
+    }
+  }, [ref, enabled]);
+}

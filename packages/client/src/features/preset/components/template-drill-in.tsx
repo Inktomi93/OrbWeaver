@@ -22,8 +22,9 @@ import { AlertTriangle, ArrowLeft, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 import type { AppFormInstance } from "#forms";
-import { PROMPT_MACRO_SUGGESTIONS } from "#lib";
+import { PROMPT_MACRO_SUGGESTIONS, useFocusOnSwap } from "#lib";
 import { GUIDED_INPUT_TOKEN } from "../lib/assembly-model";
 import type { TemplateRow } from "../lib/template-rows";
 import { DeliveryCluster } from "./delivery-cluster";
@@ -40,10 +41,14 @@ export interface TemplateDrillInProps {
 
 export function TemplateDrillIn({ form, row, onBack }: TemplateDrillInProps): ReactElement {
   const { def } = row;
+  // Focus lands on the way OUT, not on <body> (side-eye F-04) — the chevron that opened this editor is
+  // gone with the list. The RESTORE half is the list's (`actions-view.tsx`).
+  const backRef = useRef<HTMLButtonElement>(null);
+  useFocusOnSwap(backRef);
   return (
-    <Stack gap="section">
+    <Stack aria-label={`${def.label} — template editor`} gap="section" role="region">
       <Row align="center" gap="row">
-        <Button intent="ghost" onClick={onBack} size="sm" type="button">
+        <Button intent="ghost" onClick={onBack} ref={backRef} size="sm" type="button">
           <Icon icon={ArrowLeft} size="sm" />
           Back to actions
         </Button>
@@ -60,9 +65,9 @@ export function TemplateDrillIn({ form, row, onBack }: TemplateDrillInProps): Re
         <Text voice="gloss">{def.fires}</Text>
       </Stack>
 
-      <Section kicker="Template">
-        <TemplateBody form={form} row={row} />
-      </Section>
+      {/* NO "Template" kicker over a field ALSO labelled "Template" (side-eye F-32): the drill-in header
+          names the template, the field label names the slot — two levels, not three. */}
+      <TemplateBody form={form} row={row} />
 
       <CapabilityFields form={form} row={row} />
     </Stack>
@@ -70,20 +75,25 @@ export function TemplateDrillIn({ form, row, onBack }: TemplateDrillInProps): Re
 }
 
 /** The template text — ONE field, ghosting the PROSE-1 default when empty. Clearing IS the reset (§16 row
- *  24 — the same grammar the section bodies now speak). */
+ *  24 — the same grammar the section bodies now speak).
+ *
+ *  NO FIELD LABEL (side-eye F-32): the drill-in header already names the template and the cluster kicker
+ *  already says "Template", so a third label on the textarea was the same word at three levels. The
+ *  accessible name moves to `aria-label` — the datum reaches AT, the eye stops reading it twice. */
 function TemplateBody({ form, row }: { readonly form: PresetForm; readonly row: TemplateRow }): ReactElement {
   const { def, guidedKind, factoryDefault } = row;
   const placeholder = factoryDefault === "" ? "Blank — nothing is emitted until you write something here." : factoryDefault;
+  const label = "Template";
   if (guidedKind === undefined) {
     return (
       <form.AppField name={`formatStrings.${def.id}` as "formatStrings.continueNudge"}>
-        {(field): ReactElement => <field.MacroField label={def.label} placeholder={placeholder} rows={4} suggestions={PROMPT_MACRO_SUGGESTIONS} />}
+        {(field): ReactElement => <field.MacroField label={label} placeholder={placeholder} rows={4} suggestions={PROMPT_MACRO_SUGGESTIONS} />}
       </form.AppField>
     );
   }
   return (
     <form.AppField name={`guidedActions.${guidedKind}.prompt`}>
-      {(field): ReactElement => <field.MacroField label={def.label} placeholder={placeholder} rows={4} suggestions={PROMPT_MACRO_SUGGESTIONS} />}
+      {(field): ReactElement => <field.MacroField label={label} placeholder={placeholder} rows={4} suggestions={PROMPT_MACRO_SUGGESTIONS} />}
     </form.AppField>
   );
 }

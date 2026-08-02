@@ -16,7 +16,13 @@ import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat"
 import type { ResolvedConnection } from "@orb/contracts/connection";
 
 import type { ContinuePostfix, UserIntent } from "@orb/contracts/preset";
-import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_TAIL } from "@orb/contracts/preset";
+import {
+  DEFAULT_COMPACT_INSTRUCTIONS,
+  DEFAULT_COMPACTION_MODE,
+  DEFAULT_CONTINUE_POSTFIX,
+  MANAGED_COMPACT_DEFAULT_PCT,
+  MANAGED_VERBATIM_TAIL,
+} from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
@@ -133,7 +139,7 @@ const CONTINUE_POSTFIX_DELIMITER: Record<ContinuePostfix, string> = {
 /** The continuation delimiter this turn's resolved preset configures. Read off the immutable assemble ctx
  *  so the commit write and the mirror stats delta join through one home. */
 function continuePostfixDelimiter(prep: TurnPrep): string {
-  return CONTINUE_POSTFIX_DELIMITER[prep.assembleContext.promptConfig.continuePostfix ?? "none"];
+  return CONTINUE_POSTFIX_DELIMITER[prep.assembleContext.promptConfig.continuePostfix ?? DEFAULT_CONTINUE_POSTFIX];
 }
 
 /** The shared economics subset (variant columns ∩ stats input). */

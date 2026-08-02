@@ -33,7 +33,7 @@ import { useState } from "react";
 import type { AppFormInstance } from "#forms";
 import { GUIDED_INPUT_TOKEN } from "../lib/assembly-model";
 import type { TemplateRow } from "../lib/template-rows";
-import { isCustomized, templateGroups, templatePreview, templateRowById } from "../lib/template-rows";
+import { isCustomized, TEMPLATE_KIND_LABEL, templateGroups, templatePreview, templateRowById } from "../lib/template-rows";
 import { TemplateDrillIn } from "./template-drill-in";
 
 type PresetForm = AppFormInstance<PromptConfig>;
@@ -80,8 +80,10 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
           </form.Subscribe>
         </Row>
 
+        {/* HUMAN group labels (side-eye F-30 / ARIA rec 10): the kicker rendered the registry's raw enum
+            member (`steer`, `voice`, `studio`), which is a code identifier standing in for a heading. */}
         {templateGroups().map((group) => (
-          <Section key={group.kind} kicker={group.kind}>
+          <Section key={group.kind} kicker={TEMPLATE_KIND_LABEL[group.kind]}>
             <Stack gap="tight">
               {group.rows.map((row) => (
                 <TemplateListRow form={form} key={row.def.id} onDrill={setDrilledId} row={row} />
@@ -94,9 +96,12 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
   );
 }
 
-/** One template row: label · fires gloss · KIND chip · Default/Customized state · mono preview · chevron.
- *  The kind chip's INFO hue is deliberately a different family from the state chips (neutral/success) so
- *  the two vocabularies can never blur. */
+/** One template row: label · fires gloss · KIND chip · Default/Customized state · mono preview · chevron —
+ *  the mock's own column order. The kind chip's INFO hue is deliberately a different family from the state
+ *  chips (neutral/success) so the two vocabularies can never blur.
+ *
+ *  THE ROW'S LAYOUT CONTRACT (side-eye F-01, the P0): the NAME is the identifier and may never be squeezed
+ *  out — it takes the `inline` subtitle arm's `min-w-24` floor, and the FIRES gloss is what shortens. */
 function TemplateListRow({
   form,
   row,
@@ -119,21 +124,35 @@ function TemplateListRow({
           <ListRow
             actions={
               <Row align="center" gap="field">
-                <Badge intent="info" size="sm">
+                {/* SOFT, both chips — the mock draws them as 12-14% tints, and eleven SOLID pills in one
+                    column out-shouted the row names they annotate (the F-17 loudness class, same cause).
+                    The two vocabularies stay distinguishable by HUE FAMILY (info vs neutral/success),
+                    which is what §6.6 asks of them, not by weight. */}
+                <Badge intent="info" size="sm" tone="soft">
                   {def.kind}
                 </Badge>
-                <Badge intent={customized ? "success" : "neutral"} size="sm">
+                <Badge intent={customized ? "success" : "neutral"} size="sm" tone="soft">
                   {customized ? "Customized" : "Default"}
                 </Badge>
+                {/* The mono PREVIEW is a trailing cell in the mock's grid (`150px`, right-aligned,
+                    truncating) — not the row's second line. Moving it here is what frees the title line
+                    for name + fires, and `aria-hidden` keeps a 600-character template body out of the
+                    row's spoken description (side-eye F-20). */}
+                <Text aria-hidden={true} as="span" className="hidden max-w-(--width-label-col) truncate @sm/list-row:block" voice="gloss">
+                  {templatePreview(value, factoryDefault)}
+                </Text>
                 <Button aria-label={`Edit ${def.label}`} intent="ghost" onClick={(): void => onDrill(def.id)} size="icon" type="button">
                   <Icon icon={ChevronRight} size="sm" />
                 </Button>
               </Row>
             }
             clickable={true}
-            meta={def.fires}
             onClick={(): void => onDrill(def.id)}
-            subtitle={templatePreview(value, factoryDefault)}
+            // THE P0 (side-eye F-01): the fires gloss is the row's SUBTITLE on the title line, so the
+            // NAME keeps the `inline` arm's width floor and the GLOSS is what truncates. It rode `meta`
+            // — a `shrink-0` slot — which starved three rows' names to 0px and clipped a fourth.
+            subtitle={def.fires}
+            subtitlePlacement="inline"
             title={def.label}
           />
         );
@@ -160,12 +179,23 @@ function MarkerCrossLink({
       onSelectSection(marker.id);
     }
   };
+  // The ↗ lives INSIDE the pill (side-eye F-34): the mock draws one chip, and a glyph parked outside the
+  // badge reads as a second, unlabelled control sitting next to it. `size="inline"` keeps the button a
+  // text-height wrapper so the pill IS the visible box, rather than a pill floating in a control box.
   return (
-    <Button disabled={health === "absent"} intent="ghost" onClick={onClick} size="sm">
-      <Badge intent={health === "healthy" ? "info" : "warning"} size="sm">
+    <Button
+      className="self-start"
+      disabled={health === "absent"}
+      intent="ghost"
+      onClick={onClick}
+      size="inline"
+      title={health === "absent" ? MARKER_HEALTH_LABEL.absent : undefined}
+      type="button"
+    >
+      <Badge intent={health === "healthy" ? "info" : "warning"} size="sm" tone="soft">
         {MARKER_HEALTH_LABEL[health]}
+        <Icon icon={ExternalLink} size="xs" />
       </Badge>
-      <Icon icon={ExternalLink} size="sm" />
     </Button>
   );
 }

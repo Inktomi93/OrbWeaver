@@ -39,15 +39,15 @@
 
 import type { ModelCapability } from "@orb/contracts/connection";
 import type { PromptConfig } from "@orb/contracts/preset";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { buildPresetFile, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Icon, MoreHorizontal, RotateCcw, Zap } from "@orb/ui/icons";
+import { Download, Icon, MoreHorizontal, RotateCcw, Zap } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
@@ -55,7 +55,7 @@ import { ConfirmDialog } from "#components";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AppFormInstance, AutosaveSession } from "#forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
-import { useFocusOnMount } from "#lib";
+import { downloadJson, slugifyFilename, useFocusOnMount } from "#lib";
 import { selectPresetSection, setPresetEditorView, usePresetEditorView } from "#state";
 import { ActionsView } from "../components/actions-view";
 import { ParamsDeck } from "../components/params-deck";
@@ -103,6 +103,7 @@ export function PresetEditorSurface({ presetId, onRevealSection }: PresetEditorS
 interface ViewContentProps {
   readonly form: AppFormInstance<PromptConfig>;
   readonly capability: ModelCapability | undefined;
+  readonly capabilityError: string | null;
   /** The funnel projected for this preset (§4.3) — undefined while unavailable. */
   readonly effective: EffectiveProfileRow | undefined;
   /** The server-only BYOK passthrough's keys (D7's presence row) — it never enters the form values. */
@@ -115,10 +116,12 @@ interface ViewContentProps {
 /** Render one VIEW's body. Params is the new deck; the other four are the landed bodies re-homed per the
  *  §3 map (Data and Transforms simply stack the leaves that used to be sub-tabs). */
 function viewContent(id: PresetEditorView["id"], props: ViewContentProps): ReactElement {
-  const { form, capability, effective, customParameterKeys, presetId, onRevealSection } = props;
+  const { form, capability, capabilityError, effective, customParameterKeys, presetId, onRevealSection } = props;
   switch (id) {
     case "params":
-      return <ParamsDeck capability={capability} customParameterKeys={customParameterKeys} effective={effective} form={form} />;
+      return (
+        <ParamsDeck capability={capability} capabilityError={capabilityError} customParameterKeys={customParameterKeys} effective={effective} form={form} />
+      );
     case "prompt":
       return <PresetStructureTabs capability={capability} form={form} onRevealSection={onRevealSection} tab="prompt" />;
     case "actions":
@@ -185,6 +188,15 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   const onActivate = (): void => {
     setDefault.mutate({ section: "seeds", patch: { defaultPresetId: preset.isSystemDefault ? null : presetId } });
   };
+  // The §16 row-7 editor-side Export door. It serializes the SAME `buildPresetFile` bytes the LIST kebab
+  // and the whole-profile bundle write — no second serde — off the row this surface already holds, so it
+  // needs no extra read either.
+  const onExport = (): void => {
+    downloadJson(`${slugifyFilename(preset.name, "preset")}.json`, buildPresetFile(preset.name, preset.config));
+  };
+  // isError ≠ no-model (side-eye F-02): a FAILED capability read must not render as "connect a chat model"
+  // to someone who has one connected. The message is the server's own.
+  const capabilityError = capabilityQuery.error === null ? null : capabilityQuery.error.message;
 
   return (
     <>
@@ -195,8 +207,11 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
             presetId={presetId}
             presetName={preset.name}
             active={active}
+            isSystemDefault={preset.isSystemDefault}
             onActivate={onActivate}
+            onExport={onExport}
             capability={capability}
+            capabilityError={capabilityError}
             effective={effectiveQuery.data ?? undefined}
             customParameterKeys={Object.keys(preset.config.customParameters ?? {})}
             reset={reset}
@@ -226,9 +241,15 @@ interface PresetEditorBodyProps {
   readonly presetName: string;
   /** This preset is the ACTIVE-for-generation pick (the built-in ⇔ `defaultPresetId === null`). */
   readonly active: boolean;
+  /** The locked built-in: no Export (it re-seeds on the target box), no Reset (it IS the starter). */
+  readonly isSystemDefault: boolean;
   /** Make it the pick — the one `setDefault` mutation the LIST row toggle also calls (§16 row 3). */
   readonly onActivate: () => void;
+  /** Download this preset as an `orb.preset` file — the §16 row-7 echo of the LIST kebab's Export. */
+  readonly onExport: () => void;
   readonly capability: ModelCapability | undefined;
+  /** The capability read's failure message, `null` when it simply resolved no model (§F-02). */
+  readonly capabilityError: string | null;
   readonly effective: EffectiveProfileRow | undefined;
   readonly customParameterKeys: readonly string[];
   readonly reset: ReturnType<typeof useResetPreset>;
@@ -240,8 +261,11 @@ function PresetEditorBody({
   presetId,
   presetName,
   active,
+  isSystemDefault,
   onActivate,
+  onExport,
   capability,
+  capabilityError,
   effective,
   customParameterKeys,
   reset,
@@ -270,7 +294,7 @@ function PresetEditorBody({
   // pure-query readout now, so no sibling shell region needs a live form handle.
   const boundForm = form as AppFormInstance<PromptConfig>;
 
-  const viewProps: ViewContentProps = { form: boundForm, capability, effective, customParameterKeys, presetId, onRevealSection };
+  const viewProps: ViewContentProps = { form: boundForm, capability, capabilityError, effective, customParameterKeys, presetId, onRevealSection };
   // The ONE writer of the view axis; an unset store read resolves to the tuple's first view.
   const view = usePresetEditorView() ?? PRESET_EDITOR_VIEWS[0]?.id;
 
@@ -280,14 +304,19 @@ function PresetEditorBody({
         <Stack gap="block" padding="block" className="sticky top-0 z-(--z-raised) bg-card">
           <Row align="center" justify="between" gap="field">
             <Row align="center" className="min-w-0" gap="field">
-              <Text className="truncate" size="label" weight="medium">
+              {/* The artifact's NAME is an h2 (side-eye F-28 / ARIA rec 8): it was a <p>, with the view's
+                  kickers as h3s under no h2 at all, so heading navigation could not find the thing being
+                  edited. `voice="label"` keeps the rendered step exactly where it was. */}
+              <Heading className="min-w-24 shrink truncate" level={2} voice="label">
                 {presetName}
-              </Text>
+              </Heading>
               {/* G7 — the two truths that change UNDER the editor. The ACTIVE chip is the LIST row's marker
                   verbatim (one state, one reading); its not-active twin is an AFFORDANCE, because a status
-                  that only ever says "not active" is a dead end when the LIST is a closed sheet. */}
+                  that only ever says "not active" is a dead end when the LIST is a closed sheet.
+                  `tone="soft"` (rider 1 / side-eye F-06): a SOLID ember chip carried the same fill as the
+                  pane's one primary CTA, so a status read as a second call to action. */}
               {active ? (
-                <Badge intent="primary" size="sm">
+                <Badge intent="primary" size="sm" tone="soft">
                   Active
                 </Badge>
               ) : (
@@ -298,9 +327,12 @@ function PresetEditorBody({
               )}
               {/* The PROVENANCE of everything the deck ghosts: `resolveEffective` resolves against the
                   caller's own chat model, so the header names it rather than letting the numbers imply a
-                  model that may have been swapped since. Absent read ⇒ absent chip, never a guessed name. */}
+                  model that may have been swapped since. Absent read ⇒ absent chip, never a guessed name.
+                  THE NAME OUTRANKS IT AT NARROW (side-eye F-11): at 430px the chip pushed the preset name
+                  out of the header entirely and overlapped the save status. It truncates, and the name
+                  does not. */}
               {effective === undefined ? null : (
-                <Badge intent="neutral" size="sm" tone="ghost">
+                <Badge className="min-w-0 shrink truncate" intent="neutral" size="sm" tone="ghost">
                   for {effective.model}
                 </Badge>
               )}
@@ -308,21 +340,37 @@ function PresetEditorBody({
             <Row align="center" gap="field">
               {/* Autosave everywhere (§7): the live status stands where Save/Discard used to. */}
               <AutosaveStatus state={saveState} onRetry={retrySave} />
-              <Menu>
-                <MenuTrigger
-                  render={
-                    <Button intent="ghost" size="icon" aria-label="Preset options">
-                      <Icon icon={MoreHorizontal} size="sm" />
-                    </Button>
-                  }
-                />
-                <MenuPopup align="end">
-                  <MenuItem onClick={(): void => setResetOpen(true)}>
-                    <Icon icon={RotateCcw} size="sm" />
-                    Reset to starter arrangement
-                  </MenuItem>
-                </MenuPopup>
-              </Menu>
+              {/* The BUILT-IN's menu would hold NOTHING — Export is excluded (it re-seeds on the target
+                  box) and "Reset to starter" is a no-op wearing a destructive confirm, because the built-in
+                  IS the starter arrangement (side-eye F-25). An empty menu renders no ⋯ at all rather than
+                  a trigger that opens nothing (the section drill-in's own rule); items are OMITTED, never
+                  disabled. */}
+              {isSystemDefault ? null : (
+                <Menu>
+                  <MenuTrigger
+                    render={
+                      <Button intent="ghost" size="icon" aria-label="Preset options">
+                        <Icon icon={MoreHorizontal} size="sm" />
+                      </Button>
+                    }
+                  />
+                  <MenuPopup align="end">
+                    {/* EXPORT — the §16 row-7 echo of the LIST kebab's Export, registered in the audit
+                        table in this commit. Justification is the row-3b precedent verbatim: the editor is
+                        the ARTIFACT'S OWN SURFACE, and on mobile the LIST is a closed sheet, so the one
+                        place you are certainly standing when you want to share this preset offered no way
+                        to. Both doors serialize through the SAME `buildPresetFile` — one serde, two doors. */}
+                    <MenuItem onClick={onExport}>
+                      <Icon icon={Download} size="sm" />
+                      Export
+                    </MenuItem>
+                    <MenuItem onClick={(): void => setResetOpen(true)}>
+                      <Icon icon={RotateCcw} size="sm" />
+                      Reset to starter arrangement
+                    </MenuItem>
+                  </MenuPopup>
+                </Menu>
+              )}
             </Row>
           </Row>
           <TabsList>
@@ -337,7 +385,11 @@ function PresetEditorBody({
 
         {PRESET_EDITOR_VIEWS.map((entry) => (
           <TabsPanel key={entry.id} value={entry.id}>
-            <Stack gap="block" padding="block">
+            {/* THE CONTENT COLUMN IS CAPPED (side-eye F-16), once, for all five views: a wide pane stretched
+                rack rows to ~840px with a ~60% dead gutter and ran drill-in glosses to ~130ch against the
+                65-75ch reading measure. 720px is the width every preset-redesign mock draws its content
+                panel at. It lives HERE and not per view so no body can opt out of the measure. */}
+            <Stack className="w-full max-w-(--width-content-col)" gap="block" padding="block">
               {viewContent(entry.id, viewProps)}
             </Stack>
           </TabsPanel>

@@ -23,6 +23,7 @@ import type {
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import { coEmitsProseWithTools } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
+import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ContentImageRef, ContentSpan } from "@orb/kit/content";
 import { cardWireStub, tokenizeContent } from "@orb/kit/content";
@@ -404,7 +405,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     output: args.shape?.output ?? "per-speaker",
     cardScope: args.shape?.cardScope ?? "merged",
     scopedTargetId: args.shape?.scopedTargetId ?? null,
-    namesBehavior: ctx.promptConfig.namesBehavior ?? "default",
+    namesBehavior: ctx.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
     speakers,
     groupNudge: args.groupNudge ?? null,
     // roleHandling is the preset's user-intent knob (per-turn override wins via the fold); SHAPE clamps it

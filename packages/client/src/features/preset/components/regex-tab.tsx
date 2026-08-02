@@ -11,6 +11,7 @@ import { useState } from "react";
 import type { RegexScriptsFormValues } from "#components";
 import { EntryListEditor, RegexEditorDialog } from "#components";
 import type { AppFormInstance } from "#forms";
+import { REGEX_PLACEMENT_LABELS } from "#lib";
 
 type AppForm = AppFormInstance<PromptConfig>;
 
@@ -52,10 +53,15 @@ export function RegexTab({ form }: { readonly form: AppForm }): ReactElement {
           addLabel="Add script"
           editIndex={editIndex}
           emptyText="No scripts yet."
-          getSubtitle={(script): string => (script.enabled ? "enabled" : "disabled")}
+          // ONE VOCABULARY WITH THE READOUT (side-eye F-23): a script's subtitle names the pipeline STAGES
+          // it bites at, in the same words the Transforms readout's step rows print — so "Regex · model
+          // output — 2 on" over there and these two rows here are legibly the same two scripts.
+          getSubtitle={(script): string =>
+            `${script.enabled ? "on" : "off"} · ${script.placement.map((placement) => REGEX_PLACEMENT_LABELS[placement].toLowerCase()).join(" · ")}`
+          }
           getTitle={(script): string => (script.name === "" ? "Unnamed script" : script.name)}
           heading="Regex"
-          helperText="Find/replace rules run over prompt or display text before it's used."
+          helperText="Find/replace rules run over prompt or display text before it's used. The CONTEXT readout shows where each stage sits in the pipeline."
           items={scripts}
           onAdd={onAdd}
           onEdit={setEditIndex}

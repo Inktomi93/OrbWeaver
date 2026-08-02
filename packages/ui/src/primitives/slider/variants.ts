@@ -31,17 +31,22 @@ export const sliderVariants = tv({
   // precedent). COLOR ONLY — the box (control height, track height, thumb size) stays on the base slots, so
   // a tone can never fight the geometry the touch floor rides on.
   //
-  // `default` is byte-identical to the pre-axis skin: the ember `--primary` fill + the full-weight
-  // `--foreground` thumb. `ghost` is the KnobRow's inherited state — the thumb sits at the RESOLVED
-  // effective value, so the datum must stay legible while reading as "not yours yet": the fill drops off the
-  // accent entirely onto a 30% neutral (the mock's `foreground 18%` fill, expressed on the muted token so a
-  // theme retints it), and the thumb goes solid `--muted-foreground` instead of `--foreground`. Ghost never
-  // touches the TRACK: the unfilled rail is already the neutral `bg-input` in both tones, and dimming it
-  // twice would erase the fill/rail boundary the value is read from.
+  // `default` is the standalone slider's skin: the ember `--primary` fill + the full-weight `--foreground`
+  // thumb — the ONE sanctioned accent control on a surface that shows a single slider.
+  //
+  // `neutral` and `ghost` are the KnobRow pair, and both drop the accent (side-eye F-09, 2026-08-02):
+  //  · `neutral` = EXPLICIT. §4.1 rations the ember to focus + the pane's one primary, so a set knob is
+  //    signalled by WEIGHT (a 45%-foreground fill + the full-weight thumb — the mock's own explicit row),
+  //    not by accent; twelve ember fills in one column was the CD3 budget break the review measured.
+  //  · `ghost` = INHERITED, and it paints NO FILL AT ALL. A dimmed fill still draws a bar from the rail's
+  //    start to the thumb, so an unset Top-P at its 1.00 model default rendered a FULL grey meter and read
+  //    as MORE set than the explicit rows beside it. Bare rail + a muted thumb sitting at the resolved
+  //    effective value keeps the datum legible while carrying no magnitude claim.
   variants: {
     tone: {
       default: { indicator: "bg-primary", thumb: "bg-foreground" },
-      ghost: { indicator: "bg-muted-foreground/30", thumb: "bg-muted-foreground" },
+      neutral: { indicator: "bg-foreground/45", thumb: "bg-foreground" },
+      ghost: { indicator: "bg-transparent", thumb: "bg-muted-foreground" },
     },
   },
   defaultVariants: { tone: "default" },

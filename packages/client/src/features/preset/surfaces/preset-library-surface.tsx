@@ -143,6 +143,8 @@ function PresetList({ onSelectPreset }: { readonly onSelectPreset: (id: PresetId
         }
         isEmpty={filtered.length === 0}
         onSearchChange={setQuery}
+        // The rows' activate toggles are `role="radio"` (side-eye F-19) — this is the group that owns them.
+        rowsRadiogroupLabel="Active preset for generation"
         searchLabel="Search presets"
         searchPlaceholder="Search presets"
         searchValue={query}

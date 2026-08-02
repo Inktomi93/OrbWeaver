@@ -20,6 +20,7 @@ import type { SortableItemKey } from "@orb/ui/sortable";
 import { SortableList } from "@orb/ui/sortable";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 import type { AppFormInstance } from "#forms";
 import { isPivotSection } from "../../lib/assembly-model";
 import { deriveZones } from "./derive-zones";
@@ -39,6 +40,9 @@ export interface AssemblyRackProps {
   readonly onDrillSection: (sectionId: string) => void;
   /** Append a `chat_history` marker (the missing-pivot callout action). */
   readonly onAddChatHistory: () => void;
+  /** The section whose chevron should take focus on this mount — the drill-in's focus RESTORE (F-04).
+   *  `null` on a plain rack render (nothing to restore), so a first paint never steals focus. */
+  readonly restoreFocusSectionId: string | null;
 }
 
 /** The grip's per-row accessible name — the rack's own labels, so "Reorder Main" reads instead of N
@@ -51,7 +55,15 @@ function reorderLabel(section: PromptSection): string {
   return `Reorder ${section.type === "marker" ? MARKER_COPY[section.marker].label : "literal text"}`;
 }
 
-export function AssemblyRack({ form, selectedSectionId, onSelectSection, onDrillSection, onAddChatHistory }: AssemblyRackProps): ReactElement {
+export function AssemblyRack({
+  form,
+  selectedSectionId,
+  onSelectSection,
+  onDrillSection,
+  onAddChatHistory,
+  restoreFocusSectionId,
+}: AssemblyRackProps): ReactElement {
+  const afterRackRef = useRef<HTMLDivElement>(null);
   return (
     <form.Subscribe selector={(state): readonly PromptSection[] => state.values.sections}>
       {(sections): ReactElement => {
@@ -70,10 +82,26 @@ export function AssemblyRack({ form, selectedSectionId, onSelectSection, onDrill
         return (
           <Surface tier="instrument">
             <Stack gap="tight">
+              {/* THE SKIP (side-eye F-30). Each row is FOUR tab stops by design — grip (the keyboard
+                  reorder path), name (select), switch (enable), chevron (drill) — and none of them is
+                  droppable: dropping the grip kills keyboard reordering, dropping the switch or chevron
+                  moves a primary verb behind a menu. Twelve rows is therefore ~48 presses to reach the
+                  DELIVERY cluster below, which is the real cost the finding measured. The honest fix is a
+                  SKIP, not fewer verbs. Rest-invisible, revealed on focus — the standard skip-link posture,
+                  so it costs the pointer user nothing and the keyboard user exactly one stop. */}
+              <Button
+                className="sr-only focus-visible:not-sr-only focus-visible:self-start"
+                intent="secondary"
+                onClick={(): void => afterRackRef.current?.focus()}
+                size="sm"
+                type="button"
+              >
+                Skip the section list
+              </Button>
               {zones.missingPivot ? (
                 <Row align="center" className="rounded-base border border-warning bg-warning/10 text-warning" gap="row" padding="row">
                   <Icon icon={AlertTriangle} size="sm" />
-                  <Text className="flex-1" size="micro" tone="warning">
+                  <Text className="flex-1" voice="label">
                     No chat history marker — the conversation has nowhere to splice in.
                   </Text>
                   <Button intent="secondary" onClick={onAddChatHistory} size="sm" type="button">
@@ -104,6 +132,7 @@ export function AssemblyRack({ form, selectedSectionId, onSelectSection, onDrill
                       index={index}
                       onDrill={onDrillSection}
                       onSelect={onSelectSection}
+                      restoreFocus={section.id === restoreFocusSectionId}
                       section={section}
                       selected={section.id === selectedSectionId}
                       zone={zones.zoneOf(index)}
@@ -111,6 +140,9 @@ export function AssemblyRack({ form, selectedSectionId, onSelectSection, onDrill
                   );
                 }}
               />
+              {/* The skip's landing pad: focusable only by script, so it adds no tab stop of its own and
+                  the next Tab from here continues past the rack. */}
+              <div ref={afterRackRef} tabIndex={-1} />
             </Stack>
           </Surface>
         );

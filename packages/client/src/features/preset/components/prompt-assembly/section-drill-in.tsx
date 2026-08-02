@@ -36,8 +36,10 @@ import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 import { RowActionsMenu } from "#components";
 import type { AppFormInstance } from "#forms";
+import { useFocusOnSwap } from "#lib";
 import {
   GENERATION_TYPE_ITEMS,
   hasRoleField,
@@ -76,10 +78,18 @@ export function SectionDrillIn({ form, section, index, onBack }: SectionDrillInP
   // A CARRIER declares no `inject`/`trigger` in the schema, so those clusters are ABSENT for it — never
   // rendered-and-disabled. Zone survives (it is array position, which every section has).
   const arrangeable = supportsArrangement(section);
+  // FOCUS LANDS HERE ON DRILL (side-eye F-04): the chevron that opened this editor unmounts with the rack,
+  // so focus fell to <body> and the keyboard user restarted at the top of the document. Back-to-rack is
+  // the right target — it is the region's first control and it names the way out. The RESTORE half (focus
+  // returns to the originating chevron) is the rack's, since the target only exists once the rack is back.
+  const backRef = useRef<HTMLButtonElement>(null);
+  useFocusOnSwap(backRef);
   return (
-    <Stack gap="section">
+    // A region with a name, so the drill-in is reachable by landmark and announces what it edits (ARIA
+    // rec 2). `aria-label` is the section's own name — one editor, one object.
+    <Stack aria-label={`${label} — section editor`} gap="section" role="region">
       <Row align="center" gap="row" justify="between">
-        <Button intent="ghost" onClick={onBack} size="sm" type="button">
+        <Button intent="ghost" onClick={onBack} ref={backRef} size="sm" type="button">
           <Icon icon={ArrowLeft} size="sm" />
           Back to rack
         </Button>

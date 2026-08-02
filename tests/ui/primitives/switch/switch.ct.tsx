@@ -62,15 +62,60 @@ test("the track is a generous rectangle and the thumb travels a substantial dist
 });
 
 // ── tone axis (north-star §5 PP1 precedent; owner-sanctioned 2026-07-16). `accent` (default) keeps
-// the ember-on-checked skin — the ONE sanctioned accent toggle per surface. `quiet` rides the derived
-// neutral ramp (`--color-secondary`) so a rack of per-row switches never multiplies the accent. The
-// on/off signal stays position-carried (thumb travel), so quiet holds a11y distinctness without ember. ──
-test("tone=quiet: checked rides the NEUTRAL secondary token, never ember", async ({ mount, page }) => {
-  // The whole point of the sanction: a quiet switch must NOT paint the accent when checked.
-  expect(TOKENS["color.secondary"].value).not.toBe(TOKENS["color.primary"].value);
-  await mount(<Switch aria-label="Row toggle" defaultChecked={true} tone="quiet" />);
-  const control = page.getByRole("switch");
-  await expect(control).toHaveCSS("background-color", TOKENS["color.secondary"].value);
+// the ember-on-checked skin — the ONE sanctioned accent toggle per surface. `quiet` spends no accent, so
+// a rack of per-row switches never multiplies it. The on/off signal stays position-carried (thumb travel)
+// AND, since side-eye F-08, luminance-carried too. ──
+//
+// THE TWO TRACKS ARE LUMINANCE-SEPARATED — the property, not the token, and not a DIRECTION either: the
+// checked track rides `--color-foreground`, which is bright on a dark theme and dark on a light one, so
+// "brighter" is polarity-dependent while "clearly different" is the thing the eye actually needs.
+// `quiet` used to ride `--color-secondary` (L 0.255) against an unchecked `bg-input` compositing to
+// ≈L 0.286 — a 0.03 separation, i.e. none, so a twelve-row rack signalled its state with a 10px thumb
+// offset and nothing else (side-eye F-08). Asserting the RELATION is what makes this pin bite: a token
+// swap that collapses the two again fails here, where "background-color equals token X" stays green.
+const MIN_LUMINANCE_SEPARATION = 0.15;
+
+test("tone=quiet: checked spends no ember AND is LUMINANCE-SEPARATED from unchecked (F-08)", async ({ mount, page }) => {
+  await mount(
+    <>
+      <Switch aria-label="Row toggle off" tone="quiet" />
+      <Switch aria-label="Row toggle on" defaultChecked={true} tone="quiet" />
+    </>,
+  );
+  const off = page.getByRole("switch", { name: "Row toggle off" });
+  const on = page.getByRole("switch", { name: "Row toggle on" });
+
+  // No accent, either way — that is the whole point of the tone.
+  await expect(on).not.toHaveCSS("background-color", TOKENS["color.primary"].value);
+
+  // COMPOSITED relative luminance, measured the only honest way: PAINT it. Both tracks are semi-transparent
+  // (`bg-input` is a 12% overlay; the checked track a 70% one) and both resolve in oklch, so parsing
+  // `backgroundColor` numerically would be reading L/C/H as if they were R/G/B — a number that moves with
+  // the HUE. A 1×1 canvas composites the real color over the real backdrop and hands back sRGB.
+  const luminance = async (control: typeof on): Promise<number> =>
+    await control.evaluate((el) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1;
+      canvas.height = 1;
+      const ctx = canvas.getContext("2d");
+      if (ctx === null) {
+        throw new Error("no 2d context");
+      }
+      // The rack's real backdrop, so the comparison is the one the eye makes on the surface.
+      ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--color-card").trim();
+      ctx.fillRect(0, 0, 1, 1);
+      ctx.fillStyle = getComputedStyle(el).backgroundColor;
+      ctx.fillRect(0, 0, 1, 1);
+      const [r = 0, g = 0, b = 0] = ctx.getImageData(0, 0, 1, 1).data;
+      const channel = (value: number): number => {
+        const srgb = value / 255;
+        return srgb <= 0.039_28 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+    });
+
+  const [onLuminance, offLuminance] = await Promise.all([luminance(on), luminance(off)]);
+  expect(Math.abs(onLuminance - offLuminance)).toBeGreaterThan(MIN_LUMINANCE_SEPARATION);
 });
 
 test("tone=quiet: still toggles and the thumb still travels — state is position, not color", async ({ mount, page }) => {

@@ -31,6 +31,19 @@ export interface TemplateGroup {
 
 const GUIDED_KIND_SET: ReadonlySet<string> = new Set<string>(GUIDED_ACTION_KINDS);
 
+/** The GROUP HEADING for one registry kind. The enum member is a code identifier (`steer`, `voice`) — the
+ *  kicker over a group of rows is a heading a person reads, so it gets a human plural (side-eye F-30 /
+ *  ARIA rec 10). Keyed by the union, so a new kind is a `tsc` error here until it has a label — the D117
+ *  registration cost, unchanged. The per-row KIND CHIP deliberately keeps the raw member: it is a
+ *  taxonomy tag echoing the registry's own vocabulary, and the mock draws it that way. */
+export const TEMPLATE_KIND_LABEL: Record<TemplateKind, string> = {
+  steer: "Steers",
+  voice: "Voice",
+  studio: "Studio",
+  format: "Format",
+  nudge: "Nudges",
+};
+
 /** The ONE place a def's id becomes a form shape. */
 function templateRow(def: TemplateDef): TemplateRow {
   const slot = def.defaultSlot;
