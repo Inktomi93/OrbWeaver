@@ -49,6 +49,13 @@ const PLUGIN_SEMVER_RE = /^\d+\.\d+\.\d+$/;
  *  would only reject a manifest the enforcer already normalizes. **These two sites are coupled: if
  *  `hostAllowed` ever stops normalizing case, this schema must pin lowercase again.**
  *
+ *  That normalization is symmetric for CASE but not for the TRAILING DOT: `z.hostname()` also accepts the
+ *  FQDN form `example.com.`, and `hostAllowed` lowercases an entry WITHOUT stripping its trailing dot while
+ *  `normalizeHost` strips it from the REQUEST host — so a trailing-dot entry matches nothing and is a silent
+ *  fail-closed dud (the plugin installs; its fetches are all refused). Fail-closed is the safe direction, so
+ *  this is a usability wart, not a hole; if it ever needs fixing, fix it in `hostAllowed` (strip both sides),
+ *  never by loosening the match.
+ *
  *  IP LITERALS are NOT refused here and never were (the charset regex accepted `169.254.169.254` too) — the
  *  real enforcer is `validateUrl` in that same egress module, which blocks every IP-literal host on the
  *  non-owner-configured path (`blockEgress("ip-literal", …)`), which is the path plugin `net.fetch` takes. */
