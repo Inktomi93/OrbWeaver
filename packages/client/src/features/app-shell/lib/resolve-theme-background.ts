@@ -9,7 +9,7 @@
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { ParticipantView } from "@orb/contracts/chat";
-import { soleTrueSoloCharacter } from "@orb/contracts/chat";
+import { resolveCarriedBackground } from "@orb/contracts/chat";
 import type { AppearanceSettings } from "@orb/contracts/settings";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { resolveSeededBackgroundUrl } from "#lib";
@@ -61,19 +61,12 @@ export function resolveThemeBackgroundUrl(bg: ThemeBackground): string | null {
 }
 
 /** The effective carried background SOURCE for the active chat (BG-C), or `undefined` when the viewer's own
- *  appearance should win. Gated by the ONE `soleTrueSoloCharacter` composition predicate: in ANY non-true-solo
- *  composition the chat/card background is INERT (a host writing it never forces another human's viewport).
- *  In a true-solo room the cascade is `chat-set` over `card-carried`; an absent/`kind:"none"` source at each level
- *  falls through (finally to `undefined` ⇒ the viewer's appearance). */
+ *  appearance should win. A thin projection of the ONE `resolveCarriedBackground` cascade in `@orb/contracts/chat`
+ *  — shared with the chat context panel's Background row, so the painted pixels and the settings echo can never
+ *  disagree (they are the same call). The gate + cascade rules live in that resolver's header. */
 export function resolveChatBackgroundSource(
   participants: readonly ParticipantView[] | undefined,
   chatBackground: ThemeBackground | null | undefined,
 ): ThemeBackground | undefined {
-  const sole = soleTrueSoloCharacter(participants);
-  if (sole === undefined) {
-    return;
-  }
-  const chatSet = chatBackground && chatBackground.kind !== "none" ? chatBackground : undefined;
-  const cardCarried = sole.backgroundOverride && sole.backgroundOverride.kind !== "none" ? sole.backgroundOverride : undefined;
-  return chatSet ?? cardCarried;
+  return resolveCarriedBackground(participants, chatBackground)?.source;
 }

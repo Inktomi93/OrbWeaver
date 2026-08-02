@@ -158,6 +158,7 @@ export {
 export { CHAT_PROSE_SLOTS } from "./prose";
 export type {
   AcceptInviteInput,
+  CarriedBackground,
   CharacterMemberSpec,
   CreateInviteInput,
   HistoryFloorSeq,
@@ -181,11 +182,13 @@ export {
   historyFloor,
   INVITE_STATUSES,
   inviteStatusSchema,
+  isSingleHumanRoom,
   JOIN_HISTORY_VISIBILITIES,
   joinHistoryVisibilitySchema,
   participantRoleSchema,
   previewInviteSchema,
   redeemInviteSchema,
+  resolveCarriedBackground,
   resolveRenderPolicy,
   rosterMemberSpecSchema,
   seatKnobsSchema,
