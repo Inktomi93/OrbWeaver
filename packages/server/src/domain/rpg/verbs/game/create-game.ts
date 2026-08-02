@@ -33,7 +33,7 @@ export function createCreateGame(ctx: RpgContext): Pick<RpgService, "createGame"
     if (membership === null) {
       throw new DomainNotFoundError("game", params.chatId);
     }
-    assertHostRole(membership.role, "host authority required to create a game");
+    assertHostRole(ctx.can, params.principal, membership.role, "host authority required to create a game");
     // One game per chat (the UNIQUE chatId is the belt; this is the friendly refusal).
     if (await findGameByChat(ctx.db, params.chatId)) {
       throw new DomainOperationError("rpg_already_a_game", "this chat is already a game");

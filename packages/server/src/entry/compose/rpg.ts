@@ -63,6 +63,7 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, newId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { eq } from "drizzle-orm";
+import { can } from "#domain/admin";
 import type { CharacterService } from "#domain/character";
 import type { ChatService, RpgCardCorpus, RpgTurnTranscriptMessage } from "#domain/chat";
 import { parseChatMetadata } from "#domain/chat";
@@ -1208,6 +1209,9 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
       item: () => newId(),
     },
     staging: createRpgStagingStore(),
+    // The ONE privilege kernel (spine invariant #6) — rpg's `guard.ts` resolves membership and asks THIS for the
+    // host verdict, exactly as chat/automation do. Wired here, never imported by the domain (§2 flow).
+    can,
     getMembership: deps.rpgChatOps.getMembership,
     setPointer: deps.rpgChatOps.setRpgPointer,
     resolveRoster: deps.rpgChatOps.resolveRpgRoster,
