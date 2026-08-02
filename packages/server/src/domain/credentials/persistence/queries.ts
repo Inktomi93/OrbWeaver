@@ -57,6 +57,10 @@ export async function hasAnyInSlot(db: Db, ownerId: UserId, provider: Credential
 }
 
 /** Rotate the sealed secret in place (preserve id/active; CLEAR revocation — a fresh key voids it). */
+// @owner-scope-write-ok: the id is not the caller's to name — `add`'s rotate arm passes the row `findSlotLabelRow`
+// just resolved from the caller's OWN `(ownerId, provider, label)` slot, so a foreign credential is not
+// reachable at this call. Ends the day a caller-supplied credentialId reaches rotate (then it takes `ownerId`,
+// the `promoteActive` shape below).
 export function rotateSealed(
   db: Db,
   args: {
@@ -112,7 +116,12 @@ export function insertSealed(
 
 /** Promote `credentialId` to active, atomically demoting any other active row in its `(owner, provider)`
  *  slot. One `batch` (demote-then-promote) — between the two there are zero active rows, so the partial
- *  unique index never sees a two-active state even under a concurrent promote. */
+ *  unique index never sees a two-active state even under a concurrent promote.
+ *
+ *  BOTH legs carry `ownerId`: the demote always did, and the promote does now. The verb proves ownership
+ *  first (`fetchOwnedCredential` → `requireOwned`), so this is the second belt — but the owner is already in
+ *  the args, and an owner-scoped WHERE is a promise the signature keeps on its own, where the verb's guard is
+ *  one the next caller inherits nothing about. */
 export function promoteActive(
   db: Db,
   args: {
@@ -128,7 +137,10 @@ export function promoteActive(
         .update(userCredentials)
         .set({ active: false, updatedAt: args.now })
         .where(and(eq(userCredentials.ownerId, args.ownerId), eq(userCredentials.provider, args.provider))),
-      db.update(userCredentials).set({ active: true, updatedAt: args.now }).where(eq(userCredentials.id, args.credentialId)),
+      db
+        .update(userCredentials)
+        .set({ active: true, updatedAt: args.now })
+        .where(and(eq(userCredentials.id, args.credentialId), eq(userCredentials.ownerId, args.ownerId))),
     ]),
   );
 }
@@ -140,6 +152,11 @@ export function deleteOwnedCredential(db: Db, ownerId: UserId, credentialId: Use
 }
 
 /** Mark a credential revoked by id — the runner path (no owner scope). Sets `revokedAt` only. Idempotent. */
+// @owner-scope-write-ok: DELIBERATELY unscoped — the runner-internal revoke (`markRevoked`, NOT exposed on the
+// tRPC router) proved access by HOLDING the credential through a completed turn, and the post-turn
+// `maybeRevokeOnAuthFailed` has only the id the turn ran under. The user-facing twin `markRevokedByUser` DOES
+// prove ownership first (`fetchOwnedCredential` → `requireOwned`) before calling this. Ends the day the runner
+// revoke path threads a userId — the verb header already names that as the merge condition.
 export function setRevokedById(db: Db, credentialId: UserCredentialId, revokedAt: number): Promise<unknown> {
   return db.update(userCredentials).set({ revokedAt, updatedAt: revokedAt }).where(eq(userCredentials.id, credentialId));
 }

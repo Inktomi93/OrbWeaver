@@ -158,6 +158,11 @@ export async function insertWorkload(db: Db, row: WorkloadInsert): Promise<void>
 }
 
 /** The idempotent claim: `queued → running`. Returns `false` (0 rows) for the loser of a two-worker race. */
+// @owner-scope-write-ok: THE ENGINE PLANE (D20 un-principal) — the idempotent queued→running claim. The id is one the engine itself
+// polled/enumerated (`nextRunnableWorkload`), never caller input, and these writes must move ADMIN and system rows too, so an
+// ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb
+// (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes.
+// Ends if a door writes a workload row without that check.
 export async function markStarted(db: Db, id: WorkloadId, now: number): Promise<boolean> {
   const moved = await db
     .update(workloads)
@@ -170,6 +175,11 @@ export async function markStarted(db: Db, id: WorkloadId, now: number): Promise<
 /** The lease tick: bump `updatedAt` for the in-flight statuses (the reaper's stale key), and — when the run
  *  has reported one — persist the latest progress snapshot in the SAME UPDATE. One write path: the engine
  *  throttles both to the lease cadence, so a chatty `report()` never turns into a second write stream. */
+// @owner-scope-write-ok: THE ENGINE PLANE (D20 un-principal) — the lease tick + progress snapshot. The id is one the engine itself
+// polled/enumerated (the row the runner is executing), never caller input, and these writes must move ADMIN and system rows too, so an
+// ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb
+// (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes.
+// Ends if a door writes a workload row without that check.
 export async function heartbeat(db: Db, id: WorkloadId, now: number, progress?: WorkloadProgress): Promise<void> {
   await db
     .update(workloads)
@@ -180,6 +190,11 @@ export async function heartbeat(db: Db, id: WorkloadId, now: number, progress?: 
 /** Stamp a terminal state — status-guarded, returns whether it actually moved the row (a zombie runner whose
  *  row was already reaped writes nothing). `succeeded` is allowed only from `running`; failure terminals move
  *  from either in-flight state. */
+// @owner-scope-write-ok: THE ENGINE PLANE (D20 un-principal) — the status-guarded terminal stamp. The id is one the engine itself
+// polled/enumerated (the runner's own row, or `findStaleInFlight` in the reaper), never caller input, and these writes must move ADMIN and system rows too, so an
+// ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb
+// (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes.
+// Ends if a door writes a workload row without that check.
 export async function markTerminal(
   db: Db,
   args: {
@@ -218,6 +233,9 @@ export async function loadWorkloadStatus(db: Db, id: WorkloadId): Promise<Worklo
 // @owner-scope-ok: the tail SELECT reports which terminal the two status-guarded UPDATEs landed on; the
 // caller (`verbs/cancel.ts`) has already run the F3-AUTHZ visibility check on the loaded row, so the owner
 // predicate lives one frame up. Ends if cancel stops loading-and-checking before it calls this.
+// @owner-scope-write-ok: the two status-guarded UPDATEs are the write half of the read marker directly above —
+// `verbs/cancel.ts` loads the row and runs the F3-AUTHZ `isVisibleToCaller` check before calling this, so the
+// owner predicate lives one frame up (and must, for the admin arm). Ends if cancel stops loading-and-checking.
 export async function markCancelling(db: Db, id: WorkloadId, now: number): Promise<CancelWorkloadResult> {
   const cancelledQueued = await db
     .update(workloads)
@@ -241,6 +259,11 @@ export async function markCancelling(db: Db, id: WorkloadId, now: number): Promi
 
 /** Fail a queued row in place (poison-row + dependency-failed paths) — `markTerminal` only transitions
  *  from in-flight states. Returns whether it moved. */
+// @owner-scope-write-ok: THE ENGINE PLANE (D20 un-principal) — the poison-row / dependency-failed fail-in-place. The id is one the engine itself
+// polled/enumerated (`nextRunnableWorkload`), never caller input, and these writes must move ADMIN and system rows too, so an
+// ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb
+// (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes.
+// Ends if a door writes a workload row without that check.
 export async function failQueuedRow(db: Db, id: WorkloadId, error: string, now: number): Promise<boolean> {
   const moved = await db
     .update(workloads)
