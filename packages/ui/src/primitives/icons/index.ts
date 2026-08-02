@@ -2,6 +2,9 @@
  * `@orb/ui/icons` — the ONE icon home (gate icons-lucide-only; UI-Arch §2). A curated lucide-react
  * re-export for the shell + primitives, plus the `<Icon>` sizing wrapper. Grow the set per
  * consumer chunk — never import `lucide-react` outside this dir (dep-cruiser ui-satellite-seals).
+ *
+ * The fill-suitable glyphs are re-exported from `./fillable` instead (same runtime component, a
+ * phantom brand added) so `tsc` can reject `<Icon fill>` on a glyph that renders badly filled.
  */
 
 export type { LucideIcon } from "lucide-react";
@@ -16,7 +19,6 @@ export {
   Beef,
   Bell,
   Bone,
-  Bookmark,
   BookOpen,
   BrainCircuit,
   Cable,
@@ -41,15 +43,12 @@ export {
   Crown,
   Download,
   Drama,
-  Droplet,
   Eraser,
   Expand,
   ExternalLink,
   Eye,
   EyeOff,
   FastForward,
-  Flag,
-  Flame,
   FlaskConical,
   Gauge,
   Gem,
@@ -57,7 +56,6 @@ export {
   GripVertical,
   Handshake,
   Hash,
-  Heart,
   HeartPulse,
   History,
   ImageOff,
@@ -88,11 +86,9 @@ export {
   PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
-  Pause,
   Pencil,
   Pin,
   PinOff,
-  Play,
   Plus,
   Redo2,
   RefreshCw,
@@ -102,14 +98,11 @@ export {
   Search,
   Send,
   Settings,
-  Shield,
   ShieldHalf,
   Shrink,
   Skull,
   SlidersHorizontal,
   Sparkles,
-  Square,
-  Star,
   SunMoon,
   Sword,
   Swords,
@@ -127,7 +120,8 @@ export {
   VolumeX,
   WandSparkles,
   X,
-  Zap,
 } from "lucide-react";
+export type { FillableIcon } from "./fillable";
+export { Bookmark, Droplet, Flag, Flame, Heart, Pause, Play, Shield, Square, Star, Zap } from "./fillable";
 export type { IconProps } from "./icon";
 export { ICON_LG, ICON_MD, ICON_SM, ICON_XS, Icon } from "./icon";
