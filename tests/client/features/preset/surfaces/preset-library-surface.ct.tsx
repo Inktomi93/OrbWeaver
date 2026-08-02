@@ -122,7 +122,8 @@ test("L4 the LIST band names the section, counts the presets, and carries the pa
   await expect(band.getByText(String(PRESETS.length), { exact: true })).toBeVisible();
   // A2 — ONE ember primary in the band; Import is its ghost companion, not a second CTA.
   await expect(band.getByRole("button", { name: "New", exact: true })).toBeVisible();
-  await expect(band.getByRole("button", { name: "Import a SillyTavern preset", exact: true })).toBeVisible();
+  // ONE import door for both formats (§16 row 2) — the dialog sniffs the file, so the band names no format.
+  await expect(band.getByRole("button", { name: "Import a preset", exact: true })).toBeVisible();
   // The in-pane title is retired, not doubled.
   await expect(page.getByRole("heading", { name: "Presets" })).toHaveCount(1);
 });
@@ -460,4 +461,84 @@ test("§16 row 3 echo (a): the ACTIVE row's kebab offers no Activate — the men
   // The menu IS open (its own Rename item is there) — the Activate absence is real, not an unopened popup.
   await expect(page.getByRole("menuitem", { name: "Rename" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Activate" })).toHaveCount(0);
+});
+
+// ── G6: the ONE band IMPORT door, two sniffed arms (§16.1 / §16 row 2) ───────────────────────────
+// The band names no format; the dialog reads `schemaKind` and routes. The orb arm must reach
+// `preset.importFile` (the thin door over the bundle's ImportPreset verb) with the file's OWN TEXT — a
+// client-side re-parse into `preset.create` would be the parallel path the design bans — and it must state
+// the MERGE semantic before the write, because the verb is idempotent on (ownerId, name).
+
+const DROPZONE_INPUT = '[data-slot="file-dropzone-input"]';
+const ORB_FILE = JSON.stringify({
+  schemaKind: "orb.preset",
+  schemaVersion: 5,
+  name: "Imported RP",
+  config: { schemaVersion: 5, params: { temperature: 0.7 }, sections: [] },
+});
+// A SillyTavern Chat Completion preset — no `schemaKind`, so the sniff falls to the ST arm.
+const ST_FILE = JSON.stringify({ temperature: 0.9, prompts: [] });
+const MERGE_COPY = /If you already have a preset named "Imported RP", its settings are REPLACED/;
+const ST_SUMMARY = /SillyTavern preset —/;
+const SERVER_PARSE_ERROR = /isn't a valid prompt config/;
+
+interface ImportFileCall {
+  readonly fileText?: string;
+}
+
+/** The library plus an import stub — `outcome` is what `preset.importFile` answers. */
+function routeImportLibrary(page: Page, outcome: unknown): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "preset.list": () => PRESETS,
+    "settings.getUserSettings": () => ({ userId: "user_ct_preset", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "preset.importFile": () => outcome,
+    "preset.create": () => ({ id: IMPORTED, name: IMPORTED_NAME, kind: "roleplay", isSystemDefault: false, createdAt: 0, updatedAt: 0 }),
+  });
+}
+
+test("G6 an orb.preset file rides the ONE import verb with its own bytes, after the dialog states the merge", async ({ mount, page }) => {
+  const trpc = await routeImportLibrary(page, { ok: true, created: true });
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Import a preset", exact: true }).click();
+  await page.locator(DROPZONE_INPUT).setInputFiles({ name: "imported-rp.json", mimeType: "application/json", buffer: Buffer.from(ORB_FILE) });
+
+  // The collision rule is stated BEFORE the commit, naming the merge key the server will use.
+  await expect(page.getByText('orbweaver preset export — "Imported RP".')).toBeVisible();
+  await expect(page.getByText(MERGE_COPY)).toBeVisible();
+
+  await page.getByRole("button", { name: "Import preset", exact: true }).click();
+  // The FILE'S OWN TEXT reaches the door — not a client-side reserialization, and never `preset.create`.
+  await expect.poll(() => (trpc.inputs("preset.importFile") as ImportFileCall[]).map((call) => call.fileText)).toEqual([ORB_FILE]);
+  expect(trpc.count("preset.create")).toBe(0);
+});
+
+test("G6 the SAME door takes a SillyTavern preset — sniffed to the ST arm, created client-side", async ({ mount, page }) => {
+  const trpc = await routeImportLibrary(page, { ok: true, created: true });
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Import a preset", exact: true }).click();
+  await page.locator(DROPZONE_INPUT).setInputFiles({ name: "st-preset.json", mimeType: "application/json", buffer: Buffer.from(ST_FILE) });
+
+  await expect(page.getByText(ST_SUMMARY)).toBeVisible();
+  await page.getByRole("button", { name: "Import preset", exact: true }).click();
+
+  await expect.poll(() => trpc.count("preset.create")).toBe(1);
+  expect(trpc.count("preset.importFile")).toBe(0);
+});
+
+test("G6 a REJECTED orb file keeps the dialog open with the SERVER's reason", async ({ mount, page }) => {
+  await routeImportLibrary(page, { ok: false, error: "The file's \"config\" isn't a valid prompt config: schema mismatch" });
+  const component = await mount(<PresetLibrarySurfaceStory />);
+  await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Import a preset", exact: true }).click();
+  await page.locator(DROPZONE_INPUT).setInputFiles({ name: "broken.json", mimeType: "application/json", buffer: Buffer.from(ORB_FILE) });
+  await page.getByRole("button", { name: "Import preset", exact: true }).click();
+
+  // The STRICT parse lives on the server, so its verdict is what the owner reads — no client re-derivation.
+  await expect(page.getByText(SERVER_PARSE_ERROR)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Import preset", exact: true })).toBeVisible();
 });
