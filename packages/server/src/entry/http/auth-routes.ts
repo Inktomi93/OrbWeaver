@@ -99,7 +99,17 @@ async function exchangeCodeForClaims(config: Configuration, callbackUrl: URL, tx
 
 /** Serialize the `__Host-orb_session` Set-Cookie value with a Max-Age (seconds; clamped ≥ 0). Takes the
  *  branded `SessionToken` so no other secret (a handle, a `SessionId`, an OIDC code) can be written into
- *  the session cookie by accident. */
+ *  the session cookie by accident.
+ *
+ *  ASYMMETRY, DELIBERATE — the write side emits the token RAW while the read side (`readSessionCookie`,
+ *  `entry/auth/seam.ts`) runs `decodeURIComponent` on the value. That pairing is unreachable BY
+ *  CONSTRUCTION, not by luck: the only value that ever reaches here is a `SessionToken`, and the only mint
+ *  is `mintSessionToken` — 32 CSPRNG bytes rendered `base64url`, i.e. 43 chars from `[A-Za-z0-9_-]`. That
+ *  alphabet contains no `%` and nothing `encodeURIComponent` would escape, so encode-then-decode is the
+ *  identity on every token this function can be handed, and a raw write round-trips byte-identically. The
+ *  brand is what keeps it that way: widen the parameter past `SessionToken` (or mint a token from a
+ *  different alphabet) and the two sides stop agreeing — encode here at the same time. The permissive read
+ *  stays because it must tolerate whatever an attacker-controlled `Cookie` header carries and fail closed. */
 export function serializeSessionCookie(token: SessionToken, maxAgeSeconds: number): string {
   const maxAge = Math.max(0, Math.floor(maxAgeSeconds));
   return `${SESSION_COOKIE_NAME}=${token}; Max-Age=${maxAge}; ${COOKIE_ATTRS}`;

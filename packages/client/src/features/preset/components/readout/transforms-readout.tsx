@@ -48,8 +48,10 @@ export function TransformsReadout({ config }: { readonly config: PromptConfig })
           <StepRow index={1} label="Native reasoning channel" state="preferred" />
           {/* The center's own SwitchField label, not a paraphrase of it. */}
           <StepRow index={2} label="Parse inline reasoning tags" state={parse?.autoParse === true ? "on" : "off"} />
-          <StepRow index={3} label={regexPlacementStep("REASONING")} state={scriptState("REASONING")} />
-          <StepRow index={4} label={regexPlacementStep("AI_OUTPUT")} state={scriptState("AI_OUTPUT")} />
+          {/* AI_OUTPUT before REASONING — the order `engine/pipeline.ts` actually runs (the reply-text pass at
+              :281, the reasoning-channel pass at :296). The readout had them inverted, and the order IS the datum. */}
+          <StepRow index={3} label={regexPlacementStep("AI_OUTPUT")} state={scriptState("AI_OUTPUT")} />
+          <StepRow index={4} label={regexPlacementStep("REASONING")} state={scriptState("REASONING")} />
           <StepRow index={5} label="Collapse blank lines" state={post?.collapseNewlines === true ? "on" : "off"} />
           <StepRow index={6} label="Trim trailing whitespace" state={post?.trimTrailingWhitespace === true ? "on" : "off"} />
           <StepRow index={7} label="Drop a dangling sentence" state={post?.dropIncompleteSentence === true ? "on" : "off"} />

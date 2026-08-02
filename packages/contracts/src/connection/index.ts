@@ -353,12 +353,11 @@ export const chatUnavailableCauseSchema = z.enum(CHAT_UNAVAILABLE_CAUSES);
 
 /** The composer's pre-send availability signal for a chat's OWN resolved connection — "would
  *  `resolveChat → deriveRunner → requireBackend` succeed WITHOUT firing a turn or an API call?" `cause` is
- *  present iff `!available`. Not a turn/execution result — purely the deterministic serveability verdict. */
-export const chatSendAvailabilitySchema = z.union([
-  z.object({ available: z.literal(true) }),
-  z.object({ available: z.literal(false), cause: chatUnavailableCauseSchema }),
-]);
-export type ChatSendAvailability = z.infer<typeof chatSendAvailabilitySchema>;
+ *  present iff `!available`. Not a turn/execution result — purely the deterministic serveability verdict.
+ *
+ *  TYPO class-B demotion: this was an infer-only `z.union` — a server→client OUTPUT shape nothing ever
+ *  `.parse`s. The `cause` arm DERIVES from {@link ChatUnavailableCause}, so the causes still have one home. */
+export type ChatSendAvailability = { readonly available: true } | { readonly available: false; readonly cause: ChatUnavailableCause };
 
 // The brand ENDS at the curated shortlist: OpenRouter ids are plain strings; only curated entries
 // carry this brand. `isChatModelId` is the runtime discriminator.

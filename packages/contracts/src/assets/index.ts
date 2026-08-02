@@ -3,7 +3,7 @@
 // Assets are per-user and owner-gated; the 64-hex hash is NOT a capability. The `/blob/:hash` route is
 // app-gated: the caller resolves from the session cookie, never served on hash alone.
 
-import type { AssetId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, GalleryItemId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
@@ -80,17 +80,20 @@ export const ASSET_LIST_LIMIT_MIN = 1;
 export const ASSET_LIST_LIMIT_MAX = 100;
 
 /** One row of the owned-asset grid. `(uploadedAt, id)` is the keyset cursor. `animated` lets the grid
- *  render the ORIGINAL for GIF/APNG/animated-WebP instead of a `?w=` variant that would freeze-frame it. */
-export const assetListItemSchema = z.object({
-  assetId: assetIdSchema,
-  hash: z.string(),
-  kind: assetKindSchema,
-  mime: z.string(),
-  size: z.number().int(),
-  uploadedAt: z.number().int(),
-  animated: z.boolean(),
-});
-export type AssetListItem = z.infer<typeof assetListItemSchema>;
+ *  render the ORIGINAL for GIF/APNG/animated-WebP instead of a `?w=` variant that would freeze-frame it.
+ *
+ *  TYPO class-B demotion: this was an infer-only `z.object` — a server→client OUTPUT shape nothing ever
+ *  `.parse`s, so the schema was a type spelling wearing a validator's clothes. Hand-written here because
+ *  the schema was the only source of the shape. */
+export interface AssetListItem {
+  readonly assetId: AssetId;
+  readonly hash: string;
+  readonly kind: AssetKind;
+  readonly mime: string;
+  readonly size: number;
+  readonly uploadedAt: number;
+  readonly animated: boolean;
+}
 
 /** `listOwned` wire params. `cursor`/`cursorId` are the `(uploadedAt, id)` pair of the previous page's
  *  last row — pass both or neither. */
@@ -120,17 +123,18 @@ export const galleryListParamsSchema = z.object({
 export type GalleryListParams = z.infer<typeof galleryListParamsSchema>;
 
 /** One curated gallery item. `hash`/`mime`/`animated` are joined from the `assets` row (owner derives
- *  through that FK — no stamped owner column). */
-export const galleryItemViewSchema = z.object({
-  galleryItemId: galleryItemIdSchema,
-  assetId: assetIdSchema,
-  hash: z.string(),
-  mime: z.string(),
-  animated: z.boolean(),
-  subjectCharacterId: characterIdSchema.nullable(),
-  createdAt: z.number().int(),
-});
-export type GalleryItemView = z.infer<typeof galleryItemViewSchema>;
+ *  through that FK — no stamped owner column).
+ *
+ *  TYPO class-B demotion (see {@link AssetListItem}): infer-only, never parsed — an output shape. */
+export interface GalleryItemView {
+  readonly galleryItemId: GalleryItemId;
+  readonly assetId: AssetId;
+  readonly hash: string;
+  readonly mime: string;
+  readonly animated: boolean;
+  readonly subjectCharacterId: CharacterId | null;
+  readonly createdAt: number;
+}
 
 // A message body stores its images as `asset:<id>` refs, but the blob route is keyed by hash, so the
 // client resolves id → hash to build `blobUrl(hash)`.
@@ -144,12 +148,11 @@ export const resolveBlobRefsParamsSchema = z.object({
 export type ResolveBlobRefsParams = z.infer<typeof resolveBlobRefsParamsSchema>;
 
 /** One resolved `(assetId, hash)` pair. Only the caller's own assets come back; a foreign/gone id is
- *  simply absent (no leak). */
-export const assetBlobRefSchema = z.object({
-  assetId: assetIdSchema,
-  hash: z.string(),
-});
-export type AssetBlobRef = z.infer<typeof assetBlobRefSchema>;
+ *  simply absent (no leak).
+ *
+ *  TYPO class-B demotion (see {@link AssetListItem}): infer-only, never parsed — an output shape. It is
+ *  the identity slice of a listed asset, so it DERIVES rather than re-spelling `assetId`/`hash`. */
+export type AssetBlobRef = Pick<AssetListItem, "assetId" | "hash">;
 
 /** `resolveChatBlobRefs` wire params — the chat-scoped sibling of {@link resolveBlobRefsParamsSchema}
  *  so a co-participant (not just the owner) can render an inline attachment. The server resolves a pair
