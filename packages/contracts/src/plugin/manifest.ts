@@ -32,8 +32,27 @@ export type PluginCapability = (typeof PLUGIN_CAPABILITIES)[number];
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{1,63}$/;
 /** The plugin's OWN semver (display + upgrade ordering) — distinct from `hostVersion` (the membrane major). */
 const PLUGIN_SEMVER_RE = /^\d+\.\d+\.\d+$/;
-/** An exact hostname `net.fetch` may reach — no wildcards, no IPs (the SSRF posture; the per-request pin is P4). */
-const NET_HOST_RE = /^[a-z0-9.-]+$/;
+/** An exact hostname `net.fetch` may reach (the SSRF posture; the per-request pin is P4).
+ *
+ *  `z.hostname()` (a real RFC hostname grammar) replaced the charset regex `/^[a-z0-9.-]+$/` on 2026-08-02.
+ *  The regex was a CHARSET test, not a grammar, and that was a live hole: `hostAllowed` in
+ *  `server/src/infra/network/egress.ts` treats a LEADING-DOT entry as a SUFFIX WILDCARD
+ *  (`if (e.startsWith(".")) host.endsWith(e)`), and the charset regex happily accepted `.com` — so a manifest
+ *  could declare one entry and reach EVERY `.com` host, in direct contradiction of this field's "exact
+ *  hostname" contract. It also accepted `-.-`, `...`, `example..com`, `-example.com`, and 64+ char labels.
+ *  `z.hostname()` rejects all of them (probe corpus, receipts in the lane report).
+ *
+ *  ONE acceptance WIDENING, and it is deliberate: `z.hostname()` is case-insensitive, so `API.Example.com`
+ *  now installs. That reaches no new host — the SAME `hostAllowed` lowercases every entry (`entry.toLowerCase()`)
+ *  and compares it against `normalizeHost(url.hostname)` (also lowercased, trailing dot stripped), so an
+ *  uppercase entry resolves to exactly the host its lowercase spelling would. Refusing the spelling at install
+ *  would only reject a manifest the enforcer already normalizes. **These two sites are coupled: if
+ *  `hostAllowed` ever stops normalizing case, this schema must pin lowercase again.**
+ *
+ *  IP LITERALS are NOT refused here and never were (the charset regex accepted `169.254.169.254` too) — the
+ *  real enforcer is `validateUrl` in that same egress module, which blocks every IP-literal host on the
+ *  non-owner-configured path (`blockEgress("ip-literal", …)`), which is the path plugin `net.fetch` takes. */
+const netHostSchema = z.hostname();
 const NAME_MAX = 80;
 const DESCRIPTION_MAX = 500;
 const AUTHOR_MAX = 120;
@@ -68,7 +87,7 @@ export const pluginManifestSchema = z
     description: z.string().max(DESCRIPTION_MAX),
     author: z.string().max(AUTHOR_MAX).optional(),
     capabilities: z.array(z.enum(PLUGIN_CAPABILITIES)).max(PLUGIN_CAPABILITIES.length),
-    netHosts: z.array(z.string().regex(NET_HOST_RE)).max(NET_HOSTS_MAX).optional(),
+    netHosts: z.array(netHostSchema).max(NET_HOSTS_MAX).optional(),
     /** The cascade opt-in (plugin-design/03 §2) — mirrors an automation rule's `matchAutomationEvents` column.
      *  `false`/absent (fail-closed default) ⇒ the plugin's `events.on` handlers receive ONLY human-plane
      *  (depth-0) facts; a depth ≥ 1 automation/plugin-caused fact is suppressed. `true` ⇒ cascade facts deliver
