@@ -2,6 +2,7 @@
 // invalid → ONE bounded retry with the zod issues appended → invalid again → throws; fence-wrapped / prose-
 // padded JSON extracts (the retired json-extract cases, now fixtures); a valid retry returns the typed payload.
 
+import type { StructuredRetrySummary } from "@orb/server/kit/structured-turn";
 import { runStructuredTurn, StructuredOutputError } from "@orb/server/kit/structured-turn";
 import { z } from "zod";
 import { expect, test } from "../../../support/fixtures";
@@ -73,4 +74,38 @@ test("no JSON object at all → retry → still none → throws", async () => {
   const script = scriptedRun(["absolutely no object here", "still just prose"]);
   await expect(runStructuredTurn({ payloadSchema: SCHEMA, run: script.run })).rejects.toBeInstanceOf(StructuredOutputError);
   expect(script.calls()).toBe(2);
+});
+
+// ── `onRetry` — the injected observability seam (this module is BELOW foundation) ─────────────────────
+// The retry was unobservable by construction: a lane that silently spends TWO provider calls instead of one
+// looked identical to one that spent one. The seam reports the failure as METADATA — the schema paths and a
+// count — never the zod MESSAGES, which quote the model's own output (RP content) and are prompt material
+// only. The caller (`domain/discovery/structured-retry-trace.ts`) turns it into a span event.
+
+test("onRetry fires EXACTLY once, before the retry, carrying the failing schema paths", async () => {
+  const script = scriptedRun([JSON.stringify({ genre: "fantasy" }), JSON.stringify({ genre: "fantasy", score: 5 })]);
+  const seen: StructuredRetrySummary[] = [];
+  await runStructuredTurn({ payloadSchema: SCHEMA, run: script.run, onRetry: (summary) => seen.push(summary) });
+  expect(seen).toEqual([{ issueCount: 1, paths: ["score"] }]);
+});
+
+test("onRetry never fires when the first try validates", async () => {
+  const script = scriptedRun([JSON.stringify({ genre: "fantasy", score: 3 })]);
+  const seen: StructuredRetrySummary[] = [];
+  await runStructuredTurn({ payloadSchema: SCHEMA, run: script.run, onRetry: (summary) => seen.push(summary) });
+  expect(seen).toEqual([]);
+});
+
+test("onRetry fires ONCE even when the retry also fails — the final failure is the throw, not a second event", async () => {
+  const script = scriptedRun([JSON.stringify({ genre: "fantasy" }), JSON.stringify({ nope: true })]);
+  const seen: StructuredRetrySummary[] = [];
+  await expect(runStructuredTurn({ payloadSchema: SCHEMA, run: script.run, onRetry: (s) => seen.push(s) })).rejects.toBeInstanceOf(StructuredOutputError);
+  expect(seen).toHaveLength(1);
+});
+
+test("a reply with no JSON at all reports as one ROOT-path issue (the summary shape never varies)", async () => {
+  const script = scriptedRun(["absolutely no object here", JSON.stringify({ genre: "noir", score: 1 })]);
+  const seen: StructuredRetrySummary[] = [];
+  await runStructuredTurn({ payloadSchema: SCHEMA, run: script.run, onRetry: (summary) => seen.push(summary) });
+  expect(seen).toEqual([{ issueCount: 1, paths: [""] }]);
 });

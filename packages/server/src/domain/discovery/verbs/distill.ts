@@ -36,6 +36,7 @@ import type { DistillCharactersOptions } from "../contract/params";
 import type { CharacterDistillation, DistillStats } from "../contract/results";
 import type { DiscoveryService, DistillCharactersDeps } from "../contract/service";
 import { readCardDistillTargets } from "../persistence/card-reads";
+import { traceStructuredRetry } from "../substrate/structured-retry-trace";
 
 /** Bind the distill pass over the DI bundle (the verb-naming factory the service composes). Projects the
  *  context's sub-deps onto the standalone {@link distillCharacters} — the workload runner reaches the same
@@ -275,7 +276,7 @@ async function parseOneDistill(
   const run = (correction?: string): Promise<string> =>
     correction === undefined ? Promise.resolve(batchText) : retryDistillOne(deps, target, correction, pass);
   try {
-    const p = await runStructuredTurn({ payloadSchema: DISTILL_PAYLOAD, run });
+    const p = await runStructuredTurn({ payloadSchema: DISTILL_PAYLOAD, run, onRetry: traceStructuredRetry("distill-card") });
     return { genre: p.genre, tone: p.tone, setting: p.setting, subGenres: p.subGenres, tags: p.tags, elevatorPitch: p.elevatorPitch, overview: p.overview };
   } catch {
     return null;

@@ -5,7 +5,7 @@
 
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { ProviderDeps, SummarizeRequest } from "../contract";
-import { backendForSource, requireBackend, requireRoleImpl } from "./dispatch";
+import { backendForSource, requireBackend, runRole } from "./dispatch";
 import { assertCredentialAllowed } from "./firewall";
 
 const ROLE = "summarize";
@@ -15,6 +15,12 @@ export function createSummarizeRole(deps: ProviderDeps): (req: SummarizeRequest)
   return async (req) => {
     assertCredentialAllowed({ role: ROLE, source: req.credential.source });
     const backend = requireBackend(deps.backends, backendForSource(req.credential.source), ROLE);
-    return await requireRoleImpl(backend, backend.summarize, ROLE)(req);
+    return await runRole({
+      backend,
+      impl: backend.summarize,
+      role: ROLE,
+      req,
+      attrs: { "provider.source": req.credential.source, "provider.model": req.model },
+    });
   };
 }

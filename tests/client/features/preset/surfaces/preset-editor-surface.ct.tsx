@@ -198,6 +198,86 @@ test("capability freshness — a settingsChanged tick swaps the failed-capabilit
   await expect(component.getByText("full window", { exact: true })).toBeVisible();
 });
 
+// ── PENDING IS NOT AN EMPTY STATE (lane FLK's F-02 class, owner-boarded) ──────────────────────────────
+// `CapabilityGate`'s connect-a-model note was reachable ONLY while the capability read was in flight:
+// `connection.resolveChatCapability` returns a REQUIRED descriptor, so a settled-successful read always
+// carries one and a settled failure carries an error — leaving `capability===undefined && error===null` as
+// the PENDING state and nothing else. So EVERY editor open flashed "connect a chat model" at users who had
+// one, and the state the note described was never actually rendered by anyone.
+//
+// The in-flight window is HELD OPEN here (the FORK-ONCE pin's `page.route` + delay idiom), so the pending
+// render is a stable, deterministic state for the whole hold rather than a flash the assertion chases: the
+// barrier is the rendered skeleton, and the negative assertion runs inside a window we own.
+const CAPABILITY_HOLD_MS = 1500;
+// Any prose claiming something about the user's chat model. Deliberately BROADER than the deleted string:
+// the pin is "the gate asserts NOTHING about the connection until the read settles", so a future arm that
+// re-introduces any such claim on the pending path fails here too.
+const CHAT_MODEL_CLAIM_RE = /chat model/;
+const SAMPLING_KICKER = "Sampling · reasoning · output";
+
+/** Hold every `connection.resolveChatCapability` request open for `CAPABILITY_HOLD_MS`, then let routeTrpc
+ *  answer it. Registered AFTER routeTrpc so Playwright runs it FIRST and defers via `fallback()`. The proc
+ *  rides the batch URL's comma-joined path, so matching the path is enough (and it deliberately holds
+ *  whatever else shares that batch — the suspense reads have already settled by then). */
+async function holdCapability(page: Page): Promise<void> {
+  await page.route("**/api/trpc/**", async (route) => {
+    if (route.request().url().includes("connection.resolveChatCapability")) {
+      await new Promise<void>((resolve) => setTimeout(resolve, CAPABILITY_HOLD_MS));
+    }
+    await route.fallback();
+  });
+}
+
+test("PENDING — a user WITH a chat model never sees a connect-a-model note; the gate holds a skeleton until the read lands", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "connection.resolveChatCapability": () => CAPABILITY,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  await holdCapability(page);
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  // THE BARRIER: the gate's PENDING render, which is stable for the whole hold. The kicker still stands (the
+  // clusters' slot is held, so the deck does not jump when the descriptor lands) and the placeholder rows
+  // under it are the shared `SkeletonRows` — a real busy region, not a sentence.
+  const gate = component.locator("section").filter({ has: page.getByRole("heading", { name: SAMPLING_KICKER }) });
+  await expect(gate.locator('[aria-busy="true"] [data-slot="skeleton"]').first()).toBeVisible();
+
+  // THE PIN: nothing on screen claims anything about this user's chat model — they HAVE one, and the read
+  // simply has not landed. This is the regression: the old gate printed the connect-a-model note here.
+  await expect(component.getByText(CHAT_MODEL_CLAIM_RE)).toHaveCount(0);
+
+  // …and when the read lands, the model-fed clusters replace the skeleton with the descriptor's own knobs.
+  await expect(component.getByRole("slider", { name: "Temperature" })).toBeVisible();
+  await expect(component.getByText(CHAT_MODEL_CLAIM_RE)).toHaveCount(0);
+  await expect(gate.locator('[data-slot="skeleton"]')).toHaveCount(0);
+});
+
+test("PENDING — a FAILED read says nothing until it settles, then states the routing fault verbatim", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "connection.resolveChatCapability": () => trpcError({ message: ROUTING_FAULT_MESSAGE }),
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  await holdCapability(page);
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  const gate = component.locator("section").filter({ has: page.getByRole("heading", { name: SAMPLING_KICKER }) });
+  await expect(gate.locator('[aria-busy="true"] [data-slot="skeleton"]').first()).toBeVisible();
+  // Neither arm's prose may be on screen before the read settles — a pending gate makes no claim at all.
+  await expect(component.getByText(CHAT_MODEL_CLAIM_RE)).toHaveCount(0);
+
+  // SETTLED no-capability: the failure arm, quoting the server (F-02's P1 — a routing fault, not "connect
+  // a model"), and the skeleton is gone.
+  await expect(component.getByText(CAPABILITY_FAILURE_RE)).toBeVisible();
+  await expect(component.getByText(ROUTING_FAULT_MESSAGE, { exact: true })).toBeVisible();
+  await expect(gate.locator('[data-slot="skeleton"]')).toHaveCount(0);
+});
+
 test("SWITCH pin — A(dirty)→B shows B's real config and never persists A's values into B", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "preset.get": (input: unknown) => ((input as { id?: string }).id === PRESET_B ? PRESET_B_DETAIL : PRESET_A_DETAIL),

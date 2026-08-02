@@ -23,6 +23,7 @@ import type { CharacterId, ChatId, Handle, MessageId, PersonaId, UserId } from "
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
+import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns";
@@ -2731,6 +2732,8 @@ function fireOrderRpg(timeline: string[]): NonNullable<ChatContext["rpg"]> {
 }
 
 const RPG_FIRE_MARK = "rpg:onTurnCompleted";
+/** The round's own trace-ring bucket key — `rpg-turn:<turnId>` (hoisted: useTopLevelRegex). */
+const RPG_ROUND_REQUEST_ID_RE = /^rpg-turn:/;
 
 test("S1: the rpg post-turn flush is registered BEFORE the turnCompleted emit (after the commit)", async () => {
   const host = await seedUser(db, "s1host");
@@ -2753,6 +2756,68 @@ test("S1: the rpg post-turn flush is registered BEFORE the turnCompleted emit (a
   expect(timeline.lastIndexOf("messageCommitted")).toBeLessThan(fired);
   // …and the turn is not publicly DONE until after it — no listener can re-send into the pre-register window.
   expect(fired).toBeLessThan(completed);
+});
+
+// ── The post-turn rpg round is TRACED (the observability hole) ────────────────────────────────────────
+// The round is the most expensive thing a turn does after the reply lands (a whole state round, its own
+// provider call, its own writes) and it ran under NO live span: it OUTLIVES the request, and the trace ring
+// drops every span that arrives for an already-sealed bucket. It now opens a DETACHED root of its own,
+// keyed by the turn — so `/api/_debug/traces` shows it as its own trace instead of nothing.
+//
+// Proved through the TRACE RING (`recentTraces`, the read `/api/_debug/traces` serves), not through the span
+// API the fix calls, and with the turn driven from INSIDE an outer request span — that nesting is the exact
+// condition a non-detached root would silently lose.
+const RPG_ROUND_ROOT = "rpg.turnCompleted";
+const OUTER_REQUEST_ID = "rpg-trace-outer-request";
+const TRACE_SCAN_LIMIT = 50;
+
+test("the post-turn rpg round opens its OWN request trace (it outlives the request that started it)", async () => {
+  initTracing();
+  const host = await seedUser(db, "rpgtracehost");
+  const charA = await seedCharacter(db, host, "aria");
+  const chatId = await seedChat(db, "rpg_trace");
+  await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+  await seedParticipant(db, { chatId, key: "c", characterId: charA });
+
+  // The round is fire-and-forget, so the test needs a handle on its completion: the stub resolves this once
+  // its (deliberately async) work is done, which is also when the round's span ends and its bucket seals.
+  let roundDone = (): void => undefined;
+  const rounded = new Promise<void>((resolve) => {
+    roundDone = resolve;
+  });
+  // FABRICATION-OK: minimal ChatRpgOps stub — the turn path reaches only these ops (the `fireOrderRpg` precedent).
+  const rpg = {
+    resolvePresetOverride: () => Promise.resolve(null),
+    resolveUserMacros: () => Promise.resolve([]),
+    gatherTurnContext: () => Promise.resolve(null),
+    markDicePreRollEligible: () => undefined,
+    onUserCommit: () => Promise.resolve(),
+    onTurnCompleted: async () => {
+      // Real async work, so the round genuinely spans a tick — the shape a state round has.
+      await Promise.resolve();
+      roundDone();
+    },
+    onTurnAborted: () => Promise.resolve(),
+    resolveGmSeatHolderKind: () => Promise.resolve(null),
+    resolveReasoningHostOnly: () => Promise.resolve(false),
+  } as unknown as NonNullable<ChatContext["rpg"]>;
+  const h = harness(db, { [charA]: "Aria" }, { rpg });
+
+  // The turn runs INSIDE a request root, exactly as production runs it under the tRPC span.
+  await withRequestSpan(OUTER_REQUEST_ID, "http POST /api/trpc/chat.send", {}, () =>
+    h.turn.send({ principal: makePrincipal(host), chatId, content: "I cross the river." }),
+  );
+  await rounded;
+
+  // THE PIN: a SEALED trace of its own in the ring. Before the fix the round opened no span at all, and a
+  // naively-nested root would never have sealed (a parented span never triggers `TraceRing.seal`).
+  const round = recentTraces(TRACE_SCAN_LIMIT).find((t) => t.rootName === RPG_ROUND_ROOT);
+  expect(round).toBeDefined();
+  expect(round?.requestId).toMatch(RPG_ROUND_REQUEST_ID_RE);
+  expect(round?.status).toBe("ok");
+  // It is its OWN trace, not a subtree of the request's — the request sealed before this work ran.
+  expect(round?.requestId).not.toBe(OUTER_REQUEST_ID);
+  expect(recentTraces(TRACE_SCAN_LIMIT).find((t) => t.requestId === OUTER_REQUEST_ID)?.rootName).toBe("http POST /api/trpc/chat.send");
 });
 
 // VER-1b — the REGEN SLOT reaches the rpg gather. A swipe regenerates an EXISTING slot whose currently-selected

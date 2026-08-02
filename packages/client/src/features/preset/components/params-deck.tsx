@@ -57,15 +57,18 @@ export interface ParamsDeckProps {
   readonly form: AppForm;
   /** `undefined` until the capability read lands, and forever if it FAILS — QUALITY/CONTEXT/ADVANCED still
    *  render, the model-fed clusters stand down to `CapabilityGate`. Which of that gate's two arms shows is
-   *  the `capabilityError` split (F-02), never this field: a failed read is a routing fault, not "no model". */
+   *  the `capabilityError` split, never this field: PENDING holds a skeleton, a FAILED read is a routing
+   *  fault quoting the server (F-02). There is no third arm — a settled-successful read always carries a
+   *  descriptor, so `undefined` here means pending-or-failed and nothing else. */
   readonly capability: ModelCapability | undefined;
   /** The funnel projected for this preset (`preset.resolveEffective`) — `undefined` while it is
    *  unavailable (no chat model, or the read has not landed), which degrades to un-ghosted rows. */
   readonly effective: EffectiveProfileRow | undefined;
   /** The server-only BYOK passthrough's KEYS — a read-only presence row in ADVANCED (D7). */
   readonly customParameterKeys: readonly string[];
-  /** The capability read's FAILURE message — `null` when the read simply resolved no model. The two are
-   *  different problems (side-eye F-02) and the deck must not print the empty state over the error. */
+  /** The capability read's FAILURE message — `null` while the read is still PENDING. A failed read is a
+   *  routing fault, not an absent connection (side-eye F-02), and a pending one is not a state at all, so
+   *  the gate must print neither over the other. */
   readonly capabilityError: string | null;
 }
 
@@ -100,7 +103,9 @@ export function ParamsDeck({ form, capability, effective, customParameterKeys, c
     <Surface tier="instrument">
       <Stack gap="section">
         <QualityCluster effective={effective} form={form} />
-        {/* ONE gate for the three model-fed clusters, never three copies of the same sentence (F-02). */}
+        {/* ONE gate for the model-fed clusters, never three copies of the same sentence (F-02). Its arms are
+            PENDING (a skeleton) and FAILED (the server's message) — see the gate's header for why those two
+            are exhaustive and why the old connect-a-model empty state was a flash, not a state. */}
         {capability === undefined ? (
           <CapabilityGate error={capabilityError} />
         ) : (

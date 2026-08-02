@@ -20,6 +20,7 @@ import type { AskCardAnswer, CharacterComparison, CharacterComparisonDeep, Compa
 import type { AnalyzeDeps, DiscoveryService } from "../contract/service";
 import { readCharacterMessageSamples } from "../persistence/message-reads";
 import { readOwnedCardFacet } from "../persistence/summary-reads";
+import { traceStructuredRetry } from "../substrate/structured-retry-trace";
 
 // The recent-scene grounding window for askCard — enough context to answer without dragging a whole history.
 const ASK_SAMPLE_LIMIT = 12;
@@ -71,7 +72,7 @@ async function compareCharactersDeep(
   };
   let narrative: ComparisonNarrative;
   try {
-    const p = await runStructuredTurn({ payloadSchema: NARRATIVE_PAYLOAD, run });
+    const p = await runStructuredTurn({ payloadSchema: NARRATIVE_PAYLOAD, run, onRetry: traceStructuredRetry("compare-narrative") });
     narrative = { summary: p.summary.trim(), overlap: p.overlap.trim(), distinction: p.distinction.trim(), degraded: false };
   } catch (err) {
     if (!(err instanceof StructuredOutputError)) {
@@ -125,7 +126,7 @@ async function askCard(ctx: DiscoveryContext, userId: UserId, characterId: Chara
   let grounded: boolean;
   let degraded: boolean;
   try {
-    const p = await runStructuredTurn({ payloadSchema: ANSWER_PAYLOAD, run });
+    const p = await runStructuredTurn({ payloadSchema: ANSWER_PAYLOAD, run, onRetry: traceStructuredRetry("ask-card") });
     answer = p.answer.trim();
     grounded = p.grounded;
     degraded = false;

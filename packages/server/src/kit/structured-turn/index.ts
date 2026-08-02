@@ -23,15 +23,43 @@ export class StructuredOutputError extends Error {
   }
 }
 
+/**
+ * What the bounded retry reports to the caller's observability seam.
+ *
+ * METADATA ONLY, deliberately: the zod MESSAGES are absent because they quote the model's own output
+ * ("…received 'Ambrose the Grey'"), i.e. RP content, which must never reach a span attribute or a log field.
+ * The schema PATHS are ours — they name the contract, not the story — and a count plus the failing paths is
+ * what actually answers "which field does this model keep getting wrong".
+ */
+export interface StructuredRetrySummary {
+  readonly issueCount: number;
+  /** The failing schema paths in issue order; a root-level issue contributes `""`. */
+  readonly paths: readonly string[];
+}
+
 export interface StructuredTurnArgs<T> {
   /** The caller's runtime validator — also the meaning of the payload (the caller owns it). */
   readonly payloadSchema: z.ZodType<T>;
   /** Runs one turn against the caller's wire request (which already carries the `ResponseFormat`). On the
    *  retry, `correction` is the zod issue summary — the caller's closure appends it to its prompt. */
   readonly run: (correction?: string) => Promise<string>;
+  /**
+   * Called EXACTLY ONCE, immediately before the bounded second attempt runs — never on a first-try success
+   * and never on the final failure (that one is the thrown {@link StructuredOutputError}, which the caller
+   * already sees).
+   *
+   * INJECTED because this module sits at the BOTTOM of the server tier list (it imports zero infra by
+   * design, which is what lets one implementation serve every structured lane) — it is BELOW `foundation`,
+   * so it cannot call `addSpanEvent` itself. Without this seam the retry was unobservable by construction: a
+   * lane that silently costs two provider calls instead of one looked identical to one that cost one, and
+   * the only trace of it was a wall-clock duration nobody could attribute.
+   *
+   * It must not throw and must not be async — it annotates, it does not participate.
+   */
+  readonly onRetry?: ((summary: StructuredRetrySummary) => void) | undefined;
 }
 
-type ParseOutcome<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly issues: string };
+type ParseOutcome<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly issues: string; readonly summary: StructuredRetrySummary };
 
 /**
  * Run a structured turn: one completion, parse+validate, and on failure ONE bounded retry with the validation
@@ -44,6 +72,7 @@ export async function runStructuredTurn<T>(args: StructuredTurnArgs<T>): Promise
   if (first.ok) {
     return first.value;
   }
+  args.onRetry?.(first.summary);
   const secondText = await args.run(first.issues);
   const second = parseStructured(args.payloadSchema, secondText);
   if (second.ok) {
@@ -57,14 +86,19 @@ export async function runStructuredTurn<T>(args: StructuredTurnArgs<T>): Promise
 function parseStructured<T>(schema: z.ZodType<T>, text: string): ParseOutcome<T> {
   const obj = extractJsonObject(text);
   if (obj === null) {
-    return { ok: false, issues: "no JSON object found in the reply" };
+    // A reply with no JSON at all is one failure at the root — the summary stays shaped, so a consumer
+    // never has to special-case "the extraction failed" against "the validation failed".
+    return { ok: false, issues: "no JSON object found in the reply", summary: { issueCount: 1, paths: [""] } };
   }
   const parsed = schema.safeParse(obj);
   if (parsed.success) {
     return { ok: true, value: parsed.data };
   }
   const issues = parsed.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join("; ");
-  return { ok: false, issues };
+  // The PATHS ride the observability summary; the MESSAGES ride only the model-facing `correction` (they
+  // quote the model's own output, so they are prompt material, never trace/log material).
+  const paths = parsed.error.issues.map((issue) => issue.path.join("."));
+  return { ok: false, issues, summary: { issueCount: parsed.error.issues.length, paths } };
 }
 
 /**
