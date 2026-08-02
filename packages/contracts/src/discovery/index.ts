@@ -15,6 +15,13 @@ export const RELATIONS = ["duplicate", "forked"] as const;
 export type DuplicateRelation = (typeof RELATIONS)[number];
 export const duplicateRelationSchema = z.enum(RELATIONS);
 
+/** The `suggestCharacterTags` REFUSAL discriminator — the card carries no content beyond its `Name:` line,
+ *  so there is nothing to distill and any facets would be invented from the name alone. Homed here (not in
+ *  the domain's `contract/errors.ts`) because BOTH ends key on the literal: the server error class rides it
+ *  as its `DomainOperationError.code` → the tRPC formatter's `data.reason`, and the client's tag-suggestion
+ *  toast branches on that field — never on message text (the `TURN_ABORTED_OP_CODE` precedent). */
+export const CARD_NOT_DISTILLABLE_REASON = "card_not_distillable";
+
 // ── The discovery workloads' params + result vocabulary (the workloads junk-drawer exit: a workload's
 //    params schema + result shape are authored by the OWNING domain, then correlated to the kind by
 //    `@orb/contracts/workloads`). Five kinds ride these: compute-themes, distill-characters,

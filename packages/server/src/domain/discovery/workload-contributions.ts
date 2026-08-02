@@ -10,10 +10,19 @@ import type { AnalyticsResult } from "@orb/contracts/discovery";
 import { computeThemesWorkloadParams, findDuplicatesWorkloadParams } from "@orb/contracts/discovery";
 import { emptyWorkloadParams } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
+import type { DistillStats } from "./contract/results";
 import type { DiscoveryWorkloadDeps } from "./contract/service";
 
 /** The cluster count when neither the run nor the triggering user's settings supply a `k`. */
 const DEFAULT_THEME_K = 12;
+
+/** The distill sweep's closing progress line — what landed, and what it declined to invent. `skipped` cards
+ *  are name-only (no description / personality / scenario / greeting / examples), so the line names the fix
+ *  rather than reporting a bare number the user can't act on. */
+function distillProgressMessage(stats: DistillStats): string {
+  const landed = `distilled ${stats.distilled} of ${stats.scanned} characters`;
+  return stats.skipped === 0 ? landed : `${landed} — skipped ${stats.skipped} with no card text to summarize (add a description first)`;
+}
 
 type DiscoveryContributions = readonly [
   WorkloadContribution<"compute-themes">,
@@ -49,6 +58,11 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
       run: async (ctx, _params, report, signal): Promise<AnalyticsResult> => {
         report({ message: "distilling character summaries" });
         const stats = await deps.discovery.distillCharacters({ signal, ...(ctx.ownerId !== null ? { ownerId: ctx.ownerId } : {}) });
+        // `AnalyticsResult` carries scanned/written only, so the SKIPPED cards (name-only — nothing to
+        // summarize but a name) would vanish between `scanned` and `written` with no account of themselves.
+        // The final progress line is their reader: it says what the sweep declined to invent, and names the
+        // fix. A count nobody can read is the same silence the on-demand refusal exists to end.
+        report({ message: distillProgressMessage(stats) });
         return { scanned: stats.scanned, written: stats.distilled };
       },
     },

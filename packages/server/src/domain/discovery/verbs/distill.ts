@@ -10,6 +10,12 @@
 //     one card, so containing its failure returned a 200 carrying `{distilled: 0, failed: 1}` that no client
 //     reads — the button went quiet and told the user nothing (the exact lying-empty-state the typed errors
 //     in `contract/errors.ts` exist to kill). Both arms are pinned by tests; don't collapse them.
+//
+// THE CONTENT FLOOR runs through the same switch (owner ruling 2026-08-03): a card with no writing beyond its
+// name is NOT distillable — the payload schema requires genre/tone/setting/pitch/overview/3-8 tags, so every
+// facet would be invented and staged as a pending tag suggestion. On-demand it is `CardNotDistillableError`
+// (after the ownership belt, never before); in the batch it is a counted `DistillStats.skipped`, which the
+// `distill-characters` workload reports as progress — an uncounted skip is how a silent sweep lies.
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
@@ -25,7 +31,7 @@ import { runStructuredTurn } from "@orb/server/kit/structured-turn";
 import type { BatchItem } from "drizzle-orm/batch";
 import { z } from "zod";
 import type { DiscoveryContext } from "../context";
-import { DistillFailedError } from "../contract/errors";
+import { CardNotDistillableError, DistillFailedError } from "../contract/errors";
 import type { DistillCharactersOptions } from "../contract/params";
 import type { CharacterDistillation, DistillStats } from "../contract/results";
 import type { DiscoveryService, DistillCharactersDeps } from "../contract/service";
@@ -132,12 +138,21 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
   if (onDemand && targets.length === 0) {
     throw new DomainNotFoundError("character", opts.characterId ?? "");
   }
-  // Unreachable for a resolved row today — `composeCardText` always emits a `Name:` line, so a target's text
-  // never trims to empty (contract/errors.ts §DEFERRED: that is why there is no "nothing to distill" refusal,
-  // and why a name-only card gets wholly invented facets instead). Kept as the batch's total-input guard.
-  const ready = targets.filter((t) => t.text.trim().length > 0);
+  // THE CONTENT FLOOR (owner ruling 2026-08-03). A card with nothing but a name is not distillable: the
+  // payload schema REQUIRES genre/tone/setting/pitch/overview/3-8 tags, so the model would invent every facet
+  // from the name and the invented tags would stage as pending suggestions. `text` can never be empty (it
+  // always opens with `Name:`), so the readiness verdict is the read's own `hasContent` — not a length check.
+  const ready = targets.filter((t) => t.hasContent);
+  const skipped = targets.length - ready.length;
+  // The on-demand card is the ONE card the caller is waiting on; skipping it silently would answer 200 with
+  // `{distilled: 0}` — the same lying-empty-state `DistillFailedError` exists to kill. Refuses AFTER the
+  // ownership belt above, never before: a verdict about the card's content on an unowned id is an existence
+  // oracle (contract/errors.ts). The BATCH never throws here — its name-only cards ride `skipped` out.
+  if (onDemand && ready.length === 0) {
+    throw new CardNotDistillableError();
+  }
   if (ready.length === 0) {
-    return { scanned: targets.length, distilled: 0, failed: 0, tagsStaged: 0 };
+    return { scanned: targets.length, distilled: 0, failed: 0, skipped, tagsStaged: 0 };
   }
 
   // The side-gen sampling ladder: the `distill` floor (temp 0.2, 512 out — near-deterministic guided decode)
@@ -185,6 +200,7 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
     scanned: targets.length,
     distilled: writes.stmts.length,
     failed: writes.failed,
+    skipped,
     tagsStaged,
   };
 }
