@@ -170,8 +170,12 @@ export function qualityMappingGloss(profile: EffectiveProfileRow | undefined, qu
 }
 
 /** Which of the dial's knobs a stored explicit value currently OVERRIDES — the status half the mapping
- *  gloss deliberately no longer carries. `null` when the dial is unset or nothing overrides it. */
-export function qualityOverrideGloss(profile: EffectiveProfileRow | undefined): string | null {
+ *  gloss deliberately no longer carries. `null` when the dial is unset or nothing overrides it.
+ *
+ *  FILE-LOCAL: `qualityDeckGloss` below is now its only caller (the deck stopped rendering the two halves
+ *  as two lines and reads the joined one instead). It stays a separate derivation — that separation is the
+ *  F-15 ruling — but it is no longer part of this module's surface. */
+function qualityOverrideGloss(profile: EffectiveProfileRow | undefined): string | null {
   const mapping = profile?.qualityMapping;
   if (mapping === undefined || mapping === null) {
     return null;
