@@ -416,8 +416,16 @@ dev stack is up (SNAP_FIXTURE_SERVER_URL read by neither fixtureStatus() nor opt
 either snap grows a real port override + the fixture an offset-pair mode, or the snap header
 says honestly "requires the owner's stack down". SIDE-EYE re-check lane STOPPED early by
 owner word (barely started, nothing lost) — re-queue after the wave drains.
-**⛔ DISPATCH FREEZE → FULL PAUSE (owner words, 08-03: 5h usage limit): NO new spawns AND the
-5 live lanes ORDERED TO SLEEP** (checkpoint-commit coherent work [--no-verify sanctioned for
+**⛔̶ PAUSE LIFTED (owner, fresh 5h window) — NEW STANDING CAP: THREE concurrent lanes after
+the current set finishes (owner: "six ate our usage too fast").** REGEX + D22 resumed warm.
+✅ **DANGLE MERGED (`d49242fa`, --no-verify on receipts, torn down)** — it had COMPLETED
+before the pause (checkpoint `7725591e` landed after my zero-commits read): arms 3+4 live in
+dangling-refs.ts (backticked-PATH + backticked-SYMBOL existence, both-ways allowlists,
+rider-blocks exempt structurally), 4 probes receipted, **3 real phantom refs fixed at landing**
+(Spine-Testing · Tier-3b · UI-Gates). Follow-up note in its allowlist rows' why: CERD-territory
+rows self-identify for deletion when they go stale.
+(Superseded pause block:) NO new spawns AND the
+5 live lanes ORDERED TO SLEEP (checkpoint-commit coherent work [--no-verify sanctioned for
 the checkpoint], reply resume-state, stop; worktrees + branches STAY — teardown forbidden).
 RESUME STATES (all five landed; two lanes merged at pause, three parked):
 ✅ **RESYNC MERGED (`f28b49c2`, --no-verify on receipts, torn down)** — COMPLETE: bulk arm =
