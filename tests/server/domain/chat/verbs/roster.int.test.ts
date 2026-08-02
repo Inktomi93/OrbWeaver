@@ -13,7 +13,7 @@ import { characters, chatParticipants, chats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatParticipantId, DocumentId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatParticipantId, DocumentId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { and, eq, isNull } from "drizzle-orm";
@@ -968,6 +968,85 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
   });
 
+  // F1 (stickler 2026-08-03) — the rpg heal is an INJECTED op returning UNEXECUTED statements, and its whole
+  // point is atomicity: it must ride the accept's own batch, so a crash can never promote a host while leaving
+  // the game's GM voice pointed at the previous host's private preset. Chat's half is what this proves — the op
+  // is asked about the NOMINEE (the incoming authority, never the caller-as-old-host) and its statements commit
+  // with the swap. The rpg-side verdict lives in `tests/server/domain/rpg/chat-ops/handoff-heal.int.test.ts`;
+  // the two are joined composed-real in `tests/server/entry/compose/rpg.int.test.ts`.
+  test("the injected rpg handoff-heal statements are folded into the swap batch, asked about the NOMINEE", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const asked: { chatId: string; newHostUserId: string }[] = [];
+    // The returned statement stands in for the rpg write (chat commits it blind); `chats.title` is the observable.
+    // FABRICATION-OK: minimal ChatRpgOps stub — the accept reaches ONLY `handoffHealStatements`.
+    const rpg = {
+      handoffHealStatements: (id: ChatId, newHostUserId: UserId): Promise<unknown[]> => {
+        asked.push({ chatId: id, newHostUserId });
+        return Promise.resolve([db.update(chats).set({ title: "healed" }).where(eq(chats.id, id))]);
+      },
+    } as unknown as NonNullable<NonNullable<Parameters<typeof makeChatContext>[1]>["rpg"]>;
+    const notes: NotificationEvent[] = [];
+    const roster = createRoster(makeChatContext(db, { rpg, emitNotification: recordingEmit(notes) }), { emit });
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
+
+    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+
+    expect(asked).toEqual([{ chatId, newHostUserId: member }]);
+    const [chatRow] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(chatRow?.title).toBe("healed");
+    expect(chatRow?.pendingHostUserId).toBeNull();
+  });
+
+  // F2 (stickler 2026-08-03) — the D51 anchor is the room's stable `{{user}}` POV, and `chats.anchorPersonaId`
+  // is resolved under the HOST's principal (owner-scoped `persona.get`). A handoff moves the host, so an anchor
+  // the NEW host cannot read becomes a dead id: the POV silently falls through to the speaker's active persona
+  // while the knob keeps serving an unreadable id (`ChatDetail.anchorPersonaId`) and `exportChat` still reads
+  // its NAME by id. The heal is the `resolveForkGmPreset` twin — null it IN THE SWAP BATCH, conditional on
+  // readability, so the null-anchor→active fallback takes over honestly.
+  test("an anchor persona the new host cannot read is NULLED in the swap batch", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    const anchor = await seedPersona(db, host, "hostpov");
+    const chatId = await seedChat(db, "a", { anchorPersonaId: anchor });
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const notes: NotificationEvent[] = [];
+    const roster = createRoster(makeChatContext(db, { emitNotification: recordingEmit(notes) }), { emit });
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
+
+    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+
+    const [chatRow] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(chatRow?.anchorPersonaId).toBeNull();
+    // The heal rides the SAME batch as the swap — never a second write that a crash could skip.
+    expect(chatRow?.pendingHostUserId).toBeNull();
+    const rows = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId));
+    expect(rows.find((r) => r.userId === member)?.role).toBe("host");
+  });
+
+  test("an anchor persona the NOMINEE owns survives the handoff (the POV is still readable)", async () => {
+    const host = await seedUser(db, "host");
+    const member = await seedUser(db, "member");
+    // The room was already anchored on the nominee's own persona (the verb permits any present human's) —
+    // the new host resolves it, so healing it would DESTROY a live pin. Conditional, exactly like the fork gate.
+    const anchor = await seedPersona(db, member, "memberpov");
+    const chatId = await seedChat(db, "a", { anchorPersonaId: anchor });
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const notes: NotificationEvent[] = [];
+    const roster = createRoster(makeChatContext(db, { emitNotification: recordingEmit(notes) }), { emit });
+    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
+
+    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+
+    const [chatRow] = await db.select().from(chats).where(eq(chats.id, chatId));
+    expect(chatRow?.anchorPersonaId).toBe(anchor);
+  });
+
   test("a nominee who owns the WHOLE seated cast keeps every character seat on handoff", async () => {
     const host = await seedUser(db, "host");
     const member = await seedUser(db, "member");
@@ -1060,7 +1139,8 @@ describe("audit wiring — the membership/config mutations write best-effort aud
 
     expect(rows.map((r) => r.entry.action)).toEqual(["chat.nominateHostHandoff", "chat.acceptHostHandoff"]);
     expect(rows.at(0)?.entry.metadata).toEqual({ nomineeUserId: member });
-    expect(rows.at(1)?.entry.metadata).toEqual({ previousHostUserId: host });
+    // The heal FLAGS ride the accept row (F1/F2) — an un-anchored, non-game room heals nothing.
+    expect(rows.at(1)?.entry.metadata).toEqual({ previousHostUserId: host, healedAnchorPersona: false, healedGmPreset: false });
     expect(rows.at(1)?.entry.actorUserId).toBe(member);
   });
 

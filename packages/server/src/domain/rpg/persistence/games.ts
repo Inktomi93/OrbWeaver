@@ -8,6 +8,8 @@
 import { RPG_EXTRACTION_MODES, rpgGameConfigSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { rpgGames } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchStmt } from "@orb/db/kit";
 import type { ChatId, RpgGameId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { RpgStateCorruptError } from "../contract/errors";
@@ -57,6 +59,14 @@ export async function findGameById(db: Db, id: RpgGameId): Promise<RpgGameRow | 
 export async function findGameByChat(db: Db, chatId: ChatId): Promise<RpgGameRow | undefined> {
   const rows = await db.select().from(rpgGames).where(eq(rpgGames.chatId, chatId)).limit(LIMIT_ONE);
   return rows[0] ? parseGameRow(rows[0]) : undefined;
+}
+
+/** The `gmPresetId` clear, UNEXECUTED — the host-handoff heal hands it to chat so the knob clear commits in
+ *  the SAME atomic batch as the role swap (the {@link AwaitableBatchStmt} co-statement seam chat's own
+ *  `markUserLeftStatement`/`setPendingHostStatement` ride). A separate write would leave a window where the
+ *  new host owns a room whose GM voice still points at the old host's private preset. */
+export function clearGmPresetStatement(db: Db, id: RpgGameId, now: number): BatchStmt {
+  return batchStmt(db.update(rpgGames).set({ gmPresetId: null, updatedAt: now }).where(eq(rpgGames.id, id)));
 }
 
 /** Patch the game's mutable columns (the config write door + the `gmPresetId` knob — the verb gates, W1b).
