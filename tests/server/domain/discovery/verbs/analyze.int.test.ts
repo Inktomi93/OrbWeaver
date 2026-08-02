@@ -9,6 +9,7 @@ import { characterSummaries } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
+import { getTraceByRequestId, initTracing, withRequestSpan } from "@orb/server/foundation/observability";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -43,6 +44,9 @@ async function seedCard(
   });
   return id;
 }
+
+const RETRY_TRACE_REQUEST_ID = "discovery-structured-retry";
+const RETRY_EVENT = "provider.structured.retry";
 
 function svcFor(db: Db, summarize?: SummarizeRecorder): ReturnType<typeof createDiscoveryService> {
   return createDiscoveryService(makeDiscoveryHarness(db, summarize ? { summarize } : {}).ctx);
@@ -137,6 +141,58 @@ describe("compareCharactersDeep", () => {
     expect(deep?.narrative).toEqual({ summary: "totally free-text, no json here", overlap: "", distinction: "", degraded: true });
     // The bounded retry actually fired (first turn + one retry) before the degrade.
     expect(summarize.calls).toHaveLength(2);
+  });
+
+  // ── The bounded retry is OBSERVABLE (it was unobservable by construction) ────────────────────────────
+  // `runStructuredTurn` sits below `foundation` (it imports zero infra so one implementation serves every
+  // structured lane), so it could not annotate a span itself: a lane that silently spent TWO provider calls
+  // instead of one looked exactly like one that spent one. It now reports through an injected `onRetry`,
+  // which this verb binds to `traceStructuredRetry`.
+  //
+  // This is the WIRE proof, not the adapter's: it drives the REAL verb, under a real request root, and reads
+  // the event back off the TRACE RING (`/api/_debug/traces`' own source) — the only thing that proves the
+  // callback reaches a LIVE span rather than a no-op.
+
+  test("a bounded retry emits provider.structured.retry on the live request span, naming the failing paths", async () => {
+    initTracing();
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const a = await seedCard(db, { id: "a", ownerId: owner, name: "Aria", genre: "fantasy", tone: "dark", tags: ["dragons"] });
+    const b = await seedCard(db, { id: "b", ownerId: owner, name: "Bryn", genre: "fantasy", tone: "tense", tags: ["dragons"] });
+
+    // Attempt 1 parses as JSON but VIOLATES the schema (two missing string fields) — the arm that produces a
+    // real zod issue list, so the event's `paths` are the contract's own field names. Attempt 2 is valid, so
+    // the verb succeeds and the retry is the ONLY thing this test observes.
+    let attempts = 0;
+    const op: SummarizeRecorder["op"] = (inputs) => {
+      attempts += 1;
+      const text = attempts === 1 ? JSON.stringify({ summary: "s" }) : JSON.stringify({ summary: "s", overlap: "o", distinction: "d" });
+      return Promise.resolve({
+        items: inputs.map(() => ({ text, usage: { tokensIn: null, tokensOut: null, costUsd: null } })),
+        model: "test-summarize-model",
+      });
+    };
+    const summarize = { op, calls: [] } satisfies SummarizeRecorder;
+
+    const deep = await withRequestSpan(RETRY_TRACE_REQUEST_ID, "trpc.discovery.compareCharactersDeep", {}, () =>
+      svcFor(db, summarize).compareCharactersDeep(owner, a, b),
+    );
+
+    // The retry really happened and really recovered (not a degrade).
+    expect(attempts).toBe(2);
+    expect(deep?.narrative.degraded).toBe(false);
+
+    const trace = getTraceByRequestId(RETRY_TRACE_REQUEST_ID);
+    if (trace === undefined) {
+      throw new Error("expected a recorded trace for the request");
+    }
+    const event = trace.spans.flatMap((s) => s.events).find((e) => e.name === RETRY_EVENT);
+    expect(event).toBeDefined();
+    expect(event?.attributes?.["lane"]).toBe("compare-narrative");
+    expect(event?.attributes?.["issueCount"]).toBe(2);
+    // PATHS, never the zod MESSAGES — those quote the model's own output (RP content), which must never
+    // reach a span attribute.
+    expect(event?.attributes?.["paths"]).toBe("overlap,distinction");
   });
 
   test("null on self/foreign — and never calls summarize", async () => {

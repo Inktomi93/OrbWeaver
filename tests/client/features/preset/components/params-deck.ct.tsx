@@ -26,16 +26,16 @@ import {
   ParamsDeckCustomParamsStory,
   ParamsDeckExplicitStory,
   ParamsDeckGhostStory,
-  ParamsDeckNoModelStory,
+  ParamsDeckPendingCapabilityStory,
   ParamsDeckStaleStory,
 } from "./_params-deck-stories";
 
 const SAVE_POLL = { intervals: [100, 200, 300, 500] };
-// The three capability-gate notes + the ADVANCED gloss (hoisted — useTopLevelRegex).
-// ONE gate note for the three model-fed clusters (F-02) — the knob names survive, the routing sentence
-// is printed once.
-const GATE_KNOBS_RE = /Temperature, top-p, top-k, the penalties and seed, the reasoning switch/;
+// The capability-gate notes + the ADVANCED gloss (hoisted — useTopLevelRegex). ONE note for the model-fed
+// clusters (F-02), printed once where it used to appear three times.
 const GATE_SETTINGS_RE = /Settings → Connections → Model roles/;
+/** Any prose claiming something about the user's chat model — the gate's PENDING arm must show none of it. */
+const CHAT_MODEL_CLAIM_RE = /chat model/;
 /** `toHaveAttribute(name, ANY)` needs a hoisted pattern (useTopLevelRegex) — the assertions below are
  *  about an attribute's ABSENCE, so the pattern only has to match anything at all. */
 const ANY = /.*/u;
@@ -260,27 +260,31 @@ test("CONTEXT — an explicit compaction mode renders the selected value (not th
 
 // ── The capability gate + ADVANCED ────────────────────────────────────────────────────────────────────
 
-test("NO MODEL — ONE gate note names every hidden knob; QUALITY/CONTEXT/ADVANCED still render", async ({ mount }) => {
-  const deck = await mount(<ParamsDeckNoModelStory />);
+test("PENDING CAPABILITY — the gate holds a skeleton and claims NOTHING; QUALITY/CONTEXT/ADVANCED still render", async ({ mount }) => {
+  const deck = await mount(<ParamsDeckPendingCapabilityStory />);
 
-  // F-02: the three model-fed clusters share ONE cause, so they share ONE note. The knob names survive
-  // (an empty state that only says "connect a model" reads as "this feature doesn't exist")…
-  await expect(deck.getByText(GATE_KNOBS_RE)).toBeVisible();
-  // …and the routing sentence is printed exactly ONCE, where it used to appear three times.
-  await expect(deck.getByText(GATE_SETTINGS_RE)).toHaveCount(1);
+  // No descriptor and no error is the read IN FLIGHT and nothing else, so the model-fed clusters' slot is a
+  // busy placeholder — never the connect-a-model empty state it used to print (which every editor open
+  // flashed at users who HAVE a model; the settled state it described is unreachable).
+  await expect(deck.locator('[aria-busy="true"] [data-slot="skeleton"]').first()).toBeVisible();
+  await expect(deck.getByText(CHAT_MODEL_CLAIM_RE)).toHaveCount(0);
+  await expect(deck.getByText(GATE_SETTINGS_RE)).toHaveCount(0);
 
   await expect(deck.getByRole("combobox", { name: "Quality" })).toBeVisible();
   await expect(deck.getByLabel("Verbatim tail", { exact: true })).toBeVisible();
   await expect(deck.getByRole("button", { name: "Advanced" })).toBeVisible();
 });
 
-test("CAPABILITY ERROR — a FAILED read shows the server's reason, never the connect-a-model empty state", async ({ mount }) => {
+test("CAPABILITY ERROR — a FAILED read shows the server's reason once, and no skeleton", async ({ mount }) => {
   // F-02, the P1: the review's own receipt — the server said `400 incoherent routing (agent-sdk ×
   // local-light)` and the deck told a user with a model connected to connect one.
   const deck = await mount(<ParamsDeckCapabilityErrorStory />);
 
   await expect(deck.getByText(CAPABILITY_ERROR, { exact: false })).toBeVisible();
-  await expect(deck.getByText(GATE_KNOBS_RE)).toHaveCount(0);
+  // The routing sentence is printed exactly ONCE, where it used to appear three times (F-02's P0).
+  await expect(deck.getByText(GATE_SETTINGS_RE)).toHaveCount(1);
+  // A settled arm is not a loading arm — the placeholder is gone.
+  await expect(deck.locator('[data-slot="skeleton"]')).toHaveCount(0);
 });
 
 test("ADVANCED — the ONE collapsed disclosure; it opens onto the escape hatches + the D7 presence row", async ({ mount }) => {

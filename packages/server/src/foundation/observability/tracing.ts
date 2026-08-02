@@ -301,11 +301,21 @@ export function span<T>(name: string, fn: (span: Span) => Promise<T> | T, attrs:
   });
 }
 
-/** Open a REQUEST-ROOT span — sets the request-id attribute so the processor buckets the whole tree under
- *  it. Used by the per-request middleware. The callback runs with the root active in OTel context. */
+/**
+ * Open a REQUEST-ROOT span — sets the request-id attribute so the processor buckets the whole tree under it.
+ * Used by the per-request middleware, the workload runner, and post-request background work. The callback
+ * runs with the root active in OTel context.
+ *
+ * `root: true` is LOAD-BEARING, not decoration: the ring seals a bucket only when a span with NO parent lands
+ * (`TraceRing.ingest`). Called while another span is active — which is exactly the post-request background
+ * case (the engine's rpg round is dispatched from inside the `trpc.*` span it outlives) — OTel would
+ * otherwise parent this span to that one, and the bucket keyed by THIS request id would never see a
+ * parentless span: the whole subtree would sit unsealed until evicted as a leak, i.e. silently invisible.
+ * `root: true` is the OTel-native detach, and it makes this function's name true from every call site.
+ */
 export function withRequestSpan<T>(requestId: string, name: string, attrs: SpanAttrs, fn: () => Promise<T> | T): Promise<T> {
   const t = getTracer();
-  return t.startActiveSpan(name, { attributes: { ...cleanAttrs(attrs), [REQUEST_ID_ATTR]: requestId } }, async (root) => {
+  return t.startActiveSpan(name, { attributes: { ...cleanAttrs(attrs), [REQUEST_ID_ATTR]: requestId }, root: true }, async (root) => {
     try {
       const result = await fn();
       // Do NOT clobber an ERROR status a HANDLED throw already set on this root while `next()` still

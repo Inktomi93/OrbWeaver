@@ -169,15 +169,20 @@ const QUALITY_OFF_GLOSS = "quality off — knobs are what you set";
  *  rendered "every knob the dial feeds is overridden" — an override STATUS where the mock asks for the
  *  mapping (side-eye F-15). What the dial does is a fact about the dial; the override note rides beside it.
  *
- *  `null` with no dial set, or before the read lands (nothing to state — the caller renders the connect
- *  note its cluster already owns). */
+ *  `null` with no dial set, or before the read lands — nothing to state, and in particular NOT a claim
+ *  about the connection. It used to say "<dial> — connect a chat model to see what it maps onto" whenever
+ *  the profile was absent, which (like `CapabilityGate`'s deleted empty state, same F-02 class) was a
+ *  PENDING-only flash: `preset.resolveEffective` resolves against whatever chat model the caller has and
+ *  THROWS when routing is broken, so an absent profile is a read that has not landed or one that failed —
+ *  never the settled fact "you have no chat model". The failure is already stated ONCE, by the gate that
+ *  owns it; a second, wronger spelling of it under the dial is exactly the drift this header forbade. */
 export function qualityMappingGloss(profile: EffectiveProfileRow | undefined, quality: string | undefined): string | null {
   if (quality === undefined) {
     return QUALITY_OFF_GLOSS;
   }
   const mapping = profile?.qualityMapping;
   if (mapping === undefined || mapping === null) {
-    return profile === undefined ? `${quality} — connect a chat model to see what it maps onto` : null;
+    return null;
   }
   const parts = mapping.entries.map((entry) => `${knobLabel(entry.knob)} ${String(entry.value)}`);
   return `${mapping.quality} → ${parts.join(" · ")}`;
