@@ -332,6 +332,29 @@
   transform: translateX(100%);
 }
 
+/* OVERLAY IS A SHEET, NOT A DOCKED PANE (crunch-list item 22, owner receipt at ~960 CSS px: "panels
+ * become not full height and act kinda strange"). In the 48-64rem band and on mobile the panel FLOATS
+ * while the content behind stays laid out full-width, so controls are cut mid-element at the panel's
+ * edge — which reads as breakage unless the float itself is unmistakable. It was wearing docked
+ * clothing: its only edge was the 1px track hairline it carries when it IS in the grid.
+ * The house SHEET idiom is the drawer's (packages/ui primitives/drawer/variants.ts): scrim on the
+ * backdrop + `shadow-overlay` on the popup. The shell's scrim was already correct (measured: content
+ * text 171→72 sRGB behind an open sheet); the elevation was the missing half. Same --shadow-overlay
+ * every other float in the app rides (dialog/popover/menu/tooltip/toast/drawer), so a sheet here reads
+ * as one. elevation=glow already paints this on every panel in any mode — same token, same value, so
+ * the mode-scoped rule and the elevation rule agree by construction. */
+.shell-panel[data-panel-mode="overlay"] {
+  box-shadow: var(--shadow-overlay);
+}
+/* …and the 2px ember top edge comes OFF a FLOATING context pane. That edge is the content↔context
+ * BINDING (north-star §4 N4 / P4) — a docked-ADJACENCY cue. Floating, it binds to nothing and renders
+ * as an orphan amber stripe under the topbar (owner-spotted in the same receipt). Scoped to the generic
+ * band only: a CLAIMED pane's band is childless (collapsed out, see the `:empty` rule) and the claimant
+ * paints its own top edge inside the body, so this cannot reach it. */
+.shell-panel[data-panel-side="context"][data-panel-mode="overlay"] .shell-panel-header {
+  box-shadow: none;
+}
+
 .shell-panel-header {
   flex: none;
   display: flex;

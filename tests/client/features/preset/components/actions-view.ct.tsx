@@ -9,7 +9,17 @@
 //   · a template's editor NEVER carries arrangement vocabulary (zone / order / triggers / locks).
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator } from "@playwright/test";
 import { ActionsStory } from "./_actions-stories";
+
+/** The rendered box, rounded — sub-pixel noise is not a defect, an 8/16px shear is. */
+async function boxOf(locator: Locator): Promise<{ readonly top: number; readonly height: number }> {
+  const box = await locator.boundingBox();
+  if (box === null) {
+    throw new Error("expected a rendered box");
+  }
+  return { top: Math.round(box.y), height: Math.round(box.height) };
+}
 
 /** The group HEADINGS, in `TEMPLATE_KINDS` tuple order. Human labels, not the raw enum members the
  *  registry keys on (side-eye F-30 / ARIA rec 10): a kicker over a group of rows is a heading a person
@@ -17,6 +27,10 @@ import { ActionsStory } from "./_actions-stories";
 const KIND_HEADERS = ["Steers", "Voice", "Studio", "Format", "Nudges"] as const;
 /** A rack GRIP's accessible-name shape — the affordance this list must never grow (audit row 31). */
 const REORDER_GRIP_RE = /^Reorder/u;
+/** The DELIVERY row's two `<Field>` labels, matched exactly — the hint trigger is a SIBLING of the label,
+ *  so a loose match would catch its "More info about …" name too. */
+const ROLE_LABEL_RE = /^Role$/;
+const AT_DEPTH_LABEL_RE = /^At depth$/;
 
 test("every registry def renders — including the two slots that had no editor before", async ({ mount }) => {
   const probe = await mount(<ActionsStory />);
@@ -125,6 +139,28 @@ test("the drill-in is CAPABILITY-DRIVEN: a guided template gets role+depth, a nu
   await expect(probe.getByRole("button", { name: "Back to actions" })).toBeVisible();
   await expect(probe.getByRole("combobox", { name: "Role" })).toHaveCount(0);
   await expect(probe.getByRole("textbox", { name: "At depth" })).toHaveCount(0);
+});
+
+// ── ITEM 10 / O-14: the DELIVERY pair is ONE ROW here too ────────────────────────────────────────────
+// The cluster is SHARED, so the shear is shared: the hinted "At depth" half's label rode a 34px icon-button
+// row while "Role" was text-height, and the two controls landed 16px apart. Owner, live: "actions delivery
+// misalignment". Asserted COMPUTED — the source reads as a tidy two-cell Grid either way.
+
+test("item 10 — the template drill's DELIVERY labels and controls each share one baseline", async ({ mount }) => {
+  const probe = await mount(<ActionsStory />);
+  await probe.getByRole("button", { name: "Edit Impersonate", exact: true }).click();
+
+  const labels = probe.locator('[data-slot="field-label"]');
+  const role = await boxOf(labels.filter({ hasText: ROLE_LABEL_RE }));
+  const depth = await boxOf(labels.filter({ hasText: AT_DEPTH_LABEL_RE }));
+  expect(role.top).toBe(depth.top);
+  expect(role.height).toBe(depth.height);
+
+  // The CONTROL BOXES: a NumberField's border lives on its Group, so its `<input>` sits 1px inside — an
+  // input-vs-Select-trigger comparison would assert a 1px shear nobody can see.
+  const roleControl = await boxOf(probe.getByRole("combobox", { name: "Role" }));
+  const depthControl = await boxOf(probe.getByRole("textbox", { name: "At depth" }).locator(".."));
+  expect(roleControl.top).toBe(depthControl.top);
 });
 
 test("the shared DeliveryCluster writes the guided action's own role+depth through the boundary", async ({ mount }) => {
