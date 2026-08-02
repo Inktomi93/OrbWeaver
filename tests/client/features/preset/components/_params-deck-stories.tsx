@@ -97,13 +97,16 @@ export function ParamsDeckStaleStory(): ReactElement {
   return <DeckHarness effective={STALE_EFFECTIVE} params={{ topA: 0.2 }} />;
 }
 
-/** The deck with NO capability — the ONE connect-a-model note, with QUALITY/CONTEXT/ADVANCED still live. */
-export function ParamsDeckNoModelStory(): ReactElement {
+/** The deck while the capability read is still PENDING (no descriptor, no error) — the gate's skeleton arm,
+ *  with QUALITY/CONTEXT/ADVANCED still live. This used to be the "no model" story, but a settled read with no
+ *  descriptor does not exist: `connection.resolveChatCapability` returns a REQUIRED descriptor or throws, so
+ *  this input pair is reachable ONLY in flight (see `capability-gate.tsx`'s header). */
+export function ParamsDeckPendingCapabilityStory(): ReactElement {
   return <DeckHarness capability={null} effective={undefined} params={{}} />;
 }
 
-/** The deck whose capability read FAILED (side-eye F-02): a different problem from "no model configured",
- *  and the server's own reason is the only honest thing to show. */
+/** The deck whose capability read FAILED (side-eye F-02): a routing fault, not an absent connection, and the
+ *  server's own reason is the only honest thing to show. */
 export function ParamsDeckCapabilityErrorStory(): ReactElement {
   return <DeckHarness capability={null} capabilityError="400 incoherent routing (agent-sdk × local-light)" effective={undefined} params={{}} />;
 }
