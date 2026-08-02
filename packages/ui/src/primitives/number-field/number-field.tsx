@@ -7,8 +7,19 @@ import { cn } from "#lib";
 import { Icon, Lock, Minus, MoveHorizontal, Plus } from "#primitives/icons";
 import { numberFieldVariants } from "./variants";
 
+// THE STEPPERS NAME THEIR SUBJECT (side-eye F-20, 2026-08-03). A bare "Decrease"/"Increase" is fine for
+// ONE number on a screen; the params deck stacks three NumberFields in one column, so a screen-reader user
+// heard "Decrease" three times with nothing saying decrease WHAT. The subject is the field's own accessible
+// name when the call site supplies one (`aria-label`) — never invented, so a field inside a `<Field label>`
+// (where the visible label is already adjacent and Base UI wires it to the input) keeps the bare verb
+// rather than guessing at a name it cannot read.
 const DECREMENT_LABEL = "Decrease";
 const INCREMENT_LABEL = "Increase";
+
+/** The stepper's accessible name — the verb, plus the field's own name when the call site named it. */
+function stepperLabel(verb: string, subject: string | undefined): string {
+  return subject === undefined || subject.trim() === "" ? verb : `${verb} ${subject}`;
+}
 
 const SCRUB_CURSOR_ICON: ReactElement = <Icon icon={MoveHorizontal} size="xs" />;
 
@@ -60,7 +71,9 @@ export interface NumberFieldProps extends NumberFieldRootProps, VariantProps<typ
   "aria-describedby"?: string | undefined;
   /** Accessible name for a field with no visible `<Field label>`. Routed to `NumberField.Input` — the same
    *  Root-spread footgun as `placeholder`: on the wrapper `<div>` (no role) it names nothing at all. Inside a
-   *  `<Field>` the Label's `aria-labelledby` takes precedence, as it should. */
+   *  `<Field>` the Label's `aria-labelledby` takes precedence, as it should — which is exactly why a
+   *  Field-wrapped call site may ALSO pass it: it costs the input nothing and it is what names the
+   *  Increment/Decrement buttons, which no `<Field>` label reaches (see `stepperLabel`). */
   "aria-label"?: string | undefined;
 }
 
@@ -100,7 +113,7 @@ export function NumberField(props: NumberFieldProps): ReactElement {
       ) : null}
       <BaseNumberField.Group className={slots.group()} data-slot="number-field-group">
         {hasSteppers ? (
-          <BaseNumberField.Decrement aria-label={DECREMENT_LABEL} className={slots.decrement()} data-slot="number-field-decrement">
+          <BaseNumberField.Decrement aria-label={stepperLabel(DECREMENT_LABEL, ariaLabel)} className={slots.decrement()} data-slot="number-field-decrement">
             <Icon className={slots.stepIcon()} icon={Minus} size="xs" />
             <Icon className={slots.stepReadOnlyIcon()} icon={Lock} size="xs" />
           </BaseNumberField.Decrement>
@@ -113,7 +126,7 @@ export function NumberField(props: NumberFieldProps): ReactElement {
           placeholder={placeholder}
         />
         {hasSteppers ? (
-          <BaseNumberField.Increment aria-label={INCREMENT_LABEL} className={slots.increment()} data-slot="number-field-increment">
+          <BaseNumberField.Increment aria-label={stepperLabel(INCREMENT_LABEL, ariaLabel)} className={slots.increment()} data-slot="number-field-increment">
             <Icon className={slots.stepIcon()} icon={Plus} size="xs" />
             <Icon className={slots.stepReadOnlyIcon()} icon={Lock} size="xs" />
           </BaseNumberField.Increment>

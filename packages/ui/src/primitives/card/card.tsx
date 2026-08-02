@@ -20,7 +20,7 @@ function activateOnKey(event: KeyboardEvent<HTMLDivElement>): void {
 // There is NO `padding` prop (retired, D7): island padding is resolved from the surface's tier by
 // tiers.css, so a feature cannot pick it. `data-elevated` is the attribute the unlayered elevated-radius
 // rule keys on — the variant's `rounded-card` utility alone would lose to the tier rule inside a Surface.
-export function Card({ className, elevated, interactive, ...props }: CardProps): ReactElement {
+export function Card({ className, elevated, interactive, nested, ...props }: CardProps): ReactElement {
   const a11y =
     interactive === true
       ? {
@@ -33,8 +33,11 @@ export function Card({ className, elevated, interactive, ...props }: CardProps):
     <div
       {...props}
       {...a11y}
-      className={cn(cardVariants({ elevated, interactive }), className)}
+      className={cn(cardVariants({ elevated, interactive, nested }), className)}
       data-elevated={elevated === true ? "" : undefined}
+      // The attribute the unlayered nested-radius rule keys on — same mechanism, same reason, as
+      // `data-elevated`: inside a Surface the tier rule outranks any `rounded-*` utility the variant emits.
+      data-nested={nested === true ? "" : undefined}
       data-slot="card-root"
     />
   );

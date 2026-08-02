@@ -144,9 +144,30 @@ export interface ResolvedContextTabs {
  *  worldInfo's single body · refinery's nothing) unified. `kind:"none"` is an EXPLICIT decision, never
  *  an absence. NON-generic: `S` never crosses the shell seam (§6b's variance proof) — a `tabs` host's
  *  `useResolved` hook has already applied its own `S` before the shell ever sees it. */
+/**
+ * THE NO-SELECTION ARM every CONTEXT pane owes (side-eye F-12, 2026-08-03; [[empty-states-are-load-bearing]]).
+ *
+ * Four of seven panes shipped voiceless: `worldInfo` printed the single word "Details" and nothing else,
+ * and `chats` / `characters` / `refinery` shared one generic "Details / Details / Select something to see
+ * its details here." — the word "Details" twice (the band's, then the body placeholder's title) over a
+ * sentence that names no section, no entity and no payoff. An empty docked pane reads as UNBUILT, which is
+ * the exact failure the empty-states law exists for — and the preset team had already built the model
+ * answer beside them (a first-class ACTIVE PRESET / EFFECTIVE GENERATION / CAPABILITY readout), so this is
+ * the sweep of that answer sideways.
+ *
+ * The contract is deliberately narrow: name WHAT THIS PANE WILL SHOW, in the section's own words. A shared
+ * default is what produced the defect, so there is no default here — a section that wants a voice states
+ * one, and a section that states none keeps the generic filler and stays legibly un-swept.
+ */
+export interface ContextEmptyArm {
+  /** The no-selection arm's copy. `title` names the pane's SUBJECT, never the word "Details" (the band
+   *  already says that); `description` names what appears once something is selected. */
+  readonly empty?: { readonly title: string; readonly description: string };
+}
+
 export type ContextDefinition =
-  | { readonly kind: "none" }
-  | {
+  | ({ readonly kind: "none" } & ContextEmptyArm)
+  | ({
       readonly kind: "single";
       readonly body: () => ReactNode;
       /** The CONTEXT-panel BAND identity for a single-body context — the same P4 slot a `tabs` context
@@ -155,12 +176,12 @@ export type ContextDefinition =
        *  Preset's readout swaps its whole content per editor VIEW, so a band reading "Details" above a
        *  panel of Actions data names nothing (crunch item 11). */
       readonly header?: () => ReactNode;
-    }
-  | {
+    } & ContextEmptyArm)
+  | ({
       readonly kind: "tabs";
       /** Minted ONLY by `defineContextTabs` (G3 wall). May suspend; `null` = nothing selected. */
       readonly useResolved: () => ResolvedContextTabs | null;
-    };
+    } & ContextEmptyArm);
 
 /** The inputs `defineContextTabs<S>` pairs inside one definition file — the host's projection hook, its
  *  own tabs, and (optionally) a cross-feature contributor registry (§6c) typed against the SAME `S`. */
@@ -178,6 +199,10 @@ export interface ContextTabsSpec<S> {
   /** §6c / HUD-1 §3.2 — the REGION-CLAIM arm, injected at the same door. The FIRST claiming region owns the
    *  whole pane for that state; zero claimants resolves to today's generic panel, unchanged. */
   readonly regions?: ContributorRegistry<ContextRegionDef<S>>;
+  /** The section's NO-SELECTION arm (`ContextEmptyArm`, side-eye F-12) — what this pane says while
+   *  `useContextState` resolves `null`. Passed through the mint untouched: the copy is the SECTION's, and
+   *  the shell renders it blind, exactly like every other definition-owned slot here. */
+  readonly empty?: ContextEmptyArm["empty"];
 }
 
 /** The pure resolve step `defineContextTabs` closes over: own tabs → contributors, `when`-filtered, in
@@ -222,7 +247,7 @@ export function defineContextTabs<S>(spec: ContextTabsSpec<S>): ContextDefinitio
     }
     return resolveContextTabs(spec, state);
   }
-  return { kind: "tabs", useResolved };
+  return spec.empty === undefined ? { kind: "tabs", useResolved } : { kind: "tabs", useResolved, empty: spec.empty };
 }
 
 /** The sentinel a `void`-projection host (no shared context state) passes as its `useContextState`

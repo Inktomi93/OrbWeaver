@@ -22,10 +22,10 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { selectPresetSection } from "#state";
 import { isTemplatedMarker } from "../../lib/assembly-model";
-import { formatEstimate } from "../../lib/format-count";
+import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "../../lib/format-count";
 import { AssemblyPreview } from "../prompt-assembly/assembly-preview";
 import { deriveZones } from "../prompt-assembly/derive-zones";
 import { estimateSectionTokens } from "../prompt-assembly/estimate-tokens";
@@ -55,6 +55,15 @@ function sectionName(section: PromptSection): string {
 
 export function PromptReadout({ sections, selectedSectionId }: PromptReadoutProps): ReactElement {
   const [previewOpen, setPreviewOpen] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const previewId = useId();
+  // F-13: reveal the thing that was revealed. Runs on OPEN only — the effect keys on `previewOpen`, and the
+  // ref is null while closed, so closing scrolls nothing.
+  useEffect(() => {
+    if (previewOpen) {
+      previewRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [previewOpen]);
   const zones = deriveZones(sections);
   // EVERY section gets a bar, disabled included (side-eye F-26): a disabled row vanished from the budget
   // while staying in the rack, so the readout answered "what am I spending" with a list that silently
@@ -85,35 +94,15 @@ export function PromptReadout({ sections, selectedSectionId }: PromptReadoutProp
           </Row>
         </Stack>
         <Stack gap="tight">
-          {sections.map((section, at) => {
-            const tokens = barTokens(section);
-            const off = !section.enabled;
-            return (
-              <Button
-                intent="ghost"
-                key={section.id}
-                onClick={(): void => selectPresetSection(section.id)}
-                size="sm"
-                {...(section.id === selectedSectionId ? { className: "bg-primary/10" } : {})}
-              >
-                <Text className={off ? "min-w-0 flex-1 truncate text-left line-through" : "min-w-0 flex-1 truncate text-left"} voice="label">
-                  {sectionName(section)}
-                </Text>
-                {/* ZONE-HUED, never the categorical ramp's step 1 (side-eye, the mock-vs-rendered table):
-                    the ramp's first step is vitality GREEN, a hue this surface's language does not contain.
-                    Steel-blue setup / warm-amber post is the rack's own zone accent, echoed. */}
-                <TrackBar
-                  accent={zones.zoneOf(at) === "post" ? "warning" : "info"}
-                  className="min-w-0 flex-1"
-                  max={largest === 0 ? 1 : largest}
-                  value={off ? 0 : (tokens ?? 0)}
-                />
-                <Text className={off ? "line-through" : ""} voice="datum">
-                  {tokens === null ? "~—" : formatEstimate(tokens)}
-                </Text>
-              </Button>
-            );
-          })}
+          {sections.map((section, at) => (
+            <BudgetBar
+              accent={zones.zoneOf(at) === "post" ? "warning" : "info"}
+              key={section.id}
+              max={largest === 0 ? 1 : largest}
+              section={section}
+              selected={section.id === selectedSectionId}
+            />
+          ))}
         </Stack>
         <Text voice="gloss">
           A bar click selects its section. A struck row is switched off and costs nothing; carriers read ~— because their cost is the conversation's, not the
@@ -136,12 +125,65 @@ export function PromptReadout({ sections, selectedSectionId }: PromptReadoutProp
       </Section>
 
       <Section kicker="Preview">
-        <Button className="self-start" intent="secondary" onClick={(): void => setPreviewOpen(!previewOpen)} size="sm" type="button">
+        <Button
+          aria-controls={previewId}
+          aria-expanded={previewOpen}
+          className="self-start"
+          intent="secondary"
+          onClick={(): void => setPreviewOpen(!previewOpen)}
+          size="sm"
+          type="button"
+        >
           {previewOpen ? "Hide assembled preview" : "Show assembled preview"}
         </Button>
-        {previewOpen ? <AssemblyPreview onSelectBlock={selectPresetSection} preview={assemblePreview(sections)} /> : null}
+        {/* THE DISCLOSURE SCROLLS ITSELF INTO VIEW (side-eye F-13). At 1280×800 the trigger sits at y≈780,
+            so opening it rendered the entire preview below the fold and the ONLY feedback was the label
+            flipping to "Hide" — Nielsen #1, on the affordance whose whole job is to show you something.
+            `block: "nearest"` scrolls the minimum needed (an already-visible preview does not jump). */}
+        {previewOpen ? (
+          <div id={previewId} ref={previewRef}>
+            <AssemblyPreview onSelectBlock={selectPresetSection} preview={assemblePreview(sections)} />
+          </div>
+        ) : null}
       </Section>
     </Stack>
+  );
+}
+
+/** One section's budget bar — the row's name, its zone-hued track, and its cost cell. A component rather
+ *  than a map body so the row's five derived facts (its estimate, its off state, its accent, its selected
+ *  skin, its spoken cost) each read once. */
+function BudgetBar({
+  section,
+  accent,
+  max,
+  selected,
+}: {
+  readonly section: PromptSection;
+  readonly accent: "info" | "warning";
+  readonly max: number;
+  readonly selected: boolean;
+}): ReactElement {
+  const tokens = barTokens(section);
+  const off = !section.enabled;
+  return (
+    <Button intent="ghost" onClick={(): void => selectPresetSection(section.id)} size="sm" {...(selected ? { className: "bg-primary/10" } : {})}>
+      <Text className={off ? "min-w-0 flex-1 truncate text-left line-through" : "min-w-0 flex-1 truncate text-left"} voice="label">
+        {sectionName(section)}
+      </Text>
+      {/* ZONE-HUED, never the categorical ramp's step 1 (side-eye, the mock-vs-rendered table): the ramp's
+          first step is vitality GREEN, a hue this surface's language does not contain. Steel-blue setup /
+          warm-amber post is the rack's own zone accent, echoed. */}
+      <TrackBar accent={accent} className="min-w-0 flex-1" max={max} value={off ? 0 : (tokens ?? 0)} />
+      {/* The GLYPH is decoration for the eye and the SENTENCE is the datum (side-eye F-27): `~—`
+          announces as "tilde em dash", which is not a cost. */}
+      <Text aria-hidden={true} className={off ? "line-through" : ""} voice="datum">
+        {tokens === null ? CARRIER_COST_GLYPH : formatEstimate(tokens)}
+      </Text>
+      <Text as="span" className="sr-only">
+        {spokenEstimate(off ? 0 : tokens)}
+      </Text>
+    </Button>
   );
 }
 

@@ -16,7 +16,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 
 export interface EntryListEditorProps<TItem> {
-  /** The Section heading. */
+  /** The group's NAME. Rendered in the `kicker` voice — see the note at the render site. */
   readonly heading: string;
   /** The muted helper line under the heading. */
   readonly helperText: ReactNode;
@@ -52,7 +52,17 @@ export function EntryListEditor<TItem>({
   renderEditor,
 }: EntryListEditorProps<TItem>): ReactElement {
   return (
-    <Section heading={heading}>
+    // KICKER, NOT `heading` (side-eye F-8, 2026-08-03). Three group-heading grammars shipped across the
+    // preset editor's five views: Params spoke in micro-caps kickers, Data spoke in large sentence-case
+    // headings, Transforms spoke in BOTH — so flipping between tabs the type changed voice mid-sentence and
+    // the surface read as if a different person had built each tab (Nielsen #4). The ARIA was already
+    // consistent (`heading level=3` everywhere, which the kicker arm also renders); only the paint diverged.
+    //
+    // It is not a per-call-site knob, because a knob is how the divergence happened. This composite IS a
+    // deck GROUP by definition — a named grouping of entries with a helper line — which is exactly the
+    // CD1 "a grouping is not a box" case the kicker arm exists for, and every consumer of it (the preset
+    // Data/Transforms tabs, the owner-global Regex pane, the rpg macro deck) is an instrument deck.
+    <Section kicker={heading}>
       <Text size="micro" tone="muted">
         {helperText}
       </Text>

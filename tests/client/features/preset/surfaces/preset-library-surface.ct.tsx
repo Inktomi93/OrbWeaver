@@ -497,6 +497,8 @@ test("§12 enforcement: the pane-level 'Active for generation' Select is DELETED
   const component = await mount(<PresetLibrarySurfaceStory />);
   await expect(component.getByText(EDITED_ONE_NAME, { exact: true })).toBeVisible();
 
+  // No `combobox` ANYWHERE on the pane: the deleted Select was one, and after F-3 the macro textareas
+  // are not, so this count is now an unambiguous statement about the Select alone.
   await expect(page.getByRole("combobox")).toHaveCount(0);
   await expect(component.getByText("Active for generation", { exact: true })).toHaveCount(0);
   // The name "Active preset for generation" survives — but as the ROWS' `role="radiogroup"` (side-eye
