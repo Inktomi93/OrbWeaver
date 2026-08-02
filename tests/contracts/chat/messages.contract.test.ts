@@ -1,5 +1,13 @@
 import type { MessageSlot, MessageView, UserMacroDraws } from "@orb/contracts/chat";
-import { isStateAnchorSlot, lastVisibleAssistant, lastVisibleRow, messageSlotSchema, toolCallRecordSchema, userMacroDrawsSchema } from "@orb/contracts/chat";
+import {
+  isStateAnchorSlot,
+  lastVisibleAssistant,
+  lastVisibleRow,
+  messageSlotSchema,
+  reattributeScopeSchema,
+  toolCallRecordSchema,
+  userMacroDrawsSchema,
+} from "@orb/contracts/chat";
 import type { MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures";
@@ -248,6 +256,27 @@ test("userMacroDrawsSchema round-trips the nested macro→input→drawn-value re
   expect(userMacroDrawsSchema.parse(draws)).toEqual(draws);
   // An empty record (a turn that drew nothing but recorded the shape) is valid.
   expect(userMacroDrawsSchema.parse({})).toEqual({});
+});
+
+// ── reattributeScopeSchema — the `reattributePersona` row-selection axis (stickler Q3 / FINAL-Persona §A.7) ──
+// The bulk arm is the one that carries risk: it names NO rows, so the shape must make "restamp mine" and
+// "restamp these" impossible to confuse, and must not let a stray `messageIds` ride the bulk arm into the verb.
+
+test("reattributeScopeSchema discriminates the explicit id set from the server-resolved mine arm", () => {
+  const explicit = { kind: "messages" as const, messageIds: [SAMPLE_MESSAGE_ID] };
+  expect(reattributeScopeSchema.parse(explicit)).toEqual(explicit);
+  expect(reattributeScopeSchema.parse({ kind: "mine" })).toEqual({ kind: "mine" });
+  // `fromSeq` is the advanced floor — an integer seq, optional, never negative.
+  expect(reattributeScopeSchema.parse({ kind: "mine", fromSeq: 12 })).toEqual({ kind: "mine", fromSeq: 12 });
+  expect(reattributeScopeSchema.safeParse({ kind: "mine", fromSeq: -1 }).success).toBe(false);
+  expect(reattributeScopeSchema.safeParse({ kind: "mine", fromSeq: 1.5 }).success).toBe(false);
+  // The explicit arm cannot omit its ids, and no third arm exists.
+  expect(reattributeScopeSchema.safeParse({ kind: "messages" }).success).toBe(false);
+  expect(reattributeScopeSchema.safeParse({ kind: "everyone" }).success).toBe(false);
+});
+
+test("the mine arm STRIPS a smuggled messageIds — a bulk restamp can never carry a foreign row list", () => {
+  expect(reattributeScopeSchema.parse({ kind: "mine", messageIds: [SAMPLE_MESSAGE_ID] })).toEqual({ kind: "mine" });
 });
 
 test("userMacroDrawsSchema refuses a non-string leaf (the draw is always the DRAWN string, never a pool/bool)", () => {

@@ -26,7 +26,7 @@
 // (`stripChatEventForMember` at the live transport + the durable replay), so pre-stripping here would withhold
 // the host's own payload. Strip the return; emit the truth.
 
-import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
+import type { ChatBusEvent, MessageView, ReattributeScope } from "@orb/contracts/chat";
 import type { StatsDelta } from "@orb/contracts/stats";
 import { batchMany } from "@orb/db/kit";
 import type { ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
@@ -64,6 +64,7 @@ import {
   shiftSeqRangeStatement,
 } from "../persistence/canon-write";
 import {
+  loadAuthoredUserMessageIds,
   loadCanonStatRows,
   loadMaxMessageSeq,
   loadMessageSeqs,
@@ -676,16 +677,35 @@ function createReattributeMessages(ctx: ChatContext, emit: EmitChatEvent): ChatS
   };
 }
 
+/** The `reattributePersona` SCOPE resolver: which slots the caller means. The `messages` arm is taken at its
+ *  word (the verb's four belts then vet every id); the `mine` arm is resolved from the db by a predicate that
+ *  can only ever yield the CALLER's own user rows in THIS chat — which is why the bulk arm needs no extra
+ *  permission surface. Membership is already resolved by the caller. */
+async function resolveReattributeTargets(ctx: ChatContext, chatId: ChatId, authorUserId: UserId, scope: ReattributeScope): Promise<readonly MessageId[]> {
+  if (scope.kind === "messages") {
+    return scope.messageIds;
+  }
+  return await loadAuthoredUserMessageIds(ctx.db, chatId, authorUserId, scope.fromSeq);
+}
+
 /** `reattributePersona` — author-or-host per targeted row. Re-stamps messages.personaId for a set of
  *  user-role slots. Four belts, all validated before any write: (a) belongs to chatId, (b) is a user row
  *  with a non-null author, (c) clears the per-slot author-or-host gate, and (d) targets a persona owned by
- *  that row's author. Emits one messageEdited per re-stamped slot. An empty set is a no-op. */
+ *  that row's author. Emits one messageEdited per re-stamped slot. An empty set is a no-op.
+ *
+ *  The `mine` SCOPE arm resolves the id set server-side (`loadAuthoredUserMessageIds` — the caller's own user
+ *  rows, optionally floored at a seq) and then runs the SAME four belts and the SAME stamp-only write: one
+ *  path, so the bulk arm cannot drift from the per-row arm's guarantees. Its rows are the caller's own, so
+ *  belt (c) is satisfied by construction — the arm widens REACH (past the client's old 100-message window),
+ *  never AUTHORITY. Nothing else is touched: content stays raw (D51 — identity macros resolve live off the
+ *  stamp), and rpg snapshots / memory digests / exports are not this verb's rows. */
 function createReattributePersona(ctx: ChatContext, emit: EmitChatEvent): ChatService["reattributePersona"] {
-  return async ({ principal, chatId, messageIds, personaId }: ReattributePersonaParams): Promise<void> => {
+  return async ({ principal, chatId, scope, personaId }: ReattributePersonaParams): Promise<void> => {
+    const membership = await requireParticipant(ctx, principal, chatId);
+    const messageIds = await resolveReattributeTargets(ctx, chatId, principal.userId, scope);
     if (messageIds.length === 0) {
       return;
     }
-    const membership = await requireParticipant(ctx, principal, chatId);
     const slots = await Promise.all(messageIds.map((id) => loadMessageView(ctx.db, id)));
     // Belts (a)-(c), synchronous per slot; collect each row's author for the ownership belt (d) below.
     const authorIds: UserId[] = [];

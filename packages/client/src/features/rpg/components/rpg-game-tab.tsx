@@ -27,11 +27,11 @@ import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
-import { AddRow, HintEditor, TrackerValue } from "#components";
+import { useId, useState } from "react";
+import { AddRow, HintEditor, SettingCheckboxRow, TrackerValue } from "#components";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations";
+import { useReattributePersona, useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations";
 import { mintDefKey } from "../lib/mint-key";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color";
 import { RpgDoorwayLine } from "./rpg-doorway-line";
@@ -291,11 +291,40 @@ function JournalTypeHintsEditor({ chatId, config }: { readonly chatId: ChatId; r
 /** The RESYNC control (§1.3 — the host re-derive escape hatch). Host-only (this whole tab is host-gated; the
  *  `resyncFromStory` verb is a second server-side host gate). One host-initiated model call re-reads a deep
  *  story window and rebuilds the drifted panel — an honest consequence line states the cost. Disabled while a
- *  resync is in flight (the model call takes seconds); the tracker/journal repaint on settle. */
+ *  resync is in flight (the model call takes seconds); the tracker/journal repaint on settle.
+ *
+ *  THE OPT-IN RESTAMP (the persona half of the two reattribution affordances — the other lives in the persona
+ *  panel, and they are deliberately NOT fused: this one is a HOST game rebuild, that one is a self-stamp on a
+ *  plain chat). Checked, the caller's own user rows are re-stamped to their current chat persona FIRST, so the
+ *  deep story window the rebuild re-reads resolves the NEW name per row (`resolveCanonWindow` resolves identity
+ *  macros off each row's stamp) and the re-extracted planes are written with it. Order is load-bearing: a
+ *  rebuild that ran first would bake the old name in again. The copy is honest about the limit — assistant
+ *  PROSE keeps the vocatives the model wrote, because we never edit message content (D26). */
 function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const resync = useResyncFromStory({ trpc, invalidation });
+  const restamp = useReattributePersona({ trpc, invalidation });
+  const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const [restampFirst, setRestampFirst] = useState(false);
+  const restampId = useId();
+  const personaId = chat.viewerActivePersonaId;
+  const canRestamp = personaId !== null;
+  const busy = resync.isPending || restamp.isPending;
+
+  // Sequential by necessity (restamp → rebuild). A failed restamp ABORTS the rebuild: the mutation's own
+  // error toast has already spoken, and rebuilding on the old stamps is exactly what the host didn't ask for.
+  const onResync = async (): Promise<void> => {
+    try {
+      if (restampFirst && personaId !== null) {
+        await restamp.mutateAsync({ chatId, scope: { kind: "mine" }, personaId });
+      }
+      await resync.mutateAsync({ chatId });
+    } catch {
+      // The failed mutation's own error toast has already spoken; the rest of the sequence is abandoned.
+    }
+  };
+
   return (
     <Stack gap="field">
       <Kicker>Resync from story</Kicker>
@@ -303,10 +332,26 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
         Re-reads the recent story and rebuilds the tracked panel — the escape hatch when the state has drifted. Runs one model call (a few seconds); your
         hand-locked fields are never overwritten.
       </Text>
+      <SettingCheckboxRow
+        id={restampId}
+        label="Restamp my messages first"
+        description="Re-stamps every line you wrote in this chat to the persona you're playing now, then rebuilds — so the rebuilt state uses that name. Replies keep the names the story already wrote."
+        checked={restampFirst && canRestamp}
+        onChange={setRestampFirst}
+        disabled={!canRestamp || busy}
+        {...(canRestamp ? {} : { disabledReason: "Pick a persona for this chat first — there's nothing to re-stamp to." })}
+      />
       <Row gap="field">
-        <Button intent="secondary" size="sm" disabled={resync.isPending} onClick={(): void => resync.mutate({ chatId })}>
+        <Button
+          intent="secondary"
+          size="sm"
+          disabled={busy}
+          onClick={(): void => {
+            void onResync();
+          }}
+        >
           <Icon icon={RotateCcw} size="xs" />
-          {resync.isPending ? "Resyncing…" : "Resync from story"}
+          {busy ? "Resyncing…" : "Resync from story"}
         </Button>
       </Row>
     </Stack>

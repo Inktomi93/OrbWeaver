@@ -12,6 +12,7 @@ import type {
   MessageContentBlock,
   OpeningPolicy,
   PreviewInviteInput,
+  ReattributeScope,
   RedeemInviteInput,
   RoomOverrides,
   SeatKnobs,
@@ -409,9 +410,10 @@ export interface ReattributeMessagesParams extends ChatScopedParams {
 }
 
 /** `reattributePersona` — re-stamps the authoring personaId of a set of user-role slots. Author-or-host per
- *  targeted row; the target persona must be owned by each row's author. */
+ *  targeted row; the target persona must be owned by each row's author. The {@link ReattributeScope} arm
+ *  decides WHICH rows: an explicit id set, or the server-resolved "every row I authored" bulk arm. */
 export interface ReattributePersonaParams extends ChatScopedParams {
-  readonly messageIds: readonly MessageId[];
+  readonly scope: ReattributeScope;
   readonly personaId: PersonaId;
 }
 

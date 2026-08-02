@@ -2,7 +2,9 @@
 // the host anchor re-pin, and the reattribute escape hatch. All three emit a chat-bus event on the open
 // chat that chatReads already covers, so all three are bus-driven, never a manual invalidates.
 
-import type { ChatId, MessageId, PersonaId } from "@orb/kit/ids";
+import type { ChatId, PersonaId } from "@orb/kit/ids";
+import type { inferInput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
 /** `persona.setActivePersona` scoped to THIS chat — `targetUserId` omitted (the verb defaults to the
@@ -29,16 +31,11 @@ export const useSetChatAnchorPersona = createEntityMutation<SetChatAnchorPersona
   errorToast: "Couldn't re-pin the anchor persona.",
 });
 
-/** `chat.reattributePersona` — restamp a set of the caller's own past USER slots to a persona (the built
- *  escape hatch; author-or-host per-row server-side). The CALLER assembles `messageIds` — see the
- *  section's `REATTRIBUTE_WINDOW` scoping note (no server "restamp everything" bulk resolver exists). */
-export interface ReattributePersonaVars {
-  readonly chatId: ChatId;
-  // Mutable (not readonly) — must structurally match the wire's zod-inferred `MessageId[]` input.
-  readonly messageIds: MessageId[];
-  readonly personaId: PersonaId;
-}
-export const useReattributePersona = createEntityMutation<ReattributePersonaVars, unknown>({
+/** `chat.reattributePersona` — restamp the caller's own past USER slots to a persona (the built escape hatch;
+ *  author-or-host per-row server-side). Vars DERIVE from the wire (`scope` is the server-owned discriminated
+ *  union — `{kind:"mine"}` is the bulk arm that retired this panel's 100-message client window, FINAL-Persona
+ *  §A.7), so a scope change breaks here at compile time instead of drifting. */
+export const useReattributePersona = createEntityMutation<inferInput<Trpc["chat"]["reattributePersona"]>, unknown>({
   options: (trpc) => trpc.chat.reattributePersona.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't restamp those messages.",
