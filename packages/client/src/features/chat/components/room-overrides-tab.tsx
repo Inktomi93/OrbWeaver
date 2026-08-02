@@ -6,11 +6,16 @@
 // rejection so a failed write doesn't leak an unhandled page error — the mutation's own errorToast surfaces it.
 
 import type { RoomOverrides } from "@orb/contracts/chat";
+import { resolveCarriedBackground } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { ChatId } from "@orb/kit/ids";
+import { Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { BackgroundSourceField } from "#components";
 import { useInvalidation, useTRPC } from "#data";
+import { listSeededBackgrounds } from "#lib";
 import { RoomOverridesForm } from "../components/room-overrides-form";
 import { useSetChatBackground, useSetRoomOverrides } from "../hooks/use-context-panel-mutations";
 import { ROOM_OVERRIDES_ENTITY_PREFIX } from "../lib/room-overrides-form-model";
@@ -37,20 +42,47 @@ export interface ChatBackgroundSectionProps {
   readonly background: ThemeBackground | null;
 }
 
+/** How a carried source NAMES itself in the provenance gloss. A `seeded` source resolves its catalog label
+ *  (the same table the picker lists); an `asset` source is the card author's own upload, whose library NAME
+ *  is not on this wire (it lives in THEIR appearance library) — so it is described, never invented. `none`/
+ *  `external` never reach here (the cascade drops `none`; `external` cannot persist, BG-C invariant). */
+function carriedSourceLabel(source: ThemeBackground): string {
+  if (source.kind === "seeded") {
+    return listSeededBackgrounds().find((bg) => bg.id === source.seededId)?.label ?? "a bundled background";
+  }
+  return "an uploaded image";
+}
+
 /** The Background section body (host-only — the caller gates the whole Section on `isHost`). The picker
- *  writes the whole rebuilt source on every pick via `setChatBackground`. */
+ *  writes the whole rebuilt source on every pick via `setChatBackground`.
+ *
+ *  HONEST ECHO (owner-reported 08-03): the picker's value is the CHAT-SET field alone, so in a room painting
+ *  its character's CARD-carried background the row read a flat "None" while the pixels said otherwise. The
+ *  gloss below states the EFFECTIVE source + its origin, resolved through the SAME
+ *  `resolveCarriedBackground` cascade the app-shell paints from — one truth, two renderings (the S4
+ *  override-echoed-as-default class). A non-suspending read of the tab's already-warm `getChat` entry (the
+ *  `InjectionsHeading` idiom): this section carries no QueryBoundary, so it must never suspend. */
 export function ChatBackgroundSection({ chatId, background }: ChatBackgroundSectionProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const setBackground = useSetChatBackground({ trpc, invalidation });
+  const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));
+  const carried = resolveCarriedBackground(chat?.participants, background);
 
   return (
-    <BackgroundSourceField
-      hideLabel={true}
-      onChange={(next): void => {
-        setBackground.mutate({ chatId, background: next });
-      }}
-      value={background}
-    />
+    <Stack gap="field">
+      <BackgroundSourceField
+        hideLabel={true}
+        onChange={(next): void => {
+          setBackground.mutate({ chatId, background: next });
+        }}
+        value={background}
+      />
+      {carried?.arm === "card-carried" ? (
+        <Text voice="gloss">
+          Painting {carriedSourceLabel(carried.source)} — from {carried.characterName}'s card. Pick one here to override it.
+        </Text>
+      ) : null}
+    </Stack>
   );
 }

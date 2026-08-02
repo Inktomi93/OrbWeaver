@@ -268,6 +268,48 @@ test("D-1: the host-ops trio sits under a 'Host controls' group — and a member
   await expect(group.getByRole("heading", { name: "Macro picks", exact: true, level: 3 })).toHaveCount(0);
 });
 
+// BG-C honest echo (owner-reported 08-03): the Background row read "None" in a chat whose card-carried
+// background was VISIBLY painting — the picker echoed only the chat-set field and was blind to the cascade's
+// card arm (the S4 override-echoed-as-default class). The row must name the EFFECTIVE source + where it came
+// from. Asserted through the rendered text a user reads, never through the resolver.
+const SOLO_ROSTER_WITH_CARD_BG = [
+  { id: "p_human", kind: "human", characterId: null, displayName: "You" },
+  {
+    id: "p_birdie",
+    kind: "character",
+    characterId: "character_birdie",
+    displayName: "Birdie Mae Holloway",
+    backgroundOverride: { kind: "seeded", seededId: "birdie-bg", externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" },
+  },
+];
+
+test("BG-C: with no chat-set background, the Background row names the CARD-carried source that is painting", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getChat": () => ({ ...CHAT_DETAIL, participants: SOLO_ROSTER_WITH_CARD_BG }),
+  });
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+
+  const group = component.locator("section").filter({ hasText: "Host controls" }).first();
+  await expect(group.getByText("Hobby & Repair", { exact: false })).toBeVisible();
+  await expect(group.getByText("from Birdie Mae Holloway's card", { exact: false })).toBeVisible();
+});
+
+test("BG-C: a room with NO carried background gets no provenance gloss (never an invented origin)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getChat": () => CHAT_DETAIL,
+  });
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+
+  const group = component.locator("section").filter({ hasText: "Host controls" }).first();
+  await expect(group.getByText("card", { exact: false })).toHaveCount(0);
+});
+
 test("D-1: a member's tab has no Host controls group at all (PERMISSION-omit, never an empty group)", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.setRoomOverrides": () => ({}), "chat.listChatInjections": () => [], "chat.getUserMacroPicks": () => EMPTY_PICKS });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
