@@ -5,19 +5,38 @@
 // bare call `<verb>(` or its `create<Verb>(` factory call in `tests/server/domain/<d>/**`. DEFERRED is a ratchet (bus-coverage.ts precedent).
 import type { InterfaceDeclaration, Project, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
-import type { GateDescriptor } from "../contract.ts";
+import type { ExemptionTable, GateDescriptor, GateRunCtx } from "../contract.ts";
 import type { Violation } from "../harness.ts";
+import { fileLoaded } from "../pass.ts";
 
 const SERVICE_CONTRACT_RE = /\/packages\/server\/src\/domain\/(?<domain>[^/]+)\/contract\/service\.ts$/u;
 const DOMAIN_TEST_RE = /\/tests\/server\/domain\/(?<domain>[^/]+)\//u;
 
-// Verbs DECLARED on a *Service interface with zero test invocation anywhere — the W1i backlog. Prune an
-// entry the moment its test lands (a covered verb passes regardless; the list only suppresses REDs). A
-// new uncovered verb NOT on this list is RED.
-const DEFERRED: ReadonlySet<string> = new Set([
-  "chat.getRoomOverridesForChat", // burn-down: W1i
-  "discovery.themes", // burn-down: W1i
-]);
+// Verbs DECLARED on a *Service interface with zero test invocation anywhere — the W1i backlog. A new
+// uncovered verb NOT on this list is RED.
+//
+// TWO-SIDED (GATE-AUTHORING.md §4.4/§4.8 — the header always claimed the bus-coverage ratchet precedent;
+// this is the arm that makes it true): a row that suppressed nothing this run is RED, because a burn-down
+// list that keeps rows after their tests land stops being a burn-down and starts being a permanent grant.
+// Both ways it can go stale: the verb got its test, or the verb (or its whole domain contract) is gone.
+// The arm self-guards on a REAL-TREE ANCHOR (GATE-AUTHORING.md §4.5): the server entrypoint.
+const DEFERRED: ExemptionTable = {
+  "chat.getRoomOverridesForChat": {
+    why: "burn-down W1i (test-support-dry-punchlist.md) — ends when a behavioral test invokes it at tests/server/domain/chat/",
+  },
+  "discovery.themes": { why: "burn-down W1i (test-support-dry-punchlist.md) — ends when a behavioral test invokes it at tests/server/domain/discovery/" },
+};
+
+const GATE_SELF = "scripts/check/gates/contract-verb-presence.ts";
+/** Real-tree anchor (GATE-AUTHORING.md §4.5): the server package entrypoint. */
+const ANCHOR = "packages/server/src/index.ts";
+const STALE_PREFIX =
+  "stale DEFERRED row — it suppressed nothing this run: the verb is either covered by a test now or no " +
+  "longer declared on its *Service interface. A burn-down row that outlives its gap is a permanent grant " +
+  "(ratchet down): ";
+
+/** The DEFERRED keys that actually suppressed a RED this run — the stale arm's truth set. */
+const seenDeferred = new Set<string>();
 
 const MESSAGE = (verb: string): string =>
   `${verb} — the *Service interface declares this verb but no test in its domain tree invokes ` +
@@ -93,10 +112,15 @@ function reconcileContractVerbPresence(project: Project): Violation[] {
     const corpus = domainTestCorpus(domain, files);
     const file = `packages/server/src/domain/${domain}/contract/service.ts`;
     for (const verb of serviceVerbs(contract)) {
-      if (isCovered(corpus, verb) || DEFERRED.has(`${domain}.${verb}`)) {
+      const key = `${domain}.${verb}`;
+      if (isCovered(corpus, verb)) {
         continue;
       }
-      violations.push({ file, line: 1, message: MESSAGE(`${domain}.${verb}`) });
+      if (key in DEFERRED) {
+        seenDeferred.add(key);
+        continue;
+      }
+      violations.push({ file, line: 1, message: MESSAGE(key) });
     }
   }
   return violations;
@@ -110,9 +134,23 @@ export const gate: GateDescriptor = {
   message:
     "a *Service interface declares a verb that no test in its domain tree invokes — a wired-but-never-run verb (add a behavioral test at tests/server/domain/, or a tracked DEFERRED entry in contract-verb-presence.ts). core/Spine-Testing.md §5.",
   fix: "add a behavioral test that invokes the verb (or its create<Verb>( factory) under tests/server/domain/<domain>/, or add a cited DEFERRED entry.",
-  run: (ctx) => {
+  run: (ctx: GateRunCtx) => {
+    seenDeferred.clear();
     for (const v of reconcileContractVerbPresence(ctx.project)) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
+    }
+    if (!fileLoaded(ctx, ANCHOR)) {
+      return; // synthetic tree — the ratchet is a whole-tree claim
+    }
+    for (const key of Object.keys(DEFERRED)) {
+      if (!seenDeferred.has(key)) {
+        ctx.report({
+          file: GATE_SELF,
+          line: 1,
+          column: 0,
+          message: `${STALE_PREFIX}"${key}" — delete the row in scripts/check/gates/contract-verb-presence.ts`,
+        });
+      }
     }
   },
   mustFlag: [
@@ -142,6 +180,16 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "hub.save" },
       why: "a MethodSignature member is enumerated as a verb too — flags when uncovered",
     },
+    {
+      files: {
+        [ANCHOR]: "export const server = 1;\n",
+        "packages/server/src/domain/discovery/contract/service.ts": "export interface DiscoveryService {\n  readonly themes: () => void;\n}\n",
+        "packages/server/src/domain/chat/contract/service.ts": "export interface ChatService {\n  readonly getRoomOverridesForChat: () => void;\n}\n",
+        "tests/server/domain/chat/x.test.ts": "await getRoomOverridesForChat({ id: 1 });\n",
+      },
+      expect: { count: 1, messageIncludes: "stale DEFERRED row" },
+      why: "THE RATCHET'S OTHER SIDE: the anchor is loaded; discovery.themes is still uncovered and keeps its row, but chat.getRoomOverridesForChat now HAS its test — the burn-down row suppressed nothing and must be pruned, exactly as the header's bus-coverage precedent promised",
+    },
   ],
   mustPass: [
     {
@@ -164,7 +212,15 @@ export const gate: GateDescriptor = {
       files: {
         "packages/server/src/domain/discovery/contract/service.ts": "export interface DiscoveryService {\n  readonly themes: () => void;\n}\n",
       },
-      why: "a DEFERRED verb (discovery.themes) is a tracked gap — suppressed, passes",
+      why: "a DEFERRED verb (discovery.themes) is a tracked gap — suppressed, passes; with no anchor in this project the ratchet's stale arm stays silent (THE ANCHOR GUARD)",
+    },
+    {
+      files: {
+        [ANCHOR]: "export const server = 1;\n",
+        "packages/server/src/domain/discovery/contract/service.ts": "export interface DiscoveryService {\n  readonly themes: () => void;\n}\n",
+        "packages/server/src/domain/chat/contract/service.ts": "export interface ChatService {\n  readonly getRoomOverridesForChat: () => void;\n}\n",
+      },
+      why: "both burn-down rows STILL EARNED, judged against the real-tree anchor: each verb is declared and still uncovered, so the rows suppress real REDs and neither arm fires",
     },
     {
       // *ServiceDeps (a DI bundle) + non-Service interfaces are not the verb surface.
