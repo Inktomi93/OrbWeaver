@@ -28,6 +28,23 @@ const PROVIDER_ALLOW = new Set(["DrawerProvider", "DrawerVirtualKeyboardProvider
 const ANCHORED = new Set(["popover", "menu", "select", "autocomplete", "tooltip"]);
 const MODAL = new Set(["dialog", "alert-dialog", "drawer"]);
 
+const GATE_SELF = "scripts/check/gates/ui-primitive-structure.ts";
+/** Real-tree anchor (GATE-AUTHORING.md §4.5): a primitive every real run has and no example builds (the
+ *  examples all invent `thing`/`x`-shaped dirs). */
+const ANCHOR_PRIMITIVE = "button";
+const STALE_DIR = (table: string, name: string): string =>
+  `stale ${table} row — \`${name}\` is not a primitive directory any more (ratchet down): the exemption ` +
+  "names nothing, and it would silently re-attach to a future primitive that reuses the name. Delete the " +
+  `row in ${GATE_SELF}.`;
+const STALE_PROVIDER = (tag: string): string =>
+  `stale PROVIDER_ALLOW row — \`<${tag}>\` appears in no .ct.tsx/.fixtures.tsx any more, so the inline-` +
+  "provider allowlist is a standing grant on a NAME (ratchet down): clause 6 is fail-closed by design, and " +
+  `a dead row is the one hole in it. Delete the row in ${GATE_SELF}.`;
+const STALE_COLOR = (name: string, reason: string): string =>
+  `stale COLOR_LITERAL_TEST_EXEMPT row — \`${name}\` ${reason} (ratchet down): the row claims this test ` +
+  "exercises hostile color VALUES as data; when that stops being true it is just a file exempted from the " +
+  `assert-via-TOKENS rule for free. Delete the row in ${GATE_SELF}.`;
+
 const CT_TEST_RE = /\/tests\/ui\/.*\.ct\.tsx$/u;
 const CT_OR_FIXTURE_RE = /\/tests\/ui\/.*\.(?:ct|fixtures)\.tsx$/u;
 const VARIANTS_SPEC_RE = /(?:^|\/)variants$/u;
@@ -344,6 +361,48 @@ function scanUiPrimitiveStructure(ctx: CheckContext): Violation[] {
   ];
 }
 
+/** TWO-SIDED (GATE-AUTHORING.md §4.4): all four exemption tables ratchet DOWN. Each is keyed on a NAME —
+ *  a primitive dir, a JSX identifier, a test filename — which is exactly the loaded-gun shape: a dead row
+ *  keeps granting, and the next thing to take that name inherits it. Guarded on a REAL-TREE ANCHOR (§4.5):
+ *  a primitive every real run has and no example builds. */
+function staleExemptionRows(ctx: CheckContext): Violation[] {
+  if (!existsSync(join(ctx.root, PRIMITIVES, ANCHOR_PRIMITIVE))) {
+    return []; // synthetic tree — these are whole-tree claims
+  }
+  const out: Violation[] = [];
+  const row = (message: string): Violation => ({ file: GATE_SELF, line: 1, message });
+  const dirs = new Set(primitiveDirs(ctx.root));
+  for (const [table, names] of [
+    ["VARIANTS_EXEMPT", VARIANTS_EXEMPT],
+    ["TEST_EXEMPT", TEST_EXEMPT],
+  ] as const) {
+    for (const name of names) {
+      if (!dirs.has(name)) {
+        out.push(row(STALE_DIR(table, name)));
+      }
+    }
+  }
+  const testFiles = ctx.project.getSourceFiles().filter((sf) => CT_OR_FIXTURE_RE.test(sf.getFilePath()));
+  const renderedTags = new Set(testFiles.flatMap((sf) => jsxElements(sf).map((e) => e.tag)));
+  for (const tag of PROVIDER_ALLOW) {
+    if (!renderedTags.has(tag)) {
+      out.push(row(STALE_PROVIDER(tag)));
+    }
+  }
+  for (const name of COLOR_LITERAL_TEST_EXEMPT) {
+    const sf = testFiles.find((f) => f.getFilePath().endsWith(`/${name}`));
+    if (sf === undefined) {
+      out.push(row(STALE_COLOR(name, "is not in the project any more")));
+      continue;
+    }
+    const lines = sf.getFullText().split("\n");
+    if (!lines.some((line) => COLOR_LITERAL_RE.test(line))) {
+      out.push(row(STALE_COLOR(name, "carries no color literal any more")));
+    }
+  }
+  return out;
+}
+
 // Reads the real fs (readdirSync of primitives/, existsSync of the trio + CT) AND the AST (variants
 // naming / no-leak / color literals / inline provider / inline svg / overlay anatomy / data-slot).
 //
@@ -357,7 +416,8 @@ export const gate: GateDescriptor = {
     "an @orb/ui primitive violates the §13.7 structure discipline — a missing trio (name.tsx/index.ts/variants.ts), a mis-named/duplicated tv() export, a leaked ./variants re-export, a missing co-located CT, a hardcoded color literal or inline <*Provider>/<svg> in a test/component, a wrong overlay anatomy, or a missing data-slot locator (UI-Primitives-and-Reuse.md §13.7).",
   fix: "restore the trio, name the tv() `{camelName}Variants`, keep ./variants internal, add the co-located CT, assert colors via TOKENS, and give each primitive part a data-slot locator (UI-Primitives-and-Reuse.md §13.7).",
   run: (ctx) => {
-    for (const v of scanUiPrimitiveStructure({ root: ctx.root, project: ctx.project })) {
+    const checkCtx: CheckContext = { root: ctx.root, project: ctx.project };
+    for (const v of [...scanUiPrimitiveStructure(checkCtx), ...staleExemptionRows(checkCtx)]) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
     }
   },
@@ -442,8 +502,46 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "no data-slot locator" },
       why: "clause 9 — a primitive part with no data-slot locator (the CT locator surface) — §13.7",
     },
+    {
+      files: {
+        // Only the ANCHOR primitive exists, complete and compliant — so every clause passes and the ONLY
+        // findings are the stale rows: five variants-exempt dirs, two test-exempt dirs, two allowlisted
+        // provider tags and three color-literal test files that this tree does not have.
+        "packages/ui/src/primitives/button/button.tsx": 'export const Button = () => <button data-slot="button" />;\n',
+        "packages/ui/src/primitives/button/index.ts": 'export { Button } from "./button";\n',
+        "packages/ui/src/primitives/button/variants.ts": 'import { tv } from "#lib";\nexport const buttonVariants = tv({ base: "block" });\n',
+        "tests/ui/primitives/button/button.ct.tsx": "export const t = 1;\n",
+      },
+      expect: { messageIncludes: "stale VARIANTS_EXEMPT row" },
+      why: "THE STALE ARMS: with the anchor primitive present the four name-keyed tables are judged, and every row that names something this tree does not have ratchets down — a dead row here is a grant waiting for a namesake to inherit it",
+    },
   ],
   mustPass: [
+    {
+      files: {
+        // The anchor + EVERY exempted name occupied: the five variants-exempt satellites, the two
+        // test-exempt ones, both allowlisted providers rendered in a fixture, and all three
+        // color-literal test files carrying real color literals. Nothing stale, nothing flagged.
+        "packages/ui/src/primitives/button/button.tsx": 'export const Button = () => <button data-slot="button" />;\n',
+        "packages/ui/src/primitives/button/index.ts": 'export { Button } from "./button";\n',
+        "packages/ui/src/primitives/button/variants.ts": 'import { tv } from "#lib";\nexport const buttonVariants = tv({ base: "block" });\n',
+        "tests/ui/primitives/button/button.ct.tsx": "export const t = 1;\n",
+        "packages/ui/src/primitives/icons/index.ts": "export const icons = {};\n",
+        "packages/ui/src/primitives/aria-announcer/index.ts": "export const announcer = {};\n",
+        "packages/ui/src/primitives/virtual-list/index.ts": "export const list = {};\n",
+        "packages/ui/src/primitives/message-list/index.ts": "export const list = {};\n",
+        "packages/ui/src/primitives/file-trigger/index.ts": "export const trigger = {};\n",
+        "tests/ui/primitives/virtual-list/virtual-list.ct.tsx": "export const t = 1;\n",
+        "tests/ui/primitives/message-list/message-list.ct.tsx": "export const t = 1;\n",
+        "tests/ui/primitives/file-trigger/file-trigger.ct.tsx": "export const t = 1;\n",
+        "tests/ui/primitives/drawer/drawer.fixtures.tsx":
+          "export const F = () => (\n  <DrawerProvider>\n    <DrawerVirtualKeyboardProvider />\n  </DrawerProvider>\n);\n",
+        "tests/ui/content/theme-scope/theme-scope.ct.tsx": 'export const hostile = "#ff0000";\n',
+        "tests/ui/primitives/color-field/color-field.ct.tsx": 'export const hostile = "#00ff00";\n',
+        "tests/ui/content/sandbox-frame/sandbox-frame.ct.tsx": 'export const hostile = "rgb(1, 2, 3)";\n',
+      },
+      why: "all four tables STILL EARNED, judged against the real-tree anchor: every exempted name is occupied and both color-literal claims are true, so the stale arms stay quiet — this row is also the written inventory of what each exemption is FOR",
+    },
     {
       files: {
         "packages/ui/src/primitives/thing/thing.tsx": 'export const Thing = () => <div data-slot="thing" />;\n',

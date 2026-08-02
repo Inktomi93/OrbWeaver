@@ -1,4 +1,0 @@
-{
-  "scripts/check/gates/no-test-fabrication.ts": ["EXEMPT_TYPES"],
-  "scripts/check/gates/ui-primitive-structure.ts": ["COLOR_LITERAL_TEST_EXEMPT", "PROVIDER_ALLOW", "TEST_EXEMPT", "VARIANTS_EXEMPT"]
-}
