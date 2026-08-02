@@ -317,6 +317,11 @@ function writeFixtures(): void {
   fx(`${D}/hub/__g_asw1.ts`, 'import { storeBlob } from "../assets/persistence/queries.ts";\nexport const s = storeBlob;\n');
   // assets-single-writer arm 2: a raw insert(assets) outside domain/assets.
   fx(`${D}/hub/__g_asw2.ts`, 'import { assets } from "@orb/db";\nexport const w = (db: { insert: (t: unknown) => void }) => db.insert(assets);\n');
+  // own-tables-only: a VERB importing another domain's table off the @orb/db barrel. `__g_own` owns no
+  // schema file, so `characters` (character's) is foreign, and the path is outside `persistence/` — the one
+  // slot the gate scopes out. (The `__g_asw2` fixture above trips it too, incidentally; this row is the
+  // deliberate one, so a change to that fixture can never silently un-fire this gate.)
+  fx(`${D}/__g_own/verbs/x.ts`, 'import { characters } from "@orb/db";\nexport const x = characters;\n');
   // serde-core-seal: the PNG card-chunk engine imported outside the import/export serde homes.
   fx(`${D}/hub/__g_serde.ts`, 'import { readCardChunk } from "@orb/kit/png-card-chunk";\nexport const r = readCardChunk;\n');
   // fetch-fn-in-features: a client feature file hand-writing a bare global fetch( (the R5 offense).

@@ -22,6 +22,14 @@ interface PersonaWithAvatar {
   readonly avatar: AssetRow | null;
 }
 
+// The three card fields a persona mint copies from its source character. File-local — the verb chains
+// `loadOwnedCharacterCard` → `swapPersonaMacros` without ever naming it.
+interface CharacterCard {
+  readonly name: string;
+  readonly description: string | null;
+  readonly avatarAssetId: AssetId | null;
+}
+
 /** One owned persona + its avatar, or undefined when not found / not the caller's. */
 export async function loadOwnedPersonaWithAvatar(db: Db, ownerId: UserId, personaId: PersonaId): Promise<PersonaWithAvatar | undefined> {
   const rows = await db
@@ -75,6 +83,24 @@ export async function ensureCharacterOwned(db: Db, ownerId: UserId, characterId:
   if (rows[0]?.ownerId !== ownerId) {
     throw new PersonaCharacterNotFoundError(characterId);
   }
+}
+
+/** The owned source card `createFromCharacter` mints a persona from — the SAME gate as
+ *  {@link ensureCharacterOwned} (owner predicate resolved in one round-trip, a foreign/absent character
+ *  collapsing to {@link PersonaCharacterNotFoundError} with no existence leak), returning the three card
+ *  fields the mint copies. Lives HERE, not in the verb: `persistence/` is the home for a cross-domain
+ *  ownership check (Tier-1-DB.md §"Cross-tier composition"; `own-tables-only` gate). */
+export async function loadOwnedCharacterCard(db: Db, ownerId: UserId, characterId: CharacterId): Promise<CharacterCard> {
+  const rows = await db
+    .select({ name: characters.name, description: characters.description, avatarAssetId: characters.avatarAssetId, ownerId: characters.ownerId })
+    .from(characters)
+    .where(eq(characters.id, characterId))
+    .limit(LIMIT_ONE);
+  const card = rows[0];
+  if (card === undefined || card.ownerId !== ownerId) {
+    throw new PersonaCharacterNotFoundError(characterId);
+  }
+  return { name: card.name, description: card.description, avatarAssetId: card.avatarAssetId };
 }
 
 /** Gate: a supplied avatar asset must belong to the caller (the FK alone proves existence, never

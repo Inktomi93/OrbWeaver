@@ -5,7 +5,8 @@
 
 import type { ImageLens } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
-import { batchMany, batchStmt, characterEmbeddings, chatDigestSpeakers, chatDigests, chatSegments, documentChunks, imageEmbeddings } from "@orb/db";
+import { characterEmbeddings, chatDigestSpeakers, chatDigests, chatSegments, documentChunks, imageEmbeddings } from "@orb/db";
+import { batchMany, batchStmt } from "@orb/db/kit";
 import type {
   AssetId,
   CharacterEmbeddingId,
