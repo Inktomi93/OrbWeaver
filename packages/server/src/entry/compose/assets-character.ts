@@ -38,6 +38,7 @@ import type { PresetService } from "#domain/preset";
 import type { SettingsService } from "#domain/settings";
 import type { TagService } from "#domain/tag";
 import { createCopyCharacterBooks } from "#domain/world-info";
+import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import type { ImageAdapter } from "#infra/image";
 import type { RoleClientsWithSignal } from "#infra/providers";
@@ -352,6 +353,11 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
   // Mirror of characterSeeder, for the default `{{user}}` persona. The bundled art keeps its `persona-you`
   // seed-asset key — that is a FILE key, not the display name, and renaming it would be a pack migration.
   const personaSeeder = createDefaultPersonaSeeder({
+    // AUTOMATION-ONLY auto-create (the forced-first-run redesign — `boot/seed-default-persona.ts` header):
+    // a stack an agent/script booted seeds Traveler so no dev regen or e2e boot ever hits the blocking ask;
+    // a REAL stack seeds nothing, so the zero-personas first-run trigger holds and the human names their own
+    // `{{user}}`. Read per call (not captured) so the frozen env stays the single source.
+    autoSeedEnabled: (): boolean => env.E2E_HARNESS === "on" || env.DEV_SEED === "on",
     createPersona: async ({ principal, input }): Promise<{ id: PersonaId }> => {
       const detail = await deps.getPersona().create({ principal, input });
       return { id: detail.id };

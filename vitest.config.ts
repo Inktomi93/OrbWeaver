@@ -58,6 +58,9 @@ const SERIAL_INT = [
   // The multi-human persona-resolution suite: full-`createServices` app-fixture file whose first test pays
   // the cold whole-server-graph import (measured 3.4s isolated → 5s-timeout flake under fork contention).
   "tests/server/entry/compose/persona-multihuman.suite.int.test.ts",
+  // The composed first-run persona posture: same class (full-`createServices` app fixture, cold import on
+  // the first test).
+  "tests/server/entry/compose/assets-character.int.test.ts",
 ];
 
 export default defineConfig({
