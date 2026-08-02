@@ -540,6 +540,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveGmSeatHolderKind: (chatId) => rpgOps().resolveGmSeatHolderKind(chatId),
     resolveReasoningHostOnly: (chatId) => rpgOps().resolveReasoningHostOnly(chatId),
     forkGame: (args) => rpgOps().forkGame(args),
+    handoffHealStatements: (chatId, newHostUserId) => rpgOps().handoffHealStatements(chatId, newHostUserId),
   };
   const chatCompose = buildChatService({
     toolUse,

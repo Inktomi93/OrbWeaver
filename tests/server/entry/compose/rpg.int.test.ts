@@ -21,12 +21,13 @@
 
 import type { ChatApi, ModelCapability } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { RpgBusEvent, RpgExtraction, RpgSnapshotState } from "@orb/contracts/rpg";
 import { RPG_TOOL_ROUND_TOOL_NAMES, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
-import { characters, messages, messageVariants } from "@orb/db";
-import type { ChatId, ChatTurnId, MessageId, MessageVariantId, ModelId, UserId } from "@orb/kit/ids";
+import { characters, messages, messageVariants, presets } from "@orb/db";
+import type { ChatId, ChatTurnId, MessageId, MessageVariantId, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { AgentModelHealError, ConnectionRoutingError } from "@orb/server/domain/connection";
 import type { ServicesResult } from "@orb/server/entry/compose";
@@ -37,6 +38,7 @@ import { vi } from "vitest";
 import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat/index.ts";
 import { resolveModelCapability } from "../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import { subscribeRpgEvents } from "../../../../packages/server/src/domain/rpg/index.ts";
+import { findGameByChat } from "../../../../packages/server/src/domain/rpg/persistence/games.ts";
 import { commitSnapshotForVariant, writeStagedSnapshot } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
 import { defaultSnapshotState } from "../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
 import { buildRpg } from "../../../../packages/server/src/entry/compose/rpg.ts";
@@ -1888,4 +1890,47 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
   // …and the panel says so honestly: the born-state button is disabled on this connection.
   const game = await rpgCompose.service.getGame({ principal: hostPrincipal(hostId), chatId });
   expect(game.canPopulate).toBe(false);
+});
+
+// HOST HANDOFF × the GM-voice knob (stickler 2026-08-03 F1) — the COMPOSED-REAL wiring proof for the heal that
+// mirrors `resolveForkGmPreset`. `chat.acceptHostHandoff` moves room authority; `rpg_games.gmPresetId` is then
+// resolved under the NEW host (`resolvePresetOverride` → the owner-scoped `preset.get`), so a preset the new
+// host cannot read is a dead knob: the GM voice silently degrades to their default while `getConfigView` keeps
+// serving an unreadable id. Driven through the REAL services graph (chat's verb, rpg's injected op, the real
+// `resolvePresetOwned`) — a stubbed seam here would be exactly the [compose-stub-goes-stale] lie.
+test("HOST HANDOFF nulls a gmPresetId the new host cannot read, and keeps one they own (composed-real)", async ({ services, db }) => {
+  // The chat ids are REAL minted TypeIDs: the notifications `record` this flow delivers (`handoff-nominated` /
+  // `handoff-accepted`) re-parses `chatId` through the TypeID schema, which the readable `chat_<key>` seed fails.
+  const nominee = await seedUser(db, "hoffnominee");
+  const seedPreset = async (id: string, ownerId: UserId): Promise<PresetId> => {
+    const presetId = castId<PresetId>(id);
+    await db
+      .insert(presets)
+      .values({ id: presetId, ownerId, name: id, kind: "user", config: DEFAULT_PROMPT_CONFIG, createdAt: FROZEN_AT, updatedAt: FROZEN_AT });
+    return presetId;
+  };
+  /** A game room whose GM knob points at `presetOwner`'s preset, with the nominee seated + nominated. */
+  const seedHandoffGame = async (key: string, presetOwner: "host" | "nominee"): Promise<{ chatId: ChatId; presetId: PresetId }> => {
+    const hostId = await seedUser(db, `${key}host`);
+    const chatId = await seedChat(db, key, { id: mintTypeId(ID_PREFIX.chat) });
+    await seedParticipant(db, { chatId, key: `${key}host`, userId: hostId, role: "host", joinSeq: 0 });
+    await seedParticipant(db, { chatId, key: `${key}nominee`, userId: nominee, role: "member", joinSeq: 0 });
+    const presetId = await seedPreset(`preset_${key}`, presetOwner === "host" ? hostId : nominee);
+    await services.rpg.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+    await services.rpg.updateConfig({ principal: hostPrincipal(hostId), chatId, gmPresetId: presetId });
+    await services.chat.nominateHostHandoff({ principal: hostPrincipal(hostId), chatId, userId: nominee });
+    return { chatId, presetId };
+  };
+
+  const foreign = await seedHandoffGame("hoffforeign", "host");
+  const owned = await seedHandoffGame("hoffowned", "nominee");
+
+  await services.chat.acceptHostHandoff({ principal: hostPrincipal(nominee), chatId: foreign.chatId });
+  await services.chat.acceptHostHandoff({ principal: hostPrincipal(nominee), chatId: owned.chatId });
+
+  // The old host's private preset no longer rides the new host's turns — and the knob stops lying.
+  expect((await findGameByChat(db, foreign.chatId))?.gmPresetId).toBeNull();
+  expect((await services.rpg.getConfigView({ principal: hostPrincipal(nominee), chatId: foreign.chatId })).gmPresetId).toBeNull();
+  // A knob the new host CAN read is untouched — the heal is conditional, never a blanket clear.
+  expect((await findGameByChat(db, owned.chatId))?.gmPresetId).toBe(owned.presetId);
 });
