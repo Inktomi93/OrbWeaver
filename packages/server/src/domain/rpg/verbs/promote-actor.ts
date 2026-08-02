@@ -38,7 +38,7 @@ import { rekeyActor } from "../substrate/actor-rekey";
 export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteActor"> {
   async function promoteActor(params: PromoteActorParams): Promise<HandDoorResult> {
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
-    assertHostRole(role, "host authority required to promote an actor to the roster");
+    assertHostRole(ctx.can, params.principal, role, "host authority required to promote an actor to the roster");
     const from = params.targetRef;
     const fromKey = actorRefKey(from);
 

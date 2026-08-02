@@ -212,6 +212,22 @@ export const REGISTRY: readonly StageDef[] = [
     // deferred at a scoped tier like the other cross-file reconciliations.
   },
   {
+    name: "structure:drizzle-kit",
+    group: "structure",
+    tiers: STATIC,
+    argv: ["pnpm", "check:drizzle-kit"],
+    // drizzle-kit's OWN journal/snapshot-chain validator (`drizzle-kit check`, config-driven at
+    // packages/db/drizzle.config.ts). It reads the migrations dir, not the schema: every `meta/_journal.json`
+    // entry has its snapshot, and no two snapshots claim the same parent (the FORKED-CHAIN collision two
+    // concurrently-generated migrations produce — probe-verified to exit 1 on it). Against today's single
+    // squashed baseline it is a near-no-op (~1s); it is wired NOW, armed, so the first post-launch
+    // incremental migration lands into a guardrail that already exists (Tier-1-DB.md §"When we migrate for
+    // real"). Its sibling `structure:db-baseline` guards the ORTHOGONAL half — schema-vs-baseline CONTENT
+    // parity — and neither can see the other's failure.
+    classify: asViolations,
+    // WHOLE-TREE by nature (the one migrations dir) — whole-only, deferred at a scoped tier.
+  },
+  {
     name: "structure:full",
     group: "structure",
     tiers: STATIC,

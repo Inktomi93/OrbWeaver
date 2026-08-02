@@ -147,6 +147,33 @@ function writeFixtures(): void {
   );
   // db-structure: a schema file NOT re-exported from the barrel schema/index.ts.
   fx("packages/db/src/schema/__g_orphan.ts", "export const gOrphan = 1;\n");
+  // fk-columns-indexed: an FK column that leads NO index. Isolated on purpose — it states its onDelete and
+  // declares its PK, so only this gate's arm is the deliberate fire.
+  fx(
+    "packages/db/src/schema/__g_fkidx.ts",
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+      'export const gFkIdx = sqliteTable("g_fk_idx", {\n' +
+      '  id: text("id").primaryKey(),\n' +
+      '  ownerId: text("owner_id").references(() => gFkIdx.id, { onDelete: "cascade" }),\n' +
+      "});\n",
+  );
+  // fk-ondelete-stated: a `.references()` with no deletion policy (the silent NO ACTION default). The FK
+  // leads its own index and the table has a PK, so the two sibling gates stay quiet on this fixture.
+  fx(
+    "packages/db/src/schema/__g_fkdel.ts",
+    'import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
+      'export const gFkDel = sqliteTable(\n  "g_fk_del",\n  {\n' +
+      '    id: text("id").primaryKey(),\n' +
+      '    ownerId: text("owner_id").references(() => gFkDel.id),\n' +
+      "  },\n" +
+      '  (t) => [index("g_fk_del_owner_idx").on(t.ownerId)],\n);\n',
+  );
+  // table-explicit-primary-key: a keyless table (the hidden-rowid fallback). No FK at all, so the two FK
+  // gates have nothing to say about it.
+  fx(
+    "packages/db/src/schema/__g_nopk.ts",
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gNoPk = sqliteTable("g_no_pk", { label: text("label") });\n',
+  );
   // baseline-single-migration: an extra migration .sql alongside 0000_baseline.sql (the
   // squash-not-incremental law) — real migrations/ dir already exists, this just adds a stray file.
   fx("packages/db/src/migrations/__g_0001_fake.sql", "-- fake incremental migration\n");
@@ -677,6 +704,30 @@ function writeFixtures(): void {
     "tests/ui/primitives/__g_oneshot/__g_oneshot.ct.tsx",
     'import { expect, test } from "@playwright/experimental-ct-react";\ntest("g", async ({ page }) => {\n  const el = page.locator("div");\n  expect(await el.boundingBox()).not.toBe(null);\n});\n',
   );
+  // two-class-role-authority: an inline `role === "host"` in an ENFORCEMENT position (the comparison gates a
+  // `throw`) in a domain file that is neither a SANCTIONED_HOMES chokepoint nor ALLOWLISTed — the founding
+  // shape (the six rpg verbs that re-spelled their chokepoint's compare). The gate's scanRoot is
+  // `packages/server/src/domain/` ONLY, so writing the shape literally here cannot self-trip it, and the
+  // fixture leaves the real-tree anchor (chat/substrate/auth/decide.ts) untouched — its both-ways stale arms
+  // keep judging the REAL chokepoints, so this row adds a violation without faking one.
+  fx(`${D}/__g_roleauth/verbs/x.ts`, 'export function f(role: string): void {\n  if (role !== "host") {\n    throw new Error("nope");\n  }\n}\n');
+  // contract-derives-not-respells (ARM B): a hand-written `*Row` interface in a domain `contract/` whose
+  // prefix names a REAL drizzle table (`WorkloadScheduleRow` → the live `workloadSchedules` export in
+  // packages/db/src/schema/workloads.ts) instead of deriving `typeof workloadSchedules.$inferSelect`. ARM B is
+  // the fixturable one: ARM A needs a name the sibling `packages/contracts/src/<domain>/` also exports, and a
+  // `__g_` domain has no contracts sibling (planting one would need a SECOND fixture in contracts/ whose
+  // domain name matches — the same shape, twice the surface, for no extra proof).
+  // The gate's ALLOWLIST stale arm keys on the REAL-TREE anchor + real files, which this fixture does not
+  // touch, so the added finding is the ARM-B bite alone.
+  fx(`${D}/__g_cdnr/contract/probe-row.ts`, "export interface WorkloadScheduleRow {\n  readonly id: string;\n  readonly enabled: boolean;\n}\n");
+  // zod-modern-spellings: ARM A (`.strict()` on a `z.object(…)` — respell as `z.strictObject`). Its other
+  // three arms (all-literal union, hand-flattened `error.issues`, the `z.enum(["true","false"])` env
+  // hand-roll) fire on the same fixture would be redundant here — one arm proves the gate is wired into the
+  // live pass, which is all this anti-drift suite claims; every arm's own bite is proven per-arm by
+  // gate-conformance's mustFlag rows. The gate scans `packages/**` only, so writing the shape literally in
+  // THIS file cannot self-trip it, and the fixture leaves the real-tree anchor (foundation/env/index.ts)
+  // untouched so its ISSUES_ALLOWLIST ratchet keeps judging the six real join sites.
+  fx("packages/contracts/src/__g_zodspell/index.ts", 'import { z } from "zod";\nexport const gZodSpell = z.object({ a: z.string() }).strict();\n');
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose

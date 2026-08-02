@@ -2819,7 +2819,9 @@ function main(): void {
   // name and exit 2 on it, so an argless verb's first token is handed back to the flag parser when it starts
   // with `--`.
   const argless = verb !== undefined && ARGLESS_VERBS.has(verb);
-  const argIsFlag = argless && arg !== undefined && arg.startsWith("--");
+  // `=== true` keeps this a plain `boolean`; biome's bare `arg?.startsWith("--")` widens it to
+  // `boolean | undefined`, which the `argIsFlag && arg !== undefined` read two lines down relies on not being.
+  const argIsFlag = argless && arg?.startsWith("--") === true;
   const effectiveArg = argIsFlag ? "" : (arg ?? (argless ? "" : undefined));
   const flagTokens = argIsFlag && arg !== undefined ? [arg, ...rest] : rest;
   if (run === undefined || effectiveArg === undefined || verb === undefined) {

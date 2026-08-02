@@ -112,6 +112,9 @@ export const automationRules = sqliteTable(
   (t) => [
     // The dispatch hot path: enabled rules of a chat for one trigger (04 §1).
     index("automation_rules_chat_enabled").on(t.chatId, t.enabled, t.triggerType),
+    // The owner CASCADE parent + the owner-global rule list: SQLite auto-indexes no child FK, so a user
+    // hard-delete would scan every rule (`fk-columns-indexed` gate).
+    index("automation_rules_owner_idx").on(t.ownerId),
     check("automation_rules_name_check", sql.raw(`length(name) <= ${RULE_NAME_MAX_CHARS}`)),
     check("automation_rules_trigger_bus_check", sql.raw(`trigger_bus in (${checkList(AUTOMATION_TRIGGER_BUSES)})`)),
     // The bus↔tuple pairing (the kind-shape CHECK pattern): each bus admits ONLY its own tuple's
@@ -174,6 +177,9 @@ export const automationFires = sqliteTable(
   (t) => [
     // The per-hour budget COUNT + the host's per-rule fire history, one indexed read (04 §1).
     index("automation_fires_rule_time").on(t.ruleId, t.firedAt),
+    // The chat CASCADE parent — a chat delete would scan the whole fire log without it, and the
+    // (ruleId, firedAt) index cannot serve a chatId-only predicate (`fk-columns-indexed` gate).
+    index("automation_fires_chat_idx").on(t.chatId),
     check("automation_fires_outcome_check", sql.raw(`outcome in (${checkList(AUTOMATION_FIRE_OUTCOMES)})`)),
   ],
 );

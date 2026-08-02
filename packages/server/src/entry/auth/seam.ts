@@ -49,11 +49,20 @@ export interface AuthSeam {
   readonly isAdmin: (headers: Headers) => Promise<boolean>;
 }
 
-/** THE trust-boundary crossing for the read side: an attacker-controlled `Cookie` header becomes a typed
- *  `SessionToken` here and nowhere else. The brand asserts PROVENANCE ("this string came off our own cookie
- *  under our own name"), not authenticity — the authenticity gate is `sessions.validate`, whose peppered-hash
- *  lookup fails closed on anything forged. A malformed / percent-broken value is `null` (no session). */
-function readSessionCookie(headers: Headers): SessionToken | null {
+/**
+ * THE trust-boundary crossing for the read side: an attacker-controlled `Cookie` header becomes a typed
+ * `SessionToken` here and NOWHERE else. The brand asserts PROVENANCE ("this string came off our own cookie
+ * under our own name"), not authenticity — the authenticity gate is `sessions.validate`, whose peppered-hash
+ * lookup fails closed on anything forged. A malformed / percent-broken value is `null` (no session).
+ *
+ * Exported because all THREE session-cookie call paths must extract the same token from the same header, or
+ * the seam authenticates one value while logout revokes another and the expiry-slide re-issues a third:
+ * this reader, `entry/http/auth-routes.ts` (logout → `revokeByToken`), and `entry/app.ts` (the slide's
+ * `Set-Cookie` re-issue). It was three byte-identical copies; the drift-equality proof is
+ * `tests/server/entry/session-cookie-parity.suite.test.ts`, which drives all three paths over one crafted
+ * header. Do not re-inline a copy.
+ */
+export function readSessionCookie(headers: Headers): SessionToken | null {
   const raw = headers.get("cookie");
   if (raw === null) {
     return null;

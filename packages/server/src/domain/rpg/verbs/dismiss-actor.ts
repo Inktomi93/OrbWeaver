@@ -27,7 +27,7 @@ import { writeHandState } from "../snapshot-edit";
 export function createDismissActor(ctx: RpgContext): Pick<RpgService, "dismissActor"> {
   async function dismissActor(params: DismissActorParams): Promise<HandDoorResult> {
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
-    assertHostRole(role, "host authority required to dismiss an actor");
+    assertHostRole(ctx.can, params.principal, role, "host authority required to dismiss an actor");
     const ref = params.targetRef;
     const targetKey = actorRefKey(ref);
     const lockBase = rpgActorLockBase(ref);

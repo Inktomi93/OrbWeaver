@@ -69,7 +69,7 @@ function mergeSheet(current: RpgSheet, patch: PatchSheetParams["patch"]): RpgShe
 export function createPatchSheet(ctx: RpgContext): Pick<RpgService, "patchSheet"> {
   async function patchSheet(params: PatchSheetParams): Promise<void> {
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
-    assertOwnUserRef(role, params.principal, params.actorRef);
+    assertOwnUserRef(ctx.can, params.principal, role, params.actorRef);
     const { characterId, userId } = actorIds(params.actorRef);
 
     if (params.patch.attributes !== undefined) {

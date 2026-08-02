@@ -3,20 +3,10 @@
 // fixed epoch-ms timestamps (no ambient clock). Seeds both the rollup tables (for the read verbs) and the
 // canon slot/variant graph (D26 — for the on-read scans + reconcile). Inserts route through @orb/db tables.
 
-import type { BatchStmt, Db } from "@orb/db";
-import {
-  batchMany,
-  characterStats,
-  characters,
-  chatParticipants,
-  chats,
-  dailyStats,
-  messages,
-  messageVariants,
-  modelStats,
-  ownerStats,
-  personas,
-} from "@orb/db";
+import type { Db } from "@orb/db";
+import { characterStats, characters, chatParticipants, chats, dailyStats, messages, messageVariants, modelStats, ownerStats, personas } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchMany } from "@orb/db/kit";
 import type {
   CharacterId,
   CharacterStatId,

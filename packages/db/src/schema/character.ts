@@ -134,6 +134,9 @@ export const characters = sqliteTable(
     uniqueIndex("characters_owner_handle_unique").on(t.ownerId, t.handle),
     // Owner-scoped list hot path (`fetchOwned`).
     index("characters_owner_idx").on(t.ownerId),
+    // The avatar FK's SET-NULL parent scan: deleting an asset (GC included) walks `characters` to null the
+    // pointer, and SQLite auto-indexes no child FK (`fk-columns-indexed` gate).
+    index("characters_avatar_asset_idx").on(t.avatarAssetId),
   ],
 );
 

@@ -170,7 +170,9 @@ describe("distillCharacters", () => {
   test("swapping the injected summarize client changes what is produced (the role is configurable)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");
-    const character = await seedCharacter(db, { id: "character_x", ownerId: owner, name: "X" });
+    // Content-bearing on purpose: a NAME-ONLY card is refused now (the content floor below), so a card with
+    // nothing to summarize could no longer prove anything about the injected role.
+    const character = await seedCharacter(db, { id: "character_x", ownerId: owner, name: "X", description: "X the xenobotanist." });
     const tagSvc = createTagService(makeTagHarness(db).ctx);
     const altReply = JSON.stringify({
       genre: "horror",
@@ -262,7 +264,8 @@ describe("distillCharacters", () => {
   test("a re-run never downgrades an ACCEPTED tag back to pending (idempotent no-downgrade)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");
-    const character = await seedCharacter(db, { id: "character_y", ownerId: owner, name: "Y" });
+    // Content-bearing on purpose (see the swap test): the re-run this pins only happens on a distillable card.
+    const character = await seedCharacter(db, { id: "character_y", ownerId: owner, name: "Y", description: "Y the yeoman." });
     const tagSvc = createTagService(makeTagHarness(db).ctx);
     const ctx = {
       ...makeDiscoveryHarness(db, { attachCardTagByName: tagSvc.attachCardTagByName }).ctx,
@@ -402,6 +405,69 @@ describe("distillCharacters", () => {
       (e: unknown) => e,
     );
     expect(missing).toBeInstanceOf(DomainNotFoundError);
+
+    // THE ORDERING PIN for the content floor: a stranger probing a NAME-ONLY card of A's must get the SAME
+    // NOT_FOUND, never "that card has nothing to distill" — the content verdict is a statement about a card,
+    // so it may only run after the ownership belt resolved an owned row. Inverted, it is an existence oracle.
+    const theirBareCard = await seedCharacter(db, { id: "character_theirs_bare", ownerId: owner, name: "Bare" });
+    const foreignBare: unknown = await svc.distillCharacters({ characterId: theirBareCard, ownerId: stranger }).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(foreignBare).toBeInstanceOf(DomainNotFoundError);
+  });
+
+  // ── THE CONTENT FLOOR: a name-only card is refused, never invented (owner ruling 2026-08-03) ──────────
+  // A card with no description / personality / scenario / greeting / examples carries nothing but its name,
+  // and the payload schema REQUIRES genre + tone + setting + pitch + overview + 3-8 tags — so the model
+  // fabricates every facet from the name and the fabrications stage as pending tag suggestions. The refusal
+  // is asserted by the error's NAME (not `instanceof`): these two proofs were written to run RED against the
+  // pre-fix source, where importing the class would have been a link error instead of a defect proof.
+
+  test("the on-demand pass REFUSES a name-only card — no summarize call, no invented tags", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const tagSvc = createTagService(makeTagHarness(db).ctx);
+    // Name and nothing else — the exact card that used to come back with a genre, a tone and three tags.
+    const character = await seedCharacter(db, { id: "character_bare", ownerId: owner, name: "Bare" });
+    const probe = makeDistillProbe({ batchReply: () => DISTILL_REPLY });
+    const svc = createDiscoveryService({
+      ...makeDiscoveryHarness(db, { attachCardTagByName: tagSvc.attachCardTagByName }).ctx,
+      summarize: probe.op,
+    });
+
+    const refusal: unknown = await svc.distillCharacters({ characterId: character, ownerId: owner }).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect((refusal as Error | null)?.name).toBe("CardNotDistillableError");
+    // The summarizer was never ASKED — the refusal precedes the call, so no tokens are spent inventing.
+    expect(probe.batchInputs).toHaveLength(0);
+    // Nothing staged: no summary row, no pending tag suggestions on the card.
+    expect(await db.select({ id: characterSummaries.characterId }).from(characterSummaries)).toHaveLength(0);
+    expect(await db.select({ id: characterTags.tagId }).from(characterTags).where(eq(characterTags.characterId, character))).toHaveLength(0);
+  });
+
+  test("the BATCH SKIPS a name-only card and counts it — the other cards still distill (no throw)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, "user_a");
+    const bare = await seedCharacter(db, { id: "character_bare", ownerId: owner, name: "Bare" });
+    await seedCharacter(db, { id: "character_alpha", ownerId: owner, name: "Alpha", description: "Alpha the aeronaut." });
+    const probe = makeDistillProbe({ batchReply: () => DISTILL_REPLY });
+    const svc = createDiscoveryService({ ...makeDiscoveryHarness(db).ctx, summarize: probe.op });
+
+    const stats = await svc.distillCharacters({ ownerId: owner });
+
+    // The skip is COUNTED, not folded into `failed` (different outcome, different fix) and not silently lost
+    // between `scanned` and `distilled` — the workload's progress line reads this field.
+    expect(stats).toMatchObject({ scanned: 2, distilled: 1, failed: 0, skipped: 1 });
+    // Only the content-bearing card was sent to the summarizer.
+    expect(probe.batchInputs).toHaveLength(1);
+    expect(probe.batchInputs[0]).toContain("Alpha the aeronaut.");
+    // The name-only card got no summary row (so no invented facets reach the catalog).
+    const summaries = await db.select({ id: characterSummaries.characterId }).from(characterSummaries);
+    expect(summaries.map((s) => s.id)).toEqual([castId("character_alpha")]);
+    expect(await db.select({ id: characterTags.tagId }).from(characterTags).where(eq(characterTags.characterId, bare))).toHaveLength(0);
   });
 
   test("the whole-library BATCH still returns counts and never throws (the narrow arm must not creep here)", async () => {

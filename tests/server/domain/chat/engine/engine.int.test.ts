@@ -7,8 +7,9 @@
 import type { AssembleContext, ChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
-import type { BatchStmt, Db } from "@orb/db";
+import type { Db } from "@orb/db";
 import { characterStats, chatLocks, chats, dailyStats, messages, messageVariants, ownerStats } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

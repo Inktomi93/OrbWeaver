@@ -8,7 +8,8 @@
 
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
 import type { Db } from "@orb/db";
-import { assets, characterEmbeddings, characters, chatDigestSpeakers, chatDigests, chatSegments, chats, imageEmbeddings, isConstraintViolation } from "@orb/db";
+import { assets, characterEmbeddings, characters, chatDigestSpeakers, chatDigests, chatSegments, chats, imageEmbeddings } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterEmbeddingId, CharacterId, ChatDigestId, ChatSegmentId, ImageEmbeddingId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";

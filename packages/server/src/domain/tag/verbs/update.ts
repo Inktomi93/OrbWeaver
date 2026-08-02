@@ -3,7 +3,7 @@
 // (ownerId, name) unique violation, classified into a DomainConflictError.
 
 import type { UpdateTagInput } from "@orb/contracts/tag";
-import { isConstraintViolation } from "@orb/db";
+import { isConstraintViolation } from "@orb/db/kit";
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import { normalizeTagName } from "@orb/kit/tag";
 import { TagNotFoundError } from "../contract/errors";
