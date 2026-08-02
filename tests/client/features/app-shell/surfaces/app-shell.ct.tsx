@@ -761,6 +761,84 @@ test("co-motion parity: the grid track and the collapsed panel share one non-zer
   expect(gridMotion.ease).toBe(panelMotion.ease);
 });
 
+// ── BOOT: the FIRST committed grid template already carries the resolved tracks (F14) ───────────────
+// shell.css boots `--list-track`/`--context-track` at 0px and the docked rules override them off
+// `data-list-mode`/`data-context-mode`. That LOOKS like a boot squeeze (content paints full-width, then
+// gets squeezed when the panel modes land, with :21's transition animating it) and was pinned as the
+// cause of the measured boot CLS — it is NOT, and this pins why: every input to the resolve is
+// SYNCHRONOUS (the persisted shell store rehydrates from localStorage during module init; panelDefaults
+// are static registry data; the viewport regime is a matchMedia `useSyncExternalStore` snapshot), so
+// `.shell-grid` carries its mode attributes from its very first render and the docked track rules win in
+// the SAME first style computation. Measured on the live stack: the grid's template at DOM insertion is
+// already `56px 345.594px 606.406px 432px` (4x-CPU-throttled too), and no interpolated value is ever
+// sampled. Anything that makes panel resolution async (an awaited storage, a mode read moved into an
+// effect, a hydration gate) reintroduces a real 0px→docked squeeze — this fails on that.
+test("boot: the grid's FIRST committed template already carries the resolved track widths (no 0px squeeze)", async ({ mount, page }) => {
+  // Pin the viewport BEFORE the mount: the CT harness page loads at its own size and Playwright applies
+  // the test viewport afterwards, so a mount at the default size renders once against the pre-resize
+  // matchMedia (narrow ⇒ the auto-overlay downgrade) and re-resolves on the resize event. That is a real
+  // viewport change, not an async resolve — resizing first is what makes this a boot measurement.
+  await page.setViewportSize(WIDE);
+  // BOOT STATE, the way a real boot has it: `orb:shell` already in localStorage BEFORE any module runs,
+  // so the shell store's rehydrate (sync — localStorage) is what the first render reads. The story's own
+  // `LandOn` lands the section in an EFFECT, i.e. one commit late; that is a story artifact, and pinning
+  // against it would prove nothing about the boot. `addInitScript` + a reload is the only moment early
+  // enough (the CT harness re-bootstraps on load, so `mount` still works after it).
+  await page.addInitScript({
+    content: `try { localStorage.setItem("orb:shell", ${JSON.stringify(
+      JSON.stringify({ state: { activeSection: "chats", panelOverrides: { chats: { list: "docked" } } }, version: 2 }),
+    )}); } catch { /* storage disabled — the story falls back to its own landing */ }`,
+  });
+  await page.reload();
+  // Installed BEFORE the shell mounts: the moment `.shell-grid` lands in the DOM, read its computed
+  // template. `getComputedStyle` forces the style pass, so this IS what the first commit carries.
+  await page.evaluate(() => {
+    // The PAGE's global object with a probe-only capture slot — no domain type to drift from.
+    // FABRICATION-OK: a browser-context globals bag, declared and read in this test alone.
+    const bag = globalThis as unknown as { __bootGrid: { cols: string; list: string | null } | null };
+    bag.__bootGrid = null;
+    const observer = new MutationObserver(() => {
+      const grid = document.querySelector(".shell-grid");
+      if (grid !== null && bag.__bootGrid === null) {
+        bag.__bootGrid = { cols: getComputedStyle(grid).gridTemplateColumns, list: grid.getAttribute("data-list-mode") };
+        observer.disconnect();
+      }
+    });
+    observer.observe(document, { childList: true, subtree: true });
+  });
+
+  await mount(<AppShellStory />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+
+  const readBoot = (): Promise<{ cols: string; list: string | null } | null> =>
+    // FABRICATION-OK: reads back the same probe-only slot on the PAGE global (see the capture above).
+    page.evaluate(() => (globalThis as unknown as { __bootGrid: { cols: string; list: string | null } | null }).__bootGrid);
+
+  // The capture is written ONCE (the observer disconnects) — poll until it lands, then read it settled.
+  // The mode attribute is on the element AT INSERTION, not stamped by a later effect.
+  await expect.poll(async () => (await readBoot())?.list ?? null, { intervals: [20, 50, 100] }).toBe("docked");
+  const boot = await readBoot();
+  // rail | LIST | content | context — the LIST track is already the resolved panel width, never 0px.
+  // ONESHOT-OK: `__bootGrid` is written once at `.shell-grid` insertion and never again (the observer
+  // disconnects); the poll above already awaited it, so this read is provably settled.
+  const bootTracks = (boot?.cols ?? "").split(" ").map((t) => Number.parseFloat(t));
+  // ONESHOT-OK: derived from the settled one-shot capture above, not a live DOM read.
+  expect(bootTracks).toHaveLength(4);
+  // ONESHOT-OK: same settled capture.
+  expect(bootTracks[1]).toBeGreaterThan(0);
+  // …and it is the SAME width the docked panel settles at, so nothing is squeezed after first paint.
+  await expect
+    .poll(
+      async () => {
+        const settledWidth = (await listPanel.boundingBox())?.width ?? 0;
+        return Math.abs((bootTracks[1] ?? 0) - settledWidth) < 1;
+      },
+      { intervals: [20, 50, 100] },
+    )
+    .toBe(true);
+});
+
 // ── Cascade-contract: glass/background beats elevation (the rendered cascade, not source text) ──
 // shell.css's `data-elevation="ramp"` fills are unlayered plain CSS living alongside globals.css's
 // `data-blur-*` glass rules and `data-has-bg-image` transparency rules — all three are specificity-
