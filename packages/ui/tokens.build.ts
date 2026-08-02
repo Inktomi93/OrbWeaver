@@ -1,9 +1,16 @@
 // The DTCG → derived-theme codegen (UI-Architecture §3, D42): src/tokens/tokens.json is the ONE
-// design-value source; this script derives BOTH src/styles/theme.css (the Tailwind v4 @theme block)
-// AND src/tokens/index.ts (the typed TS map). The generated artifacts are committed;
-// tests/ui/tokens/index.test.ts re-runs generateArtifacts() and diffs — hand-editing either output,
-// or editing tokens.json without regenerating, FAILS the test ("derived, never hand-authored" as a
-// machine invariant, not a hope). Run: pnpm --filter @orb/ui tokens:build
+// design-value source; this script derives THREE artifacts — src/styles/theme.css (the Tailwind v4
+// @theme block + the [data-theme] seed blocks), src/tokens/index.ts (the typed TS map), and
+// src/tokens/themes.gen.ts (the seed value-sets as TS, re-exported by index). The generated artifacts
+// are committed; tests/ui/tokens/index.test.ts re-runs generateArtifacts() and diffs — hand-editing any
+// output, or editing tokens.json without regenerating, FAILS the test ("derived, never hand-authored"
+// as a machine invariant, not a hope). Run: pnpm --filter @orb/ui tokens:build
+//
+// WHY the value-sets are their OWN module (2026-08-02, the 10-palette default-character pack): one seed
+// palette emits ~37 lines, so a growing roster pushed the single index past the 450-line
+// `component-size-ui` cap. The split keeps each artifact legible and wears the repo's generated-file
+// name (`*.gen.ts` — the same convention as client's routeTree.gen.ts, already exempted by BOTH size
+// gates' SKIP_RE and by biome's files.includes). index.ts re-exports it, so no consumer import moves.
 //
 // Style Dictionary v5 (docs said v4 — delta recorded in proposed/ui-package-design.md §3/§10; the
 // v5 API used here: `new StyleDictionary(config)` + `exportPlatform()` for reference resolution).
@@ -20,6 +27,9 @@ const TOKENS_JSON = join(HERE, "src/tokens/tokens.json");
 const THEMES_DIR = join(HERE, "src/tokens/themes");
 const THEME_CSS = join(HERE, "src/styles/theme.css");
 const TOKENS_TS = join(HERE, "src/tokens/index.ts");
+const THEMES_TS = join(HERE, "src/tokens/themes.gen.ts");
+/** The specifier index.ts re-exports the value-sets from (extension-less — the package's TS resolution). */
+const THEMES_MODULE = "./themes.gen";
 
 // The exact token-path coverage every seed value-set must carry: each EMITTED `--color-*` (the
 // themeable surface, from clamp.ts) plus color.scrim (SEED_COVERED). A value-set with a missing or
@@ -97,7 +107,7 @@ function collectPointerFine(node: Record<string, unknown>, path: readonly string
   }
 }
 
-function renderTokensTs(tokens: readonly FlatToken[], themes: readonly SeedTheme[]): string {
+function renderTokensTs(tokens: readonly FlatToken[]): string {
   const entries = tokens.map((t) => {
     const key = t.path.join(".");
     const value = renderValue(t.value);
@@ -119,7 +129,10 @@ function renderTokensTs(tokens: readonly FlatToken[], themes: readonly SeedTheme
     "export function cssVar(path: TokenPath): string {",
     `  return ${varOpen}${varClose};`,
     "}",
-    renderSeedThemesTs(themes),
+    "",
+    "/** The seed [data-theme] value-sets — their own generated module (see tokens.build.ts), re-exported here so `@orb/ui/tokens` stays the ONE import for every token surface. */",
+    `export { SEED_THEME_VALUE_SETS } from "${THEMES_MODULE}";`,
+    "",
   ].join("\n");
 }
 
@@ -205,9 +218,12 @@ function renderSeedThemesBlock(themes: readonly SeedTheme[]): string {
   return parts.join("");
 }
 
-/** The generated `SEED_THEME_VALUE_SETS` map — the seed palettes as a typed TS record (parallel to TOKENS). */
+/** The generated `themes.gen.ts` module — the seed palettes as a typed TS record (parallel to TOKENS),
+ *  re-exported by index.ts. Its own file so a growing palette roster never pushes the token map past the
+ *  `component-size-ui` cap (see the header). */
 function renderSeedThemesTs(themes: readonly SeedTheme[]): string {
   const lines = [
+    `/** ${HEADER} */`,
     "",
     "/** The seed [data-theme] value-sets, GENERATED from src/tokens/themes/*.json — the same palettes theme.css emits as `[data-theme=…]` blocks, exposed to TS (e.g. the theme picker) so a seed palette has ONE source. */",
     "export const SEED_THEME_VALUE_SETS = {",
@@ -227,7 +243,7 @@ function renderSeedThemesTs(themes: readonly SeedTheme[]): string {
   return lines.join("\n");
 }
 
-export async function generateArtifacts(): Promise<{ themeCss: string; tokensTs: string }> {
+export async function generateArtifacts(): Promise<{ themeCss: string; tokensTs: string; themesTs: string }> {
   const source = JSON.parse(readFileSync(TOKENS_JSON, "utf8")) as DesignTokens;
   const sd = new StyleDictionary({
     tokens: source,
@@ -256,13 +272,15 @@ export async function generateArtifacts(): Promise<{ themeCss: string; tokensTs:
   const seedThemes = loadSeedThemes(new Set(flat.map((t) => t.path.join("."))));
   return {
     themeCss: renderThemeCss(flat) + renderPointerFineBlock(fine) + renderSeedThemesBlock(seedThemes),
-    tokensTs: renderTokensTs(flat, seedThemes),
+    tokensTs: renderTokensTs(flat),
+    themesTs: renderSeedThemesTs(seedThemes),
   };
 }
 
 // tsx entrypoint (`pnpm --filter @orb/ui tokens:build`): write the committed artifacts.
 if (process.argv[1]?.endsWith("tokens.build.ts")) {
-  const { themeCss, tokensTs } = await generateArtifacts();
+  const { themeCss, tokensTs, themesTs } = await generateArtifacts();
   writeFileSync(THEME_CSS, themeCss);
   writeFileSync(TOKENS_TS, tokensTs);
+  writeFileSync(THEMES_TS, themesTs);
 }

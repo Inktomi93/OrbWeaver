@@ -14,10 +14,13 @@ const UI_ROOT = join(import.meta.dirname, "../../../packages/ui");
 /** The emitted pointer-fine override block — its `:root { … }` body is capture group 1. */
 const FINE_BLOCK_RE = /@media \(pointer: fine\) \{\s*:root \{([\s\S]*?)\}\s*\}/u;
 
-test("theme.css and tokens/index.ts are exactly what tokens.json derives (no drift, no hand edits)", async () => {
-  const { themeCss, tokensTs } = await generateArtifacts();
+test("theme.css, tokens/index.ts and tokens/themes.gen.ts are exactly what tokens.json + themes/*.json derive (no drift, no hand edits)", async () => {
+  const { themeCss, tokensTs, themesTs } = await generateArtifacts();
   expect(readFileSync(join(UI_ROOT, "src/styles/theme.css"), "utf8")).toBe(themeCss);
   expect(readFileSync(join(UI_ROOT, "src/tokens/index.ts"), "utf8")).toBe(tokensTs);
+  // The seed value-sets are their OWN generated module (they outgrew the index's size cap) — freshness
+  // covers it too, or a hand-edited palette would drift silently.
+  expect(readFileSync(join(UI_ROOT, "src/tokens/themes.gen.ts"), "utf8")).toBe(themesTs);
 });
 
 test("the touch floor holds PER-POINTER: coarse @theme meets ≥44px, fine override is 32/34/40 (D62 P1, gate touch-target-floor; control-sm raised to the 32px tap-target floor Task #76)", async () => {

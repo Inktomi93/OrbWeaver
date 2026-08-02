@@ -2,20 +2,24 @@
 // createDefaultCharacterSeeder over these. Wired by entry over the character front door, with the settings
 // latch ops injected so domain/character never imports domain/settings.
 
-import type { CreateCharacterInput } from "@orb/contracts/character";
+import type { CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import type { CharacterService } from "./service";
 
-/** One authored default card: the create input plus its author-shipped native tags (attached separately —
- *  CreateCharacterInput carries no tags field). */
+/** One authored default card: the create input, its author-shipped native tags (attached separately —
+ *  CreateCharacterInput carries no tags field), and its PRESENTATION (carried theme + background).
+ *  `presentation` rides separately because both fields live on the UPDATE arm only (the create schema
+ *  carries neither), so the seeder applies them as a post-create edit — see `seeder/seed.ts`. */
 export interface SeedCard {
   readonly input: CreateCharacterInput;
   readonly tags: readonly string[];
+  readonly presentation: Pick<UpdateCharacterInput, "themeOverride" | "backgroundOverride">;
 }
 
 export interface DefaultCharacterSeederDeps {
-  readonly characters: Pick<CharacterService, "create" | "findByHandle">;
+  /** `update` applies each freshly-created card's `presentation` (the theme/background override arm). */
+  readonly characters: Pick<CharacterService, "create" | "findByHandle" | "update">;
   /** Attach one of a seeded card's native tags as a card/pending suggestion. Idempotent + never downgrades. */
   readonly attachCardTag: (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
   /** Store this handle's bundled avatar art, or null when the pack ships none / the store fails. */

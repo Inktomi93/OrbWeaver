@@ -240,8 +240,14 @@ export function AppShell(): ReactElement {
                 onToggleList={(): void => layout.togglePanel("list")}
               />
               {/* A11y (side-eye R3): the scroll container is tabbable, so name it from the active section's
-                  visible label — the `main` landmark otherwise announces as an unnamed region. */}
-              <main className="shell-content" ref={mainRef} tabIndex={-1} aria-label={`${layout.activeSectionLabel} content`}>
+                  visible label — the `main` landmark otherwise announces as an unnamed region.
+                  INERT BEHIND AN OPEN SHEET (item 22): whenever the scrim is up it already swallows every
+                  pointer event aimed at this column, but a keyboard user could still Tab into controls
+                  behind the sheet and act on a surface they cannot see — the pointer and the keyboard have
+                  to agree (the house Dialog/Drawer inert their background for exactly this reason). Scoped
+                  to the CONTENT column, not the whole frame, because the sheet's own close control is the
+                  topbar toggle ABOVE the scrim: inerting the frame would strand the user in it. */}
+              <main className="shell-content" ref={mainRef} tabIndex={-1} aria-label={`${layout.activeSectionLabel} content`} inert={layout.scrimVisible}>
                 <SectionContent activeSection={layout.activeSection} contentBySection={contentBySection} fallback={contentFallback} focusAnchorRef={mainRef} />
               </main>
             </div>
