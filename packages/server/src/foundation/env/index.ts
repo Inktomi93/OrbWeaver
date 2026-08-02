@@ -83,6 +83,18 @@ const RATE_LIMIT_LOGIN_DEFAULT = 10;
 const skipOverride = process.env["VITEST"] !== undefined || process.env["ORB_ENV_NO_OVERRIDE"] !== undefined;
 loadDotenv({ override: !skipOverride, quiet: true });
 
+/** A boolean knob's env codec — ONE home for the posture, so no site can drift.
+ *
+ *  The params are PINNED and the pinning is the whole point: bare `z.stringbool()` is case-INSENSITIVE and
+ *  accepts `1/0/yes/no/on/off` (probed on 4.4.3), which would silently WIDEN every boolean knob's accepted
+ *  vocabulary. With `{truthy:["true"], falsy:["false"], case:"sensitive"}` the accepted set is byte-identical
+ *  to the `z.enum(["true","false"]).transform(v => v === "true")` this replaces: only lowercase `true`/`false`
+ *  parse, and `TRUE`/`1`/`yes`/`on`/`""` stay a LOUD boot refusal. `.default()` takes the BOOLEAN (the codec's
+ *  output type), so an unset key never runs the string decode at all. */
+function envBool(fallback: boolean): z.ZodDefault<z.ZodCodec<z.ZodString, z.ZodBoolean>> {
+  return z.stringbool({ truthy: ["true"], falsy: ["false"], case: "sensitive" }).default(fallback);
+}
+
 const envSchema = z
   .object({
     PORT: z.coerce.number().int().positive().default(DEFAULT_PORT),
@@ -181,18 +193,12 @@ const envSchema = z
     // (steady-state inference cost ≈ nil) so an idle GPU can be reclaimed via /sleep. "false" reverts to the
     // pre-sleep launch (no endpoints, no idle reclaim). LAUNCH-tier (argv-affecting, restart-to-apply) —
     // resolved into EngineLaunchConfig.sleepMode via engineLaunchEnvFloor (override ?? floor).
-    VLLM_SLEEP_MODE: z
-      .enum(["true", "false"])
-      .default("true")
-      .transform((v) => v === "true"),
+    VLLM_SLEEP_MODE: envBool(true),
     // The ENGINE-SIDE flight recorder (default off). "true" ⇒ the serve argv gains `--enable-log-requests
     // --enable-log-outputs --max-log-len 2048`: wire captures show what WE sent, these show what the engine
     // PARSED (post-chat-template, post-tool-parser) — the tool-call-debugging blind spot. LAUNCH-tier
     // (argv-affecting, restart-to-apply). Verbose — leave off except when diagnosing a prompt/tool-parse gap.
-    VLLM_DEBUG_REQUESTS: z
-      .enum(["true", "false"])
-      .default("false")
-      .transform((v) => v === "true"),
+    VLLM_DEBUG_REQUESTS: envBool(false),
     // `--shutdown-timeout N` — a graceful in-flight drain window (seconds) on engine shutdown. 0 (default) =
     // today's immediate abort; a positive value lets `engines:stop` drain first. LAUNCH-tier.
     VLLM_SHUTDOWN_TIMEOUT_S: z.coerce.number().int().nonnegative().default(0),
@@ -211,17 +217,11 @@ const envSchema = z
     VLLM_AUTO_SLEEP_IDLE_MS: z.coerce.number().int().nonnegative().default(VLLM_AUTO_SLEEP_IDLE_MS_DEFAULT),
     // DEPRECATED-BY ENGINES_POSTURE (mapped with a visible log by resolveEnginesPosture, then removed):
     // "true" disables the local engine entirely (a GPU-less/cloud-only box runs without the supervisor).
-    VLLM_DISABLED: z
-      .enum(["true", "false"])
-      .default("false")
-      .transform((v) => v === "true"),
+    VLLM_DISABLED: envBool(false),
 
     // Cross-chat corpus auto-indexing: embed completed raw-message blocks into the search corpus in the
     // background, post-turn. "false" pauses it to offload the GPU.
-    CORPUS_AUTOINDEX: z
-      .enum(["true", "false"])
-      .default("true")
-      .transform((v) => v === "true"),
+    CORPUS_AUTOINDEX: envBool(true),
     // Comma-separated character names (case-insensitive) to exclude at import. Set to "" to import all.
     IMPORT_SKIP_CHARACTERS: z.string().default("Wren,Assistant"),
 
@@ -254,10 +254,7 @@ const envSchema = z
     IP_ALLOWLIST: z.string().optional(),
 
     // Blocks outbound HTTP to private/loopback/link-local IPs via the global undici dispatcher.
-    EGRESS_FIREWALL: z
-      .enum(["true", "false"])
-      .default("true")
-      .transform((v) => v === "true"),
+    EGRESS_FIREWALL: envBool(true),
     EGRESS_ALLOWLIST: z.string().optional(),
 
     // An identity whose groups contains OWNER_GROUP, or whose handle is in OWNER_HANDLES, provisions as
@@ -271,10 +268,7 @@ const envSchema = z
     OIDC_ALLOWED_GROUPS: z.string().optional(),
 
     // Verify the signed JWT against its JWKS. Falls back to network-isolation trust if the JWT is absent.
-    FORWARD_AUTH_VERIFY_JWT: z
-      .enum(["true", "false"])
-      .default("true")
-      .transform((v) => v === "true"),
+    FORWARD_AUTH_VERIFY_JWT: envBool(true),
     // A remote JWKS URL is always required https; if this allowlist is set its host must also be in it.
     FORWARD_AUTH_JWKS_ALLOWLIST: z.string().optional(),
     FORWARD_AUTH_JWT_ISSUER: z.string().optional(),
@@ -283,10 +277,7 @@ const envSchema = z
     // 32 random bytes for AES-256-GCM (hex or base64). Unset ⇒ per-user creds off — no host-key fallback.
     CREDENTIALS_KEY: z.string().optional(),
     // When CREDENTIALS_KEY is unset, auto-generate + persist a key on first boot.
-    CREDENTIALS_KEY_AUTO: z
-      .enum(["true", "false"])
-      .default("false")
-      .transform((v) => v === "true"),
+    CREDENTIALS_KEY_AUTO: envBool(false),
 
     // Required iff AUTH_MODE=oidc. OIDC_REDIRECT_URIS is a comma-list allowlist of the full callback URLs;
     // the login route derives the callback from the request origin and accepts it only on exact match.

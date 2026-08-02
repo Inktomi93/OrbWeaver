@@ -9,6 +9,7 @@ import { automationActionsSchema, LIVE_TRIGGERS } from "@orb/contracts/automatio
 import type { Db } from "@orb/db";
 import { isCelParseError, parseCel } from "@orb/kit/cel";
 import type { ChatId } from "@orb/kit/ids";
+import { z } from "zod";
 import { AutomationReservedTriggerError, RuleValidationError } from "../contract/errors";
 import { isBookAttachedToChat } from "../persistence/canon-reads";
 
@@ -35,7 +36,9 @@ interface ValidateInput {
 function validateActions(input: ValidateInput): readonly AutomationAction[] {
   const parsed = automationActionsSchema.safeParse(input.actions);
   if (!parsed.success) {
-    throw new RuleValidationError("bad_action", `action list invalid: ${parsed.error.issues[0]?.message ?? "unknown"}`);
+    // `z.prettifyError` over `issues[0].message`: the arms are a discriminated array, so "Invalid input" with no
+    // path named neither WHICH arm nor WHICH field. prettify carries `→ at 1.cooldownSeconds` per issue.
+    throw new RuleValidationError("bad_action", `action list invalid:\n${z.prettifyError(parsed.error)}`);
   }
   const actions = parsed.data;
 

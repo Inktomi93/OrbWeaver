@@ -26,22 +26,20 @@ const overrideField = z.string().max(OVERRIDE_FIELD_MAX);
 // RETIRED KEY — `authorsNote` (owner ruling 2026-08-01): the room author's note was a SECOND home for the
 // concept `chat_injections` already owns. Both landed as the same `in_chat` at-depth splice (operator
 // priority, budget-exempt); the note was just an injection with a default depth. ONE door survives — the
-// per-chat Injections list (a system note at depth 4 IS the author's note). `.strict()` therefore REJECTS a
+// per-chat Injections list (a system note at depth 4 IS the author's note). Strictness therefore REJECTS a
 // stored/wired `authorsNote`: the sub-blob heals to absent at the read seam (`domain/chat/contract/
 // metadata.ts` `.catch(undefined)`) and the write verb refuses it (`forbiddenOverride`). Pre-launch, stored
 // values are debris — no migration.
 
 /** The host-only per-room overrides — exactly three PLAIN-TEXT section overrides ("jailbreak" IS
- *  post_history). `.strict()` default-denies a stray key (an enforcer, not prose). Each field absent ⇒
+ *  post_history). `z.strictObject` default-denies a stray key (an enforcer, not prose). Each field absent ⇒
  *  inherit the card/scope fallback (resolved in SHAPE — INERT here). Stored in `chatMetadata` (an FK-clean
  *  JSON sub-blob). At-depth steering is NOT here — it is a `chat_injections` row. */
-export const roomOverridesSchema = z
-  .object({
-    scenario: overrideField.optional(),
-    mainPrompt: overrideField.optional(),
-    postHistory: overrideField.optional(),
-  })
-  .strict();
+export const roomOverridesSchema = z.strictObject({
+  scenario: overrideField.optional(),
+  mainPrompt: overrideField.optional(),
+  postHistory: overrideField.optional(),
+});
 export type RoomOverrides = z.infer<typeof roomOverridesSchema>;
 
 /** Empty ⇒ inherit everything (the off path is byte-identical). */
@@ -66,7 +64,7 @@ export type GroupPolicy = (typeof GROUP_POLICIES)[number];
  *  applied BEFORE the policy. `smart` (side-LLM) falls back to `natural` until wired. */
 export const groupPolicySchema = z.enum(GROUP_POLICIES).catch("natural").default("natural");
 
-// Auto-mode (opt-in AI→AI chaining) — MUST live on BOTH union arms (the narrator arm is `.strict()`).
+// Auto-mode (opt-in AI→AI chaining) — MUST live on BOTH union arms (the narrator arm is strict).
 // Defaults make the OFF path byte-identical (no timer / no auto-turn / no scheduling).
 const AUTO_MODE_MAX_TURNS_MIN = 1;
 const AUTO_MODE_MAX_TURNS_MAX = 20;
@@ -94,32 +92,30 @@ const autoModeFields = {
 } as const;
 
 // The synthetic group character's identity id (Part III §10) — narrator turns are AUTHORED by it (a real
-// id, never NULL). Optional KEY (absent until minted); on BOTH arms (the narrator arm is `.strict()`).
+// id, never NULL). Optional KEY (absent until minted); on BOTH arms (the narrator arm is strict).
 const groupCharacterIdField = {
   groupCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
 } as const;
 
-// `memberCardVisibility` (D22) — host-set, default `sheet`; on BOTH arms (narrator is `.strict()`).
+// `memberCardVisibility` (D22) — host-set, default `sheet`; on BOTH arms (narrator is strict).
 const memberCardVisibilityField = {
   memberCardVisibility: memberCardVisibilitySchema.catch("sheet").default("sheet"),
 } as const;
 
 /** Per-room generation behavior. `output` is the discriminator: a `narrator` turn voices the whole cast in
  *  one message and has NO per-speaker card-scope — the `narrator ⇒ merged` constraint is made
- *  unrepresentable by OMITTING `cardScope` from that arm (and `.strict()` REJECTS a stray `cardScope`, an
+ *  unrepresentable by OMITTING `cardScope` from that arm (and `z.strictObject` REJECTS a stray `cardScope`, an
  *  enforcer not prose). `per-speaker` (default) emits one message per speaker and carries `cardScope`. */
 export const groupConfigSchema = z.discriminatedUnion("output", [
-  z
-    .object({
-      output: z.literal("narrator"),
-      policy: groupPolicySchema,
-      speakerTags: z.boolean().catch(true).default(true),
-      groupNudge: z.boolean().catch(true).default(true),
-      ...autoModeFields,
-      ...groupCharacterIdField,
-      ...memberCardVisibilityField,
-    })
-    .strict(),
+  z.strictObject({
+    output: z.literal("narrator"),
+    policy: groupPolicySchema,
+    speakerTags: z.boolean().catch(true).default(true),
+    groupNudge: z.boolean().catch(true).default(true),
+    ...autoModeFields,
+    ...groupCharacterIdField,
+    ...memberCardVisibilityField,
+  }),
   z.object({
     output: z.literal("per-speaker"),
     policy: groupPolicySchema,
@@ -171,23 +167,21 @@ export type OpeningPolicy = z.infer<typeof openingPolicySchema>;
 /** The steer text cap — the house user-prose bound ({@link OVERRIDE_FIELD_MAX}); a steer is a short one-turn
  *  nudge, so this ceiling is only a wire-abuse floor, never a real-usage limit. */
 export const GUIDED_STEER_INPUT_MAX = OVERRIDE_FIELD_MAX;
-export const guidedSteerSchema = z
-  .object({
-    action: guidedActionKindSchema,
-    input: z.string().max(GUIDED_STEER_INPUT_MAX).optional(),
-    placement: z
-      .discriminatedUnion("kind", [z.object({ kind: z.literal("system") }), z.object({ kind: z.literal("inject"), role: messageRoleSchema })])
-      .optional(),
-    /** The `{{person}}` word for impersonate's 1st/2nd/3rd-person templates; ignored by other actions. */
-    person: z.enum(GUIDED_IMPERSONATE_PERSONS).optional(),
-    /** A wand-fired one-shot GAME steer KIND (parity-plus P5 — the Plot submenu + "Offer choices"). When
-     *  present, the assembly resolves the kit-homed SYSTEM template (`GUIDED_GAME_STEERS`) through the macro
-     *  engine (the rpg data macros read the game turn's gather feed) and delivers it as a depth-0 system
-     *  injection — `input`/the action config are ignored. Enum-validated: the wire carries only the kind,
-     *  never template text (a member cannot smuggle macros onto the trusted template side). */
-    gameSteer: z.enum(GUIDED_GAME_STEER_KINDS).optional(),
-  })
-  .strict();
+export const guidedSteerSchema = z.strictObject({
+  action: guidedActionKindSchema,
+  input: z.string().max(GUIDED_STEER_INPUT_MAX).optional(),
+  placement: z
+    .discriminatedUnion("kind", [z.object({ kind: z.literal("system") }), z.object({ kind: z.literal("inject"), role: messageRoleSchema })])
+    .optional(),
+  /** The `{{person}}` word for impersonate's 1st/2nd/3rd-person templates; ignored by other actions. */
+  person: z.enum(GUIDED_IMPERSONATE_PERSONS).optional(),
+  /** A wand-fired one-shot GAME steer KIND (parity-plus P5 — the Plot submenu + "Offer choices"). When
+   *  present, the assembly resolves the kit-homed SYSTEM template (`GUIDED_GAME_STEERS`) through the macro
+   *  engine (the rpg data macros read the game turn's gather feed) and delivers it as a depth-0 system
+   *  injection — `input`/the action config are ignored. Enum-validated: the wire carries only the kind,
+   *  never template text (a member cannot smuggle macros onto the trusted template side). */
+  gameSteer: z.enum(GUIDED_GAME_STEER_KINDS).optional(),
+});
 export type GuidedSteer = z.infer<typeof guidedSteerSchema>;
 
 /** The parsed `chats.metadata` room-behavior blob (D16). No single schema spans it — the column composes

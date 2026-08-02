@@ -197,69 +197,70 @@ export const generationKnobSchemas = {
   compactionVerbatimTail: z.number().int().min(COMPACTION_VERBATIM_TAIL_MIN).max(COMPACTION_VERBATIM_TAIL_MAX).optional(),
 } as const;
 
-// `.strict()` rejects unknown keys (a typo'd field is a real bug). We use `.strict()` on a plain
-// `z.object` rather than `z.strictObject` because in Zod v4 `z.strictObject` inflates the inferred type
-// with an index-signature tag that propagates through `.optional()` and trips
-// `noPropertyAccessFromIndexSignature` on every consumer.
-export const userIntentSchema = z
-  .object({
-    quality: z.enum(QUALITY_LEVELS).optional(),
+// `z.strictObject` rejects unknown keys (a typo'd knob is a real bug; `.catch({})` at the params field bounds
+// the blast radius). HISTORICAL NOTE: this site used `.strict()` on a plain `z.object` because an early Zod v4
+// `z.strictObject` inflated the inferred type with an index-signature tag that propagated through `.optional()`
+// and tripped `noPropertyAccessFromIndexSignature`. FIXED UPSTREAM — on 4.4.3 `$strict` is byte-identical to
+// `$strip` (`zod/v4/core/schemas.d.ts`: `{ out: {}; in: {} }`), verified type-level under this repo's own strict
+// flags. Either spelling is fine now; `z.strictObject` is the direct one (`.strict()` is tagged legacy-compat in
+// the installed d.ts), so new strict boundaries should use it.
+export const userIntentSchema = z.strictObject({
+  quality: z.enum(QUALITY_LEVELS).optional(),
 
-    effort: effortLevelSchema.optional(),
-    thinkingBudgetTokens: generationKnobSchemas.thinkingBudgetTokens,
-    thinkingDisplay: z.enum(THINKING_DISPLAYS).optional(),
+  effort: effortLevelSchema.optional(),
+  thinkingBudgetTokens: generationKnobSchemas.thinkingBudgetTokens,
+  thinkingDisplay: z.enum(THINKING_DISPLAYS).optional(),
 
-    maxOutputTokens: generationKnobSchemas.maxOutputTokens,
-    maxContextTokens: generationKnobSchemas.maxContextTokens,
-    providerContextCompression: z.boolean().optional(),
+  maxOutputTokens: generationKnobSchemas.maxOutputTokens,
+  maxContextTokens: generationKnobSchemas.maxContextTokens,
+  providerContextCompression: z.boolean().optional(),
 
-    temperature: generationKnobSchemas.temperature,
-    topP: generationKnobSchemas.topP,
-    topK: generationKnobSchemas.topK,
-    minP: generationKnobSchemas.minP,
-    topA: generationKnobSchemas.topA,
-    frequencyPenalty: generationKnobSchemas.frequencyPenalty,
-    presencePenalty: generationKnobSchemas.presencePenalty,
-    repetitionPenalty: generationKnobSchemas.repetitionPenalty,
-    seed: generationKnobSchemas.seed,
-    logitBias: z.record(z.string(), z.number()).optional(),
-    stop: z.array(z.string()).optional(),
-    // Vocab derived from connection's VERBOSITY_LEVELS (never re-spelled).
-    verbosity: z.enum(VERBOSITY_LEVELS).optional(),
+  temperature: generationKnobSchemas.temperature,
+  topP: generationKnobSchemas.topP,
+  topK: generationKnobSchemas.topK,
+  minP: generationKnobSchemas.minP,
+  topA: generationKnobSchemas.topA,
+  frequencyPenalty: generationKnobSchemas.frequencyPenalty,
+  presencePenalty: generationKnobSchemas.presencePenalty,
+  repetitionPenalty: generationKnobSchemas.repetitionPenalty,
+  seed: generationKnobSchemas.seed,
+  logitBias: z.record(z.string(), z.number()).optional(),
+  stop: z.array(z.string()).optional(),
+  // Vocab derived from connection's VERBOSITY_LEVELS (never re-spelled).
+  verbosity: z.enum(VERBOSITY_LEVELS).optional(),
 
-    compaction: z
-      .object({
-        mode: z.enum(COMPACTION_MODES).optional(),
-        thresholdPct: generationKnobSchemas.compactionThresholdPct,
-        instructions: z.string().optional(),
-        // The newest-N canon rows kept literal on the no-fit-boundary (agent-sdk) path; older rows compact.
-        // Absent ⇒ the engine floor (`MANAGED_VERBATIM_TAIL`), derived from that const — byte-identical default.
-        verbatimTail: generationKnobSchemas.compactionVerbatimTail,
-      })
-      .optional(),
+  compaction: z
+    .object({
+      mode: z.enum(COMPACTION_MODES).optional(),
+      thresholdPct: generationKnobSchemas.compactionThresholdPct,
+      instructions: z.string().optional(),
+      // The newest-N canon rows kept literal on the no-fit-boundary (agent-sdk) path; older rows compact.
+      // Absent ⇒ the engine floor (`MANAGED_VERBATIM_TAIL`), derived from that const — byte-identical default.
+      verbatimTail: generationKnobSchemas.compactionVerbatimTail,
+    })
+    .optional(),
 
-    // Escape hatch — reserved-keys floor enforced at the env-builder / runner-translate seam.
-    advanced: z
-      .object({
-        claudeEnv: z.record(z.string(), z.union([z.string(), z.null()])).optional(),
-        // Where the volatile per-turn system-prompt half is delivered: "system" joins it into the cached
-        // system-prompt string; "hook" delivers it at the message tail (cache-safe). Absent ⇒ the funnel
-        // picks "hook" iff the model honors mid-conversation system, else "system".
-        dynamicContext: z.enum(["system", "hook"]).optional(),
-        // Merge CONSECUTIVE system-note runs before they convert to `user` rows — orthogonal to the
-        // adjacent-same-role merge below (roleHandling). Absent ⇒ no pre-merge.
-        squashSystemMessages: z.boolean().optional(),
-        // Adjacent-same-role (user|assistant) merge strategy — user-authoring intent, clamped against the
-        // model's `capability.turns.roleHandlingFloor` at the SHAPE splice (user may go stricter, never looser).
-        roleHandling: roleHandlingSchema.optional(),
-        // Whether the model may emit SEVERAL tool calls in one turn (OpenRouter `parallel_tool_calls`).
-        // Rides the wire only when the request carries tools + the model is tool-capable. Absent ⇒ the
-        // provider default (parallel allowed).
-        parallelToolCalls: z.boolean().optional(),
-      })
-      .optional(),
-  })
-  .strict();
+  // Escape hatch — reserved-keys floor enforced at the env-builder / runner-translate seam.
+  advanced: z
+    .object({
+      claudeEnv: z.record(z.string(), z.string().nullable()).optional(),
+      // Where the volatile per-turn system-prompt half is delivered: "system" joins it into the cached
+      // system-prompt string; "hook" delivers it at the message tail (cache-safe). Absent ⇒ the funnel
+      // picks "hook" iff the model honors mid-conversation system, else "system".
+      dynamicContext: z.enum(["system", "hook"]).optional(),
+      // Merge CONSECUTIVE system-note runs before they convert to `user` rows — orthogonal to the
+      // adjacent-same-role merge below (roleHandling). Absent ⇒ no pre-merge.
+      squashSystemMessages: z.boolean().optional(),
+      // Adjacent-same-role (user|assistant) merge strategy — user-authoring intent, clamped against the
+      // model's `capability.turns.roleHandlingFloor` at the SHAPE splice (user may go stricter, never looser).
+      roleHandling: roleHandlingSchema.optional(),
+      // Whether the model may emit SEVERAL tool calls in one turn (OpenRouter `parallel_tool_calls`).
+      // Rides the wire only when the request carries tools + the model is tool-capable. Absent ⇒ the
+      // provider default (parallel allowed).
+      parallelToolCalls: z.boolean().optional(),
+    })
+    .optional(),
+});
 export type UserIntent = z.infer<typeof userIntentSchema>;
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1056,7 +1057,7 @@ export const formatStringsSchema = z.object({
 export const promptConfigSchema = z.object({
   schemaVersion: z.number().int().positive().default(PROMPT_CONFIG_SCHEMA_VERSION),
   sections: z.array(promptSectionSchema).max(MAX_SECTIONS),
-  // `.catch({})` bounds a malformed params blob to JUST this field — `userIntentSchema` is `.strict()`,
+  // `.catch({})` bounds a malformed params blob to JUST this field — `userIntentSchema` is strict,
   // so without this a single unknown nested key would degrade the WHOLE preset to DEFAULT_PROMPT_CONFIG.
   params: userIntentSchema.catch({}).default({}),
   regexScripts: z.array(regexScriptSchema).max(MAX_REGEX_SCRIPTS).default([]),
@@ -1191,7 +1192,7 @@ export const CONFIG_LIFTS: Record<number, (config: Record<string, unknown>) => R
   4: (c): Record<string, unknown> => ({ ...c, schemaVersion: SCHEMA_VERSION_V5, sections: liftSilentTemplates(c["sections"]) }),
   // v5 → v6: `params.maxBudgetUsd` is DELETED (owner ruling 2026-08-02, resolving the redesign's D6 fork:
   // the knob had no editor on any surface, so no user could ever set, see, or clear it). A LIFT and not a
-  // silent drop, because `userIntentSchema` is `.strict()` and `promptConfigSchema` `.catch({})`s the whole
+  // silent drop, because `userIntentSchema` is strict and `promptConfigSchema` `.catch({})`s the whole
   // params blob on a parse failure: without this, one stored budget key would take EVERY other knob on that
   // preset down with it. Strip the key, keep the rest.
   5: (c): Record<string, unknown> => ({ ...c, schemaVersion: SCHEMA_VERSION_V6, params: liftDropMaxBudgetUsd(c["params"]) }),
@@ -1925,9 +1926,14 @@ export function parsePresetFile(raw: unknown): ParsePresetResult {
   const lifted = liftConfigForward(rawConfig as Record<string, unknown>, startVersion);
   const result = promptConfigSchema.safeParse(lifted);
   if (!result.success) {
+    // `z.prettifyError` (not `issues[0].message`): the old hand-flatten printed "Too small: expected string to
+    // have >=1 characters" with NO path, so an operator importing a 500-section preset was told a field was bad
+    // without being told WHICH. prettify carries `→ at sections[0].id` for every issue (paths are relative to
+    // the `config` blob — this parse runs on the lifted blob, not the envelope). The import dialog
+    // renders this string in prose flow, so the line breaks collapse into one readable run.
     return {
       ok: false,
-      error: `The file's "config" isn't a valid prompt config: ${result.error.issues[0]?.message ?? "schema mismatch"}`,
+      error: `The file's "config" isn't a valid prompt config.\n${z.prettifyError(result.error)}`,
     };
   }
   const rawName = o["name"];
