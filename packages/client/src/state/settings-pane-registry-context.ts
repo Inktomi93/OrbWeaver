@@ -10,7 +10,6 @@ import type { SettingsCategoryId } from "./shell-store";
 export type SettingsPaneRegistry = Registry<SettingsCategoryId, SettingsPaneDefinition>;
 
 export const settingsPaneRegistryContext = createRegistryContext<SettingsPaneRegistry>("settings-pane registry");
-export const SettingsPaneRegistryContext = settingsPaneRegistryContext.Context;
 
 export function useSettingsPaneRegistry(): SettingsPaneRegistry {
   return settingsPaneRegistryContext.useRegistry();

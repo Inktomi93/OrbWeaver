@@ -10,7 +10,6 @@ import type { ModalSlotId } from "./shell-store";
 export type ModalRegistry = Registry<ModalSlotId, ModalDefinition>;
 
 export const modalRegistryContext = createRegistryContext<ModalRegistry>("modal registry");
-export const ModalRegistryContext = modalRegistryContext.Context;
 
 export function useModalRegistry(): ModalRegistry {
   return modalRegistryContext.useRegistry();

@@ -57,6 +57,7 @@ export type AutomationTrigger = z.infer<typeof automationTriggerSchema>;
 
 /** The two source buses — tied to the trigger union's discriminant. */
 export const AUTOMATION_TRIGGER_BUSES = ["chat", "domain"] as const satisfies readonly AutomationTrigger["bus"][];
+/** @public member twin of `AUTOMATION_TRIGGER_BUSES`, which drives the automation_rules enum + CHECK. */
 export type AutomationTriggerBus = (typeof AUTOMATION_TRIGGER_BUSES)[number];
 
 /** Every terminal a dispatch can record for a rule×event: the fire log is the per-hour RATE-cap source
@@ -339,6 +340,7 @@ export type AutomationBusEvent =
   | { type: "ruleErrored"; chatId: ChatId; ruleId: AutomationRuleId }
   | { type: "ruleAutoDisabled"; chatId: ChatId; ruleId: AutomationRuleId }
   | { type: "rulesChanged"; chatId: ChatId };
+/** @public discriminant twin of the live `AutomationBusEvent` union. */
 export type AutomationBusEventType = AutomationBusEvent["type"];
 
 // The PROSE-1 slot table (census row 91) — the `set_chat_background` quiet pick's two authored clauses.

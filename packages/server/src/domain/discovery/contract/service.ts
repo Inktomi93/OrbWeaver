@@ -205,9 +205,6 @@ export interface DiscoveryContext {
   readonly similar: (userId: UserId, characterId: CharacterId, topN: number) => Promise<DossierNeighbor[]>;
 }
 
-/** What `createDiscoveryService` receives from the entry root; identical to {@link DiscoveryContext}. */
-export type DiscoveryServiceDeps = DiscoveryContext;
-
 // ── the verb interface ────────────────────────────────────────────────────────
 /**
  * The discovery surface for THIS slice — duplicate-CHARACTER detection + theme/hub discovery. Every read

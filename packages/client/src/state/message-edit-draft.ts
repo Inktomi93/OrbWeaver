@@ -49,6 +49,6 @@ export function useMessageEditDraftText(messageId: MessageId): string {
 /** Non-reactive snapshot read (tests / imperative call sites) — `undefined` means "not editing", the
  *  same presence-is-mode-flag contract the reactive hooks read (mirrors `createEntityDraftStore`'s
  *  `readDraft` — the non-hook escape hatch every store in this tier offers). */
-export function readMessageEditDraft(messageId: MessageId): string | undefined {
+export function __readMessageEditDraftForTest(messageId: MessageId): string | undefined {
   return useMessageEditDraftStore.getState().drafts[messageId];
 }

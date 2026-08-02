@@ -39,6 +39,6 @@ export type {
   SimilarArtHit,
   UnifiedSearchResult,
 } from "./contract/results";
-export type { ResolveActiveDocumentIdsOp, SearchService, SearchServiceDeps } from "./contract/service";
+export type { ResolveActiveDocumentIdsOp, SearchService } from "./contract/service";
 
 export { createSearchService } from "./service";

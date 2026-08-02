@@ -1,5 +1,5 @@
-// domain/search/contract/service — typed API surface: SearchContext (DI bundle), SearchServiceDeps
-// (entry-root input, identical to the context), SearchService (the verb interface).
+// domain/search/contract/service — typed API surface: SearchContext (the DI bundle, which is also the
+// entry-root input) and SearchService (the verb interface).
 //
 // search is the one vector-retrieval engine. Its only cross-tier seam is `roleClients` (embed/rerank/
 // embedModel), a required dep the entry root wires at boot. search reads the vector tables directly via
@@ -57,8 +57,6 @@ export interface SearchContext {
    *  `documents` lens. The union SQL lives in databank, so search stays free of databank's authority model. */
   readonly resolveActiveDocumentIds: ResolveActiveDocumentIdsOp;
 }
-
-export type SearchServiceDeps = SearchContext;
 
 export interface SearchService {
   readonly knn: (params: KnnParams) => Promise<SearchHit[]>;

@@ -39,11 +39,11 @@ export function useRecentSteers(): readonly string[] {
 }
 
 /** Non-reactive snapshot — for the store's own tests + reads outside a render. */
-export function readRecentSteers(): readonly string[] {
+export function __readRecentSteersForTest(): readonly string[] {
   return useSteerRecoveryStore.getState().steers;
 }
 
 /** Reset the ring — test-only hygiene (a module singleton must not leak state across tests). */
-export function clearRecentSteers(): void {
+export function __resetRecentSteers(): void {
   useSteerRecoveryStore.setState({ steers: [] }, false, "steer-recovery/clear");
 }

@@ -121,6 +121,7 @@ export type TurnAbortReason = (typeof TURN_ABORT_REASONS)[number];
  *  dies to a stale lock rejects the awaited verb with this code; the client suppresses its generic
  *  "couldn't send" toast for it so the honest bus notice (`turnAbortNotice`) is the single stale surface. */
 export const TURN_ABORTED_OP_CODE = "aborted" as const;
+/** @public type twin of the live `TURN_ABORTED_OP_CODE` constant. */
 export type TurnAbortedOpCode = typeof TURN_ABORTED_OP_CODE;
 
 // ── Turn origin — who/what started a turn + its cascade depth (automation-design/03 §4) ──
@@ -148,13 +149,6 @@ export interface TurnOrigin {
   readonly initiator: TurnInitiator;
   /** 0 for a human turn; parentDepth + 1 for an automation-triggered turn (hard cap 3 — 03 §4). */
   readonly automationDepth: number;
-}
-
-/** How `getTurnOrigin` addresses a turn — by the committed reply SLOT it produced (a `messageCommitted`/
- *  `turnCompleted` fact resolves depth through this). An object (not a bare id) so a future turn-id ref is
- *  additive. */
-export interface TurnRef {
-  readonly messageId: MessageId;
 }
 
 // ── The D50 PromptTransform seam (automation-design/04 §6) ──

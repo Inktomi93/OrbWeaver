@@ -12,7 +12,6 @@ import type { SectionId } from "./shell-store";
 export type SectionRegistry = Registry<SectionId, SectionDefinition>;
 
 export const sectionRegistryContext = createRegistryContext<SectionRegistry>("section registry");
-export const SectionRegistryContext = sectionRegistryContext.Context;
 
 export function useSectionRegistry(): SectionRegistry {
   return sectionRegistryContext.useRegistry();

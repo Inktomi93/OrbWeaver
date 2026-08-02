@@ -13,6 +13,7 @@ import { z } from "zod";
 // tuple if the agent-principal design set returns.
 export const PARTICIPANT_KINDS = ["human", "character"] as const;
 export type ParticipantKind = (typeof PARTICIPANT_KINDS)[number];
+/** @public schema twin of `PARTICIPANT_KINDS`, which drives the chat_participants enum + CHECK. */
 export const participantKindSchema = z.enum(PARTICIPANT_KINDS);
 
 // `kind` carries TWO facts: the identity table (userId vs characterId) AND who DRIVES the seat.

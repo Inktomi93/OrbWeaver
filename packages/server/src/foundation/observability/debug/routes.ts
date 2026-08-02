@@ -181,9 +181,6 @@ export function createDebugAuthMiddleware(opts: DebugAuthOptions | string | unde
   };
 }
 
-/** Prod middleware — closes over env.DEBUG_TOKEN at module load. */
-export const debugAuthMiddleware: MiddlewareHandler = createDebugAuthMiddleware(env.DEBUG_TOKEN);
-
 /** Register the /api/_debug/* introspection routes on `app` behind the auth gate. */
 export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {}): void {
   const { db, assets, rpgTrace, sockets, auth = env.DEBUG_TOKEN } = options;

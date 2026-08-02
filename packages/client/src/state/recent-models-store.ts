@@ -68,11 +68,11 @@ export function useRecentModels(source: string): readonly string[] {
 
 /** Non-hook snapshot of a source's MRU — for the store's own tests + any read outside a render (the
  *  `readSelectedMessageIds` precedent). */
-export function readRecentModels(source: string): readonly string[] {
+export function __readRecentModelsForTest(source: string): readonly string[] {
   return useRecentModelsStore.getState().bySource[source] ?? EMPTY;
 }
 
 /** Reset every source's MRU — test-only hygiene (a module singleton must not leak state across tests). */
-export function clearAllRecentModels(): void {
+export function __resetAllRecentModels(): void {
   useRecentModelsStore.setState({ bySource: {} }, false, "recent-models/clearAll");
 }

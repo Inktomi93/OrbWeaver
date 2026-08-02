@@ -10,6 +10,7 @@ export type AgentToolServer = unknown;
 
 // A buddy turn is non-interactive — there is no human to answer, so every dialog kind fails closed.
 export const AGENT_DIALOG_KINDS = ["elicitation", "refusal_fallback_prompt"] as const;
+/** @public member twin of `AGENT_DIALOG_KINDS`, re-exported from the providers contract front door. */
 export type AgentDialogKind = (typeof AGENT_DIALOG_KINDS)[number];
 
 /** SDK-free external MCP server spec the caller may attach to an agent turn (mapped to Options.mcpServers

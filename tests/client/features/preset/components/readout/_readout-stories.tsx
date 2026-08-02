@@ -11,7 +11,15 @@
 // selected — the honest-token fallback, which is also where a DISMISS lands).
 
 import { PresetReadout } from "@orb/client/features/preset";
-import { clearPresetSelection, clearPresetTemplate, goToLanding, selectChat, selectPreset, selectPresetTemplate, setPresetEditorView } from "@orb/client/state";
+import {
+  __resetPresetSelection,
+  __resetPresetTemplate,
+  goToLanding,
+  selectChat,
+  selectPreset,
+  selectPresetTemplate,
+  setPresetEditorView,
+} from "@orb/client/state";
 import type { ChatId, PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
@@ -33,8 +41,8 @@ function useReadoutFixture(chatId: ChatId | null): void {
       selectChat(chatId);
     }
     return (): void => {
-      clearPresetSelection();
-      clearPresetTemplate();
+      __resetPresetSelection();
+      __resetPresetTemplate();
       goToLanding();
     };
   }, [chatId]);

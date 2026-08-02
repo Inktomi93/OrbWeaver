@@ -56,7 +56,9 @@ export type ChunkParamsWire = z.infer<typeof chunkParamsSchema>;
 
 /** Compile-time pin: the wire shape and `@orb/kit/chunk`'s `ChunkParams` are MUTUALLY assignable — any drift
  *  (a renamed/added/dropped field) fails tsc HERE, not at a call site. kit stays zod-free; contracts derives
- *  the wire twin and this type is the belt that keeps them one shape. */
+ *  the wire twin and this type is the belt that keeps them one shape.
+ *
+ *  @public a compile-time mutual-assignability pin — referenced by tsc, never by an importer, by design. */
 export type ChunkParamsPin = ChunkParamsWire extends ChunkParams ? (ChunkParams extends ChunkParamsWire ? true : never) : never;
 
 // ── retrieval settings (the user-setting blob; databank-design/08 §4 Q2) ─────────────────────────────────
