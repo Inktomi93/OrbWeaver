@@ -531,6 +531,27 @@ produced most of the rows above, so expect a similar residue rate.
   Also corrected in passing: the workspace comment blaming ancient `esbuild@0.18.20` on tsx — it is a
   **drizzle-kit transitive** (`pnpm why` receipt in the commit).
 
+- ✅ **`@orb-gate-ignore` NOW REQUIRES A REASON (`d55350d07`)** — the marker honoured by `pass.ts` for all
+  183 gates accepted a bare `// @orb-gate-ignore <gate>` and suppressed the finding, contradicting
+  GATE-AUTHORING §4.3 (*"a bare-marker-exempts rule is a rubber stamp"*). Grammar is now
+  `// @orb-gate-ignore <gate>[(<position>)]: <reason>` — `parseGateIgnoreMarker`/`judgeGateIgnore`,
+  `malformed` when the reason OR the position is empty, and a malformed marker **suppresses nothing**.
+  **The subtle right call:** RECOGNITION stays permissive so a malformed marker is still SEEN and can be
+  red-flagged by `gate-ignore-inventory` — a stricter parser would have made broken markers INVISIBLE to
+  the gate that exists to catch them. 24 files swept to the colon grammar; `report.ts` single-pass clean;
+  `pnpm check` 14/14; gate suites 16/16.
+  **⚠ OWED — THE SIX-CASE PROBE WAS NEVER RUN.** Two lanes stalled on this task (four early terminations
+  between them) and the orchestrator finished it by hand. So the grammar is LANDED and the corpus is
+  green, but the §5 probe (violation-unmarked RED · marker-with-reason GREEN · dead-gate marker RED ·
+  MALFORMED RED as its own flavour · blindness tripwire · a `mustPass` per limit) and the §4.3a two-guarded-
+  things-on-one-line case are **unproven**. Also unverified: whether tightening surfaced any PREVIOUSLY-
+  SILENT violation (the sibling claimed "baseline is clean" but stopped before checking) and an audit of
+  the 24 rewritten reasons for any that paper over a real defect. **One small lane closes all of it.**
+  **Lesson banked:** where biome and tsc CONTRADICT each other (biome called a trailing `return;`
+  unnecessary; tsc's `noImplicitReturns` demanded it), the fix is a SINGLE-RETURN accumulator shape that
+  satisfies both — not a suppression of one to appease the other. One cited suppression survives, where
+  biome's type lens wrongly believes `exec()` is non-nullable.
+
 ## ═══ WATCH LIST (flakes + pre-existing reds; none blocking) ═══
 
 - `code-editor.ct` completion flake under contention (documented CM6 75ms window).
