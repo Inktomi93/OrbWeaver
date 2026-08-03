@@ -203,6 +203,20 @@ function writeFixtures(): void {
     "packages/contracts/src/__g_dcite/index.ts",
     `// per ${["D", "998"].join("")} — a dangling D-citation, no anchor, above the ceiling.\nexport const gDcite = 1;\n`,
   );
+  // nullable-column-inequality: `ne()` on a column the REAL drizzle schema declares nullable
+  // (`characters.avatar_asset_id` has no `.notNull()`), with nothing guarding the NULLs. The gate derives
+  // nullability from packages/db/src/schema/** on every run, so the fixture rides the real map.
+  fx(
+    "packages/server/src/__g_nullcmp.ts",
+    'import { characters } from "@orb/db";\nimport { ne } from "drizzle-orm";\nexport const p = ne(characters.avatarAssetId, "a");\n',
+  );
+  // no-nul-bytes-in-source: a RAW NUL byte in a source file. Assembled via fromCharCode so the byte is
+  // never present in THIS file's own source — the gate scans tests/ too, and a literal NUL here would make
+  // the suite's own file a permanent violation (and diff as `Bin`).
+  fx("packages/server/src/__g_nulbyte.ts", `export const sep = "${String.fromCharCode(0)}";\n`);
+  // wire-schema-vocab-one-home: a second JSON-Schema keyword table outside the one scrub engine. Two
+  // DISTINCT keywords clears the fence (one alone is ordinary English).
+  fx("packages/server/src/__g_wirevocab.ts", 'export const drop = new Set(["minLength", "maxLength"]);\n');
   // no-direct-users-read: a domain outside sessions/admin importing the `users` table from @orb/db.
   fx(`${D}/__g_users/persistence/x.ts`, `import { users } from "@orb/db";\nexport const x = users;\n`);
   // discovery-no-stats-rollups: a stats rollup table imported inside domain/discovery (the seam breach
