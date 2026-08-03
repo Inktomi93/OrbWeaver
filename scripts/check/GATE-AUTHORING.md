@@ -134,6 +134,15 @@ An exemption is a promise. This is how the promise is written.
    `// FABRICATION-OK:`, `// @swallowed-ok:`, `// @typeonly-ok:`, `// @server-only:`): the house grammar is
    `marker:\s*\S` — **the reason after the colon is REQUIRED**, and a bare marker must exempt NOTHING. A
    bare-marker-exempts rule is a rubber stamp.
+3a. **THE MARKER NAMES ITS POSITION whenever ONE LINE can carry two guarded things**
+   (`// @foreign-id-ok(<positionName>): <reason>`). A line-scoped marker OVER-EXEMPTS: the live corpus case
+   is `record(chatId: string, sessionId: string)` — a foreign `sessionId` sitting beside one of OUR
+   `chatId`s, where a line marker would silently absolve both. Two-sidedness then applies to the NAME too: a
+   marker naming a position that is not live is RED, exactly as a stale row is. Paid for by
+   `brand-in-name-position` (2026-08-03).
+3b. **THE RESOLVER THAT READS STACKED MARKERS IS BLOCK-SCOPED.** Markers accumulate for the next guarded
+   node and then CLEAR. A file-scoped reader silently exempts the rest of the file from the first marker
+   onward — the same rubber stamp as a bare marker, just slower to notice.
 4. **EVERY EXEMPTION VOCABULARY IS TWO-SIDED FROM BIRTH.** A row / marker / baseline entry that no longer
    matches a live violation MUST be RED ("stale entry — delete it"), never silence. One-sided exemptions rot
    into lies, and a stale marker is a LOADED GUN: the next violation written on that line inherits an
@@ -183,6 +192,21 @@ Probe the engine/tool directly for spelling variants; docs under-report.
   defect this gate was minted from" is the useful register.
 - A `mustPass` row is how a DECLARED LIMIT becomes a written baseline instead of an assumption. Write one per
   known blind spot (`own-tables-only`'s namespace-import row; `no-hover-display-swap`'s `@media (hover:hover)` row).
+
+**A MARKER-EXEMPT GATE OWES THE SIX-CASE REAL-TREE PROBE.** Copy this shape, do not re-derive it — the
+conformance mini-projects prove the matcher, this proves the EXEMPTION VOCABULARY on the actual tree
+(plant → verdict → remove; verify teardown is clean):
+
+1. violation **without** a marker → RED (the gate bites at all);
+2. marker **with its position name** → GREEN (the promise is honourable);
+3. marker naming a **dead position** → RED (two-sided: a stale exemption is a loaded gun);
+4. **MALFORMED** marker — no name and/or no reason → RED **as its own flavour**, because a marker that
+   exempts nothing must not sit there LOOKING like protection;
+5. the **derivation came back empty** → RED (the §4.6 blindness tripwire);
+6. one `mustPass` row **per declared limit**.
+
+Where a bare marker could cover two guarded things on one line, case 3 must also prove that ONE bare marker
+across TWO sites reds and names both. Precedents: `brand-in-name-position`, `nullable-column-inequality`.
 
 **LITERAL-SHAPE BLINDNESS — the lying-proof class.** A reader that extracts a value via a narrow node check
 (only `StringLiteral`, a bare `Identifier.getText()`) returns undefined on `x as never`, `satisfies`,

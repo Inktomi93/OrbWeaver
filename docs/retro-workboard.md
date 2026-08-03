@@ -2,7 +2,7 @@
 
 > **THIS IS THE WORKING DOC** (owner-stated). Not law, not a deliverable — the durable state an
 > orchestrator resumes from cold. Authority for LAW = `docs/architecture/core/**`; the D-ledger
-> (`Core-Path-Registry.md` / `Core-Laws-and-Precedents.md`, current through **D124**) wins on ANY
+> (`Core-Path-Registry.md` / `Core-Laws-and-Precedents.md`, current through **D125**) wins on ANY
 > conflict. `docs/architecture/proposed/**` is pre-rollback REBUILD REFERENCE — never cite its status
 > as current.
 >
@@ -55,15 +55,15 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 
 ## ═══ STATE (2026-08-03, at the audit) ═══
 
-- **main @ `0d2e42fb`**, tree clean. **101 commits past origin `865405d6`** (the 199-commit era was
-  pushed 08-03 on the owner word). Gates: **176 registered**. D-ledger: through **D124**, next free
-  **D125**.
-- **PUSH-READY was declared at 85 commits** (`7d91d01a`, battery run 2 = true pass, all stages clean).
-  16 commits have landed since (NIGHTFIX, DATABANK S1, board edits) → **a fresh `pnpm verify --push`
-  is owed before the word is asked for again.**
-- **THREE LANES LIVE at this writing** (worktrees present, unmerged — see I-1/I-2/I-4 below): SCHEMA
-  `wt/agent-ae77d3dd37bc2337b` · DBANK2 `wt/agent-a75555728b3673edc` · SWEEP
-  `wt/agent-ac9ffb2bcce6316a7`. Do not re-dispatch their scope; resume them warm by agent id.
+- **main @ HEAD**, tree clean, **121+ commits past origin `865405d6`** (the 199-commit era was
+  pushed 08-03 on the owner word). Gates: **179 registered** (GATES3 minted three). D-ledger:
+  through **D125**, next free **D126** (allocated to STRUCTOUT).
+- **PUSH-READY IS STALE.** It was declared at 85 commits (`7d91d01a`); ~36 have landed since (SCHEMA,
+  DBANK2, SWEEP, HISTLEG, OBSCLOSE, GATES3, D125, board/doc edits) → **a fresh `pnpm verify --push` on
+  the quiesced tree is owed before the word is asked for again.** There is also a known RED to clear
+  first (the `add-chat-document-dialog` presence row, routed to DBFIX).
+- **LIVE LANES: see the RECONCILIATION block at the foot of this file** — it is the current roster.
+  Do not re-dispatch a live lane's scope; resume it warm by agent id.
 - Dev db is the post-REGEX re-mint (v3 demo pack, 6 chats). The owner's regex scripts were re-entered
   by hand ([[backrest-recovery-and-cited-reports]] — BACKREST-MANUAL).
 
@@ -193,15 +193,24 @@ format (PORT's recommended home: `?format=png|json` on the existing character do
 for the chat-anchored planes that are unportable by construction (rpg campaigns · injections · room
 overrides · re-links; plus automation_rules / global_variables / plugins, which have no arm at all).
 
-### I-7 · OBSERVABILITY — the span ring has three holes left
+### I-7 · OBSERVABILITY — ✅ CLOSED (2026-08-03, lane OBSCLOSE)
 
 **Landed:** OBS (`93e40fb1`) `addSpanEvent` wired across cache / retry / wake with trace-ring landing
 proofs; the ratchet baseline is EMPTY. SM4 (`f46122ad`) the rpg round TRACED (`withRequestSpan` needs
 `root: true` — a parented span never seals the ring), `provider.*` spans at `runRole` (all 9 role
 dispatchers, so `providerDurationMs` finally lands), structured-retry `onRetry` injected.
-**OPEN:** `fireExpressionClassify` (`packages/server/src/domain/chat/engine/engine.ts:550`),
-`fireRpgTurnAborted` (`:608`) and the post-turn memory pass all run OUTSIDE any live span — the same
-outlives-the-request class SM4 fixed for the rpg round. `rpgRoundRequestId` is the template.
+**CLOSED by OBSCLOSE (`521b8343`):** all three named holes — `fireExpressionClassify`,
+`fireRpgTurnAborted`, the post-turn memory pass — plus a FOURTH found in the same sweep
+(`fireManagedCompaction`, identical fire-and-forget shape) now open their own DETACHED root
+(`withRequestSpan(…, root:true)`, SM4's template). The rest of the file was swept: no other
+outlives-the-request siblings (`markRpgDiceEligible` is sync; the bus fans don't outlive their
+request). **The correctness find that mattered more than the spans:** memory + compaction `catch`
+blocks SWALLOWED their error after warn+emit, so the new spans would have sealed `"ok"` on every
+failure — an observability hole wearing observability's clothes. Both now rethrow (the outer
+`.catch(() => undefined)` still absorbs). 7 landing proofs through the real trace ring
+(`recentTraces`, driven from inside an outer request root, asserting rootName + requestId prefix +
+status + `requestId !== OUTER`); 167 tests green across the three engine suites. Consolidated
+`pnpm check` on the merged result: 14/14.
 
 ### I-8 · PROSE / NUDGE / PERSONA — built machinery waiting on the owner's voice
 
@@ -491,11 +500,35 @@ The audit wrote SCHEMA / DBANK2 / SWEEP as *dispatched*. Since then:
   accept-and-DROPS an imported card's flat `minDepth`/`maxDepth` rather than mapping them onto
   `historyDepth` (ST scopes them on placements meaning something else here) — **the only place
   ST's stored depth data is currently discarded**; re-scoping is one chip in the editor.
-- **LIVE NOW (cap 5):** GATES3 (`ac3f82aceafab7894` — nullable-`ne()` · NUL-bytes-in-source · the
-  hosted-keyword lock) · DBFIX (`a423c577e9d55294a` — databank ingest concurrency, the D117
-  contradiction) · STRUCTOUT (`a8be7d2d06f5157b0` — the nullable-union wire mode gets a real
-  config home; **D126 allocated**) · OBSCLOSE (`a02d4bfd89a9321f0` — I-7's last three spans, to
-  close that initiative outright).
+- ✅ **GATES3 MERGED (`c0b6e347`)** — **gates 176 → 179**, every live violation FIXED not baselined:
+  `nullable-column-inequality` (nullability DERIVED from the schema every run; reads BOTH `ne`
+  operands — the live defect had the nullable column on the RIGHT), `no-nul-bytes-in-source` (17 raw
+  NULs across 10 tracked files; `dangling-refs.ts` had been diffing as `Bin` since it was written, so
+  a 26KB rewrite reviewed as literally nothing), `wire-schema-vocab-one-home` (vocabulary read off the
+  engine's own keyword arrays, so a new keyword arms the gate in the same commit). **Real data bug
+  found and fixed:** `loadSwipeStatRows` used `ne(messageVariants.id, messages.selectedVariantId)` —
+  nullable by D26 (SET NULL on variant delete) — so a slot with a NULL pointer had **all** its variants
+  dropped from the delete-messages delta. Red-proved at HEAD; the verb had ZERO coverage before.
+  Arm-3 shipped BOTH gate and contract pin (a gate can't evaluate zod; a pin can't see a fourth backend
+  re-inventing the walk — disjoint halves). Consolidated `pnpm check`: 14/14.
+  **Its three flags:** (1) my brief's `sed -i 's/\x00//g'` remedy was WRONG — all 17 NULs are composite-key
+  SEPARATORS, deleting them collides `a`+`bc` with `ab`+`c`; escaped to the two-char sequence `\u0000` instead (byte-identical at runtime). (2)
+  `GATE-AUTHORING.md` did NOT carry the marker laws I claimed — **fixed on main**: §4.3a position-named
+  markers, §4.3b block-scoped stacked-marker resolver, §5 the six-case real-tree probe. (3) `default`
+  rides the hosted wire and neither vendor doc lists it — allowlisted rather than relitigate an
+  owner-landed call; probe it if a hosted 400 ever names it.
+- **LIVE NOW (cap 5):** DBFIX (`a423c577e9d55294a` — databank ingest concurrency, the D117
+  contradiction; ALSO now owns the `add-chat-document-dialog` presence-ledger red) · STRUCTOUT
+  (`a8be7d2d06f5157b0` — the nullable-union wire mode gets a real config home; **D126 allocated**) ·
+  **BRAND-F** (`a9c87d67eac1b22a2` — **the WHOLE I-5 burn-down on Fable**, briefed to read
+  `codemod-kit.ts` + `ast.ts` IN FULL; the kit already carries `retypeIdAnnotations` +
+  `castStringLiteralsByDiagnostic` from a prior id campaign).
+- **KILLED (owner word):** the first brand lane (mech-executor tier) — zero commits, one untracked
+  codemod script, nothing lost. Replaced by BRAND-F above.
+- **LIVE RED ON MAIN (routed to DBFIX):** `tests/tooling/chat-component-presence.test.ts` —
+  `add-chat-document-dialog` landed with no CT and no waiver, so ratchet #18 is red and would block
+  `verify --push`. Preference stated: the REAL CT, because SWEEP found that dialog's upload arm shipped
+  with ZERO buttons — exactly what a CT catches and a waiver does not.
 - **OWNER RULINGS (dawn):** databank KEEPS its rail section (fork closed) · tag manual reorder
   NOT lifted (premise challenged: `tags.sortOrder` exists but a global manager may not want it
   — TAGSORT audit queued, do not delete blind) · prompt-ephemerality **now BUILDING** via
