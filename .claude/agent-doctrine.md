@@ -51,9 +51,12 @@ Do not skim. You are an amnesiac agent; these docs are your memory.
 - **Use the right search tool — don't default to grep for everything (all these ARE installed):**
   - **`ast-grep` for code STRUCTURE** — "every `useState(...)` call", "components matching a JSX shape",
     "functions with signature X", and AST-aware rewrites. Structural, no regex-escaping pain, respects
-    syntax. **NEVER invoke it as `sg`:** on Debian/Ubuntu the shell's `sg` is `/usr/bin/sg` — `newgrp`,
-    a group-switching binary — so `sg run …` does not search anything and need not fail loudly. Always
-    type `ast-grep`. (Run `ast-grep run --help` for the rest; no repo `sgconfig`, run ad-hoc.)
+    syntax. **Type `ast-grep`, not `sg`.** CORRECTED 2026-08-03: an earlier version of this line claimed
+    `sg` silently searches nothing here. That is FALSE on this box — a census of 133,631 historical Bash
+    calls found working `sg run -p …` invocations, and the owner confirmed it resolves. The rule is
+    PORTABILITY, not silent failure: `sg` is `newgrp` on most Debian/Ubuntu systems, so the alias is one
+    environment away from meaning something else entirely. Use the explicit binary so a command is
+    unambiguous wherever it runs. (Run `ast-grep run --help` for the rest; no repo `sgconfig`, run ad-hoc.)
     - `ast-grep run -p '<pattern>' -l ts <paths>` — search. Metavars: `$A` = one node, `$$$A` = many;
       `-l/--lang` is `ts`/`tsx`/`js`/`html`/`css`/… (required for a bare pattern).
     - **`ts` and `tsx` are DIFFERENT LANGUAGES and there is NO superset flag — run BOTH and merge,
@@ -117,6 +120,15 @@ Do not skim. You are an amnesiac agent; these docs are your memory.
 - **Verify with our instruments, cheaply.** `pnpm snap <route> --map/--contrast/--eval/--aria` (Bash,
   own headless browser, no MCP cost); `window.__orb` for render/query/bus state; wait on
   `data-app-ready`. Prefer these over chrome-devtools MCP.
+
+- **NEVER commit while a `git push` is running, and never trust the push's summary line.** Measured
+  2026-08-03: our pre-push hook is `pnpm verify --push` (~17 min), and git resolves the ref to push at
+  INVOCATION but transfers the ref's value at TRANSFER time. A commit made inside that window ships
+  silently, and git prints the range it computed 17 minutes earlier — so the output actively misreports
+  what went to origin. It cost a confused investigation and a wrong accusation of an innocent lane.
+  **Verify a push against the SERVER** (`git ls-remote origin refs/heads/main`, or the GitHub API's push
+  events), never the console summary — the same discipline as reading `reports/verify.json` instead of
+  console output. Two instances of that one lesson in a single day.
 
 ## Boundaries
 - **You are a leaf agent — never spawn other agents.** No nested delegation: no Agent tool, and no
