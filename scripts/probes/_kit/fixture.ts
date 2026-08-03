@@ -3,12 +3,20 @@
 // WHY THIS EXISTS: `--contexts N` needs ≥2 DIFFERENT authenticated dev users to prove multi-human chat
 // states (host vs member views). The SHARED dev stack (:5173/:8788, scripts/dev/stack.sh) always boots
 // AUTH_MODE=single-user — one user, no login form, nothing to authenticate AS. The only door with a real
-// local-login form + a second user is `scripts/dev/multi-user-fixture.sh` — and because it reuses stack.sh
-// verbatim (same 8788/5173, NOT an offset pair like the `--isolated` snap-stage), it must be running
-// INSTEAD of the shared stack, never alongside it. This module never boots/stops that stack itself
-// (unlike snap-stage.ts's `--isolated`) — it only DETECTS whether the fixture is up and healthy, and
-// resolves its known credentials; bringing it up is `bash scripts/dev/multi-user-fixture.sh up`, a
-// human/orchestrator call, not something a screenshot tool silently does.
+// local-login form + a second user is `scripts/dev/multi-user-fixture.sh`. This module never boots/stops
+// that stack itself (unlike snap-stage.ts's `--isolated`) — it only DETECTS whether the fixture is up and
+// healthy, and resolves its known credentials; bringing it up is `bash scripts/dev/multi-user-fixture.sh
+// up`, a human/orchestrator call, not something a screenshot tool silently does.
+//
+// PORTS — AN OFFSET PAIR, SO THE FIXTURE IS A SIDECAR (fixed 2026-08-03): the fixture used to reuse
+// stack.sh's own 8788/5173, which made `--contexts` unusable whenever the owner's dev stack was up (they
+// were mutually exclusive tenants of one port pair). It now boots on 8790/5175 with its own DB, assets and
+// stack pidfile, so BOTH stacks run at once — the same isolation recipe every e2e mode uses
+// (tests/e2e/support/modes.ts). These constants MIRROR multi-user-fixture.sh's defaults by hand (it is a
+// shell script, not an importable module) — the same hand-lockstep the credentials below already live
+// under; `resolveFixtureTarget` is the ONE seam every port/URL decision flows through, so an override
+// (`--fixture-server`/`--fixture-base`, or SNAP_FIXTURE_SERVER_URL/SNAP_FIXTURE_BASE_URL) reaches the
+// health probe AND the browser's base URL together — never one without the other.
 //
 // AUTH DOOR: the same one a browser uses — `POST /api/auth/login` (handle+password form → the
 // `__Host-orb_session` cookie), never a bypass. Credentials mirror multi-user-fixture.sh's own defaults
@@ -18,14 +26,13 @@
 import { spawnSync } from "node:child_process";
 import process from "node:process";
 
-// Mirrors scripts/dev/stack.sh's BACKEND_PORT/VITE_PORT defaults — the fixture launcher never overrides
-// them (its own header: "run this INSTEAD of the normal 'pnpm stack'"), so the fixture and the shared dev
-// stack are the SAME ports, mutually exclusive tenants.
-export const FIXTURE_SERVER_PORT = 8788;
-export const FIXTURE_VITE_PORT = 5173;
-export const FIXTURE_BASE_URL = `http://localhost:${FIXTURE_VITE_PORT}`;
-const FIXTURE_HEALTHZ = `http://127.0.0.1:${FIXTURE_SERVER_PORT}/healthz`;
-const FIXTURE_AUTH_CONFIG = `http://127.0.0.1:${FIXTURE_SERVER_PORT}/api/auth/config`;
+// The fixture's OFFSET pair (multi-user-fixture.sh's FIXTURE_PORT/FIXTURE_VITE_PORT defaults) — NOT the
+// dev stack's 8788/5173, so both run side by side. `localhost` for the vite origin, 127.0.0.1 for the
+// server: vite v8 binds [::1] only (see stack.sh's vite_ok()).
+export const FIXTURE_SERVER_PORT = 8790;
+export const FIXTURE_VITE_PORT = 5175;
+export const FIXTURE_SERVER_URL_DEFAULT = `http://127.0.0.1:${FIXTURE_SERVER_PORT}`;
+export const FIXTURE_BASE_URL_DEFAULT = `http://localhost:${FIXTURE_VITE_PORT}`;
 
 // The credentials multi-user-fixture.sh mints (its own header docstring is the source of truth — kept in
 // lockstep by hand since the fixture is a shell script, not an importable module). Order is the
@@ -37,6 +44,46 @@ export const FIXTURE_CREDENTIALS: readonly { readonly handle: string; readonly p
 ];
 
 export const FIXTURE_UP_REMEDY = "run scripts/dev/multi-user-fixture.sh up";
+
+/** Where the fixture answers: its server origin (health/auth-config/login) + the vite origin the browser
+ *  navigates. Resolved ONCE per run and threaded through the status probe, the login door and `opts.base`
+ *  — the coupling that was missing when SNAP_FIXTURE_SERVER_URL existed but nothing read it. */
+export type FixtureTarget = {
+  readonly serverUrl: string;
+  readonly baseUrl: string;
+  /** The server origin's TCP port — the `/proc` env-pin check needs the number, not the URL. */
+  readonly serverPort: number;
+};
+
+/** Explicit (CLI-flag) overrides; `null`/absent falls through to env, then to the offset-pair defaults. */
+export type FixtureTargetOverride = { readonly serverUrl?: string | null; readonly baseUrl?: string | null };
+
+const TRAILING_SLASH_RE = /\/$/u;
+
+function stripSlash(url: string): string {
+  return url.replace(TRAILING_SLASH_RE, "");
+}
+
+/** Resolve the fixture's two origins: explicit override > env (SNAP_FIXTURE_SERVER_URL /
+ *  SNAP_FIXTURE_BASE_URL) > the offset-pair defaults. Pure apart from the env read (injectable for tests).
+ *  An unparseable server URL falls back to the default port for the `/proc` check rather than throwing —
+ *  the health probe below will refuse loudly on the same URL anyway, with a reason a human can act on. */
+export function resolveFixtureTarget(
+  override: FixtureTargetOverride = {},
+  // biome-ignore lint/style/noProcessEnv: dev-tooling module (probe harness), not app config — mirrors the exemption pattern in browser.ts/snap-stage.ts.
+  env: Record<string, string | undefined> = process.env,
+): FixtureTarget {
+  const serverUrl = stripSlash(override.serverUrl ?? env["SNAP_FIXTURE_SERVER_URL"] ?? FIXTURE_SERVER_URL_DEFAULT);
+  const baseUrl = stripSlash(override.baseUrl ?? env["SNAP_FIXTURE_BASE_URL"] ?? FIXTURE_BASE_URL_DEFAULT);
+  let serverPort = FIXTURE_SERVER_PORT;
+  try {
+    const parsed = new URL(serverUrl);
+    serverPort = parsed.port === "" ? FIXTURE_SERVER_PORT : Number(parsed.port);
+  } catch {
+    /* keep the default port — the status probe refuses on the bad URL with a readable reason */
+  }
+  return { serverUrl, baseUrl, serverPort };
+}
 
 function curlOk(url: string): boolean {
   return spawnSync("curl", ["-sf", "-m", "2", url], { stdio: "ignore" }).status === 0;
@@ -60,8 +107,8 @@ type AuthConfig = { readonly mode?: string; readonly localEnabled?: boolean; rea
  *  AUTH_MODE off /proc, since a dotenv-loaded or since-restarted value can drift from what a caller thinks
  *  is running. Returns null when unreadable (container without /proc access, wrong OS) — treated as "can't
  *  prove it's the fixture," same as a mismatch. */
-function livePortOwnerIsLocalAuth(): boolean | null {
-  const pid = spawnSync("bash", ["-c", `ss -tlnp 2>/dev/null | grep ':${FIXTURE_SERVER_PORT} ' | grep -oP 'pid=\\K[0-9]+' | head -1`], {
+function livePortOwnerIsLocalAuth(serverPort: number): boolean | null {
+  const pid = spawnSync("bash", ["-c", `ss -tlnp 2>/dev/null | grep ':${serverPort} ' | grep -oP 'pid=\\K[0-9]+' | head -1`], {
     encoding: "utf8",
   }).stdout.trim();
   if (pid === "") {
@@ -79,30 +126,31 @@ function livePortOwnerIsLocalAuth(): boolean | null {
 
 export type FixtureStatus = { readonly up: true } | { readonly up: false; readonly reason: string };
 
-/** Is the multi-user FIXTURE (not the shared single-user stack) live at the shared 8788/5173 ports? Checks
- *  three things a caller could otherwise be fooled by: the ports answer at all, `/api/auth/config` reports
- *  `localEnabled`+`multiHumanCapable` (the shared stack's config is `single-user`/`false`/`false`), AND the
- *  live process's own `AUTH_MODE` env (a stale/mismatched pidfile can serve `local`-shaped config while the
- *  actual bound process is still `single-user` — the exact drift `stack.sh status` surfaces). */
-export function fixtureStatus(): FixtureStatus {
-  if (!curlOk(FIXTURE_HEALTHZ)) {
-    return { up: false, reason: `server :${FIXTURE_SERVER_PORT} not answering` };
+/** Is the multi-user FIXTURE (not a single-user stack) live at `target`? Checks three things a caller could
+ *  otherwise be fooled by: the origin answers at all, `/api/auth/config` reports `localEnabled`+
+ *  `multiHumanCapable` (a single-user stack's config is `single-user`/`false`/`false` — the tell if an
+ *  override aimed this at the dev stack), AND the live process's own `AUTH_MODE` env (a stale/mismatched
+ *  pidfile can serve `local`-shaped config while the actual bound process is still `single-user` — the exact
+ *  drift `stack.sh status` surfaces). */
+export function fixtureStatus(target: FixtureTarget): FixtureStatus {
+  if (!curlOk(`${target.serverUrl}/healthz`)) {
+    return { up: false, reason: `fixture server ${target.serverUrl} not answering` };
   }
-  const config = curlJson<AuthConfig>(FIXTURE_AUTH_CONFIG);
+  const config = curlJson<AuthConfig>(`${target.serverUrl}/api/auth/config`);
   if (config === null) {
-    return { up: false, reason: "/api/auth/config unreachable" };
+    return { up: false, reason: `${target.serverUrl}/api/auth/config unreachable` };
   }
   if (!(config.localEnabled && config.multiHumanCapable)) {
     return {
       up: false,
-      reason: `/api/auth/config reports localEnabled=${String(config.localEnabled)} multiHumanCapable=${String(config.multiHumanCapable)} (expected true/true — this is the SHARED single-user dev stack, not the fixture)`,
+      reason: `${target.serverUrl}/api/auth/config reports localEnabled=${String(config.localEnabled)} multiHumanCapable=${String(config.multiHumanCapable)} (expected true/true — that origin is a SINGLE-USER stack, not the fixture)`,
     };
   }
-  const localAuthLive = livePortOwnerIsLocalAuth();
+  const localAuthLive = livePortOwnerIsLocalAuth(target.serverPort);
   if (localAuthLive === false) {
     return {
       up: false,
-      reason: `env-pin mismatch — the live process on :${FIXTURE_SERVER_PORT} is NOT running AUTH_MODE=local (stale pidfile / a different stack bound the port)`,
+      reason: `env-pin mismatch — the live process on :${target.serverPort} is NOT running AUTH_MODE=local (stale pidfile / a different stack bound the port)`,
     };
   }
   return { up: true };
@@ -174,6 +222,3 @@ export async function loginFixtureUser(
   }
   return { cookie };
 }
-
-// biome-ignore lint/style/noProcessEnv: dev-tooling module (probe harness), not app config — mirrors the exemption pattern in browser.ts/snap-stage.ts.
-export const FIXTURE_SERVER_URL = process.env["SNAP_FIXTURE_SERVER_URL"] ?? `http://127.0.0.1:${FIXTURE_SERVER_PORT}`;
