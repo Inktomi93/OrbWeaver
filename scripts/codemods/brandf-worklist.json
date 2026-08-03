@@ -1,0 +1,2627 @@
+{
+  "lane": "BRAND-F",
+  "generatedAt": "2026-08-03T14:21:21.205Z",
+  "note": "Resume artifact for the brand-in-name-position burn-down (169 files / 374 sites at generation). Skip set (SPANGATE lane): domain/chat/engine/engine.ts, foundation/observability/**, domain/workloads/engine/runner.ts. handle sites split per-site: user handle -> Handle, character card slug -> CharacterHandle (Arm A, approved). Delete this file when the baseline reaches its terminal state.",
+  "totalSites": 374,
+  "totalFiles": 169,
+  "sites": [
+    {
+      "file": "packages/client/src/agent-seed/index.ts",
+      "line": 337,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/components/background-source-field.tsx",
+      "line": 138,
+      "name": "assetId",
+      "brand": "AssetId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/data/auth-bootstrap.ts",
+      "line": 13,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string | null"
+    },
+    {
+      "file": "packages/client/src/data/auth-bootstrap.ts",
+      "line": 44,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/data/import-bundle.ts",
+      "line": 16,
+      "name": "workloadId",
+      "brand": "WorkloadId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/data/import-tree.ts",
+      "line": 15,
+      "name": "workloadId",
+      "brand": "WorkloadId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/character/components/character-card.tsx",
+      "line": 30,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/character/components/character-hero-band.tsx",
+      "line": 35,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/chat/components/chat-summary-row.tsx",
+      "line": 71,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/chat/lib/invite-form-model.ts",
+      "line": 46,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/chat/lib/member-rows.ts",
+      "line": 16,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string | null"
+    },
+    {
+      "file": "packages/client/src/features/discovery/components/corpus-archetypes-tab.tsx",
+      "line": 27,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/discovery/components/corpus-similarity-tab.tsx",
+      "line": 129,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/preset/components/macro-browser.tsx",
+      "line": 20,
+      "name": "presetId",
+      "brand": "PresetId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/preset/components/macro-browser.tsx",
+      "line": 30,
+      "name": "presetId",
+      "brand": "PresetId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/preset/components/user-macros-tab.tsx",
+      "line": 28,
+      "name": "presetId",
+      "brand": "PresetId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/rpg/components/rpg-turn-ref.tsx",
+      "line": 17,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/rpg/components/rpg-turn-ref.tsx",
+      "line": 21,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/rpg/lib/archived-cards.ts",
+      "line": 19,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/stats/lib/analytics-view-model.ts",
+      "line": 100,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/stats/lib/analytics-view-model.ts",
+      "line": 156,
+      "name": "personaId",
+      "brand": "PersonaId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/user-admin/components/admin-reset-password-dialog.tsx",
+      "line": 23,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/user-admin/components/admin-user-sessions-dialog.tsx",
+      "line": 22,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/user-admin/components/admin-users-section.tsx",
+      "line": 31,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/user-admin/lib/admin-model.ts",
+      "line": 13,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/workloads/components/bundle-workload-tracker.tsx",
+      "line": 15,
+      "name": "workloadId",
+      "brand": "WorkloadId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/features/workloads/hooks/use-library-import.ts",
+      "line": 24,
+      "name": "workloadId",
+      "brand": "WorkloadId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/lib/agent-bridge.ts",
+      "line": 83,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/lib/agent-bridge.ts",
+      "line": 85,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/lib/bus-devlog.ts",
+      "line": 37,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/lib/bus-devlog.ts",
+      "line": 65,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/lib/bus-devlog.ts",
+      "line": 79,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/client/src/lib/bus-devlog.ts",
+      "line": 89,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/contracts/src/databank/index.ts",
+      "line": 174,
+      "name": "documentId",
+      "brand": "DocumentId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/contracts/src/rpg/views.ts",
+      "line": 250,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/contracts/src/rpg/views.ts",
+      "line": 262,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/kit/src/content/index.ts",
+      "line": 42,
+      "name": "assetId",
+      "brand": "AssetId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/kit/src/macro/types.ts",
+      "line": 270,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string | undefined"
+    },
+    {
+      "file": "packages/server/src/domain/admin/contract/params.ts",
+      "line": 29,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/admin/contract/service.ts",
+      "line": 38,
+      "name": "sessionId",
+      "brand": "SessionId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/admin/verbs/create-user.ts",
+      "line": 57,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/admin/verbs/create-user.ts",
+      "line": 62,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/assets/contract/service.ts",
+      "line": 53,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/automation/substrate/dry-run.ts",
+      "line": 26,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string | null"
+    },
+    {
+      "file": "packages/server/src/domain/automation/substrate/dry-run.ts",
+      "line": 85,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/character/contract/params.ts",
+      "line": 130,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/character/contract/seeder.ts",
+      "line": 40,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/character/contract/seeder.ts",
+      "line": 42,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/character/contract/views.ts",
+      "line": 14,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/character/contract/views.ts",
+      "line": 38,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/character/persistence/queries.ts",
+      "line": 275,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/character/substrate/group-character.ts",
+      "line": 13,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/character/substrate/group-character.ts",
+      "line": 19,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/character/verbs/mint-synthetic-group-character.ts",
+      "line": 23,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/chat/contract/seeder.ts",
+      "line": 72,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/chat/contract/seeder.ts",
+      "line": 116,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/chat/contract/seeder.ts",
+      "line": 127,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/chat/seeder/seed.ts",
+      "line": 41,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/chat/service.ts",
+      "line": 38,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string | null"
+    },
+    {
+      "file": "packages/server/src/domain/databank/ingest/index.ts",
+      "line": 39,
+      "name": "documentId",
+      "brand": "DocumentId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/databank/ingest/index.ts",
+      "line": 52,
+      "name": "documentId",
+      "brand": "DocumentId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/export/contract/results.ts",
+      "line": 11,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/imagery/substrate/identity-hash.ts",
+      "line": 14,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/import/contract/service.ts",
+      "line": 27,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/import/contract/views.ts",
+      "line": 48,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/import/contract/views.ts",
+      "line": 68,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/import/contract/views.ts",
+      "line": 70,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/import/loader/collect.ts",
+      "line": 36,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/import/loader/collect.ts",
+      "line": 39,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/import/loader/collect.ts",
+      "line": 128,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/import/loader/collect.ts",
+      "line": 129,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/import/workload-contributions.ts",
+      "line": 28,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/rpg/contract/service.ts",
+      "line": 226,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/sessions/contract/service.ts",
+      "line": 49,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/sessions/contract/service.ts",
+      "line": 60,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/sessions/substrate/role-policy.ts",
+      "line": 64,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/sessions/substrate/role-policy.ts",
+      "line": 78,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/sessions/substrate/role-policy.ts",
+      "line": 100,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/stats/persistence/messages-economics.ts",
+      "line": 18,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/stats/persistence/messages-economics.ts",
+      "line": 28,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/domain/stats/persistence/rollups.ts",
+      "line": 245,
+      "name": "personaId",
+      "brand": "PersonaId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/entry/boot/seed-assets/index.ts",
+      "line": 33,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/entry/boot/seed-assets/index.ts",
+      "line": 38,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/entry/compose/admin.ts",
+      "line": 67,
+      "name": "sessionId",
+      "brand": "SessionId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/entry/compose/rpg.ts",
+      "line": 210,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/entry/http/auth-routes.ts",
+      "line": 147,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/entry/import/build-import-context.ts",
+      "line": 27,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/entry/lifecycle.ts",
+      "line": 275,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/foundation/observability/debug/inspect/list.ts",
+      "line": 25,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/foundation/observability/debug/routes.ts",
+      "line": 129,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/foundation/observability/debug/routes.ts",
+      "line": 138,
+      "name": "userId",
+      "brand": "UserId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/foundation/observability/debug/wire-capture.ts",
+      "line": 43,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string | undefined"
+    },
+    {
+      "file": "packages/server/src/foundation/observability/debug/wire-capture.ts",
+      "line": 59,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string | undefined"
+    },
+    {
+      "file": "packages/server/src/foundation/observability/logger.ts",
+      "line": 64,
+      "name": "userId",
+      "brand": "UserId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/foundation/observability/logger.ts",
+      "line": 162,
+      "name": "userId",
+      "brand": "UserId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/foundation/observability/logger.ts",
+      "line": 179,
+      "name": "userId",
+      "brand": "UserId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/foundation/observability/logger.ts",
+      "line": 179,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/infra/auth/contract.ts",
+      "line": 43,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string | undefined"
+    },
+    {
+      "file": "packages/server/src/infra/auth/contract.ts",
+      "line": 44,
+      "name": "externalId",
+      "brand": "ExternalId",
+      "declared": "string | null"
+    },
+    {
+      "file": "packages/server/src/infra/providers/backends/agent-sdk/log.ts",
+      "line": 17,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/infra/providers/backends/agent-sdk/log.ts",
+      "line": 39,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/infra/providers/backends/agent-sdk/runner.ts",
+      "line": 43,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string | undefined"
+    },
+    {
+      "file": "packages/server/src/infra/providers/backends/agent-sdk/runner.ts",
+      "line": 310,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string | undefined"
+    },
+    {
+      "file": "packages/server/src/infra/providers/backends/agent-sdk/session/frames.ts",
+      "line": 226,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/infra/providers/backends/agent-sdk/session/store.ts",
+      "line": 141,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/infra/providers/backends/agent-sdk/session/store.ts",
+      "line": 146,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/infra/providers/backends/agent-sdk/session/store.ts",
+      "line": 155,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/infra/providers/backends/agent-sdk/session/store.ts",
+      "line": 195,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/infra/providers/backends/agent-sdk/session/store.ts",
+      "line": 209,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/infra/providers/backends/agent-sdk/types.ts",
+      "line": 48,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string | undefined"
+    },
+    {
+      "file": "packages/server/src/infra/providers/contract/backend.ts",
+      "line": 97,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string | undefined"
+    },
+    {
+      "file": "packages/server/src/infra/providers/contract/chat.ts",
+      "line": 80,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string | undefined"
+    },
+    {
+      "file": "packages/server/src/infra/providers/contract/errors.ts",
+      "line": 63,
+      "name": "sessionId",
+      "brand": "SessionId",
+      "declared": "string"
+    },
+    {
+      "file": "packages/server/src/infra/providers/contract/errors.ts",
+      "line": 84,
+      "name": "sessionId",
+      "brand": "SessionId",
+      "declared": "string | undefined"
+    },
+    {
+      "file": "tests/client/components/greeting-studio.ct.tsx",
+      "line": 69,
+      "name": "userId",
+      "brand": "UserId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/data/bus/use-orb-socket.ct.tsx",
+      "line": 30,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/data/use-color-quoted-speech.ct.tsx",
+      "line": 17,
+      "name": "userId",
+      "brand": "UserId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/data/use-gated-query.ct.tsx",
+      "line": 20,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/data/use-invalidation.ct.tsx",
+      "line": 20,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/data/use-invalidation.ct.tsx",
+      "line": 52,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/features/auth/surfaces/account-surface.ct.tsx",
+      "line": 12,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/features/character/_ct-stories.tsx",
+      "line": 45,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/features/character/fixtures.ts",
+      "line": 23,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/features/character/fixtures.ts",
+      "line": 58,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/features/chat/components/composer-guided-cluster.ct.tsx",
+      "line": 210,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/features/chat/components/draft-context-tabs.ct.tsx",
+      "line": 77,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/features/chat/components/home-temp-chat-tile-body.ct.tsx",
+      "line": 20,
+      "name": "userId",
+      "brand": "UserId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/features/chat/surfaces/chat-room-surface.ct.tsx",
+      "line": 93,
+      "name": "userId",
+      "brand": "UserId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/features/chat/surfaces/chat-room-surface.ct.tsx",
+      "line": 139,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/features/persona/components/persona-this-chat-section.ct.tsx",
+      "line": 82,
+      "name": "personaId",
+      "brand": "PersonaId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/features/persona/components/persona-this-chat-section.ct.tsx",
+      "line": 99,
+      "name": "personaId",
+      "brand": "PersonaId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/features/persona/components/persona-this-chat-section.ct.tsx",
+      "line": 184,
+      "name": "personaId",
+      "brand": "PersonaId",
+      "declared": "string | null"
+    },
+    {
+      "file": "tests/client/features/persona/components/persona-this-chat-section.ct.tsx",
+      "line": 194,
+      "name": "personaId",
+      "brand": "PersonaId",
+      "declared": "string | null"
+    },
+    {
+      "file": "tests/client/features/preset/surfaces/preset-editor-surface.ct.tsx",
+      "line": 120,
+      "name": "presetId",
+      "brand": "PresetId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/features/rpg/lib/rpg-context-section.ct.tsx",
+      "line": 163,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/features/stats/lib/analytics-section.ct.tsx",
+      "line": 21,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/client/routes/app-root.ct.tsx",
+      "line": 40,
+      "name": "userId",
+      "brand": "UserId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/db/schema/_support.ts",
+      "line": 13,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/group-chat.spec.ts",
+      "line": 76,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/guided-generations.spec.ts",
+      "line": 97,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/guided-generations.spec.ts",
+      "line": 108,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/live-context-cutoff.spec.ts",
+      "line": 41,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/live-group-modes.spec.ts",
+      "line": 67,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/live-hidden-span-resume.local.spec.ts",
+      "line": 76,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/live-member-strip.local.spec.ts",
+      "line": 60,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/live-parity-plus-capstone.spec.ts",
+      "line": 61,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/live-parity-plus-capstone.spec.ts",
+      "line": 61,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/live-parity-plus-capstone.spec.ts",
+      "line": 61,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/live-parity-plus-capstone.spec.ts",
+      "line": 88,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/live-reasoning-strip.local.spec.ts",
+      "line": 77,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/members-tab-views.local.spec.ts",
+      "line": 59,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/multi-human-visibility.local.spec.ts",
+      "line": 58,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/multi-human-visibility.local.spec.ts",
+      "line": 81,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/multi-human-visibility.local.spec.ts",
+      "line": 82,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/multi-human-visibility.local.spec.ts",
+      "line": 93,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/multi-human-visibility.local.spec.ts",
+      "line": 404,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/multi-tab-room-sync.spec.ts",
+      "line": 48,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/rpg-lite-loop.spec.ts",
+      "line": 98,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/rpg-lite-loop.spec.ts",
+      "line": 107,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/rpg-lite-loop.spec.ts",
+      "line": 107,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/rpg-lite-loop.spec.ts",
+      "line": 128,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/rpg-lite-loop.spec.ts",
+      "line": 128,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/rpg-lite-loop.spec.ts",
+      "line": 128,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/actors.ts",
+      "line": 60,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string | null"
+    },
+    {
+      "file": "tests/e2e/support/actors.ts",
+      "line": 134,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/actors.ts",
+      "line": 154,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/actors.ts",
+      "line": 217,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/browser-actors.ts",
+      "line": 25,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/browser-actors.ts",
+      "line": 58,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/browser-actors.ts",
+      "line": 93,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/browser-actors.ts",
+      "line": 102,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/chat-room.ts",
+      "line": 50,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/global-setup.ts",
+      "line": 38,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/global-setup.ts",
+      "line": 85,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/sse.ts",
+      "line": 31,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/sse.ts",
+      "line": 44,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/sse.ts",
+      "line": 95,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/sse.ts",
+      "line": 115,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/sse.ts",
+      "line": 133,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 70,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string | null"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 71,
+      "name": "personaId",
+      "brand": "PersonaId",
+      "declared": "string | null"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 103,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 108,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 188,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 200,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 215,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 227,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 240,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string | null"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 250,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 270,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 283,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 343,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string | null"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 395,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 401,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 406,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 411,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 411,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 417,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 425,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 438,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 444,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 444,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 449,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 449,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 463,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 463,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 468,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 468,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 473,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 473,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 484,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 484,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 490,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 497,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 533,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 546,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 546,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 552,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 572,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 598,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 598,
+      "name": "userId",
+      "brand": "UserId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 711,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 725,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 733,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 740,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 764,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 772,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 793,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 794,
+      "name": "userId",
+      "brand": "UserId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 802,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 832,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 840,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 850,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 864,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 870,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 885,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 890,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 895,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 906,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 926,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 934,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 940,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 948,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 948,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 964,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 990,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 1010,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/e2e/support/trpc.ts",
+      "line": 1015,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/db/db-batch-atomicity.suite.int.test.ts",
+      "line": 25,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/admin/_support.ts",
+      "line": 43,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/admin/_support.ts",
+      "line": 67,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/admin/_support.ts",
+      "line": 105,
+      "name": "sessionId",
+      "brand": "SessionId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/assets/_support.ts",
+      "line": 191,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/assets/_support.ts",
+      "line": 209,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/assets/_support.ts",
+      "line": 240,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/assets/verbs/backfill-avatars.int.test.ts",
+      "line": 20,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/assets/verbs/collect-garbage.int.test.ts",
+      "line": 37,
+      "name": "assetId",
+      "brand": "AssetId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/assets/verbs/export-gallery.int.test.ts",
+      "line": 38,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/assets/verbs/import-gallery.int.test.ts",
+      "line": 32,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/assets/verbs/resolve-variant.int.test.ts",
+      "line": 26,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/character/_support.ts",
+      "line": 171,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/character/_support.ts",
+      "line": 211,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/character/_support.ts",
+      "line": 282,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/character/persistence/card.int.test.ts",
+      "line": 24,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/character/persistence/handoff-copy-write.int.test.ts",
+      "line": 24,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/character/persistence/handoff-copy-write.int.test.ts",
+      "line": 150,
+      "name": "assetId",
+      "brand": "AssetId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/_support.ts",
+      "line": 48,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/assembly/context.int.test.ts",
+      "line": 67,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/assembly/context.int.test.ts",
+      "line": 97,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/engine/engine.int.test.ts",
+      "line": 82,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/engine/engine.int.test.ts",
+      "line": 110,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/persistence/import-write.int.test.ts",
+      "line": 31,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/persona-resolution.suite.int.test.ts",
+      "line": 91,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/substrate/assemble-gather.int.test.ts",
+      "line": 92,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/substrate/assemble-gather.int.test.ts",
+      "line": 322,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/substrate/assemble-gather.int.test.ts",
+      "line": 405,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/substrate/backfill.int.test.ts",
+      "line": 208,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/substrate/backfill.int.test.ts",
+      "line": 259,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/verbs/compaction.int.test.ts",
+      "line": 248,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string | null"
+    },
+    {
+      "file": "tests/server/domain/chat/verbs/edit.int.test.ts",
+      "line": 292,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/verbs/fork.int.test.ts",
+      "line": 519,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/verbs/fork.int.test.ts",
+      "line": 799,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/verbs/roster.int.test.ts",
+      "line": 984,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/verbs/set-rpg-pointer.int.test.ts",
+      "line": 24,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/verbs/start-chat.int.test.ts",
+      "line": 110,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/verbs/start-chat.int.test.ts",
+      "line": 113,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/chat/verbs/start-chat.int.test.ts",
+      "line": 132,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/connection/_support.ts",
+      "line": 226,
+      "name": "userId",
+      "brand": "UserId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/credentials/_support.ts",
+      "line": 68,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/databank/verbs/gather-retrieval.int.test.ts",
+      "line": 21,
+      "name": "documentId",
+      "brand": "DocumentId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/discovery/_support.ts",
+      "line": 129,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/discovery/_support.ts",
+      "line": 465,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/embeddings/_support.ts",
+      "line": 202,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/embeddings/verbs/count-document-chunks.int.test.ts",
+      "line": 10,
+      "name": "documentId",
+      "brand": "DocumentId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/export/_support.ts",
+      "line": 93,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/export/_support.ts",
+      "line": 135,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/export/verbs/export-chat.int.test.ts",
+      "line": 53,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/export/verbs/export-chat.int.test.ts",
+      "line": 78,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/export/verbs/list-host-chats.int.test.ts",
+      "line": 21,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/imagery/_support.ts",
+      "line": 24,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/imagery/persistence/queries.int.test.ts",
+      "line": 107,
+      "name": "assetId",
+      "brand": "AssetId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/imagery/persistence/queries.int.test.ts",
+      "line": 140,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/import/_support.ts",
+      "line": 51,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/import/_support.ts",
+      "line": 94,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/import/verbs/import-character.test.ts",
+      "line": 153,
+      "name": "worldBookId",
+      "brand": "WorldBookId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/import/verbs/import-chat-file.test.ts",
+      "line": 39,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/notifications/_support.ts",
+      "line": 23,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/persona/_support.ts",
+      "line": 89,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/persona/_support.ts",
+      "line": 132,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/persona/_support.ts",
+      "line": 153,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/persona/verbs/set-active.int.test.ts",
+      "line": 19,
+      "name": "personaId",
+      "brand": "PersonaId",
+      "declared": "string | null"
+    },
+    {
+      "file": "tests/server/domain/persona/verbs/set-active.int.test.ts",
+      "line": 78,
+      "name": "personaId",
+      "brand": "PersonaId",
+      "declared": "string | null"
+    },
+    {
+      "file": "tests/server/domain/persona/verbs/set-active.int.test.ts",
+      "line": 103,
+      "name": "personaId",
+      "brand": "PersonaId",
+      "declared": "string | null"
+    },
+    {
+      "file": "tests/server/domain/persona/verbs/set-active.int.test.ts",
+      "line": 134,
+      "name": "personaId",
+      "brand": "PersonaId",
+      "declared": "string | null"
+    },
+    {
+      "file": "tests/server/domain/regex/_support.ts",
+      "line": 83,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/regex/_support.ts",
+      "line": 156,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 176,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 243,
+      "name": "presetId",
+      "brand": "PresetId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 244,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 250,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 251,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 251,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 254,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 256,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 259,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 262,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 265,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 267,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 270,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 272,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 272,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 279,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 279,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 284,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 287,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/_support.ts",
+      "line": 568,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/flush-barrier.test.ts",
+      "line": 121,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/persistence/snapshots.int.test.ts",
+      "line": 38,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/persistence/snapshots.int.test.ts",
+      "line": 300,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/rpg/substrate/reveal.test.ts",
+      "line": 15,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/search/_support.ts",
+      "line": 217,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/settings/_support.ts",
+      "line": 41,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/settings/_support.ts",
+      "line": 63,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/tool-use/_support.ts",
+      "line": 43,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/world-info/_support.ts",
+      "line": 85,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/world-info/_support.ts",
+      "line": 104,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/domain/world-info/_support.ts",
+      "line": 151,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/entry/auth/seam.test.ts",
+      "line": 62,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/entry/import/run-profile-import.test.ts",
+      "line": 75,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/entry/rate-limiter-inversion.suite.int.test.ts",
+      "line": 46,
+      "name": "userId",
+      "brand": "UserId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/entry/rate-limiter-inversion.suite.int.test.ts",
+      "line": 57,
+      "name": "userId",
+      "brand": "UserId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/entry/rate-limiter-inversion.suite.int.test.ts",
+      "line": 62,
+      "name": "userId",
+      "brand": "UserId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/foundation/observability/debug/wire-capture.test.ts",
+      "line": 13,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/foundation/observability/middleware.test.ts",
+      "line": 20,
+      "name": "userId",
+      "brand": "UserId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/foundation/observability/middleware.test.ts",
+      "line": 21,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/infra/providers/backends/agent-sdk/runner.test.ts",
+      "line": 541,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/infra/providers/backends/agent-sdk/runner.test.ts",
+      "line": 787,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/infra/providers/backends/agent-sdk/runner.test.ts",
+      "line": 1016,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/infra/providers/backends/agent-sdk/runner.test.ts",
+      "line": 1123,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
+      "line": 63,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
+      "line": 64,
+      "name": "personaId",
+      "brand": "PersonaId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
+      "line": 65,
+      "name": "presetId",
+      "brand": "PresetId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
+      "line": 68,
+      "name": "tagId",
+      "brand": "TagId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
+      "line": 70,
+      "name": "themeId",
+      "brand": "ThemeId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
+      "line": 71,
+      "name": "workloadId",
+      "brand": "WorkloadId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
+      "line": 74,
+      "name": "chatId",
+      "brand": "ChatId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
+      "line": 75,
+      "name": "messageId",
+      "brand": "MessageId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
+      "line": 77,
+      "name": "automationRuleId",
+      "brand": "AutomationRuleId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
+      "line": 80,
+      "name": "rpgQuestId",
+      "brand": "RpgQuestId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
+      "line": 81,
+      "name": "rpgJournalId",
+      "brand": "RpgJournalId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
+      "line": 82,
+      "name": "rpgCheckpointId",
+      "brand": "RpgCheckpointId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
+      "line": 83,
+      "name": "regexScriptId",
+      "brand": "RegexScriptId",
+      "declared": "string"
+    },
+    {
+      "file": "tests/support/fixtures.ts",
+      "line": 79,
+      "name": "handle",
+      "brand": "Handle",
+      "declared": "string"
+    },
+    {
+      "file": "tests/support/parity-runner.ts",
+      "line": 38,
+      "name": "characterId",
+      "brand": "CharacterId",
+      "declared": "string | null"
+    }
+  ]
+}
