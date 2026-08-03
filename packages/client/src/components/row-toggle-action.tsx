@@ -14,23 +14,19 @@
 // anatomy (the character card's star, the chats row's star), which is the R2 bar for a tier-2 composite.
 
 import { Button } from "@orb/ui/button";
-import type { FillableIcon } from "@orb/ui/icons";
+import type { FillableIcon, LucideIcon } from "@orb/ui/icons";
 import { Icon } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
 import { ROW_REVEAL } from "./row-reveal";
 
-export interface RowToggleActionProps {
+interface RowToggleActionBaseProps {
   readonly pressed: boolean;
   readonly onToggle: () => void;
   /** The accessible name while PRESSED — names the UN-set ("Unstar The Crimson Court"). */
   readonly labelOn: string;
   /** The accessible name while unpressed — names the set ("Star The Crimson Court"). */
   readonly labelOff: string;
-  /** A {@link FillableIcon} — the branded, gallery-checked subset — because `pressedFill` paints the glyph
-   *  through the seal's own fill axis, which renders as a blob on a multi-path outline. Typing the prop is
-   *  what makes that a compile error instead of an ugly pressed state. */
-  readonly icon: FillableIcon;
   /** The pressed tone (e.g. `text-warning` for a star). Applies only while pressed. */
   readonly pressedClassName?: string;
   /** `when-on` (D11, the list default) = visible at rest only while pressed; `always` = never hidden;
@@ -40,14 +36,6 @@ export interface RowToggleActionProps {
    *  and reveal-gating it is what keeps the row from painting two stars at once. */
   readonly rest?: "always" | "never" | "when-on";
   /**
-   * FILLS the glyph while pressed (through the seal's `fill="solid"` axis), so the pressed state carries a
-   * SHAPE delta and not only a color one. WCAG 1.4.1: the preset list's activate control differed from its
-   * rest state by stroke color alone (side-eye F-06). A filled disc vs a hollow ring is legible in
-   * greyscale — and on the preset row it is the WHOLE state readout (owner ruling O-1, 2026-08-02: the
-   * separate "Active" text badge is gone, so this control is both the state and the affordance).
-   */
-  readonly pressedFill?: boolean;
-  /**
    * ONE-OF-N semantics: `radio` renders `role="radio"` + `aria-checked` instead of `aria-pressed`, for a
    * control that can only ever be SET (activating another row is the only way to unset this one, so a
    * toggle's "press to release" contract is a promise it refuses to keep — side-eye F-19 / ARIA rec 3).
@@ -56,19 +44,51 @@ export interface RowToggleActionProps {
   readonly semantics?: "toggle" | "radio";
 }
 
+/**
+ * The NON-FILLING arm — any sealed glyph, the mirror of `IconProps`' own two-armed shape one level down.
+ *
+ * Minted for databank's `Everywhere` toggle (§6.1): `Globe` is a multi-path outline, so it is deliberately
+ * NOT in the fillable seal — and demanding a `FillableIcon` on a toggle that never fills would have forced
+ * either the wrong glyph or a wrong seal entry. The pressed state is still a non-color delta here: at
+ * `rest:"when-on"` an unpressed toggle does not render at all, so what changes at rest is PRESENCE, not hue.
+ */
+export interface RowToggleActionProps extends RowToggleActionBaseProps {
+  readonly icon: LucideIcon;
+  readonly pressedFill?: false;
+}
+
+/**
+ * The FILLING arm — `pressedFill` paints the glyph through the seal's `fill="solid"` axis while pressed, so
+ * the pressed state carries a SHAPE delta and not only a color one. WCAG 1.4.1: the preset list's activate
+ * control differed from its rest state by stroke color alone (side-eye F-06); a filled disc vs a hollow ring
+ * is legible in greyscale, and on the preset row it is the WHOLE state readout (owner ruling O-1).
+ *
+ * It requires a {@link FillableIcon} — the branded, gallery-checked subset — because a fill renders as an
+ * unreadable blob on a multi-path outline. TYPING that is what makes the mistake a compile error instead of
+ * an ugly pressed state, which is the entire reason the brand exists.
+ */
+export interface RowToggleActionFillProps extends RowToggleActionBaseProps {
+  readonly icon: FillableIcon;
+  readonly pressedFill: true;
+}
+
+/** Either arm — declared inline at the two consumption points (a component parameter and the glyph's), so
+ *  the union needs no exported alias of its own. */
+type RowToggleFillArm = RowToggleActionProps | RowToggleActionFillProps;
+
+/** The glyph, dispatched on the FILL ARM — narrowing the whole props object (not a destructured `icon`) is
+ *  what keeps `fill` typed against a `FillableIcon` with no cast: the non-filling arm never spells `fill`. */
+function RowToggleGlyph(props: RowToggleFillArm): ReactElement {
+  if (props.pressedFill === true) {
+    return <Icon fill={props.pressed ? "solid" : "none"} icon={props.icon} size="sm" />;
+  }
+  return <Icon icon={props.icon} size="sm" />;
+}
+
 /** One row state-toggle: a ghost icon button that IS the marker (`aria-pressed`/`aria-checked` carries the
  *  datum). */
-export function RowToggleAction({
-  pressed,
-  onToggle,
-  labelOn,
-  labelOff,
-  icon,
-  pressedClassName,
-  pressedFill = false,
-  semantics = "toggle",
-  rest = "when-on",
-}: RowToggleActionProps): ReactElement {
+export function RowToggleAction(props: RowToggleFillArm): ReactElement {
+  const { pressed, onToggle, labelOn, labelOff, pressedClassName, semantics = "toggle", rest = "when-on" } = props;
   const revealed = rest === "never" || (rest === "when-on" && !pressed);
   const radio = semantics === "radio";
   return (
@@ -83,7 +103,7 @@ export function RowToggleAction({
       size="icon"
       type="button"
     >
-      <Icon fill={pressed && pressedFill ? "solid" : "none"} icon={icon} size="sm" />
+      <RowToggleGlyph {...props} />
     </Button>
   );
 }

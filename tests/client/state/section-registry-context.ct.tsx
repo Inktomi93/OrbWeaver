@@ -9,6 +9,6 @@ test("useSectionRegistry resolves the ordered section list + get(id) inside the 
   const probe = await mount(<SectionRegistryProbe />);
   const out = probe.locator("output");
   // list() preserves SECTION_IDS order; get("chats") resolves the member's rail label.
-  await expect(out).toContainText("ids=home,chats,characters,corpus,config,presets,refinery,analytics");
+  await expect(out).toContainText("ids=home,chats,characters,corpus,config,databank,presets,refinery,analytics");
   await expect(out).toContainText("chats=Chats");
 });

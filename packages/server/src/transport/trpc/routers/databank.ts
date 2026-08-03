@@ -81,6 +81,10 @@ export const databankRouter = t.router({
     .input(z.object({ documentId: brandedId<DocumentId>() }))
     .mutation(({ ctx, input }) => ctx.services.databank.detachGlobal({ principal: ctx.auth, documentId: input.documentId })),
 
+  // D-1 (databank-surface-spec.md): the library row's `Everywhere` state as ONE read — the `worldInfo.listGlobal`
+  // twin. Without it the row toggle's only source is a `listAttachments` per row (legacy's N+1).
+  listGlobal: authedProcedure.query(({ ctx }) => ctx.services.databank.listGlobal({ principal: ctx.auth })),
+
   attachToChat: authedProcedure
     .input(z.object({ documentId: brandedId<DocumentId>(), chatId: brandedId<ChatId>() }))
     .mutation(({ ctx, input }) => ctx.services.databank.attachToChat({ principal: ctx.auth, documentId: input.documentId, chatId: input.chatId })),

@@ -14,6 +14,7 @@ import { createAttachToChat } from "./verbs/attach/attach-to-chat";
 import { createDetachFromCharacter } from "./verbs/attach/detach-from-character";
 import { createDetachFromChat } from "./verbs/attach/detach-from-chat";
 import { createDetachGlobal } from "./verbs/attach/detach-global";
+import { createListGlobal } from "./verbs/attach/list-global";
 import { createCreateFromText } from "./verbs/create-from-text";
 import { createGatherRetrieval } from "./verbs/gather-retrieval";
 import { createGet } from "./verbs/get";
@@ -42,6 +43,7 @@ export function createDatabankService(ctx: DatabankContext): DatabankService {
     reindex: createReindex(ctx),
     attachGlobal: createAttachGlobal(ctx),
     detachGlobal: createDetachGlobal(ctx),
+    listGlobal: createListGlobal(ctx),
     attachToChat: createAttachToChat(ctx),
     detachFromChat: createDetachFromChat(ctx),
     attachToCharacter: createAttachToCharacter(ctx),
