@@ -109,8 +109,16 @@
       "sha256": "aa9edad9145c64b583b894adf1e65a5490abb05968a6cee6d05ae0ec5f5c75de"
     },
     "chat.group.roundNudge": {
+      "version": 2,
+      "sha256": "eb971d4aae24dc68654fbb362fb1874e45fc9e73d40c3528eb33e56d10547b6d"
+    },
+    "chat.group.narratorNudge": {
       "version": 1,
-      "sha256": "23e59dcf5cb4f59f1021bbb87edfe82dbc8bde3813ea21510ac83ddfed76912b"
+      "sha256": "37f7638c988c71068977d48d5c30fc4bab5d654406953d02a15a852e2ff8d35a"
+    },
+    "chat.group.speakerTags": {
+      "version": 1,
+      "sha256": "ee27f0d7d74bab78236bb33f732177cfcc003c054d55dac8edd1f78135873aa8"
     },
     "chat.injection.systemNote": {
       "version": 1,

@@ -462,6 +462,41 @@ describe("runTurnPipeline — compaction shrinkage (covered turns fall out of hi
   });
 });
 
+// ── Narrator `<speaker>` markers are DISPLAY canon, never prompt bytes (§12.4) ─────────────────────
+// A narrator row keeps its inline markers in stored canon precisely so the renderer can color by them.
+// Re-feeding that XML into every later prompt burns tokens AND teaches the model to parrot the syntax, so
+// the shaped history converts them to the plain `NAME: ` attribution the transcript already speaks. The
+// conversion lives in `toShapeCanon` — the ONE funnel the turn pipeline and the host shape-trace share.
+describe("runTurnPipeline — <speaker> markers convert to plain attribution in the prompt history", () => {
+  const markerRow = (seq: number, content: string): MessageView =>
+    // FABRICATION-OK: slim MessageView double — toShapeCanon reads only role/content/seq/excludedFromPrompt/id.
+    ({
+      role: "assistant",
+      content,
+      seq,
+      excludedFromPrompt: false,
+      characterId: null,
+      personaId: null,
+      id: castId<MessageId>(`m${seq}`),
+    }) as unknown as MessageView;
+
+  test("a narrator row's markers become `NAME: ` and the raw tags never reach the wire", async () => {
+    const canon = [markerRow(1, "<speaker>Aria</speaker>Hold the line.<speaker>Bran</speaker>Already moving.")];
+    const { args } = baseArgs({ canon });
+    const text = historyText((await runTurnPipeline(args)).request);
+    expect(text).not.toContain("<speaker>");
+    expect(text).not.toContain("</speaker>");
+    expect(text).toContain("Aria: Hold the line.");
+    expect(text).toContain("Bran: Already moving.");
+  });
+
+  test("a body with no markers is byte-identical (every per-speaker / solo row)", async () => {
+    const canon = [markerRow(1, "Hold the line.")];
+    const { args } = baseArgs({ canon });
+    expect(historyText((await runTurnPipeline(args)).request)).toContain("Hold the line.");
+  });
+});
+
 // ── The token-budget reserve: one source of truth for the effective output length ───────────────────
 // The amnesia regression: when a model's `output.maxTokens.max ≈ context.window` (a self-hosted vLLM
 // caps output at the whole window), the OLD reserve `intent.maxOutputTokens ?? capability.output.maxTokens.max`

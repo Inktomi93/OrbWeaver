@@ -3,11 +3,100 @@
 // `<Markdown>` render) and the tagged-body path (each span gets its own `data-slot="theme-scope"`
 // wrapper, in document order, with the text routed to the right span).
 
+import type { ParticipantView } from "@orb/contracts/chat";
+import type { CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { MessageContentChoicesStory, MessageContentSpansStory } from "../_ct-stories";
 
 const THEME_SCOPE = '[data-slot="theme-scope"]';
 const SPANS_CONTAINER = '[data-slot="message-content-spans"]';
+
+// ── The NARRATOR plain-`Name:` span grammar (the TOLERANCE + RETROACTIVE half of §12.4) ───────────
+// The `<speaker>` wire format is INSTRUCTED, not guaranteed: the shipped demo transcripts (generated live
+// against a real model, `seed-assets/demo-chats/second-opinion.jsonl`) attribute with plain `JFC:` /
+// `Charlotte:` line-start labels and carry ZERO markers. The bodies below are that real shape.
+
+const CHARLOTTE_ID = castId<CharacterId>("char_charlotte");
+const JFC_ID = castId<CharacterId>("char_jfc");
+
+function participant(characterId: CharacterId, displayName: string): ParticipantView {
+  return {
+    id: castId(`participant_${displayName}`),
+    chatId: castId("chat_1"),
+    kind: "character",
+    userId: null,
+    characterId,
+    role: "member",
+    activePersonaId: null,
+    talkativeness: 1,
+    disabled: false,
+    joinedAt: 0,
+    joinSeq: 0,
+    leftSeq: null,
+    joinHistoryVisibility: "full",
+    displayName,
+    handle: null,
+    avatarAssetId: null,
+    avatarHash: null,
+  };
+}
+
+const CAST: readonly ParticipantView[] = [participant(CHARLOTTE_ID, "Charlotte"), participant(JFC_ID, "JFC")];
+
+// Verbatim in shape from the shipped narrator transcript: a scene-set preamble, then two labelled voices.
+const NARRATOR_BODY = "*a foreleg taps once against the thread*\n\nJFC: Four devices is not an answer.\n\nCharlotte: I'll take this one.";
+
+test("NARRATOR: a tagless body splits on plain `Name:` labels for the present cast", async ({ mount }) => {
+  const component = await mount(<MessageContentSpansStory narratorVoiced={true} participants={CAST} content={NARRATOR_BODY} />);
+  // Two attributed spans (JFC, Charlotte); the scene-set preamble stays un-themed.
+  await expect(component.locator(THEME_SCOPE)).toHaveCount(2);
+  await expect(component.getByText("a foreleg taps once against the thread")).toBeVisible();
+  const scopes = component.locator(THEME_SCOPE);
+  await expect(scopes.nth(0)).toContainText("Four devices is not an answer.");
+  await expect(scopes.nth(1)).toContainText("I'll take this one.");
+  // The label TEXT stays — it is prose the reader already sees, and the only non-color attribution a
+  // low-vision reader has. (A `<speaker>` tag is markup and IS consumed; a `Name:` label is not.)
+  await expect(scopes.nth(0)).toContainText("JFC:");
+  await expect(scopes.nth(1)).toContainText("Charlotte:");
+});
+
+test("NARRATOR: each speaker's span carries its OWN dialogue tint", async ({ mount }) => {
+  const component = await mount(<MessageContentSpansStory narratorVoiced={true} participants={CAST} content={NARRATOR_BODY} />);
+  const scopes = component.locator(THEME_SCOPE);
+  const read = (index: number): Promise<string> => scopes.nth(index).evaluate((el) => getComputedStyle(el).getPropertyValue("--color-dialogue").trim());
+  const jfc = await read(0);
+  const charlotte = await read(1);
+  expect(jfc).not.toBe("");
+  expect(charlotte).not.toBe("");
+  expect(jfc).not.toBe(charlotte);
+});
+
+test("NON-narrator: the SAME body never splits — a per-speaker row is one voice (a `Name:` line is prose)", async ({ mount }) => {
+  const component = await mount(<MessageContentSpansStory participants={CAST} content={NARRATOR_BODY} />);
+  await expect(component.locator(THEME_SCOPE)).toHaveCount(0);
+  await expect(component.locator(SPANS_CONTAINER)).toHaveCount(0);
+  await expect(component.getByText("JFC: Four devices is not an answer.")).toBeVisible();
+});
+
+test("NARRATOR: a name that is NOT in the room's cast does not attribute", async ({ mount }) => {
+  const component = await mount(<MessageContentSpansStory narratorVoiced={true} participants={CAST} content="Mallory: trust me, I live here." />);
+  await expect(component.locator(THEME_SCOPE)).toHaveCount(0);
+});
+
+test("NARRATOR: a cast label INSIDE a fenced code block never splits the block", async ({ mount }) => {
+  const body = "JFC: here:\n\n```python\n# JFC: this is a comment, not a turn\nprint(1)\n```";
+  const component = await mount(<MessageContentSpansStory narratorVoiced={true} participants={CAST} content={body} />);
+  // Exactly ONE span (the real leading label) — the in-fence lookalike is skipped, so the fence renders whole.
+  await expect(component.locator(THEME_SCOPE)).toHaveCount(1);
+  await expect(component.locator("pre code")).toHaveCount(1);
+  await expect(component.locator("pre code")).toContainText("print(1)");
+});
+
+test("NARRATOR: a mid-sentence cast name never splits (the label must open a LINE)", async ({ mount }) => {
+  const component = await mount(<MessageContentSpansStory narratorVoiced={true} participants={CAST} content="She turned to JFC: the man was already gone." />);
+  await expect(component.locator(THEME_SCOPE)).toHaveCount(0);
+});
 
 test("zero markers: no ThemeScope, no spans container — the byte-identical no-op path", async ({ mount }) => {
   const component = await mount(<MessageContentSpansStory content="Just **plain** markdown." />);

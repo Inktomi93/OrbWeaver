@@ -22,6 +22,9 @@ import { colorForCharacter } from "../lib/speaker-color";
 import { MessageChoicesBlock } from "./message-choices-block";
 import { MessageMediaBlock } from "./message-media-block";
 
+/** A stable empty cast list — a fresh `[]` per render would be a new identity for no reason. */
+const NO_CAST_NAMES: readonly string[] = [];
+
 function assertNever(value: never): never {
   throw new Error(`MessageContent: unhandled block ${JSON.stringify(value)}`);
 }
@@ -102,13 +105,29 @@ export interface MessageContentProps {
   readonly rowCharacterId?: CharacterId | null | undefined;
   /** Retargets `{{user}}`/`{{persona}}` to this persona; ignored when renderContext is absent. */
   readonly rowPersonaId?: PersonaId | null | undefined;
-  /** NAME -\> the character's authored themeOverride; absent ⇒ every span uses the hash fallback. */
+  /** NAME -\> that character's tint (`speakerThemesByName`); absent ⇒ every span uses the hash fallback.
+   *  Its KEYS are also the present cast-name set the plain-label span grammar keys on. */
   readonly speakerThemes?: ReadonlyMap<string, ThemeScopeTokens> | undefined;
+  /** True only for a row this room voices through the NARRATOR grammar (one generation speaking the whole
+   *  cast). It is the OUTER guard on the plain-`Name:` half of the span parse: in any other grammar a row
+   *  is one speaker's, so a line opening `Alice:` is prose (or, on a USER row, an attribution a member
+   *  could forge) and must never split. The `<speaker>` marker half is unconditional — it is markup, not
+   *  prose, and cannot be typed into a body by accident. */
+  readonly narratorVoiced?: boolean | undefined;
 }
 
-export function MessageContent({ content, render, renderContext, rowCharacterId, rowPersonaId, speakerThemes }: MessageContentProps): ReactElement {
+export function MessageContent({
+  content,
+  render,
+  renderContext,
+  rowCharacterId,
+  rowPersonaId,
+  speakerThemes,
+  narratorVoiced = false,
+}: MessageContentProps): ReactElement {
   const resolvedContent = renderContext === undefined ? content : renderMessageForDisplay(content, renderContext, rowCharacterId, rowPersonaId);
-  const spans = parseSpeakerSpans(resolvedContent);
+  const castNames = narratorVoiced && speakerThemes !== undefined ? [...speakerThemes.keys()] : NO_CAST_NAMES;
+  const spans = parseSpeakerSpans(resolvedContent, castNames);
 
   const [onlySpan] = spans;
   if (spans.length === 1 && onlySpan !== undefined && onlySpan.speaker === null) {

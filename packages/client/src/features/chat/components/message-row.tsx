@@ -9,6 +9,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import type { MessageRole } from "@orb/kit/message-role";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
@@ -76,6 +77,10 @@ export interface MessageRowProps {
   readonly displayScripts?: readonly RegexScriptRow[] | undefined;
   /** The `appearance.colorQuotedSpeech` pref, folded into this row's render policy. Absent ⇒ ON. */
   readonly colorQuotedSpeech?: boolean | undefined;
+  /** This room's group grammar is NARRATOR (`ChatDetail.group.output`) — one generation voices the whole
+   *  cast in one row. Gates the plain-`Name:` half of the speaker-span split AND the adaptive outer label
+   *  below. Absent ⇒ off (every other grammar, and every mount with no room behind it). */
+  readonly narratorRoom?: boolean | undefined;
   /** Phase 4b §B.5.5 — the reasoning-disclosure glyph pref, threaded to the SETTLED reasoning block exactly
    *  as the surface threads it to the live ghost row. */
   readonly showLLMReasoningIcon?: boolean | undefined;
@@ -117,6 +122,13 @@ function resolveMessageFooter(
   );
 }
 
+/** A narrator row is the only place ONE body carries more than one speaker — so it is the only place the
+ *  plain-`Name:` span grammar may fire. Assistant-only: a USER row's leading `Alice:` is that member's own
+ *  prose, and letting it attribute would be a display-tier forge of the label the SHAPE name-stamp owns. */
+function isNarratorVoiced(narratorRoom: boolean, role: MessageRole): boolean {
+  return narratorRoom && role === "assistant";
+}
+
 const NO_METADATA_VISIBLE: MessageMetadataVisibility = {
   showTimestamps: false,
   showMessageId: false,
@@ -149,6 +161,7 @@ export function MessageRow({
   autoFixMarkdown,
   displayScripts,
   colorQuotedSpeech,
+  narratorRoom = false,
   showLLMReasoningIcon = false,
   metadataVisibility = NO_METADATA_VISIBLE,
   viewerIsHost = false,
@@ -198,6 +211,11 @@ export function MessageRow({
   });
   const trainParagraphs = !editing && skin.bubbleLayout === "trains" ? splitIntoTrainParagraphs(message.content) : null;
   const speakerThemes = speakerThemesByName(participants);
+  const narratorVoiced = isNarratorVoiced(narratorRoom, role);
+  // The narrator row's outer name is UNCONDITIONAL, like every other row's. Suppressing it once the body
+  // resolved speaker spans was considered and REVERSED (owner, 2026-08-03): the narrator narrates — the
+  // unattributed prose between the character spans is its OWN voice, and the row label is that voice's
+  // attribution, not a redundant repeat of the in-block labels. Do not re-propose it as an improvement.
   const content = resolveRowContent({
     editing,
     message,
@@ -206,6 +224,7 @@ export function MessageRow({
     render,
     renderContext,
     speakerThemes,
+    narratorVoiced,
   });
 
   const avatarTreatment = skin.avatarTreatment(attribution.kind);
@@ -275,6 +294,7 @@ export function MessageRow({
               render,
               renderContext,
               speakerThemes,
+              narratorVoiced,
             })}
             {editing ? null : <MessageToolCalls records={message.toolCalls} renderers={toolRenderers} />}
             {editing ? null : <MessageMetadataRow message={message} visibility={metadataVisibility} viewerIsHost={viewerIsHost} />}

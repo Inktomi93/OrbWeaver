@@ -79,6 +79,8 @@ export const PROSE_SLOT_IDS = [
   "chat.group.scenarioHeading",
   "chat.group.exampleHeading",
   "chat.group.roundNudge",
+  "chat.group.narratorNudge",
+  "chat.group.speakerTags",
   "chat.injection.systemNote",
   "chat.injection.userNote",
   // ── per-USER: the automation quiet-pick prompts (census 91) ──

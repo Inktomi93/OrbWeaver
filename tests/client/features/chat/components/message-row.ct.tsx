@@ -13,7 +13,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import type { MessageMetadataVisibility } from "../../../../../packages/client/src/features/chat/components/message-metadata-row";
-import { MessageRowStory } from "../_ct-stories";
+import { MessageRowStory, NarratorTranscriptStory } from "../_ct-stories";
 
 const AI_BUBBLE = /bg-ai-bubble/u;
 const USER_BUBBLE = /bg-user-bubble/u;
@@ -855,4 +855,37 @@ test("the speaker's AUTHORED dialogueColor paints the quoted run (the theme scop
   }, AUTHORED_DIALOGUE_COLOR);
   expect(tint).toBe(authored);
   expect(tint).not.toBe(narration);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// ONE HASH INPUT — the same character is the same COLOR everywhere. The tint fallback is a deterministic
+// hash, and its seed is the CHARACTER ID at every site (`characterTint`, attribution.ts). It used to fork:
+// a row hashed the id while that character's span inside a merged-narrator row hashed the display NAME, so
+// one character wore two colors in one transcript. These two mounts read the SAME resolved custom property
+// off the two paths and require them equal — the fork cannot come back without going red here.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+const NARRATOR_CAST_BODY = "*the room stills*\n\nAlice: I'll take this one.\n\nBob: Fine.";
+
+test("the same character resolves the SAME dialogue color in a narrator span and in their own row", async ({ mount }) => {
+  const component = await mount(
+    <NarratorTranscriptStory participants={[alice(), bob()]} narratorContent={NARRATOR_CAST_BODY} ownRowCharacterId={ALICE_ID} ownRowContent="Just prose." />,
+  );
+  const narratorRow = component.getByTestId("narrator-row");
+  const ownRow = component.getByTestId("own-row");
+
+  // Alice's own row: the tint rides the row-level ThemeScope the bubble sits inside.
+  const ownColor = await cssVar(ownRow.locator(BUBBLE), "--color-dialogue");
+  // The narrator row has NO single author (characterId null in a multi-character room), so its only
+  // theme scopes are the per-speaker spans; `.last()` is the innermost match (the span, not an ancestor).
+  const aliceSpan = narratorRow.locator(THEME_SCOPE).filter({ hasText: "I'll take this one." }).last();
+  const spanColor = await cssVar(aliceSpan, "--color-dialogue");
+
+  expect(ownColor).not.toBe("");
+  expect(spanColor).toBe(ownColor);
+  // Bob's span must NOT share it — the two speakers stay distinguishable inside the one bubble.
+  const bobColor = await cssVar(narratorRow.locator(THEME_SCOPE).filter({ hasText: "Fine." }).last(), "--color-dialogue");
+  expect(bobColor).not.toBe(spanColor);
+  // The narrator row still says who is narrating: the outer label is unconditional (owner ruling,
+  // 2026-08-03 — the narrator narrates, so the unattributed prose between spans needs its attribution).
+  await expect(narratorRow.locator(ATTRIBUTION)).toContainText("Narrator");
 });

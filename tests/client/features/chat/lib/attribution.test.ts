@@ -11,6 +11,7 @@ import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
 import { resolveRoomTheme, resolveRowAttribution, speakerThemesByName } from "../../../../../packages/client/src/features/chat/lib/attribution";
+import { colorForCharacter } from "../../../../../packages/client/src/features/chat/lib/speaker-color";
 import { expect, test } from "../../../../support/fixtures";
 import { makeParticipant } from "./_support";
 
@@ -320,14 +321,34 @@ test("Layer 2: resolveRoomTheme applies the sole character's override only in a 
   expect(resolveRoomTheme(undefined)).toBeUndefined();
 });
 
-test("Layer 3 spans: speakerThemesByName maps a character's NAME to its override", () => {
+test("Layer 3 spans: speakerThemesByName maps a character's NAME to its override, else its ID-seeded hash", () => {
   const participants = new Map([
     [ALICE_ID, makeParticipant({ displayName: "Alice", themeOverride: HEARTH_TOKENS })],
-    [BOB_ID, makeParticipant({ characterId: BOB_ID, displayName: "Bob" })], // no override → omitted
+    [BOB_ID, makeParticipant({ characterId: BOB_ID, displayName: "Bob" })], // no override → the hash tint
   ]);
   const byName = speakerThemesByName(participants);
   expect(byName.get("Alice")).toEqual(HEARTH_TOKENS);
-  expect(byName.has("Bob")).toBe(false);
+  // EVERY seated character is in the map — an override-less member resolves to its deterministic tint, so
+  // the map doubles as the room's cast-name set for the plain-`Name:` span parse.
+  expect(byName.get("Bob")).toEqual(colorForCharacter(BOB_ID));
+});
+
+// ONE HASH INPUT. The fallback tint is seeded by the CHARACTER ID at every site, never by the display
+// name — a name-seeded span hash forked one character into two colors (their own row vs their span inside
+// a merged-narrator row), which reads as "the coloring is wrong". Both producers are checked together so
+// the fork cannot reappear in one of them.
+test("a character's narrator-span tint EQUALS their own row's tint (one hash input, both producers)", () => {
+  const participants = new Map([[BOB_ID, makeParticipant({ characterId: BOB_ID, displayName: "Bob" })]]);
+  const row = resolveRowAttribution({
+    role: "assistant",
+    characterId: BOB_ID,
+    personaId: null,
+    participants,
+    characterNamesById: new Map<CharacterId, RowCharacterName>([[BOB_ID, { name: "Bob" }]]),
+  });
+  expect(speakerThemesByName(participants).get("Bob")).toEqual(row.tokens);
+  // And NOT the name-seeded value the span path used to compute.
+  expect(row.tokens).not.toEqual(colorForCharacter("Bob"));
 });
 
 // ── The card-embeddable partition at the two card-sourced READ seams (TD §3) ──────────────────────────
@@ -353,6 +374,6 @@ test("speakerThemesByName strips the same half — and a card carrying ONLY a sa
   ]);
   const byName = speakerThemesByName(participants);
   expect(byName.get("Alice")).toEqual(HEARTH_TOKENS);
-  // Nothing embeddable survived the projection → no scope at all, so the row keeps its hash tint.
-  expect(byName.has("Bob")).toBe(false);
+  // Nothing embeddable survived the projection → the span falls back to the same id-seeded hash tint.
+  expect(byName.get("Bob")).toEqual(colorForCharacter(BOB_ID));
 });

@@ -80,6 +80,7 @@ export function resolveRowContent(args: {
   readonly render: RowRenderPolicy;
   readonly renderContext: MessageRenderContext;
   readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens>;
+  readonly narratorVoiced: boolean;
 }): ReactNode {
   if (args.editing) {
     const { greeting } = args;
@@ -101,6 +102,7 @@ export function resolveRowContent(args: {
       rowCharacterId={args.message.characterId}
       rowPersonaId={args.message.personaId}
       speakerThemes={args.speakerThemes}
+      narratorVoiced={args.narratorVoiced}
     />
   );
 }
@@ -122,6 +124,7 @@ export function renderRowBubble(args: {
   readonly render: RowRenderPolicy;
   readonly renderContext: MessageRenderContext;
   readonly speakerThemes: ReadonlyMap<string, ThemeScopeTokens>;
+  readonly narratorVoiced: boolean;
 }): ReactElement {
   // Hide-from-AI dims the row (still user-visible — the toggle holds it out of assembly only).
   const bubbleClassName = cn(args.skin.inner(args.role), args.message.excludedFromPrompt && "opacity-50", args.decoration?.className) ?? "";
@@ -161,6 +164,7 @@ export function renderRowBubble(args: {
               rowCharacterId={args.message.characterId}
               rowPersonaId={args.message.personaId}
               speakerThemes={args.speakerThemes}
+              narratorVoiced={args.narratorVoiced}
             />
           </Stack>
         ))}

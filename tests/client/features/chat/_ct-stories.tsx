@@ -132,6 +132,7 @@ import { SpeakAsSelect } from "../../../../packages/client/src/features/chat/com
 import { SwipeStrip } from "../../../../packages/client/src/features/chat/components/swipe-strip";
 import { AttachmentUrlContext } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context";
 import { ChoiceSendContext } from "../../../../packages/client/src/features/chat/hooks/choice-send-context";
+import { speakerThemesByName } from "../../../../packages/client/src/features/chat/lib/attribution";
 import type { MemberCastRow, MemberPersonRow } from "../../../../packages/client/src/features/chat/lib/member-rows";
 import { CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures";
@@ -206,6 +207,8 @@ export interface MessageRowStoryProps {
   readonly reasoning?: string | null;
   /** Phase 4b §B.5.5 — the reasoning-disclosure glyph pref. */
   readonly showLLMReasoningIcon?: boolean;
+  /** The room's group grammar is NARRATOR — gates the plain-`Name:` speaker-span split. */
+  readonly narratorRoom?: boolean;
 }
 
 /** One row in a chosen chatStyle — the variant-mechanism CT mounts this three times; also the
@@ -230,6 +233,7 @@ export function MessageRowStory({
   toolCalls,
   reasoning = null,
   showLLMReasoningIcon,
+  narratorRoom,
 }: MessageRowStoryProps): ReactElement {
   const participantsMap =
     participants === undefined
@@ -287,8 +291,52 @@ export function MessageRowStory({
           personaNamesById={personaNamesById}
           activePersonaId={activePersonaId}
           anchorPersonaId={anchorPersonaId}
+          narratorRoom={narratorRoom}
           toolRenderers={NO_TOOL_RENDERERS}
         />
+      </MessageThreadAnchor>
+    </CtDataProviders>
+  );
+}
+
+export interface NarratorTranscriptStoryProps {
+  readonly participants: readonly ParticipantView[];
+  /** The NARRATOR row's body (multi-voice, plain `Name:` labels). */
+  readonly narratorContent: string;
+  /** The character whose OWN per-speaker row is rendered beside it — the color comparand. */
+  readonly ownRowCharacterId: CharacterId;
+  readonly ownRowContent: string;
+}
+
+/** TWO rows of ONE narrator-grammar transcript in a SINGLE mount (the mount-once law): a narrator row
+ *  (no single author ⇒ `characterId: null`) above that character's own per-speaker row. The CT reads the
+ *  resolved `--color-dialogue` off both paths and requires them equal — the one-hash-input pin. */
+export function NarratorTranscriptStory({ participants, narratorContent, ownRowCharacterId, ownRowContent }: NarratorTranscriptStoryProps): ReactElement {
+  const participantsMap = new Map(
+    participants.filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null).map((p) => [p.characterId, p] as const),
+  );
+  const characterNamesById = buildCharacterNameMap(
+    participants
+      .filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null)
+      .map((p) => ({ id: p.characterId, name: p.displayName })),
+  );
+  const rowProps = {
+    chatStyle: "bubble",
+    participants: participantsMap,
+    characterNamesById,
+    personaNamesById: buildPersonaNameMap([]),
+    narratorRoom: true,
+    toolRenderers: NO_TOOL_RENDERERS,
+  } as const;
+  return (
+    <CtDataProviders>
+      <MessageThreadAnchor>
+        <div data-testid="narrator-row">
+          <MessageRow message={makeMessageView({ role: "assistant", content: narratorContent, characterId: null })} {...rowProps} />
+        </div>
+        <div data-testid="own-row">
+          <MessageRow message={makeMessageView({ role: "assistant", content: ownRowContent, characterId: ownRowCharacterId })} {...rowProps} />
+        </div>
       </MessageThreadAnchor>
     </CtDataProviders>
   );
@@ -384,6 +432,11 @@ export interface MessageContentSpansStoryProps {
   readonly trust?: "trusted" | "untrusted";
   /** External-media gate for the mount (defaults `false` = gated, the safe floor). */
   readonly allowExternal?: boolean;
+  /** The room's cast — fed through the REAL `speakerThemesByName` producer, so the story's per-speaker
+   *  tints and cast-name set are exactly what `MessageRow` computes. Omitted ⇒ no roster (hash fallback). */
+  readonly participants?: readonly ParticipantView[];
+  /** The NARRATOR grammar gate on the plain-`Name:` span split. */
+  readonly narratorVoiced?: boolean;
 }
 
 /** The bare `<MessageContent>` — mounts the #21 `<speaker>`-span split + per-span `<ThemeScope>`
@@ -396,6 +449,8 @@ export function MessageContentSpansStory({
   userName,
   trust = "trusted",
   allowExternal = false,
+  participants,
+  narratorVoiced = false,
 }: MessageContentSpansStoryProps): ReactElement {
   const renderContext: MessageRenderContext | undefined =
     characterName === undefined && userName === undefined
@@ -406,7 +461,22 @@ export function MessageContentSpansStory({
           ...(characterName === undefined ? {} : { speakerCharName: characterName }),
           ...(userName === undefined ? {} : { fallbackPersonaName: userName }),
         };
-  return <MessageContent content={content} render={{ trust, allowExternal, lenientCards: false, colorQuotes: true }} renderContext={renderContext} />;
+  const speakerThemes = speakerThemesByName(
+    participants === undefined
+      ? undefined
+      : new Map(
+          participants.filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null).map((p) => [p.characterId, p] as const),
+        ),
+  );
+  return (
+    <MessageContent
+      content={content}
+      render={{ trust, allowExternal, lenientCards: false, colorQuotes: true }}
+      renderContext={renderContext}
+      speakerThemes={speakerThemes}
+      narratorVoiced={narratorVoiced}
+    />
+  );
 }
 
 export interface MessageContentChoicesStoryProps {
