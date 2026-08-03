@@ -16,7 +16,8 @@
 // real-tree ANCHOR (§4.5).
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { type SourceFile, SyntaxKind } from "ts-morph";
+import type { SourceFile } from "ts-morph";
+import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 import { findGateIgnoreMarkers, gateIgnoreSuppressedInFinalize, gateIgnoreUsed } from "../pass.ts";
 
