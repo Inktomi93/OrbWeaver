@@ -13,7 +13,6 @@
 
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ReactElement, ReactNode } from "react";
-import { useMemo } from "react";
 import { useGatedQuery, useTRPC } from "#data";
 import type { ChatHandle } from "#state";
 import { isCommitted, requestComposerFocus, setComposerDraft, useTurnPhase } from "#state";
@@ -44,20 +43,20 @@ export function ChoiceSendProvider({ handle, children }: ChoiceSendProviderProps
   const gameQuery = useGatedQuery(isGame ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
   const behavior = gameQuery.data?.publicConfig.cyoaChoiceBehavior ?? "compose";
 
-  const value = useMemo<ChoiceSend | null>(() => {
+  // A draft room has no committed id to scope a draft/focus against, so the whole capability is absent
+  // (`value === null`) — the guard inside `choose` is the same gate, restated for the narrowing.
+  const choose = (text: string): void => {
     if (chatId === null) {
-      return null;
+      return;
     }
-    const choose = (text: string): void => {
-      if (behavior === "send") {
-        send(text);
-        return;
-      }
-      // compose: seed the composer draft for this room's scope (a committed chat keys on its id) + focus it.
-      setComposerDraft(chatId, text);
-      requestComposerFocus(chatId);
-    };
-    return { choose, busy };
-  }, [chatId, behavior, send, busy]);
+    if (behavior === "send") {
+      send(text);
+      return;
+    }
+    // compose: seed the composer draft for this room's scope (a committed chat keys on its id) + focus it.
+    setComposerDraft(chatId, text);
+    requestComposerFocus(chatId);
+  };
+  const value: ChoiceSend | null = chatId === null ? null : { choose, busy };
   return <ChoiceSendContext value={value}>{children}</ChoiceSendContext>;
 }

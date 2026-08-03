@@ -13,7 +13,6 @@
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
-import { useMemo } from "react";
 import { useGatedQuery, useTRPC } from "#data";
 
 export interface VariantHistory {
@@ -38,13 +37,11 @@ export function useVariantHistory(message: MessageView): VariantHistory {
     trpc.chat.listMessageVariants.queryOptions({ chatId: gChatId, messageId: gMessageId }),
   );
 
-  return useMemo<VariantHistory>(() => {
-    const byIdx = new Map<number, MessageVariantId>((query.data ?? []).map((v) => [v.idx, v.variantId] as const));
-    // The current selection is always known immediately (the `MessageView` prop itself), even before the
-    // fetch resolves or while gated off — no one-frame gap where the shown idx looks "unseen".
-    if (!byIdx.has(selectedVariantIdx)) {
-      byIdx.set(selectedVariantIdx, selectedVariantId);
-    }
-    return { get: (idx): MessageVariantId | undefined => byIdx.get(idx) };
-  }, [query.data, selectedVariantIdx, selectedVariantId]);
+  const byIdx = new Map<number, MessageVariantId>((query.data ?? []).map((v) => [v.idx, v.variantId] as const));
+  // The current selection is always known immediately (the `MessageView` prop itself), even before the
+  // fetch resolves or while gated off — no one-frame gap where the shown idx looks "unseen".
+  if (!byIdx.has(selectedVariantIdx)) {
+    byIdx.set(selectedVariantIdx, selectedVariantId);
+  }
+  return { get: (idx): MessageVariantId | undefined => byIdx.get(idx) };
 }

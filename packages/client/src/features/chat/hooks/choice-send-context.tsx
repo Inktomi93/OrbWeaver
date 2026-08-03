@@ -7,7 +7,7 @@
 // so the reader appends flavor before sending. The default `null` (a provider-less mount: a CT story, the
 // read-only edit preview) renders the options as DISABLED buttons — same surface, inert affordance.
 
-import { createContext, useContext } from "react";
+import { createContext, use } from "react";
 
 /** The room's choice capability: `choose` routes the option text per the game's `cyoaChoiceBehavior` knob
  *  (send-now vs compose-into-draft); `busy` disables the buttons while a turn is in flight (§5.3/§5.4). */
@@ -21,5 +21,5 @@ export const ChoiceSendContext = createContext<ChoiceSend | null>(null);
 
 /** The room-scoped choice-send capability, or null when none is provided. */
 export function useChoiceSend(): ChoiceSend | null {
-  return useContext(ChoiceSendContext);
+  return use(ChoiceSendContext);
 }

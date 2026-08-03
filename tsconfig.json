@@ -20,7 +20,16 @@
   // (browser tests — playwright/vite compiles them, never in `pnpm check`; the doctrine). The
   // NODE-side `tests/ui/tokens/*.test.ts` (which imports the node `tokens.build.ts`) stays in here.
   "compilerOptions": { "types": ["node"], "allowImportingTsExtensions": true, "jsx": "react-jsx" },
-  "include": ["packages/*/src", "scripts", "tests", "reset.d.ts"],
+  // Root-level config files JOINED 2026-08-03: they were typechecked by NO program, which let two
+  // dead vitest keys (`minWorkers`, `poolOptions` — both removed in Vitest 4) sit silently in
+  // vitest.config.ts / vitest.stryker.config.ts across the major bump. Excess-property checking
+  // against the installed types is exactly what catches that class. (packages/client/vite.config.ts
+  // was already owned by the client program; these are their root-level siblings.)
+  // playwright-ct.config.ts is DELIBERATELY absent: @playwright/experimental-ct-react bundles its own
+  // vite@6, so its ctViteConfig types collide with our vite@8-typed plugins (tailwindcss()) under
+  // exactOptionalPropertyTypes — a dual-vite type world no single program can own honestly. Re-add it
+  // the day playwright-ct rides the same vite major.
+  "include": ["packages/*/src", "scripts", "tests", "reset.d.ts", "vitest.config.ts", "vitest.stryker.config.ts", "playwright.config.ts", "knip.ts"],
   // Browser tsx under tests/ui, tests/client, and tests/support/ct import `@orb/ui`/`@orb/client` and
   // would drag dom-only source into this node program — exclude the whole browser-tsx SURFACE by
   // DIRECTORY, not by filename suffix. (A mis-named `-fixture.tsx` outlier slipped the old suffix globs

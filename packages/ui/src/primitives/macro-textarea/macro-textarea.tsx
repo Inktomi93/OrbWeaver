@@ -1,6 +1,6 @@
 import MiniSearch from "minisearch";
 import type { ChangeEvent, KeyboardEvent, ReactElement, ReactNode } from "react";
-import { useId, useMemo, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { cn } from "#lib";
 import { Textarea } from "#primitives/textarea";
 import type { MacroTrigger } from "./macro-textarea-logic";
@@ -96,6 +96,29 @@ function toRows(list: readonly MacroSuggestion[]): SuggestionRow[] {
   return rows;
 }
 
+/** The visible suggestion slice for the caret's trigger: no trigger ⇒ nothing; a bare `{{` ⇒ the head of the
+ *  full list; a partial ⇒ the fuzzy hits. Pure + module-scope (the React Compiler caches the call site). */
+function resolveSuggestions(trigger: MacroTrigger | null, suggestions: readonly MacroSuggestion[]): MacroSuggestion[] {
+  if (trigger === null) {
+    return [];
+  }
+  const q = trigger.partial.trim();
+  if (q.length === 0) {
+    return suggestions.slice(0, MAX_SUGGESTIONS);
+  }
+  const hits = getMacroSearch(suggestions).search(q, { combineWith: "AND" });
+  // Explicit projection rather than a blanket cast — MiniSearch hits also carry score/terms/match.
+  return hits.slice(0, MAX_SUGGESTIONS).map(
+    (h): MacroSuggestion => ({
+      name: h["name"] as string,
+      ...(h["description"] !== undefined ? { description: h["description"] as string } : {}),
+      ...(h["category"] !== undefined ? { category: h["category"] as string } : {}),
+      ...(h["args"] !== undefined ? { args: h["args"] as string[] } : {}),
+      ...(h["insertTemplate"] !== undefined ? { insertTemplate: h["insertTemplate"] as string } : {}),
+    }),
+  );
+}
+
 /**
  * A textarea that watches for `{{…` at the caret and pops a fuzzy-matching macro autocomplete
  * anchored beneath it. Selecting a macro inserts the full `{{name}}` form; parameterized macros
@@ -140,26 +163,7 @@ export function MacroTextarea({
   const [argHint, setArgHint] = useState<MacroSuggestion | null>(null);
   const listboxId = useId();
 
-  const suggestionsList = useMemo<MacroSuggestion[]>(() => {
-    if (trigger === null) {
-      return [];
-    }
-    const q = trigger.partial.trim();
-    if (q.length === 0) {
-      return suggestions.slice(0, MAX_SUGGESTIONS);
-    }
-    const hits = getMacroSearch(suggestions).search(q, { combineWith: "AND" });
-    // Explicit projection rather than a blanket cast — MiniSearch hits also carry score/terms/match.
-    return hits.slice(0, MAX_SUGGESTIONS).map(
-      (h): MacroSuggestion => ({
-        name: h["name"] as string,
-        ...(h["description"] !== undefined ? { description: h["description"] as string } : {}),
-        ...(h["category"] !== undefined ? { category: h["category"] as string } : {}),
-        ...(h["args"] !== undefined ? { args: h["args"] as string[] } : {}),
-        ...(h["insertTemplate"] !== undefined ? { insertTemplate: h["insertTemplate"] as string } : {}),
-      }),
-    );
-  }, [trigger, suggestions]);
+  const suggestionsList = resolveSuggestions(trigger, suggestions);
 
   const rowsList = toRows(suggestionsList);
   const open = trigger !== null && suggestionsList.length > 0;

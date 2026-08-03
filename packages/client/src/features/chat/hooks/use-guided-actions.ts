@@ -7,7 +7,7 @@
 import type { GuidedActionKind, GuidedImpersonatePerson } from "@orb/contracts/preset";
 import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC, useTRPCClient } from "#data";
 import { GENERATION_FAILED_DETAIL } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";
@@ -196,16 +196,12 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
   const tailQuery = useGatedQuery(chatId, (id) => trpc.chat.listMessages.queryOptions({ chatId: id }));
   // The raw tail IS the tail a reader means (D124: every canon row is a real message now — the rpg
   // state-anchor slot this used to skip no longer exists).
-  const tailAssistantMessageId = useMemo<MessageId | null>(() => {
-    const tail = tailQuery.data?.messages.at(-1);
-    return tail !== undefined && tail.role === "assistant" ? tail.id : null;
-  }, [tailQuery.data]);
+  const tailMessage = tailQuery.data?.messages.at(-1);
+  const tailAssistant = tailMessage !== undefined && tailMessage.role === "assistant" ? tailMessage : null;
+  const tailAssistantMessageId: MessageId | null = tailAssistant?.id ?? null;
   // The tail assistant slot's continue snapshot (D26 `hasContinuation`) — the utility menu's Undo/Revert
   // phase-gate (nothing to undo until a continue has run on this reply's shown swipe).
-  const tailHasContinuation = useMemo<boolean>(() => {
-    const tail = tailQuery.data?.messages.at(-1);
-    return tail !== undefined && tail.role === "assistant" && tail.hasContinuation;
-  }, [tailQuery.data]);
+  const tailHasContinuation: boolean = tailAssistant?.hasContinuation ?? false;
 
   // A draft has no committed chatId to fire a turn against, so a guided generation that must BE the first
   // message (Generate-opening; guided impersonate) first COMMITS the draft via `startChat` (carrying the

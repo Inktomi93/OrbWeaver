@@ -13,7 +13,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import type { ReactNode } from "react";
-import { useContext, useMemo, useRef } from "react";
+import { use, useRef } from "react";
 import type { SlashCommandContext, SlashCommandContribution, SlashCommandRunner } from "#lib";
 import { SlashCommandRegistryContext } from "#state";
 import { commandNotReadyNotice, parseSlashDraft, unknownCommandNotice } from "../lib/slash-command";
@@ -32,16 +32,13 @@ export function useSlashCommands(chatId: ChatId | null): {
   readonly dispatch: (value: string) => SlashDispatch;
   readonly run: (id: string) => void;
 } {
-  const registry = useContext(SlashCommandRegistryContext);
-  const commands = useMemo(() => registry?.list() ?? [], [registry]);
-  const context = useMemo<SlashCommandContext>(() => ({ chatId }), [chatId]);
+  const registry = use(SlashCommandRegistryContext);
+  const commands = registry?.list() ?? [];
+  const context: SlashCommandContext = { chatId };
   const runnersRef = useRef<Map<string, SlashCommandRunner>>(new Map());
-  // Stable per-command register callbacks (deps: the stable command list) → each mount's publish effect
-  // runs ONCE, never re-registering on every keystroke in the host above it.
-  const registers = useMemo(
-    () => new Map(commands.map((c) => [c.id, (runner: SlashCommandRunner): void => void runnersRef.current.set(c.id, runner)] as const)),
-    [commands],
-  );
+  // Stable per-command register callbacks (the compiler caches this map on the command list) → each mount's
+  // publish effect runs ONCE, never re-registering on every keystroke in the host above it.
+  const registers = new Map(commands.map((c) => [c.id, (runner: SlashCommandRunner): void => void runnersRef.current.set(c.id, runner)] as const));
 
   const mounts = commands.map((c) => {
     const Mount = c.mount;

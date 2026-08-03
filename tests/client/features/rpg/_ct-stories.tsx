@@ -19,7 +19,7 @@ import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
 import { RpgFreshnessIndicator } from "../../../../packages/client/src/features/rpg/components/rpg-freshness-indicator";
 import { RpgCardLightbox } from "../../../../packages/client/src/features/rpg/components/rpg-scene-cards";
@@ -33,14 +33,8 @@ import { CHAT_ID } from "../chat/fixtures";
 function RpgTakeoverHarness({ width, height }: { readonly width: number; readonly height: number }): ReactElement {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const contributors = useMemo(
-    () => createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", makeRpgContextTabs({ trpc, queryClient })),
-    [trpc, queryClient],
-  );
-  const regions = useMemo(
-    () => createContributorRegistry<ContextRegionDef<ChatContextState>>("chat-context-regions", [makeRpgHudRegion({ trpc, queryClient })]),
-    [trpc, queryClient],
-  );
+  const contributors = createContributorRegistry<ContextTabDef<ChatContextState>>("chat-context", makeRpgContextTabs({ trpc, queryClient }));
+  const regions = createContributorRegistry<ContextRegionDef<ChatContextState>>("chat-context-regions", [makeRpgHudRegion({ trpc, queryClient })]);
   return (
     <CtChatContributorSectionRegistry contextContributors={contributors} contextRegions={regions}>
       <RpgTakeoverInner width={width} height={height} />

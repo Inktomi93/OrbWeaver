@@ -2,7 +2,7 @@
 // Portal defaults to `<body>`, outside the app-shell `<ThemeScope>`, so this context is a provider the
 // shell wires with the themed portal root; every float seal reads it as its Portal default.
 import type { RefObject } from "react";
-import { createContext, useContext } from "react";
+import { createContext, use } from "react";
 
 // ShadowRoot resolved conditionally off globalThis: the root typecheck:graph program is DOM-less, and a
 // bare `ShadowRoot` is TS2304 there; this infer yields the real DOM type when lib.dom is present, else never.
@@ -16,5 +16,5 @@ export const PortalContainerContext = createContext<PortalContainer>(undefined);
 
 /** A float seal prefers its own explicit `container` prop, then this, then Base UI's `<body>` default. */
 export function usePortalContainer(): PortalContainer {
-  return useContext(PortalContainerContext);
+  return use(PortalContainerContext);
 }

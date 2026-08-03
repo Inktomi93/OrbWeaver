@@ -35,8 +35,8 @@ import { Container, Row, Stack } from "@orb/ui/layout";
 import { scrollBehavior } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
-import type { ReactElement, ReactNode } from "react";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useSettingsViewerView } from "#data";
 import { SaveStatusHostContext } from "#forms";
 import { useFocusOnMount } from "#lib";
@@ -71,6 +71,61 @@ function categoryIdsForGroup(panes: readonly SettingsPaneDefinition[], group: (t
   return panes.filter((pane) => pane.group === group);
 }
 
+/** Suppress the scroll-spy for the duration of a programmatic jump so smooth-scroll can't flicker the nav.
+ *  Re-arms on the container's `scrollend`, with a wall-clock fallback for a jump that never scrolls. */
+function beginProgrammaticScroll(contentRef: RefObject<HTMLDivElement | null>, suppressSpyRef: RefObject<boolean>): void {
+  suppressSpyRef.current = true;
+  const container = contentRef.current;
+  const rearm = (): void => {
+    suppressSpyRef.current = false;
+  };
+  container?.addEventListener("scrollend", rearm, { once: true });
+  globalThis.setTimeout(rearm, SPY_REARM_FALLBACK_MS);
+}
+
+/**
+ * Jump to a section anchor inside the pane column. Switching category remounts the pane, which may SUSPEND
+ * on its settings read — under CPU contention the resolve can outlast any frame budget, and the old
+ * 20-frame rAF poll silently gave up without ever scrolling (the fuzzy-search jump flake, root-caused
+ * 2026-07-24). Observe the pane's DOM until the anchor exists (wall-clock-bounded) instead of guessing
+ * frames. Module-scope (refs threaded in) so no effect ever takes it as a dependency — D54 bans manual memo,
+ * and an in-component definition would re-arm the deep-link effect every render.
+ */
+function scrollToAnchor(categoryId: SettingsCategoryId, subId: string, contentRef: RefObject<HTMLDivElement | null>, suppressSpyRef: RefObject<boolean>): void {
+  beginProgrammaticScroll(contentRef, suppressSpyRef);
+  const anchorId = settingsAnchorId(categoryId, subId);
+  const container = contentRef.current;
+  if (container === null) {
+    return;
+  }
+  const find = (): HTMLElement | null => container.querySelector<HTMLElement>(`#${CSS.escape(anchorId)}`);
+  const existing = find();
+  if (existing !== null) {
+    afterPaint((): void => flashAnchor(existing));
+    return;
+  }
+  let done = false;
+  const finish = (target: HTMLElement | null): void => {
+    if (done) {
+      return;
+    }
+    done = true;
+    observer.disconnect();
+    globalThis.clearTimeout(timer);
+    if (target !== null) {
+      afterPaint((): void => flashAnchor(target));
+    }
+  };
+  const observer = new MutationObserver((): void => {
+    const target = find();
+    if (target !== null) {
+      finish(target);
+    }
+  });
+  const timer = globalThis.setTimeout((): void => finish(null), ANCHOR_WAIT_MS);
+  observer.observe(container, { childList: true, subtree: true });
+}
+
 /** The settings overlay body: nav (search + grouped category/subcategory rows) on the left, the active
  *  pane on the right. */
 export function SettingsShell(): ReactElement {
@@ -85,28 +140,25 @@ export function SettingsShell(): ReactElement {
   // The ONE `when` projection (non-suspense — gating must never block a pane from painting), shared by the
   // pane filter, the section filter, and the search index.
   const viewer = useSettingsViewerView();
-  const visiblePanes = useMemo(() => panes.filter((pane) => pane.when?.(viewer) ?? true), [panes, viewer]);
-  const visibleIds = useMemo(() => new Set(visiblePanes.map((p) => p.id)), [visiblePanes]);
+  const visiblePanes = panes.filter((pane) => pane.when?.(viewer) ?? true);
+  const visibleIds = new Set(visiblePanes.map((p) => p.id));
 
   // A pane's nav rows: its OWN subcategories ⊕ the navs contributed at its anchor, in declared registry
   // order — the merge the retired pane factories did, now done once here off the one section registry.
-  const subcategoriesFor = useCallback(
-    (pane: SettingsPaneDefinition): readonly SettingsSubcategory[] => [...(pane.subcategories ?? []), ...settingsSectionNavs(sectionRegistry, pane.id, viewer)],
-    [sectionRegistry, viewer],
-  );
+  const subcategoriesFor = (pane: SettingsPaneDefinition): readonly SettingsSubcategory[] => [
+    ...(pane.subcategories ?? []),
+    ...settingsSectionNavs(sectionRegistry, pane.id, viewer),
+  ];
 
   // Landing at the TOP of a pane IS landing on its first section, so the nav says so immediately instead of
   // waiting for the scroll-spy: a category-level select suppresses the spy for the duration of its
   // programmatic scroll, which left the whole nav with no current row for up to `SPY_REARM_FALLBACK_MS`.
-  const firstSubIdOf = useCallback((id: SettingsCategoryId): string | null => subcategoriesFor(registry.get(id))[0]?.id ?? null, [registry, subcategoriesFor]);
+  const firstSubIdOf = (id: SettingsCategoryId): string | null => subcategoriesFor(registry.get(id))[0]?.id ?? null;
 
   // The failing sections' nav rows (§3): the aggregate footer is read-only, so the LOCATION of a failure is
   // carried by a marker on the section's own nav row (and its own inline retry at its anchor).
   const erroredSectionIds = useErroredSaveSections();
-  const erroredSubIds = useMemo(
-    () => new Set(erroredSectionIds.filter((id) => sectionRegistry.has(id)).map((id) => sectionRegistry.get(id).nav.id)),
-    [erroredSectionIds, sectionRegistry],
-  );
+  const erroredSubIds = new Set(erroredSectionIds.filter((id) => sectionRegistry.has(id)).map((id) => sectionRegistry.get(id).nav.id));
 
   // A cross-feature deep-link can request a specific pane via the shell store's `settingsCategory` seam;
   // honor it as the initial pane and whenever it changes (a `when`-hidden target falls back to the default).
@@ -148,79 +200,23 @@ export function SettingsShell(): ReactElement {
   // Suppresses the scroll-spy for the duration of a programmatic jump so smooth-scroll can't flicker the nav; a ref, never state.
   const suppressSpyRef = useRef(false);
 
-  const searchEntries = useMemo(
-    () => buildSettingsSearchEntries(registry, (id) => visibleIds.has(id as SettingsCategoryId), subcategoriesFor),
-    [registry, visibleIds, subcategoriesFor],
-  );
-
-  // Stable identities (refs only) so the deep-link effect below can depend on them honestly instead of
-  // re-firing every render.
-  const beginProgrammaticScroll = useCallback((): void => {
-    suppressSpyRef.current = true;
-    const container = contentRef.current;
-    const rearm = (): void => {
-      suppressSpyRef.current = false;
-    };
-    container?.addEventListener("scrollend", rearm, { once: true });
-    globalThis.setTimeout(rearm, SPY_REARM_FALLBACK_MS);
-  }, []);
-
-  // Switching category remounts the pane, which may SUSPEND on its settings read — under CPU
-  // contention the resolve can outlast any frame budget, and the old 20-frame rAF poll silently gave
-  // up without ever scrolling (the fuzzy-search jump flake, root-caused 2026-07-24). Observe the
-  // pane's DOM until the anchor exists (wall-clock-bounded) instead of guessing frames.
-  const scrollToAnchor = useCallback(
-    (categoryId: SettingsCategoryId, subId: string): void => {
-      beginProgrammaticScroll();
-      const anchorId = settingsAnchorId(categoryId, subId);
-      const container = contentRef.current;
-      if (container === null) {
-        return;
-      }
-      const find = (): HTMLElement | null => container.querySelector<HTMLElement>(`#${CSS.escape(anchorId)}`);
-      const existing = find();
-      if (existing !== null) {
-        afterPaint((): void => flashAnchor(existing));
-        return;
-      }
-      let done = false;
-      const finish = (target: HTMLElement | null): void => {
-        if (done) {
-          return;
-        }
-        done = true;
-        observer.disconnect();
-        globalThis.clearTimeout(timer);
-        if (target !== null) {
-          afterPaint((): void => flashAnchor(target));
-        }
-      };
-      const observer = new MutationObserver((): void => {
-        const target = find();
-        if (target !== null) {
-          finish(target);
-        }
-      });
-      const timer = globalThis.setTimeout((): void => finish(null), ANCHOR_WAIT_MS);
-      observer.observe(container, { childList: true, subtree: true });
-    },
-    [beginProgrammaticScroll],
-  );
+  const searchEntries = buildSettingsSearchEntries(registry, (id) => visibleIds.has(id as SettingsCategoryId), subcategoriesFor);
 
   // Land a SUB-level deep link once the pane has mounted (§10 Q4) — `scrollToAnchor` observes the pane's DOM
   // until the anchor exists. Keyed on the TARGET (never on `active`), so a later user pane-switch can't
-  // re-fire a stale jump.
+  // re-fire a stale jump. The jump helpers are module-scope over the two refs, so the deps are the deep-link
+  // target alone — exactly what they were when `scrollToAnchor` was a ref-only manual-memo callback.
   useEffect((): void => {
     if (!(targetSatisfiable && targetSub !== null)) {
       return;
     }
-    scrollToAnchor(targetCategory, targetSub);
-  }, [targetCategory, targetSub, targetSatisfiable, scrollToAnchor]);
+    scrollToAnchor(targetCategory, targetSub, contentRef, suppressSpyRef);
+  }, [targetCategory, targetSub, targetSatisfiable]);
 
   /** Scroll the pane column back to its top — deferred a frame like every other programmatic scroll here
    *  (see {@link afterPaint}). */
   const scrollContentToTop = (): void => {
-    beginProgrammaticScroll();
+    beginProgrammaticScroll(contentRef, suppressSpyRef);
     afterPaint((): void => contentRef.current?.scrollTo({ top: 0, behavior: scrollBehavior() }));
   };
 
@@ -237,7 +233,7 @@ export function SettingsShell(): ReactElement {
     setActive(id);
     setActiveSub(subId);
     setPushed(true);
-    scrollToAnchor(id, subId);
+    scrollToAnchor(id, subId, contentRef, suppressSpyRef);
   };
 
   /** Jump to a REPORTING section by its contribution id — the aggregate footer's "take me to the failure"
@@ -259,7 +255,7 @@ export function SettingsShell(): ReactElement {
     if (entry.subId === null) {
       scrollContentToTop();
     } else {
-      scrollToAnchor(categoryId, entry.subId);
+      scrollToAnchor(categoryId, entry.subId, contentRef, suppressSpyRef);
     }
   };
 

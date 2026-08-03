@@ -478,7 +478,7 @@ Doc paths are relative to `docs/`.
 - **`staleTime`** (`framework/react/guides/important-defaults.md`, `reference/useQuery.md`): `0` default → everything is stale immediately → refetches on mount/focus/reconnect. Values: ms · `Infinity` (only manual invalidation refetches) · `'static'` (NOTHING refetches, *even manual `invalidateQueries`* is ignored). `invalidateQueries` always overrides `staleTime` (except `'static'`).
 - **`gcTime`** (default `5*60_000`): timer for *unused/inactive* queries only; does nothing while a query has an observer. Renamed from `cacheTime` in v5.
 - **`enabled`**: gate auto-running; `false` → `status:'pending'`, `fetchStatus:'idle'`, ignores invalidation/refetch. `enabled` can be a function.
-- **`select`** (`guides/render-optimizations.md`): transform/subscribe to a slice; runs only when `data` changes or `select` ref changes — inline `select` runs every render, so wrap in `useCallback` or hoist to a module constant. Not a place to throw.
+- **`select`** (`guides/render-optimizations.md`): transform/subscribe to a slice; runs only when `data` changes or `select` ref changes — inline `select` runs every render, so wrap in `useCallback` or hoist to a module constant. Not a place to throw. **ORBWEAVER: hoist to a module constant — `useCallback` is BANNED here.** We run the React Compiler in full-compile mode (D54), which stabilizes inline closures; manual memo hooks are the anti-pattern, not the fix.
 - **`placeholderData`** (`guides/placeholder-query-data.md`): non-persisted "fake" data; query starts in `success` with `isPlaceholderData:true`. `placeholderData: keepPreviousData` (or `(prev)=>prev`) = lagged pagination.
 - **`initialData`** (`guides/initial-query-data.md`): *persisted* to cache, treated fresh unless `initialDataUpdatedAt` given. Use for real seed data, not partial/preview.
 - **`structuralSharing`** (default `true`): keeps refs stable when JSON data is unchanged → fewer re-renders. JSON-only; pass a fn for non-JSON.
@@ -533,7 +533,7 @@ Doc paths are relative to `docs/`.
 
 #### Request waterfalls / dedup
 
-- (`guides/request-waterfalls.md`, `guides/parallel-queries.md`) Same key → shared cache entry, concurrent fetches dedupe. Avoid serial/dependent/nested/code-split waterfalls; flatten by hoisting, `useQueries`/`useSuspenseQueries`, prefetch, or API redesign. `useQueries` `combine` merges results (memoize it).
+- (`guides/request-waterfalls.md`, `guides/parallel-queries.md`) Same key → shared cache entry, concurrent fetches dedupe. Avoid serial/dependent/nested/code-split waterfalls; flatten by hoisting, `useQueries`/`useSuspenseQueries`, prefetch, or API redesign. `useQueries` `combine` merges results (memoize it). **ORBWEAVER: "memoize it" = hoist `combine` to a module-level function — NOT `useCallback`/`useMemo`, which are banned (React Compiler full-compile, D54, stabilizes the closure for us).**
 
 #### `persistQueryClient` / persisters
 

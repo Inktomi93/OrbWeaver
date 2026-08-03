@@ -664,6 +664,16 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_fwdref/components/__g_c.tsx",
     'import { forwardRef } from "react";\nexport const GInput = forwardRef((props, ref) => <input ref={ref} />);\n',
   );
+  // no-use-context: the React-19-deprecated useContext reader (both doors — the import and the call).
+  fx("packages/client/src/features/__g_usectx/components/__g_c.tsx", 'import { useContext } from "react";\nexport const v = useContext(GCtx);\n');
+  // no-manual-memo: a hand-written memo hook imported from react in compiled client code. The path is a
+  // __g_ dir at the ui/src root (the __g_oversize / __g_motion / __g_defprops placement precedent) and is
+  // NOT in the gate's EXEMPTIONS table, so its budget is zero.
+  fx("packages/ui/src/__g_manualmemo/__g_manualmemo.ts", 'import { useMemo } from "react";\nexport const v = useMemo(() => 1, []);\n');
+  // no-legacy-react-api: a legacy react import (arm 1). The gate's escape marker is NOT spelled anywhere in
+  // this file — its stale-marker arm scans the shared project, tests/ included, so a literal marker here
+  // would make this suite's own source a permanent violation (the __g_det / __g_fab self-reference dodge).
+  fx("packages/ui/src/__g_legacyreact/__g_legacyreact.ts", 'import { cloneElement } from "react";\nexport const c = cloneElement;\n');
   // no-if-is-group: an isGroup boolean branch (solo is the degenerate group — D16).
   fx(`${D}/__g_isgroup/x.ts`, "export function f(isGroup: boolean): number {\n  if (isGroup) {\n    return 1;\n  }\n  return 0;\n}\n");
   // no-inline-optimistic-in-surface: optimistic-mutation plumbing in a surface file.

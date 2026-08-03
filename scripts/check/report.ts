@@ -9,13 +9,17 @@ import { pathToFileURL } from "node:url";
 import type { GateDescriptor } from "./contract.ts";
 import type { GateResult, Violation } from "./harness.ts";
 import { loadGates } from "./loader.ts";
-import type { PassResult } from "./pass.ts";
+import type { PassResult, ToolError } from "./pass.ts";
 import { projectCtx, runPass, stripProbeFindings } from "./pass.ts";
 import { renderPass } from "./render.ts";
 
-/** JSON shape for `reports/check-structure.json` — the read-don't-rerun artifact show.ts renders. */
+/** JSON shape for `reports/check-structure.json` — the read-don't-rerun artifact show.ts renders.
+ *  `toolErrors` joined 2026-08-03: a gate that THREW previously reached the artifact only as a bare
+ *  `ok:false` with zero violations — show.ts had nothing to display, so the read-reports-don't-rerun
+ *  doctrine went blind exactly when the checker itself was broken. */
 interface StructureReport {
   readonly gates: readonly GateResult[];
+  readonly toolErrors: readonly ToolError[];
   readonly total: number;
   readonly ok: boolean;
 }
@@ -34,11 +38,13 @@ function toStructureReport(pass: PassResult, gatesByName: ReadonlyMap<string, Ga
       file: f.file,
       line: f.line,
       message: f.message ?? descriptor?.message ?? g.name,
+      // exactOptionalPropertyTypes: the key may only exist when a non-default tier is present.
+      ...(f.severity !== undefined && f.severity !== "error" ? { severity: f.severity } : {}),
     }));
     return { name: g.name, ok: violations.length === 0, violations };
   });
   const total = gates.reduce((n, g) => n + g.violations.length, 0);
-  return { gates, total, ok: total === 0 && pass.toolErrors.length === 0 };
+  return { gates, toolErrors: pass.toolErrors, total, ok: total === 0 && pass.toolErrors.length === 0 };
 }
 
 function writeStructureReport(root: string, report: StructureReport): void {

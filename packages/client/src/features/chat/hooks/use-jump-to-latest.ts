@@ -14,7 +14,7 @@
 
 import type { MessageListHandle } from "@orb/ui/message-list";
 import type { RefObject } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const AT_TAIL_THRESHOLD_PX = 80;
 const SETTLE_DEBOUNCE_MS = 90;
@@ -43,7 +43,7 @@ export function useJumpToLatest({ messagesCount, live, pinActive, listHandleRef 
   const scrollNodeRef = useRef<HTMLDivElement | null>(null);
   const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const sampleAtSettle = useCallback((): void => {
+  const sampleAtSettle = (): void => {
     if (settleTimerRef.current !== null) {
       clearTimeout(settleTimerRef.current);
     }
@@ -53,21 +53,18 @@ export function useJumpToLatest({ messagesCount, live, pinActive, listHandleRef 
         setAtTail(node.scrollHeight - node.scrollTop - node.clientHeight <= AT_TAIL_THRESHOLD_PX);
       }
     }, SETTLE_DEBOUNCE_MS);
-  }, []);
+  };
 
-  const scrollContainerRef = useCallback(
-    (node: HTMLDivElement | null): void => {
-      const previous = scrollNodeRef.current;
-      if (previous !== null) {
-        previous.removeEventListener("scroll", sampleAtSettle);
-      }
-      scrollNodeRef.current = node;
-      if (node !== null) {
-        node.addEventListener("scroll", sampleAtSettle, { passive: true });
-      }
-    },
-    [sampleAtSettle],
-  );
+  const scrollContainerRef = (node: HTMLDivElement | null): void => {
+    const previous = scrollNodeRef.current;
+    if (previous !== null) {
+      previous.removeEventListener("scroll", sampleAtSettle);
+    }
+    scrollNodeRef.current = node;
+    if (node !== null) {
+      node.addEventListener("scroll", sampleAtSettle, { passive: true });
+    }
+  };
 
   useEffect(
     (): (() => void) => (): void => {
@@ -91,11 +88,11 @@ export function useJumpToLatest({ messagesCount, live, pinActive, listHandleRef 
     setUnread(count);
   }
 
-  const onJump = useCallback((): void => {
+  const onJump = (): void => {
     // Imperative scroll only — a synchronous setAtTail here would re-render the surface into the
     // virtualizer and cancel the native smooth scroll mid-flight.
     listHandleRef.current?.scrollToEnd();
-  }, [listHandleRef]);
+  };
 
   return { scrollContainerRef, atTail, count, visible: !atTail && count > 0, onJump };
 }
