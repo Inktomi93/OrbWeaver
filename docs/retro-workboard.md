@@ -53,30 +53,49 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 - Lane floors MUST name their playwright CT files explicitly — `pnpm verify --push` runs NO CTs
   (tests:node + e2e only); the full `pnpm test` battery at quiesce is the CT proof.
 
-## ═══ STATE (2026-08-03, end of the burn-down day) ═══
+## ═══ STATE (2026-08-03, after the tsx migration) ═══
 
-- **main @ `13d4cddcb`**, tree clean, **6 commits past origin**. Gates: **183 registered**.
-  D-ledger through **D126**; **D127 is DRAFTED but UNMINTED** (the compiler-owns-memoization +
-  uncompiled-CT ruling — text is in the MEMOBAN block at the foot of this file, awaiting the owner's
-  word to mint or strike).
-- ✅ **TWO PUSHES LANDED TODAY, both on an explicit owner word and both server-verified:**
-  `865405d68..073e03672` (the 176-commit era) and `671e602a3..f8cb5e948` (26 commits: the PreToolUse
-  guard, the gate-ignore grammar, the React-modernization set, the census + specs). Origin and local
-  agree. **The standing law is unchanged: never push without a FRESH per-push word.**
-- **NO LANES LIVE. NO SECOND SESSION.** Every worktree is torn down and every branch merged; only `main`
-  and `legacy-main` remain. The tree is genuinely quiet — this is the window the tsx-shedding migration
-  requires.
-- **A PreToolUse GUARD IS LIVE** (`.claude/hooks/tool-guard.mjs`, wired in `.claude/settings.json`). It
-  rewrites piped harness commands into redirects, denies a few destructive shapes, warns on the rest,
-  **fails open**, logs every decision to `reports/tool-guard/decisions.jsonl`, and has a kill switch
-  (`ORB_TOOL_GUARD=off`). Other sessions must restart to pick it up.
-- **Two orchestrator errors from today, kept because both are cheap to repeat:** (1) a harness command
-  piped into `tail` reports **`tail`'s** exit code — a red `verify --push` was reported to the owner as
-  green. Redirect and read `reports/verify.json`. (2) **The push window is NOT atomic** — the pre-push
-  hook runs ~15-17 min, git resolves the ref at INVOCATION but transfers its CURRENT value, so a commit
-  made during the window ships silently while the summary line reports the stale range. Verify a push
-  with `git ls-remote`, never the console.
-- Dev db is the post-REGEX re-mint (v3 demo pack, 6 chats). Engines: 3 healthy, one per port.
+- **main @ `cd74d861a`**, tree clean, **33 commits past origin**. Gates **183**. D-ledger through
+  **D126**; **D127 DRAFTED, UNMINTED** (compiler-owns-memoization + uncompiled-CT; text in the MEMOBAN
+  block below). **NO LANES LIVE, no second session.**
+- ✅ **TSX-SHEDDING: COMPLETE — all four stages, one sitting** (`2001aec5` · `896e3d22` · `e2bed75c` ·
+  `e899498a`). `start` = `node …/entry/index.ts`; dev = `node --watch --watch-preserve-output`; all ~38
+  tooling scripts on node; `tsx` dropped from `@orb/ui` (knip flagged it — the migration reporting its
+  own completion). **9,092 imports across 3,171 files** now carry extensions.
+  **ENFORCEMENT PROVEN:** `nodenext` makes a missing extension **TS2835, a compile error** —
+  demonstrated by reverting one import. That closes the gap where green ≠ bootable.
+  **RESOLUTION SPLIT (deviates from the spec, deliberately):** nodenext where NODE runs
+  (server/kit/contracts/db, per-package); **bundler for ui/client AND for the tsconfig.json /
+  tests-dom AGGREGATORS** — they pull browser code in TRANSITIVELY, and node-strict resolution made tsc
+  pick different third-party declarations than the ones that ship (echarts resolved two ways).
+  **LIVE PROOF:** server 200 · vite 200 · **engines RE-ADOPTED (identical pids)** · traces landing ·
+  e2e-smoke 5/5. `pnpm check` 14/14; battery 9,931 vitest + 2,384 CT, 0 failed.
+- ⚠️ **THREE PRE-EXISTING DEFECTS the migration surfaced** (each worth more than the swap):
+  1. **`domain/chat/memory/build/**` + its test mirror were INVISIBLE to biome** — 13 files never linted
+     or formatted, because `biome.json` copied `.gitignore`'s `build/` exclusion WITHOUT its negations.
+     They held 45 extensionless imports the sweep could not see. **Any biome-driven sweep has been
+     skipping that subsystem** — including the Node-26 program's §4.2 sort sites.
+  2. **A stale `tsbuildinfo.json` described a tree purged 2026-07-22** — `check:structure` reported 6
+     PHANTOM violations naming `domain/hub` (which does not exist) under node while clean under tsx.
+     Not a runtime bug: changing runtime changed which cache was read. **A surprising gate result
+     deserves a cache-clear before a theory** — I nearly reverted a working stage on a false premise.
+  3. `tokens.build.ts` **emitted** an extensionless import — the GENERATOR was fixed, not just its
+     artifact, and the round-trip verified.
+- ✅ **TWO PUSHES LANDED** (both on an explicit word, both server-verified): the 176-commit era, then 26
+  commits. **Never push without a FRESH word.**
+- **PreToolUse GUARD LIVE** (`.claude/hooks/tool-guard.mjs`) — rewrites piped harness commands, denies a
+  few destructive shapes, fails open, logs to `reports/tool-guard/decisions.jsonl`, kill switch
+  `ORB_TOOL_GUARD=off`. It has already corrected the orchestrator mid-session (bare `npx vitest`,
+  `git add -A`, `--no-verify`).
+- **NODE 21→26 PROGRAM READ IN FULL** (`docs/design/node-26-adoption-program.md`). Verified against the
+  tree: `engines.ts:99` sleep ✓ · `digests.ts:255,260` sort sites ✓ · **all six workspace packages carry
+  NO `engines` field** ✓ (the `>=26` floor is declarative-only). **STALE CLAIM — §7.4 says ONE `.mjs`
+  outside the nets; there are 17** under `scripts/probes/` (two created today by my own lanes).
+  **⚑ HIGHEST-RISK ITEM IN THAT DOC (§2), jump it to the front:** the SSRF egress firewall works by
+  installing a dispatcher into undici and trusting node's global `fetch` to route through it — a
+  CROSS-COPY shared-symbol contract, with npm undici pinned at **7.28** while node 26.5 bundles **8.7**,
+  and the pin's own comment claims it tracks the bundled major. **Nothing tests that contract.** If a
+  bump breaks it the firewall silently stops governing `fetch` and nothing goes red.
 
 ## ═══ INITIATIVES ═══
 
