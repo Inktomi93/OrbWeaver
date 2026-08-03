@@ -22,6 +22,16 @@
   // src under dom; test code isn't server src).
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
+    // BUNDLER here, deliberately, while tsconfig.base.json is nodenext (tsx-shedding stage 4). This
+    // aggregator EXCLUDES packages/{ui,client}/src as roots but still pulls them in TRANSITIVELY, and
+    // those packages' real resolver is vite. Checking them under node-strict resolution makes tsc pick
+    // different third-party declaration files than the ones that actually ship (echarts resolved two ways
+    // => phantom type-identity mismatches). NODENEXT ENFORCEMENT LIVES WHERE NODE RUNS: each of
+    // packages/{server,kit,contracts,db} is checked under nodenext by its OWN tsconfig via the
+    // per-package `pnpm typecheck` — that is the stage-4 guarantee, and it is not weakened here.
+    "module": "esnext",
+    "moduleResolution": "bundler",
+
     "lib": ["es2025", "dom", "dom.iterable"],
     "jsx": "react-jsx",
     "types": ["node"],

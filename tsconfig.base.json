@@ -23,8 +23,14 @@
     // --- language / module (TS 6 defaults made explicit) ---
     "target": "es2025",
     "lib": ["es2025"],
-    "module": "esnext",
-    "moduleResolution": "bundler",
+    // NODENEXT on the node side (tsx-shedding stage 4, 2026-08-03). This is the ENFORCEMENT half of the
+    // migration: under `bundler` the checker still ACCEPTS an extensionless relative import, so a missed
+    // extension typechecks GREEN and then crashes at boot under node's type-stripping (which does no
+    // extensionless resolution) — with only a lint rule in between. Under nodenext it is a COMPILE ERROR.
+    // The browser packages override back to esnext/bundler below: vite is their resolver and that is
+    // honest. kit/contracts stay nodenext = strictest-consumer-wins (node-strict is a subset vite accepts).
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "moduleDetection": "force",
     // Honor package.json `exports`/`imports` resolution explicitly. Default-true under `bundler`;
     // pinned to harden our exports/#imports contract + survive a future moduleResolution change.

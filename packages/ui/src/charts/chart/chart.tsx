@@ -2,7 +2,10 @@
 // (ECharts animates via canvas-internal timers, not CSS, so this reads prefers-reduced-motion live
 // and forces `animation: false`), resize (free via echarts-for-react's size-sensor), and accessible
 // name (ECharts' native `aria` component). Colors are never decided here — `option` arrives fully built.
-import ReactEChartsCoreDefault from "echarts-for-react/lib/core";
+// `.js` is REQUIRED, not cosmetic: the package ships no exports map, so `nodenext` resolves this deep
+// subpath by node's own rules and an extensionless ESM specifier is a hard error (tsx-shedding stage 4).
+// TS maps the `.js` specifier to the sibling `core.d.ts`; the runtime is vite, which accepts either.
+import ReactEChartsCoreDefault from "echarts-for-react/lib/core.js";
 import type { ReactElement } from "react";
 import { cn, usePrefersReducedMotion } from "#lib";
 import type { OrbChartOption, OrbEChartsInstance } from "./echarts-setup.ts";
@@ -15,7 +18,13 @@ import { chartVariants } from "./variants.ts";
 // (`{ default: class }`) rather than the class itself — rendering it throws "Element type is
 // invalid… got: object" the moment a populated chart mounts. Unwrap defensively so the value is
 // always the component class regardless of which interop path resolved it.
-const ReactEChartsCore = (ReactEChartsCoreDefault as unknown as { readonly default?: typeof ReactEChartsCoreDefault }).default ?? ReactEChartsCoreDefault;
+// nodenext (stage 4) types this CJS module as its NAMESPACE (`typeof import(…)`), so the old unwrap —
+// which typed `.default` as the namespace again — produced a non-callable JSX type. Infer the component
+// out of the namespace instead: both interop shapes normalize to the class, and the type follows.
+type CoreNamespace = typeof ReactEChartsCoreDefault;
+type CoreComponent = CoreNamespace extends { readonly default: infer C } ? C : CoreNamespace;
+const ReactEChartsCore = ((ReactEChartsCoreDefault as unknown as { readonly default?: CoreComponent }).default ??
+  (ReactEChartsCoreDefault as unknown as CoreComponent)) as CoreComponent;
 
 const DEFAULT_HEIGHT = 240;
 
