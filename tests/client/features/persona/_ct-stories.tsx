@@ -36,7 +36,6 @@ const PERSONA: PersonaFixture = {
  *  `persona.get`'s output breaks this story at compile time rather than surviving as a fabricated hole. */
 const EDITOR_PERSONA: Parameters<typeof PersonaEditor>[0]["persona"] = {
   ...PERSONA,
-  worldBookIds: [],
 };
 
 /** MACU-2 — `<PersonaEditor>` over the data layer, for the macro-plane completion arm. The editor mounts its
