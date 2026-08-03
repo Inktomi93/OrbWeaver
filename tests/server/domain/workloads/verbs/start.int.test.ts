@@ -268,6 +268,55 @@ describe("workloads.start — the per-(kind, owner, source) singular lock", () =
     expect(bob.id).toBeTruthy();
   });
 
+  // THE HEAD-BLOCKING DEFECT (DBFIX): a user seeding a bank adds document after document, and each document
+  // is its OWN unit of work. Before the ADMISSION KEY existed the singular lock keyed on (kind, owner,
+  // source) with every databank row carrying the shared `none` bucket, so the SECOND document was refused
+  // server-side with a CONFLICT while the first ingested — and the already-inserted `documents` row was left
+  // with no workload at all (parked at `Queued` forever). Two DIFFERENT documents hold two DIFFERENT slots.
+  test("one user ingests two DIFFERENT documents concurrently (the document is the admission unit)", async () => {
+    const db = await freshDb();
+    await seedUser(db, "user_alice");
+    const s = makeService(db);
+    const first = await s.start({
+      input: { kind: "databank-ingest", params: { documentId: mintTypeId(ID_PREFIX.document) } },
+      caller: principal("user_alice"),
+      mode: "singular",
+      ownerId: principal("user_alice").userId,
+    });
+    const second = await s.start({
+      input: { kind: "databank-ingest", params: { documentId: mintTypeId(ID_PREFIX.document) } },
+      caller: principal("user_alice"),
+      mode: "singular",
+      ownerId: principal("user_alice").userId,
+    });
+    expect(first.id).not.toBe(second.id);
+    const rows = await s.list({ caller: principal("user_alice") });
+    expect(rows.map((r) => r.status)).toEqual(["queued", "queued"]);
+  });
+
+  // The other half of the same key: the SAME document twice is STILL single-active — a double-enqueue of one
+  // document is exactly the collision the lock exists to refuse (that work is genuinely already in flight).
+  test("the SAME document twice is still refused (per-document single-active)", async () => {
+    const db = await freshDb();
+    await seedUser(db, "user_alice");
+    const s = makeService(db);
+    const documentId = mintTypeId(ID_PREFIX.document);
+    await s.start({
+      input: { kind: "databank-ingest", params: { documentId } },
+      caller: principal("user_alice"),
+      mode: "singular",
+      ownerId: principal("user_alice").userId,
+    });
+    await expect(
+      s.start({
+        input: { kind: "databank-ingest", params: { documentId } },
+        caller: principal("user_alice"),
+        mode: "singular",
+        ownerId: principal("user_alice").userId,
+      }),
+    ).rejects.toBeInstanceOf(DomainConflictError);
+  });
+
   // THE CRUX (flexible collapse, verb level): one user runs index{text} + index{image} CONCURRENTLY — a
   // different source is a different lock slot, so the second start does NOT conflict.
   test("one user runs index{text} + index{image} concurrently (different source, no conflict)", async () => {

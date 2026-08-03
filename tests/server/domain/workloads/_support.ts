@@ -7,7 +7,7 @@
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { WorkloadKind, WorkloadLane, WorkloadMode, WorkloadSource, WorkloadStatus } from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadLane, WorkloadMode, WorkloadStatus } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
@@ -186,9 +186,10 @@ export async function seedWorkloadRow(
     kind?: WorkloadKind;
     status?: WorkloadStatus;
     mode?: WorkloadMode;
-    /** The single-active lock partition (`workloads.source`). Defaults to `none` (the non-index sentinel);
-     *  seed a real `text`/`image`/`all` for an `index`-kind row. */
-    source?: WorkloadSource;
+    /** The single-active lock partition (`workloads.admission_key`) — the owning domain's concurrency unit.
+     *  Defaults to `none` (the shared bucket a kind that declares no key carries); seed a real key to hold a
+     *  distinct slot (an `index` row's embed source, a `databank-ingest` row's documentId). */
+    admissionKey?: string;
     /** The EXECUTION lane (`workloads.lane`) — which worker loop would claim it. Defaults to the column
      *  default (`sweep`); pass `interactive` to seed the other lane's queue. */
     lane?: WorkloadLane;
@@ -206,7 +207,7 @@ export async function seedWorkloadRow(
     kind: overrides.kind ?? "reconcile-stats",
     status: overrides.status ?? "queued",
     mode: overrides.mode ?? "singular",
-    source: overrides.source ?? "none",
+    admissionKey: overrides.admissionKey ?? "none",
     lane: overrides.lane ?? "sweep",
     params: overrides.params ?? {},
     ownerId: overrides.ownerId ?? null,

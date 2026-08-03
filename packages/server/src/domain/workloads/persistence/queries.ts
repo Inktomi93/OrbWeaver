@@ -11,7 +11,7 @@
 // unparseable-params row as `{params: null, poison: true}` (a visibly-broken, cancel/retry-able row) instead
 // of silently dropping it, while `nextRunnableWorkload` returns only `WorkloadRunnableRow`s.
 
-import type { WorkloadError, WorkloadKind, WorkloadLane, WorkloadMode, WorkloadProgress, WorkloadSource, WorkloadStatus } from "@orb/contracts/workloads";
+import type { WorkloadError, WorkloadKind, WorkloadLane, WorkloadMode, WorkloadProgress, WorkloadStatus } from "@orb/contracts/workloads";
 import { WORKLOAD_KINDS } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
@@ -72,7 +72,8 @@ interface WorkloadInsert {
   readonly id: WorkloadId;
   readonly kind: WorkloadKind;
   readonly mode: WorkloadMode;
-  readonly source: WorkloadSource;
+  /** The lock sub-partition, resolved at the enqueue door from the kind's contribution (never client input). */
+  readonly admissionKey: string;
   /** The execution lane, resolved at the enqueue door from the kind's contribution (never client input). */
   readonly lane: WorkloadLane;
   readonly params: Record<string, unknown>;
@@ -146,7 +147,7 @@ export async function insertWorkload(db: Db, row: WorkloadInsert): Promise<void>
     id: row.id,
     kind: row.kind,
     mode: row.mode,
-    source: row.source,
+    admissionKey: row.admissionKey,
     lane: row.lane,
     params: row.params,
     ownerId: row.ownerId,

@@ -43,6 +43,15 @@ describe("databank-ingest", () => {
     expect(contributions[0].lane).toBe("interactive");
     expect(contributions[0].resume).toBe("idempotent-restart");
   });
+
+  // The ADMISSION unit is the DOCUMENT, not the bank: this is the declaration that lets a user adding seven
+  // documents get seven queued rows instead of one row and six CONFLICTs. Two documents ⇒ two keys.
+  test("declares the DOCUMENT as its admission key (a bank ingests concurrently; one document does not)", () => {
+    const { contributions } = build();
+    const other = castId<DocumentId>("document_b");
+    expect(contributions[0].admissionKey?.({ documentId: DOCUMENT_ID })).toBe(DOCUMENT_ID);
+    expect(contributions[0].admissionKey?.({ documentId: other })).toBe(other);
+  });
 });
 
 describe("databank-reindex", () => {
@@ -86,5 +95,17 @@ describe("databank-reindex", () => {
   test("rides the sweep lane (bulk derived-layer maintenance, not a user's wait)", () => {
     const { contributions } = build();
     expect(contributions[1].lane).toBe("sweep");
+  });
+
+  // Same unit rule one level up: a per-document repair is its own slot (healing two wedged documents does
+  // not serialize), the owner-wide sweep is one slot, and the MODE is deliberately outside the key so a
+  // chunk-embed pass and a re-extract pass over one document cannot race.
+  test("keys admission on the SCOPE — per document, or the single owner-wide sweep — never on the mode", () => {
+    const { contributions } = build();
+    const key = contributions[1].admissionKey;
+    expect(key?.({ scope: { kind: "document", documentId: DOCUMENT_ID } })).toBe(DOCUMENT_ID);
+    expect(key?.({ scope: { kind: "document", documentId: castId<DocumentId>("document_b") } })).toBe("document_b");
+    expect(key?.({ scope: { kind: "owner" } })).toBe("owner");
+    expect(key?.({ scope: { kind: "owner" }, mode: "re-extract" })).toBe(key?.({ scope: { kind: "owner" } }));
   });
 });

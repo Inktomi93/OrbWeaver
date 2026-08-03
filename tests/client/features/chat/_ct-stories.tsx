@@ -79,7 +79,7 @@ import type { RewriteToggleId } from "@orb/contracts/preset";
 import { REWRITE_TOGGLES } from "@orb/contracts/preset";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { composeRewriteSteer } from "@orb/kit/guided";
-import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, DocumentId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Text } from "@orb/ui/text";
@@ -88,6 +88,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
 import { CharacterGalleryDialog } from "../../../../packages/client/src/features/chat/anchors/character-gallery-dialog";
+import { AddChatDocumentDialog } from "../../../../packages/client/src/features/chat/components/add-chat-document-dialog";
 import { AppearanceAvatarsSection } from "../../../../packages/client/src/features/chat/components/appearance-avatars-section";
 import { AppearanceMessageDetailsSection } from "../../../../packages/client/src/features/chat/components/appearance-message-details-section";
 import { AppearanceMessageStyleSection } from "../../../../packages/client/src/features/chat/components/appearance-message-style-section";
@@ -1831,6 +1832,35 @@ export function ChatImportDialogStory(): ReactElement {
         />
         <p data-testid="import-closes">{String(closes)}</p>
         <p data-testid="import-notice">{notice}</p>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The host-only "Add from your bank" PICKER (add-chat-document-dialog.tsx) over the stubbed network: the
+ *  `.ct.tsx` sets `databank.list` per case (a stocked bank, an empty one, a never-resolving one for the
+ *  skeleton). Mounted OPEN, with `activeIds` as a PROP — the subtraction operand the picker derives its
+ *  offer set from, so a CT can drive "already reaches this room" without a second stubbed read. The dialog's
+ *  own close request is recorded (`picker-closes`): closing on the first pick is a RULING of this component,
+ *  and a prop-driven `open` alone could not tell a pick that closed from one that silently did not. */
+export function AddChatDocumentDialogStory({ activeIds = [] }: { readonly activeIds?: readonly DocumentId[] } = {}): ReactElement {
+  const [open, setOpen] = useState(true);
+  const [closes, setCloses] = useState(0);
+  return (
+    <CtDataProviders>
+      <div>
+        <AddChatDocumentDialog
+          activeIds={activeIds}
+          chatId={CHAT_ID}
+          onOpenChange={(next): void => {
+            setOpen(next);
+            if (!next) {
+              setCloses((n) => n + 1);
+            }
+          }}
+          open={open}
+        />
+        <p data-testid="picker-closes">{String(closes)}</p>
       </div>
     </CtDataProviders>
   );

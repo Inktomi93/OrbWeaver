@@ -80,8 +80,21 @@ export const useRemoveDocument = createEntityMutation<inferInput<Trpc["databank"
 export const useReindexDocuments = createEntityMutation<inferInput<Trpc["databank"]["reindex"]>, inferOutput<Trpc["databank"]["reindex"]>>({
   options: (trpc) => trpc.databank.reindex.mutationOptions(),
   invalidates: (trpc) => [listRead(trpc), detailRead(trpc)],
-  errorToast: "Couldn't start the reindex.",
+  // The queue's single-active refusal is NOT a failure: the run the user asked for is already happening, and
+  // "Couldn't start the reindex." is a lie about it. Name the state instead. Every other error keeps the
+  // generic copy — it IS a failure, and there is nothing more specific to say about a 500.
+  errorToast: (error) => (isReindexAlreadyRunning(error) ? "That reindex is already running — its counts move as it works." : "Couldn't start the reindex."),
 });
+
+/** The workloads admission refusal (`DomainConflictError` → CONFLICT): this exact unit — this document, or
+ *  the owner-wide sweep — already holds its single-active slot. Keyed on the STRUCTURED code, never message
+ *  text (the `invite-dialog` / `use-recompute-stats` precedent). */
+function isReindexAlreadyRunning(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("data" in error)) {
+    return false;
+  }
+  return (error as { data?: { code?: string } }).data?.code === "CONFLICT";
+}
 
 // ── the global scope (owner authority — the write lives where the authority lives, §2.1) ────────────────
 

@@ -28,6 +28,36 @@ test("a phase chip renders ONLY for a non-ready row — Ready is the absence of 
   await expect(list.getByText("Ready", { exact: true })).toHaveCount(0);
 });
 
+// DBFIX — THE LIST ROW CARRIES THE STALL TRUTH. A document whose ingest never ran (the SWEEP found three of
+// seven in that state) rendered `Queued` on this list FOREVER; the only surface that ever admitted something
+// was wrong was the DETAIL pane's stall hint, five minutes in, for a user who thought to open the row. The
+// list is where a user actually notices, so the verdict and its remedy live here now.
+test("a wedged row says STALLED on the LIST, not Queued — and carries its remedy", async ({ mount, page }) => {
+  await stubDatabank(page);
+  const list = await mount(<DatabankLibraryStory />);
+  await expect(list.getByText("Treaty of Ashfen")).toBeVisible();
+
+  const chip = list.locator('[data-slot="list-row-root"]', { hasText: "Treaty of Ashfen" }).getByText("Stalled", { exact: true });
+  await expect(chip).toBeVisible();
+  // The remedy is on the chip itself — the sentence would ellipsis the row's scent line at the 320px floor.
+  await expect(chip).toHaveAttribute("title", "Still queued — Reindex can restart a stuck job.");
+  // …and the repair it names is one click away on this row's own kebab.
+  await list.locator('[data-slot="list-row-root"]', { hasText: "Treaty of Ashfen" }).hover();
+  await list.getByRole("button", { name: "Actions for Treaty of Ashfen", exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: "Reindex" })).toBeVisible();
+});
+
+test("a FRESH in-flight row still reads Queued — the stall verdict is a frozen clock, not a zero count", async ({ mount, page }) => {
+  await stubDatabank(page);
+  const list = await mount(<DatabankLibraryStory />);
+  await expect(list.getByText("The Crimson Court")).toBeVisible();
+
+  // `Heraldry plates` extracted to nothing and `Duskwater Barony` is mid-embed: neither is wedged, and
+  // exactly one row in the bank earns the danger chip.
+  await expect(list.getByText("Stalled", { exact: true })).toHaveCount(1);
+  await expect(list.getByText("Indexing", { exact: true })).toBeVisible();
+});
+
 test("the row subtitle is the scent: provenance · size · chunks", async ({ mount, page }) => {
   await stubDatabank(page);
   const list = await mount(<DatabankLibraryStory />);

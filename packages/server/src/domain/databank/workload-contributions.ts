@@ -20,6 +20,13 @@ export function createDatabankWorkloadContributions(deps: DatabankWorkloadDeps):
     {
       kind: "databank-ingest",
       params: databankIngestWorkloadParams,
+      // THE CONCURRENCY UNIT IS THE DOCUMENT. Seeding a bank means adding document after document, and each
+      // one is independent work — before this key existed the singular lock was per-(kind, owner), so the
+      // SECOND document was refused with a CONFLICT while the first ingested and its already-written
+      // `documents` row was left with no workload at all (parked at `Queued` forever). Keying on the document
+      // keeps the guard that matters — one document cannot be ingested twice at once — and drops the one
+      // that never made sense.
+      admissionKey: (params) => params.documentId,
       // A user is WAITING on this: they uploaded a document and RAG is unavailable until it lands. This is
       // the interactive lane's reason to exist — a 20-minute import must never head-block it.
       lane: "interactive",
@@ -35,6 +42,11 @@ export function createDatabankWorkloadContributions(deps: DatabankWorkloadDeps):
     {
       kind: "databank-reindex",
       params: databankReindexWorkloadParams,
+      // Same unit rule as ingest, one level up: a per-document repair (the library row's Reindex) is its own
+      // unit, so healing two wedged documents does not serialize; the owner-wide sweep is a single unit
+      // (`owner`) and stays single-active against itself. The reindex MODE is deliberately NOT in the key —
+      // a `chunk-embed` and a `re-extract` pass over the same document must not race each other.
+      admissionKey: (params) => (params.scope.kind === "document" ? params.scope.documentId : params.scope.kind),
       // Bulk derived-layer maintenance over one document or a whole owner — a sweep, not a user's wait.
       lane: "sweep",
       resume: "idempotent-restart",
