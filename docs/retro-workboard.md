@@ -53,29 +53,30 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 - Lane floors MUST name their playwright CT files explicitly — `pnpm verify --push` runs NO CTs
   (tests:node + e2e only); the full `pnpm test` battery at quiesce is the CT proof.
 
-## ═══ STATE (2026-08-03, at the audit) ═══
+## ═══ STATE (2026-08-03, end of the burn-down day) ═══
 
-- **main @ HEAD**, tree clean, **121+ commits past origin `865405d6`** (the 199-commit era was
-  pushed 08-03 on the owner word). Gates: **183 registered** (the React-modernization trio landed with the MEMOBAN merge). I-5 CLOSED (brand ratchet retired). D-ledger:
-  through **D126**, next free **D127**.
-- ✅ **PUSH-READY — VERIFIED, AWAITING THE OWNER'S WORD.** `pnpm verify --push` on `48b40f8d`:
-  **exitCode 0, 0 of 17 stages failed** — 9,920 vitest passed / 0 failed, **CT 2,384 passed / 0 failed /
-  0 flaky** (even the two watch-list flakes came back clean, unretried), e2e-smoke green.
-  Receipt: `reports/verify.json`. **The word has NOT been given; do not push.**
-  **Two reds it caught first, both now fixed** (lane PUSHFIX, `88172b6c`): a NEW orphan export
-  `selectDocument` — `deps:orphan-ratchet` is **push-tier only**, so ~8 consolidated `pnpm check` runs
-  could never see it — and 2 CT failures (`app-shell.ct:328`, `section-jump-tile.ct:13`).
-  **⚠ ORCHESTRATOR ERROR WORTH KEEPING:** the FIRST push run was reported to the owner as GREEN and was
-  not. It was invoked as `pnpm verify --push 2>&1 | tail -40`, so the exit code returned was **`tail`'s
-  (0)** while the run genuinely failed (exit 1). **Never pipe a harness command** — redirect
-  (`> file 2>&1`) and read `reports/verify.json`. The pipe ALSO hangs: `tail` waits for an EOF that never
-  comes because playwright/vite/stack descendants inherit the pipe's write end, so the call sits there
-  long after the work finished. Both failure modes, one habit. (This is what the PreToolUse hook program
-  is being built to make impossible.)
-- **LIVE LANES: see the RECONCILIATION block at the foot of this file** — it is the current roster.
-  Do not re-dispatch a live lane's scope; resume it warm by agent id.
-- Dev db is the post-REGEX re-mint (v3 demo pack, 6 chats). The owner's regex scripts were re-entered
-  by hand ([[backrest-recovery-and-cited-reports]] — BACKREST-MANUAL).
+- **main @ `13d4cddcb`**, tree clean, **6 commits past origin**. Gates: **183 registered**.
+  D-ledger through **D126**; **D127 is DRAFTED but UNMINTED** (the compiler-owns-memoization +
+  uncompiled-CT ruling — text is in the MEMOBAN block at the foot of this file, awaiting the owner's
+  word to mint or strike).
+- ✅ **TWO PUSHES LANDED TODAY, both on an explicit owner word and both server-verified:**
+  `865405d68..073e03672` (the 176-commit era) and `671e602a3..f8cb5e948` (26 commits: the PreToolUse
+  guard, the gate-ignore grammar, the React-modernization set, the census + specs). Origin and local
+  agree. **The standing law is unchanged: never push without a FRESH per-push word.**
+- **NO LANES LIVE. NO SECOND SESSION.** Every worktree is torn down and every branch merged; only `main`
+  and `legacy-main` remain. The tree is genuinely quiet — this is the window the tsx-shedding migration
+  requires.
+- **A PreToolUse GUARD IS LIVE** (`.claude/hooks/tool-guard.mjs`, wired in `.claude/settings.json`). It
+  rewrites piped harness commands into redirects, denies a few destructive shapes, warns on the rest,
+  **fails open**, logs every decision to `reports/tool-guard/decisions.jsonl`, and has a kill switch
+  (`ORB_TOOL_GUARD=off`). Other sessions must restart to pick it up.
+- **Two orchestrator errors from today, kept because both are cheap to repeat:** (1) a harness command
+  piped into `tail` reports **`tail`'s** exit code — a red `verify --push` was reported to the owner as
+  green. Redirect and read `reports/verify.json`. (2) **The push window is NOT atomic** — the pre-push
+  hook runs ~15-17 min, git resolves the ref at INVOCATION but transfers its CURRENT value, so a commit
+  made during the window ships silently while the summary line reports the stale range. Verify a push
+  with `git ls-remote`, never the console.
+- Dev db is the post-REGEX re-mint (v3 demo pack, 6 chats). Engines: 3 healthy, one per port.
 
 ## ═══ INITIATIVES ═══
 
@@ -989,8 +990,8 @@ The audit wrote SCHEMA / DBANK2 / SWEEP as *dispatched*. Since then:
   ~165 carry no path-keyed table. Each fix ships a `mustFlag` reproducing a deleted survivor.
   **`GATE-AUTHORING.md` gains §4a** naming both modes — the gap that let a careful author implement half
   the contract and believe they were done.
-- **LIVE NOW: ONE lane** — the TAGUX side-eye (`a7c895dddb90ded5f` is torn down; the review agent is
-  `a56651b299a85551c`). All build lanes have landed and their worktrees are gone.
+- **LANE ROSTER: EMPTY** (see STATE). Everything below this line is a HISTORICAL reconciliation of the
+  08-03 burn-down; do not read it as a live roster.
   **Also present and NOT MINE:** `wt/memo-ban-investigation` — the owner's SECOND session. Do not touch.
   **NEXT, in order:** side-eye findings fixed (ALL of them, standing law) → quiesce → full `pnpm test`
   battery (the CT proof — `verify --push` runs none) → fresh `pnpm verify --push` → board PUSH-READY and
