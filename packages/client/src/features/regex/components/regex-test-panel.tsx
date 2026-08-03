@@ -56,6 +56,14 @@ function runCaveat(script: CreateRegexScriptInput): string | null {
   if (script.placement.length === 0) {
     return "Heads up: no streams are selected under “Runs on”, so this script never runs outside the tester.";
   }
+  // THE ONE THING THE TESTER HONESTLY CANNOT SHOW. A depth bound selects WHICH MESSAGES of an assembled
+  // history a script touches; the sample below is one loose string with no position in any history, so the
+  // bound has nothing to bite on and the probe deliberately leaves it off (`../lib/regex-preview`). Showing
+  // the transformation while silently ignoring the scope would be the tester lying by omission — so it says
+  // so, in the same breath as the result, exactly like the two arms above.
+  if (script.historyDepth !== undefined && (script.historyDepth.min > 0 || script.historyDepth.max !== null)) {
+    return "Heads up: the depth range only applies to real chat history, so the result below ignores it — this shows what the pattern does, not which messages it reaches.";
+  }
   return null;
 }
 
