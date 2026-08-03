@@ -637,8 +637,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // (chat's active-preset macro declaration + rpg's game macros) and hands them over UNMERGED, because the
   // preset↔game shadow is chat's ruled policy and has exactly one home (`shadowPresetUserMacros`).
   const resolveChatUserMacroDefs = async (chatId: ChatId): Promise<ChatUserMacroDefs> => {
-    const [preset, game] = await Promise.all([chatCompose.rpgChatOps.resolvePromptUserMacros(chatId), rpgOpsDelegate.resolveUserMacros(chatId)]);
-    return { preset, game };
+    const [presetDefs, gameDefs] = await Promise.all([chatCompose.rpgChatOps.resolvePromptUserMacros(chatId), rpgOpsDelegate.resolveUserMacros(chatId)]);
+    return { preset: presetDefs, game: gameDefs };
   };
 
   // ── world-info + the import ports + the bulk importers + the OWNER-principal resolver (the world-info seam).

@@ -117,6 +117,27 @@ export interface BookView {
   createdAt: number;
 }
 
+/** Per-scope attachment rollup for one book — "where does this book fire?", read from the book's side.
+ *  The four scopes are the four junctions (`global_books` / `character_books` / `persona_books` /
+ *  `chat_books`); `global` is a FLAG, not a count, because `global_books` keys on the book itself (a book
+ *  is global or it is not). `total` counts the global scope as one attachment, so "attached ×0" and
+ *  "unattached" are the same statement. */
+export interface BookUsage {
+  characters: number;
+  personas: number;
+  chats: number;
+  global: boolean;
+  total: number;
+}
+
+/** A book plus the two DERIVED numbers a library row states about it: how big it is, and where it fires.
+ *  The `TagWithUsage` shape one domain over, for the same reason — a roster row that can only show a name
+ *  makes the reader open every book to find the one they meant. */
+export interface BookWithUsage extends BookView {
+  entryCount: number;
+  usage: BookUsage;
+}
+
 /** A single entry inside a book — injected into the prompt when the entry's scope fires. `description`
  *  is the author-facing memo, never injected; `content` is what the model sees. */
 export interface EntryView {

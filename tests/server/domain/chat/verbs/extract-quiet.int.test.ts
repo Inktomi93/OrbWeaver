@@ -5,11 +5,11 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import { historyFloor } from "@orb/contracts/chat";
+import type { UserMacroSpec } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
-import type { UserMacroDef } from "@orb/kit/macro";
 import type { ChatUserMacroDefs } from "@orb/server/domain/chat";
 import { createExtractQuiet } from "@orb/server/domain/chat";
 import { describe } from "vitest";
@@ -46,7 +46,7 @@ const NO_USER_MACROS = (): Promise<ChatUserMacroDefs> => Promise.resolve({ prese
 
 /** A static user macro `{{house_style}}` — no inputs, so it resolves the same every time (an imagery mode
  *  template is not a turn; a draw-bearing macro would need the picks bag, which the pinned test below covers). */
-function houseStyleDef(body: string): UserMacroDef {
+function houseStyleDef(body: string): UserMacroSpec {
   return { name: "house_style", description: "the host's standing art direction", args: [], body, strict: false, inputs: [] };
 }
 
@@ -216,8 +216,7 @@ describe("createExtractQuiet", () => {
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
       resolveChatPresetParams: () => Promise.resolve({}),
-      resolveUserMacroDefs: () =>
-        Promise.resolve({ preset: [houseStyleDef("in muted watercolour")], game: [houseStyleDef("in harsh charcoal")] }),
+      resolveUserMacroDefs: () => Promise.resolve({ preset: [houseStyleDef("in muted watercolour")], game: [houseStyleDef("in harsh charcoal")] }),
     });
 
     await extractQuiet({ chatId, instruction: "{{house_style}}", historyFloorSeq: historyFloor(0) });

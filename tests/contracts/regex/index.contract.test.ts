@@ -1,5 +1,5 @@
 import type { RegexScriptCard, RegexScriptRow } from "@orb/contracts/regex";
-import { regexScriptCardSchema, regexScriptSchema } from "@orb/contracts/regex";
+import { regexScriptCardSchema, regexScriptSchema, toRegexScriptCardWire } from "@orb/contracts/regex";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { MAX_FIND_REGEX_LENGTH, REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
@@ -84,6 +84,31 @@ test("the retired minDepth/maxDepth keys are stripped from a carried card script
   expect(parsed).not.toHaveProperty("minDepth");
   expect(parsed).not.toHaveProperty("maxDepth");
   expect(parsed.id).toBe("st-uuid-1");
+});
+
+// THE ST POLARITY. SillyTavern has no `enabled` field — its editor writes `disabled` and its executor
+// skips on `!!script.disabled`. Reading only `enabled` (which defaulted to `true`) turned every parked ST
+// script back ON at import: a find/replace its author had deliberately switched off, rewriting canon on the
+// first turn after the card landed.
+test("an ST card's DISABLED script imports switched off", () => {
+  const parsed = regexScriptCardSchema.parse({ id: "st-uuid-2", name: "parked", findRegex: "a", replaceString: "b", placement: [], disabled: true });
+  expect(parsed.enabled).toBe(false);
+  // The ST key does not survive into the library shape — `enabled` is the one home for the state.
+  expect(parsed).not.toHaveProperty("disabled");
+});
+
+test("an ST script with neither key is enabled, and OUR `enabled` wins when both are present", () => {
+  const base = { id: "st-uuid-3", name: "x", findRegex: "a", replaceString: "b", placement: [] };
+  expect(regexScriptCardSchema.parse(base).enabled).toBe(true);
+  // An orbweaver-emitted card carries both (see `toRegexScriptCardWire`), so ours must decide — otherwise a
+  // re-import of our own export would read the projection instead of the row it was projected from.
+  expect(regexScriptCardSchema.parse({ ...base, enabled: true, disabled: false }).enabled).toBe(true);
+  expect(regexScriptCardSchema.parse({ ...base, enabled: false, disabled: true }).enabled).toBe(false);
+});
+
+test("the emitted card wire carries BOTH keys, agreeing with each other", () => {
+  const card = regexScriptCardSchema.parse({ id: "st-uuid-4", name: "x", findRegex: "a", replaceString: "b", placement: [], enabled: false });
+  expect(toRegexScriptCardWire(card)).toMatchObject({ enabled: false, disabled: true });
 });
 
 test("the CARD wire keeps a foreign client-minted id where the ROW demands a TypeID", () => {

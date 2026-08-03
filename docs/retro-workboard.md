@@ -23,6 +23,84 @@ Global **KISS/YAGNI are SUSPENDED here** — build the maximal, most-provable ve
 sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 `docs/architecture/core/AGENTS.md` IN FULL before any work.
 
+## ═══ ▶▶▶ COMPACT-SAFETY SNAPSHOT #3 (08-03 OVERNIGHT — THE current block; supersedes
+## snapshot #2 and everything between here and it. Resuming orchestrator: read THIS, then the
+## WHOLE board, then git log -60.) ═══
+
+**MAIN @ the CTFIX merge (post `1149329d`; tree CLEAN except this board edit; ~55 local
+commits past origin `865405d6` — the 199-commit era WAS PUSHED tonight on the owner word;
+NEXT push needs a fresh word). OWNER IS ASLEEP — overnight full-auto per the posture memory
+(ladder before questions; NO pushes; persona-sacred blocks).**
+
+**STANDING LAWS (tonight's set):** cap = THREE concurrent lanes · ONE COMMIT per lane, terse
+messages (doctrine carries it) · merges = --no-ff --no-verify on branch-side hook-green
+receipts BUT any branch certified before sibling merges gets a consolidated `pnpm check` on
+the merged result (caught reds twice tonight) · **CTs are NOT in verify --push** (tests:node
++ e2e only) — the full `pnpm test` battery at quiesce is the CT proof; lane floors MUST name
+playwright CT files explicitly (ANCHOR's gap) · semantic conflicts → abort, recreate worktree
+if needed, lane reconciles (REGPAR precedent tonight) · D-numbers allocated at dispatch.
+
+**LIVE LANES (3, resumable by agent id via SendMessage): SM6 (a2f4878e08572eab4) · REGORDER (a9c03c2e888a68acf) · FACEFILT (dispatched below)**
+· ✅ **R2WI MERGED (`e7a86df1`, consolidated check 14/14, torn down) — WORLD-INFO IS IN THE
+  WORKSPACE, the rail is back to 8.** listBooksWithUsage landed on the tag precedent (global
+  = FLAG not count, reasoned; sweep row added; listGlobal deliberately kept — the context arm
+  consumes it); importFile contract field + gate arm live (Upload beside + in the band).
+  **REAL INHERITED FIX: the shell's CONTENT/LIST regions carry NO overflow** — a contributed
+  editor taller than the viewport shipped amputated (measured 3657/3657 visible → 3657/700
+  auto); fixed at the config host both panes. LESSON (banked ct-hub): a workspace host
+  mounting arbitrary contributed editors must own its scroll; a CT story's own overflow
+  wrapper hides the defect completely. Its "18 pre-existing reds" probe ran at a PRE-CTFIX
+  HEAD — already fixed on current main. Deep link marker-copy manage:{collection} →
+  goToCollection (a bare section switch lands on a collapsed door — the C-12 consequence).
+· **SM6** (id a2f4878e08572eab4) — POPLOUD (populate 3-arm loud) + STRICTFMT (strict:true
+  400 landmine on OpenAI chat responseFormat; forced-tool-call fork = report not build) +
+  IMGMAC (user macros into extractQuiet + imagery section wiring; owner-ruled YES).
+· ✅ **REGPAR MERGED (reconcile `1a9687bf`, own hook 14/14, torn down)** — THE REGEX TESTER
+  LIVES paneside in config (feature-tier re-home per R1B's own two-consumer rule; 10/10 regex
+  CTs + 153 unit/contract green on the merged tree) + Trim-out/Macros-in-find authorable +
+  the ST disabled-POLARITY card-seam fix + the parity table. Its reconcile ALSO fixed 3
+  PRE-EXISTING biome format errors in R1B's regex feature — **main was carrying a red
+  lint:biome stage from the R1B --no-verify landing until this merge** (the consolidated-
+  check-after law caught it late; the reconcile fixed it by hand, no --write). REGORDER's
+  case strengthened (the config rail is where reorder naturally lives).
+
+**✅ CTFIX MERGED (last merge before this snapshot)** — honest diagnosis: only 1 of 19 reds
+was the D124 ghost (that test's subject no longer exists → deleted w/ D124 comment;
+per-test deletions inside surviving files are NOT manifest-ledger items, confirmed from the
+gate header). **18 were NARCOLOR's unswept stub**: `9aeec3b8` added
+`narratorRoom={chatDetail.group.output===…}` but never swept the 2 CT fixtures' getChat
+stubs (missing `group` field → mount-throw → error boundary). +1 unrelated SSE race in
+notification-bell (fixed w/ the releaseStream pattern). All 41 CTs green, neighbors 81/81
+proven untouched. LESSON: a component reading a NEW field of an existing stub shape must
+sweep every CT stub of that read (the e2e-mirror-sweep law's CT twin).
+
+**NIGHT QUEUE (after live 3 drain, in order):** REGORDER (applyScopeOrder sortable — the
+dead-ended pair) · REGROSTER (regex attached-by rosters verb — 3rd with-usage instance,
+flag the shared substrate) · FACEFILT (character-strip scaling design tweak) · SNAPX (snap
+port-override/offset-fixture + --open-chat first + --file mode) · BRAND gate · the
+handoff-heal single-file biome stack-overflow ticket · **THE COMBINED SIDE-EYE** (one pass:
+config workspace [incl. 400-tag live drive] · theme cluster 3-action header · narrator tint
+in situ · home-tile skeleton verdict · persona row anatomy · the regex tester) · **QUIESCE:
+full `pnpm test` (the CT battery!) + `pnpm verify --push` → board PUSH-READY** · then
+**DATABANK S1 (owner-ruled: start it if the board empties)**.
+
+**MORNING OWABLES (owner reads these first):**
+1. PUSH-READY verdict + the fresh push word ask (~55+ commits by morning).
+2. THE THREE NUDGE DEFAULT TEXTS verbatim (NARCOLOR's report — speakerTags v1 ·
+   narratorNudge v1 · roundNudge v2) — his veto; {{names}} pre-sub token = small on his word.
+3. Tag DRAG-REORDER at scale fork (Sortable↔Virtual can't compose >30 members).
+4. REGPAR F1: prompt-EPHEMERALITY unrepresentable (REC accept-and-rename; the real leg
+   re-opens the D121-E depth drop) + F3 bulk edit / F4 regex presets / F5 pipeline debugger /
+   per-script JSON door (want-them-or-not menu).
+5. v3 transcripts reach NEW installs only (his stack is fresh = fine; transcript-heal arm =
+   his call if other installs matter).
+6. Anything the ladder logged overnight.
+
+**D-LEDGER: current through D124** (D121 preset/actor close-out · D122 persona multi-human ·
+D123 theme doors/partition · D124 rpg state off the message plane). Next free = D125.
+HCOPY's handoff-copy D-entry text is STILL UNMINTED (in its report — mint as D125 at the
+next ceremony batch alongside any REGPAR/R2WI deltas).
+
 ## ═══ ▶▶▶ COMPACT-SAFETY SNAPSHOT #2 (08-03 late — THE current block; supersedes everything
 ## between here and the wave-3 seals below. A resuming orchestrator: read THIS, then the whole
 ## board, then git log -60.) ═══

@@ -296,3 +296,27 @@ test("a rail-section switch leaves focus mode — a tap lands on the new section
   await expect(state).toContainText("section=corpus");
   await expect(state).toContainText("focus=false");
 });
+
+// The RETIRED-SECTION HEAL (R2, the §6a step-2 sanitizer): a user whose device still remembers
+// `activeSection:"worldInfo"` — the id the World Info rail section carried until its library became a
+// Configuration collection — must land on `config`, the same shelf under a new roof, not silently teleport
+// to the born default. The persisted blob is seeded BEFORE the page's JS runs (`addInitScript`), because the
+// store rehydrates at module init: writing localStorage after mount would prove nothing.
+test("a persisted activeSection naming a RETIRED section heals to its successor, not to the born default", async ({ mount, page }) => {
+  await page.addInitScript(() => {
+    globalThis.localStorage.setItem(
+      "orb:shell",
+      JSON.stringify({ state: { activeSection: "worldInfo", panelOverrides: { worldInfo: { list: "collapsed" } } }, version: 2 }),
+    );
+  });
+  // CT's page is ALREADY loaded when the test body runs, so the init script only takes effect on the next
+  // navigation — without this reload the store rehydrates from an empty localStorage and the test proves
+  // nothing (it passes on the born default, which is the wrong answer).
+  await page.reload();
+
+  const probe = await mount(<ShellStoreProbe />);
+  const state = probe.locator("output");
+  await expect(state).toContainText("section=config");
+  // The retired section's panel overrides do NOT ride along — `config` keeps its own declared defaults.
+  await expect(state).toContainText("list=none");
+});

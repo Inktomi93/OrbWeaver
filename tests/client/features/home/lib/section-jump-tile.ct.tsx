@@ -8,7 +8,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { HomeSectionJumpStory } from "../_ct-stories";
 
 // The registry order, minus home (which never links to itself).
-const EXPECTED = ["Chats", "Characters", "Corpus", "World Info", "Presets", "Refinery", "Analytics"];
+const EXPECTED = ["Chats", "Characters", "Corpus", "Configuration", "Presets", "Refinery", "Analytics"];
 
 test("the jump rows ARE the section registry minus home, in registry order", async ({ mount }) => {
   const home = await mount(<HomeSectionJumpStory />);

@@ -977,6 +977,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "worldInfo.createBook": "self-scoped",
   "worldInfo.importFile": "self-scoped: takes file TEXT and no id — it writes only the caller's own library",
   "worldInfo.listBooks": "self-scoped",
+  "worldInfo.listBooksWithUsage": "self-scoped: the caller's own books; the junction counts are keyed to those ids, so a foreign book contributes nothing",
   "worldInfo.listGlobal": "self-scoped: the caller's globally-attached books",
   "regex.createScript": "self-scoped: mints the caller's own row, no foreign id",
   "regex.listScripts": "self-scoped",
