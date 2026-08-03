@@ -7,6 +7,8 @@
     "noEmit": true,
     "incremental": true,
     // tsc is the type ORACLE — never truncate a deep contracts/db type with `...` in a diagnostic.
+    // (Probe-VERIFIED honored by the ts7 oracle — typescript 7.0.2, 2026-08-03: without it a 12-member
+    // anonymous union prints `... 6 more ...`; with it, the full union.)
     "noErrorTruncation": true,
     // Cache lives in the package's own node_modules → per-worktree + gitignored.
     "tsBuildInfoFile": "${configDir}/node_modules/.cache/tsbuildinfo.json",
@@ -31,6 +33,12 @@
     "erasableSyntaxOnly": true,
     "esModuleInterop": true,
     "noUncheckedSideEffectImports": true,
+
+    // isolatedDeclarations: CONSIDERED-REJECTED (2026-08-03 full-catalog audit) — this is a noEmit
+    // oracle; no program emits declarations (cross-package types resolve to SOURCE via exports maps),
+    // so the flag buys nothing and its annotate-every-export tax fights the z.infer-derive doctrine.
+    // Every other absent option in the 129-option catalog is absent by architecture (emit family,
+    // projects/references, legacy compat) — see the 2026-08-03 audit before "completing" this config.
 
     // --- strictness: everything on, out of the gate (these hurt to retrofit later) ---
     "strict": true,
