@@ -148,13 +148,34 @@ its rename-freshness gap fixed direct-on-main (`930955e4`).
 **OPEN — REGX2 (owner-ruled 08-03, dispatch when a slot frees):** bulk edit · the pipeline debugger ·
 the per-script JSON door. **NOT regex presets** — owner: "we made regex part of presets kinda" (the
 preset carrier already IS the named-set mechanism).
-**OPEN — TAGSORT (report-then-decide, do NOT delete blind):** owner challenged the premise of tag
-reorder — "this is an overall global tag manager across our entire lib." Tree check:
-`tags.sortOrder` EXISTS (`packages/db/src/schema/tag.ts:89`, NULL = name fallback) with a live
-`setTagOrder` writer (`domain/tag/verbs/set-order.ts` + the client hook), so manual order is BUILT and
-its only value is hand-curating a global library. **RULED: do NOT lift REGORDER's arm; the >30 cliff
-stays.** The standing question is whether `sortOrder` earns its keep at all — audit who READS it; if
-it is only the library sidebar's folder grouping, sort-by-usage/name may be strictly better.
+✅ **TAGSORT AUDITED + RULED (2026-08-03) — KEEP BUT NARROW. The owner's premise targeted a surface
+that never read the column.** He challenged manual tag order with *"this is an overall global tag manager
+across our entire lib"* — and the evidence says the surface he meant, the character-library folder-grouping
+sidebar (`features/character/lib/character-list-view.ts:52-74` `groupByTag`), **does not read `sortOrder`
+at all**: `RowTag` does not even carry the field, and groups sort by `name.localeCompare`. Same for pending
+tag suggestions (`character/persistence/queries.ts:270`, name only). So the objection is resolved by
+evidence, not by deleting anything.
+**Every reader (AST-confirmed, both languages scanned non-zero, grep-corroborated, zero disagreement):**
+`tag/persistence/queries.ts:39` `listOwnedTags` (`ORDER BY sortOrder IS NULL, sortOrder, name`) →
+`tag.listTagsWithUsage` · `character/persistence/queries.ts:387` `canonicalTagsFor` → every character
+summary's `tags` array · `tag/verbs/export.ts:17` (round-trip only, not a distinct decision). **No `.tsx`
+reads it** except the write hook.
+**Surfaces that can actually SEE it:** ONE primary — the tag-management collection rows
+(`features/tag/components/tag-collection-rows.tsx:75-81`, drag → `useSetTagOrder`), and ONE passive echo —
+tag-CHIP order on character cards (`character-card.tsx:75` + dossier + quick-picks), which render the
+server's array order with no client re-sort.
+**RULED:** keep `sortOrder`, its write verb and the sortable rows as-is — a real, bounded, actively-used
+affordance. **Do NOT extend it anywhere else** (not into `groupByTag`, not into suggestions); those already
+made the better call. Removal would cost only alphabetical-instead-of-curated on those two surfaces —
+survivable, but a real regression on a purpose-built UI, for no gain.
+**⚑ THE ONE THING THAT NEEDS THE OWNER'S EYES — the 30-of-400 ratio.** The drag arm is capped at ≤30 items
+(`COLLECTION_LARGE_GROUP`, `collection-contracts.ts:39`); above that the same order renders in a read-only
+`VirtualList` with NO drag affordance. At his stated ~400-tag scale that means **manual ordering is
+unreachable for ~92% of the library, while still silently deciding chip order on every character card.**
+That is not a bug and the cliff was a deliberate owner-flagged fork — but it is worth his explicit ruling
+now that the numbers are on the table.
+**Audit limits (stated):** packages outside server/client not exhaustively enumerated (none found);
+non-TS consumers (raw SQL/seed outside `db/src/schema`) not searched.
 **OPEN smalls:** "Untitled chat" in the regex rosters (REGROSTER's naming question) · X-16 edited-ago
 needs a `RegexScriptRow` timestamp (contracts + db — verified absent) · REGPAR's F6 residual (REASONING
 prints slot 4 but executes post-postProcess — unobservable; strict-fidelity is an owner nit).
@@ -312,7 +333,9 @@ identity chrome for ANY row kind.
 2. **The three nudge default texts** (I-8) — his veto, verbatim in NARCOLOR's report.
 3. **Structured-output nullable-union reshape** (I-1) — the A/B call.
 4. **Presets into the config rail** (I-3) — owner-timed, one array member forever.
-5. **`tags.sortOrder` earns its keep?** (I-4 TAGSORT) — report-then-decide.
+5. ✅ **`tags.sortOrder`** — AUDITED + RULED KEEP-BUT-NARROW (I-4). **One question left for him:** the
+   drag arm caps at 30 items while the library is ~400 — manual order is unreachable for ~92% of tags yet
+   still decides character-card chip order. His call whether that cliff is right.
 6. **DRAFT-TRUST** — drafts run the untrusted floor (strip `<i>`/`<b>`), committed `trustHtml` renders
    them; needs a "what render policy would this card get" server seam. Architecture call.
 7. **AGENT-1** — agent-sdk FIRST-CLASS for rpg-lite. Plumbing is ~complete (terminal tools · stateful
