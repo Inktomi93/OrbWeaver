@@ -1,0 +1,214 @@
+// entry/boot — THE VIRGIN-BOOT PROOF for the shipped EXAMPLE pack, over the REAL composition root and the
+// REAL bundled fixture bytes (`entry/boot/seed-assets/demo-chats/*.jsonl`), on a fresh db.
+//
+// The owner's requirement this exists for, verbatim: "the transcripts and game and etc should all be seeded so
+// we don't have to redo this every time." The pack is generated ONCE against live models and then ships as
+// fixtures; every install after that must reproduce the whole experience — six conversations, the host seat
+// playing as the user's own persona, the curated room backgrounds, and the flagship's fully-populated rpg
+// board — from BYTES ALONE. So this test runs the seeder with the composed graph's vLLM disabled and no
+// credential anywhere: a single model call would fail the whole run, which is exactly the point.
+//
+// It also pins the two per-install re-binds that a shipped fixture can get catastrophically wrong: the
+// transcripts must name the receiving user (the "You" defect that forced the v3 re-generation — a persona-less
+// generating stack froze its own display fallback into the prose AND the ST name fields), and the flagship's
+// player actor must be the RECEIVING user's seat, never the generating account's.
+
+import type { Principal } from "@orb/contracts/identity";
+import type { Db } from "@orb/db";
+import type { Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { DEMO_CHAT_PACK_VERSION, DEMO_CHATS } from "@orb/server/domain/chat";
+import { seedDefaultCharacters, seedDefaultPersona } from "@orb/server/entry/boot";
+import { describe } from "vitest";
+import { seedUser } from "../../../support/factories/user";
+import { expect, test } from "../../../support/fixtures";
+
+const USER_ID = castId<UserId>("user_virgin_boot");
+const HANDLE = castId<Handle>("newcomer");
+const PRINCIPAL: Principal = { userId: USER_ID, role: "owner", handle: HANDLE, externalId: null, via: "header" };
+
+/** A brand-new install's first authed request, in the order boot does it: cards → persona → examples. */
+async function virginBoot(db: Db, app: { characterSeeder: unknown; personaSeeder: unknown; demoChatSeeder: unknown }): Promise<void> {
+  await seedUser(db, { id: USER_ID, handle: HANDLE, role: "owner" });
+  const typed = app as {
+    characterSeeder: Parameters<typeof seedDefaultCharacters>[0]["seeder"];
+    personaSeeder: Parameters<typeof seedDefaultPersona>[0]["seeder"];
+    demoChatSeeder: { ensureSeeded: (p: Principal) => Promise<void> };
+  };
+  await seedDefaultCharacters({ seeder: typed.characterSeeder, owner: PRINCIPAL });
+  await seedDefaultPersona({ seeder: typed.personaSeeder, owner: PRINCIPAL });
+  await typed.demoChatSeeder.ensureSeeded(PRINCIPAL);
+}
+
+describe("the EXAMPLE pack reseeds whole, from bytes, with no model", () => {
+  test("a virgin boot lands all six examples with the shipped titles + the pack stamp", async ({ db, app, services }) => {
+    await virginBoot(db, app);
+
+    // Read through the door a NEW USER reads through — chats carry no ownerId by law (D18; membership is the
+    // scope), so "what this user got" is exactly `listChats`, not a table scan.
+    const rows = await services.chat.listChats({ principal: PRINCIPAL });
+    expect(rows).toHaveLength(DEMO_CHATS.length);
+    expect(rows.map((r) => r.title).sort((a, b) => (a ?? "").localeCompare(b ?? ""))).toEqual(
+      [...DEMO_CHATS.map((d) => d.title)].sort((a, b) => a.localeCompare(b)),
+    );
+    expect(rows.every((r) => r.title?.startsWith("Example — ") === true)).toBe(true);
+
+    const onboarding = (await services.settings.getUserSettings({ principal: PRINCIPAL })).config.onboarding;
+    expect(onboarding.demoChatsSeeded).toBe(true);
+    expect(onboarding.demoChatsPackVersion).toBe(DEMO_CHAT_PACK_VERSION);
+  });
+
+  test("every example opens PLAYING AS the receiving user's OWN persona — whatever they named it", async ({ db, app, services }) => {
+    await seedUser(db, { id: USER_ID, handle: HANDLE, role: "owner" });
+    // A real first sign-in NAMES its own `{{user}}` (the auto-seed arm is automation-only, by owner ruling), so
+    // the receiving user here is deliberately NOT called Traveler: if the seat re-bind were fake — a shipped
+    // constant, or the transcript's own frozen identity — this would read "Traveler" or "newcomer" instead.
+    const persona = await services.persona.create({
+      principal: PRINCIPAL,
+      input: { name: "Wren", description: "A cartographer with bad knees.", starred: true },
+    });
+    await services.settings.updateUserSettingsSection({
+      principal: PRINCIPAL,
+      input: { section: "seeds", patch: { defaultPersonaId: persona.id, currentPersonaId: persona.id } },
+    });
+
+    await seedDefaultCharacters({ seeder: app.characterSeeder, owner: PRINCIPAL });
+    await app.demoChatSeeder.ensureSeeded(PRINCIPAL);
+
+    const rooms = await services.chat.listChats({ principal: PRINCIPAL });
+    const seats = await Promise.all(
+      rooms.map(async (row) => {
+        const detail = await services.chat.getChat({ principal: PRINCIPAL, chatId: row.id });
+        return { title: row.title, anchor: detail.anchorPersonaId, seat: detail.participants.find((p) => p.kind === "human")?.displayName };
+      }),
+    );
+    expect(seats.map((s) => s.anchor)).toEqual(seats.map(() => persona.id));
+    expect(
+      seats.map((s) => `${s.title ?? ""}: ${s.seat ?? "NO SEAT"}`),
+      "the host seat must read as the receiving user's persona, never a frozen name or the bare account handle",
+    ).toEqual(seats.map((s) => `${s.title ?? ""}: Wren`));
+  });
+
+  test("the SHIPPED transcript bytes carry the persona'd identity — no fixture may say 'You' again", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const { fileURLToPath } = await import("node:url");
+    const dir = fileURLToPath(new URL("../../../../packages/server/src/entry/boot/seed-assets/demo-chats/", import.meta.url));
+
+    const identities = await Promise.all(
+      DEMO_CHATS.map(async (demo) => {
+        const rows = (await readFile(`${dir}${demo.slug}.jsonl`, "utf8"))
+          .split("\n")
+          .filter((l) => l.trim() !== "")
+          .map((l) => JSON.parse(l) as Record<string, unknown>);
+        const [header, ...messages] = rows;
+        // ST's wire vocabulary is snake_case, so these read through the index signature by construction.
+        return {
+          slug: demo.slug,
+          header: header?.["user_name"],
+          rows: [...new Set(messages.filter((m) => m["is_user"] === true).map((m) => m["name"]))],
+        };
+      }),
+    );
+    // The generating stack's persona is frozen into these bytes forever (that is the whole reason v3 exists):
+    // a regeneration on a persona-less stack would put "You" back here, in the header AND on every user row.
+    expect(identities.map((i) => `${i.slug}:${String(i.header)}`)).toEqual(DEMO_CHATS.map((d) => `${d.slug}:Traveler`));
+    expect(identities.map((i) => `${i.slug}:${i.rows.join("|")}`)).toEqual(DEMO_CHATS.map((d) => `${d.slug}:Traveler`));
+  });
+
+  test("no BLANK row lands inside a seeded conversation (the transcript's exported state-anchor slots)", async ({ db, app, services }) => {
+    await virginBoot(db, app);
+
+    const rooms = await services.chat.listChats({ principal: PRINCIPAL });
+    const shapes = await Promise.all(
+      rooms.map(async (row) => {
+        const page = await services.chat.listMessages({ principal: PRINCIPAL, chatId: row.id, limit: 200 });
+        const lastSpoken = page.messages.findLastIndex((m) => m.content.trim() !== "");
+        return {
+          title: row.title ?? "",
+          hasGame: DEMO_CHATS.some((d) => d.title === row.title && d.game !== undefined),
+          total: page.messages.length,
+          // Blanks BEFORE the last spoken row. The five game-less examples must have none at all; the
+          // flagship's game REPLAY legitimately mints anchor rows of its own AFTER the conversation (each
+          // carries the snapshot its hand write produced, and renders as that write's delta line). What must
+          // never happen is a content-less row landing BETWEEN the spoken ones — which is exactly what seeding
+          // the transcript's own exported anchor slots would do.
+          interleaved: page.messages.filter((m, i) => m.content.trim() === "" && i < lastSpoken).length,
+          trailing: page.messages.filter((m, i) => m.content.trim() === "" && i > lastSpoken).length,
+        };
+      }),
+    );
+    expect(
+      shapes.every((s) => s.total > 0),
+      "every example seeded messages",
+    ).toBe(true);
+    expect(shapes.map((s) => `${s.title}:${s.interleaved}`)).toEqual(shapes.map((s) => `${s.title}:0`));
+    expect(
+      shapes.filter((s) => !s.hasGame).map((s) => `${s.title}:${s.trailing}`),
+      "a game-less example has nothing to anchor, so it must carry no content-less row at all",
+    ).toEqual(shapes.filter((s) => !s.hasGame).map((s) => `${s.title}:0`));
+  });
+
+  test("THE FLAGSHIP'S PANELS ARE POPULATED — sheets, meters, inventory, quests, journal, scene — with zero model calls", async ({ db, app, services }) => {
+    await virginBoot(db, app);
+
+    const chatId = (await services.chat.listChats({ principal: PRINCIPAL })).find((c) => c.title === "Example — The Ashen Spire")?.id;
+    if (chatId === undefined) {
+      throw new Error("the rpg flagship example did not seed");
+    }
+    const view = await services.rpg.getTrackerView({ principal: PRINCIPAL, chatId });
+
+    // The scene, the act rail and the game-wide gauges.
+    expect(view.ambient?.location).toContain("throne hall");
+    expect(view.plot?.act).toBe(3);
+    expect(view.plot?.acts).toHaveLength(3);
+    expect(view.gameTrackers.map((t) => t.def.key).sort((a, b) => a.localeCompare(b))).toEqual(["supplies", "wardsong"]);
+    expect(view.recentBeats.length).toBeGreaterThanOrEqual(3);
+
+    // EVERY seat is set up — the party, the Dark Lady, the sword, and the NPC the session minted.
+    expect(view.actors).toHaveLength(5);
+    // Every seat carries a volatile row + a status line — an actor with `volatile: null` renders as an empty
+    // panel row, which is the "showcase of a system with nothing in it" this pack version exists to end.
+    expect(view.actors.map((a) => `${a.name}:${a.volatile === null ? "EMPTY" : "filled"}`)).toEqual(view.actors.map((a) => `${a.name}:filled`));
+    expect(view.actors.map((a) => `${a.name}:${(a.volatile?.status ?? "") === "" ? "NO STATUS" : "status"}`)).toEqual(
+      view.actors.map((a) => `${a.name}:status`),
+    );
+    // A ROSTER seat carries a filled sheet; a scene-minted cast NPC carries an identity instead (its class is
+    // the story's business, not a sheet's) — both halves of the actor plane, each populated in its own way.
+    const roster = view.actors.filter((a) => a.identity === null);
+    const cast = view.actors.filter((a) => a.identity !== null);
+    expect(roster.map((a) => `${a.sheet.className}:${Object.keys(a.sheet.attributes).length}`).sort((a, b) => a.localeCompare(b))).toEqual([
+      "Doomblade of the Ninth Epoch:6",
+      "Envoy:6",
+      "Sellsword-Captain:6",
+      "The Undying Dark:6",
+    ]);
+    expect(cast.map((a) => a.identity?.name)).toEqual(["Corvain"]);
+    // The tracked-field applicability model, shown rather than described: a talking SWORD has no health.
+    const sword = view.actors.find((a) => a.name.startsWith("Calamity"));
+    expect(sword?.sheet.trackerRevokes).toEqual(["hp", "stamina"]);
+    // The player's own meters carry the session's damage, not a born-full default.
+    const player = view.actors.find((a) => a.actorRef.kind === "user");
+    expect(player?.actorRef, "the player seat re-binds to the RECEIVING user, never the generating account").toEqual({ kind: "user", userId: USER_ID });
+    expect(player?.volatile?.trackerValues["hp"]?.value).toBeLessThan(20);
+    expect(player?.volatile?.inventory.length ?? 0).toBeGreaterThan(0);
+    expect(player?.volatile?.conditions.length ?? 0).toBeGreaterThan(0);
+
+    // Quests + journal — a mix of progressed and completed, which is what makes the panel read as PLAYED.
+    expect(view.quests.length).toBeGreaterThanOrEqual(3);
+    expect(view.quests.some((q) => q.status === "completed")).toBe(true);
+    expect(view.quests.some((q) => q.objectives.some((o) => o.completed) && q.objectives.some((o) => !o.completed))).toBe(true);
+    const journal = await services.rpg.listJournal({ principal: PRINCIPAL, chatId, limit: 50 });
+    expect(journal.length).toBeGreaterThanOrEqual(3);
+  });
+
+  test("the seeded board is PLAYABLE: the replay leaves no lock for the story to fight", async ({ db, app, services }) => {
+    await virginBoot(db, app);
+
+    const chatId = (await services.chat.listChats({ principal: PRINCIPAL })).find((c) => c.title === "Example — The Ashen Spire")?.id;
+    if (chatId === undefined) {
+      throw new Error("the rpg flagship example did not seed");
+    }
+    const view = await services.rpg.getTrackerView({ principal: PRINCIPAL, chatId });
+    expect(view.lockedPaths, "a lock on an authored datum means the user's own continuation can never move it").toEqual([]);
+  });
+});

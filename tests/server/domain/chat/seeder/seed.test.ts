@@ -25,9 +25,21 @@ const PRINCIPAL = principal(USER_ID);
 /** A minimal well-formed export transcript. Written as RAW jsonl (not object literals) because the wire is
  *  ST-flavoured snake_case — the bytes are the fixture. */
 const TRANSCRIPT = [
-  '{"user_name":"You","character_name":"Someone","create_date":"August 2, 2026 8:05am","chat_metadata":{}}',
-  '{"name":"You","is_user":true,"mes":"hello","send_date":1754000000000}',
+  '{"user_name":"Traveler","character_name":"Someone","create_date":"August 2, 2026 8:05am","chat_metadata":{}}',
+  '{"name":"Traveler","is_user":true,"mes":"hello","send_date":1754000000000}',
   '{"name":"Someone","is_user":false,"mes":"hi","send_date":1754000001000}',
+].join("\n");
+
+/** The rpg flagship's real export shape: an rpg hand write anchors its snapshot on a CONTENT-LESS narrator row
+ *  (the state-anchor law), and an ST transcript has nowhere to put that state — so it exports as `"mes":""`.
+ *  The generating session put EIGHT of them ahead of its first user turn. */
+const TRANSCRIPT_WITH_ANCHORS = [
+  '{"user_name":"Traveler","character_name":"Someone","create_date":"August 2, 2026 8:05am","chat_metadata":{}}',
+  '{"name":"Someone","is_user":false,"mes":"greeting","send_date":1754000000000}',
+  '{"name":"Group","is_user":false,"mes":"","send_date":1754000000500}',
+  '{"name":"Group","is_user":false,"mes":"","send_date":1754000000600}',
+  '{"name":"Traveler","is_user":true,"mes":"hello","send_date":1754000001000}',
+  '{"name":"Someone","is_user":false,"mes":"hi","send_date":1754000002000}',
 ].join("\n");
 
 interface Recorded {
@@ -43,13 +55,14 @@ interface HarnessOptions {
   readonly packVersion?: number;
   readonly persona?: PersonaId | null;
   readonly dressing?: (importHash: string) => SeededChatDressing | null;
+  readonly transcript?: string;
 }
 
 function makeHarness(options: HarnessOptions = {}): { readonly deps: DemoChatSeederDeps; readonly rec: Recorded } {
   const rec: Recorded = { chats: [], games: [], boundPersonas: [], backgrounds: [], stampedVersions: [] };
   let packVersion = options.packVersion ?? 0;
   const deps: DemoChatSeederDeps = {
-    readTranscript: (): Promise<string | null> => Promise.resolve(TRANSCRIPT),
+    readTranscript: (): Promise<string | null> => Promise.resolve(options.transcript ?? TRANSCRIPT),
     findCharacterByHandle: ({ handle }) => Promise.resolve({ characterId: castId(`character_${handle}`), name: `Card ${handle}` }),
     writeChats: ({ chats }) => {
       rec.chats.push(...chats);
@@ -106,6 +119,17 @@ test("a user with no persona at all still gets their examples (the seat falls ba
 
   expect(rec.chats).toHaveLength(DEMO_CHATS.length);
   expect(rec.chats.every((c) => c.anchorPersonaId === null)).toBe(true);
+});
+
+test("rpg STATE-ANCHOR slots never seed: a content-less assistant row is a snapshot FK, not a blank bubble", async () => {
+  const { deps, rec } = makeHarness({ transcript: TRANSCRIPT_WITH_ANCHORS });
+  await createDemoChatSeeder(deps).ensureSeeded(PRINCIPAL);
+
+  const [chat] = rec.chats;
+  expect(chat?.messages.map((m) => m.variants[0]?.content)).toEqual(["greeting", "hello", "hi"]);
+  // The dates the room is sorted + stamped by must come from the SPOKEN rows too — an anchor's timestamp is
+  // the host's setup click, not a beat of the conversation.
+  expect(chat?.updatedAt).toBe(1_754_000_002_000);
 });
 
 const soloSeatCount = 1;
