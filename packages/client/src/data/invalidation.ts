@@ -193,7 +193,13 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // memberCardVisibility) — a card edit is announced HERE, not on the chat bus, so without this row the member-
   // card dialog re-opened inside its gcTime window showed the pre-edit card. Path-level and free when the
   // dialog is closed (the read is `enabled: open`, so there is no cache entry to refetch).
-  charactersChanged: (_e, trpc) => [trpc.character.pathFilter(), trpc.chat.getMemberCard.pathFilter()],
+  // + the regex attached-by rosters: a character RENAME must repaint its name in listScriptUsage
+  // (REGROSTER's flagged gap — attach/detach ride regexChanged; renames ride only this event).
+  charactersChanged: (_e, trpc) => [
+    trpc.character.pathFilter(),
+    trpc.chat.getMemberCard.pathFilter(),
+    trpc.regex.listScriptUsage.pathFilter(),
+  ],
   personasChanged: (_e, trpc) => [trpc.persona.pathFilter()],
   // A preset edit changes the effective params (maxOutput/maxContext) the fit reserves against, so the
   // transcript divider's budget must refetch too (the boundary tracks knob changes live, PD-#7) — and the
@@ -210,6 +216,8 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
     trpc.chat.getUserMacroPicks.pathFilter(),
     trpc.chat.getVariablePicks.pathFilter(),
     ...promptPreviewReads(trpc),
+    // The regex attached-by roster names a preset by display name — a rename repaints here.
+    trpc.regex.listScriptUsage.pathFilter(),
   ],
   worldInfoChanged: (_e, trpc) => [trpc.worldInfo.pathFilter()],
   regexChanged: (_e, trpc) => [trpc.regex.pathFilter()],
