@@ -647,6 +647,15 @@ completeness+membership; CARD_PACK_VERSION deliberately NOT bumped — the drop 
 every read). **OWED: mint TD's D-entry as D123 (text in its report) — ANCHOR's becomes D124
 (lane notified); UI-Theming §12.1 amended in its commit (sibling-lane flag). Side-eye
 polish item: the 3-action Theme cluster's visual weight (Select beside two ghosts).**
+✅ **R1C MERGED (mocks committed + render-verified 0-clip; snaps reports/snaps/config-mock-*)
++ OWNER EYEBALL PASSED + ALL FORKS RULED:** F-11 = SPLIT (tags adopts row→member-editor —
+one selection grammar; rows become scent) · §4 search stubs = **NO, clean break (owner
+overrode the REC — deliberate)** · F-12 blurb = contract field · F-13 mobile = sheet as
+drawn · glyph = Package (alts LayoutGrid/Archive; allowlist-clean). Spec:
+docs/design/config-rail-spec.md (C-1..C-11). **Lane R1-BUILD dispatched** (contract + host +
+tags/regex migration per the ruled mocks) + **Lane SM5 dispatched** (WIREBTN kebab move ·
+MACU-2 macro plane · INV-READ · editSnapshot ok-check sweep · PLUGCITE). RESYNC-OR next
+drain.
 ✅ **SCOUT DELIVERED (imagery+plugin dormancy census) + RULED:** imagery = HONEST dormancy
 (generate LIVE free-mode; editImage/extractPrompt/readProvenance/portrait machinery all
 PD-93-cited parked; captionAvatar unreachable behind the parked modes; the D61
