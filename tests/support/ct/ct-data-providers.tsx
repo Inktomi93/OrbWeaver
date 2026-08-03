@@ -172,7 +172,12 @@ const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", 
 
 const REAL: Record<SectionId, SectionDefinition> = {
   home: makeHomeSection(homeTiles),
-  chats: makeChatsSection(chatContextContributors, chatContextRegions, chatSurfaceContributors, chatToolRenderers),
+  chats: makeChatsSection({
+    contextTabs: chatContextContributors,
+    contextRegions: chatContextRegions,
+    surfaces: chatSurfaceContributors,
+    toolRenderers: chatToolRenderers,
+  }),
   characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
   corpus: corpusSection,
   worldInfo: worldInfoSection,
@@ -349,12 +354,12 @@ export function CtChatContributorSectionRegistry({
 }): ReactElement {
   const registry = createRegistry<SectionId, SectionDefinition>("sections", SECTION_IDS, {
     ...REAL,
-    chats: makeChatsSection(
-      contextContributors ?? chatContextContributors,
-      contextRegions ?? chatContextRegions,
-      surfaceContributors ?? chatSurfaceContributors,
-      chatToolRenderers,
-    ),
+    chats: makeChatsSection({
+      contextTabs: contextContributors ?? chatContextContributors,
+      contextRegions: contextRegions ?? chatContextRegions,
+      surfaces: surfaceContributors ?? chatSurfaceContributors,
+      toolRenderers: chatToolRenderers,
+    }),
   });
   return (
     <SectionRegistryProvider value={registry}>
