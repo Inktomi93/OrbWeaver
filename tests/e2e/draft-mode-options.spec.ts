@@ -32,6 +32,8 @@
 // the seeded characters, and a character WITH chats resumes its latest room instead of opening a draft
 // (the rotating-sweep-failure class, 2026-07-24).
 
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { charactersRailButton, openChatOptions, openOrCreateChat, openUtilityMenu, waitForAppReady } from "./support/chat-room";
@@ -39,7 +41,7 @@ import { mintFreshCharacter, removeCharacter } from "./support/trpc";
 
 // The spec-owned draft character — minted per-test via the API, removed in a finally. Its Chat CTA opens
 // a genuinely FRESH draft; the "New chat draft" status band disambiguates draft from a resumed room.
-const DRAFT_HANDLE = "e2e-draft-probe";
+const DRAFT_HANDLE = castId<CharacterHandle>("e2e-draft-probe");
 const DRAFT_CHARACTER = "Draft Probe";
 const DRAFT_GREETING = "A fresh page, waiting for the first word.";
 

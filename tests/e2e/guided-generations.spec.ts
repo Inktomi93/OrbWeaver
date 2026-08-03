@@ -24,7 +24,7 @@
 // swipe/continue/rewrite target (a tail assistant reply) is seeded by ONE UI-driven Guided response per
 // leg. Characters (and with them their chats) are removed in a finally.
 
-import type { CharacterHandle, ChatId } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -54,13 +54,13 @@ import {
 const STATELESS_ROUTE: ChatRoute = { api: "chat-completions", source: "vllm" };
 
 /** A greeting long enough that a CONTINUE's appended content is a legible delta. */
-const SOLO = { handle: "e2e-guided-solo", name: "Guidedspec Solo", greeting: "The lantern flickered in the dark hall." } as const;
+const SOLO = { handle: castId<CharacterHandle>("e2e-guided-solo"), name: "Guidedspec Solo", greeting: "The lantern flickered in the dark hall." } as const;
 
 /** A two-character room for the steer+speaker leg — unique display names so the wand's speaker submenu
  *  item and the committed row's characterId are both unambiguous. */
 const DUO = [
-  { handle: "e2e-guided-duo-a", name: "Guidedspec Duo Alpha", greeting: "Alpha greeting." },
-  { handle: "e2e-guided-duo-b", name: "Guidedspec Duo Bravo", greeting: "Bravo greeting." },
+  { handle: castId<CharacterHandle>("e2e-guided-duo-a"), name: "Guidedspec Duo Alpha", greeting: "Alpha greeting." },
+  { handle: castId<CharacterHandle>("e2e-guided-duo-b"), name: "Guidedspec Duo Bravo", greeting: "Bravo greeting." },
 ] as const;
 
 /** Generous — a UI-fired turn on a warm local 8B without an output ceiling can run a few seconds; a
@@ -96,13 +96,13 @@ async function typeSteerAndOpenWand(page: Page, steer: string): Promise<void> {
 
 /** Fire ONE UI-driven Guided response and wait for its committed assistant row — the tail-seeding helper
  *  every variant/continue leg needs (startGroupChat's opening:"none" leaves the canon empty). */
-async function seedAssistantTail(page: Page, chatId: ChatId, steer: string): Promise<string> {
+async function seedAssistantTail(page: Page, chatId: ChatId, steer: string): Promise<MessageId> {
   await typeSteerAndOpenWand(page, steer);
   await page.getByRole("menuitem", { name: "Guided response" }).click();
   await pollAssistantCount(chatId, 1);
   const tail = await tailAssistant(chatId);
   expect(tail).toBeDefined();
-  return tail?.id ?? "";
+  return tail?.id ?? castId<MessageId>("");
 }
 
 /** Wait until the chat's assistant row COUNT reaches `n` server-side (a UI-fired turn commits off the bus;

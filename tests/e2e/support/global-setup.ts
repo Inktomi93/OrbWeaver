@@ -36,7 +36,7 @@ const ANCHOR = {
 };
 
 interface CharacterListPage {
-  readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[];
+  readonly items: readonly { readonly id: CharacterId; readonly handle: CharacterHandle }[];
 }
 
 const encodeInput = (value: unknown): string => encodeURIComponent(JSON.stringify({ 0: value }));
@@ -68,7 +68,7 @@ async function mutation<T>(baseUrl: string, procedure: string, input: unknown): 
 }
 
 /** Ensure ≥1 character exists; return the id of a usable one (prefer the anchor, else the first present). */
-async function ensureCharacter(baseUrl: string): Promise<string> {
+async function ensureCharacter(baseUrl: string): Promise<CharacterId> {
   const page = await query<CharacterListPage>(baseUrl, "character.list", {});
   const anchor = page.items.find((c) => c.handle === ANCHOR_HANDLE);
   if (anchor !== undefined) {
@@ -78,7 +78,7 @@ async function ensureCharacter(baseUrl: string): Promise<string> {
   if (first !== undefined) {
     return first.id;
   }
-  const created = await mutation<{ readonly id: string }>(baseUrl, "character.create", { input: ANCHOR });
+  const created = await mutation<{ readonly id: CharacterId }>(baseUrl, "character.create", { input: ANCHOR });
   return created.id;
 }
 

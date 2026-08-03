@@ -15,7 +15,7 @@
 //
 // The wire subset shapes are declared LOCALLY (the e2e-support import-free-of-package-trees rule).
 
-import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import type { ActorClient } from "./support/actors";
@@ -34,10 +34,10 @@ const OK = 200;
 
 // ── Wire subsets ────────────────────────────────────────────────────────────────────────────────────────
 interface CreatedCharacter {
-  readonly id: string;
+  readonly id: CharacterId;
 }
 interface StartedChat {
-  readonly chat: { readonly id: string };
+  readonly chat: { readonly id: ChatId };
 }
 interface MessagesPage {
   readonly messages: readonly { readonly id: string; readonly seq: number; readonly role: string; readonly content: string }[];
@@ -80,7 +80,7 @@ async function memberUserId(host: ActorClient): Promise<string> {
 }
 
 /** Mint a spec-owned character, removing any residue from a crashed prior run (idempotent). */
-async function freshCharacter(host: ActorClient, handle: CharacterHandle, input: Record<string, unknown>): Promise<string> {
+async function freshCharacter(host: ActorClient, handle: CharacterHandle, input: Record<string, unknown>): Promise<CharacterId> {
   const prior = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[] }>("character.list", {});
   const stale = prior.items.find((c) => c.handle === handle);
   if (stale !== undefined) {
@@ -134,7 +134,7 @@ test("D22: a MEMBER's card read is field-clamped at EVERY memberCardVisibility t
   try {
     const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [characterId] });
     const chatId = started.chat.id;
-    const member = await loginLocal(origin, LOCAL_MEMBER.handle, LOCAL_MEMBER.password);
+    const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
 
     // `name-avatar` — the always-present floor and NOTHING else. Every sheet+ and full-only field is null ON
@@ -215,7 +215,7 @@ test("D16 from-join: a member's list + durable replay carry NO row below their o
     await host.mutation("chat.commitMessage", { chatId, content: PRE_JOIN });
     await host.mutation("chat.commitMessage", { chatId, content: AT_JOIN });
 
-    const member = await loginLocal(origin, LOCAL_MEMBER.handle, LOCAL_MEMBER.password);
+    const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
     // `redeemInvite` stamps joinSeq = the canon head at redeem (seq 3 — the AT_JOIN row).
     await host.mutation("chat.commitMessage", { chatId, content: POST_JOIN });
@@ -299,7 +299,7 @@ test("EXPORT: the chat transcript download 404s for a seated MEMBER and 200s for
     const chatId = started.chat.id;
     await host.mutation("chat.commitMessage", { chatId, content: PRE_JOIN });
 
-    const member = await loginLocal(origin, LOCAL_MEMBER.handle, LOCAL_MEMBER.password);
+    const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
     // Seated AND reading the room — so the 404 below is the EXPORT gate biting, not a membership failure.
     expect(JSON.stringify(await member.query<MessagesPage>("chat.listMessages", { chatId }))).toContain(PRE_JOIN);
@@ -338,7 +338,7 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
     description: CARD_USER_PROBE,
     greetings: [{ text: GREETING }],
   });
-  const member = await loginLocal(origin, LOCAL_MEMBER.handle, LOCAL_MEMBER.password);
+  const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
   // The persona is the MEMBER's OWN library entity (owner-sacred — minted under their principal, never the
   // host's). Idempotent across crashed runs.
   const owned = await member.query<readonly PersonaRow[]>("persona.list", {});
@@ -432,7 +432,7 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
     description: "e2e member-triggered persona probe",
     greetings: [{ text: GREETING }],
   });
-  const member = await loginLocal(origin, LOCAL_MEMBER.handle, LOCAL_MEMBER.password);
+  const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
   const owned = await member.query<readonly PersonaRow[]>("persona.list", {});
   for (const stale of owned.filter((p) => p.name === MEMBER_PERSONA_NAME)) {
     // biome-ignore lint/performance/noAwaitInLoops: sequential cleanup of a normally-empty residue set.
