@@ -14,6 +14,7 @@
  * is the machine contract (probe convention); exit code carries the verdict (a wake refusal exits non-zero).
  */
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { engineLaunchEnvFloor } from "@orb/server/foundation/env";
 import type { EngineUtilFractions, GpuVram } from "@orb/server/infra/providers/vllm/engine";
 import {
@@ -38,8 +39,6 @@ const BYTES_PER_GIB = 1_073_741_824;
 const HEALTH_TIMEOUT_MS = 2000;
 // Column pad for the per-engine status line (widest engine name = "rerank").
 const ENGINE_NAME_PAD = 6;
-
-const realSleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 function log(msg: string): void {
   process.stdout.write(`engines-ctl: ${msg}\n`);
@@ -183,7 +182,7 @@ async function wakeAll(): Promise<number> {
       continue;
     }
     // biome-ignore lint/performance/noAwaitInLoops: sequential wake — engines share GPUs, one at a time.
-    const ok = await postWakeAndAwait(engine, { now: () => Date.now(), sleep: realSleep });
+    const ok = await postWakeAndAwait(engine, { now: () => Date.now(), sleep });
     log(`${engine}: wake ${ok ? "→ ready" : "TIMED OUT (30s bound)"}`);
     if (ok) {
       woke += 1;

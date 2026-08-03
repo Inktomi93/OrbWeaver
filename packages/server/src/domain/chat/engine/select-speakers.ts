@@ -19,7 +19,6 @@
 import type { GroupConfig, SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
-import { escapeRegExp } from "@orb/kit/strings";
 import type { ArbiterCandidate, CastName } from "../contract/arbitration.ts";
 import { isArbiterEligible } from "../persistence/participant.ts";
 
@@ -157,7 +156,7 @@ export function resolveMentions(triggerText: string, cast: readonly CastName[]):
     if (member.name.length === 0) {
       continue;
     }
-    const at = triggerText.search(new RegExp(`@${escapeRegExp(member.name)}\\b`, "iu"));
+    const at = triggerText.search(new RegExp(`@${RegExp.escape(member.name)}\\b`, "iu"));
     if (at === -1) {
       continue;
     }

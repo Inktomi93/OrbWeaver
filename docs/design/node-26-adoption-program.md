@@ -176,6 +176,15 @@ stated pattern first (audit lists are snapshots) and burns the delta too.
    `scripts/dev/engines-ctl.ts:42`, `scripts/probes/probe-fire.ts:92,204`. The three `realSleep`
    duplicates die entirely — the import IS the shared spelling. Injection seams that take a `sleep` fn
    for determinism keep the parameter; the DEFAULT becomes the platform import.
+   LANDED W4 2026-08-03, all seven sites; `compose/chat.ts`'s `delay` dep is now the bare import.
+   Re-sweep deltas: (a) `client/src/features/auth/lib/route-guards.ts:24` (`wait`) is a BROWSER sleep —
+   `node:timers/promises` does not exist there, so it is permanently OUT of this item and the §8 SLEEP arm
+   needs a `packages/{client,ui}` carve-out or it lands red on a site with no legal fix; (b) ~30 hand-rolled
+   sleeps live under `tests/**` (vitest/playwright, all node-side) and were NOT burned — they are pure
+   idiom churn in test scaffolding, but the §8 SLEEP arm WILL flag them, so that gate's landing owes either
+   a `tests/**` scope decision or a burn-down pass. Kit purity re-verified for this item: `ast-grep -p
+   'setTimeout($$$)' -l ts packages/kit packages/contracts` → scannedFileCount=136, ZERO matches, so no
+   sleep seam lives below the isomorphic line and `node:timers/promises` never crosses it.
 2. **`[...x].sort(fn)` → `x.toSorted(fn)`** — 49 sites (largest volume; heavy in `scripts/codemods/`,
    `scripts/check/gates/`, `domain/{discovery,chat,stats}`; representatives
    `domain/stats/substrate/percentiles.ts:20`, `domain/chat/memory/build/digests.ts:255,260`). Rubric:
@@ -199,9 +208,26 @@ stated pattern first (audit lists are snapshots) and burns the delta too.
    shape. The earlier census counted ~129 broad matches; the implementor classifies by the rubric:
    value cheap to construct → `getOrInsert`; construction has cost/effects → `getOrInsertComputed`;
    anything whose set-path differs from its get-path (TTL caches, eviction) stays.
-7. **`RegExp.escape` kills `kit/strings.escapeRegExp`** — delete the kit function, codemod the 8
-   consumers (`speaker-label/index.ts:93,168,218,247`, `world-info/index.ts:91`,
-   `openai-compat/body.ts:214`, + the barrel/import lines). Kit is isomorphic and `RegExp.escape` is
+7. **`RegExp.escape` kills `kit/strings.escapeRegExp` AND its independently-minted duplicate** — LANDED
+   W4 2026-08-03. **Site list CORRECTED at landing: the original "8 consumers / 3 files" was a stale
+   snapshot, short by four files** (the third §-list in this document to die that way — `.npmrc`
+   engine-strict was inert, §1.2's coupled-site list was short by three; the §-lists were written from
+   one sweep and never re-swept, so re-run every pattern before executing a bullet). The real set:
+   `kit/speaker-label/index.ts` (:93 — a bare `.map(escapeRegExp)` reference the call-shaped codemod
+   pattern misses — :168, :218, :247), `kit/world-info/index.ts` (:91 **and** :92),
+   `db/src/client/index.ts` (:204 — the backup-file regex), `server/src/kit/reasoning/index.ts` (:40, two
+   calls), `server/src/domain/chat/engine/select-speakers.ts` (:160),
+   `scripts/probes/impersonate/score.ts` (:74, :79), plus each file's import line and
+   `tests/kit/strings/index.test.ts` (three tests deleted with the function, NOT re-pointed at the
+   platform — asserting V8's escape output is a tautology; the literal-match invariant is exercised by the
+   consumers' own suites). SEPARATELY: `infra/providers/backends/kit/openai-compat/body.ts` never imported
+   kit at all — it carried its OWN `REGEXP_META_RE` + local `escapeRegExp` at :49-52 (the doc's ":214" was
+   a call to that copy), so this item is a kit deletion AND a local re-mint deletion.
+   Behavior verified before the delete (probe, node 26, 0x0000-0x2100 × flags `""`/`"u"`/`"g"`, plus every
+   real call-site regex shape over 31 adversarial names): ours escaped `$()*+.?[\]^{|}`; `RegExp.escape` is
+   a strict SUPERSET (+102 code points: control/whitespace, `/`, the other punctuators, leading alnum as
+   `\xHH`); ONLY-OURS = none; zero match/replace differences; `RegExp.escape` introduces no capture group,
+   so `leadingLabelRe`'s `\1` backref numbering is unaffected. Kit is isomorphic and `RegExp.escape` is
    browser-baseline — no gate. Post-kill enforcement: §8 gate arm.
 8. **`Error.isError` hardens the ONE narrowing seam** — `kit/error-message/index.ts:10` swaps
    `err instanceof Error` → `Error.isError(err)` (~50 consumers inherit cross-realm correctness
@@ -211,6 +237,8 @@ stated pattern first (audit lists are snapshots) and burns the delta too.
    membrane-side `instanceof` checks (`membrane.ts:687`, `sandbox.ts:389`) sit on HOST-side promise
    rejections (same-realm, correct as written). The remaining ~58 same-realm `instanceof Error`
    catches stay — the seam swap covers the boundary risk; churning 58 correct sites buys nothing.
+   LANDED W4 2026-08-03; the non-swap reasoning is now recorded in the seam's own header so a future
+   sweep does not "finish the job" into the membrane.
 9. **`.at(-1)`** — 6 `arr[arr.length-1]` sites; **`findLast`** — 1 (`probes/impersonate/run.ts:221`).
    Mechanical.
 10. **`Array.fromAsync`** — 1 clean adopt (`scripts/probes/trace-render.ts:207`); `storage/zip.ts:347`
@@ -233,6 +261,28 @@ stated pattern first (audit lists are snapshots) and burns the delta too.
     - deadlines that must not hold the process open → KEEP manual `setTimeout(...).unref()` composed
       via `AbortSignal.any` (`egress.ts:296-299` is the sanctioned archetype — `AbortSignal.timeout`
       cannot unref; this is a DECLARED platform limitation, not our debt).
+
+    **VERDICT, rubric applied per-site W4 2026-08-03: ZERO actionable swaps. Every site KEEPS**, and the
+    house spellings were already at SIX sites, not the four this bullet claims (`egress.ts:299`,
+    `vllm/engine/client.ts:38`, `vllm/surfaces/embed.ts:22`, `chat/engine/engine.ts:1367` +
+    `AbortSignal.timeout` throughout `fleet-control`/`supervisor`). The keeps fall into four classes:
+    (1) **the raced operation is not signal-aware** — `agent-sdk` `query.accountInfo`/`mcpServerStatus`/
+    `getContextUsage` take no signal, and `PromptTransform.apply` / `flush-barrier`'s tracked flushes are
+    opaque promises, so there is nothing for `AbortSignal.timeout` to abort (a race is the ONLY mechanism);
+    (2) **the timeout's rejection payload is load-bearing** — `catalog`/`summarize`/the probe watchdogs
+    reject a typed `ProviderError(kind:"server", retryable:true)` that feeds the provider taxonomy;
+    `AbortSignal.timeout` yields a bare DOMException; (3) **the forward's target is an AbortController
+    INSTANCE, not a signal** — the SDK's `options.abortController`, so `AbortSignal.any` has no consumer
+    (`runner.linkAbort` + the three inline copies); (4) **cleanup-on-abort / unref'd deadlines** — the
+    sanctioned archetypes. Two keeps are non-obvious enough to now carry an inline note naming the
+    mechanism: `backends/kit/idle-timeout.ts` (`.any` would PROPAGATE the caller's abort `reason` into
+    `fetch`, and `classifyTransportName` regexes error name+message — a reason containing
+    "timeout"/"connection"/"network" would reclassify a CANCELLED turn as a retryable fault and re-run it;
+    re-aborting our own controller flattens every cause to a plain AbortError and keeps the provider
+    classifier independent of the chat domain's abort vocabulary) and `workloads/engine/runner.ts` (the
+    per-ROW link is explicitly `removeEventListener`ed in `finally` against a process-lifetime worker
+    signal; a composite signal cannot be un-linked). `host-token.ts:96` and `runner.linkAbort` gained the
+    same treatment.
 
 Confirmed already-modern (no work, receipts recorded): structuredClone is the sole clone mechanism
 (2 uses, zero hand-rolled deep-clones) · `Object.hasOwn` hand-rolls zero · fs is `rmSync`/`cpSync`/

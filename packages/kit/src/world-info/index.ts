@@ -8,7 +8,6 @@ import { z } from "zod";
 import { isPlainObject } from "#guards";
 import type { InjectionPlacement } from "#injection";
 import { injectionDirectiveSchema } from "#injection";
-import { escapeRegExp } from "#strings";
 
 // Per-entry knob the user can set to force a scope independent of keys: "auto" (default) derives
 // from keys.length; "always"/"keyword" force it. It's the only scope knob — entry-level pins were
@@ -88,8 +87,8 @@ export function keyRegex(key: string): RegExp {
     return existing;
   }
   const re = BOUNDARYLESS_SCRIPT.test(key)
-    ? new RegExp(escapeRegExp(key), "u")
-    : new RegExp(`(?<![\\p{L}\\p{N}_])${escapeRegExp(key)}(?![\\p{L}\\p{N}_])`, "u");
+    ? new RegExp(RegExp.escape(key), "u")
+    : new RegExp(`(?<![\\p{L}\\p{N}_])${RegExp.escape(key)}(?![\\p{L}\\p{N}_])`, "u");
   keyRegexCache.set(key, re);
   if (keyRegexCache.size > KEY_REGEX_CACHE_MAX) {
     const oldest = keyRegexCache.keys().next().value;

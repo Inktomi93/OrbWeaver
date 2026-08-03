@@ -28,6 +28,7 @@ import { spawn } from "node:child_process";
 import { closeSync, mkdirSync, openSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { engineDeploymentEnv, engineLaunchEnvFloor, env, processEnvSnapshot } from "@orb/server/foundation/env";
 import type { EngineLaunchConfig, EngineSpawnSpec, EngineUtilFractions } from "@orb/server/infra/providers/vllm/engine";
 import {
@@ -96,7 +97,7 @@ async function waitHealthy(engine: string, port: number, child: ChildProcess): P
       log(`${engine} up (:${port})`);
       return;
     }
-    await new Promise((r) => setTimeout(r, HEALTH_POLL_INTERVAL_MS));
+    await sleep(HEALTH_POLL_INTERVAL_MS);
   }
   log(`WARNING — ${engine} not healthy after ${(HEALTH_POLL_MAX * HEALTH_POLL_INTERVAL_MS) / MS_PER_SECOND}s; continuing.`);
 }

@@ -6,8 +6,6 @@
 // node:vm is not needed: the prefix/suffix are host config (trusted), not an untrusted user regex, so
 // there is no ReDoS surface.
 
-import { escapeRegExp } from "@orb/kit/strings";
-
 /** Options for {@link parseReasoningTags}. `prefix`/`suffix` are the literal open/close tags (host config —
  *  e.g. `<think>`/`</think>`); `strict` (default true) anchors the open tag at the START of the content
  *  (leading whitespace allowed) so a `<think>` buried mid-reply is NOT treated as a reasoning block. */
@@ -37,7 +35,7 @@ export function parseReasoningTags(content: string, options: ReasoningParseOptio
   }
   const strict = options.strict ?? DEFAULT_STRICT;
   const anchor = strict ? "^\\s*?" : "";
-  const pattern = new RegExp(`${anchor}${escapeRegExp(prefix)}(?<body>.*?)${escapeRegExp(suffix)}`, "su");
+  const pattern = new RegExp(`${anchor}${RegExp.escape(prefix)}(?<body>.*?)${RegExp.escape(suffix)}`, "su");
   const match = pattern.exec(content);
   // biome-ignore lint/suspicious/noUnnecessaryConditions: false positive — biome models `RegExp.exec` non-nullable, but it returns `RegExpExecArray | null` (no match → null), so the guard is real.
   if (match === null) {
