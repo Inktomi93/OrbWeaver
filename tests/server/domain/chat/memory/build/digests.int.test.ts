@@ -6,16 +6,16 @@ import { castId, type Handle } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import type { EmbeddingsStoreOp, StoreDigestParams } from "../../../../../../packages/server/src/domain/chat/contract/context";
-import { generateDigests } from "../../../../../../packages/server/src/domain/chat/memory/build/digests";
-import { consolidationSystemPrompt } from "../../../../../../packages/server/src/domain/chat/memory/build/substrate/prompts";
-import { blockHash } from "../../../../../../packages/server/src/domain/chat/memory/build/substrate/transcript";
-import { loadWitnessHorizons } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries";
-import type { MemoryLogEntry, MsgRow } from "../../../../../../packages/server/src/domain/chat/memory/types";
-import { freshDb } from "../../../../../support/db";
-import { expect, test } from "../../../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../../_support";
-import { fakeEmbeddingsStore, fakeSummarize, GROUP_CHAR, MODEL, seedDigest, seedTurns, sharedScope } from "../_support";
+import type { EmbeddingsStoreOp, StoreDigestParams } from "../../../../../../packages/server/src/domain/chat/contract/context.ts";
+import { generateDigests } from "../../../../../../packages/server/src/domain/chat/memory/build/digests.ts";
+import { consolidationSystemPrompt } from "../../../../../../packages/server/src/domain/chat/memory/build/substrate/prompts.ts";
+import { blockHash } from "../../../../../../packages/server/src/domain/chat/memory/build/substrate/transcript.ts";
+import { loadWitnessHorizons } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
+import type { MemoryLogEntry, MsgRow } from "../../../../../../packages/server/src/domain/chat/memory/types.ts";
+import { freshDb } from "../../../../../support/db.ts";
+import { expect, test } from "../../../../../support/fixtures.ts";
+import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../../_support.ts";
+import { fakeEmbeddingsStore, fakeSummarize, GROUP_CHAR, MODEL, seedDigest, seedTurns, sharedScope } from "../_support.ts";
 
 // PROSE-1 S1: the consolidation system prompt is a slot resolved off the ROOM HOST. The harness's chat ctx
 // carries no override, so the discriminator these tests key on is the resolved shipped default.

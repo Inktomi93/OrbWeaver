@@ -2,11 +2,11 @@ import type { Db } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId, type Handle } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { generateSegments } from "../../../../../../packages/server/src/domain/chat/memory/build/segments";
-import { freshDb } from "../../../../../support/db";
-import { expect, test } from "../../../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedUser } from "../../_support";
-import { fakeEmbeddingsStore, seedTurns } from "../_support";
+import { generateSegments } from "../../../../../../packages/server/src/domain/chat/memory/build/segments.ts";
+import { freshDb } from "../../../../../support/db.ts";
+import { expect, test } from "../../../../../support/fixtures.ts";
+import { makeChatContext, seedCharacter, seedChat, seedUser } from "../../_support.ts";
+import { fakeEmbeddingsStore, seedTurns } from "../_support.ts";
 
 const aria = castId<CharacterId>("character_aria");
 

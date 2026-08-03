@@ -1,7 +1,7 @@
 import { describe } from "vitest";
-import { spanWitnessed } from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/witnessing";
-import type { WitnessInterval } from "../../../../../../../packages/server/src/domain/chat/memory/types";
-import { expect, test } from "../../../../../../support/fixtures";
+import { spanWitnessed } from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/witnessing.ts";
+import type { WitnessInterval } from "../../../../../../../packages/server/src/domain/chat/memory/types.ts";
+import { expect, test } from "../../../../../../support/fixtures.ts";
 
 describe("memory/build/substrate/witnessing — spanWitnessed", () => {
   test("a span fully inside a present interval is witnessed", () => {

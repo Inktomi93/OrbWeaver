@@ -9,11 +9,11 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
-import type { ChatContext } from "../../context";
-import { resolveCfg } from "../constants";
-import { loadCanonThroughSeq, loadChatMeta, loadSegmentHashes } from "../persistence/queries";
-import type { MemoryConfig, MemoryPassCounts } from "../types";
-import { blockHash, EMPTY_MACRO_NAMES, renderTranscript, sliceBlocks } from "./substrate/transcript";
+import type { ChatContext } from "../../context.ts";
+import { resolveCfg } from "../constants.ts";
+import { loadCanonThroughSeq, loadChatMeta, loadSegmentHashes } from "../persistence/queries.ts";
+import type { MemoryConfig, MemoryPassCounts } from "../types.ts";
+import { blockHash, EMPTY_MACRO_NAMES, renderTranscript, sliceBlocks } from "./substrate/transcript.ts";
 
 /** What `generateSegments` needs (file-local, NON-exported — the `types-in-contract` gate; caller passes a
  *  structural literal). Segments are chat-wide, so this takes a bare `chatId` (no scope bucket). */

@@ -4,7 +4,7 @@
 // — this layer reaches into no db (determinism). A character genuinely cannot recall a scene it wasn't in,
 // including across kick→re-add (multiple intervals — the kicked span is absent).
 
-import type { WitnessInterval } from "../../types";
+import type { WitnessInterval } from "../../types.ts";
 
 /**
  * Whether a `[seqStart, seqEnd]` span overlaps ANY presence interval (the character was present for at least

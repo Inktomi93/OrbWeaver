@@ -9,15 +9,15 @@
 import type { CharacterId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
-import type { ChatContext } from "../../context";
-import { resolveCfg } from "../constants";
-import { loadCanonThroughSeq, loadChatMeta, loadDigestHashes, loadDigestSpeakers, loadDigestsForScope } from "../persistence/queries";
-import type { BlockSpan, DigestRow, MemoryConfig, MemoryPassCounts, MemoryScope, WitnessInterval } from "../types";
-import { parseDigest, renderDigestFacets } from "./substrate/parse";
-import { consolidationSystemPrompt, consolidationUserPrompt, digestSystemPrompt, digestUserPrompt } from "./substrate/prompts";
-import { DEFAULT_OUTPUT_RESERVE_TOKENS, fitBlockToBudget, SUMMARIZER_CONTEXT_FLOOR } from "./substrate/token-guard";
-import { blockHash, blockSpeakerIds, consolidationHash, EMPTY_MACRO_NAMES, renderTranscript, sliceBlocks } from "./substrate/transcript";
-import { spanWitnessed } from "./substrate/witnessing";
+import type { ChatContext } from "../../context.ts";
+import { resolveCfg } from "../constants.ts";
+import { loadCanonThroughSeq, loadChatMeta, loadDigestHashes, loadDigestSpeakers, loadDigestsForScope } from "../persistence/queries.ts";
+import type { BlockSpan, DigestRow, MemoryConfig, MemoryPassCounts, MemoryScope, WitnessInterval } from "../types.ts";
+import { parseDigest, renderDigestFacets } from "./substrate/parse.ts";
+import { consolidationSystemPrompt, consolidationUserPrompt, digestSystemPrompt, digestUserPrompt } from "./substrate/prompts.ts";
+import { DEFAULT_OUTPUT_RESERVE_TOKENS, fitBlockToBudget, SUMMARIZER_CONTEXT_FLOOR } from "./substrate/token-guard.ts";
+import { blockHash, blockSpeakerIds, consolidationHash, EMPTY_MACRO_NAMES, renderTranscript, sliceBlocks } from "./substrate/transcript.ts";
+import { spanWitnessed } from "./substrate/witnessing.ts";
 
 /** `witnessing`, when present, is the scoped-build gate: only blocks the scope character was present for (its
  *  join/leave horizons) are digested into its bucket. Absent ⇒ the shared (merged/narrator) build. */

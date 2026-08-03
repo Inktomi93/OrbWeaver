@@ -8,9 +8,9 @@ import {
   renderTranscript,
   sliceBlocks,
   speakerLabel,
-} from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/transcript";
-import type { MsgRow } from "../../../../../../../packages/server/src/domain/chat/memory/types";
-import { expect, test } from "../../../../../../support/fixtures";
+} from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/transcript.ts";
+import type { MsgRow } from "../../../../../../../packages/server/src/domain/chat/memory/types.ts";
+import { expect, test } from "../../../../../../support/fixtures.ts";
 
 const aria = castId<CharacterId>("character_aria");
 const cole = castId<CharacterId>("character_cole");

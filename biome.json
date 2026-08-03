@@ -24,6 +24,13 @@
       "!**/.git",
       "!**/dist",
       "!**/build",
+      // ...but `build` is ALSO a real source directory name here. `.gitignore` gets this right with
+      // negations (`build/` then `!packages/server/src/domain/chat/memory/build/`); this list copied the
+      // exclusion WITHOUT them, so 13 source + test files were silently exempt from biome lint AND format
+      // for as long as the pattern existed. Found 2026-08-03 when node refused to resolve an import that
+      // the extension migration had never been allowed to fix. Later patterns win, so re-include them:
+      "packages/server/src/domain/chat/memory/build/**",
+      "tests/server/domain/chat/memory/build/**",
       "!**/out",
       "!**/.stryker-tmp",
       "!**/reports",
