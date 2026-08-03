@@ -61,7 +61,9 @@ comment; no suppression).
    routed to SERIAL_INT (`aef89ecb`) beside its four same-class siblings (chat.int, rpg.int,
    persona-multihuman, assets-character — full-composition-root files paying the cold graph import
    on their first test). **RE-RUN OWED: `pnpm verify --push` → 14/14 = PUSH-READY.**
-AFTER: **board PUSH-READY, await the word** →
+4. ✅✅ **PUSH BATTERY run 2 = TRUE PASS, ALL STAGES CLEAN.** **PUSH-READY @ HEAD, 85 commits
+   past origin `865405d6` — AWAITING THE OWNER'S WORD (no overnight push, standing law).**
+AFTER: →
 then **DATABANK S1 (owner-ruled: start if the board empties — it has)**: spec
 docs/design/databank-surface-spec.md + published mocks; own rail section; S1-S3 staged;
 RowToggleAction exists; the workspace-scroll lesson (ct-hub) applies to its host; mock-first
