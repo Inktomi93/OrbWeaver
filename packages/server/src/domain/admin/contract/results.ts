@@ -15,4 +15,8 @@ export interface RevokeUserSessionsResult {
 
 export type VllmEnginesResult = Readonly<Record<string, AdminEngineStatus>>;
 
-export type RestartVllmEngineResult = string;
+// `restartVllmEngine` has NO result alias on purpose: it returns the supervisor's own free-form line
+// (or "vllm supervisor not running"), which the admin surface renders as toast prose. There is nothing
+// to brand — it is not an identifier — and nothing to narrow, so an alias would add a name and no
+// information. Its sibling one tier down already spells it bare (`contract/service.ts` restartEngine).
+// An alias must NARROW or BRAND; `pnpm ast stringy` finds the ones that do neither.
