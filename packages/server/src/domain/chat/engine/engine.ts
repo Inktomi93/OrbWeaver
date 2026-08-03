@@ -543,13 +543,28 @@ async function commitGeneration(args: {
   return view;
 }
 
+/** The expressions classify's own trace root (I-7: it ran under NO live span — same outlives-the-request class
+ *  as the rpg round below). One name so the debug surface and any future filter agree. */
+const EXPRESSIONS_SPAN = "expressions.turnCompleted";
+
+/** The trace-ring request id the expressions classify is bucketed under — its OWN id, never the HTTP request's
+ *  (see `rpgRoundRequestId` for why: the classify's dispatch instant still has the `trpc.*` span active, but its
+ *  actual work runs after that root has sealed, so a parented span would be silently dropped as a late orphan). */
+function expressionsRequestId(turnId: ChatTurnId): string {
+  return `expr-turn:${turnId}`;
+}
+
 /** Fire-and-forget the injected expressions post-turn classify (expressions-design/02 §3): after the variant
  *  commits, classify the speaker's affect and emit an ephemeral sprite-swap. Null op = expressions not wired
  *  (byte-identical no-op — the memory-trigger posture). The op swallows its own errors; `.catch` covers a
- *  synchronous throw so nothing reaches the reply path. */
-function fireExpressionClassify(ctx: ChatContext, view: MessageView): void {
+ *  synchronous throw so nothing reaches the reply path. Wrapped in its own DETACHED root (`withRequestSpan`,
+ *  `root: true`) for the same reason the rpg round is: it outlives the request. */
+function fireExpressionClassify(ctx: ChatContext, view: MessageView, turnId: ChatTurnId): void {
   if (ctx.expressions !== null) {
-    void ctx.expressions.onTurnCompleted(view.chatId, view.id, view.selectedVariantId).catch(() => undefined);
+    const expressions = ctx.expressions;
+    void withRequestSpan(expressionsRequestId(turnId), EXPRESSIONS_SPAN, { chatId: view.chatId, messageId: view.id, turnId }, () =>
+      expressions.onTurnCompleted(view.chatId, view.id, view.selectedVariantId),
+    ).catch(() => undefined);
   }
 }
 
@@ -572,6 +587,17 @@ const RPG_ROUND_SPAN = "rpg.turnCompleted";
  *  outlives the request, and a span arriving after that root sealed is dropped as a late orphan. */
 function rpgRoundRequestId(turnId: ChatTurnId): string {
   return `rpg-turn:${turnId}`;
+}
+
+/** The post-turn memory-build pass's own trace root (I-7: it ran under NO live span — same outlives-the-request
+ *  class as the rpg round). Covers the whole build: segments, the group-as-character digest, and every cast
+ *  character's scoped digest — one trace shows the round's full cost, not just its first hop. */
+const MEMORY_SPAN = "memory.turnCompleted";
+
+/** The trace-ring request id the memory build is bucketed under — its OWN id, for the same reason
+ *  `rpgRoundRequestId` gives one to the rpg round. */
+function memoryRequestId(turnId: ChatTurnId): string {
+  return `memory-turn:${turnId}`;
 }
 
 /** Fire-and-forget the rpg post-turn FLUSH (rpg-design/10 §R4): after the variant commits, flush the turn's
@@ -602,12 +628,26 @@ function fireRpgTurnCompleted(ctx: ChatContext, view: MessageView, turnId: ChatT
   }
 }
 
+/** The rpg turn-abort clear's own trace root (I-7: same outlives-the-request class as `fireRpgTurnCompleted`
+ *  above — the abort path returns to the caller before this staging clear finishes). */
+const RPG_ABORT_SPAN = "rpg.turnAborted";
+
+/** A DISTINCT prefix from `rpgRoundRequestId` (never the same bucket as a completed round — the two are
+ *  mutually exclusive per turn, but a shared key would blur "completed" and "aborted" traces together). */
+function rpgAbortRequestId(turnId: ChatTurnId): string {
+  return `rpg-turn-abort:${turnId}`;
+}
+
 /** Fire-and-forget the rpg turn-abort CLEAR (rpg-design/10 §R4 hardening a): drop the turn's staged tool
  *  writes so a dead turn never flushes into the next turn on this chat. Null op = rpg not wired. Fire-and-
- *  forget — clearing staging must never mask the abort the caller is already surfacing. */
+ *  forget — clearing staging must never mask the abort the caller is already surfacing. Wrapped in its own
+ *  DETACHED root for the same reason `fireRpgTurnCompleted` is: it outlives the request. */
 function fireRpgTurnAborted(ctx: ChatContext, chatId: ChatId, turnId: ChatTurnId, reason: TurnAbortReason): void {
   if (ctx.rpg !== null) {
-    void ctx.rpg.onTurnAborted(chatId, turnId, reason).catch(() => undefined);
+    const rpg = ctx.rpg;
+    void withRequestSpan(rpgAbortRequestId(turnId), RPG_ABORT_SPAN, { chatId, turnId, reason }, () => rpg.onTurnAborted(chatId, turnId, reason)).catch(
+      () => undefined,
+    );
   }
 }
 
@@ -843,9 +883,21 @@ function contextAtOrOverWindow(connection: ResolvedConnection, canonAll: readonl
   return cumulative >= window;
 }
 
+/** The managed-compaction marker build's own trace root (I-7 finding: found alongside the three named holes —
+ *  same outlives-the-request class, same file, same fire-and-forget shape, so fixed in this lane too). */
+const COMPACTION_SPAN = "chat.managedCompaction";
+
+/** The trace-ring request id the compaction build is bucketed under — its OWN id, for the same reason
+ *  `rpgRoundRequestId` gives one to the rpg round. Keyed by the TRIGGERING turn (not just `chatId`): the
+ *  single-flight Set below is chat-scoped, but the trace should still tie back to which turn fired it. */
+function compactionRequestId(turnId: ChatTurnId): string {
+  return `compaction-turn:${turnId}`;
+}
+
 function fireManagedCompaction(
   deps: EngineDeps,
   prep: TurnPrep,
+  turnId: ChatTurnId,
   turn: { readonly result: Awaited<ReturnType<typeof runTurnPipeline>>; readonly canonAll: readonly MessageView[] },
 ): void {
   // The EFFECTIVE compaction config (preset params folded with the per-send intent) — NOT `prep.intent` alone.
@@ -868,7 +920,7 @@ function fireManagedCompaction(
   const instructions = compaction.instructions ?? DEFAULT_COMPACT_INSTRUCTIONS;
   const connection = prep.connection;
   const ownerId = prep.runAsUserId;
-  void (async (): Promise<void> => {
+  void withRequestSpan(compactionRequestId(turnId), COMPACTION_SPAN, { chatId, turnId, coveragePoint }, async () => {
     try {
       const res = await deps.runCompaction({ chatId, connection, ownerId, coveragePoint, instructions });
       // `updated:false` is a benign no-op (already covered / all-hidden span) — nothing changed, nothing to
@@ -882,10 +934,13 @@ function fireManagedCompaction(
       // untouched and surfaces the `compaction_failed` warning (the memory_build_failed mirror).
       getLog().warn({ err: compactErr, chatId }, "chat: managed compaction failed");
       await emitQuiet(deps, { type: "warning", chatId, code: "compaction_failed" });
+      // Rethrow so the span marks itself ERROR (I-7: previously swallowed here too). Still fire-and-forget —
+      // the outer `.catch` below absorbs it.
+      throw compactErr;
     } finally {
       compactionInFlight.delete(chatId);
     }
-  })();
+  }).catch(() => undefined);
 }
 
 /** Mark the turn eligible to feed the player's queued d20 into its first skill check (rpg-design/05 §6) — only
@@ -1194,7 +1249,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       // Reuses the per-chat producer the SHAPE path already built (character + persona name maps), so build
       // and assemble agree.
       const macroNames = historyMacroNames;
-      void Promise.resolve().then(async () => {
+      void withRequestSpan(memoryRequestId(turnId), MEMORY_SPAN, { chatId: prep.chatId, turnId }, async () => {
         try {
           await deps.generateSegments(ctx, {
             chatId: prep.chatId,
@@ -1244,16 +1299,20 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
           } catch {
             // A failed warning emit must never re-throw out of the fire-and-forget.
           }
+          // Rethrow so the span marks itself ERROR (I-7: previously swallowed here, so a failed build always
+          // looked "ok" on the trace ring even though the warning above fired). Still fire-and-forget to the
+          // caller — the outer `.catch` below absorbs it.
+          throw memErr;
         }
-      });
+      }).catch(() => undefined);
     }
 
     // Fire-and-forget MANAGED-COMPACTION trigger (the LINEAR memory tier), a sibling of the digest build above
     // and keyed off the SAME fit boundary. Runs only in `compaction.mode:"managed"`, off the hot path, and
     // never blocks/faults the reply.
-    fireManagedCompaction(deps, prep, { result, canonAll });
+    fireManagedCompaction(deps, prep, turnId, { result, canonAll });
 
-    fireExpressionClassify(ctx, view);
+    fireExpressionClassify(ctx, view, turnId);
 
     return committedOutcome([view]);
   } catch (err) {

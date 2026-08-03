@@ -15,6 +15,7 @@ import type { CharacterId, ChatId, MessageId, MessageVariantId, UserId, WorldEnt
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { applyStatsDelta } from "@orb/server/domain/stats";
+import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
@@ -97,6 +98,11 @@ function harness(
     runCompaction?: Parameters<typeof createTurnEngine>[1]["runCompaction"];
     lockTtlMs?: number;
     now?: () => number;
+    /** The injected rpg turn ops (default null = not wired). The I-7 abort-trace pin wires a recorder. */
+    rpg?: ChatContext["rpg"];
+    /** The injected expressions post-turn classify (default null = not wired). The I-7 classify-trace pin
+     *  wires a recorder. */
+    expressions?: ChatContext["expressions"];
   } = {},
 ): Harness {
   const events: ChatBusEvent[] = [];
@@ -105,6 +111,8 @@ function harness(
   const ctx = makeChatContext(database, {
     runChatTurn: over.runChatTurn ?? OK_TURN,
     ...(over.now !== undefined ? { now: over.now } : {}),
+    ...(over.rpg !== undefined ? { rpg: over.rpg } : {}),
+    ...(over.expressions !== undefined ? { expressions: over.expressions } : {}),
     applyStatsDelta: (_batch: unknown, _db: Db, delta: StatsDelta): void => {
       deltas.push(delta);
     },
@@ -1021,19 +1029,20 @@ describe("createTurnEngine — F4: continuePostfix delimiter on a continue turn"
   });
 });
 
-describe("createTurnEngine — abort signal (FLAG[abort-into-engine] resolved)", () => {
-  // The runner honors the threaded signal: an aborted request throws a name-based AbortError mid-generation.
-  const honorsAbort: ChatContext["runChatTurn"] = (req) =>
-    (async function* (): AsyncGenerator<TurnStreamChunk> {
-      await Promise.resolve();
-      if (req.signal?.aborted === true) {
-        const err = new Error("request aborted");
-        err.name = "AbortError";
-        throw err;
-      }
-      yield { kind: "text", text: "should not reach" };
-    })();
+// The runner honors the threaded signal: an aborted request throws a name-based AbortError mid-generation.
+// Hoisted to module scope — the I-7 rpg-abort-trace pin (below) reuses it to reach the engine's abort path.
+const honorsAbort: ChatContext["runChatTurn"] = (req) =>
+  (async function* (): AsyncGenerator<TurnStreamChunk> {
+    await Promise.resolve();
+    if (req.signal?.aborted === true) {
+      const err = new Error("request aborted");
+      err.name = "AbortError";
+      throw err;
+    }
+    yield { kind: "text", text: "should not reach" };
+  })();
 
+describe("createTurnEngine — abort signal (FLAG[abort-into-engine] resolved)", () => {
   test("a caller-cancelled turn RETURNS an aborted outcome (aborted:true, reason:user) — no throw, no canon", async () => {
     const chatId = await seedChat(db, "a");
     const h = harness(db, { runChatTurn: honorsAbort });
@@ -1053,6 +1062,115 @@ describe("createTurnEngine — abort signal (FLAG[abort-into-engine] resolved)",
     expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
     // Lock released on the return path.
     expect(await lockExpiry(db, chatId)).toBeNull();
+  });
+});
+
+// ── I-7: the three remaining trace-ring holes are now DETACHED roots of their own ──────────────────────
+// The expressions classify, the rpg turn-abort clear, and the post-turn memory build all ran under NO live
+// span (same outlives-the-request class SM4 fixed for the rpg round: their dispatch instant still has the
+// request span active, but their actual work runs after that root sealed — a parented span would silently
+// never land). Proved through the TRACE RING (`recentTraces`), driven from INSIDE an outer request root
+// exactly like production — that nesting is the exact condition a non-detached root would have lost.
+const TRACE_SCAN_LIMIT = 50;
+const OUTER_REQUEST_ID = "i7-trace-outer-request";
+/** Hoisted: useTopLevelRegex. */
+const EXPR_REQUEST_ID_RE = /^expr-turn:/;
+const RPG_ABORT_REQUEST_ID_RE = /^rpg-turn-abort:/;
+const MEMORY_REQUEST_ID_RE = /^memory-turn:/;
+
+describe("createTurnEngine — I-7 trace-ring landing proofs", () => {
+  test("the expressions post-turn classify opens its OWN request trace", async () => {
+    initTracing();
+    const chatId = await seedChat(db, "expr-trace");
+    let classifyDone: () => void = () => undefined;
+    const classified = new Promise<void>((resolve) => {
+      classifyDone = resolve;
+    });
+    const expressions: NonNullable<ChatContext["expressions"]> = {
+      onTurnCompleted: async () => {
+        await Promise.resolve();
+        classifyDone();
+      },
+    };
+    const h = harness(db, { expressions });
+
+    const outcome = await withRequestSpan(OUTER_REQUEST_ID, "http POST /api/trpc/chat.send", {}, () => h.engine.runTurn(prepOf(chatId)));
+    expect(outcome.aborted).toBe(false);
+    await classified;
+
+    const trace = recentTraces(TRACE_SCAN_LIMIT).find((t) => t.rootName === "expressions.turnCompleted");
+    expect(trace).toBeDefined();
+    expect(trace?.requestId).toMatch(EXPR_REQUEST_ID_RE);
+    expect(trace?.status).toBe("ok");
+    expect(trace?.requestId).not.toBe(OUTER_REQUEST_ID);
+  });
+
+  test("the rpg turn-abort staging clear opens its OWN request trace", async () => {
+    initTracing();
+    const chatId = await seedChat(db, "rpg-abort-trace");
+    let clearDone: () => void = () => undefined;
+    const cleared = new Promise<void>((resolve) => {
+      clearDone = resolve;
+    });
+    // FABRICATION-OK: the abort path reaches only `onTurnAborted` (the `fireOrderRpg`/`gatherSpyRpg` precedent
+    // in tests/server/domain/chat/verbs/turn.int.test.ts).
+    const rpg = {
+      onTurnAborted: async () => {
+        await Promise.resolve();
+        clearDone();
+      },
+    } as unknown as NonNullable<ChatContext["rpg"]>;
+    const h = harness(db, { runChatTurn: honorsAbort, rpg });
+    const controller = new AbortController();
+    controller.abort();
+
+    const outcome = await withRequestSpan(OUTER_REQUEST_ID, "http POST /api/trpc/chat.send", {}, () =>
+      h.engine.runTurn(prepOf(chatId, { signal: controller.signal })),
+    );
+    expect(outcome.aborted).toBe(true);
+    await cleared;
+
+    const trace = recentTraces(TRACE_SCAN_LIMIT).find((t) => t.rootName === "rpg.turnAborted");
+    expect(trace).toBeDefined();
+    expect(trace?.requestId).toMatch(RPG_ABORT_REQUEST_ID_RE);
+    expect(trace?.status).toBe("ok");
+    expect(trace?.requestId).not.toBe(OUTER_REQUEST_ID);
+  });
+
+  test("the post-turn memory build opens its OWN request trace", async () => {
+    initTracing();
+    const chatId = await seedChat(db, "memory-trace");
+    // A cast character seat, so `chars.length >= 1` and the scoped-digest `Promise.all` below actually
+    // reaches `generateDigests` (an empty roster resolves it with zero calls — the completion signal below
+    // would never fire).
+    await seedUser(db, "host");
+    const char = await seedCharacter(db, HOST, "aria");
+    await seedParticipant(db, { chatId, key: "aria", characterId: char });
+    let buildDone: () => void = () => undefined;
+    const built = new Promise<void>((resolve) => {
+      buildDone = resolve;
+    });
+    const h = harness(db, {
+      generateSegments: async () => {
+        await Promise.resolve();
+        return { written: 0, skipped: 0 };
+      },
+      generateDigests: async () => {
+        await Promise.resolve();
+        buildDone();
+        return { written: 0, skipped: 0 };
+      },
+    });
+
+    const outcome = await withRequestSpan(OUTER_REQUEST_ID, "http POST /api/trpc/chat.send", {}, () => h.engine.runTurn(prepOf(chatId)));
+    expect(outcome.aborted).toBe(false);
+    await built;
+
+    const trace = recentTraces(TRACE_SCAN_LIMIT).find((t) => t.rootName === "memory.turnCompleted");
+    expect(trace).toBeDefined();
+    expect(trace?.requestId).toMatch(MEMORY_REQUEST_ID_RE);
+    expect(trace?.status).toBe("ok");
+    expect(trace?.requestId).not.toBe(OUTER_REQUEST_ID);
   });
 });
 
