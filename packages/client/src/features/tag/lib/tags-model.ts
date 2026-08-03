@@ -5,6 +5,8 @@
 import type { TagFolderType, TagUsage } from "@orb/contracts/tag";
 import { TAG_FOLDER_TYPES } from "@orb/contracts/tag";
 import type { SelectOption } from "@orb/ui/select";
+import type { TagSortMode } from "#lib";
+import { TAG_SORT_MODES } from "#lib";
 
 /** The collection KIND — the registry key, the React key, and the selection store's kind axis. ONE home,
  *  read by the definition and by the create verb that selects what it just made. */
@@ -20,6 +22,21 @@ const FOLDER_TYPE_LABELS = new Map<TagFolderType, string>([
 /** The folder-type Select options, derived from the canonical tuple. */
 export const FOLDER_TYPE_ITEMS: readonly SelectOption<TagFolderType>[] = TAG_FOLDER_TYPES.map((value) => ({
   label: FOLDER_TYPE_LABELS.get(value) ?? value,
+  value,
+}));
+
+/** The sort-mode labels — a TOTAL Record over the `#lib` union (a new mode fails `tsc`; Spine §5.5).
+ *  "Manual order" is named as an ORDER, not a verb: it is the authored `sortOrder`, and it is the only mode
+ *  that offers drag handles (dragging a derived order would write an order nothing ever reads back). */
+const SORT_MODE_LABELS: Record<TagSortMode, string> = {
+  used: "Most used",
+  alpha: "A–Z",
+  manual: "Manual order",
+};
+
+/** The sort-mode Select options, derived from the canonical tuple. */
+export const TAG_SORT_ITEMS: readonly SelectOption<TagSortMode>[] = TAG_SORT_MODES.map((value) => ({
+  label: SORT_MODE_LABELS[value],
   value,
 }));
 

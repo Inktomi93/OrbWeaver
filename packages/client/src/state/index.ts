@@ -31,13 +31,13 @@ export type { CharacterViewMode } from "./character-library-store";
 export {
   __resetTagFilter,
   CHARACTER_VIEW_MODES,
+  cycleTagFilter,
   setBulkMode,
   setCharacterSortMode,
   setCharacterViewMode,
   toggleFavoritesOnly,
   toggleShowArchived,
   toggleSpoilerBlur,
-  toggleTagFilter,
   useCharacterBulkMode,
   useCharacterSortMode,
   useCharacterViewMode,
@@ -267,4 +267,5 @@ export {
   STEER_RECOVERY_CAP,
   useRecentSteers,
 } from "./steer-recovery-store";
+export { setTagSortMode, useTagSortMode } from "./tag-library-store";
 export { clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId } from "./world-entry-selection-store";

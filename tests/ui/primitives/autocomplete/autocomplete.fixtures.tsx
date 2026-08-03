@@ -35,3 +35,33 @@ export function DerivedItemsStory(): ReactElement {
 export function CustomFilterStory(): ReactElement {
   return <Autocomplete aria-label="Tag" filter={(): boolean => true} items={["adventure", "mystery"]} />;
 }
+
+/**
+ * The CONTROLLED-OPEN arm: the caller pre-filters (`mode="none"`, so Base UI shows exactly what it is
+ * handed) and refuses to open the popup when that list is empty. The popup is an OVERLAY anchored under
+ * the field, so an empty one lands on whatever is below — in a prompt dialog, the confirm button, which it
+ * then intercepts pointer events for AND removes from the accessibility tree. The button below stands in
+ * for that footer.
+ */
+export function ControlledOpenStory(): ReactElement {
+  const [value, setValue] = useState("");
+  const [open, setOpen] = useState(false);
+  const [clicked, setClicked] = useState(0);
+  const matches = SOURCE.filter((s) => s.includes(value.trim().toLowerCase()));
+  return (
+    <div>
+      <Autocomplete
+        aria-label="Tag"
+        items={matches}
+        mode="none"
+        onOpenChange={setOpen}
+        onValueChange={setValue}
+        open={open && matches.length > 0}
+        value={value}
+      />
+      <button data-testid="below" onClick={(): void => setClicked((n) => n + 1)} type="button">
+        below {clicked}
+      </button>
+    </div>
+  );
+}

@@ -43,9 +43,33 @@ test("filterByChips: favoritesOnly keeps only starred; tagFilter is conjunctive 
   const both = filterByChips(rows, {
     favoritesOnly: false,
     showArchived: false,
-    tagFilter: [rpg.id, noir.id],
+    tagFilter: [
+      { id: rpg.id, state: "include" },
+      { id: noir.id, state: "include" },
+    ],
   });
   expect(both.map((r) => r.id)).toEqual(["a", "c"]);
+});
+
+// EXCLUSION (the axis neither our lineage nor neo ever built): "everything tagged rpg that ISN'T noir" is
+// the query a pure-AND multi-select cannot express at all.
+test("filterByChips: an excluded tag removes the rows carrying it, and composes with include", () => {
+  const rpg = tag("t_rpg", "rpg");
+  const noir = tag("t_noir", "noir");
+  const rows = [row({ id: "a", tags: [rpg, noir] }), row({ id: "b", tags: [rpg] }), row({ id: "c", tags: [noir] }), row({ id: "d", tags: [] })];
+
+  const notNoir = filterByChips(rows, { favoritesOnly: false, showArchived: false, tagFilter: [{ id: noir.id, state: "exclude" }] });
+  expect(notNoir.map((r) => r.id)).toEqual(["b", "d"]);
+
+  const rpgNotNoir = filterByChips(rows, {
+    favoritesOnly: false,
+    showArchived: false,
+    tagFilter: [
+      { id: rpg.id, state: "include" },
+      { id: noir.id, state: "exclude" },
+    ],
+  });
+  expect(rpgNotNoir.map((r) => r.id)).toEqual(["b"]);
 });
 
 test("groupByTag: multi-tag rows appear under EACH group; untagged fall to the Uncategorized tail", () => {
