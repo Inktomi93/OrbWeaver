@@ -3,7 +3,7 @@
 // `null`/absent override falls through to the floor (the null=CLEAR sentinel). Plus the D17 governance
 // floors (born-in-DB: local-compute ON, max-pro-sub OFF, budget null).
 
-import { DEFAULT_MAX_IMAGE_BYTES } from "@orb/contracts/settings";
+import { DEFAULT_MAX_IMAGE_BYTES, DEFAULT_STRUCTURED_OUTPUT_SHAPE } from "@orb/contracts/settings";
 import { env } from "@orb/server/foundation/env";
 import { describe } from "vitest";
 import { layer } from "../../../../../packages/server/src/domain/settings/effective-config/layer.ts";
@@ -78,6 +78,14 @@ describe("layer (floor-merge)", () => {
     expect(layer({}).maxImageBytes).toBe(DEFAULT_MAX_IMAGE_BYTES);
     expect(layer({ maxImageBytes: null }).maxImageBytes).toBe(DEFAULT_MAX_IMAGE_BYTES); // clear → floor
     expect(layer({ maxImageBytes: 20_000_000 }).maxImageBytes).toBe(20_000_000);
+  });
+
+  test("born-in-DB floor: structuredOutputShape is `as-projected`; an admin override switches the wire shape", () => {
+    // D126 — the default STANDS (the strict reshape costs output tokens and reads worse to a small local
+    // model); what the tier buys is that switching is a click, not a redeploy.
+    expect(layer({}).structuredOutputShape).toBe(DEFAULT_STRUCTURED_OUTPUT_SHAPE);
+    expect(layer({ structuredOutputShape: "strict-compatible" }).structuredOutputShape).toBe("strict-compatible");
+    expect(layer({ structuredOutputShape: null }).structuredOutputShape).toBe(DEFAULT_STRUCTURED_OUTPUT_SHAPE); // clear → floor
   });
 
   describe("engineLaunch (#14 LAUNCH tier)", () => {

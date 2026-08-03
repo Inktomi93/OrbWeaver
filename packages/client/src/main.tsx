@@ -78,6 +78,7 @@ import {
   operationsSection,
   rateLimitsSection,
   sharedAccessSection,
+  structuredOutputSection,
   systemTuningSection,
 } from "#features/user-admin";
 import { backupPane, workloadsJobsSection, workloadsPane, workloadsSchedulesSection, workloadsTuningSection } from "#features/workloads";
@@ -292,6 +293,7 @@ const settingsSections = createContributorRegistry<SettingsSectionContribution>(
   memoryTuningSection,
   rateLimitsSection,
   systemTuningSection,
+  structuredOutputSection,
   // workloads ← the DECOMPOSED workloads pane (SET-SEAMS stage 3): the jobs list and the schedules, ahead of
   // the analysis-tuning knobs (dupThreshold/computeThemesK/maxPairs/hubFraction) that were already a
   // contribution — reproducing the pre-split pane exactly.

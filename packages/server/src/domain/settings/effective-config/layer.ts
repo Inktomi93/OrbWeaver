@@ -20,6 +20,7 @@ import {
   DEFAULT_DISCREET_LOGIN,
   DEFAULT_LOCAL_MULTI_USER,
   DEFAULT_MAX_IMAGE_BYTES,
+  DEFAULT_STRUCTURED_OUTPUT_SHAPE,
 } from "@orb/contracts/settings";
 import { DATABANK_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import { env } from "#foundation/env";
@@ -143,5 +144,6 @@ export function layer(overrides: AppSettings): EffectiveAppConfig {
     ...resolveBornInDbScalars(overrides),
     localMultiUser: overrides.localMultiUser ?? DEFAULT_LOCAL_MULTI_USER,
     discreetLogin: overrides.discreetLogin ?? DEFAULT_DISCREET_LOGIN,
+    structuredOutputShape: overrides.structuredOutputShape ?? DEFAULT_STRUCTURED_OUTPUT_SHAPE,
   };
 }
