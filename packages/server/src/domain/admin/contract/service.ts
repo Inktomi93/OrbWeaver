@@ -23,7 +23,6 @@ import type {
   CreateUserResult,
   ListSessionsResult,
   ListUsersResult,
-  RestartVllmEngineResult,
   RevokeUserSessionsResult,
   SetEnabledResult,
   SetRoleResult,
@@ -77,6 +76,7 @@ export interface AdminService {
   readonly revokeSession: (params: RevokeSessionParams) => Promise<void>;
   readonly revokeUserSessions: (params: RevokeUserSessionsParams) => Promise<RevokeUserSessionsResult>;
   readonly vllmEngines: (params: VllmEnginesParams) => Promise<VllmEnginesResult>;
-  readonly restartVllmEngine: (params: RestartVllmEngineParams) => Promise<RestartVllmEngineResult>;
+  /** Returns the supervisor's own free-form line — prose for a toast, not an identifier (see results.ts). */
+  readonly restartVllmEngine: (params: RestartVllmEngineParams) => Promise<string>;
   readonly embedCharacterCard: (params: EmbedCharacterCardParams) => Promise<void>;
 }
