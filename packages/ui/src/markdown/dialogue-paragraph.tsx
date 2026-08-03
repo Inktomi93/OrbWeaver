@@ -9,7 +9,7 @@
 // seam runs AFTER sanitize + harden, on already-safe React children — it can only re-wrap text that
 // already rendered, and can never introduce markup.
 import type { ComponentPropsWithoutRef, ReactElement, ReactNode } from "react";
-// @orb-gate-ignore no-legacy-react-api — reason: the markdown seal transforms ALREADY-RENDERED children
+// @orb-gate-ignore no-legacy-react-api: the markdown seal transforms ALREADY-RENDERED children
 // (this is a `components.p` override running after sanitize), so children ARE the library's interface here;
 // there is no data array to map instead. Ends if Streamdown ever hands the seam its source nodes.
 import { Children, isValidElement } from "react";

@@ -46,7 +46,10 @@ export type ToolChoice =
 
 /** One assembled model-emitted call off the stream. `arguments` is the raw JSON string, parsed exactly once inside execute. */
 export interface ToolCallInput {
-  // @orb-gate-ignore no-raw-id PROVIDER-emitted opaque handle (OpenAI `call_…`) — provenance-faithful, joins the call to its result on the wire; never an orbweaver brand.
+  // PROVIDER-emitted opaque handle (OpenAI `call_…`) — provenance-faithful, joins the call to its result
+  // on the wire; never an orbweaver brand. (Prose, NOT an `@orb-gate-ignore`: `no-raw-id` judges zod
+  // `z.string()` schemas, and this is a plain TS interface field, so the marker guarded nothing. The
+  // zod-side twin in contracts/src/chat/messages.ts is where the live suppression lives.)
   readonly toolCallId: string;
   readonly name: string;
   readonly arguments: string;
