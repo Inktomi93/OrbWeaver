@@ -573,6 +573,19 @@ ledger clause's cited SEAM is a hypothesis — cross-check against the spec sect
 summarizes before building to its letter (the D67-adjacent class, caught pre-build this
 time). Freshness verified-not-assumed (previewAssembly already rides promptPreviewReads).
 FLAG: drawer.ct:162 focus-trap failure is PRE-EXISTING at HEAD (watch list).
+**TRANSCRIPTS MID-RUN (spend $2.68; re-run projected total ~$4.2, in-cap):** flagship run 1
+had a coherence wobble (extraction never writes AMBIENT → state pinned at the campfire while
+prose reached the throne room → two seats contradicting location). Re-run trimmed 11 turns +
+HOST editSnapshot scene-moves at act breaks (BETTER demo: the world plane now moves on the
+record too). Stop-rule: no third run without my word; ship better-of-two.
+**TWO DEFECTS FROM THE RUN:** (1) **`rpg.resyncFromStory` BROKEN on the OpenRouter
+chat-completions path** — @openrouter/sdk 1.1.8 response-schema validation fails
+("structured item 0 … path:[response$]", backends/openrouter/index.ts:183) → the host's
+rebuild-the-board door SILENTLY NO-OPS (returns null) on the default hosted backend →
+**BUG LANE RESYNC-OR queued next drain** (per-backend-wire-vocab / customparameters class
+suspects). (2) Seeded demo replay auto-locked every written datum → received examples FROZEN
+against the user's own play (4 extraction rounds no-op'd live) — FIXED in-lane red-first
+(autoLock:false; the receiving-user-can-play property pinned).
 **TD RULINGS #2 (owner, post-review):** O-4/O-5 CONFIRMED w/ tree receipts (chatStyle =
 the Chat-display modes incl. VN-flavored; the SETTING stays, the never-consumed OVERRIDE
 field + lying selects die) · O-6 inverse door BUILD · **zero-edit rider OVERRULED: interception
