@@ -633,6 +633,11 @@ callers ignoring HandDoorResult.ok LOSE writes (a 41-char weather.label dropped 
 scene write; sweep callers for ok-checks) · (4) WATCH: hand editSnapshot during an in-flight
 turn can be clobbered by the flush (seen once, unchased). Lessons banked in-report.
 **Lane R1-CONFIG dispatched (the promised drain) — MOCK-FIRST.**
+**OWNER RULINGS #4 (08-03 night, pre-overnight):** IMGMAC = YES queue the server small
+(thread the user-macro registry into extractQuiet — imagery templates resolve the plane;
+behind tonight's set) · **DATABANK STARTS OVERNIGHT if the board empties** (ruled — the
+mandate's letter). MACU-2 lands arm (a) meanwhile (wire the 2 honest surfaces, cite the 2
+exempt w/ the now-scheduled door named).
 ✅ **TDB MERGED (--no-verify on receipts, torn down) — THE THEME PROGRAM IS BUILT** (64 files,
 6 red-first proofs 6-red→29-green): promoteTheme door (subset-projected, mint de-collide) ·
 Start-from-a-theme inverse door (density proven NOT to ride) · the partition as ONE
@@ -1710,6 +1715,28 @@ work.
 
 **═══ ORCHESTRATOR QUICK-ONBOARD (post-compact tips — skip the usual re-setup, minted 08-02;
 refined 08-03 after the smoothest resume yet) ═══**
+· 08-03-NIGHT REFINEMENTS (the burn-down day — every line below cost something):
+  **ONE COMMIT per lane + terse messages** (doctrine carries it; an agent drafted a commit
+  message for 15 min). **--no-verify merges on branch-side hook-green receipts** — BUT a branch
+  certified BEFORE sibling merges landed = the merged RESULT was never hooked: run `pnpm check`
+  on main after any such merge (REGEX's landing caught 2 same-day gate bites exactly this way;
+  the cross-branch semantic-conflict class is real). **HOLD merges while a verify --push runs**
+  (the PORT pattern — merging mid-battery muddies what got certified; merge after the verdict).
+  **ALLOCATE D-NUMBERS AT DISPATCH when two live lanes both mint** (D123/D124 — a lane told
+  "D123" three ways needed renumbering mid-run). **A ledger clause's cited SEAM is a
+  hypothesis** — cross-check against the spec section it summarizes before building to its
+  letter (D121-G named a verb that structurally couldn't carry the payload). **A review's
+  tree-claims AGE between delivery and execution** — verify every mechanism claim against
+  today's tree before landing it as law/code (CARCH caught two already-false claims; the
+  F-14 CLS pinned cause was refuted whole). **Zombie instances: TaskStop an agent after its
+  final report merges** (a lingering resumed instance in a torn-down worktree correctly
+  refuses to act — but it sits in the owner's UI as running); NEVER resume an agent whose
+  worktree you already removed. **Publish mocks as artifacts for the owner eyeball**
+  (4 config-rail mocks; the eyeball ruled 2 forks in minutes). **Scout dormancy censuses**
+  (LIVE/DOORWAY/DEAD-WIRE/ABSENT per verb) answer "is this domain real" cheaply — wired-or-
+  cited applies at domain scale (plugin). **snap --contexts requires the owner's stack DOWN**
+  (fixture shares 8788/5173 — the e2e local project's browser-actors.ts is the isolated
+  two-human alternative).
 · 08-03 LATE REFINEMENTS (the second full day of this pattern — all proven): BOARD COMMITS =
   `--no-verify` (owner word; code merges keep the hook). SIX-lane cap (owner word, "until
   further notice"). Merge-hook format-drift reds: fix IN the staged merge (scoped biome on the

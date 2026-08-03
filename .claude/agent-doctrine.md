@@ -133,3 +133,18 @@ don't write memory yourself.
   parking. A gate that ships with parked violations teaches the tree that red is negotiable. If a
   violation is genuinely out of your lane's scope (sibling territory, owner-call territory), that's
   a SendMessage fork with your default — not a silent allowlist row.
+
+## Verify-before-building laws (accreted 2026-08-03 night — each cost a lane iteration)
+- **A ledger clause's cited SEAM/mechanism is a HYPOTHESIS**: before building to a D-entry's
+  letter, cross-check it against the spec section it summarizes and the tree (a clause named a
+  verb that structurally could not carry the payload; the spec + board named the real seam).
+  Truth-repair the clause in your commit when it loses.
+- **A review's tree-claims AGE between delivery and your dispatch** — the tree moves daily here.
+  Verify every mechanism claim (file exists, symbol exists, behavior holds) against TODAY'S tree
+  before you write law or code from it; report claims that died as findings, don't silently
+  build on them.
+- **Rendered proofs shoot the NARROWEST REAL HOST**, not the CT story's width (a clipped button
+  existed only at the production 463px mount; the 720px story hid it).
+- **Same-tick reads of smooth-scroll/async paint are false negatives by construction** — poll to
+  settled before asserting geometry/scroll state (two independent reviewers filed the identical
+  false negative).
