@@ -55,7 +55,10 @@ export async function trpcMutation<T>(procedure: string, input: unknown): Promis
 // ── The canon/settings shapes the specs read (the fields they assert on — NOT the full contract). These
 // mirror @orb/contracts but are declared locally: the e2e support tree stays import-free of the package
 // trees on purpose (specs assert against the WIRE, not against the source's own types — an honest
-// ground-truth read; same posture as chat-room.ts's OrbBusHandle). ──
+// ground-truth read; same posture as chat-room.ts's OrbBusHandle). ONE carve-out (brand-in-name-position,
+// 2026-08-03): TYPE-ONLY imports of the `@orb/kit/ids` id brands are allowed — erased at runtime, they add
+// no package-code dependency, and an id position typed bare `string` here is exactly the wrong-id hole the
+// gate exists to close. The mirror rule still binds every CONTRACT shape. ──
 
 /** One canon message row (a subset of contracts/chat `MessageView` — the fields the honesty specs read).
  *  `role` stays `string` (not a re-spelled `"user"|"assistant"` union): this package-import-free support
