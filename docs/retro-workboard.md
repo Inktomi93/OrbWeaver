@@ -633,6 +633,26 @@ callers ignoring HandDoorResult.ok LOSE writes (a 41-char weather.label dropped 
 scene write; sweep callers for ok-checks) · (4) WATCH: hand editSnapshot during an in-flight
 turn can be clobbered by the flush (seen once, unchased). Lessons banked in-report.
 **Lane R1-CONFIG dispatched (the promised drain) — MOCK-FIRST.**
+✅ **ANCHOR MERGED + D123/D124 MINTED (`9d790b9b` + merge; consolidated check 14/14 PASS)** —
+hand-written rpg state is OFF the message plane (turn row iff turn-flushed; 8-write burst = 8
+hand rows, canon untouched; blank narrator posts REFUSE; 7 filters deleted, 8 leak planes
+clean by construction; swipe suite passed byte-unmodified). NOTES: the seeder drop-patch
+STAYS (the committed flagship fixture carries durable pre-D124 mes:"" rows — patch retires at
+the next fixture regen, ANCHOR's matched-nothing premise corrected) · TICKET: biome
+stack-overflows on single-file check of chat-ops/handoff-heal.ts (whole-tree passes —
+parallelism quirk; reproduces on main) · L8-inbound (foreign ST mes:"" rows at import) =
+declined-by-scope, one-liner if wanted · LESSON banked in doctrine territory: ne() on a
+newly-nullable column silently drops NULL rows — sweep every ne/notInArray when widening.
+**OWNER LIVE REPORTS #2 (08-03 night):** (1) "Filter by face" RENAMED → "Filter by
+character" (direct-on-main `9ad1d843`, CT 24/24) + **FACEFILT queued**: the strip won't scale
+(9 faces already scrolling) — design tweak: frequent/recent-N + overflow picker, or fold into
+search facets. (2) **DEV DB RE-MINTED clean** (stack stop → rm → seed): exactly 6 v3 demos,
+doubles dead (the 19h v2 set + tonight's generation sources both gone). (3) **NARCOLOR
+dispatched**: per-speaker coloring in group NARRATOR mode not working/parsing (Second Opinion
+fixture = the repro). (4) **REGPAR queued next drain**: ST regex-extension parity sweep —
+owner names DISPLAY-EPHEMERAL semantics + the REGEX TESTER as missing; audit the local ST
+source checkout feature-for-feature, spec-then-build (with IMGMAC + RESYNC-OR in the bug
+queue).
 **OWNER RULINGS #4 (08-03 night, pre-overnight):** IMGMAC = YES queue the server small
 (thread the user-macro registry into extractQuiet — imagery templates resolve the plane;
 behind tonight's set) · **DATABANK STARTS OVERNIGHT if the board empties** (ruled — the
