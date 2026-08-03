@@ -5,7 +5,7 @@ import { Autocomplete } from "@orb/ui/autocomplete";
 import { Field } from "@orb/ui/field";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ControlledOpenStory, CustomFilterStory, DerivedItemsStory } from "./autocomplete.fixtures";
+import { ControlledOpenStory, CustomFilterStory, DerivedItemsStory, InlineStory } from "./autocomplete.fixtures";
 
 const NON_EMPTY = /.+/u;
 
@@ -179,4 +179,42 @@ test("controlled open: a matching query DOES open the popup", async ({ mount, pa
   await input.click();
   await input.pressSequentially("myst");
   await expect(page.getByRole("option", { name: "mystery" })).toBeVisible();
+});
+
+// THE INLINE ARM (side-eye 2026-08-03 P0): a popup anchored under the field is taller than a prompt
+// dialog, so it covers the confirm row it points at and Base UI `aria-hidden`s the rest of the host out
+// of the accessibility tree. `inline` renders the same list in flow — same keyboard model, no overlay.
+test("inline: the suggestions render IN FLOW, and what sits below stays clickable", async ({ mount, page }) => {
+  const component = await mount(<InlineStory />);
+  const input = page.getByRole("combobox");
+  await input.click();
+  await input.pressSequentially("adv");
+  await expect(page.getByRole("option", { name: "adventure" })).toBeVisible();
+
+  // NOT portalled: the list is a descendant of the story's own subtree.
+  await expect(component.locator('[data-slot="autocomplete-inline-list"]')).toHaveCount(1);
+  const below = page.getByTestId("below");
+  await below.click();
+  await expect(below).toHaveText("below 1");
+});
+
+test("inline: Enter on a highlighted item still writes it into the input", async ({ mount, page }) => {
+  await mount(<InlineStory />);
+  const input = page.getByRole("combobox");
+  await input.click();
+  await input.pressSequentially("adv");
+  await expect(page.getByRole("option", { name: "adventure" })).toBeVisible();
+  await input.press("ArrowDown");
+  await input.press("Enter");
+  // Base UI fills the input from a selection only when a Popup part is mounted, which this anatomy has
+  // none of — the seal wires the item's own click instead. Without it, selecting is silently inert.
+  await expect(input).toHaveValue("adventure");
+});
+
+test("inline: nothing to suggest leaves NO frame behind", async ({ mount, page }) => {
+  const component = await mount(<InlineStory />);
+  const list = component.locator('[data-slot="autocomplete-inline-list"]');
+  await expect(list).toBeHidden();
+  await page.getByRole("combobox").fill("zzz");
+  await expect(list).toBeHidden();
 });

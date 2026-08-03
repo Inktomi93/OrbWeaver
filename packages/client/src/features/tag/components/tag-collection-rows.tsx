@@ -23,6 +23,14 @@
 // retired, the new modes JOIN it) — but a drag handle inside a DERIVED order would write a `sortOrder` the
 // screen never reflects, which is a control that lies. So the ≤30 arm forks again: manual → `SortableList`,
 // the two derived modes → the same rows without handles.
+//
+// …AND THE ROSTER SAYS ALL OF THAT OUT LOUD NOW (side-eye 2026-08-03 P1/P2). Three silences, one line and
+// one `disabled` between them: above the cap "Manual order" was a fully selectable mode with zero handles
+// whose output is pixel-identical to A–Z (every `sortOrder` is null, so the comparator tiebreaks on name)
+// and it PERSISTS, so a user could sit in it forever; below the cap nothing told anyone that dragging
+// existed at all, because it lives behind a third option in a right-aligned Select that reads as a view
+// preference; and the Select itself sat alone on its line with ~230px of dead space beside it. The hint
+// (`tagOrderHint`) is the roster's voice for the first two and the Select's row-mate for the third.
 
 import type { TagWithUsage } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
@@ -40,7 +48,7 @@ import type { CollectionListView } from "#lib";
 import { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT, sortTagsBy } from "#lib";
 import { setTagSortMode, useTagSortMode } from "#state";
 import { usePruneUnusedTags, useSetTagOrder } from "../hooks/use-tag-settings-mutations";
-import { TAG_SORT_ITEMS, unusedTagsLabel, usageTotalLabel } from "../lib/tags-model";
+import { pruneConfirmLabel, tagOrderHint, tagSortItems, unusedTagsLabel, usageTotalLabel } from "../lib/tags-model";
 
 /** One compact row's height guess for the windowed arm (swatch + name + usage on one line). */
 const ESTIMATED_ROW_PX = 36;
@@ -65,6 +73,7 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
 
   const windowed = tags.length > COLLECTION_LARGE_GROUP;
   const draggable = !windowed && sortMode === "manual";
+  const orderHint = tagOrderHint(!windowed, sortMode, COLLECTION_LARGE_GROUP);
   const empty = filtered.length === 0;
   // A FILTER MISS AND AN EMPTY LIBRARY ARE DIFFERENT STATES (side-eye 2026-08-03 P1). `filtered.length === 0`
   // printed "No tags match that filter." with no filter set — and stacked it above the host's own zero-member
@@ -77,11 +86,19 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
       {/* The order control rides the OWNER's half of the group body (the host's band carries only create),
           and only where there is an order to change — a one-tag library has none. */}
       {tags.length > 1 ? (
-        <Row justify="end">
+        // The Select SHARES this line with the order hint. Alone on it, right-aligned with ~230px of dead
+        // space beside it, it read as a leftover control (side-eye 2026-08-03 P2) — and the roster had no
+        // voice at all for the one thing the third mode is FOR.
+        <Row align="center" gap="tight" justify="between">
+          {orderHint === null ? null : (
+            <Text className="min-w-0 flex-1" voice="gloss">
+              {orderHint}
+            </Text>
+          )}
           <Select
             aria-label="Sort tags"
             className="w-auto"
-            items={TAG_SORT_ITEMS}
+            items={tagSortItems(!windowed)}
             onValueChange={(value): void => {
               if (value !== null) {
                 setTagSortMode(value);
@@ -97,6 +114,10 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
           aria-label="Tags"
           className={COLLECTION_WINDOW_MAX_HEIGHT}
           estimateSize={(): number => ESTIMATED_ROW_PX}
+          // The bounded window ends mid-row at an arbitrary height, and with overlay scrollbars that
+          // half-row is the only hint that there is more (side-eye 2026-08-03 P3). The fade lifts at the
+          // bottom, so it never claims more than there is.
+          fadeEdge={true}
           gapToken="field"
           getItemKey={(tag): string => tag.id}
           items={filtered}
@@ -133,7 +154,7 @@ function PruneUnusedControl({ count, onConfirm }: { readonly count: number; read
   return (
     <Row justify="end">
       <ConfirmDialog
-        confirmLabel="Delete them"
+        confirmLabel={pruneConfirmLabel(count)}
         description={`This deletes ${unusedTagsLabel(count)} — every tag attached to nothing. This can't be undone.`}
         onConfirm={onConfirm}
         title={`Delete ${unusedTagsLabel(count)}?`}
