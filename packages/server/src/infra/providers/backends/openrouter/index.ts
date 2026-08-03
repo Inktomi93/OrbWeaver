@@ -36,9 +36,10 @@ import type {
   SummarizeRequestItem,
   SummarizeResult,
   WireCaptureSink,
+  WireTool,
 } from "../../contract";
 import { ProviderError } from "../../contract";
-import type { NormalizeImageBytes } from "../kit";
+import type { ChatCompletionResult, NormalizeImageBytes } from "../kit";
 import { extractChatReply, logProviderSummarizeItem, parseChatCompletionResult, passthroughImageNormalizer } from "../kit";
 import { getOpenRouterCredits, getOpenRouterGenerationCost } from "./account";
 import { fetchOrCatalog } from "./catalog";
@@ -49,7 +50,7 @@ import { probeOpenRouterCredential } from "./probe";
 import { runChatCompletionTurn } from "./runners/chat/chat-completions";
 import { runResponsesTurn } from "./runners/chat/responses";
 import type { OpenRouterChatDeps } from "./runners/chat/shared";
-import { buildChatResponseFormat } from "./runners/chat/shared";
+import { buildToolChoice, buildWireTools } from "./runners/chat/shared";
 import { runEmbed } from "./runners/embed/runner";
 import { runGenerateImage, runImageEmbed, toImageUrl } from "./runners/image/runner";
 import { runRerank } from "./runners/rerank/runner";
@@ -141,10 +142,45 @@ interface OrBatchReq {
 
 const OR_BACKEND = "openrouter";
 
-// Build ONE item's SDK chat request (system + the possibly-multimodal user content + the sampling knobs + the
-// optional structured-output format).
+// ── THE STRUCTURED VEHICLE IS A FORCED TOOL CALL, NOT `response_format` (live-probed 2026-08-02) ──────
+// OpenRouter's `response_format: {type:"json_schema"}` is NOT servable across its hosted families, so the
+// `structured` role cannot use it. Measured against the REAL rpg extraction schema (the host `resyncFromStory`
+// door died on exactly this — it 400'd every time and the failure was swallowed as "nothing to resync"):
+//   • anthropic (`claude-sonnet-5`, the owner's DEFAULT hosted model) — 400 on `strict:true` AND `strict:false`.
+//     First "output_config.format.schema: For 'integer' type, properties maximum, minimum are not supported"
+//     (zod's `z.int()` projects safe-integer bounds); strip those and it 400s again with "Schemas contains too
+//     many optional parameters (46), which would make grammar compilation inefficient". An extraction schema is
+//     optional-by-construction (omit = keep), so that second wall is unclearable — the vehicle is simply wrong.
+//   • openai (`gpt-5.4-mini`) — 400 on `strict:true` ("'required' is required to be supplied"); 200 non-strict.
+//   • google (`gemini-3.5-flash`) — 200 on both.
+// The SAME JSON Schema carried as ONE forced tool call is 200 on ALL THREE. It is also the vehicle the in-turn
+// folded round already drives on this wire (D112), so both rpg write paths now ride one wire shape. The role's
+// CONTRACT is unchanged — the caller still hands a `ResponseFormat` and still gets JSON text back; only the
+// dialect this backend speaks it in changed (Tier-3b: "each backend internalizes ALL its own quirks").
+// `ResponseFormat.name` is already documented as "OpenAI `json_schema.name`; Anthropic tool name".
+
+/** The description the forced tool carries when the caller supplied none. A tool with no description is a
+ *  measurably worse prompt on every family, and the structured role's callers describe the SCHEMA, not the act. */
+const STRUCTURED_TOOL_DESCRIPTION = "Record the result. Call this tool exactly once, with the complete result object.";
+
+/** One `ResponseFormat` → the single wire tool the structured call forces. */
+function structuredWireTool(format: ResponseFormat): WireTool {
+  return { name: format.name, description: format.description ?? STRUCTURED_TOOL_DESCRIPTION, parameters: { ...format.schema } };
+}
+
+/** The structured item's TEXT: the forced call's raw `arguments` JSON string. Falls back to the prose reply when
+ *  the model answered in content anyway (some wires ignore `tool_choice`) — the caller's salvage parse then gets
+ *  the same shot it always had, instead of an empty string it can only read as "the model wrote nothing". */
+function structuredReplyText(view: ChatCompletionResult, toolName: string): string {
+  const calls = view.choices?.[0]?.message?.toolCalls;
+  const call = calls?.find((c) => c.function.name === toolName) ?? calls?.[0];
+  return call === undefined ? extractChatReply(view) : call.function.arguments;
+}
+
+// Build ONE item's SDK chat request (system + the possibly-multimodal user content + the sampling knobs + —
+// on the structured role — the forced schema-carrying tool).
 async function buildOrBatchRequest(deps: OrBatchDeps, req: OrBatchReq, input: SummarizeRequestItem): Promise<SdkChatRequest> {
-  const responseFormat = req.responseFormat !== undefined ? buildChatResponseFormat(req.responseFormat) : undefined;
+  const tool = req.responseFormat !== undefined ? structuredWireTool(req.responseFormat) : undefined;
   const userContent = await summarizeUserContent(input, deps.normalize);
   return {
     model: req.model,
@@ -154,7 +190,7 @@ async function buildOrBatchRequest(deps: OrBatchDeps, req: OrBatchReq, input: Su
     ],
     ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
     ...(req.maxTokens !== undefined ? { maxCompletionTokens: req.maxTokens } : {}),
-    ...(responseFormat !== undefined ? { responseFormat } : {}),
+    ...(tool !== undefined ? { tools: buildWireTools([tool]), toolChoice: buildToolChoice({ mode: "tool", name: tool.name }) } : {}),
   };
 }
 
@@ -209,8 +245,8 @@ async function runOrBatchItem(deps: OrBatchDeps, req: OrBatchReq, input: Summari
     // S3 — skip the CoT strip on the STRUCTURED role (constrained output IS pure JSON; a literal `<think>` there
     // is a legitimate JSON string value, e.g. journal content quoting the tag — stripping would corrupt it). The
     // prose (summarize) path still strips loose `<think>…</think>` scaffolding.
-    const reply = extractChatReply(view);
-    const text = hasResponseFormat ? reply.trim() : reply.replace(THINK_BLOCK_RE, "").trim();
+    const text =
+      req.responseFormat === undefined ? extractChatReply(view).replace(THINK_BLOCK_RE, "").trim() : structuredReplyText(view, req.responseFormat.name).trim();
     const tokensIn = view.usage?.promptTokens ?? null;
     const tokensOut = view.usage?.completionTokens ?? null;
     logProviderSummarizeItem(OR_BACKEND, {

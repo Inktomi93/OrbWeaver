@@ -207,6 +207,10 @@ export interface RpgFakes {
   foldedToolsThrow?: boolean;
   /** The `resyncFromStory` host model-call fake return (§1.3 — W-C). Default: empty delta = no-op resync. */
   resyncDelta: RpgStateDelta;
+  /** The resync round's REFUSAL arm (the round could not RUN: unresolvable connection / no structured writer /
+   *  a failed model call). ASSIGNED after construction, not an `over` default — the refusal is the exception a
+   *  single test drives, and every other test wants the delta arm. When set it wins over `resyncDelta`. */
+  resyncRefusal?: { readonly ok: false; readonly reason: string };
   /** The deep canon window the injected `resolveCanonWindow` fake returns (§1.3). Default: empty. */
   canonWindow: RpgTurnTranscriptMessage[];
   /** The BORN-STATE corpus the injected `resolveCardCorpus` fake returns (the host populate round). Default:
@@ -482,7 +486,7 @@ export function makeRpgService(
       // host-principal seam (the funding userId is the resolved HOST, never a caller-injected foreign id) and
       // the deep read fired.
       fakes.resyncCalls.push({ chatId: input.chatId, hostUserId: input.hostUserId, windowTokens: input.transcript.length });
-      return Promise.resolve(fakes.resyncDelta);
+      return Promise.resolve(fakes.resyncRefusal ?? { ok: true, delta: fakes.resyncDelta });
     },
     emitBus: (event) => {
       fakes.busEvents.push(event);

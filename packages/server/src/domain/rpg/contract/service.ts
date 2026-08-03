@@ -75,7 +75,7 @@ import type {
   UpdateConfigParams,
   UpsertQuestParams,
 } from "./params";
-import type { CreateGameResult, HandDoorResult, RollDiceResult } from "./results";
+import type { CreateGameResult, HandDoorResult, ResyncResult, RollDiceResult } from "./results";
 
 export type RpgGameRow = typeof rpgGames.$inferSelect;
 export type NewRpgGame = typeof rpgGames.$inferInsert;
@@ -362,11 +362,22 @@ type RpgFoldTurnToolCalls = (input: RpgStateRoundInput & { readonly toolCalls: r
  *  verb resolves the host authority + reads the window (via the injected `resolveCanonWindow`) then hands the
  *  resolved inputs to THIS op; the op resolves the ROOM connection AS THE HOST (fresh, at the verb — the one
  *  sanctioned non-inherited rpg model call, because the consenting human initiates it) and drives ONE
- *  structured-output call. Returns the delta the verb applies through the normal staging → write tail as a
- *  fresh HAND row (D124). A connection with no structured-output writer capability yields an EMPTY delta (the
- *  resync is a no-op — never a corrupt write); the verb surfaces that as an unchanged state.
+ *  structured-output call.
+ *
+ *  ERRORS-AS-DATA, TOTAL: the op OWNS every way the round can fail to run (an unresolvable room connection, a
+ *  wire with no structured writer, a model call that threw) and reports each as `{ok:false, reason}` — the
+ *  sentence the host will read. It previously collapsed all three to an EMPTY DELTA, which the verb could only
+ *  read as "the story implied no change": a provider outage and a clean panel were byte-identical, and on the
+ *  default hosted backend that made the whole door a no-op that reported success. `{ok:true, delta}` carries
+ *  the rebuild the verb applies through the normal staging → write tail as a fresh HAND row (D124); an EMPTY
+ *  delta there is the honest "the model re-derived nothing", which is a different sentence.
  *  Non-exported: reachable only through `RpgContext.runResyncExtraction`'s signature — no consumer names it (knip). */
-type RpgRunResyncExtraction = (input: RpgResyncInput) => Promise<RpgStateDelta>;
+type RpgRunResyncExtraction = (input: RpgResyncInput) => Promise<RpgResyncRoundResult>;
+
+/** What one resync round returns — the rebuild, or the legible reason it could not run (see above). Kept beside
+ *  the op rather than in `contract/results` because it is the op's INTERNAL seam: the verb maps it onto the
+ *  caller-facing `ResyncResult`, and no transport ever sees this shape. */
+type RpgResyncRoundResult = { readonly ok: true; readonly delta: RpgStateDelta } | { readonly ok: false; readonly reason: string };
 
 /** The resolved inputs the `resyncFromStory` model call consumes. `hostUserId` is the ROOM host (resolved by
  *  ROLE at the verb, D19) the op resolves the connection + creds + consent UNDER — never a caller-supplied
@@ -716,8 +727,11 @@ export interface RpgService {
    *  applies through the normal staging → write-boundary tail as a fresh HAND row (D124); locks are honored
    *  (a resync repairs the model plane, never the host's pins). A capability-absent connection / empty rebuild is
    *  a no-op (no write). Deception-active games stay surface-only by construction (the §1.6 registry clause — the
-   *  tracker never carries hidden `<lie>`/`<ofilter>` truth). */
-  readonly resyncFromStory: (params: ResyncFromStoryParams) => Promise<void>;
+   *  tracker never carries hidden `<lie>`/`<ofilter>` truth).
+   *
+   *  ERRORS-AS-DATA (`ResyncResult`): the three endings — rebuilt / ran-and-changed-nothing / could-not-run —
+   *  are DISTINCT on the wire. A provider refusal is `{ok:false, reason}`, never a silent success. */
+  readonly resyncFromStory: (params: ResyncFromStoryParams) => Promise<ResyncResult>;
   /** HOST (owner ruling 2026-08-01 — the born-state doorway). ONE model call over a character's CARD + the
    *  room's opening line, filling what a card establishes and play cannot: the identity sheet's `title`/`level`
    *  (hand-only everywhere else — `patchSheet` is their only other door), the starting inventory + purse, and
