@@ -12,7 +12,7 @@ import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { RpgTakeoverFloorStory, RpgTakeoverReferenceStory, RpgTakeoverStory } from "../_ct-stories";
+import { RpgTakeoverFloorStory, RpgTakeoverNotifyStory, RpgTakeoverReferenceStory, RpgTakeoverStory } from "../_ct-stories";
 
 const GAME_ID = "rpg_game_ct_keystone";
 const PERSONA_ID = "persona_ct_keystone";
@@ -251,6 +251,8 @@ function stubTakeover(
     readonly config?: unknown;
     /** Fail the resync dialog's opt-in restamp (the ordering probe — a failed stamp must abort the rebuild). */
     readonly restampFails?: boolean;
+    /** EDITSNAP-OK — make every hand door answer with this errors-as-data REFUSAL instead of `{ok:true}`. */
+    readonly handDoorRefusal?: { readonly ok: false; readonly reason: string };
   } = {},
 ): ReturnType<typeof routeTrpc> {
   const readOnly = opts.readOnly ?? false;
@@ -260,10 +262,14 @@ function stubTakeover(
     "chat.getChat": () => opts.chat ?? gameChat(),
     "rpg.getGame": () => opts.game ?? gameView(readOnly),
     "rpg.getTrackerView": () => opts.tracker ?? trackerView(readOnly),
-    "rpg.editSnapshot": () => undefined,
-    "rpg.patchActor": () => undefined,
-    "rpg.dismissActor": () => undefined,
-    "rpg.promoteActor": () => undefined,
+    // EDITSNAP-OK — the four HAND DOORS answer with a `HandDoorResult` VERDICT, never a bare `undefined`. The
+    // stub says so: the client now reads `ok` (a refusal is errors-as-data on a RESOLVED mutation, so it is
+    // the only channel a refusal has), and a stub that lies about the wire shape would be testing a contract
+    // the server does not have. `handDoorRefusal` below drives the refused arm.
+    "rpg.editSnapshot": () => opts.handDoorRefusal ?? { ok: true },
+    "rpg.patchActor": () => opts.handDoorRefusal ?? { ok: true },
+    "rpg.dismissActor": () => opts.handDoorRefusal ?? { ok: true },
+    "rpg.promoteActor": () => opts.handDoorRefusal ?? { ok: true },
     "rpg.patchSheet": () => undefined,
     "rpg.populateFromCharacter": () => undefined,
     "rpg.updateConfig": () => undefined,
@@ -437,6 +443,38 @@ test("a hand-locked field shows the pin; ONE click releases — the mutation fir
   await expect(pin).toBeVisible();
   await pin.click();
   await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+});
+
+// EDITSNAP-OK — the four hand doors refuse LEGIBLY as DATA (`{ok:false, reason}`) on a RESOLVED mutation:
+// no throw, so `errorToast` cannot fire, the sticky error slot stays null, and every call site is
+// fire-and-forget because these writes reconcile through `invalidates`. The result was total silence — the
+// panel simply repainted its pre-write state. `editSnapshot` also rejects the WHOLE patch on ONE bad plane,
+// which is how a five-plane scene write was lost to a single over-length label. The refusal now rides the
+// mutation FACTORY (one home, so every call site is covered by construction) and the server's own `reason`
+// is the message — it names the plane or the datum, which is the only part that makes it actionable.
+test("EDITSNAP-OK: a hand door's errors-as-data REFUSAL surfaces the server's reason (it used to vanish)", async ({ mount, page }) => {
+  const reason = "not snapshot-state planes: ambient — writable planes are location, weather, clock";
+  const trpc = await stubTakeover(page, { handDoorRefusal: { ok: false, reason } });
+  const component = await mount(<RpgTakeoverNotifyStory />);
+
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await component.locator('[data-slot="ambient-strip"]').getByRole("button", { name: "Release the location to the model" }).click();
+
+  // The write really was attempted (the refusal is a 200, not a transport failure) …
+  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  // … and the host is TOLD, with the server's own reason intact rather than a generic "couldn't save".
+  await expect(component.getByTestId("rpg-notified")).toContainText(reason);
+});
+
+test("EDITSNAP-OK: an APPLIED hand write stays silent — `ok:true` is not an occasion for a toast", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverNotifyStory />);
+
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+  await component.locator('[data-slot="ambient-strip"]').getByRole("button", { name: "Release the location to the model" }).click();
+
+  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  await expect(component.getByTestId("rpg-notified")).toHaveText("");
 });
 
 // RV-11 — the Scene cast card reads the standing guides. The extraction round wrote appearance/outfit/thoughts
@@ -1479,6 +1517,38 @@ test("the pack GRID tile carries the ×N and the location, at a density SHORTER 
   const overflow = await cells.evaluateAll((els) => els.map((el) => el.scrollWidth - el.clientWidth));
   expect(Math.max(...overflow)).toBeLessThanOrEqual(0);
   await component.locator('[data-slot="rpg-inventory-tab"]').screenshot({ path: "reports/snaps/pack-grid-after.png" });
+});
+
+/** The bare-name tile: `Map of the sunken road` carries neither prose line, so its tile text is EXACTLY the
+ *  name — a stray empty element would show up as extra text here. */
+const BARE_TILE_TEXT_RE = /^Map of the sunken road$/u;
+
+// INV-READ (owner ruling 2026-08-03, "render them"): `description` is model-written on every item — the
+// extraction guidance asks for it by name — and on the GRID tile it existed only inside the hover `title`.
+// A hover string is not a reader: invisible on touch, not a datum to a screen reader, uncopyable. Both arms
+// are pinned here because the ABSENT arm is the half that goes wrong (a blank labelled row is the failure
+// mode the panel's empty-state law exists to stop).
+test("INV-READ: the GRID tile READS the item description as text, and an undescribed item shows no empty slot", async ({ mount, page }) => {
+  await stubTakeover(page, { tracker: packedTracker() });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Inventory" }).click();
+
+  const cells = component.locator('[data-slot="rpg-pack-cell"]');
+  // POPULATED — the text is IN the tile, not only on its `title` attribute (which `toContainText` cannot see).
+  const key = cells.filter({ hasText: "Bone key" });
+  await expect(key).toContainText("cold to the touch");
+  await expect(key).toContainText("belt pouch");
+  // A long model-authored description wraps into the card rather than spilling or truncating the datum away.
+  const dagger = cells.filter({ hasText: "Iron dagger" });
+  await expect(dagger).toContainText("a long model-authored description that runs on well past any tile width");
+
+  // ABSENT — `Rope, 30 ft` has a location and NO description: the tile renders the location and simply omits
+  // the other line. Asserted on the tile's own text nodes so a stray empty element would show up as a gap.
+  const rope = cells.filter({ hasText: "Rope, 30 ft" });
+  await expect(rope).toContainText("pack");
+  // `Map of the sunken road` has NEITHER — its tile is the bare name, no blank prose lines at all.
+  const map = cells.filter({ hasText: "Map of the sunken road" });
+  await expect(map).toHaveText(BARE_TILE_TEXT_RE);
 });
 
 test("clicking a GRID tile edits that item in place — the same click-to-edit grammar, one write path", async ({ mount, page }) => {

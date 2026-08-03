@@ -11,9 +11,33 @@
 // `resolveHost`; a member gets a leak-free FORBIDDEN). The panel's `canEditShared`/`isHost` gates mirror the
 // shared-plane arm so a member never SEES a control that would refuse.
 
-import type { inferInput } from "@trpc/tanstack-react-query";
+import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+
+/** The four HAND DOORS' shared verdict (`HandDoorResult`) read off the wire, never re-spelled: the server
+ *  refuses legibly as DATA, so a reshape of that contract breaks here at compile time. Local + underived by
+ *  hand on purpose — the shape has ONE home and it is the verb that returns it. */
+type HandDoorVerdict = inferOutput<Trpc["rpg"]["editSnapshot"]>;
+
+/**
+ * EDITSNAP-OK — the errors-as-data reader every hand door shares.
+ *
+ * `editSnapshot`/`patchActor`/`dismissActor`/`promoteActor` refuse as DATA (`{ok:false, reason}`), which
+ * means a refusal RESOLVES the mutation: `errorToast` cannot fire, the sticky error slot stays null, and the
+ * `.mutate()` call sites — all of them fire-and-forget, because these writes reconcile through `invalidates`
+ * and nobody reads the return — showed the host absolutely nothing. `editSnapshot` also rejects the WHOLE
+ * patch on one bad plane, so a five-plane scene write vanished to a single over-length label with the panel
+ * silently repainting its pre-write state.
+ *
+ * It rides the FACTORY, not the call sites: refusing-as-data is a property of the VERB, so every present and
+ * future call site is covered by construction. The server's `reason` IS the message — it names the plane, the
+ * path or the datum, and inventing a vaguer sentence here would throw away the only thing that makes the
+ * refusal actionable.
+ */
+function handDoorRefusal(data: HandDoorVerdict): string | null {
+  return data.ok ? null : `That change wasn't applied — ${data.reason}`;
+}
 
 /** `rpg.patchSheet` — the per-actor identity sheet write (Sheet tab attribute grid). Host any actor; a
  *  member their OWN `user` ref (the server gate). Repaints the tracker view (sheet feeds Status/Sheet). */
@@ -27,10 +51,11 @@ export const usePatchSheet = createEntityMutation<inferInput<Trpc["rpg"]["patchS
  *  plot, cast, beats) AND the lock-release channel (`patch:{}` + `releaseLocks`). Host-only in v1. The
  *  per-actor volatile plane is NOT here any more — it is op-shaped through `usePatchActor` (R1), and a patch
  *  naming `actorState` comes back refused. Repaints the whole tracker view. */
-export const useEditSnapshot = createEntityMutation<inferInput<Trpc["rpg"]["editSnapshot"]>, unknown>({
+export const useEditSnapshot = createEntityMutation<inferInput<Trpc["rpg"]["editSnapshot"]>, HandDoorVerdict>({
   options: (trpc) => trpc.rpg.editSnapshot.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId })],
   errorToast: "Couldn't save the change.",
+  refusal: handDoorRefusal,
 });
 
 /** `rpg.patchActor` — THE op-shaped hand door for one actor's volatile row (R1): the panel sends the OPS it
@@ -39,10 +64,11 @@ export const useEditSnapshot = createEntityMutation<inferInput<Trpc["rpg"]["edit
  *  own projections — an image that could only ever be partial (the offstage rows are in no projection) and
  *  that clobbered any model flush landing between the panel's read and the click. The FINE lock paths are
  *  derived server-side per op, so a call site names ops, never lock paths. Repaints the tracker view. */
-export const usePatchActor = createEntityMutation<inferInput<Trpc["rpg"]["patchActor"]>, unknown>({
+export const usePatchActor = createEntityMutation<inferInput<Trpc["rpg"]["patchActor"]>, HandDoorVerdict>({
   options: (trpc) => trpc.rpg.patchActor.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId })],
   errorToast: "Couldn't save the change.",
+  refusal: handDoorRefusal,
 });
 
 /** `rpg.dismissActor` — THE removal gesture for the actor plane (R1's verb, R2's affordance): drops the
@@ -50,10 +76,11 @@ export const usePatchActor = createEntityMutation<inferInput<Trpc["rpg"]["patchA
  *  makes the plane's additive merge policy honest — before it, a hallucinated or finished NPC stayed tracked,
  *  `targetRef`-enumerated and clone-forwarded into every snapshot forever, and only a checkpoint restore (a
  *  rewind, not a gesture) ever shrank the plane. Host-only. Repaints the tracker view. */
-export const useDismissActor = createEntityMutation<inferInput<Trpc["rpg"]["dismissActor"]>, unknown>({
+export const useDismissActor = createEntityMutation<inferInput<Trpc["rpg"]["dismissActor"]>, HandDoorVerdict>({
   options: (trpc) => trpc.rpg.dismissActor.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId })],
   errorToast: "Couldn't dismiss the character.",
+  refusal: handDoorRefusal,
 });
 
 /** `rpg.promoteActor` — THE promotion doorway (R4), `dismissActor`'s opposite: a known character earns a
@@ -62,10 +89,11 @@ export const useDismissActor = createEntityMutation<inferInput<Trpc["rpg"]["dism
  *  follow her). Host-only. It repaints the tracker view (she leaves the Scene cast for the Status roster) AND
  *  `chat.getChat` — the promotion adds a ROSTER PARTICIPANT, so the members surface is stale until it refetches;
  *  a panel that only invalidated its own read would leave the new seat invisible everywhere else in the room. */
-export const usePromoteActor = createEntityMutation<inferInput<Trpc["rpg"]["promoteActor"]>, unknown>({
+export const usePromoteActor = createEntityMutation<inferInput<Trpc["rpg"]["promoteActor"]>, HandDoorVerdict>({
   options: (trpc) => trpc.rpg.promoteActor.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId }), trpc.chat.getChat.queryFilter({ chatId: vars.chatId })],
   errorToast: "Couldn't promote the character.",
+  refusal: handDoorRefusal,
 });
 
 /** `rpg.upsertQuest` — the hand arm of the quest plane (Quests tab cards + Scene tab goal echo). `questId`

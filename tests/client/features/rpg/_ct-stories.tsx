@@ -13,11 +13,11 @@
 import { useTRPC } from "@orb/client/data";
 import { makeRpgContextTabs, makeRpgHudRegion } from "@orb/client/features/rpg";
 import type { ChatContextState, ContextRegionDef, ContextTabDef } from "@orb/client/lib";
-import { createContributorRegistry } from "@orb/client/lib";
+import { bindNotify, createContributorRegistry } from "@orb/client/lib";
 import { selectChat, useSectionRegistry } from "@orb/client/state";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
 import { RpgFreshnessIndicator } from "../../../../packages/client/src/features/rpg/components/rpg-freshness-indicator";
 import { RpgCardLightbox } from "../../../../packages/client/src/features/rpg/components/rpg-scene-cards";
@@ -82,6 +82,28 @@ export function RpgTakeoverStory(): ReactElement {
   return (
     <CtDataProviders>
       <RpgTakeoverHarness width={320} height={640} />
+    </CtDataProviders>
+  );
+}
+
+/** EDITSNAP-OK — the SAME takeover with `notify` bound to a DOM sink. The hand doors refuse as DATA on a
+ *  RESOLVED mutation (no throw, no sticky error, no `errorToast`), so the toast the mutation factory raises
+ *  is the ONLY observable a refusal has; `bindNotify` is main.tsx-only, so the CT harness leaves `notify` a
+ *  no-op unless a story binds it (the `PersonaThisChatStory` precedent). */
+export function RpgTakeoverNotifyStory(): ReactElement {
+  const [notified, setNotified] = useState<string>("");
+  useEffect(() => {
+    selectChat(CHAT_ID);
+    bindNotify({
+      info: (m): void => setNotified(m),
+      success: (m): void => setNotified(m),
+      error: (m): void => setNotified(m),
+    });
+  }, []);
+  return (
+    <CtDataProviders>
+      <RpgTakeoverHarness width={320} height={640} />
+      <p data-testid="rpg-notified">{notified}</p>
     </CtDataProviders>
   );
 }

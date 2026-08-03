@@ -20,6 +20,10 @@ import { createDemoChatGameDoor } from "@orb/server/entry/compose";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures";
 
+/** The hand doors' errors-as-data verdict, DERIVED off the door's own dep contract rather than re-spelled or
+ *  imported from a server-internal alias the test program cannot resolve. */
+type HandDoorResult = Awaited<ReturnType<DemoChatGameDoorDeps["rpg"]["editSnapshot"]>>;
+
 const CHAT_ID = castId<ChatId>("chat_demo");
 const USER_ID = castId<UserId>("user_receiving");
 const SABINE = castId<CharacterId>("character_sabine");
@@ -42,9 +46,14 @@ interface Recorded {
  *  `upsertQuest` locks `quests.<id>` with NO opt-out (`upsert-quest.ts:36`). Because the fake locks like the
  *  tree locks, the assertions can be about the RESULT — a board the story can still move — instead of about
  *  which arguments were passed. */
-function harness(options: { readonly bornEmpty?: boolean } = {}): { readonly deps: DemoChatGameDoorDeps; readonly rec: Recorded } {
+function harness(options: { readonly bornEmpty?: boolean; readonly refuseHandDoors?: string } = {}): {
+  readonly deps: DemoChatGameDoorDeps;
+  readonly rec: Recorded;
+} {
   const rec: Recorded = { patchActor: [], editSnapshot: [], locks: new Set<string>() };
   const bornEmpty = options.bornEmpty ?? true;
+  /** EDITSNAP-OK — make both hand doors answer with an errors-as-data REFUSAL instead of `{ok:true}`. */
+  const refusal: HandDoorResult | null = options.refuseHandDoors === undefined ? null : { ok: false, reason: options.refuseHandDoors };
   let questSeq = 0;
   /** The door reads exactly three things off this view — `quests`, `actors[].volatile` (its born-empty oracle)
    *  and `lockedPaths` — but the value is spelled WHOLE and typed, so a field added to `RpgTrackerView` or
@@ -80,7 +89,10 @@ function harness(options: { readonly bornEmpty?: boolean } = {}): { readonly dep
       getTrackerView: (): Promise<RpgTrackerView> => Promise.resolve(view()),
       updateConfig: (): Promise<never> => Promise.resolve(undefined as never),
       patchSheet: (): Promise<never> => Promise.resolve(undefined as never),
-      patchActor: ({ targetRef, ops, autoLock }): Promise<never> => {
+      // EDITSNAP-OK — the hand doors answer with a `HandDoorResult` VERDICT, never `undefined`: the door
+      // now READS `ok`, and a fake that lied about the wire shape would be testing a contract the server
+      // does not have. `refuseHandDoors` drives the refused arm.
+      patchActor: ({ targetRef, ops, autoLock }): Promise<HandDoorResult> => {
         const key = targetRef.kind === "user" ? `user:${targetRef.userId}` : JSON.stringify(targetRef);
         rec.patchActor.push({ autoLock, targetKey: key });
         if (autoLock !== false) {
@@ -88,7 +100,7 @@ function harness(options: { readonly bornEmpty?: boolean } = {}): { readonly dep
             rec.locks.add(`actorState.${key}.volatile.${op.op}`);
           }
         }
-        return Promise.resolve(undefined as never);
+        return Promise.resolve(refusal ?? { ok: true });
       },
       upsertQuest: (): Promise<never> => {
         questSeq += 1;
@@ -96,7 +108,7 @@ function harness(options: { readonly bornEmpty?: boolean } = {}): { readonly dep
         return Promise.resolve(undefined as never);
       },
       addJournalEntry: (): Promise<never> => Promise.resolve(undefined as never),
-      editSnapshot: ({ patch, lockPaths, releaseLocks }): Promise<never> => {
+      editSnapshot: ({ patch, lockPaths, releaseLocks }): Promise<HandDoorResult> => {
         rec.editSnapshot.push({ patchKeys: Object.keys(patch), lockPaths, releaseLocks });
         for (const path of releaseLocks ?? []) {
           rec.locks.delete(path);
@@ -104,7 +116,7 @@ function harness(options: { readonly bornEmpty?: boolean } = {}): { readonly dep
         for (const path of lockPaths ?? Object.keys(patch)) {
           rec.locks.add(path);
         }
-        return Promise.resolve(undefined as never);
+        return Promise.resolve(refusal ?? { ok: true });
       },
     },
   };
@@ -170,5 +182,19 @@ describe("createDemoChatGameDoor", () => {
 
     expect(rec.patchActor).toHaveLength(0);
     expect(rec.editSnapshot).toHaveLength(0);
+  });
+  // EDITSNAP-OK — the hand doors refuse LEGIBLY as DATA on a RESOLVED promise, so an un-checked call left the
+  // seeder cheerfully "successful" with a half-dressed example: the room and its transcript land, the scene
+  // planes silently do not, and `editSnapshot` rejects the WHOLE patch on ONE bad plane (a five-plane scene
+  // write was lost to a single over-length label exactly this way). A refusal here is a bug in the data WE
+  // SHIP, so the door fails LOUD — the seeder's own `ensureSeeded` catch turns the throw into one error log.
+  test("EDITSNAP-OK: a refused hand door FAILS the replay, naming the door and the server's reason", async () => {
+    const reason = "label exceeds 40 characters";
+    const { deps } = harness({ refuseHandDoors: reason });
+    const door = createDemoChatGameDoor(deps);
+
+    await expect(door({ principal: PRINCIPAL, chatId: CHAT_ID, game: GAME, seats: SEATS, mint: true })).rejects.toThrow(
+      new RegExp(`rpg\\.patchActor.*${reason}`, "u"),
+    );
   });
 });

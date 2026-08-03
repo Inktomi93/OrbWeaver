@@ -16,11 +16,10 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { GreetingStudio } from "#components";
-import { useColorQuotedSpeech } from "#data";
+import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
 import type { AppFormInstance } from "#forms";
 import { cn } from "#lib";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
-import { CHARACTER_CARD_MACROS } from "../lib/character-card-macros";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
 
@@ -130,6 +129,9 @@ function GreetingBody({
   // QUOTE-1: the preview bubble is the greeting AS THE CHAT WILL SHOW IT — same `--color-dialogue` tint
   // (the character's own `dialogueColor` override wins through the `ThemeScope` below, as in a chat row).
   const colorQuotes = useColorQuotedSpeech();
+  // MACU-2 — a greeting is assembled through the per-turn macro registry like any other card field, so the
+  // completion catalog is the builtins UNION the active preset's user macros.
+  const suggestions = usePromptMacroSuggestions();
   if (editing) {
     return (
       <Stack gap="field">
@@ -140,7 +142,7 @@ function GreetingBody({
               value={field.state.value}
               onChange={(next): void => field.handleChange(next)}
               onBlur={field.handleBlur}
-              suggestions={CHARACTER_CARD_MACROS}
+              suggestions={suggestions}
               rows={5}
               placeholder="The character's first message…"
             />

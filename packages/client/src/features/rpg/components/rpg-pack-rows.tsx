@@ -10,6 +10,13 @@
 // a model writes it) · ×N · where it's kept — in a card SHORTER than the square it replaced, and for a host
 // it is the trigger for `PackTileEditor`: the SAME click-to-edit field set the list row composes, in a
 // popover, through the SAME `PackEdit` write path (one authoring vocabulary, one lock stamp, two lenses).
+//
+// INV-READ (owner ruling 2026-08-03, "render them"): `description` + `location` are model-written on every
+// item (the extraction guidance asks for both by name) and both now READ as text in BOTH lenses. The list row
+// already carried the pair; the grid tile carried only `location`, with `description` demoted to the hover
+// `title` — and a hover string is not a reader (invisible on touch, not a datum to a screen reader,
+// uncopyable). EMPTY IS OMITTED, never a blank labelled row: an item the story hasn't described keeps its
+// one-line tile, and the host's editor lens is where a placeholder invites filling it in.
 
 import type { RpgInventoryItem } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
@@ -60,8 +67,9 @@ function ItemGlyph({ item, onPickIcon }: { readonly item: RpgInventoryItem; read
   );
 }
 
-/** The tile's hover/focus datum — the whole item in one line, including the description the tile itself
- *  leaves to the list lens (the panel's hint grammar: the long form rides the hover title). */
+/** The tile's hover/focus datum — the whole item in one line. Every part of it is ALSO rendered as text on
+ *  the tile (INV-READ); this stays as the one-line read a pointer user gets without scanning the card, never
+ *  as the only home of a datum. */
 function tileTitle(item: RpgInventoryItem): string {
   const parts = [item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name];
   if (item.location !== "") {
@@ -113,6 +121,16 @@ function PackCellInk({ item }: { readonly item: RpgInventoryItem }): ReactElemen
         {item.location === "" ? null : (
           <Text as="span" voice="gloss" className="min-w-0 break-words">
             {item.location}
+          </Text>
+        )}
+        {/* INV-READ (owner ruling, 2026-08-03: "render them") — WHAT IT IS, on the tile too. It was reachable
+            only through the hover `title` and the list lens, which is not a reader: a hover string is invisible
+            on touch, unreadable by a screen reader as a datum, and uncopyable. The tracker-kit a11y model says
+            the TEXT is the datum, so it renders as text. Empty ⇒ nothing at all (never a blank labelled row) —
+            the tile keeps its one-line density for the items the story hasn't described. */}
+        {item.description === "" ? null : (
+          <Text as="span" voice="gloss" className="min-w-0 break-words">
+            {item.description}
           </Text>
         )}
       </Stack>

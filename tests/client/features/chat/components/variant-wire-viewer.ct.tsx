@@ -1,24 +1,42 @@
-// CT: RAWVIEW — the HOST-only per-variant wire inspector, driven through its REAL graft point (the message
-// metadata row's trigger), because the two load-bearing behaviors are both at that seam, not inside the
-// dialog:
-//   1. THE HOST GATE. A non-host viewer must not render the trigger at all — the read is `requireHost`
-//      server-side, so a visible trigger for a member would be an affordance that only ever refuses, and it
-//      would advertise a plane they cannot have. This pin is the client half of the two-belt gate; the server
-//      half (member ⇒ not_host, stranger ⇒ NOT_FOUND, foreign variantId ⇒ NOT_FOUND) is pinned in
+// CT: RAWVIEW — the HOST-only per-variant wire inspector, driven through its REAL graft point. WIREBTN moved
+// that graft point (owner nit, 2026-08-03): the trigger was a lone quiet button on the message METADATA row
+// and is now a "View wire trace…" item in the message KEBAB (D62 §12 — the ⋯ menu is the action home), so
+// this CT mounts the whole `MessageRow` and reaches the inspector the way a host actually does.
+//
+// The load-bearing behaviors are all at that seam, not inside the dialog:
+//   1. THE HOST GATE. A non-host viewer must not get the item at all — the read is `requireHost` server-side,
+//      so a visible item for a member would be an affordance that only ever refuses, and it would advertise a
+//      plane they cannot have. This pin is the client half of the two-belt gate; the server half (member ⇒
+//      not_host, stranger ⇒ NOT_FOUND, foreign variantId ⇒ NOT_FOUND) is pinned in
 //      tests/server/domain/chat/verbs/read.int.test.ts.
 //   2. THE FETCH GATE. `chat.getVariantWire` returns a full assembled prompt — every member's content, the
 //      room's hidden spans, every card at full fidelity. It must NOT be fetched per rendered row on mount;
 //      the key is built only when the host opens the dialog (`enabled: open`). If that ever loosens, every
 //      transcript render would pull the whole host plane down the wire for rows nobody asked about.
+//   3. THE HOME. The metadata row is DATA ONLY — it must carry no wire affordance, for a host or anyone else.
 // Plus the honest-absence arms: a variant that captured nothing, and a deleted row (NOT_FOUND), each say so
 // rather than rendering a blank panel.
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator, Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { VariantWireStory } from "../_ct-stories";
+import { MessageRowStory } from "../_ct-stories";
 
 const WIRE_PROC = "chat.getVariantWire";
-const TRIGGER = "Show what this reply sent";
+const WIRE_ITEM = "View wire trace…";
+const MENU_TRIGGER = "More message actions";
+
+/** Only the model datum on — the wire item is gated by AUTHORITY, not by an appearance toggle, so the row
+ *  keeps one ordinary metadata datum beside it (the datum that proves the metadata row still renders, and
+ *  renders nothing EXTRA, after the move). */
+const WIRE_STORY_VISIBILITY = {
+  showTimestamps: false,
+  showMessageId: false,
+  showModelIcon: true,
+  showTokenCount: false,
+  showGenerationTimer: false,
+  showGenerationCost: false,
+} as const;
 
 const WIRE_DATA = {
   variantId: "mv_ct_1",
@@ -32,30 +50,61 @@ const WIRE_DATA = {
   macroDraws: null,
 };
 
-test("a NON-HOST viewer gets no trigger at all — the host-only plane is never advertised", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { [WIRE_PROC]: () => WIRE_DATA });
-  const component = await mount(<VariantWireStory viewerIsHost={false} />);
+/** The A3 action cluster rests `opacity-0 pointer-events-none` and reveals on hover/focus-within; these
+ *  tests care about the wire seam, not the CSS variant, so they force the revealed+interactive state inline
+ *  (the `message-actions-row.ct` precedent — `pointer-events` too, or the rest state swallows the click). */
+async function openActionsMenu(component: Locator): Promise<void> {
+  await component.locator("[data-slot='message-actions-row']").evaluate((el: HTMLElement) => {
+    el.style.opacity = "1";
+    el.style.pointerEvents = "auto";
+  });
+  await component.getByRole("button", { name: MENU_TRIGGER }).click();
+}
 
-  // The ordinary member-plane datum still renders — the row isn't suppressed, only the host arm is.
-  await expect(component.locator('[data-slot="message-metadata-model"]')).toHaveText("qwen3-vl");
-  await expect(page.getByRole("button", { name: TRIGGER })).toHaveCount(0);
+/** Menu items portal to the page body — resolve them off the page, never the component root. */
+function menuItem(page: Page, name: string): Locator {
+  return page.getByRole("menuitem", { name });
+}
+
+test("a NON-HOST viewer gets no wire item at all — the host-only plane is never advertised", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, { [WIRE_PROC]: () => WIRE_DATA });
+  const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={false} />);
+
+  // The ordinary member-plane datum still renders — nothing about the row is suppressed, only the host arm.
+  await expect(component.locator('[data-slot="message-metadata-model"]')).toHaveText("ct/model-x");
+  await openActionsMenu(component);
+  await expect(menuItem(page, WIRE_ITEM)).toHaveCount(0);
   await expect.poll(() => trpc.count(WIRE_PROC)).toBe(0);
 });
 
-test("the HOST sees the trigger, but NO fetch fires until it is opened", async ({ mount, page }) => {
+test("the HOST gets the kebab item, but NO fetch fires until it is opened", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { [WIRE_PROC]: () => WIRE_DATA });
-  await mount(<VariantWireStory viewerIsHost={true} />);
+  const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={true} />);
 
-  await expect(page.getByRole("button", { name: TRIGGER })).toBeVisible();
+  await openActionsMenu(component);
+  await expect(menuItem(page, WIRE_ITEM)).toBeVisible();
   // The whole point of the gate: a rendered transcript must not pull the host plane for every row.
   await expect.poll(() => trpc.count(WIRE_PROC)).toBe(0);
 });
 
+test("WIREBTN — the METADATA row carries no wire affordance, even for the host (it is data only now)", async ({ mount, page }) => {
+  await routeTrpc(page, { [WIRE_PROC]: () => WIRE_DATA });
+  const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={true} />);
+
+  const metadataRow = component.locator('[data-slot="message-metadata-row"]');
+  await expect(metadataRow).toBeVisible();
+  // The row renders its DATUM and nothing else — no button of any kind, and specifically not the old
+  // orphaned trigger (whose accessible name was "Show what this reply sent").
+  await expect(metadataRow.getByRole("button")).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Show what this reply sent" })).toHaveCount(0);
+});
+
 test("opening fires exactly one fetch keyed by the shown swipe's variantId and renders both prompt halves", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, { [WIRE_PROC]: () => WIRE_DATA });
-  await mount(<VariantWireStory viewerIsHost={true} />);
+  const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={true} />);
 
-  await page.getByRole("button", { name: TRIGGER }).click();
+  await openActionsMenu(component);
+  await menuItem(page, WIRE_ITEM).click();
 
   await expect.poll(() => trpc.count(WIRE_PROC), { intervals: [20, 50, 100] }).toBe(1);
   // Scoped to the SELECTED variant (the shown swipe), not the slot — a swipe has its own sent prompt.
@@ -73,9 +122,10 @@ test("opening fires exactly one fetch keyed by the shown swipe's variantId and r
 
 test("a variant that captured nothing says so — never a blank panel", async ({ mount, page }) => {
   await routeTrpc(page, { [WIRE_PROC]: () => ({ variantId: "mv_ct_1", prompt: null, params: null, macroDraws: null }) });
-  await mount(<VariantWireStory viewerIsHost={true} />);
+  const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={true} />);
 
-  await page.getByRole("button", { name: TRIGGER }).click();
+  await openActionsMenu(component);
+  await menuItem(page, WIRE_ITEM).click();
   const dialog = page.locator('[data-testid="variant-wire-viewer"]');
   await expect(dialog).toContainText("No prompt was captured for this reply");
   // The pointer to where raw provider bytes actually live (the dev ring) — never a fake "not captured" arm
@@ -85,14 +135,17 @@ test("a variant that captured nothing says so — never a blank panel", async ({
 
 test("a deleted row's NOT_FOUND is a typed gone-arm, not a retry spinner or a thrown boundary", async ({ mount, page }) => {
   await routeTrpc(page, { [WIRE_PROC]: () => trpcError({ code: "NOT_FOUND" }) });
-  await mount(<VariantWireStory viewerIsHost={true} />);
+  const component = await mount(<MessageRowStory chatStyle="bubble" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={true} />);
 
-  await page.getByRole("button", { name: TRIGGER }).click();
+  await openActionsMenu(component);
+  await menuItem(page, WIRE_ITEM).click();
   await expect(page.locator('[data-testid="variant-wire-viewer"]')).toContainText("This reply is gone");
 });
 
-test("a USER row renders no trigger even for the host — an authored message never generated a prompt", async ({ mount, page }) => {
+test("a USER row offers no wire item even to the host — an authored message never generated a prompt", async ({ mount, page }) => {
   await routeTrpc(page, { [WIRE_PROC]: () => WIRE_DATA });
-  await mount(<VariantWireStory viewerIsHost={true} messageRole="user" />);
-  await expect(page.getByRole("button", { name: TRIGGER })).toHaveCount(0);
+  const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="user" metadataVisibility={WIRE_STORY_VISIBILITY} viewerIsHost={true} />);
+
+  await openActionsMenu(component);
+  await expect(menuItem(page, WIRE_ITEM)).toHaveCount(0);
 });
