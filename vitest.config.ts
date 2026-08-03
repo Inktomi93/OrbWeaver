@@ -69,10 +69,11 @@ const SERIAL_INT = [
 ];
 
 export default defineConfig({
-  // Transform target = es2025, matching tsc (Node 24 runs es2025 natively → no downlevel, just type
-  // strip). Needs esbuild ≥0.28 (0.25.x rejects es2025); pnpm-workspace.yaml overrides vite's bundled
-  // esbuild up to 0.28.1 so this is clean — no "Unrecognized target environment" warning.
-  esbuild: { target: "es2025" },
+  // NO `esbuild` key ON PURPOSE (2026-08-03): vitest 4 resolves the rolldown vite 8, which configures
+  // oxc and IGNORES esbuild options — the old `esbuild: { target: "es2025" }` was a silent no-op that
+  // ALSO printed "Both esbuild and oxc options were set…" once per lane, every run. No replacement
+  // needed: oxc's default output runs untouched on node ≥26 (es2025-native), so there is nothing to
+  // downlevel. (The pnpm esbuild-0.28 override in pnpm-workspace.yaml stays — other consumers.)
   test: {
     exclude: IGNORE,
 
