@@ -30,6 +30,9 @@ const OK: NavResult = { ok: true };
 // One generous page covers a dev character library (small by construction) — enough to resolve any id/name
 // without a keyset walk. This is a dev-drivability bridge, not a paged UI surface.
 const CHARACTER_NAV_PAGE_LIMIT = 500;
+// `openChat` targets that name a POSITION in the list instead of a chat: both mean its top row (see the
+// arm's comment — `listChats` is newest-updated-first, so top row === most recent).
+const CHAT_POSITION_SENTINELS = new Set(["first", "latest"]);
 
 function reject(kind: string, id: string, allowed: readonly string[]): NavResult {
   return { ok: false, reason: `unknown ${kind} "${id}" — expected one of: ${allowed.join(", ")}` };
@@ -96,6 +99,19 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       const chats = await queryClient.fetchQuery(trpc.chat.listChats.queryOptions({})).catch(() => null);
       if (chats === null) {
         return { ok: false, reason: "chat list query failed — cannot resolve the chat" };
+      }
+      // POSITIONAL sentinels — "open whatever chat is on top" without first learning an id. `listChats`
+      // returns newest-updated-first and the list surface renders that order unsorted, so the top ROW and
+      // the most-RECENT chat are the same row; both spellings resolve to it (a caller reaching for "latest"
+      // and one reaching for "first" mean the same thing here, and inventing a difference would be a lie).
+      // Reserved words by design: a chat literally titled "first"/"latest" is reachable by its id.
+      if (CHAT_POSITION_SENTINELS.has(idOrTitle)) {
+        const top = chats[0];
+        if (top === undefined) {
+          return { ok: false, reason: `no chat to open — "${idOrTitle}" resolves against the chat list, which is empty` };
+        }
+        openChatIn(top.id as ChatId);
+        return OK;
       }
       const byId = chats.find((c) => c.id === idOrTitle);
       if (byId) {
