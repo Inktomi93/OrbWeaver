@@ -560,7 +560,11 @@ playbook ¶. Migration order on rail-YES: tags+regex → world-info → presets 
 NOT this primitive — stretch warned against). F-B hardening: orphan-def arm (home-tiles
 lacks it; specced from birth for the new family). 10 owner forks in §10, F-1 (the rail
 itself) deliberately left OPEN — rule by feel, the design composes with both arms.
-**R0 queued next drain.**
+**R0 queued next drain.** **→ OWNER RULED (08-03 late): CONFIG RAIL = YES, STAGED** — R1
+(CollectionContribution contract + kinded selection + thin features/config + tags & regex
+migrate first) dispatches AFTER CR0 merges, MOCK-FIRST per the mockup-first build loop (a new
+tri-pane workspace = mock → commit → build → side-eye); R2 world-info; presets stay OUT
+until the owner feels it (one array member forever). The other 9 forks ship on their RECs.
 ✅ **D8R MERGED (`21e4aff3`, own floor green, torn down) — D121 CLAUSE G IS BUILT:** the
 Prompt readout prices its rack against the bound chat (true token costs, materialized rows on
 drill; SETUP/POST sums proven vs the bars; unbound `~—` floor byte-identical; PARAMS
