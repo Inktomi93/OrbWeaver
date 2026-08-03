@@ -21,11 +21,12 @@ export interface ListRowProps {
   subtitle?: string;
   /**
    * WHERE the subtitle sits. `block` (default) is the two-line entity row. `inline` puts it on the TITLE
-   * LINE after the name — the instrument-row grammar (the preset rack's name + scent, the Actions list's
-   * name + fires gloss), where the subtitle takes the flexing column and the title keeps a width floor so
-   * the identifier can never be squeezed to nothing.
+   * LINE after the name — the instrument-row grammar (the preset rack's name + scent), where the subtitle
+   * takes the flexing column and the title keeps a width floor so the identifier can never be squeezed to
+   * nothing. `column` is `inline` with the name cell pinned to `--width-label-col`, so a whole DECK of rows
+   * shares one gloss left-edge and one gloss width instead of one per name length (R-7).
    */
-  subtitlePlacement?: "block" | "inline";
+  subtitlePlacement?: "block" | "inline" | "column";
   /**
    * Drops the subtitle out of the accessible tree (`aria-hidden`, and out of `aria-describedby`). For a
    * subtitle that is a DECORATIVE echo of content the row already announces or that a screen reader has no
@@ -361,7 +362,7 @@ export function ListRow({
           slots={slots}
           subtitle={subtitle}
           subtitleDecorative={subtitleDecorative}
-          subtitleInline={subtitlePlacement === "inline"}
+          subtitleInline={subtitlePlacement !== "block"}
           subtitleReveal={subtitleReveal}
           title={title}
         />

@@ -18,9 +18,17 @@ import type { CharacterId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { RegexScriptPicker } from "#components";
 import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
+import { openSettingsTo } from "#state";
 
 const PICKER_SKELETON_ROWS = 3;
+/** The library's own pane + section (the Regex settings surface stamps this anchor). */
+const REGEX_LIBRARY_ANCHOR = { category: "regex", sub: "scripts" } as const;
 
+// NO HEADING OF ITS OWN (side-eye X-7, the run's ugliest IA defect). This picker IS the body of a facet
+// drill that is already titled `Regex scripts`, sitting beside a CONTEXT inspector whose panel is also
+// titled `Regex scripts` — so rendering a third `Regex scripts` heading 65px under the second one put four
+// labels for one concept on one screen, with two different explanations of it. The drill header names the
+// artifact; this body explains what attaching does, once.
 export function CharacterRegexScriptsField({ characterId }: { readonly characterId: CharacterId }): ReactElement {
   return (
     <QueryBoundary
@@ -29,8 +37,8 @@ export function CharacterRegexScriptsField({ characterId }: { readonly character
     >
       <RegexScriptPicker
         scope={{ kind: "character", characterId }}
-        heading="Regex scripts"
         helperText="Find/replace rules that run whenever this character is in the room, picked from your script library."
+        onOpenLibrary={(): void => openSettingsTo(REGEX_LIBRARY_ANCHOR.category, REGEX_LIBRARY_ANCHOR.sub)}
       />
     </QueryBoundary>
   );

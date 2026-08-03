@@ -20,7 +20,7 @@ import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { AlertTriangle, ArrowLeft, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { AppFormInstance } from "#forms";
@@ -61,7 +61,14 @@ export function TemplateDrillIn({ form, row, onBack }: TemplateDrillInProps): Re
 
       <Stack gap="tight">
         <Row align="center" gap="field">
-          <Text voice="label">{def.label}</Text>
+          {/* THE SUBJECT IS A HEADING, not a paragraph (side-eye R-9, carried since the first ARIA table).
+              It announced as `paragraph: Impersonate`, so a screen-reader user inside the editor had no
+              heading to jump to and no structural statement of WHAT they were editing — on the one region
+              whose entire content is that artifact. The `label` VOICE is unchanged; only the element and
+              its level are (level 3: the region is a sub-part of the preset surface). */}
+          <Heading level={3} voice="label">
+            {def.label}
+          </Heading>
           {/* The SAME chip the list row wears (crunch items 7/14) — outlined neutral, one kind vocabulary
               drawn one way on both surfaces. */}
           <Badge intent="neutral" size="sm" tone="ghost">
@@ -190,13 +197,19 @@ function TokenVocabulary({ form, row, capability }: CapabilityProps): ReactEleme
     // purpose (§5.0: this is a reference vocabulary, not an insert palette) — which is exactly why the
     // structure has to say so instead of leaving a reader to guess.
     <Section kicker="Macros this template can use">
-      {/* MACRO PILLS ARE MONO NEUTRAL (crunch item 14): a row of bright-blue `{{input}}`/`{{person}}`
+      {/* MACRO PILLS ARE MONO AND QUIET (crunch item 14): a row of bright-blue `{{input}}`/`{{person}}`
           pills was the loudest thing in the editor for what is a reference LIST — you read it once. The
-          mocks paint the substitution vocabulary as quiet outlined chips, and the mono face is what says
-          "this is a literal you type", which the colour was standing in for. */}
+          mocks paint the substitution vocabulary as quiet chips, and the mono face is what says "this is a
+          literal you type".
+          …IN THE SAME DIALECT AS THE READOUT'S CHIPS (side-eye, the P3 taste note on target 2): ~360px
+          below this list, `MacroText` prints the very same `{{input}}` in a 15% INFO tint with the info hue
+          as text. Two visual vocabularies for one noun on one screen is the F-23 disease at chip scale, so
+          the hue is now shared. The `ghost` OUTLINE stays: it is the honest distinction between "an item in
+          a reference list" (a boxed chip you scan) and "a token inside quoted wire text" (a word in a
+          sentence), which is a real difference and the only one left between them. */}
       <Row align="center" gap="field" role="list">
         {tokens.map((token) => (
-          <Badge className="font-mono" intent="neutral" key={token} role="listitem" size="sm" tone="ghost">
+          <Badge className="font-mono" intent="info" key={token} role="listitem" size="sm" tone="ghost">
             {token}
           </Badge>
         ))}

@@ -211,9 +211,16 @@ function KnobLabel({ label, hint }: { readonly label: string; readonly hint: str
               derive `More info about <label>`, and this composite spelled the same affordance
               `About <label>` — two vocabularies for one control, in one pane. The primitives' spelling
               wins; a feature composite does not get its own dialect. */}
+          {/* `shrink-0` IS THE TOUCH FLOOR HERE (side-eye R-8, isolated by measurement). `size="icon"` pins
+              a `--spacing-control-md` box — 48px on a coarse pointer — but the trigger is a FLEX ITEM in a
+              fixed-width label cell, so a long label ate into it: measured under an emulated coarse pointer,
+              "Repetition penalty" rendered 44×48, "Max output tokens" 43×48 and "Max context tokens" 42×48,
+              i.e. the three longest labels on the deck pushed their own explainer under the 44px floor while
+              every short-labelled sibling measured 48×48. A hit target that shrinks with the label length is
+              a target whose size depends on copy. The glyph is unaffected — only the box stops yielding. */}
           <TooltipTrigger
             render={
-              <Button aria-label={`More info about ${label}`} intent="ghost" size="icon" type="button">
+              <Button aria-label={`More info about ${label}`} className="shrink-0" intent="ghost" size="icon" type="button">
                 <Icon icon={Info} size="xs" />
               </Button>
             }

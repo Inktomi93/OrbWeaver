@@ -41,8 +41,18 @@ export const badgeVariants = tv({
       // character), and NO type axes at all, so font-size AND line-height inherit from the surrounding run
       // and the line rhythm is arithmetically unchanged. The radius steps one below the pill (`inset`, the
       // sub-control mark step) because a full pill on a text-height box reads as a lozenge.
-      // Pinned by computed box in tests/ui/primitives/badge/badge.ct.tsx.
-      inline: "inline rounded-inset",
+      //
+      // …and a FOURTH thing, which the F-6 fix got wrong and side-eye R-5 caught: it is SELECTABLE. The
+      // base's `select-none` is right for a status pill (a lozenge you click past, never text you quote)
+      // and catastrophic for a token inside quoted wire text. The assembled preview's whole stated job is
+      // "the string the model receives / the string you'd search for" — and with `select-none` inherited,
+      // dragging across it and copying yielded `[Take the following into special consideration for your
+      // next message: ]`: the `{{input}}` silently GONE from the clipboard, with nothing saying anything
+      // had been dropped. A user pasting that into a bug report, a diff or another template gets prose
+      // with holes in it. `select-text` is declared on the SIZE axis, so tailwind-merge's `select` group
+      // resolves it over the base. Pinned by a Selection read in
+      // tests/client/features/preset/components/macro-text.ct.tsx.
+      inline: "inline select-text rounded-inset",
     },
   },
   compoundVariants: [

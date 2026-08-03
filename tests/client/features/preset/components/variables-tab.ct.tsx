@@ -24,7 +24,10 @@ test("Variables: Add persists one row (no phantom), Remove persists the empty li
   // CT-4: the store driver must have PERSISTED one variable (savedLen=1), no call-site flush needed.
   await expect(spy).toContainText("savedLen=1");
 
-  await probe.getByRole("button", { name: "Remove" }).click();
+  // REMOVE CONFIRMS NOW (side-eye X-3): every `EntryListEditor` consumer holds authored content, so the
+  // trailing Remove opens an alertdialog naming the row instead of deleting on the first click.
+  await probe.getByRole("button", { name: "Remove MyVar" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Remove" }).click();
   // The remove persists the now-empty list too — proving both structural paths reach `save` via the driver.
   await expect(spy).toContainText("savedLen=0");
 });

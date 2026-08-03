@@ -7,6 +7,8 @@
 import { RegexScriptPicker } from "@orb/client/components";
 import { QueryBoundary } from "@orb/client/data";
 import type { CharacterId } from "@orb/kit/ids";
+import { Section, Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { RegexSettingsSurface } from "../../../../packages/client/src/features/regex/surfaces/regex-settings-surface";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
@@ -42,6 +44,46 @@ export function RegexPickerStory(): ReactElement {
             heading="Regex scripts"
             helperText="Rules that run whenever this character is in the room."
           />
+        </QueryBoundary>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The picker as a DECK GROUP beside a sibling group — the preset Transforms shape. The sibling exists so
+ *  the CT can compare the two group headings' painted type instead of asserting a px literal (F-8/R-4: the
+ *  picker's heading came back as a 16px sentence-case white heading among 10.5px muted caps kickers). */
+export function RegexPickerInDeckStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720 }}>
+        <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
+          <Stack gap="section">
+            <Section kicker="Delivery">
+              <Text voice="gloss">a sibling deck group</Text>
+            </Section>
+            <RegexScriptPicker scope={{ kind: "character", characterId: PICKER_CHARACTER }} heading="Regex" helperText="Rules this preset runs." />
+          </Stack>
+        </QueryBoundary>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The picker as the WHOLE BODY of an already-named drill (the character facet) — no heading of its own,
+ *  and the empty arm carrying its action (X-7 + X-19). */
+export function RegexPickerHeadlessStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 720 }}>
+        <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
+          <Section heading="Regex scripts">
+            <RegexScriptPicker
+              scope={{ kind: "character", characterId: PICKER_CHARACTER }}
+              helperText="Rules that run whenever this character is in the room."
+              onOpenLibrary={(): void => undefined}
+            />
+          </Section>
         </QueryBoundary>
       </div>
     </CtDataProviders>

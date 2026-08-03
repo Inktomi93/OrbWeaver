@@ -2,7 +2,7 @@ import type { CodeEditorDiagnostic } from "@orb/ui/code-editor";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { resolvedTokenColor } from "../../support/ct/resolved-token-color";
-import { CompletionsEditor, ControlledEditor, DiagnosticsEditor, ReadOnlyEditor } from "./code-editor.fixtures";
+import { CompletionsEditor, ControlledEditor, DiagnosticsEditor, ReadOnlyEditor, TabbableEditor } from "./code-editor.fixtures";
 
 const INITIAL_CSS = "body { color: red; }";
 
@@ -214,4 +214,33 @@ test("accepting a completion inserts the FULL themeable var name into the docume
       { intervals: [100, 150, 250], timeout: 15_000 },
     )
     .toBe("--color-primary");
+});
+
+// THE KEYBOARD USER MUST SEE THEY ARRIVED (side-eye X-4, WCAG 2.4.7). CodeMirror's editable surface is a
+// real tab stop and does match `:focus-visible`, but the token theme sets `&.cm-focused { outline: none }`
+// and nothing painted the house ring in its place: measured under a real Tab, every ancestor up to the
+// framed wrapper computed `outline-style: none` + `box-shadow: none`, on the ONE field in the regex editor
+// that swallows most keys. Driven with a REAL `press("Tab")` — a scripted `.focus()` never promotes to
+// `:focus-visible`, so it cannot prove this either way.
+test("Tabbing into the editor paints the house focus ring on its frame", async ({ mount, page }) => {
+  const component = await mount(<TabbableEditor initialValue="body { color: red; }" />);
+  // The FRAME is by construction the parent of `.cm-editor` (the host div CM6 mounts into) — located
+  // structurally rather than by class, so this reds on a missing ring and never on a missing selector.
+  const editor = component.locator(".cm-editor");
+  await expect(editor).toBeVisible();
+  const frameShadow = (): Promise<string> => editor.evaluate((el) => getComputedStyle(el.parentElement as HTMLElement).boxShadow);
+
+  expect(await frameShadow()).toBe("none");
+
+  await component.getByRole("button", { name: "before" }).focus();
+  await page.keyboard.press("Tab");
+
+  // The editable surface really is the stop that took focus, and really is KEYBOARD-focused — the state
+  // the ring keys on, and the reason this cannot be driven with `.focus()`.
+  await expect.poll(() => component.locator(".cm-content:focus-visible").count(), { intervals: [50, 100, 250] }).toBe(1);
+
+  const focused = await frameShadow();
+  expect(focused).not.toBe("none");
+  // The RING token, not some incidental shadow — reds if anyone re-hues `--color-ring` to "fix" this.
+  expect(focused).toContain(resolvedTokenColor("color.ring"));
 });

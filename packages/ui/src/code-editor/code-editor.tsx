@@ -6,7 +6,7 @@ import { EditorState } from "@codemirror/state";
 import { basicSetup, EditorView } from "codemirror";
 import type { ReactElement } from "react";
 import { useEffect, useId, useRef } from "react";
-import { cn } from "#lib";
+import { cn, FOCUS_RING_HAS } from "#lib";
 import { cssVar } from "#tokens";
 
 // The one CodeMirror↔design-token mapping site. Every color/typography value is a var(--…)
@@ -228,7 +228,17 @@ export function CodeEditor({ lang, value, onChange, readOnly = false, ariaLabel,
 
   return (
     <>
-      <div ref={hostRef} className={cn("overflow-hidden rounded-control border border-border font-mono text-code", className)} />
+      {/* THE WRAPPER WEARS THE FOCUS RING (side-eye X-4, WCAG 2.4.7). CodeMirror's editable surface is a
+          real keyboard stop and DOES match `:focus-visible` — but the token theme sets `&.cm-focused {
+          outline: none }` (correctly: a browser outline inside a bordered frame is not this house's ring),
+          and nothing put the house ring back. Measured under a real `press_key` Tab traversal: every
+          ancestor up to this div computed `outline-style: none` + `box-shadow: none`, and the frame kept
+          its rest-state hairline — so on the ONE field in the regex editor that swallows most keys, a
+          keyboard user had no signal they had arrived, while the plain TextField one row up wore a bright
+          amber ring. `FOCUS_RING_HAS` (not `focus-within:`) is the exact TextField treatment: it paints
+          only when a descendant matches `:focus-visible`, which is what a text input's own
+          `focus-visible:` ring does. `overflow-hidden` clips descendants, never this box's own ring. */}
+      <div ref={hostRef} className={cn("overflow-hidden rounded-control border border-border font-mono text-code", FOCUS_RING_HAS, className)} />
       {hasDiagnostics ? (
         <div id={describedById} aria-live="polite" className="sr-only">
           {diagnostics.map((diagnostic, index) => {

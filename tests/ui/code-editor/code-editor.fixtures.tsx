@@ -20,6 +20,19 @@ export function ControlledEditor({ initialValue }: ControlledEditorProps): React
   );
 }
 
+/** The KEYBOARD-ARRIVAL fixture (side-eye X-4): a preceding tab stop, then the editor, so a test can Tab
+ *  INTO the editor for real. A scripted `.focus()` cannot prove this — Chromium only promotes a focus to
+ *  `:focus-visible` when it came from the keyboard, which is precisely the state the ring keys on. */
+export function TabbableEditor({ initialValue }: ControlledEditorProps): ReactElement {
+  const [value, setValue] = useState(initialValue);
+  return (
+    <div>
+      <button type="button">before</button>
+      <CodeEditor lang="css" value={value} onChange={setValue} ariaLabel="fixture tabbable editor" />
+    </div>
+  );
+}
+
 interface ReadOnlyEditorProps {
   readonly value: string;
 }

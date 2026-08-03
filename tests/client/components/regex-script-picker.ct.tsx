@@ -10,7 +10,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../support/ct/route-trpc";
 import { routeTrpc } from "../../support/ct/route-trpc";
-import { RegexPickerStory } from "../features/regex/_ct-stories";
+import { RegexPickerHeadlessStory, RegexPickerInDeckStory, RegexPickerStory } from "../features/regex/_ct-stories";
 
 const ATTACHED = {
   id: "regex_script_000000000000000a",
@@ -73,4 +73,49 @@ test("an empty library points at the one place scripts are authored", async ({ m
   // The empty state is load-bearing: a picker with nothing in it must not look broken, it must say where to
   // go. One library, one editor — so there is exactly one honest answer to give here.
   await expect(page.getByText(AUTHORED_IN_SETTINGS)).toBeVisible();
+});
+
+// …AND IT CARRIES THE ACTION when the host can navigate (side-eye X-19): an empty state that prints a
+// navigation instruction next to a surface capable of navigating is prose standing in for a button.
+test("the empty arm offers the jump, not just the address", async ({ mount, page }) => {
+  await stub(page, [], []);
+  await mount(<RegexPickerHeadlessStory />);
+  await expect(page.getByRole("button", { name: "Open your script library" })).toBeVisible();
+});
+
+// THE GROUP HEADING SPEAKS THE DECK'S VOICE (side-eye F-8 REGRESSED → R-4). This component landed after the
+// fix-round that moved `EntryListEditor` to the kicker arm, and rebuilt the very defect it closed: on the
+// Transforms deck its `Regex` heading painted 16px sentence-case white among four 10.5px muted caps
+// kickers. Asserted as a RELATION against a live sibling group, so it cannot be satisfied by a px literal
+// drifting out from under it.
+test("the picker's group heading paints like the deck's other group headings, not like a page title", async ({ mount, page }) => {
+  await stub(page, [ATTACHED], []);
+  await mount(<RegexPickerInDeckStory />);
+  // BARRIER on the SETTLED deck: the picker suspends, and its QueryBoundary's fallback replaces the sibling
+  // group too — an unbarriered census measures the loading arm and finds no headings at all.
+  await expect(page.getByRole("switch", { name: "Attach already on" })).toBeVisible();
+  const painted = await page.evaluate(() => {
+    const read = (text: string): { size: string; transform: string; color: string } | null => {
+      const found = [...document.querySelectorAll("h3")].find((h) => h.textContent?.trim() === text);
+      if (found === null || found === undefined) {
+        return null;
+      }
+      const style = getComputedStyle(found);
+      return { size: style.fontSize, transform: style.textTransform, color: style.color };
+    };
+    return { sibling: read("Delivery"), regex: read("Regex") };
+  });
+  expect(painted.sibling).not.toBeNull();
+  expect(painted.regex).toEqual(painted.sibling);
+});
+
+// THE PICKER DROPS ITS HEADING when it IS the body of something already named (side-eye X-7): the character
+// facet rendered `Regex scripts` as a drill header, again as this heading 65px below it, and again on the
+// CONTEXT inspector beside it — four labels, one concept, one screen.
+test("with no heading prop the picker adds no second heading to its host", async ({ mount, page }) => {
+  await stub(page, [ATTACHED], []);
+  await mount(<RegexPickerHeadlessStory />);
+  // Settled first — the count must be taken against the resolved picker, not its fallback.
+  await expect(page.getByRole("switch", { name: "Attach already on" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Regex scripts" })).toHaveCount(1);
 });

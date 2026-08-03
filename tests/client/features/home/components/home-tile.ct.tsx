@@ -33,6 +33,39 @@ test("a still-reading tile occupies the box it settled at last boot — not a 3-
     .toBe(true);
 });
 
+// …and the box has to be FILLED (side-eye R-1). Reserving 420px and painting a 160px 3-row skeleton inside
+// it trades a layout shift for dead space: measured live, the recents tile showed 189px of blank under
+// three lonely bars — the exact number the reservation had stopped shifting — while the temp-chat tile
+// reserved 110.89px against the same skeleton and had its third bar clipped to a 2.9px hairline by
+// `overflow: clip`. Both are asserted here in ROW units read off the rendered bars, never a hardcoded
+// pitch: `--spacing-control-lg` is pointer-conditional (40px fine / 56px coarse), so a literal would pass
+// on this runner and lie about a tablet.
+test("the skeleton FILLS the reserved box — no blank tail, no hairline stub", async ({ mount }) => {
+  const home = await mount(<HomeTileReserveStory />);
+  const reserved = home.locator('[data-home-tile="slow"] [data-tile-reserved]');
+  await expect(reserved.locator('[data-slot="skeleton"]').first()).toBeVisible();
+
+  const geometry = await reserved.evaluate((box) => {
+    const bars = [...box.querySelectorAll('[data-slot="skeleton"]')];
+    const boxRect = box.getBoundingClientRect();
+    const first = bars[0]?.getBoundingClientRect();
+    const last = bars.at(-1)?.getBoundingClientRect();
+    return {
+      rowHeight: first?.height ?? 0,
+      // How much of the box is left unpainted below the last bar…
+      tail: boxRect.bottom - (last?.bottom ?? boxRect.bottom),
+      // …and how much of that last bar actually survives the clip.
+      lastVisible: Math.min(last?.bottom ?? 0, boxRect.bottom) - (last?.top ?? 0),
+    };
+  });
+
+  expect(geometry.rowHeight).toBeGreaterThan(0);
+  // The 189px-of-blank defect: the unpainted tail may not exceed a single row's worth of space.
+  expect(geometry.tail).toBeLessThan(geometry.rowHeight);
+  // The 2.9px-hairline defect: a bar that renders at all renders as a bar, not a sliver.
+  expect(geometry.lastVisible).toBeGreaterThan(geometry.rowHeight / 2);
+});
+
 test("the tile BELOW does not move when the read lands — the +189px push is gone", async ({ mount, page }) => {
   const home = await mount(<HomeTileReserveStory />);
   const slow = home.locator('[data-home-tile="slow"]');
