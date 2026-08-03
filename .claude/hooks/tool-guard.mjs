@@ -248,8 +248,6 @@ const PROC_GIT_PUSH = /(^|\0)git\0([^\0]*\0)*push(\0|$)/;
 const GIT_ADD_ALL = /\bgit\s+add\s+(?:-A\b|--all\b|\.(?:\s|$))/;
 const GIT_PUSH = /\bgit\s+(?:[^\s;|&]+\s+)*?push\b/;
 const GIT_PUSH_FORCE = /\bgit\s+push\b[^\n;|]*(?:\s--force(?:-with-lease)?\b|\s-f\b)/;
-// `--hard` only: soft/mixed keep the worktree, and `reset --soft HEAD~1` is the documented lane repair.
-const GIT_RESET_HARD = /\bgit\s+(?:[^\s;|&]+\s+)*?reset\b[^\n;|&]*\s--hard\b/;
 const RM_RF_HEAD = /^\s*rm\s+(?:-[a-z]*[rf][a-z]*\s+)+/;
 const RM_SAFE_TARGET = /\/tmp\/|scratchpad|playwright\/\.cache|node_modules|reports\/|\bdist\b|\bcoverage\b|\.cache\b|\.bak\b/;
 // `$VAR` is safe (the rewrite copies text verbatim, the shell expands identically); `$(`/backticks/
@@ -283,8 +281,13 @@ const REASONS = {
     "Standing law: a lane never pushes. Commit on your branch and report — the orchestrator merges, and each push to origin gets an explicit owner word (pushes are outward-facing and hard to walk back). If this push was explicitly ordered, confirm it here.",
   ownerWordPush:
     "Every push to origin needs a FRESH explicit owner word — not a banked one, not a green battery, not 'it was approved yesterday'. Pushing is outward-facing and hard to walk back. Confirm here only if the owner just gave the word for THIS push.",
-  resetHard:
-    "`git reset --hard` discards uncommitted work irreversibly, and this tree routinely carries a large uncommitted surface. If you are undoing a probe, delete the scratch file instead; if you are reading an old version, use `git show <ref>:<path>`. The sanctioned use (clearing staged-no-MERGE_HEAD debris after a killed merge) is real — confirm here if that is what this is.",
+  sudo: "Root changes this box outside the repo, and nothing here needs it — the toolchain, the tests, the stack and the engines all run unprivileged. If a package genuinely needs installing, say so and let the owner run it. Confirm here only if he just asked for this.",
+  netPipeShell:
+    "Piping a network fetch straight into a shell executes whatever that URL serves right now, unreviewed — there is no legitimate instance of this shape in the 133k-command corpus this guard was tuned against. Download it, READ it, then run it.",
+  rmRfUnsafe:
+    "`rm -rf` on a target that is not scratch (/tmp, scratchpad, node_modules, reports/, dist, coverage, .cache, *.bak, playwright/.cache). This used to reach the permission layer on its way past; it no longer does, so it stops here. Re-read the path — if it is right, confirm.",
+  sqliteLive:
+    "Never run bare `sqlite3` against the LIVE db — a stray write or a held lock corrupts the running stack's state, and WAL makes the damage non-obvious. Probe a COPY, or use `/api/_debug/*`. If this really is a scratch/:memory: db, confirm.",
 };
 
 const CONTEXTS = {
@@ -453,6 +456,40 @@ function collectGrepWarn(command, blank, clauses, contexts) {
   }
 }
 
+// ── the hard floor ──
+// Load-bearing ONLY because the pass-through became `allow` (see the box at the top). A hook `allow`
+// bypasses the whole permission system — including the auto-mode CLASSIFIER that is the owner's real
+// gate — so shapes that used to reach that classifier now reach nothing. These four are the ones a
+// probe found falling through: measured 2026-08-03, `sudo rm -rf /etc` and `curl … | bash` both
+// classified as clean passes. This floor puts them back in front of a human.
+//
+// It is deliberately SMALL. It is not a security model and it cannot become one — a hand-written
+// pattern list will always lose to a determined bypass. Its job is to stop an ACCIDENT (a wrong path
+// in an rm, a copy-pasted install one-liner), which is the realistic failure here.
+const SUDO_HEAD = /^\s*(?:sudo|doas)\b/;
+const NET_FETCH_HEAD = /^\s*(?:\S*\/)?(?:curl|wget)\b/;
+// shells + `node -e` only. `python3 -c` is a sanctioned everyday tool here and is NOT a sink.
+const SHELL_SINK_HEAD = /^\s*(?:\S*\/)?(?:sh|bash|zsh|dash|ksh)\b|^\s*(?:\S*\/)?node\s+-e\b/;
+
+/** @returns {{decision: "deny"|"ask", rule: string, reason: string}|null} */
+function detectHardFloor(blank, clauses) {
+  for (const clause of clauses) {
+    for (let i = 0; i < clause.stages.length; i += 1) {
+      const stage = clause.stages[i];
+      const text = blank.slice(stage.start, stage.end);
+      if (SUDO_HEAD.test(text)) {
+        return { decision: "ask", rule: "sudo", reason: REASONS.sudo };
+      }
+      // a network fetch feeding a shell — no legitimate sighting in a 133k-command corpus
+      const next = clause.stages[i + 1];
+      if (NET_FETCH_HEAD.test(text) && next !== undefined && SHELL_SINK_HEAD.test(blank.slice(next.start, next.end))) {
+        return { decision: "deny", rule: "net-pipe-shell", reason: REASONS.netPipeShell };
+      }
+    }
+  }
+  return null;
+}
+
 function collectStageWarns(command, blank, clauses, contexts) {
   let vitest = false;
   let sqlite = false;
@@ -485,6 +522,10 @@ function collectStageWarns(command, blank, clauses, contexts) {
   if (rmrf) {
     contexts.push(CONTEXTS.rmRf);
   }
+  // returned so the caller can ESCALATE: as warns these two were fine while the pass-through was a
+  // defer (the permission layer still saw them). Now that pass means allow, a warn would let an
+  // unsafe-target `rm -rf` and a bare sqlite3 on the LIVE db run with nothing in front of them.
+  return { sqlite, rmrf };
 }
 
 // ── the classifier ──
@@ -503,6 +544,12 @@ export function classify(command, ctx) {
   const blank = blankHeredocs(command, blankQuoted(command));
   const clauses = parseStructure(blank);
   const contexts = [];
+
+  // 0. THE HARD FLOOR — first, so no later rewrite tier can route around it.
+  const floor = detectHardFloor(blank, clauses);
+  if (floor) {
+    return { ...floor, contexts };
+  }
 
   // 1. destructive git (doctrine ban; near-zero legitimate sightings) — DENY. Read-only forms pass:
   //    `stash list`/`stash show` destroy nothing, and `restore --staged` (no --worktree) only unstages.
@@ -665,8 +712,16 @@ export function classify(command, ctx) {
     break;
   }
 
-  // 11. advisory tier — never blocks
-  collectStageWarns(command, blank, clauses, contexts);
+  // 11. advisory tier — never blocks, EXCEPT the two shapes that escalate (see collectStageWarns):
+  //     an `rm -rf` whose target is not on the safe list, and a bare `sqlite3` on a non-scratch db.
+  //     Both were warn-only while pass meant defer; with pass meaning allow they need a human.
+  const stageWarns = collectStageWarns(command, blank, clauses, contexts);
+  if (stageWarns.rmrf) {
+    return { decision: "ask", rule: "rm-rf-unsafe", reason: REASONS.rmRfUnsafe, contexts };
+  }
+  if (stageWarns.sqlite) {
+    return { decision: "ask", rule: "sqlite-live", reason: REASONS.sqliteLive, contexts };
+  }
   collectGrepWarn(command, blank, clauses, contexts);
   if (GIT_NO_VERIFY.test(blank)) {
     contexts.push(CONTEXTS.noVerify);
