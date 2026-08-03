@@ -13,12 +13,13 @@ import {
   useGatedQuery,
   useInvalidation,
   useOnlineStatus,
+  usePromptMacroSuggestions,
   useSettingsViewerView,
   useTRPC,
   useUploadAsset,
   useViewer,
 } from "@orb/client/data";
-import { renderMessageForDisplay } from "@orb/client/lib";
+import { bindNotify, renderMessageForDisplay } from "@orb/client/lib";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CreateTagInput, TagView } from "@orb/contracts/tag";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
@@ -548,6 +549,56 @@ export function SectionEchoStory(): ReactElement {
   );
 }
 
+// ── createEntityMutation `refusal` — the ERRORS-AS-DATA outcome class (EDITSNAP-OK) ────────────────
+// A verb that refuses LEGIBLY as data resolves the mutation: `errorToast` cannot fire, `onError` never runs,
+// and the sticky error slot stays null — so a fire-and-forget call site drops the refusal on the floor. This
+// story reuses the echo pair on purpose: the OTHER half of the arm is that a refused write must not seed the
+// read it would otherwise be authoritative for.
+
+const useRefusableSectionUpdate = createEntityMutation<UpdateSectionVars, unknown>({
+  options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
+  busDriven: true,
+  echo: (trpc) => trpc.settings.getUserSettings.queryKey(),
+  refusal: (data): string | null => {
+    const verdict = data as { readonly ok?: boolean; readonly reason?: string };
+    return verdict.ok === false ? `refused — ${verdict.reason ?? ""}` : null;
+  },
+});
+
+function SectionRefusalInner(): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
+  const mutation = useRefusableSectionUpdate({ trpc, invalidation });
+  const [notified, setNotified] = useState<string>("");
+  useState(() => {
+    // `bindNotify` is main.tsx-only, so the CT harness leaves `notify` a no-op unless a story binds it — and
+    // the toast is the ONLY observable a refusal has (the `PersonaThisChatStory` precedent).
+    bindNotify({ info: (m): void => setNotified(m), success: (m): void => setNotified(m), error: (m): void => setNotified(m) });
+    return null;
+  });
+
+  return (
+    <div>
+      <p data-testid="chat-source">{data.config.routing.roleDefaults.chat?.source ?? "unset"}</p>
+      <p data-testid="notified">{notified}</p>
+      <button type="button" onClick={(): void => mutation.mutate({ section: "routing", patch: { roleDefaults: { chat: { source: "vllm" } } } })}>
+        save
+      </button>
+    </div>
+  );
+}
+
+export function SectionRefusalStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
+        <SectionRefusalInner />
+      </QueryBoundary>
+    </CtDataProviders>
+  );
+}
+
 // ── D121-E / F1: the DISPLAY TIER ───────────────────────────────────────────────────────────────────────
 const DISPLAY_STORY_CHAT = "chat_ctdisplaystoryyyyyyyyy" as ChatId;
 
@@ -587,5 +638,31 @@ export function DisplayTierInRoomStory(): ReactElement {
     <CtDataProviders>
       <DisplayTierBody chatId={DISPLAY_STORY_CHAT} />
     </CtDataProviders>
+  );
+}
+
+/** MACU-2 — `usePromptMacroSuggestions` in isolation. The hook is the ONE home of the global-editor macro
+ *  plane (persona description, character card facets): the builtin catalog UNION the ACTIVE preset's user
+ *  macros, sourced `settings.getUserSettings` → `seeds.defaultPresetId` → `preset.get`. The story renders the
+ *  offered NAMES so the `.ct.tsx` can assert the union and the built-in (`defaultPresetId: null`) arm without
+ *  driving a whole editor. */
+export function PromptMacroSuggestionsStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <PromptMacroSuggestionsProbe />
+    </CtDataProviders>
+  );
+}
+
+function PromptMacroSuggestionsProbe(): ReactElement {
+  const suggestions = usePromptMacroSuggestions();
+  return (
+    <div>
+      {/* The ORDER matters as much as the membership: `withUserMacros` leads with the user plane, because the
+          bare-`{{` popover only shows eight rows and a user macro behind the builtin lead is invisible on the
+          very surfaces that exist to call it. */}
+      <output data-testid="macro-names">{suggestions.map((entry) => entry.name).join(" ")}</output>
+      <output data-testid="macro-lead">{suggestions[0]?.name ?? ""}</output>
+    </div>
   );
 }

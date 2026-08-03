@@ -21,7 +21,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../support/ct/route-trpc";
-import { SectionEchoStory, TagCreateColdCacheStory, TagCreateOptimisticStory, TagCreateVariablesStory } from "./_ct-stories";
+import { SectionEchoStory, SectionRefusalStory, TagCreateColdCacheStory, TagCreateOptimisticStory, TagCreateVariablesStory } from "./_ct-stories";
 
 interface FixtureTag {
   readonly id: string;
@@ -197,4 +197,35 @@ test("echo: the write's own response seeds the read — no refetch, no invalidat
   // ONESHOT-OK: a belt over the DOM pin above — this story wires NO refetch path at all (the mutation is
   // busDriven, so its settle invalidates nothing, and a CT has no bus), so the read count cannot move.
   expect(trpc.count("settings.getUserSettings")).toBe(1);
+});
+
+// `refusal` (EDITSNAP-OK): the THIRD outcome class. A verb whose contract promises a legible refusal answers
+// `{ok:false, reason}` on a 200 — the mutation RESOLVES, so `errorToast` cannot fire, `onError` never runs
+// and `mutation.error` stays null. Every rpg hand-door call site is fire-and-forget (they reconcile through
+// `invalidates`), so before this arm a refusal was total silence: a five-plane scene write was lost to one
+// over-length label with the panel simply repainting its pre-write state.
+test("refusal: an errors-as-data refusal TOASTS the server's reason and does NOT seed the echo", async ({ mount, page }) => {
+  const stored: Record<string, unknown> = { chat: { source: "openrouter" } };
+  const view = (): unknown => ({
+    userId: "user_ct_refusal",
+    schemaVersion: 1,
+    config: { ...DEFAULT_USER_SETTINGS, routing: { roleDefaults: stored } },
+    updatedAt: 0,
+  });
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => view(),
+    // A 200 carrying a REFUSAL — not a transport error. The write never happened.
+    "settings.updateUserSettingsSection": () => ({ ok: false, reason: "label exceeds 40 characters" }),
+  });
+
+  await mount(<SectionRefusalStory />);
+  await expect(page.getByTestId("chat-source")).toHaveText("openrouter");
+
+  await page.getByRole("button", { name: "save" }).click();
+
+  // The host is TOLD, with the server's own reason intact…
+  await expect(page.getByTestId("notified")).toHaveText("refused — label exceeds 40 characters");
+  // …and the refused response is NOT authoritative for the read it would otherwise seed: the reader still
+  // shows the true stored value, never the intent the server declined.
+  await expect(page.getByTestId("chat-source")).toHaveText("openrouter");
 });

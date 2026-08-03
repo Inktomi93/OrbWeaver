@@ -37,7 +37,20 @@ const useUpdateImagery = createEntityMutation<UpdateImageryVars, unknown>({
 });
 
 /** The macros the EXTRACTION templates resolve (chat's extraction MacroContext — char/user only). Caption
- *  cards get no suggestions (the image is the subject; no macros resolve). */
+ *  cards get no suggestions (the image is the subject; no macros resolve).
+ *
+ *  MACU-2 EXEMPTION (owner ruling 2026-08-03: the macro plane goes everywhere macros WORK — nowhere else).
+ *  This list stays hand-curated and does NOT gain the user-macro plane, because a user macro provably does
+ *  not resolve here. The one consumer path is `domain/imagery/verbs/extract-prompt.ts` →
+ *  `ChatOps.extractQuiet` → `domain/chat/verbs/extract-quiet.ts`, which calls
+ *  `processMacros(p.instruction, macroOptions)` with a bare `ProcessMacroOptions` (char/user/persona/
+ *  scenario/cast/env) and NO registry — the process default registry only, with no `registerUserMacros`
+ *  anywhere on that path. Offering `{{house_rule}}` here would promise a substitution that never runs.
+ *
+ *  QUEUED OWNER QUESTION (not a permanent verdict): "should the imagery mode-templates resolve the
+ *  user-macro plane at extract time?" That is a product call with a real server change behind it — threading
+ *  the chat's preset + game defs into `extractQuiet` and building the per-turn registry there. If it is
+ *  answered YES, this exemption comes out and the plane lands. Do not read it as forever. */
 const IMAGERY_TEMPLATE_MACROS: readonly MacroSuggestion[] = [
   { name: "char", category: "character", description: "The subject character's name" },
   { name: "user", category: "persona", description: "Your persona's name" },

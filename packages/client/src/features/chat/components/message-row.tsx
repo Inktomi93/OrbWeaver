@@ -81,8 +81,9 @@ export interface MessageRowProps {
   readonly showLLMReasoningIcon?: boolean | undefined;
   /** Undefined ⇒ every metadata chip hidden. */
   readonly metadataVisibility?: MessageMetadataVisibility | undefined;
-  /** RAWVIEW — the viewer holds the room HOST role (`ChatDetail.viewerIsHost`). Threaded to the metadata
-   *  row, which gates the host-only per-variant wire inspector on it. Absent ⇒ not host (fail-closed). */
+  /** RAWVIEW/WIREBTN — the viewer holds the room HOST role (`ChatDetail.viewerIsHost`). Threaded to the
+   *  ACTION cluster, whose kebab gates the host-only per-variant wire inspector on it (it used to reach the
+   *  metadata row; that row is data-only now). Absent ⇒ not host (fail-closed). */
   readonly viewerIsHost?: boolean | undefined;
   readonly messageActions?: "expanded" | "hover" | undefined;
   /** True for the one row that is the "last-in-context" boundary; renders a quiet divider above it. */
@@ -260,6 +261,7 @@ export function MessageRow({
                 message,
                 onChatForked,
                 messageActions,
+                viewerIsHost,
               })}
             </Row>
             {renderRowBubble({
@@ -277,7 +279,7 @@ export function MessageRow({
               speakerThemes,
             })}
             {editing ? null : <MessageToolCalls records={message.toolCalls} renderers={toolRenderers} />}
-            {editing ? null : <MessageMetadataRow message={message} visibility={metadataVisibility} viewerIsHost={viewerIsHost} />}
+            {editing ? null : <MessageMetadataRow message={message} visibility={metadataVisibility} />}
             {renderRowSwipe({ editing, showSwipes, role, greeting, message })}
             {footerContributions.length === 0 ? null : (
               <Stack gap="field" data-slot="message-footer">

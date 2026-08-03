@@ -33,6 +33,21 @@ import type { AppRouter } from "@orb/server";
 import type { TRPCClient } from "@trpc/client";
 import type { OrbSeedHandle, SeedProfile } from "../lib/agent-bridge";
 
+/**
+ * EDITSNAP-OK — the errors-as-data CHECK for this seeder's two hand-door calls.
+ *
+ * `editSnapshot`/`patchActor` refuse LEGIBLY as data (`{ok:false, reason}`) on a resolved promise, and
+ * `editSnapshot` rejects the WHOLE patch on ONE bad plane. A seeder that ignores that verdict is the worst
+ * possible consumer of it: `__orb.seed` exists so a verify pass can trust the panel it is looking at, and an
+ * un-checked refusal hands back a chatId for a game whose scene planes silently never landed. It throws —
+ * the seed's job is to be trustworthy or to say it failed, and the caller is an agent reading the rejection.
+ */
+function assertHandWrote(door: string, result: { readonly ok: boolean; readonly reason?: string }): void {
+  if (!result.ok) {
+    throw new Error(`__orb.seed: rpg.${door} refused — ${result.reason ?? "no reason given"}`);
+  }
+}
+
 /** The player character card the seeded game rosters. A stable handle keeps the dev library from duping on
  *  re-seed (`character.create` reuses by handle when it already exists). */
 const PLAYER_HANDLE = "orb-seed-hero";
@@ -353,7 +368,7 @@ export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
 
     // 5) The SCENE half of the swipe-volatile plane in one overlay: ambient, the present cast (relationships
     //    + guides), the plot spine, the game-subject tracker.
-    await client.rpg.editSnapshot.mutate({
+    const sceneWrite = await client.rpg.editSnapshot.mutate({
       chatId,
       patch: {
         location: SCENE.location,
@@ -366,6 +381,7 @@ export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
         trackerValues: { alarm: { value: 15, items: null } },
       },
     });
+    assertHandWrote("editSnapshot", sceneWrite);
 
     // 5b) The per-ACTOR half through the op door (R1 — `editSnapshot` refuses an `actorState` image). One call
     //     per actor, SEQUENTIAL for the same reason the quests are: each write reads and rewrites the current
@@ -383,7 +399,12 @@ export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
       })),
     ];
     await actorWrites.reduce<Promise<unknown>>(
-      (chain, write) => chain.then(() => client.rpg.patchActor.mutate({ chatId, targetRef: write.targetRef, ops: [...write.ops] })),
+      (chain, write) =>
+        chain
+          .then(() => client.rpg.patchActor.mutate({ chatId, targetRef: write.targetRef, ops: [...write.ops] }))
+          .then((applied) => {
+            assertHandWrote("patchActor", applied);
+          }),
       Promise.resolve(),
     );
 

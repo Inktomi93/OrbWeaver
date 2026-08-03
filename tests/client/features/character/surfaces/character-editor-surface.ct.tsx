@@ -387,3 +387,37 @@ test("F4 the Field tab rests on the overview card, not a full-height empty state
   await expect(component.getByText("Open a field to inspect it")).toHaveCount(0);
   await expect(overview.getByText(INSPECT_HINT_RE)).toBeVisible();
 });
+
+// MACU-2 (owner ruling 2026-08-03, "the macro plane goes everywhere macros WORK") — a card's free-text facets
+// complete against the USER-MACRO PLANE, not a two-item hand list. They qualify on MECHANISM: card fields are
+// rendered during turn assembly by `renderMemberField` → `renderMacros` with the PER-TURN registry
+// `buildTurnUserMacros` composes (builtins + the active preset's `userMacros` + the game's), so a macro the
+// author declared on their preset genuinely resolves in a description. The plane is read from the ACTIVE
+// preset (`seeds.defaultPresetId`), which is the closest true answer a card editor can have — a card is
+// authored once and played in many rooms. The assertion is the popover ROW (the affordance), and the fixture
+// macro's name has no builtin fuzzy match, so the row cannot be satisfied by the builtin catalog alone.
+
+const MACRO_USER_ROW = "{{sceneTone}}";
+const MACRO_USER_GLOSS = "This game's tonal register.";
+
+test("MACU-2: a card facet completes against the ACTIVE PRESET's user macros", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.get": () => CARD,
+    "chat.listChats": () => [],
+    "character.update": () => CARD,
+    "settings.getUserSettings": () => ({ config: { seeds: { defaultPresetId: "preset_ct_active" } } }),
+    "preset.get": () => ({
+      config: { userMacros: [{ name: "sceneTone", description: MACRO_USER_GLOSS, args: [], body: "hushed", inputs: [], strict: false }] },
+    }),
+  });
+  const component = await mount(<CharacterEditorSurfaceStory />);
+
+  await component.getByRole("button", { name: DESCRIPTION_ROW }).click();
+  const body = component.getByRole("textbox", { name: "Description" });
+  await expect(body).toBeVisible();
+  await body.click();
+  await body.pressSequentially("{{scen");
+
+  await expect(page.getByRole("option", { name: MACRO_USER_ROW })).toBeVisible();
+  await expect(page.getByText(MACRO_USER_GLOSS)).toBeVisible();
+});

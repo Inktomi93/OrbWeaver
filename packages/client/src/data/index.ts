@@ -57,6 +57,7 @@ export { useDisplayScripts } from "./use-display-scripts";
 export { useGatedQuery } from "./use-gated-query";
 export { useInvalidation } from "./use-invalidation";
 export { useOnlineStatus } from "./use-online-status";
+export { usePromptMacroSuggestions } from "./use-prompt-macro-suggestions";
 export { useSettingsViewerView } from "./use-settings-viewer-view";
 export { useUploadAsset } from "./use-upload-asset";
 export type { Viewer, ViewerPersona } from "./use-viewer";
