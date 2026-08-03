@@ -61,6 +61,17 @@ const ALLOWLIST: Record<string, string> = {
     '`{kind:"body"}` collection arm is only ever called WITH a member, and the no-selection copy is the ' +
     "config host's own `context.empty`.) The next step is picking another row in the sibling roster, which is " +
     "on screen; the regex-context-body twin above, same species.",
+  "packages/client/src/features/databank/components/databank-context-body.tsx":
+    "the databank CONTEXT pane's two no-next-step arms: the NO-SELECTION arm (a `single` context body is " +
+    "mounted unconditionally and must render the section's own `context.empty` copy itself — the next step " +
+    "is picking a row in the sibling LIST, which is on screen whenever this is; the config-context-body " +
+    "precedent) and the GONE arm (the open document was deleted while its activation panel was up — the " +
+    "world-info/tag/regex context twins above, same species).",
+  "packages/client/src/features/databank/surfaces/databank-detail-surface.tsx":
+    "the Databank CONTENT teaching state — a 'pick a document on the left, or add one' nudge shown alongside " +
+    "the library list, which itself carries BOTH create doors (the band's Add primary and the empty bank's " +
+    "own CTA). The next step lives in the sibling list, so this state legitimately has no action of its own: " +
+    "the preset-library-welcome.tsx precedent, same species, same reasoning.",
   "packages/client/src/features/rpg/components/cast/cast-tab.tsx":
     "read-only-by-pillar: the NPC roster is model-authored via `upsert_npc` (P1 — the client derives/creates nothing); " +
     "the cast fills as the story introduces characters, so there is no client action to offer.",

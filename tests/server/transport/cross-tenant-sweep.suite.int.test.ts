@@ -1136,6 +1136,8 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "databank.scrapeWiki":
     "self-scoped: stamps ownerId = principal.userId; input is a single url string, no foreign id — the article extract becomes the caller's OWN canon. Same ANY_HOST safeFetch guard as scrapeWeb; a refusal collapses to a leak-free ScrapeFailedError",
   "databank.list": "self-scoped: listOwnedMeta filters WHERE owner_id = principal.userId; origin/limit/offset only, no foreign id",
+  "databank.listGlobal":
+    "self-scoped: listGlobalDocumentIds filters WHERE global_documents.owner_id = principal.userId (the junction's own scope column, D23); takes NO input at all, so there is no foreign id to probe",
   "settings.getAppSettings": "admin-gated: deployment settings",
   "settings.getAppSettingsWithOverrides": "admin-gated: deployment settings (resolved + raw overrides)",
   "settings.updateAppSettings": "admin-gated: deployment settings",

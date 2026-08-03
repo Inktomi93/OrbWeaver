@@ -47,6 +47,7 @@ import {
 } from "@orb/client/features/chat";
 import { makeConfigSection } from "@orb/client/features/config";
 import { connectionsPane } from "@orb/client/features/credentials";
+import { databankSection } from "@orb/client/features/databank";
 import { corpusSection } from "@orb/client/features/discovery";
 import { automationDormantTile, buddyDormantTile, makeHomeSection, sectionJumpTile } from "@orb/client/features/home";
 import { notificationsChrome } from "@orb/client/features/notifications";
@@ -187,6 +188,7 @@ const REAL: Record<SectionId, SectionDefinition> = {
   characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
   corpus: corpusSection,
   config: makeConfigSection(configCollections),
+  databank: databankSection,
   presets: presetsSection,
   refinery: refinerySection,
   analytics: analyticsSection,

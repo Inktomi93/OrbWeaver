@@ -125,6 +125,21 @@ const STATIC: Record<string, string> = {
   "search.similarArt":
     "input-keyed (characterId) cosine over image vectors (features/discovery/surfaces/corpus-dossier-surface.tsx) — the vectors are rewritten only by the image-embed pass, which announces nothing (the analytics class above).",
 
+  // ── databank: NO bus event exists, so every read is driven by the mutations' own `invalidates` (blind
+  //    spot 4). `USER_BUS_EVENT_TYPES` has ten members and none is databank, and `domain/databank/**` emits
+  //    nothing — so a seam row would have no event to hang on. The drivers are enumerated in
+  //    `features/databank/hooks/use-databank-mutations.ts`, which routes EVERY databank write through
+  //    `createEntityMutation` with an explicit `invalidates` naming these keys; the CTs at
+  //    tests/client/features/databank/** exercise the read↔write pairs. (databank-surface-spec.md §7.) ─────
+  "databank.list":
+    "the library list + the band's count. Driven by every producer and CRUD verb (createFromText / the three scrapers / rename / remove / reindex) through `invalidates: [databank.list.pathFilter()]`, and by the UPLOAD front door, which is a raw multipart POST and so calls `invalidation.invalidateFilters([...])` by hand from the add dialog. It ADDITIONALLY carries a bounded `refetchInterval` while any row is mid-ingest (D-3 arm b) — the ingest workload writes chunk rows with no event of its own.",
+  "databank.get":
+    "the open document's detail. Driven by `rename` and `reindex` through `invalidates: [..., databank.get.pathFilter()]`. Its `includeText` twin is the same key with a different input (the lazy source-text read), so it inherits the same driver.",
+  "databank.listGlobal":
+    "the D-1 global id SET behind the library row's Everywhere toggle. Driven by `attachGlobal`/`detachGlobal` (the only writers of `global_documents`) and by `remove` (the DB cascade drops the junction row), each naming it in `invalidates`.",
+  "databank.listAttachments":
+    "the CONTEXT panel's read-only 'Active in' chips. Driven by the same global attach/detach mutations; the chat/character junction writers (the per-chat rack, the character rack) are later stages of the databank program and land their own rows with the surfaces that write them.",
+
   // ── the upload seam: a RAW multipart POST, so its freshness lives outside the seam (blind spot 4) ────────
   "assets.listOwned":
     "driven by the upload front door `useUploadAsset` (data/use-upload-asset.ts) — every completed upload calls invalidation.invalidateFilters([trpc.assets.listOwned.pathFilter()]). The upload route is a raw multipart POST, not a tRPC mutation, so it can carry no `invalidates` and no bus event announces it; the hook IS the driver, and every feature upload (character/persona avatars, backgrounds, chat attachments) goes through it. Proven by tests/client/data/use-upload-asset.ct.tsx (the mounted listOwned read refetches after an upload).",

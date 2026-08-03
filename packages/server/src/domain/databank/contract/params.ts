@@ -95,6 +95,9 @@ export interface GlobalAttachParams extends DatabankActorParams {
   readonly documentId: DocumentId;
 }
 
+/** The global-attachment READ (D-1) — principal-only, like `worldInfo.listGlobal`'s twin. */
+export interface ListGlobalParams extends DatabankActorParams {}
+
 export interface ChatAttachParams extends DatabankActorParams {
   readonly documentId: DocumentId;
   readonly chatId: ChatId;

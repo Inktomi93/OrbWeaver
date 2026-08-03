@@ -35,8 +35,11 @@ import { createPersistedStore } from "./create-persisted-store";
  *  brand glyph, `rail.brand` — home-section-spec §4.1), and the tuple order IS the rail/mobile-bar order.
  *  EDITING THIS TUPLE: walk the ten coupled sites in client-architecture-lockdown.md §6a (the SECTION_IDS
  *  playbook) — tsc carries only the door Record; the sanitizers, agent-nav vocabulary, CT mirror, mobile
- *  curation and placeholder copy are each a separate hand edit. */
-export const SECTION_IDS = ["home", "chats", "characters", "corpus", "config", "presets", "refinery", "analytics"] as const;
+ *  curation and placeholder copy are each a separate hand edit.
+ *
+ *  `databank` sits at the HEAD of the `authoring` run's library pair (databank · presets), directly after
+ *  `config`: it is a library you author into, and the order reads config → the two libraries → refinery. */
+export const SECTION_IDS = ["home", "chats", "characters", "corpus", "config", "databank", "presets", "refinery", "analytics"] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
 /** RETIRED section ids → where a user whose storage still names one should LAND. A retired id is not a
