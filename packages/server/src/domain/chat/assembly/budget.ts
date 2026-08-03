@@ -11,7 +11,15 @@
 // runs — the real count is the provider's post-turn `usage`. Estimating the JOINED text per source (not the
 // sum of per-slice estimates) keeps `Σ sources[].tokens === totalTokens` exact by construction.
 
-import type { AssemblyBudgetPart, AssemblyBudgetPreview, AssemblyBudgetSlice, AssemblySource, ChatInjection, ChatInjectionOrigin } from "@orb/contracts/chat";
+import type {
+  AssemblyBudgetPart,
+  AssemblyBudgetPreview,
+  AssemblyBudgetSlice,
+  AssemblySectionCost,
+  AssemblySource,
+  ChatInjection,
+  ChatInjectionOrigin,
+} from "@orb/contracts/chat";
 import { ASSEMBLY_SOURCES } from "@orb/contracts/chat";
 import type { PromptSection } from "@orb/contracts/preset";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -134,9 +142,75 @@ function foldParts(slices: readonly AssemblySlice[]): AssemblyBudgetPart[] {
  * `Σ sources === totalTokens` stays exact; the parts' own estimates can differ from that total by a token or
  * two of rounding — they answer "who costs what", the source row answers "what does this bucket cost".
  */
+/** Group the walk's slices by the SECTION that produced them (injection slices carry no `sectionId` and are
+ *  therefore not rack rows — see {@link AssemblySlice.sectionId}). Empty renders are dropped, exactly as the
+ *  source grouping drops them. */
+function bySectionId(slices: readonly AssemblySlice[]): Map<string, AssemblySlice[]> {
+  const out = new Map<string, AssemblySlice[]>();
+  for (const slice of slices) {
+    if (slice.sectionId === undefined || slice.text.trim().length === 0) {
+      continue;
+    }
+    const existing = out.get(slice.sectionId);
+    if (existing === undefined) {
+      out.set(slice.sectionId, [slice]);
+      continue;
+    }
+    existing.push(slice);
+  }
+  return out;
+}
+
+/**
+ * The SAME assembled bytes, partitioned by PROMPT SECTION — the preset editor's bound Prompt readout prices
+ * its rack rows off this (D121-G / §7.1), while the chat Preview tab reads the per-SOURCE partition above.
+ * One read, two projections.
+ *
+ * The HISTORY PIVOT is the one section the BUILD walk emits no slice for (it renders nothing — it IS the
+ * split), so its cost comes from the FIT: the same `usedTokens` + per-turn rows the `history` source row is
+ * built from. Everything else is its own rendered text, folded per contributor by the SAME rule the source
+ * rows use (a member whose card lands in two sections is one row in each).
+ *
+ * Sections that rendered NOTHING are omitted — "bound and absent" is a fact ("contributes nothing this turn"),
+ * where the editor's unbound `~—` means "not knowable here". Rack order is preserved.
+ */
+function buildSectionCosts(args: {
+  readonly sections: readonly PromptSection[];
+  readonly slices: readonly AssemblySlice[];
+  readonly history: HistoryBudgetInput;
+}): readonly AssemblySectionCost[] {
+  const grouped = bySectionId(args.slices);
+  // The FIRST history-bucketed section is the pivot the fit priced (the assembler's own first-pivot-wins rule);
+  // a duplicate `chat_history` row splits nothing and costs nothing, so it stays absent rather than double-
+  // counting the conversation.
+  const pivotIndex = args.sections.findIndex((section) => sectionSource(section) === "history");
+  const out: AssemblySectionCost[] = [];
+  for (const [index, section] of args.sections.entries()) {
+    if (index === pivotIndex) {
+      if (args.history.keptCount > 0 || args.history.usedTokens > 0) {
+        out.push({ sectionId: section.id, tokens: args.history.usedTokens, rows: args.history.rows });
+      }
+      continue;
+    }
+    const sliced = grouped.get(section.id);
+    if (sliced === undefined || sliced.length === 0) {
+      continue;
+    }
+    const parts = foldParts(sliced);
+    out.push({
+      sectionId: section.id,
+      tokens: estimateTokens(sliced.map((s) => s.text).join("\n\n")),
+      rows: parts.map((part) => ({ label: part.label, tokens: part.tokens })),
+    });
+  }
+  return out;
+}
+
 export function buildAssemblyBudget(args: {
   readonly slices: readonly AssemblySlice[];
   readonly history: HistoryBudgetInput;
+  /** The inspected preset's rack, in order — the join key set for the per-SECTION partition. */
+  readonly sections: readonly PromptSection[];
   /** `min(capability window, preset maxContextTokens)`; 0 when neither bounds the context. */
   readonly ceilingTokens: number;
   /** The ceiling came from a GUESSED model window (`capability.context.windowEstimated`) — carried through so
@@ -177,5 +251,6 @@ export function buildAssemblyBudget(args: {
     ceilingEstimated: args.ceilingEstimated,
     totalTokens: sources.reduce((sum, s) => sum + s.tokens, 0),
     sources,
+    sections: buildSectionCosts({ sections: args.sections, slices: args.slices, history: args.history }),
   };
 }

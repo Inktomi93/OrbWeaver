@@ -21,16 +21,19 @@ The post-build CRUNCH WAVE — owner verbatim *"it looks kinda crunchy"* — the
 `docs/reviews/misc/2026-08-02-preset-execution-crunch-list.md` (strike pass `5d8ff5ef`): THAT doc, not
 this one, is the authoritative row-by-row state of the rendered surface.
 
-**The residue, named so this stamp does not lie in the other direction.** D121 **clause G** is
-COMMITTED, NOT BUILT: the readout's binding chip is honest-by-membership, and `BINDING_VIEWS`
-(`client/src/features/preset/components/readout/preset-readout.tsx`) still holds `actions` ALONE —
-a chip over the Params profile would claim a resolution that is not happening. Prompt JOINS that set
-when its materialized carrier rows + true token costs land (`chat.previewActionTemplates` + the preset
-override), and `BINDING_VIEWS` becomes a real table in the same change — one change, three coupled
-sites. §7's drawing of a bound Prompt readout is therefore AHEAD OF THE TREE, and is the only clause
-of this spec that is. Everything else below is archaeology: the design record for a surface that
-exists, kept because the WHY (the F1-F12 diagnosis, the one-home audit §16, the D1-D8 forks) is not
-recoverable from the code.
+**The residue, CLOSED 2026-08-03 (lane D8R).** D121 **clause G** is BUILT: Prompt joined
+`BINDING_VIEWS` — now a total `Record<PresetEditorView["id"], boolean>` table
+(`client/src/features/preset/components/readout/preset-readout.tsx`), so a sixth view is a `tsc`
+error rather than a chip decided by omission — and the bound Prompt readout prices every rack row
+against the bound chat through `chat.previewAssembly` + its new `presetOverride` param (the seam §7.1
+ruled; clause G's own text named `previewActionTemplates`, which renders template prose and carries no
+costs — corrected in the ledger). The wire gained ONE field, `AssemblyBudgetPreview.sections`: the same
+assembled bytes partitioned by SECTION instead of by SOURCE, each with its MATERIALIZED rows (the
+history pivot priced off the FIT, one content-free row per kept turn — ST's inspect panel with honest
+data). The unbound `~—` floor is untouched and stays first-class. Nothing in this spec is ahead of the
+tree any more; everything below is archaeology: the design record for a surface that exists, kept
+because the WHY (the F1-F12 diagnosis, the one-home audit §16, the D1-D8 forks) is not recoverable
+from the code.
 
 The approval record that governed the build, preserved: **APPROVED-TO-BUILD** (owner, mock review
 round 3: D1-D7 ruled as recommended; the round-3 amendments — output/context KnobRow sliders, the

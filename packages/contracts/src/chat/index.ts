@@ -32,6 +32,8 @@ export type {
   AssemblyBudgetPart,
   AssemblyBudgetPreview,
   AssemblyBudgetSlice,
+  AssemblySectionCost,
+  AssemblySectionRow,
   AssemblySource,
   ChatInjection,
   ChatInjectionInput,

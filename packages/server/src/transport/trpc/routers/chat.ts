@@ -297,10 +297,15 @@ const getVariablePicksSchema = z.object({ chatId: brandedId<ChatId>() });
 
 // speakerCharacterId/guided mirror `PreviewAssemblyParams` (a hypothetical per-speaker turn); `guided`
 // rides the DERIVED `guidedSteerSchema` (F6 — the same wire boundary as `send`/`generate` above).
+// `presetOverride` (D121-G / preset-surface-redesign §7.1) is the preset editor's BOUND Prompt readout:
+// assemble this room as if that preset were active, so its rack rows can be priced for real. It is resolved
+// owned-or-system under the HOST by the landed `presetOverride` seam (the `previewActionTemplates` rule), so
+// it cannot reach outside the host's library; the host gate itself is `requireHost` INSIDE the verb.
 const previewAssemblySchema = z.object({
   chatId: brandedId<ChatId>(),
   speakerCharacterId: brandedId<CharacterId>().nullish(),
   guided: guidedSteerSchema.optional(),
+  presetOverride: brandedId<PresetId>().optional(),
 });
 
 // `previewActionTemplates` (D8 / preset-surface-redesign §7.1) — the preset editor's BOUND readout: every
