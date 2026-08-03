@@ -43,7 +43,8 @@ export const INVITE_EXPIRY_ITEMS: SelectItems<string> = [
  *  `number | null` (null = unlimited). */
 export interface InviteFormValues {
   readonly mode: string;
-  readonly handle: Handle;
+  /** The invite-target handle DRAFT — `""` until typed (a draft is legally empty; the submit seam brands it). */
+  readonly handle: Handle | "";
   readonly expiry: string;
   readonly maxUses: number | null;
 }
@@ -51,7 +52,7 @@ export interface InviteFormValues {
 /** Seed for every open (a mint has no server row) — an unlimited, never-expiring share link. */
 export const INVITE_FORM_DEFAULTS: InviteFormValues = {
   mode: "link",
-  handle: castId<Handle>(""),
+  handle: "",
   expiry: "never",
   maxUses: null,
 };
