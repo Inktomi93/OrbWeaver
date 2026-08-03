@@ -58,20 +58,20 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 - **main @ HEAD**, tree clean, **121+ commits past origin `865405d6`** (the 199-commit era was
   pushed 08-03 on the owner word). Gates: **180 registered**. I-5 CLOSED (brand ratchet retired). D-ledger:
   through **D126**, next free **D127**.
-- **PUSH-READY IS STALE.** It was declared at 85 commits (`7d91d01a`); ~36 have landed since (SCHEMA,
-  DBANK2, SWEEP, HISTLEG, OBSCLOSE, GATES3, D125, board/doc edits) → **a fresh `pnpm verify --push` on
-  the quiesced tree is owed before the word is asked for again.** There is also a known RED to clear
-  first (the `add-chat-document-dialog` presence row, routed to DBFIX).
-- **⚠️ A SECOND OWNER SESSION IS ACTIVE (2026-08-03).** Nate has a second Claude session working in its
-  OWN worktree; he will say when it is ready to merge. **Do not tear down, reset, or commit into any
-  worktree not in the owned list below** — a stray commit landed on a lane branch once today via cwd
-  drift, and doing that to another SESSION's tree is worse (it has no orchestrator watching it).
-  **My owned worktrees at this writing:** `agent-a9c87d67eac1b22a2` (BRAND-F) ·
-  `agent-a07df3663006da142` (STALEARM) · `agent-a7c895dddb90ded5f` (side-eye) · plus ASTLENS
-  (`a56651b299a85551c`). **Anything else in `git worktree list` is NOT mine.** Re-derive that list before
-  any teardown rather than trusting this line.
-  On merge: it gets the same treatment as a lane — `--no-ff --no-verify`, a SEPARATE consolidated
-  `pnpm check` on the merged result (it will be based behind main), then teardown ONLY if he says to.
+- ✅ **PUSH-READY — VERIFIED, AWAITING THE OWNER'S WORD.** `pnpm verify --push` on `48b40f8d`:
+  **exitCode 0, 0 of 17 stages failed** — 9,920 vitest passed / 0 failed, **CT 2,384 passed / 0 failed /
+  0 flaky** (even the two watch-list flakes came back clean, unretried), e2e-smoke green.
+  Receipt: `reports/verify.json`. **The word has NOT been given; do not push.**
+  **Two reds it caught first, both now fixed** (lane PUSHFIX, `88172b6c`): a NEW orphan export
+  `selectDocument` — `deps:orphan-ratchet` is **push-tier only**, so ~8 consolidated `pnpm check` runs
+  could never see it — and 2 CT failures (`app-shell.ct:328`, `section-jump-tile.ct:13`).
+  **⚠ ORCHESTRATOR ERROR WORTH KEEPING:** the FIRST push run was reported to the owner as GREEN and was
+  not. It was invoked as `pnpm verify --push 2>&1 | tail -40`, so the exit code returned was **`tail`'s
+  (0)** while the run genuinely failed (exit 1). **Never pipe a harness command** — redirect
+  (`> file 2>&1`) and read `reports/verify.json`. The pipe ALSO hangs: `tail` waits for an EOF that never
+  comes because playwright/vite/stack descendants inherit the pipe's write end, so the call sits there
+  long after the work finished. Both failure modes, one habit. (This is what the PreToolUse hook program
+  is being built to make impossible.)
 - **LIVE LANES: see the RECONCILIATION block at the foot of this file** — it is the current roster.
   Do not re-dispatch a live lane's scope; resume it warm by agent id.
 - Dev db is the post-REGEX re-mint (v3 demo pack, 6 chats). The owner's regex scripts were re-entered
@@ -479,6 +479,21 @@ produced most of the rows above, so expect a similar residue rate.
   (measured **0.26**), in `docs/reviews/side-eye/2026-08-03-preset-shell-reverify.md:249`. A separate
   side-eye pass today independently measured 0.2542 on the config pane and attributed it to
   collection-group expansion, pre-existing. **One shell-wide defect, three sightings, no owner yet.**
+
+- **⚠ MANUAL MEMO WAS HIDING CT FAILURES (owner report, 2026-08-03, second session).** The
+  React-modernization program's memo burn-down deleted the manual `useMemo`/`useCallback` cache sites —
+  and the CT suite **exploded**. Being fixed in that session.
+  **The load-bearing reading: those failures are LATENT ON MAIN TODAY.** Deleting the memo did not create
+  them; it stopped SUPPRESSING the re-render that reveals them. Same disease shape as the swallowed catch
+  inside a root span (SPANGATE/OBSCLOSE) — green because the reporting mechanism was disabled, not because
+  the behaviour was right.
+  **The question that decides whether this blocks a push:** are the exposed reds (a) FIXTURE artifacts (a
+  test that leaned on a memo boundary to hold a stale value — only the test was wrong) or (b) REAL product
+  defects memo was masking at runtime as well? Any (b) ships today regardless of the burn-down. Ask the
+  second session for the split before the push word is given.
+  **It also vindicates the direction** — [[react-compiler-no-manual-memo]] treats manual memo as
+  against-convention here; this is the first evidence it was actively concealing breakage, not merely
+  redundant. Worth a D-entry clause if the split shows real defects.
 
 ## ═══ WATCH LIST (flakes + pre-existing reds; none blocking) ═══
 
