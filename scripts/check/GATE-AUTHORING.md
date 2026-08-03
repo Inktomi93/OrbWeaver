@@ -150,6 +150,26 @@ An exemption is a promise. This is how the promise is written.
    `no-hover-display-swap.ts` (`STALE_ENTRY_MESSAGE_PREFIX`), `monotonic-tests.ts` tooth 3 (the two-sided
    `allow-skip` marker), `bus-coverage.ts` (`STALE_MESSAGE`), `dialog-via-composite.ts`,
    `firehose-import-allowlist.ts`.
+4a. **TWO DISTINCT STALENESS MODES, ONE TEST.** (A) the row's file still exists but no longer violates
+   ("you fixed it, delete the row" — every ratchet's "shrink-only" case). (B) the row's file is GONE
+   (deleted/moved/renamed) — the row now names nothing at all. A gate that only implements (A) is
+   silently blind to (B), because its usual shape is *"for each file the scan VISITED, compare against
+   the table"* — a deleted file is never visited, so its row is never examined and the promise rots
+   forever without a single red to announce it (`ui-size-via-variant` carried `tag-settings-row.tsx` — a
+   file moved away 08-02 — silently for a full day; the same shape hit `dialog-via-composite`,
+   `empty-state-has-action`, `no-arbitrary-tw-values`, `motion-token-purity` at once, 08-03). **The two
+   modes collapse to ONE correct test if you write it right:** track a `seen`/`hit` SET populated only by
+   a live match during the scan, guard the whole stale sweep on a real-tree ANCHOR (rule 5) that is NOT
+   any row's own path, and then report every table key `seen` never claims — never gate a row's
+   staleness on that SAME row's own file being loaded/existing (`fileLoaded(ctx, rel)` /
+   `existsSync(join(root, rel))` keyed on the loop variable is the exact anti-pattern: it reads as a
+   conformance-safety guard but it is IDENTICAL to "only judge a row if its file survived," which
+   silences mode (B) by construction). `own-tables-only.ts`, `no-hover-display-swap.ts`,
+   `no-raw-zustand-persist.ts`, `render-error-via-battery.ts`, `selection-store-via-factory.ts`,
+   `feature-css-files.ts`, `query-machine-seals.ts`, `wire-schema-vocab-one-home.ts` are gold standards —
+   each either checks `!seen.has(key)` unconditionally or explicitly branches on `sf === undefined` /
+   `!existsSync(...)` as its OWN stale flavour. Every gate carrying a path-keyed exemption owes a
+   `mustFlag` proving mode (B): an example that loads the real-tree anchor but NONE of the table's paths.
 5. **A STALE ARM NEEDS A REAL-TREE ANCHOR, NOT A `scope.kind` CHECK.** `ctx.scope.kind === "project"` is
    TRUE inside gate-conformance's synthetic mini-projects too, so a scope-guarded stale arm fires there and
    reds the gate's own self-proof. Guard on a real-tree ANCHOR instead, and keep the gate's examples off the
