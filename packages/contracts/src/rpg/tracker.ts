@@ -231,7 +231,7 @@ export function buildTrackerWriteGroups(defs: readonly RpgTrackerDef[], carriers
     const writable = writableTrackersFor(defs, carrier);
     const deltaKeys = writable.filter((d) => d.write === "delta").map((d) => d.key);
     const setKeys = writable.filter((d) => d.write === "set").map((d) => d.key);
-    const signature = `${deltaKeys.join(" ")} ${setKeys.join(" ")}`;
+    const signature = `${deltaKeys.join(" ")}\u0000${setKeys.join(" ")}`;
     const group = bySignature.get(signature);
     if (group === undefined) {
       bySignature.set(signature, { deltaKeys, setKeys, targetRefs: [carrier.name] });
