@@ -124,8 +124,11 @@ function TagMemberEditor({ tag, others }: { readonly tag: TagWithUsage; readonly
 /** The two colour pickers (chip background + text). An empty value maps to `null` (clear to the theme
  *  default) — the tri-state the row-era control already spoke. */
 function TagColorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; readonly patchStyle: PatchStyle }): ReactElement {
+  // `*:w-auto` — a `<Field>` root is `w-full`, so two of them in a flex row each took HALF the pane and the
+  // two 32px swatches ended up 250px apart with nothing between them (side-eye 2026-08-03: the tell that the
+  // editor "never got its container"). Intrinsic width puts the pair beside each other, where a pair belongs.
   return (
-    <Row gap="field">
+    <Row align="start" className="*:w-auto" gap="block">
       <Field label="Background" name="tag-color">
         <ColorField onValueChange={(value): void => patchStyle({ color: value === "" ? null : value })} value={tag.color ?? ""} />
       </Field>

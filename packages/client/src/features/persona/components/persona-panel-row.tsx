@@ -178,6 +178,14 @@ export function PersonaPanelRow({
             row under a stationary pointer and re-hit-tested at frame rate (the preset-list P0 —
             packages/client/src/components/row-reveal.ts, gate `no-hover-display-swap`). */}
         <Row align="center" className="pointer-events-none relative shrink-0 group-hover:invisible group-focus-within:invisible" gap="field">
+          {/* THE ROW IS THE ONE HOME FOR "PLAYING AS" (side-eye 2026-08-03 P2) — the band above the roster
+              used to render the current persona a second time, with a different anatomy, 40px away. Words,
+              not just the selected tint + `aria-current`: a colour is not a statement. */}
+          {isCurrent ? (
+            <Text as="span" className="text-primary" voice="kicker">
+              Playing as
+            </Text>
+          ) : null}
           {isDefault ? <StatusGlyph className="text-warning" icon={Crown} label="Your default" /> : null}
           {persona.starred ? <StatusGlyph className="text-destructive" icon={Heart} label="Favorited" /> : null}
         </Row>
@@ -189,13 +197,12 @@ export function PersonaPanelRow({
             label={persona.starred ? "Unfavorite" : "Favorite"}
             onClick={onToggleFavorite}
           />
-          <IconAction
-            {...(isDefault ? { className: "text-warning" } : {})}
-            disabled={isDefault}
-            icon={isDefault ? Crown : Star}
-            label={isDefault ? "Your default" : "Set as default"}
-            onClick={onSetDefault}
-          />
+          {/* ONE FACT, ONE PLACE (side-eye 2026-08-03 P2). "Your default" used to be said three times on
+              one row: the crown MARKER at rest, this control's label, and — on the seeded persona — the
+              subtitle. The reveal cluster is for VERBS; a disabled button whose name is a STATE is neither
+              a verb nor a state a reader can act on, and it was the third telling. The crown marker (in the
+              a11y tree, tooltipped) keeps the state; the verb only exists while it is available. */}
+          {isDefault ? null : <IconAction icon={Star} label="Set as default" onClick={onSetDefault} />}
           {/* §12.2 caps the trailing cluster at three: state · state · kebab. Export and Delete both ride
               the kebab, which is also the ruled lifecycle home for a low-frequency row verb. */}
           <RowActionsMenu

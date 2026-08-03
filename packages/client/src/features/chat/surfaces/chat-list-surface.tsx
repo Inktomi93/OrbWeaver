@@ -148,10 +148,14 @@ function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCha
       onSelect={scopeToFace}
       overflow={{
         label: "Filter by another character",
-        render: (close): ReactElement => (
+        // EXCLUDE THE FACES ALREADY ON THE ROW (side-eye 2026-08-03 P3): the tile says `+N More` and then
+        // listed all ten, including the four visible beside it — so the number on the tile and the number
+        // behind it disagreed. The strip hands down what it is currently showing; the picker drops those.
+        render: ({ close, shownIds }): ReactElement => (
           <CharacterPicker
             autoFocusSearch={true}
-            emptyText="No characters to filter by."
+            emptyText="No other characters to filter by."
+            excludeIds={shownIds.map((id) => castId<CharacterId>(id))}
             label="Filter by another character"
             onSelect={(id, name): void => {
               setChatListCharacterFilter({ id, name });
@@ -161,6 +165,9 @@ function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCha
           />
         ),
       }}
+      // Tapping a face SETS a filter and re-tapping CLEARS it (`scopeToFace` above) — a toggle, so the tile
+      // owes `aria-pressed`, not `aria-current`.
+      selectMode="toggle"
       selectedId={characterFilter?.id ?? null}
       verb="Show chats with"
     />

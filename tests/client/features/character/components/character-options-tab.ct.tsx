@@ -56,7 +56,7 @@ test("no theme-cluster action clips the context panel's width", async ({ mount, 
   if (panel === null) {
     throw new Error("the options tab did not render a box");
   }
-  const actions = ["Save as theme…", "Reset to global"];
+  const actions = ["Save as theme…", "Reset all to Inherit"];
   const boxes = await Promise.all(actions.map((action) => page.getByRole("button", { name: action }).boundingBox()));
   for (const [i, box] of boxes.entries()) {
     if (box === null) {

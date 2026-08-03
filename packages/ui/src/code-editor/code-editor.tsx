@@ -3,7 +3,7 @@ import { css } from "@codemirror/lang-css";
 import type { Diagnostic } from "@codemirror/lint";
 import { linter, lintGutter, setDiagnostics } from "@codemirror/lint";
 import { EditorState } from "@codemirror/state";
-import { basicSetup, EditorView } from "codemirror";
+import { basicSetup, EditorView, minimalSetup } from "codemirror";
 import type { ReactElement } from "react";
 import { useEffect, useId, useRef } from "react";
 import { cn, FOCUS_RING_HAS } from "#lib";
@@ -22,8 +22,12 @@ const TOKEN_THEME = EditorView.theme(
       fontFamily: cssVar("font.mono"),
       fontSize: cssVar("text.code"),
     },
+    // The editable surface wears an INPUT's inset, not CodeMirror's default 4px/0. Without it the text
+    // starts hard against the frame's left hairline while every sibling `<Input>` on the same form insets
+    // its value — the tell that read as "this box is not a field" (side-eye 2026-08-03 P2).
     ".cm-content": {
       caretColor: cssVar("color.primary"),
+      padding: `${cssVar("spacing.field")} ${cssVar("spacing.row")}`,
     },
     ".cm-cursor, .cm-dropCursor": {
       borderLeftColor: cssVar("color.primary"),
@@ -130,6 +134,21 @@ export interface CodeEditorProps {
   readonly readOnly?: boolean;
   readonly ariaLabel: string;
   /**
+   * How much editor chrome the surface earns.
+   *
+   * `"full"` (default) is `basicSetup` — line numbers, a fold gutter, an active-line highlight: right for a
+   * multi-line CSS document. `"line"` is `minimalSetup`, for a one-line expression field (a regex pattern):
+   * the same 31px line-number gutter that helps a stylesheet is pure furniture beside a single `/ooc:.*​/gi`,
+   * and it was one of the tells that made the most important input on the regex editor read as a strip
+   * rather than a field (side-eye 2026-08-03 P2).
+   */
+  readonly setup?: "full" | "line";
+  /**
+   * An id stamped on the EDITABLE surface (`.cm-content`), so a foreign `<label for>` can name a real
+   * element instead of a generated one that never mounts — see `Field`'s `labelFor`.
+   */
+  readonly contentId?: string;
+  /**
    * Lint diagnostics: an inline mark under the flagged span + a gutter marker per line, exposed to
    * assistive tech via an aria-describedby-linked live region. A fresh array re-dispatches into the
    * live view without remounting, so cursor/selection survives. Omit to skip the lint machinery.
@@ -149,7 +168,18 @@ export interface CodeEditorProps {
  * through the design-token map. `value` is compared against the live view state before
  * dispatching (no update loops); user edits surface via `onChange`. The view is destroyed on unmount.
  */
-export function CodeEditor({ lang, value, onChange, readOnly = false, ariaLabel, diagnostics, completions, className }: CodeEditorProps): ReactElement {
+export function CodeEditor({
+  lang,
+  value,
+  onChange,
+  readOnly = false,
+  ariaLabel,
+  setup = "full",
+  contentId,
+  diagnostics,
+  completions,
+  className,
+}: CodeEditorProps): ReactElement {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const valueRef = useRef(value);
@@ -173,7 +203,7 @@ export function CodeEditor({ lang, value, onChange, readOnly = false, ariaLabel,
       doc: valueRef.current,
       parent: host,
       extensions: [
-        basicSetup,
+        setup === "full" ? basicSetup : minimalSetup,
         TOKEN_THEME,
         EditorView.editable.of(!readOnly),
         // EditorView.editable only toggles contenteditable; it doesn't gate paste/drop/command
@@ -181,6 +211,7 @@ export function CodeEditor({ lang, value, onChange, readOnly = false, ariaLabel,
         EditorState.readOnly.of(readOnly),
         EditorView.contentAttributes.of({
           "aria-label": ariaLabel,
+          ...(contentId === undefined ? {} : { id: contentId }),
           ...(hasDiagnostics ? { "aria-describedby": describedById } : {}),
         }),
         EditorView.updateListener.of((update) => {
@@ -200,7 +231,7 @@ export function CodeEditor({ lang, value, onChange, readOnly = false, ariaLabel,
       viewRef.current = null;
       view.destroy();
     };
-  }, [lang, readOnly, ariaLabel, hasDiagnostics, describedById, completions]);
+  }, [lang, readOnly, ariaLabel, setup, contentId, hasDiagnostics, describedById, completions]);
 
   // Controlled value ↔ view state: dispatch only when the prop actually differs from the live
   // document, so the onChange→setState→value round-trip does not loop.

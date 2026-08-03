@@ -25,5 +25,6 @@ export const regexCollection: CollectionContribution = {
   create: { label: "New script", useRun: useCreateRegexMember },
   list: (view) => <RegexCollectionRows view={view} />,
   detail: (view) => <RegexMemberSurface memberId={view.memberId} />,
-  context: { kind: "body", render: (view) => <RegexContextBody memberId={view.memberId} /> },
+  // The band's title is the mock's own ("WHERE IT RUNS"), not the shell's neutral "Details".
+  context: { kind: "body", title: "Where it runs", render: (view) => <RegexContextBody memberId={view.memberId} /> },
 };

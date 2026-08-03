@@ -28,7 +28,7 @@ test("the open book's arm switches the everywhere scope on", async ({ mount, pag
   });
 
   const context = await mount(<WorldInfoContextStory />);
-  const globalSwitch = context.getByRole("switch", { name: "Attach globally" });
+  const globalSwitch = context.getByRole("switch", { name: "Fires in every chat" });
   await expect(globalSwitch).toBeVisible();
 
   await globalSwitch.click();

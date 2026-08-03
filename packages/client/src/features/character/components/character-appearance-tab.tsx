@@ -39,7 +39,11 @@ export interface CharacterAppearanceTabProps {
   readonly characterId: CharacterId;
 }
 
-const INHERIT_ITEM = { value: THEME_INHERIT, label: "Inherit global" } as const;
+// ONE WORD FOR ONE IDEA (side-eye 2026-08-03 P2). This 384px panel said "Inherit global" (the select item),
+// "clear a colour" (the helper) and "Reset to global" (the button) for a single concept, and printed no
+// value at all beside the swatches. The word is INHERIT, everywhere: the select item, every colour's own
+// readout (`BoundColorField`), the helper sentence, and the cluster-wide verb below.
+const INHERIT_ITEM = { value: THEME_INHERIT, label: "Inherit" } as const;
 const RADIUS_LABELS: Record<ThemeRadius, string> = {
   base: "Base",
   control: "Tight",
@@ -251,7 +255,7 @@ function ThemeControlsBody({ characterName, form }: ThemeControlsBodyProps): Rea
               <Row gap="field" align="center">
                 <SaveAsThemeButton characterName={characterName} override={override} />
                 <Button intent="ghost" disabled={override === null} onClick={resetToGlobal}>
-                  Reset to global
+                  Reset all to Inherit
                 </Button>
               </Row>
             )}
@@ -259,8 +263,8 @@ function ThemeControlsBody({ characterName, form }: ThemeControlsBodyProps): Rea
         </Row>
       </Row>
       <Text size="micro" tone="muted">
-        Colours and styles apply to this character's messages instantly — no save needed. Leave a field on Inherit (or clear a colour) to fall back to your
-        global theme.
+        Colours and styles apply to this character's messages instantly — no save needed. A field reading Inherit follows your global theme; each field prints
+        its own value, so you can always tell which ones this card sets.
       </Text>
 
       <Grid cols="wide" gap="gutter">
