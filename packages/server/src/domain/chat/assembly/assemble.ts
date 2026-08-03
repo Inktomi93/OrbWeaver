@@ -602,11 +602,11 @@ function pushSlices(section: PromptSection, rendered: string, env: BuildEnv, acc
   const source = sectionSource(section);
   const blocks = env.memberBlocks.get(section.id);
   if (blocks === undefined || blocks.length === 0) {
-    acc.slices.push({ source, label: sectionLabel(section, env.ctx), text: rendered });
+    acc.slices.push({ source, label: sectionLabel(section, env.ctx), text: rendered, sectionId: section.id });
     return;
   }
   for (const block of blocks) {
-    acc.slices.push({ source, label: block.name, text: block.text.trim() });
+    acc.slices.push({ source, label: block.name, text: block.text.trim(), sectionId: section.id });
   }
 }
 

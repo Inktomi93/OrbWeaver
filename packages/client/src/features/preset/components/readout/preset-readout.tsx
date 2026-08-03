@@ -24,7 +24,10 @@
 // FRESHNESS (§4.4): every read this panel mounts is classified. `preset.get`, `preset.resolveEffective`,
 // `connection.resolveChatCapability`, `settings.getUserSettings` and `chat.listChats` were already covered;
 // the D8 binding adds ONE — `chat.previewActionTemplates`, which joins `promptPreviewReads` in the
-// invalidation seam (see its comment there for why that row is the right home and what it inherits).
+// invalidation seam (see its comment there for why that row is the right home and what it inherits). The
+// D121-G Prompt half adds NO row: it reads `chat.previewAssembly`, the read that member has carried since it
+// was minted, so the bound rack inherits `presetsChanged` (the autosave you just made) + every canon terminal
+// (the conversation it is pricing) by construction.
 
 import type { PresetId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -36,6 +39,7 @@ import { useTRPC } from "#data";
 import { usePresetEditorView, useSelectedPresetId, useSelectedPresetSectionId } from "#state";
 import { useReadoutBinding } from "../../hooks/use-readout-binding";
 import { qualityMappingGloss } from "../../lib/effective-knobs";
+import type { PresetEditorView } from "../../lib/preset-nav";
 import { PRESET_EDITOR_VIEWS } from "../../lib/preset-nav";
 import { templateStoredText } from "../../lib/template-rows";
 import { ActionsReadout } from "./actions-readout";
@@ -110,16 +114,34 @@ function ActiveProfile({
   );
 }
 
-/** WHICH views a bound chat actually changes. Membership here is a PROMISE: a view in this set resolves
- *  something through the binding, so naming the binding above it is a statement of fact. Actions is the D8
- *  build's consuming view; Prompt joins it with its materialized carrier rows (§7.1's other half). */
-const BINDING_VIEWS: ReadonlySet<string> = new Set(["actions"]);
+/** WHICH views a bound chat actually changes — and, for the ones it does not, WHY (D121-G: the set became a
+ *  real TABLE when Prompt joined it). Membership is a PROMISE: a `true` row resolves something through the
+ *  binding, so naming the binding above it is a statement of fact rather than a claim. A total
+ *  `Record<PresetEditorView["id"], …>`, so a SIXTH view is a `tsc` error here — the chip can never be decided
+ *  by omission (§5.5 dispatch discipline). */
+const BINDING_VIEWS: Record<PresetEditorView["id"], boolean> = {
+  // The effective profile is preset × capability and genuinely chat-independent — a chip over it would claim
+  // a resolution that is not happening (the §7 honesty pin, inverted).
+  params: false,
+  // The rack's bars + the selected carrier's rows are priced by the BOUND chat's own assembly.
+  prompt: true,
+  // The selected template is rendered by the chat (Ruling B: the editor displays a chat-side answer).
+  actions: true,
+  // A pure client scan over the saved config — no chat can change a reference count inside this preset.
+  data: false,
+  // The pipeline ORDER is preset-side; a chat neither adds nor removes a stage.
+  transforms: false,
+};
 
 /** The open preset's readout, projected by the ACTIVE VIEW. */
 function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): ReactElement {
   const trpc = useTRPC();
   const binding = useReadoutBinding();
-  const view = usePresetEditorView() ?? PRESET_EDITOR_VIEWS[0]?.id;
+  // Resolved through the REGISTRY (the header's own idiom), not off the raw store string: the binding table
+  // below is keyed by the view-id union, so an unset/stale store read has to land on a real view before it can
+  // decide anything — and the strip's `[0]` default is read from the tuple rather than re-spelled.
+  const storedView = usePresetEditorView();
+  const view = (PRESET_EDITOR_VIEWS.find((entry) => entry.id === storedView) ?? PRESET_EDITOR_VIEWS[0])?.id;
   const selectedSectionId = useSelectedPresetSectionId();
   const preset = useQuery(trpc.preset.get.queryOptions({ id: presetId }));
   const effective = useQuery(trpc.preset.resolveEffective.queryOptions({ id: presetId }));
@@ -136,12 +158,12 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
   return (
     <Stack gap="section" padding="block">
       {/* THE BINDING (D8 / §7.1) sits above the projected panel — the readout's own header row, exactly where
-          the mock draws it, and only on the views that CONSUME it. A chip reading "inspecting against: <chat>"
-          over the Params effective profile would be claiming a resolution that is not happening there (Params
-          is preset + capability and genuinely chat-independent) — the §7 honesty pin, inverted. Prompt joins
-          `BINDING_VIEWS` when its materialized carrier rows land. */}
-      {BINDING_VIEWS.has(view ?? "") ? <ReadoutBindingChip binding={binding} /> : null}
-      {view === "prompt" ? <PromptReadout sections={config.sections} selectedSectionId={selectedSectionId} /> : null}
+          the mock draws it, and only on the views that CONSUME it (the `BINDING_VIEWS` table above states, per
+          view, whether a resolution actually happens there). */}
+      {view !== undefined && BINDING_VIEWS[view] ? <ReadoutBindingChip binding={binding} /> : null}
+      {view === "prompt" ? (
+        <PromptReadout boundChatId={binding.boundChatId} presetId={presetId} sections={config.sections} selectedSectionId={selectedSectionId} />
+      ) : null}
       {view === "actions" ? (
         <ActionsReadout
           boundChatId={binding.boundChatId}

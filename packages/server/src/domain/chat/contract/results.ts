@@ -5,6 +5,7 @@
 import type {
   AssembleContext,
   AssembledPrompt,
+  AssemblySectionRow,
   AssemblySource,
   ChatContentPart,
   GroupConfig,
@@ -162,6 +163,11 @@ export interface AssemblySlice {
   readonly label: string;
   /** The rendered text, exactly as it lands in the prompt half / injection (already macro-resolved). */
   readonly text: string;
+  /** The `PromptSection.id` that produced this slice — the join key of the WIRE's per-section partition
+   *  (`AssemblyBudgetPreview.sections`, D121-G). ABSENT for a delivered INJECTION: a `chat_injections` row is
+   *  not a rack row, so it accounts under its source and belongs to no section (the absence is the fact, never
+   *  a placeholder id). */
+  readonly sectionId?: string;
 }
 
 /** The `history` row of the budget breakdown (`assembly/budget`): the shaped+fitted wire history's COST and
@@ -171,6 +177,11 @@ export interface HistoryBudgetInput {
   readonly usedTokens: number;
   readonly keptCount: number;
   readonly droppedCount: number;
+  /** The kept turns, ONE ROW EACH — the history pivot's MATERIALIZED rows on the preset editor's bound Prompt
+   *  readout (D121-G: ST's `chatHistory-1 / assistant / 944 tokens` panel, with honest data). Content-free by
+   *  construction (label + cost), which is the same posture that keeps `AssemblyBudgetSlice.text` empty for
+   *  history: the transcript already renders those bytes, the preview only prices them. */
+  readonly rows: readonly AssemblySectionRow[];
 }
 
 /** The per-chat macro name producer maps `renderHistoryMacros` needs to resolve a canon-history row's own

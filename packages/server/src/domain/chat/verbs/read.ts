@@ -77,7 +77,7 @@ import type {
   ReplayStreamEventsParams,
   StreamEventBoundsParams,
 } from "../contract/params";
-import type { HistoryMacroNames } from "../contract/results";
+import type { HistoryBudgetInput, HistoryMacroNames } from "../contract/results";
 import type { ChatService } from "../contract/service";
 import type {
   ActionTemplatesPreview,
@@ -856,13 +856,19 @@ function ceilingIsEstimated(capability: ModelCapability | undefined, maxContextT
  *  rows — the canon turns. The id-less rows in the fitted history are the spliced injections, which are each
  *  accounted under their OWN source (steering / world-info / game-state), so the six rows stay disjoint and
  *  `Σ tokens` never double-counts an injection. (A squash that merged an injection INTO an adjacent canon row
- *  leaves those bytes on both sides of that split — the local estimate is advisory, never billing truth.) */
-function historyBudgetRow(fitted: ReturnType<typeof fitHistory>): { usedTokens: number; keptCount: number; droppedCount: number } {
+ *  leaves those bytes on both sides of that split — the local estimate is advisory, never billing truth.)
+ *
+ *  `rows` is the same set, one entry per kept turn — the history PIVOT's materialized rows in the preset
+ *  editor's bound readout (D121-G). Labelled by the wire row's own SPEAKER NAME where it carries one (the
+ *  `completion` names behavior stamps it), else its role: the row's identity is what ST's panel shows, and
+ *  the role is the fact every wire carries. Content-free — cost only. */
+function historyBudgetRow(fitted: ReturnType<typeof fitHistory>): HistoryBudgetInput {
   const canonRows = fitted.history.filter((row) => row.messageId !== undefined);
   return {
     usedTokens: canonRows.reduce((sum, row) => sum + estimateTokens(row.content), 0),
     keptCount: canonRows.length,
     droppedCount: fitted.droppedCount,
+    rows: canonRows.map((row) => ({ label: row.name ?? row.role, tokens: estimateTokens(row.content) })),
   };
 }
 
@@ -874,13 +880,21 @@ function historyBudgetRow(fitted: ReturnType<typeof fitHistory>): { usedTokens: 
  *
  *  The BUDGET is the Preview tab's stacked bar (D-4): the BUILD walk's slices grouped by `AssemblySource`, plus
  *  the `history` row from the SAME shape→fit the next real turn runs — so the panel's numbers and the wire's
- *  numbers are the same numbers, which is the entire point of a host honesty instrument. */
+ *  numbers are the same numbers, which is the entire point of a host honesty instrument. It ALSO carries the
+ *  same bytes partitioned by PROMPT SECTION (`budget.sections`, D121-G) — the preset editor's bound Prompt
+ *  readout prices its rack rows off that projection while this tab reads `sources`: one read, two projections.
+ *
+ *  THE OVERRIDE (`presetOverride`): the preset editor inspects a preset the room has NOT adopted, so the read
+ *  assembles this room as if that preset were active — the same `ResolveForeignInputsOp.presetOverride` seam
+ *  `previewActionTemplates` rides, with the same safety (compose resolves it owned-or-system UNDER THE HOST and
+ *  degrades to the host's own default on a stale/unowned id). Absent ⇒ byte-identical to every prior preview. */
 function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["previewAssembly"] {
-  return async ({ principal, chatId, speakerCharacterId, guided }: PreviewAssemblyParams): Promise<AssemblyPreview> => {
+  return async ({ principal, chatId, speakerCharacterId, guided, presetOverride }: PreviewAssemblyParams): Promise<AssemblyPreview> => {
     const membership = await requireHost(ctx, principal, chatId);
     const inputs = await resolvePreviewInputs(ctx, deps, chatId, {
       anchorPersonaId: membership.chat.anchorPersonaId,
       speakerCharacterId,
+      ...(presetOverride === undefined ? {} : { presetOverride }),
     });
     const registry = buildPreviewRegistry(inputs);
     const assembleContext = await buildPreviewContext(ctx, inputs, chatId, { deps, registry, guided });
@@ -889,6 +903,9 @@ function createPreviewAssembly(ctx: ChatContext, deps: ReadDeps): ChatService["p
     const { fitted } = fitShapedHistory({ assembleContext, assembled: prompt, capability: inputs.capability, shaped });
     const budget = buildAssemblyBudget({
       slices,
+      // The RACK the readout draws — the RESOLVED config (the override's, when one was passed), never the
+      // caller's idea of it: the section ids the costs key on must be the ids this build actually walked.
+      sections: inputs.foreign.promptConfig.sections,
       history: historyBudgetRow(fitted),
       // `null` ⇒ no trustworthy ceiling (no window + no soft cap) ⇒ `0`, the wire's "unbounded" (the bar then
       // renders proportions with no ratio) — never a fabricated number.

@@ -822,6 +822,72 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(budget.sources.some((s) => s.source === "game-state")).toBe(false);
   });
 
+  test("previewAssembly's BUDGET also partitions by RACK SECTION, priced against the live room (D121-G)", async () => {
+    // The preset editor's bound Prompt readout reads THIS partition: the same bytes, keyed by `PromptSection.id`
+    // so the readout can price the rack it already draws. The pivot is the row the editor can never price
+    // chat-free — its cost is the conversation's — so it is the one this test follows end to end.
+    const me = await seedUser(db, "sect_host");
+    const chatId = await seedRoom("sect", me);
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: me, content: "the older turn" });
+    await seedMessage(db, chatId, 2, { role: "assistant", content: "a reply worth some tokens" });
+
+    const { budget } = await createRead(makeChatContext(db), makeDeps()).previewAssembly({ principal: principal(me), chatId });
+
+    const ids = budget.sections.map((s) => s.sectionId);
+    // Every id is a REAL rack row of the resolved config (never a synthesized key), in rack order.
+    const rackIds = DEFAULT_PROMPT_CONFIG.sections.map((s) => s.id);
+    expect(ids.every((id) => rackIds.includes(id))).toBe(true);
+    expect(ids).toEqual([...ids].sort((a, b) => rackIds.indexOf(a) - rackIds.indexOf(b)));
+
+    // THE CARRIER: `chat-history` renders nothing in the BUILD walk, so a chat-free editor prices it `~—`.
+    // Bound, it carries the FIT's own number and one materialized row per kept turn.
+    const pivot = budget.sections.find((s) => s.sectionId === "chat-history");
+    expect(pivot?.tokens).toBe(budget.sources.find((s) => s.source === "history")?.tokens);
+    expect(pivot?.rows.map((r) => r.label)).toEqual(["user", "assistant"]);
+    expect(pivot?.rows.every((r) => r.tokens > 0)).toBe(true);
+    // Every section reports its breakdown — a single-contributor row is ONE row, never an empty list.
+    expect(budget.sections.every((s) => s.rows.length > 0)).toBe(true);
+  });
+
+  test("previewAssembly takes the editor's presetOverride — the room assembled as if THAT preset were active", async () => {
+    // The §7.1 seam, shared with `previewActionTemplates`: the editor inspects a preset the room has NOT
+    // adopted, so the override rides `ResolveForeignInputsOp.presetOverride` (resolved owned-or-system under
+    // the HOST at compose) and the priced rack is the OVERRIDE's rack, not the room's.
+    const me = await seedUser(db, "over_host");
+    const chatId = await seedRoom("over", me);
+    const overrideConfig: PromptConfig = {
+      ...DEFAULT_PROMPT_CONFIG,
+      sections: [{ type: "literal", id: "only-row", name: "Only row", role: "system", content: "THE OVERRIDE PRESET SPEAKS", enabled: true }],
+    };
+    const seen: (PresetId | undefined)[] = [];
+    const { previewAssembly } = createRead(
+      makeChatContext(db),
+      makeDeps({
+        resolveForeignInputs: (params) => {
+          seen.push(params.presetOverride);
+          return Promise.resolve({
+            promptConfig: params.presetOverride === undefined ? DEFAULT_PROMPT_CONFIG : overrideConfig,
+            personas: { anchor: null, active: null },
+            globalRegexScripts: [],
+            scanDepth: 6,
+            injectionTokenBudget: 0,
+          });
+        },
+      }),
+    );
+
+    const presetId = castId<PresetId>("preset_over");
+    const overridden = await previewAssembly({ principal: principal(me), chatId, presetOverride: presetId });
+    expect(seen).toEqual([presetId]);
+    expect(overridden.prompt.static).toContain("THE OVERRIDE PRESET SPEAKS");
+    expect(overridden.budget.sections.map((s) => s.sectionId)).toEqual(["only-row"]);
+
+    // ABSENT ⇒ byte-identical to every pre-existing caller: the room's own preset, no override threaded.
+    const plain = await previewAssembly({ principal: principal(me), chatId });
+    expect(seen).toEqual([presetId, undefined]);
+    expect(plain.prompt.static).not.toContain("THE OVERRIDE PRESET SPEAKS");
+  });
+
   test("a two-character room reports what EACH member costs, by their card name (owner ruling)", async () => {
     // "The context panel definitely has the current characters' total token size that are in the room."
     // The BUDGET's `cards` row must therefore break down per ROSTER MEMBER — real names, real token counts,

@@ -192,6 +192,35 @@ export interface AssemblyBudgetSlice {
   text: string;
 }
 
+/** ONE MATERIALIZED ROW inside a prompt section (`AssemblySectionCost.rows`) — ST's inspect panel with honest
+ *  data (D121-G / preset-surface-redesign §7.1): the rows a marker actually expanded into against a live room.
+ *  A merged card section splits per roster member; the history pivot splits per kept wire turn; every other
+ *  section is its own single row. CONTENT-FREE by construction — the label + the cost, never the bytes (the
+ *  bytes ride `AssemblyBudgetSlice.text`, where the D22 host gate already governs them). */
+export interface AssemblySectionRow {
+  /** Who/what this row is — a roster member's name, a wire turn's speaker name or role, else the section's own
+   *  contributor label. */
+  label: string;
+  tokens: number;
+}
+
+/** ONE PROMPT SECTION's true cost against a live chat (`AssemblyBudgetPreview.sections`) — the preset editor's
+ *  BOUND Prompt readout (D121-G): the rack row's real price, which the editor cannot know chat-free (a CARRIER
+ *  reads `~—` unbound precisely because its substance is the conversation's).
+ *
+ *  Keyed by `PromptSection.id`, so the readout joins it straight onto the rack it already draws. Sections that
+ *  rendered NOTHING this turn are OMITTED — bound-and-absent means "contributes nothing", which is a fact,
+ *  unlike the unbound `~—` (which means "not knowable here"). `tokens` is estimated over the section's JOINED
+ *  rendered text, so `Σ rows` can differ by a token or two of rounding — the rows answer "what makes this up",
+ *  the section answers "what does this row cost" (the {@link AssemblyBudgetSlice} posture). */
+export interface AssemblySectionCost {
+  /** The `PromptSection.id` this cost belongs to. */
+  sectionId: string;
+  tokens: number;
+  /** The materialization breakdown, in prompt order. NEVER empty — a single-contributor section is one row. */
+  rows: readonly AssemblySectionRow[];
+}
+
 /** The next turn's context accounting (`previewAssembly`) — the stacked budget bar + its per-source breakdown.
  *  `ceilingTokens` = the SAME `min(capability window, preset maxContextTokens)` the engine's history fit uses,
  *  `0` ⇒ unbounded (no capability window and no soft cap — the bar then renders proportions with no ratio).
@@ -206,6 +235,10 @@ export interface AssemblyBudgetPreview {
   totalTokens: number;
   /** Prompt-ordered, EMPTY sources omitted — a plain (non-game) chat carries no `game-state` row. */
   sources: readonly AssemblyBudgetSlice[];
+  /** The SAME bytes, partitioned by PROMPT SECTION instead of by source (D121-G): the preset editor's bound
+   *  Prompt readout prices its rack rows off this, while the chat Preview tab reads `sources`. One read, two
+   *  projections (§7.1) — rack order, sections that rendered nothing omitted. */
+  sections: readonly AssemblySectionCost[];
 }
 
 /** Why SHAPE did/didn't place the §8 cache breakpoint — the abort taxonomy, content-free. Declared ONCE as

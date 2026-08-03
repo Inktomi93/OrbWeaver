@@ -9,7 +9,7 @@
 
 import type { ChatBusEvent, ChatMacroNameProducer, MessageView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
-import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageVariantId, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "@orb/server/domain/chat";
@@ -739,6 +739,7 @@ describe("chat.previewAssembly — the assembled-prompt preview + trace (task #2
           text: "SYSTEM: be helpful",
         },
       ],
+      sections: [{ sectionId: "main", tokens: 5, rows: [{ label: "main prompt", tokens: 5 }] }],
     },
   };
 
@@ -756,6 +757,22 @@ describe("chat.previewAssembly — the assembled-prompt preview + trace (task #2
       chatId: CHAT,
     });
     expect(result).toEqual(Preview);
+  });
+
+  test("the preset editor's presetOverride crosses the wire (D121-G) — and is ABSENT when unsent", async () => {
+    const previewAssembly = vi.fn<ChatService["previewAssembly"]>(async () => Preview);
+    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { previewAssembly } } });
+
+    await caller(ctx).chat.previewAssembly({ chatId: CHAT, presetOverride: castId<PresetId>("preset_bound") });
+    expect(previewAssembly).toHaveBeenLastCalledWith({
+      principal: expect.objectContaining({ userId: MEMBER }),
+      chatId: CHAT,
+      presetOverride: "preset_bound",
+    });
+
+    // Omitted ⇒ the key never reaches the verb, so every pre-existing caller assembles the room's OWN preset.
+    await caller(ctx).chat.previewAssembly({ chatId: CHAT });
+    expect(previewAssembly).toHaveBeenLastCalledWith({ principal: expect.objectContaining({ userId: MEMBER }), chatId: CHAT });
   });
 
   test("a non-host gets the verb's leak-free NOT_FOUND (the host-only debug-surface gate)", async () => {
