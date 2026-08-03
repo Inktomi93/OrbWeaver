@@ -18,11 +18,12 @@ import type { CharacterId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { RegexScriptPicker } from "#components";
 import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
-import { openSettingsTo } from "#state";
+import { goToCollection } from "#state";
 
 const PICKER_SKELETON_ROWS = 3;
-/** The library's own pane + section (the Regex settings surface stamps this anchor). */
-const REGEX_LIBRARY_ANCHOR = { category: "regex", sub: "scripts" } as const;
+/** The library's own collection KIND in the Configuration workspace (it left the settings modal at the
+ *  config rail's R1 — a section navigation now, not a settings deep link). */
+const REGEX_COLLECTION = "regex";
 
 // NO HEADING OF ITS OWN (side-eye X-7, the run's ugliest IA defect). This picker IS the body of a facet
 // drill that is already titled `Regex scripts`, sitting beside a CONTEXT inspector whose panel is also
@@ -38,7 +39,7 @@ export function CharacterRegexScriptsField({ characterId }: { readonly character
       <RegexScriptPicker
         scope={{ kind: "character", characterId }}
         helperText="Find/replace rules that run whenever this character is in the room, picked from your script library."
-        onOpenLibrary={(): void => openSettingsTo(REGEX_LIBRARY_ANCHOR.category, REGEX_LIBRARY_ANCHOR.sub)}
+        onOpenLibrary={(): void => goToCollection(REGEX_COLLECTION)}
       />
     </QueryBoundary>
   );

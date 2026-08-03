@@ -45,6 +45,7 @@ import {
   newChatModal,
   proseSettingsSection,
 } from "@orb/client/features/chat";
+import { makeConfigSection } from "@orb/client/features/config";
 import { connectionsPane } from "@orb/client/features/credentials";
 import { corpusSection } from "@orb/client/features/discovery";
 import { automationDormantTile, buddyDormantTile, makeHomeSection, sectionJumpTile } from "@orb/client/features/home";
@@ -52,10 +53,10 @@ import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personasPane } from "@orb/client/features/persona";
 import { presetsSection } from "@orb/client/features/preset";
 import { refinerySection } from "@orb/client/features/refinery";
-import { regexPane } from "@orb/client/features/regex";
+import { regexCollection } from "@orb/client/features/regex";
 import { appearancePane, automationPane, chatBehaviorPane, settingsModal, themeModal } from "@orb/client/features/settings";
 import { analyticsSection } from "@orb/client/features/stats";
-import { tagsPane } from "@orb/client/features/tag";
+import { tagCollection } from "@orb/client/features/tag";
 import {
   adminCatalogSection,
   adminEmbeddingsSection,
@@ -77,6 +78,7 @@ import type {
   CharacterDetailContribution,
   ChatContextState,
   ChatSurfaceContribution,
+  CollectionContribution,
   ContextRegionDef,
   ContextTabDef,
   ContributorRegistry,
@@ -170,6 +172,10 @@ const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", 
   automationDormantTile,
 ]);
 
+// The COLLECTION seam, assembled as at the real door — so a shell CT landing on `config` renders the REAL
+// roster (tags + regex scripts), not a stand-in.
+const configCollections = createContributorRegistry<CollectionContribution>("config-collections", [tagCollection, regexCollection]);
+
 const REAL: Record<SectionId, SectionDefinition> = {
   home: makeHomeSection(homeTiles),
   chats: makeChatsSection({
@@ -180,6 +186,7 @@ const REAL: Record<SectionId, SectionDefinition> = {
   }),
   characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
   corpus: corpusSection,
+  config: makeConfigSection(configCollections),
   worldInfo: worldInfoSection,
   presets: presetsSection,
   refinery: refinerySection,
@@ -253,11 +260,9 @@ const REAL_SETTINGS_PANES: Record<SettingsCategoryId, SettingsPaneDefinition> = 
   personas: personasPane,
   appearance: appearancePane,
   automation: automationPane,
-  tags: tagsPane,
   workloads: workloadsPane,
   backup: backupPane,
   "chat-behavior": chatBehaviorPane,
-  regex: regexPane,
   connections: connectionsPane,
   admin: adminPane,
 };

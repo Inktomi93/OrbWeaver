@@ -16,7 +16,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import type { AppFormInstance } from "#forms";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
-import { openSettingsTo, useSelectedCharacterFacetId, useSelectedCharacterId } from "#state";
+import { goToCollection, useSelectedCharacterFacetId, useSelectedCharacterId } from "#state";
 import type { CHARACTER_CARD_FACET_IDS } from "../lib/character-card-facets";
 import { facetById } from "../lib/character-card-facets";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
@@ -30,7 +30,7 @@ type CardForm = AppFormInstance<CharacterCardFormValues>;
 type CharacterFacetId = (typeof CHARACTER_CARD_FACET_IDS)[number];
 
 /** The regex library's own pane + section (the Regex settings surface stamps this anchor). */
-const REGEX_LIBRARY_ANCHOR = { category: "regex", sub: "scripts" } as const;
+const REGEX_COLLECTION = "regex";
 
 export interface CharacterFacetInspectorProps {
   readonly characterId: CharacterId;
@@ -209,7 +209,7 @@ function RegexDetail({ characterId }: { readonly characterId: CharacterId }): Re
         {count} {count === 1 ? "script" : "scripts"} attached to this character.
       </Text>
       <Row>
-        <Button intent="ghost" onClick={(): void => openSettingsTo(REGEX_LIBRARY_ANCHOR.category, REGEX_LIBRARY_ANCHOR.sub)} size="sm" type="button">
+        <Button intent="ghost" onClick={(): void => goToCollection(REGEX_COLLECTION)} size="sm" type="button">
           Open your script library
         </Button>
       </Row>
