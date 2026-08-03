@@ -145,7 +145,26 @@ Also on the table: refusal fields (both vendors have one, we read neither — a 
 ok:true), the 24h grammar cache vs `constrainExtractionSchema` rewriting per call,
 `disable_parallel_tool_use` missing (a silent duplicate-drop), Anthropic's PHI caveat vs our
 live actor names as enum values. 3 stale comments named.
-**⚠ NEW MORNING FORK — DATABANK: own rail section (ARM A, shipping) vs a 4th CONFIG
+**OWNER RULINGS (08-03 dawn, question tool):** (1) **DATABANK KEEPS ITS RAIL SECTION** — the
+fork is CLOSED, Arm A stands (it uses the search box + Add primary + reindex kebab a group
+band has no slot for; demotion stays one file if ever wanted). (2) **TAG REORDER: premise
+challenged, correctly** — owner: "why do we want to reorder tags? this is an overall global
+tag manager across our entire lib." Tree check: `tags.sortOrder` EXISTS (schema:88, NULL =
+name fallback) + a `setTagOrder` writer — so manual order is BUILT but its only value is
+hand-curating a global library, which is the thing he's questioning. **RULED: do NOT lift
+REGORDER's arm; the >30 cliff stays, and the standing question is whether sortOrder earns its
+keep at all** (queued as TAGSORT: audit who reads it — if it's only the library sidebar's
+folder grouping, sort-by-usage/name may be strictly better; report-then-decide, do not
+delete blind). (3) **EPHEMERALITY: premise challenged, correctly** — owner: "why does display
+only need min/max? we control the virtualized viewport message list and what is shown." He's
+right: min/max DEPTH is a PROMPT-leg concern (how deep in history a script applies); DISPLAY
+needs none of it because we own the viewport. So the D121-E depth drop stays dead for
+display, and REC (a) ACCEPT-AND-RENAME stands — the depth knobs only ever come back WITH the
+prompt-build history leg, if that's ever built. (4) **REGEX EXTRAS: build bulk edit + the
+pipeline debugger + the per-script JSON door; NOT regex presets** — owner: "we made regex part
+of presets kinda" (the preset carrier already IS the named-set mechanism). → **Lane REGX2
+queued** for the three.
+**⚠ RESOLVED FORK (kept for the record) — DATABANK: own rail section (ARM A, shipping) vs a 4th CONFIG
 COLLECTION (ARM E, new):** DBANK found D-0's premise DIED tonight — the 08-01 ruling gave
 databank "its own 9th rail section" against a rail where World Info was STILL a section;
 R2WI demoted world-info with the rationale "a books LIBRARY is workspace anatomy, not a
