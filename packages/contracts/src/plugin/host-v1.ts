@@ -32,6 +32,7 @@ export interface PluginMessageView {
   readonly id: string;
   readonly role: MessageRole;
   readonly authorDisplayName: string;
+  // @foreign-id-ok(characterId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
   readonly characterId: string | null;
   readonly seq: number;
   readonly content: string;
@@ -128,6 +129,7 @@ export interface PluginHostV1 {
     /** capability: imagery.generate — SPEND class, same ceilings as generate_image. Args = the SAME
      *  GenerateImageActionArgs shape the action arm imports (imagery-design/01 §6) — one vocabulary across
      *  rule, tool, and plugin. */
+    // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
     generatePicture: (chat: ChatHandle, p: GenerateImageActionArgs) => Promise<{ assetId: string }>;
   };
 
@@ -160,6 +162,7 @@ export interface PluginHostV1 {
        *  events already use — a named field bag is arity-stable: adding an env field never changes the call
        *  shape). `input.draft` is the working text; `input.env` = `{chatId, vars}` for a sync read inside the
        *  250 ms transform deadline (no host round-trip needed). Return the transformed draft. */
+      // @foreign-id-ok(chatId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
       apply: (input: { draft: string; env: { chatId: string; vars: Record<string, string> } }) => Promise<string>;
     }) => void;
   };

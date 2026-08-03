@@ -46,6 +46,7 @@ function canReplace(store: SessionStore): store is ReplaceableSessionStore {
  *   • `cleared`   — an empty seed dropped the mapping.
  */
 export interface SeededSessionDecision {
+  // @foreign-id-ok(sessionId): the Claude Agent SDK's OWN chat-session id (its `session_id` wire field) — a NAME COLLISION with our BFF `SessionId = TypeIdOf<"session">`, a different wire's id that merely shares the spelling. Ends if this position ever carries one of our session rows, or if the field is renamed `sdkSessionId` (which would dissolve this marker).
   readonly sessionId: string | null;
   readonly disposition: "resumed" | "forked" | "reseeded" | "seeded" | "readopted" | "fresh" | "cleared";
 }
@@ -141,6 +142,7 @@ export class SessionCache {
     return this.byChat.get(chatId);
   }
 
+  // @foreign-id-ok(sessionId): the Claude Agent SDK's OWN chat-session id (its `session_id` wire field) — a NAME COLLISION with our BFF `SessionId = TypeIdOf<"session">`, a different wire's id that merely shares the spelling. Ends if this position ever carries one of our session rows, or if the field is renamed `sdkSessionId` (which would dissolve this marker).
   record(chatId: string, sessionId: string): void {
     this.byChat.set(chatId, sessionId);
   }
@@ -223,6 +225,7 @@ export class SessionCache {
     return { sessionId: null, disposition: "fresh" };
   }
 
+  // @foreign-id-ok(sessionId): the Claude Agent SDK's OWN chat-session id (its `session_id` wire field) — a NAME COLLISION with our BFF `SessionId = TypeIdOf<"session">`, a different wire's id that merely shares the spelling. Ends if this position ever carries one of our session rows, or if the field is renamed `sdkSessionId` (which would dissolve this marker).
   private async loadSession(sessionId: string): Promise<SessionStoreEntry[]> {
     return (await this.store.load({ projectKey: INTERNAL_PROJECT_KEY, sessionId })) ?? [];
   }
