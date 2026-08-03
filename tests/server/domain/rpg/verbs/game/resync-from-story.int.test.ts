@@ -7,7 +7,7 @@
 //   • THE PRINCIPAL SEAM — the model call resolves UNDER the room HOST's userId (the caller, whom `resolveHost`
 //     confirmed IS the host), never a caller-injected foreign id.
 //   • THE REBUILD — a drifted state + resync → corrected (the delta merges onto the base, locks honored, written
-//     BORN COMMITTED onto a fresh silent state-anchor slot).
+//     BORN COMMITTED as a message-less HAND row, D124).
 //   • THE DEEP READ — the injected `resolveCanonWindow` fired with the deep budget (the story feed).
 //   • A no-op rebuild (empty delta / readonly connection) writes nothing.
 //   • THE RECONCILER SHAPE (VER-1a) — the rebuild lands state ONLY: the journal archive is never appended to,
@@ -20,7 +20,7 @@ import { castId } from "@orb/kit/ids";
 import { freshDb } from "../../../../../support/db";
 import { expect, principal, seedLiteGame, seedMessage, test, turnConnection } from "../../_support";
 
-test("HOST rebuild: a drifted state + resync → corrected (born-committed on a fresh silent anchor slot)", async () => {
+test("HOST rebuild: a drifted state + resync → corrected (born-committed as a message-less HAND row)", async () => {
   const db = await freshDb();
   // The panel has DRIFTED via a prior MODEL flush (an unlocked model write — NOT a hand-pin). The resync's
   // rebuild corrects it. (A hand-edited lock is a separate case — the next test proves the lock wins.)
@@ -47,8 +47,8 @@ test("HOST rebuild: a drifted state + resync → corrected (born-committed on a 
   expect(h.fakes.canonWindowReads[0]?.maxTokens).toBeGreaterThan(1024);
   // The rebuild ran UNDER the room host's userId (the caller = the host; never a caller-injected foreign id).
   expect(h.fakes.resyncCalls).toEqual([{ chatId, hostUserId: "user_host", windowTokens: 1 }]);
-  // A fresh SILENT state-anchor slot was minted (empty content → prompt-excluded + surface-hidden, never a bubble).
-  expect(h.fakes.narratorPosts.some((p) => p.chatId === chatId && p.anchor)).toBe(true);
+  // D124: the rebuild posts NOTHING to canon — the reconciled state is a message-less hand row.
+  expect(h.fakes.narratorPosts).toEqual([]);
   // The panel reads back the CORRECTED state (the drift is healed).
   const view = await h.service.getTrackerView({ principal: principal("host"), chatId });
   expect(view.ambient?.location).toBe("the corrected throne room");

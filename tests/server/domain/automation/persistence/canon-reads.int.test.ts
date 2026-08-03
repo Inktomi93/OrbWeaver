@@ -1,8 +1,9 @@
 // Persistence: the narrow cross-domain canon reads (the authority gate + the book-attachment consent probe
 // + the CEL chat.messageCount projection). Reads only — automation never mutates another domain's canon here.
 
-import { chatBooks, worldBooks } from "@orb/db";
+import { chatBooks, messages, worldBooks } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import {
   countChatMessages,
@@ -43,7 +44,7 @@ describe("automation canon-reads", () => {
     expect(present).toEqual([host, member].sort());
   });
 
-  test("countChatMessages counts VISIBLE messages (0 for an empty chat; rpg state anchors excluded)", async () => {
+  test("countChatMessages counts VISIBLE messages (0 for an empty chat; a variant-less slot is not one)", async () => {
     const db = await freshDb();
     const host = await seedUser(db);
     const chatId = await seedHostChat(db, host);
@@ -53,9 +54,11 @@ describe("automation canon-reads", () => {
     await seedMessage(db, chatId, 2, { role: "assistant", content: "Pong." });
     await expect(countChatMessages(db, chatId)).resolves.toBe(2);
 
-    // An rpg state-anchor slot (`postNarratorMessage(chatId, "")` — a snapshot key, not a message). A CEL
-    // predicate like `chat.messageCount > N` must not fire early because the host resynced.
-    await seedMessage(db, chatId, 3, { role: "assistant", content: "" });
+    // The visibility predicate is the SELECTED-variant join: a slot whose selected variant was deleted has
+    // nothing to count. (D124 retired the other half — rpg's content-less state-anchor slots, which made a CEL
+    // `chat.messageCount > N` fire early after a host resync, no longer exist to be filtered.)
+    const orphan = await seedMessage(db, chatId, 3, { role: "assistant", content: "later" });
+    await db.update(messages).set({ selectedVariantId: null }).where(eq(messages.id, orphan.messageId));
     await expect(countChatMessages(db, chatId)).resolves.toBe(2);
   });
 

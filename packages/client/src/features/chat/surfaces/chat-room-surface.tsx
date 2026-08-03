@@ -5,7 +5,6 @@
 // continue-on-empty uses a separate query on the same listMessages key MessageListSurface already
 // suspends on internally — one shared cache entry, not a second round-trip.
 
-import { lastVisibleRow } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Container, Row, Stack, Surface } from "@orb/ui/layout";
@@ -198,10 +197,8 @@ function ComposerSlot(props: ComposerSlotProps): ReactElement {
   const chatId = isCommitted(props.handle) ? props.handle.id : null;
   const trpc = useTRPC();
   const { data: messagesPage } = useGatedQuery(chatId, (id) => trpc.chat.listMessages.queryOptions({ chatId: id }));
-  // The tail a READER means: `lastVisibleRow` skips rpg state anchors (the empty-body snapshot keys a host
-  // resync/hand-edit appends). Taking the raw last row aimed continue-on-empty at an invisible slot — which
-  // would have appended prose onto the message the snapshot is keyed to.
-  const tail = lastVisibleRow(messagesPage?.messages ?? []);
+  // The raw tail IS the tail a reader means (D124: every canon row is a real message now).
+  const tail = messagesPage?.messages.at(-1);
   const tailRole: MessageRole | null = tail?.role ?? null;
   // continue-on-empty's target: only meaningful when the tail is an assistant turn.
   const tailAssistantMessageId = tail !== undefined && tail.role === "assistant" ? tail.id : null;

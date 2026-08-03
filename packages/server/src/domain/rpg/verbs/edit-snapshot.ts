@@ -21,8 +21,8 @@
 //      (`RPG_HAND_PATCH_PLANES`, derived from the state schema itself). Without this gate a foreign key
 //      merged into the state object and then vanished at the column projection: `{ambient: null}` (the
 //      TRACKER VIEW's grouping of location/date/clock/weather, which has no state home) wrote nothing, said
-//      nothing, stamped a junk `ambient` lock, and — on a committed head — minted a blank anchor slot for a
-//      snapshot identical to the one before it.
+//      nothing, stamped a junk `ambient` lock, and — on a committed head — clone-forwarded a redundant
+//      snapshot identical to the one before it (pre-D124 that also minted a blank canon row to key it).
 //   2. VALUE legality, in `applyHandEdit` — the F1 write-boundary parse of the MERGED state (D108: "canon
 //      never corrupted" is structural). A clear is only honest where the contract says the leaf is nullable:
 //      `clock`/`calendarDate`/`weather`/`plot` clear to null; `location` and the arrays/records do not (their

@@ -6,7 +6,7 @@
 //   • THE PRINCIPAL SEAM — the round resolves UNDER the room HOST's userId (the caller `resolveHost` confirmed
 //     IS the host), never a caller-injected id, and it reads the CARD corpus (not the story window).
 //   • THE FILL — the identity sheet (title/level), the starting gear + purse, and a background quest land; the
-//     snapshot half rides a fresh SILENT state-anchor slot, born committed.
+//     snapshot half rides a message-less HAND row (D124), born committed.
 //   • FILL, NEVER OVERWRITE — a sheet field the host already wrote survives; a LOCKED quest survives.
 //   • THE ARCHIVE IS UNTOUCHED — a card read writes no journal (it has no journal door at all).
 //   • APPLICABILITY — a `user` actor (no card) and an unreadable card are REFUSED, before any model call.
@@ -57,7 +57,7 @@ function bornQuest(id: string, name: string): RpgQuest {
   return { id: castId<RpgQuestId>(id), name, status: "active", description: "", objectives: [] };
 }
 
-test("HOST fill: the card's identity + gear land — sheet, inventory, purse, quest, on a fresh silent anchor slot", async () => {
+test("HOST fill: the card's identity + gear land — sheet, inventory, purse, quest, on a message-less HAND row", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, "cardowner");
   const characterId = await seedCharacter(db, ownerId, "mara", { id: mintTypeId(ID_PREFIX.character) });
@@ -81,8 +81,8 @@ test("HOST fill: the card's identity + gear land — sheet, inventory, purse, qu
   // The deep STORY read is NOT this verb's — a born-state round never reads play (that is resyncFromStory).
   expect(h.fakes.canonWindowReads).toEqual([]);
 
-  // A fresh SILENT state-anchor slot carries the snapshot half (empty content ⇒ never a blank bubble).
-  expect(h.fakes.narratorPosts.some((p) => p.chatId === chatId && p.anchor)).toBe(true);
+  // D124: the snapshot half is a message-less HAND row — the populate posts NOTHING to canon.
+  expect(h.fakes.narratorPosts).toEqual([]);
 
   const view = await h.service.getTrackerView({ principal: principal("host"), chatId });
   const actor = view.actors.find((a) => a.name === "Mara");

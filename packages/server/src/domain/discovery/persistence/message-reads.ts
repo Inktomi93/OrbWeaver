@@ -4,7 +4,6 @@
 
 import type { Db } from "@orb/db";
 import { assets, characters, messages, messageVariants } from "@orb/db";
-import { notStateAnchor } from "@orb/db/kit";
 import type { CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { aliasedTable, and, desc, eq, gt, sql } from "drizzle-orm";
 
@@ -16,9 +15,10 @@ interface ForgottenGemCandidateRow {
   readonly lastActiveAt: number;
 }
 
-/** VISIBLE canon only: an rpg state-anchor slot (the empty-body snapshot key `resyncFromStory`/`editSnapshot`
- *  posts) IS an assistant row carrying a `characterId`, so a raw count inflates the gem's "N messages" and a
- *  raw MAX bumps its "last active" — a silent state write reading as time spent with the character. */
+/** VISIBLE canon only: the selected-variant `innerJoin` (a slot with no selected variant is nothing a reader
+ *  spent time on) ∩ non-synthetic characters — the synthetic Group card authors real narrator prose (recaps,
+ *  illustrations), which is not a "gem" candidate. D124 retired the third arm: rpg's content-less state-anchor
+ *  slots, which inflated the gem's "N messages" and bumped its "last active", no longer exist. */
 export async function readForgottenGemCandidates(db: Db, ownerId: UserId): Promise<ForgottenGemCandidateRow[]> {
   const messageCount = sql<number>`count(${messages.id})`;
   const lastActiveAt = sql<number>`max(${messages.createdAt})`;
@@ -34,7 +34,7 @@ export async function readForgottenGemCandidates(db: Db, ownerId: UserId): Promi
     .innerJoin(characters, eq(characters.id, messages.characterId))
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .leftJoin(assets, eq(assets.id, characters.avatarAssetId))
-    .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false), eq(messages.role, "assistant"), notStateAnchor()))
+    .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false), eq(messages.role, "assistant")))
     .groupBy(characters.id);
   return rows.map((r) => ({
     characterId: r.characterId,

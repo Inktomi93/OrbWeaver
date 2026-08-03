@@ -21,9 +21,9 @@
 // model-plane (hidden spans intact, the model reads its own lies, D110 §3.6) — the member never sees it.
 //
 // THE TAIL: the reconciled delta merges onto the resolution-ladder base through `applyLockedPatch` (locks
-// HONORED — a resync repairs the model plane, never the host's pins), and writes BORN COMMITTED onto a fresh
-// silent state-anchor slot (§4.1 — an empty-content narrator slot, prompt-excluded + surface-hidden, never a
-// blank bubble). An empty rebuild (capability-absent connection / no writes) is a no-op — no slot, no write.
+// HONORED — a resync repairs the model plane, never the host's pins), and writes BORN COMMITTED as a HAND ROW
+// (D124 — a message-less snapshot stamped with the chat's tail slot; it posts NOTHING to canon). An empty
+// rebuild (capability-absent connection / no writes) is a no-op — no row, no write.
 //
 // IDEMPOTENCE — THE RECONCILER LANDS THE RE-DERIVED TRUTH, IT NEVER APPENDS ONTO IT (VER-1a). The resync is
 // the ONE verb a host fires repeatedly at an unchanged story, so "run it twice ⇒ the same state" is a
@@ -54,10 +54,6 @@ import { applyLockedPatch } from "../../substrate/merge";
  *  can't inflate the read). Bounded for the sad-path 8B ([[plan-for-small-hardware]]); a resync is a rare
  *  host-initiated action, so a generous ceiling is affordable. */
 const RPG_RESYNC_MAX_TOKENS = 16_384;
-
-/** The silent state-anchor slot the resynced snapshot keys to (empty content ⇒ prompt-excluded + surface-hidden
- *  by construction — never a blank bubble; the §4.1 hand-edit/restore precedent). */
-const RESYNC_ANCHOR_CONTENT = "";
 
 /** The state-plane key whose vehicle semantics are APPEND (`applyUpdateScene` returns `[...base, beat]`) and
  *  whose reconciler semantics are REBUILD — the one plane {@link resyncStatePatch} re-shapes. */
@@ -105,20 +101,15 @@ export function createResyncFromStory(ctx: RpgContext): Pick<RpgService, "resync
     // Merge the delta onto the base — locks HONORED (a resync repairs the model plane, never a hand-pin).
     const nextState = applyLockedPatch(baseState as unknown as Record<string, unknown>, statePatch, baseState.fieldLocks) as unknown as RpgSnapshotState;
 
-    // Mint the fresh silent state-anchor slot; write the reconciled state BORN COMMITTED onto it.
-    const posted = await ctx.postNarratorMessage(game.chatId, RESYNC_ANCHOR_CONTENT);
+    // Write the reconciled state BORN COMMITTED as a HAND ROW (D124) — no message, no variant, ordered by the
+    // chat's tail slot.
     const snapshotId = ctx.ids.snapshot();
-    const written = await writeResyncedSnapshot(ctx.db, nextState, {
-      id: snapshotId,
-      gameId: game.id,
-      messageId: posted.messageId,
-      variantId: posted.variantId,
-      now: ctx.now(),
-    });
+    const written = await writeResyncedSnapshot(ctx.db, nextState, { id: snapshotId, gameId: game.id, chatId: game.chatId, now: ctx.now() });
     if (!written.ok) {
       // The F1 backstop refused a contract-invalid rebuild — drop the whole resync (no journal, no emits), and
-      // SURFACE it (never a silent vanish — the same observability contract the flush's drop honors).
-      ctx.onFlushDropped({ chatId: game.chatId, gameId: game.id, variantId: posted.variantId, reason: written.reason });
+      // SURFACE it (never a silent vanish — the same observability contract the flush's drop honors). A hand
+      // write has no variant to name, so the drop reports `variantId: null`.
+      ctx.onFlushDropped({ chatId: game.chatId, gameId: game.id, variantId: null, reason: written.reason });
       return;
     }
 

@@ -3,6 +3,10 @@
 // owner-scoped, with NO economics (those arrive through the injected stats op).
 
 import type { Db } from "@orb/db";
+import { messages } from "@orb/db";
+import type { MessageId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { readForgottenGemCandidates } from "../../../../../packages/server/src/domain/discovery/persistence/message-reads.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -80,19 +84,22 @@ describe("readForgottenGemCandidates", () => {
     expect(byId.get(rookie)).toMatchObject({ messageCount: 1, lastActiveAt: 2000 });
   });
 
-  // An rpg state-anchor slot IS an assistant row stamped with the voiced `characterId` — so a raw count made
-  // a resync look like time spent with the character, and a raw MAX(createdAt) made "last active" the moment
-  // of a silent state write. Same discriminator as the chat list's stats read.
-  test("rpg state-anchor slots inflate neither the gem's message count nor its last-active", async () => {
+  // The gem's "N messages" / "last active" once counted rpg state-anchor slots — assistant rows stamped with
+  // the voiced `characterId` that a host resync appended. D124 made those unrepresentable; the surviving
+  // predicate is the SELECTED-variant join, so a slot whose variant was deleted still cannot inflate a gem.
+  test("a slot whose SELECTED variant is gone inflates neither the gem's message count nor its last-active", async () => {
     db = await freshDb();
     const owner = await seedUser(db, "user_a");
     const chat = await seedChat(db, "chat_a");
     const played = await seedCharacter(db, { id: "character_vet", ownerId: owner, name: "Veteran" });
 
     await seedMessage(db, { id: "m_1", chatId: chat, seq: 1, createdAt: 1000, characterId: played, variant: { content: "a real beat" } });
-    // Two host resyncs, stamped LATER than the real beat — the shape that lit this up in the owner's dogfood.
-    await seedMessage(db, { id: "m_anchor_1", chatId: chat, seq: 2, createdAt: 8000, characterId: played, variant: { content: "" } });
-    await seedMessage(db, { id: "m_anchor_2", chatId: chat, seq: 3, createdAt: 9000, characterId: played, variant: { content: "  " } });
+    // A later beat whose selected variant was deleted — stamped LATER, so a raw MAX would move "last active".
+    await seedMessage(db, { id: "m_orphan", chatId: chat, seq: 2, createdAt: 9000, characterId: played, variant: { content: "orphaned" } });
+    await db
+      .update(messages)
+      .set({ selectedVariantId: null })
+      .where(eq(messages.id, castId<MessageId>("m_orphan")));
 
     const rows = await readForgottenGemCandidates(db, owner);
     expect(rows).toHaveLength(1);

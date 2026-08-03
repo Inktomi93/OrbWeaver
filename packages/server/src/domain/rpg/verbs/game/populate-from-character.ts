@@ -21,14 +21,14 @@
 //
 // THE TAIL — TWO PLANES, TWO DOORS, ONE FILL-DON'T-OVERWRITE RULE:
 //   • the SNAPSHOT half (inventory/wallet/quests) merges through `applyLockedPatch` onto the resolution-ladder
-//     head and lands BORN COMMITTED on a fresh silent state-anchor slot — byte-identically to the resync's
+//     head and lands BORN COMMITTED as a HAND ROW (D124 — message-less) — byte-identically to the resync's
 //     tail (locks HONORED: a pinned wallet survives).
 //   • the SHEET half (`className`/`level`) rides `rpg_sheets` and therefore cannot ride a snapshot patch. It
 //     FILLS ONLY WHAT IS UNSET (`className === ""` / `level === null`). The snapshot planes have `fieldLocks`
 //     to express "the host owns this"; the sheet has no lock plane, so "already written" IS the pin. A host who
 //     dislikes the result edits it — and a second click can never undo that edit.
-// An empty round (no writer capability / a card that established nothing) writes NOTHING: no slot, no sheet
-// row, no emit — the byte-identical non-acting verb.
+// An empty round (no writer capability / a card that established nothing) writes NOTHING: no snapshot, no
+// sheet row, no emit — the byte-identical non-acting verb.
 
 import type { RpgSheet, RpgSnapshotState } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
@@ -41,10 +41,6 @@ import { findSheet, upsertSheet } from "../../persistence/sheets";
 import { resolveSnapshotForTurn, writeResyncedSnapshot } from "../../persistence/snapshots";
 import { defaultSnapshotState } from "../../substrate/default-state";
 import { applyLockedPatch } from "../../substrate/merge";
-
-/** The silent state-anchor slot the populated snapshot keys to (empty content ⇒ prompt-excluded + surface-
- *  hidden by construction — never a blank bubble; the §4.1 hand-edit/restore/resync precedent). */
-const POPULATE_ANCHOR_CONTENT = "";
 
 /** The default sheet a first write merges onto (a missing row = the default sheet, §4.3). Mirrors
  *  `patchSheet`'s own default — verb-to-verb VALUE imports are banned, so each verb spells its own. */
@@ -128,13 +124,13 @@ async function writeSheetHalf(
   ctx.emitBus({ type: "sheetChanged", chatId: args.chatId, sheetId: row.id });
 }
 
-/** The SNAPSHOT half: the resync's tail verbatim — locks honored, born committed on a fresh silent anchor. */
+/** The SNAPSHOT half: the resync's tail verbatim — locks honored, born committed as a HAND ROW (D124). */
 async function writeStateHalf(
   ctx: RpgContext,
   args: { readonly gameId: RpgGameId; readonly chatId: ChatId; readonly baseState: RpgSnapshotState; readonly statePatch: Record<string, unknown> },
 ): Promise<void> {
   if (Object.keys(args.statePatch).length === 0) {
-    return; // nothing established (readonly / model no-op) — no slot, no write
+    return; // nothing established (readonly / model no-op) — no row, no write
   }
   // Merge onto the base — locks HONORED (a populate fills the model plane, never a hand-pin).
   const nextState = applyLockedPatch(
@@ -142,19 +138,13 @@ async function writeStateHalf(
     args.statePatch,
     args.baseState.fieldLocks,
   ) as unknown as RpgSnapshotState;
-  const posted = await ctx.postNarratorMessage(args.chatId, POPULATE_ANCHOR_CONTENT);
   const snapshotId = ctx.ids.snapshot();
-  const written = await writeResyncedSnapshot(ctx.db, nextState, {
-    id: snapshotId,
-    gameId: args.gameId,
-    messageId: posted.messageId,
-    variantId: posted.variantId,
-    now: ctx.now(),
-  });
+  const written = await writeResyncedSnapshot(ctx.db, nextState, { id: snapshotId, gameId: args.gameId, chatId: args.chatId, now: ctx.now() });
   if (!written.ok) {
     // The F1 backstop refused a contract-invalid state — drop the state half and SURFACE it (never a silent
-    // vanish; the same observability contract the flush's and the resync's drop honor).
-    ctx.onFlushDropped({ chatId: args.chatId, gameId: args.gameId, variantId: posted.variantId, reason: written.reason });
+    // vanish; the same observability contract the flush's and the resync's drop honor). A hand write has no
+    // variant to name, so the drop reports `variantId: null`.
+    ctx.onFlushDropped({ chatId: args.chatId, gameId: args.gameId, variantId: null, reason: written.reason });
     return;
   }
   // The populated snapshot is the new resolved-current head → the whole panel re-resolves (§4.9).

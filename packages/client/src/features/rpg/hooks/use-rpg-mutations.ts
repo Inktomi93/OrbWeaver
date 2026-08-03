@@ -113,8 +113,8 @@ export const useDetachDanglingPointer = createEntityMutation<inferInput<Trpc["rp
  *  drifted panel. Repaints the tracker view (every plane re-resolves off the rebuilt snapshot); the journal
  *  filter rides along because the panel's Journal tab reads the same game and a stale-time miss there would
  *  show pre-rebuild rows — the rebuild itself writes NO journal entry (VER-1a: a reconciler that appended to
- *  the archive could never be idempotent, and the host clicks this repeatedly). The rebuild writes a fresh
- *  snapshot, so the CHAT message list also refetches for the silent anchor slot (invisible — empty content). */
+ *  the archive could never be idempotent, and the host clicks this repeatedly). The rebuild writes a
+ *  message-less HAND row (D124), so the chat message list has nothing to refetch — no canon row is minted. */
 export const useResyncFromStory = createEntityMutation<inferInput<Trpc["rpg"]["resyncFromStory"]>, unknown>({
   options: (trpc) => trpc.rpg.resyncFromStory.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId }), trpc.rpg.listJournal.queryFilter({ chatId: vars.chatId })],
@@ -137,8 +137,8 @@ export const useReattributePersona = createEntityMutation<inferInput<Trpc["chat"
  *  gate refuses a member and refuses an actor with no card). ONE host-principal model call reads the
  *  character's card + the room's opening and fills what play cannot: the sheet's title/level, the starting
  *  inventory + purse, background-implied quests. Repaints the tracker view (sheet + actor volatile + quests all
- *  ride it) and the chat message list (the round writes a fresh silent state-anchor slot, exactly like the
- *  resync). Nothing auto-runs it — the takeover's button is its only caller. */
+ *  ride it). Like the resync it writes a message-less HAND row (D124), so the chat message list is untouched.
+ *  Nothing auto-runs it — the takeover's button is its only caller. */
 export const usePopulateFromCharacter = createEntityMutation<inferInput<Trpc["rpg"]["populateFromCharacter"]>, unknown>({
   options: (trpc) => trpc.rpg.populateFromCharacter.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId })],
