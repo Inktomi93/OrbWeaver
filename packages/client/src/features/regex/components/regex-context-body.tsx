@@ -56,8 +56,8 @@ function RegexScopePanel({ script, isGlobal }: { readonly script: RegexScriptRow
         />
       </Row>
       <Text voice="gloss">
-        The one scope this library owns. The other three — a preset, a character, a room — attach this script from the thing it belongs to, so a script can
-        run in one campaign without following you everywhere.
+        The one scope this library owns. The other three — a preset, a character, a room — attach this script from the thing it belongs to, so a script can run
+        in one campaign without following you everywhere.
       </Text>
     </Stack>
   );

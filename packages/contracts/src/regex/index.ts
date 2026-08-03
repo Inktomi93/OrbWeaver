@@ -83,14 +83,33 @@ export type RegexScriptRow = z.infer<typeof regexScriptSchema>;
 
 /** The ST CARD-WIRE script (`data.extensions.regex_scripts`). Its `id` is a FOREIGN client-minted UUID —
  *  the lift mints a real `regex_script_…` row from it and the carried-refs key re-links a same-install
- *  re-import, so this id is provenance, never a library identity. */
-export const regexScriptCardSchema = regexScriptBehaviorSchema.extend({
+ *  re-import, so this id is provenance, never a library identity.
+ *
+ *  THE ENABLED/DISABLED POLARITY IS THE ST WIRE'S, NOT OURS. ST has no `enabled` field at all: its editor
+ *  writes `disabled` (`input[name="disabled"]`) and its executor skips on `!!regexScript.disabled`. Reading
+ *  only `enabled` therefore made an ST card's switched-OFF script arrive switched ON — a find/replace the
+ *  card's author had deliberately parked, silently rewriting canon on the first turn after import. Both
+ *  keys are accepted, ours winning when present (so an orbweaver-exported card round-trips exactly), and
+ *  `toRegexScriptCardWire` writes both back out so a foreign ST reading our card honours the state too. */
+const regexScriptCardFieldsSchema = regexScriptBehaviorSchema.extend({
   id: z.string().min(MIN_CARD_ID_LENGTH).max(MAX_CARD_ID_LENGTH),
   name: z.string().max(MAX_NAME_LENGTH),
-  enabled: z.boolean().default(true),
+  enabled: z.boolean().optional(),
+  disabled: z.boolean().optional(),
 });
 
-export type RegexScriptCard = z.infer<typeof regexScriptCardSchema>;
+export const regexScriptCardSchema = regexScriptCardFieldsSchema.transform(({ enabled, disabled, ...rest }) => ({
+  ...rest,
+  enabled: enabled ?? disabled !== true,
+}));
+
+export type RegexScriptCard = z.output<typeof regexScriptCardSchema>;
+
+/** Project a card script back onto the ST wire — `disabled` beside our `enabled`, so the card is readable
+ *  by both engines with one meaning. The ONE emit-side home for the polarity (the parse side is above). */
+export function toRegexScriptCardWire(card: RegexScriptCard): RegexScriptCard & { readonly disabled: boolean } {
+  return { ...card, disabled: !card.enabled };
+}
 
 // ── The CRUD wire inputs (the tRPC router + the domain verbs validate against exactly these) ──────────
 
