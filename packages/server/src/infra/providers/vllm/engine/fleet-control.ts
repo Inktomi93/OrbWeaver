@@ -51,7 +51,7 @@ export function clearHold(runDir: string): void {
 
 // ── the wake DECISION (shared by the CLI + the client auto-wake gate) ────────────────────────────────────
 
-// @orb-gate-ignore no-inline-types an engine-internal discriminated RESULT verdict — a union (not an
+// @orb-gate-ignore no-inline-types: an engine-internal discriminated RESULT verdict — a union (not an
 // interface), co-located with its decider `decideWake` below exactly like this file's sibling result
 // interfaces (AutoSleepState/AutoSleepDecision); the engine dir has no cross-boundary contract home.
 export type WakeDecision = { readonly ok: true } | { readonly ok: false; readonly reason: string; readonly heldMarker: boolean };

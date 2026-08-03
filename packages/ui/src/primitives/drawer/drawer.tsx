@@ -123,7 +123,7 @@ export function DrawerSwipeArea(props: DrawerSwipeAreaProps): ReactElement {
  * the DrawerIndent/DrawerIndentBackground depth effect. Renders no element.
  */
 export function DrawerProvider(props: BaseProviderProps): ReactElement {
-  // @orb-gate-ignore no-context-provider Base UI's Drawer.Provider is a namespace COMPONENT, not a React Context — the React-19 `<Context.Provider>` deprecation the gate targets doesn't apply.
+  // @orb-gate-ignore no-context-provider: Base UI's Drawer.Provider is a namespace COMPONENT, not a React Context — the React-19 `<Context.Provider>` deprecation the gate targets doesn't apply.
   return <BaseDrawer.Provider {...props} />;
 }
 

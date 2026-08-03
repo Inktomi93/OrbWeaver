@@ -27,7 +27,7 @@ function attachSpotlight(root: HTMLElement | null): (() => void) | undefined {
     return;
   }
   // Fine-pointer only + honor reduced-motion, so a touch/reduced-motion user never installs the listener.
-  // @orb-gate-ignore no-raw-matchmedia `(pointer: fine)` is pointer-CAPABILITY detection, not reduced-motion — the gate's usePrefersReducedMotion/prefersReducedMotionNow helpers don't cover pointer queries (same rationale as the use-is-mobile-viewport.ts exemption).
+  // @orb-gate-ignore no-raw-matchmedia: `(pointer: fine)` is pointer-CAPABILITY detection, not reduced-motion — the gate's usePrefersReducedMotion/prefersReducedMotionNow helpers don't cover pointer queries (same rationale as the use-is-mobile-viewport.ts exemption).
   if (!globalThis.matchMedia("(pointer: fine)").matches || prefersReducedMotionNow()) {
     return;
   }
