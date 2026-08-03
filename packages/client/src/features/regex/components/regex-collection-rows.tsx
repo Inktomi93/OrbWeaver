@@ -18,9 +18,8 @@ import type { ReactElement } from "react";
 import { LibraryRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { CollectionListView } from "#lib";
-import { COLLECTION_LARGE_GROUP, regexScriptScent } from "#lib";
+import { COLLECTION_LARGE_GROUP, regexScriptScent, regexScriptTitle } from "#lib";
 import { useAttachRegexGlobal, useDetachRegexGlobal } from "../hooks/use-regex-library";
-import { regexScriptTitle } from "../lib/regex-model";
 
 /** One compact row's height guess for the windowed arm (name + scent subtitle). */
 const ESTIMATED_ROW_PX = 44;

@@ -54,6 +54,15 @@ export function regexScriptScent(script: { readonly enabled: boolean; readonly f
   return script.enabled ? shown : `off · ${shown}`;
 }
 
+/** A script's NAME, with the empty-name arm spelled ONCE. Shared home for the same reason the scent is:
+ *  the row lists, the editor heading, the delete confirm, the shared PICKER and the run-order editor all
+ *  announce a nameless script, and `components/` cannot import a feature's `lib/`. It moved here from
+ *  `features/regex/lib/regex-model.ts` when the order editor became the fourth caller — the picker had
+ *  already re-spelled the fallback inline, which is one name for a nameless script per surface. */
+export function regexScriptTitle(script: { readonly name: string }): string {
+  return script.name === "" ? "Unnamed script" : script.name;
+}
+
 /** The flat `{value,label}` options the placement multi-toggle renders (never a grouped `SelectItems` —
  *  `MultiToggleField` takes options only). */
 export const REGEX_PLACEMENT_ITEMS: readonly { readonly value: string; readonly label: string }[] = REGEX_PLACEMENTS.map((value) => ({

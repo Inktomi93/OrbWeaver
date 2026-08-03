@@ -21,6 +21,8 @@ export type { LibraryListLayoutProps, LibrarySurfaceShellProps } from "./library
 export { LibraryListLayout, LibrarySurfaceShell } from "./library-surface";
 export type { ListPaneHeaderBack, ListPaneHeaderProps } from "./list-pane-header";
 export { ListPaneHeader } from "./list-pane-header";
+export type { RegexScopeOrderProps } from "./regex-scope-order";
+export { RegexScopeOrder } from "./regex-scope-order";
 export type { RegexScriptPickerProps } from "./regex-script-picker";
 export { RegexScriptPicker } from "./regex-script-picker";
 export type { RelationManagerItem, RelationManagerSectionProps } from "./relation-manager-section";
