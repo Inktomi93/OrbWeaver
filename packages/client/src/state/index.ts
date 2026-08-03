@@ -83,6 +83,14 @@ export { useChromeRegistry } from "./chrome-registry-context";
 export { ChromeRegistryProvider } from "./chrome-registry-provider";
 export { migrateComposerDraft, setComposerDraft, useComposerDraft } from "./composer-draft-store";
 export { requestComposerFocus, useComposerFocusRequest } from "./composer-focus-store";
+export { __resetCollectionGroupOpen, openCollectionGroup, toggleCollectionGroup, useCollectionGroupOpen } from "./config-group-open-store";
+export {
+  clearCollectionSelection,
+  goToCollection,
+  selectCollectionMember,
+  selectCollectionMemberFromList,
+  useCollectionSelection,
+} from "./config-selection-store";
 export {
   clearCorpusSelection,
   selectCorpusCharacter,
@@ -94,6 +102,8 @@ export type { EntityDraftStore, EntityDraftStoreConfig } from "./create-entity-d
 export { createEntityDraftStore } from "./create-entity-draft-store";
 export type { GatedSet, GatedStoreHook } from "./create-gated-store";
 export { createGatedStore, STORE_DEVTOOLS_ENABLED } from "./create-gated-store";
+export type { KindedDrillStore, KindedSelection } from "./create-kinded-selection-store";
+export { createKindedSelectionStore } from "./create-kinded-selection-store";
 export type { PersistedStoreOptions } from "./create-persisted-store";
 export { createPersistedStore } from "./create-persisted-store";
 export type { DraftConfig, DraftRosterOverride } from "./draft-config-store";

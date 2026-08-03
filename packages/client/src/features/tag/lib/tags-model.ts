@@ -1,9 +1,14 @@
-// The Tags settings pane's pure view-model — folder-type Select items + usage-string derivations. Every
-// label maps from the canonical @orb/contracts/tag tuples via a Record, so a new member is a tsc error.
+// The tag collection's pure view-model — the collection KIND, folder-type Select items, and the
+// usage-string derivations. Every label maps from the canonical @orb/contracts/tag tuples via a Record, so
+// a new member is a tsc error.
 
 import type { TagFolderType, TagUsage } from "@orb/contracts/tag";
 import { TAG_FOLDER_TYPES } from "@orb/contracts/tag";
 import type { SelectOption } from "@orb/ui/select";
+
+/** The collection KIND — the registry key, the React key, and the selection store's kind axis. ONE home,
+ *  read by the definition and by the create verb that selects what it just made. */
+export const TAG_COLLECTION_ID = "tags";
 
 // A Map, not an object literal, so the contract's uppercase keys don't trip the camelCase naming lint.
 const FOLDER_TYPE_LABELS = new Map<TagFolderType, string>([

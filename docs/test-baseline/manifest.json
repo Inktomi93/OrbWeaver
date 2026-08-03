@@ -1451,6 +1451,21 @@
   "deletions": {
     "tests/client/features/preset/components/regex-tab.ct.tsx": {
       "why": "superseded by the D121-E R5 library takeover (2026-08-03, REGEX lane): the preset regex tab's settings-blob pane died with the embed carriers; its coverage moved to regex-settings-surface.ct.tsx + regex-script-picker.ct.tsx + transforms-readout coverage"
+    },
+    "tests/client/features/tag/lib/tags-pane.ct.tsx": {
+      "why": "the tags SETTINGS PANE retired with the config rail's R1 (2026-08-02): tags are a CollectionContribution in the Configuration workspace now, so there is no pane to deep-link into. Its pane-registration coverage is the config host's roster CT (tests/client/features/config/surfaces/config-roster-surface.ct.tsx), which mounts the real door array."
+    },
+    "tests/client/features/tag/surfaces/tags-settings-surface.ct.tsx": {
+      "why": "the settings surface split into rows + a mounted member editor at R1 (fork F-11). Every control it asserted is asserted against the SAME wire verbs in tests/client/features/tag/surfaces/tag-member-surface.ct.tsx (rename/colour/folder/hide/delete); the list half is covered by the config roster CT."
+    },
+    "tests/client/features/tag/surfaces/tag-row-tap-targets.suite.ct.tsx": {
+      "why": "the fat settings ROW whose controls it measured no longer exists (F-11 moved them into the member editor). The 32px tap-target floor is measured on the controls' NEW home in tag-member-surface.ct.tsx ('every control clears the 32px tap-target floor')."
+    },
+    "tests/client/features/regex/lib/regex-pane.ct.tsx": {
+      "why": "the regex SETTINGS PANE retired with the config rail's R1 (2026-08-02) — a script library is workspace anatomy, not a settings pane. Its registration coverage is the config roster CT; the editor coverage is regex-member-surface.ct.tsx."
+    },
+    "tests/client/features/regex/surfaces/regex-settings-surface.ct.tsx": {
+      "why": "the pane's list+dialog anatomy became the collection's rows + a MOUNTED member editor at R1. The field set, the autosave write and the delete verb are asserted in tests/client/features/regex/surfaces/regex-member-surface.ct.tsx; the row anatomy (global switch, scent subtitle) in the config roster CT."
     }
   }
 }

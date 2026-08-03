@@ -102,10 +102,42 @@ test("a no-op rebuild (empty delta) writes NOTHING — no slot, no snapshot, no 
   const { chatId, h } = await seedLiteGame(db, { canonWindow: [{ role: "assistant", speakerName: "GM", content: "story", tokens: 2 }] });
   h.fakes.busEvents.length = 0;
 
-  await h.service.resyncFromStory({ principal: principal("host"), chatId });
+  const result = await h.service.resyncFromStory({ principal: principal("host"), chatId });
 
   // The model call still fired (host resolved it), but produced nothing → no anchor slot, no snapshot, no emit.
   expect(h.fakes.resyncCalls).toHaveLength(1);
   expect(h.fakes.narratorPosts).toEqual([]);
   expect(h.fakes.busEvents).toEqual([]);
+  // …and the DOOR SAYS SO. A rebuild that changed nothing is `rebuilt:false`, never an undifferentiated
+  // "done" — the host clicked a button that costs money and seconds and is owed the outcome.
+  expect(result).toEqual({ ok: true, rebuilt: false });
+});
+
+// ── THE DOOR IS LOUD (RESYNC-OR) ─────────────────────────────────────────────────────────────────────
+// The resync returned `void`, so BOTH a provider refusal and a genuine no-change rendered identically: the
+// host saw the button settle and the panel not move. Live: every resync on the default hosted backend 400'd
+// at the provider, `rpg.resync.failed` logged server-side, and the client reported success. The verb now
+// returns the outcome as DATA (`ResyncResult`, the `HandDoorResult` grammar) and the client toasts it.
+test("a REBUILT resync reports ok:true rebuilt:true (the client's success signal)", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, {
+    resyncDelta: { statePatch: { location: "the corrected hall" }, journal: [] },
+    canonWindow: [{ role: "assistant", speakerName: "GM", content: "story", tokens: 2 }],
+  });
+
+  expect(await h.service.resyncFromStory({ principal: principal("host"), chatId })).toEqual({ ok: true, rebuilt: true });
+});
+
+test("a FAILED round is surfaced as data — the reason reaches the caller, never a silent 'nothing to resync'", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, { canonWindow: [{ role: "assistant", speakerName: "GM", content: "story", tokens: 2 }] });
+  h.fakes.resyncRefusal = { ok: false, reason: "the model call failed: openrouter structured item 0 failed" };
+  h.fakes.busEvents.length = 0;
+
+  const result = await h.service.resyncFromStory({ principal: principal("host"), chatId });
+
+  expect(result).toEqual({ ok: false, reason: "the model call failed: openrouter structured item 0 failed" });
+  // A failed round writes NOTHING (the pre-existing no-op tail is unchanged) — the only change is that it SAYS so.
+  expect(h.fakes.busEvents).toEqual([]);
+  expect(h.fakes.narratorPosts).toEqual([]);
 });

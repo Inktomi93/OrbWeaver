@@ -186,14 +186,17 @@ The macro layout is the **four-region shell**, realized THROUGH the §11.1 clamp
 
 ```
 DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
-  RAIL    — persistent thin icon column (~56px, `--dimension-rail`). EIGHT sections (D121 amends
-            D62 P6's seven — Presets stays in the rail, Connections lives in Settings per D66);
+  RAIL    — persistent thin icon column (~56px, `--dimension-rail`). NINE sections (D121 amends
+            D62 P6's seven — Presets stays in the rail, Connections lives in Settings per D66; the ninth
+            is `config`, the Configuration workspace, added at the config rail's R1);
             `SECTION_IDS` (`client/src/state/shell-store.ts`) is the truth and its ORDER is the rail's:
             Home (the Weave glyph IS its affordance — the brand cell is a real named button; below 48rem
             the cell hides and home rides the mobile bar as its FIRST tab) | grouped by
             --spacing-section dividers: Chats · Characters · Corpus (primary; `corpus` is the
             SECTION/feature name — the owning DOMAIN is `discovery`, the rename landed domain-side only,
-            per the feature-structure gate note) | World Info · Presets · Refinery (authoring)
+            per the feature-structure gate note) | Configuration · World Info · Presets · Refinery
+            (authoring — Configuration leads the run: it is the roster of the LIBRARIES the others are
+            built from, and tags + regex scripts live nowhere else since their settings panes retired)
             | Analytics (insight) → spacer → Theme · Settings · persona Identity. The CEILING is a rule
             about KIND, not a count (D121): a rail section owns a top-level workspace with its own
             LIST/CONTENT/CONTEXT grid; dialogs, preferences and one-shots go to modals/settings.
@@ -263,6 +266,7 @@ Per-section grid (end-state; the D62 program builds toward it):
 | - | - | - | - | - |
 | Chats | conversation rows · search · star/archive chips · `+` → new-chat picker | LANDING (hero + recents + quick-picks) | chat room (header · thread · composer) | tabs: Members(group) · Overrides · Group(host) · Preview(host) · Injections — REGISTRY-owned via `defineContextTabs` (`ContextTabsPanel`, built M3; `client-architecture-lockdown.md` §6b), not a bespoke `<Tabs>` |
 | Characters | character rows · search · `+` create/import | teaching state | detail card → editor | activity (chats with them) + actions |
+| Configuration | one COLLAPSED group per registered `CollectionContribution` (band = icon · kicker · count · create `+`); expanded groups get a count-driven filter and windowed rows | the welcome (a launcher card per collection) | the selected member's OWN editor, mounted (never a dialog) | the selected collection's own arm, or its own `{kind:"none"}` copy |
 | World Info | book rows | teaching state | entries table + editor | book config + activation scope |
 | Presets | preset rows + CRUD toolbar | teaching state | tabbed editor (Sampling · Output · Quality · Reasoning · Templates · Post-process · Compaction · Prompt) | usage/bindings (default-collapsed) |
 | Corpus | the search omnibox + target picker + results (default-docked, amended 2026-07-13) | overview home (coverage · insights · keywords) | selected character's dossier | corpus-global analysis tabs (Archetypes/Visuals/Map/Similarity/Compare) |

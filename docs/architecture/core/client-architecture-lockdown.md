@@ -87,7 +87,7 @@ Above the tiers: `routes/` composes features (never the reverse — `client-feat
 
 **Tier-placement rule:** a domain-aware composite needed by ≥2 features belongs in `components/`, never duplicated per-feature — §13.0's bar (3+ AND changing together) decides *when* to hoist; two features sharing decides *where* (tier 2, not a feature, not `@orb/ui` — ui stays parts-only per the `components/index.ts` header ruling). `jscpd` (tsx scanned, 5% threshold) is the standing tripwire; the hoist itself is review R2.
 
-**What IS a feature (ENFORCED under O2):** a feature dir earns its existence by owning ≥1 registered definition — a rail section, a modal, a settings pane, or a chrome widget. The O2 gate `feature-owns-definition` is LIVE: a feature dir owns a co-located `lib/*-{section,modal,pane,chrome}.tsx` or it is deleted. No exemptions.
+**What IS a feature (ENFORCED under O2):** a feature dir earns its existence by owning ≥1 registered definition — a rail section, a modal, a settings pane, a chrome widget, or (since the config rail's R1) a config COLLECTION. The O2 gate `feature-owns-definition` is LIVE: a feature dir owns a co-located `lib/*-{section,modal,pane,chrome,collection}.tsx` or it is deleted. No exemptions. (`collection` joined for the migration that took tags/regex out of the settings modal: their whole product surface is a member LIBRARY contributed to the Configuration workspace, so they own a `*-collection.tsx` and no pane — see `docs/design/config-rail-spec.md`.)
 
 ## 4. The paint law — who may write CSS, and WHY
 

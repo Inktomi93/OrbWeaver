@@ -36,7 +36,7 @@ import { createPersistedStore } from "./create-persisted-store";
  *  EDITING THIS TUPLE: walk the ten coupled sites in client-architecture-lockdown.md §6a (the SECTION_IDS
  *  playbook) — tsc carries only the door Record; the sanitizers, agent-nav vocabulary, CT mirror, mobile
  *  curation and placeholder copy are each a separate hand edit. */
-export const SECTION_IDS = ["home", "chats", "characters", "corpus", "worldInfo", "presets", "refinery", "analytics"] as const;
+export const SECTION_IDS = ["home", "chats", "characters", "corpus", "config", "worldInfo", "presets", "refinery", "analytics"] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
 /** The modal vocabulary — the ModalDefinition registry is total over this tuple (assembled at the door). */
@@ -52,15 +52,18 @@ export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];
  *  both admin-gated, and after the decomposition both held admin-tier knob sections owned by the same
  *  feature — two panes meant hunting for which admin knob lived where. System's five sections are the
  *  admin pane's FIRST group now; a deep link to `system` no longer type-checks (`openSettingsTo("admin")`
- *  is the replacement) and `agent-nav` rejects it against this tuple. */
+ *  is the replacement) and `agent-nav` rejects it against this tuple.
+ *
+ *  `tags` + `regex` RETIRED with the config rail's R1 (config-rail-spec.md §2 C-11): both were
+ *  workspace-grade CRUD libraries living as modal panes, and they are now `CollectionContribution`s in the
+ *  `config` section's roster. The "Library" nav group disappeared with them; NOTHING tombstones — the union
+ *  is closed, so tsc enumerated every `openSettingsTo` call site and each became `goToCollection(kind)`. */
 export const SETTINGS_CATEGORY_IDS = [
   "personas",
   "appearance",
-  "tags",
   "workloads",
   "backup",
   "chat-behavior",
-  "regex",
   "connections",
   "automation",
   "admin",

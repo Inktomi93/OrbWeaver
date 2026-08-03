@@ -12,6 +12,7 @@ import { createContributorRegistry } from "@orb/client/lib";
 import type { SettingsSectionContribution } from "@orb/client/state";
 import {
   __dismissPresetSectionForTest,
+  __resetCollectionGroupOpen,
   __resetPresetSection,
   __resetPresetSelection,
   __resetTagFilter,
@@ -20,6 +21,7 @@ import {
   clearCharacterFacet,
   clearCharacterSelection,
   clearChatListCharacterFilter,
+  clearCollectionSelection,
   clearCorpusSelection,
   clearNewChatPreset,
   clearSectionSaveStatus,
@@ -27,10 +29,12 @@ import {
   clearWorldEntrySelection,
   closeModal,
   commitDraft,
+  goToCollection,
   goToLanding,
   isCommitted,
   isLanding,
   migrateComposerDraft,
+  openCollectionGroup,
   openModal,
   openNewChatPicker,
   openSettingsTo,
@@ -43,6 +47,8 @@ import {
   selectCharacterFacet,
   selectChat,
   selectChatFromList,
+  selectCollectionMember,
+  selectCollectionMemberFromList,
   selectCorpusCharacter,
   selectPreset,
   selectPresetFromList,
@@ -64,6 +70,7 @@ import {
   setPanelMode,
   setPresetEditorView,
   startNewChat,
+  toggleCollectionGroup,
   toggleFavoritesOnly,
   toggleShowArchived,
   toggleSpoilerBlur,
@@ -78,6 +85,8 @@ import {
   useCharacterViewMode,
   useChatListCharacterFilter,
   useChromeRegistry,
+  useCollectionGroupOpen,
+  useCollectionSelection,
   useComposerDraft,
   useComposerFocusRequest,
   useContextTab,
@@ -156,8 +165,8 @@ export function ShellStoreProbe(): ReactElement {
       <button type="button" onClick={(): void => openModal("settings")}>
         open settings
       </button>
-      <button type="button" onClick={(): void => openSettingsTo("tags")}>
-        open settings to tags
+      <button type="button" onClick={(): void => openSettingsTo("personas")}>
+        open settings to personas
       </button>
       <button type="button" onClick={(): void => closeModal()}>
         close modal
@@ -466,6 +475,68 @@ export function WorldInfoSelectionProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => selectWorldBookFromList(PROBE_BOOK)}>
         select book from list
+      </button>
+    </div>
+  );
+}
+
+/** ConfigSelectionProbe — the KINDED selection store (the config workspace's ONE selection across N
+ *  sibling collections): select a member of one kind, select a member of ANOTHER kind, clear, and the
+ *  LIST dual-write that also closes the slide-over. `goToCollection` is the deep-link intent the retired
+ *  `openSettingsTo("tags"|"regex")` call sites became — it expands the group, clears the selection AND
+ *  switches the rail, so the probe reads the active section too. */
+export function ConfigSelectionProbe(): ReactElement {
+  const selection = useCollectionSelection();
+  const openOverlayPanel = useOpenOverlayPanel();
+  const section = useActiveSection();
+  const tagsOpen = useCollectionGroupOpen("tags");
+  return (
+    <div>
+      <output>
+        {`selection=${selection === null ? "none" : `${selection.kind}:${selection.memberId}`} openOverlayPanel=${openOverlayPanel ?? "none"} section=${section} tagsOpen=${String(tagsOpen)}`}
+      </output>
+      <button type="button" onClick={(): void => selectCollectionMember("tags", "tag_probe")}>
+        select tag member
+      </button>
+      <button type="button" onClick={(): void => selectCollectionMember("regex", "regex_probe")}>
+        select regex member
+      </button>
+      <button type="button" onClick={(): void => clearCollectionSelection()}>
+        clear collection selection
+      </button>
+      <button type="button" onClick={(): void => setOpenOverlayPanel("list")}>
+        open config list sheet
+      </button>
+      <button type="button" onClick={(): void => selectCollectionMemberFromList("regex", "regex_probe")}>
+        select member from list
+      </button>
+      <button type="button" onClick={(): void => setActiveSection("chats")}>
+        go to chats
+      </button>
+      <button type="button" onClick={(): void => goToCollection("tags")}>
+        go to the tags collection
+      </button>
+    </div>
+  );
+}
+
+/** ConfigGroupOpenProbe — the per-device group DISCLOSURE store. Groups start COLLAPSED (owner ruling), a
+ *  toggle flips one group without touching its siblings, and `openCollectionGroup` is the idempotent
+ *  deep-link arm (it may never collapse a group the user has open). */
+export function ConfigGroupOpenProbe(): ReactElement {
+  const tagsOpen = useCollectionGroupOpen("tags");
+  const regexOpen = useCollectionGroupOpen("regex");
+  return (
+    <div>
+      <output>{`tags=${String(tagsOpen)} regex=${String(regexOpen)}`}</output>
+      <button type="button" onClick={(): void => toggleCollectionGroup("tags")}>
+        toggle tags group
+      </button>
+      <button type="button" onClick={(): void => openCollectionGroup("tags")}>
+        open tags group
+      </button>
+      <button type="button" onClick={(): void => __resetCollectionGroupOpen()}>
+        reset collection groups
       </button>
     </div>
   );

@@ -136,6 +136,27 @@ export const useDetachDanglingPointer = createEntityMutation<inferInput<Trpc["rp
   errorToast: "Couldn't detach the game.",
 });
 
+/** The resync's verdict read off the wire, never re-spelled (the hand-door precedent). */
+type ResyncVerdict = inferOutput<Trpc["rpg"]["resyncFromStory"]>;
+
+/**
+ * RESYNC-OR — the resync's REFUSAL arm (`{ok:false, reason}`): the round could NOT run.
+ *
+ * The verb used to return `void`, so a provider that refused EVERY call (live: the default hosted backend
+ * 400'd the structured request on every resync) was indistinguishable from a story with nothing to re-derive
+ * — the button settled, the panel didn't move, and the host was told nothing at all. The server's `reason` IS
+ * the message: it names whether the room connection didn't resolve, the model can't write structured state, or
+ * the call itself failed, AND what to do about it. Inventing a vaguer sentence here would throw away the only
+ * actionable part (the hand doors' `handDoorRefusal` reasoning, verbatim).
+ *
+ * The `{ok:true, rebuilt:false}` ending is NOT routed here: this seam fires `notify.error`, and a rebuild that
+ * honestly found no drift is not an error. The call site (`ResyncControl`) speaks that one as an info line.
+ * Rides the FACTORY, not the call site — refusing-as-data is a property of the VERB.
+ */
+function resyncRefusal(data: ResyncVerdict): string | null {
+  return data.ok ? null : `The rebuild didn't run — ${data.reason}`;
+}
+
 /** `rpg.resyncFromStory` — the §1.3 HOST re-derive-from-the-story escape hatch (host-only; the server gate
  *  refuses a member). Runs ONE host-principal model call that re-reads a deep story window and rebuilds the
  *  drifted panel. Repaints the tracker view (every plane re-resolves off the rebuilt snapshot); the journal
@@ -143,10 +164,11 @@ export const useDetachDanglingPointer = createEntityMutation<inferInput<Trpc["rp
  *  show pre-rebuild rows — the rebuild itself writes NO journal entry (VER-1a: a reconciler that appended to
  *  the archive could never be idempotent, and the host clicks this repeatedly). The rebuild writes a
  *  message-less HAND row (D124), so the chat message list has nothing to refetch — no canon row is minted. */
-export const useResyncFromStory = createEntityMutation<inferInput<Trpc["rpg"]["resyncFromStory"]>, unknown>({
+export const useResyncFromStory = createEntityMutation<inferInput<Trpc["rpg"]["resyncFromStory"]>, ResyncVerdict>({
   options: (trpc) => trpc.rpg.resyncFromStory.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId }), trpc.rpg.listJournal.queryFilter({ chatId: vars.chatId })],
   errorToast: "Couldn't resync from the story.",
+  refusal: resyncRefusal,
 });
 
 /** `chat.reattributePersona` — the CHAT stamp verb, used here for the resync dialog's opt-in "restamp my
