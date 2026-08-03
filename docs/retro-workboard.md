@@ -40,7 +40,14 @@ the merged result (caught reds twice tonight) · **CTs are NOT in verify --push*
 playwright CT files explicitly (ANCHOR's gap) · semantic conflicts → abort, recreate worktree
 if needed, lane reconciles (REGPAR precedent tonight) · D-numbers allocated at dispatch.
 
-**LIVE LANES (3, resumable by agent id via SendMessage): SM6 (a2f4878e08572eab4) · REGORDER (a9c03c2e888a68acf) · FACEFILT (dispatched below)**
+**LIVE LANES (3, resumable by agent id via SendMessage): SM6 (a2f4878e08572eab4 — imagery
+CT files confirmed FREE, told to merge main) · REGORDER (a9c03c2e888a68acf — scope RATIFIED:
+both homes via one shared regex-scope-order component [config context arm = global; the
+picker SPLITS IN PLACE "Runs here, in order" + unattached — one row per script, X-7-safe];
+threshold arms = drag ≤30 / move-up-down above — NO capability cliff, mechanism-only switch;
+**this pattern = the candidate arm for the unruled TAG drag-reorder morning fork**) ·
+FACEFILT (a5a5877336d40ac69 — frequent-N strip + overflow picker, selected-face-always-
+visible, defensive paths enumerated).**
 · ✅ **R2WI MERGED (`e7a86df1`, consolidated check 14/14, torn down) — WORLD-INFO IS IN THE
   WORKSPACE, the rail is back to 8.** listBooksWithUsage landed on the tag precedent (global
   = FLAG not count, reasoned; sweep row added; listGlobal deliberately kept — the context arm
