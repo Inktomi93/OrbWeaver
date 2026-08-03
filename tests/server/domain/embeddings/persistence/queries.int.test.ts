@@ -4,7 +4,7 @@
 // hub_score; the round-trip Float32Array survives the F32_BLOB column.
 
 import { characterEmbeddings, imageEmbeddings } from "@orb/db";
-import type { CharacterEmbeddingId, ImageEmbeddingId } from "@orb/kit/ids";
+import type { CharacterEmbeddingId, Handle, ImageEmbeddingId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -24,7 +24,7 @@ const NOW = 1_750_000_000_000;
 describe("existingCharacterHash / upsertCharacterEmbedding", () => {
   test("undefined before any write; the stored hash after; idempotent on (characterId, model)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
 
     expect(await existingCharacterHash(db, characterId, EMBED_MODEL)).toBeUndefined();
@@ -58,7 +58,7 @@ describe("existingCharacterHash / upsertCharacterEmbedding", () => {
 
   test("a re-upsert preserves a hub_score written between the two upserts", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     await upsertCharacterEmbedding(db, {
       id: castId<CharacterEmbeddingId>("character_embedding_a"),
@@ -90,7 +90,7 @@ describe("existingCharacterHash / upsertCharacterEmbedding", () => {
 describe("existingImageHash / upsertImageEmbedding", () => {
   test("both lenses coexist per (asset, model); caption persists only on the captioned lens", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const assetId = await seedAsset(db, owner);
 
     expect(await existingImageHash(db, assetId, "image-raw", IMAGE_EMBED_MODEL)).toBeUndefined();

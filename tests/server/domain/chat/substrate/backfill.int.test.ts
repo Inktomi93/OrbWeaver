@@ -6,7 +6,7 @@
 
 import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe, vi } from "vitest";
 import type { ResolveBackfillMemoryConfig } from "../../../../../packages/server/src/domain/chat/contract/memory.ts";
@@ -44,7 +44,7 @@ async function seedRooms(host: UserId): Promise<{ soloChar: CharacterId; groupCh
 
 describe("backfillMemory — the chat × scope enumeration", () => {
   test("segments visit every chat; digest buckets mirror the engine's scopes (group bucket only >1 cast)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     await seedRooms(host);
     // The shared group bucket is find-or-minted (the REAL synthetic-char id — inv 8), so the sweep resolves
     // it exactly the way the engine's post-turn trigger does (no fabricated `__group__` handle).
@@ -64,7 +64,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
   });
 
   test("WITNESSING wiring (D6): a kicked-then-rejoined cast char's SCOPED bucket excludes the kicked block; the GROUP bucket stays full", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const g1 = await seedCharacter(db, host, "g1");
     const g2 = await seedCharacter(db, host, "g2");
     await seedCharacter(db, host, "group"); // id character_group — FK target for the shared-bucket digests
@@ -99,7 +99,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
   });
 
   test("MINT-ON-DEMAND (#41): a group chat with NO pre-existing synthetic-char row builds its shared bucket — the sweep mints the FK target inline, so the digest write never dangles", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const g1 = await seedCharacter(db, host, "g1");
     const g2 = await seedCharacter(db, host, "g2");
     const group = await seedChat(db, "group");
@@ -119,7 +119,15 @@ describe("backfillMemory — the chat × scope enumeration", () => {
       mintSyntheticGroupCharacter: async ({ ownerId }) => {
         await db
           .insert(characters)
-          .values({ id: groupCharId, handle: `__group__${group}`, ownerId, name: "group", synthetic: true, contentHash: "hash_group", createdAt: 0 })
+          .values({
+            id: groupCharId,
+            handle: castId<CharacterHandle>(`__group__${group}`),
+            ownerId,
+            name: "group",
+            synthetic: true,
+            contentHash: "hash_group",
+            createdAt: 0,
+          })
           .onConflictDoNothing();
         return { characterId: groupCharId };
       },
@@ -137,7 +145,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
   });
 
   test("PER-CHAT ISOLATION is NOT a silent skip: a poisoned chat is COUNTED in `failed`, the rest still process (#41)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     // Two group rooms; the FIRST poisons its group-bucket resolve (a mint failure). Without isolation its
     // throw would abort the WHOLE PD-41 corpus sweep before the healthy room is ever reached.
     const p1 = await seedCharacter(db, host, "p1");
@@ -171,7 +179,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
   });
 
   test("an already-aborted signal does zero work (cooperative abort)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     await seedRooms(host);
     const ctx = makeChatContext(db);
     const ac = new AbortController();
@@ -188,8 +196,8 @@ describe("backfillMemory — the chat × scope enumeration", () => {
   test("a memory-DISABLED host's chat is SKIPPED (D36 opt-out) while an enabled host's chat still builds", async () => {
     // Two hosts, each hosting one group room. The resolver reports host_off as `mode:"off"` (memory disabled)
     // and host_on as enabled — the SAME opt-out the live turn path honors, now honored on the corpus sweep (#54).
-    const hostOff = await seedUser(db, "host_off");
-    const hostOn = await seedUser(db, "host_on");
+    const hostOff = await seedUser(db, castId<Handle>("host_off"));
+    const hostOn = await seedUser(db, castId<Handle>("host_on"));
     const oc1 = await seedCharacter(db, hostOff, "oc1");
     const oc2 = await seedCharacter(db, hostOff, "oc2");
     const nc1 = await seedCharacter(db, hostOn, "nc1");
@@ -224,8 +232,8 @@ describe("backfillMemory — the chat × scope enumeration", () => {
   test("a resolver failure on one chat → warn + continue (the per-chat isolation belt covers the resolver)", async () => {
     // Two hosts, one group room each; the resolver THROWS for host_bad's settings read. Without the isolation
     // belt wrapping the resolver call, that throw would abort the whole sweep before host_good's room builds.
-    const hostBad = await seedUser(db, "host_bad");
-    const hostGood = await seedUser(db, "host_good");
+    const hostBad = await seedUser(db, castId<Handle>("host_bad"));
+    const hostGood = await seedUser(db, castId<Handle>("host_good"));
     const bc1 = await seedCharacter(db, hostBad, "bc1");
     const bc2 = await seedCharacter(db, hostBad, "bc2");
     const gc1 = await seedCharacter(db, hostGood, "gc1");
@@ -254,7 +262,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
 
 describe("backfillGroupCharacters — mint only for group rooms lacking one", () => {
   test("a >1-character room without a group character mints ONE under the host; solo/empty skipped", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     await seedRooms(host);
     const mint = vi.fn(async (_args: { ownerId: UserId; chatId: ChatId }) => ({
       characterId: "character_group" as CharacterId,
@@ -272,7 +280,7 @@ describe("backfillGroupCharacters — mint only for group rooms lacking one", ()
   });
 
   test("an existing group character short-circuits (scanned, not changed) — idempotent", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     await seedRooms(host);
     const mint = vi.fn();
     const ctx = makeChatContext(db, {

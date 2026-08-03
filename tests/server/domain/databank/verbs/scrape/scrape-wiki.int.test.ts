@@ -9,6 +9,8 @@
 // The SSRF belt ITSELF is proven in tests/server/infra/network/egress.test.ts; this asserts only the pass-through.
 
 import { documents } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createExtractText, EXTRACTOR_VERSION } from "@orb/server/infra/extraction";
 import { eq } from "drizzle-orm";
 import { ScrapeFailedError } from "../../../../../../packages/server/src/domain/databank/contract/errors.ts";
@@ -34,7 +36,7 @@ function makeHarness(db: Parameters<typeof makeDatabankHarness>[0]): ReturnType<
 test("scrapes an article: derives the API endpoint from the host, stamps 'wiki' canon, enqueues ingest", async () => {
   const db = await freshDb();
   const h = makeHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf(EXTRACT_JSON));
 
   const result = await h.service.scrapeWiki({ principal: principalFor(owner), url: ARTICLE_URL });
@@ -57,7 +59,7 @@ test("scrapes an article: derives the API endpoint from the host, stamps 'wiki' 
 test("derives the endpoint from a NON-Wikipedia MediaWiki host (Fandom rides the same verb)", async () => {
   const db = await freshDb();
   const h = makeHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf(EXTRACT_JSON));
 
   await h.service.scrapeWiki({ principal: principalFor(owner), url: "https://elderscrolls.fandom.com/wiki/Skyrim" });
@@ -69,7 +71,7 @@ test("derives the endpoint from a NON-Wikipedia MediaWiki host (Fandom rides the
 test("a missing article (no extract) collapses to ScrapeFailedError — no row, no enqueue", async () => {
   const db = await freshDb();
   const h = makeHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf(MISSING_JSON));
 
   await expect(h.service.scrapeWiki({ principal: principalFor(owner), url: ARTICLE_URL })).rejects.toBeInstanceOf(ScrapeFailedError);
@@ -82,7 +84,7 @@ test("a missing article (no extract) collapses to ScrapeFailedError — no row, 
 test("malformed JSON collapses to ScrapeFailedError", async () => {
   const db = await freshDb();
   const h = makeHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf("<html>not json — a captcha wall</html>"));
 
   await expect(h.service.scrapeWiki({ principal: principalFor(owner), url: ARTICLE_URL })).rejects.toBeInstanceOf(ScrapeFailedError);
@@ -92,7 +94,7 @@ test("malformed JSON collapses to ScrapeFailedError", async () => {
 test("a fetch refusal collapses to a leak-free ScrapeFailedError, not retry-looped", async () => {
   const db = await freshDb();
   const h = makeHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockRejectedValueOnce(new Error("SSRF_BLOCKED: 169.254.169.254"));
 
   const error = await h.service.scrapeWiki({ principal: principalFor(owner), url: ARTICLE_URL }).catch((e: unknown) => e);

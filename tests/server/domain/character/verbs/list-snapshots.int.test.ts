@@ -1,5 +1,7 @@
 // verb: listSnapshots — browse history newest-first; owner-gated.
 
+import type { CharacterHandle, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { CharacterNotFoundError, createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -11,10 +13,10 @@ describe("listSnapshots", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "d" },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     const first = await svc.snapshot({
       principal: principal(owner),
@@ -35,11 +37,11 @@ describe("listSnapshots", () => {
   test("listing another user's history throws CharacterNotFoundError", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const created = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "d" },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     await expect(svc.listSnapshots({ principal: principal(other), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
   });

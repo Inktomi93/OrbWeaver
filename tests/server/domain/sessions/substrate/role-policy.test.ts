@@ -1,3 +1,5 @@
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { afterEach, describe, vi } from "vitest";
 import {
   deriveIdentityAccess,
@@ -28,22 +30,22 @@ describe("determineRole — owner", () => {
   test("owner iff the handle is in OWNER_HANDLES", () => {
     vi.stubEnv(OWNER_HANDLES, "alice,bob");
     vi.stubEnv(OWNER_GROUP, undefined);
-    expect(determineRole("alice", [])).toBe("owner");
-    expect(determineRole("bob", [])).toBe("owner");
-    expect(determineRole("carol", [])).toBe("user");
+    expect(determineRole(castId<Handle>("alice"), [])).toBe("owner");
+    expect(determineRole(castId<Handle>("bob"), [])).toBe("owner");
+    expect(determineRole(castId<Handle>("carol"), [])).toBe("user");
   });
 
   test("owner iff the identity is in OWNER_GROUP (group preferred)", () => {
     vi.stubEnv(OWNER_HANDLES, "alice");
     vi.stubEnv(OWNER_GROUP, "owners");
-    expect(determineRole("carol", ["owners"])).toBe("owner");
-    expect(determineRole("carol", ["other"])).toBe("user");
+    expect(determineRole(castId<Handle>("carol"), ["owners"])).toBe("owner");
+    expect(determineRole(castId<Handle>("carol"), ["other"])).toBe("user");
   });
 
   test("an empty/whitespace OWNER_GROUP never grants owner", () => {
     vi.stubEnv(OWNER_HANDLES, "alice");
     vi.stubEnv(OWNER_GROUP, "");
-    expect(determineRole("dave", [""])).toBe("user");
+    expect(determineRole(castId<Handle>("dave"), [""])).toBe("user");
   });
 });
 
@@ -51,29 +53,29 @@ describe("determineRole derives admin from the configured admin groups (owner-co
   test("membership in an OIDC_ADMIN_GROUPS group derives admin", () => {
     vi.stubEnv(OWNER_HANDLES, "alice");
     vi.stubEnv(ADMIN_GROUPS, "Orb Admins,staff-admins");
-    expect(determineRole("dave", ["Orb Admins"])).toBe("admin");
-    expect(determineRole("dave", ["staff-admins", "eng"])).toBe("admin");
-    expect(determineRole("dave", ["eng"])).toBe("user");
+    expect(determineRole(castId<Handle>("dave"), ["Orb Admins"])).toBe("admin");
+    expect(determineRole(castId<Handle>("dave"), ["staff-admins", "eng"])).toBe("admin");
+    expect(determineRole(castId<Handle>("dave"), ["eng"])).toBe("user");
   });
 
   test("owner policy wins over admin-group membership (owner ⊇ admin)", () => {
     vi.stubEnv(OWNER_GROUP, "owners");
     vi.stubEnv(ADMIN_GROUPS, "admins");
-    expect(determineRole("alice", ["owners", "admins"])).toBe("owner");
+    expect(determineRole(castId<Handle>("alice"), ["owners", "admins"])).toBe("owner");
   });
 
   test("unset OIDC_ADMIN_GROUPS ⇒ no group grants admin (setRole stays the only source)", () => {
     vi.stubEnv(OWNER_HANDLES, "alice");
     vi.stubEnv(ADMIN_GROUPS, undefined);
-    expect(determineRole("dave", ["admins", "Orb Admins"])).toBe("user");
+    expect(determineRole(castId<Handle>("dave"), ["admins", "Orb Admins"])).toBe("user");
   });
 });
 
 describe("deriveIdentityAccess — the OIDC_ALLOWED_GROUPS login gate", () => {
   test("gate UNSET ⇒ every authenticated identity is allowed (backward-compat)", () => {
     vi.stubEnv(ALLOWED_GROUPS, undefined);
-    expect(deriveIdentityAccess("dave", [])).toStrictEqual({ outcome: "allow", role: "user" });
-    expect(deriveIdentityAccess("dave", ["random"])).toStrictEqual({
+    expect(deriveIdentityAccess(castId<Handle>("dave"), [])).toStrictEqual({ outcome: "allow", role: "user" });
+    expect(deriveIdentityAccess(castId<Handle>("dave"), ["random"])).toStrictEqual({
       outcome: "allow",
       role: "user",
     });
@@ -81,7 +83,7 @@ describe("deriveIdentityAccess — the OIDC_ALLOWED_GROUPS login gate", () => {
 
   test("gate SET + identity in an allowed group ⇒ allow (role user)", () => {
     vi.stubEnv(ALLOWED_GROUPS, "Orb Users,Orb Admins");
-    expect(deriveIdentityAccess("dave", ["Orb Users"])).toStrictEqual({
+    expect(deriveIdentityAccess(castId<Handle>("dave"), ["Orb Users"])).toStrictEqual({
       outcome: "allow",
       role: "user",
     });
@@ -89,17 +91,17 @@ describe("deriveIdentityAccess — the OIDC_ALLOWED_GROUPS login gate", () => {
 
   test("gate SET + identity in NONE of the allowed groups ⇒ DENY (fail-closed)", () => {
     vi.stubEnv(ALLOWED_GROUPS, "Orb Users");
-    expect(deriveIdentityAccess("mallory", ["some-other-group"])).toStrictEqual({
+    expect(deriveIdentityAccess(castId<Handle>("mallory"), ["some-other-group"])).toStrictEqual({
       outcome: "deny",
     });
     // Empty groups with the gate set is the classic fail-closed case.
-    expect(deriveIdentityAccess("mallory", [])).toStrictEqual({ outcome: "deny" });
+    expect(deriveIdentityAccess(castId<Handle>("mallory"), [])).toStrictEqual({ outcome: "deny" });
   });
 
   test("admin is IMPLICITLY allowed — an admin-group member passes even if not in an allowed group", () => {
     vi.stubEnv(ALLOWED_GROUPS, "Orb Users");
     vi.stubEnv(ADMIN_GROUPS, "Orb Admins");
-    expect(deriveIdentityAccess("dave", ["Orb Admins"])).toStrictEqual({
+    expect(deriveIdentityAccess(castId<Handle>("dave"), ["Orb Admins"])).toStrictEqual({
       outcome: "allow",
       role: "admin",
     });
@@ -109,7 +111,7 @@ describe("deriveIdentityAccess — the OIDC_ALLOWED_GROUPS login gate", () => {
     vi.stubEnv(OWNER_HANDLES, "alice");
     vi.stubEnv(ALLOWED_GROUPS, "Orb Users");
     // alice matches OWNER_HANDLES and is in NONE of the allowed groups → still owner, still allowed.
-    expect(deriveIdentityAccess("alice", [])).toStrictEqual({ outcome: "allow", role: "owner" });
+    expect(deriveIdentityAccess(castId<Handle>("alice"), [])).toStrictEqual({ outcome: "allow", role: "owner" });
   });
 });
 
@@ -136,7 +138,7 @@ describe("ownerHandles", () => {
     vi.stubEnv(OWNER_HANDLES, undefined);
     const handles = ownerHandles();
     expect(handles).toHaveLength(1);
-    expect(determineRole(handles[0] ?? "", [])).toBe("owner");
+    expect(determineRole(castId<Handle>(handles[0] ?? ""), [])).toBe("owner");
   });
 });
 

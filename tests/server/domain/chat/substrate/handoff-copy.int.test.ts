@@ -25,7 +25,7 @@ import type { Db } from "@orb/db";
 import { characterBooks, characters, chatBooks, chatDigestSpeakers, chatDigests, chatParticipants, messages, worldBooks, worldEntries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
-import type { CharacterId, ChatDigestId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatDigestId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -115,8 +115,8 @@ function copyContext(): Parameters<typeof createRoster>[0] {
 
 /** host + nominee + a room the host seats `aria` (the host's own card) in. */
 async function seedTransferRoom(): Promise<{ host: UserId; member: UserId; chatId: ChatId; aria: CharacterId }> {
-  const host = await seedUser(db, "host");
-  const member = await seedUser(db, "member");
+  const host = await seedUser(db, castId<Handle>("host"));
+  const member = await seedUser(db, castId<Handle>("member"));
   const aria = await seedCharacter(db, host, "aria");
   const chatId = await seedChat(db, "a");
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -247,7 +247,7 @@ describe("cross-tenant — the offer gives only what the departing host owns", (
   test("a seated card the departing host does NOT own is never copied (a roster seat is not a license)", async () => {
     const { host, member, chatId } = await seedTransferRoom();
     // A third party's card sitting on the roster (a prior host's, still seated).
-    const stranger = await seedUser(db, "stranger");
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
     const foreign = await seedCharacter(db, stranger, "foreign");
     await seedParticipant(db, { chatId, key: "cf", characterId: foreign, role: "member" });
     const roster = createRoster(copyContext(), { emit });
@@ -259,7 +259,15 @@ describe("cross-tenant — the offer gives only what the departing host owns", (
     const minted = await db.select().from(characters).where(eq(characters.ownerId, member));
     expect(minted).toHaveLength(1);
     expect(minted[0]?.importedFrom).toBe(
-      handoffProvenance(chatId, (await db.select().from(characters).where(eq(characters.handle, "aria")))[0]?.id ?? foreign),
+      handoffProvenance(
+        chatId,
+        (
+          await db
+            .select()
+            .from(characters)
+            .where(eq(characters.handle, castId<CharacterHandle>("aria")))
+        )[0]?.id ?? foreign,
+      ),
     );
     // …and the foreign seat still takes the D64 drop, because the new host cannot read it either.
     const seats = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId));

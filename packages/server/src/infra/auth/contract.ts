@@ -3,7 +3,7 @@
 // a Principal (those are domain/sessions + entry/auth/seam.ts). Reaches down only — never @orb/db, never a domain.
 
 import type { AuthMode, ResolvedIdentity } from "@orb/contracts/identity";
-import type { ExternalId } from "@orb/kit/ids";
+import type { ExternalId, Handle } from "@orb/kit/ids";
 
 /** Parsed auth config, passed explicitly so unit tests can vary mode/fallback without re-parsing env. */
 export interface AuthConfig {
@@ -41,7 +41,7 @@ export interface OidcTransactionStore {
 }
 
 export interface ForwardJwtClaims {
-  handle: string | undefined;
+  handle: Handle | undefined;
   externalId: ExternalId | null;
   groups: string[];
   email: string | null;

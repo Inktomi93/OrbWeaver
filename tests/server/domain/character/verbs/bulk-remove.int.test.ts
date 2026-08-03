@@ -1,6 +1,6 @@
 // verb: bulkRemove — delete many owned; skip missing/foreign (don't throw); reap avatars once.
 
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
@@ -13,19 +13,19 @@ describe("bulkRemove", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const a = await svc.create({
       principal: principal(owner),
-      input: { handle: "a", name: "A", description: "d" },
+      input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
     const b = await svc.create({
       principal: principal(owner),
-      input: { handle: "b", name: "B", description: "d" },
+      input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d" },
     });
     const foreign = await svc.create({
       principal: principal(other),
-      input: { handle: "c", name: "C", description: "d" },
+      input: { handle: castId<CharacterHandle>("c"), name: "C", description: "d" },
     });
 
     await svc.bulkRemove({

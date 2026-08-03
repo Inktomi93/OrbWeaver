@@ -9,7 +9,8 @@
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { and, eq, isNull, ne } from "drizzle-orm";
 import type { SessionsService } from "#domain/sessions";
 import { getLog } from "#foundation/observability";
@@ -41,7 +42,7 @@ export async function seedOwner(deps: SeedOwnerDeps): Promise<readonly UserId[]>
   let passwordsSeeded = 0;
   const ids = await Promise.all(
     deps.ownerHandles.map(async (handle): Promise<UserId> => {
-      const userId = await deps.sessions.ensureUser(handle);
+      const userId = await deps.sessions.ensureUser(castId<Handle>(handle));
       await deps.db
         .update(users)
         .set({ role: OWNER_ROLE, updatedAt: at })

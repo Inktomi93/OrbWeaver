@@ -28,7 +28,7 @@ import {
   userSettings as userSettingsTable,
   worldBooks,
 } from "@orb/db";
-import type { ChatId, ChatParticipantId, Handle, MessageAssetId, MessageId, MessageVariantId, UserId, WorkloadId } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId, ChatParticipantId, Handle, MessageAssetId, MessageId, MessageVariantId, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { loadWorkload, runWorkload } from "@orb/server/domain/workloads";
 import type { ExportDeps, ImportBundleDeps } from "@orb/server/entry/http";
@@ -151,7 +151,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
     // Character (+ avatar) with a deterministic handle (the gallery + chat re-link key).
     const character = await seedCharacter(db, {
       ownerId: OWNER_ID,
-      handle: castId<Handle>("hero"),
+      handle: castId<CharacterHandle>("hero"),
       name: "Hero",
       avatarAssetId: avatar.assetId,
     });
@@ -336,7 +336,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
       const freshChars = await freshDatabase
         .select({ id: charactersTable.id, avatarAssetId: charactersTable.avatarAssetId })
         .from(charactersTable)
-        .where(and(eq(charactersTable.ownerId, targetId), eq(charactersTable.handle, "hero")));
+        .where(and(eq(charactersTable.ownerId, targetId), eq(charactersTable.handle, castId<CharacterHandle>("hero"))));
       expect(freshChars).toHaveLength(1);
       const freshCharId = freshChars[0]?.id;
       const freshAvatarId = freshChars[0]?.avatarAssetId;

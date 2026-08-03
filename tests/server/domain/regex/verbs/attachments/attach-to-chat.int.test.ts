@@ -5,6 +5,8 @@
 // The CASCADE this junction takes part in is pinned in `remove.int.test.ts`'s sibling, `scopes.int.test.ts`.
 
 import { chatRegexScripts } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createRegexService, RegexNotFoundError } from "@orb/server/domain/regex";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -17,7 +19,7 @@ describe("attachToChat", () => {
     const refuse = (): Promise<void> => Promise.reject(new Error("not the host"));
     const h = makeHarness(db, { requireChatHost: refuse });
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const chatId = await seedChat(db);
     const scriptId = await seedScript(db, { ownerId: owner, name: "room" });
 
@@ -29,8 +31,8 @@ describe("attachToChat", () => {
     const db = await freshDb();
     const h = makeHarness(db, { requireChatHost: allowChat, requireChatMember: allowChat });
     const svc = createRegexService(h.ctx);
-    const host = await seedUser(db, { handle: "host" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const chatId = await seedChat(db);
     const mine = await seedScript(db, { ownerId: host, id: "regex_script_mine", name: "mine" });
     const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });

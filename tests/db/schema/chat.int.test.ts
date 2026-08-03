@@ -27,6 +27,7 @@ import {
 } from "@orb/db";
 import { isConstraintViolation, parseRecord } from "@orb/db/kit";
 import type {
+  CharacterHandle,
   CharacterId,
   ChatEventId,
   ChatId,
@@ -54,7 +55,7 @@ const T0 = 1_700_000_000_000;
 
 async function seedCharacter(db: Db, ownerId: UserId, raw: string): Promise<CharacterId> {
   const id = castId<CharacterId>(raw);
-  await db.insert(characters).values({ id, handle: `card-${raw}`, ownerId, contentHash: `hash-${raw}`, name: raw });
+  await db.insert(characters).values({ id, handle: castId<CharacterHandle>(`card-${raw}`), ownerId, contentHash: `hash-${raw}`, name: raw });
   return id;
 }
 

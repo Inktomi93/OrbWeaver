@@ -20,7 +20,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { messageVariants } from "@orb/db";
-import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { HISTORY_DEPTH_PLACEMENT } from "@orb/kit/regex";
@@ -88,7 +88,7 @@ function historyScript(args: { find: string; replace: string; min?: number; max?
 
 /** Seed a chat with `bodies` as canon (oldest first) and return everything a build needs. */
 async function seedRoom(bodies: readonly string[]): Promise<{ host: UserId; chatId: ChatId; charId: CharacterId }> {
-  const host = await seedUser(db, "host");
+  const host = await seedUser(db, castId<Handle>("host"));
   const chatId = await seedChat(db, "a");
   const charId = await seedCharacter(db, host, "aria");
   // Seeded in parallel deliberately: every row's id and `seq` are derived from its index, so canon order is
@@ -198,7 +198,7 @@ test("a script on another leg never fires here — the persist-time legs and thi
 });
 
 test("a hidden row stays out of the leg's reach — depth counts the rows that actually ride", async () => {
-  const host = await seedUser(db, "host");
+  const host = await seedUser(db, castId<Handle>("host"));
   const chatId = castId<ChatId>("chat_a");
   await seedChat(db, "a");
   const charId = await seedCharacter(db, host, "aria");

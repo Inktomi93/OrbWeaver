@@ -13,7 +13,8 @@
 
 import type { Greeting } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { CharacterService, UpdateCharacterParams } from "@orb/server/domain/character";
 import { createCharacterService, createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import { describe } from "vitest";
@@ -102,13 +103,13 @@ describe("createDefaultCharacterSeeder — v2 pack reseed migration", () => {
   test("an UNEDITED v1 assistant is re-dressed to the v2 welcome card (prose + presentation + avatar)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
     await seedAsset(db, { id: REDRESSED_AVATAR, ownerId: owner, hash: "hash_charlotte" });
 
     // The pre-migration library: the v1 pack's Assistant + a v1 card the v2 pack dropped (user data).
     const before = await svc.create({ principal: actor, input: v1AssistantInput() });
-    await svc.create({ principal: actor, input: { handle: "rev-card-refinery", name: "Rev", description: "the v1 card-surgeon" } });
+    await svc.create({ principal: actor, input: { handle: castId<CharacterHandle>("rev-card-refinery"), name: "Rev", description: "the v1 card-surgeon" } });
 
     const latch = packLatch([owner]);
     const avatarCalls: string[] = [];
@@ -149,7 +150,7 @@ describe("createDefaultCharacterSeeder — v2 pack reseed migration", () => {
   test("an EDITED v1 assistant is left completely untouched (prose, name, look, avatar)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
     await seedAsset(db, { id: REDRESSED_AVATAR, ownerId: owner, hash: "hash_charlotte" });
 
@@ -181,7 +182,7 @@ describe("createDefaultCharacterSeeder — v2 pack reseed migration", () => {
   test("a RENAMED but otherwise-virgin v1 assistant is left untouched (a rename is ownership)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
     await seedAsset(db, { id: REDRESSED_AVATAR, ownerId: owner, hash: "hash_charlotte" });
 
@@ -207,7 +208,7 @@ describe("createDefaultCharacterSeeder — v2 pack reseed migration", () => {
   test("the version stamp makes a re-run a no-op — even from a cold seeder instance", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
     await seedAsset(db, { id: REDRESSED_AVATAR, ownerId: owner, hash: "hash_charlotte" });
     const before = await svc.create({ principal: actor, input: v1AssistantInput() });

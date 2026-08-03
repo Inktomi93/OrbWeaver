@@ -4,7 +4,7 @@
 // the target id, then audited).
 
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAdminService } from "@orb/server/domain/admin";
 import { describe } from "vitest";
@@ -19,7 +19,7 @@ describe("admin.embedCharacterCard", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createAdminService(h.ctx);
-    const plain = await seedUser(db, { id: "user_plain", handle: "plain" });
+    const plain = await seedUser(db, { id: "user_plain", handle: castId<Handle>("plain") });
 
     const err = await svc.embedCharacterCard({ principal: principal(plain, "user"), characterId: CHARACTER_ID }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DomainForbiddenError);
@@ -32,7 +32,7 @@ describe("admin.embedCharacterCard", () => {
     const h = makeHarness(db);
     h.setEmbedOwned(false);
     const svc = createAdminService(h.ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
 
     const err = await svc.embedCharacterCard({ principal: principal(admin, "admin"), characterId: CHARACTER_ID }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DomainNotFoundError);
@@ -43,7 +43,7 @@ describe("admin.embedCharacterCard", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createAdminService(h.ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     const p = principal(admin, "admin");
 
     await svc.embedCharacterCard({ principal: p, characterId: CHARACTER_ID });

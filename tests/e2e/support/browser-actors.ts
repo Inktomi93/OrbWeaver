@@ -18,12 +18,12 @@
 //
 // Kept in the e2e-support tree, import-free of the app/package trees (the `trpc.ts`/`actors.ts` posture).
 
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, Handle } from "@orb/kit/ids";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 
 /** One human's isolated browser session: their own cookie jar + one page, already on the app. */
 export interface BrowserActor {
-  readonly handle: string;
+  readonly handle: Handle;
   readonly context: BrowserContext;
   readonly page: Page;
   readonly close: () => Promise<void>;
@@ -56,7 +56,7 @@ const MEMBERS_ENTRY = '[aria-label^="Members "]';
  *  `baseUrl` is the project's vite origin (Playwright's `baseURL` fixture). Throws — loudly, with the HTTP
  *  status — if the login mints no session, so a spec never screenshots an anonymous page believing it is a
  *  member's view. */
-export async function openBrowserActor(browser: Browser, baseUrl: string, handle: string, password: string): Promise<BrowserActor> {
+export async function openBrowserActor(browser: Browser, baseUrl: string, handle: Handle, password: string): Promise<BrowserActor> {
   const context = await browser.newContext({ baseURL: baseUrl });
   const res = await context.request.post(`${baseUrl}/api/auth/login`, { form: { handle, password } });
   if (!res.ok()) {

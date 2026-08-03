@@ -3,6 +3,8 @@
 // block collapse to ONE — the better-ranked lens wins under mixC), content-hash collapse (fork/import copies
 // across chats collapse to one representative), and the empty-pool short-circuit.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -11,7 +13,7 @@ import { makeSearch, seedCharacter, seedChat, seedChatDigest, seedChatSegment, s
 describe("corpus", () => {
   test("dedupes a block present in BOTH lenses to one hit (mixB keeps the digest)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const char = await seedCharacter(db, { id: "character_pov", ownerId: owner, name: "POV" });
     const chat = await seedChat(db, "chat_a");
     await seedChatDigest(db, {
@@ -38,7 +40,7 @@ describe("corpus", () => {
 
   test("a mixC rerank that prefers the segment makes the verbatim lens win the block", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const char = await seedCharacter(db, { id: "character_pov", ownerId: owner, name: "POV" });
     const chat = await seedChat(db, "chat_a");
     await seedChatDigest(db, {
@@ -70,7 +72,7 @@ describe("corpus", () => {
 
   test("collapses fork/import copies (identical contentHash across chats) to one", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const char = await seedCharacter(db, { id: "character_pov", ownerId: owner, name: "POV" });
     const chatA = await seedChat(db, "chat_a");
     const chatB = await seedChat(db, "chat_b");
@@ -97,8 +99,8 @@ describe("corpus", () => {
 
   test("owner-derived scope excludes another owner's blocks", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const mine = await seedCharacter(db, { id: "character_mine", ownerId: owner, name: "Mine" });
     const theirs = await seedCharacter(db, {
       id: "character_theirs",
@@ -129,7 +131,7 @@ describe("corpus", () => {
 
   test("an empty digest pool short-circuits to no hits", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const svc = makeSearch(db, { embedVector: () => vec(1) });
 
     const hits = await svc.corpus({ ownerId: owner, queryText: "q", mode: "mixB", minScore: 0 });

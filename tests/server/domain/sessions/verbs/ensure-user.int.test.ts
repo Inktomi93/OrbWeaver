@@ -23,7 +23,7 @@ afterEach(() => {
 
 describe("sessions.ensureUser", () => {
   test("JIT-creates the row on first sight and returns its id", async () => {
-    const id = await svc.ensureUser("alice");
+    const id = await svc.ensureUser(castId<Handle>("alice"));
     const rows = await db.select().from(users).where(eq(users.id, id));
     expect(rows).toHaveLength(1);
     expect(rows[0]?.handle).toBe("alice");
@@ -31,8 +31,8 @@ describe("sessions.ensureUser", () => {
   });
 
   test("is idempotent — a second call returns the SAME id (no duplicate row)", async () => {
-    const first = await svc.ensureUser("alice");
-    const second = await svc.ensureUser("alice");
+    const first = await svc.ensureUser(castId<Handle>("alice"));
+    const second = await svc.ensureUser(castId<Handle>("alice"));
     expect(second).toBe(first);
     const rows = await db
       .select()
@@ -42,15 +42,15 @@ describe("sessions.ensureUser", () => {
   });
 
   test("trims the handle before lookup/insert (no whitespace-forked duplicate)", async () => {
-    const a = await svc.ensureUser("  alice  ");
-    const b = await svc.ensureUser("alice");
+    const a = await svc.ensureUser(castId<Handle>("  alice  "));
+    const b = await svc.ensureUser(castId<Handle>("alice"));
     expect(b).toBe(a);
   });
 
   test("provisions an OWNER_HANDLES handle as owner, others as user (D17)", async () => {
     vi.stubEnv("OWNER_HANDLES", "alice");
-    const ownerId = await svc.ensureUser("alice");
-    const userId = await svc.ensureUser("bob");
+    const ownerId = await svc.ensureUser(castId<Handle>("alice"));
+    const userId = await svc.ensureUser(castId<Handle>("bob"));
     const owner = (await db.select().from(users).where(eq(users.id, ownerId)))[0];
     const normal = (await db.select().from(users).where(eq(users.id, userId)))[0];
     expect(owner?.role).toBe("owner");

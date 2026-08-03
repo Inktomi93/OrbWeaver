@@ -7,7 +7,7 @@
 
 import type { Db } from "@orb/db";
 import { chatDigests } from "@orb/db";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { generateDigests } from "../../../../../packages/server/src/domain/chat/memory/build/digests";
@@ -27,7 +27,7 @@ beforeEach(async () => {
 
 describe("group memory build↔recall round-trip (F1 regression)", () => {
   test("digests built under the engine's resolved key are recalled under the same key — no fabricated handle", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     // Two cast characters + the REAL synthetic group-as-character (a hidden `characters` row minted for the
     // room). The FK target for the shared bucket is this synthetic row — NOT the `__group__` handle string.
     const c1 = await seedCharacter(db, host, "aria");
@@ -87,7 +87,7 @@ describe("group memory build↔recall round-trip (F1 regression)", () => {
   });
 
   test("the OLD fabricated `__group__` key FK-throws against the real store (the silent killer, now impossible)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "grp");
     // A direct insert with the fabricated handle (what engine.ts:477 / backfill.ts:50 did) violates the

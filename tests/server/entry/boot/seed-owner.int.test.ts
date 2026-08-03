@@ -121,8 +121,8 @@ test("AUTH_MODE=local: a fresh owner is form-loginable via the real authenticate
   expect(row?.passwordHash).not.toContain(INITIAL_PASSWORD);
 
   // The real login path accepts the seeded password and rejects a wrong one.
-  expect(await sessions.authenticate("owner", INITIAL_PASSWORD)).toBe(ownerId);
-  expect(await sessions.authenticate("owner", "not the password")).toBeNull();
+  expect(await sessions.authenticate(castId<Handle>("owner"), INITIAL_PASSWORD)).toBe(ownerId);
+  expect(await sessions.authenticate(castId<Handle>("owner"), "not the password")).toBeNull();
 });
 
 test("re-boot does NOT clobber a subsequently-rotated owner password", async ({ clock }) => {
@@ -164,8 +164,8 @@ test("re-boot does NOT clobber a subsequently-rotated owner password", async ({ 
     .where(eq(users.handle, castId<Handle>("owner")));
   expect(row?.passwordHash).toBe(rotatedHash);
   // The env value no longer logs in; the rotated password does.
-  expect(await sessions.authenticate("owner", INITIAL_PASSWORD)).toBeNull();
-  expect(await sessions.authenticate("owner", rotatedPassword)).not.toBeNull();
+  expect(await sessions.authenticate(castId<Handle>("owner"), INITIAL_PASSWORD)).toBeNull();
+  expect(await sessions.authenticate(castId<Handle>("owner"), rotatedPassword)).not.toBeNull();
 });
 
 test("no initialPassword (single-user / SSO): the owner row is seeded WITHOUT a password", async ({ clock }) => {
@@ -181,5 +181,5 @@ test("no initialPassword (single-user / SSO): the owner row is seeded WITHOUT a 
   expect(row?.role).toBe("owner");
   expect(row?.passwordHash).toBeNull();
   // No hash → the local login path cannot authenticate (SSO/fallback owns identity in these modes).
-  expect(await sessions.authenticate("owner", INITIAL_PASSWORD)).toBeNull();
+  expect(await sessions.authenticate(castId<Handle>("owner"), INITIAL_PASSWORD)).toBeNull();
 });

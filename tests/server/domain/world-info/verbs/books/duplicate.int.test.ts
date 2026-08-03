@@ -1,6 +1,8 @@
 // verb: duplicateBook — deep-copy. Load-bearing: a fresh book with a "(copy)" name + NEW ids; ALL entries
 // copied verbatim with new ids; the copy is unattached (no junctions); a foreign source is NotFound.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createWorldInfoService, WorldInfoNotFoundError } from "@orb/server/domain/world-info";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -11,7 +13,7 @@ describe("duplicateBook", () => {
   test("copies the book + its entries into a fresh '(copy)' with new ids", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "Source" } });
     await svc.createEntry({
       principal: principal(owner),
@@ -36,7 +38,7 @@ describe("duplicateBook", () => {
   test("the copy carries no attachments (fresh, unattached)", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "Src" } });
     await svc.attachGlobal({ principal: principal(owner), bookId: book.id });
 
@@ -49,8 +51,8 @@ describe("duplicateBook", () => {
   test("a foreign source is NotFound", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const theirs = await svc.createBook({ principal: principal(other), input: { name: "Theirs" } });
 
     await expect(svc.duplicateBook({ principal: principal(owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);

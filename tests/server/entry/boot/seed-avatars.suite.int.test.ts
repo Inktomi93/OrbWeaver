@@ -17,7 +17,8 @@
 // COMPLETENESS property and lives with the pack, not here.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { createCharacterService, createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { describe, onTestFinished } from "vitest";
@@ -65,7 +66,7 @@ async function makeSeededHarness(): Promise<{
   onTestFinished(assetsHarness.cleanup);
   const assets = createAssetsService(assetsHarness.ctx);
   const characters = createCharacterService(makeCharacterHarness(db).ctx);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const actor = principal(owner);
   const latch = fakeLatch();
 
@@ -132,7 +133,7 @@ describe("seed imagery: default-character avatars + starter gallery", () => {
   test("the bundle ships an avatar for every card in DEFAULT_CHARACTER_CARDS", async () => {
     const missing = (
       await Promise.all(DEFAULT_CHARACTER_CARDS.map(async (card) => ((await readSeedAvatar(card.input.handle)) === null ? card.input.handle : null)))
-    ).filter((handle): handle is string => handle !== null);
+    ).filter((handle): handle is CharacterHandle => handle !== null);
     expect(missing, "handles with no bundled avatar PNG").toEqual([]);
   });
 

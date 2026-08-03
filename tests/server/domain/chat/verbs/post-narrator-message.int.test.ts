@@ -7,6 +7,8 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { messageAssets, messages, messageVariants } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createPostNarratorMessage } from "../../../../../packages/server/src/domain/chat/verbs/post-narrator-message.ts";
@@ -32,7 +34,7 @@ const BLANK_POST_RE = /blank post/u;
 
 describe("postNarratorMessage", () => {
   test("commits ONE group-character-authored assistant message + emits messageCommitted + returns both ids", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     const groupChar = await seedCharacter(db, host, "narrator");
@@ -59,7 +61,7 @@ describe("postNarratorMessage", () => {
   });
 
   test("embeds media as asset refs (D51) with message_assets retaining rows", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     const groupChar = await seedCharacter(db, host, "narrator");
@@ -80,7 +82,7 @@ describe("postNarratorMessage", () => {
   });
 
   test("no origin arg (every rpg caller) stamps the DB defaults human/0 — byte-identical", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     const groupChar = await seedCharacter(db, host, "narrator");
@@ -96,7 +98,7 @@ describe("postNarratorMessage", () => {
   });
 
   test("an automation origin stamps initiator=automation + the firing rule's cascade depth on the slot (N1)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     const groupChar = await seedCharacter(db, host, "narrator");
@@ -120,7 +122,7 @@ describe("postNarratorMessage", () => {
   // never learned. The reshape moved hand state off the message plane entirely; THIS refusal is what makes
   // the row class unrepresentable instead of policed.
   test("REFUSES a blank post — a content-less canon row is not a message, and nothing is written", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     const groupChar = await seedCharacter(db, host, "narrator");
@@ -137,7 +139,7 @@ describe("postNarratorMessage", () => {
   });
 
   test("a MEDIA-ONLY post is legal — the image refs ARE the body", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     const groupChar = await seedCharacter(db, host, "narrator");

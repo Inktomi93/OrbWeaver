@@ -2,7 +2,8 @@
 // No versions: the card IS the flat `characters` row, edited in place. No `raw` blob — every known field
 // has a typed home, so an app-authored card round-trips identically to an imported one.
 
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { z } from "zod";
 import { regexScriptCardSchema } from "#regex";
@@ -151,7 +152,13 @@ export type CharacterCard = z.infer<typeof characterCardSchema>;
 // The ONE schema the tRPC router AND the import normalizer validate against. Pipeline-derived `refinery`
 // is NOT here. null clears a field; omit to leave it unchanged.
 export const createCharacterSchema = z.object({
-  handle: z.string().min(HANDLE_MIN).max(HANDLE_MAX),
+  // The card-slug WIRE boundary: length-validated, then branded (`CharacterHandle`, the identity-VALUE
+  // brand `characters.handle` carries) — every consumer downstream of the parse is nominally typed.
+  handle: z
+    .string()
+    .min(HANDLE_MIN)
+    .max(HANDLE_MAX)
+    .transform((v) => castId<CharacterHandle>(v)),
   name: z.string().min(NAME_MIN).max(NAME_MAX),
   description: z.string().max(TEXT_MAX),
   personality: z.string().max(TEXT_MAX).nullable().optional(),

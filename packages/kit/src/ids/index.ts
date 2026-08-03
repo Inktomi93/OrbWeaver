@@ -104,6 +104,11 @@ export type ModelId = Branded<"ModelId">;
 
 // --- Library entities --------------------------------------------------------
 export type CharacterId = TypeIdOf<"character">;
+/** A character CARD's identity slug (`characters.handle` — per-owner unique, import/export-portable,
+ *  the `__group__<chatId>` synthetic namespace). NOT the user-facing username: that is `Handle`, a
+ *  different identity space that merely shares the field spelling — the two must never interchange
+ *  (a username landing in a card-slug lookup is the wrong-id class this brand exists to catch). */
+export type CharacterHandle = Branded<"CharacterHandle">;
 export type CharacterSnapshotId = TypeIdOf<"character_snapshot">;
 export type PersonaId = TypeIdOf<"persona">;
 export type PresetId = TypeIdOf<"preset">;

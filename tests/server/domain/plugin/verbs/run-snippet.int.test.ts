@@ -7,7 +7,7 @@
 
 import type { InvocationChat, PluginCapability } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { PluginHostPort } from "../../../../../packages/server/src/domain/plugin/contract/service.ts";
@@ -40,7 +40,7 @@ describe("runSnippet verb", () => {
     const db = await freshDb();
     const rec = recordingPort();
     const h = makePluginHarness(db, { port: rec.port, resolveChatAuthority: () => Promise.resolve({ canRead: true, canWrite: false }) });
-    const owner = await seedUser(db, { handle: "a" });
+    const owner = await seedUser(db, { handle: castId<Handle>("a") });
 
     const result = await createRunSnippet(h.ctx)({ caller: principalFor(owner), chatId: CHAT, code: "1 + 1" });
 
@@ -53,7 +53,7 @@ describe("runSnippet verb", () => {
     const db = await freshDb();
     const rec = recordingPort();
     const h = makePluginHarness(db, { port: rec.port, resolveChatAuthority: () => Promise.resolve({ canRead: true, canWrite: true }) });
-    const owner = await seedUser(db, { handle: "a" });
+    const owner = await seedUser(db, { handle: castId<Handle>("a") });
 
     await createRunSnippet(h.ctx)({ caller: principalFor(owner), chatId: CHAT, code: "1 + 1" });
 
@@ -65,7 +65,7 @@ describe("runSnippet verb", () => {
     const db = await freshDb();
     const rec = recordingPort();
     const h = makePluginHarness(db, { port: rec.port, resolveChatAuthority: () => Promise.resolve({ canRead: false, canWrite: false }) });
-    const owner = await seedUser(db, { handle: "a" });
+    const owner = await seedUser(db, { handle: castId<Handle>("a") });
 
     await expect(createRunSnippet(h.ctx)({ caller: principalFor(owner), chatId: CHAT, code: "1 + 1" })).rejects.toBeInstanceOf(DomainNotFoundError);
     expect(rec.calls).toEqual([]);

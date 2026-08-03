@@ -6,7 +6,7 @@
 // module's directory front door, not a flat file.
 
 import { personas } from "@orb/db";
-import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { PersonaCharacterNotFoundError, PersonaNotFoundError } from "../../../../../packages/server/src/domain/persona/contract/errors.ts";
@@ -44,7 +44,7 @@ async function seedPersonaRow(
 describe("owner-scoped persona load", () => {
   test("loads an owned row with the avatar hash joined", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const avatar = await seedAsset(db, { ownerId: owner, hash: "h" });
     const id = await seedPersonaRow(db, owner, { avatarAssetId: avatar });
     const row = await loadOwnedPersonaWithAvatar(db, owner, id);
@@ -54,8 +54,8 @@ describe("owner-scoped persona load", () => {
 
   test("a non-owner read returns undefined (the WHERE-clause owner predicate)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const id = await seedPersonaRow(db, owner);
     expect(await loadOwnedPersonaWithAvatar(db, other, id)).toBeUndefined();
   });
@@ -64,7 +64,7 @@ describe("owner-scoped persona load", () => {
 describe("metadata read seam (detailOf)", () => {
   test("degrades a corrupt (non-object) metadata blob to null", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // Write a deliberately invalid metadata blob past drizzle's unchecked $type column.
     const id = await seedPersonaRow(db, owner, { metadata: "not-an-object" });
     const row = await loadOwnedPersonaWithAvatar(db, owner, id);
@@ -76,7 +76,7 @@ describe("metadata read seam (detailOf)", () => {
 
   test("passes a valid metadata blob through typed", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const id = await seedPersonaRow(db, owner, { metadata: { descriptionPosition: "none" } });
     const row = await loadOwnedPersonaWithAvatar(db, owner, id);
     if (row === undefined) {
@@ -89,8 +89,8 @@ describe("metadata read seam (detailOf)", () => {
 describe("ownership gates", () => {
   test("ensurePersonaOwned throws for a foreign/missing persona, passes for the owner", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const id = await seedPersonaRow(db, owner);
     await expect(ensurePersonaOwned(db, other, id)).rejects.toThrow(PersonaNotFoundError);
     await expect(ensurePersonaOwned(db, owner, castId<PersonaId>("persona_ghost"))).rejects.toThrow(PersonaNotFoundError);
@@ -99,8 +99,8 @@ describe("ownership gates", () => {
 
   test("ensureCharacterOwned throws for a foreign/missing character, passes for the owner", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const character = await seedCharacter(db, { ownerId: owner });
     await expect(ensureCharacterOwned(db, other, character)).rejects.toThrow(PersonaCharacterNotFoundError);
     await expect(ensureCharacterOwned(db, owner, castId<CharacterId>("character_ghost"))).rejects.toThrow(PersonaCharacterNotFoundError);

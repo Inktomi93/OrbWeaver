@@ -56,7 +56,7 @@ const noopTag: ImportTagPort = {
 describe("residualData survives the DB-mediated import→export round-trip (PD-127)", () => {
   test("import writes residualData to the characters row; export re-emits it at the card's data root", async () => {
     const db = await freshDb();
-    const ownerId = await seedUser(db, { handle: "residual-owner" });
+    const ownerId = await seedUser(db, { handle: castId<Handle>("residual-owner") });
     const principal = principalOf(ownerId);
 
     const characterSvc = createCharacterService(makeCharacterHarness(db).ctx);
@@ -110,7 +110,7 @@ describe("residualData survives the DB-mediated import→export round-trip (PD-1
 
   test("a card with no unknown data.* keys round-trips residualData as null (no phantom residual)", async () => {
     const db = await freshDb();
-    const ownerId = await seedUser(db, { handle: "no-residual-owner" });
+    const ownerId = await seedUser(db, { handle: castId<Handle>("no-residual-owner") });
     const principal = principalOf(ownerId);
     const characterSvc = createCharacterService(makeCharacterHarness(db).ctx);
 

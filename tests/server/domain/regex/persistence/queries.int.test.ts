@@ -3,7 +3,7 @@
 // never removes a name from the owner's library — they can still see it and fix it.
 
 import { regexScripts } from "@orb/db";
-import type { RegexScriptId } from "@orb/kit/ids";
+import type { Handle, RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { describe } from "vitest";
@@ -15,7 +15,7 @@ import { behavior, seedScript, seedUser } from "../_support.ts";
 describe("regex persistence queries", () => {
   test("toRow parses the blob at the read seam and flattens it onto the promoted columns", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const id = await seedScript(db, { ownerId: owner, name: "n", behavior: behavior({ findRegex: "x", replaceString: "y" }) });
     const [record] = await db.select().from(regexScripts).where(eq(regexScripts.id, id));
     expect(record).toBeDefined();
@@ -26,7 +26,7 @@ describe("regex persistence queries", () => {
 
   test("a CORRUPT behavior blob degrades to the INERT script, keeping the row visible", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const id = castId<RegexScriptId>("regex_script_corrupt");
     // Seed a VALID row, then corrupt its blob through raw SQL — the defect this pins is a runtime fact
     // (bytes on disk that no longer match the schema), so it is written the way it would really happen
@@ -46,8 +46,8 @@ describe("regex persistence queries", () => {
 
   test("loadOwnedScript is owner-scoped in the WHERE (not filtered after the fact)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const id = await seedScript(db, { ownerId: owner, name: "mine" });
 
     expect(await loadOwnedScript(db, owner, id)).toBeDefined();
@@ -56,8 +56,8 @@ describe("regex persistence queries", () => {
 
   test("loadOwnedScriptsByIds returns ONLY the caller's — a foreign id simply does not come back", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const mine = await seedScript(db, { ownerId: owner, id: "regex_script_mine", name: "mine" });
     const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });
 
@@ -68,13 +68,13 @@ describe("regex persistence queries", () => {
 
   test("loadOwnedScriptsByIds short-circuits an empty id list", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     expect(await loadOwnedScriptsByIds(db, owner, [])).toEqual([]);
   });
 
   test("listOwnedScripts is newest-first", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "old", createdAt: 1 });
     await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "new", createdAt: 2 });
 

@@ -1,6 +1,6 @@
 import type { BlockKey } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { loadWitnessHorizons } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries";
@@ -19,7 +19,7 @@ beforeEach(async () => {
   db = await freshDb();
   // FK parents for the digest `scopedCharacterId` (the synthetic group char for the shared bucket + aria/bram
   // for the scoped buckets — inv 8: a real CharacterId, never the `''` sentinel).
-  const owner = await seedUser(db, "owner");
+  const owner = await seedUser(db, castId<Handle>("owner"));
   await seedCharacter(db, owner, "group"); // id === GROUP_CHAR
   await seedCharacter(db, owner, "aria");
   await seedCharacter(db, owner, "bram");

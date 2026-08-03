@@ -62,8 +62,8 @@ import type { StructuredOutputShape } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import { errorMessage } from "@orb/kit/error-message";
-import type { ChatId, UserId } from "@orb/kit/ids";
-import { ID_PREFIX, newId } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId, UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
 import { projectJsonSchema, scrubWireSchema } from "@orb/kit/json-schema";
 import { eq } from "drizzle-orm";
 import { can } from "#domain/admin";
@@ -207,11 +207,11 @@ const PROMOTE_HANDLE_ATTEMPTS = 25;
  *  pays for the suffixed candidates, and those are asked for IN PARALLEL — they are independent questions, so
  *  a sequential walk would be a per-iteration round-trip for no ordering benefit. `findIndex` then restores
  *  the deterministic lowest-suffix answer, so the same collision always resolves to the same handle. */
-async function freePromotionHandle(deps: RpgComposeDeps, ownerId: UserId, handle: string): Promise<string | null> {
+async function freePromotionHandle(deps: RpgComposeDeps, ownerId: UserId, handle: CharacterHandle): Promise<CharacterHandle | null> {
   if ((await deps.character.findByHandle({ ownerId, handle })) === null) {
     return handle;
   }
-  const suffixed = Array.from({ length: PROMOTE_HANDLE_ATTEMPTS - 1 }, (_, i) => `${handle}-${i + 2}`);
+  const suffixed = Array.from({ length: PROMOTE_HANDLE_ATTEMPTS - 1 }, (_, i) => castId<CharacterHandle>(`${handle}-${i + 2}`));
   const taken = await Promise.all(suffixed.map((candidate) => deps.character.findByHandle({ ownerId, handle: candidate })));
   const index = taken.indexOf(null);
   return index === -1 ? null : (suffixed[index] ?? null);

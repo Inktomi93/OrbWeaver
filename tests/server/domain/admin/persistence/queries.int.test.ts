@@ -1,7 +1,7 @@
 // persistence: loadUser / listUsers / userCols — the secret-free admin read surface. The load-bearing
 // assertion: the projection NEVER includes passwordHash (invariant #5), against a real db.
 
-import type { UserId } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { listUsers, loadUser } from "../../../../../packages/server/src/domain/admin/persistence/queries.ts";
@@ -15,7 +15,7 @@ describe("admin persistence queries", () => {
     const id = await seedUser(db, {
       id: "user_a",
       role: "admin",
-      handle: "a",
+      handle: castId<Handle>("a"),
       passwordHash: "scrypt$x$y",
     });
     const view = await loadUser(db, id);
@@ -27,8 +27,8 @@ describe("admin persistence queries", () => {
 
   test("listUsers returns every user, secret-free", async () => {
     const db = await freshDb();
-    await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
-    await seedUser(db, { id: "user_b", role: "user", handle: "b", passwordHash: "scrypt$p$q" });
+    await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
+    await seedUser(db, { id: "user_b", role: "user", handle: castId<Handle>("b"), passwordHash: "scrypt$p$q" });
     const all = await listUsers(db);
     expect(all).toHaveLength(2);
     for (const row of all) {

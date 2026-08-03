@@ -18,6 +18,8 @@
 // @live: seeds via real API turns on the local model (~15-30s warm; managed compaction adds a summarizer
 // generation). Skipped unless E2E_LIVE=1. Fully self-seeding; MINTS its own character (no shared-seed reuse).
 
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { waitForAppReady } from "./support/chat-room";
 import type { ChatRoute } from "./support/trpc";
@@ -50,7 +52,11 @@ test("managed compaction fires on the local model, the divider carries the compa
 }) => {
   test.setTimeout(240_000);
 
-  const characterId = await mintFreshCharacter("e2e-managed-compaction", "Compactor", "Hello — let us begin a long, detailed saga together.");
+  const characterId = await mintFreshCharacter(
+    castId<CharacterHandle>("e2e-managed-compaction"),
+    "Compactor",
+    "Hello — let us begin a long, detailed saga together.",
+  );
   const priorRoute = await getChatRoute();
   await setChatRoute(AGENT_SDK_ROUTE); // managed compaction is agent-sdk-only (D109: no local agent-sdk route)
   try {
@@ -148,7 +154,11 @@ test("STABLE-cap leg: managed compaction drops the covered turns from a stable-c
 }, async ({}) => {
   test.setTimeout(300_000);
 
-  const characterId = await mintFreshCharacter("e2e-compaction-resume", "Resumer", "Hello — a long saga begins, resumed turn to turn.");
+  const characterId = await mintFreshCharacter(
+    castId<CharacterHandle>("e2e-compaction-resume"),
+    "Resumer",
+    "Hello — a long saga begins, resumed turn to turn.",
+  );
   const priorDefaultPresetId = (await getUserSettings()).config.seeds.defaultPresetId;
   const priorRoute = await getChatRoute();
   await setChatRoute(AGENT_SDK_ROUTE); // managed compaction is agent-sdk-only (D109: no local agent-sdk route)

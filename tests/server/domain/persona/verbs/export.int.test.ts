@@ -3,6 +3,8 @@
 // persona throws.
 
 import type { PortableParse } from "@orb/contracts/portability";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createPersonaService, PersonaNotFoundError } from "@orb/server/domain/persona";
 import { parsePersonaBackup } from "@orb/server/kit/serde/persona";
 import { describe } from "vitest";
@@ -22,7 +24,7 @@ describe("export", () => {
   test("projects the owned persona to the backup shape (no avatarAssetId)", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const avatar = await seedAsset(db, { ownerId: owner, hash: "sha_avatar" });
     const source = await svc.create({
       principal: principal(owner),
@@ -55,8 +57,8 @@ describe("export", () => {
   test("a foreign/missing persona throws PersonaNotFoundError", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreign = await svc.create({
       principal: principal(other),
       input: { name: "Theirs", description: "d" },

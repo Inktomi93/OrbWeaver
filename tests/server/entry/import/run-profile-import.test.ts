@@ -7,7 +7,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { TagSource, TagStatus } from "@orb/contracts/tag";
-import type { AssetId, CharacterId, Handle, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImportAssetPort, ImportCharacterPort, ImportTagPort } from "@orb/server/entry/import";
 import { runProfileImport } from "@orb/server/entry/import";
@@ -72,7 +72,7 @@ const noopTag: ImportTagPort = {
 
 describe("runProfileImport", () => {
   test("imports a readable card, stamping import provenance + created:true", async () => {
-    const createCalls: { handle: string; importedFrom: string | null; importHash: string }[] = [];
+    const createCalls: { handle: CharacterHandle; importedFrom: string | null; importHash: string }[] = [];
     const character: ImportCharacterPort = {
       create: (p): Promise<{ id: CharacterId }> => {
         createCalls.push({

@@ -14,6 +14,8 @@
 //   · the empty projection TEACHES and ACTS (empty states are load-bearing).
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { FROZEN_AT_MS } from "../../../../support/clock";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
@@ -33,7 +35,7 @@ const SETTINGS = { userId: "user_ct_pane", schemaVersion: 1, config: DEFAULT_USE
 
 /** `character.get` is the band + identity-row read; the COMPOSED story's editor reads the same key, so this
  *  is the full `CharacterDetail` (the editor's form seeds every field off it). */
-const AZARAEL_DETAIL = makeCharacterDetail({ id: AZARAEL, handle: "azarael", name: "Azarael" });
+const AZARAEL_DETAIL = makeCharacterDetail({ id: AZARAEL, handle: castId<CharacterHandle>("azarael"), name: "Azarael" });
 
 /** The row's cast as the SERVER now sends it (NR4): the viewer's own seat is suppressed while another seat
  *  remains, so a fixture that lists the viewer ("Nate") is not the wire shape any more. */

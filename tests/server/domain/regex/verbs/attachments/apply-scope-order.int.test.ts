@@ -5,6 +5,8 @@
 // Load-bearing: stale/foreign ids are DROPPED (they match no row), an omitted attachment KEEPS its slot,
 // and the chat arm is HOST-gated while the owner arms gate on ownership.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createRegexService } from "@orb/server/domain/regex";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -16,7 +18,7 @@ describe("applyScopeOrder", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
@@ -37,7 +39,7 @@ describe("applyScopeOrder", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
     await svc.attachGlobal({ principal: principal(owner), scriptId: a });
@@ -52,7 +54,7 @@ describe("applyScopeOrder", () => {
     const db = await freshDb();
     const refuse = (): Promise<void> => Promise.reject(new Error("not the host"));
     const h = makeHarness(db, { requireChatHost: refuse });
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const chatId = await seedChat(db);
 
     await expect(
@@ -63,7 +65,7 @@ describe("applyScopeOrder", () => {
   test("an empty order is a no-op (nothing reordered, nothing thrown)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     expect(await createRegexService(h.ctx).applyScopeOrder({ principal: principal(owner), scope: { kind: "global" }, orderedScriptIds: [] })).toEqual({
       reordered: 0,
     });

@@ -69,7 +69,7 @@ function ownedCard(): (params: { readonly ownerId: UserId; readonly characterId:
 
 describe("setGroupConfig — host-only metadata write", () => {
   test("the host writes a fully-defaulted GroupConfig + emits chatUpdated", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db), { emit });
@@ -89,8 +89,8 @@ describe("setGroupConfig — host-only metadata write", () => {
   });
 
   test("a plain member is refused with not_host", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -111,7 +111,7 @@ describe("setGroupConfig — host-only metadata write", () => {
 
 describe("setRoomOverrides — the four-field allowlist", () => {
   test("the host writes the allowed fields", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db), { emit });
@@ -127,7 +127,7 @@ describe("setRoomOverrides — the four-field allowlist", () => {
   });
 
   test("a stray field is default-denied with forbidden_override", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db), { emit });
@@ -146,7 +146,7 @@ describe("setRoomOverrides — the four-field allowlist", () => {
 
 describe("setChatDocumentVisibility — host-only databank visibility override (D85)", () => {
   test("the host writes the hidden set (set-semantics), persists it, and emits chatUpdated", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db), { emit });
@@ -166,7 +166,7 @@ describe("setChatDocumentVisibility — host-only databank visibility override (
   });
 
   test("the write MERGES into sibling sub-blobs — it never nukes roomOverrides", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db), { emit });
@@ -180,8 +180,8 @@ describe("setChatDocumentVisibility — host-only databank visibility override (
   });
 
   test("a plain member is refused with not_host — no write", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -194,7 +194,7 @@ describe("setChatDocumentVisibility — host-only databank visibility override (
   });
 
   test("a malformed hidden id is default-denied with forbidden_override (trust-boundary validation)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db), { emit });
@@ -223,7 +223,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
   });
 
   test("an EXTERNAL source is MATERIALIZED server-side into an owned asset (F-P0-2): persists kind:asset + provenanceUrl, emits chatUpdated", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const url = "https://cdn.example/bg.jpg";
@@ -255,7 +255,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
   });
 
   test("an EXTERNAL source whose URL can't be materialized is refused background_unavailable — no write, no emit", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db, { materializeBackground: () => Promise.resolve({ ok: false, reason: "not-image" }) }), { emit });
@@ -271,7 +271,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
   });
 
   test("kind:none clears the background (replace-semantics) and MERGES into siblings — never nukes roomOverrides", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db), { emit });
@@ -285,8 +285,8 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
   });
 
   test("a plain member is refused with not_host — no write", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -299,7 +299,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
   });
 
   test("an asset background referencing an asset the host does NOT own is forbidden_override — no write (cross-user GC-root guard)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     // The default `filterOwnedAssetIds` stub owns nothing → the asset-ownership gate refuses.
@@ -315,7 +315,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
   });
 
   test("an asset background the host DOES own is written", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const assetId = mintTypeId(ID_PREFIX.asset);
@@ -332,7 +332,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
   });
 
   test("a non-asset kind carrying a populated assetId persists CLEAN — asset fields emptied, no foreign GC-root smuggle", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     // The default `filterOwnedAssetIds` stub owns NOTHING, so a real ownership check on this id would refuse.
@@ -356,7 +356,7 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
 
 describe("setToolRecurseLimit — host-only per-chat tool-recurse cap", () => {
   test("the host writes the cap, persists it into metadata, and emits chatUpdated", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db), { emit });
@@ -369,7 +369,7 @@ describe("setToolRecurseLimit — host-only per-chat tool-recurse cap", () => {
   });
 
   test("the write MERGES — a sibling sub-blob (roomOverrides) survives", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db), { emit });
@@ -382,7 +382,7 @@ describe("setToolRecurseLimit — host-only per-chat tool-recurse cap", () => {
   });
 
   test("an out-of-range value is refused forbidden_override (no write)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db), { emit });
@@ -395,8 +395,8 @@ describe("setToolRecurseLimit — host-only per-chat tool-recurse cap", () => {
   });
 
   test("a plain member is refused with not_host — no write", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -411,7 +411,7 @@ describe("setToolRecurseLimit — host-only per-chat tool-recurse cap", () => {
 
 describe("get group config for chat — member read", () => {
   test("an absent group sub-blob resolves to the canonical default", async () => {
-    const member = await seedUser(db, "member");
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const roster = createRoster(makeChatContext(db), { emit });
@@ -424,7 +424,7 @@ describe("get group config for chat — member read", () => {
 
 describe("remove character from chat — the symmetric drop (rpg scene-cast prune consumer, 07 §2.2)", () => {
   test("the host removes a present character seat — leftSeq stamped + chatUpdated emitted", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const characterId = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -443,8 +443,8 @@ describe("remove character from chat — the symmetric drop (rpg scene-cast prun
   });
 
   test("a plain member is refused — no stamp, no emit", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const characterId = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -463,7 +463,7 @@ describe("remove character from chat — the symmetric drop (rpg scene-cast prun
   });
 
   test("removing an absent character is an idempotent no-op — no emit", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db, { getCard: ownedCard() }), { emit });
@@ -473,7 +473,7 @@ describe("remove character from chat — the symmetric drop (rpg scene-cast prun
   });
 
   test("the prune is SURGICAL — a sibling character seat stays present (the distinct post-fork act, D64)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const brann = await seedCharacter(db, host, "brann");
     const chatId = await seedChat(db, "a");
@@ -494,7 +494,7 @@ describe("remove character from chat — the symmetric drop (rpg scene-cast prun
 
 describe("add character to chat — the participant-insert chokepoint", () => {
   test("the host adds a character; the row is inserted + the view resolves the card", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const characterId = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -521,7 +521,7 @@ describe("add character to chat — the participant-insert chokepoint", () => {
   });
 
   test("a foreign/unknown character is refused NOT_FOUND — no ghost seat (PD-21)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     // The owner-scoped card read: a foreign character resolves null (foreign == missing, leak-free).
@@ -542,7 +542,7 @@ describe("add character to chat — the participant-insert chokepoint", () => {
   });
 
   test("a double-add is IDEMPOTENT — the second call returns the existing seat, never a duplicate row (F2)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const characterId = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -561,7 +561,7 @@ describe("add character to chat — the participant-insert chokepoint", () => {
   });
 
   test("after a double-add a knob verb updates the SINGLE row (no multi-row fan-out) (F2)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const characterId = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -579,7 +579,7 @@ describe("add character to chat — the participant-insert chokepoint", () => {
 
 describe("setSeatKnobs — the ONE participantId-keyed AI-seat knob write (D80)", () => {
   test("the host mutes a present character seat; the column + view reflect it, chatUpdated emits", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const characterId = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -595,7 +595,7 @@ describe("setSeatKnobs — the ONE participantId-keyed AI-seat knob write (D80)"
   });
 
   test("the host sets a character seat's 0–1 talkativeness in the SAME patch shape", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const characterId = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -609,7 +609,7 @@ describe("setSeatKnobs — the ONE participantId-keyed AI-seat knob write (D80)"
   });
 
   test("an empty patch is an idempotent no-op that still returns the current view (applyToChat re-apply floor)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const characterId = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -622,8 +622,8 @@ describe("setSeatKnobs — the ONE participantId-keyed AI-seat knob write (D80)"
   });
 
   test("a non-host member is refused with not_host — no mutation", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const characterId = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -638,7 +638,7 @@ describe("setSeatKnobs — the ONE participantId-keyed AI-seat knob write (D80)"
   });
 
   test("a participantId that is not a PRESENT AI seat is refused with participant_not_found", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db), { emit });
@@ -652,8 +652,8 @@ describe("setSeatKnobs — the ONE participantId-keyed AI-seat knob write (D80)"
   });
 
   test("a HUMAN seat carries no arbitration knobs — participant_not_found (AI-driven scope is teeth)", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const memberSeatId = await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -675,8 +675,8 @@ describe("setSeatKnobs — the ONE participantId-keyed AI-seat knob write (D80)"
 // read.int.test.ts's D16 block; these are the setter's own gates + persistence.
 describe("setMemberHistoryVisibility — the host's per-member join-history write (D16)", () => {
   test("the host restricts a member to from-join: the column flips + chatUpdated is emitted", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member", joinSeq: 4 });
@@ -692,8 +692,8 @@ describe("setMemberHistoryVisibility — the host's per-member join-history writ
   });
 
   test("re-setting the value the row already carries is a no-op (idempotent)", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member", joinHistoryVisibility: "from-join" });
@@ -706,8 +706,8 @@ describe("setMemberHistoryVisibility — the host's per-member join-history writ
   });
 
   test("a plain MEMBER cannot set it — not even on themselves (the confidentiality policy is the host's)", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member", joinHistoryVisibility: "from-join" });
@@ -727,7 +727,7 @@ describe("setMemberHistoryVisibility — the host's per-member join-history writ
   // WITNESSING interval, a different axis), so the userId key can never resolve one. Pinned with the
   // character's OWN participant id cast to a UserId: even that hand-forged key finds nothing.
   test("a character seat is unreachable through the userId key", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const characterId = await seedCharacter(db, host, "Aria");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -747,8 +747,8 @@ describe("setMemberHistoryVisibility — the host's per-member join-history writ
   });
 
   test("a member who has LEFT is not a target (present-only roster)", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member", leftSeq: 2 });
@@ -765,8 +765,8 @@ describe("setMemberHistoryVisibility — the host's per-member join-history writ
 
 describe("kick — host removes a member", () => {
   test("the member's leftSeq is stamped + a kicked notification is delivered", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -789,7 +789,7 @@ describe("kick — host removes a member", () => {
 
 describe("selfLeave — a sole-host self-leave archives the room", () => {
   test("a host leaving with no successor archives (never refused)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db), { emit });
@@ -805,8 +805,8 @@ describe("selfLeave — a sole-host self-leave archives the room", () => {
 
 describe("nominateHostHandoff — host nominates a present member (step 1)", () => {
   test("the host nominates a member: pendingHostUserId is set + the nominee is notified", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -827,9 +827,9 @@ describe("nominateHostHandoff — host nominates a present member (step 1)", () 
   });
 
   test("a plain member nominating is refused with not_host (no nomination written)", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
-    const other = await seedUser(db, "other");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
+    const other = await seedUser(db, castId<Handle>("other"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -845,8 +845,8 @@ describe("nominateHostHandoff — host nominates a present member (step 1)", () 
   });
 
   test("nominating a non-member is rejected leak-free (not found); no nomination written", async () => {
-    const host = await seedUser(db, "host");
-    const stranger = await seedUser(db, "stranger");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db), { emit });
@@ -861,8 +861,8 @@ describe("nominateHostHandoff — host nominates a present member (step 1)", () 
 
 describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
   test("the nominee accepts: roles swap, the nomination clears, the old host is notified", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -896,9 +896,9 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
   });
 
   test("a non-nominee accept is refused with not_turn_owner (the self-promotion hole stays closed)", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
-    const attacker = await seedUser(db, "attacker");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
+    const attacker = await seedUser(db, castId<Handle>("attacker"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -920,8 +920,8 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
   });
 
   test("accept with no pending nomination is refused with not_turn_owner", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -936,8 +936,8 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
   // room + history but DROPPING the outgoing host's character seats (leaving the humans; the new owner adds
   // their own). Driven at the verb layer with seeded non-owner principals (multi-human membership is unwired).
   test("handoff to a non-owner SUCCEEDS: the outgoing host's characters are dropped, the owner's kept, humans remain", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     // Single-owner cast (D28): aria belongs to the OUTGOING host, bella to the NOMINEE. After the handoff the
     // new host (member) resolves bella but NOT aria → aria's seat drops, bella's stays.
     const aria = await seedCharacter(db, host, "aria");
@@ -976,8 +976,8 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
   // with the swap. The rpg-side verdict lives in `tests/server/domain/rpg/chat-ops/handoff-heal.int.test.ts`;
   // the two are joined composed-real in `tests/server/entry/compose/rpg.int.test.ts`.
   test("the injected rpg handoff-heal statements are folded into the swap batch, asked about the NOMINEE", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -1010,8 +1010,8 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
   // its NAME by id. The heal is the `resolveForkGmPreset` twin — null it IN THE SWAP BATCH, conditional on
   // readability, so the null-anchor→active fallback takes over honestly.
   test("an anchor persona the new host cannot read is NULLED in the swap batch", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const anchor = await seedPersona(db, host, "hostpov");
     const chatId = await seedChat(db, "a", { anchorPersonaId: anchor });
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -1031,8 +1031,8 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
   });
 
   test("an anchor persona the NOMINEE owns survives the handoff (the POV is still readable)", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     // The room was already anchored on the nominee's own persona (the verb permits any present human's) —
     // the new host resolves it, so healing it would DESTROY a live pin. Conditional, exactly like the fork gate.
     const anchor = await seedPersona(db, member, "memberpov");
@@ -1050,8 +1050,8 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
   });
 
   test("a nominee who owns the WHOLE seated cast keeps every character seat on handoff", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     // The nominee owns the seated character → the new host resolves it, so no seat drops.
     const characterId = await seedCharacter(db, member, "aria");
     const chatId = await seedChat(db, "a");
@@ -1088,8 +1088,8 @@ describe("audit wiring — the membership/config mutations write best-effort aud
   }
 
   test("kick writes chat.kick with the target AFTER the transition committed", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -1114,8 +1114,8 @@ describe("audit wiring — the membership/config mutations write best-effort aud
   });
 
   test("an idempotent no-op kick (target not present) writes NO audit row", async () => {
-    const host = await seedUser(db, "host");
-    const ghost = await seedUser(db, "ghost");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const ghost = await seedUser(db, castId<Handle>("ghost"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const rows: RecordedAudit[] = [];
@@ -1127,8 +1127,8 @@ describe("audit wiring — the membership/config mutations write best-effort aud
   });
 
   test("nominate + accept write the two handoff rows (nominee / previous host)", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -1156,7 +1156,7 @@ describe("audit wiring — the membership/config mutations write best-effort aud
   });
 
   test("setGroupConfig logs output/policy; setRoomOverrides logs FIELD LABELS only (never bodies)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const rows: RecordedAudit[] = [];
@@ -1182,8 +1182,8 @@ describe("audit wiring — the membership/config mutations write best-effort aud
   });
 
   test("a refused write (member calling a host verb) writes NO audit row", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -1198,7 +1198,7 @@ describe("audit wiring — the membership/config mutations write best-effort aud
 
 describe("setParticipantActivePersona — the chat-domain write persona.setActivePersona calls (PD-120)", () => {
   test("flips a present human's activePersonaId + emits personaSwitched with from/to", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const personaId = await seedPersona(db, host, "a");
@@ -1211,7 +1211,7 @@ describe("setParticipantActivePersona — the chat-domain write persona.setActiv
   });
 
   test("reports the prior persona as `from` on a second switch", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const first = await seedPersona(db, host, "a");
     const second = await seedPersona(db, host, "b");
@@ -1229,7 +1229,7 @@ describe("setParticipantActivePersona — the chat-domain write persona.setActiv
   });
 
   test("clearing back to null is a valid switch (to: null)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const personaId = await seedPersona(db, host, "a");
     await seedParticipant(db, {
@@ -1248,8 +1248,8 @@ describe("setParticipantActivePersona — the chat-domain write persona.setActiv
   });
 
   test("a target that is not a PRESENT participant is refused with participant_not_found — no emit", async () => {
-    const host = await seedUser(db, "host");
-    const stranger = await seedUser(db, "stranger");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const personaId = await seedPersona(db, host, "a");
@@ -1266,8 +1266,8 @@ describe("setParticipantActivePersona — the chat-domain write persona.setActiv
   });
 
   test("a LEFT participant (leftSeq set) is treated as not-present — refused, no emit", async () => {
-    const host = await seedUser(db, "host");
-    const former = await seedUser(db, "former");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const former = await seedUser(db, castId<Handle>("former"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "f", userId: former, role: "member", leftSeq: 3 });
@@ -1291,7 +1291,7 @@ describe("setParticipantActivePersona — the chat-domain write persona.setActiv
 // write: `ChatDetail.hostDisplayScripts` is what the host's switch and the viewer's render tier both read.
 describe("setHostDisplayScripts — the host's display-tier broadcast option", () => {
   test("defaults OFF, and the host can turn it on (merging, never nuking, the sibling sub-blobs)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db), { emit });
@@ -1310,7 +1310,7 @@ describe("setHostDisplayScripts — the host's display-tier broadcast option", (
   });
 
   test("turning it back OFF is a real write (absent must never be read as ON)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const roster = createRoster(makeChatContext(db), { emit });
@@ -1323,8 +1323,8 @@ describe("setHostDisplayScripts — the host's display-tier broadcast option", (
   });
 
   test("a plain MEMBER is refused with not_host — no write, no emit", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });

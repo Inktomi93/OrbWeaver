@@ -46,7 +46,7 @@ export interface SessionsService {
   /** A user's sessions for the admin device list. @internal */
   listForUser: (userId: UserId) => Promise<SessionView[]>;
   /** Resolve a handle → `UserId`, JIT-creating the row on first sight. @internal */
-  ensureUser: (handle: string) => Promise<UserId>;
+  ensureUser: (handle: Handle) => Promise<UserId>;
   /** The SSO seam upsert: keys on the stable `externalId`, seeds `role` from owner policy on insert,
    *  preserves `role`/`enabled` on update (unless `RE_DERIVE_ROLE_ON_LOGIN`). @internal */
   provisionIdentity: (identity: ResolvedIdentity) => Promise<ProvisionResult>;
@@ -57,5 +57,5 @@ export interface SessionsService {
   /** Local password login: resolve `(handle, password)` → the row's `UserId`, or `null` for
    *  unknown/SSO-only/wrong-password/disabled — all collapse into one leak-free null with the same KDF
    *  time burned (no user-enumeration timing oracle). @internal */
-  authenticate: (handle: string, password: string) => Promise<UserId | null>;
+  authenticate: (handle: Handle, password: string) => Promise<UserId | null>;
 }

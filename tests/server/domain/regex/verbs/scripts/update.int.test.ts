@@ -3,6 +3,8 @@
 // `exactOptionalPropertyTypes` would ERASE the fields the caller never named.
 
 import { regexScripts } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createRegexService, RegexNotFoundError } from "@orb/server/domain/regex";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -15,7 +17,7 @@ describe("updateScript", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scriptId = await seedScript(db, {
       ownerId: owner,
       name: "before",
@@ -36,8 +38,8 @@ describe("updateScript", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "mine" });
 
     await expect(svc.updateScript({ principal: principal(stranger), scriptId, input: { name: "hijacked" } })).rejects.toBeInstanceOf(RegexNotFoundError);

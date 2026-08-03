@@ -15,7 +15,7 @@
 // `intent` the UI composer can't inject (the context-cutoff spec's small `maxContextTokens` ceiling).
 
 import process from "node:process";
-import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { SINGLE_USER } from "./modes";
 
 // The vite front door (the specs' baseURL). Every consumer of this module is a single-user-project spec, so
@@ -198,7 +198,7 @@ export async function sendTurn(chatId: ChatId, content: string, maxContextTokens
 }
 
 interface CharacterListPage {
-  readonly items: readonly { readonly id: string; readonly handle: string; readonly name: string }[];
+  readonly items: readonly { readonly id: string; readonly handle: CharacterHandle; readonly name: string }[];
 }
 
 /** The character catalog (globalSetup guarantees ≥1). */
@@ -213,7 +213,7 @@ export async function listCharacters(): Promise<CharacterListPage["items"]> {
  *  latest room instead of opening a fresh draft). Idempotent across crashed runs: an existing character
  *  with the handle is removed first (its chats go with it), then a fresh one is created. Callers remove
  *  it in a finally via `removeCharacter`. */
-export async function mintFreshCharacter(handle: string, name: string, greeting: string): Promise<string> {
+export async function mintFreshCharacter(handle: CharacterHandle, name: string, greeting: string): Promise<string> {
   const existing = (await listCharacters()).find((c) => c.handle === handle);
   if (existing !== undefined) {
     await trpcMutation("character.remove", { characterId: existing.id });

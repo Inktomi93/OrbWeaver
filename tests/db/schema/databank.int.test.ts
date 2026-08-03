@@ -9,7 +9,7 @@ import { DOC_ORIGINS } from "@orb/contracts/databank";
 import type { Db } from "@orb/db";
 import { assets, characterDocuments, characters, chatDocuments, chats, documentChunks, documents, globalDocuments, users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
-import type { AssetId, CharacterId, ChatId, DocumentChunkId, DocumentId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, ChatId, DocumentChunkId, DocumentId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
@@ -49,7 +49,7 @@ async function seedDoc(db: Db, ownerId: UserId, id: string, hash: string): Promi
 
 test("documents round-trips, borns updatedAt, and enforces the origin CHECK", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db, { id: "user_db_a", handle: "h-user_db_a" });
+  const ownerId = await seedUser(db, { id: "user_db_a", handle: castId<Handle>("h-user_db_a") });
   const id = await seedDoc(db, ownerId, "document_db_a", "hash-a");
   const rows = await db.select().from(documents).where(eq(documents.id, id));
   expect(rows).toHaveLength(1);
@@ -74,7 +74,7 @@ test("documents round-trips, borns updatedAt, and enforces the origin CHECK", as
 
 test("unique(ownerId, importHash) dedups within a user; owner CASCADE + sourceAssetId SET NULL", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db, { id: "user_db_b", handle: "h-user_db_b" });
+  const ownerId = await seedUser(db, { id: "user_db_b", handle: castId<Handle>("h-user_db_b") });
   const assetId = castId<AssetId>("asset_db_b");
   await db.insert(assets).values({
     id: assetId,
@@ -112,11 +112,11 @@ test("unique(ownerId, importHash) dedups within a user; owner CASCADE + sourceAs
 
 test("scope junctions: composite PK + CASCADE both sides (doc delete wipes; scope delete keeps doc)", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db, { id: "user_db_c", handle: "h-user_db_c" });
+  const ownerId = await seedUser(db, { id: "user_db_c", handle: castId<Handle>("h-user_db_c") });
   const characterId = castId<CharacterId>("character_db_c");
   await db.insert(characters).values({
     id: characterId,
-    handle: "card-c",
+    handle: castId<CharacterHandle>("card-c"),
     ownerId,
     contentHash: "h",
     name: "C",
@@ -145,7 +145,7 @@ test("scope junctions: composite PK + CASCADE both sides (doc delete wipes; scop
 
 test("document_chunks: vector round-trip, unique(documentId,chunkIdx,model), document CASCADE", async () => {
   const db = await freshDb();
-  const ownerId = await seedUser(db, { id: "user_db_d", handle: "h-user_db_d" });
+  const ownerId = await seedUser(db, { id: "user_db_d", handle: castId<Handle>("h-user_db_d") });
   const docId = await seedDoc(db, ownerId, "document_db_d", "hash-d");
   const vec = rampVector();
   const chunkId = castId<DocumentChunkId>("document_chunk_db_d");

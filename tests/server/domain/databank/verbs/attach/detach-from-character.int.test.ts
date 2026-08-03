@@ -5,6 +5,8 @@
 // attach-to-character.int.test.ts (one flow, one file); this mirror pins the detach gate specifically.
 
 import { characterDocuments } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { DatabankCharacterNotFoundError } from "@orb/server/domain/databank";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../../support/db.ts";
@@ -14,8 +16,8 @@ import { makeDatabankHarness, principalFor, seedCharacter, seedUser } from "../.
 test("a stranger's detach aimed at a foreign character's REAL binding is refused and the row survives", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
-  const stranger = await seedUser(db, { handle: "stranger" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
   const characterId = await seedCharacter(db, owner, { id: "character_owned" });
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
   await h.service.attachToCharacter({ principal: principalFor(owner), documentId: document.id, characterId });

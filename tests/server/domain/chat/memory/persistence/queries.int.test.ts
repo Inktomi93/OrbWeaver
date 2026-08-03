@@ -1,5 +1,5 @@
 import type { Db } from "@orb/db";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import {
@@ -23,7 +23,7 @@ let db: Db;
 beforeEach(async () => {
   db = await freshDb();
   // FK parents for the digest `scopedCharacterId` (the synthetic group char + aria — inv 8, real CharacterIds).
-  const owner = await seedUser(db, "owner");
+  const owner = await seedUser(db, castId<Handle>("owner"));
   await seedCharacter(db, owner, "group"); // id === GROUP_CHAR
   await seedCharacter(db, owner, "aria");
 });

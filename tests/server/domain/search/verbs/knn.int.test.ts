@@ -3,6 +3,8 @@
 // similarity, candidate pooling capped to topN, owner-scoping, rerank reordering (mocked rerank), the
 // hosted not-supported rerank path PROPAGATING (no silent fallback), and the empty-query SearchError.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { SearchError } from "@orb/server/domain/search";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -12,7 +14,7 @@ import { makeSearch, seedCharacter, seedCharacterEmbedding, seedUser, vec } from
 describe("knn", () => {
   test("returns the closest in-space card first", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const near = await seedCharacter(db, { id: "character_near", ownerId: owner, name: "Near" });
     const far = await seedCharacter(db, { id: "character_far", ownerId: owner, name: "Far" });
     await seedCharacterEmbedding(db, { characterId: near, embedding: vec(1) });
@@ -26,7 +28,7 @@ describe("knn", () => {
 
   test("over-fetches a pool but caps the result to topN", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await Promise.all(
       Array.from({ length: 6 }, async (_unused, i) => {
         const id = await seedCharacter(db, {
@@ -46,8 +48,8 @@ describe("knn", () => {
 
   test("never returns another owner's card", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const mine = await seedCharacter(db, { id: "character_mine", ownerId: owner, name: "Mine" });
     const theirs = await seedCharacter(db, {
       id: "character_theirs",
@@ -65,7 +67,7 @@ describe("knn", () => {
 
   test("rerank reorders the result by the cross-encoder (mocked) when enabled", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const a = await seedCharacter(db, { id: "character_a", ownerId: owner, name: "A" });
     const b = await seedCharacter(db, { id: "character_b", ownerId: owner, name: "B" });
     await seedCharacterEmbedding(db, { characterId: a, embedding: vec(1) });
@@ -91,7 +93,7 @@ describe("knn", () => {
 
   test("a hosted not-supported rerank throw PROPAGATES (no silent CSLS fallback)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const a = await seedCharacter(db, { id: "character_a", ownerId: owner, name: "A" });
     await seedCharacterEmbedding(db, { characterId: a, embedding: vec(1) });
 
@@ -105,7 +107,7 @@ describe("knn", () => {
 
   test("a query that embeds to nothing throws a typed SearchError", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const svc = makeSearch(db, { embedVector: () => null });
     await expect(svc.knn({ ownerId: owner, query: "   ", topN: 5 })).rejects.toBeInstanceOf(SearchError);

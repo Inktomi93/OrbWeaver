@@ -13,7 +13,7 @@ import { WORLD_BOOK_ROLES } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, characters, chatBooks, chats, globalBooks, personaBooks, personas, users, worldBooks, worldEntries } from "@orb/db";
 import { isConstraintViolation, parseRecord, parseStringArrayColumn } from "@orb/db/kit";
-import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { resolveEntryInjection, resolveEntryPosition, resolveEntryScope } from "@orb/kit/world-info";
 import { eq } from "drizzle-orm";
@@ -38,7 +38,7 @@ async function seedEntry(db: Db, bookId: WorldBookId, raw: string): Promise<Worl
 
 async function seedCharacter(db: Db, ownerId: UserId, raw: string): Promise<CharacterId> {
   const id = castId<CharacterId>(raw);
-  await db.insert(characters).values({ id, handle: `card-${raw}`, ownerId, contentHash: `hash-${raw}`, name: raw });
+  await db.insert(characters).values({ id, handle: castId<CharacterHandle>(`card-${raw}`), ownerId, contentHash: `hash-${raw}`, name: raw });
   return id;
 }
 

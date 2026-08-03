@@ -4,6 +4,8 @@
 // representative), the empty-allowlist ZERO-embed short-circuit (the trigger-discipline mirror), and THE
 // flagship gate-8 owner/host-scope no-leak pin (two users share one chat; no cross-tenant chunk surfaces).
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -22,7 +24,7 @@ import {
 describe("documents", () => {
   test("restores reading order: best-doc first, chunks ascending by chunkIdx", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const docA = await seedDocument(db, { id: "document_a", ownerId: owner, name: "Alpha" });
     const docB = await seedDocument(db, { id: "document_b", ownerId: owner, name: "Beta" });
     // Query embeds to vec(1). Ranking (ascending distance): docA/chunk1 (0) < docB/chunk0 (~0.11) <
@@ -44,7 +46,7 @@ describe("documents", () => {
 
   test("applies the minScore floor (a far chunk is dropped)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const doc = await seedDocument(db, { ownerId: owner });
     await seedDocumentChunk(db, { documentId: doc, chunkIdx: 0, content: "near", embedding: vec(1) }); // dist 0
     await seedDocumentChunk(db, { documentId: doc, chunkIdx: 1, content: "far", embedding: vec(0, 1) }); // dist 1, similarity 0
@@ -57,7 +59,7 @@ describe("documents", () => {
 
   test("collapses same-content-hash chunks to the better-ranked representative", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const docA = await seedDocument(db, { id: "document_a", ownerId: owner, name: "A" });
     const docB = await seedDocument(db, { id: "document_b", ownerId: owner, name: "B" });
     // Identical contentHash across two documents; docB/chunk0 ranks better (dist 0) — it survives.
@@ -73,7 +75,7 @@ describe("documents", () => {
 
   test("empty allowlist short-circuits with ZERO embed calls", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" }); // owns NO documents
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") }); // owns NO documents
     let embedCalls = 0;
     const svc = makeSearch(db, {
       embedVector: () => {
@@ -94,8 +96,8 @@ describe("documents", () => {
   // an UNATTACHED (private-bank) doc never surfaces, and personal search never crosses tenants.
   test("scope no-leak (D85 widened): a shared chat retrieves every present member's ATTACHED docs; private banks and cross-tenant personal search never leak", async () => {
     const db = await freshDb();
-    const alpha = await seedUser(db, { handle: "alpha" });
-    const beta = await seedUser(db, { handle: "beta" });
+    const alpha = await seedUser(db, { handle: castId<Handle>("alpha") });
+    const beta = await seedUser(db, { handle: castId<Handle>("beta") });
     const room = await seedChat(db, "chat_shared");
     await seedChatParticipant(db, room, alpha, "host");
     await seedChatParticipant(db, room, beta, "member");

@@ -3,6 +3,8 @@
 // never silently reorders the existing tier.
 
 import { globalRegexScripts } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createRegexService, RegexNotFoundError } from "@orb/server/domain/regex";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -15,7 +17,7 @@ describe("attachGlobal", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "g" });
 
     await svc.attachGlobal({ principal: principal(owner), scriptId });
@@ -32,7 +34,7 @@ describe("attachGlobal", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const first = await seedScript(db, { ownerId: owner, id: "regex_script_1", name: "first" });
     const second = await seedScript(db, { ownerId: owner, id: "regex_script_2", name: "second" });
 
@@ -46,8 +48,8 @@ describe("attachGlobal", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "mine" });
 
     await expect(svc.attachGlobal({ principal: principal(stranger), scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);

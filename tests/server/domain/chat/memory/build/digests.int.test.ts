@@ -2,7 +2,7 @@ import type { SummarizeResult } from "@orb/contracts/providers";
 import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, messages, messageVariants } from "@orb/db";
 import type { CharacterId, ChatDigestId, MessageVariantId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, type Handle } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -35,7 +35,7 @@ const bram = castId<CharacterId>("character_bram");
 let db: Db;
 beforeEach(async () => {
   db = await freshDb();
-  const owner = await seedUser(db, "owner");
+  const owner = await seedUser(db, castId<Handle>("owner"));
   await seedCharacter(db, owner, "aria"); // id === `character_aria` (the `aria` const) — FK target for speakers
   await seedCharacter(db, owner, "bram"); // a second cast char — FK target for the consolidation speaker-union
   await seedCharacter(db, owner, "group"); // id === GROUP_CHAR — FK target for the shared-bucket digests
@@ -372,7 +372,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
 
   test("self-heal: PERSONA reattribution of a digested user block re-digests it (G2 — memory was persona-BLIND before; FAILS pre-fix)", async () => {
     const chatId = await seedChat(db, "personareattr");
-    const human = await seedUser(db, "human");
+    const human = await seedUser(db, castId<Handle>("human"));
     const mara = await seedPersona(db, human, "mara");
     const vex = await seedPersona(db, human, "vex");
     // One aged-out block of two USER turns authored under persona Mara.
@@ -434,7 +434,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
 
   test("G1: the digest transcript resolves {{user}}→the persona name in the summarizer input (not the raw macro)", async () => {
     const chatId = await seedChat(db, "digestbody");
-    const human = await seedUser(db, "human2");
+    const human = await seedUser(db, castId<Handle>("human2"));
     const mara = await seedPersona(db, human, "mara");
     await seedMessage(db, chatId, 1, {
       role: "user",

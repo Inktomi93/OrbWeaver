@@ -27,7 +27,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
-import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
+import type { ChatId, Handle, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
@@ -80,7 +80,7 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
   /** Seed the host + their `UserSettings.regex.scripts` (through the REAL settings verb — not blob-poking) +
    *  a solo room with one host-authored USER slot. Returns the ids the edit call needs. */
   async function seedEditTarget(db: Db, services: Services, scripts: readonly RegexScriptRow[], content: string): Promise<SeededEditTarget> {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const principal = hostPrincipal(host);
 
     // The heavyweight, faithful seed: write the scripts through the REGEX front door and attach them at the
@@ -149,7 +149,7 @@ describe("D53 ReDoS watchdog — composed at the editMessage seam (real createSe
 // read) forbids a vacuous pass by a resolver that just returned the floor for everything.
 describe("resolveSeatDeco — the tighten-only external-media ceiling, composed (real createServices)", () => {
   test("a card opting IN to external media does NOT widen past the blocking deployment floor", async ({ db, services }) => {
-    const host = await seedUser(db, "mediahost");
+    const host = await seedUser(db, castId<Handle>("mediahost"));
     const principal = hostPrincipal(host);
     const characterId = await seedCharacter(db, host, "mediacard");
     // The card's own opt-in + an HTML opt-in, through the real front door.

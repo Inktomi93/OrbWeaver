@@ -7,8 +7,8 @@
 // mirror) so the re-link is exercised, not stubbed.
 
 import { characters } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createAssetsService, createExportGallery, createImportGallery } from "@orb/server/domain/assets";
 import { buildGallery } from "@orb/server/kit/serde/gallery";
 import { eq } from "drizzle-orm";
@@ -29,7 +29,7 @@ function withCharacterOps(ctx: AssetsContext, db: AssetsContext["db"]): AssetsCo
       const rows = await db.select({ handle: characters.handle }).from(characters).where(eq(characters.id, characterId)).limit(1);
       return rows[0]?.handle ?? null;
     },
-    findCharacterByHandle: async (args: { readonly ownerId: UserId; readonly handle: string }): Promise<CharacterId | null> => {
+    findCharacterByHandle: async (args: { readonly ownerId: UserId; readonly handle: CharacterHandle }): Promise<CharacterId | null> => {
       const rows = await db.select({ id: characters.id }).from(characters).where(eq(characters.handle, args.handle)).limit(1);
       const hit = rows[0];
       return hit !== undefined ? hit.id : null;
@@ -44,8 +44,8 @@ describe("importGallery", () => {
     onTestFinished(h.cleanup);
     const ctx = withCharacterOps(h.ctx, db);
     const svc = createAssetsService(ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const hero = await seedCharacter(db, owner, { handle: "hero" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     const assetA = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(1),
@@ -85,7 +85,7 @@ describe("importGallery", () => {
     onTestFinished(h.cleanup);
     const ctx = withCharacterOps(h.ctx, db);
     const svc = createAssetsService(ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const asset = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(1),
@@ -111,8 +111,8 @@ describe("importGallery", () => {
     onTestFinished(h.cleanup);
     const ctx = withCharacterOps(h.ctx, db);
     const svc = createAssetsService(ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    await seedCharacter(db, owner, { handle: "hero" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     const asset = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(1),
@@ -142,7 +142,7 @@ describe("importGallery", () => {
     onTestFinished(h.cleanup);
     const ctx = withCharacterOps(h.ctx, db);
     const svc = createAssetsService(ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // A well-formed asset id that was never restored on this box → survives parse, skipped at the ownership gate.
     const phantom = mintTypeId(ID_PREFIX.asset);
     const file = {
@@ -161,7 +161,7 @@ describe("importGallery", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const ctx = withCharacterOps(h.ctx, db);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const file = { filename: "gallery.json", bytes: new TextEncoder().encode("{not a gallery") };
     const outcome = await createImportGallery(ctx)(owner, file);
     expect(outcome.ok).toBe(false);

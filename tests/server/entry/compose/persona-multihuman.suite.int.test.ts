@@ -22,7 +22,8 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants } from "@orb/db";
-import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -48,8 +49,8 @@ interface Room {
 /** A two-human room: host + one member + one character seat whose card description probes card `{{user}}`.
  *  `hostActive`/`anchor` pick which persona each pointer starts on. */
 async function seedRoom(db: Db, opts: { readonly hostActive: boolean; readonly anchor: "member" | "host" | null }): Promise<Room> {
-  const host = await seedUser(db, "mh_host");
-  const member = await seedUser(db, "mh_member");
+  const host = await seedUser(db, castId<Handle>("mh_host"));
+  const member = await seedUser(db, castId<Handle>("mh_member"));
   const hostPersona = await seedPersona(db, host, "Hostina", { description: "the host's own persona" });
   const memberPersona = await seedPersona(db, member, "Zara", { description: "a wandering cartographer" });
   const characterId = await seedCharacter(db, host, "mary");

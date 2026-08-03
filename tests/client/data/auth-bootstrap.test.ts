@@ -4,6 +4,8 @@
 // 401), a refusal surfaces the SERVER's generic message (never an enumerating one we invent), and logout
 // carries the CSRF header (a cookie mutation without it is a 403 — the belt every logout regression hits).
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { afterEach, vi } from "vitest";
 import { fetchAuthMe, login, logout } from "../../../packages/client/src/data/auth-bootstrap";
 import { expect, test } from "../../support/fixtures";
@@ -26,7 +28,7 @@ test("login posts a urlencoded FORM body (not JSON) with same-origin credentials
     seen = init;
     return Promise.resolve(new Response("", { status: 200 }));
   });
-  await login("alice", "hunter22222");
+  await login(castId<Handle>("alice"), "hunter22222");
   expect(seen?.method).toBe("POST");
   expect(seen?.credentials).toBe("same-origin");
   expect(seen?.body).toBeInstanceOf(URLSearchParams);
@@ -35,7 +37,7 @@ test("login posts a urlencoded FORM body (not JSON) with same-origin credentials
 
 test("a login refusal throws the SERVER's message (LoginFailedError, never an invented one)", async () => {
   vi.stubGlobal("fetch", () => Promise.resolve(new Response(JSON.stringify({ error: "invalid credentials" }), { status: 401 })));
-  const err = await login("alice", "wrong").catch((e: unknown) => e);
+  const err = await login(castId<Handle>("alice"), "wrong").catch((e: unknown) => e);
   expect(err).toBeInstanceOf(Error);
   expect((err as Error).name).toBe("LoginFailedError");
   expect((err as Error).message).toBe("invalid credentials");

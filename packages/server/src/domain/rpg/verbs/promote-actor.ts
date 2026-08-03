@@ -28,6 +28,8 @@
 // names that drop out loud; a host who learns it afterwards learns it as a bug.
 
 import { actorRefKey, rpgCastSlug, rpgPromotedCardDescription } from "@orb/contracts/rpg";
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { PromoteActorParams } from "../contract/params";
 import type { HandDoorResult } from "../contract/results";
 import type { RpgContext, RpgService } from "../contract/service";
@@ -70,7 +72,7 @@ export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteAc
       // a card owned by anyone else resolves to no actor at all).
       hostUserId: params.principal.userId,
       name,
-      handle: rpgCastSlug(name),
+      handle: castId<CharacterHandle>(rpgCastSlug(name)),
       description: rpgPromotedCardDescription(identity),
     });
     if (!minted.ok) {

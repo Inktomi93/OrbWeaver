@@ -1,6 +1,8 @@
 // verb: listGlobal — the caller's global books only (owner-scoped via the book). Load-bearing: another
 // user's global book never surfaces; newest first.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createWorldInfoService } from "@orb/server/domain/world-info";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -12,8 +14,8 @@ describe("listGlobal", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createWorldInfoService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
 
     const first = await svc.createBook({ principal: principal(owner), input: { name: "First" } });
     h.advance(1000);

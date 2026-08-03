@@ -4,6 +4,8 @@
 //   • rebuild does NOT emit `asset.created` (FLAG[PD-84] — the embeddings content_hash sweep re-covers it).
 
 import { assets } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
@@ -20,7 +22,7 @@ describe("rebuildFromTree", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // An orphan blob: PNG bytes in the CAS with NO index row.
     const put = await h.ctx.cas.putBytes(owner, pngBytes(1, 2, 3), FROZEN_AT_MS);
 
@@ -41,7 +43,7 @@ describe("rebuildFromTree", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(4, 5),

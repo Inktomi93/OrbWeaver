@@ -8,7 +8,7 @@
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
-import type { CharacterId, ChatId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { createListHostChats } from "../../../../../packages/server/src/domain/export/verbs/list-host-chats.ts";
@@ -70,12 +70,12 @@ async function seat(db: Db, args: SeatArgs): Promise<void> {
 describe("createListHostChats", () => {
   test("pairs each HOSTED chat with its PRIMARY seated character's handle (first by join order)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const hero = await seedCharacter(db, { id: castId<CharacterId>("character_hero"), ownerId: owner, handle: castId<Handle>("hero"), name: "Hero" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const hero = await seedCharacter(db, { id: castId<CharacterId>("character_hero"), ownerId: owner, handle: castId<CharacterHandle>("hero"), name: "Hero" });
     const villain = await seedCharacter(db, {
       id: castId<CharacterId>("character_villain"),
       ownerId: owner,
-      handle: castId<Handle>("villain"),
+      handle: castId<CharacterHandle>("villain"),
       name: "Villain",
     });
     const chatId = await seedChat(db, castId<ChatId>("chat_two_seats"));
@@ -91,7 +91,7 @@ describe("createListHostChats", () => {
 
   test("a chat with NO seated character is skipped (there is no handle directory to nest it under)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const chatId = await seedChat(db, castId<ChatId>("chat_no_character"));
     await seat(db, { chatId, seatId: "chatpart_host_only", userId: owner, role: "host", joinSeq: 0 });
 
@@ -100,9 +100,9 @@ describe("createListHostChats", () => {
 
   test("a chat the caller merely JOINED is not theirs to back up (host gate)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
-    const hero = await seedCharacter(db, { ownerId: stranger, handle: castId<Handle>("theirs"), name: "Theirs" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
+    const hero = await seedCharacter(db, { ownerId: stranger, handle: castId<CharacterHandle>("theirs"), name: "Theirs" });
     const chatId = await seedChat(db, castId<ChatId>("chat_theirs"));
     await seat(db, { chatId, seatId: "chatpart_their_host", userId: stranger, role: "host", joinSeq: 0 });
     await seat(db, { chatId, seatId: "chatpart_guest", userId: owner, role: "member", joinSeq: 1 });
@@ -113,12 +113,12 @@ describe("createListHostChats", () => {
 
   test("a LEFT character seat does not pair — the chat falls back to its next present character", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const gone = await seedCharacter(db, { id: castId<CharacterId>("character_gone"), ownerId: owner, handle: castId<Handle>("gone"), name: "Gone" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const gone = await seedCharacter(db, { id: castId<CharacterId>("character_gone"), ownerId: owner, handle: castId<CharacterHandle>("gone"), name: "Gone" });
     const present = await seedCharacter(db, {
       id: castId<CharacterId>("character_present"),
       ownerId: owner,
-      handle: castId<Handle>("present"),
+      handle: castId<CharacterHandle>("present"),
       name: "Present",
     });
     const chatId = await seedChat(db, castId<ChatId>("chat_left_seat"));

@@ -3,7 +3,7 @@
 // disabled. Idempotent per target state.
 
 import { DomainForbiddenError } from "@orb/kit/errors";
-import type { PluginId } from "@orb/kit/ids";
+import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { PluginCrashedError, PluginNotFoundError } from "@orb/server/domain/plugin";
 import { freshDb } from "../../../../support/db.ts";
@@ -13,7 +13,7 @@ import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUse
 test("enable activates on the CAS bundle under the granted subset; the row is enabled", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
     caller: ownerPrincipalFor(owner),
     bundle: makeBundle({ id: "mood", capabilities: ["chat.read"] }),
@@ -31,7 +31,7 @@ test("enable activates on the CAS bundle under the granted subset; the row is en
 test("a contained activation failure surfaces as PluginCrashedError; the row lands errored", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
   h.port.script({ ok: false, error: "main.js threw", log: [] });
 
@@ -44,7 +44,7 @@ test("a contained activation failure surfaces as PluginCrashedError; the row lan
 test("disable disposes the instance + lands the row disabled (idempotent)", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
   await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
 
@@ -60,8 +60,8 @@ test("disable disposes the instance + lands the row disabled (idempotent)", asyn
 test("a missing/foreign plugin is a leak-free NotFound; a non-admin is refused", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
-  const user = await seedUser(db, { handle: "user" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const user = await seedUser(db, { handle: castId<Handle>("user") });
   const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
 
   await expect(h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: castId<PluginId>("plugin_missing"), enabled: true })).rejects.toBeInstanceOf(

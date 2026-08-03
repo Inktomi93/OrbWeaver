@@ -1,5 +1,5 @@
 import type { Db } from "@orb/db";
-import type { CharacterId, ChatParticipantId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import {
@@ -83,7 +83,7 @@ describe("assertForcedCharacterMember", () => {
 
 describe("membership lifecycle writes", () => {
   test("upsertMemberOnJoin inserts a fresh member (role server-forced, leftSeq null)", async () => {
-    const userId = await seedUser(db, "u");
+    const userId = await seedUser(db, castId<Handle>("u"));
     const chatId = await seedChat(db, "a");
     const row = await upsertMemberOnJoin(db, {
       participantId: castId<ChatParticipantId>("chat_participant_new"),
@@ -98,7 +98,7 @@ describe("membership lifecycle writes", () => {
   });
 
   test("upsertMemberOnJoin re-joins a LEFT member: advances joinSeq, clears leftSeq, keeps the row id", async () => {
-    const userId = await seedUser(db, "u");
+    const userId = await seedUser(db, castId<Handle>("u"));
     const chatId = await seedChat(db, "a");
     const existing = await seedParticipant(db, {
       chatId,
@@ -121,7 +121,7 @@ describe("membership lifecycle writes", () => {
   });
 
   test("upsertMemberOnJoin is an idempotent no-op for an ALREADY-present member (undefined)", async () => {
-    const userId = await seedUser(db, "u");
+    const userId = await seedUser(db, castId<Handle>("u"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "u", userId, role: "member" });
     const row = await upsertMemberOnJoin(db, {
@@ -135,7 +135,7 @@ describe("membership lifecycle writes", () => {
   });
 
   test("markUserLeft is atomic — stamps leftSeq once, then matches nothing", async () => {
-    const userId = await seedUser(db, "u");
+    const userId = await seedUser(db, castId<Handle>("u"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "u", userId, role: "member" });
 

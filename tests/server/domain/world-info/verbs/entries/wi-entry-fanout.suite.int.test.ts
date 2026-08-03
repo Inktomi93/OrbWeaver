@@ -8,6 +8,8 @@
 // touches a scope/activation field (keys/enabled/metadata); a content-only edit is silent, mirroring the
 // attachment verbs' "only a REAL change emits" rule.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createWorldInfoService } from "@orb/server/domain/world-info";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -19,7 +21,7 @@ describe("entry verbs — PD-89 wiEntry* fan-out", () => {
     const db = await freshDb();
     const harness = makeHarness(db, { requireChatHost: () => Promise.resolve() });
     const svc = createWorldInfoService(harness.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
     const chatA = await seedChat(db, "a");
     const chatB = await seedChat(db, "b");
@@ -55,7 +57,7 @@ describe("entry verbs — PD-89 wiEntry* fan-out", () => {
     const db = await freshDb();
     const harness = makeHarness(db);
     const svc = createWorldInfoService(harness.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
 
     await svc.createEntry({
@@ -71,7 +73,7 @@ describe("entry verbs — PD-89 wiEntry* fan-out", () => {
     const db = await freshDb();
     const harness = makeHarness(db, { requireChatHost: () => Promise.resolve() });
     const svc = createWorldInfoService(harness.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
     const chatA = await seedChat(db, "a");
     const chatB = await seedChat(db, "b");
@@ -96,7 +98,7 @@ describe("entry verbs — PD-89 wiEntry* fan-out", () => {
     const db = await freshDb();
     const harness = makeHarness(db);
     const svc = createWorldInfoService(harness.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
     const entry = await svc.createEntry({
       principal: principal(owner),
@@ -113,7 +115,7 @@ describe("entry verbs — PD-89 wiEntry* fan-out", () => {
     const db = await freshDb();
     const harness = makeHarness(db, { requireChatHost: () => Promise.resolve() });
     const svc = createWorldInfoService(harness.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
     const chatA = await seedChat(db, "a");
     const chatB = await seedChat(db, "b");
@@ -154,7 +156,7 @@ describe("entry verbs — PD-89 wiEntry* fan-out", () => {
     const db = await freshDb();
     const harness = makeHarness(db, { requireChatHost: () => Promise.resolve() });
     const svc = createWorldInfoService(harness.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
     const chatId = await seedChat(db);
     await svc.attachToChat({ principal: principal(owner), chatId, bookId: book.id });
@@ -178,7 +180,7 @@ describe("entry verbs — PD-89 wiEntry* fan-out", () => {
     const db = await freshDb();
     const harness = makeHarness(db);
     const svc = createWorldInfoService(harness.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
     const entry = await svc.createEntry({
       principal: principal(owner),

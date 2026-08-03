@@ -6,7 +6,7 @@
 import { pluginManifestSchema } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { assets } from "@orb/db";
-import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
+import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { countKeys, deleteKv, getKv, listKv, upsertKv } from "../../../../../packages/server/src/domain/plugin/persistence/plugin-kv.ts";
 import { insertPlugin } from "../../../../../packages/server/src/domain/plugin/persistence/plugins.ts";
@@ -39,7 +39,7 @@ async function seedPlugin(db: Db, ownerId: UserId, id: string, slug: string): Pr
 
 test("upsert → get → delete round-trips one key", async () => {
   const db = await freshDb();
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const scope = { pluginId: await seedPlugin(db, owner, "plugin_a", "alpha"), ownerId: owner };
 
   expect(await getKv(db, scope, "k")).toBeNull();
@@ -54,7 +54,7 @@ test("upsert → get → delete round-trips one key", async () => {
 
 test("list prefix-filters + sorts; count is the key total", async () => {
   const db = await freshDb();
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const scope = { pluginId: await seedPlugin(db, owner, "plugin_a", "alpha"), ownerId: owner };
 
   await upsertKv(db, scope, { key: "cfg:a", value: "1", updatedAt: AT });
@@ -68,7 +68,7 @@ test("list prefix-filters + sorts; count is the key total", async () => {
 
 test("cross-plugin isolation: plugin A's keys are invisible to plugin B (same owner)", async () => {
   const db = await freshDb();
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const a = { pluginId: await seedPlugin(db, owner, "plugin_a", "alpha"), ownerId: owner };
   const b = { pluginId: await seedPlugin(db, owner, "plugin_b", "beta"), ownerId: owner };
 
@@ -80,8 +80,8 @@ test("cross-plugin isolation: plugin A's keys are invisible to plugin B (same ow
 
 test("the owner guard: a wrong owner in the scope reads nothing (belt vs a reused plugin id)", async () => {
   const db = await freshDb();
-  const owner = await seedUser(db, { handle: "owner" });
-  const other = await seedUser(db, { handle: "other" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const other = await seedUser(db, { handle: castId<Handle>("other") });
   const pluginId = await seedPlugin(db, owner, "plugin_a", "alpha");
 
   await upsertKv(db, { pluginId, ownerId: owner }, { key: "k", value: "v", updatedAt: AT });
@@ -91,8 +91,8 @@ test("the owner guard: a wrong owner in the scope reads nothing (belt vs a reuse
 
 test("the owner guard covers the UPSERT too: a foreign-owner collision moves 0 rows", async () => {
   const db = await freshDb();
-  const owner = await seedUser(db, { handle: "owner" });
-  const other = await seedUser(db, { handle: "other" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const other = await seedUser(db, { handle: castId<Handle>("other") });
   const pluginId = await seedPlugin(db, owner, "plugin_a", "alpha");
 
   await upsertKv(db, { pluginId, ownerId: owner }, { key: "k", value: "mine", updatedAt: AT });

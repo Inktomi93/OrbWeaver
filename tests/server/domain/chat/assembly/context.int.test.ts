@@ -12,7 +12,7 @@ import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { chatBooks, worldBooks, worldEntries } from "@orb/db";
 import { ZWSP } from "@orb/kit/guided";
-import type { CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble";
@@ -128,7 +128,7 @@ function regexScript(label: string, find: string, replace: string, placement: "U
 
 describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)", () => {
   test("a keyword entry fires on the PENDING user text (same turn), not one turn later", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     await attachChatEntry(host, chatId, "k", { content: "DRAGON LORE", keys: ["dragon"] });
@@ -151,7 +151,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
   });
 
   test("a keyword entry fires on a COMMITTED recent message (the haystack spans the recent window, not just the in-flight turn)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     await attachChatEntry(host, chatId, "k", { content: "DRAGON LORE", keys: ["dragon"] });
@@ -168,7 +168,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
   // F4 (§6 item 5): the guided steer text joins the WI keyword haystack (source `scan=true`). A generate/
   // swipe/continue turn carries no pendingUserText, so before this the steer contributed nothing to lore.
   test("F4: a guided steer keyword WAKES a keyword-scoped WI entry (no pending user text)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     await attachChatEntry(host, chatId, "k", { content: "DRAGON LORE", keys: ["dragon"] });
@@ -185,7 +185,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
   });
 
   test("F4: steer ABSENT ⇒ the keyword entry stays asleep (the steer is the only thing that would wake it)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     await attachChatEntry(host, chatId, "k", { content: "DRAGON LORE", keys: ["dragon"] });
@@ -197,7 +197,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
   });
 
   test("F4: a steer with no matching keyword does NOT falsely fire the entry (raw steer input scanned, not the boilerplate template)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     await attachChatEntry(host, chatId, "k", { content: "DRAGON LORE", keys: ["dragon"] });
@@ -214,7 +214,7 @@ describe("buildAssembleContext — GATHER keyword match (the two-phase lag-kill)
 
 describe("buildAssembleContext — the D50 user_input PromptTransform point (automation-design/04 §1.2/§6)", () => {
   test("a user_input transform runs AFTER the macro pass, BEFORE the USER_INPUT regex (the SEND sink proves order)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "u");
     const charId = await seedCharacter(db, host, "aria");
     // The transform INSERTS "SECRET"; only fires at the user_input point.
@@ -230,7 +230,7 @@ describe("buildAssembleContext — the D50 user_input PromptTransform point (aut
 
 describe("buildAssembleContext — BUILD render-once + position routing", () => {
   test("a WI entry renders its macros ONCE and wraps in wiFormat once", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     // Always-scope (no keys) so it always fires; content carries {{char}}.
@@ -250,7 +250,7 @@ describe("buildAssembleContext — BUILD render-once + position routing", () => 
   });
 
   test("F3: wiFormat wrap preserves `$$`/`$&` in entry content (function-replacement form)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     // Lore carrying `$`-patterns the string form of replaceAll would mangle ($$→$, $&→the matched marker).
@@ -266,7 +266,7 @@ describe("buildAssembleContext — BUILD render-once + position routing", () => 
   });
 
   test("F2-sibling: an empty-rendering entry under a CUSTOM wiFormat injects NOTHING (no dangling scaffold)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     // The entry renders to empty (a macro with no value); a custom wiFormat would otherwise wrap `""`.
@@ -287,7 +287,7 @@ describe("buildAssembleContext — BUILD render-once + position routing", () => 
   });
 
   test("position routing: always → world_info_before anchor; keyword(fired) → in_prompt; inject → in_chat", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     await attachChatEntry(host, chatId, "always", { content: "ALWAYS" });
@@ -305,7 +305,7 @@ describe("buildAssembleContext — BUILD render-once + position routing", () => 
 
 describe("buildAssembleContext — the ONE injection list + ONE budget pass (§4)", () => {
   test("budget drops lower-priority lore by priority; operator chat_injections are spared", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     // Two always entries ~2 tokens each (8 printable chars). Budget=2 keeps the higher-priority one.
@@ -325,7 +325,7 @@ describe("buildAssembleContext — the ONE injection list + ONE budget pass (§4
   });
 
   test("budget <= 0 keeps ALL candidates (unbudgeted pass) — the same set that a positive budget drops survives whole", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     // Identical entries to the drop-by-priority case above; at budget 0 BOTH survive (no charge, no drop).
@@ -348,7 +348,7 @@ describe("buildAssembleContext — the ONE injection list + ONE budget pass (§4
 
 describe("buildAssembleContext — SEND USER_INPUT regex (D53; chat.md §2/§3)", () => {
   test("the WI haystack + the out-param BOTH see the POST-regex text (no divergence)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     // The entry is keyed on "dragon"; the RAW pending text says "wyrm". A USER_INPUT regex rewrites
@@ -375,7 +375,7 @@ describe("buildAssembleContext — SEND USER_INPUT regex (D53; chat.md §2/§3)"
   });
 
   test("macros resolve in the USER_INPUT replace TEMPLATE (author-side; macros-before-regex)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -393,7 +393,7 @@ describe("buildAssembleContext — SEND USER_INPUT regex (D53; chat.md §2/§3)"
   });
 
   test("no host scripts → the sink carries the frozen composer text (macro-less ⇒ byte-identical passthrough)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     await attachChatEntry(host, chatId, "k", { content: "DRAGON LORE", keys: ["dragon"] });
@@ -425,7 +425,7 @@ function ctxWithCards(byId: Record<string, CharacterCard>): ChatContext {
 
 describe("buildAssembleContext — character depthPrompt (Character's Note @ Depth)", () => {
   test("a solo character's non-empty note injects exactly once as in_chat at its depth/role", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardWithNote("Aria", { prompt: "Aria stays cryptic.", depth: 4, role: "system" }));
@@ -438,7 +438,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
   });
 
   test("a null depthPrompt injects nothing + leaves authorsNoteSource unset", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardWithNote("Aria", null));
@@ -449,7 +449,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
   });
 
   test("an empty-prompt note (whitespace-only) injects nothing", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardWithNote("Aria", { prompt: "   ", depth: 4, role: "system" }));
@@ -460,7 +460,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
   });
 
   test("an absent role defaults to system", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardWithNote("Aria", { prompt: "no explicit role", depth: 3 }));
@@ -471,7 +471,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
   });
 
   test("{{char}} in each member's note binds to THAT member (per-member render ctx)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const ariaId = await seedCharacter(db, host, "aria");
     const branId = await seedCharacter(db, host, "bran");
@@ -497,7 +497,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
   });
 
   test("multiple notes at the SAME depth stack in cast order (primary first in the array)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const ariaId = await seedCharacter(db, host, "aria");
     const branId = await seedCharacter(db, host, "bran");
@@ -514,7 +514,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
   });
 
   test("the note splices into runner history at its depth (SHAPE placement, N from the tail)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     // role:user so the spliced content stays verbatim (system would be [Note from system: …]-framed).
@@ -542,7 +542,7 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
 //    axis `loadRoom` derives `mutedSpeakerKeys` from. `{{group}}` renders all; `{{groupNotMuted}}` the survivors.
 describe("buildAssembleContext — castNotMuted / {{groupNotMuted}} (R1/F1)", () => {
   test("a muted character drops from castNotMuted / {{groupNotMuted}} but stays in cast / {{group}}", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const ariaId = await seedCharacter(db, host, "aria");
     const branId = await seedCharacter(db, host, "bran");
@@ -559,7 +559,7 @@ describe("buildAssembleContext — castNotMuted / {{groupNotMuted}} (R1/F1)", ()
   });
 
   test("no muted seats ⇒ castNotMuted equals the full cast (byte-identical fallback)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const ariaId = await seedCharacter(db, host, "aria");
     const branId = await seedCharacter(db, host, "bran");
@@ -578,7 +578,7 @@ describe("buildAssembleContext — castNotMuted / {{groupNotMuted}} (R1/F1)", ()
 //    lands at the identical position. ───────────────────────────────────────────────────────────────────
 describe("buildAssembleContext — the room author's-note override is GONE (owner ruling 2026-08-01)", () => {
   test("a chat injection at depth 4 / system IS the author's note — same position, budget-exempt", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardWithNote("Aria", null));
@@ -597,7 +597,7 @@ describe("buildAssembleContext — the room author's-note override is GONE (owne
   });
 
   test("room overrides no longer suppress the cast's card notes (the deleted branch)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const ariaId = await seedCharacter(db, host, "aria");
     const branId = await seedCharacter(db, host, "bran");
@@ -622,7 +622,7 @@ describe("buildAssembleContext — the room author's-note override is GONE (owne
   });
 
   test("REGRESSION PIN: a set room override leaves the card notes byte-identical to the bare build", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const ariaId = await seedCharacter(db, host, "aria");
     const branId = await seedCharacter(db, host, "bran");
@@ -644,7 +644,7 @@ describe("buildAssembleContext — the room author's-note override is GONE (owne
 
 describe("buildAssembleContext — WORLD_INFO regex runs through the watchdog (D53)", () => {
   test("a throwing watchdog skips the WORLD_INFO script (the entry content is unchanged)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     await attachChatEntry(host, chatId, "k", { content: "GOLD hoard" }); // always-scope, always fires
@@ -667,7 +667,7 @@ describe("buildAssembleContext — WORLD_INFO regex runs through the watchdog (D
 // placement includes WORLD_INFO (the settings default placement set INCLUDES it) therefore never fired.
 describe("buildAssembleContext — the WORLD_INFO leg runs the RESOLVED host-tier union (F2, D53)", () => {
   test("a host-tier WORLD_INFO script rewrites the entry content", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     await attachChatEntry(host, chatId, "k", { content: "GOLD hoard" }); // always-scope, always fires
@@ -684,7 +684,7 @@ describe("buildAssembleContext — the WORLD_INFO leg runs the RESOLVED host-tie
   // rots (the readout drifted on exactly this kind of claim), which is why the table gets an executable
   // twin per leg rather than a doc sentence.
   test("WI ENTRY ORDER: macros render → WORLD_INFO regex → wiFormat wrap, in that order", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     // The entry's content is a MACRO. If regex ran first it would see the literal `{{char}}` and miss.
@@ -709,7 +709,7 @@ describe("buildAssembleContext — the WORLD_INFO leg runs the RESOLVED host-tie
   });
 
   test("a WORLD_INFO script does NOT rewrite the wiFormat SCAFFOLD (the wrap is applied after it)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     await attachChatEntry(host, chatId, "k", { content: "plain body" });
@@ -729,7 +729,7 @@ describe("buildAssembleContext — the WORLD_INFO leg runs the RESOLVED host-tie
   });
 
   test("the raw preset field is NOT a second source — only the resolved union feeds the leg", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     await attachChatEntry(host, chatId, "k", { content: "GOLD hoard" });
@@ -749,7 +749,7 @@ describe("buildAssembleContext — the WORLD_INFO leg runs the RESOLVED host-tie
 
 describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => {
   test("system placement (the default): the action template resolves to ctx.guidedInstruction — template macros live, untrusted {{input}} neutralized", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -773,7 +773,7 @@ describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => 
   });
 
   test("inject placement: a depth-0 in_chat injection with the CHOSEN role (never pinned); no marker text", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -794,7 +794,7 @@ describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => 
   // macro engine (rpg data macros read the gather feed) and lands as ONE depth-0 SYSTEM injection —
   // the ephemeral channel; `input` and the preset action config are ignored by design.
   test("P5 gameSteer twist: the kit template resolves rpg macros from the gather feed → depth-0 system injection; input ignored", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -815,7 +815,7 @@ describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => 
   });
 
   test("P5 gameSteer choices: the one-shot 'Offer choices' steer teaches the :::choices fence for THIS turn", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -829,7 +829,7 @@ describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => 
   });
 
   test("F2: a scaffold-only action (response) with a BLANK steer injects NOTHING (no dangling scaffold)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -843,7 +843,7 @@ describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => 
   });
 
   test("F2: a standalone action (impersonate) with a BLANK steer STILL fires unsteered", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -860,7 +860,7 @@ describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => 
   // to land NOWHERE (the marker never renders `ctx.guidedInstruction`). Now it falls back to a depth-0
   // injection on the same ChatInjection channel + flips the loud-warning flag the engine reads.
   test("F8: marker PRESENT (default) — system steer still lands via ctx.guidedInstruction, NO fallback, NO injection", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -874,7 +874,7 @@ describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => 
   });
 
   test("F8: marker ABSENT — a system steer FALLS BACK to a depth-0 system injection + flags the loud warning (never vanishes)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -898,7 +898,7 @@ describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => 
   });
 
   test("F8: marker DISABLED (present but off) — same fallback as absent", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -917,7 +917,7 @@ describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => 
   });
 
   test("the per-action config role decides the DEFAULT placement (role:user → a depth-0 user injection)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -941,7 +941,7 @@ describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => 
 
 describe("buildAssembleContext — immutable/pure (§5)", () => {
   test("two calls with the same inputs produce equal injection lists (deterministic, no mutation)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     await attachChatEntry(host, chatId, "k", { content: "LORE" });
@@ -959,7 +959,7 @@ describe("buildAssembleContext — the null-anchor fallback (dual-persona rule)"
   const bob = { name: "Bob", description: "a quiet scholar" };
 
   test("no anchor: the ACTIVE persona anchors card-derived {{user}} (never the literal 'User')", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -975,7 +975,7 @@ describe("buildAssembleContext — the null-anchor fallback (dual-persona rule)"
   });
 
   test("a SET anchor holds (no fallback): card POV stays the anchor while active differs", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -990,7 +990,7 @@ describe("buildAssembleContext — the null-anchor fallback (dual-persona rule)"
   });
 
   test("no personas at all: both slots stay null (the macro layer's 'User' floor is the last resort)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -1004,7 +1004,7 @@ describe("buildAssembleContext — the null-anchor fallback (dual-persona rule)"
 
 describe("buildAssembleContext — persona description placement (FINAL-Persona §A.6b gap #1)", () => {
   test("at_depth: the ACTIVE persona's description rides an in_chat ChatInjection; the {{persona}} marker is silenced", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -1026,7 +1026,7 @@ describe("buildAssembleContext — persona description placement (FINAL-Persona 
   });
 
   test("in_prompt (the default): no ChatInjection is emitted — the description rides {{persona}} only", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -1049,7 +1049,7 @@ describe("buildAssembleContext — persona description placement (FINAL-Persona 
   });
 
   test("none: no ChatInjection is emitted AND the {{persona}} marker is silenced (ST opt-out)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -1069,7 +1069,7 @@ describe("buildAssembleContext — persona description placement (FINAL-Persona 
   });
 
   test("no placement set (a fixture/legacy caller): degrades to the in_prompt no-op (marker emits, no injection)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -1087,7 +1087,7 @@ describe("buildAssembleContext — persona description placement (FINAL-Persona 
   // The single-placement rule proven END-TO-END through assemblePrompt: at_depth must not ALSO surface in
   // the system prompt via the {{persona}} marker (the default preset ships an enabled persona marker).
   test("at_depth does NOT double-emit: the description is absent from the assembled system prompt", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -1107,7 +1107,7 @@ describe("buildAssembleContext — persona description placement (FINAL-Persona 
   });
 
   test("in_prompt DOES emit the description via the {{persona}} marker in the assembled system prompt", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -1128,7 +1128,7 @@ describe("buildAssembleContext — persona description placement (FINAL-Persona 
 
 describe("buildAssembleContext — the BOTH-PERSONAS context rule on a swap (FINAL-Persona §A.6b gap #1)", () => {
   test("no swap (anchor == active): ONE injection, byte-identical to the solo (anchor-null) output", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -1155,7 +1155,7 @@ describe("buildAssembleContext — the BOTH-PERSONAS context rule on a swap (FIN
   });
 
   test("swap: ACTIVE injects per its own config (in_chat), ANCHOR injects in card-context (in_static, framed)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -1192,7 +1192,7 @@ describe("buildAssembleContext — the BOTH-PERSONAS context rule on a swap (FIN
   // PROSE-1 census 74 — the lead-in clause is a per-USER slot resolved against the ROOM HOST through
   // `ctx.resolveChatProse`; the brackets, the name and the description stay the injection's grammar.
   test("swap: a host override REPLACES the anchor identity lead-in, keeping the name/description frame", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = makeChatContext(db, {
@@ -1216,7 +1216,7 @@ describe("buildAssembleContext — the BOTH-PERSONAS context rule on a swap (FIN
   // the note frames in the SHAPE splice, the round nudge in the driver) — all of which read it off the ONE
   // immutable ctx rather than re-resolving the host. This pins the carry + the system-block frame together.
   test("the resolved host prose is CARRIED on the ctx, and already frames the system-block injections", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const prose = { "chat.injection.userNote": { text: "((table note: {{note}}))", baseVersion: 1 } };
@@ -1236,7 +1236,7 @@ describe("buildAssembleContext — the BOTH-PERSONAS context rule on a swap (FIN
   });
 
   test("swap with anchor descriptionPosition='none': the anchor is NOT injected in either role", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -1263,7 +1263,7 @@ describe("buildAssembleContext — the BOTH-PERSONAS context rule on a swap (FIN
   });
 
   test("each description resolves {{user}} against ITS OWN persona (no cross-contamination)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -1295,7 +1295,7 @@ describe("buildAssembleContext — the BOTH-PERSONAS context rule on a swap (FIN
 // ── G10: the guided action's own delivery DEPTH (redesign §5.0 — depth is a delivery property) ─────
 describe("buildAssembleContext — guided delivery depth (G10)", () => {
   test("an action's `depth` rides its in_chat injection; absent stays the tail (byte-identical)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const ctx = ctxWithCard(cardOf("Aria"));
@@ -1323,7 +1323,7 @@ describe("buildAssembleContext — guided delivery depth (G10)", () => {
 // ── G9: the new-chat boundary marker (`formatStrings.newChatMarker`) ───────────────────────────────
 describe("buildAssembleContext — the new-chat marker (G9)", () => {
   test("BLANK (the shipped default) emits NOTHING — byte-identical to every pre-G9 turn", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const out = await buildAssembleContext(ctxWithCard(cardOf("Aria")), inputOf(chatId, host, [charId]));
@@ -1331,7 +1331,7 @@ describe("buildAssembleContext — the new-chat marker (G9)", () => {
   });
 
   test("SET: one system injection at the TOP of the history, with its macros resolved", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const out = await buildAssembleContext(ctxWithCard(cardOf("Aria")), {
@@ -1345,7 +1345,7 @@ describe("buildAssembleContext — the new-chat marker (G9)", () => {
   });
 
   test("a marker that resolves to whitespace emits nothing (no dangling scaffold)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const out = await buildAssembleContext(ctxWithCard(cardOf("Aria")), {

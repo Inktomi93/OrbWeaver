@@ -6,6 +6,8 @@
 // carrying the words the import door renders.
 
 import { personas } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { PersonaDetail } from "@orb/server/domain/persona";
 import { createPersonaService } from "@orb/server/domain/persona";
 import type { PersonaBackup } from "@orb/server/kit/serde/persona";
@@ -34,7 +36,7 @@ describe("import", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const detail = imported(
       await svc.import({
@@ -59,7 +61,7 @@ describe("import", () => {
   test("defaults omitted fields exactly like create (title null, starred false)", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const detail = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: "Bare", description: "d" }) }));
 
@@ -70,7 +72,7 @@ describe("import", () => {
   test("export -> import round-trips the visible fields (merges into the source under the SAME id)", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const source = await svc.create({
       principal: principal(owner),
       input: { name: "Nyx", description: "a wandering scholar", starred: true },
@@ -90,7 +92,7 @@ describe("import", () => {
   test("re-importing the same backup is idempotent — ZERO duplicate rows (audit gap G-7)", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const backup = fileFor({ name: "Restored", description: "brought back", starred: true });
 
@@ -114,7 +116,7 @@ describe("import", () => {
   test("a DIFFERENT name still mints a fresh row (dedup keys on name, not blanket-merge)", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const a = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: "Alpha", description: "a" }) }));
     const b = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: "Beta", description: "b" }) }));
@@ -127,7 +129,7 @@ describe("import", () => {
   test("a malformed file NEVER throws — it returns the operator-facing reason the import door renders", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const garbage = await svc.import({ principal: principal(owner), bytes: new TextEncoder().encode("{not json") });
     expect(garbage.ok).toBe(false);
@@ -145,7 +147,7 @@ describe("import", () => {
   test("`created` discriminates a fresh mint from an in-place merge (the descriptor's dedup signal)", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const bytes = fileFor({ name: "Once", description: "d" });
 
     const first = await svc.import({ principal: principal(owner), bytes });

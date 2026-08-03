@@ -6,7 +6,7 @@
 
 import type { Db } from "@orb/db";
 import { assets, messages, messageVariants } from "@orb/db";
-import type { AssetId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, ChatId, Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import {
@@ -57,16 +57,16 @@ async function seedVariant(db: Db, chatId: ChatId, spec: { readonly seq: number;
 describe("selectOwnedReferencedAssetIds", () => {
   test("returns the owner's REFERENCED assets only — not unreferenced, not another owner's", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
 
     const referenced = await seedAsset(db, owner, { id: "asset_ref", hash: "a".repeat(64) });
     await seedAsset(db, owner, { id: "asset_orphan", hash: "b".repeat(64) }); // owned but UNreferenced
     const foreign = await seedAsset(db, other, { id: "asset_foreign", hash: "c".repeat(64) });
 
-    const ownerChar = await seedCharacter(db, owner, { handle: "hero" });
+    const ownerChar = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     await setCharacterAvatar(db, ownerChar, referenced);
-    const otherChar = await seedCharacter(db, other, { handle: "villain" });
+    const otherChar = await seedCharacter(db, other, { handle: castId<CharacterHandle>("villain") });
     await setCharacterAvatar(db, otherChar, foreign);
 
     const ids = await selectOwnedReferencedAssetIds(db, owner);
@@ -77,7 +77,7 @@ describe("selectOwnedReferencedAssetIds", () => {
 describe("selectInlineReferencedContents", () => {
   test("membership-scoped + asset-mention filtered", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const mine = await seedChatRow(db, "chat_mine");
     await seedParticipant(db, mine, "human", { userId: owner });
@@ -95,8 +95,8 @@ describe("selectInlineReferencedContents", () => {
 describe("loadOwnedAssetForExport", () => {
   test("owner-gated: returns hash/kind/mime for own, undefined for foreign or missing", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const mine = await seedAsset(db, owner, {
       id: "asset_mine",
       hash: "d".repeat(64),

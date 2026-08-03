@@ -10,7 +10,19 @@ import type { RpgActorEntry, RpgBusEvent, RpgExtraction, RpgExtractionMode, RpgG
 import { RPG_PROFILE_FREEFORM, RPG_RECENT_BEATS_KEEP_DEFAULT } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { presets, rpgGames } from "@orb/db";
-import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, PresetId, RpgGameId, RpgQuestId, RpgSnapshotId, UserId } from "@orb/kit/ids";
+import type {
+  CharacterHandle,
+  CharacterId,
+  ChatId,
+  Handle,
+  MessageId,
+  MessageVariantId,
+  PresetId,
+  RpgGameId,
+  RpgQuestId,
+  RpgSnapshotId,
+  UserId,
+} from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
 import type { WireTool } from "@orb/server/infra/providers";
@@ -173,7 +185,7 @@ export function turnConnection(over: Partial<RpgTurnContext> = {}): RpgTurnConte
 }
 
 /** A test Principal for a user key (the id mirrors `seedUser`'s `user_<handle>`). */
-export function principal(handle: string): Principal {
+export function principal(handle: Handle): Principal {
   return { userId: castId<UserId>(`user_${handle}`), role: "user", handle: castId<Handle>(handle), externalId: null, via: "cookie" };
 }
 
@@ -276,7 +288,7 @@ export interface RpgFakes {
   /** R4 — the promotion mints fired (`promoteToRoster`): the room, the HOST userId the card was minted under
    *  (the injected-op caller-gate assertion — never a re-derived owner), and the card content the verb DERIVED
    *  off the actor's identity row. A test asserts the standing guides actually reached the card. */
-  readonly promoteMints: { chatId: ChatId; hostUserId: string; name: string; handle: string; description: string; characterId: CharacterId | null }[];
+  readonly promoteMints: { chatId: ChatId; hostUserId: string; name: string; handle: CharacterHandle; description: string; characterId: CharacterId | null }[];
   /** The rpg-bus events a verb/flush emitted (the `emitBus` recorder — assert-the-mutation-fired for §4.9). */
   readonly busEvents: RpgBusEvent[];
   /** The write-boundary DROPS the flush surfaced (the `onFlushDropped` recorder — assert the drop was OBSERVED,
@@ -548,7 +560,7 @@ export async function seedLiteGame(
   const chatId = await seedChat(db, key);
   const h = makeRpgService(db, over);
   h.fakes.membership.set("user_host", "host");
-  const { gameId } = await h.service.createGame({ principal: principal("host"), chatId, mode: "lite" });
+  const { gameId } = await h.service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite" });
   return { chatId, gameId, h };
 }
 
@@ -556,7 +568,7 @@ export async function seedLiteGame(
  *  is the default experience, D112), so any test that drives the DEDICATED post-commit round (cheap's
  *  tool round) must ask for that vehicle explicitly rather than inherit it. */
 export async function pinExtractionMode(h: RpgHarness, chatId: ChatId, extractionMode: RpgExtractionMode): Promise<void> {
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode });
 }
 
 /** A `character` roster actor entry for the tracker projection. */
@@ -565,13 +577,13 @@ export function rosterCharacter(key: string, name: string): RpgRosterActor {
 }
 
 /** A `user` roster actor entry. */
-export function rosterUser(handle: string, name: string): RpgRosterActor {
+export function rosterUser(handle: Handle, name: string): RpgRosterActor {
   return { actorRef: { kind: "user", userId: castId<UserId>(`user_${handle}`) }, name };
 }
 
 /** Seed a preset row for the gmPresetId knob FK (RESTRICT to `users`). Seeds the owner user too. */
 export async function seedPreset(db: Db, key: string, ownerHandle: string): Promise<PresetId> {
-  const owner = await seedUser(db, ownerHandle);
+  const owner = await seedUser(db, castId<Handle>(ownerHandle));
   const id = castId<PresetId>(`preset_${key}`);
   await db.insert(presets).values({
     id,

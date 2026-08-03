@@ -9,7 +9,7 @@ import type { AssembleContext, ChatBusEvent, GroupConfig, MessageView, SpeakerRe
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import type { CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import type { CastName } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
@@ -101,7 +101,7 @@ function historyText(req: TurnRequest): string {
 let db: Db;
 beforeEach(async () => {
   db = await freshDb();
-  await seedUser(db, "host");
+  await seedUser(db, castId<Handle>("host"));
   await seedCharacter(db, HOST, "a");
   await seedCharacter(db, HOST, "b");
   await seedCharacter(db, HOST, "c");

@@ -7,7 +7,7 @@
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Db } from "@orb/db";
 import { assets, imageryGenerations } from "@orb/db";
-import type { AssetId, ModelId } from "@orb/kit/ids";
+import type { AssetId, Handle, ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImageGenerateRequest, ImageryContext } from "@orb/server/domain/imagery";
 import { createImageryService, ImageEditUnsupportedError } from "@orb/server/domain/imagery";
@@ -29,7 +29,7 @@ const SOURCE_ASSET = castId<AssetId>("asset_source");
 
 describe("editImage — the capability gate (doc 03 §1)", () => {
   test("a non-edit model throws ImageEditUnsupportedError — no asset, no row", async () => {
-    const owner = await seedOwner(db, "owner");
+    const owner = await seedOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db, { resolveGenerateImage: resolutionWith(false) });
 
     await expect(
@@ -48,7 +48,7 @@ describe("editImage — the capability gate (doc 03 §1)", () => {
 
 describe("editImage — the edit path (doc 02 §4)", () => {
   test("an owned-asset source is read via readAsset, edited, and stored (edited:true, mode:free, no identity hash)", async () => {
-    const owner = await seedOwner(db, "owner");
+    const owner = await seedOwner(db, castId<Handle>("owner"));
     const editReqs: ImageGenerateRequest[] = [];
     const { ctx, readAssetCalls } = makeHarness(db, {
       resolveGenerateImage: resolutionWith(true),
@@ -90,7 +90,7 @@ describe("editImage — the edit path (doc 02 §4)", () => {
   });
 
   test("an upload-bytes source is used directly — readAsset is never called; a mask rides the edit payload", async () => {
-    const owner = await seedOwner(db, "owner");
+    const owner = await seedOwner(db, castId<Handle>("owner"));
     const editReqs: ImageGenerateRequest[] = [];
     const maskBytes = Uint8Array.from([9, 9, 9, 9]);
     const { ctx, readAssetCalls } = makeHarness(db, {
@@ -119,7 +119,7 @@ describe("editImage — the edit path (doc 02 §4)", () => {
   });
 
   test("a runner belt warning (e.g. a dropped mask) surfaces onto the result", async () => {
-    const owner = await seedOwner(db, "owner");
+    const owner = await seedOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db, {
       resolveGenerateImage: resolutionWith(true),
       generateImage: () =>
@@ -208,7 +208,7 @@ function realRunnerBridge(client: GenClient): ImageryContext["generateImage"] {
 
 describe("editImage — composed-real: the resolved capability rides domain → the real runner belt (graduation-audit finding 1)", () => {
   test("(a) an edit-capable model: the edit init image SURVIVES to the wire, no image_edit_dropped warning", async () => {
-    const owner = await seedOwner(db, "owner");
+    const owner = await seedOwner(db, castId<Handle>("owner"));
     const { client, captured } = capturingGenClient();
     const { ctx } = makeHarness(db, {
       resolveGenerateImage: resolutionWith(true),

@@ -5,7 +5,8 @@
 // no owner-belted avatar vector ⇒ an empty result; neo V2-2). CSLS APPLIES here (same-space image↔image).
 
 import type { Db } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -44,7 +45,7 @@ async function seedAvatarCharacter(
 describe("similarArt", () => {
   test("returns the visually-nearest characters, excluding the seed", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const seed = await seedAvatarCharacter(db, {
       id: "seed",
       ownerId: owner,
@@ -76,7 +77,7 @@ describe("similarArt", () => {
 
   test("the default lens is image-raw — a captioned-only avatar is not scanned", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const seed = await seedAvatarCharacter(db, {
       id: "seed",
       ownerId: owner,
@@ -107,8 +108,8 @@ describe("similarArt", () => {
 
   test("never returns another owner's avatar", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const seed = await seedAvatarCharacter(db, {
       id: "seed",
       ownerId: owner,
@@ -130,8 +131,8 @@ describe("similarArt", () => {
 
   test("REFUSES a cross-tenant seed — a foreign seed id yields an empty result", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const seed = await seedAvatarCharacter(db, {
       id: "seed",
       ownerId: owner,

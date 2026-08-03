@@ -2,6 +2,8 @@
 // ownership predicate is in the WHERE), and ordering is by createdAt desc (the clock advances between
 // creates to break the tie a frozen clock would otherwise produce).
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createPersonaService } from "@orb/server/domain/persona";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -15,8 +17,8 @@ describe("list", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
 
     const first = await svc.create({
       principal: principal(owner),
@@ -39,7 +41,7 @@ describe("list", () => {
   test("an owner with no personas gets an empty array", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     expect(await svc.list({ principal: principal(owner) })).toEqual([]);
   });
 });

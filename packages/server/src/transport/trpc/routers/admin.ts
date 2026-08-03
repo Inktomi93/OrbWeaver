@@ -8,7 +8,7 @@
 // `infra/providers`; admin owns the port shape, transport just delegates).
 
 import { userRoleSchema } from "@orb/contracts/identity";
-import type { CharacterId, SessionId, UserId } from "@orb/kit/ids";
+import type { CharacterId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { adminProcedure, t } from "../trpc";
@@ -31,7 +31,7 @@ export const adminRouter = t.router({
   createUser: adminProcedure
     .input(
       z.object({
-        handle: z.string().min(1),
+        handle: brandedId<Handle>(),
         password: z.string().min(1),
         role: userRoleSchema.optional(),
       }),

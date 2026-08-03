@@ -15,7 +15,7 @@
 //     real append semantics `resyncStatePatch` un-appends, lives in `tests/server/entry/compose/rpg.int`.)
 
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
-import type { ChatTurnId } from "@orb/kit/ids";
+import type { ChatTurnId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "../../../../../support/db";
 import { expect, principal, seedLiteGame, seedMessage, test, turnConnection } from "../../_support";
@@ -39,7 +39,7 @@ test("HOST rebuild: a drifted state + resync → corrected (born-committed as a 
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, castId<ChatTurnId>("chat_turn_drift"), turnConnection());
   h.fakes.busEvents.length = 0;
 
-  await h.service.resyncFromStory({ principal: principal("host"), chatId });
+  await h.service.resyncFromStory({ principal: principal(castId<Handle>("host")), chatId });
 
   // The deep window was read with the resync budget (a real, non-trivial token cap).
   expect(h.fakes.canonWindowReads).toHaveLength(1);
@@ -50,13 +50,13 @@ test("HOST rebuild: a drifted state + resync → corrected (born-committed as a 
   // D124: the rebuild posts NOTHING to canon — the reconciled state is a message-less hand row.
   expect(h.fakes.narratorPosts).toEqual([]);
   // The panel reads back the CORRECTED state (the drift is healed).
-  const view = await h.service.getTrackerView({ principal: principal("host"), chatId });
+  const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
   expect(view.ambient?.location).toBe("the corrected throne room");
   // §4.9: the resync emitted snapshotPatched — and ONLY that. The rebuild does not write the journal (VER-1a:
   // the archive is the live turns' append-only record; a reconciler that appended to it could never be
   // idempotent, and the host clicks resync repeatedly), so there is no `journalChanged` and no entry.
   expect(h.fakes.busEvents.map((e) => e.type)).toEqual(["snapshotPatched"]);
-  expect(await h.service.listJournal({ principal: principal("host"), chatId, limit: 50 })).toEqual([]);
+  expect(await h.service.listJournal({ principal: principal(castId<Handle>("host")), chatId, limit: 50 })).toEqual([]);
   expect(gameId).toBeDefined();
 });
 
@@ -66,11 +66,11 @@ test("a locked field SURVIVES a resync (the host's pin is never clobbered by the
   const resyncDelta = { statePatch: { location: "the rebuild's location" }, journal: [] };
   const { chatId, h } = await seedLiteGame(db, { resyncDelta, canonWindow: [{ role: "assistant", speakerName: "GM", content: "story", tokens: 2 }] });
   // A hand edit AUTO-LOCKS the touched field (manual-edit-wins) — the resync must honor it.
-  await h.service.editSnapshot({ principal: principal("host"), chatId, patch: { location: "the HAND-PINNED hall" } });
+  await h.service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { location: "the HAND-PINNED hall" } });
 
-  await h.service.resyncFromStory({ principal: principal("host"), chatId });
+  await h.service.resyncFromStory({ principal: principal(castId<Handle>("host")), chatId });
 
-  const view = await h.service.getTrackerView({ principal: principal("host"), chatId });
+  const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
   expect(view.ambient?.location).toBe("the HAND-PINNED hall"); // the lock held — the rebuild never clobbered the pin
 });
 
@@ -78,7 +78,7 @@ test("AUTHORITY: a non-member gets leak-free NOT_FOUND — BEFORE any model call
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db, { resyncDelta: { statePatch: { location: "x" }, journal: [] } });
   // `user_stranger` is not in the membership map → the leak-free collapse.
-  await expect(h.service.resyncFromStory({ principal: principal("stranger"), chatId })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(h.service.resyncFromStory({ principal: principal(castId<Handle>("stranger")), chatId })).rejects.toBeInstanceOf(DomainNotFoundError);
   // The host-principal model call NEVER fired (a member/stranger can't trigger it) — and no state was written.
   expect(h.fakes.resyncCalls).toEqual([]);
   expect(h.fakes.canonWindowReads).toEqual([]);
@@ -90,7 +90,7 @@ test("AUTHORITY: a present NON-HOST member gets FORBIDDEN — the model call nev
   const { chatId, h } = await seedLiteGame(db, { resyncDelta: { statePatch: { location: "x" }, journal: [] } });
   h.fakes.membership.set("user_member", "member"); // a present member, but NOT the host
 
-  await expect(h.service.resyncFromStory({ principal: principal("member"), chatId })).rejects.toBeInstanceOf(DomainForbiddenError);
+  await expect(h.service.resyncFromStory({ principal: principal(castId<Handle>("member")), chatId })).rejects.toBeInstanceOf(DomainForbiddenError);
   // A member can NEVER trigger the host-principal model call (the principal-laundering hole this gate closes).
   expect(h.fakes.resyncCalls).toEqual([]);
   expect(h.fakes.narratorPosts).toEqual([]);
@@ -102,7 +102,7 @@ test("a no-op rebuild (empty delta) writes NOTHING — no slot, no snapshot, no 
   const { chatId, h } = await seedLiteGame(db, { canonWindow: [{ role: "assistant", speakerName: "GM", content: "story", tokens: 2 }] });
   h.fakes.busEvents.length = 0;
 
-  const result = await h.service.resyncFromStory({ principal: principal("host"), chatId });
+  const result = await h.service.resyncFromStory({ principal: principal(castId<Handle>("host")), chatId });
 
   // The model call still fired (host resolved it), but produced nothing → no anchor slot, no snapshot, no emit.
   expect(h.fakes.resyncCalls).toHaveLength(1);
@@ -125,7 +125,7 @@ test("a REBUILT resync reports ok:true rebuilt:true (the client's success signal
     canonWindow: [{ role: "assistant", speakerName: "GM", content: "story", tokens: 2 }],
   });
 
-  expect(await h.service.resyncFromStory({ principal: principal("host"), chatId })).toEqual({ ok: true, rebuilt: true });
+  expect(await h.service.resyncFromStory({ principal: principal(castId<Handle>("host")), chatId })).toEqual({ ok: true, rebuilt: true });
 });
 
 test("a FAILED round is surfaced as data — the reason reaches the caller, never a silent 'nothing to resync'", async () => {
@@ -134,7 +134,7 @@ test("a FAILED round is surfaced as data — the reason reaches the caller, neve
   h.fakes.resyncRefusal = { ok: false, reason: "the model call failed: openrouter structured item 0 failed" };
   h.fakes.busEvents.length = 0;
 
-  const result = await h.service.resyncFromStory({ principal: principal("host"), chatId });
+  const result = await h.service.resyncFromStory({ principal: principal(castId<Handle>("host")), chatId });
 
   expect(result).toEqual({ ok: false, reason: "the model call failed: openrouter structured item 0 failed" });
   // A failed round writes NOTHING (the pre-existing no-op tail is unchanged) — the only change is that it SAYS so.

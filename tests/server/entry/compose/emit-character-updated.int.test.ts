@@ -7,6 +7,8 @@
 // durable-first bus is its own tested seam — this pins the enumeration + the emitted event shape).
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createCharacterUpdatedChatFan } from "@orb/server/entry/compose";
 import { describe } from "vitest";
 import { freshDb } from "../../../support/db.ts";
@@ -16,7 +18,7 @@ import { seedCharacter, seedChat, seedParticipant, seedUser } from "../../domain
 describe("emit-character-updated — seated-chat fan + departed/non-seat isolation", () => {
   test("fans `chatUpdated` to every PRESENT-seat chat, never a departed / non-seat / other-character chat", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, "cu_owner");
+    const owner = await seedUser(db, castId<Handle>("cu_owner"));
     const edited = await seedCharacter(db, owner, "edited");
     const other = await seedCharacter(db, owner, "other");
 
@@ -46,7 +48,7 @@ describe("emit-character-updated — seated-chat fan + departed/non-seat isolati
 
   test("a character seated in NO present chat fans nothing", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, "cu_none_owner");
+    const owner = await seedUser(db, castId<Handle>("cu_none_owner"));
     const lonely = await seedCharacter(db, owner, "lonely");
 
     const captured: ChatBusEvent[] = [];

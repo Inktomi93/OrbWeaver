@@ -13,7 +13,7 @@
 
 import type { EntryView } from "@orb/contracts/world-info";
 import { worldBooks, worldEntries } from "@orb/db";
-import type { UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { buildKeywordHaystack, matchEntryKeys, resolveEntryInjection, resolveEntryPosition, resolveEntryScope } from "@orb/kit/world-info";
 import { eq } from "drizzle-orm";
@@ -63,7 +63,7 @@ async function loadEntryView(db: DbHandle, entryId: WorldEntryId): Promise<Entry
 describe("toBookView / toEntryView projections", () => {
   test("toBookView drops ownerId; toEntryView types metadata + degrades corrupt to null", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const bookId = await seedBook(db, owner, "world_book_a");
     const goodId = await seedEntry(db, bookId, {
       id: "world_entry_good",
@@ -90,8 +90,8 @@ describe("toBookView / toEntryView projections", () => {
 describe("loadOwnedBook / loadOwnedEntry owner-scoping", () => {
   test("a foreign entry returns undefined (owner-scoped through the book)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const theirBook = await seedBook(db, other, "world_book_theirs");
     const theirEntry = await seedEntry(db, theirBook, { id: "world_entry_theirs" });
 
@@ -104,7 +104,7 @@ describe("loadOwnedBook / loadOwnedEntry owner-scoping", () => {
 describe("scan / activation selection over stored entries (kit resolvers)", () => {
   test("keyword entry fires on a key match and resolves its depth/role placement", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const bookId = await seedBook(db, owner, "world_book_scan");
     const entryId = await seedEntry(db, bookId, {
       id: "world_entry_scan",
@@ -124,7 +124,7 @@ describe("scan / activation selection over stored entries (kit resolvers)", () =
 
   test("a keyless always-entry resolves to always-scope + default position, no injection", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const bookId = await seedBook(db, owner, "world_book_always");
     const entryId = await seedEntry(db, bookId, { id: "world_entry_always", keys: null });
     const view = await loadEntryView(db, entryId);

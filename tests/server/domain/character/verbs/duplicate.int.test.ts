@@ -6,7 +6,7 @@
 import type { WorldBookRole } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, worldBooks } from "@orb/db";
-import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, Handle, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
 import { eq } from "drizzle-orm";
@@ -32,10 +32,10 @@ describe("duplicate", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const source = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "the original" },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "the original" },
     });
     h.events.length = 0;
 
@@ -50,10 +50,10 @@ describe("duplicate", () => {
   test("a second duplicate of the same source increments the copy handle", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const source = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "d" },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     const first = await svc.duplicate({ principal: principal(owner), characterId: source.id });
     const second = await svc.duplicate({ principal: principal(owner), characterId: source.id });
@@ -64,11 +64,11 @@ describe("duplicate", () => {
   test("duplicating an imported card clears the import provenance", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const imported = await seedRawCharacter(db, {
       id: "character_imp",
       ownerId: owner,
-      handle: "imported",
+      handle: castId<CharacterHandle>("imported"),
       name: "Imported",
       importedFrom: "card.png",
       importHash: "rawfilehash",
@@ -82,10 +82,10 @@ describe("duplicate", () => {
   test("D44 §12.1/§12.5 — the per-character theme/render policies carry forward", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const source = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "d" },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     await svc.update({
       principal: principal(owner),
@@ -100,10 +100,10 @@ describe("duplicate", () => {
   test("PD-141 — carries the source's attached book REFERENCES onto the clone (same books, new junction rows)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const source = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "d" },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     const primary = await seedAttachedBook(db, { bookId: "world_book_primary", ownerId: owner, characterId: source.id, role: "primary" });
     const aux = await seedAttachedBook(db, { bookId: "world_book_aux", ownerId: owner, characterId: source.id, role: "auxiliary" });
@@ -142,10 +142,10 @@ describe("duplicate", () => {
   test("PD-141 — a source with zero attached books duplicates clean (no junction rows carried)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const source = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "d" },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
 
     const copy = await svc.duplicate({ principal: principal(owner), characterId: source.id });

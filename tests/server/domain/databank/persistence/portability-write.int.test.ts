@@ -13,7 +13,7 @@
 
 import type { Db } from "@orb/db";
 import { characterDocuments, documents, globalDocuments } from "@orb/db";
-import type { DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
+import type { DocumentId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { parseDocumentFile } from "@orb/server/kit/serde/databank";
 import { and, eq } from "drizzle-orm";
@@ -91,8 +91,8 @@ async function seedDocument(db: Db, args: SeedDocArgs): Promise<DocumentId> {
 describe("createListOwnedDocumentIds", () => {
   test("enumerates only the owner's documents (a bundle must never stream a stranger's canon)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     await seedDocument(db, { id: "document_mine", ownerId: owner, name: "Mine", text: "mine", importHash: "h_mine" });
     await seedDocument(db, { id: "document_theirs", ownerId: stranger, name: "Theirs", text: "theirs", importHash: "h_theirs" });
 
@@ -103,7 +103,7 @@ describe("createListOwnedDocumentIds", () => {
 describe("createExportDocument", () => {
   test("carries the canon, the dedup key, and both re-linkable scopes", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const hero = await seedCharacter(db, owner, { id: "character_hero", name: "hero" });
     const documentId = await seedDocument(db, { id: "document_src", ownerId: owner, name: "Field Notes", text: "the canon", importHash: "h_src" });
     await db.insert(globalDocuments).values({ ownerId: owner, documentId });
@@ -126,8 +126,8 @@ describe("createExportDocument", () => {
 
   test("a foreign / absent document returns null (the leak-free owner gate)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const documentId = await seedDocument(db, { id: "document_theirs2", ownerId: stranger, name: "Theirs", text: "t", importHash: "h_t" });
 
     expect(await createExportDocument({ db })({ ownerId: owner, documentId })).toBeNull();
@@ -147,8 +147,8 @@ describe("createImportDocument", () => {
 
   test("restores the canon under a fresh id, re-links the scopes, and ENQUEUES the ingest", async () => {
     const db = await freshDb();
-    const source = await seedUser(db, { handle: "source" });
-    const target = await seedUser(db, { handle: "target" });
+    const source = await seedUser(db, { handle: castId<Handle>("source") });
+    const target = await seedUser(db, { handle: castId<Handle>("target") });
     const sourceHero = await seedCharacter(db, source, { id: "character_source_hero", name: "hero" });
     const targetHero = await seedCharacter(db, target, { id: "character_target_hero", name: "hero" });
     const documentId = await seedDocument(db, { id: "document_travel", ownerId: source, name: "Travels", text: "the canon text", importHash: "h_travel" });
@@ -180,8 +180,8 @@ describe("createImportDocument", () => {
 
   test("re-importing the SAME bundle writes zero duplicate rows (the carried importHash IS the dedup key)", async () => {
     const db = await freshDb();
-    const source = await seedUser(db, { handle: "source" });
-    const target = await seedUser(db, { handle: "target" });
+    const source = await seedUser(db, { handle: castId<Handle>("source") });
+    const target = await seedUser(db, { handle: castId<Handle>("target") });
     const documentId = await seedDocument(db, { id: "document_dup", ownerId: source, name: "Dup", text: "body", importHash: "h_dup" });
     const bytes = await exportFrom(db, source, documentId);
 
@@ -198,8 +198,8 @@ describe("createImportDocument", () => {
 
   test("an unresolvable character handle leaves the document UNATTACHED rather than failing the restore", async () => {
     const db = await freshDb();
-    const source = await seedUser(db, { handle: "source" });
-    const target = await seedUser(db, { handle: "target" });
+    const source = await seedUser(db, { handle: castId<Handle>("source") });
+    const target = await seedUser(db, { handle: castId<Handle>("target") });
     const sourceHero = await seedCharacter(db, source, { id: "character_source_hero", name: "hero" });
     const documentId = await seedDocument(db, { id: "document_orphan", ownerId: source, name: "Orphan", text: "body", importHash: "h_orphan" });
     await db.insert(characterDocuments).values({ characterId: sourceHero, documentId });
@@ -220,7 +220,7 @@ describe("createImportDocument", () => {
 
   test("a malformed file NEVER throws — it returns the operator-facing reason the import report renders", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const h = harness(db);
 
     const garbage = await createImportDocument(h.ctx)({ ownerId: owner, bytes: new TextEncoder().encode("{not json") });

@@ -37,7 +37,7 @@ function principal(userId: UserId): Principal {
 
 describe("generateImage", () => {
   test("commits ONE caller-authored message carrying n asset refs + emits messageCommitted", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
 
@@ -82,7 +82,7 @@ describe("generateImage", () => {
   });
 
   test("maps each imagery warning onto a chat `warning` bus event (doc 03 §2.1)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
 
@@ -103,8 +103,8 @@ describe("generateImage", () => {
   });
 
   test("a non-participant is refused (leak-free NOT_FOUND) and never calls the op", async () => {
-    const host = await seedUser(db, "host");
-    const outsider = await seedUser(db, "outsider");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const outsider = await seedUser(db, castId<Handle>("outsider"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
 

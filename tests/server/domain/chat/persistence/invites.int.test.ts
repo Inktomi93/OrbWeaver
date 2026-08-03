@@ -1,6 +1,6 @@
 import type { Db } from "@orb/db";
 import { chatInvites } from "@orb/db";
-import type { ChatId, ChatInviteId, ChatParticipantId, PendingTurnId, UserId } from "@orb/kit/ids";
+import type { ChatId, ChatInviteId, ChatParticipantId, Handle, PendingTurnId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -59,8 +59,8 @@ describe("persistence/invites — reads + lifecycle", () => {
   });
 
   test("countPresentMembers counts present HUMANS only", async () => {
-    const host = await seedUser(db, "host");
-    const left = await seedUser(db, "left");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const left = await seedUser(db, castId<Handle>("left"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "l", userId: left, role: "member", leftSeq: 5 });
@@ -85,8 +85,8 @@ describe("persistence/invites — reads + lifecycle", () => {
 
   test("declineInviteById flips ONLY the caller's own pending targeted invite (PD-67)", async () => {
     const chatId = await seedChat(db, "a");
-    const target = await seedUser(db, "target");
-    const other = await seedUser(db, "other");
+    const target = await seedUser(db, castId<Handle>("target"));
+    const other = await seedUser(db, castId<Handle>("other"));
     await seedInvite(db, chatId, "t");
     const inviteId = castId<ChatInviteId>("chat_invite_t");
     await db.update(chatInvites).set({ invitedUserId: target }).where(eq(chatInvites.id, inviteId));
@@ -101,7 +101,7 @@ describe("persistence/invites — reads + lifecycle", () => {
 
 describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
   test("redeem inserts the member at the current canon head (joinSeq), increments uses", async () => {
-    const joiner = await seedUser(db, "joiner");
+    const joiner = await seedUser(db, castId<Handle>("joiner"));
     const chatId = await seedChat(db, "a");
     await seedMessage(db, chatId, 1);
     await seedMessage(db, chatId, 2);
@@ -120,8 +120,8 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
   });
 
   test("redeem closes the maxUses TOCTOU: the over-cap attempt yields undefined", async () => {
-    const a = await seedUser(db, "a");
-    const b = await seedUser(db, "b");
+    const a = await seedUser(db, castId<Handle>("a"));
+    const b = await seedUser(db, castId<Handle>("b"));
     const chatId = await seedChat(db, "c");
     const hash = await seedInvite(db, chatId, "i", { maxUses: 1 });
 
@@ -143,7 +143,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
   });
 
   test("redeem refuses an expired invite", async () => {
-    const joiner = await seedUser(db, "joiner");
+    const joiner = await seedUser(db, castId<Handle>("joiner"));
     const chatId = await seedChat(db, "a");
     const hash = await seedInvite(db, chatId, "i", { expiresAt: FROZEN_AT - 1 });
     const result = await redeemInviteAtomic(db, {
@@ -156,7 +156,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
   });
 
   test("redeem of an ALREADY-present member is a no-op (undefined), without consuming a use", async () => {
-    const member = await seedUser(db, "member");
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const hash = await seedInvite(db, chatId, "i", { maxUses: 5 });
@@ -188,7 +188,7 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
   }
 
   test("the bound target is seated at the canon head + a use is burned; findInviteById round-trips", async () => {
-    const target = await seedUser(db, "target");
+    const target = await seedUser(db, castId<Handle>("target"));
     const chatId = await seedChat(db, "a");
     await seedMessage(db, chatId, 1);
     await seedMessage(db, chatId, 2);
@@ -207,7 +207,7 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
   });
 
   test("a SHARE-LINK invite (invitedUserId null) is never seatable by id — undefined, no use burned", async () => {
-    const anyone = await seedUser(db, "anyone");
+    const anyone = await seedUser(db, castId<Handle>("anyone"));
     const chatId = await seedChat(db, "a");
     await seedInvite(db, chatId, "i", { maxUses: 5 }); // untargeted
     const inviteId = castId<ChatInviteId>("chat_invite_i");
@@ -224,8 +224,8 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
   });
 
   test("a FOREIGN target matches nothing (leak-free) — the invite is untouched for its real target", async () => {
-    const target = await seedUser(db, "target");
-    const attacker = await seedUser(db, "attacker");
+    const target = await seedUser(db, castId<Handle>("target"));
+    const attacker = await seedUser(db, castId<Handle>("attacker"));
     const chatId = await seedChat(db, "a");
     const inviteId = await seedTargetedInvite(chatId, "i", target);
 
@@ -242,7 +242,7 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
   });
 
   test("an expired invite is refused", async () => {
-    const target = await seedUser(db, "target");
+    const target = await seedUser(db, castId<Handle>("target"));
     const chatId = await seedChat(db, "a");
     const inviteId = await seedTargetedInvite(chatId, "i", target, { expiresAt: FROZEN_AT - 1 });
 
@@ -256,7 +256,7 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
   });
 
   test("accept of an ALREADY-present member is a no-op (undefined), no use consumed", async () => {
-    const target = await seedUser(db, "target");
+    const target = await seedUser(db, castId<Handle>("target"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "t", userId: target, role: "member" });
     const inviteId = await seedTargetedInvite(chatId, "i", target, { maxUses: 5 });
@@ -272,7 +272,7 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
   });
 
   test("closes the maxUses TOCTOU: the single-use invite flips to accepted after the target seats", async () => {
-    const target = await seedUser(db, "target");
+    const target = await seedUser(db, castId<Handle>("target"));
     const chatId = await seedChat(db, "a");
     const inviteId = await seedTargetedInvite(chatId, "i", target, { maxUses: 1 });
 
@@ -289,8 +289,8 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
 
 describe("persistence/invites — pending_turns (deferred, boot-reclaimed)", () => {
   test("insert + load (oldest-first) + delete + reclaim-all", async () => {
-    const trigger = await seedUser(db, "trig");
-    const host = await seedUser(db, "host");
+    const trigger = await seedUser(db, castId<Handle>("trig"));
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatA = await seedChat(db, "a");
     const chatB = await seedChat(db, "b");
     await seedPendingTurn(db, {
@@ -328,9 +328,9 @@ describe("persistence/invites — pending_turns (deferred, boot-reclaimed)", () 
   });
 
   test("insert round-trips; the by-host load scopes to the funding host (run-as user)", async () => {
-    const trigger = await seedUser(db, "trig");
-    const hostA = await seedUser(db, "hostA");
-    const hostB = await seedUser(db, "hostB");
+    const trigger = await seedUser(db, castId<Handle>("trig"));
+    const hostA = await seedUser(db, castId<Handle>("hostA"));
+    const hostB = await seedUser(db, castId<Handle>("hostB"));
     const chatA = await seedChat(db, "a");
     const chatB = await seedChat(db, "b");
     // Two turns funded by hostA (across two chats) + one funded by hostB.

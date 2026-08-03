@@ -4,7 +4,7 @@
 
 import type { CharacterCard, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
-import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import type { CharacterService } from "./service";
 
 /** One authored default card: the create input, its author-shipped native tags (attached separately —
@@ -37,9 +37,9 @@ export interface DefaultCharacterSeederDeps {
   /** Attach one of a seeded card's native tags as a card/pending suggestion. Idempotent + never downgrades. */
   readonly attachCardTag: (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly tagName: string }) => Promise<boolean>;
   /** Store this handle's bundled avatar art, or null when the pack ships none / the store fails. */
-  readonly storeAvatar?: (principal: Principal, handle: string) => Promise<AssetId | null>;
+  readonly storeAvatar?: (principal: Principal, handle: CharacterHandle) => Promise<AssetId | null>;
   /** Seed this character's starter gallery so a fresh library isn't an empty grid. Failures swallowed by the caller. */
-  readonly seedGallery?: (principal: Principal, characterId: CharacterId, handle: string) => Promise<void>;
+  readonly seedGallery?: (principal: Principal, characterId: CharacterId, handle: CharacterHandle) => Promise<void>;
   readonly isSeeded: (principal: Principal) => Promise<boolean>;
   /** Persists the latch + (when unset) points `seeds.welcomeAssistantCharacterId` at the seeded Assistant. */
   readonly markSeeded: (principal: Principal, welcomeAssistantId: CharacterId | null) => Promise<void>;

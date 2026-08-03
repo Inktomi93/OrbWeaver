@@ -2,7 +2,7 @@
 // SessionAdminPort. Asserts the gate + the delegation (the fake port records the calls) + the audit on writes.
 
 import { DomainForbiddenError } from "@orb/kit/errors";
-import type { SessionId } from "@orb/kit/ids";
+import type { Handle, SessionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAdminService } from "@orb/server/domain/admin";
 import { describe } from "vitest";
@@ -14,7 +14,7 @@ describe("admin session verbs", () => {
   test("listSessions delegates to the port for an admin", async () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);
-    const t = await seedUser(db, { id: "user_t", role: "user", handle: "t" });
+    const t = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
     const list = await svc.listSessions({ principal: principal(admin, "admin"), userId: t });
     expect(Array.isArray(list)).toBe(true);
   });
@@ -23,7 +23,7 @@ describe("admin session verbs", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createAdminService(h.ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     const sid = castId<SessionId>("session_abc");
     await svc.revokeSession({ principal: principal(admin, "admin"), sessionId: sid });
     expect(h.revokedSessions).toContain(sid);
@@ -34,8 +34,8 @@ describe("admin session verbs", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createAdminService(h.ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
-    const t = await seedUser(db, { id: "user_t", role: "user", handle: "t" });
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
+    const t = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
     const result = await svc.revokeUserSessions({
       principal: principal(admin, "admin"),
       userId: t,
@@ -48,7 +48,7 @@ describe("admin session verbs", () => {
   test("a plain user is denied on every session verb", async () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
-    const u = await seedUser(db, { id: "user_u", role: "user", handle: "u" });
+    const u = await seedUser(db, { id: "user_u", role: "user", handle: castId<Handle>("u") });
     const p = principal(u, "user");
     await expect(svc.listSessions({ principal: p, userId: u })).rejects.toThrow(DomainForbiddenError);
     await expect(svc.revokeSession({ principal: p, sessionId: castId<SessionId>("session_x") })).rejects.toThrow(DomainForbiddenError);

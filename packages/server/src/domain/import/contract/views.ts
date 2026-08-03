@@ -2,7 +2,7 @@
 // Pure-type file: the ST interchange is validated structurally inside the parsers (null-on-unparseable).
 // Card-path types stay in contract/params.ts + contract/results.ts.
 
-import type { AssetId, CharacterId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId } from "@orb/kit/ids";
 import type { ParsedChat } from "#kit/serde/chat";
 
 /** name is the key an imported chat's user_name maps against (case-insensitively) to attribute messages. */
@@ -45,7 +45,7 @@ export interface CollectedChat {
 
 /** domain/import can't reach domain/assets — cardBytes/filename ride through to the driver that stores them. */
 export interface CollectedCard {
-  readonly handle: string;
+  readonly handle: CharacterHandle;
   readonly cardBytes: Uint8Array;
   readonly filename: string;
   readonly chats: CollectedChat[];
@@ -65,9 +65,9 @@ export interface CollectResult {
   readonly skippedChats: string[];
   readonly skippedCharacters: string[];
   /** Their chats attach to the first card holding the base handle. */
-  readonly collidedCards: { readonly file: string; readonly handle: string }[];
+  readonly collidedCards: { readonly file: string; readonly handle: CharacterHandle }[];
   /** Matched by the second-chance fuzzy pairing (trailing-digit / main_<Name>_spec_vN). */
-  readonly fuzzyPairedDirs: { readonly chatDir: string; readonly handle: string }[];
+  readonly fuzzyPairedDirs: { readonly chatDir: string; readonly handle: CharacterHandle }[];
 }
 
 export interface ImportPersonaInput {

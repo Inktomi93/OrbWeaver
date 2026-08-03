@@ -11,7 +11,7 @@ import { canonicalBackgroundSource } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characterStats, characterSummaries, characters, characterTags, tags } from "@orb/db";
 import { parseStringArrayColumn } from "@orb/db/kit";
-import type { AssetId, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
@@ -272,7 +272,7 @@ export async function listEmbeddableCharacterIdRows(db: Db, ownerId?: UserId | n
 }
 
 /** Find a character by (ownerId, handle) — relies on the per-owner handle unique index. */
-export async function findByOwnerHandle(db: Db, ownerId: UserId, handle: string): Promise<CharacterRow | undefined> {
+export async function findByOwnerHandle(db: Db, ownerId: UserId, handle: CharacterHandle): Promise<CharacterRow | undefined> {
   const rows = await db
     .select()
     .from(characters)

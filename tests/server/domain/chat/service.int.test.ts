@@ -124,7 +124,7 @@ async function seedRoom(): Promise<{
   chatId: ChatId;
   names: Record<string, string>;
 }> {
-  const host = await seedUser(db, "host");
+  const host = await seedUser(db, castId<Handle>("host"));
   const chatId = await seedChat(db, "a", {
     metadata: { group: { output: "per-speaker", policy: "natural" } },
   });

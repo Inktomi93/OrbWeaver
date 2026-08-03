@@ -8,6 +8,8 @@
 //   • hostless room (archived orphan) ⇒ `[]`.
 //   • non-member ⇒ refused by the injected membership guard.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createRegexService } from "@orb/server/domain/regex";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -17,8 +19,8 @@ import { allowChat, behavior, makeHarness, principal, seedChat, seedScript, seed
 describe("listRoomDisplayScripts", () => {
   test("opted OUT (the default): returns nothing, so the host's library stays invisible", async () => {
     const db = await freshDb();
-    const host = await seedUser(db, { handle: "host" });
-    const member = await seedUser(db, { handle: "member" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const member = await seedUser(db, { handle: castId<Handle>("member") });
     const chatId = await seedChat(db);
     await seedScript(db, { ownerId: host, name: "fx", behavior: behavior({ placement: ["DISPLAY"] }) });
     const h = makeHarness(db, {
@@ -31,8 +33,8 @@ describe("listRoomDisplayScripts", () => {
 
   test("opted IN: a MEMBER receives the HOST's display scripts", async () => {
     const db = await freshDb();
-    const host = await seedUser(db, { handle: "host" });
-    const member = await seedUser(db, { handle: "member" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const member = await seedUser(db, { handle: castId<Handle>("member") });
     const chatId = await seedChat(db);
     await seedScript(db, { ownerId: host, name: "fx", behavior: behavior({ placement: ["DISPLAY"] }) });
     const h = makeHarness(db, {
@@ -45,8 +47,8 @@ describe("listRoomDisplayScripts", () => {
 
   test("opted IN: narrowed to what would FIRE — a disabled or prompt-side script never rides", async () => {
     const db = await freshDb();
-    const host = await seedUser(db, { handle: "host" });
-    const member = await seedUser(db, { handle: "member" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const member = await seedUser(db, { handle: castId<Handle>("member") });
     const chatId = await seedChat(db);
     await seedScript(db, { ownerId: host, id: "regex_script_on", name: "fires", behavior: behavior({ placement: ["DISPLAY"] }) });
     await seedScript(db, { ownerId: host, id: "regex_script_off", name: "disabled", enabled: false, behavior: behavior({ placement: ["DISPLAY"] }) });
@@ -63,7 +65,7 @@ describe("listRoomDisplayScripts", () => {
 
   test("a HOSTLESS room broadcasts nothing", async () => {
     const db = await freshDb();
-    const member = await seedUser(db, { handle: "member" });
+    const member = await seedUser(db, { handle: castId<Handle>("member") });
     const chatId = await seedChat(db);
     const h = makeHarness(db, {
       requireChatMember: allowChat,
@@ -75,7 +77,7 @@ describe("listRoomDisplayScripts", () => {
 
   test("a NON-member is refused before the policy is even consulted", async () => {
     const db = await freshDb();
-    const outsider = await seedUser(db, { handle: "outsider" });
+    const outsider = await seedUser(db, { handle: castId<Handle>("outsider") });
     const chatId = await seedChat(db);
     const refuse = (): Promise<void> => Promise.reject(new Error("not a member"));
     // `resolveRoomDisplayPolicy` is the throwing default — reaching it would fail with a different message.

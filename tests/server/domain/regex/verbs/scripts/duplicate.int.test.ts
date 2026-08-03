@@ -2,6 +2,8 @@
 // UNATTACHED at every scope. A duplicate is a new authored artifact, not a second attachment of the
 // original — cloning the source's attachments would silently double its effect in every room it ran in.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createRegexService, RegexNotFoundError } from "@orb/server/domain/regex";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -13,7 +15,7 @@ describe("duplicateScript", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "original", behavior: behavior({ findRegex: "src" }) });
     await svc.attachGlobal({ principal: principal(owner), scriptId });
 
@@ -30,8 +32,8 @@ describe("duplicateScript", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "mine" });
 
     await expect(svc.duplicateScript({ principal: principal(stranger), scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);

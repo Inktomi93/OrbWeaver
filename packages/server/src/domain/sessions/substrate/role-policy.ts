@@ -1,5 +1,6 @@
 import process from "node:process";
 import type { UserRole } from "@orb/contracts/identity";
+import type { Handle } from "@orb/kit/ids";
 import { env } from "#foundation/env";
 import type { IdentityAccess } from "../contract/results";
 
@@ -61,7 +62,7 @@ export function ownerHandles(): string[] {
 }
 
 /** `owner` iff the identity is in `OWNER_GROUP` OR its handle ∈ `OWNER_HANDLES` (group preferred). */
-function isOwnerByPolicy(handle: string, groups: string[]): boolean {
+function isOwnerByPolicy(handle: Handle, groups: string[]): boolean {
   const ownerGroup = process.env["OWNER_GROUP"];
   if (ownerGroup !== undefined && ownerGroup.length > 0 && groups.includes(ownerGroup)) {
     return true;
@@ -75,7 +76,7 @@ function isOwnerByPolicy(handle: string, groups: string[]): boolean {
  * owner for the owner handle, else user). SSO login uses {@link deriveIdentityAccess}, which layers the
  * allowed-groups gate on top. The returned member is a subset of `UserRole` (no inline re-spell).
  */
-export function determineRole(handle: string, groups: string[]): UserRole {
+export function determineRole(handle: Handle, groups: string[]): UserRole {
   if (isOwnerByPolicy(handle, groups)) {
     return "owner";
   }
@@ -97,7 +98,7 @@ function passesAllowedGate(groups: string[]): boolean {
 /** The SSO login access + role decision. `deny` when `OIDC_ALLOWED_GROUPS` is set and the identity is in
  *  none of those groups (and is not owner/admin — owner is exempt, admin is implicitly allowed, OpenWebUI
  *  parity). Fail-closed by construction: an empty/unparseable groups list with the gate set never passes. */
-export function deriveIdentityAccess(handle: string, groups: string[]): IdentityAccess {
+export function deriveIdentityAccess(handle: Handle, groups: string[]): IdentityAccess {
   const derivedRole = determineRole(handle, groups);
   // Owner/admin bypass the allowed-groups gate (owner is exempt; admin — an OIDC_ADMIN_GROUPS member — is
   // implicitly allowed, OpenWebUI parity). The bypass is the GROUP predicate, NOT a role-literal comparison

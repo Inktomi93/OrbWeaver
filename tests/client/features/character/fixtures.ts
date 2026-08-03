@@ -1,3 +1,6 @@
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+
 // Character CT fixtures — plain client read-model literals matching `CharacterSummary`'s wire shape
 // (packages/server/src/domain/character/contract/views.ts). Kept as plain literals with STRING ids (not
 // the branded `CharacterId`/`TagId` — those brands are compile-time only and `routeTrpc` fulfills raw
@@ -20,7 +23,7 @@ export interface CharacterSummaryFixtureTag {
 /** The `character.list` row shape (CharacterSummary) — a plain fixture literal, see header. */
 export interface CharacterSummaryFixture {
   readonly id: string;
-  readonly handle: string;
+  readonly handle: CharacterHandle;
   readonly name: string;
   readonly starred: boolean;
   readonly archived: boolean;
@@ -55,7 +58,7 @@ export function makeTagFixture(overrides: Partial<CharacterSummaryFixtureTag> = 
  *  plain fixture literal (see header); `routeTrpc` fulfills it as raw JSON. */
 export interface CharacterDetailFixture {
   readonly id: string;
-  readonly handle: string;
+  readonly handle: CharacterHandle;
   readonly name: string;
   readonly description: string | null;
   readonly personality: string | null;
@@ -98,7 +101,7 @@ export interface CharacterDetailFixture {
 export function makeCharacterDetail(overrides: Partial<CharacterDetailFixture> = {}): CharacterDetailFixture {
   return {
     id: "char_ct_1",
-    handle: "char_ct_1",
+    handle: castId<CharacterHandle>("char_ct_1"),
     name: "Aria",
     description: "A wandering cartographer.",
     personality: null,
@@ -136,7 +139,7 @@ export function makeCharacterDetail(overrides: Partial<CharacterDetailFixture> =
 export function makeCharacterSummary(overrides: Partial<CharacterSummaryFixture> = {}): CharacterSummaryFixture {
   return {
     id: "char_ct_1",
-    handle: "char_ct_1",
+    handle: castId<CharacterHandle>("char_ct_1"),
     name: "Aria",
     starred: false,
     archived: false,

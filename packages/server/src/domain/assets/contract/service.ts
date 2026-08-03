@@ -5,7 +5,7 @@
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import type { AssetId, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
 import type { ImageInfo, ImageTransformOptions } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
 import type { BackfillParams, BackfillResult, FsckOptions, FsckResult, GcOptions, GcResult, ReapResult, RebuildOptions, RebuildResult } from "./maintenance";
@@ -50,7 +50,7 @@ export interface AssetsContext {
   /** Gallery export re-link: the portable `handle` of a character by id, or null if gone. Optional. */
   readonly resolveCharacterHandle?: (characterId: CharacterId) => Promise<string | null>;
   /** Gallery import re-link: the owner's own character id carrying `handle`, or null if none exists. Optional. */
-  readonly findCharacterByHandle?: (args: { readonly ownerId: UserId; readonly handle: string }) => Promise<CharacterId | null>;
+  readonly findCharacterByHandle?: (args: { readonly ownerId: UserId; readonly handle: CharacterHandle }) => Promise<CharacterId | null>;
   /** The character-owned avatar-pointer WRITE `backfillAvatars` delegates to (`characters.avatarAssetId` is
    *  CHARACTER's column — a cross-domain write routes through the owning domain, AGENTS §2 / Tier-1-DB.md
    *  §"Cross-tier composition"). REQUIRED, not optional: an absent op would silently turn the relink into a

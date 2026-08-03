@@ -10,7 +10,7 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { characters, chats, personas, presets, tags, worldBooks } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, Handle, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, Handle, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import type { TagContext } from "../../../../packages/server/src/domain/tag/contract/service.ts";
@@ -94,7 +94,7 @@ export async function seedCharacter(db: Db, ownerId: UserId, id = "character_x")
   const characterId = castId<CharacterId>(id);
   await db.insert(characters).values({
     id: characterId,
-    handle: id,
+    handle: castId<CharacterHandle>(id),
     ownerId,
     contentHash: "hash",
     name: id,

@@ -79,7 +79,7 @@ import type { RewriteToggleId } from "@orb/contracts/preset";
 import { REWRITE_TOGGLES } from "@orb/contracts/preset";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { composeRewriteSteer } from "@orb/kit/guided";
-import type { AssetId, CharacterId, ChatId, DocumentId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, DocumentId, Handle, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Text } from "@orb/ui/text";
@@ -1614,7 +1614,7 @@ export function MembersPanelStory({
           key: "participant_riley",
           userId: castId<UserId>("user_riley"),
           displayName: "Riley",
-          handle: "riley",
+          handle: castId<Handle>("riley"),
           isHost: !memberView,
           isViewer: true,
           avatarHash: null,
@@ -1626,7 +1626,7 @@ export function MembersPanelStory({
           key: "participant_kestrel",
           userId: castId<UserId>("user_kestrel"),
           displayName: "Kestrel",
-          handle: "kestrel",
+          handle: castId<Handle>("kestrel"),
           isHost: memberView,
           isViewer: false,
           avatarHash: null,
@@ -1705,7 +1705,7 @@ export function MembersKickFocusStory(): ReactElement {
     key: "participant_kestrel",
     userId: castId<UserId>("user_kestrel"),
     displayName: "Kestrel",
-    handle: "kestrel",
+    handle: castId<Handle>("kestrel"),
     isHost: false,
     isViewer: false,
     avatarHash: null,
@@ -1718,7 +1718,7 @@ export function MembersKickFocusStory(): ReactElement {
       key: "participant_riley",
       userId: castId<UserId>("user_riley"),
       displayName: "Riley",
-      handle: "riley",
+      handle: castId<Handle>("riley"),
       isHost: true,
       isViewer: true,
       avatarHash: null,

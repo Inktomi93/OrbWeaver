@@ -3,6 +3,8 @@
 // null (owner-scoped through the `assets` join — no cross-owner leak).
 
 import type { Db } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createImageryService } from "@orb/server/domain/imagery";
 import { beforeEach, describe } from "vitest";
 import { freshDb } from "../../../../support/db";
@@ -17,8 +19,8 @@ beforeEach(async () => {
 
 describe("readProvenance", () => {
   test("reads a generated image's provenance; a foreign caller gets null (owner-scoped)", async () => {
-    const owner = await seedOwner(db, "owner");
-    const stranger = await seedOwner(db, "stranger");
+    const owner = await seedOwner(db, castId<Handle>("owner"));
+    const stranger = await seedOwner(db, castId<Handle>("stranger"));
     const svc = createImageryService(makeHarness(db).ctx);
 
     const gen = await svc.generatePicture({ caller: principal(owner), mode: "free", prompt: "a lighthouse" });

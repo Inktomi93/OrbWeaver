@@ -1,6 +1,6 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatParticipants } from "@orb/db";
-import type { ChatId, PersonaId } from "@orb/kit/ids";
+import type { ChatId, Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
 import { createPersonaService, PersonaNotFoundError } from "@orb/server/domain/persona";
@@ -54,8 +54,8 @@ describe("setActivePersona", () => {
     const harness = makeHarness(db);
     const svc = createPersonaService(harness.ctx);
 
-    const ownerId = await seedUser(db, { handle: "owner" });
-    const otherUserId = await seedUser(db, { handle: "other" });
+    const ownerId = await seedUser(db, { handle: castId<Handle>("owner") });
+    const otherUserId = await seedUser(db, { handle: castId<Handle>("other") });
     const created = await svc.create({
       principal: principal(otherUserId),
       input: { name: "other", description: "d" },
@@ -141,8 +141,8 @@ describe("setActivePersona", () => {
     });
     const svc = createPersonaService(harness.ctx);
 
-    const hostId = await seedUser(db, { handle: "host" });
-    const targetId = await seedUser(db, { handle: "target" });
+    const hostId = await seedUser(db, { handle: castId<Handle>("host") });
+    const targetId = await seedUser(db, { handle: castId<Handle>("target") });
     const created = await svc.create({
       principal: principal(targetId),
       input: { name: "target-persona", description: "d" },
@@ -165,8 +165,8 @@ describe("setActivePersona", () => {
     });
     const svc = createPersonaService(harness.ctx);
 
-    const callerId = await seedUser(db, { handle: "caller" });
-    const targetId = await seedUser(db, { handle: "target" });
+    const callerId = await seedUser(db, { handle: castId<Handle>("caller") });
+    const targetId = await seedUser(db, { handle: castId<Handle>("target") });
 
     await expect(
       svc.setActivePersona({
@@ -239,7 +239,7 @@ describe("setActivePersona", () => {
     });
     // A chat the caller is NOT a participant of (only some other user is seated).
     const chatId = await seedChat(db, "rw2");
-    const otherId = await seedUser(db, { handle: "seated" });
+    const otherId = await seedUser(db, { handle: castId<Handle>("seated") });
     await seedParticipant(db, { chatId, key: "seated", userId: otherId, role: "host" });
 
     await expect(

@@ -5,6 +5,8 @@
 import { RPG_PROFILE_D20 } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { findGameByChat } from "../../../../../../packages/server/src/domain/rpg/persistence/games";
 import { freshDb } from "../../../../../support/db";
@@ -24,7 +26,7 @@ describe("createGame", () => {
     const { service, fakes } = makeRpgService(db);
     fakes.membership.set("user_host", "host");
 
-    const result = await service.createGame({ principal: principal("host"), chatId, mode: "lite" });
+    const result = await service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite" });
 
     const game = await findGameByChat(db, chatId);
     expect(game?.mode).toBe("lite");
@@ -42,7 +44,7 @@ describe("createGame", () => {
     const { service, fakes } = makeRpgService(db);
     fakes.membership.set("user_host", "host");
 
-    await expect(service.createGame({ principal: principal("host"), chatId, mode: "full" })).rejects.toThrow(FULL_UNBUILT_RE);
+    await expect(service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "full" })).rejects.toThrow(FULL_UNBUILT_RE);
     expect(await findGameByChat(db, chatId)).toBeUndefined();
     expect(fakes.pointers).toEqual([]);
     expect(fakes.busEvents).toEqual([]); // a refused create emits nothing
@@ -52,7 +54,7 @@ describe("createGame", () => {
     const chatId = await seedChat(db, "a");
     const { service, fakes } = makeRpgService(db);
     fakes.membership.set("user_host", "host");
-    await service.createGame({ principal: principal("host"), chatId, mode: "lite", profile: RPG_PROFILE_D20 });
+    await service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite", profile: RPG_PROFILE_D20 });
     const game = await findGameByChat(db, chatId);
     expect(game?.config.statProfile.attributes.map((a) => a.key)).toEqual(["str", "dex", "con", "int", "wis", "cha"]);
   });
@@ -62,10 +64,10 @@ describe("createGame", () => {
     const { service, fakes } = makeRpgService(db);
     fakes.membership.set("user_member", "member");
     // A present member reaching the host-only create is FORBIDDEN (they know the chat exists — the action is gated).
-    await expect(service.createGame({ principal: principal("member"), chatId, mode: "lite" })).rejects.toThrow(DomainForbiddenError);
+    await expect(service.createGame({ principal: principal(castId<Handle>("member")), chatId, mode: "lite" })).rejects.toThrow(DomainForbiddenError);
     // A NON-MEMBER collapses to the SAME leak-free NOT-FOUND a no-game chat gives (guard.ts's cross-tenant boundary —
     // never a distinguishable BAD_REQUEST that would confirm the chat is real). Mirrors the authority.suite ghost arms.
-    await expect(service.createGame({ principal: principal("stranger"), chatId, mode: "lite" })).rejects.toThrow(DomainNotFoundError);
+    await expect(service.createGame({ principal: principal(castId<Handle>("stranger")), chatId, mode: "lite" })).rejects.toThrow(DomainNotFoundError);
     expect(await findGameByChat(db, chatId)).toBeUndefined();
   });
 
@@ -73,7 +75,7 @@ describe("createGame", () => {
     const chatId = await seedChat(db, "a");
     const { service, fakes } = makeRpgService(db);
     fakes.membership.set("user_host", "host");
-    await service.createGame({ principal: principal("host"), chatId, mode: "lite" });
-    await expect(service.createGame({ principal: principal("host"), chatId, mode: "lite" })).rejects.toThrow(ALREADY_GAME_RE);
+    await service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite" });
+    await expect(service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite" })).rejects.toThrow(ALREADY_GAME_RE);
   });
 });

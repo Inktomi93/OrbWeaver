@@ -6,6 +6,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { CharacterHandle } from "@orb/kit/ids";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -30,12 +31,12 @@ async function readBundled(relPath: string, mime: string): Promise<SeedAssetByte
 }
 
 /** The bundled avatar PNG for a character HANDLE / the persona key (`persona-you`), or `null` when absent. */
-export function readSeedAvatar(handle: string): Promise<SeedAssetBytes | null> {
+export function readSeedAvatar(handle: CharacterHandle): Promise<SeedAssetBytes | null> {
   return readBundled(join("avatars", `${handle}.png`), SEED_AVATAR_MIME);
 }
 
 /** The bundled gallery WebP for a character HANDLE, or `null` when the pack ships none for it. */
-export function readSeedGalleryPiece(handle: string): Promise<SeedAssetBytes | null> {
+export function readSeedGalleryPiece(handle: CharacterHandle): Promise<SeedAssetBytes | null> {
   return readBundled(join("gallery", `${handle}-gallery.webp`), SEED_GALLERY_MIME);
 }
 

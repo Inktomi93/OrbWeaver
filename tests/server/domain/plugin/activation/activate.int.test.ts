@@ -4,6 +4,7 @@
 // errored). Deactivate unregisters every handle (no ghost tools/transforms/subs). (The per-plugin spend gate +
 // its composed-real serializer proof were stripped 2026-07-24 — enterprise spend enforcement.)
 
+import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PluginHandlerRef, PluginHostOps, PluginRegistrationHandle } from "@orb/server/domain/plugin";
 import { PluginCrashedError } from "@orb/server/domain/plugin";
@@ -53,7 +54,7 @@ test("collected registrations are handed to the registrar; disable unregisters e
   const db = await freshDb();
   const rec = recordingOps();
   const h = makePluginHarness(db, { ops: rec.ops });
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
     caller: ownerPrincipalFor(owner),
     bundle: makeBundle({ id: "mood", capabilities: ["tools.register", "chat.transform"] }),
@@ -82,7 +83,7 @@ test("collected registrations are handed to the registrar; disable unregisters e
 test("the manifest netHosts allowlist is forwarded to createInstance (net.fetch SSRF wall wiring)", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
     caller: ownerPrincipalFor(owner),
     bundle: makeBundle({ id: "fetcher", capabilities: ["net.fetch"], netHosts: ["api.example.com", "cdn.example.com"] }),
@@ -98,7 +99,7 @@ test("the manifest netHosts allowlist is forwarded to createInstance (net.fetch 
 test("a bundle with no netHosts forwards no allowlist (fail-closed [] infra-side)", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "plain" }), grant: [] });
 
   await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
@@ -110,7 +111,7 @@ test("a registrar refusal discards the whole activation atomically (rollback + e
   const db = await freshDb();
   const rec = recordingOps({ failToolAt: 2 }); // the SECOND tool collides
   const h = makePluginHarness(db, { ops: rec.ops });
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
     caller: ownerPrincipalFor(owner),
     bundle: makeBundle({ id: "mood", capabilities: ["tools.register"] }),
