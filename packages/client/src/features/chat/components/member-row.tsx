@@ -26,12 +26,17 @@ import { Menu, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
-import { ConfirmDialog, ROW_REVEAL } from "#components";
+import { ConfirmDialog, ROW_REVEAL, SettingCheckboxRow } from "#components";
 import { cn } from "#lib";
-import type { MemberCastRow, MemberPersonRow, MemberRowActions, MemberRowFocusProps } from "../lib/member-rows";
+import type { MEMBER_ROW_CONFIRMS, MemberCastRow, MemberPersonRow, MemberRowActions, MemberRowFocusProps } from "../lib/member-rows";
 import { rowAccessibleName } from "../lib/member-rows";
 import { buildMenuItems } from "./member-row-menu";
 import { TalkativenessPopover } from "./talkativeness-popover";
+
+/** Which of a person row's dialogs is open — DERIVED from the one homed tuple, never re-spelled (a fourth
+ *  arm must break every consumer at compile time). Local per file: an exported client alias would have to
+ *  live in a type home, and this axis is chat-row-local UI state. */
+type MemberRowConfirm = (typeof MEMBER_ROW_CONFIRMS)[number];
 
 export interface MemberRowProps extends MemberRowFocusProps, MemberRowActions {
   readonly row: MemberPersonRow | MemberCastRow;
@@ -43,7 +48,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
   const { row, tabIndex, registerRef, onRowFocus } = props;
   const bodyRef = useRef<HTMLButtonElement | null>(null);
   const descriptionId = useId();
-  const [confirm, setConfirm] = useState<"kick" | "leave" | null>(null);
+  const [confirm, setConfirm] = useState<MemberRowConfirm | null>(null);
   const [weightOpen, setWeightOpen] = useState(false);
 
   const menuItems = buildMenuItems(props, { setConfirm, openWeight: () => setWeightOpen(true) });
@@ -221,6 +226,65 @@ function CastInlineCluster({ row, actions }: { readonly row: MemberCastRow; read
   );
 }
 
+/** The HAND-OFF confirm — the one member-row dialog that is a small FORM rather than a yes/no.
+ *
+ *  Handing off the room is irreversible from the departing host's side (only the new host can hand it back),
+ *  so it confirms. The checkbox is the departing host's OPT-IN property offer: their cast and the lore behind
+ *  it are theirs, and a transfer that silently copied someone's library — or one that silently stranded the
+ *  room's characters — would both be the app deciding something the owner should. It defaults OFF: the
+ *  unchanged box reproduces the built behavior exactly (the incoming host brings their own cast, D64).
+ *
+ *  The copy names what actually happens, not the mechanism: "copies" (they keep theirs), "used in this room"
+ *  (never their whole library). The offer is stored at nominate and executed only if the nominee ACCEPTS. */
+function HandoffConfirm({
+  row,
+  actions,
+  open,
+  setConfirm,
+}: {
+  readonly row: MemberPersonRow;
+  readonly actions: MemberRowActions;
+  readonly open: boolean;
+  readonly setConfirm: (c: MemberRowConfirm | null) => void;
+}): ReactElement {
+  const offerId = useId();
+  const [copyCast, setCopyCast] = useState(false);
+  return (
+    <ConfirmDialog
+      open={open}
+      onOpenChange={(next): void => {
+        setConfirm(next ? "handoff" : null);
+        if (!next) {
+          // The offer is per-decision: a dismissed dialog must not leave a checked box waiting to surprise
+          // the next hand-off from this row.
+          setCopyCast(false);
+        }
+      }}
+      title={`Hand off host to ${row.displayName}?`}
+      description={`${row.displayName} becomes the host once they accept. You stay in the chat as a member.`}
+      body={
+        <SettingCheckboxRow
+          id={offerId}
+          label="Also give copies of your characters & worldbooks used in this room"
+          description="They get their own point-in-time copies when they accept. You keep yours, and editing or deleting them later won't change this room."
+          checked={copyCast}
+          onChange={setCopyCast}
+        />
+      }
+      confirmIntent="primary"
+      confirmLabel="Hand off"
+      onConfirm={(): void => {
+        // `copyGmPreset` rides the SAME class-level opt-in: the GM voice is part of what the departing host
+        // brought to the room, and a room whose preset silently reverts is the same broken gift as a room
+        // whose cast silently vanishes. A non-game room has no preset for it to reach.
+        actions.onNominateHost?.(row.userId, { copyCast, copyGmPreset: copyCast });
+        setCopyCast(false);
+        setConfirm(null);
+      }}
+    />
+  );
+}
+
 /** Destructive confirms — AlertDialog, never an undo-toast (FINAL-Chats §11 rule 8). */
 function PersonRowConfirms({
   row,
@@ -230,11 +294,12 @@ function PersonRowConfirms({
 }: {
   readonly row: MemberPersonRow;
   readonly actions: MemberRowActions;
-  readonly confirm: "kick" | "leave" | null;
-  readonly setConfirm: (c: "kick" | "leave" | null) => void;
+  readonly confirm: MemberRowConfirm | null;
+  readonly setConfirm: (c: MemberRowConfirm | null) => void;
 }): ReactElement {
   return (
     <>
+      <HandoffConfirm row={row} actions={actions} open={confirm === "handoff"} setConfirm={setConfirm} />
       <ConfirmDialog
         open={confirm === "kick"}
         onOpenChange={(next): void => setConfirm(next ? "kick" : null)}

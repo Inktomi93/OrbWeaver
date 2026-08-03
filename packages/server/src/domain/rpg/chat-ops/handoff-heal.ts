@@ -1,32 +1,131 @@
-// domain/rpg/chat-ops/handoff-heal — `ChatRpgOps.handoffHealStatements`. The HOST-HANDOFF twin of the fork's
-// `resolveForkGmPreset` gate (stickler 2026-08-03 F1): `chat.acceptHostHandoff` moves room authority to the
+// domain/rpg/chat-ops/handoff-heal — `ChatRpgOps.handoffHealStatements` + `handoffRekeyActors`, the rpg side
+// of `chat.acceptHostHandoff`.
+//
+// ── THE HEAL (stickler 2026-08-03 F1), unchanged when no offer rides ────────────────────────────────────
+// The HOST-HANDOFF twin of the fork's `resolveForkGmPreset` gate: the accept moves room authority to the
 // nominee, and from that moment the game's `gmPresetId` is resolved under the NEW host — owner-scoped, via
 // `resolvePresetOverride` → `preset.get`. A preset the new host cannot read therefore degrades SILENTLY (the
 // lenient-id rule catches the throw and falls back to their default GM voice) while `getConfigView` keeps
 // serving them an id they can never inspect: the room's voice changes with zero surfacing and the knob lies.
 //
-// So the accept NULLS it — conditionally, the same ownership axis the fork uses: a preset the nominee CAN read
-// (owned, or the shared system default) is a legitimate knob and is left alone. No cross-tenant read ever
-// occurs on either side of the heal; `resolvePresetOwned` is the injected ownership question, and rpg never
-// touches a preset row.
+// So the accept NULLS it — conditionally, on the same ownership axis the fork uses: a preset the nominee CAN
+// read (owned, or the shared system default) is a legitimate knob and is left alone. No cross-tenant read
+// ever occurs on either side of the heal; `resolvePresetOwned` is the injected ownership question, and rpg
+// never touches a preset row.
 //
-// The return is UNEXECUTED statements, not a write: chat folds them into the SAME `db.batch` as the role swap
-// (the PD-24 co-statement seam), so a crash can never leave a promoted host holding a foreign GM voice. That
-// is also why this reads the game row DIRECTLY (never `findEngagedGame`): a DISENGAGED game still carries the
-// knob, and a room re-engaged after a handoff must not wake up pointing at the old host's private preset.
+// ── THE OFFER ARMS (the copy, 2026-08-03) ───────────────────────────────────────────────────────────────
+// `copyGmPreset` turns the heal from a clear into a GIFT: the departing host's preset is copied into the
+// nominee's library (the injected `copyPresetToUser` — preset owns its table) and the knob is re-pointed at
+// the copy, so the room keeps the voice it had instead of losing it. The copy is only attempted for a knob
+// the nominee CANNOT already read; if it fails to resolve, the clear arm stands. `false` ⇒ byte-identical to
+// the pre-offer heal, statement for statement.
+//
+// `cardCopies` re-keys `rpg_sheets` from the old host's card ids onto the nominee's copies. A sheet is the
+// character's durable identity data ("invisible-but-preserved; a re-invite finds it waiting"), so leaving it
+// on a card the departed host can delete would hand the transferred room a cast with no sheets the first time
+// they cleaned their library.
+//
+// ── WHY TWO OPS AND NOT ONE ─────────────────────────────────────────────────────────────────────────────
+// Everything above is an UPDATE and rides chat's atomic swap batch. The SNAPSHOT-state actor re-key cannot:
+// it is a read-modify-write through the hand door (`writeHandState`), which resolves the true head and may
+// CLONE FORWARD onto a fresh state-anchor slot — a write, not a statement. So it runs AFTER the swap commits,
+// the `forkGameOntoFork` posture: degraded-not-broken. A crash between them leaves the room correctly
+// transferred with its tracker rows still keyed to the old ids, and a re-run converges (a re-key whose `from`
+// is already gone refuses per-actor and changes nothing).
 
 import type { BatchStmt } from "@orb/db/kit";
-import type { ChatId, UserId } from "@orb/kit/ids";
-import type { RpgContext } from "../contract/service";
-import { clearGmPresetStatement, findGameByChat } from "../persistence/games";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { HandStateHead, HandStateWrite, RpgContext } from "../contract/service";
+import { clearGmPresetStatement, findGameByChat, setGmPresetStatement } from "../persistence/games";
+import { rekeySheetCharacterStatement } from "../persistence/sheets";
+import { writeHandState } from "../snapshot-edit";
+import { rekeyActor } from "../substrate/actor-rekey";
 
-/** The statements the host-handoff swap must carry for the game rooted at `chatId` — empty for a non-game
- *  chat, an unset knob, or a preset the new host can already read (the overwhelmingly common cases). */
-export async function handoffHealStatements(ctx: RpgContext, chatId: ChatId, newHostUserId: UserId): Promise<BatchStmt[]> {
-  const game = await findGameByChat(ctx.db, chatId);
-  if (game === undefined || game.gmPresetId === null) {
+/** One source→copy card pairing the handoff minted (the structural shape of chat's `HandoffCardCopy`). */
+interface HandoffCardPair {
+  readonly sourceCharacterId: CharacterId;
+  readonly characterId: CharacterId;
+}
+
+/** The GM-preset statement for this transfer: a re-point at the nominee's copy when the offer carries the
+ *  preset and the copy resolves, else the built conditional clear. */
+async function gmPresetStatements(ctx: RpgContext, game: NonNullable<Awaited<ReturnType<typeof findGameByChat>>>, args: HandoffHealArgs): Promise<BatchStmt[]> {
+  if (game.gmPresetId === null) {
     return [];
   }
-  const readable = await ctx.resolvePresetOwned(game.gmPresetId, newHostUserId);
-  return readable ? [] : [clearGmPresetStatement(ctx.db, game.id, ctx.now())];
+  if (await ctx.resolvePresetOwned(game.gmPresetId, args.newHostUserId)) {
+    return [];
+  }
+  if (args.copyGmPreset && args.oldHostUserId !== null) {
+    const copy = await ctx.copyPresetToUser({ fromOwnerId: args.oldHostUserId, toUserId: args.newHostUserId, presetId: game.gmPresetId });
+    if (copy !== null) {
+      return [setGmPresetStatement(ctx.db, game.id, copy, ctx.now())];
+    }
+  }
+  return [clearGmPresetStatement(ctx.db, game.id, ctx.now())];
+}
+
+/** The call args — chat's `HandoffHealArgs` shape, satisfied structurally (rpg declares its own copy rather
+ *  than importing a sibling's type: the foreign-op-shape precedent). */
+interface HandoffHealArgs {
+  readonly chatId: ChatId;
+  readonly newHostUserId: UserId;
+  readonly oldHostUserId: UserId | null;
+  readonly copyGmPreset: boolean;
+  readonly cardCopies: readonly HandoffCardPair[];
+}
+
+/** The statements the host-handoff swap must carry for the game rooted at `chatId` — empty for a non-game
+ *  chat with no card copies (the overwhelmingly common case). */
+export async function handoffHealStatements(ctx: RpgContext, args: HandoffHealArgs): Promise<BatchStmt[]> {
+  const game = await findGameByChat(ctx.db, args.chatId);
+  if (game === undefined) {
+    return [];
+  }
+  const preset = await gmPresetStatements(ctx, game, args);
+  const sheets = args.cardCopies.map((pair) => rekeySheetCharacterStatement(ctx.db, game.id, pair.sourceCharacterId, pair.characterId));
+  return [...preset, ...sheets];
+}
+
+/** POST-SWAP: move each copied character's tracker row, scene presence and hand PINS from `character:<old>`
+ *  onto `character:<new>` (the `promoteActor` mechanism, aimed at a transfer instead of a promotion).
+ *
+ *  Per-actor refusals are SWALLOWED on purpose: `rekeyActor` refuses when the head carries no row for `from`
+ *  (a cast member the game never tracked, or an already-completed re-key on a retried accept) and when the
+ *  destination key is already occupied. Neither is an error here — the room has already changed hands, and
+ *  raising would turn a completed transfer into a failed call. A no-game chat / an empty pair list writes
+ *  nothing at all. */
+export async function handoffRekeyActors(ctx: RpgContext, chatId: ChatId, pairs: readonly HandoffCardPair[]): Promise<void> {
+  if (pairs.length === 0) {
+    return;
+  }
+  const game = await findGameByChat(ctx.db, chatId);
+  if (game === undefined) {
+    return;
+  }
+  // ONE hand-door write that FOLDS every pair, not one write per actor. Two reasons, and both matter: each
+  // re-key is a read-modify-write against the true head, so a per-actor loop would have to serialize anyway;
+  // and a committed head CLONES FORWARD onto a fresh state-anchor slot, so N writes would mint N anchor slots
+  // for what is one event. The fold threads each result into the next actor's head, exactly as the sequential
+  // loop did, and accumulates the lock delta across the whole set.
+  await writeHandState(ctx, game, (head) => foldRekeys(head, pairs));
+}
+
+/** Apply every pair's re-key in order against a threaded head, accumulating the lock delta. A pair the head
+ *  does not carry (never tracked, or already moved by a prior accept attempt) is SKIPPED, not refused — see
+ *  {@link handoffRekeyActors}. */
+function foldRekeys(head: HandStateHead, pairs: readonly HandoffCardPair[]): HandStateWrite {
+  let current = head;
+  const lock: string[] = [];
+  const clear: string[] = [];
+  for (const { sourceCharacterId, characterId } of pairs) {
+    const moved = rekeyActor(current, { kind: "character", characterId: sourceCharacterId }, { kind: "character", characterId });
+    if (!moved.ok) {
+      continue;
+    }
+    lock.push(...(moved.locks.lock ?? []));
+    clear.push(...(moved.locks.clear ?? []));
+    current = { state: moved.state, locks: current.locks };
+  }
+  return { ok: true, state: current.state, locks: { lock, clear } };
 }

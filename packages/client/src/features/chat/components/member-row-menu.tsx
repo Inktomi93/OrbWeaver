@@ -11,12 +11,17 @@
 import { CircleUser, Crown, Eye, EyeOff, Icon, LogOut, UserX, Volume2, VolumeX, Zap } from "@orb/ui/icons";
 import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactNode } from "react";
-import type { MemberCastRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows";
+import type { MEMBER_ROW_CONFIRMS, MemberCastRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows";
+
+/** Which of a person row's dialogs is open — DERIVED from the one homed tuple, never re-spelled (a fourth
+ *  arm must break every consumer at compile time). Local per file: an exported client alias would have to
+ *  live in a type home, and this axis is chat-row-local UI state. */
+type MemberRowConfirm = (typeof MEMBER_ROW_CONFIRMS)[number];
 
 /** The shell's per-row control seams the menu items reach back into (confirm state + the weight
  *  popover's opener — both owned by `MemberRow`, member-row.tsx). */
 export interface MemberMenuControls {
-  readonly setConfirm: (confirm: "kick" | "leave") => void;
+  readonly setConfirm: (confirm: MemberRowConfirm) => void;
   readonly openWeight: () => void;
 }
 
@@ -77,7 +82,7 @@ function castMenuItems(row: MemberCastRow, actions: MemberRowActions, openWeight
   return items;
 }
 
-function personMenuItems(row: MemberPersonRow, actions: MemberRowActions, setConfirm: (confirm: "kick" | "leave") => void): ReactNode[] {
+function personMenuItems(row: MemberPersonRow, actions: MemberRowActions, setConfirm: (confirm: MemberRowConfirm) => void): ReactNode[] {
   const items: ReactNode[] = [];
   if (row.isViewer) {
     if (actions.onLeave !== undefined) {
@@ -90,9 +95,12 @@ function personMenuItems(row: MemberPersonRow, actions: MemberRowActions, setCon
     }
     return items;
   }
+  // The ellipsis is honest: handing off the room opens a confirm that also carries the OPT-IN property
+  // offer (the departing host may give point-in-time copies of the cast + lore they brought). It used to
+  // fire immediately despite the "…" — the confirm is where the offer now lives.
   if (actions.onNominateHost !== undefined) {
     items.push(
-      <MenuItem key="handoff" onClick={(): void => actions.onNominateHost?.(row.userId)}>
+      <MenuItem key="handoff" onClick={(): void => setConfirm("handoff")}>
         <Icon icon={Crown} size="sm" />
         Hand off host…
       </MenuItem>,

@@ -23,6 +23,11 @@ export interface ConfirmDialogProps {
   readonly title: ReactNode;
   /** Supporting copy — plain text/fragment only (AlertDialogDescription IS a <p>; no nested <Text>). Omit for a title-only confirm. */
   readonly description?: ReactNode;
+  /** OPTIONAL controls the decision itself needs — rendered BETWEEN the description and the actions, outside
+   *  the `<p>` (which is exactly why it cannot ride `description`: an interactive control nested in a
+   *  paragraph is the invalid-nesting footgun this composite exists to make unreachable). For a confirm that
+   *  is genuinely a small FORM — the host handoff's "also give copies…" opt-in — not for decoration. */
+  readonly body?: ReactNode;
   /** The confirm button's label. @defaultValue "Confirm" */
   readonly confirmLabel?: string;
   /** The cancel button's label. @defaultValue "Cancel" */
@@ -57,6 +62,7 @@ export interface ConfirmDialogProps {
 export function ConfirmDialog({
   title,
   description,
+  body,
   confirmLabel = "Confirm",
   cancelLabel = "Cancel",
   confirmIntent = "destructive",
@@ -75,6 +81,7 @@ export function ConfirmDialog({
         <Stack gap="block">
           <AlertDialogTitle>{title}</AlertDialogTitle>
           {description === undefined ? null : <AlertDialogDescription>{description}</AlertDialogDescription>}
+          {body}
           <AlertDialogActions>
             <AlertDialogClose render={<Button intent="ghost">{cancelLabel}</Button>} />
             <AlertDialogClose

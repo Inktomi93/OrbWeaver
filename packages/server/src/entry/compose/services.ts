@@ -38,7 +38,7 @@ import { createCredentialsService } from "#domain/credentials";
 import type { DatabankIngest } from "#domain/databank";
 import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
-import { PresetNotFoundError } from "#domain/preset";
+import { createCopyPresetToUser, PresetNotFoundError } from "#domain/preset";
 import type { SessionsService } from "#domain/sessions";
 import { createSessionsService } from "#domain/sessions";
 import type { SettingsContext, SettingsServiceDeps } from "#domain/settings";
@@ -546,7 +546,8 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveGmSeatHolderKind: (chatId) => rpgOps().resolveGmSeatHolderKind(chatId),
     resolveReasoningHostOnly: (chatId) => rpgOps().resolveReasoningHostOnly(chatId),
     forkGame: (args) => rpgOps().forkGame(args),
-    handoffHealStatements: (chatId, newHostUserId) => rpgOps().handoffHealStatements(chatId, newHostUserId),
+    handoffHealStatements: (args) => rpgOps().handoffHealStatements(args),
+    handoffRekeyActors: (chatId, cardCopies) => rpgOps().handoffRekeyActors(chatId, cardCopies),
   };
   const chatCompose = buildChatService({
     toolUse,
@@ -609,6 +610,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     executor,
     resolveHostPrincipal,
     resolvePresetOwned,
+    // The GM-preset GIFT — the handoff copy offer's preset arm (preset owns the `presets` table; both owners
+    // stay explicit params so no call site can drop one). Absent an offer this op is never called and the
+    // built conditional heal stands.
+    copyPresetToUser: createCopyPresetToUser({ db, now, newPresetId: minter(ID_PREFIX.preset) }),
     // R4 promotion's durable half — the two front doors the injected `promoteToRoster` op mints through (a
     // character card + a chat roster seat, both under the room host). rpg reads neither table itself.
     character,

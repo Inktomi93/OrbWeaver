@@ -10,7 +10,7 @@ import type { Db } from "@orb/db";
 import { rpgGames } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchStmt } from "@orb/db/kit";
-import type { ChatId, RpgGameId } from "@orb/kit/ids";
+import type { ChatId, PresetId, RpgGameId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { RpgStateCorruptError } from "../contract/errors";
 import type { NewRpgGame, RpgGameRow } from "../contract/service";
@@ -67,6 +67,14 @@ export async function findGameByChat(db: Db, chatId: ChatId): Promise<RpgGameRow
  *  new host owns a room whose GM voice still points at the old host's private preset. */
 export function clearGmPresetStatement(db: Db, id: RpgGameId, now: number): BatchStmt {
   return batchStmt(db.update(rpgGames).set({ gmPresetId: null, updatedAt: now }).where(eq(rpgGames.id, id)));
+}
+
+/** The `gmPresetId` RE-POINT, UNEXECUTED — {@link clearGmPresetStatement}'s opposite arm. Written only by the
+ *  host-handoff copy, which has already minted `presetId` into the incoming host's own library: the room keeps
+ *  the GM voice it had instead of degrading to the new host's default, and the knob points at a row they can
+ *  actually inspect. Rides the SAME batch as the role swap for the same reason the clear does. */
+export function setGmPresetStatement(db: Db, id: RpgGameId, presetId: PresetId, now: number): BatchStmt {
+  return batchStmt(db.update(rpgGames).set({ gmPresetId: presetId, updatedAt: now }).where(eq(rpgGames.id, id)));
 }
 
 /** Patch the game's mutable columns (the config write door + the `gmPresetId` knob — the verb gates, W1b).

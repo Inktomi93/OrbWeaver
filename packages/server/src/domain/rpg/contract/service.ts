@@ -251,6 +251,15 @@ export type RpgPostNarratorMessage = (chatId: ChatId, content: string) => Promis
  *  presets — the impl is wired at compose off the preset front door (the `resolveHostPrincipal` precedent). */
 export type RpgResolvePresetOwned = (presetId: PresetId, userId: UserId) => Promise<boolean>;
 
+/** The GM-preset GIFT (the host-handoff copy offer's preset arm) — copy `presetId` out of `fromOwnerId`'s
+ *  library into `toUserId`'s and hand back the copy's id, or `null` when the source does not resolve under
+ *  `fromOwnerId` (foreign, deleted, or the shared system default, which needs no copy). BOTH owners are
+ *  explicit params and both are proven by the impl (the [[injected-op-caller-gate]] class — an op that
+ *  re-derived either end could mint a stranger's generation config into anyone's library). rpg cannot write
+ *  presets; the impl is wired at compose off the preset front door, exactly like {@link RpgResolvePresetOwned}
+ *  reads them. Consumed ONLY by the handoff heal — every other rpg path either owns its preset or nulls it. */
+export type RpgCopyPresetToUser = (args: { readonly fromOwnerId: UserId; readonly toUserId: UserId; readonly presetId: PresetId }) => Promise<PresetId | null>;
+
 /** The chat's ACTIVE-preset user macros (WAVE MU) — the injected CHAT op behind the GM console's shadow gloss.
  *  A game macro sharing a name with a preset macro SHADOWS it at turn time (`shadowPresetUserMacros`, chat's
  *  one home for the rule), so the host editor has to know which names are taken. rpg reads no preset/settings
@@ -478,6 +487,8 @@ export interface RpgContext {
   readonly postNarratorMessage: RpgPostNarratorMessage;
   /** The preset-ownership gate (§3.2 fork host-secret strip) — is a `gmPresetId` safe for the forker to carry? */
   readonly resolvePresetOwned: RpgResolvePresetOwned;
+  /** The GM-preset gift — the handoff copy offer's preset arm (preset owns the table; wired at compose). */
+  readonly copyPresetToUser: RpgCopyPresetToUser;
   /** The chat's active-preset user macros (WAVE MU) — the shadow gloss on the host macro editor. */
   readonly resolvePresetUserMacros: RpgResolvePresetUserMacros;
   readonly resolveStateDelivery: RpgResolveStateDelivery;

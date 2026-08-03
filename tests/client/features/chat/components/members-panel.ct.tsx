@@ -308,3 +308,61 @@ test("the fine-pointer inline cluster reveals on hover (paint-only) and duplicat
   await inlineMute.click();
   await expect(component.locator(LAST_ACTION)).toHaveText("disabled:character_aria:true");
 });
+
+// ── HOST HANDOFF × THE PROPERTY OFFER (stickler 2026-08-03 §5) ──────────────────────────────────────────
+// Handing off the room is irreversible from the departing host's side and may hand over COPIES of their
+// characters and worldbooks, so it confirms — the menu label has always ended in "…" and now tells the truth.
+// The three arms below are the whole contract of the affordance: the offer DEFAULTS OFF (an unchanged box
+// reproduces the built D64 drop exactly), a checked box reaches the wire, and dismissing does neither.
+
+const OFFER_RE = /also give copies of your characters/iu;
+
+test("Hand off host… opens a confirm whose offer DEFAULTS OFF — confirming gives nothing", async ({ mount, page }) => {
+  const component = await mount(<MembersPanelStory withPeople={true} />);
+
+  await component.getByRole("button", { name: "Kestrel — member, nominated as host" }).focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("menuitem", { name: HANDOFF_RE }).click();
+
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toBeVisible();
+  const offer = dialog.getByRole("checkbox", { name: OFFER_RE });
+  await expect(offer).not.toBeChecked();
+
+  await dialog.getByRole("button", { name: "Hand off" }).click();
+  await expect(component.locator(LAST_ACTION)).toHaveText("nominate:user_kestrel:cast=false:preset=false");
+});
+
+test("checking the offer reaches the wire (both classes ride the one opt-in)", async ({ mount, page }) => {
+  const component = await mount(<MembersPanelStory withPeople={true} />);
+
+  await component.getByRole("button", { name: "Kestrel — member, nominated as host" }).focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("menuitem", { name: HANDOFF_RE }).click();
+
+  const dialog = page.getByRole("alertdialog");
+  await dialog.getByRole("checkbox", { name: OFFER_RE }).click();
+  await dialog.getByRole("button", { name: "Hand off" }).click();
+
+  await expect(component.locator(LAST_ACTION)).toHaveText("nominate:user_kestrel:cast=true:preset=true");
+});
+
+test("dismissing the confirm nominates NOBODY and forgets the box (a checked-then-cancelled offer cannot leak)", async ({ mount, page }) => {
+  const component = await mount(<MembersPanelStory withPeople={true} />);
+  const row = component.getByRole("button", { name: "Kestrel — member, nominated as host" });
+
+  await row.focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("menuitem", { name: HANDOFF_RE }).click();
+  const dialog = page.getByRole("alertdialog");
+  await dialog.getByRole("checkbox", { name: OFFER_RE }).click();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+
+  await expect(component.locator(LAST_ACTION)).toHaveText("");
+
+  // Re-opening starts from give-nothing again — a dismissed decision must not lie in wait.
+  await row.focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("menuitem", { name: HANDOFF_RE }).click();
+  await expect(page.getByRole("alertdialog").getByRole("checkbox", { name: OFFER_RE })).not.toBeChecked();
+});

@@ -16,6 +16,7 @@ export { createRpgChatOps } from "./chat-ops";
 export { actorCarrier } from "./chat-ops/tracker-view";
 export type {
   RpgContext,
+  RpgCopyPresetToUser,
   RpgGetMembership,
   RpgIdMints,
   RpgPopulateDelta,

@@ -307,6 +307,43 @@ export interface MemberCardView {
   authorsNoteDepth: number | null;
 }
 
+// ── HOST HANDOFF — the departing host's OPT-IN property offer (stickler 2026-08-03 §5/§6(f)) ──
+
+/** What the DEPARTING host optionally gives the nominee alongside the room, persisted on
+ *  `chats.pendingHandoffOffer` at NOMINATE and executed at ACCEPT (copy-at-accept: acceptance is what freezes
+ *  the point in time, and nobody receives property they have not accepted).
+ *
+ *  CLASS-LEVEL, never per-item (owner ruling 2026-08-03: "the name of the game is OPTIONS … a POINT-IN-TIME
+ *  COPY of their characters, worldbooks, the message variants"). A per-item matrix is the jank the ruling's
+ *  own addendum asked to avoid; the blob is an OBJECT rather than a boolean precisely so a later per-class
+ *  arm needs no schema churn.
+ *
+ *  BOTH FIELDS FALSE ⇒ byte-identical to a handoff with no offer at all: the built D64 drop runs, the
+ *  `gmPresetId` heal runs, and nothing is copied. A `null` column is the same thing said by absence.
+ *
+ *  Message VARIANTS are deliberately absent from this shape: they are `messages`/`message_variants` rows
+ *  keyed to THIS chat, so they transfer with the room by construction — there is nothing to copy and nothing
+ *  to opt into. */
+export const handoffOfferSchema = z.object({
+  /** Copy the OLD HOST's seated cast into the nominee's library and re-point this room's seats at the
+   *  copies: their present character seats, each card's attached character-scoped world books AS COPIES
+   *  (a reference-carry would silently lose the lore — the character-book pool is owner-filtered), and the
+   *  host-owned chat-attached books. `false` ⇒ the D64 drop (the seats the nominee cannot resolve are
+   *  leftSeq-stamped, exactly as today). */
+  copyCast: z.boolean(),
+  /** Copy the game's GM-voice preset into the nominee's library and re-point `rpg_games.gmPresetId` at the
+   *  copy. `false` (or a non-game room / an unset knob) ⇒ the built conditional heal stands: a preset the
+   *  nominee cannot read is NULLED rather than left lying about the room's voice. */
+  copyGmPreset: z.boolean(),
+});
+/** @public type twin of {@link handoffOfferSchema} — the `chats.pending_handoff_offer` column's `$type<>`,
+ *  the `nominateHostHandoff` wire field, and the accept-side copy plan's input. */
+export type HandoffOffer = z.infer<typeof handoffOfferSchema>;
+
+/** The no-offer offer — the shape a `null` column means, spelled once so no consumer re-spells
+ *  `{ copyCast: false, copyGmPreset: false }` and no arm can drift from the byte-identical default. */
+export const NO_HANDOFF_OFFER: HandoffOffer = { copyCast: false, copyGmPreset: false };
+
 // ── Invites & the membership chokepoint (Part III §2; D16) ──
 const INVITE_MAX_USES_MIN = 1;
 const INVITE_MAX_USES_MAX = 10_000;
