@@ -4,7 +4,8 @@
 // curation row cannot reference another user's asset) and dedups on `(assetId, subjectCharacterId)`.
 // Never throws for a bad file — returns `{ok:false, error}` so one malformed entry cannot abort a bundle.
 
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { CanonicalGalleryItem } from "#kit/serde/gallery";
 import { GALLERY_SCHEMA_KIND, parseGallery } from "#kit/serde/gallery";
 import { portableParseError } from "#kit/serde/lib";
@@ -24,7 +25,7 @@ async function restoreItem(ctx: AssetsContext, ownerId: UserId, item: CanonicalG
   if (item.subjectCharacterHandle !== null && ctx.findCharacterByHandle !== undefined) {
     subjectCharacterId = await ctx.findCharacterByHandle({
       ownerId,
-      handle: item.subjectCharacterHandle,
+      handle: castId<CharacterHandle>(item.subjectCharacterHandle),
     });
   }
   const result = await importGalleryItem(ctx.db, {

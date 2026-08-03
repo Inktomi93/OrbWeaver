@@ -36,7 +36,7 @@ class IngestAccumulator {
   private chunksNoop = 0;
   private chunksPruned = 0;
   private reExtracted = 0;
-  private readonly failed: { documentId: string; error: string }[] = [];
+  private readonly failed: { documentId: DocumentId; error: string }[] = [];
 
   addDocument(): void {
     this.documents += 1;
@@ -49,7 +49,7 @@ class IngestAccumulator {
   addReExtracted(): void {
     this.reExtracted += 1;
   }
-  addFailure(documentId: string, error: unknown): void {
+  addFailure(documentId: DocumentId, error: unknown): void {
     this.failed.push({ documentId, error: error instanceof Error ? error.message : String(error) });
   }
   result(): IngestRunResult {

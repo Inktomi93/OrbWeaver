@@ -2,6 +2,8 @@
 // JOIN surfaces `avatarHash`; write-metadata is coerced + stored typed; every create audits `persona.create`.
 
 import { personas } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { AssetNotFoundError, createPersonaService } from "@orb/server/domain/persona";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -14,7 +16,7 @@ describe("create", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const avatar = await seedAsset(db, { ownerId: owner, hash: "sha_avatar" });
 
     const detail = await svc.create({
@@ -36,7 +38,7 @@ describe("create", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const detail = await svc.create({
       principal: principal(owner),
@@ -51,7 +53,7 @@ describe("create", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const detail = await svc.create({
       principal: principal(owner),
@@ -71,7 +73,7 @@ describe("create", () => {
   test("title + starred round-trip (D62 riders); both default when omitted", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const titled = await svc.create({
       principal: principal(owner),
@@ -92,8 +94,8 @@ describe("create", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreign = await seedAsset(db, { id: "asset_foreign", ownerId: other });
 
     await expect(

@@ -37,9 +37,12 @@
 // element-majority, becomes an implicit `card` span with `origin:"lenient"` + a derived title. Its product
 // wiring (the immersiveHtml gate, trust, teaching) is the P4 wave.
 
+import type { AssetId } from "#ids";
+import { castId } from "#ids";
+
 /** A parsed image target: an owned-CAS asset (by id) or an external URL. The chat domain resolves this to a
  *  model-fetchable URL via the injected `resolveImageUrl` op (asset→CAS URL/data-URI; external→gated). */
-export type ContentImageRef = { readonly kind: "asset"; readonly assetId: string } | { readonly kind: "external"; readonly url: string };
+export type ContentImageRef = { readonly kind: "asset"; readonly assetId: AssetId } | { readonly kind: "external"; readonly url: string };
 
 /** How a card span was recognized: an explicit `:::card` fence, or the §4.8 lenient arm (naked HTML /
  *  html/svg code fence) — provenance for the reveal/debug surfaces; the wire stub is identical either way. */
@@ -118,7 +121,9 @@ const ASSET_SCHEME = "asset:";
 
 function parseTarget(target: string): ContentImageRef {
   if (target.startsWith(ASSET_SCHEME)) {
-    return { kind: "asset", assetId: target.slice(ASSET_SCHEME.length) };
+    // castId at the untrusted seam: the id is parsed out of message PROSE (`asset:<id>` markup) — the
+    // consumer (`resolveImageUrl`) treats an unknown id as a miss, never as trust.
+    return { kind: "asset", assetId: castId<AssetId>(target.slice(ASSET_SCHEME.length)) };
   }
   return { kind: "external", url: target };
 }

@@ -7,6 +7,7 @@
 // The `.zip` subscription itself lives in <BundleWorkloadTracker>, mounted only while running; this hook
 // owns the state transitions and hands the tracker its terminal/progress callbacks via `track`.
 
+import type { WorkloadId } from "@orb/kit/ids";
 import { useState } from "react";
 import { importBundle, importCharacters, importTree, relativePathOf, useInvalidation } from "#data";
 import { notify } from "#lib";
@@ -21,7 +22,7 @@ type LibraryImportState =
   | { readonly status: "uploading"; readonly filename: string }
   | {
       readonly status: "running";
-      readonly workloadId: string;
+      readonly workloadId: WorkloadId;
       readonly progress: WorkloadProgressView;
     }
   | { readonly status: "done"; readonly summary: ImportSummary }

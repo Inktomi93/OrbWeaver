@@ -6,6 +6,8 @@
 //   • a source deleted between emit and handler (loader → undefined) is a silent skip — no store, no row.
 
 import { characterEmbeddings, imageEmbeddings } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createEmbeddingsIndexer, createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -21,7 +23,7 @@ describe("onCharacterUpdated", () => {
     const db = await freshDb();
     const storeH = makeStoreHarness(db);
     const svc = createEmbeddingsService(storeH.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: CARD_TEXT });
     const indexer = createEmbeddingsIndexer(ih.ctx);
@@ -43,7 +45,7 @@ describe("onCharacterUpdated", () => {
     const db = await freshDb();
     const storeH = makeStoreHarness(db);
     const svc = createEmbeddingsService(storeH.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: undefined });
     const indexer = createEmbeddingsIndexer(ih.ctx);
@@ -68,7 +70,7 @@ describe("onCharacterUpdated — a flag edit triggers ZERO embed work (owner rul
     const db = await freshDb();
     const storeH = makeStoreHarness(db);
     const svc = createEmbeddingsService(storeH.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: CARD_TEXT });
     const indexer = createEmbeddingsIndexer(ih.ctx);
@@ -89,7 +91,7 @@ describe("onCharacterUpdated — a flag edit triggers ZERO embed work (owner rul
     const db = await freshDb();
     const storeH = makeStoreHarness(db);
     const svc = createEmbeddingsService(storeH.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: CARD_TEXT });
     const indexer = createEmbeddingsIndexer(ih.ctx);
@@ -110,7 +112,7 @@ describe("onCharacterUpdated — a flag edit triggers ZERO embed work (owner rul
     const db = await freshDb();
     const storeH = makeStoreHarness(db);
     const svc = createEmbeddingsService(storeH.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: CARD_TEXT });
     const indexer = createEmbeddingsIndexer(ih.ctx);
@@ -126,7 +128,7 @@ describe("onCharacterUpdated — a flag edit triggers ZERO embed work (owner rul
     const db = await freshDb();
     const storeH = makeStoreHarness(db);
     const svc = createEmbeddingsService(storeH.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const ih = makeIndexerHarness(svc.store, storeH.roleClients, { cardText: CARD_TEXT });
     const indexer = createEmbeddingsIndexer(ih.ctx);
@@ -155,7 +157,7 @@ describe("onAssetCreated", () => {
     const db = await freshDb();
     const storeH = makeStoreHarness(db);
     const svc = createEmbeddingsService(storeH.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const assetId = await seedAsset(db, owner);
     const ih = makeIndexerHarness(svc.store, storeH.roleClients, { assetBytes: IMG });
     const indexer = createEmbeddingsIndexer(ih.ctx);
@@ -176,7 +178,7 @@ describe("onAssetCreated", () => {
     const db = await freshDb();
     const storeH = makeStoreHarness(db);
     const svc = createEmbeddingsService(storeH.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const assetId = await seedAsset(db, owner);
     const ih = makeIndexerHarness(svc.store, storeH.roleClients, { assetBytes: undefined });
     const indexer = createEmbeddingsIndexer(ih.ctx);
@@ -195,7 +197,7 @@ describe("onAssetCreated", () => {
     const db = await freshDb();
     const storeH = makeStoreHarness(db);
     const svc = createEmbeddingsService(storeH.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const assetId = await seedAsset(db, owner);
     const ih = makeIndexerHarness(svc.store, storeH.roleClients, { assetMime: "video/mp4", assetBytes: IMG });
     const indexer = createEmbeddingsIndexer(ih.ctx);
@@ -215,7 +217,7 @@ describe("onAssetCreated", () => {
     const db = await freshDb();
     const storeH = makeStoreHarness(db);
     const svc = createEmbeddingsService(storeH.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const assetId = await seedAsset(db, owner);
     const ih = makeIndexerHarness(svc.store, storeH.roleClients, { assetMime: "image/png", assetBytes: IMG });
     const indexer = createEmbeddingsIndexer(ih.ctx);

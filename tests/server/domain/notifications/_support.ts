@@ -20,7 +20,7 @@ export const BOB = castId<UserId>("user_bob");
 /** Insert a `users` row so a notification's `recipientUserId` FK resolves (CASCADE on delete). Thin
  *  delegate over the canonical factory — notifications' call sites pass `(id, handle)` positionally and
  *  discard the return (a bare-string-second-arg variant, per the punchlist). */
-export async function seedUser(db: Db, id: UserId, handle: string): Promise<void> {
+export async function seedUser(db: Db, id: UserId, handle: Handle): Promise<void> {
   await seedUserRow(db, { id, handle: castId<Handle>(handle) });
 }
 

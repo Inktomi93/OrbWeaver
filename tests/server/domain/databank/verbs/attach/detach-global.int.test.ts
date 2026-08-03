@@ -2,6 +2,8 @@
 // no-op void).
 
 import { globalDocuments } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures";
@@ -10,7 +12,7 @@ import { makeDatabankHarness, principalFor, seedUser } from "../../_support.ts";
 test("detach removes the global row; a repeat detach is a silent no-op", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
   await h.service.attachGlobal({ principal: principalFor(owner), documentId: document.id });
 

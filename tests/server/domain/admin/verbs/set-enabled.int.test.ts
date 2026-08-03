@@ -4,7 +4,7 @@
 
 import { users } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
-import type { UserId } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAdminService } from "@orb/server/domain/admin";
 import { eq } from "drizzle-orm";
@@ -18,8 +18,8 @@ describe("setEnabled", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createAdminService(h.ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
-    const target = await seedUser(db, { id: "user_t", role: "user", handle: "t" });
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
+    const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
 
     const updated = await svc.setEnabled({
       principal: principal(admin, "admin"),
@@ -35,7 +35,7 @@ describe("setEnabled", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createAdminService(h.ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     await expect(svc.setEnabled({ principal: principal(admin, "admin"), userId: admin, enabled: false })).rejects.toMatchObject({
       code: "cannot_disable_self",
     });
@@ -47,7 +47,7 @@ describe("setEnabled", () => {
   test("the owner cannot be disabled (cannot_modify_owner)", async () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);
-    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
+    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
     await expect(svc.setEnabled({ principal: principal(admin, "admin"), userId: owner, enabled: false })).rejects.toMatchObject({
       code: "cannot_modify_owner",
     });
@@ -57,7 +57,7 @@ describe("setEnabled", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createAdminService(h.ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     await expect(
       svc.setEnabled({
         principal: principal(admin, "admin"),
@@ -71,8 +71,8 @@ describe("setEnabled", () => {
   test("a plain user is denied", async () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
-    const u = await seedUser(db, { id: "user_u", role: "user", handle: "u" });
-    const t = await seedUser(db, { id: "user_t", role: "user", handle: "t" });
+    const u = await seedUser(db, { id: "user_u", role: "user", handle: castId<Handle>("u") });
+    const t = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
     await expect(svc.setEnabled({ principal: principal(u, "user"), userId: t, enabled: false })).rejects.toThrow(DomainForbiddenError);
   });
 });

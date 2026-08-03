@@ -13,7 +13,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { characters, presets, rpgSheets } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
-import type { CharacterId, ChatId, PresetId, RpgGameId, RpgSheetId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, Handle, PresetId, RpgGameId, RpgSheetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { findGameByChat, insertGame } from "../../../../../packages/server/src/domain/rpg/persistence/games";
@@ -39,7 +39,7 @@ async function seedGameRoom(
   key: string,
   opts: { readonly gmPresetId?: PresetId | null; readonly engaged?: boolean } = {},
 ): Promise<{ chatId: ChatId; gameId: RpgGameId }> {
-  const gm = await seedUser(db, `gm_${key}`);
+  const gm = await seedUser(db, castId<Handle>(`gm_${key}`));
   const chatId = await seedChat(db, `hoff_${key}`);
   const gameId = castId<RpgGameId>(`rpg_game_hoff_${key}`);
   await insertGame(db, {
@@ -61,7 +61,9 @@ async function seedGameRoom(
  *  exist). Returns the seeded character id. */
 async function seedSheetFor(db: Db, gameId: RpgGameId, ownerId: UserId, key: string): Promise<CharacterId> {
   const characterId = castId<CharacterId>(`character_${key}`);
-  await db.insert(characters).values({ id: characterId, ownerId, handle: key, name: key, contentHash: key, tokenSize: 0, createdAt: FROZEN_AT });
+  await db
+    .insert(characters)
+    .values({ id: characterId, ownerId, handle: castId<CharacterHandle>(key), name: key, contentHash: key, tokenSize: 0, createdAt: FROZEN_AT });
   await db.insert(rpgSheets).values({
     id: castId<RpgSheetId>(`rpg_sheet_${key}`),
     gameId,
@@ -83,7 +85,7 @@ async function seedPresetRow(db: Db, id: string, ownerId: UserId): Promise<Prese
 
 test("a preset the NEW HOST cannot read yields the clear — and nothing is written until chat commits it", async () => {
   const db = await freshDb();
-  const oldHost = await seedUser(db, "oldhost");
+  const oldHost = await seedUser(db, castId<Handle>("oldhost"));
   const preset = await seedPresetRow(db, "preset_foreign", oldHost);
   const { chatId } = await seedGameRoom(db, "foreign", { gmPresetId: preset });
   const h = makeRpgService(db); // `ownedPresets` empty ⇒ every preset is foreign to the nominee
@@ -100,7 +102,7 @@ test("a preset the NEW HOST cannot read yields the clear — and nothing is writ
 
 test("a preset the new host CAN read is left alone (the heal is conditional, not a blanket clear)", async () => {
   const db = await freshDb();
-  await seedUser(db, "nominee"); // the FK owner of the preset below (`user_nominee` === NEW_HOST)
+  await seedUser(db, castId<Handle>("nominee")); // the FK owner of the preset below (`user_nominee` === NEW_HOST)
   const preset = await seedPresetRow(db, "preset_owned", NEW_HOST);
   const { chatId } = await seedGameRoom(db, "owned", { gmPresetId: preset });
   const h = makeRpgService(db);
@@ -122,7 +124,7 @@ test("an unset knob and a non-game chat both heal nothing (a plain-room handoff 
 
 test("a DISENGAGED game still heals — the knob must not survive the toggle back on", async () => {
   const db = await freshDb();
-  const oldHost = await seedUser(db, "oldhost2");
+  const oldHost = await seedUser(db, castId<Handle>("oldhost2"));
   const preset = await seedPresetRow(db, "preset_disengaged", oldHost);
   const { chatId } = await seedGameRoom(db, "disengaged", { gmPresetId: preset, engaged: false });
   const h = makeRpgService(db);
@@ -140,8 +142,8 @@ test("a DISENGAGED game still heals — the knob must not survive the toggle bac
 
 test("an offered GM preset the new host cannot read is COPIED and the knob re-pointed — not nulled", async () => {
   const db = await freshDb();
-  const oldHost = await seedUser(db, "oldhost_gift");
-  await seedUser(db, "nominee");
+  const oldHost = await seedUser(db, castId<Handle>("oldhost_gift"));
+  await seedUser(db, castId<Handle>("nominee"));
   const preset = await seedPresetRow(db, "preset_gifted", oldHost);
   // The fake's deterministic copy id — seeded as a REAL row so the re-point statement's FK is exercised for
   // real (the whole claim is that the knob ends up pointing at something the new host can actually read).
@@ -161,7 +163,7 @@ test("an offered GM preset the new host cannot read is COPIED and the knob re-po
 
 test("an offered preset that CANNOT be copied falls back to the built clear (never a knob that lies)", async () => {
   const db = await freshDb();
-  const oldHost = await seedUser(db, "oldhost_nocopy");
+  const oldHost = await seedUser(db, castId<Handle>("oldhost_nocopy"));
   const preset = await seedPresetRow(db, "preset_nocopy", oldHost);
   const { chatId } = await seedGameRoom(db, "nocopy", { gmPresetId: preset });
   const h = makeRpgService(db, { copyPresetFails: true });
@@ -174,8 +176,8 @@ test("an offered preset that CANNOT be copied falls back to the built clear (nev
 
 test("an offered preset the new host ALREADY reads is never copied (the conditional gate runs first)", async () => {
   const db = await freshDb();
-  await seedUser(db, "nominee");
-  const oldHost = await seedUser(db, "oldhost_owned");
+  await seedUser(db, castId<Handle>("nominee"));
+  const oldHost = await seedUser(db, castId<Handle>("oldhost_owned"));
   const preset = await seedPresetRow(db, "preset_already", NEW_HOST);
   const { chatId } = await seedGameRoom(db, "already", { gmPresetId: preset });
   const h = makeRpgService(db);
@@ -187,8 +189,8 @@ test("an offered preset the new host ALREADY reads is never copied (the conditio
 
 test("the copied cast's SHEETS re-key onto the copies in the swap batch (the room's identity data moves with it)", async () => {
   const db = await freshDb();
-  const oldHost = await seedUser(db, "oldhost_sheets");
-  await seedUser(db, "nominee");
+  const oldHost = await seedUser(db, castId<Handle>("oldhost_sheets"));
+  await seedUser(db, castId<Handle>("nominee"));
   const { chatId, gameId } = await seedGameRoom(db, "sheets");
   const source = await seedSheetFor(db, gameId, oldHost, "mara_src");
   // The copy card already exists in the nominee's library (chat minted it before the swap batch).
@@ -196,7 +198,7 @@ test("the copied cast's SHEETS re-key onto the copies in the swap batch (the roo
   await db.insert(characters).values({
     id: copy,
     ownerId: NEW_HOST,
-    handle: "mara_copy",
+    handle: castId<CharacterHandle>("mara_copy"),
     name: "Mara",
     contentHash: "c",
     tokenSize: 0,

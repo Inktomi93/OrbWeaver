@@ -6,7 +6,7 @@ import type { UserMacroDraws } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { messageVariants } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
-import type { CharacterId, MessageId, MessageVariantId } from "@orb/kit/ids";
+import type { CharacterId, Handle, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -72,7 +72,7 @@ describe("persistence/canon-write — the D26 3-step dance", () => {
 
   test("buildCommittedMessageView equals the re-read row (no round-trip needed)", async () => {
     const chatId = await seedChat(db, "a");
-    const characterId = await seedCharacter(db, await seedUser(db, "owner"), "aria");
+    const characterId = await seedCharacter(db, await seedUser(db, castId<Handle>("owner")), "aria");
     const { messageId, variantId } = ids("m1");
     const params = {
       messageId,

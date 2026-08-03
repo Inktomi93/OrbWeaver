@@ -2,6 +2,8 @@
 // others alone — the typed VectorTable routes to exactly one table).
 
 import { characterEmbeddings, imageEmbeddings } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -15,7 +17,7 @@ describe("clearTable", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const assetId = await seedAsset(db, owner);
 

@@ -5,6 +5,8 @@
 // charset guard (a malicious X-Request-Id → a fresh safe id; a valid one propagates unchanged) and the
 // /api/_debug skip (no trace root, no request-ring record — introspection traffic doesn't evict real traces).
 
+import type { Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { getTraceByRequestId, initTracing, logger, observability, observabilityErrorHandler, recentRequests } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures";
@@ -17,8 +19,8 @@ const OK_STATUS = 200;
 // The middleware reads the auth-resolved caller off the Hono context (`c.get("principal")`) to bind the
 // request logger; the mock supplies `get` returning an optional injected principal (null = anonymous).
 interface MockPrincipal {
-  readonly userId: string;
-  readonly handle: string;
+  readonly userId: UserId;
+  readonly handle: Handle;
 }
 interface MockCtx {
   readonly req: {
@@ -132,7 +134,7 @@ describe("request-user binding (the auth-resolved caller is stamped on the reque
   test("an authenticated request records the resolved userId on the request-ring record", async () => {
     initTracing();
     const incomingId = "bound-user-req";
-    await run({ path: "/api/chats", incomingId, principal: { userId: "user-42", handle: "alex" } });
+    await run({ path: "/api/chats", incomingId, principal: { userId: castId<UserId>("user-42"), handle: castId<Handle>("alex") } });
     const record = recentRequests(200).find((r) => r.id === incomingId);
     expect(record?.userId).toBe("user-42");
   });

@@ -4,6 +4,7 @@
 // count) re-clusters both in place; each cluster's size is charted as a bar-list, with its label, headline
 // facets, and member slice below. Read-only analytics.
 
+import type { CharacterId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { BarList } from "@orb/ui/bar-list";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -24,7 +25,7 @@ interface ArchetypeCard {
   readonly topTags: readonly string[];
   readonly extra?: readonly (string | null)[];
   readonly size: number;
-  readonly members: readonly { readonly characterId: string; readonly name: string }[];
+  readonly members: readonly { readonly characterId: CharacterId; readonly name: string }[];
 }
 
 const AUTO = "";

@@ -73,7 +73,7 @@ async function seedInvite(
 
 describe("createInvite — host mints a share-link; the token is stored HASHED", () => {
   test("the raw token is returned ONCE; only its hash is persisted", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const invites = createInvites(makeChatContext(db), makeDeps());
@@ -92,8 +92,8 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
   });
 
   test("a plain member is refused with not_host", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -105,8 +105,8 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
   });
 
   test("a targeted-by-handle invite resolves the target and stores invitedUserId (PD-66)", async () => {
-    const host = await seedUser(db, "host");
-    const bob = await seedUser(db, "bob");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const bob = await seedUser(db, castId<Handle>("bob"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const invites = createInvites(makeChatContext(db, { resolveHandle: (h) => Promise.resolve(h === "bob" ? bob : null) }), makeDeps());
@@ -120,7 +120,7 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
   });
 
   test("an unknown/disabled target handle is a coded invite_target_unknown refusal (PD-66)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const invites = createInvites(makeChatContext(db, { resolveHandle: () => Promise.resolve(null) }), makeDeps());
@@ -149,8 +149,8 @@ describe("createInvite — PD-105 the targeted-invite notification", () => {
   }
 
   test("a targeted invite emits `invite` AFTER persist, carrying inviteId + the host's handle", async () => {
-    const host = await seedUser(db, "host");
-    const bob = await seedUser(db, "bob");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const bob = await seedUser(db, castId<Handle>("bob"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const notes: NotificationEvent[] = [];
@@ -179,7 +179,7 @@ describe("createInvite — PD-105 the targeted-invite notification", () => {
   });
 
   test("a share-link invite (no invitedUserId) notifies nobody — no single recipient", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const notes: NotificationEvent[] = [];
@@ -198,8 +198,8 @@ describe("createInvite — PD-105 the targeted-invite notification", () => {
 
 describe("redeemInvite — THE participant-insert chokepoint", () => {
   test("a fresh redeem inserts a server-forced member at the canon head + bumps uses", async () => {
-    const host = await seedUser(db, "host");
-    const joiner = await seedUser(db, "joiner");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const joiner = await seedUser(db, castId<Handle>("joiner"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedInvite(chatId, "tok");
@@ -222,8 +222,8 @@ describe("redeemInvite — THE participant-insert chokepoint", () => {
   });
 
   test("the re-add upsert re-joins a previously-left member", async () => {
-    const host = await seedUser(db, "host");
-    const back = await seedUser(db, "back");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const back = await seedUser(db, castId<Handle>("back"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     // back left earlier (leftSeq set) — the redeem upsert must re-join them.
@@ -239,7 +239,7 @@ describe("redeemInvite — THE participant-insert chokepoint", () => {
   });
 
   test("an invalid token is a leak-free NOT_FOUND", async () => {
-    const joiner = await seedUser(db, "joiner");
+    const joiner = await seedUser(db, castId<Handle>("joiner"));
     const invites = createInvites(makeChatContext(db), makeDeps());
     await expect(invites.redeemInvite({ principal: principal(joiner), input: { token: "nope" } })).rejects.toBeInstanceOf(DomainNotFoundError);
   });
@@ -252,9 +252,9 @@ describe("redeemInvite — THE participant-insert chokepoint", () => {
 // gives. An untargeted (share-link) invite is unaffected.
 describe("redeemInvite — targeting (F4)", () => {
   test("a targeted invite redeemed by a NON-target is refused leak-free — and burns no use", async () => {
-    const host = await seedUser(db, "host");
-    const target = await seedUser(db, "target");
-    const attacker = await seedUser(db, "attacker");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const target = await seedUser(db, castId<Handle>("target"));
+    const attacker = await seedUser(db, castId<Handle>("attacker"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target });
@@ -273,8 +273,8 @@ describe("redeemInvite — targeting (F4)", () => {
   });
 
   test("the same targeted invite still redeems for its intended target", async () => {
-    const host = await seedUser(db, "host");
-    const target = await seedUser(db, "target");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const target = await seedUser(db, castId<Handle>("target"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedInvite(chatId, "tok", { invitedUserId: target });
@@ -290,8 +290,8 @@ describe("redeemInvite — targeting (F4)", () => {
   });
 
   test("an untargeted (share-link) invite still redeems for anyone", async () => {
-    const host = await seedUser(db, "host");
-    const anyone = await seedUser(db, "anyone");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const anyone = await seedUser(db, castId<Handle>("anyone"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedInvite(chatId, "tok"); // no invitedUserId ⇒ untargeted
@@ -313,9 +313,9 @@ describe("redeemInvite — targeting (F4)", () => {
 // flip) and the verb recovers their existing membership, leaving the invite's remaining uses for real joiners.
 describe("redeemInvite — idempotent re-redeem does not burn a use (F5)", () => {
   test("maxUses:2 — a present member re-redeems: uses stays 1, status pending, a second joiner still gets in", async () => {
-    const host = await seedUser(db, "host");
-    const first = await seedUser(db, "first");
-    const second = await seedUser(db, "second");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const first = await seedUser(db, castId<Handle>("first"));
+    const second = await seedUser(db, castId<Handle>("second"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const inviteId = await seedInvite(chatId, "tok", { maxUses: 2 });
@@ -346,8 +346,8 @@ describe("redeemInvite — idempotent re-redeem does not burn a use (F5)", () =>
   });
 
   test("a previously-LEFT member still re-redeems + re-joins (the not-present predicate only guards PRESENT members)", async () => {
-    const host = await seedUser(db, "host");
-    const back = await seedUser(db, "back");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const back = await seedUser(db, castId<Handle>("back"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "b", userId: back, role: "member", leftSeq: 3 });
@@ -369,8 +369,8 @@ describe("redeemInvite — idempotent re-redeem does not burn a use (F5)", () =>
 // leak-free NOT_FOUND (no oracle). The seat is server-forced `member`, never host.
 describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
   test("the bound target accepts by id → seated as a server-forced member at the canon head", async () => {
-    const host = await seedUser(db, "host");
-    const target = await seedUser(db, "target");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const target = await seedUser(db, castId<Handle>("target"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target });
@@ -390,9 +390,9 @@ describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
   });
 
   test("a FOREIGN user accepting someone else's targeted invite is a leak-free NOT_FOUND — burns no use", async () => {
-    const host = await seedUser(db, "host");
-    const target = await seedUser(db, "target");
-    const attacker = await seedUser(db, "attacker");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const target = await seedUser(db, castId<Handle>("target"));
+    const attacker = await seedUser(db, castId<Handle>("attacker"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target });
@@ -408,8 +408,8 @@ describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
   });
 
   test("a SHARE-LINK invite (no invitedUserId) is NOT acceptable by id — token-only → NOT_FOUND", async () => {
-    const host = await seedUser(db, "host");
-    const anyone = await seedUser(db, "anyone");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const anyone = await seedUser(db, castId<Handle>("anyone"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const inviteId = await seedInvite(chatId, "tok"); // untargeted share-link
@@ -421,8 +421,8 @@ describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
   });
 
   test("an EXPIRED targeted invite → NOT_FOUND", async () => {
-    const host = await seedUser(db, "host");
-    const target = await seedUser(db, "target");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const target = await seedUser(db, castId<Handle>("target"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target });
@@ -436,8 +436,8 @@ describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
   });
 
   test("an EXHAUSTED targeted invite (uses == maxUses) → NOT_FOUND", async () => {
-    const host = await seedUser(db, "host");
-    const target = await seedUser(db, "target");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const target = await seedUser(db, castId<Handle>("target"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target, maxUses: 1 });
@@ -448,8 +448,8 @@ describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
   });
 
   test("a DECLINED or REVOKED targeted invite → NOT_FOUND", async () => {
-    const host = await seedUser(db, "host");
-    const target = await seedUser(db, "target");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const target = await seedUser(db, castId<Handle>("target"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const declinedId = await seedInvite(chatId, "d", { invitedUserId: target });
@@ -463,7 +463,7 @@ describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
   });
 
   test("an unknown inviteId → NOT_FOUND (never confirms existence)", async () => {
-    const stranger = await seedUser(db, "stranger");
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
     const invites = createInvites(makeChatContext(db), makeDeps());
     await expect(
       invites.acceptInvite({
@@ -474,8 +474,8 @@ describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
   });
 
   test("an already-present member re-accepting is idempotent — recovers their existing membership, no burn", async () => {
-    const host = await seedUser(db, "host");
-    const target = await seedUser(db, "target");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const target = await seedUser(db, castId<Handle>("target"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target, maxUses: 2 });
@@ -496,7 +496,7 @@ describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
 
 describe("revokeInvite / declineInvite — status transitions", () => {
   test("the host revokes a pending invite", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const inviteId = await seedInvite(chatId, "tok");
@@ -509,8 +509,8 @@ describe("revokeInvite / declineInvite — status transitions", () => {
   });
 
   test("the targeted user declines their invite", async () => {
-    const host = await seedUser(db, "host");
-    const target = await seedUser(db, "target");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const target = await seedUser(db, castId<Handle>("target"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target });
@@ -525,11 +525,11 @@ describe("revokeInvite / declineInvite — status transitions", () => {
 
 describe("previewInvite — minimal preview-then-confirm", () => {
   test("returns room name / host handle / member count / mode label only", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a", { title: "The Tavern" });
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedInvite(chatId, "tok");
-    const outsider = await seedUser(db, "outsider");
+    const outsider = await seedUser(db, castId<Handle>("outsider"));
     const invites = createInvites(makeChatContext(db), makeDeps());
 
     const preview = await invites.previewInvite({
@@ -547,8 +547,8 @@ describe("previewInvite — minimal preview-then-confirm", () => {
 
 describe("listInvites — the host-management outstanding-invites read (FIX #4)", () => {
   test("the host sees every invite newest-first with remainingUses computed; no token field exists", async () => {
-    const host = await seedUser(db, "host");
-    const target = await seedUser(db, "target");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const target = await seedUser(db, castId<Handle>("target"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const unlimitedId = await seedInvite(chatId, "tok-a");
@@ -575,8 +575,8 @@ describe("listInvites — the host-management outstanding-invites read (FIX #4)"
   });
 
   test("a plain member is refused with not_host (the sibling createInvite/revokeInvite belt)", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -589,8 +589,8 @@ describe("listInvites — the host-management outstanding-invites read (FIX #4)"
   });
 
   test("a non-member outsider gets the leak-free NOT_FOUND (requireHost's membership floor)", async () => {
-    const host = await seedUser(db, "host");
-    const outsider = await seedUser(db, "outsider");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const outsider = await seedUser(db, castId<Handle>("outsider"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedInvite(chatId, "tok");

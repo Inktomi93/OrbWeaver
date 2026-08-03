@@ -8,7 +8,8 @@
 
 import type { Db } from "@orb/db";
 import { documentChunks, documents } from "@orb/db";
-import type { DocumentId } from "@orb/kit/ids";
+import type { DocumentId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createExtractText, EXTRACTOR_VERSION } from "@orb/server/infra/extraction";
 import { asc, eq } from "drizzle-orm";
 import { vi } from "vitest";
@@ -30,7 +31,7 @@ const SMALL_CHUNKS = { chunk: { chunkSize: 200, overlapPercent: 0, wholeFileThre
 
 async function seedDoc(db: Db, ownerHandle: string): Promise<{ h: DatabankHarness; documentId: DocumentId }> {
   const h = makeDatabankHarness(db, { settings: SMALL_CHUNKS });
-  const owner = await seedUser(db, { handle: ownerHandle });
+  const owner = await seedUser(db, { handle: castId<Handle>(ownerHandle) });
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "scrolls.md", text: CANON });
   return { h, documentId: document.id };
 }
@@ -94,7 +95,7 @@ test("mode:'re-extract' refreshes canon + version for a document stamped by an O
   const db = await freshDb();
   // The harness injects the REAL infra/extraction dispatcher + its EXTRACTOR_VERSION ("1").
   const h = makeDatabankHarness(db, { settings: SMALL_CHUNKS, extractor: { op: createExtractText(), version: EXTRACTOR_VERSION } });
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const bytes = new TextEncoder().encode("# Doc\r\n\r\nReal canon body.");
   const { document } = await h.service.upload({ principal: principalFor(owner), bytes, mime: "text/markdown", name: "d.md" });
 
@@ -117,7 +118,7 @@ test("mode:'re-extract' refreshes canon + version for a document stamped by an O
 test("mode:'re-extract' SKIPS a document already at the current extractor version (no redundant re-extract)", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db, { settings: SMALL_CHUNKS, extractor: { op: createExtractText(), version: EXTRACTOR_VERSION } });
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const bytes = new TextEncoder().encode("# Doc\r\n\r\nReal canon body.");
   const { document } = await h.service.upload({ principal: principalFor(owner), bytes, mime: "text/markdown", name: "d.md" });
 
@@ -142,7 +143,7 @@ test("mode:'re-extract' SKIPS a document already at the current extractor versio
 test("mode:'re-extract' SKIPS a text-origin doc (sourceAssetId NULL) even with a STALE version stamp", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db, { settings: SMALL_CHUNKS, extractor: { op: createExtractText(), version: EXTRACTOR_VERSION } });
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   // A pasted-text doc: origin 'text', sourceAssetId NULL — there are no bytes to re-extract from.
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "pasted.md", text: "Pasted body." });
 

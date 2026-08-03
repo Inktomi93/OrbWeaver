@@ -9,7 +9,8 @@
 // A `{ownerId}` scope stays the whole personal bank (junctions only scope chat retrieval, not a personal search).
 
 import { chatParticipants, chats } from "@orb/db";
-import type { ChatId, DocumentId, UserId } from "@orb/kit/ids";
+import type { ChatId, DocumentId, Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { resolveActiveDocumentIds } from "@orb/server/domain/databank";
 import { and, eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
@@ -36,8 +37,8 @@ async function markMemberLeft(db: Awaited<ReturnType<typeof freshDb>>, chatId: C
 test("D85 gate-8: the membership union credits every ATTACHED member doc; private + hidden + left-member docs never leak", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const host = await seedUser(db, { handle: "host" });
-  const member = await seedUser(db, { handle: "member" });
+  const host = await seedUser(db, { handle: castId<Handle>("host") });
+  const member = await seedUser(db, { handle: castId<Handle>("member") });
   const chatId = await seedChat(db, "chat_room");
   await seedChatHost(db, chatId, host, "host");
   await seedChatHost(db, chatId, member, "member");
@@ -83,7 +84,7 @@ test("D85 gate-8: the membership union credits every ATTACHED member doc; privat
 test("a corrupt databankVisibility blob heals to default-visible (fault-isolated; never hides silently)", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const host = await seedUser(db, { handle: "host" });
+  const host = await seedUser(db, { handle: castId<Handle>("host") });
   const chatId = await seedChat(db, "chat_room");
   await seedChatHost(db, chatId, host, "host");
   const hg = await h.service.createFromText({ principal: principalFor(host), name: "hg.md", text: "host global" });
@@ -105,7 +106,7 @@ test("a corrupt databankVisibility blob heals to default-visible (fault-isolated
 test("chat scope unions the docs of PRESENT roster characters; a departed character's docs drop out", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const host = await seedUser(db, { handle: "host" });
+  const host = await seedUser(db, { handle: castId<Handle>("host") });
   const chatId = await seedChat(db, "chat_room");
   await seedChatHost(db, chatId, host, "host");
 
@@ -127,7 +128,7 @@ test("chat scope unions the docs of PRESENT roster characters; a departed charac
 test("a memberless chat resolves to no global docs, but chat-attached docs still resolve", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const chatId = await seedChat(db, "empty_room");
   const doc = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
   await h.service.attachToChat({ principal: principalFor(owner), documentId: doc.document.id, chatId });

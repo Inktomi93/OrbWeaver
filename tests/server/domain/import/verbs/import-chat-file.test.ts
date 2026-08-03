@@ -9,7 +9,7 @@
 // `findByHandle`; a bare filename, an unknown handle, and a non-jsonl body each refuse with the operator
 // words the import report renders; and NOTHING throws.
 
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { ImportService } from "../../../../../packages/server/src/domain/import/contract/service.ts";
@@ -36,7 +36,10 @@ function transcript(): Uint8Array {
 /** The profile harness + a `findByHandle` that knows exactly one handle. */
 function harness(known: Record<string, CharacterId> = { aria: ARIA }): ProfileHarness & { readonly verb: ImportService["importChatFile"] } {
   const h = makeProfileHarness(OWNER);
-  const ctx = { ...h.ctx, findByHandle: ({ handle }: { readonly handle: string }): Promise<CharacterId | null> => Promise.resolve(known[handle] ?? null) };
+  const ctx = {
+    ...h.ctx,
+    findByHandle: ({ handle }: { readonly handle: CharacterHandle }): Promise<CharacterId | null> => Promise.resolve(known[handle] ?? null),
+  };
   return { ...h, verb: createImportChatFile(ctx, createImportChats(ctx)) };
 }
 

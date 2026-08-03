@@ -6,6 +6,7 @@
 
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
+import type { ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -21,7 +22,7 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
-async function readMetadata(chatId: string): Promise<ReturnType<typeof parseChatMetadata>> {
+async function readMetadata(chatId: ChatId): Promise<ReturnType<typeof parseChatMetadata>> {
   const rows = await db
     .select({ metadata: chats.metadata })
     .from(chats)

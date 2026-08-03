@@ -2,6 +2,8 @@
 // the indexer re-reads nothing), but it DOES fire the user-bus `charactersChanged` (a user-facing mutation
 // with the `listSnapshots` History read surface — a second device must refetch).
 
+import type { CharacterHandle, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { CharacterNotFoundError, createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -13,10 +15,10 @@ describe("snapshot", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "d" },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     h.events.length = 0;
     h.userEvents.length = 0;
@@ -39,11 +41,11 @@ describe("snapshot", () => {
   test("snapshotting another user's character throws CharacterNotFoundError", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const created = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "d" },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     await expect(svc.snapshot({ principal: principal(other), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
   });

@@ -8,7 +8,7 @@
 
 import type { ModelCapability } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
-import type { ModelId } from "@orb/kit/ids";
+import type { ChatId, ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatRequest, ChatResult } from "@orb/server/infra/providers";
 import { ProviderError } from "@orb/server/infra/providers";
@@ -405,7 +405,7 @@ describe("createCustomByoBackend — streaming + non-streaming + the user-declar
     const deltas: Array<{ kind: string; text: string }> = [];
     const result = await runTurn(
       makeRequest({
-        chatId: "chat-1",
+        chatId: castId<ChatId>("chat-1"),
         onDelta: (event): void => {
           deltas.push({ kind: event.kind, text: event.text });
         },

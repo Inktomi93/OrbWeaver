@@ -3,6 +3,8 @@
 // activity-matrix → <Heatmap> reshape, weekday labelling, and the chart-family row adapters. Asserts the
 // boundaries (ms/s/m/h thresholds, k/M cutovers) and the aggregation math, not the trivial passthroughs.
 
+import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import {
   activityHeatmapMatrix,
@@ -134,8 +136,8 @@ describe("formatPeak", () => {
 describe("chart-family row adapters", () => {
   test("momentumBarItems takes the magnitude of the swing", () => {
     const items = momentumBarItems([
-      { characterId: "c1", name: "Aria", delta: 7 },
-      { characterId: "c2", name: "Bolt", delta: -4 },
+      { characterId: castId<CharacterId>("c1"), name: "Aria", delta: 7 },
+      { characterId: castId<CharacterId>("c2"), name: "Bolt", delta: -4 },
     ]);
     expect(items).toEqual([
       { id: "c1", label: "Aria", value: 7 },
@@ -151,7 +153,7 @@ describe("chart-family row adapters", () => {
     expect(items[0]?.value).toBe(9);
   });
   test("personaBarItems maps id/name/messageCount", () => {
-    const items = personaBarItems([{ personaId: "p1", name: "Alex", messageCount: 12 }]);
+    const items = personaBarItems([{ personaId: castId<PersonaId>("p1"), name: "Alex", messageCount: 12 }]);
     expect(items[0]).toEqual({ id: "p1", label: "Alex", value: 12 });
   });
   test("dailyTurnBuckets shortens the day label and carries the turn count", () => {

@@ -10,7 +10,7 @@ import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, characters } from "@orb/db";
-import type { AssetId, CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PersonaContext } from "../../../../packages/server/src/domain/persona/context.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
@@ -86,7 +86,7 @@ export function makeHarness(db: Db, overrides: Partial<PersonaContext> = {}): Pe
 
 interface SeedUserOverrides {
   readonly id?: string;
-  readonly handle?: string;
+  readonly handle?: Handle;
   readonly role?: UserRole;
 }
 
@@ -129,7 +129,7 @@ interface SeedCharacterOverrides {
   readonly name?: string;
   readonly description?: string | null;
   readonly avatarAssetId?: AssetId | null;
-  readonly handle?: string;
+  readonly handle?: CharacterHandle;
 }
 
 /** Insert a flat `characters` row (D28 — no version table); returns its branded id. */
@@ -137,7 +137,7 @@ export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): 
   const id = castId<CharacterId>(overrides.id ?? "character_c");
   await db.insert(characters).values({
     id,
-    handle: overrides.handle ?? id,
+    handle: overrides.handle ?? castId<CharacterHandle>(id),
     ownerId: overrides.ownerId,
     name: overrides.name ?? "Char",
     description: overrides.description ?? null,
@@ -150,6 +150,6 @@ export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): 
 
 /** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
  *  `support/factories/principal` — persona keeps its existing positional `(id, role, handle?)` convention. */
-export function principal(userId: UserId, role: UserRole = "user", handle: string = userId): Principal {
-  return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
+export function principal(userId: UserId, role: UserRole = "user", handle: Handle = castId<Handle>(userId)): Principal {
+  return makePrincipal(userId, { role, handle });
 }

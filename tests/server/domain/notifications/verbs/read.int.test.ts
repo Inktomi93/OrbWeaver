@@ -1,6 +1,8 @@
 // verbs: markAllRead · dismiss — recipient-scoping (a user can't touch another's inbox) + idempotence.
 
 import type { Db } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { NotificationsService } from "@orb/server/domain/notifications";
 import { beforeEach, describe } from "vitest";
 import { createFrozenClock } from "../../../../support/clock";
@@ -16,8 +18,8 @@ let clock = createFrozenClock();
 beforeEach(async () => {
   clock = createFrozenClock();
   db = await freshDb();
-  await seedUser(db, ALICE, "alice");
-  await seedUser(db, BOB, "bob");
+  await seedUser(db, ALICE, castId<Handle>("alice"));
+  await seedUser(db, BOB, castId<Handle>("bob"));
   svc = makeNotificationsService(db, clock.now);
 });
 

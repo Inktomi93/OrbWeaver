@@ -272,7 +272,7 @@ export function createLifecycle(): Lifecycle {
 
     let authenticate: LocalAuthenticator | undefined;
     if (env.AUTH_MODE === "local") {
-      authenticate = (handle: string, password: string): Promise<UserId | null> => built.sessions.authenticate(handle, password);
+      authenticate = (handle: Handle, password: string): Promise<UserId | null> => built.sessions.authenticate(handle, password);
     }
 
     // forward-header fail-closed belt: warn loudly at boot so a non-authentik proxy deploy (no signed

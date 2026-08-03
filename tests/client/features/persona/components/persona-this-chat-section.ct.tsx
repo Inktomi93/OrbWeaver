@@ -4,6 +4,7 @@
 // The active chat is seeded by the story (`selectChat`) so the section renders.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { PersonaId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
@@ -79,7 +80,7 @@ test("switching the chat persona fires setActivePersona with the new persona id"
   const trpc = await stub(page, true);
   await mount(<PersonaThisChatStory />);
   await switchToOrion(page);
-  await expect.poll(() => (trpc.lastInput(UPDATE_PROC) as { personaId?: string } | undefined)?.personaId, { intervals: [20, 50, 100] }).toBe(ORION);
+  await expect.poll(() => (trpc.lastInput(UPDATE_PROC) as { personaId?: PersonaId } | undefined)?.personaId, { intervals: [20, 50, 100] }).toBe(ORION);
 });
 
 // The confirming notify is observed via the story's DOM sink (bindNotify is main.tsx-only, so the toast
@@ -96,7 +97,7 @@ test("with showNotifications OFF, no notify fires on switch (the setting is hono
   await mount(<PersonaThisChatStory />);
   await switchToOrion(page);
   // The mutation still fires — the notify is what's gated.
-  await expect.poll(() => (trpc.lastInput(UPDATE_PROC) as { personaId?: string } | undefined)?.personaId, { intervals: [20, 50, 100] }).toBe(ORION);
+  await expect.poll(() => (trpc.lastInput(UPDATE_PROC) as { personaId?: PersonaId } | undefined)?.personaId, { intervals: [20, 50, 100] }).toBe(ORION);
   await expect(page.getByTestId("notified")).toHaveText("");
 });
 
@@ -181,7 +182,7 @@ test("the host's Re-pin menu offers each present MEMBER's persona (grouped) and 
   await expect(memberItem).toBeVisible(); // …and the member's, attributed to them
 
   await memberItem.click();
-  await expect.poll(() => (trpc.lastInput("chat.setChatAnchorPersona") as { personaId?: string | null } | undefined)?.personaId).toBe(ZARA);
+  await expect.poll(() => (trpc.lastInput("chat.setChatAnchorPersona") as { personaId?: PersonaId | null } | undefined)?.personaId).toBe(ZARA);
 });
 
 test("Clear pin sends the verb's null arm (the pin could be moved but never removed)", async ({ mount, page }) => {
@@ -191,7 +192,7 @@ test("Clear pin sends the verb's null arm (the pin could be moved but never remo
   await page.getByRole("button", { name: "Re-pin" }).click();
   await page.getByRole("menuitem", { name: "Clear pin" }).click();
 
-  await expect.poll(() => trpc.lastInput("chat.setChatAnchorPersona") as { personaId?: string | null } | undefined).toMatchObject({ personaId: null });
+  await expect.poll(() => trpc.lastInput("chat.setChatAnchorPersona") as { personaId?: PersonaId | null } | undefined).toMatchObject({ personaId: null });
 });
 
 test("a SOLO room's menu renders no members' group (the affordance appears only when it can act)", async ({ mount, page }) => {

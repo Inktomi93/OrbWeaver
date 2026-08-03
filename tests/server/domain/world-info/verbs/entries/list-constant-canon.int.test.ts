@@ -4,6 +4,8 @@
 // priority DESC ordering; the projection is title+content only (lean pre-play canon, room-public — the
 // caller gates membership upstream, mirroring listChatBooks).
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createWorldInfoService } from "@orb/server/domain/world-info";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -15,7 +17,7 @@ describe("listConstantCanon", () => {
     const db = await freshDb();
     const harness = makeHarness(db, { requireChatHost: () => Promise.resolve() });
     const svc = createWorldInfoService(harness.ctx);
-    const host = await seedUser(db, { handle: "host" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
     const chatId = await seedChat(db);
 
     const attached = await svc.createBook({ principal: principal(host), input: { name: "Attached" } });

@@ -4,6 +4,8 @@
 
 import { characterPersonas } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createPersonaService, PersonaNotFoundError } from "@orb/server/domain/persona";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -16,7 +18,7 @@ describe("connectToCharacter", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, { ownerId: owner });
     const persona = await svc.create({
       principal: principal(owner),
@@ -45,8 +47,8 @@ describe("connectToCharacter", () => {
   test("a character owned by another user is rejected — no junction row", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreignCharacter = await seedCharacter(db, { ownerId: other });
     const persona = await svc.create({
       principal: principal(owner),
@@ -65,8 +67,8 @@ describe("connectToCharacter", () => {
   test("a foreign persona throws PersonaNotFoundError", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const character = await seedCharacter(db, { ownerId: owner });
     const foreignPersona = await svc.create({
       principal: principal(other),

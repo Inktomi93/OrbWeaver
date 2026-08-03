@@ -3,6 +3,8 @@
 // (host authority over room config — a prior host's book stays cleanable after a handoff).
 
 import { chatBooks } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createWorldInfoService } from "@orb/server/domain/world-info";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -14,7 +16,7 @@ describe("detachFromChat", () => {
     const db = await freshDb();
     const harness = makeHarness(db, { requireChatHost: () => Promise.resolve() });
     const svc = createWorldInfoService(harness.ctx);
-    const host = await seedUser(db, { handle: "host" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
     const chatId = await seedChat(db);
     const book = await svc.createBook({ principal: principal(host), input: { name: "B" } });
     await svc.attachToChat({ principal: principal(host), chatId, bookId: book.id });
@@ -40,8 +42,8 @@ describe("detachFromChat", () => {
     const db = await freshDb();
     const harness = makeHarness(db, { requireChatHost: () => Promise.resolve() });
     const svc = createWorldInfoService(harness.ctx);
-    const host = await seedUser(db, { handle: "host" });
-    const other = await seedUser(db, { handle: "other" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const chatId = await seedChat(db);
     // Attached under the OTHER user's authority (e.g. the pre-handoff host).
     const theirs = await svc.createBook({ principal: principal(other), input: { name: "T" } });
@@ -64,7 +66,7 @@ describe("detachFromChat", () => {
       },
     });
     const svc = createWorldInfoService(harness.ctx);
-    const host = await seedUser(db, { handle: "host" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
     const chatId = await seedChat(db);
     const book = await svc.createBook({ principal: principal(host), input: { name: "B" } });
     await svc.attachToChat({ principal: principal(host), chatId, bookId: book.id });

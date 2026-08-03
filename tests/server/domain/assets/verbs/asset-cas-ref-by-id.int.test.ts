@@ -2,7 +2,7 @@
 // image-resolution gate: `ownerId` drives the chat-scoped reference-check, `mime` the data-URI. It reads the
 // row by id ALONE (no owner scope), returns owner + hash + mime, and returns undefined for a gone id.
 
-import type { AssetId } from "@orb/kit/ids";
+import type { AssetId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { describe, onTestFinished } from "vitest";
@@ -18,7 +18,7 @@ describe("assetCasRefById", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const stored = await svc.store({
       principal: principal(owner),

@@ -16,7 +16,7 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { eq } from "drizzle-orm";
@@ -93,7 +93,7 @@ let chatSeq = 0;
 /** Seed a host chat with `count` aged canon rows so a blown fit ceiling drops the oldest and stamps a boundary. */
 async function seedChatWithHistory(count: number): Promise<ChatId> {
   chatSeq += 1;
-  const host = await seedUser(db, "host");
+  const host = await seedUser(db, castId<Handle>("host"));
   const chatId = await seedChat(db, `c${chatSeq}`);
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
   for (let seq = 1; seq <= count; seq += 1) {

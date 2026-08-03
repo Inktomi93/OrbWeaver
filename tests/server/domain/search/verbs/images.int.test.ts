@@ -4,6 +4,8 @@
 // query SearchError, and — THE LOAD-BEARING INVARIANT — that a hub-score-dominant outlier does NOT outrank a
 // relevant match (the verb skips CSLS on the cross-modal path; applying `hub_score` would invert the order).
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { SearchError } from "@orb/server/domain/search";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -13,7 +15,7 @@ import { makeSearch, seedAsset, seedImageEmbedding, seedUser, vec } from "../_su
 describe("images", () => {
   test("returns the closest cross-modal image first", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const near = await seedAsset(db, { id: "asset_near", ownerId: owner, hash: "hash_near" });
     const far = await seedAsset(db, { id: "asset_far", ownerId: owner, hash: "hash_far" });
     await seedImageEmbedding(db, { assetId: near, embedding: vec(1) });
@@ -32,8 +34,8 @@ describe("images", () => {
 
   test("never returns another owner's image", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const mine = await seedAsset(db, { id: "asset_mine", ownerId: owner, hash: "hash_mine" });
     const theirs = await seedAsset(db, { id: "asset_theirs", ownerId: other, hash: "hash_theirs" });
     await seedImageEmbedding(db, { assetId: mine, embedding: vec(1) });
@@ -52,7 +54,7 @@ describe("images", () => {
 
   test("scans ONLY the requested lens (both coexist per asset)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const asset = await seedAsset(db, { id: "asset_a", ownerId: owner, hash: "hash_a" });
     // Same asset, two lenses in one space: captioned matches the query, raw is orthogonal.
     await seedImageEmbedding(db, {
@@ -86,7 +88,7 @@ describe("images", () => {
 
   test("a hub-dominant outlier does NOT outrank a relevant match (the CSLS-skip invariant)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // The RELEVANT avatar: closer to the text query (cos 0.8, distance 0.2) but a high hub_score.
     const relevant = await seedAsset(db, { id: "asset_rel", ownerId: owner, hash: "hash_rel" });
     // The GENERIC outlier: farther from the query (cos 0.6, distance 0.4) but a low hub_score. If the verb
@@ -118,7 +120,7 @@ describe("images", () => {
 
   test("rerank reorders by the caption cross-encoder (mocked) when enabled", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const a = await seedAsset(db, { id: "asset_a", ownerId: owner, hash: "hash_a" });
     const b = await seedAsset(db, { id: "asset_b", ownerId: owner, hash: "hash_b" });
     await seedImageEmbedding(db, { assetId: a, embedding: vec(1), caption: "a knight in armor" });
@@ -155,7 +157,7 @@ describe("images", () => {
 
   test("a query that embeds to nothing throws a typed SearchError", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const svc = makeSearch(db, { imageEmbedVector: () => null });
     await expect(svc.images({ ownerId: owner, query: "anything", topN: 5, lens: "image-captioned" })).rejects.toBeInstanceOf(SearchError);

@@ -4,6 +4,8 @@
 // of 2 with no skip and no duplicate.
 
 import type { StoredAsset } from "@orb/contracts/assets";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { describe, onTestFinished } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -20,8 +22,8 @@ describe("listOwned", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const a = await seedUser(db, { handle: "a" });
-    const b = await seedUser(db, { handle: "b" });
+    const a = await seedUser(db, { handle: castId<Handle>("a") });
+    const b = await seedUser(db, { handle: castId<Handle>("b") });
 
     const aStored = await svc.store({
       principal: principal(a),
@@ -40,7 +42,7 @@ describe("listOwned", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const avatar = await svc.store({
       principal: principal(owner),
@@ -71,7 +73,7 @@ describe("listOwned", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const gif = await svc.store({
       principal: principal(owner),
@@ -97,7 +99,7 @@ describe("listOwned", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     // 5 rows all stamped the SAME frozen `uploadedAt` — the bulk-import case the (uploadedAt, id) tiebreak
     // exists for. Stored sequentially so the injected minter stamps deterministic ascending ids.

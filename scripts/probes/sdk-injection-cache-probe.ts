@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+
 /**
  * pnpm sdk:injection-cache-probe [--scenario d2-user-volatile,g-d2,…] [--mode sub|or] [--model <id>]
  *                                [--verbose] [--dry-run]
@@ -34,6 +35,8 @@ import process from "node:process";
 import type { SDKMessage, SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatInjection } from "@orb/contracts/chat";
+import type { ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { ChatResult } from "@orb/server/infra/providers";
 import { buildClaudeOpenRouterEnv, buildClaudeSdkEnv, consumeTurnStream, dynamicContextOptions } from "@orb/server/infra/providers/backends/agent-sdk";
 import type { SeedTurn } from "@orb/server/infra/providers/backends/agent-sdk/session";
@@ -261,7 +264,7 @@ function buildShaped(canon: readonly WireRow[], tailQuestion: string, injection:
 }
 
 /** Layer-(a) prediction, FREE (no spawn): does the turn-2 variant hash to a different session lineage? */
-function predictSeedChanged(chatId: string, a: BuiltTurn, b: BuiltTurn): boolean {
+function predictSeedChanged(chatId: ChatId, a: BuiltTurn, b: BuiltTurn): boolean {
   return seedSessionId(chatId, toSeedTurns(a.seed)) !== seedSessionId(chatId, toSeedTurns(b.seed));
 }
 
@@ -403,7 +406,7 @@ interface CellOutcome {
 const outcomes: CellOutcome[] = [];
 
 async function runMatrixCell(cell: Cell): Promise<void> {
-  const chatId = `probe-inj-${cell.id}`;
+  const chatId = castId<ChatId>(`probe-inj-${cell.id}`);
   const b1 = buildShaped(CANON, TAIL_QUESTION, cellInjection(cell, 1));
   const b2 = buildShaped(CANON, TAIL_QUESTION, cellInjection(cell, 2));
   const seedChanged = predictSeedChanged(chatId, b1, b2);
@@ -500,7 +503,7 @@ function growInjection(depth: number): ChatInjection {
 }
 
 async function runGrowCell(g: GrowCell): Promise<void> {
-  const chatId = `probe-${g.id}`;
+  const chatId = castId<ChatId>(`probe-${g.id}`);
   const inj = g.depth === null ? null : growInjection(g.depth);
   const b1 = buildShaped(CANON, TAIL_QUESTION, inj);
   const cache = new SessionCache(new InMemorySessionStore());
@@ -634,7 +637,7 @@ interface AOutcome {
 const aOutcomes: AOutcome[] = [];
 
 async function runACell(cell: ACell): Promise<void> {
-  const chatId = `probe-a-${cell.id}`;
+  const chatId = castId<ChatId>(`probe-a-${cell.id}`);
   const inj = aInjection(cell);
   // Byte-stable: the SAME injection on both turns (no V2). The two turns are an identical replay — a held
   // lineage should resume/readopt, and the class is then purely the structural finding.
@@ -755,7 +758,7 @@ function hookContext(turnNo: number): { text: string; sigil: string } {
 
 /** Read the current stored transcript text for a chat's recorded session (the SessionCache store), so we can
  *  detect whether a hook sigil leaked into the recorded frames. Returns "" when nothing is recorded yet. */
-async function storedTranscript(cache: SessionCache, chatId: string): Promise<string> {
+async function storedTranscript(cache: SessionCache, chatId: ChatId): Promise<string> {
   const sessionId = cache.resolveResumeId(chatId);
   if (sessionId === undefined) {
     return "";
@@ -779,7 +782,7 @@ async function storedTranscript(cache: SessionCache, chatId: string): Promise<st
 }
 
 async function runHookArm(): Promise<void> {
-  const chatId = "probe-hook";
+  const chatId = castId<ChatId>("probe-hook");
   // The seeded history is byte-IDENTICAL every turn (the plain canon, no injection) — so any lineage change
   // could only come from the hook, not the seed.
   const cache = new SessionCache(new InMemorySessionStore());
@@ -869,7 +872,7 @@ function printPlan(mCells: readonly Cell[], gCells: readonly GrowCell[]): void {
   );
   console.log("  deterministic layer-(a) predictions (FREE — seedSessionId is a pure content hash):");
   for (const cell of mCells) {
-    const chatId = `probe-inj-${cell.id}`;
+    const chatId = castId<ChatId>(`probe-inj-${cell.id}`);
     const b1 = buildShaped(CANON, TAIL_QUESTION, cellInjection(cell, 1));
     const b2 = buildShaped(CANON, TAIL_QUESTION, cellInjection(cell, 2));
     const seedChanged = predictSeedChanged(chatId, b1, b2);

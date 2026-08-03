@@ -3,7 +3,9 @@
 // the compiler was ALREADY able to close: every wrong-id call (a messageId where a chatId goes, a foreign
 // wire id landing in a tenant lookup) type-checks. The POSITION VOCABULARY IS DERIVED from the ids module —
 // zero hardcoded paths, with a blindness tripwire. Escape: the two-sided `@foreign-id-ok:` marker (a foreign
-// wire's id that shares our spelling). Transition: a per-file BASELINE RATCHET, two-sided, shrink-only.
+// wire's id that shares our spelling). TRANSITION COMPLETE (2026-08-03): the landing baseline (169 files /
+// 374 sites) was burned to `{}` and the baseline + its generator were DELETED per the declared terminal
+// state — every finding now reports directly, with no budget to hide behind.
 //
 // ── THE ARMS ────────────────────────────────────────────────────────────────────────────────────────────
 //   A1 position    — a Parameter / PropertySignature / PropertyDeclaration whose NAME is the lowerCamel of a
@@ -20,11 +22,10 @@
 //                    protection.
 //   A3 blindness   — ZERO brands derived from the ids module ⇒ RED. A gate keyed on a derivation that stops
 //                    resolving reports ✓ forever (GATE-AUTHORING §4.6).
-//   A4 stale row   — a baseline row whose file no longer violates. The ratchet only goes DOWN.
 //
-// ── THE PERMANENT EXEMPTIONS (marked at landing, NOT baselined) ─────────────────────────────────────────
-// Three foreign-wire classes carry `@foreign-id-ok:` markers from birth, so the committed baseline is
-// honestly all-burnable debt: the agent-sdk's `sessionId` (the Claude Agent SDK's own chat-session id — a
+// ── THE PERMANENT EXEMPTIONS (marked, never budgeted) ───────────────────────────────────────────────────
+// Three foreign-wire classes carry `@foreign-id-ok:` markers (plus the provider-error `sessionId`, marked
+// during the burn-down): the agent-sdk's `sessionId` (the Claude Agent SDK's own chat-session id — a
 // NAME COLLISION with our BFF `SessionId = TypeIdOf<"session">`), local-light's `modelId` (HuggingFace repo
 // ids, not the OpenRouter `ModelId` brand), and the plugin sandbox's wire DTOs (`contracts/src/plugin/**` +
 // `domain/plugin/**` — an untrusted guest's JSON, branded only after it is parsed).
@@ -38,8 +39,6 @@
 // scope: the brief's defect is the SIGNATURE (what a caller can hand you), not a local. And a position typed
 // through a NAMED type reference (`chatId: SomeAlias`) is invisible — this is a syntactic reader, the same
 // limit `injected-op-caller-param` writes down for its param scan.
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { Finding, GateDescriptor, GateRunCtx } from "../contract.ts";
@@ -51,8 +50,6 @@ const IDS_MODULE = "packages/kit/src/ids/index.ts";
  *  arms inside every mini-project and red the gate's own self-proof (GATE-AUTHORING §4.5). */
 const REAL_TREE_ANCHOR = "packages/db/src/schema/index.ts";
 const GATE_SELF = "scripts/check/gates/brand-in-name-position.ts";
-const BASELINE_REL = "scripts/check/gates/brand-in-name-position.baseline.json";
-const GENERATOR = "pnpm tsx scripts/check/gen-brand-position-baseline.ts";
 const BRAND_CONSTRUCTORS: ReadonlySet<string> = new Set(["TypeIdOf", "Branded"]);
 
 /** The escape marker, in the house grammar every sibling marker uses (`allow-skip:`, `FABRICATION-OK:`,
@@ -89,9 +86,6 @@ const BLIND =
   "vocabulary that no longer exists and has gone silently green. Re-point the derivation in " +
   "scripts/check/gates/brand-in-name-position.ts (the name-keyed blindness tripwire, GATE-AUTHORING.md §4.6).";
 
-const STALE_ROW = (rel: string): string =>
-  `${BASELINE_REL} budgets "${rel}" but that file no longer violates — the ratchet only goes down: regenerate it (${GENERATOR}) and commit the shrink.`;
-
 const STALE_MARKER_STALE = (named: string): string =>
   `\`@foreign-id-ok(${named})\` guards nothing — \`${named}\` is not declared a bare \`string\` on the line this ` +
   "marker guards (the first code line below its comment block). The field was typed with its brand, renamed, " +
@@ -109,7 +103,7 @@ const STALE_MARKER_MALFORMED =
 /** The brand alias names `@orb/kit/ids` exports (`export type X = TypeIdOf<…> | Branded<…>`) mapped to the
  *  lowerCamel NAME POSITION each one owns: `ChatId` → `chatId`, `SessionToken` → `sessionToken`. Derived, so
  *  a new brand polices its own position the day it is minted and a deleted brand stops policing. */
-export function deriveBrandPositions(sourceFiles: readonly SourceFile[]): Map<string, string> {
+function deriveBrandPositions(sourceFiles: readonly SourceFile[]): Map<string, string> {
   const positions = new Map<string, string>();
   for (const sf of sourceFiles) {
     if (!sf.getFilePath().includes(IDS_MODULE)) {
@@ -193,10 +187,8 @@ function hasForeignOk(markers: ReturnType<typeof resolveMarkers>, lineNo: number
 
 const POSITION_KINDS = [SyntaxKind.Parameter, SyntaxKind.PropertySignature, SyntaxKind.PropertyDeclaration] as const;
 
-/** A1 — every branded name position declared a bare `string` in one file, UNMARKED, in line order (so a
- *  `slice(budget)` reports the same excess on every run). Shared with the baseline generator: one detector,
- *  so the ratchet can never disagree with the gate about what a violation is. */
-export function brandPositionFindings(sf: SourceFile, rel: string, positions: ReadonlyMap<string, string>): Finding[] {
+/** A1 — every branded name position declared a bare `string` in one file, UNMARKED, in line order. */
+function brandPositionFindings(sf: SourceFile, rel: string, positions: ReadonlyMap<string, string>): Finding[] {
   const markers = resolveMarkers(sf.getFullText().split("\n"));
   const out: Finding[] = [];
   for (const kind of POSITION_KINDS) {
@@ -256,13 +248,8 @@ function staleMarkerFindings(sf: SourceFile, rel: string, positions: ReadonlyMap
   return out;
 }
 
-export function loadBaseline(root: string): Record<string, number> {
-  const path = join(root, BASELINE_REL);
-  return existsSync(path) ? (JSON.parse(readFileSync(path, "utf-8")) as Record<string, number>) : {};
-}
-
-/** Repo-relative form of an absolute source path (the baseline's key form). */
-export function repoRel(path: string): string {
+/** Repo-relative form of an absolute source path (the findings' file form). */
+function repoRel(path: string): string {
   for (const segment of ["/packages/", "/tests/"]) {
     const idx = path.indexOf(segment);
     if (idx !== -1) {
@@ -272,60 +259,45 @@ export function repoRel(path: string): string {
   return path;
 }
 
-/** The scanned corpus — the ONE definition, read by the gate's `scanRoot` AND by the baseline generator (a
- *  second copy would let the ratchet budget files the gate never visits, and vice versa). Defensive
- *  `includes` form: no leading-slash assumption, since the wrong path format is a SILENT GREEN (§3). */
-export function inScope(path: string): boolean {
+/** The scanned corpus. Defensive `includes` form: no leading-slash assumption, since the wrong path format
+ *  is a SILENT GREEN (§3). */
+function inScope(path: string): boolean {
   return path.includes("packages/") || path.includes("tests/");
 }
 
 let passPositions: ReadonlyMap<string, string> = new Map();
-let passBaseline: Record<string, number> = {};
-const passSeenViolating = new Set<string>();
 
 export const gate: GateDescriptor = {
   name: "brand-in-name-position",
   docRow:
     "Core-Enforcement-Active-Gates.md (Layer 3) — Spine-TypeScript-and-Patterns.md (one home per shape, enforced at compile time); Core-Path-Registry.md D20",
   status: "active",
-  scopeSafety: "whole-project", // the vocabulary comes from another package; the baseline + stale arms are tree-wide
+  scopeSafety: "whole-project", // the vocabulary comes from another package; the blindness arm is tree-wide
   message: MESSAGE,
   fix: FIX,
   // The ids module is scanned too: it is the derivation source, and conformance mini-projects plant it there.
   scanRoot: inScope,
   begin: (ctx: GateRunCtx) => {
     passPositions = deriveBrandPositions(ctx.project.getSourceFiles());
-    passBaseline = loadBaseline(ctx.root);
-    passSeenViolating.clear();
   },
   visitFile: (sf, ctx) => {
     const rel = repoRel(sf.getFilePath());
-    // The stale-MARKER arm is per-file and NOT budgeted: an exemption that guards nothing is never debt to
-    // ratchet down, it is a lie to delete.
+    // The stale-MARKER arm: an exemption that guards nothing is a lie to delete, never debt.
     for (const finding of staleMarkerFindings(sf, rel, passPositions)) {
       ctx.report(finding);
     }
-    const findings = brandPositionFindings(sf, rel, passPositions);
-    if (findings.length > 0) {
-      passSeenViolating.add(rel);
-    }
-    for (const finding of findings.slice(passBaseline[rel] ?? 0)) {
+    for (const finding of brandPositionFindings(sf, rel, passPositions)) {
       ctx.report(finding);
     }
   },
   finalize: (ctx) => {
-    // WHOLE-TREE claims: a conformance mini-project would "prove" every baseline row dead (§4.5/§4.6). The
-    // anchor is the schema barrel — present on every real run, on no example's path.
+    // WHOLE-TREE claim: the blindness tripwire only speaks on a real tree (§4.5/§4.6). The anchor is the
+    // schema barrel — present on every real run, on no example's path.
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, REAL_TREE_ANCHOR)) {
       return;
     }
     if (passPositions.size === 0) {
       ctx.report({ file: GATE_SELF, line: 1, column: 0, message: BLIND });
-    }
-    for (const rel of Object.keys(passBaseline)) {
-      if (!passSeenViolating.has(rel)) {
-        ctx.report({ file: GATE_SELF, line: 1, column: 0, message: STALE_ROW(rel) });
-      }
     }
   },
 

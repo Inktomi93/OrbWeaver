@@ -5,7 +5,7 @@
 
 import { users } from "@orb/db";
 import { DomainConflictError, DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
-import type { UserId } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAdminService } from "@orb/server/domain/admin";
 import { eq } from "drizzle-orm";
@@ -19,8 +19,8 @@ describe("setRole", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createAdminService(h.ctx);
-    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
-    const target = await seedUser(db, { id: "user_t", role: "user", handle: "t" });
+    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
+    const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
 
     const updated = await svc.setRole({
       principal: principal(owner, "owner"),
@@ -34,15 +34,15 @@ describe("setRole", () => {
   test("a delegated admin is REFUSED (requireOwner is owner-only)", async () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);
-    const target = await seedUser(db, { id: "user_t", role: "user", handle: "t" });
+    const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
     await expect(svc.setRole({ principal: principal(admin, "admin"), userId: target, role: "admin" })).rejects.toThrow(DomainForbiddenError);
   });
 
   test("promoting a SECOND user to owner is refused with a typed CONFLICT (D40 single-owner), never a raw DB throw", async () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
-    const target = await seedUser(db, { id: "user_t", role: "user", handle: "t" });
+    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
+    const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
     // The pre-check fires BEFORE the write, so the `users_single_owner_unique` partial index is never hit
     // — a friendly `DomainConflictError`, not the raw unique-violation.
     await expect(svc.setRole({ principal: principal(owner, "owner"), userId: target, role: "owner" })).rejects.toThrow(DomainConflictError);
@@ -55,7 +55,7 @@ describe("setRole", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createAdminService(h.ctx);
-    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
+    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
     const result = await svc.setRole({
       principal: principal(owner, "owner"),
       userId: owner,
@@ -71,7 +71,7 @@ describe("setRole", () => {
   test("the owner can't be demoted, and the owner row is unchanged", async () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
+    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
     await expect(svc.setRole({ principal: principal(owner, "owner"), userId: owner, role: "user" })).rejects.toMatchObject({ code: "cannot_modify_owner" });
     const rows = await db.select().from(users).where(eq(users.id, owner));
     expect(rows[0]?.role).toBe("owner");
@@ -80,8 +80,8 @@ describe("setRole", () => {
   test("demoting the LAST delegated admin succeeds (no last-admin guard, D17)", async () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
-    const onlyAdmin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
+    const onlyAdmin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     const updated = await svc.setRole({
       principal: principal(owner, "owner"),
       userId: onlyAdmin,
@@ -93,7 +93,7 @@ describe("setRole", () => {
   test("a missing target throws DomainNotFoundError", async () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
+    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
     await expect(
       svc.setRole({
         principal: principal(owner, "owner"),

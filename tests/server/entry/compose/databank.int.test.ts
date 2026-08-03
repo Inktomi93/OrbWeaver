@@ -19,7 +19,8 @@
 // broken binding returning constants regardless of the write would pass the write case vacuously.
 
 import type { Db } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
 import { bindGetDatabankSettings } from "../../../../packages/server/src/entry/compose/databank.ts";
@@ -28,7 +29,7 @@ import { seedUser } from "../../domain/chat/_support.ts";
 import { principal } from "../../domain/settings/_support.ts";
 
 function seedHost(db: Db): Promise<UserId> {
-  return seedUser(db, "dbhost");
+  return seedUser(db, castId<Handle>("dbhost"));
 }
 
 describe("databank settings wire — composed-real (createServices)", () => {

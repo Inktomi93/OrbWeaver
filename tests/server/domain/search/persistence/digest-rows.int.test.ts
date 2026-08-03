@@ -3,6 +3,8 @@
 // (a different-`model` row never returned), the cross-chat OWNER belt (derived via the producer card — a
 // foreign owner's digest is never returned), the within-chat belt, and the candidate restriction.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { nearestDigests, nearestSegments } from "../../../../../packages/server/src/domain/search/persistence/digest-rows.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -12,7 +14,7 @@ import { EMBED_MODEL, seedCharacter, seedChat, seedChatDigest, seedChatSegment, 
 describe("nearestDigests", () => {
   test("returns within-chat digests ascending by distance", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const char = await seedCharacter(db, { id: "character_pov", ownerId: owner, name: "POV" });
     const chat = await seedChat(db, "chat_a");
     await seedChatDigest(db, {
@@ -41,7 +43,7 @@ describe("nearestDigests", () => {
 
   test("the SPACE belt excludes a different-model digest", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const char = await seedCharacter(db, { id: "character_pov", ownerId: owner, name: "POV" });
     const chat = await seedChat(db, "chat_a");
     await seedChatDigest(db, {
@@ -70,8 +72,8 @@ describe("nearestDigests", () => {
 
   test("the cross-chat OWNER belt excludes a foreign owner's digest", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const mine = await seedCharacter(db, { id: "character_mine", ownerId: owner, name: "Mine" });
     const theirs = await seedCharacter(db, {
       id: "character_theirs",
@@ -107,7 +109,7 @@ describe("nearestDigests", () => {
 describe("nearestSegments", () => {
   test("returns chat-set segments ascending by distance + excludes other-space/other-chat rows", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedCharacter(db, { id: "character_pov", ownerId: owner, name: "POV" });
     const chat = await seedChat(db, "chat_a");
     const otherChat = await seedChat(db, "chat_other");

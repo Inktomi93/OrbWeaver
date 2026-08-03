@@ -39,7 +39,7 @@
 
 import type { RpgActorOp, RpgActorRef, RpgDateMode, RpgExtraction, RpgTrackerDef } from "@orb/contracts/rpg";
 import { actorRefKey, actorTrackerWriteKeys, RPG_PROFILE_D20, rpgSheetSchema, rpgSnapshotStateSchema, rpgTrackerDefSchema } from "@orb/contracts/rpg";
-import type { CharacterId, ChatId, ChatTurnId, RpgGameId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, Handle, RpgGameId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RpgGatherResult } from "../../../../packages/server/src/domain/rpg/contract/params";
 import type { RpgRosterActor } from "../../../../packages/server/src/domain/rpg/index";
@@ -210,7 +210,7 @@ const MACRO_UNRENDERED: Readonly<Record<string, string>> = {
 // THE HARNESS — one game, real verbs, real turns, the real gather.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 
-const HOST = principal("host");
+const HOST = principal(castId<Handle>("host"));
 
 /** The absolute state block's heading (`buildLiteReminder`) — the block boundary the probes read against. */
 const STATE_HEADING = "# Game state";
@@ -243,7 +243,7 @@ const CARRIERS: Readonly<Record<CarrierKind, Carrier>> = {
     kind: "user",
     label: "You",
     targetRef: "You",
-    roster: [rosterUser("host", "You")],
+    roster: [rosterUser(castId<Handle>("host"), "You")],
     actorRef: { kind: "user", userId: castId<UserId>("user_host") },
     onStage: false,
   },
@@ -327,7 +327,7 @@ function extraction(over: Partial<RpgExtraction>): RpgExtraction {
 async function openGame(opts: { carrier: Carrier; trackers?: readonly RpgTrackerDef[]; d20?: boolean }): Promise<Fixture> {
   const db = await freshDb();
   // `rpg_sheets` FKs both actor identities, so a `patchSheet` on either roster carrier needs the real row.
-  const ownerId = await seedUser(db, "host");
+  const ownerId = await seedUser(db, castId<Handle>("host"));
   await seedCharacter(db, ownerId, "kael", { id: CHARACTER_ID });
   const { chatId, gameId, h } = await seedLiteGame(db, { roster: [...opts.carrier.roster] });
   await h.service.updateConfig({

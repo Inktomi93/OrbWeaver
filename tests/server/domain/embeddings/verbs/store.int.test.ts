@@ -9,7 +9,7 @@
 //     persisted only on the captioned lens.
 
 import { characterEmbeddings, chatDigestSpeakers, chatDigests, chatSegments, documentChunks, imageEmbeddings } from "@orb/db";
-import type { ChatDigestId } from "@orb/kit/ids";
+import type { ChatDigestId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService, EmbedFailedError, SpaceMismatchError } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
@@ -38,7 +38,7 @@ describe("store — card-text (character_embeddings)", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
 
     const result = await svc.store({
@@ -68,7 +68,7 @@ describe("store — card-text (character_embeddings)", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const params = {
       kind: "card",
@@ -95,7 +95,7 @@ describe("store — card-text (character_embeddings)", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
 
     const first = await svc.store({
@@ -127,7 +127,7 @@ describe("store — card-text (character_embeddings)", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     h.roleClients.embed.mockResolvedValueOnce({
       vectors: [fakeVector(EMBED_DIM + 1)],
@@ -154,7 +154,7 @@ describe("store — card-text (character_embeddings)", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     h.roleClients.embed.mockResolvedValueOnce({
       vectors: [null],
@@ -180,7 +180,7 @@ describe("store — card-text (character_embeddings)", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     await svc.store({
       kind: "card",
@@ -215,7 +215,7 @@ describe("store — image lenses (image_embeddings)", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const assetId = await seedAsset(db, owner);
 
     const result = await svc.store({
@@ -240,7 +240,7 @@ describe("store — image lenses (image_embeddings)", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const assetId = await seedAsset(db, owner);
 
     await svc.store({
@@ -280,7 +280,7 @@ describe("store — image lenses (image_embeddings)", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const assetId = await seedAsset(db, owner);
 
     const skipped = await svc.store({
@@ -380,7 +380,7 @@ describe("store — chat-block lenses (segment / digest)", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scoped = await seedCharacter(db, owner, { id: "character_scope" });
     const chatId = await seedChat(db);
 
@@ -424,7 +424,7 @@ describe("store — chat-block lenses (segment / digest)", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const aria = await seedCharacter(db, owner, { id: "character_aria", name: "Aria" });
     const bram = await seedCharacter(db, owner, { id: "character_bram", name: "Bram" });
     const grp = await seedCharacter(db, owner, { id: "character_grp", name: "Group" });
@@ -471,7 +471,7 @@ describe("store — chat-block lenses (segment / digest)", () => {
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const aria = await seedCharacter(db, owner, { id: "character_aria", name: "Aria" });
     const bram = await seedCharacter(db, owner, { id: "character_bram", name: "Bram" });
     const chatId = await seedChat(db);
@@ -504,7 +504,7 @@ describe("store — chunk (document_chunks, the 5th arm — databank-design/05 �
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const documentId = await seedDocument(db, owner);
 
     const params = {
@@ -544,7 +544,7 @@ describe("store — chunk (document_chunks, the 5th arm — databank-design/05 �
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const documentId = await seedDocument(db, owner);
     const base = {
       kind: "document",
@@ -567,7 +567,7 @@ describe("store — chunk (document_chunks, the 5th arm — databank-design/05 �
     const db = await freshDb();
     const h = makeStoreHarness(db);
     const svc = createEmbeddingsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const documentId = await seedDocument(db, owner);
     h.roleClients.embed.mockResolvedValueOnce({
       vectors: [fakeVector(EMBED_DIM + 1, 1)],

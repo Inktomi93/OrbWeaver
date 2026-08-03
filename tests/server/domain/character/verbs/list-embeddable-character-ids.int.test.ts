@@ -2,6 +2,8 @@
 // Load-bearing: it spans ALL owners (the sweep is a trusted SYSTEM consumer — no owner scope), and it
 // excludes synthetic group buckets at the source (they carry no real card text and are never embedded).
 
+import type { CharacterHandle, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -12,20 +14,20 @@ describe("listEmbeddableCharacterIds", () => {
   test("spans ALL owners (no owner scope) and excludes synthetic buckets", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const alice = await seedUser(db, { handle: "alice" });
-    const bob = await seedUser(db, { handle: "bob" });
+    const alice = await seedUser(db, { handle: castId<Handle>("alice") });
+    const bob = await seedUser(db, { handle: castId<Handle>("bob") });
     const aliceCard = await svc.create({
       principal: principal(alice),
-      input: { handle: "aria", name: "Aria", description: "a curious traveler" },
+      input: { handle: castId<CharacterHandle>("aria"), name: "Aria", description: "a curious traveler" },
     });
     const bobCard = await svc.create({
       principal: principal(bob),
-      input: { handle: "bram", name: "Bram", description: "a grumpy blacksmith" },
+      input: { handle: castId<CharacterHandle>("bram"), name: "Bram", description: "a grumpy blacksmith" },
     });
     await seedRawCharacter(db, {
       id: "character_group",
       ownerId: alice,
-      handle: "__group__chat1",
+      handle: castId<CharacterHandle>("__group__chat1"),
       name: "Group Bucket",
       synthetic: true,
     });
@@ -45,15 +47,15 @@ describe("listEmbeddableCharacterIds", () => {
   test("ownerId scopes the sweep to ONE owner (the workloads SINGULAR embed pass)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const alice = await seedUser(db, { handle: "alice" });
-    const bob = await seedUser(db, { handle: "bob" });
+    const alice = await seedUser(db, { handle: castId<Handle>("alice") });
+    const bob = await seedUser(db, { handle: castId<Handle>("bob") });
     const aliceCard = await svc.create({
       principal: principal(alice),
-      input: { handle: "aria", name: "Aria", description: "a curious traveler" },
+      input: { handle: castId<CharacterHandle>("aria"), name: "Aria", description: "a curious traveler" },
     });
     await svc.create({
       principal: principal(bob),
-      input: { handle: "bram", name: "Bram", description: "a grumpy blacksmith" },
+      input: { handle: castId<CharacterHandle>("bram"), name: "Bram", description: "a grumpy blacksmith" },
     });
 
     // Alice's singular sweep sees ONLY her card — never bob's.

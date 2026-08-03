@@ -5,11 +5,13 @@
 // append, defensive-copy reads, and the resume/reseed/re-adopt outcomes that keep the Max-sub prompt
 // cache alive while never resuming a diverged transcript.
 
+import type { ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { buildSeedFrames, InMemorySessionStore, SessionCache, seedSessionId } from "@orb/server/infra/providers/backends/agent-sdk/session";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../../support/fixtures";
 
-const CHAT_ID = "chat-store";
+const CHAT_ID = castId<ChatId>("chat-store");
 const SESSION_ID = "33333333-3333-4333-8333-333333333333";
 
 // The SDK SessionStoreEntry + SessionKey types, derived WITHOUT importing the sealed SDK (mirror runner.test).

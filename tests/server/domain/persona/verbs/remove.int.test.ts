@@ -3,7 +3,7 @@
 // real delete audits; the caller's LAST persona is refused (`last_persona` — the PD-100 always-one belt).
 
 import { characterPersonas, personas } from "@orb/db";
-import type { PersonaId } from "@orb/kit/ids";
+import type { Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPersonaService, LastPersonaError, PersonaNotFoundError } from "@orb/server/domain/persona";
 import { eq } from "drizzle-orm";
@@ -17,7 +17,7 @@ describe("remove", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, { ownerId: owner });
     // A second persona keeps the delete legal (the last-persona belt refuses deleting the sole one).
     await svc.create({ principal: principal(owner), input: { name: "Keeper", description: "k" } });
@@ -46,7 +46,7 @@ describe("remove", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const only = await svc.create({
       principal: principal(owner),
       input: { name: "Sole", description: "s" },
@@ -60,8 +60,8 @@ describe("remove", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const created = await svc.create({
       principal: principal(owner),
       input: { name: "Mine", description: "d" },
@@ -74,7 +74,7 @@ describe("remove", () => {
   test("a missing id throws PersonaNotFoundError", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await expect(svc.remove({ principal: principal(owner), personaId: castId<PersonaId>("persona_ghost") })).rejects.toThrow(PersonaNotFoundError);
   });
 
@@ -82,7 +82,7 @@ describe("remove", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const only = await svc.create({
       principal: principal(owner),
       input: { name: "Sole", description: "s" },

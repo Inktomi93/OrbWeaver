@@ -3,7 +3,7 @@
 // swapMacros provenance in typed metadata; a foreign/missing character throws (DomainNotFound); audits.
 
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createPersonaService } from "@orb/server/domain/persona";
 import { describe } from "vitest";
@@ -16,7 +16,7 @@ describe("createFromCharacter", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const avatar = await seedAsset(db, { ownerId: owner, hash: "card_hash" });
     // A real character TypeID — the metadata `sourceCharacterId` round-trips through `typeIdSchema`, which
     // validates the full TypeID shape (a fake id would fail the read-seam parse and null the metadata).
@@ -46,7 +46,7 @@ describe("createFromCharacter", () => {
   test("swapMacros inverts {{char}} ↔ {{user}} in the copied description", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, {
       id: mintTypeId(ID_PREFIX.character),
       ownerId: owner,
@@ -66,7 +66,7 @@ describe("createFromCharacter", () => {
   test("a null card description mints an empty-string persona description", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, { ownerId: owner, description: null });
     const detail = await svc.createFromCharacter({
       principal: principal(owner),
@@ -79,8 +79,8 @@ describe("createFromCharacter", () => {
   test("a character owned by someone else throws (no existence leak)", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const character = await seedCharacter(db, { ownerId: owner });
     await expect(
       svc.createFromCharacter({
@@ -94,7 +94,7 @@ describe("createFromCharacter", () => {
   test("a missing character throws", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await expect(
       svc.createFromCharacter({
         principal: principal(owner),

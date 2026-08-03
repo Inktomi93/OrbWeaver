@@ -7,6 +7,8 @@
 
 import { createHash } from "node:crypto";
 import { assets } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
@@ -25,7 +27,7 @@ describe("store", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const bytes = pngBytes(1, 2, 3);
 
     const first = await svc.store({
@@ -55,8 +57,8 @@ describe("store", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const bytes = pngBytes(9, 9, 9);
 
     const a = await svc.store({ principal: principal(owner), bytes, kind: "avatar", mime: PNG });
@@ -81,7 +83,7 @@ describe("store", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const bytes = pngBytes(4, 2);
 
     const first = await svc.store({
@@ -102,7 +104,7 @@ describe("store", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const notAnImage = new TextEncoder().encode("#!/bin/sh\nrm -rf /\n");
 
     await expect(
@@ -125,7 +127,7 @@ describe("store", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     await expect(
       svc.store({
@@ -143,7 +145,7 @@ describe("store", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const bytes = pngBytes(1, 2, 3, 4, 5, 6);
 
     await expect(
@@ -166,7 +168,7 @@ describe("store", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const bytes = pngBytes(1, 2, 3);
 
     const stored = await svc.store({
@@ -184,7 +186,7 @@ describe("store", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const card = pngBytes(0xca, 0xfe);
 
     const stored = await svc.store({
@@ -213,7 +215,7 @@ describe("store — enforceMagic over document mimes (DBK-A)", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const stored = await svc.store({ principal: principal(owner), bytes: markdownBytes, kind: "document", mime: "text/markdown", enforceMagic: true });
     expect(stored.created).toBe(true);
@@ -227,7 +229,7 @@ describe("store — enforceMagic over document mimes (DBK-A)", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const stored = await svc.store({ principal: principal(owner), bytes: pdfBytes, kind: "document", mime: "application/pdf", enforceMagic: true });
     expect(stored.created).toBe(true);
@@ -238,7 +240,7 @@ describe("store — enforceMagic over document mimes (DBK-A)", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     await expect(svc.store({ principal: principal(owner), bytes: binaryBytes, kind: "document", mime: "text/markdown", enforceMagic: true })).rejects.toThrow(
       MISMATCH_RE,
@@ -251,7 +253,7 @@ describe("store — enforceMagic over document mimes (DBK-A)", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     await expect(
       svc.store({ principal: principal(owner), bytes: markdownBytes, kind: "document", mime: "application/pdf", enforceMagic: true }),
@@ -268,7 +270,7 @@ describe("store — enforceMagic over document mimes (DBK-A)", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const stored = await svc.store({ principal: principal(owner), bytes: zipHeaderBytes, kind: "document", mime: docxMime, enforceMagic: true });
     expect(stored.created).toBe(true);
@@ -279,7 +281,7 @@ describe("store — enforceMagic over document mimes (DBK-A)", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     await expect(svc.store({ principal: principal(owner), bytes: pkTextBytes, kind: "document", mime: docxMime, enforceMagic: true })).rejects.toThrow(
       MISMATCH_RE,

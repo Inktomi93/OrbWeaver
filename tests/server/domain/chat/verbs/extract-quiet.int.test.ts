@@ -9,7 +9,8 @@ import type { UserMacroSpec } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { ChatUserMacroDefs } from "@orb/server/domain/chat";
 import { createExtractQuiet } from "@orb/server/domain/chat";
 import { describe } from "vitest";
@@ -52,7 +53,7 @@ function houseStyleDef(body: string): UserMacroSpec {
 
 /** Seed a host + a character + a chat with both seated; returns the chat id. */
 async function seedRoom(db: Db): Promise<ChatId> {
-  const host = await seedUser(db, "host");
+  const host = await seedUser(db, castId<Handle>("host"));
   const characterId = await seedCharacter(db, host, "aria");
   const chatId = await seedChat(db, "room");
   await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });

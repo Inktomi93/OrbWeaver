@@ -6,7 +6,7 @@
 
 import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "../clock.ts";
 import { createSeededIds } from "../ids.ts";
@@ -23,7 +23,7 @@ export function makeCharacter(overrides: Partial<CharacterRow> = {}): CharacterR
   const id = overrides.id ?? castId<CharacterId>(ids.next("character"));
   return {
     id,
-    handle: id,
+    handle: castId<CharacterHandle>(id),
     ownerId: castId<UserId>(ids.next("user")),
     starred: false,
     archived: false,

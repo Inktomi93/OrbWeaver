@@ -334,7 +334,7 @@ export function buildAgentSeed(client: TRPCClient<AppRouter>): OrbSeedHandle {
     return castId<CharacterId>(created.id);
   }
 
-  async function game(args: { profile: SeedProfile; title?: string }): Promise<{ readonly chatId: string }> {
+  async function game(args: { profile: SeedProfile; title?: string }): Promise<{ readonly chatId: ChatId }> {
     const { profile } = args;
     const title = args.title ?? `Seeded game — ${profile}`;
     const characterId = await ensurePlayer();

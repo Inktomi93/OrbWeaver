@@ -8,6 +8,8 @@
 // The SSRF belt ITSELF is proven in tests/server/infra/network/egress.test.ts; this asserts only the pass-through.
 
 import { documents } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createExtractText, EXTRACTOR_VERSION } from "@orb/server/infra/extraction";
 import { eq } from "drizzle-orm";
 import { ScrapeFailedError } from "../../../../../../packages/server/src/domain/databank/contract/errors.ts";
@@ -31,7 +33,7 @@ function makeHarness(db: Parameters<typeof makeDatabankHarness>[0]): ReturnType<
 test("scrapes captions: derives the video id, fetches timedtext, stamps 'youtube' canon, enqueues ingest", async () => {
   const db = await freshDb();
   const h = makeHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf(CAPTIONS_XML));
 
   const result = await h.service.scrapeYoutube({ principal: principalFor(owner), url: WATCH_URL, lang: "en" });
@@ -56,7 +58,7 @@ test("scrapes captions: derives the video id, fetches timedtext, stamps 'youtube
 test("accepts a youtu.be short link and a bare id", async () => {
   const db = await freshDb();
   const h = makeHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValue(bytesOf(CAPTIONS_XML));
 
   await h.service.scrapeYoutube({ principal: principalFor(owner), url: `https://youtu.be/${VIDEO_ID}`, lang: "en" });
@@ -69,7 +71,7 @@ test("accepts a youtu.be short link and a bare id", async () => {
 test("a URL with no extractable video id collapses to ScrapeFailedError before any fetch", async () => {
   const db = await freshDb();
   const h = makeHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
   await expect(h.service.scrapeYoutube({ principal: principalFor(owner), url: "https://example.com/not-a-video", lang: "en" })).rejects.toBeInstanceOf(
     ScrapeFailedError,
@@ -80,7 +82,7 @@ test("a URL with no extractable video id collapses to ScrapeFailedError before a
 test("a video with no caption track (empty XML) collapses to ScrapeFailedError â€” no row, no enqueue", async () => {
   const db = await freshDb();
   const h = makeHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf('<?xml version="1.0"?><transcript></transcript>'));
 
   await expect(h.service.scrapeYoutube({ principal: principalFor(owner), url: WATCH_URL, lang: "en" })).rejects.toBeInstanceOf(ScrapeFailedError);
@@ -93,7 +95,7 @@ test("a video with no caption track (empty XML) collapses to ScrapeFailedError â
 test("a fetch refusal collapses to a leak-free ScrapeFailedError, not retry-looped", async () => {
   const db = await freshDb();
   const h = makeHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockRejectedValueOnce(new Error("SSRF_BLOCKED: 10.0.0.5"));
 
   const error = await h.service.scrapeYoutube({ principal: principalFor(owner), url: WATCH_URL, lang: "en" }).catch((e: unknown) => e);

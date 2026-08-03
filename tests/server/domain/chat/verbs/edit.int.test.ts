@@ -70,8 +70,8 @@ async function seedRoom(): Promise<{
   chatId: Awaited<ReturnType<typeof seedChat>>;
   charA: CharacterId;
 }> {
-  const host = await seedUser(db, "host");
-  const member = await seedUser(db, "member");
+  const host = await seedUser(db, castId<Handle>("host"));
+  const member = await seedUser(db, castId<Handle>("member"));
   const charA = await seedCharacter(db, host, "aria");
   const chatId = await seedChat(db, "a");
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -289,7 +289,7 @@ describe("D46 runtime plane — swipe-clobber rewind (ST #3263)", () => {
   const setX = (v: string): VarOp[] => [{ op: "set", key: "hp", value: v }];
 
   /** Read the chat's materialized runtime cache. */
-  async function runtimeCache(chatId: string): Promise<Record<string, string> | null> {
+  async function runtimeCache(chatId: ChatId): Promise<Record<string, string> | null> {
     const [row] = await db
       .select({ runtimeVariables: chats.runtimeVariables })
       .from(chats)
@@ -897,7 +897,7 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
 
   test("a non-author, non-host member is refused with not_author (host may re-stamp)", async () => {
     const { member, chatId } = await seedRoom();
-    const other = await seedUser(db, "other");
+    const other = await seedUser(db, castId<Handle>("other"));
     await seedParticipant(db, { chatId, key: "o", userId: other, role: "member" });
     const persona = await seedPersona(db, member, "mara");
     const { messageId } = await seedUserMsg(chatId, 1, member); // authored by `member`
@@ -1104,7 +1104,7 @@ describe("reattributePersona — the `mine` scope resolves the caller's own rows
 
   test("a NON-MEMBER's mine-scope call is a leak-free NOT_FOUND — it can never resolve another room's rows", async () => {
     const { member, chatId } = await seedRoom();
-    const stranger = await seedUser(db, "stranger");
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
     const persona = await seedPersona(db, member, "mara");
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: member });
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs });

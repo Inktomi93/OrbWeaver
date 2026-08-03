@@ -26,6 +26,7 @@
 // `tests/server/domain/chat/verbs/read.int.test.ts`), not faked at E2E. This spec proves the security-critical
 // BODY strip end-to-end with a real member + the deception-active GATE — the layer the capstone could not reach.
 
+import type { CharacterHandle } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, loginLocal, ownerActor } from "./support/actors";
 import { LOCAL_MEMBER } from "./support/modes";
@@ -57,7 +58,7 @@ test("P3 member-strip: a MEMBER's wire payload is byte-clean of the planted lie;
   const host = ownerActor(origin);
 
   // Fresh spec-owned character (idempotent across crashed runs — remove any prior, then re-mint chatless).
-  const priorList = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: string }[] }>("character.list", {});
+  const priorList = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[] }>("character.list", {});
   const prior = priorList.items.find((c) => c.handle === CARD_HANDLE);
   if (prior !== undefined) {
     await host.mutation("character.remove", { characterId: prior.id });

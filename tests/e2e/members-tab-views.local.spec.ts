@@ -16,6 +16,7 @@
 // viewer, member-side). The assertions are the real check — a PNG proves nothing on its own — but the
 // screenshots are the deliverable a human reviews.
 
+import type { CharacterHandle } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import type { ActorClient } from "./support/actors";
 import { addMemberToChat, loginLocal, ownerActor } from "./support/actors";
@@ -56,7 +57,7 @@ const CAST_B = {
 const CAST = [CAST_A, CAST_B];
 
 async function freshCharacter(host: ActorClient, card: (typeof CAST)[number]): Promise<string> {
-  const prior = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: string }[] }>("character.list", {});
+  const prior = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[] }>("character.list", {});
   const stale = prior.items.find((c) => c.handle === card.handle);
   if (stale !== undefined) {
     await host.mutation("character.remove", { characterId: stale.id });

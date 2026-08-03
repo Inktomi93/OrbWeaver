@@ -40,7 +40,7 @@ import type { AgentSdkDeps, TurnStreamContext } from "./types";
 import { assertInitFrameShape, classifyAssistantError, classifyResultSubtype, classifyTerminalReason } from "./verify";
 
 /** chatId-derived metadata label only — never the user's chat title text (RP content stays out of the SDK's transcript store). */
-function sdkChatTitle(chatId: string | undefined): string {
+function sdkChatTitle(chatId: ChatId | undefined): string {
   return chatId !== undefined ? `orb:${chatId}` : "orbweaver";
 }
 const CONTEXT_USAGE_PROBE_TIMEOUT_MS = 2000;
@@ -307,7 +307,7 @@ async function resolveResume(
   };
 }
 
-function logSessionDecision(chatId: string | undefined, resume: string | undefined, disposition: SeededSessionDecision["disposition"]): void {
+function logSessionDecision(chatId: ChatId | undefined, resume: string | undefined, disposition: SeededSessionDecision["disposition"]): void {
   if (chatId === undefined || disposition === "resumed" || disposition === "fresh") {
     return;
   }

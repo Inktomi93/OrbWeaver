@@ -20,11 +20,11 @@ describe("createUser", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createAdminService(h.ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
 
     const view = await svc.createUser({
       principal: principal(admin, "admin"),
-      handle: "newbie",
+      handle: castId<Handle>("newbie"),
       password: GOOD_PASSWORD,
     });
     expect(view.handle).toBe("newbie");
@@ -42,7 +42,7 @@ describe("createUser", () => {
     await expect(
       svc.createUser({
         principal: principal(admin, "admin"),
-        handle: "   ",
+        handle: castId<Handle>("   "),
         password: GOOD_PASSWORD,
       }),
     ).rejects.toMatchObject({ code: "invalid_handle" });
@@ -51,19 +51,21 @@ describe("createUser", () => {
   test("a short password is rejected (weak_password)", async () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);
-    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: "x", password: "short" })).rejects.toMatchObject({ code: "weak_password" });
+    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("x"), password: "short" })).rejects.toMatchObject({
+      code: "weak_password",
+    });
   });
 
   test("even the OWNER cannot mint a second owner (cannot_grant_owner — the single-owner invariant)", async () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
+    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
     // The owner passes the authority gate (requireOwner) but is still refused at validation — a SECOND
     // owner can never be minted here (D40 single-owner; ownership transfer is out of scope).
     await expect(
       svc.createUser({
         principal: principal(owner, "owner"),
-        handle: "x",
+        handle: castId<Handle>("x"),
         password: GOOD_PASSWORD,
         role: "owner",
       }),
@@ -78,7 +80,7 @@ describe("createUser", () => {
     await expect(
       svc.createUser({
         principal: principal(admin, "admin"),
-        handle: "shadow-admin",
+        handle: castId<Handle>("shadow-admin"),
         password: GOOD_PASSWORD,
         role: "admin",
       }),
@@ -97,7 +99,7 @@ describe("createUser", () => {
     await expect(
       svc.createUser({
         principal: principal(admin, "admin"),
-        handle: "x",
+        handle: castId<Handle>("x"),
         password: GOOD_PASSWORD,
         role: "owner",
       }),
@@ -108,11 +110,11 @@ describe("createUser", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createAdminService(h.ctx);
-    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: "owner" });
+    const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
 
     const view = await svc.createUser({
       principal: principal(owner, "owner"),
-      handle: "trusted",
+      handle: castId<Handle>("trusted"),
       password: GOOD_PASSWORD,
       role: "admin",
     });
@@ -127,11 +129,11 @@ describe("createUser", () => {
   test("a duplicate handle is rejected (user_exists)", async () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);
-    await seedUser(db, { id: "user_dup", role: "user", handle: "taken" });
+    await seedUser(db, { id: "user_dup", role: "user", handle: castId<Handle>("taken") });
     await expect(
       svc.createUser({
         principal: principal(admin, "admin"),
-        handle: "taken",
+        handle: castId<Handle>("taken"),
         password: GOOD_PASSWORD,
       }),
     ).rejects.toMatchObject({ code: "user_exists" });
@@ -140,7 +142,9 @@ describe("createUser", () => {
   test("a plain user is denied", async () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
-    const u = await seedUser(db, { id: "user_u", role: "user", handle: "u" });
-    await expect(svc.createUser({ principal: principal(u, "user"), handle: "x", password: GOOD_PASSWORD })).rejects.toThrow(DomainForbiddenError);
+    const u = await seedUser(db, { id: "user_u", role: "user", handle: castId<Handle>("u") });
+    await expect(svc.createUser({ principal: principal(u, "user"), handle: castId<Handle>("x"), password: GOOD_PASSWORD })).rejects.toThrow(
+      DomainForbiddenError,
+    );
   });
 });

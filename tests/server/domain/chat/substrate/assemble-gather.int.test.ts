@@ -10,7 +10,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { chatBooks, chatInjections, chats, messages, worldBooks, worldEntries } from "@orb/db";
-import type { CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -80,7 +80,7 @@ function foreignOf(over: Partial<ForeignInputs> = {}): ForeignInputs {
 
 /** Seed a solo room (host + one character), returning the ids. */
 async function seedRoom(key: string): Promise<{ host: UserId; chatId: ChatId; aria: CharacterId }> {
-  const host = await seedUser(db, `${key}_host`);
+  const host = await seedUser(db, castId<Handle>(`${key}_host`));
   const chatId = await seedChat(db, key);
   const aria = await seedCharacter(db, host, `${key}_aria`);
   await seedParticipant(db, { chatId, key: `${key}_h`, userId: host, role: "host" });
@@ -89,7 +89,7 @@ async function seedRoom(key: string): Promise<{ host: UserId; chatId: ChatId; ar
 }
 
 /** Attach a chat-scope, always-fire WI entry (priority for the budget walk). */
-async function attachAlwaysEntry(owner: UserId, chatId: string, key: string, entry: { readonly content: string; readonly priority: number }): Promise<void> {
+async function attachAlwaysEntry(owner: UserId, chatId: ChatId, key: string, entry: { readonly content: string; readonly priority: number }): Promise<void> {
   const { content, priority } = entry;
   const bookId = castId<WorldBookId>(`world_book_${key}`);
   await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT });
@@ -319,7 +319,7 @@ describe("gatherAssembleContext — the {{databank}} slot GATHER (DB6)", () => {
     const { host, chatId, aria } = await seedRoom("db_hit");
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "first turn" });
     await seedMessage(db, chatId, 2, { role: "assistant", characterId: aria, content: "second turn" });
-    const calls: { chatId: string; queryText: string; tokenBudget: number }[] = [];
+    const calls: { chatId: ChatId; queryText: string; tokenBudget: number }[] = [];
     const ctx = makeChatContext(db, {
       getCard: () => Promise.resolve(cardOf("Aria")),
       gatherDatabank: (args) => {
@@ -402,7 +402,7 @@ describe("gatherAssembleContext — the host-tier regex union (D53 as amended by
   // right scope keys, and that it preserves the resolver's tier order end-to-end.
   test("union = global ∪ preset ∪ cast ∪ room, in that order, from the injected scope resolver", async () => {
     const { host, chatId, aria } = await seedRoom("regex");
-    const seen: { ownerId?: string; chatId?: string; characterIds?: readonly string[] } = {};
+    const seen: { ownerId?: string; chatId?: ChatId; characterIds?: readonly string[] } = {};
     const ctx = makeChatContext(db, {
       resolveRegexSources: (args) => {
         seen.ownerId = args.ownerId;

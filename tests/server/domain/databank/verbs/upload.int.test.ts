@@ -5,6 +5,8 @@
 
 import type { Db } from "@orb/db";
 import { documents } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { createExtractText, EXTRACTOR_VERSION } from "@orb/server/infra/extraction";
 import { eq } from "drizzle-orm";
@@ -35,7 +37,7 @@ async function withRealAssetsStore(db: Db): Promise<DatabankService> {
 test("stores the bytes, extracts the canon synchronously, and enqueues ingest", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
   const result = await h.service.upload({ principal: principalFor(owner), bytes: BYTES, mime: MIME, name: "notes.md" });
   expect(result.outcome).toBe("created");
@@ -54,7 +56,7 @@ test("stores the bytes, extracts the canon synchronously, and enqueues ingest", 
 test("re-upload of identical bytes dedups without re-extracting", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
   await h.service.upload({ principal: principalFor(owner), bytes: BYTES, mime: MIME, name: "a.md" });
   const second = await h.service.upload({ principal: principalFor(owner), bytes: BYTES, mime: MIME, name: "b.md" });
@@ -72,7 +74,7 @@ test("re-upload of identical bytes dedups without re-extracting", async () => {
 test("a REJECTED ingest enqueue does not reject the upload — the document lands, reported as un-indexed", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.enqueueIngest.mockRejectedValueOnce(new Error("the queue is down"));
 
   const result = await h.service.upload({ principal: principalFor(owner), bytes: BYTES, mime: MIME, name: "a.md" });
@@ -86,7 +88,7 @@ test("a REJECTED ingest enqueue does not reject the upload — the document land
 test("an empty extraction surfaces the empty-extraction warning (data, not a throw)", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.extractText.mockResolvedValueOnce({ text: "", meta: { format: "pdf", extractorVersion: "textlike-1", charCount: 0 } });
 
   const result = await h.service.upload({ principal: principalFor(owner), bytes: new Uint8Array([1, 2, 3]), mime: "application/pdf", name: "scan.pdf" });
@@ -97,7 +99,7 @@ test("an empty extraction surfaces the empty-extraction warning (data, not a thr
 test("round-trips through the REAL infra/extraction dispatcher — canon normalized, version stamped", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db, { extractor: { op: createExtractText(), version: EXTRACTOR_VERSION } });
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
   const bytes = new TextEncoder().encode("# Real\r\n\r\nExtracted through the actual loader.");
   const result = await h.service.upload({ principal: principalFor(owner), bytes, mime: "text/markdown", name: "real.md" });
@@ -116,7 +118,7 @@ test("round-trips through the REAL infra/extraction dispatcher — canon normali
 test("a real text/markdown upload succeeds end-to-end through the REAL assets.store belt (no faked store)", async () => {
   const db = await freshDb();
   const service = await withRealAssetsStore(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
   const result = await service.upload({ principal: principalFor(owner), bytes: BYTES, mime: MIME, name: "notes.md" });
 
@@ -132,7 +134,7 @@ test("a real text/markdown upload succeeds end-to-end through the REAL assets.st
 test("a mislabeled binary claimed text/markdown throws at the REAL belt, writing no document", async () => {
   const db = await freshDb();
   const service = await withRealAssetsStore(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
   await expect(service.upload({ principal: principalFor(owner), bytes: BINARY, mime: MIME, name: "x.md" })).rejects.toThrow(MISMATCH_RE);
 

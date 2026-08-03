@@ -11,7 +11,7 @@ import type { Db } from "@orb/db";
 import { characterStats, chatLocks, chats, dailyStats, messages, messageVariants, ownerStats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { DomainRateLimitError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, MessageId, MessageVariantId, UserId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { applyStatsDelta } from "@orb/server/domain/stats";
@@ -79,7 +79,7 @@ interface Harness {
   events: ChatBusEvent[];
   deltas: StatsDelta[];
   /** The `chatsChanged` member-fan calls (PD user-bus lane) — one per terminal turn, list-only (no `detail`). */
-  chatChangedFans: { chatId: string; options: unknown }[];
+  chatChangedFans: { chatId: ChatId; options: unknown }[];
   debitBudget: ReturnType<typeof vi.fn>;
   engine: ReturnType<typeof createTurnEngine>;
 }
@@ -107,7 +107,7 @@ function harness(
 ): Harness {
   const events: ChatBusEvent[] = [];
   const deltas: StatsDelta[] = [];
-  const chatChangedFans: { chatId: string; options: unknown }[] = [];
+  const chatChangedFans: { chatId: ChatId; options: unknown }[] = [];
   const ctx = makeChatContext(database, {
     runChatTurn: over.runChatTurn ?? OK_TURN,
     ...(over.now !== undefined ? { now: over.now } : {}),
@@ -407,7 +407,7 @@ describe("createTurnEngine — R3 stats real-wire (the REAL applyStatsDelta land
     // engine's own `db.batch` commits the four rollup UPSERTs alongside the canon write. It proves, from chat's
     // real call site, that the live delta actually lands as rows (the apply≡reconcile invariant's write half).
     const chatId = await seedChat(db, "stats");
-    await seedUser(db, "host");
+    await seedUser(db, castId<Handle>("host"));
     const char = await seedCharacter(db, HOST, "aria");
     await seedParticipant(db, { chatId, key: "aria", characterId: char });
 
@@ -520,7 +520,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
     const chatId = await seedChat(db, "memfail");
     // A cast character in the roster — `chars.length > 0` is what actually drives the engine into calling
     // `deps.generateDigests` (an empty roster short-circuits `Promise.all([])`, never reaching the throw).
-    await seedUser(db, "host");
+    await seedUser(db, castId<Handle>("host"));
     const char = await seedCharacter(db, HOST, "aria");
     await seedParticipant(db, { chatId, key: "aria", characterId: char });
     const events: ChatBusEvent[] = [];
@@ -559,7 +559,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
 
   test("F3: threads the resolved cast NAME map into the segment + digest builds (not raw typeids)", async () => {
     const chatId = await seedChat(db, "memnames");
-    await seedUser(db, "host");
+    await seedUser(db, castId<Handle>("host"));
     const char = await seedCharacter(db, HOST, "aria"); // id character_aria, name "aria"
     await seedParticipant(db, { chatId, key: "aria", characterId: char });
     // A prior character-voiced canon row → the per-chat producer resolves character_aria → its live name.
@@ -596,7 +596,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
 
   test("F3b: threads each cast character's WITNESSING horizons into its SCOPED digest build (D6)", async () => {
     const chatId = await seedChat(db, "memwitness");
-    await seedUser(db, "host");
+    await seedUser(db, castId<Handle>("host"));
     const char = await seedCharacter(db, HOST, "aria");
     // aria joined at seq 5 (not seq 0) — a real, non-trivial horizon the engine must source + thread.
     await seedParticipant(db, { chatId, key: "aria", characterId: char, joinSeq: 5 });
@@ -621,7 +621,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
 
   test("F3c: SCOPED per-speaker recall — each speaker recalls its OWN bucket, horizon-filtered by ITS presence (D6)", async () => {
     const chatId = await seedChat(db, "perspeaker");
-    await seedUser(db, "host");
+    await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, HOST, "aria"); // present since the chat opened
     const bram = await seedCharacter(db, HOST, "bram"); // a late joiner
     await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 1, leftSeq: null });
@@ -656,7 +656,7 @@ describe("createTurnEngine — post-turn memory build (fire-and-forget, §3a)", 
 
   test("F3d: MERGED / narrator round keeps round-level recall — NO per-speaker recall (byte-identical)", async () => {
     const chatId = await seedChat(db, "mergedbyteid");
-    await seedUser(db, "host");
+    await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, HOST, "aria");
     await seedParticipant(db, { chatId, key: "aria", characterId: aria, joinSeq: 5, leftSeq: null });
 
@@ -766,7 +766,7 @@ describe("createTurnEngine — pre-start belt refusals (no turnStarted)", () => 
 describe("createTurnEngine — swipe (append-variant on an existing slot, D26)", () => {
   test("appends a variant to the target slot + selects it; slot attribution unchanged", async () => {
     const chatId = await seedChat(db, "a");
-    await seedUser(db, "host");
+    await seedUser(db, castId<Handle>("host"));
     const char = await seedCharacter(db, HOST, "aria");
     await seedMessage(db, chatId, 1, { role: "user", content: "hi" });
     const { messageId } = await seedMessage(db, chatId, 2, {
@@ -877,7 +877,7 @@ describe("createTurnEngine — continue (extend in place + the D26 snapshot)", (
 describe("createTurnEngine — impersonate (a role:user slot, D26)", () => {
   test("commits a human-voiced role:user slot authored by triggeredBy", async () => {
     const chatId = await seedChat(db, "a");
-    await seedUser(db, "host");
+    await seedUser(db, castId<Handle>("host"));
     const h = harness(db);
 
     const outcome = await h.engine.runTurn(
@@ -1143,7 +1143,7 @@ describe("createTurnEngine — I-7 trace-ring landing proofs", () => {
     // A cast character seat, so `chars.length >= 1` and the scoped-digest `Promise.all` below actually
     // reaches `generateDigests` (an empty roster resolves it with zero calls — the completion signal below
     // would never fire).
-    await seedUser(db, "host");
+    await seedUser(db, castId<Handle>("host"));
     const char = await seedCharacter(db, HOST, "aria");
     await seedParticipant(db, { chatId, key: "aria", characterId: char });
     let buildDone: () => void = () => undefined;
@@ -1308,7 +1308,7 @@ describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, nev
   /** Seeds `hi` → `first take` (one variant, selected) and returns the assistant slot + its variant id. */
   async function seedSwipeTarget(name: string): Promise<{ chatId: ChatId; messageId: MessageId; variantId: MessageVariantId; characterId: CharacterId }> {
     const chatId = await seedChat(db, name);
-    await seedUser(db, "host");
+    await seedUser(db, castId<Handle>("host"));
     const characterId = await seedCharacter(db, HOST, "aria");
     await seedMessage(db, chatId, 1, { role: "user", content: "hi" });
     const seeded = await seedMessage(db, chatId, 2, { role: "assistant", characterId, content: "first take" });

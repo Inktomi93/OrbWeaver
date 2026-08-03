@@ -13,7 +13,7 @@ import { TAG_FOLDER_TYPES, TAG_SOURCES, TAG_STATUSES } from "@orb/contracts/tag"
 import type { Db } from "@orb/db";
 import { characters, characterTags, chats, chatTags, personas, personaTags, presets, presetTags, tags, users, worldBooks, worldBookTags } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
-import type { CharacterId, ChatId, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
@@ -33,7 +33,7 @@ async function seedTag(db: Db, ownerId: UserId, raw: string, name = `tag-${raw}`
 
 async function seedCharacter(db: Db, ownerId: UserId, raw: string): Promise<CharacterId> {
   const id = castId<CharacterId>(raw);
-  await db.insert(characters).values({ id, handle: `card-${raw}`, ownerId, contentHash: `hash-${raw}`, name: raw });
+  await db.insert(characters).values({ id, handle: castId<CharacterHandle>(`card-${raw}`), ownerId, contentHash: `hash-${raw}`, name: raw });
   return id;
 }
 

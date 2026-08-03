@@ -7,7 +7,7 @@ import type { AttachedBookRef, CreateCharacterInput, UpdateCharacterInput } from
 import type { Principal } from "@orb/contracts/identity";
 import type { TagSource, TagStatus } from "@orb/contracts/tag";
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
-import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import type { ImportContext } from "#domain/import";
 import type { ImportCardScripts } from "#domain/regex";
 
@@ -24,7 +24,7 @@ export interface ImportCharacterPort {
     readonly input: UpdateCharacterInput;
   }) => Promise<{ readonly id: CharacterId }>;
   readonly findByImportHash: (params: { readonly ownerId: UserId; readonly importHash: string }) => Promise<{ readonly characterId: CharacterId } | null>;
-  readonly findByHandle: (params: { readonly ownerId: UserId; readonly handle: string }) => Promise<{ readonly characterId: CharacterId } | null>;
+  readonly findByHandle: (params: { readonly ownerId: UserId; readonly handle: CharacterHandle }) => Promise<{ readonly characterId: CharacterId } | null>;
 }
 
 /** The `assets` front-door slice the driver wires the import avatar-store op to. `maxBytes` (PD-94) is the

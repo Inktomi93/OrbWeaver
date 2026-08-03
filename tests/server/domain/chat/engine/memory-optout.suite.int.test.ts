@@ -12,7 +12,7 @@ import type { AssembleContext } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { chatDigests } from "@orb/db";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
@@ -79,7 +79,7 @@ async function groupHarness(): Promise<{
   summarize: ReturnType<typeof fakeSummarize>;
   engine: ReturnType<typeof createTurnEngine>;
 }> {
-  const host = await seedUser(db, "host");
+  const host = await seedUser(db, castId<Handle>("host"));
   const c1 = await seedCharacter(db, host, "aria");
   const c2 = await seedCharacter(db, host, "bram");
   const synthetic = await seedCharacter(db, host, "grp_synthetic");

@@ -1142,6 +1142,18 @@ export function addNamedImport(
       `from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${opts.note ? ` (${opts.note})` : ""}`,
     touchedFiles: [abs],
     transform(): void {
+      // A TYPE-ONLY add is satisfied by ANY existing import of the name from this module — a separate
+      // `import type { X } from "m"` declaration included. Merging `type X` into the VALUE declaration
+      // while a type-only declaration already carries X mints a TS2300 duplicate identifier (measured:
+      // the 2026-08-03 brand campaign hit this in ~60 files across three passes).
+      if (named.isTypeOnly === true) {
+        const alreadyImported = sf
+          .getImportDeclarations()
+          .some((d) => d.getModuleSpecifierValue() === moduleSpecifier && d.getNamedImports().some((n) => n.getName() === named.name));
+        if (alreadyImported) {
+          return;
+        }
+      }
       // A value-import lookup by string alone can't tell a value declaration from a type-only one
       // sharing the same specifier (`import type { X } from "m"` + `import { Y } from "m"`) — match
       // on the non-type-only declaration explicitly, or we'd silently merge into the wrong one.

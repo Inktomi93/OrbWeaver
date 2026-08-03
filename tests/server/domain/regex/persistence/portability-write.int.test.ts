@@ -13,7 +13,7 @@
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { characterRegexScripts, globalRegexScripts, regexScripts } from "@orb/db";
-import type { RegexScriptId } from "@orb/kit/ids";
+import type { Handle, RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRegexService } from "@orb/server/domain/regex";
 import { eq } from "drizzle-orm";
@@ -51,7 +51,7 @@ function cardScript(id: string, name: string, findRegex: string): RegexScriptCar
 describe("card LIFT", () => {
   test("a FOREIGN card mints rows and attaches them in CARD order", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
 
     const result = await createImportCardScripts(ctxOf(db, "l"))({
@@ -70,7 +70,7 @@ describe("card LIFT", () => {
 
   test("CARRIED REFERENCES WIN: a same-install re-import attaches the existing rows, minting ZERO", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const existing = await seedScript(db, { ownerId: owner, name: "already mine", behavior: behavior({ findRegex: "a" }) });
 
@@ -89,7 +89,7 @@ describe("card LIFT", () => {
 
   test("a reference wins even when the row was EDITED after export — the stale by-value copy is NOT re-minted", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     // The LIVE row has been edited since the card was exported: same name, DIFFERENT body.
     const edited = await seedScript(db, { ownerId: owner, name: "tweaked", behavior: behavior({ findRegex: "new-pattern" }) });
@@ -114,8 +114,8 @@ describe("card LIFT", () => {
 
   test("a carried reference to a FOREIGN row is ignored (it never comes back from the owner-scoped read)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const characterId = await seedCharacter(db, owner);
     const theirs = await seedScript(db, { ownerId: stranger, name: "theirs" });
 
@@ -128,7 +128,7 @@ describe("card LIFT", () => {
 
   test("CONTENT DEDUP: a second FOREIGN card carrying the same body reuses the row instead of cloning", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const first = await seedCharacter(db, owner, "one");
     const second = await seedCharacter(db, owner, "two");
     const lift = createImportCardScripts(ctxOf(db, "l"));
@@ -150,7 +150,7 @@ describe("card RE-EMBED", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
@@ -168,7 +168,7 @@ describe("card RE-EMBED", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const source = await seedCharacter(db, owner, "source");
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a", behavior: behavior({ findRegex: "a" }) });
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b", behavior: behavior({ findRegex: "b" }) });
@@ -198,7 +198,7 @@ describe("BUNDLE round-trip (the `regex` portable entity)", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const g = await seedScript(db, { ownerId: owner, id: "regex_script_g", name: "everywhere" });
     await seedScript(db, { ownerId: owner, id: "regex_script_l", name: "local only" });
     await svc.attachGlobal({ principal: principal(owner), scriptId: g });
@@ -215,7 +215,7 @@ describe("BUNDLE round-trip (the `regex` portable entity)", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const source = await seedUser(db, { handle: "source" });
+    const source = await seedUser(db, { handle: castId<Handle>("source") });
     const g = await seedScript(db, { ownerId: source, id: "regex_script_g", name: "everywhere", behavior: behavior({ findRegex: "g" }) });
     await seedScript(db, { ownerId: source, id: "regex_script_l", name: "local only", behavior: behavior({ findRegex: "l" }) });
     await svc.attachGlobal({ principal: principal(source), scriptId: g });
@@ -223,7 +223,7 @@ describe("BUNDLE round-trip (the `regex` portable entity)", () => {
     const files = await createExportRegexScripts({ db })({ ownerId: source });
 
     // A DIFFERENT tenant restores the bundle.
-    const restored = await seedUser(db, { handle: "restored" });
+    const restored = await seedUser(db, { handle: castId<Handle>("restored") });
     const importOne = createImportRegexScript(ctxOf(db, "b"));
     // Bundle files are independent of each other (each mints its own row), so the restore is concurrent —
     // which also proves the import op does not rely on being called in any particular order.
@@ -241,12 +241,12 @@ describe("BUNDLE round-trip (the `regex` portable entity)", () => {
 
   test("re-importing the SAME bundle writes nothing the second time", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedScript(db, { ownerId: owner, id: "regex_script_x", name: "x", behavior: behavior({ findRegex: "x" }) });
     const files = await createExportRegexScripts({ db })({ ownerId: owner });
     const importOne = createImportRegexScript(ctxOf(db, "b"));
 
-    const target = await seedUser(db, { handle: "target" });
+    const target = await seedUser(db, { handle: castId<Handle>("target") });
     const [only] = files;
     expect(only).toBeDefined();
     const bytes = (only as NonNullable<typeof only>).bytes;

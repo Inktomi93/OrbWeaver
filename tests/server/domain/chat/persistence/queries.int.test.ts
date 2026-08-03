@@ -1,6 +1,6 @@
 import type { Db } from "@orb/db";
 import { messages } from "@orb/db";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -80,7 +80,7 @@ describe("loadIsReplyToLatestUserMessage — the rpg dice feed-forward slot-adja
 
 describe("persistence/queries — chat-row reads (D18 membership scope)", () => {
   test("loadMemberChat returns the host's row + role 'host'", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a", { title: "Room" });
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
 
@@ -91,16 +91,16 @@ describe("persistence/queries — chat-row reads (D18 membership scope)", () => 
   });
 
   test("loadMemberChat returns role 'member' for a non-host present member", async () => {
-    const member = await seedUser(db, "m");
+    const member = await seedUser(db, castId<Handle>("m"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     expect((await loadMemberChat(db, chatId, member))?.role).toBe("member");
   });
 
   test("loadMemberChat is leak-free: undefined for a non-member AND for a left member", async () => {
-    const host = await seedUser(db, "host");
-    const stranger = await seedUser(db, "stranger");
-    const leaver = await seedUser(db, "leaver");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
+    const leaver = await seedUser(db, castId<Handle>("leaver"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "l", userId: leaver, role: "member", leftSeq: 3 });
@@ -110,7 +110,7 @@ describe("persistence/queries — chat-row reads (D18 membership scope)", () => 
   });
 
   test("loadMemberChat fault-isolates a malformed metadata sub-blob (never throws)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a", { metadata: { group: "not-an-object" } });
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
 
@@ -125,8 +125,8 @@ describe("persistence/queries — chat-row reads (D18 membership scope)", () => 
   });
 
   test("listMemberChats: present membership only, archived gated, newest-updated first", async () => {
-    const me = await seedUser(db, "me");
-    const other = await seedUser(db, "other");
+    const me = await seedUser(db, castId<Handle>("me"));
+    const other = await seedUser(db, castId<Handle>("other"));
     const a = await seedChat(db, "a", { updatedAt: 100 });
     const b = await seedChat(db, "b", { updatedAt: 200 });
     const archived = await seedChat(db, "arch", { archived: true, updatedAt: 300 });
@@ -153,8 +153,8 @@ describe("persistence/queries — chat-row reads (D18 membership scope)", () => 
 
 describe("persistence/queries — loadChatParticipantCharacterIds (the FIX-#1 reverse read)", () => {
   test("returns character-seat ids per chat, batched; human seats excluded; a no-character chat is absent", async () => {
-    const owner = await seedUser(db, "owner");
-    const human = await seedUser(db, "human");
+    const owner = await seedUser(db, castId<Handle>("owner"));
+    const human = await seedUser(db, castId<Handle>("human"));
     const charA = await seedCharacter(db, owner, "a");
     const charB = await seedCharacter(db, owner, "b");
     const chat1 = await seedChat(db, "c1");
@@ -174,7 +174,7 @@ describe("persistence/queries — loadChatParticipantCharacterIds (the FIX-#1 re
   });
 
   test("INCLUDES departed (leftSeq) character seats — §7 wants every chat you've had with them", async () => {
-    const owner = await seedUser(db, "owner");
+    const owner = await seedUser(db, castId<Handle>("owner"));
     const present = await seedCharacter(db, owner, "present");
     const departed = await seedCharacter(db, owner, "departed");
     const chatId = await seedChat(db, "c");
@@ -187,7 +187,7 @@ describe("persistence/queries — loadChatParticipantCharacterIds (the FIX-#1 re
   });
 
   test("dedupes a character that left and rejoined (two seat rows → one id)", async () => {
-    const owner = await seedUser(db, "owner");
+    const owner = await seedUser(db, castId<Handle>("owner"));
     const rejoiner = await seedCharacter(db, owner, "rejoiner");
     const chatId = await seedChat(db, "c");
     // Left once (leftSeq set) then rejoined (present) — two rows, one character.
@@ -368,7 +368,7 @@ describe("persistence/queries — loadTurnForClassify (the classify prose read)"
     const rewritten = raw.replace(/\*[^*]*\*\s*/gu, ""); // → "I'm absolutely thrilled!"
     expect(rewritten).not.toBe(raw); // the script actually rewrote something
 
-    const owner = await seedUser(db, "host");
+    const owner = await seedUser(db, castId<Handle>("host"));
     const character = await seedCharacter(db, owner, "aria");
     const chatId = await seedChat(db, "c");
     // The committed assistant slot stores the POST-regex canon (what the pipeline persisted).
@@ -380,7 +380,7 @@ describe("persistence/queries — loadTurnForClassify (the classify prose read)"
   });
 
   test("speakerCharacterId is null for a user turn (no sprite target)", async () => {
-    const owner = await seedUser(db, "host");
+    const owner = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "c");
     const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "user", authorUserId: owner, content: "hello" });
 
@@ -388,7 +388,7 @@ describe("persistence/queries — loadTurnForClassify (the classify prose read)"
   });
 
   test("null when the variant vanished / the ids don't belong together (leak-free, swipe-safe)", async () => {
-    const owner = await seedUser(db, "host");
+    const owner = await seedUser(db, castId<Handle>("host"));
     const character = await seedCharacter(db, owner, "aria");
     const chatId = await seedChat(db, "c");
     const otherChat = await seedChat(db, "other");
@@ -404,7 +404,7 @@ describe("persistence/queries — loadTurnForClassify (the classify prose read)"
   });
 
   test("reads the EXACT variant requested, not the slot's selected pointer (swipe correctness)", async () => {
-    const owner = await seedUser(db, "host");
+    const owner = await seedUser(db, castId<Handle>("host"));
     const character = await seedCharacter(db, owner, "aria");
     const chatId = await seedChat(db, "c");
     // seq-1 slot's first variant is the SELECTED one ("first"); append a second, non-selected variant.

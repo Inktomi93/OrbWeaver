@@ -6,7 +6,8 @@
 
 import type { PortableParse } from "@orb/contracts/portability";
 import { characters } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createAssetsService, createExportGallery } from "@orb/server/domain/assets";
 import { parseGallery } from "@orb/server/kit/serde/gallery";
 import { eq } from "drizzle-orm";
@@ -35,7 +36,7 @@ function withCharacterOps(ctx: AssetsContext, db: AssetsContext["db"]): AssetsCo
       const rows = await db.select({ handle: characters.handle }).from(characters).where(eq(characters.id, characterId)).limit(1);
       return rows[0]?.handle ?? null;
     },
-    findCharacterByHandle: async (args: { readonly ownerId: UserId; readonly handle: string }): Promise<CharacterId | null> => {
+    findCharacterByHandle: async (args: { readonly ownerId: UserId; readonly handle: CharacterHandle }): Promise<CharacterId | null> => {
       const rows = await db.select({ id: characters.id }).from(characters).where(eq(characters.handle, args.handle)).limit(1);
       const hit = rows[0];
       return hit !== undefined ? hit.id : null;
@@ -50,8 +51,8 @@ describe("exportGallery", () => {
     onTestFinished(h.cleanup);
     const ctx = withCharacterOps(h.ctx, db);
     const svc = createAssetsService(ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const hero = await seedCharacter(db, owner, { handle: "hero" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
 
     const assetA = await svc.store({
       principal: principal(owner),
@@ -87,8 +88,8 @@ describe("exportGallery", () => {
     onTestFinished(h.cleanup);
     const ctx = withCharacterOps(h.ctx, db);
     const svc = createAssetsService(ctx);
-    const a = await seedUser(db, { handle: "a" });
-    const b = await seedUser(db, { handle: "b" });
+    const a = await seedUser(db, { handle: castId<Handle>("a") });
+    const b = await seedUser(db, { handle: castId<Handle>("b") });
     const assetA = await svc.store({
       principal: principal(a),
       bytes: pngBytes(1),
@@ -115,8 +116,8 @@ describe("exportGallery", () => {
     onTestFinished(h.cleanup);
     const ctx = withCharacterOps(h.ctx, db);
     const svc = createAssetsService(ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const hero = await seedCharacter(db, owner, { handle: "hero" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     const asset = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(1),

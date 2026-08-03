@@ -10,6 +10,8 @@
 // code is scripted at the NETWORK (routeTrpc's `reason`), exactly as the tRPC error formatter emits it.
 
 import { CARD_NOT_DISTILLABLE_REASON } from "@orb/contracts/discovery";
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
@@ -17,7 +19,7 @@ import { CharacterEditorSuggestToastStory } from "../_ct-stories";
 import { makeCharacterDetail } from "../fixtures";
 
 // A NAME-ONLY card — the state under test, modelled honestly (no description, no opening line).
-const CARD = makeCharacterDetail({ name: "Bare", handle: "bare", description: null, greetings: [] });
+const CARD = makeCharacterDetail({ name: "Bare", handle: castId<CharacterHandle>("bare"), description: null, greetings: [] });
 const TOAST = '[data-slot="toast-root"]';
 
 /** Everything the editor reads, plus a scripted `suggestCharacterTags` failure. */

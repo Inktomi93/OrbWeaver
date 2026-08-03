@@ -5,6 +5,8 @@
 // spawns on the turn); asleep/warming/up → available (asleep wakes on the turn). An unconfigured/incoherent
 // connection → no-connection. A configured hosted connection is available and NEVER pre-flighted.
 
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createConnectionService } from "@orb/server/domain/connection";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -18,7 +20,7 @@ describe("checkChatAvailability — the deterministic pre-send serveability verd
     h.setEnginesPosture("off"); // ENGINES_POSTURE=off — the vllm backend is absent from the registry
     const svc = createConnectionService(h.ctx);
 
-    const verdict = await svc.checkChatAvailability({ principal: principal("user_1"), routableChat: {} });
+    const verdict = await svc.checkChatAvailability({ principal: principal(castId<UserId>("user_1")), routableChat: {} });
 
     expect(verdict).toEqual({ available: false, cause: "engine-off" });
   });
@@ -29,7 +31,7 @@ describe("checkChatAvailability — the deterministic pre-send serveability verd
     h.setVllmAvailable(false); // no GPU — the derive fallback disables the local engine
     const svc = createConnectionService(h.ctx);
 
-    const verdict = await svc.checkChatAvailability({ principal: principal("user_1"), routableChat: {} });
+    const verdict = await svc.checkChatAvailability({ principal: principal(castId<UserId>("user_1")), routableChat: {} });
 
     expect(verdict).toEqual({ available: false, cause: "engine-off" });
   });
@@ -41,7 +43,7 @@ describe("checkChatAvailability — the deterministic pre-send serveability verd
     h.setGenReachability("down");
     const svc = createConnectionService(h.ctx);
 
-    const verdict = await svc.checkChatAvailability({ principal: principal("user_1"), routableChat: {} });
+    const verdict = await svc.checkChatAvailability({ principal: principal(castId<UserId>("user_1")), routableChat: {} });
 
     expect(verdict).toEqual({ available: false, cause: "engine-down" });
   });
@@ -53,7 +55,7 @@ describe("checkChatAvailability — the deterministic pre-send serveability verd
     h.setGenReachability("asleep");
     const svc = createConnectionService(h.ctx);
 
-    const verdict = await svc.checkChatAvailability({ principal: principal("user_1"), routableChat: {} });
+    const verdict = await svc.checkChatAvailability({ principal: principal(castId<UserId>("user_1")), routableChat: {} });
 
     expect(verdict).toEqual({ available: true });
   });
@@ -65,7 +67,7 @@ describe("checkChatAvailability — the deterministic pre-send serveability verd
     h.setGenReachability("up");
     const svc = createConnectionService(h.ctx);
 
-    const verdict = await svc.checkChatAvailability({ principal: principal("user_1"), routableChat: {} });
+    const verdict = await svc.checkChatAvailability({ principal: principal(castId<UserId>("user_1")), routableChat: {} });
 
     expect(verdict).toEqual({ available: true });
   });
@@ -77,7 +79,7 @@ describe("checkChatAvailability — the deterministic pre-send serveability verd
     h.setGenReachability("down");
     const svc = createConnectionService(h.ctx);
 
-    const verdict = await svc.checkChatAvailability({ principal: principal("user_1"), routableChat: {} });
+    const verdict = await svc.checkChatAvailability({ principal: principal(castId<UserId>("user_1")), routableChat: {} });
 
     expect(verdict).toEqual({ available: true });
   });
@@ -87,7 +89,7 @@ describe("checkChatAvailability — the deterministic pre-send serveability verd
     h.setRoleDefaults({ chat: { api: "chat-completions", source: "openrouter" } });
     const svc = createConnectionService(h.ctx);
 
-    const verdict = await svc.checkChatAvailability({ principal: principal("user_1"), routableChat: {} });
+    const verdict = await svc.checkChatAvailability({ principal: principal(castId<UserId>("user_1")), routableChat: {} });
 
     expect(verdict).toEqual({ available: true });
     // The credential row was READ (the deterministic presence check), but no upstream API call is implied —
@@ -101,7 +103,7 @@ describe("checkChatAvailability — the deterministic pre-send serveability verd
     h.setNoCredentialSource("openrouter"); // no key on file — the deterministic "nothing to serve with" case
     const svc = createConnectionService(h.ctx);
 
-    const verdict = await svc.checkChatAvailability({ principal: principal("user_1"), routableChat: {} });
+    const verdict = await svc.checkChatAvailability({ principal: principal(castId<UserId>("user_1")), routableChat: {} });
 
     expect(verdict).toEqual({ available: false, cause: "no-connection" });
   });
@@ -113,7 +115,7 @@ describe("checkChatAvailability — the deterministic pre-send serveability verd
     h.setRoleDefaults({ chat: { api: "chat-completions", source: "max-pro-sub" } });
     const svc = createConnectionService(h.ctx);
 
-    const verdict = await svc.checkChatAvailability({ principal: principal("user_1"), routableChat: {} });
+    const verdict = await svc.checkChatAvailability({ principal: principal(castId<UserId>("user_1")), routableChat: {} });
 
     expect(verdict).toEqual({ available: false, cause: "no-connection" });
   });
@@ -127,7 +129,7 @@ describe("checkChatAvailability — the deterministic pre-send serveability verd
 
     // …but THIS chat pins the local engine, which is off — the overlay wins, so the verdict is engine-off.
     const verdict = await svc.checkChatAvailability({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       routableChat: { api: "chat-completions", source: "vllm" },
     });
 

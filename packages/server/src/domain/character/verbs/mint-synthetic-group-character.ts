@@ -5,6 +5,7 @@
 // winner. Never NULL author (always owner-stamped); never emits `character.updated` (synthetic rows are
 // filtered from the embed pass).
 
+import type { CharacterHandle } from "@orb/kit/ids";
 import { cardContentHash } from "#kit/serde/card";
 import type { CharacterContext } from "../context";
 import { CHARACTER_HANDLE_CONFLICT, CHARACTER_HANDLE_RESERVED, CharacterOperationError } from "../contract/errors";
@@ -20,7 +21,7 @@ import { buildGroupCard, groupHandle } from "../substrate/group-character";
  *  non-synthetic squatter is refused loudly (create/update now refuse this namespace, so this is defense-in-
  *  depth; `findSyntheticGroupCharacter` guards the same way — the mint must never author narrator turns / file
  *  shared digests under a real user card). Extracted to keep the verb closure under the complexity gate. */
-function adoptSynthetic(row: { readonly id: CharacterRef["characterId"]; readonly synthetic: boolean }, handle: string): CharacterRef {
+function adoptSynthetic(row: { readonly id: CharacterRef["characterId"]; readonly synthetic: boolean }, handle: CharacterHandle): CharacterRef {
   if (row.synthetic) {
     return { characterId: row.id };
   }

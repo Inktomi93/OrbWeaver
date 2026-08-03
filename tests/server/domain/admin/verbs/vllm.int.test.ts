@@ -3,6 +3,8 @@
 // typed DomainOperationError(restart_engine) with the original error preserved as `cause`.
 
 import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createAdminService } from "@orb/server/domain/admin";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -14,7 +16,7 @@ describe("admin vllm verbs", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createAdminService(h.ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     const statuses = await svc.vllmEngines({ principal: principal(admin, "admin") });
     expect(statuses["chat"]?.status).toBe("owned");
     // The read-only DEPLOYMENT facts (port + store path) ride the same snapshot the panel renders.
@@ -27,7 +29,7 @@ describe("admin vllm verbs", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createAdminService(h.ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     const line = await svc.restartVllmEngine({
       principal: principal(admin, "admin"),
       engine: "chat",
@@ -43,7 +45,7 @@ describe("admin vllm verbs", () => {
     const cause = new Error("supervisor exploded");
     h.setRestartError(cause);
     const svc = createAdminService(h.ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     const err = await svc
       .restartVllmEngine({ principal: principal(admin, "admin"), engine: "chat" })
       .then(() => undefined)
@@ -56,7 +58,7 @@ describe("admin vllm verbs", () => {
   test("a plain user is denied", async () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
-    const u = await seedUser(db, { id: "user_u", role: "user", handle: "u" });
+    const u = await seedUser(db, { id: "user_u", role: "user", handle: castId<Handle>("u") });
     await expect(svc.vllmEngines({ principal: principal(u, "user") })).rejects.toThrow(DomainForbiddenError);
   });
 });

@@ -14,6 +14,7 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type {
   AssetId,
+  CharacterHandle,
   CharacterId,
   ChatEventId,
   ChatId,
@@ -45,7 +46,7 @@ export const FROZEN_AT = FROZEN_AT_MS;
 /** Insert a `users` row; returns its branded id. Thin adapter over the canonical
  *  `factories/user.ts::seedUser` — chat's ~316 call sites pass a bare `handle` string and take the id back
  *  directly (not the full row), so the shared factory is wrapped rather than swapped in wholesale. */
-export async function seedUser(db: Db, handle: string): Promise<UserId> {
+export async function seedUser(db: Db, handle: Handle): Promise<UserId> {
   const id = castId<UserId>(`user_${handle}`);
   const row = await seedUserRow(db, { id, handle: castId<Handle>(handle) });
   return row.id;
@@ -64,7 +65,7 @@ export async function seedCharacter(
   const id = overrides.id ?? castId<CharacterId>(`character_${key}`);
   await db.insert(characters).values({
     id,
-    handle: key,
+    handle: castId<CharacterHandle>(key),
     ownerId,
     name: key,
     contentHash: `hash_${key}`,

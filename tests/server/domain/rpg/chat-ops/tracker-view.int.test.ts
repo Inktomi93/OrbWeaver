@@ -7,7 +7,7 @@
 import type { RpgActorEntry, RpgSheet, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
 import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
-import type { ChatTurnId, RpgSheetId } from "@orb/kit/ids";
+import type { ChatTurnId, Handle, RpgSheetId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { buildTrackerView } from "../../../../../packages/server/src/domain/rpg/chat-ops/tracker-view";
 import type { RpgContext, RpgGameRow } from "../../../../../packages/server/src/domain/rpg/contract/service";
@@ -111,7 +111,7 @@ async function seedGameWithTrackers(
   const { trackers, values = {}, sheetOver = {} } = seed;
   const chatId = await seedChat(db, key);
   const gameId = await seedGame(db, chatId, key, { config: { ...liteConfig(), trackers: [...trackers] } });
-  const ownerId = await seedUser(db, `owner_${key}`);
+  const ownerId = await seedUser(db, castId<Handle>(`owner_${key}`));
   // A REAL minted TypeID — the volatile actorRef's `characterId` is re-validated at snapshot-write, so a
   // fabricated `character_<key>` id would be silently dropped (the write asserts ok below).
   const characterId = await seedCharacter(db, ownerId, key, { id: mintTypeId(ID_PREFIX.character) });

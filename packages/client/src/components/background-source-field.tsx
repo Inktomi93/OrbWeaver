@@ -16,6 +16,7 @@
 import { blobUrl } from "@orb/contracts/assets";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
+import type { AssetId } from "@orb/kit/ids";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { Check, Icon, Play } from "@orb/ui/icons";
@@ -135,7 +136,7 @@ export function BackgroundSourceField({ value, onChange, readOnly = false, hideL
 }
 
 interface AssetPick {
-  readonly assetId: string;
+  readonly assetId: AssetId;
   readonly assetHash: string;
   readonly mime: string;
 }

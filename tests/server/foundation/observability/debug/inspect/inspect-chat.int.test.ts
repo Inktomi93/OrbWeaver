@@ -5,7 +5,18 @@
 // D8/D25), and recent events (newest-first). Plus the NOT_FOUND short-circuit for an unknown chat.
 
 import { characters, chatEvents, chatParticipants, chats, messages, messageVariants, sessionEntries, users } from "@orb/db";
-import type { CharacterId, ChatEventId, ChatId, ChatParticipantId, Handle, MessageId, MessageVariantId, SessionEntryId, UserId } from "@orb/kit/ids";
+import type {
+  CharacterHandle,
+  CharacterId,
+  ChatEventId,
+  ChatId,
+  ChatParticipantId,
+  Handle,
+  MessageId,
+  MessageVariantId,
+  SessionEntryId,
+  UserId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { inspectChatState } from "@orb/server/foundation/observability/debug";
 import { eq } from "drizzle-orm";
@@ -33,7 +44,7 @@ async function seedFullChat(db: Awaited<ReturnType<typeof freshDb>>): Promise<Se
   const characterId = castId<CharacterId>("character_inspect");
   await db.insert(characters).values({
     id: characterId,
-    handle: "card-inspect",
+    handle: castId<CharacterHandle>("card-inspect"),
     ownerId: userId,
     contentHash: "hash-inspect",
     name: "Aria",

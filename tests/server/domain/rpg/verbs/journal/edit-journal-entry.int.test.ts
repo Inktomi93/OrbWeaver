@@ -2,6 +2,8 @@
 // Asserted at the lineage-projected read.
 
 import type { Db } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { listActiveJournal } from "../../../../../../packages/server/src/domain/rpg/persistence/journal";
 import { freshDb } from "../../../../../support/db";
@@ -15,9 +17,15 @@ beforeEach(async () => {
 describe("editJournalEntry", () => {
   test("patches an entry's text at the row", async () => {
     const { chatId, gameId, h } = await seedLiteGame(db);
-    const entryId = await h.service.addJournalEntry({ principal: principal("host"), chatId, type: "note", title: "Session 1", content: "We began." });
+    const entryId = await h.service.addJournalEntry({
+      principal: principal(castId<Handle>("host")),
+      chatId,
+      type: "note",
+      title: "Session 1",
+      content: "We began.",
+    });
 
-    await h.service.editJournalEntry({ principal: principal("host"), chatId, entryId, patch: { content: "We truly began." } });
+    await h.service.editJournalEntry({ principal: principal(castId<Handle>("host")), chatId, entryId, patch: { content: "We truly began." } });
     const rows = await listActiveJournal(db, gameId, { limit: 50 });
     expect(rows[0]?.content).toBe("We truly began.");
   });

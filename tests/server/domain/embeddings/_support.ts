@@ -16,6 +16,7 @@ import { assets, characters, chats, documents } from "@orb/db";
 import type {
   AssetId,
   CharacterEmbeddingId,
+  CharacterHandle,
   CharacterId,
   ChatDigestId,
   ChatId,
@@ -199,7 +200,7 @@ export function makeIndexerHarness(
 
 interface SeedUserOverrides {
   readonly id?: string;
-  readonly handle?: string;
+  readonly handle?: Handle;
 }
 
 /** Insert a `users` row (the FK target for characters/assets). Thin delegate over the canonical factory —
@@ -215,7 +216,7 @@ export async function seedCharacter(db: Db, ownerId: UserId, overrides: { readon
   const id = castId<CharacterId>(overrides.id ?? "character_test");
   await db.insert(characters).values({
     id,
-    handle: overrides.name ?? "test-card",
+    handle: castId<CharacterHandle>(overrides.name ?? "test-card"),
     ownerId,
     contentHash: "seed-content-hash",
     name: overrides.name ?? "Test Card",

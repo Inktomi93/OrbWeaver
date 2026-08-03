@@ -1,7 +1,7 @@
 // verb: applyEntryOrder — rewrite priority from a display order. Load-bearing: position i → priority N-i
 // (so listEntries returns the new order); stale/foreign ids are dropped; an empty list is a 0 no-op.
 
-import type { WorldEntryId } from "@orb/kit/ids";
+import type { Handle, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createWorldInfoService } from "@orb/server/domain/world-info";
 import { describe } from "vitest";
@@ -13,7 +13,7 @@ describe("applyEntryOrder", () => {
   test("rewrites priority so listEntries reflects the requested order", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
     const a = await svc.createEntry({
       principal: principal(owner),
@@ -39,7 +39,7 @@ describe("applyEntryOrder", () => {
   test("drops stale/foreign ids and counts only real entries", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
     const a = await svc.createEntry({
       principal: principal(owner),
@@ -58,7 +58,7 @@ describe("applyEntryOrder", () => {
   test("an empty order list is a 0 no-op", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
 
     const res = await svc.applyEntryOrder({

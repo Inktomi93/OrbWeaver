@@ -7,7 +7,7 @@ import type { PluginManifest } from "@orb/contracts/plugin";
 import { pluginManifestSchema } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { assets } from "@orb/db";
-import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
+import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import {
   applyUpgrade,
@@ -71,8 +71,8 @@ async function seedPlugin(db: Db, ownerId: UserId, id: string, slug = "test-plug
 
 test("insert + getById is owner-scoped (a foreign owner sees undefined)", async () => {
   const db = await freshDb();
-  const owner = await seedUser(db, { handle: "owner" });
-  const other = await seedUser(db, { handle: "other" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const other = await seedUser(db, { handle: castId<Handle>("other") });
   const pluginId = await seedPlugin(db, owner, "plugin_a");
 
   const mine = await getById(db, owner, pluginId);
@@ -83,7 +83,7 @@ test("insert + getById is owner-scoped (a foreign owner sees undefined)", async 
 
 test("getByOwnerSlug resolves the (owner, slug) partition", async () => {
   const db = await freshDb();
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   await seedPlugin(db, owner, "plugin_a", "alpha");
 
   expect((await getByOwnerSlug(db, owner, "alpha"))?.slug).toBe("alpha");
@@ -92,8 +92,8 @@ test("getByOwnerSlug resolves the (owner, slug) partition", async () => {
 
 test("listOwned returns the owner's plugins newest-installed first", async () => {
   const db = await freshDb();
-  const owner = await seedUser(db, { handle: "owner" });
-  const other = await seedUser(db, { handle: "other" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const other = await seedUser(db, { handle: castId<Handle>("other") });
   const first = await seedPlugin(db, owner, "plugin_a", "alpha");
   // Second plugin installed later (higher installedAt) → sorts ahead.
   const secondId = castId<PluginId>("plugin_b");
@@ -120,7 +120,7 @@ test("listOwned returns the owner's plugins newest-installed first", async () =>
 
 test("setStatus + setLastError stamp the lifecycle fields", async () => {
   const db = await freshDb();
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const pluginId = await seedPlugin(db, owner, "plugin_a");
 
   await setStatus(db, pluginId, { status: "enabled", lastError: null, updatedAt: AT + 1 });
@@ -134,7 +134,7 @@ test("setStatus + setLastError stamp the lifecycle fields", async () => {
 
 test("incrementCrashes returns the new count; resetCrashes clears it", async () => {
   const db = await freshDb();
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const pluginId = await seedPlugin(db, owner, "plugin_a");
 
   expect(await incrementCrashes(db, pluginId, AT + 1)).toBe(1);
@@ -145,7 +145,7 @@ test("incrementCrashes returns the new count; resetCrashes clears it", async () 
 
 test("applyUpgrade swaps the manifest-derived fields + grant + bundle asset", async () => {
   const db = await freshDb();
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const pluginId = await seedPlugin(db, owner, "plugin_a");
   const newAsset = await seedBundleAsset(db, owner, "asset_new");
 
@@ -167,7 +167,7 @@ test("applyUpgrade swaps the manifest-derived fields + grant + bundle asset", as
 
 test("deletePlugin removes the row; toPluginView lifts builtAgainst from the manifest", async () => {
   const db = await freshDb();
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const pluginId = castId<PluginId>("plugin_ba");
   const bundleAssetId = await seedBundleAsset(db, owner, "asset_ba");
   await insertPlugin(db, {

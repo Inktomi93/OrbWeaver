@@ -4,7 +4,7 @@
 // import-path case the verb defends).
 
 import { worldEntries } from "@orb/db";
-import type { WorldEntryId } from "@orb/kit/ids";
+import type { Handle, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createWorldInfoService } from "@orb/server/domain/world-info";
 import { eq } from "drizzle-orm";
@@ -18,7 +18,7 @@ describe("backfillTitles", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createWorldInfoService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
 
     const withKeys = castId<WorldEntryId>("world_entry_keys");
@@ -49,7 +49,7 @@ describe("backfillTitles", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createWorldInfoService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
     await svc.createEntry({
       principal: principal(owner),

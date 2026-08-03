@@ -4,7 +4,7 @@
 // UserSessionsDialog shape); per-row Revoke + a confirm-gated Revoke-all header action. The revoke
 // mutations path-invalidate `admin.listSessions`, so the list refreshes on settle.
 
-import type { UserId } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
@@ -19,7 +19,7 @@ import { useRevokeSession, useRevokeUserSessions } from "../hooks/use-admin-muta
 
 export interface AdminUserSessionsDialogProps {
   readonly userId: UserId;
-  readonly handle: string;
+  readonly handle: Handle;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
 }

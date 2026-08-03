@@ -2,6 +2,8 @@
 // rows. A foreign/missing id throws DocumentNotFoundError.
 
 import { chatDocuments, documentChunks, documents, globalDocuments } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { DocumentNotFoundError } from "@orb/server/domain/databank";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
@@ -11,7 +13,7 @@ import { makeDatabankHarness, principalFor, seedChat, seedUser } from "../_suppo
 test("removing a document cascades its chunks and junction rows away", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const chatId = await seedChat(db, "chat_room");
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "doc.md", text: "canon that chunks nicely" });
   await h.ingest.ingestDocument({ documentId: document.id, signal: new AbortController().signal });
@@ -29,8 +31,8 @@ test("removing a document cascades its chunks and junction rows away", async () 
 test("a non-owner's remove throws DocumentNotFoundError (nothing deleted)", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
-  const other = await seedUser(db, { handle: "other" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const other = await seedUser(db, { handle: castId<Handle>("other") });
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "doc.md", text: "canon" });
 
   await expect(h.service.remove({ principal: principalFor(other), id: document.id })).rejects.toBeInstanceOf(DocumentNotFoundError);

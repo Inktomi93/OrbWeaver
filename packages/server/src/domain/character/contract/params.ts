@@ -5,7 +5,7 @@
 import type { CharacterListCursor, CharacterListSort, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 
 import type { Principal } from "@orb/contracts/identity";
-import type { CharacterId, CharacterSnapshotId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, UserId } from "@orb/kit/ids";
 
 export type { CharacterListCursor, CharacterListSort } from "@orb/contracts/character";
 
@@ -127,7 +127,7 @@ export interface FindByImportHashParams {
 /** By-handle lookup (seeder-injected, internal): the default-card seeder's partial-rerun resolve path. */
 export interface FindByHandleParams {
   readonly ownerId: UserId;
-  readonly handle: string;
+  readonly handle: CharacterHandle;
 }
 
 /** Batched provenance lookup (hub-injected, internal): the owner's characters carrying any of `values` in

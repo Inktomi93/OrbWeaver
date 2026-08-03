@@ -4,7 +4,7 @@
 // widening the member type). The panel is swipe-consistent BY CONSTRUCTION — every tab reads the SAME
 // resolved-current snapshot, so a swipe re-resolves everything at once (the owner's ratification demand).
 
-import type { ChatId, RpgGameId } from "@orb/kit/ids";
+import type { ChatId, MessageId, RpgGameId } from "@orb/kit/ids";
 import type { RpgActorIdentity, RpgActorRef, RpgActorVolatile } from "./actor";
 import type { RpgClockTime, RpgWeather } from "./ambient";
 import type { RpgDeliveryPath, RpgFoldFallbackReason, RpgGameConfig } from "./config";
@@ -247,7 +247,7 @@ export interface RpgRevealedSpan {
 /** The per-message reveal payload (§3.6 the "eye") — the hidden spans tokenized out of ONE assistant slot's
  *  stored (selected-variant) body, in emission order. Host-gated server-side; a member never receives this. */
 export interface RpgRevealedMessage {
-  readonly messageId: string;
+  readonly messageId: MessageId;
   readonly spans: readonly RpgRevealedSpan[];
 }
 
@@ -259,7 +259,7 @@ export interface RpgStandingLie {
   readonly type: string;
   readonly truth: string;
   readonly reason: string;
-  readonly messageId: string;
+  readonly messageId: MessageId;
 }
 
 /** `revealHidden` (HOST-gated, §3.6) — the whole host-reveal read for a game: the per-message parsed hidden

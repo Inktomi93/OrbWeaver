@@ -60,8 +60,8 @@ function publics(over: { displayName?: string | null; handle?: Handle | null; av
 
 describe("resolveRpgRoster", () => {
   test("a character seat resolves its card under the host's ownership; a human resolves its publics", async () => {
-    const host = await seedUser(db, "host");
-    const player = await seedUser(db, "player");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const player = await seedUser(db, castId<Handle>("player"));
     const charId = await seedCharacter(db, host, "aria");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host", joinSeq: 0 });
@@ -91,8 +91,8 @@ describe("resolveRpgRoster", () => {
   });
 
   test("a human's displayName wins, else the handle, else empty; a resolved avatar hash rides", async () => {
-    const host = await seedUser(db, "host");
-    const withHandle = await seedUser(db, "handled");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const withHandle = await seedUser(db, castId<Handle>("handled"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host", joinSeq: 0 });
     await seedParticipant(db, { chatId, key: "handled", userId: withHandle, role: "member", joinSeq: 1 });
@@ -113,7 +113,7 @@ describe("resolveRpgRoster", () => {
   });
 
   test("a character seat whose card is GONE is dropped (not an addressable actor)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const charId = await seedCharacter(db, host, "ghost");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host", joinSeq: 0 });
@@ -132,9 +132,9 @@ describe("resolveRpgRoster", () => {
   });
 
   test("the read is chatId-scoped and present-only (no cross-chat leak, a left seat is not projected)", async () => {
-    const host = await seedUser(db, "host");
-    const stranger = await seedUser(db, "stranger");
-    const gone = await seedUser(db, "gone");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
+    const gone = await seedUser(db, castId<Handle>("gone"));
     const chatA = await seedChat(db, "a");
     const chatB = await seedChat(db, "b");
     await seedParticipant(db, { chatId: chatA, key: "a_host", userId: host, role: "host", joinSeq: 0 });

@@ -2,6 +2,8 @@
 // room's attachments are what every member's turns assemble against, so a member sees the host's set
 // (the `listChatBooks` ruling, D18/D64). A non-member is refused by the injected guard.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createRegexService } from "@orb/server/domain/regex";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -13,8 +15,8 @@ describe("listForChat", () => {
     const db = await freshDb();
     const h = makeHarness(db, { requireChatHost: allowChat, requireChatMember: allowChat });
     const svc = createRegexService(h.ctx);
-    const host = await seedUser(db, { handle: "host" });
-    const member = await seedUser(db, { handle: "member" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const member = await seedUser(db, { handle: castId<Handle>("member") });
     const chatId = await seedChat(db);
     const scriptId = await seedScript(db, { ownerId: host, name: "room quirk" });
     await svc.attachToChat({ principal: principal(host), chatId, scriptId });
@@ -26,7 +28,7 @@ describe("listForChat", () => {
     const db = await freshDb();
     const refuse = (): Promise<void> => Promise.reject(new Error("not a member"));
     const h = makeHarness(db, { requireChatMember: refuse });
-    const outsider = await seedUser(db, { handle: "outsider" });
+    const outsider = await seedUser(db, { handle: castId<Handle>("outsider") });
     const chatId = await seedChat(db);
 
     await expect(createRegexService(h.ctx).listForChat({ principal: principal(outsider), chatId })).rejects.toThrow("not a member");

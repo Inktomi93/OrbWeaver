@@ -4,6 +4,8 @@
 // helper by spying the base `logger` method directly (the memory-log.test.ts pattern — `getLog()` returns
 // the base logger outside a request scope), NOT `vi.mock`-ing a sibling module.
 
+import type { ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
 import { ProviderError } from "@orb/server/infra/providers";
 import {
@@ -35,7 +37,7 @@ describe("provider.* taxonomy — the tag/level/event contract", () => {
   test("logProviderTurn: ONE info line tagged provider+backend, event provider.turn, fields ride through", () => {
     const spy = vi.spyOn(logger, "info");
     logProviderTurn({
-      chatId: "chat-1",
+      chatId: castId<ChatId>("chat-1"),
       sessionId: "sess-1",
       apiKeySource: "oauth",
       requestedModel: "claude-x",
@@ -78,7 +80,7 @@ describe("provider.* taxonomy — the tag/level/event contract", () => {
 
   test("logProviderSession: debug level, event provider.session, carries the disposition + ids", () => {
     const spy = vi.spyOn(logger, "debug");
-    logProviderSession({ chatId: "chat-1", sessionId: "sess-1", disposition: "reseeded" });
+    logProviderSession({ chatId: castId<ChatId>("chat-1"), sessionId: "sess-1", disposition: "reseeded" });
     const [fields, msg] = callOf(spy);
     expect(msg).toBe("provider.session");
     expect(fields["provider"]).toBe(true);

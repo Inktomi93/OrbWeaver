@@ -15,7 +15,8 @@
 import type { BulkImportChatInput, BulkImportMessageInput } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { errorMessage } from "@orb/kit/error-message";
-import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { ParsedChat, ParsedChatMessage } from "#kit/serde/chat";
 import { parseChatJsonl } from "#kit/serde/chat";
@@ -38,7 +39,7 @@ function importedFromFor(demo: DemoChat): string {
  *  attributes its lines to. `handle` is carried so the authored game setup's `handle` seats resolve to real
  *  actor refs at the entry seam. */
 interface Seat {
-  readonly handle: string;
+  readonly handle: CharacterHandle;
   readonly characterId: CharacterId;
   readonly name: string;
 }
@@ -148,8 +149,10 @@ export function createDemoChatSeeder(deps: DemoChatSeederDeps): DemoChatSeeder {
   async function resolveSeats(principal: Principal, demo: DemoChat): Promise<Seat[] | null> {
     // `Promise.all` PRESERVES input order, and order is load-bearing: seats[0] is the header character the
     // dedup + branch scoping key off. Independent owner-scoped reads, so they resolve concurrently.
-    const found = await Promise.all(demo.handles.map((handle) => deps.findCharacterByHandle({ principal, handle })));
-    const seats = found.flatMap((f, i) => (f === null ? [] : [{ handle: demo.handles[i] ?? "", characterId: f.characterId, name: f.name }]));
+    const found = await Promise.all(demo.handles.map((handle) => deps.findCharacterByHandle({ principal, handle: castId<CharacterHandle>(handle) })));
+    const seats = found.flatMap((f, i) =>
+      f === null ? [] : [{ handle: castId<CharacterHandle>(demo.handles[i] ?? ""), characterId: f.characterId, name: f.name }],
+    );
     return seats.length === demo.handles.length && seats.length > 0 ? seats : null;
   }
 

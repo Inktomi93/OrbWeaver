@@ -19,7 +19,19 @@ import type { DomainEvent } from "@orb/contracts/events";
 import type { ParticipantRole, Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { assets, characters, chatParticipants, chats, messageAssets, messages, personas } from "@orb/db";
-import type { AssetId, CharacterId, ChatId, ChatParticipantId, GalleryItemId, Handle, MessageAssetId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type {
+  AssetId,
+  CharacterHandle,
+  CharacterId,
+  ChatId,
+  ChatParticipantId,
+  GalleryItemId,
+  Handle,
+  MessageAssetId,
+  MessageId,
+  PersonaId,
+  UserId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createLinkCharacterAvatars } from "@orb/server/domain/character";
 import { createCas, createVariantCache } from "@orb/server/infra/storage";
@@ -188,7 +200,7 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
 
 interface SeedUserOverrides {
   readonly id?: string;
-  readonly handle?: string;
+  readonly handle?: Handle;
   readonly role?: UserRole;
 }
 
@@ -206,8 +218,8 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
 
 /** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
  *  `support/factories/principal` — assets keeps its existing positional `(id, role, handle?)` convention. */
-export function principal(userId: UserId, role: UserRole = "user", handle: string = userId): Principal {
-  return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
+export function principal(userId: UserId, role: UserRole = "user", handle: Handle = castId<Handle>(userId)): Principal {
+  return makePrincipal(userId, { role, handle });
 }
 
 /** Fake but well-formed PNG bytes: the PNG signature + a distinguishing tail (distinct tails ⇒ distinct
@@ -237,7 +249,7 @@ export function row<T>(rows: readonly T[], i: number): T {
 
 interface SeedCharacterOverrides {
   readonly id?: string;
-  readonly handle?: string;
+  readonly handle?: CharacterHandle;
   readonly name?: string;
   /** The recorded card-bytes sha-256 the avatar backfill keys on (`loadAvatarBackfillCandidates` stages a
    *  row only when it is set AND `avatarAssetId` is null). Omitted ⇒ null = never staged. */
@@ -250,7 +262,7 @@ export async function seedCharacter(db: Db, ownerId: UserId, overrides: SeedChar
   const id = castId<CharacterId>(overrides.id ?? `character_${overrides.handle ?? "x"}`);
   await db.insert(characters).values({
     id,
-    handle: overrides.handle ?? id,
+    handle: overrides.handle ?? castId<CharacterHandle>(id),
     ownerId,
     contentHash: `hash_${id}`,
     name: overrides.name ?? "Test Character",

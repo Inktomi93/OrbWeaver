@@ -2,6 +2,8 @@
 // hits carry the summary facets + avatar hash; a card with no summary still returns (null facets); the
 // result respects topN; and the rerank order from the underlying knn passes through to the enriched hits.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -10,7 +12,7 @@ import { makeSearch, seedAsset, seedCharacter, seedCharacterEmbedding, seedChara
 describe("findCharacters", () => {
   test("enriches hits with summary facets + the avatar CAS hash", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const avatar = await seedAsset(db, { id: "asset_av", ownerId: owner, hash: "avhash" });
     const c = await seedCharacter(db, {
       id: "character_nyx",
@@ -40,7 +42,7 @@ describe("findCharacters", () => {
 
   test("a card with no summary is still returned, with null facets", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const c = await seedCharacter(db, { id: "character_bare", ownerId: owner, name: "Bare" });
     await seedCharacterEmbedding(db, { characterId: c, embedding: vec(1) });
 
@@ -54,7 +56,7 @@ describe("findCharacters", () => {
 
   test("respects topN", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await Promise.all(
       Array.from({ length: 4 }, async (_unused, i) => {
         const id = await seedCharacter(db, {
@@ -74,7 +76,7 @@ describe("findCharacters", () => {
 
   test("rerank order from knn passes through to the enriched hits", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const a = await seedCharacter(db, { id: "character_a", ownerId: owner, name: "A" });
     const b = await seedCharacter(db, { id: "character_b", ownerId: owner, name: "B" });
     await seedCharacterEmbedding(db, { characterId: a, embedding: vec(1) });

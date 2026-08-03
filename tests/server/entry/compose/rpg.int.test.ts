@@ -29,7 +29,7 @@ import type { StructuredOutputShape } from "@orb/contracts/settings";
 import { DEFAULT_STRUCTURED_OUTPUT_SHAPE } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { characters, messages, messageVariants, presets } from "@orb/db";
-import type { ChatId, ChatTurnId, MessageId, MessageVariantId, ModelId, PresetId, UserId } from "@orb/kit/ids";
+import type { ChatId, ChatTurnId, Handle, MessageId, MessageVariantId, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { AgentModelHealError, ConnectionRoutingError } from "@orb/server/domain/connection";
 import type { ServicesResult } from "@orb/server/entry/compose";
@@ -88,7 +88,7 @@ function hostPrincipal(userId: UserId): Principal {
 /** Seed a real chat with a host participant — the membership rpg's createGame gates on (through the REAL
  *  injected getMembership off createServices). Returns the chat + host ids. */
 async function seedHostGameChat(db: Db, key: string): Promise<{ chatId: ChatId; hostId: UserId }> {
-  const hostId = await seedUser(db, `rpghost_${key}`);
+  const hostId = await seedUser(db, castId<Handle>(`rpghost_${key}`));
   const chatId = await seedChat(db, key);
   await seedParticipant(db, { chatId, key: `${key}_host`, userId: hostId, role: "host", joinSeq: 0 });
   return { chatId, hostId };
@@ -905,8 +905,8 @@ test("F3: the host is resolved by ROLE, not join order (post-handoff: first-join
   // Simulate a post-`acceptHostHandoff` state (D64): the first-joined human (joinSeq 0) is now a plain MEMBER,
   // and the current host joined later (joinSeq 1) — roles swapped in place, join order unchanged. The old
   // `find(kind==="user")` picked the first human (the member); the fix resolves by role='host'.
-  const member = await seedUser(db, "f3_member");
-  const host = await seedUser(db, "f3_host");
+  const member = await seedUser(db, castId<Handle>("f3_member"));
+  const host = await seedUser(db, castId<Handle>("f3_host"));
   const chatId = await seedChat(db, "f3");
   await seedParticipant(db, { chatId, key: "f3_member", userId: member, role: "member", joinSeq: 0 });
   await seedParticipant(db, { chatId, key: "f3_host", userId: host, role: "host", joinSeq: 1 });
@@ -2190,7 +2190,7 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
 test("HOST HANDOFF nulls a gmPresetId the new host cannot read, and keeps one they own (composed-real)", async ({ services, db }) => {
   // The chat ids are REAL minted TypeIDs: the notifications `record` this flow delivers (`handoff-nominated` /
   // `handoff-accepted`) re-parses `chatId` through the TypeID schema, which the readable `chat_<key>` seed fails.
-  const nominee = await seedUser(db, "hoffnominee");
+  const nominee = await seedUser(db, castId<Handle>("hoffnominee"));
   const seedPreset = async (id: string, ownerId: UserId): Promise<PresetId> => {
     const presetId = castId<PresetId>(id);
     await db
@@ -2200,7 +2200,7 @@ test("HOST HANDOFF nulls a gmPresetId the new host cannot read, and keeps one th
   };
   /** A game room whose GM knob points at `presetOwner`'s preset, with the nominee seated + nominated. */
   const seedHandoffGame = async (key: string, presetOwner: "host" | "nominee"): Promise<{ chatId: ChatId; presetId: PresetId }> => {
-    const hostId = await seedUser(db, `${key}host`);
+    const hostId = await seedUser(db, castId<Handle>(`${key}host`));
     const chatId = await seedChat(db, key, { id: mintTypeId(ID_PREFIX.chat) });
     await seedParticipant(db, { chatId, key: `${key}host`, userId: hostId, role: "host", joinSeq: 0 });
     await seedParticipant(db, { chatId, key: `${key}nominee`, userId: nominee, role: "member", joinSeq: 0 });

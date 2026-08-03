@@ -23,6 +23,8 @@
 // proves the HOST side end-to-end (the lie is in host canon + the reveal eye parses it) and the reasoning-strip
 // WIRING (deception-active flips the game verdict) — see the report for the precise boundary.
 
+import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openContextTab, openNewestChat } from "./support/chat-room";
@@ -58,7 +60,9 @@ const COHERENT_VLLM_ROUTE: ChatRoute = { api: "chat-completions", source: "vllm"
 /** Seed a fresh lite game on a virgin chat with a spec-owned character, on the write-capable route. Returns the
  *  ids + a cleanup handle (removes the character — chats/game cascade — AND restores the prior route). A UNIQUE
  *  card handle per spec keeps serial specs from colliding on the shared dev DB. */
-async function seedGame(handle: string): Promise<{ readonly chatId: string; readonly characterId: string; readonly cleanup: () => Promise<void> }> {
+async function seedGame(
+  handle: CharacterHandle,
+): Promise<{ readonly chatId: ChatId; readonly characterId: CharacterId; readonly cleanup: () => Promise<void> }> {
   const priorRoute = await getChatRoute();
   await setChatRoute(COHERENT_VLLM_ROUTE);
   const characterId = await mintFreshCharacter(handle, GM_NAME, GM_GREETING);
@@ -85,7 +89,7 @@ async function openGamePanel(page: Page): Promise<void> {
 
 /** The greeting assistant row id (the durable row `startChat` seeded) — the deterministic edit target for the
  *  planted P3/P4/P5 content. A lite game's greeting is the first + only assistant row until a live turn runs. */
-async function greetingRowId(chatId: string): Promise<string> {
+async function greetingRowId(chatId: ChatId): Promise<string> {
   const canon = await listCanon(chatId);
   const assistant = canon.find((m) => m.role === "assistant");
   if (assistant === undefined) {
@@ -107,7 +111,7 @@ test("P3 deception: a planted lie is host-revealed (eye + standing-lie inventory
   tag: "@live",
 }, async ({ page }) => {
   test.setTimeout(120_000);
-  const { chatId, cleanup } = await seedGame("e2e-pp-p3");
+  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-pp-p3"));
   try {
     // ── BE: enabling deception makes the game DECEPTION-ACTIVE. `getConfigView` is the host-truth read the
     // teaching + the reasoning-strip both derive from — off by default, on after the toggle. ──
@@ -167,7 +171,7 @@ test("P4 immersive HTML: a planted :::card renders sandboxed, view-raw shows sou
   tag: "@live",
 }, async ({ page }) => {
   test.setTimeout(120_000);
-  const { chatId, cleanup } = await seedGame("e2e-pp-p4");
+  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-pp-p4"));
   try {
     // BE: the card teaching knob is on by default (getConfigView truth); the render is toggle-independent, so
     // we assert the default and move on (a stored card renders regardless of a later toggle-off).
@@ -238,7 +242,7 @@ test("P5 CYOA: a planted :::choices renders clickable buttons and clicking one s
   tag: "@live",
 }, async ({ page }) => {
   test.setTimeout(300_000);
-  const { chatId, cleanup } = await seedGame("e2e-pp-p5-cyoa");
+  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-pp-p5-cyoa"));
   try {
     // BE: cyoa defaults OFF; flip it on (the standing-mode knob). The render is toggle-independent — a stored
     // choices fence renders regardless — but the flip proves the knob is real (config truth).
@@ -287,7 +291,7 @@ test("P5 plot: the snapshot plot plane renders on the act rail, advances, and a 
   tag: "@live",
 }, async ({ page }) => {
   test.setTimeout(90_000);
-  const { chatId, cleanup } = await seedGame("e2e-pp-p5-plot");
+  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-pp-p5-plot"));
   try {
     // BE: plot progression defaults ON (config truth).
     expect((await getConfigView(chatId)).plotProgression).toBe(true);
@@ -347,7 +351,7 @@ test("P5 wand: a Plot-submenu game steer fires a real turn and resolves LIVE off
   tag: "@live",
 }, async () => {
   test.setTimeout(300_000);
-  const { chatId, cleanup } = await seedGame("e2e-pp-p5-wand");
+  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-pp-p5-wand"));
   try {
     // Seed a KNOWN scene state the steer's `{{rpgSceneState}}` macro must resolve into the provider prompt.
     const marker = "Ashfell Night Market";

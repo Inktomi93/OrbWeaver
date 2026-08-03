@@ -1,5 +1,7 @@
 // verb: listGlobal — the caller's globally-attached scripts, in EXECUTION order (position, then createdAt).
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createRegexService } from "@orb/server/domain/regex";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -11,8 +13,8 @@ describe("listGlobal", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
     const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_t", name: "theirs" });

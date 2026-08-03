@@ -9,7 +9,7 @@ import type { RpgActorEntry, RpgTrackerDef, RpgTrackerValue } from "@orb/contrac
 import { buildTrackerWriteGroups, gameTrackerWriteKeys, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { messages, rpgSnapshots } from "@orb/db";
-import type { ChatId, MessageId, MessageVariantId, RpgGameId } from "@orb/kit/ids";
+import type { ChatId, Handle, MessageId, MessageVariantId, RpgGameId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db";
@@ -92,10 +92,10 @@ test("a NON-game chat gathers null (byte-identical no-op)", async () => {
 test("#40 a DISENGAGED game gathers null (byte-identical no-op — reminder/steering/macros all off, rows preserved)", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);
-  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { engaged: false } });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { engaged: false } });
   expect(await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false })).toBeNull();
   // Reversible: re-engage and the gather contributes again (the game rows were never touched).
-  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { engaged: true } });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { engaged: true } });
   expect(await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false })).not.toBeNull();
 });
 
@@ -128,7 +128,11 @@ test("a game contributes ONE depth-0 system reminder injection + the rpg macro/C
 test("the reminder RENDERS the steeringNote's {{user}}/{{char}} from chat's threaded identity (not literal)", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);
-  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "{{user}} keeps running into {{char}} at the konbini." } });
+  await h.service.updateConfig({
+    principal: principal(castId<Handle>("host")),
+    chatId,
+    patch: { steeringNote: "{{user}} keeps running into {{char}} at the konbini." },
+  });
 
   // chat's threaded binding: {{user}} = the active persona, {{char}} = the SOLO single cast name (Ruling B).
   const out = await h.chatOps.gatherTurnContext({
@@ -150,7 +154,7 @@ test("the reminder RENDERS the steeringNote's {{user}}/{{char}} from chat's thre
 test("Ruling B: a MULTI-character game's steeringNote {{char}} renders the JOINED CAST (chat's value, not one protagonist)", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);
-  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "Keep {{char}} distinct in voice." } });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { steeringNote: "Keep {{char}} distinct in voice." } });
 
   // Chat threads the Ruling-B joined cast (`joinedCastName(room.castNames)` — roster order): "Niko, Aria".
   const out = await h.chatOps.gatherTurnContext({
@@ -170,7 +174,11 @@ test("Ruling B: a MULTI-character game's steeringNote {{char}} renders the JOINE
 test("the gather does NOT grant the steeringNote full macro power — {{random}}/{{setvar}} stay literal", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);
-  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { steeringNote: "As {{user}}: {{random::a::b}}{{setvar::x::1}}" } });
+  await h.service.updateConfig({
+    principal: principal(castId<Handle>("host")),
+    chatId,
+    patch: { steeringNote: "As {{user}}: {{random::a::b}}{{setvar::x::1}}" },
+  });
 
   const out = await h.chatOps.gatherTurnContext({
     chatId,
@@ -227,7 +235,7 @@ test("a BORN game's char turn carries no registry tools + no write guidance (the
 test("cheap mode: the char turn is ALSO tool-less (owner ruling — the dedicated tool round runs post-commit)", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "cheap" });
   const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   // The char turn NEVER mounts tools — cheap captures state in the dedicated tool round, not on the narration.
   expect(out?.tools).toEqual([]);
@@ -240,7 +248,7 @@ test("cheap mode: the char turn is ALSO tool-less (owner ruling — the dedicate
 test("readonly (manual-steering): tool-less char turn + the reminder still steers via hand-edited state", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db, { trackersReadOnly: true });
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "cheap" });
   const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   expect(out?.tools).toEqual([]);
   expect(out?.injections[0]?.content).not.toContain("update_party");
@@ -255,7 +263,7 @@ test("the delta block renders prev→current across a two-beat committed lineage
   const db = await freshDb();
   const { chatId, gameId, h } = await seedLiteGame(db);
   // R3 — health only exists where the GAME defines it, so the delta lineage seeds the def first.
-  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { trackers: [HP] } });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { trackers: [HP] } });
   await seedBeat(db, { chatId, gameId, seq: 2, hp: 12 }); // prior beat
   await seedBeat(db, { chatId, gameId, seq: 4, hp: 16 }); // current head
   const text = await reminderText(h, chatId);
@@ -267,7 +275,7 @@ test("the delta block renders prev→current across a two-beat committed lineage
 test("swipe-consistency: selecting a sibling variant re-resolves the delta on the NEW lineage", async () => {
   const db = await freshDb();
   const { chatId, gameId, h } = await seedLiteGame(db);
-  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { trackers: [HP] } });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { trackers: [HP] } });
   await seedBeat(db, { chatId, gameId, seq: 2, hp: 12 }); // shared prior beat
   // The current head slot (seq 4) has TWO swipe variants: A (HP 16) selected by seedBeat, B (HP 8).
   const head = await seedBeat(db, { chatId, gameId, seq: 4, hp: 16 });
@@ -287,14 +295,14 @@ test("swipe-consistency: selecting a sibling variant re-resolves the delta on th
 test("hand-edit-as-source: a host patchActor surfaces as a delta on the next gather", async () => {
   const db = await freshDb();
   const { chatId, gameId, h } = await seedLiteGame(db);
-  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { trackers: [HP] } });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { trackers: [HP] } });
   // A committed prior beat (HP 12) is the lineage head; there is no newer beat yet.
   await seedBeat(db, { chatId, gameId, seq: 2, hp: 12 });
   // The host hand-edits HP to 18 through the OP door (R1 — the per-actor plane left `editSnapshot`). It
   // clone-forwards onto a fresh committed narrator slot (the head was committed), which becomes the new
   // current head; the prior beat (HP 12) is now the prev on the lineage.
   await h.service.patchActor({
-    principal: principal("host"),
+    principal: principal(castId<Handle>("host")),
     chatId,
     targetRef: { kind: "cast", castKey: "kael" },
     ops: [{ op: "setTracker", key: "hp", value: { value: 18 } }],
@@ -371,7 +379,7 @@ test("the gather stages the `rpg` CEL tree so {{expr::rpg.…}} reads scene/cast
 test("R1 folded: the gather mounts the terminal tools — registry `tools` stays empty", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db);
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
   const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
 
   expect(out?.tools).toEqual([]); // never the registry — a registry tool would execute + recurse
@@ -389,7 +397,7 @@ test("R1: the CHEAP opt-out contributes NO terminal tools (byte-identical to bef
   // A FRESH game is BORN folded (owner ruling 2026-08-01), so the fold is what a new room gets with no config.
   expect((await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false }))?.terminalTools).toBeDefined();
   // …and the two-call opt-out mounts NOTHING — the mode, not the capability, decides the vehicle.
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "cheap" });
   expect((await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false }))?.terminalTools).toBeUndefined();
   expect(h.fakes.foldedToolBuilds).toHaveLength(1); // consulted for the born-folded gather ONLY
 });
@@ -397,7 +405,7 @@ test("R1: the CHEAP opt-out contributes NO terminal tools (byte-identical to bef
 test("R1 folded + readonly: NO terminal tools — a manual-steering game never mounts a write surface", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db, { trackersReadOnly: true });
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
   const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   expect(out?.terminalTools).toBeUndefined();
   expect(h.fakes.foldedToolBuilds).toHaveLength(0);
@@ -410,7 +418,7 @@ test("R1 folded + foldGuarded: the mount is WITHHELD — the local engine's turn
   // The wire CAN carry tools (so this is not the readonly arm) but goes mute when they ride — measured
   // `content:null` on 36/36 turns. The fold's premise is false here, so the character turn must not mount.
   const { chatId, h } = await seedLiteGame(db, { foldGuarded: true });
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
   const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
 
   expect(out?.terminalTools).toBeUndefined();
@@ -426,7 +434,7 @@ test("the fold guard governs ONLY folded — an explicit cheap game on the same 
   const { chatId, h } = await seedLiteGame(db, { foldGuarded: true });
   // The opt-out mounted no terminal tools before the guard existed and does not now; its post-commit round is
   // the host's deliberate lever and the guard never re-routes it.
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "cheap" });
   expect((await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false }))?.terminalTools).toBeUndefined();
   expect(h.fakes.foldedToolBuilds).toHaveLength(0);
 });
@@ -434,7 +442,7 @@ test("the fold guard governs ONLY folded — an explicit cheap game on the same 
 test("R1 folded: a RECONCILE beat appends the write-surface note to the reminder", async () => {
   const db = await freshDb();
   const { chatId, gameId, h } = await seedLiteGame(db);
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded", patch: { reconcileEveryBeats: 2 } });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded", patch: { reconcileEveryBeats: 2 } });
   // One prior beat ⇒ this beat's ordinal is 2 ⇒ 2 % 2 === 0 ⇒ RECONCILE.
   await seedBeat(db, { chatId, gameId, seq: 2, hp: 12 });
   const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
@@ -452,7 +460,7 @@ test("R1 folded: a mount that THROWS never fails the turn — the gather degrade
   // `buildTurnContext` and kill the character turn BEFORE any narrative existed — a state-tracking convenience
   // taking down the reply, the exact inversion the delivery model forbids.
   const { chatId, h } = await seedLiteGame(db, { foldedToolsThrow: true });
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
 
   const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
 
@@ -517,8 +525,8 @@ const ALARM = trackerDef({ key: "alarm", label: "Alarm", shape: "meter", write: 
  *  CHARACTER actor, and a committed beat carrying readings on the user, the character AND a scene-cast
  *  member (the three carrier homes) plus the game-subject value. */
 async function seedTrackerGame(db: Db): Promise<{ chatId: ChatId; h: RpgHarness }> {
-  const { chatId, gameId, h } = await seedLiteGame(db, { roster: [rosterUser("host", "You"), rosterCharacter(NIKO, "Niko")] });
-  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { trackers: [CORRUPTION, ALARM] } });
+  const { chatId, gameId, h } = await seedLiteGame(db, { roster: [rosterUser(castId<Handle>("host"), "You"), rosterCharacter(NIKO, "Niko")] });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { trackers: [CORRUPTION, ALARM] } });
   const { variantId } = await seedMessage(db, chatId, 2, { role: "assistant" });
   await db.insert(rpgSnapshots).values({
     ...target({ gameId, chatId, seq: 2, variantId, key: "trk" }),
@@ -565,7 +573,7 @@ test("a LOCKED tracker still reads in the reminder (value + hint) while the writ
   const db = await freshDb();
   const sealed = trackerDef({ ...CORRUPTION, key: "sealed", label: "Sealed", hint: "the host owns this one", locked: true });
   const { chatId, gameId, h } = await seedLiteGame(db, { roster: [rosterCharacter(NIKO, "Niko")] });
-  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { trackers: [sealed, { ...ALARM, locked: true }] } });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { trackers: [sealed, { ...ALARM, locked: true }] } });
   const { variantId } = await seedMessage(db, chatId, 2, { role: "assistant" });
   await db.insert(rpgSnapshots).values({
     ...target({ gameId, chatId, seq: 2, variantId, key: "lockd" }),
@@ -590,8 +598,8 @@ test("a CARRIED but unmoved tracker still reaches the reminder (the live drop: t
   const db = await freshDb();
   // The exact live shape: the tracker is defined + pinned, and NO snapshot has ever written a reading — the
   // panel drew `Corruption 0/100` on every Status card while the reminder said nothing at all.
-  const { chatId, h } = await seedLiteGame(db, { roster: [rosterUser("host", "You"), rosterCharacter(NIKO, "Niko")] });
-  await h.service.updateConfig({ principal: principal("host"), chatId, patch: { trackers: [CORRUPTION] } });
+  const { chatId, h } = await seedLiteGame(db, { roster: [rosterUser(castId<Handle>("host"), "You"), rosterCharacter(NIKO, "Niko")] });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { trackers: [CORRUPTION] } });
   const text = await reminderText(h, chatId);
 
   expect(text).toContain("Trackers: Corruption (how corrupted someone is)");

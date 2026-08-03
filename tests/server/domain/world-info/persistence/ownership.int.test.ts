@@ -3,7 +3,7 @@
 // "doesn't exist" are one answer), reading the `characters`/`personas` schema directly (the sanctioned
 // cross-table read). Internal files are imported by RELATIVE path.
 
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { WorldInfoNotFoundError } from "../../../../../packages/server/src/domain/world-info/contract/errors.ts";
@@ -15,8 +15,8 @@ import { seedCharacter, seedPersona, seedUser } from "../_support.ts";
 describe("ensureCharacterOwned", () => {
   test("passes for the owner, throws for foreign + absent", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const mine = await seedCharacter(db, { ownerId: owner, id: "character_mine" });
     const theirs = await seedCharacter(db, { ownerId: other, id: "character_theirs" });
 
@@ -29,8 +29,8 @@ describe("ensureCharacterOwned", () => {
 describe("ensurePersonaOwned", () => {
   test("passes for the owner, throws for foreign + absent", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const mine = await seedPersona(db, { ownerId: owner, id: "persona_mine" });
     const theirs = await seedPersona(db, { ownerId: other, id: "persona_theirs" });
 

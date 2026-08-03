@@ -528,8 +528,8 @@ function writeFixtures(): void {
     'import type { CharacterId } from "@orb/kit/ids";\nexport type GRenameCardOp = (characterId: CharacterId, name: string) => Promise<void>;\n',
   );
   // brand-in-name-position: a signature taking `chatId: string` while `ChatId` is minted in @orb/kit/ids.
-  // The fixture path is deliberately NOT in the committed brand-in-name-position.baseline.json, so its
-  // per-file budget is 0 and the single finding is reported.
+  // Post-terminal-state (the baseline was burned to {} and deleted, 2026-08-03) every finding reports
+  // directly — this planted signature is the gate's standing live-tree bite proof.
   fx("packages/server/src/domain/__g_brandpos/verbs/__g_brandpos.ts", "export function gPost(chatId: string): void {\n  void chatId;\n}\n");
   // detached-work-traced: statement-position fire-and-forget with a DISCARDING rejection handler and no
   // detached root span. The real tracing module supplies the derived `withRequestSpan` vocabulary.

@@ -144,7 +144,7 @@ type ProvisionOutcome =
 /** Local password verification, supplied from `sessions.authenticate` by the composition root in local mode. */
 export interface LocalAuthenticator {
   // biome-ignore lint/style/useShorthandFunctionType: the shorthand `export type X = (...) => ...` alias trips the no-inline-types rule's broad `export type` arm (entry/ is not a contract type home), so keep the call-signature interface and suppress the biome INFO instead.
-  (handle: string, password: string): Promise<UserId | null>;
+  (handle: Handle, password: string): Promise<UserId | null>;
 }
 
 /** The OIDC transaction store the route needs — mint (authorize) + consume (callback). Wider than
@@ -225,7 +225,7 @@ function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: Local
     if (handle.length === 0 || password.length === 0) {
       return c.json({ error: "missing credentials" }, BAD_REQUEST);
     }
-    const userId = await authenticate(handle, password);
+    const userId = await authenticate(castId<Handle>(handle), password);
     if (userId === null) {
       return c.json({ error: "invalid credentials" }, UNAUTHORIZED);
     }

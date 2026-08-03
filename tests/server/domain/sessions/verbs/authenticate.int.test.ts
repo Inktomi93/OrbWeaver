@@ -5,6 +5,8 @@
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { createPasswordHasher } from "@orb/server/infra/auth";
 import { eq } from "drizzle-orm";
@@ -31,31 +33,31 @@ beforeEach(async () => {
 
 describe("sessions.authenticate", () => {
   test("the correct handle + password resolves the row id (and a trimmed handle matches)", async () => {
-    const userId = await svc.ensureUser("alice");
+    const userId = await svc.ensureUser(castId<Handle>("alice"));
     await db.update(users).set({ passwordHash: storedHash }).where(eq(users.id, userId));
 
-    expect(await svc.authenticate("alice", PASSWORD)).toBe(userId);
-    expect(await svc.authenticate("  alice  ", PASSWORD)).toBe(userId);
+    expect(await svc.authenticate(castId<Handle>("alice"), PASSWORD)).toBe(userId);
+    expect(await svc.authenticate(castId<Handle>("  alice  "), PASSWORD)).toBe(userId);
   });
 
   test("a wrong password is null", async () => {
-    const userId = await svc.ensureUser("alice");
+    const userId = await svc.ensureUser(castId<Handle>("alice"));
     await db.update(users).set({ passwordHash: storedHash }).where(eq(users.id, userId));
-    expect(await svc.authenticate("alice", "not the password")).toBeNull();
+    expect(await svc.authenticate(castId<Handle>("alice"), "not the password")).toBeNull();
   });
 
   test("an unknown handle is null (the dummy-hash burn — no fast reject, no throw)", async () => {
-    expect(await svc.authenticate("nobody", PASSWORD)).toBeNull();
+    expect(await svc.authenticate(castId<Handle>("nobody"), PASSWORD)).toBeNull();
   });
 
   test("an SSO-only row (null passwordHash) can never password-login", async () => {
-    await svc.ensureUser("sso-user"); // ensureUser leaves passwordHash null
-    expect(await svc.authenticate("sso-user", PASSWORD)).toBeNull();
+    await svc.ensureUser(castId<Handle>("sso-user")); // ensureUser leaves passwordHash null
+    expect(await svc.authenticate(castId<Handle>("sso-user"), PASSWORD)).toBeNull();
   });
 
   test("a DISABLED row is refused even with the correct password", async () => {
-    const userId = await svc.ensureUser("alice");
+    const userId = await svc.ensureUser(castId<Handle>("alice"));
     await db.update(users).set({ passwordHash: storedHash, enabled: false }).where(eq(users.id, userId));
-    expect(await svc.authenticate("alice", PASSWORD)).toBeNull();
+    expect(await svc.authenticate(castId<Handle>("alice"), PASSWORD)).toBeNull();
   });
 });

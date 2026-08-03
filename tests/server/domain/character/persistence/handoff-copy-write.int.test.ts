@@ -5,7 +5,7 @@
 
 import type { Db } from "@orb/db";
 import { assets, characters } from "@orb/db";
-import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import type { CopyAvatarToOwner } from "../../../../../packages/server/src/domain/character";
@@ -21,13 +21,13 @@ async function seedCard(
   db: Db,
   ownerId: UserId,
   key: string,
-  over: { readonly avatarAssetId?: AssetId; readonly trustHtml?: boolean; readonly handle?: string } = {},
+  over: { readonly avatarAssetId?: AssetId; readonly trustHtml?: boolean; readonly handle?: CharacterHandle } = {},
 ): Promise<CharacterId> {
   const id = castId<CharacterId>(`character_${key}`);
   await db.insert(characters).values({
     id,
     ownerId,
-    handle: over.handle ?? key,
+    handle: over.handle ?? castId<CharacterHandle>(key),
     name: key,
     description: `${key} body`,
     contentHash: key,
@@ -132,7 +132,7 @@ test("a handle already taken in the recipient's library is uniquified, never a c
   const nominee = await seedUser(db, { handle: castId("nominee") });
   const source = await seedCard(db, oldHost.id, "aria");
   // The recipient already has an UNRELATED card sitting on that handle.
-  await seedCard(db, nominee.id, "nominee_own", { handle: "aria" });
+  await seedCard(db, nominee.id, "nominee_own", { handle: castId<CharacterHandle>("aria") });
 
   await copier(db)({ fromOwnerId: oldHost.id, toOwnerId: nominee.id, chatId: CHAT, characterIds: [source] });
 
@@ -147,7 +147,7 @@ test("the avatar is RE-OWNED through the injected op, never carried by id", asyn
   const hostAvatar = await seedAsset(db, oldHost.id, "host_avatar");
   const reowned = await seedAsset(db, nominee.id, "nominee_avatar");
   const source = await seedCard(db, oldHost.id, "aria", { avatarAssetId: hostAvatar });
-  const asked: { fromOwnerId: string; toOwnerId: string; assetId: string }[] = [];
+  const asked: { fromOwnerId: string; toOwnerId: string; assetId: AssetId }[] = [];
 
   await copier(db, (args) => {
     asked.push(args);

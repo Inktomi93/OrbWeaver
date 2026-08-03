@@ -18,7 +18,8 @@
 // deletable, exportable, indistinguishable from a duplicate except for the provenance stamp. That matters
 // for the crash arm: mints that land without their room swap are not corruption and need no cleanup sweep.
 
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { cardContentHash } from "#kit/serde/card";
 import type { CharacterHandoffCopyContext, CopyHandoffCards, HandoffCardCopy } from "../contract/handoff-copy";
 import { handoffProvenance } from "../contract/handoff-copy";
@@ -33,12 +34,12 @@ import { cardOf, findByOwnerImportedFrom, listOwnedCharacterRows, listOwnerHandl
 const HANDLE_ATTEMPTS = 50;
 
 /** The first `<handle>[-n]` free in the recipient's library, or `null` when every candidate is taken. */
-function freeHandle(sourceHandle: string, taken: ReadonlySet<string>): string | null {
+function freeHandle(sourceHandle: CharacterHandle, taken: ReadonlySet<string>): CharacterHandle | null {
   if (!taken.has(sourceHandle)) {
     return sourceHandle;
   }
   for (let n = 2; n <= HANDLE_ATTEMPTS; n += 1) {
-    const candidate = `${sourceHandle}-${n}`;
+    const candidate = castId<CharacterHandle>(`${sourceHandle}-${n}`);
     if (!taken.has(candidate)) {
       return candidate;
     }

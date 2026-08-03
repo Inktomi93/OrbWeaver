@@ -3,7 +3,7 @@
 
 import { pluginKv } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";
-import type { PluginId } from "@orb/kit/ids";
+import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { PluginNotFoundError } from "@orb/server/domain/plugin";
 import { eq } from "drizzle-orm";
@@ -15,7 +15,7 @@ import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUse
 test("uninstall leaves zero rows, zero KV, zero bundle bytes; disposes a resident instance", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
     caller: ownerPrincipalFor(owner),
     bundle: makeBundle({ id: "mood", capabilities: ["storage.kv"] }),
@@ -37,7 +37,7 @@ test("uninstall leaves zero rows, zero KV, zero bundle bytes; disposes a residen
 test("uninstalling a disabled plugin needs no instance (idempotent deactivate)", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
 
   await h.service.uninstall({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
@@ -48,8 +48,8 @@ test("uninstalling a disabled plugin needs no instance (idempotent deactivate)",
 test("a missing/foreign plugin is a leak-free NotFound; a non-admin is refused", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
-  const user = await seedUser(db, { handle: "user" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const user = await seedUser(db, { handle: castId<Handle>("user") });
   const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
 
   await expect(h.service.uninstall({ caller: ownerPrincipalFor(owner), pluginId: castId<PluginId>("plugin_missing") })).rejects.toBeInstanceOf(

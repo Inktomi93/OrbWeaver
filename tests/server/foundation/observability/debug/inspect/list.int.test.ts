@@ -4,7 +4,7 @@
 // (synthetic excluded) newest-created first.
 
 import { characters, chatParticipants, chats, messages, users } from "@orb/db";
-import type { CharacterId, ChatId, ChatParticipantId, Handle, MessageId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, ChatParticipantId, Handle, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { characterListSummaries, chatListSummaries } from "@orb/server/foundation/observability/debug";
 import { freshDb } from "../../../../../support/db";
@@ -21,7 +21,7 @@ test("chatListSummaries returns a row per chat with participant + message counts
   await db.insert(chats).values({ id: newerId, title: "Newer", updatedAt: 2000 });
 
   const characterId = castId<CharacterId>("character_for_chat_list");
-  await db.insert(characters).values({ id: characterId, handle: "card-for-chat", ownerId: userId, contentHash: "h-c", name: "Cast" });
+  await db.insert(characters).values({ id: characterId, handle: castId<CharacterHandle>("card-for-chat"), ownerId: userId, contentHash: "h-c", name: "Cast" });
   await db.insert(chatParticipants).values([
     { id: castId<ChatParticipantId>("cp_list_1"), chatId: newerId, kind: "human", userId, role: "host", joinSeq: 0 },
     { id: castId<ChatParticipantId>("cp_list_2"), chatId: newerId, kind: "character", characterId, role: "member", joinSeq: 1 },
@@ -50,12 +50,26 @@ test("characterListSummaries returns user-facing characters newest-created first
   await db.insert(users).values({ id: userId, handle: castId<Handle>("user_char_list") });
 
   await db.insert(characters).values([
-    { id: castId<CharacterId>("character_list_a"), handle: "card-a", ownerId: userId, contentHash: "h-a", name: "Aria", createdAt: 1000 },
-    { id: castId<CharacterId>("character_list_b"), handle: "card-b", ownerId: userId, contentHash: "h-b", name: "Bram", createdAt: 2000 },
+    {
+      id: castId<CharacterId>("character_list_a"),
+      handle: castId<CharacterHandle>("card-a"),
+      ownerId: userId,
+      contentHash: "h-a",
+      name: "Aria",
+      createdAt: 1000,
+    },
+    {
+      id: castId<CharacterId>("character_list_b"),
+      handle: castId<CharacterHandle>("card-b"),
+      ownerId: userId,
+      contentHash: "h-b",
+      name: "Bram",
+      createdAt: 2000,
+    },
     // The hidden per-room group-memory identity — must be filtered from a user-facing list.
     {
       id: castId<CharacterId>("character_list_synth"),
-      handle: "__group__x",
+      handle: castId<CharacterHandle>("__group__x"),
       ownerId: userId,
       contentHash: "h-s",
       name: "Group",

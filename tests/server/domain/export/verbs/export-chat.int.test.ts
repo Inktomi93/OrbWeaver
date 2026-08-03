@@ -7,7 +7,7 @@
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats, messages, messageVariants, personas } from "@orb/db";
-import type { ChatId, ChatParticipantId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, ChatParticipantId, Handle, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { eq } from "drizzle-orm";
@@ -50,7 +50,7 @@ async function seedChatRow(
 async function seedMember(
   chatId: ChatId,
   key: string,
-  actor: { userId?: UserId; characterId?: string; role?: ParticipantRole; leftSeq?: number },
+  actor: { userId?: UserId; characterId?: CharacterId; role?: ParticipantRole; leftSeq?: number },
 ): Promise<void> {
   await db.insert(chatParticipants).values({
     id: castId<ChatParticipantId>(`chat_participant_${key}`),
@@ -75,7 +75,7 @@ async function seedSlot(args: {
   role: MessageRole;
   variantContents: string[];
   selectedIdx?: number;
-  characterId?: string;
+  characterId?: CharacterId;
   personaId?: PersonaId;
   authorUserId?: UserId;
 }): Promise<void> {
@@ -109,9 +109,9 @@ async function seedSlot(args: {
 describe("exportChat — D29 host gate", () => {
   test("a member (non-host), a non-member, and a missing chat all collapse to null", async () => {
     const { ctx } = makeHarness(db);
-    const host = await seedUser(db, { handle: "host" });
-    const member = await seedUser(db, { handle: "member" });
-    const outsider = await seedUser(db, { handle: "outsider" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const member = await seedUser(db, { handle: castId<Handle>("member") });
+    const outsider = await seedUser(db, { handle: castId<Handle>("outsider") });
     const chatId = await seedChatRow("a");
     await seedMember(chatId, "h", { userId: host, role: "host" });
     await seedMember(chatId, "m", { userId: member, role: "member" });
@@ -128,8 +128,8 @@ describe("exportChat — D29 host gate", () => {
     // (demotes only the PRESENT host) leaves TWO role='host' rows: one departed, one present. Without the
     // `leftSeq IS NULL` belt the departed ex-host kept permanent bulk-export access (s4 F3).
     const { ctx } = makeHarness(db);
-    const exHost = await seedUser(db, { handle: "exhost" });
-    const newHost = await seedUser(db, { handle: "newhost" });
+    const exHost = await seedUser(db, { handle: castId<Handle>("exhost") });
+    const newHost = await seedUser(db, { handle: castId<Handle>("newhost") });
     const chatId = await seedChatRow("dep");
     // The departed host: still role='host', but leftSeq stamped → NOT present.
     await seedMember(chatId, "old", { userId: exHost, role: "host", leftSeq: 5 });
@@ -147,8 +147,8 @@ describe("exportChat — D29 host gate", () => {
 describe("exportChat — the D26/D28 assembly", () => {
   test("jsonl: selected-variant content + swipe arrays >1; names + note/branch round-trip; filename", async () => {
     const { ctx } = makeHarness(db);
-    const host = await seedUser(db, { handle: "host" });
-    const aria = await seedCharacter(db, { ownerId: host, name: "Aria", handle: "aria" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const aria = await seedCharacter(db, { ownerId: host, name: "Aria", handle: castId<CharacterHandle>("aria") });
     const personaId = castId<PersonaId>("persona_nate");
     await db.insert(personas).values({
       id: personaId,
@@ -205,8 +205,8 @@ describe("exportChat — the D26/D28 assembly", () => {
 
   test("txt: active-variant transcript with author labels", async () => {
     const { ctx } = makeHarness(db);
-    const host = await seedUser(db, { handle: "host" });
-    const aria = await seedCharacter(db, { ownerId: host, name: "Aria", handle: "aria" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const aria = await seedCharacter(db, { ownerId: host, name: "Aria", handle: castId<CharacterHandle>("aria") });
     const chatId = await seedChatRow("a");
     await seedMember(chatId, "h", { userId: host, role: "host" });
     await seedMember(chatId, "c", { characterId: aria });
@@ -232,25 +232,25 @@ describe("exportChat — the D26/D28 assembly", () => {
 
   test("GROUP fidelity: each assistant turn exports under ITS OWN character, not the header primary", async () => {
     const { ctx } = makeHarness(db);
-    const host = await seedUser(db, { handle: "host" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
     // Three characters seated; the header primary is Aria (first join), but Bran and Cara each speak.
     const aria = await seedCharacter(db, {
       id: "character_aria",
       ownerId: host,
       name: "Aria",
-      handle: "aria",
+      handle: castId<CharacterHandle>("aria"),
     });
     const bran = await seedCharacter(db, {
       id: "character_bran",
       ownerId: host,
       name: "Bran",
-      handle: "bran",
+      handle: castId<CharacterHandle>("bran"),
     });
     const cara = await seedCharacter(db, {
       id: "character_cara",
       ownerId: host,
       name: "Cara",
-      handle: "cara",
+      handle: castId<CharacterHandle>("cara"),
     });
     const chatId = await seedChatRow("grp", { title: "Party" });
     await seedMember(chatId, "h", { userId: host, role: "host" });
@@ -290,8 +290,8 @@ describe("exportChat — the D26/D28 assembly", () => {
 describe("exportChat — PD-17 agent-author provenance", () => {
   test("regression: a character-voiced row carries NO agent_author key (byte-identical to pre-PD-17)", async () => {
     const { ctx } = makeHarness(db);
-    const host = await seedUser(db, { handle: "host" });
-    const aria = await seedCharacter(db, { ownerId: host, name: "Aria", handle: "aria" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const aria = await seedCharacter(db, { ownerId: host, name: "Aria", handle: castId<CharacterHandle>("aria") });
     const chatId = await seedChatRow("reg");
     await seedMember(chatId, "h", { userId: host, role: "host" });
     await seedMember(chatId, "c", { characterId: aria });

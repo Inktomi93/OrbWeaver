@@ -5,7 +5,7 @@
 // the PNG-card avatar store, the bare-JSON no-avatar path, the importHash dedup oracle, the raw card-tag
 // carry (no extraction-side dedupe), and the unreadable throw. EVERY INVARIANT SHIPS ITS ENFORCER.
 
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { createImportService, ImportCardError } from "@orb/server/domain/import";
@@ -148,9 +148,9 @@ describe("importCharacter", () => {
 
   // ── PD-144 — carried attached-book references ───────────────────────────────────────────────────────
 
-  const BOOK_A = "world_book_0000000000000000000000000a";
-  const BOOK_B = "world_book_0000000000000000000000000b";
-  const cardWithRefs = (refs: { worldBookId: string; role: string }[], includeEmbeddedBook = false): string =>
+  const BOOK_A = castId<WorldBookId>("world_book_0000000000000000000000000a");
+  const BOOK_B = castId<WorldBookId>("world_book_0000000000000000000000000b");
+  const cardWithRefs = (refs: { worldBookId: WorldBookId; role: string }[], includeEmbeddedBook = false): string =>
     JSON.stringify({
       spec: "chara_card_v3",
       spec_version: "3.0",
@@ -322,7 +322,7 @@ describe("importCharacter", () => {
     const existingId = castId<CharacterId>("character_existing");
     // The owner already has a character at the "aria" handle (e.g. from a prior import or app-authored
     // create) — the importHash dedup oracle is EMPTY (this file's bytes were never seen before).
-    h.setExistingHandle("aria", existingId);
+    h.setExistingHandle(castId<CharacterHandle>("aria"), existingId);
 
     const editedCard = JSON.stringify({
       spec: "chara_card_v3",
@@ -357,7 +357,7 @@ describe("importCharacter", () => {
     const h = makeHarness();
     const svc = createImportService(h.ctx);
     const existingId = castId<CharacterId>("character_existing");
-    h.setExistingHandle("aria", existingId);
+    h.setExistingHandle(castId<CharacterHandle>("aria"), existingId);
 
     // A DIFFERENT card that happens to share the derived handle ("aria") — the exact PD-108 dead-end case
     // (would have tripped `characters_owner_handle_unique` on a blind insert).

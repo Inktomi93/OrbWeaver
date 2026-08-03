@@ -24,6 +24,8 @@
 // swipe/continue/rewrite target (a tail assistant reply) is seeded by ONE UI-driven Guided response per
 // leg. Characters (and with them their chats) are removed in a finally.
 
+import type { CharacterHandle, ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { messageRow, openChatByTitle } from "./support/chat-room";
@@ -94,7 +96,7 @@ async function typeSteerAndOpenWand(page: Page, steer: string): Promise<void> {
 
 /** Fire ONE UI-driven Guided response and wait for its committed assistant row — the tail-seeding helper
  *  every variant/continue leg needs (startGroupChat's opening:"none" leaves the canon empty). */
-async function seedAssistantTail(page: Page, chatId: string, steer: string): Promise<string> {
+async function seedAssistantTail(page: Page, chatId: ChatId, steer: string): Promise<string> {
   await typeSteerAndOpenWand(page, steer);
   await page.getByRole("menuitem", { name: "Guided response" }).click();
   await pollAssistantCount(chatId, 1);
@@ -105,7 +107,7 @@ async function seedAssistantTail(page: Page, chatId: string, steer: string): Pro
 
 /** Wait until the chat's assistant row COUNT reaches `n` server-side (a UI-fired turn commits off the bus;
  *  polling canon is the deterministic "the turn landed" gate — DB truth, not DOM paint). */
-async function pollAssistantCount(chatId: string, n: number): Promise<void> {
+async function pollAssistantCount(chatId: ChatId, n: number): Promise<void> {
   await expect.poll(async () => (await listCanon(chatId)).filter((m) => m.role === "assistant").length, { timeout: LIVE_TIMEOUT_MS }).toBe(n);
 }
 
@@ -122,7 +124,7 @@ test.describe("guided generations on the live local stack", () => {
     test.setTimeout(LIVE_TIMEOUT_MS);
     originalRoute = await getChatRoute();
     await setChatRoute(STATELESS_ROUTE);
-    const probeCharId = await mintFreshCharacter("e2e-guided-probe", "Guidedspec Probe", "Probe greeting.");
+    const probeCharId = await mintFreshCharacter(castId<CharacterHandle>("e2e-guided-probe"), "Guidedspec Probe", "Probe greeting.");
     // A DEFAULT-opening solo chat seeds the greeting as the assistant tail (no model turn); swiping it is
     // the cheapest REAL generation — the faithful backend-availability probe (the group-modes precedent).
     const probeChat = await startChat([probeCharId]);

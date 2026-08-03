@@ -76,7 +76,7 @@ const TEST_SESSION_SECRET = "test-session-secret-at-least-32-chars";
 const ALLOW_ALL_RATE_LIMIT: RateLimitGate = { enforce: (): Promise<void> => Promise.resolve() };
 
 /** Seed the caller's `users` row (the FK target for everything it creates) and build its Principal. */
-async function seedCallerPrincipal(db: Db, spec: { readonly id: UserId; readonly handle: string; readonly role: UserRole }): Promise<Principal> {
+async function seedCallerPrincipal(db: Db, spec: { readonly id: UserId; readonly handle: Handle; readonly role: UserRole }): Promise<Principal> {
   const { seedUser } = await import("./factories/user.ts");
   const handle = castId<Handle>(spec.handle);
   await seedUser(db, { id: spec.id, handle, role: spec.role });
@@ -140,7 +140,7 @@ export const test = base.extend<Fixtures>({
   ownerCaller: async ({ db, app }, use): Promise<void> => {
     const auth = await seedCallerPrincipal(db, {
       id: OWNER_USER_ID,
-      handle: "fixture-owner",
+      handle: castId<Handle>("fixture-owner"),
       role: "owner",
     });
     await use(await callerFor(app, auth));
@@ -148,7 +148,7 @@ export const test = base.extend<Fixtures>({
   adminCaller: async ({ db, app }, use): Promise<void> => {
     const auth = await seedCallerPrincipal(db, {
       id: ADMIN_USER_ID,
-      handle: "fixture-admin",
+      handle: castId<Handle>("fixture-admin"),
       role: "admin",
     });
     await use(await callerFor(app, auth));
@@ -156,7 +156,7 @@ export const test = base.extend<Fixtures>({
   otherCaller: async ({ db, app }, use): Promise<void> => {
     const auth = await seedCallerPrincipal(db, {
       id: OTHER_USER_ID,
-      handle: "fixture-other",
+      handle: castId<Handle>("fixture-other"),
       role: "user",
     });
     await use(await callerFor(app, auth));

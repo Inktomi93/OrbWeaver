@@ -8,6 +8,8 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { assets, characters, chats, userSettings } from "@orb/db";
+import type { CharacterHandle, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
@@ -23,7 +25,7 @@ describe("reapIfOrphan", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(1),
@@ -44,14 +46,14 @@ describe("reapIfOrphan", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(2),
       kind: "avatar",
       mime: PNG,
     });
-    const character = await seedCharacter(db, owner, { handle: "hero" });
+    const character = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     await setCharacterAvatar(db, character, stored.assetId);
 
     const result = await svc.reapIfOrphan([stored.assetId]);
@@ -67,7 +69,7 @@ describe("reapIfOrphan", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(3),
@@ -88,7 +90,7 @@ describe("reapIfOrphan", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(20), kind: "background", mime: PNG });
     // NO FK column references it — the ONLY liveness signal is the carried-background JSON live-source. Before the
     // fix the FK-only `selectReferencedAmong` missed this pin and the NO-GRACE targeted reap purged a live blob.
@@ -114,7 +116,7 @@ describe("reapIfOrphan", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(21), kind: "background", mime: PNG });
     // The ONLY liveness signal is the appearance JSON pin — no FK column. The FK-only targeted reap missed this
     // pre-existing (PD-131) live-source too, so the same regression pin covers both JSON sources.
@@ -137,11 +139,11 @@ describe("reapIfOrphan", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // ONE asset (CAS dedup): a character avatar (FK) AND a chat carried background (JSON). Removing the character
     // drops the avatar FK; the JSON pin must keep the blob alive — the exact silent-data-loss path the fix closes.
     const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(22), kind: "avatar", mime: PNG });
-    const character = await seedCharacter(db, owner, { handle: "hero" });
+    const character = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     await setCharacterAvatar(db, character, stored.assetId);
     const chatId = await seedChatRow(db, "chat_dedup");
     await db
@@ -166,7 +168,7 @@ describe("reapIfOrphan", () => {
     const db = await freshDb();
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // Seed the asset through the real service first (real row + real blob).
     const stored = await createAssetsService(h.ctx).store({
       principal: principal(owner),

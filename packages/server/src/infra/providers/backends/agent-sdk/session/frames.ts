@@ -4,6 +4,7 @@
 
 import { createHash } from "node:crypto";
 import type { SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
+import type { ChatId } from "@orb/kit/ids";
 import { AGENT_PROMPT_TAIL_JOINER } from "../../../contract";
 
 export interface SeedTurn {
@@ -223,7 +224,7 @@ export function isBranchDivergence(entries: readonly SessionStoreEntry[], seed: 
   return shared >= 1;
 }
 
-export function seedSessionId(chatId: string, seed: readonly SeedTurn[], salt = 0): string {
+export function seedSessionId(chatId: ChatId, seed: readonly SeedTurn[], salt = 0): string {
   const body = seed.map((t) => `${t.role}\u0001${t.content}`).join("\u0002");
   return deterministicId(`${chatId}\u0000${salt}\u0000${body}`);
 }

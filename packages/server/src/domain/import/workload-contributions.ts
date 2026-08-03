@@ -25,11 +25,11 @@ type ImportContributions = readonly [WorkloadContribution<"import-st">, Workload
  * attempt and throws BEFORE any fs read or rm — the workload fails cleanly, nothing is touched.
  * `basename()` is NOT a containment primitive (`basename("..") === ".."`); never use it as one.
  */
-function resolveStagedPath(stagingRoot: string, handle: string): string {
+function resolveStagedPath(stagingRoot: string, stagedHandle: string): string {
   const root = resolve(stagingRoot);
-  const target = resolve(root, handle);
+  const target = resolve(root, stagedHandle);
   if (target === root || !target.startsWith(root + sep)) {
-    throw new DomainOperationError("staged_path_escape", `staged handle escapes the staging root: ${handle}`);
+    throw new DomainOperationError("staged_path_escape", `staged handle escapes the staging root: ${stagedHandle}`);
   }
   return target;
 }

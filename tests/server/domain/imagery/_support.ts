@@ -21,7 +21,7 @@ const FROZEN_AT = 1_750_000_000_000;
 export const PNG_BYTES = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const PNG_BASE64 = Buffer.from(PNG_BYTES).toString("base64");
 
-export async function seedOwner(db: Db, handle: string): Promise<UserId> {
+export async function seedOwner(db: Db, handle: Handle): Promise<UserId> {
   const id = castId<UserId>(`user_${handle}`);
   await db.insert(users).values({ id, handle: castId<Handle>(handle), role: "user", enabled: true });
   return id;

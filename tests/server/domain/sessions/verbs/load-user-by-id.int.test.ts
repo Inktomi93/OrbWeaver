@@ -5,8 +5,8 @@
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
-import { newId } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
+import { castId, newId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -24,7 +24,7 @@ beforeEach(async () => {
 
 describe("sessions.loadUserById", () => {
   test("returns the row's LIVE principal-fields (a role change propagates)", async () => {
-    const userId = await svc.ensureUser("alice");
+    const userId = await svc.ensureUser(castId<Handle>("alice"));
     expect(await svc.loadUserById(userId)).toEqual({
       role: "user",
       handle: "alice",
@@ -40,7 +40,7 @@ describe("sessions.loadUserById", () => {
   });
 
   test("a DISABLED row still resolves — not a login path, the real role stays authoritative", async () => {
-    const userId = await svc.ensureUser("alice");
+    const userId = await svc.ensureUser(castId<Handle>("alice"));
     await db.update(users).set({ enabled: false }).where(eq(users.id, userId));
     expect((await svc.loadUserById(userId))?.handle).toBe("alice");
   });

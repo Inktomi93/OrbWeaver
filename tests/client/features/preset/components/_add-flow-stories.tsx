@@ -8,13 +8,15 @@ import type { AppFormInstance } from "@orb/client/forms";
 import { createAutosaveEntityForm } from "@orb/client/forms";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { PresetId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { ParamsDeck } from "../../../../../packages/client/src/features/preset/components/params-deck";
 import { UserMacrosTab } from "../../../../../packages/client/src/features/preset/components/user-macros-tab";
 import { VariablesTab } from "../../../../../packages/client/src/features/preset/components/variables-tab";
 
-const STORY_PRESET = "preset_addflowstoryy";
+const STORY_PRESET = castId<PresetId>("preset_addflowstoryy");
 
 const StoryForm = createAutosaveEntityForm<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });
 

@@ -6,7 +6,7 @@
 
 import type { RpgSheet } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
-import type { CharacterId, RpgSheetId, UserId } from "@orb/kit/ids";
+import type { CharacterId, Handle, RpgSheetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { findSheet, listSheets, upsertSheet } from "../../../../../packages/server/src/domain/rpg/persistence/sheets";
@@ -32,7 +32,7 @@ describe("row-on-first-write", () => {
   test("findSheet returns undefined for an actor with no row (⇒ the verb renders the DEFAULT sheet)", async () => {
     const chatId = await seedChat(db, "a");
     const gameId = await seedGame(db, chatId);
-    const owner = await seedUser(db, "owner");
+    const owner = await seedUser(db, castId<Handle>("owner"));
     const charId = await seedChar(owner, "aria");
     expect(await findSheet(db, gameId, { characterId: charId })).toBeUndefined();
   });
@@ -40,7 +40,7 @@ describe("row-on-first-write", () => {
   test("upsertSheet creates on first write, overwrites on the second (one row per actor)", async () => {
     const chatId = await seedChat(db, "a");
     const gameId = await seedGame(db, chatId);
-    const owner = await seedUser(db, "owner");
+    const owner = await seedUser(db, castId<Handle>("owner"));
     const charId = await seedChar(owner, "aria");
 
     const created = await upsertSheet(db, {
@@ -71,7 +71,7 @@ describe("the roster ∪ rows projection (derivation pinned inline)", () => {
   test("a roster actor WITHOUT a row projects the DEFAULT sheet; one WITH a row projects its data", async () => {
     const chatId = await seedChat(db, "a");
     const gameId = await seedGame(db, chatId);
-    const owner = await seedUser(db, "owner");
+    const owner = await seedUser(db, castId<Handle>("owner"));
     const withRow = await seedChar(owner, "aria");
     const withoutRow = await seedChar(owner, "bram");
     await upsertSheet(db, { id: castId<RpgSheetId>("rpg_sheet_aria"), gameId, characterId: withRow, userId: null, sheet: sheetWith("rogue"), now: FROZEN_AT });
@@ -89,7 +89,7 @@ describe("the roster ∪ rows projection (derivation pinned inline)", () => {
   test("a departed actor's row is RETAINED in persistence but NOT projected (off the roster)", async () => {
     const chatId = await seedChat(db, "a");
     const gameId = await seedGame(db, chatId);
-    const owner = await seedUser(db, "owner");
+    const owner = await seedUser(db, castId<Handle>("owner"));
     const present = await seedChar(owner, "aria");
     const departed = await seedChar(owner, "ghost");
     await upsertSheet(db, { id: castId<RpgSheetId>("rpg_sheet_aria"), gameId, characterId: present, userId: null, sheet: sheetWith("rogue"), now: FROZEN_AT });

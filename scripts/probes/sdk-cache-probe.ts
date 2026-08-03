@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+
 /**
  * pnpm sdk:cache-probe [--scenario s1,s2,…] [--model <id>] [--verbose]
  *
@@ -39,6 +40,8 @@
 import process from "node:process";
 import type { Options, SDKMessage, SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import { query } from "@anthropic-ai/claude-agent-sdk";
+import type { ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { ChatResult } from "@orb/server/infra/providers";
 import { buildClaudeOpenRouterEnv, buildClaudeSdkEnv, consumeTurnStream, dynamicContextOptions } from "@orb/server/infra/providers/backends/agent-sdk";
 import { buildSeedFrames, InMemorySessionStore, SessionCache, seedSessionId, toSeedTurns } from "@orb/server/infra/providers/backends/agent-sdk/session";
@@ -214,7 +217,7 @@ async function s2(): Promise<void> {
   const cache = new SessionCache(new InMemorySessionStore());
   // ensureSeededSession returns the decision object (sessionId + disposition) since the observability
   // lane; the probe only needs the id to resume by.
-  const resume = (await cache.ensureSeededSession("probe-chat-s2", RECALL_CANON)).sessionId;
+  const resume = (await cache.ensureSeededSession(castId<ChatId>("probe-chat-s2"), RECALL_CANON)).sessionId;
   if (resume === null) {
     verdict("s2", false, "ensureSeededSession returned null for a non-empty canon");
     return;
@@ -233,7 +236,7 @@ async function s2(): Promise<void> {
  *  API-side content cache should still hit on the unchanged prefix. */
 async function s3(): Promise<void> {
   const cacheA = new SessionCache(new InMemorySessionStore());
-  const idA = (await cacheA.ensureSeededSession("probe-chat-s3", RECALL_CANON)).sessionId;
+  const idA = (await cacheA.ensureSeededSession(castId<ChatId>("probe-chat-s3"), RECALL_CANON)).sessionId;
   const a = await runTurn({
     prompt: "What is the dragon's name? Single name only.",
     store: cacheA.store,
@@ -244,7 +247,7 @@ async function s3(): Promise<void> {
 
   // "Restart": everything in-memory is gone; only canon (and the deterministic builders) survive.
   const cacheB = new SessionCache(new InMemorySessionStore());
-  const idB = (await cacheB.ensureSeededSession("probe-chat-s3", RECALL_CANON)).sessionId;
+  const idB = (await cacheB.ensureSeededSession(castId<ChatId>("probe-chat-s3"), RECALL_CANON)).sessionId;
   const b = await runTurn({
     prompt: "And what does Kalvex hoard? Two words.",
     store: cacheB.store,
@@ -334,7 +337,7 @@ async function s6(shared: { store: SessionStore; sessionId?: string }): Promise<
  *  scenario stays as the standing proof of why: it records the observation, never hard-fails the run. */
 async function s7(): Promise<void> {
   const store = new InMemorySessionStore();
-  const chatId = "probe-chat-s7";
+  const chatId = castId<ChatId>("probe-chat-s7");
   const turns = toSeedTurns(RECALL_CANON);
   const sessionId = seedSessionId(chatId, turns);
   const frames = buildSeedFrames(turns, sessionId);
@@ -392,7 +395,7 @@ async function s8(): Promise<void> {
  *  third turn (canon A again) must land back on lineage A as a plain resume/readopt — never a reseed. */
 async function s9(): Promise<void> {
   const cache = new SessionCache(new InMemorySessionStore());
-  const chatId = "probe-chat-s9";
+  const chatId = castId<ChatId>("probe-chat-s9");
   const canonA = [
     { role: "user" as const, content: "Name the dragon of the western pass in one word." },
     { role: "assistant" as const, content: "Kalvex." },

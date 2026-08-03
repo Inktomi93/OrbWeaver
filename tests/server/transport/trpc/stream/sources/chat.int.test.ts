@@ -15,7 +15,7 @@
 import type { ChatBusEvent, JoinHistoryVisibility } from "@orb/contracts/chat";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
 import type { Db } from "@orb/db";
-import type { ChatId, MessageId, SocketId, UserId } from "@orb/kit/ids";
+import type { ChatId, Handle, MessageId, SocketId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { publishChatEvent } from "@orb/server/transport/trpc";
 import { beforeEach, describe, vi } from "vitest";
@@ -106,7 +106,7 @@ async function emitLogged(bus: ReturnType<typeof createChatBus>, event: ChatBusE
 describe("the chat room — durable delta replay over a real reads-slice (the #1 server pin)", () => {
   test("a fresh chat's head deltas persisted through the real bus replay via sinceSeq 0, in seq order", async () => {
     // Seed a chat whose caller is the host member (so the per-yield membership gate passes).
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId: ChatId = await seedChat(db, "room");
     await seedParticipant(db, { chatId, key: "room_h", userId: host, role: "host" });
 
@@ -166,7 +166,7 @@ describe("the chat room — durable delta replay over a real reads-slice (the #1
     // The complement: a cursor-less attach (a direct chat-open, not the draft→committed seed) must NOT
     // replay the durable head — that would re-animate a finished turn as a ghost. With head deltas already
     // durable, only a LIVE event comes through, and `replayChatEvents` is never consulted.
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId: ChatId = await seedChat(db, "room2");
     await seedParticipant(db, { chatId, key: "room2_h", userId: host, role: "host" });
 
@@ -223,8 +223,8 @@ describe("the chat room — the D16 join-history clamp on the LIVE half (real pa
     key: string,
     visibility: JoinHistoryVisibility = "from-join",
   ): Promise<{ host: UserId; joiner: UserId; chatId: ChatId; preId: MessageId; postId: MessageId }> {
-    const host = await seedUser(db, `${key}_host`);
-    const joiner = await seedUser(db, `${key}_joiner`);
+    const host = await seedUser(db, castId<Handle>(`${key}_host`));
+    const joiner = await seedUser(db, castId<Handle>(`${key}_joiner`));
     const chatId: ChatId = await seedChat(db, key);
     await seedParticipant(db, { chatId, key: `${key}_h`, userId: host, role: "host" });
     const pre = await seedMessage(db, chatId, 1, { role: "assistant", content: "pre-join greeting" });
@@ -362,8 +362,8 @@ describe("the chat room — a hidden span open across a MEMBER's reconnect never
   const textDelta = (chatId: ChatId, text: string): ChatBusEvent => ({ type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text } });
 
   test("the opener lands DURING the disconnect gap; the closer arrives LIVE on the resumed room", async () => {
-    const host = await seedUser(db, "reopen_host");
-    const member = await seedUser(db, "reopen_member");
+    const host = await seedUser(db, castId<Handle>("reopen_host"));
+    const member = await seedUser(db, castId<Handle>("reopen_member"));
     const chatId: ChatId = await seedChat(db, "reopen");
     await seedParticipant(db, { chatId, key: "reopen_h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "reopen_m", userId: member, role: "member" });

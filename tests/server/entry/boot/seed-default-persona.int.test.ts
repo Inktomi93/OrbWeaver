@@ -10,7 +10,8 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { CreatePersonaInput } from "@orb/contracts/persona";
-import type { AssetId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { createPersonaService } from "@orb/server/domain/persona";
 import { describe, onTestFinished } from "vitest";
@@ -58,7 +59,7 @@ async function makeHarness(autoSeedEnabled = true): Promise<{
   onTestFinished(assetsHarness.cleanup);
   const assets = createAssetsService(assetsHarness.ctx);
   const persona = createPersonaService(makePersonaHarness(db).ctx);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const actor = principal(owner);
   const latch = fakeLatch();
 
@@ -69,7 +70,7 @@ async function makeHarness(autoSeedEnabled = true): Promise<{
       return { id: detail.id };
     },
     storeAvatar: async (p): Promise<AssetId | null> => {
-      const art = await readSeedAvatar("persona-you");
+      const art = await readSeedAvatar(castId<CharacterHandle>("persona-you"));
       if (art === null) {
         return null;
       }

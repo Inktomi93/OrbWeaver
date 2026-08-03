@@ -10,7 +10,7 @@
 import type { Db } from "@orb/db";
 import { characters, chatDigestSpeakers, chatDigests } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
-import type { CharacterId, ChatDigestId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatDigestId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { createHandoffRestampStatements } from "../../../../../packages/server/src/domain/embeddings";
@@ -23,7 +23,7 @@ const AT = 1_700_000_000_000;
 
 async function seedCard(db: Db, ownerId: UserId, key: string): Promise<CharacterId> {
   const id = castId<CharacterId>(`character_${key}`);
-  await db.insert(characters).values({ id, ownerId, handle: key, name: key, contentHash: key, tokenSize: 0, createdAt: AT });
+  await db.insert(characters).values({ id, ownerId, handle: castId<CharacterHandle>(key), name: key, contentHash: key, tokenSize: 0, createdAt: AT });
   return id;
 }
 
