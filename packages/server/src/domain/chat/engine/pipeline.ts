@@ -37,6 +37,7 @@ import { parseReasoningTags } from "@orb/server/kit/reasoning";
 import { getLog } from "#foundation/observability";
 import type { ToolCallInput, WireTool } from "#infra/providers";
 import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, ChatToolExecFrame, ChatToolOps, ChatToolSet, RunChatTurnOp } from "../contract/context";
+import type { PromptHistoryRegexEnv } from "../contract/regex";
 import type { HistoryMacroNames, TurnEconomics, TurnKind, TurnMessage, TurnRequest, TurnSpeakerShape } from "../contract/results";
 import {
   buildHistoryBudget,
@@ -244,6 +245,33 @@ function cleanPerSpeakerContent(content: string, args: RunTurnPipelineArgs): str
   return cleanPerSpeakerReply(content, speakerName, otherNames);
 }
 
+/** The EPHEMERAL `PROMPT_HISTORY` leg's env for this turn (`assembly/history-regex`), or `null` when the
+ *  host tier resolved no scripts at all — the leg then costs nothing and the shaped history is
+ *  byte-identical. The env is deliberately built here, at BUILD time and not inside SHAPE, because the
+ *  watchdog + the turn-stage macro context are the ENGINE's to supply; SHAPE stays pure. */
+function promptHistoryEnv(ctx: AssembleContext, args: RunTurnPipelineArgs): PromptHistoryRegexEnv | null {
+  const scripts = ctx.hostTierRegexScripts ?? [];
+  if (scripts.length === 0) {
+    return null;
+  }
+  return {
+    scripts,
+    macroCtx: buildTurnMacroContext({
+      assembleCtx: ctx,
+      model: args.connection.model,
+      chatId: args.chatId,
+      onWarn: (msg, warnErr) => getLog().warn({ err: warnErr, macroWarn: msg }, "chat: macro budget/eval trip (D53)"),
+      registry: args.macroRegistry,
+    }),
+    applyReplace: args.applyRegexReplace,
+    onScriptFailure: (scriptErr, script) =>
+      getLog().warn(
+        { err: scriptErr, placement: "PROMPT_HISTORY", findRegex: script.findRegex },
+        "chat: host-tier regex script failed on the prompt-history leg — evicted for this build (D53 watchdog)",
+      ),
+  };
+}
+
 /** Applies fixed-order receive post-processing before the engine persists \{content, reasoning\}: <think>
  *  demux, then AI_OUTPUT regex, post-process, per-speaker clean, then REASONING regex. Each host-side regex
  *  runs under the injected ReDoS watchdog. */
@@ -399,7 +427,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     assistant: args.shape?.speakerName ?? ctx.character.name,
   };
   const shaped = shapeTurn({
-    canon: assembled.sendHistory ? toShapeCanon(args.canon, ctx, args.historyMacroNames ?? EMPTY_HISTORY_MACRO_NAMES) : [],
+    canon: assembled.sendHistory ? toShapeCanon(args.canon, ctx, args.historyMacroNames ?? EMPTY_HISTORY_MACRO_NAMES, promptHistoryEnv(ctx, args)) : [],
     appendUserTurn: args.appendUserTurn ?? null,
     injections: inChatInjections,
     output: args.shape?.output ?? "per-speaker",

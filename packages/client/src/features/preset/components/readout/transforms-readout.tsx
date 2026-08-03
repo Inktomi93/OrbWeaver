@@ -29,8 +29,13 @@ import { regexPlacementStep } from "#lib";
 
 /** The prompt-side lane, in the order the assembler applies it. `SLASH_COMMAND` is GONE from the lane
  *  because it is gone from `REGEX_PLACEMENTS`: it had a chip, a label and this very step row, and ZERO
- *  execution legs — the readout was printing a stage the pipeline does not possess (D107 dead switch). */
-const PROMPT_LANE: readonly RegexPlacement[] = ["USER_INPUT", "WORLD_INFO"];
+ *  execution legs — the readout was printing a stage the pipeline does not possess (D107 dead switch).
+ *
+ *  `PROMPT_HISTORY` is LAST on this lane and that is the datum: the send leg rewrites the draft before it
+ *  is persisted, the world-info leg rewrites each entry as it is rendered, and only then does the history
+ *  leg rewrite the assembled transcript on its way to the wire — the one prompt-side stage whose output
+ *  never becomes canon. */
+const PROMPT_LANE: readonly RegexPlacement[] = ["USER_INPUT", "WORLD_INFO", "PROMPT_HISTORY"];
 
 export function TransformsReadout({ config, presetId }: { readonly config: PromptConfig; readonly presetId: PresetId }): ReactElement {
   const trpc = useTRPC();

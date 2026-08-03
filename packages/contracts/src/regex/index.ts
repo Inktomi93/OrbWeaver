@@ -16,14 +16,26 @@
 //   • `placement` parses leniently — an unknown member (ST's `SLASH_COMMAND`, which has no orbweaver leg
 //     and was struck from `REGEX_PLACEMENTS`) is dropped from the ARRAY rather than failing the whole
 //     script. A strict enum would silently delete the entire script instead of the dead value.
-//   • `minDepth`/`maxDepth` are GONE (D107 dead-switch: stored, defaulted, and never executed — orbweaver
-//     applies AI_OUTPUT/USER_INPUT at PERSIST time, so there is no depth axis to gate). Unknown keys are
-//     stripped by zod's default object behavior, so an ST card carrying them still imports.
+//   • ST's flat `minDepth`/`maxDepth` are still GONE from the card wire (unknown keys are stripped by zod's
+//     default object behavior, so an ST card carrying them still imports). Their SEMANTIC came back with the
+//     `PROMPT_HISTORY` leg as `historyDepth` — a nested object on the behavior body, see below. The lift
+//     deliberately does NOT map the ST pair onto it: ST scopes depth on its USER_INPUT/AI_OUTPUT placements
+//     (which are prompt-time there and PERSIST-time here), so mapping them would move an imported script
+//     onto a different leg than the card asked for. Re-scoping an imported script is one chip in the editor.
+//
+// THE DEPTH-IS-ONLY-A-PROMPT_HISTORY-THING CHECK (`historyDepthMatchesPlacement`). `placement` is a SET, not
+// a discriminant, so a discriminated union CANNOT express "these fields exist only on this placement" — a
+// script legitimately runs on `USER_INPUT` and `PROMPT_HISTORY` at once. The honest shape available is
+// therefore: ONE nested optional object (so the bounds can never half-exist), refused by a schema-level
+// check unless `PROMPT_HISTORY` is in the set AND required when it is. The pairing is total in BOTH
+// directions, so "a depth field on a leg that cannot execute it" and "the depth-scoped leg with no depth
+// scope" are equally unrepresentable, and the client derives the pair at its ONE save boundary (the
+// `withDerivedTierFlags` precedent) rather than validating it in a form.
 
 import type { CharacterId, ChatId, PresetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import type { RegexPlacement } from "@orb/kit/regex";
-import { MAX_FIND_REGEX_LENGTH, REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
+import type { RegexHistoryDepth, RegexPlacement } from "@orb/kit/regex";
+import { HISTORY_DEPTH_PLACEMENT, MAX_FIND_REGEX_LENGTH, REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
 import { z } from "zod";
 
 // ── Field caps (named so the literals aren't bare magic numbers) ──────────────
@@ -48,9 +60,25 @@ const placementSchema = z
   .transform((values): RegexPlacement[] => values.filter(isRegexPlacement))
   .pipe(z.array(z.enum(REGEX_PLACEMENTS)).max(REGEX_PLACEMENTS.length));
 
-/** What a script DOES — the `regex_scripts.behavior` JSON column. `name`/`enabled` are promoted columns
- *  and live on the ROW, not here (no doubling). */
-export const regexScriptBehaviorSchema = z.object({
+/** How deep in the assembled history a `PROMPT_HISTORY` script applies — DEPTH 0 IS THE NEWEST MESSAGE,
+ *  counting backwards (the kit `RegexHistoryDepth` header cites the ST source for the semantic). The two
+ *  bounds live in ONE nested object rather than beside each other on the body so they cannot half-exist:
+ *  a stored `min` with no `max` was the ST shape, and it made "unbounded" spellable four ways. */
+export const regexHistoryDepthSchema = z
+  .object({
+    min: z.number().int().min(0).default(0),
+    max: z.number().int().min(0).nullable().default(null),
+  })
+  .superRefine((scope, ctx): void => {
+    if (scope.max !== null && scope.max < scope.min) {
+      ctx.addIssue({ code: "custom", message: "maximum depth must not be shallower than the minimum", path: ["max"] });
+    }
+  }) satisfies z.ZodType<RegexHistoryDepth>;
+
+/** The behavior FIELDS, un-checked — the base every `.extend()`/`.partial()` derives from. The pairing
+ *  check rides {@link regexScriptBehaviorSchema}; zod refuses `.partial()` on a refined object, so the
+ *  patch schema has to descend from this one. */
+const regexScriptBehaviorFields = z.object({
   // Storage-boundary cap == execution cap (`@orb/kit/regex` MAX_FIND_REGEX_LENGTH) so an over-long
   // pattern can't even be persisted (it would otherwise only be rejected at execution).
   findRegex: z.string().max(MAX_FIND_REGEX_LENGTH),
@@ -68,7 +96,32 @@ export const regexScriptBehaviorSchema = z.object({
   // Multi-value `z.literal([...])` (zod 4.x) — one node, one `invalid_value` issue naming all three options,
   // where the old three-arm `z.union` emitted a nested `invalid_union`. Same accepted set.
   substituteRegex: z.literal([SubstituteFindRegex.none, SubstituteFindRegex.raw, SubstituteFindRegex.escaped]).default(SubstituteFindRegex.none),
+
+  // Present IFF `placement` carries `PROMPT_HISTORY` — enforced in both directions below.
+  historyDepth: regexHistoryDepthSchema.optional(),
 });
+
+/** The depth scope and the depth-scoped LEG are one fact, so they are validated as one (see the header's
+ *  check clause). Both arms are stated: depth without the leg would be a knob that governs nothing (D107),
+ *  and the leg without depth would leave "the whole history" spelled by ABSENCE, which no reader can
+ *  distinguish from "the author never got to that field". */
+function historyDepthMatchesPlacement(
+  behavior: { placement: readonly RegexPlacement[]; historyDepth?: RegexHistoryDepth | undefined },
+  ctx: z.RefinementCtx,
+): void {
+  const runsOnHistory = behavior.placement.includes(HISTORY_DEPTH_PLACEMENT);
+  if (behavior.historyDepth !== undefined && !runsOnHistory) {
+    ctx.addIssue({ code: "custom", message: `historyDepth is only meaningful on the ${HISTORY_DEPTH_PLACEMENT} leg`, path: ["historyDepth"] });
+  }
+  if (behavior.historyDepth === undefined && runsOnHistory) {
+    ctx.addIssue({ code: "custom", message: `a ${HISTORY_DEPTH_PLACEMENT} script must state its historyDepth scope`, path: ["historyDepth"] });
+  }
+}
+
+/** What a script DOES — the `regex_scripts.behavior` JSON column. `name`/`enabled` are promoted columns
+ *  and live on the ROW, not here (no doubling). The ONE behavior gate: the tRPC create input extends it,
+ *  the update verb re-parses the merged body through it, and the read seam parses stored blobs with it. */
+export const regexScriptBehaviorSchema = regexScriptBehaviorFields.superRefine(historyDepthMatchesPlacement);
 
 export type RegexScriptBehavior = z.infer<typeof regexScriptBehaviorSchema>;
 
@@ -124,8 +177,12 @@ export type CreateRegexScriptInput = z.infer<typeof createRegexScriptSchema>;
 
 /** Patch one library script. Every field optional — omitted ⇒ unchanged (never "clear"). The BEHAVIOR is
  *  patched as a WHOLE (the blob is rewritten from the merge), so a partial behavior patch still carries the
- *  fields it is not changing; the verb merges over the stored body. */
-export const updateRegexScriptSchema = createRegexScriptSchema.partial();
+ *  fields it is not changing; the verb merges over the stored body.
+ *
+ *  Descends from the UN-refined shape because zod refuses `.partial()` on a refined object — and that is
+ *  the correct seam anyway: a patch is not a behavior, so the depth/placement pairing is checked on the
+ *  MERGED body (`updateScript` re-parses through `regexScriptBehaviorSchema`), where it is actually true. */
+export const updateRegexScriptSchema = regexScriptBehaviorFields.extend({ name: z.string().max(MAX_NAME_LENGTH), enabled: z.boolean() }).partial();
 
 export type UpdateRegexScriptInput = z.infer<typeof updateRegexScriptSchema>;
 
