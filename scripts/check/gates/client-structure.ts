@@ -25,7 +25,10 @@ const SHELL_EXTRA = new Set(["registry", "store"]);
 // surface but no server domain by construction — the scripts PERSIST as a `UserSettings.regex` section
 // (domain/settings) and RUN through the @orb/kit/regex engine, so a `domain/regex` mirror would be a
 // third home for one concept. Minted as its own slice because neither settings nor chat READS it.
-const RESERVED = new Set(["app-shell", "auth", "home", "refinery", "regex", "user-admin"]);
+// config: the Configuration WORKSPACE host (config-rail-spec.md) — a thin shell-tier frame whose CONTENT is
+// the door-assembled roster of OTHER features' collections. It owns no server domain by construction (it
+// holds no data of its own; every member's data belongs to the feature that raised it), exactly like `home`.
+const RESERVED = new Set(["app-shell", "auth", "config", "home", "refinery", "regex", "user-admin"]);
 // Container-type vocabulary for anchor filenames (an anchor names the containment it PROVIDES).
 const ANCHOR_SUFFIXES = ["anchor", "dialog", "drawer", "popover", "menu", "panel"];
 // The bare modal ROOT tag only (`<Dialog>`/`<Dialog `), not `<DialogTrigger`/`<DialogPopup`/`<ConfirmDialog`

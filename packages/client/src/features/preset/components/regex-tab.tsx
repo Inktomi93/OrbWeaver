@@ -15,11 +15,12 @@ import type { PresetId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { RegexScriptPicker } from "#components";
 import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
-import { openSettingsTo } from "#state";
+import { goToCollection } from "#state";
 
 const PICKER_SKELETON_ROWS = 3;
-/** The library's own pane + section (the Regex settings surface stamps this anchor). */
-const REGEX_LIBRARY_ANCHOR = { category: "regex", sub: "scripts" } as const;
+/** The library's own collection KIND in the Configuration workspace (it left the settings modal at the
+ *  config rail's R1 — a section navigation now, not a settings deep link). */
+const REGEX_COLLECTION = "regex";
 
 export function RegexTab({ presetId }: { readonly presetId: PresetId }): ReactElement {
   return (
@@ -31,7 +32,7 @@ export function RegexTab({ presetId }: { readonly presetId: PresetId }): ReactEl
         scope={{ kind: "preset", presetId }}
         heading="Regex"
         helperText="Find/replace rules this preset runs, picked from your script library. The CONTEXT readout shows where each stage sits in the pipeline."
-        onOpenLibrary={(): void => openSettingsTo(REGEX_LIBRARY_ANCHOR.category, REGEX_LIBRARY_ANCHOR.sub)}
+        onOpenLibrary={(): void => goToCollection(REGEX_COLLECTION)}
       />
     </QueryBoundary>
   );
