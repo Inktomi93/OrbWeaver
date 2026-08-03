@@ -77,6 +77,9 @@ function stub(page: Page, tags: readonly unknown[] = MANY_TAGS): Promise<TrpcRec
     "tag.createTag": () => tagRow(TAG_COUNT),
     "regex.listScripts": () => SCRIPTS,
     "regex.listGlobal": () => [],
+    // The regex CONTEXT arm's reverse rosters (REGROSTER) — this host only proves that the arm MOUNTS;
+    // what the rosters say is pinned by the regex feature's own CT.
+    "regex.listScriptUsage": () => ({ presets: [], characters: [], rooms: [] }),
     "regex.createScript": () => SCRIPTS[0],
     "worldInfo.listBooksWithUsage": () => BOOKS,
     "worldInfo.getBook": () => ({ id: BOOK.id, name: "The Ninefold Reach", description: null, createdAt: 1 }),

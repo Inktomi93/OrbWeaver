@@ -48,6 +48,7 @@ interface HarnessOverrides {
   readonly requireChatHost?: RegexContext["requireChatHost"];
   readonly requireChatMember?: RegexContext["requireChatMember"];
   readonly resolveRoomDisplayPolicy?: RegexContext["resolveRoomDisplayPolicy"];
+  readonly resolveVisibleRooms?: RegexContext["resolveVisibleRooms"];
 }
 
 export function makeHarness(db: Db, overrides: HarnessOverrides = {}): RegexHarness {
@@ -69,6 +70,7 @@ export function makeHarness(db: Db, overrides: HarnessOverrides = {}): RegexHarn
     requireChatHost: overrides.requireChatHost ?? notStubbed,
     requireChatMember: overrides.requireChatMember ?? notStubbed,
     resolveRoomDisplayPolicy: overrides.resolveRoomDisplayPolicy ?? notStubbed,
+    resolveVisibleRooms: overrides.resolveVisibleRooms ?? notStubbed,
     emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
       userEvents.push({ userId, event });
     },

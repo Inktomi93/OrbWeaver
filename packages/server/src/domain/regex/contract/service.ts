@@ -30,12 +30,13 @@ import type {
   ListGlobalParams,
   ListRoomDisplayScriptsParams,
   ListScriptsParams,
+  ListScriptUsageParams,
   RemoveScriptParams,
   UpdateScriptParams,
 } from "./params";
-import type { RoomDisplayPolicy } from "./resolve";
+import type { ResolveVisibleRooms, RoomDisplayPolicy } from "./resolve";
 import type { DetachResult, RemoveResult, ReorderResult } from "./results";
-import type { RegexScriptRow } from "./views";
+import type { RegexScriptRow, RegexScriptUsage } from "./views";
 
 /** DI bundle every regex verb closes over. Chat-scope guards are injected from chat itself. */
 export interface RegexContext {
@@ -51,6 +52,10 @@ export interface RegexContext {
    *  same posture as the guards above). `enabled:false` ⇒ the per-user default, and `listRoomDisplayScripts`
    *  returns nothing at all. */
   readonly resolveRoomDisplayPolicy: (chatId: ChatId) => Promise<RoomDisplayPolicy>;
+  /** The REVERSE-roster room filter (`listScriptUsage`) — chat's answer to "of these rooms, which may this
+   *  caller see, and what are they called". Injected for the same reason the guards are: D18 rooms scope on
+   *  `chat_participants`, and regex reads neither the roster nor `chats`. */
+  readonly resolveVisibleRooms: ResolveVisibleRooms;
   /** Live-freshness invalidation. O-7 arm (a): the library is a low-churn owner surface, so ONE
    *  `regexChanged` user event carries every mutation; FK CASCADE + the D50 no-deletion-events discipline
    *  carry the rest. There are no per-entity bus events. */
@@ -67,6 +72,9 @@ export interface RegexService {
   readonly removeScript: (params: RemoveScriptParams) => Promise<RemoveResult>;
   /** Copies a script into a fresh "<name> (copy)" row, unattached at every scope. */
   readonly duplicateScript: (params: DuplicateScriptParams) => Promise<RegexScriptRow>;
+  /** The REVERSE rosters — which presets/characters/rooms attach ONE owned script (the library context
+   *  pane's "where does this already run"). Owner-gated on the script; rooms membership-scoped (D18). */
+  readonly listScriptUsage: (params: ListScriptUsageParams) => Promise<RegexScriptUsage>;
 
   /** Marks a script global (runs in every chat the owner hosts). Gate is plain script ownership. */
   readonly attachGlobal: (params: AttachGlobalParams) => Promise<void>;
