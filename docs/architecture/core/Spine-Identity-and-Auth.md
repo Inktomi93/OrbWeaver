@@ -92,7 +92,7 @@ These are ruled, intentional, and re-flagged by cold reviewers about once a wave
 new evidence is noise; ADD to this list when a review re-flags something already ruled.
 
 - **A member sees the history they were admitted to — that IS the point.** `joinHistoryVisibility` defaults to `full`; a member reading pre-join canon in a room they were invited to is the product working. A finding must name which OPTION (§2c) was bypassed, or it is not a leak.
-- **Empty rpg state-anchor slots are not lost work.** A hand-door write on a COMMITTED head clone-forwards onto a fresh narrator slot whose only job is to key the new snapshot (`domain/rpg/snapshot-edit.ts`, `contract/service.ts`); an empty-content slot is that anchor, deliberately unflagged. Refusals are raised BEFORE the clone-forward precisely so a rejected edit leaves no slot at all.
+- ~~Empty rpg state-anchor slots~~ RETIRED 2026-08-03 (D124): hand-written state moved off the message plane — the slot class no longer exists.
 - **`adopt-only` engine stacks never spawn, and fail fast when the engines are down.** That is the posture (`ENGINES_POSTURE`), not broken wiring — snap/e2e stacks adopt a running fleet or refuse honestly.
 - **The `permitsHost`/`viewerReadsHidden` split is two classes, not two spellings** (§2c). Do not "unify" them.
 
