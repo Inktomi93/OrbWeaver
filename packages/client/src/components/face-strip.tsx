@@ -58,8 +58,15 @@ export interface FaceStripItem {
 interface FaceStripOverflow {
   /** The tile's accessible name — it opens a picker, so it names that verb ("Filter by another character"). */
   readonly label: string;
-  /** The picker body, rendered in the tile's popover. `close` dismisses it once a choice is made. */
-  readonly render: (close: () => void) => ReactNode;
+  /**
+   * The picker body, rendered in the tile's popover. `close` dismisses it once a choice is made.
+   *
+   * `shownIds` is the ids the row is CURRENTLY rendering as faces — the tile promises "the others", so the
+   * picker it opens must not re-list the four faces sitting beside it (side-eye 2026-08-03 P3: a `+6 More`
+   * tile opened a picker listing all ten). Only the strip knows what the fold left visible, which is why it
+   * is handed down rather than recomputed by the caller.
+   */
+  readonly render: (args: { readonly close: () => void; readonly shownIds: readonly string[] }) => ReactNode;
 }
 
 export interface FaceStripProps {
@@ -82,6 +89,21 @@ export interface FaceStripProps {
   /** Opt into the FOLDED posture: the strip fits ONE row and hands everything it could not fit to this
    *  picker. Omitted, the strip keeps its original scrolling row (the favorites strip's posture). */
   readonly overflow?: FaceStripOverflow;
+  /**
+   * What SELECTING a face means, which decides the state the tile announces.
+   *
+   * `"current"` (default) — picking NAVIGATES: the selected face is the one open elsewhere, so it is
+   * `aria-current` (the character library's favorites strip: tapping opens an editor, tapping the open one
+   * again re-opens it).
+   * `"toggle"` — picking sets a FILTER the same tap clears, so the tile is a real toggle button and owes
+   * `aria-pressed`. Without it the chats strip's active filter was visual-only on the tile — an orange ring
+   * and an orange caption, with the a11y tree reporting `pressed: null` on all four and the tile's name
+   * still an unfulfilled promise ("Show chats with Elias Thorn") while it was already showing them
+   * (side-eye 2026-08-03 P2). The NAME stays stable across both states on purpose: `aria-pressed` is what
+   * carries the state, and a name that flipped to "Stop showing…" would break the label⇄state contract the
+   * preset row's activate toggle already follows.
+   */
+  readonly selectMode?: "current" | "toggle";
 }
 
 /** What the fold decided, plus whether the selected face had to be hoisted to survive it. */
@@ -163,13 +185,16 @@ interface FaceButtonProps {
   readonly caption: boolean;
   /** Rendered in the overflow tile's narrow slot (the leftover-of-one rule) — the caption pays for it. */
   readonly squeezed: boolean;
+  readonly selectMode: "current" | "toggle";
   readonly onSelect: (id: string) => void;
 }
 
-function FaceButton({ item, selected, verb, caption, squeezed, onSelect }: FaceButtonProps): ReactElement {
+function FaceButton({ item, selected, verb, caption, squeezed, selectMode, onSelect }: FaceButtonProps): ReactElement {
   return (
     <Button
-      aria-current={selected ? "true" : undefined}
+      // ONE state attribute, chosen by what the tap DOES (see `selectMode`) — never both: a control that is
+      // simultaneously `aria-current` and `aria-pressed` states its one fact twice, in two vocabularies.
+      {...(selectMode === "toggle" ? { "aria-pressed": selected } : { "aria-current": selected ? ("true" as const) : undefined })}
       aria-label={`${verb} ${item.name}`}
       // The squeezed face takes the tile's slot, which is the control-token box by construction — so it
       // always fits where the tile fit, and only its caption pays for it.
@@ -212,7 +237,17 @@ function FaceButton({ item, selected, verb, caption, squeezed, onSelect }: FaceB
 }
 
 /** A scrolling (or, with `overflow`, a self-folding) row of clickable faces; renders nothing when empty. */
-export function FaceStrip({ items, selectedId, onSelect, label, verb = "Open", caption = false, kicker, overflow }: FaceStripProps): ReactElement | null {
+export function FaceStrip({
+  items,
+  selectedId,
+  onSelect,
+  label,
+  verb = "Open",
+  caption = false,
+  kicker,
+  overflow,
+  selectMode = "current",
+}: FaceStripProps): ReactElement | null {
   const rowRef = useRef<HTMLDivElement>(null);
   const widthsRef = useRef<Map<string, number>>(new Map());
   const tileWidthRef = useRef<number | null>(null);
@@ -272,6 +307,7 @@ export function FaceStrip({ items, selectedId, onSelect, label, verb = "Open", c
           item={item}
           key={item.id}
           onSelect={onSelect}
+          selectMode={selectMode}
           selected={selectedId === item.id}
           squeezed={faceKey(item) === squeezedKey}
           verb={verb}
@@ -295,7 +331,7 @@ export function FaceStrip({ items, selectedId, onSelect, label, verb = "Open", c
               </Button>
             }
           />
-          <PopoverPopup>{overflow.render((): void => setPickerOpen(false))}</PopoverPopup>
+          <PopoverPopup>{overflow.render({ close: (): void => setPickerOpen(false), shownIds: shown.map((item) => item.id) })}</PopoverPopup>
         </Popover>
       ) : null}
     </Row>

@@ -889,3 +889,31 @@ test("the same character resolves the SAME dialogue color in a narrator span and
   // 2026-08-03 — the narrator narrates, so the unattributed prose between spans needs its attribution).
   await expect(narratorRow.locator(ATTRIBUTION)).toContainText("Narrator");
 });
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE STAMPED PRODUCER IS NOT A CAST MEMBER (side-eye 2026-08-03 P1, driven live on `Example — Second
+// Opinion`). A narrator turn is persisted against the room's SYNTHETIC group character — a real
+// `characters` row named "Group" — so it rides the chat's name producer, `resolveAssistantAttribution`
+// resolved it like anyone else, and every merged row in a narrator room was labelled "Group" in a magenta
+// id-hashed tint. `NARRATOR_ATTRIBUTION` was unreachable in the exact room it exists for. This mounts the
+// row EXACTLY as the server ships it and reads the rendered label.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+const GROUP_PRODUCER = { id: castId<CharacterId>("char_group_room"), name: "Group" };
+
+test("a narrator row stamped with the synthetic GROUP producer still reads Narrator, with no cast tint", async ({ mount }) => {
+  const component = await mount(
+    <NarratorTranscriptStory
+      participants={[alice(), bob()]}
+      narratorContent={NARRATOR_CAST_BODY}
+      narratorProducer={GROUP_PRODUCER}
+      ownRowCharacterId={ALICE_ID}
+      ownRowContent="Just prose."
+    />,
+  );
+  const narratorRow = component.getByTestId("narrator-row");
+  await expect(narratorRow.locator(ATTRIBUTION)).toContainText("Narrator");
+  await expect(narratorRow.locator(ATTRIBUTION)).not.toContainText("Group");
+  // …and it is the same row the plain `characterId: null` narrator produces — one label, whatever the write
+  // stamped. (`tokens: null` — no cast tint — is pinned on the pure resolver, attribution.test.ts.)
+  await expect(narratorRow.getByText("I'll take this one.")).toBeVisible();
+});

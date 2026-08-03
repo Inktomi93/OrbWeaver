@@ -48,7 +48,7 @@ export function FaceStripFoldHarness({ width = 256, count = 12, initialSelectedI
         onSelect={(id): void => setSelectedId((current) => (current === id ? null : id))}
         overflow={{
           label: "Filter by another character",
-          render: (close): ReactElement => (
+          render: ({ close }): ReactElement => (
             <Stack gap="tight">
               {items.map((item) => (
                 <button

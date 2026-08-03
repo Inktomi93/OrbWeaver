@@ -151,6 +151,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
   // The live turn's voiced speaker, resolved through the SAME resolveRowAttribution the settled row
   // uses, so the ghost's immersive decoration matches what the canonical row will show once it settles.
   const ghostSpeakerCharacterId = useTurnSpeakerCharacterId(chatId);
+  const narratorRoom = chatDetail.group.output === "narrator";
   const ghostAttribution = resolveRowAttribution({
     role: "assistant",
     characterId: ghostSpeakerCharacterId,
@@ -158,6 +159,9 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
     participants,
     characterNamesById,
     characterAvatarsById,
+    // The ghost must resolve through the SAME narrator branch the settled row will, or the streaming row
+    // labels "Group" for the length of the turn and then swaps to "Narrator" when it commits.
+    narratorRoom,
   });
   const items = useMessageItems(messages, chatId);
   // Only rows that genuinely arrived this render get an enter transition — a windowed row remounts on
@@ -246,7 +250,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
         autoFixMarkdown={messageAppearance.autoFixMarkdown}
         displayScripts={displayScripts}
         colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
-        narratorRoom={chatDetail.group.output === "narrator"}
+        narratorRoom={narratorRoom}
         showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
         metadataVisibility={messageAppearance.metadataVisibility}
         viewerIsHost={chatDetail.viewerIsHost === true}

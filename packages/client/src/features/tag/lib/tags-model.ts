@@ -40,6 +40,12 @@ export function usageBreakdown(usage: TagUsage): string {
   return parts.length === 0 ? "nothing" : parts.join(", ");
 }
 
+/** How many tags a prune would delete, as words — the noun BOTH halves of the prune confirm name (its title
+ *  and its body), so the count a user reads and the count they agree to cannot drift. */
+export function unusedTagsLabel(count: number): string {
+  return `${count} unused tag${count === 1 ? "" : "s"}`;
+}
+
 /** The compact total-uses label for a tag row's usage chip (e.g. `"12 uses"` / `"1 use"` / `"unused"`). */
 export function usageTotalLabel(total: number): string {
   if (total === 0) {

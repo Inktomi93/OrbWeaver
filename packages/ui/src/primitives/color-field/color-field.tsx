@@ -43,6 +43,12 @@ export interface ColorFieldProps {
   /** Momentary success flash: a checkmark over the swatch. Caller clears it — this primitive holds no timer. */
   success?: boolean;
   className?: string;
+  /**
+   * The clear button's label. It is a prop because the empty value means different things to different
+   * consumers and each must say its OWN word: a theme field clears to `Inherit`, a tag colour clears to no
+   * colour at all. @defaultValue "Reset to default"
+   */
+  resetLabel?: string;
   id?: string;
   "aria-label"?: string;
   "aria-labelledby"?: string;
@@ -88,6 +94,7 @@ export function ColorField({
   loading = false,
   success = false,
   className,
+  resetLabel = "Reset to default",
   id,
   "aria-label": ariaLabel,
   "aria-labelledby": ariaLabelledby,
@@ -168,7 +175,7 @@ export function ColorField({
             <Input onValueChange={commit} spellCheck={false} value={draft} />
           </Field>
           <Button className={slots.resetButton()} data-slot="color-field-reset" intent="ghost" onClick={handleReset} size="sm" type="button">
-            Reset to default
+            {resetLabel}
           </Button>
         </div>
       </PopoverPopup>

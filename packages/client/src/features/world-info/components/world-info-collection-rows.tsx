@@ -26,7 +26,7 @@ import { useState } from "react";
 import { LibraryRow } from "#components";
 import { useInvalidation, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
-import { COLLECTION_LARGE_GROUP, downloadTextFile, notify } from "#lib";
+import { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT, downloadTextFile, notify } from "#lib";
 import { clearCollectionSelection } from "#state";
 import { useDuplicateWorldBook, useRemoveWorldBook, useUpdateWorldBook } from "../hooks/use-world-info-mutations";
 import { bookScent } from "../lib/world-info-model";
@@ -90,15 +90,18 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
 
   // The three list arms as ONE expression (early returns, not nested ternaries) — the rename dialog is a
   // sibling of whichever arm renders, and it must survive an arm swap.
-  const rows = ((): ReactElement => {
+  const rows = ((): ReactElement | null => {
     if (filtered.length === 0) {
-      return <Text voice="gloss">No books match that filter.</Text>;
+      // A FILTER MISS AND AN EMPTY LIBRARY ARE DIFFERENT STATES (side-eye 2026-08-03 P1): with no needle
+      // this printed filter copy above the host's own zero-member slot — two empty states, one of them a
+      // lie. No needle ⇒ the host's slot is the only voice.
+      return needle === "" ? null : <Text voice="gloss">No books match that filter.</Text>;
     }
     if (books.length > COLLECTION_LARGE_GROUP) {
       return (
         <VirtualList
           aria-label="World books"
-          className="max-h-96"
+          className={COLLECTION_WINDOW_MAX_HEIGHT}
           estimateSize={(): number => ESTIMATED_ROW_PX}
           gapToken="field"
           getItemKey={(book): string => book.id}

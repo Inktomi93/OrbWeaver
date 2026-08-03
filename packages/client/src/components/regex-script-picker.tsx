@@ -21,7 +21,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { REGEX_PLACEMENT_LABELS, regexScriptScent, regexScriptTitle } from "#lib";
+import { regexScriptScent, regexScriptTitle } from "#lib";
 import { RegexScopeOrder } from "./regex-scope-order";
 
 // Every regex verb is `busDriven` (`regexChanged` path-invalidates the whole router), so no call site
@@ -168,12 +168,11 @@ function EmptyLibrary({ onOpenLibrary }: { readonly onOpenLibrary: (() => void) 
 
 /** One library row + its attach switch.
  *
- *  THE SUBTITLE LEADS WITH THE PATTERN (side-eye X-15). It printed only the pipeline STAGES, in the
- *  Transforms readout's own words (the F-23 one-vocabulary rule) — but stages are exactly what every
- *  default script SHARES, so three freshly-added rows rendered three identical 60-character subtitles and
- *  the column that should discriminate discriminated nothing. The shared `regexScriptScent` leads with the
- *  find pattern (the one authored field that tells two scripts apart) and the stages follow it, so the
- *  F-23 vocabulary survives without being the whole line. */
+ *  THE SUBTITLE IS THE SHARED SCENT, WHOLE (side-eye X-15, then 2026-08-03 P2). This row used to append the
+ *  pipeline stages after the scent; the scent now LEADS with those same stages (one home, `regexScriptScent`),
+ *  so the append became the line saying its first fact twice. Both halves of X-15's finding survive inside
+ *  the shared function: the F-23 stage vocabulary, then the find pattern that tells two "New script" rows
+ *  apart. */
 function PickerRow({
   scope,
   script,
@@ -187,15 +186,12 @@ function PickerRow({
   const invalidation = useInvalidation();
   const toggle = useToggleAttachment({ trpc, invalidation, scope });
   const name = regexScriptTitle(script);
-  const stages = script.placement.map((placement) => REGEX_PLACEMENT_LABELS[placement].toLowerCase()).join(" · ");
 
   return (
     <Row gap="field" align="center" justify="between">
       <Stack gap="tight" className="min-w-0">
         <Text>{name}</Text>
-        <Text voice="gloss">
-          {regexScriptScent(script)} — {stages}
-        </Text>
+        <Text voice="gloss">{regexScriptScent(script)}</Text>
       </Stack>
       <Switch
         aria-label={`Attach ${name}`}

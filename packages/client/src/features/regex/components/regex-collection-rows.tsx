@@ -18,13 +18,18 @@ import type { ReactElement } from "react";
 import { LibraryRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { CollectionListView } from "#lib";
-import { COLLECTION_LARGE_GROUP, regexScriptScent, regexScriptTitle } from "#lib";
+import { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT, regexScriptScent, regexScriptTitle } from "#lib";
 import { useAttachRegexGlobal, useDetachRegexGlobal } from "../hooks/use-regex-library";
 
-/** One compact row's height guess for the windowed arm (name + scent subtitle). */
-const ESTIMATED_ROW_PX = 44;
+/** One row's height guess for the windowed arm — the MEASURED height at the real 290px roster mount (name +
+ *  scent subtitle + the reserved one-slot cluster). The virtualizer re-measures after mount; the guess only
+ *  decides how many rows the first frame windows. */
+const ESTIMATED_ROW_PX = 52;
 
-export function RegexCollectionRows({ view }: { readonly view: CollectionListView }): ReactElement {
+/** How many §12.2 cluster slots THIS list reserves per row: the global switch, and nothing else. */
+const REGEX_CLUSTER_SLOTS = 1;
+
+export function RegexCollectionRows({ view }: { readonly view: CollectionListView }): ReactElement | null {
   const trpc = useTRPC();
   const { data: scripts } = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
   const { data: globals } = useSuspenseQuery(trpc.regex.listGlobal.queryOptions());
@@ -44,13 +49,17 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
   );
 
   if (filtered.length === 0) {
-    return <Text voice="gloss">No scripts match that filter.</Text>;
+    // A FILTER MISS AND AN EMPTY LIBRARY ARE DIFFERENT STATES (side-eye 2026-08-03 P1): with no needle this
+    // printed "No scripts match that filter." above the host's own zero-member slot — two empty states, one
+    // of them a lie (below COLLECTION_LARGE_GROUP the filter box isn't even rendered). No needle ⇒ the
+    // host's slot is the only voice.
+    return needle === "" ? null : <Text voice="gloss">No scripts match that filter.</Text>;
   }
   if (scripts.length > COLLECTION_LARGE_GROUP) {
     return (
       <VirtualList
         aria-label="Regex scripts"
-        className="max-h-96"
+        className={COLLECTION_WINDOW_MAX_HEIGHT}
         estimateSize={(): number => ESTIMATED_ROW_PX}
         gapToken="field"
         getItemKey={(script): string => script.id}
@@ -76,8 +85,10 @@ function RegexCollectionRow({
   return (
     <LibraryRow
       // The cluster carries a REST-VISIBLE control, so the strip is reserved IN FLOW — the floated arm is
-      // inert at rest and would sit on the title text (LibraryRow's own header states the trade).
-      actionsReserved={true}
+      // inert at rest and would sit on the title text (LibraryRow's own header states the trade). ONE slot:
+      // no regex row carries a kebab or an inline verb, and reserving the §12.2 maximum spent 88px of a
+      // 290px row on two dead boxes while the script names truncated at 128px (side-eye 2026-08-03 P1).
+      actionsReserved={REGEX_CLUSTER_SLOTS}
       onSelect={onSelect}
       selected={selected}
       stateToggle={<GlobalScopeSwitch isGlobal={isGlobal} script={script} />}

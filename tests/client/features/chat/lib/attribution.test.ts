@@ -377,3 +377,96 @@ test("speakerThemesByName strips the same half — and a card carrying ONLY a sa
   // Nothing embeddable survived the projection → the span falls back to the same id-seeded hash tint.
   expect(byName.get("Bob")).toEqual(colorForCharacter(BOB_ID));
 });
+
+// ── The NARRATOR room (side-eye 2026-08-03 P1) ────────────────────────────────────────────────────────
+// A narrator turn is persisted against the room's SYNTHETIC group character (`__group__<chatId>`, card
+// name "Group") — a real `characters` row, so it rides the chat's name producer like any cast member and
+// the `characterId === null` branch never fired. Every assistant row therefore resolved a NAME ("Group")
+// and an id-hashed tint, and `NARRATOR_ATTRIBUTION` was unreachable in the one room it was written for.
+
+const GROUP_PRODUCER_ID = castId<CharacterId>("char_group_room1");
+
+test("a narrator room's assistant row is the NARRATOR, even though its stamped producer resolves a name", () => {
+  const participants = new Map([
+    [ALICE_ID, makeParticipant({ displayName: "Alice" })],
+    [BOB_ID, makeParticipant({ characterId: BOB_ID, displayName: "Bob" })],
+  ]);
+  const characterNamesById = new Map<CharacterId, RowCharacterName>([
+    [ALICE_ID, { name: "Alice" }],
+    [BOB_ID, { name: "Bob" }],
+    // The synthetic group card, exactly as the producer ships it.
+    [GROUP_PRODUCER_ID, { name: "Group" }],
+  ]);
+  const result = resolveRowAttribution({
+    role: "assistant",
+    characterId: GROUP_PRODUCER_ID,
+    personaId: null,
+    participants,
+    characterNamesById,
+    narratorRoom: true,
+  });
+  expect(result.name).toBe("Narrator");
+  // No tint: a narrator is not a cast member, so it never mints a per-speaker colour.
+  expect(result.tokens).toBeNull();
+});
+
+test("the SAME row in a non-narrator room still resolves its stamped producer (the branch is mode-gated, not id-gated)", () => {
+  const characterNamesById = new Map<CharacterId, RowCharacterName>([[GROUP_PRODUCER_ID, { name: "Group" }]]);
+  const result = resolveRowAttribution({
+    role: "assistant",
+    characterId: GROUP_PRODUCER_ID,
+    personaId: null,
+    participants: new Map([[ALICE_ID, makeParticipant({ displayName: "Alice" })]]),
+    characterNamesById,
+  });
+  expect(result.name).toBe("Group");
+});
+
+test("a narrator room's USER rows are untouched", () => {
+  const result = resolveRowAttribution({
+    role: "user",
+    characterId: null,
+    personaId: NATE_PERSONA_ID,
+    personaNamesById: new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Alex", description: "" }]]),
+    narratorRoom: true,
+  });
+  expect(result.name).toBe("Alex");
+});
+
+// ── Dialogue-hue de-collision (side-eye 2026-08-03 P2) ────────────────────────────────────────────────
+// Authored `themeOverride`s carry no cross-member guarantee: the demo room shipped two speakers 8° apart
+// and their in-body dialogue spans read as ONE colour. Only the DIALOGUE token is arbitrated, and only
+// against an earlier claimant.
+
+test("two authored dialogue hues inside the separation threshold: the SECOND falls back to its id hash", () => {
+  const participants = new Map([
+    [ALICE_ID, makeParticipant({ displayName: "Alice", themeOverride: { dialogueColor: "oklch(0.85 0.10 80)", speaker: "oklch(0.74 0.10 248)" } })],
+    [
+      BOB_ID,
+      makeParticipant({ characterId: BOB_ID, displayName: "Bob", themeOverride: { dialogueColor: "oklch(0.85 0.08 72)", speaker: "oklch(0.76 0.13 85)" } }),
+    ],
+  ]);
+  const byName = speakerThemesByName(participants);
+  expect(byName.get("Alice")?.dialogueColor).toBe("oklch(0.85 0.10 80)");
+  expect(byName.get("Bob")?.dialogueColor).toBe(colorForCharacter(BOB_ID).dialogueColor);
+  // Only the dialogue is arbitrated — the card's authored SPEAKER colour survives untouched.
+  expect(byName.get("Bob")?.speaker).toBe("oklch(0.76 0.13 85)");
+});
+
+test("dialogue hues already far apart are both left exactly as authored", () => {
+  const participants = new Map([
+    [ALICE_ID, makeParticipant({ displayName: "Alice", themeOverride: { dialogueColor: "oklch(0.85 0.10 80)" } })],
+    [BOB_ID, makeParticipant({ characterId: BOB_ID, displayName: "Bob", themeOverride: { dialogueColor: "oklch(0.85 0.10 200)" } })],
+  ]);
+  const byName = speakerThemesByName(participants);
+  expect(byName.get("Alice")?.dialogueColor).toBe("oklch(0.85 0.10 80)");
+  expect(byName.get("Bob")?.dialogueColor).toBe("oklch(0.85 0.10 200)");
+});
+
+test("a non-oklch authored dialogue colour is never de-collided (no hue to compare, so no fabricated one)", () => {
+  const participants = new Map([
+    [ALICE_ID, makeParticipant({ displayName: "Alice", themeOverride: { dialogueColor: "oklch(0.85 0.10 80)" } })],
+    [BOB_ID, makeParticipant({ characterId: BOB_ID, displayName: "Bob", themeOverride: { dialogueColor: "#e0c27a" } })],
+  ]);
+  expect(speakerThemesByName(participants).get("Bob")?.dialogueColor).toBe("#e0c27a");
+});

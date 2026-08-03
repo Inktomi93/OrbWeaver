@@ -41,14 +41,19 @@ function GlobalSection({ bookId }: BookAttachmentsProps): ReactElement {
 
   const isGlobal = (globalQuery.data ?? []).some((b) => b.id === bookId);
 
+  // ONE GRAMMAR WITH ITS SIBLING ARM (side-eye 2026-08-03 P3). This pane and the regex pane sit in the SAME
+  // slot of the SAME workspace and spoke two languages: sentence-case `Section` headings ("Everywhere") over
+  // a muted paragraph here, ALL-CAPS kicker bands over a label+switch row there. The regex shape wins on
+  // merit — the switch's own line NAMES the state ("Runs in every chat") instead of a heading naming a
+  // place — so this arm adopts it verbatim: label + switch, then the gloss underneath.
   return (
-    <Section heading="Everywhere">
+    <Stack gap="field">
       <Row gap="row" align="center" justify="between">
-        <Text size="body" tone="muted">
-          Fire this book in every chat, on top of any character or persona attachments.
+        <Text as="span" voice="label">
+          Fires in every chat
         </Text>
         <Switch
-          aria-label="Attach globally"
+          aria-label="Fires in every chat"
           checked={isGlobal}
           onCheckedChange={(on): void => {
             if (on) {
@@ -59,7 +64,8 @@ function GlobalSection({ bookId }: BookAttachmentsProps): ReactElement {
           }}
         />
       </Row>
-    </Section>
+      <Text voice="gloss">On top of any character or persona attachment — the one scope that needs no carrier.</Text>
+    </Stack>
   );
 }
 
@@ -68,10 +74,12 @@ function PersonasSection({ bookId }: BookAttachmentsProps): ReactElement {
   const personasQuery = useQuery(trpc.persona.list.queryOptions());
   const personas = personasQuery.data ?? [];
 
+  // The regex arm's roster grammar: an ALL-CAPS kicker band carrying the count, because "Attached by
+  // personas · 0" is a complete statement where a bare heading over an empty box asks whether it failed.
   return (
-    <Section heading="Personas">
+    <Section kicker={`Attached by personas · ${personas.length}`}>
       {personas.length === 0 ? (
-        <Text tone="muted">No personas yet.</Text>
+        <Text voice="gloss">No personas yet. Create one from the rail-foot Account &amp; personas panel.</Text>
       ) : (
         <Stack gap="row">
           {personas.map((persona) => (
@@ -90,9 +98,9 @@ function CharactersSection({ bookId }: BookAttachmentsProps): ReactElement {
   const characters = charactersQuery.data?.items ?? [];
 
   return (
-    <Section heading="Characters">
+    <Section kicker={`Attached by characters · ${characters.length}`}>
       {characters.length === 0 ? (
-        <Text tone="muted">No characters yet.</Text>
+        <Text voice="gloss">No characters yet.</Text>
       ) : (
         <Stack gap="row">
           <Button intent="ghost" size="sm" aria-expanded={open} onClick={(): void => setOpen((prev) => !prev)}>

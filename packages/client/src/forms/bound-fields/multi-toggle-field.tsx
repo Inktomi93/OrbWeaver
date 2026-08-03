@@ -17,12 +17,20 @@ export interface MultiToggleFieldProps {
   readonly description?: string;
   readonly items: readonly SelectOption<string>[];
   readonly disabled?: boolean;
+  /**
+   * A caller-computed invalid message, rendered through `<Field>`'s error slot and overriding the
+   * touch-gated one. It exists because the SET-EMPTY state is a real defect on an AUTOSAVING form and
+   * nothing else can say so: the regex library's `placement: []` parses (the card-boundary accept-and-drop
+   * heal keeps it lenient by law) and saves, and the script then runs nowhere — silently, until this line
+   * (side-eye 2026-08-03 P2). Untouched-and-empty is exactly the state a touch-gated error cannot reach.
+   */
+  readonly error?: string;
 }
 
 export function MultiToggleField(props: MultiToggleFieldProps): ReactElement {
   const { field, fieldProps } = useBoundField<readonly string[]>(props);
   return (
-    <Field {...fieldProps}>
+    <Field {...fieldProps} {...(props.error === undefined ? {} : { error: props.error })}>
       <ToggleGroup
         multiple={true}
         value={field.state.value}

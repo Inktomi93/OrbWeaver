@@ -45,7 +45,7 @@ test("§8.1 per-field clear — picking Inherit OMITS that field, the others sur
   await mount(<CharacterAppearanceTabStory />);
 
   await page.getByRole("combobox", { name: "Font" }).click();
-  await page.getByRole("option", { name: "Inherit global", exact: true }).click();
+  await page.getByRole("option", { name: "Inherit", exact: true }).click();
 
   // font dropped from the blob → it inherits the parent scope; radius is untouched.
   await expect.poll(() => lastThemeOverride(trpc), { intervals: [20, 50, 100] }).toEqual({ radius: "card" });
@@ -55,14 +55,14 @@ test("§8.1 Reset to global sends themeOverride: null", async ({ mount, page }) 
   const trpc = await route(page, { radius: "card" });
   await mount(<CharacterAppearanceTabStory />);
 
-  await page.getByRole("button", { name: "Reset to global" }).click();
+  await page.getByRole("button", { name: "Reset all to Inherit" }).click();
   await expect.poll(() => lastThemeOverride(trpc), { intervals: [20, 50, 100] }).toBeNull();
 });
 
 test("§8.1 Reset is disabled when there is no override to clear", async ({ mount, page }) => {
   await route(page, null);
   await mount(<CharacterAppearanceTabStory />);
-  await expect(page.getByRole("button", { name: "Reset to global" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Reset all to Inherit" })).toBeDisabled();
 });
 
 test("§8.1 a colour edit debounces into one write carrying the picked colour", async ({ mount, page }) => {
