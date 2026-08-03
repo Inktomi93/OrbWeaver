@@ -68,6 +68,17 @@ Do not skim. You are an amnesiac agent; these docs are your memory.
     `grep` is a ugrep wrapper that skips some `.ts` as binary → silent false-negative sweeps.
   - **`tree`** (v2.1) for directory structure at a glance; **`tokei`** (v12.1, `--output json`) for
     LOC/size stats by language when scoping how big a surface is.
+  - **`scripts/codemods/codemod-kit.ts` BEFORE you hand-edit a repeated shape or write your own
+    codemod.** It is a ts-morph toolkit with a documented index (search `── §`), and it already carries
+    the helpers for campaigns this repo has run: `retypeIdAnnotations` (retype every `chatId: string`
+    → `chatId: ChatId` AND insert the type-only import, preserving `| null` / `?`, idempotent),
+    `castStringLiteralsByDiagnostic` (TYPE-CHECKER-driven — wraps the literals tsc reports as
+    unassignable, so it catches positional args/returns a structural pattern misses; run it LAST, after
+    the retypes), `castIdInObjectLiterals` / `castIdInComparisons`, plus move/repoint/rename/re-export
+    arms. **`runCodemod` DRY-RUNS BY DEFAULT** and prints a per-file diff before a byte hits disk —
+    `--apply` is the explicit commit flag. Preview, read the WHOLE diff, then apply in reviewable
+    batches; a blind mass `--apply` is how a wrong rename ships. Same rule for `ast-grep -r`: it prints
+    a diff only until `-U`/`-i`.
 - **Verify with our instruments, cheaply.** `pnpm snap <route> --map/--contrast/--eval/--aria` (Bash,
   own headless browser, no MCP cost); `window.__orb` for render/query/bus state; wait on
   `data-app-ready`. Prefer these over chrome-devtools MCP.
