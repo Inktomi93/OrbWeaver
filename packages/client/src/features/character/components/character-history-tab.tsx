@@ -11,7 +11,6 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useMemo } from "react";
 import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
@@ -35,7 +34,7 @@ export function CharacterHistoryTab({ characterId }: CharacterHistoryTabProps): 
   const restore = useRestoreCharacter({ trpc, invalidation });
 
   // Reverse-chron (newest first) — the browse-log reading order, independent of the read's own ordering.
-  const rows = useMemo(() => [...(snapshotsQuery.data ?? [])].sort((a, b) => b.createdAt - a.createdAt), [snapshotsQuery.data]);
+  const rows = [...(snapshotsQuery.data ?? [])].sort((a, b) => b.createdAt - a.createdAt);
 
   return (
     <Stack gap="block">

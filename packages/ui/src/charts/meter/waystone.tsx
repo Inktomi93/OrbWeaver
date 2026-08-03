@@ -42,7 +42,7 @@
 //
 // Homed in charts/meter (the magnitude-display family; inline data-viz svg is legal only in charts/**, §13.7).
 import type { ReactElement } from "react";
-import { useCallback, useId, useState, useSyncExternalStore } from "react";
+import { useId, useState, useSyncExternalStore } from "react";
 import { cn } from "#lib";
 import { waystoneVariants } from "./variants";
 import {
@@ -117,18 +117,18 @@ function useSweptAngle(target: number): number {
 }
 
 /** Subscribe to document visibility — the stone PAUSES every layer while the tab is hidden (no compositing
- *  work for pixels nobody is looking at). One listener, CSS does the pausing. */
+ *  work for pixels nobody is looking at). One listener, CSS does the pausing. Module-scope callbacks: the
+ *  React Compiler stabilizes what it compiles, and manual memo hooks are banned here. */
 function subscribeVisibility(onChange: () => void): () => void {
   document.addEventListener("visibilitychange", onChange);
   return (): void => document.removeEventListener("visibilitychange", onChange);
 }
+const getDocumentVisible = (): boolean => !document.hidden;
+/** SSR/prerender: nothing is hidden until a document says so. */
+const getDocumentVisibleServer = (): boolean => true;
 
 function useDocumentVisible(): boolean {
-  return useSyncExternalStore(
-    subscribeVisibility,
-    useCallback(() => !document.hidden, []),
-    useCallback(() => true, []),
-  );
+  return useSyncExternalStore(subscribeVisibility, getDocumentVisible, getDocumentVisibleServer);
 }
 
 /** The waystone — a pure-SVG decorative composite; pair it with the band's text lines (the datum). */

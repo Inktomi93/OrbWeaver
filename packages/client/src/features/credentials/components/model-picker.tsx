@@ -23,7 +23,7 @@ import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useState } from "react";
 import type { Trpc } from "#data";
 import { testId } from "#lib";
 import { pushRecentModel, useRecentModels } from "#state";
@@ -207,11 +207,10 @@ function usePickerView(
   const allowsFreeText = result?.allowsFreeText ?? false;
 
   // custom_openai's fetched /models ids arrive as bare strings — lift them to entries so one render path covers every source.
-  const pool = useMemo<readonly SourceModelEntry[]>(
-    () => (allowsFreeText ? (customModels ?? []).map((id) => ({ id, label: id, origin: "catalog" }) as SourceModelEntry) : (result?.models ?? [])),
-    [allowsFreeText, customModels, result?.models],
-  );
-  const poolById = useMemo(() => new Map(pool.map((entry) => [entry.id, entry] as const)), [pool]);
+  const pool: readonly SourceModelEntry[] = allowsFreeText
+    ? (customModels ?? []).map((id) => ({ id, label: id, origin: "catalog" }) as SourceModelEntry)
+    : (result?.models ?? []);
+  const poolById = new Map(pool.map((entry) => [entry.id, entry] as const));
 
   const chipFiltered = showChips ? filterByChips(pool, chips) : pool;
   // An empty query bypasses the fuzzy result (minisearch returns nothing for "") and shows the chip-filtered pool directly.

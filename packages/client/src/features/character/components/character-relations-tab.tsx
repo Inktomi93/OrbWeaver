@@ -8,7 +8,6 @@ import type { CharacterId, PersonaId, WorldBookId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useMemo } from "react";
 import type { RelationManagerItem } from "#components";
 import { RelationManagerSection } from "#components";
 import { useInvalidation, useTRPC } from "#data";
@@ -40,9 +39,8 @@ function LinkedBooksSection({ characterId }: CharacterRelationsTabProps): ReactE
   const attach = useAttachBookToCharacter({ trpc, invalidation });
   const detach = useDetachBookFromCharacter({ trpc, invalidation });
 
-  // Memoized so the `?? []` fallback keeps a stable identity for the attachedIds useMemo below.
-  const attached = useMemo(() => attachedQuery.data ?? [], [attachedQuery.data]);
-  const attachedIds = useMemo(() => new Set(attached.map((b) => b.id)), [attached]);
+  const attached = attachedQuery.data ?? [];
+  const attachedIds = new Set(attached.map((b) => b.id));
 
   const items: readonly RelationManagerItem<WorldBookId>[] = attached.map((book) => ({ id: book.id, title: book.name, subtitle: book.role ?? "auxiliary" }));
   const available: readonly RelationManagerItem<WorldBookId>[] = (allBooksQuery.data ?? [])
@@ -74,9 +72,8 @@ function ConnectedPersonasSection({ characterId }: CharacterRelationsTabProps): 
   const connect = useConnectPersonaToCharacter({ trpc, invalidation });
   const disconnect = useDisconnectPersonaFromCharacter({ trpc, invalidation });
 
-  // Memoized so the `?? []` fallback keeps a stable identity for the connectedIds useMemo below.
-  const connected = useMemo(() => connectedQuery.data ?? [], [connectedQuery.data]);
-  const connectedIds = useMemo(() => new Set(connected.map((p) => p.id)), [connected]);
+  const connected = connectedQuery.data ?? [];
+  const connectedIds = new Set(connected.map((p) => p.id));
 
   const items: readonly RelationManagerItem<PersonaId>[] = connected.map((persona) => ({
     id: persona.id,
