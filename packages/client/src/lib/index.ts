@@ -74,6 +74,14 @@ export { perfMark, perfMeasure } from "./perf-marks";
 export { isProbeMode } from "./probe-mode";
 export { withUserMacros } from "./prompt-macros";
 export { REGEX_PLACEMENT_ITEMS, REGEX_PLACEMENT_LABELS, regexPlacementStep, regexScriptScent } from "./regex-placement-labels";
+export type { RegexPreview } from "./regex-preview";
+export {
+  previewRegexScript,
+  REGEX_PREVIEW_CHAR,
+  REGEX_PREVIEW_DEFAULT_SAMPLE,
+  REGEX_PREVIEW_MAX_INPUT,
+  REGEX_PREVIEW_USER,
+} from "./regex-preview";
 export type { ContributorRegistry, Registry } from "./registry";
 export { createContributorRegistry, createRegistry } from "./registry";
 export * from "./registry-contracts";

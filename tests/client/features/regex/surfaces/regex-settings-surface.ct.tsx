@@ -194,3 +194,125 @@ test("un-switching an already-global script detaches it", async ({ mount, page }
   await page.getByRole("switch", { name: "strip ooc runs in every chat" }).click();
   await expect.poll(() => trpc.lastInput(DETACH_PROC), { intervals: [100, 250, 500] }).toMatchObject({ scriptId: SCRIPT.id });
 });
+
+// ── THE TESTER (ST `Test Mode` parity) ────────────────────────────────────────────────────────────────
+//
+// Before this, the editor could author a pattern and offered NO way to see it bite: you saved, opened a
+// chat, sent a turn, and read the transcript. These pins are the affordance's proof-of-life, and they
+// assert through what the user sees — the Result field's value and the status line — never through the
+// preview function. That the engine underneath AGREES with production (because it IS production,
+// `@orb/kit/regex`) is pinned separately at tests/client/lib/regex-preview.test.ts.
+
+/** The first words of the tester's seeded sample — restated here rather than imported, so the CT pins what
+ *  a user actually finds in the box (and never drags client runtime into the node-side spec). */
+const SAMPLE_LEAD = "The goblin snarls";
+
+/** The two status strings the panel builds at runtime (a compile failure, and the never-fires caveat) —
+ *  matched loosely, since the sentence around them is copy and the fact is what is pinned. */
+/** The result box mirrors the sample box (`rows={3}` each); both auto-grow with content, so the floor is a
+ *  proportion of the input's height rather than equality. */
+const SAME_BOX_FLOOR = 0.9;
+
+const CANNOT_RUN = /This pattern can't run:/;
+const NO_STREAMS = /no streams are selected/;
+
+/** Stub the pane on ONE arbitrary library row (the shared `stub` above is pinned to `SCRIPT`). */
+function stubOn(page: Page, script: Record<string, unknown>): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "regex.listScripts": () => [script],
+    "regex.listGlobal": () => [],
+    "regex.updateScript": () => script,
+  });
+}
+
+async function openEditor(page: Page, name: string): Promise<void> {
+  await page.getByText(name).first().click();
+  await expect(page.getByRole("heading", { name: "Edit regex script" })).toBeVisible();
+}
+
+test("the editor opens with a live tester, already carrying a sample to run against", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<RegexSettingsStory />);
+  await openEditor(page, SCRIPT.name);
+
+  // The empty arm of a tester is a tester nobody can use: it ships with a sample, so the panel demonstrates
+  // rather than asking the user to invent a fixture.
+  await expect(page.getByLabel("Sample text")).toHaveValue(new RegExp(SAMPLE_LEAD));
+  // `\(ooc\)` does not appear in that sample, so the honest reading is "nothing happened" — and the result
+  // is the sample UNCHANGED, which is exactly what production does with a non-matching script.
+  await expect(page.getByText("No matches in this sample.")).toBeVisible();
+  await expect(page.getByLabel("Result")).toHaveValue(new RegExp(SAMPLE_LEAD));
+
+  // AND IT IS ACTUALLY READABLE. The result box is a read-only control at the bottom of a scrolling dialog
+  // — the shape that collapses to a sliver without anything failing. Asserted as a RELATION to the input it
+  // mirrors (both are `rows={3}`), never a px literal.
+  const inputBox = await page.getByLabel("Sample text").boundingBox();
+  const resultBox = await page.getByLabel("Result").boundingBox();
+  expect(resultBox?.height ?? 0).toBeGreaterThanOrEqual((inputBox?.height ?? 0) * SAME_BOX_FLOOR);
+});
+
+test("the tester runs the real engine over what you type, and says how many times it bit", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<RegexSettingsStory />);
+  await openEditor(page, SCRIPT.name);
+
+  await page.getByLabel("Sample text").fill("hello (ooc) there (ooc)");
+  // `\(ooc\)` → "" (this row's replaceString is empty): the two parenthesised asides are gone.
+  await expect(page.getByLabel("Result")).toHaveValue("hello  there ");
+  // The count comes from the production replacer firing, and the flags are the ones the executor really
+  // compiled with — `gm` for a bare pattern, because `@orb/kit/regex` forces `g` and defaults to multiline.
+  await expect(page.getByText("2 matches · flags gm")).toBeVisible();
+});
+
+test("a pattern that cannot compile says so instead of silently doing nothing", async ({ mount, page }) => {
+  await stubOn(page, { ...SCRIPT, name: "broken", findRegex: "(unclosed" });
+  await mount(<RegexSettingsStory />);
+  await openEditor(page, "broken");
+  await expect(page.getByText(CANNOT_RUN)).toBeVisible();
+});
+
+// THE F3 CLASS, CAUGHT AT AUTHORING TIME. The tester's probe deliberately ignores `enabled`/`placement` so
+// a draft still previews — which would be a lie if the panel stopped there, because a script with no
+// streams selected can never fire in a chat no matter how well it tests here.
+test("the tester says when the script it just ran would never run in a chat", async ({ mount, page }) => {
+  await stubOn(page, { ...SCRIPT, name: "no streams", placement: [] });
+  await mount(<RegexSettingsStory />);
+  await openEditor(page, "no streams");
+  await expect(page.getByText(NO_STREAMS)).toBeVisible();
+});
+
+// ── TRIM OUT + MACROS IN THE FIND PATTERN (ST parity for two knobs that had no control) ───────────────
+//
+// Both were in the schema and honoured by the executor since the library landed, and neither had a control
+// anywhere in the app — so they could only ever arrive on an imported ST card, and an in-app author could
+// not see, let alone change, what an imported script was doing.
+
+test("Trim out is authorable, bound to the row, and visibly changes what the engine produces", async ({ mount, page }) => {
+  await stubOn(page, { ...SCRIPT, name: "unwrap", findRegex: "\\[(.+?)\\]", replaceString: "$1", trimStrings: ["ooc: "] });
+  await mount(<RegexSettingsStory />);
+  await openEditor(page, "unwrap");
+
+  // The row's stored trim list is IN the control (one per line) …
+  await expect(page.getByLabel("Trim out")).toHaveValue("ooc: ");
+  await page.getByLabel("Sample text").fill("[ooc: be brief]");
+  await expect(page.getByLabel("Result")).toHaveValue("be brief");
+
+  // … and editing it moves the result, which is the pin that the tester reads LIVE form state and not the
+  // server row it was opened on.
+  await page.getByLabel("Trim out").fill("");
+  await expect(page.getByLabel("Result")).toHaveValue("ooc: be brief");
+});
+
+test("the macro-substitution mode is authorable and shows the row's stored mode", async ({ mount, page }) => {
+  await stubOn(page, { ...SCRIPT, name: "macro find", findRegex: "{{char}}", replaceString: "THEM", substituteRegex: 1 });
+  await mount(<RegexSettingsStory />);
+  await openEditor(page, "macro find");
+  // By ROLE, not by label: Base UI's Select renders a hidden form input carrying the same accessible name
+  // as the trigger, so a bare `getByLabel` matches two nodes.
+  await expect(page.getByRole("combobox", { name: "Macros in the find pattern" })).toContainText("Resolve macros first");
+
+  // And it is honoured by the tester: `{{char}}` in the PATTERN resolves to the preview's sample character
+  // before compiling, so the sample's literal name matches.
+  await page.getByLabel("Sample text").fill("Aria waves");
+  await expect(page.getByLabel("Result")).toHaveValue("THEM waves");
+});

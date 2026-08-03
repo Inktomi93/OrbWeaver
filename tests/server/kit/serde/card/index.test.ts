@@ -447,6 +447,23 @@ describe("buildCardV3 wire shape", () => {
     expect(card.data.extensions["regex_scripts"]).toEqual([]);
   });
 
+  // THE ST ENABLED/DISABLED POLARITY, both directions at the card wire. ST has no `enabled` key: it writes
+  // `disabled` and skips on it. An export that emitted only `enabled` handed SillyTavern a card whose parked
+  // scripts all ran; an import that read only `enabled` did the same to us.
+  test("a switched-off script is emitted with ST's `disabled` and comes back off", () => {
+    const off = { ...REGEX_SCRIPT, enabled: false };
+    const card = buildCardV3({ ...fullFields(), regexScripts: [off] }, []);
+    expect(card.data.extensions["regex_scripts"]).toEqual([expect.objectContaining({ enabled: false, disabled: true })]);
+    expect(cardFromJson(card, "fallback").regexScripts).toEqual([off]);
+  });
+
+  test("a foreign ST card's `disabled` script is read as switched off", () => {
+    const card = buildCardV3(fullFields(), []);
+    const foreign = { ...REGEX_SCRIPT, enabled: undefined, disabled: true };
+    card.data.extensions["regex_scripts"] = [foreign];
+    expect(cardFromJson(card, "fallback").regexScripts).toEqual([{ ...REGEX_SCRIPT, enabled: false }]);
+  });
+
   test("character_book is emitted only when there are entries", () => {
     const without = buildCardV3(fullFields(), []);
     expect(without.data).not.toHaveProperty("character_book");
