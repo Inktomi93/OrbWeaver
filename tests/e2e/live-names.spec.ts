@@ -11,6 +11,8 @@
 // Discovered pins (live 2026-07-24): the seeded character speaker name is "JFC"; the user/persona display
 // name is "You". The name-row also carries a timestamp line, so we assert the name is CONTAINED, not equal.
 
+import type { CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openNewestChat, renameOpenChat, reopenFirstChat, typeAndSend, waitForStreamOpen } from "./support/chat-room";
@@ -32,7 +34,7 @@ test("row speaker names are DB-true and survive a chat rename + reload", {
 
   // SELF-SEED a fresh chat (greeting only) and open it in the UI (newest → first row). Avoids growing a
   // shared chat across runs and keeps the transcript short (top rows always rendered).
-  const characterId = (await listCharacters())[0]?.id ?? "";
+  const characterId = (await listCharacters())[0]?.id ?? castId<CharacterId>("");
   expect(characterId).not.toBe("");
   await startChat([characterId]);
   await openNewestChat(page);

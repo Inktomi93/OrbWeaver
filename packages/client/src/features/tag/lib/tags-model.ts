@@ -34,11 +34,45 @@ const SORT_MODE_LABELS: Record<TagSortMode, string> = {
   manual: "Manual order",
 };
 
-/** The sort-mode Select options, derived from the canonical tuple. */
-export const TAG_SORT_ITEMS: readonly SelectOption<TagSortMode>[] = TAG_SORT_MODES.map((value) => ({
-  label: SORT_MODE_LABELS[value],
-  value,
-}));
+/** The sort-mode Select options, derived from the canonical tuple.
+ *
+ *  `handlesAvailable` is the library-SIZE verdict, not a preference: above `COLLECTION_LARGE_GROUP`
+ *  the roster virtualizes and drag handles cannot exist (a windowed list has no stable drop target for an
+ *  unrendered row), so "Manual order" up there is a mode with nothing behind it — measured at the owner's
+ *  413-tag library as `{mode:"Manual order", handles:0}`, and because every `sortOrder` is null the
+ *  comparator tiebreaks on name, making it pixel-identical to A–Z with nothing saying so (side-eye
+ *  2026-08-03 P1). The option is DISABLED there rather than silently inert: an unselectable option with a
+ *  stated reason is a fact about the library; a selectable one that does nothing is a control that lies.
+ *  The picker still shows it as the current value for a device already persisted into it — which is what
+ *  {@link tagOrderHint} explains. */
+export function tagSortItems(handlesAvailable: boolean): readonly SelectOption<TagSortMode>[] {
+  return TAG_SORT_MODES.map((value) => ({
+    label: SORT_MODE_LABELS[value],
+    value,
+    disabled: value === "manual" && !handlesAvailable,
+  }));
+}
+
+/** The one-line gloss beside the sort control — the roster's own statement about DRAG, which is otherwise
+ *  a capability with no scent at all (side-eye 2026-08-03 P1: landing on Most-used, nothing says reordering
+ *  lives behind a third option in a right-aligned Select that reads as a view preference; a user wanting to
+ *  reorder has no reason to open a SORT control looking for a CAPABILITY). `null` = the roster is already
+ *  showing handles, and a line saying "drag to reorder" over visible drag handles is noise.
+ *
+ *  It doubles as the sort control's row-mate: alone on its line the Select read as "a control that got left
+ *  behind when something else was removed" (side-eye P2). */
+export function tagOrderHint(handlesAvailable: boolean, mode: TagSortMode, cap: number): string | null {
+  if (!handlesAvailable) {
+    return `Drag to reorder is off above ${cap} tags.`;
+  }
+  return mode === "manual" ? null : "Manual order lets you drag rows.";
+}
+
+/** The prune confirm's ACTION label — it agrees in number with the title's count, because "Delete them"
+ *  over "Delete 1 unused tag?" is the confirm disagreeing with the question (side-eye 2026-08-03 P3). */
+export function pruneConfirmLabel(count: number): string {
+  return count === 1 ? "Delete it" : "Delete them";
+}
 
 /** The five per-target usage counts (singular labels, pluralized in {@link usageBreakdown}). */
 const USAGE_LABELS: Record<Exclude<keyof TagUsage, "total">, string> = {

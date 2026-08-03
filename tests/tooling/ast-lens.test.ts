@@ -1,10 +1,10 @@
 // Self-test for the `pnpm ast` rot lenses (scripts/codemods/ast.ts) — unwired, clientgap, the orphan
-// substrate, swallowed, respell, typeonly-alive, columns, regkeys, and chains. Each drives the pure
+// substrate, swallowed, respell, typeonly-alive, columns, regkeys, chains, and stringy. Each drives the pure
 // enumeration substrate over a tiny synthetic project (a server router with one WIRED and one UNWIRED
 // procedure; a namespace-swallowed schema barrel; a derived-vs-hand-spelled contract pair; a value export
 // reached only from type positions; a miniature drizzle schema with one column per consumption class; a
-// 3-link dead chain) and asserts the lens flags EXACTLY the defect shape — bite-proof in both directions,
-// never a sketch.
+// 3-link dead chain; a bare-`string` alias chain beside every legitimate narrowing) and asserts the lens
+// flags EXACTLY the defect shape — bite-proof in both directions, never a sketch.
 //
 // ONE SUITE HERE IS A GATE GUARD, NOT A LENS TEST: "ast liveness edge map (parallel + opt-in)". The
 // declaration-granular edge `chains` needs was added to `buildLiveness`, which the PUSH-tier
@@ -25,6 +25,7 @@ import {
   collectRegistries,
   collectSchemaTables,
   collectServerProcedures,
+  collectStringyAudit,
   collectSwallowedCandidates,
   collectTypeOnlyCandidates,
   isColumnExempt,
@@ -968,6 +969,118 @@ describe("ast chains lens (declaration-granular fixpoint)", () => {
     // …and it is alive because something CONSUMES it, not because nothing reaches it: `orphans` (which has
     // no notion of the default-export hop) agrees `helper` is reached.
     expect(collectOrphanCandidates(project, buildLiveness(project), inChainScope).map((c) => c.name)).not.toContain("helper");
+  });
+});
+
+// ── stringy: aliases that resolve to bare `string` ─────────────────────────────────────────────
+// The lens's whole claim is that it separates a PASSTHROUGH from a NARROWING by RESOLUTION, so both arms
+// are pinned here on the same project: every legitimate shape (template literal, the `string & {brand}`
+// intersection the repo's `Branded`/`TypeIdOf` is, a literal union, a union merely CONTAINING string, a
+// `T extends string` parameter, `string` inside a container) must stay silent, and the transitive chain
+// across files + a RENAMING re-export must be found — that hop is the half no syntactic tool can see.
+
+const STRINGY_TAIL = `
+declare const brand: unique symbol;
+export type Passthrough = string;
+export type Branded<B extends string> = string & { readonly [brand]: B };
+export type TypeIdOf<P extends string> = Branded<P>;
+export type Template = \`chat_\${string}\`;
+export type LiteralUnion = "a" | "b";
+export type ContainsString = string | number | null;
+export type Constrained<T extends string> = T;
+export type InsideContainer = { readonly note: string };
+export type ArrayOfString = readonly string[];
+`;
+
+/** The tail's aliases re-exported under DIFFERENT names — the hop that forks a NAME-keyed reader. */
+const STRINGY_BARREL = `
+export { type Passthrough as Relabelled, type Template as SafeTemplate, type TypeIdOf } from "../../../kit/src/probe/tail";
+`;
+
+const STRINGY_HEAD = `
+import type { Relabelled, SafeTemplate, TypeIdOf } from "../../../contracts/src/probe/barrel";
+export type Head = Relabelled;
+export type ChatId = TypeIdOf<"chat">;
+export type StillNarrow = SafeTemplate;
+export type GenericLie<T> = string;
+`;
+
+const STRINGY_FILES: Record<string, string> = {
+  "packages/kit/src/probe/tail.ts": STRINGY_TAIL,
+  "packages/contracts/src/probe/barrel.ts": STRINGY_BARREL,
+  "packages/server/src/probe/head.ts": STRINGY_HEAD,
+};
+
+const inStringyScope = (fp: string): boolean => fp.includes("/packages/");
+
+describe("ast stringy lens", () => {
+  test("flags EXACTLY the aliases that resolve to bare `string`, across files and a renaming re-export", () => {
+    const project = projectOf(STRINGY_FILES);
+    const audit = collectStringyAudit(project, inStringyScope);
+
+    // Every alias in the project was examined — the count is what makes a zero legible as clean.
+    expect(audit.aliases).toBe(13);
+    // The three passthroughs and NOTHING else: `Head` is only reachable as a lie through two files and a
+    // rename, and `GenericLie` is `string` whatever its parameter says.
+    expect(audit.candidates.map((c) => c.name).sort(byString)).toEqual(["GenericLie", "Head", "Passthrough"]);
+  });
+
+  test("a template literal, the `string & {brand}` brand, a literal/value union, a constrained parameter and a container are NOT hits", () => {
+    // Each of these ADDS information — the precise cut the lens is built on. A regression here is the
+    // failure mode that makes a lens useless: eleven false reds and a reader who stops running it.
+    const project = projectOf(STRINGY_FILES);
+    const names = new Set(collectStringyAudit(project, inStringyScope).candidates.map((c) => c.name));
+    for (const legitimate of [
+      "Template",
+      "SafeTemplate",
+      "StillNarrow",
+      "Branded",
+      "TypeIdOf",
+      "ChatId",
+      "LiteralUnion",
+      "ContainsString",
+      "Constrained",
+      "InsideContainer",
+      "ArrayOfString",
+    ]) {
+      expect(names.has(legitimate)).toBe(false);
+    }
+  });
+
+  test("reports the RESOLUTION CHAIN to the origin, not just the head's name", () => {
+    // The chain is the deliverable: it tells a reader whether the fix is brand/narrow/delete, and it must
+    // name the ORIGIN declaration — the renaming re-export hop resolves through, exactly as the liveness
+    // keying law demands, so the reader is sent to the file that actually says `= string`.
+    const project = projectOf(STRINGY_FILES);
+    const head = collectStringyAudit(project, inStringyScope).candidates.find((c) => c.name === "Head");
+    expect(head?.chain.map((l) => l.name)).toEqual(["Passthrough"]);
+    expect(head?.chain[0]?.site).toContain("packages/kit/src/probe/tail.ts");
+    expect(head?.rhs).toBe("string");
+    // A DIRECT passthrough carries no hops — its own line already is the fix site.
+    expect(collectStringyAudit(project, inStringyScope).candidates.find((c) => c.name === "Passthrough")?.chain).toEqual([]);
+  });
+
+  test("an alias the CHECKER reduces to string is reported with the expression that reduced", () => {
+    // The walk cannot hop through an indexed access / `ReturnType<…>`, but the checker still says `string`.
+    // Printing the RHS (with the `⇒ string` tell at the verb) is what stops the line reading as a false hit.
+    const project = projectOf({
+      "packages/server/src/probe/reduced.ts": 'export type Reduced = { readonly note: string }["note"];\nexport type Returned = ReturnType<() => string>;\n',
+    });
+    const audit = collectStringyAudit(project, inStringyScope);
+    expect(audit.candidates.map((c) => c.name).sort(byString)).toEqual(["Reduced", "Returned"]);
+    expect(audit.candidates.find((c) => c.name === "Reduced")?.rhs).toBe('{ readonly note: string }["note"]');
+  });
+
+  test("a file-local alias inside a function body is a hit, and test paths are never scanned", () => {
+    const project = projectOf({
+      "packages/server/src/probe/local.ts": "export function f(): unknown {\n  type LocalLie = string;\n  return null as unknown as LocalLie;\n}\n",
+      "tests/server/probe/fixture.test.ts": "export type FixtureLie = string;\n",
+    });
+    const audit = collectStringyAudit(project, () => true);
+    // The nested alias is found (it is a lie told in a smaller room) and reported as file-LOCAL, which is
+    // the reader's cue that the remedy is confined to one file.
+    expect(audit.candidates.map((c) => c.name)).toEqual(["LocalLie"]);
+    expect(audit.candidates[0]?.exported).toBe(false);
   });
 });
 

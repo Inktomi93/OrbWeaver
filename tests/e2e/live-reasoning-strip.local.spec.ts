@@ -23,7 +23,8 @@
 //
 // `@live` — it drives a REAL turn (through the fixture, not an 8B) on the local multi-user stack.
 
-import type { CharacterHandle } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors";
 import { FIXTURE_COVER_MARKER, FIXTURE_LIE_TRUTH, startFixtureProvider } from "./support/fixture-provider";
@@ -38,7 +39,7 @@ interface CreatedCharacter {
   readonly id: string;
 }
 interface StartedChat {
-  readonly chat: { readonly id: string };
+  readonly chat: { readonly id: ChatId };
 }
 
 /** Did any collected stream value carry a reasoning byte — a `reasoning`-kind delta OR a non-null
@@ -93,7 +94,7 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
     await host.mutation("rpg.createGame", { chatId, mode: "lite" });
     await host.mutation("rpg.updateConfig", { chatId, patch: { deception: true, hiddenContentReveal: true } });
 
-    const member = await loginLocal(origin, LOCAL_MEMBER.handle, LOCAL_MEMBER.password);
+    const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
 
     // ── LIVE: both viewers subscribe their OWN stream, THEN the host fires a real turn (the fixture streams a

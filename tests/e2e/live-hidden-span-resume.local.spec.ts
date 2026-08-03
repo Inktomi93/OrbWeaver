@@ -27,7 +27,8 @@
 //
 // `@live` — it drives a REAL streamed turn (through the scripted fixture, not an 8B).
 
-import type { CharacterHandle } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors";
 import {
@@ -52,7 +53,7 @@ interface CreatedCharacter {
   readonly id: string;
 }
 interface StartedChat {
-  readonly chat: { readonly id: string };
+  readonly chat: { readonly id: ChatId };
 }
 
 /** Stop collecting once the turn's reply has COMMITTED for this viewer (its content carries the cover
@@ -90,7 +91,7 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
     await host.mutation("rpg.createGame", { chatId, mode: "lite" });
     await host.mutation("rpg.updateConfig", { chatId, patch: { deception: true, hiddenContentReveal: true } });
 
-    const member = await loginLocal(origin, LOCAL_MEMBER.handle, LOCAL_MEMBER.password);
+    const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
 
     // The HOST watches the turn live — their stream carries the raw deltas, which is how we learn the
