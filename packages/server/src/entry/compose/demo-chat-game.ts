@@ -13,6 +13,15 @@
 // game is minted only when the chat carries none, and the authored setup is replayed only onto a STILL-BORN
 // state. `addItem`/`addCondition`/`upsertQuest`/`addJournalEntry` are additive by design — replaying them on
 // a played game would duplicate a host's board, so the born check is load-bearing, not a nicety.
+//
+// THE AUTHORED BOARD IS A STARTING POSITION, NOT A SET OF HOST PINS. Every hand door AUTO-LOCKS the datum it
+// writes (`patchActor` → `applied.lockPaths`, `editSnapshot` → every top-level patch key, `upsertQuest` →
+// `quests.<id>`, unconditionally), and a locked datum is one the model may never move again. Replayed
+// verbatim that turns a shipped example into a board frozen against its own continuation: the receiving user
+// plays on and their hp, status, inventory, quests, location and clock all sit exactly where the fixture left
+// them. So the replay opts OUT where the door lets it (`autoLock:false` / `lockPaths:[]`) and RELEASES what
+// the quest door stamps anyway — verified live on the generating stack, where a locked setup pass made every
+// extraction round a no-op for four straight turns.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { RpgActorRef } from "@orb/contracts/rpg";
@@ -22,7 +31,13 @@ import type { DemoChatActorSeat, DemoChatGame, DemoChatGameActor, DemoChatSeat }
 import type { RpgService } from "#domain/rpg";
 
 export interface DemoChatGameDoorDeps {
-  readonly rpg: RpgService;
+  /** Narrowed to the eight doors the replay actually drives (the `ExportDeps` precedent): the door is a
+   *  REPLAY of a host's own gestures, and the `Pick` is what says so — anything outside this list would be the
+   *  seam growing a second job. */
+  readonly rpg: Pick<
+    RpgService,
+    "createGame" | "getTrackerView" | "updateConfig" | "patchSheet" | "patchActor" | "upsertQuest" | "addJournalEntry" | "editSnapshot"
+  >;
 }
 
 export interface DemoChatGameDoorArgs {
@@ -65,7 +80,7 @@ function resolveSeat(seat: DemoChatActorSeat, principal: Principal, seats: reado
 /** Is this game's state still the one `createGame` was born with? Read through rpg's own member view: a born
  *  game has no quests and no actor carrying a volatile row (`getTrackerView` projects `volatile: null` for an
  *  actor the story has never touched). Anything else means a human or a model has played it. */
-async function isBornEmpty(rpg: RpgService, principal: Principal, chatId: ChatId): Promise<boolean> {
+async function isBornEmpty(rpg: Pick<RpgService, "getTrackerView">, principal: Principal, chatId: ChatId): Promise<boolean> {
   const view = await rpg.getTrackerView({ principal, chatId });
   return view.quests.length === 0 && view.actors.every((actor) => actor.volatile === null);
 }
@@ -87,7 +102,7 @@ export function createDemoChatGameDoor(deps: DemoChatGameDoorDeps): (args: DemoC
         await rpg.patchSheet({ principal, chatId, actorRef, patch: actor.sheet });
       }
       if (actor.ops !== undefined && actor.ops.length > 0) {
-        await rpg.patchActor({ principal, chatId, targetRef: actorRef, ops: actor.ops });
+        await rpg.patchActor({ principal, chatId, targetRef: actorRef, ops: actor.ops, autoLock: false });
       }
       if (actor.present === true) {
         present.push(actorRefKey(actorRef));
@@ -137,8 +152,24 @@ export function createDemoChatGameDoor(deps: DemoChatGameDoorDeps): (args: DemoC
     //    projects it).
     const snapshot = { ...(setup.snapshot ?? {}), ...(present.length > 0 ? { presentCharacters: present } : {}) };
     if (Object.keys(snapshot).length > 0) {
-      await rpg.editSnapshot({ principal, chatId, patch: snapshot });
+      await rpg.editSnapshot({ principal, chatId, patch: snapshot, lockPaths: [] });
     }
+
+    // 4. UNPIN. `upsertQuest` locks `quests.<id>` with no opt-out, so the only way an authored quest stays
+    //    playable is to release it after the fact. The read is safe to take wholesale: this runs exclusively on
+    //    a still-born game (the guard above), so every lock present is one THIS replay just stamped.
+    await releaseAuthoredLocks(args);
+  }
+
+  /** Release every lock the setup replay stamped. Separate from the writes so the "authored ≠ pinned" rule has
+   *  one home rather than an opt-out argument repeated at four call sites. */
+  async function releaseAuthoredLocks(args: DemoChatGameDoorArgs): Promise<void> {
+    const { principal, chatId } = args;
+    const { lockedPaths } = await rpg.getTrackerView({ principal, chatId });
+    if (lockedPaths.length === 0) {
+      return;
+    }
+    await rpg.editSnapshot({ principal, chatId, patch: {}, lockPaths: [], releaseLocks: [...lockedPaths] });
   }
 
   return async (args: DemoChatGameDoorArgs): Promise<void> => {
