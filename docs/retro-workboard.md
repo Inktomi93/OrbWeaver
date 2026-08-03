@@ -62,6 +62,16 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   DBANK2, SWEEP, HISTLEG, OBSCLOSE, GATES3, D125, board/doc edits) → **a fresh `pnpm verify --push` on
   the quiesced tree is owed before the word is asked for again.** There is also a known RED to clear
   first (the `add-chat-document-dialog` presence row, routed to DBFIX).
+- **⚠️ A SECOND OWNER SESSION IS ACTIVE (2026-08-03).** Nate has a second Claude session working in its
+  OWN worktree; he will say when it is ready to merge. **Do not tear down, reset, or commit into any
+  worktree not in the owned list below** — a stray commit landed on a lane branch once today via cwd
+  drift, and doing that to another SESSION's tree is worse (it has no orchestrator watching it).
+  **My owned worktrees at this writing:** `agent-a9c87d67eac1b22a2` (BRAND-F) ·
+  `agent-a07df3663006da142` (STALEARM) · `agent-a7c895dddb90ded5f` (side-eye) · plus ASTLENS
+  (`a56651b299a85551c`). **Anything else in `git worktree list` is NOT mine.** Re-derive that list before
+  any teardown rather than trusting this line.
+  On merge: it gets the same treatment as a lane — `--no-ff --no-verify`, a SEPARATE consolidated
+  `pnpm check` on the merged result (it will be based behind main), then teardown ONLY if he says to.
 - **LIVE LANES: see the RECONCILIATION block at the foot of this file** — it is the current roster.
   Do not re-dispatch a live lane's scope; resume it warm by agent id.
 - Dev db is the post-REGEX re-mint (v3 demo pack, 6 chats). The owner's regex scripts were re-entered
