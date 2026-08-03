@@ -509,7 +509,7 @@ produced most of the rows above, so expect a similar residue rate.
   against-convention here; this is the first evidence it was actively concealing breakage, not merely
   redundant. Worth a D-entry clause if the split shows real defects.
 
-- **⚙ ENGINES FLEET FIX — QUEUED IN A SECOND-SESSION WORKTREE (`a386a4fae`, not merged).** Root-caused the
+- ✅ **ENGINES FLEET FIX — MERGED (`a386a4fae`, merge `2b1332159`; consolidated `pnpm check` 14/14).** Root-caused the
   long-standing "esbuild and something else running at the same time" annoyance: it is the **engines fleet
   launcher**, not the dep-optimizer / CT cache / gate fixtures (all three tested and RULED OUT). Every
   `pnpm engines adopt` left an immortal `tsx engines.ts --detach` + node-loader + esbuild cluster, because
@@ -527,7 +527,10 @@ produced most of the rows above, so expect a similar residue rate.
   **Box state 2026-08-03 (verified by the orchestrator, read-only first):** the owner had already reaped the
   dupes and stale launchers — all six cited pids gone, no detached launchers resident, **3 engines healthy
   one per port, ~40 GiB free across both cards.** Nothing left to clean.
-  **⚠ DO NOT run a fresh `engines adopt` until that fix merges**, or a third launcher joins the pile.
+  **✅ THE "DO NOT ADOPT" HOLD IS LIFTED** — the fix is on main. **But the verification is still owed:**
+  per [[never-run-engine-launcher-live]] this was NOT live-tested against a real fleet, so **the next real
+  `engines adopt` IS the test** — watch for exactly one launcher exiting promptly, no duplicate spawn on an
+  already-healthy port, and a pidfile that merges rather than clobbers.
   Also corrected in passing: the workspace comment blaming ancient `esbuild@0.18.20` on tsx — it is a
   **drizzle-kit transitive** (`pnpm why` receipt in the commit).
 
@@ -551,6 +554,14 @@ produced most of the rows above, so expect a similar residue rate.
   unnecessary; tsc's `noImplicitReturns` demanded it), the fix is a SINGLE-RETURN accumulator shape that
   satisfies both — not a suppression of one to appease the other. One cited suppression survives, where
   biome's type lens wrongly believes `exec()` is non-nullable.
+
+- **📄 NODE 21→26 MAXIMAL-ADOPTION PROGRAM boarded** (`docs/design/node-26-adoption-program.md`, 336
+  lines, probe-verified + implementor-grade, from the same session). Pairs naturally with the
+  **tsx-shedding migration** — both are "make the platform the runtime" work, and tsx-shedding's stage 4
+  (`nodenext`) is the seam where they meet. Read them together before scheduling either.
+- Also landed with it: `drizzle.config.ts` joins the db type program (the **no-program hole** class — the
+  same defect the memoban session closed for the four root configs), and the ignored esbuild `target` is
+  dropped from `vitest.config.ts`, killing the per-lane esbuild/oxc warning.
 
 ## ═══ WATCH LIST (flakes + pre-existing reds; none blocking) ═══
 
