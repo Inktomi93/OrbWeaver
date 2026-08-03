@@ -44,6 +44,48 @@ function stub(page: Page, tags: readonly unknown[] = TAGS): Promise<TrpcRecorder
   });
 }
 
+// A third row whose ALPHABETICAL rank and its USAGE rank disagree — without it "most-used" and "A–Z"
+// produce the identical order and neither assertion proves anything.
+const ZEAL = {
+  id: "tag_zeal",
+  name: "zeal",
+  color: null,
+  color2: null,
+  source: "manual",
+  folderType: "NONE",
+  sortOrder: 2,
+  isHiddenOnCard: false,
+  usage: { characters: 9, chats: 3, worldBooks: 0, personas: 0, presets: 0, total: 12 },
+};
+
+const THREE = [TAGS[0], TAGS[1], ZEAL];
+
+/** The SortableList handle's per-row accessible name ("Reorder <tag>") — hoisted (useTopLevelRegex). */
+const REORDER_HANDLE = /Reorder/u;
+
+test("SORT MODE: the roster leads with MOST-USED by default and switches to A–Z", async ({ mount, page }) => {
+  await stub(page, THREE);
+  const rows = await mount(<TagCollectionRowsStory />);
+  // Default is most-used: zeal (12) · adventure (7) · orphan (0).
+  await expect(rows.locator('[data-slot="list-row-title"]')).toHaveText(["zeal", "adventure", "orphan"]);
+
+  await rows.getByRole("combobox", { name: "Sort tags" }).click();
+  await page.getByRole("option", { name: "A–Z" }).click();
+  await expect(rows.locator('[data-slot="list-row-title"]')).toHaveText(["adventure", "orphan", "zeal"]);
+});
+
+test("SORT MODE: manual order is still reachable and is the only arm that offers drag handles", async ({ mount, page }) => {
+  await stub(page, THREE);
+  const rows = await mount(<TagCollectionRowsStory />);
+  // Most-used (the default) is a derived order — a drag handle there would write a lie.
+  await expect(rows.getByRole("button", { name: REORDER_HANDLE })).toHaveCount(0);
+
+  await rows.getByRole("combobox", { name: "Sort tags" }).click();
+  await page.getByRole("option", { name: "Manual order" }).click();
+  await expect(rows.locator('[data-slot="list-row-title"]')).toHaveText(["adventure", "orphan", "zeal"]);
+  await expect(rows.getByRole("button", { name: REORDER_HANDLE }).first()).toBeVisible();
+});
+
 test("each row carries its name and its usage census", async ({ mount, page }) => {
   await stub(page);
   const rows = await mount(<TagCollectionRowsStory />);
@@ -105,4 +147,26 @@ test("no unused tags ⇒ no prune affordance (a verb with nothing to do is not o
   const rows = await mount(<TagCollectionRowsStory />);
   await expect(rows.getByText("adventure")).toBeVisible();
   await expect(rows.getByRole("button", { name: "Prune unused" })).toHaveCount(0);
+});
+
+// RENDERED, at the roster's REAL width (the story box is the 330px config pane, not a comfortable
+// default): the sort control is a `w-auto` Select precisely because FIELD_CONTROL's own `w-full` would
+// claim the whole band for a three-word label. Geometry, never the class string — a class assertion is
+// what would pass while the pixels were wrong.
+const ROSTER_PANE_PX = 330;
+const SORT_MAX_SHARE = 0.6;
+
+test("the sort control fits the 330px roster band and does not claim it", async ({ mount, page }) => {
+  await stub(page, THREE);
+  const rows = await mount(<TagCollectionRowsStory />);
+  const sort = rows.getByRole("combobox", { name: "Sort tags" });
+  await expect(sort).toBeVisible();
+
+  const box = await sort.boundingBox();
+  const paneBox = await rows.boundingBox();
+  const paneRight = (paneBox?.x ?? 0) + ROSTER_PANE_PX;
+  expect((box?.x ?? 0) + (box?.width ?? Number.POSITIVE_INFINITY)).toBeLessThanOrEqual(paneRight);
+  expect(box?.width ?? ROSTER_PANE_PX).toBeLessThan(ROSTER_PANE_PX * SORT_MAX_SHARE);
+  // It is a real control, not a text-height sliver: the fine-pointer tap floor.
+  expect(box?.height ?? 0).toBeGreaterThanOrEqual(32);
 });

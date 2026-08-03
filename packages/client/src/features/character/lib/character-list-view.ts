@@ -4,6 +4,7 @@
 // composes them in RENDER (§5.1 render-only reader taxonomy — no effect keyed on selection/prefs).
 
 import type { CharacterId, ChatId, TagId } from "@orb/kit/ids";
+import type { ActiveTagFilterState, TagFilterEntry } from "#lib";
 
 /** The tag shape both filter + group need (a structural subset of `TagView`). */
 export interface RowTag {
@@ -22,12 +23,20 @@ export interface FilterableRow {
 export interface LibraryFilters {
   readonly favoritesOnly: boolean;
   readonly showArchived: boolean;
-  /** AND-semantics: a row must carry EVERY id here to pass (§4.5). */
-  readonly tagFilter: readonly TagId[];
+  /** THREE-STATE tag chips, AND-semantics on BOTH arms: every `include` tag must be on the row and every
+   *  `exclude` tag must be off it (§4.5 + the exclusion axis). A tag with no entry is unfiltered. */
+  readonly tagFilter: readonly TagFilterEntry[];
 }
 
-/** §4.5 chip filter: archived hidden unless opted-in · favorites-only · tag multi-select (AND). Order
- *  is irrelevant (all conjunctive). Search (name) stays in `filterCharacters` — this is chips only. */
+// A total Record over the ACTIVE states — the exclusion arm's whole semantics in two lines. A fourth
+// filter state is a tsc error here rather than a chip that silently passes everything.
+const TAG_ENTRY_PASSES: Record<ActiveTagFilterState, (rowHasTag: boolean) => boolean> = {
+  include: (rowHasTag) => rowHasTag,
+  exclude: (rowHasTag) => !rowHasTag,
+};
+
+/** §4.5 chip filter: archived hidden unless opted-in · favorites-only · tag multi-select (include AND
+ *  exclude). Order is irrelevant (all conjunctive). Search (name) stays in `filterCharacters`. */
 export function filterByChips<T extends FilterableRow>(items: readonly T[], filters: LibraryFilters): readonly T[] {
   return items.filter((item) => {
     if (!filters.showArchived && item.archived) {
@@ -36,7 +45,7 @@ export function filterByChips<T extends FilterableRow>(items: readonly T[], filt
     if (filters.favoritesOnly && !item.starred) {
       return false;
     }
-    return filters.tagFilter.every((tagId) => item.tags.some((tag) => tag.id === tagId));
+    return filters.tagFilter.every((entry) => TAG_ENTRY_PASSES[entry.state](item.tags.some((tag) => tag.id === entry.id)));
   });
 }
 

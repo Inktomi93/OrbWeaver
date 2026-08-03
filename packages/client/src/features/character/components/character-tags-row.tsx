@@ -65,6 +65,9 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
         Add tag
       </Button>
       <TagPickerDialog
+        // Every ACCEPTED tag on this card, hidden ones included: a hidden tag is still attached, and
+        // offering it would be a suggestion whose only outcome is a no-op write.
+        attachedNames={tags.map((tag) => tag.name)}
         confirmLabel="Apply"
         description="Attach an existing tag, or type a new one to create it."
         onOpenChange={setOpen}

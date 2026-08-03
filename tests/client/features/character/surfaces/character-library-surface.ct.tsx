@@ -154,6 +154,57 @@ test("§4.3 the Group toggle switches to categorized view (an Uncategorized buck
   await expect(component.getByText("Uncategorized")).toBeVisible();
 });
 
+// TAG EXCLUSION (the three-state chip) — "everything tagged X that ISN'T tagged Y" is a query shape a
+// pure-AND multi-select cannot express, and neither our lineage nor neo ever built it. The chip cycles
+// off → include → exclude → off, and it SAYS which state it is in (the state is the affordance's
+// accessible name, not a colour).
+test("a tag chip cycles include → exclude → off, and exclusion hides the rows carrying the tag", async ({ mount, page }) => {
+  await routeThree(page);
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+  await expect(component.getByText("Cassius")).toBeVisible();
+
+  // 1) OFF → INCLUDE: only the tagged row survives.
+  await component.getByRole("button", { name: "Filter by rpg: off" }).click();
+  await expect(component.getByText("Cassius")).toBeVisible();
+  await expect(component.getByText("Starla")).toHaveCount(0);
+
+  // 2) INCLUDE → EXCLUDE: the tagged row is the only one gone.
+  await component.getByRole("button", { name: "Filter by rpg: included" }).click();
+  await expect(component.getByText("Starla")).toBeVisible();
+  await expect(component.getByText("Bolt")).toBeVisible();
+  await expect(component.getByText("Cassius")).toHaveCount(0);
+
+  // 3) EXCLUDE → OFF: the whole library is back.
+  await component.getByRole("button", { name: "Filter by rpg: excluded" }).click();
+  await expect(component.getByText("Cassius")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Filter by rpg: off" })).toBeVisible();
+});
+
+// RENDERED, at the docked LIST width: the three chip states must be distinguishable WITHOUT colour (an
+// excluded chip carries a strike, an included one does not), and a chip is a real tap target at the
+// narrowest real host, not a text sliver. Computed style + box, never the class string.
+const CHIP_TAP_FLOOR_PX = 32;
+
+test("the excluded chip is distinguishable without colour, and every chip clears the tap floor", async ({ mount, page }) => {
+  await routeThree(page);
+  const component = await mount(<CharacterLibrarySurfaceStory width={360} />);
+
+  const off = component.getByRole("button", { name: "Filter by rpg: off" });
+  await expect(off).toBeVisible();
+  expect((await off.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(CHIP_TAP_FLOOR_PX);
+  await expect(off).toHaveCSS("text-decoration-line", "none");
+
+  await off.click();
+  const included = component.getByRole("button", { name: "Filter by rpg: included" });
+  await expect(included).toHaveCSS("text-decoration-line", "none");
+  expect((await included.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(CHIP_TAP_FLOOR_PX);
+
+  await included.click();
+  const excluded = component.getByRole("button", { name: "Filter by rpg: excluded" });
+  await expect(excluded).toHaveCSS("text-decoration-line", "line-through");
+  expect((await excluded.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(CHIP_TAP_FLOOR_PX);
+});
+
 test("§4.6 bulk mode reveals row checkboxes + the selection bar", async ({ mount, page }) => {
   await routeThree(page);
   const component = await mount(<CharacterLibrarySurfaceStory />);
@@ -219,10 +270,18 @@ test("F1 the sort Select cannot crush the search box — search keeps the row's 
   expect(searchBox?.width ?? 0).toBeGreaterThan(sortBox?.width ?? 0);
 });
 
+/** The tag LIBRARY the picker suggests from (`tag.listTagsWithUsage` — the same read the config rail's
+ *  Tags collection uses, so opening a picker rides that cache instead of minting a second one). */
+const TAG_LIBRARY = [
+  { ...makeTagFixture({ id: "tag_adventure", name: "adventure" }), usage: { characters: 5, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 5 } },
+  { ...makeTagFixture({ id: "tag_fantasy", name: "fantasy" }), usage: { characters: 12, chats: 0, worldBooks: 0, personas: 0, presets: 0, total: 12 } },
+];
+
 test("D2 the bulk Tag action opens a picker and applies a tag to the selection", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
     "chat.listChats": () => [],
+    "tag.listTagsWithUsage": () => TAG_LIBRARY,
     "character.bulkAddCardTag": () => ({ tagged: 1 }),
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
@@ -230,8 +289,14 @@ test("D2 the bulk Tag action opens a picker and applies a tag to the selection",
   await component.getByRole("checkbox", { name: "Select Bolt" }).click();
   await component.getByRole("button", { name: "Tag", exact: true }).click();
 
-  // The picker Dialog is portaled outside the mount root — query it via `page`.
-  await page.getByRole("textbox", { name: "Tag name" }).fill("adventure");
+  // The picker Dialog is portaled outside the mount root — query it via `page`. Barrier on the SETTLED
+  // resting copy first: the suggestion source is a query, and the confirm's label depends on whether the
+  // typed name matched it, so a fill before it lands would read the pre-load arm.
+  await expect(page.getByText("Start typing to search your 2 tags.")).toBeVisible();
+  await page.getByRole("combobox", { name: "Tag name" }).fill("adventure");
+  // The suggestion popup is an overlay anchored under the field — dismiss it the way a user does before
+  // reaching the footer (picking a suggestion, the other path, is its own test below).
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Apply" }).click();
   // The mutation carries the typed tag + exactly the selected id (assertion-quality audit 2026-07-24:
   // the selection-cleared check alone left the wire payload unpinned).
@@ -240,6 +305,83 @@ test("D2 the bulk Tag action opens a picker and applies a tag to the selection",
     .toMatchObject({ tagName: "adventure", characterIds: ["char_bolt2"] });
   // Applying clears the selection → the bulk bar (its Tag action) is gone.
   await expect(component.getByRole("button", { name: "Tag", exact: true })).toHaveCount(0);
+});
+
+// AUTOCOMPLETE (the duplicate-rot fix): at ~400 tags a bare text box is how "fantasy", "Fantasy" and
+// "fantsy" all become separate tags. The picker suggests what already exists, and CREATING is a labelled
+// act — the confirm says which of the two things the click will do.
+test("the tag picker suggests EXISTING tags as you type, and picking one attaches it", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
+    "chat.listChats": () => [],
+    "tag.listTagsWithUsage": () => TAG_LIBRARY,
+    "character.bulkAddCardTag": () => ({ tagged: 1 }),
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+  await component.getByRole("button", { name: "Select multiple" }).click();
+  await component.getByRole("checkbox", { name: "Select Bolt" }).click();
+  await component.getByRole("button", { name: "Tag", exact: true }).click();
+
+  const field = page.getByRole("combobox", { name: "Tag name" });
+  await field.click();
+  await field.pressSequentially("fan");
+  // The near-duplicate is offered before it can be re-typed as a new tag.
+  await page.getByRole("option", { name: "fantasy" }).click();
+  await expect(field).toHaveValue("fantasy");
+
+  // The confirm names the ATTACH arm — nothing is being created.
+  await page.getByRole("button", { name: "Apply", exact: true }).click();
+  await expect
+    .poll(() => trpc.lastInput("character.bulkAddCardTag"), { intervals: [20, 50, 100] })
+    .toMatchObject({ tagName: "fantasy", characterIds: ["char_bolt2"] });
+});
+
+test("a name that matches nothing makes CREATING the deliberate, labelled act", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
+    "chat.listChats": () => [],
+    "tag.listTagsWithUsage": () => TAG_LIBRARY,
+    "character.bulkAddCardTag": () => ({ tagged: 1 }),
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+  await component.getByRole("button", { name: "Select multiple" }).click();
+  await component.getByRole("checkbox", { name: "Select Bolt" }).click();
+  await component.getByRole("button", { name: "Tag", exact: true }).click();
+
+  const field = page.getByRole("combobox", { name: "Tag name" });
+  await field.click();
+  await field.pressSequentially("fantsy");
+  // The field says which of the two things is about to happen…
+  await expect(page.getByText('Creates a new tag "fantsy".')).toBeVisible();
+  // …and the confirm stops saying "Apply": it says what it will actually do.
+  await expect(page.getByRole("button", { name: 'Create "fantsy"' })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Apply", exact: true })).toHaveCount(0);
+});
+
+// THE POPUP IS AN OVERLAY OVER THE CONFIRM. With nothing to suggest it used to open anyway — a box reading
+// "no match" that physically intercepted the pointer on the Create button, and (Base UI hides outside
+// content from AT while a combobox popup is open) took that button out of the accessibility tree. A
+// suggestion list with nothing to suggest must not open at all.
+test("a no-match query opens NO popup — the confirm stays clickable and in the a11y tree", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
+    "chat.listChats": () => [],
+    "tag.listTagsWithUsage": () => TAG_LIBRARY,
+    "character.bulkAddCardTag": () => ({ tagged: 1 }),
+  });
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+  await component.getByRole("button", { name: "Select multiple" }).click();
+  await component.getByRole("checkbox", { name: "Select Bolt" }).click();
+  await component.getByRole("button", { name: "Tag", exact: true }).click();
+
+  const field = page.getByRole("combobox", { name: "Tag name" });
+  await field.click();
+  await field.pressSequentially("fantsy");
+  await expect(page.locator('[data-slot="autocomplete-popup"]')).toHaveCount(0);
+
+  // Clickable WITHOUT dismissing anything first — a real pointer click, no force.
+  await page.getByRole("button", { name: 'Create "fantsy"' }).click();
+  await expect.poll(() => trpc.lastInput("character.bulkAddCardTag"), { intervals: [20, 50, 100] }).toMatchObject({ tagName: "fantsy" });
 });
 
 test("D4 the create dialog gates Create on BOTH name and description, with the requirement shown", async ({ mount, page }) => {
