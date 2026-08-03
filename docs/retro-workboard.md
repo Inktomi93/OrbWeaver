@@ -633,6 +633,22 @@ callers ignoring HandDoorResult.ok LOSE writes (a 41-char weather.label dropped 
 scene write; sweep callers for ok-checks) · (4) WATCH: hand editSnapshot during an in-flight
 turn can be clobbered by the flush (seen once, unchased). Lessons banked in-report.
 **Lane R1-CONFIG dispatched (the promised drain) — MOCK-FIRST.**
+✅ **TDB MERGED (--no-verify on receipts, torn down) — THE THEME PROGRAM IS BUILT** (64 files,
+6 red-first proofs 6-red→29-green): promoteTheme door (subset-projected, mint de-collide) ·
+Start-from-a-theme inverse door (density proven NOT to ride) · the partition as ONE
+classification record (a new ThemeOverride field fails TSC until classified;
+cardEmbeddableSubset projected at all 4 boundaries; F-2 one-home fixed) · chatStyle override
+DELETED both clamp sides + dead selects struck · O-8 INTERCEPTION (drafts mint NOTHING until
+first edit — covers New AND Customize; zero-edit Back = zero rows) · picker curated to 3
+(heal-then-delete seeder, own-duplicates survive). RENDERED-PROOF CATCH: "Reset to global"
+clipped at the REAL 463px context-panel mount (story was 720px) — fixed + geometry CT;
+LESSON: shoot the narrowest real host. Deviations receipted (card pin re-homed as
+completeness+membership; CARD_PACK_VERSION deliberately NOT bumped — the drop is inert at
+every read). **OWED: mint TD's D-entry as D123 (text in its report) — ANCHOR's becomes D124
+(lane notified); UI-Theming §12.1 amended in its commit (sibling-lane flag). Side-eye
+polish item: the 3-action Theme cluster's visual weight (Select beside two ghosts).**
+**Scout dispatched (owner question): imagery + plugin dormancy census** (the two
+suspiciously-small-relative-to-ambition domains; hub + agent-plane = the honest zeros).
 **OWNER NIT (08-03 late) → SM5 queue: the per-message WIRE-TRACE trigger is in the wrong
 home** — RAWVIEW grafted it onto MessageMetadataRow; it belongs in the MESSAGE KEBAB with the
 other message actions (host-gated menu item; the kebab is the ruled action home, D62 §12
