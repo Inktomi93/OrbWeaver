@@ -615,6 +615,24 @@ line + the [[rpg-state-anchor-slots]] memory at R2). Forks 2/3/5 taken on RECs
 **Lane ANCHOR (R0-R3) DISPATCHED** — sequenced to merge AFTER TRANSCRIPTS (fixtures settle
 first; post-ANCHOR the replay mints no anchors so the drop-patch dies naturally; R2 verifies
 whether a flagship regen is even needed). R1-config mock phase takes the NEXT drain.
+✅ **TRANSCRIPTS MERGED (hook-certified in-lane, torn down) — THE DEMO PACK IS v3, $3.562
+total (Sonnet 5/OR, in-cap):** all six regenerated Traveler-voiced (zero "You" — PINNED by a
+test reading the shipped bytes); **the owner's sentence is now an ASSERTED property**: the
+seeder int test runs the REAL composition root with vLLM disabled + NO credential (any model
+call fails the run) and the panels come out populated — a db drop reseeds EVERYTHING with
+zero regeneration, forever. Flagship = the legit RPG (per-speaker ×3 seats, full board set
+pre-play, play moved it: quests ticked live, supplies 10→9, the session minted NPC Corvain
+itself, host closed the board via real hand doors; final: 5 actors, hp 17/20 +Ward-Burned,
+3 quests, 7 journal, act 3/3). Narrator grammar moved to Second Opinion (all three group
+grammars still demo'd). 2 defects fixed in-lane red-first (frozen-seed locks · seeder drops
+content-less rows [dies at ANCHOR R2]). **FLAGS boarded:** (1) v3 transcripts reach NEW
+installs only — the pack heal carries dressing never transcripts (deliberate; owner's stack
+is fresh = fine; a transcript-heal arm = owner call if ever wanted) · (2) resync-OR already
+boarded · (3) NEW SMALL: editSnapshot rejects the WHOLE patch as data on one bad plane —
+callers ignoring HandDoorResult.ok LOSE writes (a 41-char weather.label dropped a 5-plane
+scene write; sweep callers for ok-checks) · (4) WATCH: hand editSnapshot during an in-flight
+turn can be clobbered by the flush (seen once, unchased). Lessons banked in-report.
+**Lane R1-CONFIG dispatched (the promised drain) — MOCK-FIRST.**
 **OWNER NIT (08-03 late) → SM5 queue: the per-message WIRE-TRACE trigger is in the wrong
 home** — RAWVIEW grafted it onto MessageMetadataRow; it belongs in the MESSAGE KEBAB with the
 other message actions (host-gated menu item; the kebab is the ruled action home, D62 §12
