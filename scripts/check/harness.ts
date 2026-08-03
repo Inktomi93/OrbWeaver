@@ -8,6 +8,9 @@ export type Violation = {
   readonly file: string;
   readonly line: number;
   readonly message: string;
+  /** Present only for non-default tiers ("warn" — contract.ts's reserved advisory tier). Absent = error.
+   *  Carried into check-structure.json so the artifact stops losing the finding's tier (2026-08-03). */
+  readonly severity?: "error" | "warn";
 };
 
 export type CheckContext = {
