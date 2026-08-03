@@ -10,6 +10,7 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Search, Users } from "@orb/ui/icons";
 import { Stack, Surface } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -192,6 +193,14 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
           showArchived={showArchived}
           tagFilter={tagFilter}
         />
+        {/* THE RESULT COUNT, SPOKEN (side-eye 2026-08-03 P2). Cycling a chip changes what is on screen and
+            said nothing, so a screen-reader user operating a three-state control got no feedback that it
+            had done anything. `role="status"` is polite by default; the line is always mounted (a region
+            that appears WITH its first message announces nothing) and always states the count, because a
+            count that only exists while filtered is a layout that shifts on every chip press. */}
+        <Text role="status" voice="gloss">
+          {resultCountLabel(filtered.length)}
+        </Text>
         {/* The favorites strip is the shared `FaceStrip` composite now (list-pane-projection §11.2) — the
           private avatar-in-Button copy it used to carry is retired, not duplicated. Portraits only: the
           names are already the rows' titles right below. */}
@@ -219,6 +228,11 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
       </Stack>
     </Surface>
   );
+}
+
+/** What the filter row's live region says — the count of rows the current search + chips leave standing. */
+function resultCountLabel(count: number): string {
+  return `${String(count)} character${count === 1 ? "" : "s"}`;
 }
 
 /** Restore keyboard focus to one character's ROW once the list has actually rendered it (§3.7 back-focus).
@@ -261,17 +275,30 @@ function useRestoreRowFocus(surfaceRef: RefObject<HTMLDivElement | null>, focusC
   }, [pendingId, items, surfaceRef]);
 }
 
-/** The visible-tag vocabulary across the loaded rows (deduped by id) — the tag-filter chip set. */
+/** The visible-tag vocabulary across the loaded rows (deduped by id) — the tag-filter chip set, MOST-USED
+ *  FIRST (ties alphabetical).
+ *
+ *  The order is what makes the chip row's cap honest (side-eye 2026-08-03 P2): the row shows the first N,
+ *  so ranking by how many loaded characters actually carry a tag puts the filters that can DO something at
+ *  this moment in the visible slice, where alphabetical order put whatever started with "a". */
 function tagVocabulary(items: readonly CharacterLibraryItem[]): readonly { readonly id: TagId; readonly name: string }[] {
-  const seen = new Map<TagId, string>();
+  const seen = new Map<TagId, { readonly name: string; count: number }>();
   for (const item of items) {
     for (const tag of item.tags) {
       if (!tag.isHiddenOnCard) {
-        seen.set(tag.id, tag.name);
+        const entry = seen.get(tag.id);
+        if (entry === undefined) {
+          seen.set(tag.id, { name: tag.name, count: 1 });
+        } else {
+          entry.count += 1;
+        }
       }
     }
   }
-  return [...seen].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  return [...seen]
+    .map(([id, entry]) => ({ id, name: entry.name, count: entry.count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .map(({ id, name }) => ({ id, name }));
 }
 
 interface CharacterLibraryBodyProps {

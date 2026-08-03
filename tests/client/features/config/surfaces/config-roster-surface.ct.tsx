@@ -45,6 +45,12 @@ function tagRow(index: number): Record<string, unknown> {
 
 const MANY_TAGS = Array.from({ length: TAG_COUNT }, (_unused, index) => tagRow(index));
 
+/** The FIRST row the tag roster renders. Its default order is MOST-USED (tag-experience audit 2026-08-03,
+ *  `sortTagsBy`), and this fixture's usage is `index % 3` — so the window opens on the `%3 === 2` bucket,
+ *  not on `tag-000`. Naming it here keeps these host assertions about the HOST (rows mounted, filter
+ *  applied) instead of quietly re-asserting the owner's comparator. */
+const FIRST_ROW = "tag-002";
+
 const SCRIPTS = [
   {
     id: "regex_script_stripooc",
@@ -120,14 +126,14 @@ test("expanding a 400-member group renders its rows and offers the count-driven 
 
   await workspace.locator(ROSTER).getByRole("button", { name: TAGS_BAND }).click();
   await expect(workspace.locator(ROSTER).getByRole("button", { name: TAGS_BAND })).toHaveAttribute("aria-expanded", "true");
-  await expect(workspace.getByText("tag-000")).toBeVisible();
+  await expect(workspace.getByText(FIRST_ROW)).toBeVisible();
 
   // The filter is HOST chrome, shown by COUNT — and applied by the contribution's own rows.
   const filter = workspace.getByRole("textbox", { name: "Filter tags" });
   await expect(filter).toBeVisible();
   await filter.fill("tag-137");
   await expect(workspace.getByText("tag-137")).toBeVisible();
-  await expect(workspace.getByText("tag-000")).toHaveCount(0);
+  await expect(workspace.getByText(FIRST_ROW)).toHaveCount(0);
 
   // Create stays reachable with a 400-row list open (the band is chrome, not a list item).
   await expect(workspace.locator(ROSTER).getByRole("button", { name: "New tag" })).toBeVisible();
@@ -178,8 +184,8 @@ test("selecting a member routes CONTENT to its owner's editor and CONTEXT to its
   // A TAG: its editor mounts in CONTENT, and its collection declares NO context arm — so the pane shows
   // that collection's OWN copy, not a generic "nothing selected" over a selected thing.
   await workspace.locator(ROSTER).getByRole("button", { name: TAGS_BAND }).click();
-  await workspace.getByText("tag-001").click();
-  await expect(workspace.getByRole("heading", { name: "tag-001" })).toBeVisible();
+  await workspace.getByText(FIRST_ROW).click();
+  await expect(workspace.getByRole("heading", { name: FIRST_ROW })).toBeVisible();
   await expect(workspace.getByText("Nothing to attach")).toBeVisible();
 
   // A SCRIPT: the same host, a different owner's editor and a real context body.

@@ -25,6 +25,12 @@ export const autocompleteVariants = tv({
     popup: [POPUP_SURFACE, "w-(--anchor-width)", OVERLAY_MOTION.anchoredPopup],
     arrow: OVERLAY_ARROW,
     list: "flex flex-col gap-field",
+    // THE INLINE ARM's list (side-eye 2026-08-03 P0): the same items, IN FLOW under the field instead of in
+    // an anchored overlay. It carries the box itself because this anatomy has no Popup part (Base UI's
+    // `Popup` throws outside a `Positioner`) — no overlay surface, since it sits INSIDE the caller's own
+    // card: a bounded scroller (~4 rows at the coarse touch floor, so a 400-tag library cannot grow the card
+    // past its own footer) and a hairline. `data-empty:hidden` so nothing to suggest leaves NO frame behind.
+    inlineList: "flex max-h-40 flex-col gap-field overflow-y-auto overscroll-contain rounded-control border border-border p-field data-empty:hidden",
     group: "flex flex-col gap-field",
     groupLabel: "px-block py-field text-label leading-label font-semibold text-muted-foreground",
     item: ITEM_ROW,
