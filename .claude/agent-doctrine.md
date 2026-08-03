@@ -68,6 +68,18 @@ Do not skim. You are an amnesiac agent; these docs are your memory.
     `grep` is a ugrep wrapper that skips some `.ts` as binary → silent false-negative sweeps.
   - **`tree`** (v2.1) for directory structure at a glance; **`tokei`** (v12.1, `--output json`) for
     LOC/size stats by language when scoping how big a surface is.
+  - **The global `code-recon` SKILL is the standard for any recon claim** — load it with the Skill tool
+    before hunting in an unfamiliar codebase. It carries the evidence ladder this repo judges by
+    (declared → exported → imported → called), the three ways recon fails while LOOKING like success
+    ("a file existing is not evidence the thing is implemented"; "no-matches is not absence"), and the
+    ast-grep run/outline/scan mechanics. Absence claims need TWO independent methods.
+  - **Reading NEO (`legacy-main`) structurally:** it is a BRANCH, so nothing is on disk and `git show`
+    yields one file at a time — which is how a dig degrades into grep-guessing. Materialize it OUTSIDE
+    the repo and run ast-grep over that:
+    `git -C <repo> archive legacy-main | tar -x -C <scratchpad>/neo`. Never `checkout`, never
+    `worktree add`, never `cp` into the tree (lanes may be mid-sweep on the working tree). For
+    SillyTavern (`/home/inktomi/inktomi-stack/SillyTavern/`) use `sg -l js` / `-l html` and lead with
+    `sg outline` for the symbol map — hunt by SHAPE, not by the feature's English name.
   - **`scripts/codemods/codemod-kit.ts` BEFORE you hand-edit a repeated shape or write your own
     codemod.** It is a ts-morph toolkit with a documented index (search `── §`), and it already carries
     the helpers for campaigns this repo has run: `retypeIdAnnotations` (retype every `chatId: string`
