@@ -70,13 +70,27 @@ Both fixes probe-verified green:
    }
    ```
 
-   Coupled sites: `scripts/verify/selection.ts` routing (mirror `reset.d.ts`'s membership — it appears
-   in `isGraphOnlyTree` and per-package includes) + the tests-type-membership stage must see it land in
-   ≥1 program. Temporal types deliberately NOT here — §6.
+   Coupled sites (corrected at landing, W1 2026-08-03 — the original list was short by three): the base
+   include is OVERRIDDEN by **five** configs, each of which must list the file itself — `tsconfig.json`,
+   `tsconfig.tests-dom.json`, AND `packages/{ui,client,db}/tsconfig.json`. Plus
+   `scripts/verify/selection.ts` routing: `reset.d.ts` was routed to the GRAPH program ALONE, which is
+   wrong for a root ambient file — measured, the graph carries `@types/node`, which independently
+   declares Disposable/`getOrInsert`/`isError`, so a graph-only route MASKED 5 of the 6 real per-package
+   errors and `types:packages` would have been SKIPPED on an ambient edit. Both root `.d.ts` files now
+   route to every program (`ROOT_AMBIENT_DTS`). `tsconfig-routing-parity` cannot catch this class: it
+   filters `.d.ts` out of its universe. `tests-type-membership` does not cover root files either (it
+   enumerates `tests/**` + `playwright/**` only). Temporal types deliberately NOT here — §6.
 3. **Engine floor becomes a wall** (audit finding: `engines >=26` is declarative-only today — no
-   `.npmrc`, no `engineStrict`, and ZERO workspace packages carry engines):
-   - Root `.npmrc`: `engine-strict=true`.
-   - `"engines": { "node": ">=26" }` into all six workspace package.jsons.
+   `engineStrict`, and ZERO workspace packages carry engines):
+   - **`engineStrict: true` in `pnpm-workspace.yaml`** (top-level key). NOT `.npmrc` — this document
+     originally said `.npmrc` `engine-strict=true` and that is a NO-OP on our pnpm. Probe, W1
+     2026-08-03, pnpm 11.15.1, four arms against an unsatisfiable `engines: {node: ">=99"}` with a real
+     dependency: `.npmrc` alone → **exit 0, installed**; `engineStrict` alone → exit 1
+     ("Your Node version is incompatible…"); both → exit 1; control (`>=26`) → exit 0. pnpm 10.6+ moved
+     its settings out of `.npmrc`. No root `.npmrc` is created: an inert `engine-strict` there is worse
+     than nothing (a reader greps it and believes the wall exists), and this repo is pnpm-only.
+   - `"engines": { "node": ">=26" }` into all six workspace package.jsons (root already carries it).
+     Verified: this does NOT move `pnpm-lock.yaml`.
    - Keep `.nvmrc` as the version-manager hint it is.
 4. **Spine-TypeScript-and-Patterns.md** gains the §8 ADOPT/AVOID table (draft text there) — doctrine
    lands in the SAME wave as the machinery it governs (fix-at-landing).
@@ -318,7 +332,7 @@ antipattern this program exists to kill — refused. Therefore:
 3. **biome `noRestrictedImports` additions** (same block as tailwind-variants): `dotenv` (post-§3, with
    the parseEnv pointer), `luxon` (post-§6 trigger, same commit as the kill).
 4. Already-standing: `useDisposables` (biome, live) enforces §5; `check-harness`/`no-manual-memo`
-   precedents govern gate authorship; `engines-strict` (§1.3) enforces the floor.
+   precedents govern gate authorship; `engineStrict` in `pnpm-workspace.yaml` (§1.3) enforces the floor.
 
 ## §9 Wave order, floors, receipts
 

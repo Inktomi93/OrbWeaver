@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-08-03
 ---
 
 # Orbweaver — Spine: TypeScript & Patterns (Types, Schemas, Dispatch)
@@ -57,7 +57,7 @@ A string axis is an `as const` tuple; its union is **derived**, never re-spelled
 - **`?` vs `| undefined` are NOT interchangeable under `exactOptionalPropertyTypes`**: `x?: T` = may be **absent** (can't pass explicit `undefined`); `x: T | undefined` = must be **present**, may be undefined. Choose by intent — default `?` for genuinely-absent fields.
 - **`interface` for hand-authored object shapes, `type` for unions/aliases** — but in practice most domain models are `z.infer<typeof schema>` (a `type`). `interface extends` over `&` for composition (`extends` errors on conflicts; `&` silently → `never`).
 - **Banned habits:** `any` ⚙️ (use `unknown` + narrow — `catch` is already `unknown`) · non-null `!` ⚙️ (`noNonNullAssertion`; use a guard / `?? throw`) · `as` assertions by review (prefer `satisfies`/narrowing/zod; ID casts hard-gated by the `no-loose-id-cast`/`no-mint-via-cast` gates); `as any as T` is a hard no.
-- **`@total-typescript/ts-reset` is on** — one root `reset.d.ts` pulled into every package's compilation via `tsconfig.base.json`'s `include` (`${configDir}/../../reset.d.ts`). It hardens dishonest built-ins: `JSON.parse()` / `Response.json()` return `unknown` (you MUST narrow — pairs with the zod-at-the-boundary rule), `[].filter(Boolean)` strips `null`/`undefined` from the result type, `Array.includes`/`Set.has` widen correctly. Write code expecting these stricter signatures. Declaration-only, zero runtime cost.
+- **`@total-typescript/ts-reset` is on** — one root `reset.d.ts` pulled into every package's compilation via `tsconfig.base.json`'s `include` (`${configDir}/../../reset.d.ts`). It hardens dishonest built-ins: `JSON.parse()` / `Response.json()` return `unknown` (you MUST narrow — pairs with the zod-at-the-boundary rule), `[].filter(Boolean)` strips `null`/`undefined` from the result type, `Array.includes`/`Set.has` widen correctly. Write code expecting these stricter signatures. Declaration-only, zero runtime cost. Its sibling `platform.d.ts` rides the same mechanism for the opposite job — declaring runtime surfaces the lib is MISSING (§9).
 
 ## 5. `erasableSyntaxOnly` — the forbidden set (+ erasable replacement)
 
@@ -96,6 +96,25 @@ From the handbook's `.d.ts` do's-and-don'ts — worth enforcing even though we a
 - `void` (not `any`) for ignored-callback return types; `unknown` (not `any`) for "accept anything".
 - **Non-optional** callback params; **union params over arg-position overloads** (`f(x: number | string)` not two sigs — overloads break pass-through callers); optional params over trailing-arg overloads.
 - Never the boxed types (`Number`/`String`/`Object`); lowercase primitives + `object`. No generic that doesn't use its type param.
+
+## 9. Platform primitives — the ADOPT / CONSIDER / AVOID register
+
+**The platform is node 26 / V8 14.6, and the modern spelling is THE spelling** (owner-ruled posture, `../../design/node-26-adoption-program.md`). This register is not "adopt when convenient": a hand-rolled equivalent of anything in ADOPT is a defect, and the burn-down that removed the existing ones is that program's W3/W4. Typing floor: `tsconfig.base.json` carries `lib: ["es2025", "esnext.disposable"]` and the repo-root `platform.d.ts` declares the V8 14.6 surfaces TypeScript's libs do not ship yet (`Map`/`WeakMap.getOrInsert(Computed)`, `Error.isError`, `Iterator.concat`) — delete a block there when the lib catches up; the duplicate-declaration error IS the reminder.
+
+**ADOPT.** `node:timers/promises` `setTimeout` (never `new Promise` + `setTimeout` sleeps) · `x.toSorted(fn)` (never `[...x].sort(fn)`) · Set algebra `union`/`intersection`/`difference`/`isSubsetOf` · `Object.groupBy` / `Map.groupBy` · `Promise.withResolvers` · `Map.getOrInsert` / `getOrInsertComputed` · `RegExp.escape` — never a hand-rolled `escapeRegExp`; the program's W4 deletes the kit one and its consumers · `Error.isError` at unknown-boundaries — specifically the `kit/error-message` seam, so \~50 consumers inherit cross-realm correctness · `.at(-1)` · `findLast` · `Array.fromAsync` (accumulate-then-return only) · Iterator helpers when the chain is iterator-terminal · `using` / `await using` for every disposal-shaped resource ⚙️ (biome `useDisposables`) · `AbortSignal.timeout` / `AbortSignal.any` per the rubric below · `structuredClone` · `util.parseEnv`.
+
+**CONSIDER.** `getOrInsertComputed` vs plain `getOrInsert` — the computed arm only when the factory has cost or effects · Iterator helpers on a sort-terminal chain: the sort materializes anyway, so convert only a filter/map prefix that drops a real intermediate array, else keep · get-or-set shapes whose SET path differs from the GET path (TTL, eviction) stay hand-written.
+
+**AVOID.**
+
+- `node:sqlite` — sync-only, and the libSQL PRAGMA/transaction knowledge in `db/client/index.ts` is driver-specific and hard-won; a swap re-derives it for a worse concurrency model.
+- Web Storage APIs in node.
+- Hand-rolled sleeps, regex escapes, deferred-promise captures, and set algebra — the modern spelling exists for each, above.
+- `Date.parse` hand-rolls where the `kit/time` seam exists. (luxon still backs that seam; Temporal is blocked on Safari — `node-26-adoption-program.md` §6, the ONE deferral, and it carries its trigger.)
+
+**Abort rubric** (per site, not blanket): a pure timeout race → `AbortSignal.timeout` on the operation · merging an external signal with an internal one → `AbortSignal.any([...])` · a forward that runs real CLEANUP on abort → keep the listener and say why inline · a deadline that must not hold the process open → keep a manual `setTimeout(...).unref()` composed via `AbortSignal.any` (`infra/network/egress.ts` is the sanctioned archetype — `AbortSignal.timeout` cannot unref; a declared platform limitation, not our debt).
+
+**Not our realm:** the QuickJS membrane's guest values are `ctx.dump()` products, not `Error` instances of any realm — `Error.isError` is WRONG there, and its deferreds are `ctx.newPromise()`, not `Promise.withResolvers` candidates.
 
 ## String-union dispatch discipline (spine §7.5)
 

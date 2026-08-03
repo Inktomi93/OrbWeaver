@@ -54,8 +54,30 @@ const PLAYWRIGHT_TSX_DTS_RE = /^playwright\/.*\.(?:tsx|d\.ts)$/u;
  *  both sides (dual-vite type world — see tsconfig.json's comment). */
 const ROOT_CONFIG_FILES: ReadonlySet<string> = new Set(["vitest.config.ts", "vitest.stryker.config.ts", "playwright.config.ts", "knip.ts"]);
 
+/** The repo-root AMBIENT declaration pair — `reset.d.ts` (ts-reset) + `platform.d.ts` (the V8 14.6
+ *  surfaces TS's libs lack; node-26 adoption program §1.2). Every program includes BOTH: the base's
+ *  `${configDir}/../../<file>` covers kit/contracts/server, and the five configs that OVERRIDE the base
+ *  include (tsconfig.json, tsconfig.tests-dom.json, packages/{ui,client,db}) list them explicitly. So
+ *  their honest route is EVERY program, not the graph alone — an ambient edit changes every program's
+ *  world. Measured 2026-08-03: the graph program carries `@types/node`, which independently declares
+ *  Disposable/getOrInsert/isError, so a graph-only route MASKED 5 of 6 real per-package errors — exactly
+ *  the false-green the routing algebra exists to prevent. (`tsconfig-routing-parity` cannot catch this:
+ *  it filters `.d.ts` out of its universe, so these two files are unreconciled by construction.) */
+const ROOT_AMBIENT_DTS: ReadonlySet<string> = new Set(["reset.d.ts", "platform.d.ts"]);
+
+/** Every package program (the base-include consumers + the three that override it) — the route for a
+ *  root ambient `.d.ts`. Mirrors tsconfig-routing-parity's CANDIDATE_TSCONFIGS minus the graph. */
+const PACKAGE_TSCONFIGS: readonly string[] = [
+  "packages/kit/tsconfig.json",
+  "packages/contracts/tsconfig.json",
+  "packages/db/tsconfig.json",
+  "packages/server/tsconfig.json",
+  UI_TSCONFIG,
+  CLIENT_TSCONFIG,
+];
+
 function isGraphOnlyTree(rel: string): boolean {
-  return rel.startsWith("tests/") || rel.startsWith("scripts/") || rel === "reset.d.ts" || ROOT_CONFIG_FILES.has(rel);
+  return rel.startsWith("tests/") || rel.startsWith("scripts/") || ROOT_AMBIENT_DTS.has(rel) || ROOT_CONFIG_FILES.has(rel);
 }
 
 /** The SET of tsconfig programs that CONTAIN this file (§2.2 — a file can belong to TWO programs: its
@@ -91,6 +113,11 @@ export function staticPrograms(rel: string): readonly string[] {
   }
   if (TESTS_UI_TSX_RE.test(rel) || (CT_SUPPORT_TSX_RE.test(rel) && rel !== CT_CLIENT_OWNED) || PLAYWRIGHT_TSX_DTS_RE.test(rel)) {
     return [UI_TSCONFIG];
+  }
+  // 3b. the repo-root AMBIENT pair → EVERY program (see ROOT_AMBIENT_DTS: they are in every include, and
+  //     a graph-only route lets the graph's @types/node mask per-package errors — a FALSE GREEN).
+  if (ROOT_AMBIENT_DTS.has(rel)) {
+    return [GRAPH, ...PACKAGE_TSCONFIGS];
   }
   // 4. the node graph roots (a .tsx here is claimed by rule 3 above — today none reach this arm).
   return isGraphOnlyTree(rel) ? [GRAPH] : [];
