@@ -51,8 +51,6 @@ const ALLOWLIST: Record<string, string> = {
     "`w-auto` on Select — the measured 2026-08-01 F1 content-width ruling (see the site comment); `auto` vs FIELD_CONTROL's `w-full` are both STANDARD width utilities, so tailwind-merge classifies them and the override is deterministic (no stylesheet-order hazard).",
   "packages/client/src/features/credentials/components/role-slot-row.tsx":
     "`w-auto min-w-32` on Select — the same content-width-Select pattern as character-library-toolbar (deterministic: auto vs w-full are tailwind-merge-classifiable).",
-  "packages/client/src/features/tag/components/tag-settings-row.tsx":
-    "`w-auto min-w-32` on Select — the same content-width-Select pattern as character-library-toolbar (deterministic: auto vs w-full are tailwind-merge-classifiable).",
   "packages/client/src/features/tag/components/tag-collection-rows.tsx":
     "`w-auto` on the roster's sort Select — the same content-width-Select pattern as character-library-toolbar (deterministic: `auto` vs FIELD_CONTROL's `w-full` are both tailwind-merge-classifiable standard width utilities). Without it the trigger claims the whole 330px roster band for a three-word label.",
   "packages/client/src/features/rpg/components/rpg-hud.tsx":
@@ -95,6 +93,14 @@ const MESSAGE =
 const STALE_ENTRY_MESSAGE_PREFIX =
   "ALLOWLIST entry has NO scoped size utility on a @orb/ui element any more — the survivor was reworked " +
   "onto a variant (ratchet down): delete the stale row in ui-size-via-variant.ts: ";
+
+/** Real-tree anchor (GATE-AUTHORING.md §4.5, the `no-hover-display-swap` precedent): `ctx.scope.kind ===
+ *  "project"` is TRUE inside gate-conformance's synthetic mini-projects too, so scope alone cannot gate
+ *  the stale arms. A permanent file that no example ever declares proves this is a REAL project run.
+ *  Deliberately NOT any ALLOWLIST/DEBT_BASELINE row's own path — gating a row's staleness on THAT row's
+ *  own file being loaded is exactly the mode-(B) blind spot this anchor exists to close: a deleted
+ *  survivor is never loaded, so a self-referential guard would skip it forever instead of flagging it. */
+const STALE_ARM_ANCHOR = "packages/ui/src/tokens/index.ts";
 
 const UI_SPECIFIER_RE = /^@orb\/ui(?:\/|$)/u;
 /** The Tailwind IMPORTANT modifier, stripped before classification. BOTH spellings the v4.3 engine actually
@@ -220,10 +226,14 @@ function reportOverBudget(ctx: GateRunCtx): void {
   }
 }
 
-/** ALLOWLIST stale arm: a sanctioned row with no scoped hit left in the (loaded) file — ratchet down. */
+/** ALLOWLIST stale arm: a sanctioned row with no scoped hit left this pass — either (A) the file still
+ *  exists but was reworked onto a variant, or (B) the file is GONE (deleted/moved/renamed) and so was
+ *  never visited at all. Both modes collapse to the same test: `passSeenAllowlisted` is only ever set
+ *  from a live `visit` hit, so an absent file is indistinguishable from a fixed one here — as it should
+ *  be, since both mean "nothing justifies this row any more." */
 function reportStaleAllowlist(ctx: GateRunCtx): void {
   for (const rel of Object.keys(ALLOWLIST)) {
-    if (!fileLoaded(ctx, rel) || passSeenAllowlisted.has(rel)) {
+    if (passSeenAllowlisted.has(rel)) {
       continue;
     }
     ctx.report({
@@ -236,12 +246,11 @@ function reportStaleAllowlist(ctx: GateRunCtx): void {
 }
 
 /** DEBT ratchet-down arm: a baseline row whose live count fell UNDER budget is stale — shrink or
- *  delete the row in DEBT_BASELINE (ui-size-via-variant.ts) so the debt can only go down. */
+ *  delete the row in DEBT_BASELINE (ui-size-via-variant.ts) so the debt can only go down. `live` already
+ *  defaults to 0 for a file `passHitsByFile` never saw a hit in — including a file that no longer exists
+ *  on the tree (mode B), which is exactly the "ratchet to 0" case this arm must catch. */
 function reportStaleBaseline(ctx: GateRunCtx): void {
   for (const [rel, budget] of Object.entries(DEBT_BASELINE)) {
-    if (!fileLoaded(ctx, rel)) {
-      continue;
-    }
     const live = passHitsByFile.get(rel)?.length ?? 0;
     if (live < budget) {
       ctx.report({
@@ -307,8 +316,8 @@ export const gate: GateDescriptor = {
   },
   finalize: (ctx) => {
     reportOverBudget(ctx);
-    if (ctx.scope.kind !== "project") {
-      return;
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
+      return; // the stale arms are whole-tree claims — never fire below project scope or off the anchor (§4.5)
     }
     reportStaleAllowlist(ctx);
     reportStaleBaseline(ctx);
@@ -350,6 +359,16 @@ export const gate: GateDescriptor = {
       files: 'import { Input } from "@orb/ui/input";\nexport const G = <Input className="focus:!h-9" />;\n',
       at: "packages/client/src/features/x/bangvariant.tsx",
       why: "important + a variant chain (focus:!h-9) — Tailwind puts `!` on the utility, so stripping happens AFTER the `:` split",
+    },
+    {
+      // Mode-(B) proof (GATE-AUTHORING.md §4.3b): a project that loads the real-tree anchor but NONE of
+      // the ALLOWLIST/DEBT_BASELINE paths — exactly what a deleted/renamed survivor looks like from this
+      // gate's vantage. Before the fix both stale arms were gated on the row's OWN file being loaded, so
+      // a project like this one (which never loads any exempted path) silently reported nothing —
+      // `tag-settings-row.tsx` rotted this way for a full day after F-11 deleted it.
+      files: { [STALE_ARM_ANCHOR]: "export const x = 1;\n" },
+      expect: { messageIncludes: "ALLOWLIST entry has NO scoped size utility" },
+      why: "the real-tree anchor loads but no ALLOWLIST/DEBT_BASELINE row's file does (the mode-B shape: gone from the tree) — every row must RED, not silently pass",
     },
   ],
   mustPass: [
