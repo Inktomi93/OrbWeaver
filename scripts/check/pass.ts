@@ -116,14 +116,19 @@ export type GateIgnoreMarker = {
 function judgeGateIgnore(gate: string, rawPosition: string | undefined, tail: string): GateIgnoreMarker {
   const afterName = tail.trimStart();
   const reason = afterName.startsWith(":") ? afterName.slice(1).trim() : "";
-  const positionEmpty = rawPosition !== undefined && rawPosition.length === 0;
-  return { gate, position: rawPosition === undefined || positionEmpty ? undefined : rawPosition, reason, malformed: reason.length === 0 || positionEmpty };
+  const positionEmpty = rawPosition?.length === 0;
+  return { gate, position: positionEmpty ? undefined : rawPosition, reason, malformed: reason.length === 0 || positionEmpty };
 }
 
 /** Parse ONE comment's text. `undefined` = the comment is not a gate-ignore marker at all. */
 export function parseGateIgnoreMarker(commentText: string): GateIgnoreMarker | undefined {
-  const m = new RegExp(GATE_IGNORE_SOURCE, "u").exec(commentText);
-  return m === null ? undefined : judgeGateIgnore(m[1] ?? "", m[2], m[3] ?? "");
+  // Biome's type lens believes `exec` is non-nullable; tsc types it `RegExpExecArray | null` and REDS the
+  // destructure without this guard. tsc wins — and a non-matching comment is the COMMON case here, so the
+  // null arm is the hot path, not a theoretical one.
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: exec IS nullable per tsc — see above
+  const m = new RegExp(GATE_IGNORE_SOURCE, "u").exec(commentText) ?? [];
+  const [, gate, position, tail] = m;
+  return gate === undefined ? undefined : judgeGateIgnore(gate, position, tail ?? "");
 }
 
 /** Every marker in a source text, with its 0-based text offset — the inventory gate's scanner. Kept HERE
@@ -157,27 +162,43 @@ export function gateIgnoreSuppressedInFinalize(): boolean {
   return gateIgnoreLateUse;
 }
 
+/** One node's LEADING comments: the position of the first WELL-FORMED marker that guards `gateName` at
+ *  `token`, or undefined. Extracted from the walk so the traversal stays under the complexity cap — a
+ *  malformed marker is skipped here (it suppresses nothing, §4.3) and reported by `gate-ignore-inventory`. */
+// biome-ignore lint/suspicious/noExplicitAny: AST traversal
+function suppressingCommentPos(scanNode: any, gateName: string, token: string | undefined): number | undefined {
+  // ONE return path: tsc's noImplicitReturns wants every path to return, biome calls a trailing
+  // `return;` unnecessary — an accumulator satisfies both without suppressing either.
+  let found: number | undefined;
+  if (typeof scanNode.getLeadingCommentRanges === "function") {
+    // biome-ignore lint/suspicious/noExplicitAny: AST traversal
+    for (const c of scanNode.getLeadingCommentRanges() as any[]) {
+      const marker = parseGateIgnoreMarker(c.getText());
+      const guardsThis = marker !== undefined && !marker.malformed && marker.gate === gateName;
+      if (guardsThis && (marker.position === undefined || marker.position === token)) {
+        found = c.getPos();
+        break;
+      }
+    }
+  }
+  return found;
+}
+
 /** Walk from the reported node up to its statement/file boundary, looking for a well-formed
  *  `// @orb-gate-ignore <gate-name>[(<token>)]: <reason>` suppression comment. Stops at the statement
  *  boundary so a comment above an unrelated sibling doesn't leak a suppression onto this node (§4.3b —
  *  the resolver is BLOCK-SCOPED, never file-scoped). Returns the marker's 1-based line so the caller can
  *  record the consumption; `undefined` = not suppressed. */
 function findGateIgnore(node: Node, gateName: string, token: string | undefined): number | undefined {
+  // Single return path — see suppressingCommentPos.
+  let line: number | undefined;
   // biome-ignore lint/suspicious/noExplicitAny: AST traversal
   let scanNode: any = node;
-  while (scanNode) {
-    if (typeof scanNode.getLeadingCommentRanges === "function") {
-      // biome-ignore lint/suspicious/noExplicitAny: AST traversal
-      for (const c of scanNode.getLeadingCommentRanges() as any[]) {
-        const marker = parseGateIgnoreMarker(c.getText());
-        if (marker === undefined || marker.malformed || marker.gate !== gateName) {
-          continue;
-        }
-        if (marker.position !== undefined && marker.position !== token) {
-          continue;
-        }
-        return node.getSourceFile().getLineAndColumnAtPos(c.getPos()).line;
-      }
+  while (scanNode !== undefined && line === undefined) {
+    const hit = suppressingCommentPos(scanNode, gateName, token);
+    if (hit !== undefined) {
+      line = node.getSourceFile().getLineAndColumnAtPos(hit).line;
+      break;
     }
     const kindName = typeof scanNode.getKindName === "function" ? scanNode.getKindName() : "";
     if (kindName === "SourceFile" || kindName.includes("Statement")) {
@@ -185,7 +206,7 @@ function findGateIgnore(node: Node, gateName: string, token: string | undefined)
     }
     scanNode = typeof scanNode.getParent === "function" ? scanNode.getParent() : undefined;
   }
-  return undefined;
+  return line;
 }
 
 function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report">): GateRun {
