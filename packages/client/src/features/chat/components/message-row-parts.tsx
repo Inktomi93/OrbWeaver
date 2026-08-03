@@ -272,6 +272,9 @@ export function renderRowActions(args: {
   readonly message: MessageView;
   readonly onChatForked: ((chatId: ChatId) => void) | undefined;
   readonly messageActions: "expanded" | "hover" | undefined;
+  /** WIREBTN — gates the kebab's host-only "View wire trace…" item (see `MessageActionsRow`). A draft
+   *  greeting has no server row, so `GreetingActionsRow` has nothing to trace and never takes it. */
+  readonly viewerIsHost: boolean | undefined;
 }): ReactNode {
   if (args.editing || args.selecting) {
     return null;
@@ -285,7 +288,7 @@ export function renderRowActions(args: {
       />
     );
   }
-  return <MessageActionsRow message={args.message} onChatForked={args.onChatForked} messageActions={args.messageActions} />;
+  return <MessageActionsRow message={args.message} onChatForked={args.onChatForked} messageActions={args.messageActions} viewerIsHost={args.viewerIsHost} />;
 }
 
 export function renderRowSwipe(args: {

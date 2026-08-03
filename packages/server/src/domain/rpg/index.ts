@@ -14,6 +14,10 @@ export { createRpgChatOps } from "./chat-ops";
 // the compose walk that builds the model's WRITE surface. Two spellings of that rule is exactly the §1.4
 // read/write drift the R2 reshape dissolved.
 export { actorCarrier } from "./chat-ops/tracker-view";
+// EDITSNAP-OK — the hand doors' errors-as-data VERDICT. Exported because compose CALLS those doors (the
+// demo-chat replay) and a caller that cannot name the refusal shape cannot check it; the type was already
+// the exported `RpgService`'s return type, so this adds a name, not surface.
+export type { HandDoorResult } from "./contract/results";
 export type {
   RpgContext,
   RpgCopyPresetToUser,

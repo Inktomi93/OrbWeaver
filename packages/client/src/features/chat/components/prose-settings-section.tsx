@@ -55,7 +55,16 @@ const PROSE_ENTITY_ID = "prose-settings";
 
 /** Every editable slot is `macros:"none"` — the only tokens that DO anything are the slot's own
  *  pre-substitution ones (`{{name}}`, `{{note}}`), spliced by the caller as a plain replace. Offering the
- *  general macro catalogue here would promise a resolution that never runs. */
+ *  general macro catalogue here would promise a resolution that never runs.
+ *
+ *  MACU-2 EXEMPTION (owner ruling 2026-08-03: the macro plane goes everywhere macros WORK — nowhere else).
+ *  Re-verified against the slot TABLE, not just this comment: of the 28 `PROSE_SLOTS` rows, all 11
+ *  `macros:"full"` slots are `home:"preset"` (edited in the preset editor, which already composes the user
+ *  plane through `PresetMacroSuggestions`), and every slot THIS section edits — `USER_PROSE_SLOT_IDS`, the
+ *  `home:"user"` set — is `macros:"none"`, i.e. the bytes ship verbatim, braces and all. There is no server
+ *  change that would make a user macro resolve here short of changing a slot's declared macro MODE, which is
+ *  a PROSE-1 product decision about what those bytes mean to the summarizers/memory/arbiter that read
+ *  them — not a client wiring gap. */
 function slotSuggestions(id: ProseSlotId): readonly MacroSuggestion[] {
   return PROSE_SLOTS[id].requiredMacros.map((macro) => ({
     name: macro.replaceAll(/[{}]/gu, ""),

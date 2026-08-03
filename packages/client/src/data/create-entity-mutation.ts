@@ -7,9 +7,13 @@
 // for a read), a lightweight variables-render ghost-row mode free on every mutation, and one sticky
 // error slot per mutation with explicit clearError(). Callback property order is
 // onMutate → onError → onSuccess → onSettled (type-inference-sensitive).
+//
+// THREE outcome classes, not two (EDITSNAP-OK): resolved-and-committed · threw (`errorToast`) · RESOLVED AND
+// REFUSED (`refusal`). The third is the one that goes silently wrong — see the `refusal` doc below.
 
 import type { DefaultError, MutateOptions, QueryKey, UseMutationOptions } from "@tanstack/react-query";
 import { useMutation } from "@tanstack/react-query";
+import { notify } from "#lib";
 import type { InvalidateFilter, Invalidation } from "./invalidation";
 import type { Trpc } from "./trpc";
 
@@ -41,6 +45,25 @@ interface EntityMutationBase<TVars, TData, TRead> {
    *  form may return `null` to suppress the toast for a specific error (e.g. a stale turn abort the bus
    *  surfaces its own notice for — see `isSilencedTurnAbort`). */
   readonly errorToast?: string | ((error: unknown) => string | null);
+  /**
+   * ERRORS-AS-DATA — the THIRD outcome class, beside "resolved" and "threw" (EDITSNAP-OK).
+   *
+   * A verb whose contract promises a LEGIBLE refusal (rpg's four hand doors return
+   * `{ok:false, reason}` as DATA — "a bad path is errors-as-data, never a wire reject") resolves this
+   * mutation NORMALLY: `errorToast` never fires, `mutation.error` stays null, `onError` never runs. So a
+   * fire-and-forget `.mutate()` call site — which is every one of them, because the write is bus/invalidate
+   * reconciled and nobody reads the return — drops the refusal on the floor. A five-plane scene write was
+   * lost to one 41-character label exactly this way, with the panel showing no sign at all.
+   *
+   * Return the sentence to toast, or `null` when this result is not a refusal. Declared on the FACTORY,
+   * not per call site: whether a verb can refuse-as-data is a property of the VERB, and putting it here is
+   * what makes the sweep total instead of a checklist that rots as call sites are added.
+   *
+   * A refused write is NOT authoritative for any read, so it suppresses `echo`; `onSettled` still runs, so
+   * an `invalidates` mutation repaints from the true server state (which is what un-does any optimistic
+   * write — `onError` cannot roll it back, because nothing errored).
+   */
+  readonly refusal?: (data: TData) => string | null;
 }
 
 /**
@@ -119,6 +142,13 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
         }
       },
       onSuccess: (data, vars, _onMutateResult, context) => {
+        // The errors-as-data arm runs FIRST: a refusal resolved, so this is the only callback that will ever
+        // see it, and a refused write must not seed a read as if it had committed.
+        const refusal = config.refusal?.(data) ?? null;
+        if (refusal !== null) {
+          notify.error(refusal);
+          return;
+        }
         if (config.echo === undefined) {
           return;
         }

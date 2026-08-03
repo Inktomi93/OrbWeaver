@@ -28,7 +28,7 @@ import type { RpgActorRef } from "@orb/contracts/rpg";
 import { actorRefKey, RPG_PACKAGED_PROFILE_BY_KEY, rpgSeedTrackers } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import type { DemoChatActorSeat, DemoChatGame, DemoChatGameActor, DemoChatSeat } from "#domain/chat";
-import type { RpgService } from "#domain/rpg";
+import type { HandDoorResult, RpgService } from "#domain/rpg";
 
 export interface DemoChatGameDoorDeps {
   /** Narrowed to the eight doors the replay actually drives (the `ExportDeps` precedent): the door is a
@@ -49,6 +49,25 @@ export interface DemoChatGameDoorArgs {
    *  already carries one. The caller KNOWS which it is — probing would mean catching rpg's deliberately
    *  leak-free not-found as control flow. */
   readonly mint: boolean;
+}
+
+/**
+ * EDITSNAP-OK — the errors-as-data CHECK every hand-door call in this file goes through.
+ *
+ * `patchActor`/`editSnapshot` refuse LEGIBLY as data (`HandDoorResult`): a bad plane, an unreachable datum or
+ * a value that fails the F1 write-boundary parse comes back `{ok:false, reason}` on a resolved promise, and
+ * `editSnapshot` rejects the WHOLE patch on ONE bad plane. Un-checked, a malformed manifest field therefore
+ * seeded a SILENTLY half-dressed example — the room and its transcript land, the scene planes simply don't,
+ * and nothing anywhere says so (a five-plane scene write was lost to one over-length label exactly this way).
+ *
+ * A refusal here is a bug in the DATA WE SHIP, never a user condition, so it throws rather than warns: the
+ * seeder's own `ensureSeeded` catch turns that into one `chat: demo-chat seed failed` error log naming the
+ * door and the reason, which is loud in dev and contained in prod.
+ */
+function assertHandWrote(door: string, chatId: ChatId, result: HandDoorResult): void {
+  if (!result.ok) {
+    throw new Error(`demo-chat game seed refused at rpg.${door} (chat ${chatId}): ${result.reason}`);
+  }
 }
 
 /** Run one awaited step per item, IN ORDER. Every rpg hand door is a read-modify-write against the game's
@@ -102,7 +121,7 @@ export function createDemoChatGameDoor(deps: DemoChatGameDoorDeps): (args: DemoC
         await rpg.patchSheet({ principal, chatId, actorRef, patch: actor.sheet });
       }
       if (actor.ops !== undefined && actor.ops.length > 0) {
-        await rpg.patchActor({ principal, chatId, targetRef: actorRef, ops: actor.ops, autoLock: false });
+        assertHandWrote("patchActor", chatId, await rpg.patchActor({ principal, chatId, targetRef: actorRef, ops: actor.ops, autoLock: false }));
       }
       if (actor.present === true) {
         present.push(actorRefKey(actorRef));
@@ -152,7 +171,7 @@ export function createDemoChatGameDoor(deps: DemoChatGameDoorDeps): (args: DemoC
     //    projects it).
     const snapshot = { ...(setup.snapshot ?? {}), ...(present.length > 0 ? { presentCharacters: present } : {}) };
     if (Object.keys(snapshot).length > 0) {
-      await rpg.editSnapshot({ principal, chatId, patch: snapshot, lockPaths: [] });
+      assertHandWrote("editSnapshot", chatId, await rpg.editSnapshot({ principal, chatId, patch: snapshot, lockPaths: [] }));
     }
 
     // 4. UNPIN. `upsertQuest` locks `quests.<id>` with no opt-out, so the only way an authored quest stays
@@ -169,7 +188,7 @@ export function createDemoChatGameDoor(deps: DemoChatGameDoorDeps): (args: DemoC
     if (lockedPaths.length === 0) {
       return;
     }
-    await rpg.editSnapshot({ principal, chatId, patch: {}, lockPaths: [], releaseLocks: [...lockedPaths] });
+    assertHandWrote("editSnapshot(release)", chatId, await rpg.editSnapshot({ principal, chatId, patch: {}, lockPaths: [], releaseLocks: [...lockedPaths] }));
   }
 
   return async (args: DemoChatGameDoorArgs): Promise<void> => {

@@ -16,12 +16,11 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
-import { useInvalidation, useTRPC } from "#data";
+import { useInvalidation, usePromptMacroSuggestions, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { ASSISTANT_PREFILL_WARNING, MESSAGE_ROLE_ITEMS } from "#lib";
 import { PersonaForm } from "../hooks/use-persona-form";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations";
-import { PERSONA_DESCRIPTION_MACROS } from "../lib/persona-description-macros";
 import type { PersonaFormValues } from "../lib/persona-editor-model";
 import { isPrefillCombo, personaFormFromEntity, personaInputFromForm } from "../lib/persona-editor-model";
 import { PersonaLoreBookField } from "./persona-world-books-section";
@@ -81,6 +80,11 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const duplicate = useDuplicatePersona({ trpc, invalidation });
+  // MACU-2 — the builtin catalog UNION the active preset's user macros. A persona description is rendered
+  // through the PER-TURN macro registry at assembly (`renderMacros`, the registry `buildTurnUserMacros`
+  // composes), so a user macro genuinely resolves here; offering only three builtins was a taste list
+  // standing in for the vocabulary.
+  const macroSuggestions = usePromptMacroSuggestions();
   const baseMetadata: PersonaMetadata | null = persona.metadata;
 
   return (
@@ -97,7 +101,7 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
             <field.MacroField
               label="Description"
               hint="How this persona is described to the model. Use {{user}}/{{persona}} to self-reference."
-              suggestions={PERSONA_DESCRIPTION_MACROS}
+              suggestions={macroSuggestions}
               rows={6}
               showTokenCount={true}
             />
