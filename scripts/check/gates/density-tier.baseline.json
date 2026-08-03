@@ -37,12 +37,11 @@
   "packages/client/src/features/persona/components/persona-editor.tsx": 4,
   "packages/client/src/features/persona/components/persona-panel-row.tsx": 4,
   "packages/client/src/features/persona/components/persona-this-chat-section.tsx": 3,
-  "packages/client/src/features/persona/surfaces/persona-panel-surface.tsx": 8,
+  "packages/client/src/features/persona/surfaces/persona-panel-surface.tsx": 4,
   "packages/client/src/features/preset/components/macro-browser.tsx": 8,
   "packages/client/src/features/preset/components/prompt-assembly/assembly-preview.tsx": 24,
   "packages/client/src/features/preset/components/user-macros-tab.tsx": 2,
   "packages/client/src/features/preset/components/variable-editor-dialog.tsx": 2,
   "packages/client/src/features/preset/surfaces/preset-editor-surface.tsx": 1,
-  "packages/client/src/features/world-info/components/book-attachments.tsx": 4,
   "packages/client/src/features/world-info/components/entry-editor.tsx": 3
 }

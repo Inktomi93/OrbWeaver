@@ -14,7 +14,7 @@ export { chatsWithCharacter } from "./chats-with-character";
 export type { ClientErrorPayload } from "./client-error-report";
 export { buildClientErrorPayload } from "./client-error-report";
 export type { CollectionContext, CollectionContribution, CollectionDetailView, CollectionListView } from "./collection-contracts";
-export { COLLECTION_LARGE_GROUP } from "./collection-contracts";
+export { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT } from "./collection-contracts";
 export type {
   CharacterDetailAnchor,
   CharacterDetailContribution,

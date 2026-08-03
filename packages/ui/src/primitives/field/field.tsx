@@ -21,6 +21,18 @@ export function FieldLayout({ orientation, children }: { readonly orientation: F
 export interface FieldProps extends Omit<FieldRootProps, "className"> {
   /** Visible label — Base UI associates it with the control child automatically. */
   label: ReactNode;
+  /**
+   * The id of a control this Field does NOT own — an element that is not a `Field.Control` (the CodeMirror
+   * editable surface is the live case). Base UI mints a `for` from the Field context regardless, so without
+   * this the label ships a `for` pointing at an element that never mounts: `getElementById` returns null and
+   * clicking the label does nothing, while every sibling label focuses its field (side-eye 2026-08-03 P2).
+   *
+   * It sets BOTH halves, because `for` alone cannot carry them: the attribute (so the DOM association is
+   * true rather than dangling) and a click that focuses the element (HTML only forwards a label click to
+   * LABELABLE elements — an `[contenteditable]` / `role=textbox` div is not one, so the attribute alone
+   * would still be inert). The foreign control keeps its own `aria-label` for the accessible name.
+   */
+  labelFor?: string;
   description?: ReactNode;
   /** Layout of label vs control. Defaults to the ambient `FieldLayout` (else `vertical`). */
   orientation?: FieldOrientation;
@@ -36,6 +48,7 @@ export interface FieldProps extends Omit<FieldRootProps, "className"> {
 /** Labeled-form-row primitive — Base UI Field sealed as Root/Label/Description/Error around a composed control. */
 export function Field({
   label,
+  labelFor,
   description,
   hint,
   orientation,
@@ -61,7 +74,18 @@ export function Field({
   }
 
   const labelText = (
-    <BaseField.Label className={slots.label()} data-slot="field-label">
+    <BaseField.Label
+      className={slots.label()}
+      data-slot="field-label"
+      {...(labelFor === undefined
+        ? {}
+        : {
+            htmlFor: labelFor,
+            onClick: (): void => {
+              document.getElementById(labelFor)?.focus();
+            },
+          })}
+    >
       {label}
     </BaseField.Label>
   );

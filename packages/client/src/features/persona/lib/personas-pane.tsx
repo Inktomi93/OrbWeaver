@@ -4,18 +4,18 @@
 import { Drama } from "@orb/ui/icons";
 import type { SettingsPaneDefinition } from "#state";
 import { PersonaSettingsSurface } from "../surfaces/persona-settings-surface";
-import { PERSONA_SUBCATEGORY_IDS } from "./personas-nav";
+import { PERSONA_SUBCATEGORY_IDS, PERSONA_SUBCATEGORY_LABEL } from "./personas-nav";
 
 export const personasPane: SettingsPaneDefinition = {
   id: "personas",
   group: "user",
   label: "Personas",
   icon: Drama,
-  description: "Persona notifications. Edit, import and export personas from the rail-foot panel.",
+  description: "Your personas — create, edit, import and export — plus the persona-change notification.",
   subcategories: [
     {
       id: PERSONA_SUBCATEGORY_IDS.personas,
-      label: "Personas",
+      label: PERSONA_SUBCATEGORY_LABEL,
       settings: [
         {
           id: "persona-notifications",

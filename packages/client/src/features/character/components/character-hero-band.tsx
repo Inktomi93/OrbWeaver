@@ -15,6 +15,7 @@ import { ChevronRight, Eye, EyeOff, Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
@@ -157,17 +158,38 @@ function HeroPortrait({ detail, trpc }: { readonly detail: CharacterHeroDetail; 
 
 const CONFIRM_MS = 1500;
 
-/** Read-only accent preview — the theme control itself lives in the CONTEXT Appearance tab. */
-function AccentSwatch({ themeOverride }: { readonly themeOverride: ThemeOverride | null }): ReactElement {
+/**
+ * The card's OWN-LOOK marker — read-only; the theme control lives in the CONTEXT Appearance tab.
+ *
+ * IT ONLY RENDERS WHEN THERE IS SOMETHING TO MARK, AND IT SAYS WHAT IT MEANS (side-eye 2026-08-03, the
+ * cold-first-timer finding). It used to render unconditionally: a bare 16px dot with an ALL-CAPS
+ * "APPEARANCE" floating at the right edge of the Name field, no border, no tooltip, no affordance — the
+ * reviewer had to read source to learn it meant "this character carries a theme override", and on a card
+ * with NO override it painted the global primary, i.e. a marker for a fact that wasn't true. An override-less
+ * card now shows nothing (the honest absence), and a card that carries one says so in words the reader can
+ * act on.
+ */
+function AccentSwatch({ themeOverride }: { readonly themeOverride: ThemeOverride | null }): ReactElement | null {
+  if (themeOverride === null || Object.keys(themeOverride).length === 0) {
+    return null;
+  }
+  const label = "This card carries its own look — edit it in the Appearance tab.";
   return (
-    <Row gap="field" align="center">
-      <ThemeScope className="size-4 shrink-0 rounded-full bg-primary" tokens={themeOverride ?? {}}>
-        {null}
-      </ThemeScope>
-      <Text size="micro" tone="muted" transform="caps">
-        Appearance
-      </Text>
-    </Row>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Row aria-label={label} gap="field" align="center" role="img">
+            <ThemeScope className="size-4 shrink-0 rounded-full bg-primary ring-1 ring-border" tokens={themeOverride}>
+              {null}
+            </ThemeScope>
+            <Text size="micro" tone="muted" transform="caps">
+              Own look
+            </Text>
+          </Row>
+        }
+      />
+      <TooltipPopup side="bottom">{label}</TooltipPopup>
+    </Tooltip>
   );
 }
 

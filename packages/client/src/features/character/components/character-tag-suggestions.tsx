@@ -1,7 +1,7 @@
 // The character-editor tag-suggestion strip — a self-contained companion to CharacterTagsRow. Renders the
 // staged (pending) auto/card tag suggestions distinctly from the accepted chips, each with Accept/Reject,
-// plus "Suggest tags" (runs the on-demand distill producer) and a "Manage tags" deep-link to Settings →
-// Tags via the shell store's `openSettingsTo` seam (no settings feature import).
+// plus "Suggest tags" (runs the on-demand distill producer). The "Manage tags" deep-link that used to sit
+// beside it is gone — see the §8-ceiling note at its old position.
 //
 // VOICE (density-pass-spec §3.2 CD3 — one focal element per surface): a suggestion is PENDING metadata, so
 // it is the quietest thing on the editor. The chips are `ghost` badges — no fill, a hairline outline, the
@@ -17,17 +17,14 @@ import type { TagSuggestionView } from "@orb/contracts/tag";
 import type { CharacterId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Check, Icon, Settings, Sparkles, X } from "@orb/ui/icons";
+import { Check, Icon, Sparkles, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
-import { goToCollection } from "#state";
 import { useAcceptSuggestion, useRejectSuggestion, useSuggestCharacterTags } from "../hooks/use-tag-suggestion-mutations";
-
-const TAGS_COLLECTION = "tags";
 
 export interface CharacterTagSuggestionsProps {
   readonly characterId: CharacterId;
@@ -73,13 +70,15 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
           ))}
         </Row>
       )}
+      {/* "MANAGE TAGS" IS GONE (side-eye 2026-08-03, the §8 four-option ceiling). One screen offered five
+          competing doors for one concept — `+ Add tag`, accept/dismiss per suggestion, `Suggest tags`,
+          `Manage tags` — and this was the one that left the card entirely. The tag LIBRARY has a home now
+          (the Configuration workspace's Tags collection, one rail click away); a per-card shortcut to a
+          sibling section is not a capability, it is a fifth option at a decision point that already had
+          four. The three that remain all act on THIS card. */}
       <Button type="button" size="sm" intent="ghost" disabled={suggest.isPending} onClick={(): void => suggest.mutate({ characterId })}>
         <Icon icon={Sparkles} size="sm" />
         {suggest.isPending ? "Suggesting…" : "Suggest tags"}
-      </Button>
-      <Button type="button" size="sm" intent="ghost" onClick={(): void => goToCollection(TAGS_COLLECTION)}>
-        <Icon icon={Settings} size="sm" />
-        Manage tags
       </Button>
     </Row>
   );

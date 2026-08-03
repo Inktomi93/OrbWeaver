@@ -12,7 +12,7 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { FileTrigger } from "@orb/ui/file-trigger";
-import { ChevronRight, CircleUser, Drama, Icon, Plus, Star, Upload } from "@orb/ui/icons";
+import { ChevronRight, CircleUser, Drama, Icon, Plus, Upload } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Separator } from "@orb/ui/separator";
@@ -106,8 +106,12 @@ function PanelBody({ presentation }: { readonly presentation: ChromePresentation
     <Stack gap="row">
       <AccountStrip />
       <Separator />
+      {/* ONE HOME FOR THE PLAYING-AS PERSONA (side-eye 2026-08-03 P2). This band used to render the current
+          persona's avatar + name under a `PLAYING AS` kicker, 40px above the SAME persona's row in the list
+          below — one identity, two anatomies, 40px apart. The row is the better home (it is where you switch,
+          and it already carries `aria-current` and the selected tint), so it now says "Playing as" in words
+          and the band is what a band is: the collection's name and its two verbs. */}
       <PersonaHeader
-        current={current}
         onImport={(file): void => {
           void onImportFile(file);
         }}
@@ -116,9 +120,6 @@ function PanelBody({ presentation }: { readonly presentation: ChromePresentation
         }}
       />
       <Separator />
-      <Text size="micro" tone="muted" transform="caps">
-        Your personas
-      </Text>
       <Stack gap="field">
         {personas.length === 0 ? (
           <EmptyState
@@ -217,34 +218,15 @@ function AccountStrip(): ReactElement {
   );
 }
 
-/** The "playing as" identity + the create affordance. */
+/** The roster's BAND — its name and its two verbs. The playing-as identity lives on the row (see above). */
 const IMPORT_LABEL = "Restore a persona from a backup file";
 
-function PersonaHeader({
-  current,
-  onNew,
-  onImport,
-}: {
-  readonly current: PersonaListItem | null;
-  readonly onNew: () => void;
-  readonly onImport: (file: File) => void;
-}): ReactElement {
-  const avatarSrc = current === null || current.avatarHash === null ? {} : { src: blobUrl(current.avatarHash) };
+function PersonaHeader({ onNew, onImport }: { readonly onNew: () => void; readonly onImport: (file: File) => void }): ReactElement {
   return (
     <Row gap="row" align="center" className="justify-between">
-      <Row gap="field" align="center" className="min-w-0">
-        <Avatar fallbackDelay={0} hueSeed={current?.id ?? "none"} size="sm" {...avatarSrc}>
-          {current === null ? <Icon icon={Star} size="sm" /> : initialsFor(current.name)}
-        </Avatar>
-        <Stack gap="field" className="min-w-0">
-          <Text size="micro" tone="muted" transform="caps">
-            Playing as
-          </Text>
-          <Text weight="medium" className="truncate">
-            {current === null ? "No persona yet" : current.name}
-          </Text>
-        </Stack>
-      </Row>
+      <Text size="micro" tone="muted" transform="caps">
+        Your personas
+      </Text>
       {/* Exactly ONE primary (New); Import sits beside it as a ghost icon — the preset band's grammar.
           `size="icon"` (not `sm`) so the icon-only trigger keeps the token-driven 44px coarse floor, and the
           native `title` is the SAME string as the aria-label so tooltip and accessible name can't drift. */}

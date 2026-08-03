@@ -23,12 +23,12 @@ import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { LibraryRow } from "#components";
+import { ConfirmDialog, LibraryRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { CollectionListView } from "#lib";
-import { COLLECTION_LARGE_GROUP } from "#lib";
+import { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT } from "#lib";
 import { usePruneUnusedTags, useSetTagOrder } from "../hooks/use-tag-settings-mutations";
-import { usageTotalLabel } from "../lib/tags-model";
+import { unusedTagsLabel, usageTotalLabel } from "../lib/tags-model";
 
 /** One compact row's height guess for the windowed arm (swatch + name + usage on one line). */
 const ESTIMATED_ROW_PX = 36;
@@ -42,7 +42,8 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
 
   const needle = view.filter.trim().toLowerCase();
   const filtered = needle === "" ? tags : tags.filter((tag) => tag.name.toLowerCase().includes(needle));
-  const hasUnused = tags.some((tag) => tag.usage.total === 0);
+  const unusedCount = tags.filter((tag) => tag.usage.total === 0).length;
+  const hasUnused = unusedCount > 0;
 
   const renderRow = (tag: TagWithUsage): ReactElement => (
     <TagCollectionRow key={tag.id} onSelect={(): void => view.onSelect(tag.id)} selected={view.selectedId === tag.id} tag={tag} />
@@ -50,13 +51,19 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
 
   const windowed = tags.length > COLLECTION_LARGE_GROUP;
   const empty = filtered.length === 0;
+  // A FILTER MISS AND AN EMPTY LIBRARY ARE DIFFERENT STATES (side-eye 2026-08-03 P1). `filtered.length === 0`
+  // printed "No tags match that filter." with no filter set — and stacked it above the host's own zero-member
+  // slot, so an empty collection said two things, one of them false (the filter box isn't even rendered
+  // below COLLECTION_LARGE_GROUP). The needle is the discriminant; with no needle the host's empty slot is
+  // the only voice.
+  const filterMiss = empty && needle !== "";
   return (
     <Stack gap="tight">
-      {empty ? <Text voice="gloss">No tags match that filter.</Text> : null}
+      {filterMiss ? <Text voice="gloss">No tags match that filter.</Text> : null}
       {empty || !windowed ? null : (
         <VirtualList
           aria-label="Tags"
-          className="max-h-96"
+          className={COLLECTION_WINDOW_MAX_HEIGHT}
           estimateSize={(): number => ESTIMATED_ROW_PX}
           gapToken="field"
           getItemKey={(tag): string => tag.id}
@@ -74,15 +81,33 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
         />
       )}
       {/* The library-level verb rides the OWNER's half of the group body — the host's band carries only the
-          create verb, and "prune" is a fact about this library nobody else can state. */}
-      {hasUnused ? (
-        <Row justify="end">
-          <Button intent="ghost" onClick={(): void => prune.mutate()} size="sm" type="button">
+          create verb, and "prune" is a fact about this library nobody else can state.
+          IT CONFIRMS (side-eye 2026-08-03 P2): it was a bare `prune.mutate()` on a ghost button sitting one
+          row under a virtualized list — at the owner's 430-tag library that is a single mis-click from
+          deleting 394 rows with no undo. Every other destructive verb in this workspace already carries a
+          ConfirmDialog; the count goes IN the copy, because "delete unused tags" and "delete 394 tags" are
+          different decisions. */}
+      {hasUnused ? <PruneUnusedControl count={unusedCount} onConfirm={(): void => prune.mutate()} /> : null}
+    </Stack>
+  );
+}
+
+/** "Prune unused" + its confirm — the mass-delete's one door (the ConfirmDialog homing precedent). */
+function PruneUnusedControl({ count, onConfirm }: { readonly count: number; readonly onConfirm: () => void }): ReactElement {
+  return (
+    <Row justify="end">
+      <ConfirmDialog
+        confirmLabel="Delete them"
+        description={`This deletes ${unusedTagsLabel(count)} — every tag attached to nothing. This can't be undone.`}
+        onConfirm={onConfirm}
+        title={`Delete ${unusedTagsLabel(count)}?`}
+        trigger={
+          <Button intent="ghost" size="sm" type="button">
             Prune unused
           </Button>
-        </Row>
-      ) : null}
-    </Stack>
+        }
+      />
+    </Row>
   );
 }
 

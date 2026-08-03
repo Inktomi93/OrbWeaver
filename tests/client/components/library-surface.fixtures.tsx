@@ -40,7 +40,7 @@ export function LibraryListHarness(): ReactElement {
       >
         {ROWS.map((row) => (
           <LibraryRow
-            actionsReserved={true}
+            actionsReserved={3}
             key={row.id}
             onSelect={NOOP}
             selected={false}

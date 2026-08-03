@@ -38,6 +38,12 @@ import type { ReactNode } from "react";
  *  library is ~400 tags, so "the list is a glance" stops being true well before then. */
 export const COLLECTION_LARGE_GROUP = 30;
 
+/** The windowed-arm box's height cap, spelled ONCE for every collection (side-eye 2026-08-03 P3 flagged it
+ *  re-spelled in all three row files). It is a CAP, not a height: three collapsible bands share one scroll
+ *  column, so an uncapped (or pane-filling) first library would push every sibling band below the fold —
+ *  the exact failure collapsed-by-default groups exist to prevent. */
+export const COLLECTION_WINDOW_MAX_HEIGHT = "max-h-96";
+
 /** What the host hands a collection's LIST half. */
 export interface CollectionListView {
   /** Selection arrives KIND-PRE-BOUND: non-null only when the selected member belongs to THIS collection. */
@@ -63,7 +69,16 @@ export interface CollectionDetailView {
  *  would otherwise say one sentence for a tag and for a world book, and "nothing selected" would be a lie:
  *  something IS selected, this collection just has nothing to attach. */
 export type CollectionContext =
-  | { readonly kind: "body"; readonly render: (view: CollectionDetailView) => ReactNode }
+  | {
+      readonly kind: "body";
+      /** The CONTEXT BAND's title while a member of this collection is open — REQUIRED, so a new collection
+       *  cannot ship voiceless. It names what the pane ANSWERS, in this collection's own words ("Where it
+       *  runs"), never the word "Details": the mock's band said "WHERE IT RUNS", and the generic default
+       *  named nothing while two sibling arms below it spoke two different grammars (side-eye 2026-08-03
+       *  P3). Same discipline as `ContextEmptyArm`'s no-default rule, one tier down. */
+      readonly title: string;
+      readonly render: (view: CollectionDetailView) => ReactNode;
+    }
   | { readonly kind: "none"; readonly title: string; readonly description: string };
 
 /** A feature-contributed member COLLECTION. A feature raises one; the config host skims it — the host

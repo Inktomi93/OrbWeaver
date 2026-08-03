@@ -20,7 +20,7 @@ import { Package } from "@orb/ui/icons";
 import { ListPaneHeader } from "#components";
 import type { CollectionContribution, ContributorRegistry } from "#lib";
 import type { SectionDefinition } from "#state";
-import { ConfigContextBody } from "../components/config-context-body";
+import { ConfigContextBody, ConfigContextHeader } from "../components/config-context-body";
 import { ConfigContentSurface } from "../surfaces/config-content-surface";
 import { ConfigRosterSurface } from "../surfaces/config-roster-surface";
 import { CONFIG_CONTEXT_EMPTY } from "./config-copy";
@@ -43,6 +43,8 @@ export function makeConfigSection(collections: ContributorRegistry<CollectionCon
     context: {
       kind: "single",
       body: () => <ConfigContextBody collections={collections} />,
+      // The band names what the pane answers for the OPEN member's collection, never the neutral "Details".
+      header: () => <ConfigContextHeader collections={collections} />,
       empty: CONFIG_CONTEXT_EMPTY,
     },
   };

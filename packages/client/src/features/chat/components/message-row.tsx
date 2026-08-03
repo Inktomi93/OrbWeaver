@@ -187,6 +187,7 @@ export function MessageRow({
     personaAvatarsById,
     characterAvatarsById,
     activePersonaId,
+    narratorRoom,
   });
   const render = resolveRowRenderPolicy({
     role,

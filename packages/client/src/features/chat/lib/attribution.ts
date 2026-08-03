@@ -17,6 +17,7 @@ import { cardEmbeddableSubset } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, PersonaId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
+import { hueDistance, oklchHue } from "@orb/kit/safe-color";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { colorForCharacter } from "./speaker-color";
 
@@ -74,6 +75,20 @@ export interface ResolveRowAttributionInput {
   readonly characterAvatarsById?: ReadonlyMap<CharacterId, string | null> | undefined;
   /** Fallback for legacy rows with a null personaId; never the chat's anchorPersonaId pin. */
   readonly activePersonaId?: PersonaId | null | undefined;
+  /**
+   * The room's output mode is NARRATOR (`group.output === "narrator"`) — every assistant row is one merged,
+   * narrator-voiced turn, which is the SAME predicate `MessageRow.isNarratorVoiced` gates the in-body
+   * speaker-span grammar on.
+   *
+   * It exists because `NARRATOR_ATTRIBUTION` was UNREACHABLE in exactly the room it was written for
+   * (side-eye 2026-08-03 P1). A narrator turn is persisted against the room's SYNTHETIC group character
+   * (`domain/character/substrate/group-character.ts` — handle `__group__<chatId>`, card name **"Group"**, a
+   * never-rendered memory bucket by its own header), and that id is a real `characters` row, so it rides the
+   * chat's `characterNames` producer like any cast member. The `characterId === null` branch below therefore
+   * never fired: every row resolved a name — "Group" — and an id-hashed magenta tint, and the reader was
+   * shown a fake cast member in a room that has none.
+   */
+  readonly narratorRoom?: boolean | undefined;
 }
 
 export function resolveRowAttribution(input: ResolveRowAttributionInput): RowAttribution {
@@ -104,6 +119,11 @@ function resolveUserAttribution(input: ResolveRowAttributionInput): RowAttributi
 }
 
 function resolveAssistantAttribution(input: ResolveRowAttributionInput): RowAttribution {
+  // A narrator room's assistant row IS the narrator, whatever producer id the write stamped on it — see
+  // `narratorRoom`. This has to lead: the stamped id resolves to a name, so every branch below it succeeds.
+  if (input.narratorRoom === true) {
+    return NARRATOR_ATTRIBUTION;
+  }
   if (input.characterId === null) {
     return isMultiCharacterRoom(input.participants) ? NARRATOR_ATTRIBUTION : NO_ATTRIBUTION;
   }
@@ -178,11 +198,46 @@ export function speakerThemesByName(participants: ReadonlyMap<CharacterId, Parti
   if (participants === undefined) {
     return byName;
   }
+  const claimedHues: number[] = [];
   for (const participant of participants.values()) {
     if (participant.kind !== "character" || participant.characterId === null) {
       continue;
     }
-    byName.set(participant.displayName, characterTint(participant.characterId, participant.themeOverride, true));
+    const tint = characterTint(participant.characterId, participant.themeOverride, true);
+    const resolved = deCollideDialogueHue(participant.characterId, tint, claimedHues);
+    const hue = resolved.dialogueColor === undefined ? null : oklchHue(resolved.dialogueColor);
+    if (hue !== null) {
+      claimedHues.push(hue);
+    }
+    byName.set(participant.displayName, resolved);
   }
   return byName;
+}
+
+/** How far apart two speakers' DIALOGUE hues must sit before a reader can tell them apart at all. Measured,
+ *  not chosen: the demo room shipped `oklch(0.85 0.10 80)` beside `oklch(0.85 0.08 72)` — 8° at one
+ *  lightness — and the two speakers' spans read as one colour, so the feature looked broken in the room
+ *  built to show it off (side-eye 2026-08-03 P2). 24° is the smallest separation that survives a body-text
+ *  span at this app's fixed L/C. */
+const MIN_DIALOGUE_HUE_SEPARATION = 24;
+
+/**
+ * Keep one room's dialogue spans distinguishable.
+ *
+ * The tints come from AUTHORED `themeOverride`s, which carry no cross-member guarantee — two cards written
+ * months apart by different people land wherever they land. When an authored dialogue hue falls inside
+ * {@link MIN_DIALOGUE_HUE_SEPARATION} of one a speaker earlier in the roster already holds, this speaker's
+ * dialogue (and only its dialogue) falls back to the deterministic id-hash, which is spread across the whole
+ * wheel by construction. Everything else the card authored — speaker name colour, narration, bubble — is
+ * untouched: the card's look is its own, and only the ONE token that has to be legible AGAINST A SIBLING is
+ * arbitrated. A non-oklch authored value is left alone entirely (`oklchHue` returns null — see its header:
+ * no de-collision against a fabricated number).
+ */
+function deCollideDialogueHue(characterId: CharacterId, tint: ThemeScopeTokens, claimedHues: readonly number[]): ThemeScopeTokens {
+  const dialogue = tint.dialogueColor;
+  const hue = dialogue === undefined ? null : oklchHue(dialogue);
+  if (hue === null || !claimedHues.some((claimed) => hueDistance(claimed, hue) < MIN_DIALOGUE_HUE_SEPARATION)) {
+    return tint;
+  }
+  return { ...tint, dialogueColor: colorForCharacter(characterId).dialogueColor };
 }

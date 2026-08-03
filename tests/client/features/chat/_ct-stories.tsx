@@ -311,33 +311,57 @@ export interface NarratorTranscriptStoryProps {
   /** The character whose OWN per-speaker row is rendered beside it — the color comparand. */
   readonly ownRowCharacterId: CharacterId;
   readonly ownRowContent: string;
+  /**
+   * The PRODUCER id the narrator row is stamped with, and a name for it in the producer map — the room's
+   * synthetic group character, exactly as the server ships it (`__group__<chatId>`, card name "Group").
+   * Omit for the plain `characterId: null` narrator row.
+   */
+  readonly narratorProducer?: { readonly id: CharacterId; readonly name: string };
 }
 
 /** TWO rows of ONE narrator-grammar transcript in a SINGLE mount (the mount-once law): a narrator row
  *  (no single author ⇒ `characterId: null`) above that character's own per-speaker row. The CT reads the
- *  resolved `--color-dialogue` off both paths and requires them equal — the one-hash-input pin. */
-export function NarratorTranscriptStory({ participants, narratorContent, ownRowCharacterId, ownRowContent }: NarratorTranscriptStoryProps): ReactElement {
+ *  resolved `--color-dialogue` off both paths and requires them equal — the one-hash-input pin.
+ *
+ *  ONLY THE NARRATOR ROW IS `narratorRoom` (fixed 2026-08-03). The flag is a property of the ROOM's output
+ *  mode, and in a narrator room EVERY assistant row is the merged narrator — so a per-speaker row simply
+ *  does not exist there. Passing the flag to both rows was harmless only while it changed nothing but the
+ *  span grammar; now that it also routes attribution (a narrator row is the Narrator whatever producer id
+ *  the write stamped on it — side-eye 2026-08-03 P1), the comparand row has to be what it depicts: the same
+ *  character's row in a PER-SPEAKER room. */
+export function NarratorTranscriptStory({
+  participants,
+  narratorContent,
+  ownRowCharacterId,
+  ownRowContent,
+  narratorProducer,
+}: NarratorTranscriptStoryProps): ReactElement {
   const participantsMap = new Map(
     participants.filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null).map((p) => [p.characterId, p] as const),
   );
-  const characterNamesById = buildCharacterNameMap(
-    participants
+  const characterNamesById = buildCharacterNameMap([
+    ...participants
       .filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null)
       .map((p) => ({ id: p.characterId, name: p.displayName })),
-  );
+    // The synthetic group card rides the producer like any cast member — that is the whole defect.
+    ...(narratorProducer === undefined ? [] : [narratorProducer]),
+  ]);
   const rowProps = {
     chatStyle: "bubble",
     participants: participantsMap,
     characterNamesById,
     personaNamesById: buildPersonaNameMap([]),
-    narratorRoom: true,
     toolRenderers: NO_TOOL_RENDERERS,
   } as const;
   return (
     <CtDataProviders>
       <MessageThreadAnchor>
         <div data-testid="narrator-row">
-          <MessageRow message={makeMessageView({ role: "assistant", content: narratorContent, characterId: null })} {...rowProps} />
+          <MessageRow
+            message={makeMessageView({ role: "assistant", content: narratorContent, characterId: narratorProducer === undefined ? null : narratorProducer.id })}
+            narratorRoom={true}
+            {...rowProps}
+          />
         </div>
         <div data-testid="own-row">
           <MessageRow message={makeMessageView({ role: "assistant", content: ownRowContent, characterId: ownRowCharacterId })} {...rowProps} />

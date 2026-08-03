@@ -26,14 +26,23 @@ export interface ConfigWelcomeProps {
 
 export function ConfigWelcome({ collections }: ConfigWelcomeProps): ReactElement {
   return (
-    <Stack align="center" gap="block" className="mx-auto max-w-prose p-block" data-slot="config-welcome">
+    // No padding of its own: the CONTENT region pads itself now (config-content-surface), and the welcome's
+    // old `p-block` was the reason the editors' missing inset read as deliberate.
+    <Stack align="center" gap="block" className="mx-auto max-w-prose" data-slot="config-welcome">
       <Icon icon={Package} size="lg" />
       <Heading level={2}>The parts every chat is built from</Heading>
+      {/* ONE SENTENCE TRUE FOR BOTH READERS (side-eye 2026-08-03 P2). The close used to be "each one starts
+          paying off the moment you make the first", which is first-run copy this pane was still printing at
+          430 tags and 34 scripts. The one-voice deviation stated in the header stands — what changed is only
+          that the sentence no longer assumes an empty library. */}
       <Text prose={true}>
-        Tags label your library. Regex scripts rewrite text on its way in or out. World books hold the lore your characters draw on. Nothing here is required —
-        each one starts paying off the moment you make the first.
+        Tags label your library. Regex scripts rewrite text on its way in or out. World books hold the lore your characters draw on. Nothing here is required,
+        and nothing here is spent once — build a part, then attach it wherever you need it.
       </Text>
-      <Grid cols="cell" gap="field">
+      {/* `auto` (16rem), not `cell` (8.5rem): these are LAUNCHER cards with a sentence and a verb, not dense
+          item tiles, and at the cell width the count pushed `REGEX SCRIPTS` onto a second line while its
+          one-word siblings stayed on one (side-eye P3). */}
+      <Grid cols="auto" gap="field">
         {orderCollections(collections).map((collection) => (
           <CollectionLauncher collection={collection} key={collection.id} />
         ))}
