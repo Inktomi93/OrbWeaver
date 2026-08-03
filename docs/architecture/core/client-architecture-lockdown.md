@@ -18,7 +18,7 @@ updated: 2026-08-03
 2. **Features touch ZERO CSS.** No `className`/`style` on a raw intrinsic element anywhere in client src (ESLint, LIVE); no `.css` file in a feature (gate G14). Values come from DTCG tokens; skins from `@orb/ui` `variants.ts`; structural layout from `shell.css` — the one exception, because an animated grid-track layout engine is not a token (§4).
 3. **One registry primitive, no static maps.** A section / settings pane / modal / contributor is ONE co-located definition, assembled ONCE at the composition root. A second `Record<SectionId, …>`-style map anywhere else is RED (G2). "Derive, don't re-declare."
 4. **The `/` route is a thin mount.** No `sections={{…}}` god-map, no feature imports in a route body. `main.tsx` is the registration door — the ONLY place feature definitions/contributors are imported and assembled (G1/G8).
-5. **Cross-feature needs have exactly one channel each** (§12): ephemeral client state → the `state/` commons; another feature's server data → `trpc.*` (cache-first — NOT a network round-trip when cached); shapes → contracts/type-only; composites → `components/`; navigation → store actions; a feature's own Content↔Context → its editor-bridge (INTRA-feature only). Anything else is a violation.
+5. **Cross-feature needs have exactly one channel each** — the eleven-row decision table is §12: ephemeral client state (and navigation) → the `state/` commons; another feature's server data → `trpc.*` (cache-first — NOT a network round-trip when cached); **EXTENDING another feature's surface → a CONTRIBUTOR registry assembled at the door** (ten families live; this is the graft channel); shapes → contracts/type-only; composites → `components/`; a feature's own Content↔Context → its editor-bridge (INTRA-feature only). Anything else is a violation.
 6. **Every mutation rides `createEntityMutation`; every paginated browse rides `createCollectionSurface`; every ≥3-field form rides a form factory; every destructive confirm rides `ConfirmDialog`** (G6/G7/G9 + LIVE form gates).
 7. **Every suspending read sits in `QueryBoundary`; every surface ships designed empty/loading/error states** (§11). A bare spinner or an unhandled throw is a defect.
 8. **Events:** shared-room truth rides the durable seq-stamped chat bus; per-person freshness rides the user bus; both are exhaustively applied and producer-ratcheted; the invalidation seam is the only client event→cache router (§13). A new bus without the full belt set is RED (G11).
@@ -81,6 +81,10 @@ The client is FIVE tiers, not "ui + features". A builder reaches DOWN this ladde
 
 Above the tiers: `routes/` composes features (never the reverse — `client-features-below-routes`, LIVE) and `main.tsx` is the top nothing imports (`client-nothing-imports-main`, LIVE). Their jobs are §7.
 
+**The COMPOSITION-TIER DIRECTORY MODULE (added 2026-08-03, F-3 — the pattern existed unwritten and unwalled).** A top-level `client/src/<name>/index.ts` sitting BESIDE `main.tsx` is a sixth, door-owned residency class — not a tier. What earns it: **dev-only glue that must compose feature FRONT DOORS plus `#state` module actions and is injected into the agent bridge.** Two members today, both `index.ts`-only: `agent-nav/` (the `__orb.nav` impl — every arm calls the EXACT store action the real UI calls, ids validated against the vocabulary tuples) and `agent-seed/` (the `__orb.seed` impl — every write is the EXACT `rpg.*` wire verb the real UI sends). They cannot live at tier 4: `lib/agent-bridge.ts` declares the handle TYPES, and `client-lib-floor` forbids the floor from importing `#state`/`#features`/`#data`, which the impls need. They are not features (they own no registered definition — G23) and not routes (`app-root.tsx` is the only route that may import a feature front door — G1's anti-god-map arm). **The wall: `client-composition-tier-door-only` (dep-cruiser, LIVE) — only `main.tsx` imports them** (a sibling composition-tier module may compose another; they are all door glue). Without it, `features/x → agent-nav → features/chat` is a backdoor to a foreign front door on which every individual hop passes `client-feature-front-door` AND `client-features-no-cross`.
+
+**BUCKET NESTING IS LEGAL IN EVERY BUCKET, and it changes NO rule (ruled 2026-08-03, F-4).** A bucket may group its modules into sub-dirs (`features/preset/components/{prompt-assembly,readout}/` is the founding precedent, and chat's 75-file `components/` is why). Grouping is presentation for the reader — it never alters a file's ROLE — so `client-structure`'s per-file contracts (surface naming + surface purity, `use-*` hooks, container-suffix anchors) **RECURSE to any depth**. Before F-4 they did not: `filesIn` read only the top level, so `surfaces/thread/foo.tsx` with its own `<Drawer>` root shipped gate-green and the containment law (§4, the responsiveness model itself) would have rotted invisibly. What nesting may NOT do is re-declare the bucket axis: a group dir NAMED after a bucket (`components/hooks/`, `surfaces/anchors/`) is a slice growing inside a slice while the file contracts still key on the OUTER bucket — `client-structure` rule 8 makes it RED, and rule 4 (known buckets only) keeps keying on the feature ROOT.
+
 **Tier-placement rule:** a domain-aware composite needed by ≥2 features belongs in `components/`, never duplicated per-feature — §13.0's bar (3+ AND changing together) decides *when* to hoist; two features sharing decides *where* (tier 2, not a feature, not `@orb/ui` — ui stays parts-only per the `components/index.ts` header ruling). `jscpd` (tsx scanned, 5% threshold) is the standing tripwire; the hoist itself is review R2.
 
 **What IS a feature (ENFORCED under O2):** a feature dir earns its existence by owning ≥1 registered definition — a rail section, a modal, a settings pane, or a chrome widget. The O2 gate `feature-owns-definition` is LIVE: a feature dir owns a co-located `lib/*-{section,modal,pane,chrome}.tsx` or it is deleted. No exemptions.
@@ -139,6 +143,9 @@ Applications: sections (§6) · settings panes (§8) · contributors (§6c) · m
 ## 6. The section model
 
 ### 6a. SectionDefinition (absorbs six structures)
+
+> **The block below is ILLUSTRATIVE, not copyable — the law is the header of
+> `client/src/state/section-registry.ts` (§15a records the deltas).**
 
 ```ts
 interface SectionDefinition {
@@ -211,6 +218,9 @@ The WRONG way it replaces: adding a `RAIL_SECTIONS` entry + a `SECTION_PANEL_DEF
 ### 6b. ContextDefinition — the `defineContextTabs<S>` mint (STRICTLY typed — ratified O5, refined by the M3 design pass)
 
 `S` (a section's context-state projection) appears ONLY in contravariant positions (`when: (s:S)=>bool`, `body: (s:S)=>ReactNode`) — which is exactly why `SectionDefinition<S>` erased cleanly to `<never>`. But CONSUMING a tab means PRODUCING an `S` and calling `body(s)`. Any channel that hands `S` to the blind shell — a `useContextState: () => S` hook, a render-prop — is a COVARIANT position: `() => ChatContextState` is NOT assignable to `() => never`, so it BREAKS the never-erasure. TS has no existentials; a `SectionDefinition<never>` registry can NEVER type-safely round-trip `S`. **So don't round-trip it.** Pair `S` with its consumer INSIDE the definition file (where `S` is a real named type) via a mint that returns a NON-generic `ContextDefinition` carrying an ALREADY-RESOLVED `useResolved` hook. `S` never crosses the shell seam.
+
+> **The block below is ILLUSTRATIVE, not copyable — the law is the header of
+> `client/src/lib/registry-contracts.ts` (§15a records the deltas).**
 
 ```ts
 // lib/registry-contracts.ts (tier 4 — the mint lives WITH its shapes)
@@ -298,6 +308,8 @@ The WRONG way it replaces: `import { ChatContextPanel } from "#features/chat"` (
 
 **`main.tsx` is the registration door.** It already constructs the singletons ONCE (QueryClient → tRPC client → toast manager, verified `main.tsx:1-90`), binds `notify`, installs the error-report hook, installs the agent-bridge observer (`installAppReadySignal` + dev `installAgentDebugHandle`), stacks providers (`QueryClientProvider` → `TRPCProvider` → `ToastProvider` → `AppErrorBoundary` → `RouterProvider`), and nothing imports it (`client-nothing-imports-main`, LIVE). The lockdown adds its second job: **the ONE place feature definitions and contributors are imported and assembled** (`createRegistry`/`createContributorRegistry` call sites live here or in a `compose/` module only it imports — G8). This is load-bearing for one-directional flow: a contributor "registers" by being IMPORTED AT THE DOOR, never by importing its host feature — a zero-context model that tries `import "#features/chat"` from rpg hits dep-cruiser RED; the door is the only legal path.
 
+**The door's THIRD job: the composition-tier dir modules (§3).** `main.tsx` also builds and injects the agent-bridge implementations — `buildAgentNav(trpcProxy, queryClient)` and `buildAgentSeed(trpcClient)` from `client/src/agent-nav/` and `client/src/agent-seed/`, handed to `installAgentDebugHandle`. They live beside `main.tsx` (not under `routes/`, not in `lib/`, not a feature) precisely because they compose feature front doors + `#state` actions, which only the door may do; `client-composition-tier-door-only` (LIVE) makes `main.tsx` their only importer. Residency criteria + the failure they wall off are §3.
+
 **Routes are thin mounts.** `routes/` = `router.tsx` (hand-written 2-route tree — `/` + `/login`, no file-based codegen; `beforeLoad` auth gates from `features/auth`; D54), `__root.tsx` (root route + NotFound + the recorded router-context upgrade path), `route-pending.tsx`, `login-page.tsx`, and the `/` route component. "Routes compose features, never the reverse" is LIVE (`client-features-below-routes`).
 
 **\[CORRECTED — the owner ruling] `home-page.tsx` is a misnomer and a god-map.** Verified: it is not a home page — it is the `/` route that mounts `<AppShell>` and imports **63 feature symbols across 11 features** to hand-assemble the `sections={{…}}`/`modals={{…}}` maps. Three truths to encode: (a) **`AppShell` (the 4-region frame) IS the top structural component** — the mental model "shell on top, everything renders inside it" is correct; (b) **there is NO "home page" concept** — the no-selection landing is the CHATS section's CONTENT-none-selected state (`{kind:"landing"}`, D62 P4), a SECTION state, not a page \[**AMENDED by D121:** a `home` SECTION now exists (the eighth rail entry, tiles assembled at the door); what this clause kills is a PAGE — a route that hand-assembles other features — and that killing stands]; (c) under the registry inversion the `/` route becomes a TRIVIAL mount that reads the section registry, and is RENAMED **`app-root.tsx`** (ratified O7 — locked; the name says what it is: the app's root mount, not a page). **Neo precedent (cite):** neo had no home page either — a file-based `_authed` LAYOUT route WAS the shell (`_authed.tsx`/`login.tsx`/`__root`); orbweaver dropped file-based routing and, in hand-writing the 2 routes, dumped the composition into a misnamed "home-page" with the god-map. The lockdown RESTORES the intended shape (shell on top, route = thin mount) — it is not a new design.
@@ -305,6 +317,9 @@ The WRONG way it replaces: `import { ChatContextPanel } from "#features/chat"` (
 What legitimately stays on the `/` route (`app-root.tsx`) after M1/M4: the `useUserBus` mount (the always-on freshness driver — mounted at the root so no feature unmount can drop it, per its own header), `AriaAnnouncer`, the `?join=` token capture + `JoinInviteDialog`, `FirstRunPersonaDialog`. **`app-root.tsx` is the SECOND sanctioned composition route** (the M1.cutover fork-2 ruling) — it permanently homes these composed feature front-doors, mirroring `router.tsx`→`features/auth`'s beforeLoad seam. Gate G1's anti-god-map arm: a `sections={{…}}`/`modals={{…}}` object-literal map in a route file, or a feature front-door import in `routes/**` other than the two sanctioned composition seams (`router.tsx` → `features/auth` `requireAuthed`/`redirectIfAuthed`, and `app-root.tsx`), is RED.
 
 ## 8. The settings host + pane registry
+
+> **The block below is ILLUSTRATIVE, not copyable — the law is the header of
+> `client/src/state/settings-pane-registry.ts` (§15a); the `body` union moved to the SET-SEAMS §5.3 shape.**
 
 ```ts
 // state/settings-pane-registry.ts — the section/modal move repeated (M6.1 ruling; §5 rules 5+6)
@@ -358,7 +373,7 @@ The WRONG way it replaces: dropping `workloads-settings-surface.tsx` + 10 suppor
 
 Already correct and gated; recorded because "state/ is a god-store" and "editor-bridge is an event bus" are recurring mis-reads:
 
-- **Partition, not scatter, is the anti-god move.** `state/` = 14 small stores + 3 factory doors (+ `create-drill-selection-store.ts`, the drill-selection factory, itself minted through the gated door) + `chat-handle.ts` + `assemble-chrome.ts` (D73) + the registry tier (built M1–M6.1; chrome added by the shell-chrome program): 4 registries — section / modal / settings-pane / chrome — each a `*-registry.ts` + `*-registry-context.ts` + `*-registry-provider.tsx` trio (`section-registry{,-context,-provider}`, `modal-registry{,-context,-provider}`, `settings-pane-registry{,-context,-provider}`, `chrome-registry{,-context,-provider}`). Every store is minted through exactly one door (verified 2026-07-16: 7 × `createGatedStore` — 6 stores + the drill factory — 5 × `createDrillSelectionStore`, 3 × `createPersistedStore`, the draft factory; bare zustand `create(`/`createStore(` exists ONLY inside the three door files): `createGatedStore` (devtools + REQUIRED action labels + unique-name throw) · `createPersistedStore` (version + partialize + total migrate) · `createEntityDraftStore` (frozen EMPTY + useShallow + persist). Gates: `state-files`, `persist-partialize-and-total-migrate`, `no-raw-zustand-persist`, both selector-stability belts, the ESLint static-`setState` ban, `persistence-boundary` (device-local vs synced).
+- **Partition, not scatter, is the anti-god move.** `state/` = small stores + 3 factory doors (+ `create-drill-selection-store.ts`, the drill-selection factory, itself minted through the gated door) + `chat-handle.ts` + `assemble-chrome.ts` (D73) + the registry tier (built M1–M6.1; chrome added by the shell-chrome program). **Census refreshed 2026-08-03 (F-5) — the "14 stores / 4 registries" counts this bullet shipped with are both stale, and counts in prose rot: read them off the tree.** Today: 21 store modules, and the door assembles THIRTEEN registries — three TOTAL (`sections` · `modals` · `settings-panes`, each `Record<Id, Def>`-total by tsc) and ten CONTRIBUTOR (`chrome` · `settings-sections` · `chat-context` tabs · `chat-context-regions` · `chat-surface` anchors · `tool-renderers` · `message-tools-renderer` · `slash-commands` · `character-detail` · `home-tiles`), all countable off `main.tsx`'s `createRegistry(`/`createContributorRegistry(` call sites, which G8 pins to that one file. A registry delivered through React context carries a `*-registry-context.ts` + `*-registry-provider.tsx` pair (minted via `lib/create-registry-context.tsx`, gate `registry-context-via-mint`); one whose Def type is state-owned adds the `*-registry.ts` contract module beside it (`section-registry`, `modal-registry`, `settings-pane-registry`, `chrome-registry`). Every store is minted through exactly one door (verified 2026-07-16: 7 × `createGatedStore` — 6 stores + the drill factory — 5 × `createDrillSelectionStore`, 3 × `createPersistedStore`, the draft factory; bare zustand `create(`/`createStore(` exists ONLY inside the three door files): `createGatedStore` (devtools + REQUIRED action labels + unique-name throw) · `createPersistedStore` (version + partialize + total migrate) · `createEntityDraftStore` (frozen EMPTY + useShallow + persist). Gates: `state-files`, `persist-partialize-and-total-migrate`, `no-raw-zustand-persist`, both selector-stability belts, the ESLint static-`setState` ban, `persistence-boundary` (device-local vs synced).
 - **`shell-store` is ONE drawer for cross-cutting shell state** (activeSection, panelOverrides, openModal, contextTab, openOverlayPanel, settingsCategory) — features READ via narrow hooks, WRITE via intent-named module actions; the handle never escapes the file.
 - **Feature-transient stores are feature-owned but centrally HOMED** (`character-selection-store`, `corpus-selection-store`, …) so a pointer another feature must read is never trapped behind a feature boundary — deliberate design, not sprawl. Durability criterion (north-star §0b): per-device transient → a store; anything that must survive across devices → server state.
 - **The write/read discipline is §5.1** (writers only write; three render-only reader shapes; `no-effect-on-shared-selection` gates the banned subscribe-and-effect). Nothing here amends it.
@@ -383,21 +398,43 @@ The stack, outermost-in (all verified):
 
 **The three-states law (§4.3 rule 8, restated as the buildable checklist):** every surface ships all three designed states — EMPTY teaches (an `EmptyState` with an action — `empty-state-has-action`, LIVE), LOADING is a shape-matched skeleton (`skeleton-rows.tsx` / `Skeleton` — never a centered spinner, never layout shift on arrival), ERROR is `QueryErrorState` with a real retry. A zero-context model's failure modes — bare spinner, unhandled throw, dead-end empty — are each individually walled: rule §4.3-8 + `empty-state-has-action` + the QueryBoundary default `renderError`.
 
-## 12. Inter-feature communication — the channel matrix (ratified, with verdicts)
+## 12. Inter-feature communication — the channel matrix (ratified; refreshed 2026-08-03)
 
-The blunt rule "cross-feature reads → trpc" is WRONG for client-ephemeral state (there is no row to fetch). This matrix is the law; each row carries a live cite and a verdict. **The critical clarification: a `trpc.*` read is CACHE-FIRST** — TanStack Query dedupes and caches per key, so reading another feature's server entity (a persona's name while the persona list is loaded) is a cache hit, not a network round-trip; `staleTime: Infinity` + the bus means it refetches only on invalidation. The anti-pattern is ONLY using trpc for ephemeral client state (or a store for server rows).
+The blunt rule "cross-feature reads → trpc" is WRONG for client-ephemeral state (there is no row to fetch). This matrix is the law; each row carries a live cite and its enforcer. **The critical clarification: a `trpc.*` read is CACHE-FIRST** — TanStack Query dedupes and caches per key, so reading another feature's server entity (a persona's name while the persona list is loaded) is a cache hit, not a network round-trip; `staleTime: Infinity` + the bus means it refetches only on invalidation. The anti-pattern is ONLY using trpc for ephemeral client state (or a store for server rows).
 
-| Need | Channel | Live exemplar (verified) | Verdict |
-| - | - | - | - |
-| client-EPHEMERAL cross-cutting state (active section/chat/selection, panel modes, drafts) | read the `state/` commons directly (narrow hooks); write via module actions | `features/persona/components/persona-this-chat-section.tsx` reads `useActiveChatHandle`; 11 files across 7 features call `setActiveSection` | **KEEP — the sanctioned pattern.** A trpc call for the active chat id would be RETIRE-on-sight (none exists — verified) |
-| SERVER-persisted data another feature owns | `trpc.*` queryOptions (cache-first) | `chat/hooks/use-chat-style.ts` (chat reads `trpc.settings.getUserSettings`); `character/components/character-relations-tab.tsx` + `world-info/components/book-attachments.tsx` (read `trpc.persona.*`) | **KEEP — D43(3): the router IS the cross-feature contract.** Never re-home data to "avoid the read" |
-| shared SHAPES/types | `@orb/contracts` + type-only cross-feature imports (root wiring) | `client-features-no-cross` exempts `dependencyTypesNot: ["type-only"]`; zero live uses today | **KEEP** |
-| shared domain-aware COMPOSITES | `client/src/components/` (tier 2) | 24 importer files across 6 features | **KEEP — reach here before hand-rolling** |
-| shared domain-agnostic parts | `@orb/ui` | everywhere | **KEEP** |
-| intra-feature cross-REGION (a feature's CONTENT ↔ its own CONTEXT inspector) | the editor-bridge: `forms/create-form-handle-bridge.ts`, minted per feature | `character-editor-bridge` + `preset-editor-bridge` — both verified within-feature-only (publisher = the feature's editor surface, subscriber = the same feature's inspector) | **KEEP — and plainly: the editor-bridge is NOT an inter-feature channel.** Across features the analog is the contributor registry (§6c) |
-| cross-SECTION navigation | `#state` module actions (`setActiveSection` + a seed: `startNewChat({characterIds})`, `selectCharacter`) | `chat-context-panel-surface.tsx:313` view-character jump | **KEEP — §4.2 physics rule 4** |
-| observing cross-cutting app state WITHOUT coupling | the `lib/agent-bridge.ts` model: an OBSERVER reading the QueryClient cache + DOM `data-*`/aria attrs — imports zero features, dev-gated `__orb`, installs `data-app-ready` | `installAppReadySignal` / `installAgentDebugHandle` | **KEEP — owner-settled; cite as the model.** Any future "watch everything" need copies the observer shape, never a feature import |
-| a foreign feature EXTENDING a host surface | the contributor registries (§6c), registered at the door | (new — M8) | **THE channel for rpg/crew; anything else is RED** |
+**REFRESHED 2026-08-03 (F-6).** The table below is the CURRENT decision table — eleven rows, one per
+mechanism that actually exists on the tree, each with its home, its enforcer, and the ONE question that
+selects it. It supersedes the four-mechanism version this section shipped with, which predated region
+claims (D119), the settings-section seam (D120), home tiles, slash commands, the two tool-renderer seams,
+the door-injected `trpcProxy` factory, the door-threaded render-prop projection, `peekQueryData`, and the
+cross-feature filter store. Every named symbol was re-verified against the tree on the day it landed.
+
+| # | Channel | Home / receipt | Enforced by | When it is THE choice |
+| - | - | - | - | - |
+| 1 | state commons — narrow hooks + intent-named module actions | `state/*` (shell, active-chat, per-section drills, composer, `chat-list-filter-store.ts`) | `state-files`, both selector belts, `no-effect-on-shared-selection`, `client-state-below-data` | client-EPHEMERAL cross-cutting state: selection, panel modes, drafts, filters. A trpc call for the active chat id is RETIRE-on-sight |
+| 2 | tRPC query cache, cache-first | `trpc.*` queryOptions; `staleTime: Infinity` + bus freshness | `no-array-literal-querykey`, `no-static-staletime`, G9 seals | another feature's SERVER-persisted entity (D43(3): the router IS the cross-feature contract) |
+| 2b | `peekQueryData` — hookless sync cache peek | `data/peek-query.ts` | its own header law + `client-cache-surgery-only-in-data` | a pure resolve-time predicate (a `when(state)`) that cannot run a hook. NEVER a substitute for a hook read |
+| 2c | door-injected `trpcProxy` into a contributor factory | `main.tsx` `createTrpcProxy(trpcClient, queryClient)` → `makeRpgContextTabs({trpc, queryClient})` | convention + the door's comments | a contributor whose `when`/resolve logic needs the cache OUTSIDE render; ordinary defs read `#data` hooks directly |
+| 3 | TOTAL registries (closed vocabulary, tsc-total) | sections · modals · settings-panes | G1/G2/G4/G8/G13 + the `Record<Id, Def>` assembly | a member of a closed shell vocabulary (§5 rule 5's vocabulary test) |
+| 4 | CONTRIBUTOR registries (open) | chrome · settings-sections · chat-context tabs · chat-context REGIONS · chat-surface anchors · tool-renderers · message-tools-renderers · slash-commands · character-detail · home-tiles — TEN families, all assembled in `main.tsx` | G3 (8 arms) · G8 · `chrome-`/`modal-`/`home-tile-registry-completeness` · `settings-section-anchored` + the door's `assertSettingsKeyPartition` · duplicate-id throws at mint | a foreign feature EXTENDING a host surface — **THE graft channel** |
+| 5 | door-threaded render-prop projection (Arm A) | `makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />)` | convention + `client-features-no-cross` (which forces it through the door) | ONE foreign pane projected into a host, host controls placement. **≥2 foreign panes ⇒ mint a contribution seam instead** |
+| 6 | shared derivations at tier 4 | `lib/chats-with-character.ts` · `lib/message-role-labels.ts` · `lib/row-qualifiers.ts` | `client-lib-floor`, `client-lib-below-components` | ONE pure predicate/vocabulary both sides must agree on (the "second spelling" wall) |
+| 7 | tier-2 composites | `components/` | G5 trio, G6/G7 | domain-aware UI ≥2 features need |
+| 8 | event/sync spine → ONE invalidation seam | `data/bus/*` + `data/invalidation.ts` (`BUS_FILTERS` + `USER_BUS_FILTERS` + `RPG_BUS_FILTERS`, heal set derived) | `bus-coverage` ×3, G10/G11/G12, `no-inline-invalidate-outside-seam`, `bus-onData-no-store-write` | server truth changed; freshness fan-out (§13) |
+| 9 | editor-bridge | `forms/create-form-handle-bridge.ts` | INTRA-feature only, by its own header | a feature's own CONTENT ↔ its own CONTEXT inspector. **Plainly: not an inter-feature channel** — across features the analog is row 4 |
+| 10 | type-only cross-feature imports | `@orb/contracts` shapes + the `client-features-no-cross` type-only arm | that rule's `dependencyTypesNot: ["type-only"]` | a SHAPE wired at the composition root |
+| 11 | agent-bridge OBSERVER | `lib/agent-bridge.ts` + the `agent-nav`/`agent-seed` composition-tier impls (§3) | header law + `client-composition-tier-door-only` | tooling observation/drive, never product code |
+
+Two rows that are NOT on this table because they are not channels: **cross-SECTION navigation** is row 1
+(`setActiveSection` + a seed such as `startNewChat({characterIds})` / `selectCharacter` — §4.2 physics rule
+4\), and **shared domain-agnostic parts** are `@orb/ui`, which is the ladder (§3), not a cross-feature seam.
+
+**Wrong-channel audit (2026-08-03, the review behind F-6): ZERO confirmed misuses tree-wide.** Hunted and
+not found: server rows mirrored into stores (all 20 store headers read — every one is client-ephemeral or
+device-local with a stated rationale); trpc round-trips for client-ephemeral pointers; registry bypasses
+(no parallel maps, no feature rendering a foreign surface outside the door channels); rogue event channels
+(no `CustomEvent`/`EventTarget`/`dispatchEvent` in client src). The gates plus the store-header discipline
+are holding — which is why this table is a TRANSFER document, not a remediation list.
 
 **E5 — worked example: cross-feature read, right vs wrong.**
 
@@ -417,13 +454,15 @@ const personaName = usePersonaStore((s) => s.names[id]);
 
 ## 13. The event/sync spine (multi-tab · multi-device · multi-human)
 
-The same disease-class as the slot registries, highest stakes: a mis-wired or under-fanned event = two humans (or two of one person's devices) seeing different truth. Inventory — FOUR bus machineries + presence, on THREE deliberate durability tiers (all verified in full):
+The same disease-class as the slot registries, highest stakes: a mis-wired or under-fanned event = two humans (or two of one person's devices) seeing different truth. Inventory — **FIVE live bus machineries + presence** (chat · user · notifications · rpg · automation; the count and the rpg/automation rows were added 2026-08-03, F-5 — the table shipped naming four, one of which was buddy and is struck below), on the same THREE deliberate durability tiers:
 
 | Bus | Scope | Durability | Client apply | Producer gate |
 | - | - | - | - | - |
 | chat (`domain/chat/bus.ts` + `transport/trpc/chat-events-bus.ts`) | per-chat, member-scoped | **durable-first**: `emit` awaits the `chat_events` INSERT (assigns the per-chat `seq`) BEFORE the ring push; 256-entry ring + durable replay, member-gated (`chatEventBounds`); `on()` pre-buffers so the replay/live gap dedupes by seq | `apply-chat-bus-event.ts` — pure switch ending `assertNever` (a new member fails tsc) + exhaustive `BUS_FILTERS` Record | `bus-coverage` (LIVE, D50) |
 | user (`transport/trpc/user-events-bus.ts`) | per-person ("an entity you own changed"), all devices | **live-only, fire-and-forget BY DESIGN** — no durable half; gap-heal = `invalidateAllUserRoots()` on every transition into `pending` (first connect AND reconnect — `use-user-bus.ts`) | exhaustive `USER_BUS_FILTERS` mapped Record (tsc-total); the heal set is DERIVED from the same map (`allUserRootFilters`) | `user-bus-coverage` (LIVE; `connectionsChanged` = the sole cited DEFERRED) |
 | notifications (`transport/trpc/notifications-bus.ts`) | per-person durable inbox | **durable-first**: entry composes the INSERT (assigns seq) before `publishNotification` | inbox list rides Query + cursor | none (rides the inbox contract, not a broad union) |
+| rpg (`domain/rpg/bus.ts`) | per-chat game state | **live-only, self-healing** — a domain-minted `EventEmitter` MODULE singleton keyed `rpg:<chatId>`, no durable table and no replay ring; a verb publishes AFTER its durable write, the client blanket-invalidates on every (re)connect | `data/bus/use-rpg-bus.ts` → the exhaustive `RPG_BUS_FILTERS` mapped Record in `invalidation.ts` | `rpg-bus-coverage` (LIVE, D108) |
+| automation (`transport/trpc/automation-bus.ts`) | per-chat, over the `domain/automation` `notify` sink | **transient by design** — rides `defineBusChannel` keyed by `chatId`; no durable row, no resume cursor. The D118 stream fold's ONE-socket/ROOM-sources shape: no standalone subscription, the `automation` room tails it via `stream/sources/automation.ts` | through the room's stream fold | none (no broad union of its own) |
 | ~~buddy~~ (`transport/trpc/buddy-bus.ts` over `domain/buddy`'s `createBuddyBus`) | ~~per-person companion reactions~~ | ~~replay-buffer ring, live~~ | ~~(no client consumer yet)~~ | ~~none~~ |
 
 **⚠ Truth-repaired 2026-08-03 (with D121):** the buddy bus + `domain/buddy` above were PURGED with the
@@ -444,7 +483,7 @@ Plus `presence-registry.ts`: presence = a ref-count per userId over open SSE con
 2. **Fan scope follows visibility.** A shared-CHAT event fans to every present member's channel (each member's every device); a per-PERSON event fans to all that person's connected devices (channel keyed by userId, one listener per device). **An event mutating state visible to others MUST fan beyond the actor** — for chat that means the member-fan op or the chat bus, never a single-user emit. Enforcers: G12 mechanically for membership-scoped domains; R3 at contract review for new visibility classes.
 3. **Consumer exhaustiveness is compile-time.** Every bus union ends in `assertNever` or a mapped-type-total Record on the client. Enforcer: tsc; `defineBus` bakes it for new buses.
 4. **Producer coverage is ratcheted.** Every declared event type has a real server emit site or a cited DEFERRED entry, both directions (stale entries RED). Enforcers: `bus-coverage` + `user-bus-coverage` (LIVE); G11 requires the belt for any NEW bus.
-5. **One client-side event→cache router.** `data/invalidation.ts` is the ONE seam for BOTH buses (verified: `BUS_FILTERS` + `USER_BUS_FILTERS` + the derived gap-heal set in one file; `no-inline-invalidate-outside-seam` gates every other `.invalidateQueries`; `bus-onData-no-store-write` keeps `onData` from becoming a second store). A new bus's client half MUST land in this same file — G11 checks it.
+5. **One client-side event→cache router.** `data/invalidation.ts` is the ONE seam for EVERY client-consumed bus (verified 2026-08-03: `BUS_FILTERS` + `USER_BUS_FILTERS` + `RPG_BUS_FILTERS` + the derived gap-heal set in one file; `no-inline-invalidate-outside-seam` gates every other `.invalidateQueries`; `bus-onData-no-store-write` keeps `onData` from becoming a second store). A new bus's client half MUST land in this same file — G11 checks it.
 6. **Presence is server-derived only.** A client-asserted presence write is banned — review; no client API exists to misuse today.
 
 **The unification (`defineBusChannel` — the transport half, built M9):** `chat-events-bus.ts`, `user-events-bus.ts`, `notifications-bus.ts` hand-rolled identical machinery three times — module-scope `EventEmitter` + `setMaxListeners(0)` + `channelFor(key)` + `on(emitter, channel, {signal})` + the untyped-args unwrap generator. ONE `defineBusChannel<Key extends string | number, Event>(channelFor: (key: Key) => string, opts?: { firehose: true })` (home `server/src/transport/trpc/bus-channel.ts`) — a per-bus key→channel-string mapper plus an optional firehose opt-in (the `{firehose:true}` overload returns the `FirehoseBusChannel` with `subscribeAll`) — returns `{ publish(key, event), subscribe(key, signal), subscribeAll? }`; durability stays PER-BUS POLICY composed in front of `publish` (chat: the awaited INSERT; user: nothing; notifications: the inbox record op) — the tiers are deliberate and stay; only the plumbing unifies. **Buddy stays as-is — adoption DEFERRED by owner ruling (O4, tracked in §18):** the primitive covers chat + user + notifications now; buddy's `@orb/kit/replay-buffer` emitter (D10) adopts later, in its own decision. **⚠ Truth-repaired 2026-08-03 (with D121): this O4 clause is DESIGN of record, not live — `domain/buddy` was purged 2026-07-25; O4's deferred item has no live subject.** G10 then seals: `new EventEmitter()` under `transport/` outside the primitive's home is RED (buddy's bus is domain-minted, not a transport `EventEmitter`, so it passes as-is — the automation bus rides `defineBusChannel`, so it is unaffected by this rule either way).
@@ -495,6 +534,45 @@ into §7+§16) needed no further edit.
 | §7/§16-G1 name only router.tsx→auth as the sanctioned routes→features seam | `section-registry-completeness.ts` also exempts `app-root.tsx` entirely (the M1.cutover fork-2 ruling — app-root is the permanent composition route) | Reconciled into §7 + §16 G1 (this pass); recorded here so M11 promotion carries it |
 
 (The former auto-overlay row is resolved by O6: no longer a doc↔code disagreement — the law stands and the code is BUILT to it at M10; see §4.)
+
+### 15a. The type sketches are ILLUSTRATIVE; the code header is the law (RULED 2026-08-03, F-5)
+
+**Every `ts` block in §5/§6a/§6b/§8 is a SKETCH of the shape at the time it was written, not a copyable
+declaration.** A stickler pass found the §6 blocks drifted from the code on six axes at once (and the tree
+has since grown two more) — ratified prose that disagrees with a live type re-teaches the dead shape, and
+the doc's own history shows agents build from these blocks (M3 was specified off §6b). So the standing
+rule, in the §15 discipline: **read the shape off its code header; read this doc for the WHY.** The three
+homes, each with a header that IS the per-domain law:
+
+| Shape | The law lives at | This doc's block is |
+| - | - | - |
+| `SectionDefinition` · `RailEntry` · `SectionPlaceholderCopy` · `SectionPanelAvailability` | `client/src/state/section-registry.ts` | §6a — illustrative |
+| `ContextDefinition` · `ContextTabDef<S>` · `ResolvedContextTab(s)` · `ContextRegionDef<S>` · `ContextRegionView` · every published `S` projection | `client/src/lib/registry-contracts.ts` (path is load-bearing — G3 arm 3 resolves projections against it) | §6b — illustrative |
+| `SettingsPaneDefinition` · `SettingsViewerView` | `client/src/state/settings-pane-registry.ts` | §8 — illustrative |
+
+The confirmed deltas as of 2026-08-03 — recorded so a reader of the old blocks knows WHICH way they lie,
+not as a second declaration to maintain:
+
+1. **`RailEntry`** — §6a sketches `mobilePrimary?`; the code has `mobile: "tab" | "sheet"` (`MobileCuration`
+   — an EXPLICIT per-section fate, shell-chrome §A) plus `zone?: RailZone` (`"rail.nav" | "rail.brand"` —
+   how `home` claims the brand cell without app-shell ever spelling `"home"`, D121 clause C).
+2. **`SectionDefinition`** — the code adds `listHeader?` (the D66 A1 band content) and `panels?`
+   (`SectionPanelAvailability` — the "this section has no such pane" arm; `"unavailable"` is NOT a fourth
+   `PanelMode`).
+3. **`ContextTabDef<S>`** — the code adds `icon?` · `strip?` (`"game" | "meta"`, HUD-1 §4) · `crown?` ·
+   `badge?` · `disabledReason?` · `defaultTab?` (the preferred-default marker; the FIRST resolved `true`
+   wins, a stored still-visible `contextTab` always beats it).
+4. **`ContextDefinition`** — all three arms intersect `ContextEmptyArm` (the definition-owned
+   no-selection copy, side-eye F-12), and the `single` arm carries `header?` (the band identity a
+   single-body context supplies, which `presets-section.tsx` uses).
+5. **`ResolvedContextTabs`** — the code adds `header?` (the band slot, one resolve / two consumers) and
+   `region?` (the HUD-1 claim, §6b's 2026-08-01 amendment).
+6. **`ContextTabsSpec<S>`** — the code adds `header?` · `regions?` · `empty?` beside `contributors?`.
+
+What has NOT drifted, and is still law as written: the non-generic shell seam, the `defineContextTabs<S>`
+mint as the only tabs minter, `S` contravariant-only, and `{kind:"none"}` / `{planned}` as explicit
+decisions rather than absences. The §9 registry census and the §13 bus table were refreshed in the same
+pass; the §12 matrix was replaced outright (F-6).
 
 **§4 / D66 A1 band clause (AMENDED 2026-08-01, HUD-1 H1).** "The `.shell-panel-header` band ALWAYS renders" holds for the LIST panel and for an UNCLAIMED context panel. A CLAIMED context panel renders no band: `SectionContextHeader` returns null and shell.css collapses the empty band element. The claimant owns the pane's top edge, including the 2px ember content↔context binding, which it must paint.
 

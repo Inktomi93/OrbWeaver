@@ -109,23 +109,36 @@ packages/client/
   src/
     sw.ts / manifest    # PWA (Phase 6): workbox precache of the app shell + web-app-manifest — D54.
                         #   offline scope = the shell + last-opened chat; live data still needs the server (SSE bus)
-    main.tsx            # entry / composition root (mounts providers; injects the cross-feature ops — §11.0)
-    routes/             # 2 HAND-WRITTEN routes: / · /login — no file-based codegen; admin is a pane in the
-                        #   Settings modal at /, NOT a standalone route (§6.1)
+    main.tsx            # entry / composition root + THE REGISTRATION DOOR: the one place feature
+                        #   definitions + contributors are imported and assembled (lockdown §7, gate G8)
+    agent-nav/ agent-seed/
+                        # composition-tier DIRECTORY MODULES (lockdown §3): dev-only agent-bridge impls
+                        #   that compose feature FRONT DOORS + #state actions. main.tsx is their ONLY
+                        #   importer (dep-cruiser client-composition-tier-door-only)
+    routes/             # 2 HAND-WRITTEN routes: / (app-root.tsx) · /login — no file-based codegen; admin
+                        #   is a pane in the Settings modal at /, NOT a standalone route (§6.1)
+    components/         # tier 2 — domain-AWARE cross-feature composites with no single feature owner
+                        #   (ConfirmDialog · LibraryRow · CharacterPicker …); lockdown §3, gate G5
     data/               # the data-layer primitives (TanStack Query + tRPC) — §13.1
       trpc.ts · query-client.ts · invalidation.ts · create-entity-mutation.ts ·
       create-collection-surface.ts · query-boundary.tsx · use-gated-query.ts · bus/
     forms/              # the editor factories — the SINGLE createFormHook instance — §13.1/§13.4
       use-app-form.ts · create-saved-entity-form.ts · create-autosave-entity-form.tsx · bound-fields/
     state/              # ALL gated Zustand stores, FLAT (gate `state-files`: one create/file, ≤10 fields, no exported set/getState)
-    features/           # the slices — cross-feature reads ONLY via trpc.* (§11.0); NO _shared/ drawer
+    features/           # the slices — NO _shared/ drawer. The cross-feature channel is CHANNEL-SPECIFIC:
+                        #   the eleven-row decision table is client-architecture-lockdown.md §12 (the old
+                        #   blanket "reads ONLY via trpc.*" is superseded — it is wrong for ephemeral state)
       app-shell/        #   the 4-region rail shell (§4.1); the ONLY viewport @media site (§4b ax2);
                         #     the clamp-width overlay (§11.1); the assembled chrome registry over CHROME_ZONES (gate chrome-registry-completeness)
-      auth/ character/ chat/ credentials/ discovery/ notifications/ persona/ preset/ refinery/ settings/ stats/ user-admin/ workloads/ world-info/
-                        #   (`corpus` is the SECTION name — `discovery/lib/corpus-section.tsx`; the owning
-                        #     feature dir + DOMAIN are both `discovery`)
-        <feature>/      #   { surfaces/ (containment CONSUMERS, @container) · anchors/ (containment PROVIDERS) ·
-                        #     components/ (leaf) · hooks/ · lib/ · index.ts (the front door) }
+                        # THE ROSTER IS THE TREE — `ls packages/client/src/features`. A list here rots (this
+                        #   one named a dead `corpus` and missed six live slices until 2026-08-03). What the
+                        #   tree does NOT say: a section id is not its owner's dir name — `corpus` →
+                        #   `discovery/lib/corpus-section.tsx`, `analytics` → `stats`, `chats` → `chat`
+        <feature>/      #   { surfaces/ (REGION bodies, containment CONSUMERS, @container) · anchors/
+                        #     (containment PROVIDERS) · components/ (everything mounted INSIDE a region) ·
+                        #     hooks/ · lib/ (helpers, view-models, the registered DEFINITIONS) · index.ts }
+                        #   Bucket nesting is legal everywhere and changes no rule — the per-file contracts
+                        #     RECURSE (lockdown §3); per-slice card: packages/client/src/features/README.md
     lib/                # cross-cutting display/util seams: message-render · time · cn re-export · download-json · notify
       time.ts           #   THE date/time seam: server sends epoch-UTC numbers; client formats to browser-local tz
                         #     via memoized Intl.*; `now` is INJECTED (determinism §11.5). Never store/send formatted
