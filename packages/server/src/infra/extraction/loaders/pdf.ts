@@ -8,8 +8,9 @@
 // / corrupt / truncated pdfs throw (PasswordException / InvalidPDFException) — the dispatch wraps them as
 // ExtractionFailedError. Empty text is truthful (a scanned image-only pdf has no text layer; no OCR, 04 §1).
 
-import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
+import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import type { RawExtraction } from "../loader.ts";
 
 // DERIVED from the public surface, not reached in through `pdfjs-dist/types/src/display/api` (a private
 // subpath the package's own exports map does not publish — legal under `bundler`, a hard resolution error
@@ -18,7 +19,6 @@ import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 type TextContentItem = Awaited<ReturnType<PDFPageProxy["getTextContent"]>>["items"][number];
 type TextItem = Extract<TextContentItem, { readonly str: string }>;
 type TextMarkedContent = Exclude<TextContentItem, TextItem>;
-import type { RawExtraction } from "../loader.ts";
 
 const PAGE_SEPARATOR = "\n\n";
 const LINE_SEPARATOR = "\n";

@@ -22,12 +22,5 @@
   },
   // `../../platform.d.ts` = the root ambient pair's second half (node-26 adoption program §1.2) — see
   // tsconfig.base.json's include note: this array overrides the base's, which carries both.
-  "include": [
-    "src",
-    "vite.config.ts",
-    "../../reset.d.ts",
-    "../../platform.d.ts",
-    "../../tests/client/**/*.tsx",
-    "../../tests/support/ct/ct-data-providers.tsx"
-  ]
+  "include": ["src", "vite.config.ts", "../../reset.d.ts", "../../platform.d.ts", "../../tests/client/**/*.tsx", "../../tests/support/ct/ct-data-providers.tsx"]
 }

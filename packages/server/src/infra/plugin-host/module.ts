@@ -19,7 +19,8 @@ import { newQuickJSWASMModuleFromVariant } from "quickjs-emscripten-core";
 // `bundler` the mismatch was invisible; nodenext surfaces it (tsx-shedding stage 4). Normalize here, at
 // the single seam, rather than weakening the program: take `.default` when the CJS namespace shape shows
 // up, else the value itself.
-const variant: QuickJSSyncVariant = (variantModule as unknown as { readonly default?: QuickJSSyncVariant }).default ?? (variantModule as unknown as QuickJSSyncVariant);
+const variant: QuickJSSyncVariant =
+  (variantModule as unknown as { readonly default?: QuickJSSyncVariant }).default ?? (variantModule as unknown as QuickJSSyncVariant);
 
 let modulePromise: Promise<QuickJSWASMModule> | undefined;
 
