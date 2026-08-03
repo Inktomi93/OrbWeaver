@@ -51,12 +51,14 @@ Do not skim. You are an amnesiac agent; these docs are your memory.
 - **Use the right search tool — don't default to grep for everything (all these ARE installed):**
   - **`ast-grep` for code STRUCTURE** — "every `useState(...)` call", "components matching a JSX shape",
     "functions with signature X", and AST-aware rewrites. Structural, no regex-escaping pain, respects
-    syntax. **Type `ast-grep`, not `sg`.** CORRECTED 2026-08-03: an earlier version of this line claimed
-    `sg` silently searches nothing here. That is FALSE on this box — a census of 133,631 historical Bash
-    calls found working `sg run -p …` invocations, and the owner confirmed it resolves. The rule is
-    PORTABILITY, not silent failure: `sg` is `newgrp` on most Debian/Ubuntu systems, so the alias is one
-    environment away from meaning something else entirely. Use the explicit binary so a command is
-    unambiguous wherever it runs. (Run `ast-grep run --help` for the rest; no repo `sgconfig`, run ad-hoc.)
+    syntax. **Type `ast-grep`, never `sg`** — VERIFIED on this box 2026-08-03, after two wrong versions of
+    this line: `which -a sg` returns `~/.cargo/bin/sg` (ast-grep's own binary) FIRST, then
+    **`/usr/bin/sg`, which is a symlink to `newgrp`** — the collision is present HERE, merely shadowed by
+    PATH order. And ast-grep itself prints `WARNING: \`sg\` is deprecated. Use \`ast-grep\` instead.` So:
+    upstream deprecated it, and one PATH change / different shell / `sudo` flips a search into a
+    group-switch command. (An earlier version of this line claimed `sg` silently searches nothing here —
+    FALSE, a census of 133,631 Bash calls found it working. The rule is right; that reason was not.)
+    (Run `ast-grep run --help` for the rest; no repo `sgconfig`, run ad-hoc.)
     - `ast-grep run -p '<pattern>' -l ts <paths>` — search. Metavars: `$A` = one node, `$$$A` = many;
       `-l/--lang` is `ts`/`tsx`/`js`/`html`/`css`/… (required for a bare pattern).
     - **`ts` and `tsx` are DIFFERENT LANGUAGES and there is NO superset flag — run BOTH and merge,
