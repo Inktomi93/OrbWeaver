@@ -7,21 +7,32 @@
 // level. No draft mirror: the library is server-synced and autosaves within the debounce window.
 
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
-import { REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
+import type { RegexPlacement } from "@orb/kit/regex";
+import { SubstituteFindRegex } from "@orb/kit/regex";
 import { createAutosaveEntityForm } from "#forms";
+import { deriveRegexTierFlags } from "../lib/derive-tier-flags";
 
-/** A fresh script seeded with the schema defaults. `placement` is EVERY placement: a script authored with
- *  no placement can never fire (that was F3 — the character facet's `placement: []` default meant an in-app
- *  card script was unreachable by construction), and every member of the tuple now has a real leg. */
+/** THE DEFAULT SCOPE OF A NEW SCRIPT — the two conversational streams, and only those (side-eye X-9,
+ *  2026-08-03). It used to be EVERY placement, which meant pressing `Add script` created a live, enabled
+ *  find/replace wired into all five legs of the pipeline — including the world-info assembly and the
+ *  reasoning channel — before the user had typed a single character of a pattern. The opposite default is
+ *  ruled out for a different reason: an EMPTY placement set is the F3 defect (a script that can never fire,
+ *  with nothing on screen saying so). So the default is the smallest set that is both harmless and
+ *  useful — what the user says and what the model says back, which is what nearly every real script
+ *  rewrites. The other three are one chip away in the editor that opens on the very next frame. */
+const DEFAULT_PLACEMENTS: readonly RegexPlacement[] = ["USER_INPUT", "AI_OUTPUT"];
+
+/** A fresh script seeded with the schema defaults. The tier flags are DERIVED from the placement set like
+ *  everywhere else (`../lib/derive-tier-flags`), never spelled independently — a hand-written pair here
+ *  would be the fourth home for a fact that has one. */
 export function makeRegexScriptDefaults(): CreateRegexScriptInput {
   return {
     name: "New script",
     findRegex: "",
     replaceString: "",
-    placement: [...REGEX_PLACEMENTS],
+    placement: [...DEFAULT_PLACEMENTS],
     enabled: true,
-    markdownOnly: false,
-    promptOnly: false,
+    ...deriveRegexTierFlags(DEFAULT_PLACEMENTS),
     runOnEdit: false,
     trimStrings: [],
     substituteRegex: SubstituteFindRegex.none,

@@ -38,7 +38,11 @@ test("the Regex category is in the shell nav and mounts the REAL script library"
   await expect(regexNav).toBeVisible();
   await regexNav.click();
 
-  await expect(page.getByRole("heading", { name: "Scripts" })).toBeVisible();
+  // TWO headings, deliberately (side-eye X-5): the pane's own SECTION title, and the list's group kicker
+  // under it. The pane used to open with only the kicker, which made it the one settings section whose
+  // entire type census was 10.5px muted — it read unlabeled beside Personas / Tags / Chat behavior.
+  await expect(page.getByRole("heading", { name: "Regex scripts", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Scripts", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Add script" })).toBeVisible();
 });
 

@@ -20,10 +20,12 @@ import {
   selectPresetTemplate,
   setPresetEditorView,
 } from "@orb/client/state";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ChatId, PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
+import { PromptReadout } from "../../../../../../packages/client/src/features/preset/components/readout/prompt-readout";
 import { CtDataProviders } from "../../../../../support/ct/ct-data-providers";
 
 const STORY_PRESET = castId<PresetId>("preset_ct_readoutbind");
@@ -71,6 +73,20 @@ export function PresetReadoutUnboundStory(): ReactElement {
   return (
     <CtDataProviders>
       <ReadoutFrame chatId={null} />
+    </CtDataProviders>
+  );
+}
+
+/** The PROMPT readout inside a SHORT scroller, with the disclosure trigger deliberately below the fold —
+ *  the F-13 / R-6 geometry (measured live: the button at y≈778 in an 800px viewport, ~935px of preview
+ *  rendered under it). Mounted directly rather than through `PresetReadout` because the defect is about the
+ *  disclosure's own scroll behaviour, and the chat binding is noise here. */
+export function PromptReadoutDisclosureStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div data-readout-scroller="" style={{ height: 300, overflowY: "auto", width: 380 }}>
+        <PromptReadout sections={DEFAULT_PROMPT_CONFIG.sections} selectedSectionId={null} />
+      </div>
     </CtDataProviders>
   );
 }
