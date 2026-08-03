@@ -10,7 +10,7 @@ import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "@orb/ui/tooltip";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { preload } from "react-dom";
 import type { ChromeEntry, SectionId } from "#state";
 import { closeModal, openModal, setActiveSection, useChromeRegistry, useModalRegistry, useSectionRegistry } from "#state";
@@ -29,11 +29,23 @@ import { useAppearance } from "../hooks/use-appearance";
 import { useAppearanceRootEffects } from "../hooks/use-appearance-root-effects";
 import { useChatBackground } from "../hooks/use-chat-background";
 import { useSelectedTheme } from "../hooks/use-selected-theme";
+import type { ShellLayout } from "../hooks/use-shell-layout";
 import { useShellLayout } from "../hooks/use-shell-layout";
 import { useStrayFileDropGuard } from "../hooks/use-stray-file-drop-guard";
 import { appearanceBackgroundSource, resolveThemeBackgroundUrl } from "../lib/resolve-theme-background";
 import { resolveThemeScopeTokens } from "../lib/resolve-theme-scope-tokens";
 import "./shell.css";
+
+/** Collapse whichever panels are currently AUTO-OVERLAYS (the scrim's dismiss, shared by its click and the
+ *  Escape key). Module-scope + `layout`-taking so it is never an effect dependency (D54: no manual memo). */
+function dismissOverlays(layout: ShellLayout): void {
+  if (layout.listMode === "overlay") {
+    layout.collapsePanel("list");
+  }
+  if (layout.contextMode === "overlay") {
+    layout.collapsePanel("context");
+  }
+}
 
 /** Renders the `topbar.trail` zone's chrome widgets — the registry list is frozen at the door, so
  *  calling each entry's `useVisible` unconditionally, in a fixed loop, is legal (the `contentBySection`
@@ -147,15 +159,6 @@ export function AppShell(): ReactElement {
   }
   const mainRef = useRef<HTMLElement>(null);
 
-  const dismissOverlays = useCallback((): void => {
-    if (layout.listMode === "overlay") {
-      layout.collapsePanel("list");
-    }
-    if (layout.contextMode === "overlay") {
-      layout.collapsePanel("context");
-    }
-  }, [layout]);
-
   // Escape dismisses an open narrow/mobile auto-overlay slide-over (the scrim's keyboard equivalent) —
   // but ONLY when no modal is open. An open Dialog/Drawer owns Escape itself (Base UI); stealing it here
   // would race the modal's own close and could double-fire onOpenChange.
@@ -165,14 +168,14 @@ export function AppShell(): ReactElement {
     }
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
-        dismissOverlays();
+        dismissOverlays(layout);
       }
     };
     document.addEventListener("keydown", onKeyDown);
     return (): void => {
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [layout.scrimVisible, layout.openModalId, dismissOverlays]);
+  }, [layout]);
 
   return (
     <TooltipProvider>
@@ -264,7 +267,7 @@ export function AppShell(): ReactElement {
               aria-hidden={!layout.scrimVisible}
               tabIndex={layout.scrimVisible ? 0 : -1}
               aria-label="Dismiss panel"
-              onClick={dismissOverlays}
+              onClick={(): void => dismissOverlays(layout)}
             />
 
             <ModalHost openModal={layout.openModalId} container={portalRootRef} onClose={closeModal} />

@@ -31,6 +31,7 @@ import type {
   ChatSurfaceAnchor,
   ChatSurfaceContribution,
   ContextTabDef,
+  ContributorRegistry,
   HomeTileContribution,
   MessageRenderContext,
   MessageToolsRenderer,
@@ -85,7 +86,7 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { Text } from "@orb/ui/text";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
 import { CharacterGalleryDialog } from "../../../../packages/client/src/features/chat/anchors/character-gallery-dialog";
 import { AddChatDocumentDialog } from "../../../../packages/client/src/features/chat/components/add-chat-document-dialog";
@@ -1152,27 +1153,31 @@ export interface CommandPaletteSurfaceStoryProps {
   readonly commands?: "door" | "none" | "contributed";
 }
 
+/** The palette's registry: the real door set, plus one grafted contribution in the `"contributed"` arm.
+ *  Module-scope + pure (D54 full-compile — manual memo is banned; the compiler caches the call site). */
+function buildPaletteRegistry(commands: CommandPaletteSurfaceStoryProps["commands"], onFakeFire: () => void): ContributorRegistry<SlashCommandContribution> {
+  const door = [...chatSlashCommands, ...characterSlashCommands];
+  const contributions: readonly SlashCommandContribution[] =
+    commands === "contributed"
+      ? [
+          ...door,
+          {
+            id: CT_PALETTE_COMMAND_ID,
+            label: CT_PALETTE_COMMAND_LABEL,
+            describe: "A grafted command, registered at the door",
+            mount: (props): ReactElement => <CtFakeCommandMount {...props} onFire={onFakeFire} />,
+          },
+        ]
+      : door;
+  return createContributorRegistry<SlashCommandContribution>("slash-commands", contributions);
+}
+
 /** The J4 ⌘K command palette body, wired to the real data layer (routeTrpc stubs `chat.listChats`).
  *  `goToSections` is a fixed CT literal (app-root derives it from the section registry in production);
  *  the COMMAND rows come from the real slash-command registry, exactly as they do at the door. */
 export function CommandPaletteSurfaceStory({ commands = "door" }: CommandPaletteSurfaceStoryProps): ReactElement {
   const [ranFake, setRanFake] = useState(false);
-  const registry = useMemo(() => {
-    const door = [...chatSlashCommands, ...characterSlashCommands];
-    const contributions: readonly SlashCommandContribution[] =
-      commands === "contributed"
-        ? [
-            ...door,
-            {
-              id: CT_PALETTE_COMMAND_ID,
-              label: CT_PALETTE_COMMAND_LABEL,
-              describe: "A grafted command, registered at the door",
-              mount: (props): ReactElement => <CtFakeCommandMount {...props} onFire={(): void => setRanFake(true)} />,
-            },
-          ]
-        : door;
-    return createContributorRegistry<SlashCommandContribution>("slash-commands", contributions);
-  }, [commands]);
+  const registry = buildPaletteRegistry(commands, (): void => setRanFake(true));
 
   const body = (
     <div style={{ height: 480, width: 560 }}>

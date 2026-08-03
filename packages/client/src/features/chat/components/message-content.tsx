@@ -14,7 +14,6 @@ import { Markdown } from "@orb/ui/markdown";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
-import { useMemo } from "react";
 import type { MessageRenderContext, RowRenderPolicy } from "#lib";
 import { renderMessageForDisplay } from "#lib";
 import { toContentBlocks } from "../lib/content-blocks";
@@ -86,13 +85,11 @@ interface MessageSegmentProps {
 
 function MessageSegment({ text, render, keyPrefix }: MessageSegmentProps): ReactElement {
   // §4.3 trust routing: ONE trust authority (`render-trust`) — an untrusted row's card renders in the
-  // tierB sandbox (the model-output default); a trusted row's card may render inline tierA. Memoized on
-  // the body + policy (§4.5 wiring-reality hygiene #1) so a chrome-only re-render never re-tokenizes —
-  // and, with the index+kind keys below stable for an unchanged body, never reloads a card's srcdoc.
-  const blocks = useMemo(
-    () => toContentBlocks(text, { cardTrust: render.trust === "trusted" ? "tierA" : "tierB", lenientHtml: render.lenientCards }),
-    [text, render.trust, render.lenientCards],
-  );
+  // tierB sandbox (the model-output default); a trusted row's card may render inline tierA. The compiler
+  // caches on the body + policy (§4.5 wiring-reality hygiene #1) so a chrome-only re-render never
+  // re-tokenizes — and, with the index+kind keys below stable for an unchanged body, never reloads a
+  // card's srcdoc.
+  const blocks = toContentBlocks(text, { cardTrust: render.trust === "trusted" ? "tierA" : "tierB", lenientHtml: render.lenientCards });
   return <Stack gap="row">{blocks.map((block, index) => renderBlock(block, `${keyPrefix}${index}-${block.kind}`, render))}</Stack>;
 }
 

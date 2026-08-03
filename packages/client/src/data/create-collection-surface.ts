@@ -4,7 +4,7 @@
 
 import type { DefaultError, InfiniteData, QueryKey, UseInfiniteQueryOptions } from "@tanstack/react-query";
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
-import { useCallback, useMemo, useState } from "react";
+import { useState } from "react";
 import type { Trpc } from "./trpc";
 
 /** What the tRPC proxy's `.infiniteQueryOptions(input, opts)` returns — wrapped, never re-spelled.
@@ -73,18 +73,18 @@ export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unkn
 
     const [selected, setSelected] = useState<ReadonlySet<string>>(() => new Set<string>());
 
-    const items = useMemo(() => (query.data === undefined ? [] : query.data.pages.flatMap((p) => config.itemsOf(p))), [query.data]);
+    const items = query.data === undefined ? [] : query.data.pages.flatMap((p) => config.itemsOf(p));
 
-    // Destructured so the callback deps are exact slices, not the fresh-proxy-per-render `query` object.
+    // Destructured so the callback closes over exact slices, not the fresh-proxy-per-render `query` object.
     const { hasNextPage, isFetching, fetchNextPage, refetch } = query;
-    const onEndApproach = useCallback((): void => {
+    const onEndApproach = (): void => {
       if (hasNextPage && !isFetching) {
         void fetchNextPage();
       }
-    }, [hasNextPage, isFetching, fetchNextPage]);
-    const retry = useCallback((): void => {
+    };
+    const retry = (): void => {
       void refetch();
-    }, [refetch]);
+    };
 
     return {
       items,
