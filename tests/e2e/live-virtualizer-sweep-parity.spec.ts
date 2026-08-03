@@ -11,6 +11,8 @@
 // DOM genuinely does not contain every row. @live-gated (E2E_LIVE=1) and cost-bounded accordingly — this is
 // NOT the routine-battery default.
 
+import type { CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { waitForAppReady, waitForStreamOpen } from "./support/chat-room";
 import { listCanon, listCharacters, sendTurn, startChat, trpcMutation } from "./support/trpc";
@@ -23,7 +25,7 @@ test("collectVirtualRows sweeps a transcript longer than the viewport and matche
 }, async ({ page }) => {
   test.setTimeout(300_000);
 
-  const characterId = (await listCharacters())[0]?.id ?? "";
+  const characterId = (await listCharacters())[0]?.id ?? castId<CharacterId>("");
   expect(characterId).not.toBe("");
   const chatId = await startChat([characterId]);
 

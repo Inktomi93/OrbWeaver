@@ -26,7 +26,8 @@
 // `tests/server/domain/chat/verbs/read.int.test.ts`), not faked at E2E. This spec proves the security-critical
 // BODY strip end-to-end with a real member + the deception-active GATE — the layer the capstone could not reach.
 
-import type { CharacterHandle } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, loginLocal, ownerActor } from "./support/actors";
 import { LOCAL_MEMBER } from "./support/modes";
@@ -40,7 +41,7 @@ interface CreatedCharacter {
   readonly id: string;
 }
 interface StartedChat {
-  readonly chat: { readonly id: string };
+  readonly chat: { readonly id: ChatId };
 }
 interface MessagesPage {
   readonly messages: readonly { readonly id: string; readonly role: string; readonly content: string }[];
@@ -82,7 +83,7 @@ test("P3 member-strip: a MEMBER's wire payload is byte-clean of the planted lie;
     await host.mutation("chat.editMessage", { chatId, messageId: greetingId, content: `"Just a traveller," he says. ${LIE_TAG}` });
 
     // MEMBER: log in + join the chat (createInvite → redeemInvite).
-    const member = await loginLocal(origin, LOCAL_MEMBER.handle, LOCAL_MEMBER.password);
+    const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(host, member, chatId, LOCAL_MEMBER.handle);
 
     // ── ASSERTION 1 (MEMBER-STRIP): the member's serialized listMessages payload carries ZERO hidden bytes.

@@ -16,7 +16,8 @@
 // viewer, member-side). The assertions are the real check — a PNG proves nothing on its own — but the
 // screenshots are the deliverable a human reviews.
 
-import type { CharacterHandle } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import type { ActorClient } from "./support/actors";
 import { addMemberToChat, loginLocal, ownerActor } from "./support/actors";
@@ -33,10 +34,10 @@ const PANEL_MIN_WIDTH_PX = 200;
 const PANEL_MIN_HEIGHT_PX = 200;
 
 interface CreatedCharacter {
-  readonly id: string;
+  readonly id: CharacterId;
 }
 interface StartedChat {
-  readonly chat: { readonly id: string };
+  readonly chat: { readonly id: ChatId };
 }
 
 /** Two cast members so the Members tab renders BOTH of its sections (People needs ≥2 humans, Cast needs ≥2
@@ -56,7 +57,7 @@ const CAST_B = {
 };
 const CAST = [CAST_A, CAST_B];
 
-async function freshCharacter(host: ActorClient, card: (typeof CAST)[number]): Promise<string> {
+async function freshCharacter(host: ActorClient, card: (typeof CAST)[number]): Promise<CharacterId> {
   const prior = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[] }>("character.list", {});
   const stale = prior.items.find((c) => c.handle === card.handle);
   if (stale !== undefined) {
@@ -79,14 +80,14 @@ test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host 
   try {
     const started = await api.mutation<StartedChat>("chat.startChat", { characterIds });
     const chatId = started.chat.id;
-    const memberApi = await loginLocal(origin, LOCAL_MEMBER.handle, LOCAL_MEMBER.password);
+    const memberApi = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(api, memberApi, chatId, LOCAL_MEMBER.handle);
     // A committed room (the Members tab's `phase === "committed"` arm) — the greeting alone leaves the chat
     // in its founding state on some paths, so plant one durable user row.
     await api.mutation("chat.commitMessage", { chatId, content: "Both of you, on me." });
 
-    const hostView = await openBrowserActor(browser, origin, LOCAL_OWNER.handle, LOCAL_OWNER.password);
-    const memberView = await openBrowserActor(browser, origin, LOCAL_MEMBER.handle, LOCAL_MEMBER.password);
+    const hostView = await openBrowserActor(browser, origin, castId<Handle>(LOCAL_OWNER.handle), LOCAL_OWNER.password);
+    const memberView = await openBrowserActor(browser, origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
 
     try {
       await openMembersTab(hostView.page, chatId);

@@ -17,6 +17,8 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import type { CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room";
 import { getUserSettings, listCanon, listCharacters, startChat } from "./support/trpc";
@@ -43,7 +45,7 @@ test("routing pin is what's stored AND what the turn actually rides (local vLLM)
 
   // ── 2. USED — a real turn rides the local engine. ── Self-seed a fresh chat so the canon read below is
   // unambiguous (its generated assistant row is the one we just drove).
-  const characterId = (await listCharacters())[0]?.id ?? "";
+  const characterId = (await listCharacters())[0]?.id ?? castId<CharacterId>("");
   expect(characterId).not.toBe("");
   const chatId = await startChat([characterId]);
   await openNewestChat(page);

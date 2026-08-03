@@ -17,7 +17,8 @@
 // Self-seeded: spec-owned characters (unique handles + display names) and a uniquely-titled chat, torn
 // down in a finally — never `listChats()[0]` on the shared DB.
 
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import {
@@ -34,9 +35,9 @@ import {
 import { assistantTurns, characterSeats, deleteChat, getGroupConfig, mintFreshCharacter, removeCharacter, startGroupChat } from "./support/trpc";
 
 const CAST = [
-  { handle: "e2e-hub-alpha", name: "Hubspec Alpha" },
-  { handle: "e2e-hub-bravo", name: "Hubspec Bravo" },
-  { handle: "e2e-hub-cirrus", name: "Hubspec Cirrus" },
+  { handle: castId<CharacterHandle>("e2e-hub-alpha"), name: "Hubspec Alpha" },
+  { handle: castId<CharacterHandle>("e2e-hub-bravo"), name: "Hubspec Bravo" },
+  { handle: castId<CharacterHandle>("e2e-hub-cirrus"), name: "Hubspec Cirrus" },
 ] as const;
 
 const LIVE_TIMEOUT_MS = 180_000;
@@ -47,14 +48,14 @@ const STOP_AFFORDANCE = /^(Stop generating|Stopping…)$/u;
 
 interface Room {
   readonly chatId: ChatId;
-  readonly characterIds: readonly string[];
+  readonly characterIds: readonly CharacterId[];
   readonly title: string;
 }
 
 /** Seed the room the two tabs will share: `count` spec-owned characters, `opening: "none"` (empty canon),
  *  a unique title so a list-row locator can only match this chat. */
 async function seedRoom(label: string, count: number, groupConfig?: Record<string, unknown>): Promise<Room> {
-  const characterIds: string[] = [];
+  const characterIds: CharacterId[] = [];
   for (const member of CAST.slice(0, count)) {
     // biome-ignore lint/performance/noAwaitInLoops: mintFreshCharacter re-mints by handle (remove-then-create) — a parallel fan would race the same handle.
     characterIds.push(await mintFreshCharacter(member.handle, member.name, `${member.name} greeting.`));

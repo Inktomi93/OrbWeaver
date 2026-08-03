@@ -30,7 +30,8 @@
 // `opening: "none"` — an empty canon means round 1 has NO last speaker, which is what makes the
 // "everyone speaks" arms deterministic. Characters (and with them their chats) are removed in a finally.
 
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, MessageId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import type { ChatRoute, RosterSeat } from "./support/trpc";
 import {
@@ -56,9 +57,9 @@ const STATELESS_ROUTE: ChatRoute = { api: "chat-completions", source: "vllm" };
 /** The spec-owned cast: unique handles (idempotent re-mint) + unique display names (so `@mention`
  *  resolution can only match the intended member). */
 const CAST = [
-  { handle: "e2e-modes-alpha", name: "Modespec Alpha" },
-  { handle: "e2e-modes-bravo", name: "Modespec Bravo" },
-  { handle: "e2e-modes-cirrus", name: "Modespec Cirrus" },
+  { handle: castId<CharacterHandle>("e2e-modes-alpha"), name: "Modespec Alpha" },
+  { handle: castId<CharacterHandle>("e2e-modes-bravo"), name: "Modespec Bravo" },
+  { handle: castId<CharacterHandle>("e2e-modes-cirrus"), name: "Modespec Cirrus" },
 ] as const;
 
 /** Long enough for a 3-character round plus an auto-mode chain on a warm local 8B. */
@@ -66,12 +67,12 @@ const LIVE_TIMEOUT_MS = 240_000;
 
 interface Room {
   readonly chatId: ChatId;
-  readonly characterIds: readonly string[];
+  readonly characterIds: readonly CharacterId[];
   readonly seats: readonly RosterSeat[];
 }
 
-async function mintCast(count: number): Promise<readonly string[]> {
-  const ids: string[] = [];
+async function mintCast(count: number): Promise<readonly CharacterId[]> {
+  const ids: CharacterId[] = [];
   for (const member of CAST.slice(0, count)) {
     // biome-ignore lint/performance/noAwaitInLoops: mintFreshCharacter re-mints by handle (remove-then-create) — a parallel fan would race the same handle.
     ids.push(await mintFreshCharacter(member.handle, member.name, `${member.name} greeting.`));
@@ -79,7 +80,7 @@ async function mintCast(count: number): Promise<readonly string[]> {
   return ids;
 }
 
-async function dropCast(characterIds: readonly string[]): Promise<void> {
+async function dropCast(characterIds: readonly CharacterId[]): Promise<void> {
   for (const id of characterIds) {
     // biome-ignore lint/performance/noAwaitInLoops: teardown is a best-effort sequence; a parallel fan would hide which removal failed.
     await removeCharacter(id).catch(() => null);
@@ -154,9 +155,9 @@ test.describe("group modes on the live local stack", () => {
       const second = turns[1];
       expect(first).toBeDefined();
       expect(second).toBeDefined();
-      await swipeMessage(room.chatId, first?.id ?? "");
-      expect(await countMessageVariants(room.chatId, first?.id ?? "")).toBe(2);
-      expect(await countMessageVariants(room.chatId, second?.id ?? "")).toBe(1);
+      await swipeMessage(room.chatId, first?.id ?? castId<MessageId>(""));
+      expect(await countMessageVariants(room.chatId, first?.id ?? castId<MessageId>(""))).toBe(2);
+      expect(await countMessageVariants(room.chatId, second?.id ?? castId<MessageId>(""))).toBe(1);
     } finally {
       await teardown(room);
     }
@@ -245,7 +246,7 @@ test.describe("group modes on the live local stack", () => {
 
       // The host's explicit summons is the ONLY thing that drives a manual room — and it targets exactly
       // the named member.
-      const target = room.characterIds[1] ?? "";
+      const target = room.characterIds[1] ?? castId<CharacterId>("");
       await forceCharacterTurn(room.chatId, target);
       expect(await speakerSequence(room.chatId)).toEqual([target]);
     } finally {
@@ -288,7 +289,7 @@ test.describe("group modes on the live local stack", () => {
       expect(await speakerSequence(muteRoom.chatId)).toEqual([muteRoom.characterIds[0], muteRoom.characterIds[2]]);
 
       // Mute is passive arbitration exclusion, NOT a host-override block (verbs/turn.ts: presence-only).
-      await forceCharacterTurn(muteRoom.chatId, mutedSeat?.characterId ?? "");
+      await forceCharacterTurn(muteRoom.chatId, mutedSeat?.characterId ?? castId<CharacterId>(""));
       expect((await speakerSequence(muteRoom.chatId)).at(-1)).toBe(mutedSeat?.characterId);
     } finally {
       await teardown(muteRoom);
