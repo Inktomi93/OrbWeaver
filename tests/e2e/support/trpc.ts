@@ -65,7 +65,7 @@ export async function trpcMutation<T>(procedure: string, input: unknown): Promis
  *  module mirrors the wire subset locally like chat-room.ts's OrbBusHandle, and the no-inline-union-redecl
  *  gate bans re-spelling the homed MESSAGE_ROLES members here — specs compare it to literals, `string` suffices. */
 export interface CanonMessage {
-  readonly id: string;
+  readonly id: MessageId;
   readonly seq: number;
   readonly role: string;
   readonly content: string;
@@ -73,7 +73,7 @@ export interface CanonMessage {
   readonly provider: string | null;
   readonly characterId: CharacterId | null;
   readonly personaId: PersonaId | null;
-  readonly contextBoundaryMessageId: string | null;
+  readonly contextBoundaryMessageId: MessageId | null;
   /** The selected variant's prompt token count — the SHRINKAGE instrument (a post-compaction turn's tokensIn
    *  drops below the pre-compaction peak because covered turns fall out of the prompt). Null on a user row. */
   readonly tokensIn: number | null;
@@ -165,11 +165,11 @@ export function listThemes(): Promise<readonly ThemeRow[]> {
 }
 
 interface StartedChat {
-  readonly chat: { readonly id: string };
+  readonly chat: { readonly id: ChatId };
 }
 
 /** Start a fresh committed chat with the given character(s) (model-free — seeds the greeting row). */
-export async function startChat(characterIds: readonly string[]): Promise<string> {
+export async function startChat(characterIds: readonly CharacterId[]): Promise<ChatId> {
   const started = await trpcMutation<StartedChat>("chat.startChat", { characterIds });
   return started.chat.id;
 }
@@ -201,7 +201,7 @@ export async function sendTurn(chatId: ChatId, content: string, maxContextTokens
 }
 
 interface CharacterListPage {
-  readonly items: readonly { readonly id: string; readonly handle: CharacterHandle; readonly name: string }[];
+  readonly items: readonly { readonly id: CharacterId; readonly handle: CharacterHandle; readonly name: string }[];
 }
 
 /** The character catalog (globalSetup guarantees ≥1). */
@@ -216,12 +216,12 @@ export async function listCharacters(): Promise<CharacterListPage["items"]> {
  *  latest room instead of opening a fresh draft). Idempotent across crashed runs: an existing character
  *  with the handle is removed first (its chats go with it), then a fresh one is created. Callers remove
  *  it in a finally via `removeCharacter`. */
-export async function mintFreshCharacter(handle: CharacterHandle, name: string, greeting: string): Promise<string> {
+export async function mintFreshCharacter(handle: CharacterHandle, name: string, greeting: string): Promise<CharacterId> {
   const existing = (await listCharacters()).find((c) => c.handle === handle);
   if (existing !== undefined) {
     await trpcMutation("character.remove", { characterId: existing.id });
   }
-  const created = await trpcMutation<{ readonly id: string }>("character.create", {
+  const created = await trpcMutation<{ readonly id: CharacterId }>("character.create", {
     input: { handle, name, description: "e2e spec-owned probe character", greetings: [{ text: greeting }] },
   });
   return created.id;
@@ -369,7 +369,7 @@ export interface GroupConfigView {
 
 /** The `chat.startChat` / `chat.getChat` room detail (the fields the group specs read). */
 interface ChatDetail {
-  readonly id: string;
+  readonly id: ChatId;
   readonly participants: readonly RosterSeat[];
 }
 
