@@ -684,7 +684,22 @@ recorded) · neo's L10 forge-guard deliberately not ported (SHAPE-stamp makes it
 cited). **MORNING VETO ITEMS: the three nudge default texts VERBATIM in NARCOLOR's report**
 (speakerTags v1 · narratorNudge v1 · roundNudge v2; {{user}} deliberately absent —
 macros:"none" slots; a {{names}}-style pre-sub token is small plumbing on the word).
-**DISPATCHED into the freed slots: REGPAR + RESYNC-OR (live = R1B + both = 3 at cap).**
+**DISPATCHED into the freed slots: REGPAR + RESYNC-OR.**
+✅ **R1B MERGED (+2 landing fixes `00b45c17` — the house Field-select a11y suppression +
+baseline row; consolidated hook-green) — THE CONFIG RAIL IS LIVE:** ninth section, collection
+roster (collapsed groups, 400-tag fixture proven, windowed rows + filter), tags + regex OUT
+of settings (panes/dialog DELETED; openSettingsTo union shrank, tsc enumerated the callers →
+goToCollection(kind)), gate #175 collection-registry-completeness (ORPHAN-DEF arm live,
+planted-probe bitten), contract deltas reasoned (create REQUIRED w/ useRun hook · context
+union · welcome one-voice w/ header reason). Rendered proofs vs the mock caught 2 defects
+pre-merge. **OWNER MORNING ITEMS from R1B:** (a) tag DRAG-REORDER disappears above 30 members
+(Sortable↔Virtual can't compose — accept, or re-home ordering at scale?); (b) the regex
+CONTEXT pane ships WITHOUT the mock's attached-by rosters — the REVERSE lists verb doesn't
+exist (**REGROSTER small queued**: one server verb + the rosters). SNAPX now UNBLOCKED
+(R1B released the nav bridge). LESSON banked (agents): a Field wrapper's aria-labelledby
+WINS over a child's aria-label — moving a control into a Field silently renames it.
+**Lane R2WI dispatched** (world-info → config, the R2 stage). LIVE (3): REGPAR · RESYNC-OR ·
+R2WI.
 **═══ OVERNIGHT ENGAGED (owner OFF, 08-03 ~late; full-auto per the posture memory + ladder) ═══**
 LIVE: R1B (config workspace — collapsed-groups ruled, 400-tag fixture) · SM5 (5 smalls; MACU-2
 arm-a ratified) · NARCOLOR (final shape: both produce arms + tolerant parse + forge guard +
