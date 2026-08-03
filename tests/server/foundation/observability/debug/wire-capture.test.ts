@@ -6,11 +6,13 @@
 // (compose wires that fn as the backend sink only when capture is enabled) — so this test drives the ring
 // directly, and `reset` in `beforeEach` keeps the singleton clean between cases.
 
+import type { ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { isWireCaptureEnabled, recentWireCaptures, recordWireCapture, resetWireCaptures } from "@orb/server/foundation/observability";
 import { beforeEach, describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
 
-function capture(chatId: string, backend: "vllm" | "agent-sdk", body: Record<string, unknown> = {}): void {
+function capture(chatId: ChatId, backend: "vllm" | "agent-sdk", body: Record<string, unknown> = {}): void {
   recordWireCapture({ chatId, api: backend === "vllm" ? "chat-completions" : "agent-sdk", backend, model: "m", at: 0, body });
 }
 
@@ -18,37 +20,37 @@ describe("wire-capture recorder", () => {
   beforeEach(() => resetWireCaptures());
 
   test("records and reads newest-first", () => {
-    capture("chat_a", "vllm", { n: 1 });
-    capture("chat_a", "vllm", { n: 2 });
-    const got = recentWireCaptures({ chatId: "chat_a" });
+    capture(castId<ChatId>("chat_a"), "vllm", { n: 1 });
+    capture(castId<ChatId>("chat_a"), "vllm", { n: 2 });
+    const got = recentWireCaptures({ chatId: castId<ChatId>("chat_a") });
     expect(got.map((c) => c.body["n"])).toEqual([2, 1]);
   });
 
   test("filters by chatId — a foreign chat's capture is excluded", () => {
-    capture("chat_a", "vllm");
-    capture("chat_b", "vllm");
-    expect(recentWireCaptures({ chatId: "chat_a" })).toHaveLength(1);
-    expect(recentWireCaptures({ chatId: "chat_a" })[0]?.chatId).toBe("chat_a");
+    capture(castId<ChatId>("chat_a"), "vllm");
+    capture(castId<ChatId>("chat_b"), "vllm");
+    expect(recentWireCaptures({ chatId: castId<ChatId>("chat_a") })).toHaveLength(1);
+    expect(recentWireCaptures({ chatId: castId<ChatId>("chat_a") })[0]?.chatId).toBe("chat_a");
   });
 
   test("filters by backend", () => {
-    capture("chat_a", "vllm");
-    capture("chat_a", "agent-sdk");
-    expect(recentWireCaptures({ chatId: "chat_a", backend: "agent-sdk" })).toHaveLength(1);
-    expect(recentWireCaptures({ chatId: "chat_a", backend: "agent-sdk" })[0]?.backend).toBe("agent-sdk");
+    capture(castId<ChatId>("chat_a"), "vllm");
+    capture(castId<ChatId>("chat_a"), "agent-sdk");
+    expect(recentWireCaptures({ chatId: castId<ChatId>("chat_a"), backend: "agent-sdk" })).toHaveLength(1);
+    expect(recentWireCaptures({ chatId: castId<ChatId>("chat_a"), backend: "agent-sdk" })[0]?.backend).toBe("agent-sdk");
   });
 
   test("respects the read limit", () => {
     for (let i = 0; i < 5; i += 1) {
-      capture("chat_a", "vllm", { n: i });
+      capture(castId<ChatId>("chat_a"), "vllm", { n: i });
     }
-    expect(recentWireCaptures({ chatId: "chat_a", limit: 2 })).toHaveLength(2);
+    expect(recentWireCaptures({ chatId: castId<ChatId>("chat_a"), limit: 2 })).toHaveLength(2);
   });
 
   test("resetWireCaptures clears the ring (test isolation — no cross-row bleed)", () => {
-    capture("chat_a", "vllm");
+    capture(castId<ChatId>("chat_a"), "vllm");
     resetWireCaptures();
-    expect(recentWireCaptures({ chatId: "chat_a" })).toHaveLength(0);
+    expect(recentWireCaptures({ chatId: castId<ChatId>("chat_a") })).toHaveLength(0);
   });
 
   test("isWireCaptureEnabled reflects the env flag (default off — the prod-safety gate)", () => {

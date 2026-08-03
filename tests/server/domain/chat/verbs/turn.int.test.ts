@@ -2834,7 +2834,7 @@ const USER_COMMIT_OUTER_REQUEST_ID = "rpg-user-commit-outer-request";
 
 test("the send-path rpg user-commit opens its OWN request trace (it outlives the send that started it)", async () => {
   initTracing();
-  const host = await seedUser(db, "rpgcommithost");
+  const host = await seedUser(db, castId<Handle>("rpgcommithost"));
   const charA = await seedCharacter(db, host, "aria");
   const chatId = await seedChat(db, "rpg_commit_trace");
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });

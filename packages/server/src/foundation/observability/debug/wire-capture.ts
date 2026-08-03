@@ -29,6 +29,7 @@
 // stays empty (never written) with the feature off. Test isolation: `resetWireCaptures()` clears the ring
 // between tests so a foreign run's bytes never bleed in.
 
+import type { ChatId } from "@orb/kit/ids";
 import { env } from "#foundation/env";
 
 /** How many captures the ring retains (most-recent-wins). Bounded so a long-lived dev process can't grow it. */
@@ -40,7 +41,7 @@ const WIRE_CAPTURE_RING_CAPACITY = 256;
 export interface WireCapture {
   /** The chat this send belongs to — the harness's correlation key (it opens unique-title chats). Absent on
    *  a chatless probe turn. */
-  readonly chatId?: string | undefined;
+  readonly chatId?: ChatId | undefined;
   /** The axis the request rode: "agent-sdk" (SDK-input shape) | "chat-completions"/"responses"
    *  (openai-compat body shape) | "summarize" (the chatless summarization role) | "structured" (the chatless
    *  schema-constrained-generation role — the rpg structured extraction / the split-out structured surface; both
@@ -56,7 +57,7 @@ export interface WireCapture {
 
 /** Filter for a host read: by `chatId` and/or `backend`, newest-first, capped by `limit`. */
 export interface WireCaptureFilter {
-  readonly chatId?: string | undefined;
+  readonly chatId?: ChatId | undefined;
   readonly backend?: string | undefined;
   readonly limit?: number | undefined;
 }

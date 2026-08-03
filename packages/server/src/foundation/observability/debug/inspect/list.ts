@@ -5,7 +5,7 @@
 
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, chats, messages } from "@orb/db";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { count, desc, eq } from "drizzle-orm";
 
 /** One chat-list row (the discovery shape — id + title + the two headline counts + recency). */
@@ -22,7 +22,7 @@ export interface ChatListRow {
 export interface CharacterListRow {
   id: CharacterId;
   name: string;
-  handle: string;
+  handle: CharacterHandle;
   createdAt: number;
 }
 

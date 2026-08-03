@@ -2,6 +2,8 @@
 // output shape (requestId stamped on the line), and securityEvent. The rings are module singletons shared
 // across tests, so each test pushes its OWN markers and asserts on those (most-recent-first).
 
+import type { Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { RequestRecord } from "@orb/server/foundation/observability";
 import {
   bindRequestUser,
@@ -43,14 +45,14 @@ describe("request scope", () => {
   test("bindRequestUser sets the caller within the scope and clears when it exits", () => {
     runInRequest("req-scope-1", () => {
       expect(getRequestUserId()).toBeUndefined(); // not bound yet
-      bindRequestUser("user-1", "alice");
+      bindRequestUser(castId<UserId>("user-1"), castId<Handle>("alice"));
       expect(getRequestUserId()).toBe("user-1");
     });
     expect(getRequestUserId()).toBeUndefined(); // back outside
   });
 
   test("bindRequestUser outside a scope is a no-op (no throw)", () => {
-    expect(() => bindRequestUser("user-x")).not.toThrow();
+    expect(() => bindRequestUser(castId<UserId>("user-x"))).not.toThrow();
     expect(getRequestUserId()).toBeUndefined();
   });
 });
