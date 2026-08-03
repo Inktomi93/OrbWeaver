@@ -53,6 +53,10 @@ function stubScope(
   let current = [...attached];
   return routeTrpc(page, {
     "regex.listScripts": () => library,
+    // The context pane also reads the reverse ROSTERS (REGROSTER). Not what these tests are about, but an
+    // unlisted proc resolves `null` and the pane would render nothing at all — the rosters are pinned by
+    // tests/client/features/regex/components/regex-context-body.ct.tsx.
+    "regex.listScriptUsage": () => ({ presets: [], characters: [], rooms: [] }),
     [proc]: () => current,
     [APPLY_PROC]: (input: unknown): unknown => {
       const ordered = (input as { readonly orderedScriptIds: readonly string[] }).orderedScriptIds;

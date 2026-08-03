@@ -13,7 +13,7 @@ import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { can } from "#domain/admin";
 import { parseChatMetadata } from "#domain/chat";
 import type {
@@ -68,6 +68,40 @@ function makeResolveRoomDisplayPolicy(db: Db): RegexContext["resolveRoomDisplayP
   };
 }
 
+/**
+ * The REVERSE-roster room filter (REGROSTER) — "of these rooms, which may this caller see, and what are
+ * they called". Built HERE for the same reason `resolveRoomDisplayPolicy` is: rooms carry no `ownerId`
+ * (D18), so their scope is `chat_participants` and their NAME is chat's display vocabulary — regex reads
+ * neither.
+ *
+ * PRESENT membership only (`leftSeq IS NULL`): a room the caller has left keeps the attachment row, and
+ * naming it would tell an ex-member a room they can no longer open still exists and still runs their
+ * script. Absent from the answer is the same leak-free collapse `requireParticipant` makes, without a throw.
+ *
+ * The NAME is the authored title, trimmed, else the untitled fallback — the chats list's own first and last
+ * rungs. Its MIDDLE rung (the participant-name projection, `deriveChatTitle`) is deliberately not re-derived
+ * here: it is a per-caller roster+character join that exists to title a chat CARD, and a three-line roster
+ * in a 320px context pane is not worth making regex's cheapest read pay for it.
+ */
+function makeResolveVisibleRooms(db: Db): RegexContext["resolveVisibleRooms"] {
+  return async (principal, chatIds) => {
+    const rows = await db
+      .select({ id: chats.id, title: chats.title })
+      .from(chats)
+      .innerJoin(chatParticipants, eq(chatParticipants.chatId, chats.id))
+      .where(and(inArray(chats.id, [...chatIds]), eq(chatParticipants.userId, principal.userId), isNull(chatParticipants.leftSeq)));
+    // Sorted on the DERIVED name, not the raw column: ordering by `chats.title` would bunch every unnamed
+    // room at the top under a label the sort never saw. Id breaks the tie so two "Untitled chat"s are stable.
+    return rows
+      .map((row) => ({ id: row.id, name: (row.title ?? "").trim() || UNTITLED_ROOM }))
+      .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+  };
+}
+
+/** The roster's name for a room nobody has renamed. Matches the chats list's own last-rung string so one
+ *  unnamed room reads the same in both places. */
+const UNTITLED_ROOM = "Untitled chat";
+
 /** What the regex seam needs from the composition root. */
 export interface RegexComposeDeps {
   readonly db: Db;
@@ -101,6 +135,7 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
     requireChatHost: (principal, chatId) => requireHost({ db, can }, principal, chatId).then((): void => undefined),
     requireChatMember: (principal, chatId) => requireParticipant({ db, can }, principal, chatId).then((): void => undefined),
     resolveRoomDisplayPolicy: makeResolveRoomDisplayPolicy(db),
+    resolveVisibleRooms: makeResolveVisibleRooms(db),
     emitUserEvent: publishUserEvent,
   });
 

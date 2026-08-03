@@ -34,6 +34,12 @@ export interface DuplicateScriptParams extends RegexActorParams {
   readonly scriptId: RegexScriptId;
 }
 
+/** The REVERSE-roster read: which carriers attach ONE owned script. Same gate as `getScript` — a
+ *  foreign/absent script is `RegexNotFoundError`, so the read can never enumerate someone else's shelf. */
+export interface ListScriptUsageParams extends RegexActorParams {
+  readonly scriptId: RegexScriptId;
+}
+
 export interface AttachGlobalParams extends RegexActorParams {
   readonly scriptId: RegexScriptId;
 }

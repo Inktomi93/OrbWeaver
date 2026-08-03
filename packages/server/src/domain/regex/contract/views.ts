@@ -3,4 +3,10 @@
 // what every reader (the chat legs, the client library surface, the pickers) consumes, and it is the shape
 // `@orb/kit/regex`'s executor takes.
 
-export type { CreateRegexScriptInput, PortableRegexScript, RegexScriptRow, UpdateRegexScriptInput } from "@orb/contracts/regex";
+export type {
+  CreateRegexScriptInput,
+  PortableRegexScript,
+  RegexScriptRow,
+  RegexScriptUsage,
+  UpdateRegexScriptInput,
+} from "@orb/contracts/regex";
