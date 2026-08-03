@@ -84,6 +84,15 @@ SIX of its own findings RETRACTED with receipts (virtualized rows DO walk under 
 430 items reachable; the "sub-44 targets" were devtools chrome). Reading-surface contrast
 pixel-sampled over the theme art: ALL PASS (prose 17.4:1). design-audit again 26/26 false
 positives (instrument note stands). **Lane NIGHTFIX dispatched (fix-ALL law).**
+**LIVE NOW (2, owner word "proceed and continue burn down"): SCHEMA (ae77d3dd37bc2337b —
+strip the 4 unsupported keyword classes per-wire-subset · disable_parallel_tool_use +
+loud-duplicate · READ the refusal fields both vendors return [a refusal currently logs
+ok:true] · truth-repair the 3 stale comments; the nullable-union reshape stays a RECOMMENDATION
+at the schema header = the owner's A/B call) · DBANK2 (a75555728b3673edc — S2's per-chat rack:
+D-2 sources threaded [scope.ts already runs the 3 junction queries and DISCARDS the answer],
+the rack after Injections per D-4, **the D85 visibility toggle — the original workboard item,
+finally**, + the listActiveForChat freshness row).** Third slot HELD for the fresh push
+battery (98 commits since the last green run — quiesce + verify --push when these two drain).
 **═══ ▶▶▶ SESSION-RESURRECTION BLOCK (08-03 dawn — the owner's desktop session DIED; both
 lanes' worktrees + commits SURVIVED and were resumed warm, nothing lost) ═══**
 ✅ **NIGHTFIX MERGED** — the nightly side-eye fix-all, COMPLETE: config CONTENT region padding
