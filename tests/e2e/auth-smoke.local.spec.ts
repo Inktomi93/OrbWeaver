@@ -6,6 +6,8 @@
 // The seeded local users (global-setup → multi-user-seed): `owner` (role=owner, via the login form) and
 // `member` (role=user). The HOST/owner also resolves un-credentialed via the 127.0.0.1 fallback seam.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { loginLocal, ownerActor } from "./support/actors";
 import { LOCAL_MEMBER, LOCAL_OWNER } from "./support/modes";
@@ -19,7 +21,7 @@ test("the un-credentialed fallback resolves the OWNER (role=owner)", async ({ ba
 });
 
 test("a seeded MEMBER logs in and the seam resolves them as role=user", async ({ baseURL }) => {
-  const member = await loginLocal(baseURL ?? "", LOCAL_MEMBER.handle, LOCAL_MEMBER.password);
+  const member = await loginLocal(baseURL ?? "", castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
   const who = await member.whoami();
   expect(who.authenticated).toBe(true);
   expect(who.handle).toBe(LOCAL_MEMBER.handle);
@@ -27,13 +29,13 @@ test("a seeded MEMBER logs in and the seam resolves them as role=user", async ({
 });
 
 test("the seeded OWNER can log in via the form too (role=owner)", async ({ baseURL }) => {
-  const owner = await loginLocal(baseURL ?? "", LOCAL_OWNER.handle, LOCAL_OWNER.password);
+  const owner = await loginLocal(baseURL ?? "", castId<Handle>(LOCAL_OWNER.handle), LOCAL_OWNER.password);
   expect((await owner.whoami()).role).toBe("owner");
 });
 
 test("a MEMBER is REFUSED an owner-only proc (admin.listUsers → 403), but the owner is allowed", async ({ baseURL }) => {
   const origin = baseURL ?? "";
-  const member = await loginLocal(origin, LOCAL_MEMBER.handle, LOCAL_MEMBER.password);
+  const member = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
   const refused = await member.expectError("admin.listUsers", {}, "query");
   expect(refused.status).toBe(403);
 
@@ -43,5 +45,5 @@ test("a MEMBER is REFUSED an owner-only proc (admin.listUsers → 403), but the 
 });
 
 test("bad credentials mint no session (login is a real gate)", async ({ baseURL }) => {
-  await expect(loginLocal(baseURL ?? "", LOCAL_MEMBER.handle, "wrong-password")).rejects.toThrow(NO_SESSION_COOKIE);
+  await expect(loginLocal(baseURL ?? "", castId<Handle>(LOCAL_MEMBER.handle), "wrong-password")).rejects.toThrow(NO_SESSION_COOKIE);
 });

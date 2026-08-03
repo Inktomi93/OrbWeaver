@@ -27,7 +27,8 @@
 // below (Narrator · Label each speaker · Advanced · the policy/visibility selects) is byte-identical; only
 // the navigation to them changed (`openGroupBehaviorSection`).
 
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { castChipNames, castChips, openChatByTitle, openContextTab, openDetailPanel, openGroupBehaviorSection, openMemberRowMenu } from "./support/chat-room";
 import type { RosterSeat } from "./support/trpc";
@@ -45,18 +46,18 @@ import {
 /** A spec-owned cast: unique handles (idempotent re-mint across crashed runs) + unique DISPLAY names, so a
  *  `getByRole(..., { name })` locator can never collide with a seeded library card. */
 const CAST = [
-  { handle: "e2e-group-alpha", name: "Groupspec Alpha" },
-  { handle: "e2e-group-bravo", name: "Groupspec Bravo" },
+  { handle: castId<CharacterHandle>("e2e-group-alpha"), name: "Groupspec Alpha" },
+  { handle: castId<CharacterHandle>("e2e-group-bravo"), name: "Groupspec Bravo" },
 ] as const;
 
 interface SeededCast {
-  readonly characterIds: readonly string[];
+  readonly characterIds: readonly CharacterId[];
   readonly cleanup: () => Promise<void>;
 }
 
 async function mintCast(count: number): Promise<SeededCast> {
   const chosen = CAST.slice(0, count);
-  const characterIds: string[] = [];
+  const characterIds: CharacterId[] = [];
   for (const member of chosen) {
     // biome-ignore lint/performance/noAwaitInLoops: mintFreshCharacter re-mints by handle (remove-then-create) — concurrent mints would race the same handle.
     characterIds.push(await mintFreshCharacter(member.handle, member.name, `${member.name} greeting.`));
@@ -97,7 +98,7 @@ test("a solo room converts to a group: the cast bar, the Members tab and the Gro
 
     // The conversion itself — the server-side seat insert; the open room must learn about it off the
     // chat bus (`chatUpdated` → getChat refetch), with NO reload.
-    await addCharacterToChat(chat.id, cast.characterIds[1] ?? "");
+    await addCharacterToChat(chat.id, cast.characterIds[1] ?? castId<CharacterId>(""));
 
     await expect.poll(async () => (await castChipNames(page)).length, { timeout: 15_000 }).toBe(2);
     expect(await castChipNames(page)).toEqual(expect.arrayContaining([CAST[0].name, CAST[1].name]));
@@ -225,7 +226,7 @@ test("seat knobs are per-seat: muting one member and re-weighting another persis
   const cast = await mintCast(2);
   const title = `e2e-group-seats-${Date.now()}`;
   const chat = await startGroupChat({ characterIds: cast.characterIds, title });
-  const [alphaId, bravoId] = [cast.characterIds[0] ?? "", cast.characterIds[1] ?? ""];
+  const [alphaId, bravoId] = [cast.characterIds[0] ?? castId<CharacterId>(""), cast.characterIds[1] ?? castId<CharacterId>("")];
   try {
     const seeded = await characterSeats(chat.id);
     const baselineWeight = seatFor(seeded, alphaId)?.talkativeness ?? 0;

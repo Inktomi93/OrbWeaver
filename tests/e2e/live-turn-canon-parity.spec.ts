@@ -26,6 +26,8 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
+import type { CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { assistantRows, busEventTypes, openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room";
@@ -61,7 +63,7 @@ test("a real turn: ghost resolves, DOM == DB in order, bus order holds, local en
   // SELF-SEED a FRESH chat (greeting only) so the transcript is SHORT — the whole list renders (no
   // virtualization), making the DOM↔canon full-length parity below deterministic. Open it in the UI (it's
   // newest → the first Chats-list row).
-  const characterId = (await listCharacters())[0]?.id ?? "";
+  const characterId = (await listCharacters())[0]?.id ?? castId<CharacterId>("");
   expect(characterId).not.toBe("");
   const chatId = await startChat([characterId]);
   await openNewestChat(page);

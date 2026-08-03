@@ -16,6 +16,8 @@
 // int test is the authoritative harness") — never a false pass. Self-seeds a fresh chat (shared-DB isolation:
 // never listChats()[0]). Restores the mutated preset + routing in a finally.
 
+import type { CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import type { ChatRoute } from "./support/trpc";
 import {
@@ -55,7 +57,7 @@ test("TASK-24 four-layer capture works on the live stack (names 'completion', on
     if (preset !== undefined && originalConfig !== undefined) {
       await updatePresetConfig(preset.id, { ...structuredClone(originalConfig), namesBehavior: "completion" });
     }
-    const characterId = (await listCharacters())[0]?.id ?? "";
+    const characterId = (await listCharacters())[0]?.id ?? castId<CharacterId>("");
     const chatId = await startChat([characterId]);
     await sendTurn(chatId, PROBE);
 

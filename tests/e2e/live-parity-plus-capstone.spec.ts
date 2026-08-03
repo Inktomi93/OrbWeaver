@@ -23,7 +23,7 @@
 // proves the HOST side end-to-end (the lie is in host canon + the reveal eye parses it) and the reasoning-strip
 // WIRING (deception-active flips the game verdict) — see the report for the precise boundary.
 
-import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -89,7 +89,7 @@ async function openGamePanel(page: Page): Promise<void> {
 
 /** The greeting assistant row id (the durable row `startChat` seeded) — the deterministic edit target for the
  *  planted P3/P4/P5 content. A lite game's greeting is the first + only assistant row until a live turn runs. */
-async function greetingRowId(chatId: ChatId): Promise<string> {
+async function greetingRowId(chatId: ChatId): Promise<MessageId> {
   const canon = await listCanon(chatId);
   const assistant = canon.find((m) => m.role === "assistant");
   if (assistant === undefined) {
