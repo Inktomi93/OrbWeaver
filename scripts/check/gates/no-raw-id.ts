@@ -60,7 +60,12 @@ export const gate: GateDescriptor = {
       return;
     }
 
-    const valText = valueNode.getText();
+    // Whitespace-NORMALIZED before the substring match: a prettier-wrapped chain spells the same schema
+    // `z\n  .string()\n  .regex(…)`, which a raw `includes("z.string()")` does NOT see (GATE-AUTHORING.md
+    // §5 literal-shape blindness). Two live `*Id` fields in contracts/settings sat unflagged behind that
+    // hole — found 2026-08-03 by gate-ignore-inventory's new stale-marker arm, which reported their
+    // `@orb-gate-ignore no-raw-id` markers as guarding nothing.
+    const valText = valueNode.getText().replace(/\s+/gu, "");
     const isRawString = valText.includes("z.string()");
     const brands = ["brandedId", "typeIdSchema", "castId"];
     const isBranded = brands.some((b) => valText.includes(b));

@@ -90,19 +90,93 @@ function isNode(v: Node | Finding): v is Node {
   return typeof (v as Node).getSourceFile === "function";
 }
 
-/** Walk from the reported node up to its statement/file boundary, looking for a
- *  `// @orb-gate-ignore <gate-name>` suppression comment. Stops at the statement boundary so a comment
- *  above an unrelated sibling doesn't leak a suppression onto this node. */
-function hasGateIgnore(node: Node, gateName: string): boolean {
-  const ignoreRe = new RegExp(`//\\s*@orb-gate-ignore\\s+${gateName}\\b`);
+/** The house exemption-marker grammar (GATE-AUTHORING.md §4.3):
+ *  `// @orb-gate-ignore <gate-name>[(<position>)]: <reason>`.
+ *
+ *  The pattern is deliberately PERMISSIVE about the tail so a malformed marker is still RECOGNISED as an
+ *  attempted marker — `parseGateIgnoreMarker` then judges it. A marker that only the suppressor knew
+ *  about would be invisible to `gate-ignore-inventory`, which is the gate that reds bare/stale ones.
+ *  Groups: 1 = gate name · 2 = the optional position name · 3 = everything after it. */
+const GATE_IGNORE_SOURCE = String.raw`//\s*@orb-gate-ignore\s+([a-zA-Z0-9-]+)(?:\(\s*([^)\n]*?)\s*\))?(.*)`;
+
+/** One parsed `@orb-gate-ignore` marker. `malformed` is the §4.3 verdict: a marker missing its
+ *  `: <reason>` (or carrying an empty `()` position) suppresses NOTHING — a bare-marker-exempts rule is a
+ *  rubber stamp — and is itself reported by `gate-ignore-inventory` so it cannot sit there LOOKING like
+ *  protection. */
+export type GateIgnoreMarker = {
+  readonly gate: string;
+  /** §4.3a: the guarded POSITION (a finding's `token`), when the marker names one. `undefined` = the
+   *  marker covers every finding of its gate on the guarded node. */
+  readonly position: string | undefined;
+  readonly reason: string;
+  readonly malformed: boolean;
+};
+
+/** Judge one recognised marker against the §4.3 grammar. */
+function judgeGateIgnore(gate: string, rawPosition: string | undefined, tail: string): GateIgnoreMarker {
+  const afterName = tail.trimStart();
+  const reason = afterName.startsWith(":") ? afterName.slice(1).trim() : "";
+  const positionEmpty = rawPosition !== undefined && rawPosition.length === 0;
+  return { gate, position: rawPosition === undefined || positionEmpty ? undefined : rawPosition, reason, malformed: reason.length === 0 || positionEmpty };
+}
+
+/** Parse ONE comment's text. `undefined` = the comment is not a gate-ignore marker at all. */
+export function parseGateIgnoreMarker(commentText: string): GateIgnoreMarker | undefined {
+  const m = new RegExp(GATE_IGNORE_SOURCE, "u").exec(commentText);
+  return m === null ? undefined : judgeGateIgnore(m[1] ?? "", m[2], m[3] ?? "");
+}
+
+/** Every marker in a source text, with its 0-based text offset — the inventory gate's scanner. Kept HERE
+ *  beside the suppressor so the grammar has exactly ONE spelling: a gate that re-spelled it would drift
+ *  out of agreement with the thing it is auditing. */
+export function findGateIgnoreMarkers(text: string): readonly { readonly index: number; readonly marker: GateIgnoreMarker }[] {
+  const out: { index: number; marker: GateIgnoreMarker }[] = [];
+  for (const m of text.matchAll(new RegExp(GATE_IGNORE_SOURCE, "gu"))) {
+    out.push({ index: m.index, marker: judgeGateIgnore(m[1] ?? "", m[2], m[3] ?? "") });
+  }
+  return out;
+}
+
+/** Which markers actually SUPPRESSED something in this run, keyed `<repo-rel file>:<1-based line>`.
+ *  §4.4's two-sidedness: a marker nobody consumed guards no live violation and is a loaded gun, so
+ *  `gate-ignore-inventory` reds it. Module state, reset per `runPass` (conformance runs many passes). */
+const gateIgnoreUses = new Set<string>();
+/** Did a node-anchored suppression happen during the `finalize` phase? The inventory gate's stale sweep
+ *  runs in `finalize`, so a gate that first reports there would be judged before it ever spoke. No gate
+ *  does today (finalize arms use the Finding overload, which bypasses suppression entirely) — this is the
+ *  tripwire for the day one does. */
+let gateIgnoreLateUse = false;
+let currentPhase: ToolError["phase"] = "begin";
+
+export function gateIgnoreUsed(file: string, line: number): boolean {
+  return gateIgnoreUses.has(`${file}:${line}`);
+}
+
+/** True when a suppression landed after the stale sweep's phase — the sweep's soundness premise broke. */
+export function gateIgnoreSuppressedInFinalize(): boolean {
+  return gateIgnoreLateUse;
+}
+
+/** Walk from the reported node up to its statement/file boundary, looking for a well-formed
+ *  `// @orb-gate-ignore <gate-name>[(<token>)]: <reason>` suppression comment. Stops at the statement
+ *  boundary so a comment above an unrelated sibling doesn't leak a suppression onto this node (§4.3b —
+ *  the resolver is BLOCK-SCOPED, never file-scoped). Returns the marker's 1-based line so the caller can
+ *  record the consumption; `undefined` = not suppressed. */
+function findGateIgnore(node: Node, gateName: string, token: string | undefined): number | undefined {
   // biome-ignore lint/suspicious/noExplicitAny: AST traversal
   let scanNode: any = node;
   while (scanNode) {
     if (typeof scanNode.getLeadingCommentRanges === "function") {
-      const comments = scanNode.getLeadingCommentRanges();
       // biome-ignore lint/suspicious/noExplicitAny: AST traversal
-      if (comments.some((c: any) => ignoreRe.test(c.getText()))) {
-        return true;
+      for (const c of scanNode.getLeadingCommentRanges() as any[]) {
+        const marker = parseGateIgnoreMarker(c.getText());
+        if (marker === undefined || marker.malformed || marker.gate !== gateName) {
+          continue;
+        }
+        if (marker.position !== undefined && marker.position !== token) {
+          continue;
+        }
+        return node.getSourceFile().getLineAndColumnAtPos(c.getPos()).line;
       }
     }
     const kindName = typeof scanNode.getKindName === "function" ? scanNode.getKindName() : "";
@@ -111,7 +185,7 @@ function hasGateIgnore(node: Node, gateName: string): boolean {
     }
     scanNode = typeof scanNode.getParent === "function" ? scanNode.getParent() : undefined;
   }
-  return false;
+  return undefined;
 }
 
 function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report">): GateRun {
@@ -122,11 +196,14 @@ function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report">):
       return;
     }
     const node = nodeOrFinding;
-    if (hasGateIgnore(node, gate.name)) {
+    const file = repoRel(ctxBase.root, node.getSourceFile().getFilePath());
+    const suppressedAt = findGateIgnore(node, gate.name, atToken?.token);
+    if (suppressedAt !== undefined) {
+      gateIgnoreUses.add(`${file}:${suppressedAt}`);
+      gateIgnoreLateUse ||= currentPhase === "finalize";
       return;
     }
 
-    const file = repoRel(ctxBase.root, node.getSourceFile().getFilePath());
     if (atToken === undefined) {
       const { line, column } = locate(node);
       sink.push({ file, line, column });
@@ -139,6 +216,7 @@ function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report">):
 }
 
 function guard(gate: string, phase: ToolError["phase"], errors: ToolError[], fn: () => void): void {
+  currentPhase = phase;
   try {
     fn();
   } catch (err) {
@@ -191,6 +269,8 @@ function runVisit(run: GateRun, node: Node, sf: SourceFile): void {
 /** The pass over a given descriptor set and fileset. Each node is touched once; only subscribed gates
  *  see it. Whole-project `run` gates get their declared pass over the SAME project. */
 export function runPass(gates: readonly GateDescriptor[], ctxBase: Omit<GateRunCtx, "report">): PassResult {
+  gateIgnoreUses.clear();
+  gateIgnoreLateUse = false;
   const runs: readonly GateRun[] = gates.filter((g) => g.status === "active").map((g) => makeGateRun(g, ctxBase));
   const errors: ToolError[] = [];
 

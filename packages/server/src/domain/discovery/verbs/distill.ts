@@ -298,7 +298,7 @@ async function commitSummaries(db: Db, stmts: readonly BatchItem<"sqlite">[]): P
     if (chunk.length === 0) {
       continue;
     }
-    // @orb-gate-ignore no-await-db-in-loop bounded per-chunk batch — deliberate backpressure over the libSQL bound-variable cap (mirrors every bulk-write in the slice).
+    // @orb-gate-ignore no-await-db-in-loop: bounded per-chunk batch — deliberate backpressure over the libSQL bound-variable cap (mirrors every bulk-write in the slice).
     // biome-ignore lint/performance/noAwaitInLoops: bounded per-chunk batch — deliberate backpressure, not a fan-out.
     await db.batch(chunk as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
   }
@@ -310,8 +310,7 @@ async function stageSuggestions(deps: DistillCharactersDeps, stagedLabels: reado
   let tagsStaged = 0;
   for (const label of stagedLabels) {
     signal?.throwIfAborted();
-    // @orb-gate-ignore no-await-db-in-loop the tag attach is a metered resolve-or-create chokepoint (per-name unique race guard) — staged sequentially, not fanned out.
-    // biome-ignore lint/performance/noAwaitInLoops: the tag attach is a metered resolve-or-create chokepoint — staged sequentially, not fanned out.
+    // biome-ignore lint/performance/noAwaitInLoops: the tag attach is a metered resolve-or-create chokepoint (per-name unique race guard) — staged sequentially, not fanned out.
     const attached = await deps.attachCardTagByName({
       ownerId: label.ownerId,
       characterId: label.characterId,

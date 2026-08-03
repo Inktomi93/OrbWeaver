@@ -24,7 +24,7 @@ const TooltipDescriptionContext = createContext<string | undefined>(undefined);
 
 /** Shares hover delay/timeout across a subtree so adjacent tooltips open instantly. */
 export function TooltipProvider(props: BaseProviderProps): ReactElement {
-  // @orb-gate-ignore no-context-provider Base UI's Tooltip.Provider is a namespace COMPONENT, not a React Context — the React-19 `<Context.Provider>` deprecation the gate targets doesn't apply.
+  // @orb-gate-ignore no-context-provider: Base UI's Tooltip.Provider is a namespace COMPONENT, not a React Context — the React-19 `<Context.Provider>` deprecation the gate targets doesn't apply.
   return <BaseTooltip.Provider {...props} />;
 }
 

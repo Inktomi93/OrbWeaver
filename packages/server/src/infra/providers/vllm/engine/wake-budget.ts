@@ -88,7 +88,7 @@ export interface GpuShortfall {
   readonly tenants: readonly GpuTenant[];
 }
 
-// @orb-gate-ignore no-inline-types an engine-internal discriminated RESULT verdict — a union (not an
+// @orb-gate-ignore no-inline-types: an engine-internal discriminated RESULT verdict — a union (not an
 // interface), co-located with its decider `decideWakeBudget` below exactly like this file's sibling result
 // interfaces (GpuTenant/GpuShortfall/EngineVramNeed); the engine dir has no cross-boundary contract home.
 export type WakeBudgetVerdict = { readonly ok: true } | { readonly ok: false; readonly shortfalls: readonly GpuShortfall[]; readonly message: string };
