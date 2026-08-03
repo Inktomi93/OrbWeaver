@@ -991,8 +991,11 @@ push-detail seam + per-section CTs at the mobile frame (config · databank · ch
 
 **▶ MEMOBAN SESSION — MERGED (08-03, `wt/memo-ban-investigation`; worktree KEPT on owner's word).**
 Merged by the orchestrator on the owner's say-so; consolidated `pnpm check` on the merged tree **14/14**,
-full `pnpm test` battery running (static cannot see the CT class this work exists to expose).
-Gate count is now **183** — correct the STATE block's 180 when the battery lands.
+full `pnpm test` battery **GREEN on the merged tree — 9,920 vitest / 2,384 CT / 0 failed / 0 flaky**
+(the number that mattered: this work's whole hazard was that deleting manual memo UN-HIDES CT failures,
+and static cannot see that class. Their session fixed every one it exposed, incl. the `takeDiscard`
+save-loop).
+Gate count is now **183** (STATE block corrected).
 Four waves + audits, all hook-green: useContext→use() ×10 · web-api + YMNNAE eslint families
 (3 rejected rules carry the 25/25-LEGIT-SEAM triage receipt in the config header) · 52-site
 manual-memo burn-down (3 exemptions: the 2 denylist-skipped seals + fuzzy-search value-keying;
