@@ -15,6 +15,8 @@
 //     is the class of defect the sibling databank dialog shipped (an arm with no button at all), and it is
 //     why the exit is asserted here as a real enabled control rather than assumed.
 
+import type { DocumentId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
@@ -24,7 +26,7 @@ import { AddChatDocumentDialogStory } from "../_ct-stories";
 const CHAT_ID = "chat_ct_keystone";
 
 const TREATISE = {
-  id: "document_00000000000000000011",
+  id: castId<DocumentId>("document_00000000000000000011"),
   name: "A Treatise on Salt",
   mime: "text/markdown",
   origin: "text",
@@ -37,7 +39,7 @@ const TREATISE = {
   updatedAt: 1_750_000_000_000,
 };
 
-const LEDGER = { ...TREATISE, id: "document_00000000000000000012", name: "The Ashfen Ledger", byteSize: 93_901 };
+const LEDGER = { ...TREATISE, id: castId<DocumentId>("document_00000000000000000012"), name: "The Ashfen Ledger", byteSize: 93_901 };
 
 /** The picker's ONE read, plus the attach it fires. `bank` scripts `databank.list` per case. */
 function stubPicker(page: Page, bank: readonly unknown[]): Promise<TrpcRecorder> {
