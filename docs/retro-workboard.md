@@ -491,7 +491,16 @@ banked below (zero-suppression budget forces better shapes · biome-ignore must 
 · no-inline-types client rules). **HCOPY's CATCH fixed direct-on-main (`d8a67e94`):
 SERVICE_KEYS missing `regex`** — the 7th check-invisible new-domain site struck AGAIN (REGEX
 lane miss; services.test 20/20 green now).
-**LIVE (2): RFIX · CARCH (dispatched — F-1..F-7 doc/gate batch; F-8 stays the design set).**
+**PUSH BATTERY RUN (on `b3317c7d`): 2 stages red, ALL same-day debris** — deps:orphan-ratchet
+(stale @public on HandoffOffer — HCOPY tagged-then-consumed; the stale arm working) +
+tests:node ×4 (card-serde [PORT's held branch already fixed it] · cross-tenant sweep demands
+the 21 new regex/chat proc classifications [REGEX claimed classified — the claim didn't reach
+main] · host-display-scripts-control presence row · create.int stale regexScripts
+expectation). e2e-smoke + 12 other stages GREEN. **✅ PORT MERGED post-verdict (`87b3c826`,
+2 trivial conflicts union-resolved [SERVICE_KEYS comment · world-info index exports],
+conflict-adjacent suites 52/52, torn down).** **Lane BATFIX dispatched (mech)** for the
+remaining 4 items → then verify --push RE-RUN → PUSH-READY on green (182+ commits armed).
+**LIVE (3, at cap): RFIX · CARCH · BATFIX.**
 **PORT = DONE-AWAITING-MERGE (`e386deeb` on wt/agent-a801f968b9fead1c1, ONE commit, 95 files
 +3540/−699; HELD because the push battery is mid-run on `b3317c7d` — merge after the verdict):**
 F1 CLOSED (databank travels — REAL bundle round-trip: fresh db/CAS/owner via the actual
