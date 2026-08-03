@@ -31,10 +31,53 @@ interface DriveRoundParams {
   readonly groupCharacterId: CharacterId | null;
   /** The joined present-cast name (`{{char}}`-as-cast — collapses to the single name at cast=1) for narrator. */
   readonly castName: string;
+  /** The present, NON-MUTED character names a narrator turn voices — the nudge's `{{names}}` and the
+   *  cast-of-one guard. Empty/≤1 ⇒ a narrator round sends no nudge at all (byte-identical single turn). */
+  readonly narratorMemberNames: readonly string[];
+}
+
+/** The NARRATOR round's trailing nudge — two INDEPENDENT host toggles, joined by a space:
+ *  (a) `groupNudge` names the cast this one generation is voicing; (b) `speakerTags` asks for the
+ *  `<speaker>NAME</speaker>` markers the client narrator renderer colors by. Both fire only on a
+ *  MULTI-member round — a cast-of-one narrator turn is a solo turn and stays byte-identical. Both off
+ *  (or cast ≤ 1) ⇒ null, and SHAPE falls through to its own continuation tail exactly as before. */
+function buildNarratorNudge(base: RoundBase, group: GroupConfig, memberNames: readonly string[]): string | null {
+  if (memberNames.length <= 1) {
+    return null;
+  }
+  const prose = base.assembleContext.prose ?? {};
+  const parts: string[] = [];
+  if (group.groupNudge) {
+    parts.push(resolveProseText("chat.group.narratorNudge", prose, { names: memberNames.join(", ") }));
+  }
+  if (group.speakerTags) {
+    parts.push(resolveProseText("chat.group.speakerTags", prose));
+  }
+  return parts.length > 0 ? parts.join(" ") : null;
+}
+
+/** The round-level facts one speaker's prep needs beyond its own `CastName`. */
+interface RoundShape {
+  /** True when the round has MORE THAN ONE speaker — the per-speaker fence's gate. */
+  readonly multi: boolean;
+  /** The present non-muted names a NARRATOR round voices (see {@link DriveRoundParams}). */
+  readonly narratorMemberNames: readonly string[];
+}
+
+/** The round's trailing nudge for ONE speaker: the narrator arm, the multi-speaker per-speaker fence, or
+ *  none. Split out of {@link buildSpeakerPrep} so neither arm nests inside the other's ternary. */
+function buildRoundNudge(base: RoundBase, group: GroupConfig, speaker: CastName, round: RoundShape): string | null {
+  if (group.output === "narrator") {
+    return buildNarratorNudge(base, group, round.narratorMemberNames);
+  }
+  if (!(group.groupNudge && round.multi)) {
+    return null;
+  }
+  return resolveProseText("chat.group.roundNudge", base.assembleContext.prose ?? {}, { name: speaker.name });
 }
 
 /** Build ONE speaker's two-axis prep off the shared round base. */
-function buildSpeakerPrep(base: RoundBase, group: GroupConfig, speaker: CastName, multi: boolean): TurnPrep {
+function buildSpeakerPrep(base: RoundBase, group: GroupConfig, speaker: CastName, round: RoundShape): TurnPrep {
   const speakerCharacterId = speaker.ref.characterId;
   const cardScope = group.output === "per-speaker" ? group.cardScope : "merged";
   const scopedTargetId = group.output === "per-speaker" && group.cardScope === "scoped" ? speaker.ref.characterId : null;
@@ -47,8 +90,10 @@ function buildSpeakerPrep(base: RoundBase, group: GroupConfig, speaker: CastName
   };
   // The per-speaker fence is a PROSE-1 slot (`chat.group.roundNudge`, per-USER under the room host) with the
   // speaker's name as its `{{name}}` pre-substitution token; the host prose rode onto the round's one
-  // immutable assemble ctx at build. Unset ⇒ the shipped line, byte-identical.
-  const groupNudge = group.groupNudge && multi ? resolveProseText("chat.group.roundNudge", base.assembleContext.prose ?? {}, { name: speaker.name }) : null;
+  // immutable assemble ctx at build. Unset ⇒ the shipped line, byte-identical. NARRATOR takes the other
+  // arm: its round is ONE speaker by construction (so `multi` is always false), and the fence it needs is
+  // the opposite one — voice the WHOLE cast, tagged per speaker.
+  const groupNudge = buildRoundNudge(base, group, speaker, round);
   return {
     ...base,
     speakerCharacterId,
@@ -72,7 +117,7 @@ export async function driveRound(params: DriveRoundParams): Promise<TurnOutcome>
   const multi = speakers.length > 1;
   const committed: TurnOutcome["messages"][number][] = [];
   for (const speaker of speakers) {
-    const prep = buildSpeakerPrep(params.base, params.group, speaker, multi);
+    const prep = buildSpeakerPrep(params.base, params.group, speaker, { multi, narratorMemberNames: params.narratorMemberNames });
     try {
       // biome-ignore lint/performance/noAwaitInLoops: per-speaker sequencing is the invariant, not a perf miss.
       const outcome = await params.engine.runTurn(prep);

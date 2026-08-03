@@ -205,8 +205,24 @@ const S1B_FROZEN_RENDERS: readonly { readonly id: ProseSlotId; readonly tokens: 
   { id: "chat.group.alsoPresent", tokens: { name: "Niko" }, rendered: "[Also present — Niko]" },
   { id: "chat.group.scenarioHeading", tokens: { name: "Niko" }, rendered: "[Niko's scenario]" },
   { id: "chat.group.exampleHeading", tokens: { name: "Niko" }, rendered: "[Niko's example dialogue]" },
-  // packages/server/src/domain/chat/engine/round.ts — buildSpeakerPrep's multi-speaker fence
-  { id: "chat.group.roundNudge", tokens: { name: "Niko" }, rendered: "[Write the next reply only as Niko.]" },
+  // packages/server/src/domain/chat/engine/round.ts — buildSpeakerPrep's multi-speaker fence. v2 keeps the
+  // original opening bytes verbatim and appends the two failure modes the receive-side clean handles.
+  {
+    id: "chat.group.roundNudge",
+    tokens: { name: "Niko" },
+    rendered:
+      "[Write the next reply only as Niko. Stay in Niko's voice — their dialogue, actions and thoughts only. " +
+      "Do not write lines for the other characters or for the user, and do not open the reply with a name label.]",
+  },
+  // packages/server/src/domain/chat/engine/round.ts — buildNarratorNudge's two narrator-round parts.
+  {
+    id: "chat.group.narratorNudge",
+    tokens: { names: "Niko, Aria" },
+    rendered:
+      "[Continue the scene, voicing the present characters (Niko, Aria) as the moment calls for. This is ONE " +
+      "reply covering the whole scene — voice as many or as few of them as it needs, in any order, with " +
+      "narration in between. Never write lines or actions for the user.]",
+  },
   // packages/server/src/domain/chat/assembly/injections.ts — frameInjection's two note frames
   { id: "chat.injection.systemNote", tokens: { note: "stay in scene" }, rendered: "[Note from system: stay in scene]" },
   { id: "chat.injection.userNote", tokens: { note: "stay in scene" }, rendered: "[Note from user: stay in scene]" },

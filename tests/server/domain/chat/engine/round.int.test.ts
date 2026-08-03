@@ -126,6 +126,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
       speakers,
       groupCharacterId: null,
       castName: "Aria, Bran, Cara",
+      narratorMemberNames: [],
     });
 
     expect(outcome.aborted).toBe(false);
@@ -151,6 +152,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
       ],
       groupCharacterId: null,
       castName: "Aria, Bran",
+      narratorMemberNames: [],
     });
     expect(requests).toHaveLength(2);
     const prompt = (r: TurnRequest): string => `${r.prompt.static}\n${r.prompt.dynamic}`;
@@ -173,6 +175,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
       ],
       groupCharacterId: null,
       castName: "Aria, Bran",
+      narratorMemberNames: [],
     });
     expect(requests).toHaveLength(2);
     expect(requests[0]?.prompt.static).toBe(requests[1]?.prompt.static);
@@ -191,6 +194,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
       ],
       groupCharacterId: null,
       castName: "Aria, Bran",
+      narratorMemberNames: [],
     });
     // The 2nd speaker sees the 1st speaker's committed reply (canon grew between per-speaker turns).
     expect(requests[1]?.history.length ?? 0).toBeGreaterThan(requests[0]?.history.length ?? 0);
@@ -209,6 +213,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
       ],
       groupCharacterId: null,
       castName: "Aria, Bran",
+      narratorMemberNames: [],
     });
     expect(historyText(requests[0] as TurnRequest)).toContain("only as Aria");
     expect(historyText(requests[1] as TurnRequest)).toContain("only as Bran");
@@ -232,6 +237,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
       ],
       groupCharacterId: null,
       castName: "Aria, Bran",
+      narratorMemberNames: [],
     });
     expect(historyText(requests[0] as TurnRequest)).toContain("[SPEAK AS Aria. Nobody else.]");
     expect(historyText(requests[0] as TurnRequest)).not.toContain("Write the next reply only as");
@@ -250,6 +256,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
       speakers,
       groupCharacterId: null,
       castName: "Aria",
+      narratorMemberNames: [],
     });
     await driveRound({
       engine,
@@ -258,6 +265,7 @@ describe("driveRound — per-speaker round (ONE ctx, N speakers, per-speaker loc
       speakers,
       groupCharacterId: null,
       castName: "Aria",
+      narratorMemberNames: [],
     });
     expect((await loadCanonHistory(db, chatId)).map((m) => m.seq)).toEqual([1, 2]);
   });
@@ -274,10 +282,88 @@ describe("driveRound — narrator round (one cast turn, group-character authored
       speakers: [], // ignored for narrator
       groupCharacterId: cid("group"),
       castName: "Aria & Bran",
+      narratorMemberNames: [],
     });
     expect(outcome.messages).toHaveLength(1);
     const history = await loadCanonHistory(db, chatId);
     expect(history.map((m) => m.characterId)).toEqual([cid("group")]);
+  });
+
+  // ── The PRODUCE half of per-speaker color (§12.4). A narrator round is ONE speaker by construction, so
+  // the per-speaker fence can never fire for it; its two INDEPENDENT toggles ride the same trailing-user
+  // seam. Without the `<speaker>` instruction the renderer's split has nothing to split on — which is
+  // exactly the state the shipped narrator transcripts were generated in.
+  test("a MULTI-member narrator round asks for the <speaker> markers AND names the cast", async () => {
+    const chatId = await seedChat(db, "narr-nudge");
+    const requests: TurnRequest[] = [];
+    await driveRound({
+      engine: realEngine(db, requests),
+      base: base(chatId),
+      group: NARRATOR,
+      speakers: [],
+      groupCharacterId: cid("group"),
+      castName: "Aria, Bran",
+      narratorMemberNames: ["Aria", "Bran"],
+    });
+    const text = historyText(requests[0] as TurnRequest);
+    expect(text).toContain("<speaker>Name</speaker>");
+    expect(text).toContain("voicing the present characters (Aria, Bran)");
+    // NEVER the per-speaker fence — that line would ask for the opposite of a narrator turn.
+    expect(text).not.toContain("Write the next reply only as");
+  });
+
+  test("speakerTags OFF drops the marker instruction but keeps the cast nudge (independent toggles)", async () => {
+    const chatId = await seedChat(db, "narr-notags");
+    const requests: TurnRequest[] = [];
+    await driveRound({
+      engine: realEngine(db, requests),
+      base: base(chatId),
+      group: { ...NARRATOR, speakerTags: false },
+      speakers: [],
+      groupCharacterId: cid("group"),
+      castName: "Aria, Bran",
+      narratorMemberNames: ["Aria", "Bran"],
+    });
+    const text = historyText(requests[0] as TurnRequest);
+    expect(text).not.toContain("<speaker>");
+    expect(text).toContain("voicing the present characters (Aria, Bran)");
+  });
+
+  test("a CAST-OF-ONE narrator round sends no nudge at all (byte-identical single turn)", async () => {
+    const chatId = await seedChat(db, "narr-solo");
+    const requests: TurnRequest[] = [];
+    await driveRound({
+      engine: realEngine(db, requests),
+      base: base(chatId),
+      group: NARRATOR,
+      speakers: [],
+      groupCharacterId: cid("group"),
+      castName: "Aria",
+      narratorMemberNames: ["Aria"],
+    });
+    const text = historyText(requests[0] as TurnRequest);
+    expect(text).not.toContain("<speaker>");
+    expect(text).not.toContain("voicing the present characters");
+  });
+
+  test("the host's PROSE override re-words the speaker-tag instruction (PROSE-1, owner-editable)", async () => {
+    const chatId = await seedChat(db, "narr-prose");
+    const requests: TurnRequest[] = [];
+    await driveRound({
+      engine: realEngine(db, requests),
+      base: {
+        ...base(chatId),
+        assembleContext: { ...ASSEMBLE_CTX, prose: { "chat.group.speakerTags": { text: "[TAG THEM: <speaker>X</speaker>.]", baseVersion: 1 } } },
+      },
+      group: NARRATOR,
+      speakers: [],
+      groupCharacterId: cid("group"),
+      castName: "Aria, Bran",
+      narratorMemberNames: ["Aria", "Bran"],
+    });
+    const text = historyText(requests[0] as TurnRequest);
+    expect(text).toContain("[TAG THEM: <speaker>X</speaker>.]");
+    expect(text).not.toContain("Wrap each character's spoken lines");
   });
 
   test("a narrator round with no group-character id is a wiring bug (throws — §10)", async () => {
@@ -290,6 +376,7 @@ describe("driveRound — narrator round (one cast turn, group-character authored
         speakers: [],
         groupCharacterId: null,
         castName: "x",
+        narratorMemberNames: [],
       }),
     ).rejects.toThrow("group-character");
   });
@@ -318,6 +405,7 @@ describe("driveRound — locked yields the round (a human send interleaved — �
       ],
       groupCharacterId: null,
       castName: "Aria, Bran",
+      narratorMemberNames: [],
     });
     expect(outcome.messages).toHaveLength(1);
     expect(outcome.aborted).toBe(false);
@@ -339,6 +427,7 @@ describe("driveRound — an engine turn that RETURNS aborted stops the round + p
       speakers: [{ ref: charRef("a"), name: "Aria" }],
       groupCharacterId: null,
       castName: "Aria",
+      narratorMemberNames: [],
     });
     expect(outcome.aborted).toBe(true);
     expect(outcome.abortReason).toBe("user");
@@ -367,6 +456,7 @@ describe("driveRound — an engine turn that RETURNS aborted stops the round + p
       ],
       groupCharacterId: null,
       castName: "Aria, Bran",
+      narratorMemberNames: [],
     });
     // The whole truth: the row that landed before the abort rides along, AND the round reports aborted.
     expect(outcome.messages).toEqual([committedView]);
@@ -390,6 +480,7 @@ describe("driveRound — an engine turn that RETURNS aborted stops the round + p
       ],
       groupCharacterId: null,
       castName: "Aria, Bran",
+      narratorMemberNames: [],
     });
     expect(outcome.aborted).toBe(true);
     expect(outcome.abortReason).toBe("stale");
