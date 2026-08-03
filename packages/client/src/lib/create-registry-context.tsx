@@ -8,13 +8,13 @@
 // purpose, the create-gated-store precedent for a footgun's single blessed home).
 
 import type { Context, ReactElement, ReactNode } from "react";
-import { createContext, useContext } from "react";
+import { createContext, use } from "react";
 
 /** The trio a `createRegistryContext` call yields: the raw Context (assembled at main.tsx, G8), the read
  *  hook (throws when no Provider is mounted), and the Provider that delivers the registry down.
  *
  *  `Context` is a SANCTIONED escape hatch, not incidental surface: a consumer that must tolerate a
- *  MISSING provider reads `useContext(X)` directly for the nullable value, because `useRegistry()`
+ *  MISSING provider reads `use(X)` directly for the nullable value, because `useRegistry()`
  *  throws by design (message-tool-calls.tsx, use-slash-commands.tsx). Re-export a registry's
  *  `.Context` ONLY when such a consumer exists — five re-exports with no optional reader were
  *  deleted 2026-08-03. Everything else uses the hook. */
@@ -29,7 +29,7 @@ export interface RegistryContext<R> {
 export function createRegistryContext<R>(name: string): RegistryContext<R> {
   const RegistryCtx = createContext<R | null>(null);
   function useRegistry(): R {
-    const registry = useContext(RegistryCtx);
+    const registry = use(RegistryCtx);
     if (registry === null) {
       throw new Error(`${name}: no Provider mounted (assemble the registry in main.tsx)`);
     }

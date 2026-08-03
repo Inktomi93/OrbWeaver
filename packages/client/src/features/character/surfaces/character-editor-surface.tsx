@@ -16,7 +16,7 @@ import { SaveBar } from "@orb/ui/save-bar";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AppFormInstance, AutosaveSession } from "#forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
@@ -142,10 +142,10 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
 
   // The bus-driven chat list — the hero's chat count derives from it in render, never an effect.
   const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({}));
-  const chats = useMemo(() => chatsQuery.data ?? [], [chatsQuery.data]);
+  const chats = chatsQuery.data ?? [];
   // The ONE projection predicate (`#lib`) — the same one the chats-pane filter chip and the LIST projection
   // ride, so the hero count can never disagree with the pane it points at.
-  const chatCount = useMemo(() => chatsWithCharacter(chats, data.id).length, [chats, data.id]);
+  const chatCount = chatsWithCharacter(chats, data.id).length;
 
   // Always a fresh chat with this character — the SAME writer the LIST band's New chat fires (one home,
   // `character-chat-intents.ts`), so the two primaries can't drift.

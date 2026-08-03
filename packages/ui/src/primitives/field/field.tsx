@@ -1,7 +1,7 @@
 import type { FieldRootProps, FieldValidityProps } from "@base-ui/react/field";
 import { Field as BaseField } from "@base-ui/react/field";
 import type { ReactElement, ReactNode } from "react";
-import { createContext, useContext } from "react";
+import { createContext, use } from "react";
 import { cn } from "#lib";
 import { Button } from "#primitives/button";
 import { Icon, Info } from "#primitives/icons";
@@ -60,7 +60,7 @@ export function Field({
   invalid,
   ...rest
 }: FieldProps): ReactElement {
-  const ambient = useContext(FieldOrientationContext);
+  const ambient = use(FieldOrientationContext);
   const resolved = orientation ?? ambient;
   const slots = fieldVariants({ orientation: resolved });
   const hasError = error !== undefined && error !== null;

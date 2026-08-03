@@ -10,7 +10,7 @@ import type { ToolCallRecord } from "@orb/contracts/chat";
 import { Stack } from "@orb/ui/layout";
 import { ToolCallBlock } from "@orb/ui/tool-call-block";
 import type { ReactElement, ReactNode } from "react";
-import { Fragment, useContext } from "react";
+import { Fragment, use } from "react";
 import type { ContributorRegistry, ToolRenderer } from "#lib";
 import { MessageToolsRendererRegistryContext } from "#state";
 
@@ -25,7 +25,7 @@ export interface MessageToolCallsProps {
  *  registered/claims them (chat then falls back to the per-record path). Read from the null-tolerant registry
  *  context, so a build/CT with no Provider simply has no whole-message renderer. */
 function useMessageOverride(records: readonly ToolCallRecord[]): ReactNode | null {
-  const registry = useContext(MessageToolsRendererRegistryContext);
+  const registry = use(MessageToolsRendererRegistryContext);
   for (const renderer of registry?.list() ?? []) {
     const node = renderer.render(records);
     if (node !== null) {

@@ -23,8 +23,8 @@
 //               if present, else defaults ⊕ serverValues ⊕ surviving draft.
 
 import { revalidateLogic } from "@tanstack/react-form";
-import type { ReactElement, ReactNode } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import type { ReactElement, ReactNode, RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { EntityDraftStore, SAVE_LIFECYCLE_STATES } from "#state";
 import { DEFAULT_DEBOUNCE_MS, focusFirstInvalidField, formValuesEqual, hashServerBaseline, mirrorDraft, readDraftSeed } from "./entity-form-base";
 import { createSaveCircuitBreaker, DEFAULT_SAVE_BREAKER } from "./save-circuit-breaker";
@@ -40,6 +40,21 @@ export type AutosaveSaveState = (typeof SAVE_LIFECYCLE_STATES)[number];
 /** The AppForm surface the session hands its body, `reset` type-removed (calling it re-baselines defaults,
  *  which on a live autosave draft is the isDirty loop `no-form-reset-in-autosave` also bans). */
 type AutosaveForm<TValues extends object> = Omit<AppFormInstance<TValues>, "reset">;
+
+/** Structural inequality of live values vs the last-saved baseline (§3) — the ONE unsaved-edit predicate the
+ *  save driver, the clean-echo reseed, and the teardown flush share. NEVER `isDefaultValue` (permanently-true
+ *  after any edit was the F2 write-back vector). Module-scope so no effect ever takes it as a dependency
+ *  (D54: manual memo is banned, so an in-component definition would re-arm every render). */
+function hasUnsavedEdits<TValues extends object>(values: TValues, lastSaved: TValues): boolean {
+  return !formValuesEqual(values, lastSaved);
+}
+
+/** Read-and-clear the Boundary's discard flag — `true` = this teardown was a reseed and skips its flush. */
+function takeDiscard(discardRef: RefObject<boolean>): boolean {
+  const discard = discardRef.current;
+  discardRef.current = false;
+  return discard;
+}
 
 /** The per-render surface a boundary hands its render-prop body. One session = one entity epoch. */
 export interface AutosaveSession<TValues extends object> {
@@ -102,8 +117,13 @@ export function createAutosaveEntityForm<TValues extends object>(
     readonly save: ((values: TValues) => Promise<unknown>) | undefined;
     /** The reseed payload for this epoch (undefined = seed from defaults ⊕ server ⊕ draft). */
     readonly pendingSeed: TValues | undefined;
-    /** Reads-and-clears the Boundary's discard flag at teardown — true = this teardown skips its flush. */
-    readonly takeDiscard: () => boolean;
+    /**
+     * The Boundary's discard flag, passed as the REF rather than a reader callback (D54 — no manual memo,
+     * so a reader would be a fresh identity every Boundary render; naming it in the teardown effect's deps
+     * re-arms the effect, and every re-arm FLUSHES — a measured 31-write save loop). A ref object is stable
+     * by construction, so the teardown effect can depend on it honestly. Read-and-clear via `takeDiscard`.
+     */
+    readonly discardRef: RefObject<boolean>;
     readonly reseed: (next: TValues) => void;
     readonly children: (session: AutosaveSession<TValues>) => ReactNode;
   }
@@ -114,7 +134,7 @@ export function createAutosaveEntityForm<TValues extends object>(
    * (entity switch or reseed), so every ref here is genuinely fresh per entity (the cross-entity
    * stale-`error` bleed of the old hook-resident state is gone — §4).
    */
-  function Session({ entityId, serverValues, save, pendingSeed, takeDiscard, reseed, children }: SessionProps): ReactElement {
+  function Session({ entityId, serverValues, save, pendingSeed, discardRef, reseed, children }: SessionProps): ReactElement {
     // The identity of the server snapshot this epoch mounts over — the baseline a surviving draft must
     // have been begun on to still outrank it (retro-workboard #11). Computed at mount and held stable for
     // the epoch (a structural change to `serverValues` remounts via the boundary key or re-baselines the
@@ -175,11 +195,6 @@ export function createAutosaveEntityForm<TValues extends object>(
       onSubmitInvalid: focusFirstInvalidField,
     });
 
-    // hasUnsavedEdits: structural inequality of live values vs the last-saved baseline (§3). Never
-    // `isDefaultValue` (permanently-true after any edit was the F2 write-back vector). A stable callback so
-    // the teardown cleanup and the driver share ONE definition without re-subscribing.
-    const hasUnsavedEdits = useCallback((): boolean => !formValuesEqual(form.state.values, lastSavedRef.current), [form]);
-
     // THE ARMED DEBOUNCE, session-scoped (NOT effect-scoped). It outlives every re-subscription of the
     // driver effect below, and is cleared in exactly one place: the teardown effect (which flushes what
     // the timer was going to save). The 2026-08-01 lost-save incident is precisely what an effect-scoped
@@ -211,7 +226,7 @@ export function createAutosaveEntityForm<TValues extends object>(
       let prevValues = form.store.state.values;
       const attemptSave = (): void => {
         timerRef.current = undefined;
-        if (!(form.state.isValid && hasUnsavedEdits())) {
+        if (!(form.state.isValid && hasUnsavedEdits(form.state.values, lastSavedRef.current))) {
           return;
         }
         if (breaker.shouldTrip()) {
@@ -253,7 +268,9 @@ export function createAutosaveEntityForm<TValues extends object>(
       // re-subscription (a `serverValues` churn moves `baselineHash`), and clearing it there is exactly
       // the lost-save defect. The ONLY clear is the teardown effect below, which flushes first.
       return (): void => subscription.unsubscribe();
-    }, [form, entityId, hasUnsavedEdits, baselineHash]);
+      // `hasUnsavedEdits` is a plain function over `form` + a ref (D54 — no manual memo), so `form` already
+      // IS its dependency; naming the callback identity would only re-arm on every render.
+    }, [form, entityId, baselineHash]);
 
     // Clean server-echo reseed (§5, two-device freshness): when `serverValues` changes STRUCTURALLY
     // (deep-compare vs the last-seen snapshot — identity is the mapper-fresh-object trap) and the form is
@@ -264,7 +281,7 @@ export function createAutosaveEntityForm<TValues extends object>(
         return;
       }
       lastServerRef.current = serverValues;
-      if (saveState !== "saving" && !hasUnsavedEdits()) {
+      if (saveState !== "saving" && !hasUnsavedEdits(form.state.values, lastSavedRef.current)) {
         // A clean re-baseline: adopt the server values as the new saved truth AND push them into the live
         // form (via each field, so the controlled inputs follow — never `form.reset`, the banned path).
         lastSavedRef.current = serverValues;
@@ -283,7 +300,7 @@ export function createAutosaveEntityForm<TValues extends object>(
           programmaticWriteRef.current = false;
         }
       }
-    }, [serverValues, saveState, hasUnsavedEdits, form, entityId, baselineHash]);
+    }, [serverValues, saveState, form, entityId, baselineHash]);
 
     // The ONE teardown flush (§4), discard-aware: this cleanup fires exactly on entity switch, reseed(),
     // and boundary unmount (all remount/unmount this component — its deps are all session-stable, so it
@@ -297,14 +314,14 @@ export function createAutosaveEntityForm<TValues extends object>(
           clearTimeout(timerRef.current);
           timerRef.current = undefined;
         }
-        if (takeDiscard()) {
+        if (takeDiscard(discardRef)) {
           return; // this teardown was a reseed/discard — skip the flush
         }
-        if (form.state.isValid && hasUnsavedEdits()) {
+        if (form.state.isValid && hasUnsavedEdits(form.state.values, lastSavedRef.current)) {
           form.handleSubmit().catch(() => undefined);
         }
       };
-    }, [form, hasUnsavedEdits, takeDiscard]);
+    }, [form, discardRef]);
 
     // NOT covered here, deliberately (measured, 2026-08-01): a page RELOAD / tab close never unmounts React,
     // so nothing above runs and an armed debounce dies with the document. A `pagehide` flush was built and
@@ -313,10 +330,10 @@ export function createAutosaveEntityForm<TValues extends object>(
     // honestly needs a SYNCHRONOUS write path (a `sendBeacon` endpoint), which is a transport decision, not a
     // forms one. Until then the exposure is the debounce window, and the honest mitigation is the consumer's
     // own dirty disclosure — a pane must not read "Saved" over an unsaved edit.
-    const retrySave = useCallback((): void => {
+    const retrySave = (): void => {
       // Direct submit — an explicit user retry always re-attempts the held edit; same swallow as the driver.
       form.handleSubmit().catch(() => undefined);
-    }, [form]);
+    };
 
     const session: AutosaveSession<TValues> = {
       form: form as AutosaveForm<TValues>,
@@ -340,18 +357,12 @@ export function createAutosaveEntityForm<TValues extends object>(
     const [reseedState, setReseedState] = useState<{ readonly epoch: number; readonly seed: TValues | undefined }>({ epoch: 0, seed: undefined });
     const discardRef = useRef(false);
 
-    const reseed = useCallback((next: TValues): void => {
+    const reseed = (next: TValues): void => {
       // The outgoing session must NOT flush (the reseed discards the pre-reseed edit — that was the F2
       // write-back); stage the discard flag, then bump the epoch WITH the winning seed to remount.
       discardRef.current = true;
       setReseedState((s) => ({ epoch: s.epoch + 1, seed: next }));
-    }, []);
-
-    const takeDiscard = useCallback((): boolean => {
-      const discard = discardRef.current;
-      discardRef.current = false;
-      return discard;
-    }, []);
+    };
 
     return (
       <Session
@@ -360,7 +371,7 @@ export function createAutosaveEntityForm<TValues extends object>(
         serverValues={serverValues}
         save={save}
         pendingSeed={reseedState.seed}
-        takeDiscard={takeDiscard}
+        discardRef={discardRef}
         reseed={reseed}
       >
         {children}

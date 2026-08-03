@@ -11,7 +11,6 @@ import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useCallback } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { useSwipeKeyboardNav } from "../hooks/use-swipe-keyboard-nav";
 import { useVariantHistory } from "../hooks/use-variant-history";
@@ -59,14 +58,14 @@ export function SwipeStrip({ message }: SwipeStripProps): ReactElement {
   const nextVariantId = current < total ? history.get(idx + 1) : undefined;
   const canStepBack = prevVariantId !== undefined;
 
-  const goPrev = useCallback((): void => {
+  const goPrev = (): void => {
     if (busy || prevVariantId === undefined) {
       return;
     }
     selectVariant.mutate({ chatId, messageId, variantId: prevVariantId });
-  }, [busy, prevVariantId, selectVariant, chatId, messageId]);
+  };
 
-  const goNext = useCallback((): void => {
+  const goNext = (): void => {
     if (busy) {
       return;
     }
@@ -75,7 +74,7 @@ export function SwipeStrip({ message }: SwipeStripProps): ReactElement {
       return;
     }
     swipe.mutate({ chatId, messageId });
-  }, [busy, nextVariantId, selectVariant, swipe, chatId, messageId]);
+  };
 
   useSwipeKeyboardNav({ onPrev: goPrev, onNext: goNext });
 

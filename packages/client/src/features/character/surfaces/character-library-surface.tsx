@@ -15,7 +15,7 @@ import { VirtualList } from "@orb/ui/virtual-list";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode, RefObject } from "react";
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { FaceStrip } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
@@ -108,20 +108,16 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
   const remove = useRemoveCharacter({ trpc, invalidation });
 
   const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({}));
-  const resumeMap = useMemo(() => resumeTargets(chatsQuery.data ?? []), [chatsQuery.data]);
+  const resumeMap = resumeTargets(chatsQuery.data ?? []);
 
   const items = collection.items;
-  const favorites = useMemo(() => items.filter((c) => c.starred), [items]);
-  const availableTags = useMemo(() => tagVocabulary(items), [items]);
-  const filtered: readonly CharacterCardItem[] = useMemo(
-    () =>
-      filterByChips(filterCharacters(items, deferredQuery), {
-        favoritesOnly,
-        showArchived,
-        tagFilter,
-      }),
-    [items, deferredQuery, favoritesOnly, showArchived, tagFilter],
-  );
+  const favorites = items.filter((c) => c.starred);
+  const availableTags = tagVocabulary(items);
+  const filtered: readonly CharacterCardItem[] = filterByChips(filterCharacters(items, deferredQuery), {
+    favoritesOnly,
+    showArchived,
+    tagFilter,
+  });
 
   // A pick FROM THE PICKER (a card click / a favorites face): the same selection write, plus the focus
   // decision the pane swap needs — the projection that replaces this library takes focus (§3.7).
@@ -270,6 +266,7 @@ function useRestoreRowFocus(surfaceRef: RefObject<HTMLDivElement | null>, focusC
         raf = globalThis.requestAnimationFrame(attempt);
       }
     };
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-external-store-subscription -- no render state is derived here: this is a bounded rAF retry loop that IMPERATIVELY focuses a virtualized row once the virtualizer mounts it; the setPendingId(null) is the loop's own stop signal, not a mirror of an external store.
     attempt();
     return (): void => globalThis.cancelAnimationFrame(raf);
   }, [pendingId, items, surfaceRef]);

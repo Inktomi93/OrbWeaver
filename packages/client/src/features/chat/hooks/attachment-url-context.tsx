@@ -8,7 +8,7 @@
 import { tokenizeContent } from "@orb/kit/content";
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createContext, useContext } from "react";
+import { createContext, use } from "react";
 
 const EMPTY: ReadonlyMap<AssetId, string> = new Map<AssetId, string>();
 
@@ -31,5 +31,5 @@ export function assetIdsInContent(content: string): AssetId[] {
 /** The resolved `blobUrl` for one inline attachment (#67), or `undefined` while unresolved / provider-less
  *  (→ the row renders the placeholder). Consumed by `MessageMediaBlock`'s asset arm. */
 export function useAttachmentUrl(assetId: AssetId): string | undefined {
-  return useContext(AttachmentUrlContext).get(assetId);
+  return use(AttachmentUrlContext).get(assetId);
 }

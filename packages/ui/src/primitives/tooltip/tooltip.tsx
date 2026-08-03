@@ -8,7 +8,7 @@ import type {
 } from "@base-ui/react/tooltip";
 import { Tooltip as BaseTooltip } from "@base-ui/react/tooltip";
 import type { ReactElement } from "react";
-import { createContext, useContext, useId } from "react";
+import { createContext, use, useId } from "react";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_TRIGGER, usePortalContainer } from "#lib";
 import { tooltipVariants } from "./variants";
@@ -39,7 +39,7 @@ export function Tooltip<Payload = unknown>(props: BaseRootProps<Payload>): React
 
 /** Accepts `handle` + `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven tooltip. */
 export function TooltipTrigger<Payload = unknown>(props: BaseTriggerProps<Payload>): ReactElement {
-  const descriptionId = useContext(TooltipDescriptionContext);
+  const descriptionId = use(TooltipDescriptionContext);
   return <BaseTooltip.Trigger aria-describedby={descriptionId} {...props} />;
 }
 
@@ -56,7 +56,7 @@ export interface TooltipPopupProps extends Omit<BasePopupProps, "className"> {
 export function TooltipPopup(props: TooltipPopupProps): ReactElement {
   const { className, children, side, align, sideOffset = DEFAULT_SIDE_OFFSET, container, ...rest } = props;
   const portalContainer = usePortalContainer();
-  const descriptionId = useContext(TooltipDescriptionContext);
+  const descriptionId = use(TooltipDescriptionContext);
   return (
     <BaseTooltip.Portal container={container ?? portalContainer}>
       <BaseTooltip.Positioner align={align} className={slots.positioner()} data-slot="tooltip-positioner" side={side} sideOffset={sideOffset}>

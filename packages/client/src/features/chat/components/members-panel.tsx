@@ -136,6 +136,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
     const row = currentRows[Math.min(pending.index, currentRows.length - 1)];
     const el = row === undefined ? inviteRef.current : (rowRefs.current.get(row.key) ?? null);
     if (row !== undefined) {
+      // eslint-disable-next-line react-you-might-not-need-an-effect/no-derived-state -- not derivable in render: this runs only once the removed row is CONFIRMED gone from the roster props (the bus echo), moving the roving-tabindex key to whatever took its place alongside the imperative focus restore.
       setActiveKey(row.key);
     }
     if (el !== null) {

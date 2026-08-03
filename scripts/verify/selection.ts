@@ -48,8 +48,14 @@ const PLAYWRIGHT_TSX_DTS_RE = /^playwright\/.*\.(?:tsx|d\.ts)$/u;
 /** Trees ONLY the root graph program sees as ROOTS (the whole-graph net the per-package lane + vitest
  *  miss). NOTE: this is the graph's ROOT membership (rule 4) — it does NOT capture the import-pull overlay
  *  (rule 5), which is a program fact resolved via {@link graphMembership}. */
+/** Root-level config files JOINED the graph program 2026-08-03 (tsconfig.json `include` — they were
+ *  typechecked by NO program, which let two dead Vitest-4 keys survive a major bump). Mirror of that
+ *  include list; tsconfig-routing-parity reds if the two drift. playwright-ct.config.ts stays OUT on
+ *  both sides (dual-vite type world — see tsconfig.json's comment). */
+const ROOT_CONFIG_FILES: ReadonlySet<string> = new Set(["vitest.config.ts", "vitest.stryker.config.ts", "playwright.config.ts", "knip.ts"]);
+
 function isGraphOnlyTree(rel: string): boolean {
-  return rel.startsWith("tests/") || rel.startsWith("scripts/") || rel === "reset.d.ts";
+  return rel.startsWith("tests/") || rel.startsWith("scripts/") || rel === "reset.d.ts" || ROOT_CONFIG_FILES.has(rel);
 }
 
 /** The SET of tsconfig programs that CONTAIN this file (§2.2 — a file can belong to TWO programs: its

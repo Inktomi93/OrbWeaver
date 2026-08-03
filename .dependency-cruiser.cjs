@@ -547,7 +547,7 @@ module.exports = {
     {
       name: "stats-no-vector-tables",
       comment:
-        "stats is ECONOMICS (tokens/cost/cache/timing) — it touches ZERO vector tables. discovery is SEMANTICS (themes/hubness/facets). The line is type-enforced: domain/stats must not import the embeddings vector schema. (domains.md 'stats/discovery line as a type'; knowledge-cluster.md §11.7.) Forward rule — matches once db/schema/embeddings lands.",
+        "stats is ECONOMICS (tokens/cost/cache/timing) — it touches ZERO vector tables. discovery is SEMANTICS (themes/hubness/facets). The line is type-enforced: domain/stats must not import the embeddings vector schema. (domains.md 'stats/discovery line as a type'; knowledge-cluster.md §11.7.) LIVE since db/schema/embeddings landed (was a forward rule; regex-liveness verified 2026-08-03).",
       severity: "error",
       from: { path: `${SRV}domain/stats/` },
       to: { path: `${DB}schema/embeddings` },
@@ -622,10 +622,17 @@ module.exports = {
     tsPreCompilationDeps: true,
     // depcruise derives which analyses (cycles/orphans/reachability) the ruleset needs — free speed.
     skipAnalysisNotInRules: true,
+    // A `process.getBuiltinModule("fs")` call dodges every import-edge rule (kit-no-node-builtins /
+    // ui-no-node-builtins / persistence-no-io all key on core IMPORT edges). This makes such calls
+    // core deps too — closing the dodge (installed-surface audit 2026-08-03; v18 option).
+    detectProcessBuiltinModuleCalls: true,
     enhancedResolveOptions: {
       // Extensionless ESM + the package.json `exports` map (cross-package `@orb/*` → ./src/*.ts).
-      // (The `#` intra-package subpath imports resolve via the tsConfig the TS parser reads; dep-cruiser's
-      // enhancedResolveOptions has no `importsFields` key.)
+      // The `#` intra-package subpath imports resolve via enhanced-resolve's NATIVE package-`imports`
+      // support (no tsConfig here, and none needed — probe-VERIFIED 2026-08-03: `#lib` from
+      // client/state resolves to packages/client/src/lib/index.ts, couldNotResolve:false, so the
+      // internal-cake rules see real resolved paths; the inherited not-to-unresolvable would red
+      // any regression).
       extensions: [".ts", ".tsx", ".d.ts", ".js", ".jsx", ".json"],
       exportsFields: ["exports"],
       conditionNames: ["import", "require", "node", "default", "types"],

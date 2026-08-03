@@ -14,7 +14,7 @@ import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { FormDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { testId } from "#lib";
@@ -22,6 +22,27 @@ import { useInspectEndpoint } from "../hooks/use-connections-mutations";
 
 /** A 2xx inspection carries a real `response`; the fallback verdict number when the shape ever lacks one. */
 const OK_STATUS_FALLBACK = 200;
+
+/** Fire one shaped probe and land its ASYNC settle — never a synchronous setState in an effect body
+ *  (react-hooks/set-state-in-effect). `isPending` masks any stale result while a fresh probe is in flight, so
+ *  a re-open never flashes the prior wire (no synchronous pre-clear needed). Module-scope over the mutation +
+ *  the two setters (both stable) so no effect ever takes a per-render callback as a dependency (D54). */
+function runProbe(
+  mutateAsync: ReturnType<typeof useInspectEndpoint>["mutateAsync"],
+  credentialId: UserCredentialId,
+  setResult: (next: EndpointInspection | null) => void,
+  setFailed: (next: boolean) => void,
+): void {
+  void mutateAsync({ credentialId })
+    .then((next): void => {
+      setFailed(false);
+      setResult(next);
+    })
+    .catch((): void => {
+      setResult(null);
+      setFailed(true);
+    });
+}
 
 export interface EndpointInspectorDialogProps {
   readonly open: boolean;
@@ -41,27 +62,13 @@ export function EndpointInspectorDialog({ open, onOpenChange, credentialId, labe
   const [result, setResult] = useState<EndpointInspection | null>(null);
   const [failed, setFailed] = useState(false);
 
-  // The probe result lands from `mutateAsync`'s ASYNC settle — never a synchronous setState in the effect
-  // body (react-hooks/set-state-in-effect). `isPending` masks any stale result while a fresh probe is in
-  // flight, so a re-open never flashes the prior wire (no synchronous pre-clear needed).
-  const run = useCallback((): void => {
-    void mutateAsync({ credentialId })
-      .then((next): void => {
-        setFailed(false);
-        setResult(next);
-      })
-      .catch((): void => {
-        setResult(null);
-        setFailed(true);
-      });
-  }, [mutateAsync, credentialId]);
-
-  // Fire one probe on the open edge — the effect only synchronizes with the network, never setState.
+  // Fire one probe on the open edge — the effect only synchronizes with the network, never setState. The deps
+  // are `runProbe`'s real inputs — exactly what the retired manual-memo callback identity keyed on.
   useEffect(() => {
     if (open) {
-      run();
+      runProbe(mutateAsync, credentialId, setResult, setFailed);
     }
-  }, [open, run]);
+  }, [open, mutateAsync, credentialId]);
 
   return (
     <FormDialog
@@ -75,7 +82,7 @@ export function EndpointInspectorDialog({ open, onOpenChange, credentialId, labe
       <Stack gap="block" data-testid={testId("endpointInspectorDialog")}>
         <Row gap="field" align="center" justify="between" className="flex-wrap">
           <InspectorStatus pending={inspect.isPending} failed={failed} result={result} />
-          <Button intent="secondary" size="sm" disabled={inspect.isPending} onClick={run}>
+          <Button intent="secondary" size="sm" disabled={inspect.isPending} onClick={(): void => runProbe(mutateAsync, credentialId, setResult, setFailed)}>
             {inspect.isPending ? "Testing…" : "Run again"}
           </Button>
         </Row>

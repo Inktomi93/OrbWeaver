@@ -12,7 +12,6 @@ import { Badge } from "@orb/ui/badge";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useMemo } from "react";
 
 export interface MacroBrowserProps {
   /** The preset's user-macro definitions — composed onto a fresh default registry for display. */
@@ -46,7 +45,7 @@ function argSignature(meta: MacroMetadata): string {
 
 /** The browser — a flat, name-sorted metadata list + the flag-vocabulary reference. */
 export function MacroBrowser({ userMacros, presetId }: MacroBrowserProps): ReactElement {
-  const { macros, rejected } = useMemo(() => buildModel(userMacros, presetId), [userMacros, presetId]);
+  const { macros, rejected } = buildModel(userMacros, presetId);
   return (
     <Stack gap="block">
       {rejected.map((r) => (

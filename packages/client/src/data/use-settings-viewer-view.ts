@@ -9,15 +9,15 @@
 // viewer reads as non-admin, and the shell re-applies a deep link once visibility GROWS.
 
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
 import type { SettingsViewerView } from "#state";
 import { useTRPC } from "./trpc";
 
-/** The narrow viewer projection a settings `when` predicate consumes. Memoized on the derived flags so a
- *  consumer's `useMemo` over it is stable across unrelated re-renders. */
+/** The narrow viewer projection a settings `when` predicate consumes. The React Compiler caches the
+ *  projection on the derived flags, so it stays stable across unrelated re-renders (D54: manual memo is
+ *  banned in compiled files). */
 export function useSettingsViewerView(): SettingsViewerView {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.sessions.me.queryOptions());
   const isAdmin = data?.globalRole === "owner" || data?.globalRole === "admin";
-  return useMemo((): SettingsViewerView => ({ isAdmin }), [isAdmin]);
+  return { isAdmin };
 }

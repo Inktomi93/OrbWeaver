@@ -18,7 +18,7 @@ import { defineConfig } from "vitest/config";
 // exclude note). Some fixtures are `.test.ts`, so a CONCURRENT `vitest` lane could try to collect one
 // mid-lifecycle (it's written then rm'd inside check-gates.int); ignore keeps every lane hermetic.
 const IGNORE = ["**/node_modules/**", "**/dist/**", "**/.stryker-tmp/**", "reports/**", "**/__g_*"];
-const inCI = process.env.CI !== undefined;
+const inCI = process.env["CI"] !== undefined;
 
 // SERIAL_INT — the `.int.test.ts` files that CANNOT run in the parallel `integration` lane, routed by
 // EXPLICIT PATH (not a filename suffix — a `*.serial.int.test.ts` rename trips the test-layout /
@@ -90,12 +90,13 @@ export default defineConfig({
     // integration, contract). Pinned to ~14 workers on this 24-core shared dev box: the integration lane
     // is IMPORT-bound, not CPU-bound (reports/tooling/VITEST-INTEGRATION-SPEEDUP.md §2), so workers past
     // ~14 buy no speed while starving the dev's editor/browser. 14-of-24 is the report's measured 6.7×
-    // sweet spot and leaves headroom. minWorkers matches so they actually spin up.
+    // sweet spot and leaves headroom.
     // NOTE: Vitest 4 REMOVED `poolOptions.forks.maxForks` — the cap is now the TOP-LEVEL `maxWorkers`
     // (number of forks, since pool:"forks"). `integration-serial` sets fileParallelism:false, which
     // vitest forces to maxWorkers=1 — so this cap is a no-op there (one file at a time regardless).
+    // (`minWorkers` was ALSO removed in v4 — a `minWorkers: 14` sat here as dead config until the
+    // 2026-08-03 installed-surface audit; workers now ramp on demand up to the cap, which is fine.)
     pool: "forks",
-    minWorkers: 14,
     maxWorkers: 14,
 
     // --- rigor defaults (inherited via `extends: true`) ---
