@@ -11,7 +11,7 @@ This is a THROWAWAY benchmark — no production wiring, no gates, lives only und
 ## Model & creds
 - Model: `anthropic/claude-sonnet-5` (verified on OR: tools+structured+reasoning+max_tokens, 1M ctx).
 - Endpoint: `POST https://openrouter.ai/api/v1/chat/completions`.
-- API key: read `OPENROUTER_API_KEY` from the repo `.env` at runtime (dotenv or parse the line).
+- API key: read `OPENROUTER_API_KEY` from the repo `.env` at runtime (`node:util` `parseEnv`, or parse the line).
   NEVER print, log, or write the key value anywhere. Auth header `Authorization: Bearer <key>`.
 - Every request: `stream:false`, `usage:{include:true}` (so the response `usage` carries `cost`,
   `prompt_tokens`, `completion_tokens`, `completion_tokens_details.reasoning_tokens`).
@@ -124,5 +124,5 @@ turns-with-full-state, any failures.
 Return ONLY: the SUMMARY.md contents (the table + verdict), the total spend, and any method that
 failed or surprised. I (orchestrator) will read the transcripts/artifacts myself for deep-dive.
 Language: TypeScript run via `tsx`, or plain Node .mjs with fetch — your call; keep it ONE script +
-the templates. No new deps beyond what the repo has (node ≥20 has global fetch; dotenv exists or parse
-.env by hand).
+the templates. No new deps beyond what the repo has (global fetch is built in; `node:util`'s `parseEnv`
+reads `.env`).

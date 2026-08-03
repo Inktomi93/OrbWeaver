@@ -30,7 +30,6 @@
     "@opentelemetry/semantic-conventions": "catalog:",
     "@trpc/server": "catalog:",
     "@types/html-to-text": "catalog:",
-    "dotenv": "catalog:",
     "drizzle-orm": "catalog:",
     "fflate": "catalog:",
     "hono": "catalog:",

@@ -1,29 +1,75 @@
 // biome-ignore-all lint/style/useNamingConvention: env var keys (AUTH_MODE, OIDC_*, SESSION_SECRET, …) are
 // SCREAMING_SNAKE_CASE by external convention; the crafted process.env literals must match that shape.
 // biome-ignore-all lint/style/noProcessEnv: this test DRIVES the sole env reader by crafting process.env.
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
-import { afterEach, beforeEach, describe, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
-// Re-import foundation/env under a controlled process.env so the module-level `envSchema.parse()` runs
-// against the crafted input. resetModules invalidates the cache; we wipe process.env first to strip the
-// runner pins; we stub `dotenv`'s `config` so a developer's local `.env` (real OIDC_ISSUER etc.) can't
-// bleed in and mask the refinement under test. VITEST stays set so env's override path is the no-op.
-async function reimportEnvWith(overrides: Record<string, string | undefined>): Promise<typeof import("@orb/server/foundation/env")> {
+// Every re-import runs with the process CWD parked in a throwaway directory. foundation/env's `.env`
+// loader is cwd-relative (as dotenv's was), so this is what keeps a developer's real repo-root `.env`
+// (real OIDC_ISSUER etc.) from bleeding in and masking the refinement under test — and it exercises the
+// REAL loader instead of mocking a module out of the way. It is also the seam the loader suite below
+// uses to hand the production code a crafted `.env`.
+const tempDirs: string[] = [];
+
+function makeDir(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  tempDirs.push(dir);
+  return dir;
+}
+
+/** A throwaway cwd holding a `.env` with exactly these bytes. */
+function dirWithEnvFile(contents: string): string {
+  const dir = makeDir("orb-env-w3-file-");
+  writeFileSync(join(dir, ".env"), contents);
+  return dir;
+}
+
+const EMPTY_DIR = makeDir("orb-env-w3-empty-");
+
+afterAll(() => {
+  for (const dir of tempDirs) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// Re-import foundation/env under a controlled process.env + cwd so the module-level `envSchema.parse()`
+// (and the `.env` load that precedes it) run against the crafted input. resetModules invalidates the
+// cache; we wipe process.env first to strip the runner pins.
+//
+// `vitest: false` DROPS the VITEST pin — that is the only way to exercise the production override arm,
+// since `skipOverride` is derived at module load from VITEST/ORB_ENV_NO_OVERRIDE.
+async function reimportEnvIn(
+  cwd: string,
+  overrides: Record<string, string | undefined>,
+  opts: { readonly vitest?: boolean } = {},
+): Promise<typeof import("@orb/server/foundation/env")> {
   for (const k of Object.keys(process.env)) {
     delete process.env[k];
   }
-  process.env["VITEST"] = "1";
+  if (opts.vitest !== false) {
+    process.env["VITEST"] = "1";
+  }
   for (const [k, v] of Object.entries(overrides)) {
     if (v !== undefined) {
       process.env[k] = v;
     }
   }
   vi.resetModules();
-  vi.doMock("dotenv", () => ({ config: () => ({ parsed: {} }) }));
-  const mod = await import("@orb/server/foundation/env");
-  vi.doUnmock("dotenv");
-  return mod;
+  const previousCwd = process.cwd();
+  process.chdir(cwd);
+  try {
+    return await import("@orb/server/foundation/env");
+  } finally {
+    process.chdir(previousCwd);
+  }
+}
+
+function reimportEnvWith(overrides: Record<string, string | undefined>): Promise<typeof import("@orb/server/foundation/env")> {
+  return reimportEnvIn(EMPTY_DIR, overrides);
 }
 
 const SESSION_SECRET_LEN = 32;
@@ -221,5 +267,111 @@ describe("foundation/env — the floor parse (defaults + transforms)", () => {
     // A copy, not the live object — mutating the snapshot must not touch process.env.
     snap["SOME_HOST_VAR"] = "mutated";
     expect(process.env["SOME_HOST_VAR"]).toBe("present");
+  });
+});
+
+// The `.env` loader (node:util parseEnv + our explicit merge; dotenv died 2026-08-03, node-26 program
+// §3). The OVERRIDE DIRECTION is the load-bearing part and is asserted BOTH WAYS: a drop-in swap to
+// `process.loadEnvFile()` — which can only ever fill unset keys — turns the first test here RED.
+describe("foundation/env — the .env load (override semantics + parser tolerance)", () => {
+  let snapshot: Record<string, string | undefined>;
+
+  beforeEach(() => {
+    snapshot = { ...process.env };
+  });
+  afterEach(() => {
+    for (const k of Object.keys(process.env)) {
+      delete process.env[k];
+    }
+    Object.assign(process.env, snapshot);
+    vi.resetModules();
+  });
+
+  test("override ON (the production default): a checked-in .env BEATS an already-set shell export", async () => {
+    const dir = dirWithEnvFile("DEFAULT_USER_HANDLE=from-dotfile\nPORT=9001\n");
+    const { env } = await reimportEnvIn(dir, { DEFAULT_USER_HANDLE: "from-stale-shell", PORT: "7777" }, { vitest: false });
+    expect(env.DEFAULT_USER_HANDLE).toBe("from-dotfile");
+    expect(env.PORT).toBe(9001);
+  });
+
+  test("override OFF under VITEST: the pre-existing shell value SURVIVES", async () => {
+    const dir = dirWithEnvFile("DEFAULT_USER_HANDLE=from-dotfile\nPORT=9001\n");
+    const { env } = await reimportEnvIn(dir, { DEFAULT_USER_HANDLE: "from-stale-shell", PORT: "7777" });
+    expect(env.DEFAULT_USER_HANDLE).toBe("from-stale-shell");
+    expect(env.PORT).toBe(7777);
+  });
+
+  test("override OFF under ORB_ENV_NO_OVERRIDE (the probe/stage hatch, VITEST absent)", async () => {
+    const dir = dirWithEnvFile("DEFAULT_USER_HANDLE=from-dotfile\n");
+    const { env } = await reimportEnvIn(dir, { ORB_ENV_NO_OVERRIDE: "1", DEFAULT_USER_HANDLE: "from-stale-shell" }, { vitest: false });
+    expect(env.DEFAULT_USER_HANDLE).toBe("from-stale-shell");
+  });
+
+  test("with override OFF the .env still FILLS a key the shell never set", async () => {
+    const dir = dirWithEnvFile("DEFAULT_USER_HANDLE=from-dotfile\nOWNER_GROUP=admins\n");
+    const { env } = await reimportEnvIn(dir, { DEFAULT_USER_HANDLE: "from-stale-shell" });
+    expect(env.DEFAULT_USER_HANDLE).toBe("from-stale-shell");
+    expect(env.OWNER_GROUP).toBe("admins");
+  });
+
+  test("no .env file at all → silent no-op, the schema defaults stand (dotenv's quiet:true parity)", async () => {
+    const { env } = await reimportEnvIn(makeDir("orb-env-w3-none-"), {}, { vitest: false });
+    expect(env.DEFAULT_USER_HANDLE).toBe("owner");
+    expect(env.PORT).toBe(8788);
+  });
+
+  test("an UNREADABLE .env (it is a directory) → silent no-op, not a boot crash", async () => {
+    const dir = makeDir("orb-env-w3-dir-");
+    mkdirSync(join(dir, ".env"));
+    const { env } = await reimportEnvIn(dir, {}, { vitest: false });
+    expect(env.DEFAULT_USER_HANDLE).toBe("owner");
+  });
+
+  // Byte-for-byte identical to dotenv@16.6.1's `parse` on this fixture (measured 2026-08-03): comments,
+  // blank lines, an `export ` prefix, single + double quotes, a `\n` escape inside double quotes, a junk
+  // line with no separator, an inline `#` comment, and a CRLF line ending.
+  test("parser tolerance matches what dotenv accepted (comments, quotes, export, junk, CRLF)", async () => {
+    const dir = dirWithEnvFile(
+      `${[
+        "# a leading comment",
+        "",
+        "export DEFAULT_USER_HANDLE=exported",
+        "IMPORT_SKIP_CHARACTERS='Ruby, Assistant'",
+        'ST_PROFILE_DIR="/tmp/st profiles"',
+        'TRUSTED_LOCAL_HOSTS="a\\nb"',
+        "this line is junk with no separator",
+        "OWNER_GROUP=admins # inline comment",
+        "PORT=9001",
+      ].join("\n")}\r\nLOG_LEVEL=debug\r\n`,
+    );
+    const { env } = await reimportEnvIn(dir, {}, { vitest: false });
+    expect(env.DEFAULT_USER_HANDLE).toBe("exported");
+    expect(env.IMPORT_SKIP_CHARACTERS).toBe("Ruby, Assistant");
+    expect(env.ST_PROFILE_DIR).toBe("/tmp/st profiles");
+    expect(env.TRUSTED_LOCAL_HOSTS).toBe("a\nb");
+    expect(env.OWNER_GROUP).toBe("admins");
+    expect(env.PORT).toBe(9001);
+    expect(env.LOG_LEVEL).toBe("debug");
+  });
+
+  // DELTA 1 (closed in the loader): `parseEnv` does NOT strip a UTF-8 BOM, so an un-stripped BOM'd file
+  // would land the first key as "﻿DEFAULT_USER_HANDLE" and the real key would silently keep its
+  // default. dotenv stripped it; so do we.
+  test("a UTF-8 BOM is stripped — the first key still lands under its clean name", async () => {
+    const dir = dirWithEnvFile("﻿DEFAULT_USER_HANDLE=bommed\nPORT=9100\n");
+    const { env } = await reimportEnvIn(dir, {}, { vitest: false });
+    expect(env.DEFAULT_USER_HANDLE).toBe("bommed");
+    expect(env.PORT).toBe(9100);
+    expect(process.env["﻿DEFAULT_USER_HANDLE"]).toBeUndefined();
+  });
+
+  // DELTA 2 (ACCEPTED, pinned here so it stays deliberate): dotenv also honored a non-standard
+  // `KEY: value` separator. `parseEnv` — the platform parser — ignores that line. Nothing in this repo
+  // or on this box writes a `.env` that way; re-implementing a vendor dialect would defeat the swap.
+  test("the non-standard `KEY: value` dotenv dialect is IGNORED (documented, accepted delta)", async () => {
+    const dir = dirWithEnvFile("DEFAULT_USER_HANDLE: colonized\nPORT=9200\n");
+    const { env } = await reimportEnvIn(dir, {}, { vitest: false });
+    expect(env.DEFAULT_USER_HANDLE).toBe("owner");
+    expect(env.PORT).toBe(9200);
   });
 });

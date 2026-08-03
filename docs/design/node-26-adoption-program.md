@@ -165,6 +165,37 @@ prefer adding an optional `path` param over mocking builtins. Remove `dotenv` fr
 (`multi-user-fixture.sh:59`, `probe-fire.ts:16`, `snap-stage.ts:305`, `stack.sh:141`) get their prose
 updated to name the new loader. Post-kill enforcement: §8's biome `noRestrictedImports` entry.
 
+**LANDED 2026-08-03 (W3) — three corrections to the sketch above, each measured:**
+
+1. **`parseEnv` is NOT byte-parity with dotenv@16.6.1.** A 30-input case-by-case comparison found exactly
+   two deltas. (a) A UTF-8 BOM: dotenv stripped it, `parseEnv` keeps it IN THE KEY, so a BOM'd `.env`
+   silently renames its FIRST key to `﻿KEY` and the real key quietly keeps its default — the exact
+   silent-misconfiguration class this loader must not ship. The landed loader strips the BOM. (b) dotenv
+   also honored a non-standard `KEY: value` separator; `parseEnv` ignores such a line. No `.env` in this
+   repo or on this box uses it, and re-implementing a vendor dialect would defeat adopting the platform
+   parser — ACCEPTED, and pinned by a test so it stays deliberate. Everything else (comments, blank/junk
+   lines, `export ` prefixes, single/double/backtick quotes, `\n` escapes in double quotes, literal
+   multiline quoted values, inline `#` comments, CRLF, duplicate keys, unterminated quotes, empty file)
+   is identical.
+2. **No `path` param and no test-only export were needed.** The loader stays cwd-relative exactly as
+   dotenv was (`path.resolve(process.cwd(), ".env")`), and the test drives the REAL production path by
+   `process.chdir()`-ing into a throwaway dir holding a crafted `.env` (vitest `pool: "forks"` makes
+   `chdir` available). That also replaced the `vi.doMock("dotenv")` bleed-guard — an empty temp cwd is
+   what now keeps a developer's repo-root `.env` out of the schema tests. Both override arms are asserted
+   end-to-end, including the `ORB_ENV_NO_OVERRIDE` hatch, so a future swap to `process.loadEnvFile()`
+   turns them RED.
+3. **§8's `noRestrictedImports` dotenv entry landed HERE, not in the §8 wave.** The §9 "gates land last"
+   ordering exists because a gate needs its violations burned down first; this ban had exactly one
+   violation and W3 removed it, so shipping the ban in the same commit is the fix-at-landing rule. The
+   `luxon` entry still waits on §6's trigger.
+
+Adjacent PRE-EXISTING defect found while sweeping (fixed in the same commit, orchestrator-ruled):
+`probe-fire.ts`'s header promised its `PORT`/`DATABASE_URL`/`DEBUG_TOKEN` pins beat a repo-root `.env`,
+but `serverEnv()` never set `ORB_ENV_NO_OVERRIDE` — so a checked-in `PORT`/`DATABASE_URL` would have
+pointed `pnpm trace:fire` at the operator's live dev DB. It was 1 of 4 stack-spawning harnesses missing
+the hatch (`snap-stage.ts`, `multi-user-fixture.sh`, `tests/e2e/support/modes.ts` ×3 all had it); now
+4 of 4. One omission from a consistent house pattern, not a class — no gate minted.
+
 ## §4 W4 — platform-primitive burn-down (exhaustive; every site enumerated by the sweeps)
 
 Each item: the sites are the COMPLETE match set from the 2026-08-03 sweeps; the implementor re-runs the

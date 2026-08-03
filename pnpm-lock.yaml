@@ -177,9 +177,6 @@ catalogs:
     diff:
       specifier: ^9.0.0
       version: 9.0.0
-    dotenv:
-      specifier: ^16.4.7
-      version: 16.6.1
     drizzle-kit:
       specifier: ^0.31.10
       version: 0.31.10
@@ -696,9 +693,6 @@ importers:
       '@types/html-to-text':
         specifier: 'catalog:'
         version: 9.0.4
-      dotenv:
-        specifier: 'catalog:'
-        version: 16.6.1
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@libsql/client@0.17.4)(@opentelemetry/api@1.9.1)
@@ -4616,10 +4610,6 @@ packages:
 
   domutils@3.2.2:
     resolution: {integrity: sha512-6kZKyUajlDuqlHKVX1w7gyslj9MPIXzIFiz/rGu35uC1wMi+kMhQwGhl4lt9unC9Vb9INnY9Z3/ZA3+FhASLaw==}
-
-  dotenv@16.6.1:
-    resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
-    engines: {node: '>=12'}
 
   drizzle-kit@0.31.10:
     resolution: {integrity: sha512-7OZcmQUrdGI+DUNNsKBn1aW8qSoKuTH7d0mYgSP8bAzdFzKoovxEFnoGQp2dVs82EOJeYycqRtciopszwUf8bw==}
@@ -10810,8 +10800,6 @@ snapshots:
       dom-serializer: 2.0.0
       domelementtype: 2.3.0
       domhandler: 5.0.3
-
-  dotenv@16.6.1: {}
 
   drizzle-kit@0.31.10:
     dependencies:

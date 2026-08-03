@@ -102,8 +102,6 @@ catalog:
   # ^8.9.0 (not 8.10.0 — published <24h ago, minimumReleaseAge-blocked); 8.9.0 is the latest mature 8.x
   # and the caret floats to 8.10.0 on the next install once it ages past the gate.
   undici: ^8.9.0
-  # foundation/env — the sole process.env reader loads a local .env (override:true) before parsing.
-  dotenv: ^16.4.7
   # --- foundation observability (Phase 4a — tiers/foundation.md › Runtime dependencies) ---
   # pino: the structured logger (pino.multistream([stdout, ringStream])).
   pino: ^10.3.1
