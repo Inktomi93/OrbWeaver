@@ -52,11 +52,11 @@ custom-byo's shared rawResponseFormat — needs its own arm or a kit-default fli
 pinning explicitly). D79 structured-chat stays unreachable-documented (a future consumer on
 anthropic-OR needs the forced-tool vehicle — recorded). LESSON banked below: a translator
 that DEFAULTS a caller's optional wire knob is inventing policy.
-**LIVE LANES (2, resumable by agent id via SendMessage):** REGORDER (a9c03c2e888a68acf — scope RATIFIED:
-both homes via one shared regex-scope-order component [config context arm = global; the
-picker SPLITS IN PLACE "Runs here, in order" + unattached — one row per script, X-7-safe];
-threshold arms = drag ≤30 / move-up-down above — NO capability cliff, mechanism-only switch;
-**this pattern = the candidate arm for the unruled TAG drag-reorder morning fork**) ·
+**LIVE LANES (2, resumable by agent id via SendMessage):** ✅ REGORDER MERGED (`e2d4087f`, torn down — ALL FOUR scope-order arms authorable; the
+dead-ended pair is closed; optimistic reorder write reasoned; focusableWhenDisabled = the
+end-of-list focus answer; **the tag-fork candidate arm is now CONCRETE + liftable**:
+MoveControls+reseat are scope-agnostic — VirtualList >30 keeps per-row move pair; only
+unknown = scroll-to-follow) ·
 FACEFILT (a5a5877336d40ac69 — frequent-N strip + overflow picker, selected-face-always-
 visible, defensive paths enumerated).**
 · ✅ **R2WI MERGED (`e7a86df1`, consolidated check 14/14, torn down) — WORLD-INFO IS IN THE
