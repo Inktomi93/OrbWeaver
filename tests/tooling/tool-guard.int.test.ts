@@ -31,7 +31,7 @@ interface BatchCase {
 }
 
 interface BatchResult {
-  decision: "deny" | "ask" | "allow" | "defer";
+  decision: "deny" | "ask" | "allow" | "pass" | "defer";
   rule: string | null;
   reason?: string;
   rewrite?: { command: string; timeout?: number; log?: string };
@@ -91,7 +91,7 @@ function bashInput(command: string, extraPairs: [string, unknown][] = []): Recor
 
 // ── the corpus table ──────────────────────────────────────────────────────────────────────────────────
 // [expected decision, expected rule (null = clean pass), command, ctx overrides]
-// "advisory" = defer + at least one additionalContext line (warn tier).
+// "advisory" = pass + at least one additionalContext line (warn tier) — it RUNS, with a note.
 const LANE = { agentId: "agent-1", cwd: "/x/.claude/worktrees/agent-abc" };
 type Row = [BatchResult["decision"] | "advisory", string | null, string, Omit<BatchCase, "command">?];
 
@@ -129,10 +129,10 @@ const ROWS: Row[] = [
   ["deny", "git-destructive", "git checkout ."],
   ["deny", "git-destructive", "git checkout main -- tests/ui/x.ct.tsx"],
   // read-only forms PASS — a deny here would be a lie about destruction
-  ["defer", null, "git stash list 2>/dev/null"],
-  ["defer", null, "git restore --staged docs/retro-workboard.md"],
-  ["defer", null, "git checkout -b feature/x"],
-  ["defer", null, "git checkout main"],
+  ["pass", null, "git stash list 2>/dev/null"],
+  ["pass", null, "git restore --staged docs/retro-workboard.md"],
+  ["pass", null, "git checkout -b feature/x"],
+  ["pass", null, "git checkout main"],
   // ---- biome write-mode: blast radius decides (owner ruling — the tsx-shedding migration is sanctioned) ----
   ["deny", "biome-write", "biome check --write ."],
   ["deny", "biome-write", "pnpm exec biome check --write"],
@@ -142,29 +142,31 @@ const ROWS: Row[] = [
   ["deny", "biome-write", "biome format --write ."],
   ["advisory", "advisory", "pnpm exec biome check --write --only=correctness/useImportExtensions packages/client/src tests scripts"],
   ["advisory", "advisory", "npx biome check --write packages/ui/src/primitives/button/button.tsx"],
-  ["defer", null, "pnpm exec biome check --reporter=concise packages/client/src/x.tsx"],
-  ["defer", null, "biome format packages/ui/src/x.ts"],
+  ["pass", null, "pnpm exec biome check --reporter=concise packages/client/src/x.tsx"],
+  ["pass", null, "biome format packages/ui/src/x.ts"],
   // ---- cd into a worktree: main-session DENY; lane = advisory (own-vs-foreign is undecidable) ----
   ["deny", "cd-worktree", "cd /x/.claude/worktrees/agent-abc && git status --short"],
   ["advisory", "advisory", "cd /x/.claude/worktrees/agent-other && git diff", LANE],
-  ["defer", null, "cd /x/.claude/worktrees/agent-abc/packages/client", LANE],
-  ["defer", null, "git -C /x/.claude/worktrees/agent-abc status --short"],
-  ["defer", null, "git worktree remove .claude/worktrees/agent-abc"],
+  ["pass", null, "cd /x/.claude/worktrees/agent-abc/packages/client", LANE],
+  ["pass", null, "git -C /x/.claude/worktrees/agent-abc status --short"],
+  ["pass", null, "git worktree remove .claude/worktrees/agent-abc"],
   // ---- playwright CT ----
   ["allow", "playwright-ct", "npx playwright test tests/client/features/chat/composer.ct.tsx"],
   ["allow", "playwright-ct", "npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx --reporter=line"],
   ["allow", "playwright-ct", "cd /repo && timeout 400 npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx 2>&1 | tail -20"],
   ["allow", "playwright-ct", "rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx 2>&1 | tail -40"],
   ["deny", "playwright-ct", "for i in 1 2 3; do npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx; done"],
-  ["defer", null, "rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx"],
-  ["defer", null, "npx playwright test tests/e2e/login.spec.ts"],
+  ["pass", null, "rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx"],
+  ["pass", null, "npx playwright test tests/e2e/login.spec.ts"],
   // ---- push tiers ----
   ["ask", "git-push-force", "git push --force origin main"],
   ["ask", "git-push-force", "git push --force-with-lease origin main"],
   ["ask", "lane-git-push", "git push origin main", LANE],
   ["ask", "lane-git-push", "git -C /x/.claude/worktrees/agent-abc push origin wt-branch", LANE],
-  ["defer", null, "git push origin main"],
-  ["allow", "longlived-piped", "git push origin main 2>&1 | tail -8"],
+  ["ask", "git-push", "git push origin main"],
+  // the push ASK outranks the pipe rewrite: a rewrite is an ALLOW, so ordering it first would let a
+  // piped push reach origin with no owner word. Losing the rewrite on a rare, watched command is cheap.
+  ["ask", "git-push", "git push origin main 2>&1 | tail -8"],
   // ---- advisory tier ----
   ["advisory", "advisory", "sg run -p 'useMemo($$$A)' -l tsx packages/client/src"],
   ["advisory", "advisory", "npx vitest run tests/client/x.test.ts"],
@@ -175,31 +177,31 @@ const ROWS: Row[] = [
   ["advisory", "advisory", "git commit --no-verify -m x -- docs"],
   ["advisory", "advisory", "rm -rf packages/client/src/features/old-thing"],
   // ---- MUST-PASS: the false-positive traps ----
-  ["defer", null, 'git commit -m "fix the pnpm check pipe that ate our exit code"'],
-  ["defer", null, 'git commit -m "docs(board): pnpm verify --push 17/17 green" -- docs'],
-  ["defer", null, 'echo "never run pnpm check | tail"'],
-  ["defer", null, "git commit -F - <<'EOF'\nfix(settings): push-detail narrow arm\n\nbody mentions pnpm check | tail and git stash\nEOF", LANE],
-  ["defer", null, "python3 - <<'PY'\ns = 'pnpm check | tail -40'\nprint(s)\nPY\necho done"],
-  ["defer", null, "git log --oneline -20 | head -5"],
-  ["defer", null, "ls packages | grep client"],
-  ["defer", null, "cat reports/verify.json | python3 -m json.tool"],
-  ["defer", null, "pnpm check"],
-  ["defer", null, "pnpm check > reports/run.log 2>&1"],
-  ["defer", null, "pnpm verify --push > /tmp/push.log 2>&1"],
-  ["defer", null, "pnpm test:ct"],
-  ["defer", null, "pnpm vitest run tests/tooling/tool-guard.int.test.ts"],
-  ["defer", null, "pnpm ast refs resolveChat | head -20"],
-  ["defer", null, "npx tsc -p packages/server --noEmit"],
-  ["defer", null, "ast-grep run -p 'useMemo($$$A)' -l tsx packages/client/src"],
-  ["defer", null, 'git commit -m "use sg run for the sweep"'],
-  ["defer", null, "git show HEAD:packages/server/src/index.ts"],
-  ["defer", null, '/usr/bin/grep -rn --exclude-dir=node_modules "useMemo" packages/client/src'],
-  ["defer", null, 'grep -rn "useMemo" packages/client/src/features/chat/use-send.ts'],
-  ["defer", null, "sqlite3 /tmp/probe-test.db 'select 1'"],
-  ["defer", null, "rm -rf playwright/.cache"],
-  ["defer", null, "rm -rf node_modules/.cache/hook-pool"],
-  ["defer", "self-exempt", "node .claude/hooks/tool-guard.mjs --classify-batch < cases.json"],
-  ["defer", "self-exempt", "node scripts/probes/guard-replay.mjs --out reports/guard-replay.json"],
+  ["pass", null, 'git commit -m "fix the pnpm check pipe that ate our exit code"'],
+  ["pass", null, 'git commit -m "docs(board): pnpm verify --push 17/17 green" -- docs'],
+  ["pass", null, 'echo "never run pnpm check | tail"'],
+  ["pass", null, "git commit -F - <<'EOF'\nfix(settings): push-detail narrow arm\n\nbody mentions pnpm check | tail and git stash\nEOF", LANE],
+  ["pass", null, "python3 - <<'PY'\ns = 'pnpm check | tail -40'\nprint(s)\nPY\necho done"],
+  ["pass", null, "git log --oneline -20 | head -5"],
+  ["pass", null, "ls packages | grep client"],
+  ["pass", null, "cat reports/verify.json | python3 -m json.tool"],
+  ["pass", null, "pnpm check"],
+  ["pass", null, "pnpm check > reports/run.log 2>&1"],
+  ["pass", null, "pnpm verify --push > /tmp/push.log 2>&1"],
+  ["pass", null, "pnpm test:ct"],
+  ["pass", null, "pnpm vitest run tests/tooling/tool-guard.int.test.ts"],
+  ["pass", null, "pnpm ast refs resolveChat | head -20"],
+  ["pass", null, "npx tsc -p packages/server --noEmit"],
+  ["pass", null, "ast-grep run -p 'useMemo($$$A)' -l tsx packages/client/src"],
+  ["pass", null, 'git commit -m "use sg run for the sweep"'],
+  ["pass", null, "git show HEAD:packages/server/src/index.ts"],
+  ["pass", null, '/usr/bin/grep -rn --exclude-dir=node_modules "useMemo" packages/client/src'],
+  ["pass", null, 'grep -rn "useMemo" packages/client/src/features/chat/use-send.ts'],
+  ["pass", null, "sqlite3 /tmp/probe-test.db 'select 1'"],
+  ["pass", null, "rm -rf playwright/.cache"],
+  ["pass", null, "rm -rf node_modules/.cache/hook-pool"],
+  ["pass", "self-exempt", "node .claude/hooks/tool-guard.mjs --classify-batch < cases.json"],
+  ["pass", "self-exempt", "node scripts/probes/guard-replay.mjs --out reports/guard-replay.json"],
 ];
 
 test("corpus: every rule bites its measured shapes and passes the false-positive traps", () => {
@@ -207,10 +209,10 @@ test("corpus: every rule bites its measured shapes and passes the false-positive
   const failures: string[] = [];
   ROWS.forEach(([expected, rule, command], i) => {
     const got = at(results, i);
-    const decisionOk = expected === "advisory" ? got.decision === "defer" && got.contexts.length > 0 : got.decision === expected;
+    const decisionOk = expected === "advisory" ? got.decision === "pass" && got.contexts.length > 0 : got.decision === expected;
     const ruleOk = rule === null ? got.rule === null : got.rule === rule;
     // a clean pass must also be SILENT (no advisory noise) — crying wolf is the failure mode
-    const silentOk = expected !== "defer" || rule !== null || got.contexts.length === 0;
+    const silentOk = expected !== "pass" || rule !== null || got.contexts.length === 0;
     if (!(decisionOk && ruleOk && silentOk)) {
       failures.push(`[${i}] want ${expected}/${rule} got ${got.decision}/${got.rule} ctx=${got.contexts.length} :: ${command.slice(0, 80)}`);
     }
@@ -230,7 +232,7 @@ test("rewrite: the piped-harness rewrite preserves the reader chain, the log tar
   expect(withTimeout.rewrite?.timeout).toBeUndefined();
   // the rewritten command must not re-fire the guard (no rewrite loops)
   const again = at(runBatch([{ command: expected }]), 0);
-  expect(again.decision).toBe("defer");
+  expect(again.decision).toBe("pass");
   expect(again.rule).toBeNull();
 });
 
@@ -269,7 +271,7 @@ test("push-in-flight: a live `git push` process turns a commit into a warn (neve
   ]);
   const withPush = at(results, 0);
   const withoutPush = at(results, 1);
-  expect(withPush.decision).toBe("defer");
+  expect(withPush.decision).toBe("pass");
   expect(withPush.contexts.join("\n")).toContain("git push");
   expect(withoutPush.contexts).toEqual([]);
 });
@@ -304,17 +306,33 @@ test("contract: a rewrite emits updatedInput, creates the log dir, and logs the 
   expect(logged.rewrittenTo).toContain("pnpm check >");
 });
 
-test("contract: warn tier defers with additionalContext; clean commands defer silently", () => {
+// The load-bearing pair. A command this guard does not object to must RUN — `defer` sends it to a
+// permission flow that prompts a human, and a subagent has none, so it dies mid-turn with no report
+// (nine lanes, 2026-08-03). The guard shapes HOW commands run; it does not gate what an agent may run.
+test("contract: warn tier ALLOWS with additionalContext; clean commands allow silently", () => {
   const tmp = mkdtempSync(join(tmpdir(), "tg-hook-"));
   const warn = runHook(bashInput("npx vitest run tests/client/x.test.ts"), [["CLAUDE_PROJECT_DIR", tmp]]);
-  expect(warn.out.hookSpecificOutput?.permissionDecision).toBe("defer");
+  expect(warn.out.hookSpecificOutput?.permissionDecision).toBe("allow");
   expect(warn.out.hookSpecificOutput?.additionalContext).toContain("pnpm vitest run");
   const clean = runHook(bashInput("git status --short"), [["CLAUDE_PROJECT_DIR", tmp]]);
-  expect(clean.out.hookSpecificOutput?.permissionDecision).toBe("defer");
+  expect(clean.out.hookSpecificOutput?.permissionDecision).toBe("allow");
   expect(clean.out.hookSpecificOutput?.additionalContext).toBeUndefined();
 });
 
-test("contract: the lane push ask carries agent identity from the hook payload", () => {
+// A compound command is exactly what killed the two relaunched lanes: the permission matcher requires
+// EVERY segment to be allowlisted, and `echo`/`sort`/`pwd` were not. The guard must pass these whole.
+test("contract: an ordinary compound recon command runs, whole", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "tg-hook-"));
+  for (const cmd of [
+    'ls -a | head -50 && echo "---TSCONFIGS---" && find . -maxdepth 3 -name "tsconfig*.json" | sort && node -v',
+    "pwd && git -C /x/.claude/worktrees/agent-abc status --short && git -C /x/.claude/worktrees/agent-abc branch --show-current",
+  ]) {
+    const r = runHook(bashInput(cmd), [["CLAUDE_PROJECT_DIR", tmp]]);
+    expect(r.out.hookSpecificOutput?.permissionDecision).toBe("allow");
+  }
+});
+
+test("contract: a push asks the owner from main, and DENIES a lane with the escalation path", () => {
   const tmp = mkdtempSync(join(tmpdir(), "tg-hook-"));
   const lane = runHook(
     bashInput("git push origin main", [
@@ -323,9 +341,18 @@ test("contract: the lane push ask carries agent identity from the hook payload",
     ]),
     [["CLAUDE_PROJECT_DIR", tmp]],
   );
-  expect(lane.out.hookSpecificOutput?.permissionDecision).toBe("ask");
+  // an unanswerable `ask` kills a lane exactly like a defer did — deny it, and tell it who CAN decide
+  expect(lane.out.hookSpecificOutput?.permissionDecision).toBe("deny");
+  expect(lane.out.hookSpecificOutput?.permissionDecisionReason).toContain("SendMessage");
+  // the main session has a human, so it still gets a real prompt — pushing must never be silent
   const main = runHook(bashInput("git push origin main"), [["CLAUDE_PROJECT_DIR", tmp]]);
-  expect(main.out.hookSpecificOutput?.permissionDecision).toBe("defer");
+  expect(main.out.hookSpecificOutput?.permissionDecision).toBe("ask");
+  // `git reset` is NOT ours to gate: the owner's global settings wildcard-allow `git reset *` and
+  // `git checkout *`. Pinned so nobody "helpfully" adds an ask here again on a false premise.
+  for (const flag of ["--hard", "--soft"]) {
+    const reset = runHook(bashInput(`git reset ${flag} HEAD~1`), [["CLAUDE_PROJECT_DIR", tmp]]);
+    expect(reset.out.hookSpecificOutput?.permissionDecision).toBe("allow");
+  }
 });
 
 test("fail-open: garbage stdin, a non-Bash tool, and an internal crash all defer with exit 0", () => {
