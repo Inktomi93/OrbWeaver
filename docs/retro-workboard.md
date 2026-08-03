@@ -322,8 +322,10 @@ identity chrome for ANY row kind.
   honest fix is a square-glyph size arm swept with computed-geometry proof; it returns the baseline to
   terminal `{}`.
 - **Per-actor tracker grant/revoke EDITOR** — `sheet.trackerGrants` / `trackerRevokes` exist and gate
-  NPC tracker applicability, but NO client editor exists (verified: zero `.tsx` references). The
-  owner's "keep explicit-list-only" NPC-grants ruling is a DEAD LETTER until hosts can edit the list.
+  NPC tracker applicability, but NO client editor exists. The owner's "keep explicit-list-only"
+  NPC-grants ruling is a DEAD LETTER until hosts can edit the list. **Re-flagged by the archive tail
+  audit (T-11), which trusted the doc's citation rather than re-grepping — a one-minute grep of
+  `trackerGrants|trackerRevokes` in `packages/client/src` firms it before dispatch.**
 - **`readout-parts.tsx` pending-flash** (`packages/client/src/features/preset/components/readout/`) —
   the same F-02 lying-pending-arm class SM4 fixed elsewhere; flagged, not fixed.
 - **CapabilityGate's no-error arm is UNREACHABLE as a settled state** (capability required | error —
@@ -334,8 +336,9 @@ identity chrome for ANY row kind.
   `MemoryBackfillCounts`, is GONE — that half is closed.
 - **`import-user-settings` bypasses the routing write-guard** (whole-blob verb) — imports heal+warn at
   read instead of refusing at write; lift the guard into the import path on want.
-- **`connection.getCatalog` / `getAgentSdkCatalog`** appear in admin `invalidates` with zero literal
-  consumers — aliased reads or dead rows; disposition.
+- ✅ **`connection.getCatalog` / `getAgentSdkCatalog` — ANSWERED, not dead** (archive tail audit): both are
+  called at BOOT to warm caches (`entry/lifecycle.ts:181-191`), and `use-admin-mutations.ts:80` already
+  carries the explanation in a comment. Deliberate boot-only readers. No action.
 - **`field-reachability` suite ignores a `.ok`** (SM5's flag — non-vacuous, honest-fix-same-shape).
 - **L8-inbound:** foreign ST `mes:""` rows at import — declined-by-scope in ANCHOR, a one-liner if
   wanted.
@@ -345,15 +348,16 @@ identity chrome for ANY row kind.
   rebuild-from-canon) — consolidate when next IN the file, no dedicated lane (DRY-not-gospel).
 - **TYPO class-A: 27 as-const tuples** stay untagged manual-lens candidates.
 - **`staging.ensure` residual** — first-write-wins seeded from HEAD; dormant unless rpg tools ever mount
-  as REGISTRY tools again (D112 keeps `tools: []`).
+  as REGISTRY tools again. **Re-verified 08-03:** `chat-ops/gather.ts:194` is still `tools: []`, so the
+  dormancy condition holds — a correctly-cited doorway, not forgotten debt.
 - **R5b(a) verify:** `refEnumerationLines` (the non-enforcing-backend prompt fallback) should enumerate
   active conditions post-R5a — confirm the R6 build carried it; ~2 lines if not.
 - **WAKE-STATUS:** the 3s engine wake is silent (spec accepted the wait); revisit if it feels laggy.
 - **`lockdown` §16 G-table deliberately not grown** (CR0's flag — it defers to the live count).
-- **The F4-CACHE-VOLATILITY probe follow-up:** `buildToolRoundWireTools` re-renders descriptions +
-  ref-constrained schemas from LIVE game state every call (`compose/rpg.ts:407,411`), so each new
-  condition/actor re-bills the whole prefix (~10× that turn). Verify whether that path's system block is
-  already per-turn volatile, then pick between `scripts/probes/openrouter/RESULTS.md`'s two options.
+- ✅ **F4-CACHE-VOLATILITY — BUILT, close it** (archive tail audit): `buildFoldedTurnBuilder` calls
+  `cacheStableExtractionRefs(refs, config.trackers)` before `buildToolRoundWireTools`
+  (`entry/compose/rpg.ts:991-1008`), with a header naming it *"F4 — CACHE-STABLE REFS ON THIS VEHICLE
+  ONLY … option (b)"*. Option (b) was picked and shipped. No action.
 - **`E2E_LIVE=1 pnpm e2e`** is owed on a push window (never re-confirmed since the era's start).
 
 ## ═══ ARCHIVE-RESCUED FOLLOW-UPS (owner ruling 2026-08-03: a named follow-up goes ON THE BOARD) ═══
@@ -427,10 +431,6 @@ twice over, not once.
       **14-row `!size-N !p-0` icon-Button debt across 9 `rpg/*` files**, unpaid since it was surfaced.
       Confirmed live in the gate's current source. Needs a Button square-glyph size arm + a sweep with
       computed-geometry proof; returns that baseline to terminal `{}`.
-- [ ] **TRACKER-GRANT-EDITOR** (M) — `sheet.trackerGrants`/`trackerRevokes` exist and gate NPC tracker
-      applicability, but **no client editor exists**, so the owner's "explicit-list-only" NPC-grants ruling
-      is a DEAD LETTER. (Audit flagged this one as trusting the doc's file:line rather than re-reading —
-      a one-minute grep firms it.)
 - [ ] **ICON-SEAL-DOORWAYS** (M) — the OTHER four named-not-built follow-ups, all **zero-hit confirmed**:
       `LucideProvider` at the client composition root · vector-effect CSS stroke route · the `iconNode`
       door for brand glyphs · the `fillRule=evenodd` probe to grow the fillable set.
@@ -472,6 +472,13 @@ re-locate and re-check).
 had; verification won, which was the right call. The remaining **39%** is the 08-02-and-earlier archeology
 (PRESET wave blocks, SSE S0–S5 seals, W-chunk seals, the earliest retro layers) — the same block class that
 produced most of the rows above, so expect a similar residue rate.
+
+- **⚠ LIVE SHELL-TIER CLS FINDING (do NOT re-board the old PERF P1 — it resurfaced):** the archive tail
+  audit traced the archived "CLS 0.24, profile lane owed" row forward and found the defect is ALREADY
+  tracked live as **F-14 — *"CLS is 2–4× the budget on EVERY section — shell-tier, not preset-specific"***
+  (measured **0.26**), in `docs/reviews/side-eye/2026-08-03-preset-shell-reverify.md:249`. A separate
+  side-eye pass today independently measured 0.2542 on the config pane and attributed it to
+  collection-group expansion, pre-existing. **One shell-wide defect, three sightings, no owner yet.**
 
 ## ═══ WATCH LIST (flakes + pre-existing reds; none blocking) ═══
 
