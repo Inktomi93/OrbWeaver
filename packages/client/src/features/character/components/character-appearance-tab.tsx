@@ -3,9 +3,18 @@
 // change) and Trust (`forbidExternalMedia`/`trustHtml`, tri-state). `trustHtml` resolves `override ??
 // global`; `forbidExternalMedia` is TIGHTEN-ONLY over the deployment ceiling, so while the deployment
 // blocks external media the control renders locked (see the Trust section below).
+//
+// The Theme cluster is also where the two THEME DOORS live — both projections of the ONE card-embeddable
+// partition (`cardEmbeddableSubset`), run in opposite directions:
+//   • `Save as theme…` PROMOTES this card's authored look into the picker library (values COPIED, never
+//     referenced — there is no ref to keep, and a deleted theme must never strip N cards).
+//   • `Start from a theme…` seeds these fields FROM a picker theme (a one-time copy, no linkage).
+// Neither door can move a viewer-sacred key: the card's own controls no longer spell one (the Message
+// style + Density selects were struck as dead switches — nothing read what they wrote), and the subset
+// projection is what keeps a theme's `density` from riding back in through the inverse door.
 
-import type { ThemeBackground, ThemeChatStyle, ThemeDensity, ThemeRadius } from "@orb/contracts/theme";
-import { THEME_CHAT_STYLES, THEME_DENSITIES, THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
+import type { Theme, ThemeBackground, ThemeOverride, ThemeRadius } from "@orb/contracts/theme";
+import { cardEmbeddableSubset, THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
@@ -13,14 +22,16 @@ import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { ThemeScope } from "@orb/ui/theme-scope";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { BackgroundSourceField } from "#components";
 import { QueryBoundary, QueryErrorState, useExternalMediaBlocked, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
+import { notify } from "#lib";
 import { useUpdateCharacter } from "../hooks/use-character-mutations";
 import { CharacterThemeForm } from "../hooks/use-character-theme-form";
+import { usePromoteTheme } from "../hooks/use-promote-theme";
 import type { CharacterThemeFormValues } from "../lib/character-theme-form-model";
 import { characterThemeFormFromOverride, EMPTY_CHARACTER_THEME_FORM, overrideFromCharacterThemeForm, THEME_INHERIT } from "../lib/character-theme-form-model";
 
@@ -35,24 +46,8 @@ const RADIUS_LABELS: Record<ThemeRadius, string> = {
   card: "Card",
   full: "Round",
 };
-const CHAT_STYLE_LABELS: Record<ThemeChatStyle, string> = {
-  bubble: "Bubble",
-  flat: "Flat",
-  document: "Document",
-  echo: "Echo (bled portrait)",
-  whisper: "Whisper (avatar banner)",
-  hush: "Hush (flat + speaker stripe)",
-  ripple: "Ripple (VN sticky portrait)",
-  tide: "Tide (paragraph bubbles)",
-};
-const DENSITY_LABELS: Record<ThemeDensity, string> = {
-  comfortable: "Comfortable",
-  compact: "Compact",
-};
 const FONT_ITEMS: SelectItems<string> = [INHERIT_ITEM, ...THEME_FONT_ALLOWLIST.map((value) => ({ value, label: value }))];
 const RADIUS_ITEMS: SelectItems<string> = [INHERIT_ITEM, ...THEME_RADII.map((value) => ({ value, label: RADIUS_LABELS[value] }))];
-const CHAT_STYLE_ITEMS: SelectItems<string> = [INHERIT_ITEM, ...THEME_CHAT_STYLES.map((value) => ({ value, label: CHAT_STYLE_LABELS[value] }))];
-const DENSITY_ITEMS: SelectItems<string> = [INHERIT_ITEM, ...THEME_DENSITIES.map((value) => ({ value, label: DENSITY_LABELS[value] }))];
 
 const THEME_FIELD_NAMES = Object.keys(EMPTY_CHARACTER_THEME_FORM) as (keyof CharacterThemeFormValues)[];
 
@@ -99,7 +94,7 @@ function AppearanceTabBody({ characterId }: CharacterAppearanceTabProps): ReactE
 
   return (
     <Stack gap="section">
-      <ThemeControls characterId={characterId} serverValue={data.themeOverride} />
+      <ThemeControls characterId={characterId} characterName={data.name} serverValue={data.themeOverride} />
 
       <BackgroundControl characterId={characterId} serverValue={data.backgroundOverride} />
 
@@ -183,13 +178,15 @@ function BackgroundControl({ characterId, serverValue }: BackgroundControlProps)
 
 interface ThemeControlsProps {
   readonly characterId: CharacterId;
+  /** The promote door's DEFAULT theme name — the server de-collides it at the mint. */
+  readonly characterName: string;
   readonly serverValue: Parameters<typeof characterThemeFormFromOverride>[0];
 }
 
 /** The §8.1 control cluster — an autosave form whose every debounced change persists `themeOverride`.
  *  Mounted through the D78 session boundary (`CharacterThemeForm`), which OWNS the characterId key — a
  *  character switch remounts the form seeded from the new override, no manual `key` to place wrong. */
-function ThemeControls({ characterId, serverValue }: ThemeControlsProps): ReactElement {
+function ThemeControls({ characterId, characterName, serverValue }: ThemeControlsProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const update = useUpdateCharacter({ trpc, invalidation });
@@ -202,17 +199,18 @@ function ThemeControls({ characterId, serverValue }: ThemeControlsProps): ReactE
 
   return (
     <CharacterThemeForm entityId={characterId} serverValues={characterThemeFormFromOverride(serverValue)} save={save}>
-      {(session): ReactElement => <ThemeControlsBody form={session.form} />}
+      {(session): ReactElement => <ThemeControlsBody characterName={characterName} form={session.form} />}
     </CharacterThemeForm>
   );
 }
 
 interface ThemeControlsBodyProps {
+  readonly characterName: string;
   readonly form: AutosaveSession<CharacterThemeFormValues>["form"];
 }
 
 /** The form-bearing theme controls — remounted per character by the boundary's keyed Session. */
-function ThemeControlsBody({ form }: ThemeControlsBodyProps): ReactElement {
+function ThemeControlsBody({ characterName, form }: ThemeControlsBodyProps): ReactElement {
   // Reset to global = clear each field to its empty (Inherit) value. The store-subscription driver
   // persists each setFieldValue (autosave-form-doctrine.md §3) — no call-site flush, no reseed (this is
   // a live field edit, not a re-baseline to a server row).
@@ -222,19 +220,43 @@ function ThemeControlsBody({ form }: ThemeControlsBodyProps): ReactElement {
     }
   };
 
+  // The inverse door: a one-time COPY of the theme's card-embeddable values into these fields. Every field
+  // the theme doesn't carry clears to its Inherit sentinel — "start FROM this theme" is a replacement, not
+  // a merge — and the store-subscription driver persists each write like any other edit. No linkage is
+  // kept: editing the theme later never touches this card, and editing this card never touches the theme.
+  const startFromTheme = (theme: Theme): void => {
+    const seeded = characterThemeFormFromOverride(cardEmbeddableSubset(theme.override));
+    for (const name of THEME_FIELD_NAMES) {
+      form.setFieldValue(name, seeded[name]);
+    }
+  };
+
   return (
     <Stack gap="block">
-      <Row gap="field" align="center" className="justify-between">
+      {/* WRAPPING is load-bearing, not decoration: this cluster's real mount is the ~463px context panel
+          (character-options-tab), where the label + the three actions overflow one line and the last one
+          clips. Wrapping drops the action group to its own line there and keeps it inline in the wide
+          editor. */}
+      <Row gap="field" align="center" className="flex-wrap justify-between">
         <Text size="label" weight="medium">
           Theme
         </Text>
-        <form.Subscribe selector={(state): boolean => overrideFromCharacterThemeForm(state.values) === null}>
-          {(isEmpty): ReactElement => (
-            <Button intent="ghost" disabled={isEmpty} onClick={resetToGlobal}>
-              Reset to global
-            </Button>
-          )}
-        </form.Subscribe>
+        <Row gap="field" align="center" className="flex-wrap">
+          <StartFromThemeField onPick={startFromTheme} />
+          {/* One subscription for both live-override readers: the promote payload IS the unsaved-latest
+              blob (this cluster autosaves, so it is also what the card carries), and "nothing to promote"
+              is the same emptiness "nothing to reset" already reads. */}
+          <form.Subscribe selector={(state): ThemeOverride | null => overrideFromCharacterThemeForm(state.values)}>
+            {(override): ReactElement => (
+              <Row gap="field" align="center">
+                <SaveAsThemeButton characterName={characterName} override={override} />
+                <Button intent="ghost" disabled={override === null} onClick={resetToGlobal}>
+                  Reset to global
+                </Button>
+              </Row>
+            )}
+          </form.Subscribe>
+        </Row>
       </Row>
       <Text size="micro" tone="muted">
         Colours and styles apply to this character's messages instantly — no save needed. Leave a field on Inherit (or clear a colour) to fall back to your
@@ -267,8 +289,6 @@ function ThemeControlsBody({ form }: ThemeControlsBodyProps): ReactElement {
         <Section heading="Type & shape">
           <form.AppField name="font">{(field): ReactElement => <field.SelectField label="Font" items={FONT_ITEMS} />}</form.AppField>
           <form.AppField name="radius">{(field): ReactElement => <field.SelectField label="Corner radius" items={RADIUS_ITEMS} />}</form.AppField>
-          <form.AppField name="chatStyle">{(field): ReactElement => <field.SelectField label="Message style" items={CHAT_STYLE_ITEMS} />}</form.AppField>
-          <form.AppField name="density">{(field): ReactElement => <field.SelectField label="Density" items={DENSITY_ITEMS} />}</form.AppField>
         </Section>
       </Grid>
 
@@ -278,6 +298,65 @@ function ThemeControlsBody({ form }: ThemeControlsBodyProps): ReactElement {
         </form.Subscribe>
       </Section>
     </Stack>
+  );
+}
+
+/** Door 1 — PROMOTE: mint a picker theme from this card's live look. Values are COPIED: the card's
+ *  override IS values, and the roster wire threads those values to members who cannot read the host's
+ *  `themes` rows at all. The name defaults to the character's and the server de-collides it numerically,
+ *  so this door never has to interrupt with a naming dialog; the toast names the row that actually landed.
+ *  Selecting the new theme is deliberately NOT done here — selecting is the picker's one applying act. */
+function SaveAsThemeButton({ characterName, override }: { readonly characterName: string; readonly override: ThemeOverride | null }): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const promote = usePromoteTheme({ trpc, invalidation });
+
+  return (
+    <Button
+      intent="ghost"
+      disabled={override === null || promote.isPending}
+      onClick={(): void => {
+        if (override === null) {
+          return;
+        }
+        promote.mutate(
+          { name: characterName, override },
+          {
+            onSuccess: (theme): void => {
+              notify.success(`Saved “${theme.name}” to your themes.`);
+            },
+          },
+        );
+      }}
+    >
+      Save as theme…
+    </Button>
+  );
+}
+
+/** Door 2 — the INVERSE: seed this card from a picker theme. A plain read (never suspending — the theme
+ *  cluster must render even while the theme library read is slow or failing) whose value never sticks: the
+ *  control is an ACTION, so it keeps showing its placeholder and each pick re-seeds the form. */
+function StartFromThemeField({ onPick }: { readonly onPick: (theme: Theme) => void }): ReactElement {
+  const trpc = useTRPC();
+  const { data: themes } = useQuery(trpc.settings.listThemes.queryOptions());
+  const items: SelectItems<string> = (themes ?? []).map((theme) => ({ value: theme.id, label: theme.name }));
+
+  return (
+    <Select
+      aria-label="Start from a theme"
+      disabled={items.length === 0}
+      items={items}
+      layout="inline"
+      placeholder="Start from a theme…"
+      value={null}
+      onValueChange={(value): void => {
+        const picked = themes?.find((theme) => theme.id === String(value));
+        if (picked !== undefined) {
+          onPick(picked);
+        }
+      }}
+    />
   );
 }
 

@@ -1,7 +1,14 @@
 // theme-picker-surface — the theme library + picker. Lists owned ∪ seed themes, shows the active one
-// (null = the Hearth default), and drives the full lifecycle: select, new (create → open editor),
-// customize a seed (duplicate → open editor), edit/delete owned rows, and reset-to-Hearth. Selecting is
-// the only thing that applies globally; editing a theme is scoped to the editor's own preview until saved.
+// (null = the Hearth default), and drives the full lifecycle: select, new, customize/duplicate,
+// edit/delete owned rows, and reset-to-Hearth. Selecting is the only thing that applies globally; editing
+// a theme is scoped to the editor's own preview until saved.
+//
+// "New" and "Customize" open the editor on a DRAFT: this surface hands the editor the values to start from
+// plus the mint that would create the row, and the editor calls that mint at the FIRST REAL EDIT — never on
+// the click. Opening a customize and going straight back therefore leaves nothing behind (it used to leave
+// a copy the owner never asked for and had to find and delete). The seed-to-draft shaping lives here
+// because this is where "what a copy of this row starts as" is known; the interception lives in the editor
+// because that is where an edit is observed.
 
 import type { Theme } from "@orb/contracts/theme";
 import type { ThemeId } from "@orb/kit/ids";
@@ -19,9 +26,27 @@ import { useFocusOnMount } from "#lib";
 import { ThemeEditor } from "../components/theme-editor";
 import { ThemeRowMenu } from "../components/theme-row-menu";
 import { useCreateTheme, useDuplicateTheme, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations";
+import type { ThemeFormValues } from "../lib/theme-editor-model";
 import { DEFAULT_THEME_FORM, themeInputFromForm } from "../lib/theme-editor-model";
 
 const HEARTH_NAME = "Hearth";
+const COPY_SUFFIX = " copy";
+/** The draft id a from-scratch session carries — it keys the editor's mount, and is never sent anywhere. */
+const NEW_THEME_DRAFT_ID = "theme_draft_new";
+
+/** What the editor pane is showing: an existing row (`mint` absent), or a draft plus the mint that would
+ *  bring it into existence. */
+interface EditorSession {
+  readonly draft: Theme;
+  readonly mint?: () => Promise<Theme>;
+}
+
+/** A not-yet-existing theme, shaped as the entity the editor seeds from. `createdAt`/`updatedAt` are 0 —
+ *  the editor reads neither, and a fake timestamp would be a lie the moment the real row lands. */
+function draftFromValues(id: string, values: ThemeFormValues): Theme {
+  const input = themeInputFromForm(values);
+  return { id, name: input.name, override: input.override, css: input.css ?? null, isSeed: false, createdAt: 0, updatedAt: 0 };
+}
 
 /** The theme picker/library body (rendered inside the `theme` modal's Dialog). */
 export function ThemePickerSurface(): ReactElement {
@@ -52,24 +77,21 @@ function ThemeManager(): ReactElement {
   const duplicateTheme = useDuplicateTheme({ trpc, invalidation });
   const removeTheme = useRemoveTheme({ trpc, invalidation });
 
-  // Held by value (not id) so a fresh create/duplicate opens instantly without waiting for the listThemes refetch.
-  const [editing, setEditing] = useState<Theme | null>(null);
+  // Held by value (not id): an existing row opens instantly, and a DRAFT has no id to hold in the first
+  // place until its mint runs.
+  const [editing, setEditing] = useState<EditorSession | null>(null);
 
-  const onNew = async (): Promise<void> => {
-    try {
-      const created = await createTheme.mutateAsync(themeInputFromForm(DEFAULT_THEME_FORM));
-      setEditing(created);
-    } catch {
-      // errorToast already surfaced the failure — stay on the list.
-    }
+  const onNew = (): void => {
+    setEditing({ draft: draftFromValues(NEW_THEME_DRAFT_ID, DEFAULT_THEME_FORM), mint: () => createTheme.mutateAsync(themeInputFromForm(DEFAULT_THEME_FORM)) });
   };
-  const onCustomize = async (seedId: ThemeId): Promise<void> => {
-    try {
-      const duplicated = await duplicateTheme.mutateAsync({ id: seedId });
-      setEditing(duplicated);
-    } catch {
-      // errorToast already surfaced the failure — stay on the list.
-    }
+  // The draft a copy starts as: the source's own values under the name the duplicate verb would derive.
+  // The verb still owns the REAL name (it de-collides at the mint) — this is only what the editor shows
+  // before anything exists, and the editor reconciles it once the row lands.
+  const onCustomize = (source: Theme): void => {
+    setEditing({
+      draft: { ...source, name: `${source.name}${COPY_SUFFIX}`, isSeed: false },
+      mint: () => duplicateTheme.mutateAsync({ id: source.id as ThemeId }),
+    });
   };
   const selectById = (id: string | null): void => selectTheme.mutate({ section: "theme", patch: { selectedThemeId: id } });
 
@@ -81,7 +103,7 @@ function ThemeManager(): ReactElement {
             ← Back to themes
           </Button>
         </Row>
-        <ThemeEditor theme={editing} />
+        {editing.mint === undefined ? <ThemeEditor theme={editing.draft} /> : <ThemeEditor mint={editing.mint} theme={editing.draft} />}
       </Stack>
     );
   }
@@ -96,7 +118,7 @@ function ThemeManager(): ReactElement {
           <Button intent="ghost" onClick={(): void => selectById(null)}>
             Reset to Hearth
           </Button>
-          <Button intent="primary" onClick={(): void => void onNew()}>
+          <Button intent="primary" onClick={onNew}>
             <Icon icon={Plus} size="sm" />
             New theme
           </Button>
@@ -117,8 +139,8 @@ function ThemeManager(): ReactElement {
                 {isActive(theme) ? <Icon icon={Check} label="Active theme" size="sm" /> : null}
                 <ThemeRowMenu
                   theme={theme}
-                  onCustomize={(): void => void onCustomize(theme.id as ThemeId)}
-                  onEdit={(): void => setEditing(theme)}
+                  onCustomize={(): void => onCustomize(theme)}
+                  onEdit={(): void => setEditing({ draft: theme })}
                   onDelete={(): void => removeTheme.mutate({ id: theme.id as ThemeId })}
                 />
               </Row>

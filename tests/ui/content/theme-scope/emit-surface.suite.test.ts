@@ -31,7 +31,6 @@ test("THEME_SCOPE_EMIT_VARS matches what clampThemeTokens ACTUALLY emits when ev
     radius: "control",
     background: "oklch(0.158 0.006 60)",
     borderColor: "oklch(0.3 0.01 60)",
-    chatStyle: "bubble",
     density: "compact",
   });
   expect(Object.keys(vars).sort()).toEqual([...THEME_SCOPE_EMIT_VARS].sort());

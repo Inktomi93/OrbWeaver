@@ -5,9 +5,9 @@
 // bubbleLayout) resolve per §B.2's mandate: hide-user-portrait (a `kind !== "character"` row never gets
 // bled/banner art) and each mode's OWN mechanic.
 
+import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { BubbleDecorationArgs } from "../../../../../packages/client/src/features/chat/lib/message-row-variants";
 import { MESSAGE_ROW_SKINS } from "../../../../../packages/client/src/features/chat/lib/message-row-variants";
-import { THEME_SCOPE_CHAT_STYLES } from "../../../../../packages/ui/src/content/theme-scope/clamp";
 // Deep imports, NOT the @orb/ui barrels: this is a NODE-lane test, and a barrel import drags browser
 // TSX + #lib (which re-exports portal-container's ShadowRoot) into the dom-less typecheck:graph program.
 import { avatarFallbackHueVar } from "../../../../../packages/ui/src/primitives/avatar/hue";
@@ -20,7 +20,7 @@ function decoArgs(kind: BubbleDecorationArgs["kind"], avatarHash: string | null,
 }
 
 test("the skin table covers exactly the chatStyle vocabulary", () => {
-  expect(Object.keys(MESSAGE_ROW_SKINS).sort()).toEqual([...THEME_SCOPE_CHAT_STYLES].sort());
+  expect(Object.keys(MESSAGE_ROW_SKINS).sort()).toEqual([...THEME_CHAT_STYLES].sort());
 });
 
 test("bubble skin paints role-specific bubble tokens + alignment", () => {

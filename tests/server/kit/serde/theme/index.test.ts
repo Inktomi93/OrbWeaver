@@ -96,7 +96,7 @@ describe("build -> parse -> build identity", () => {
       themes: [
         ctheme({
           name: "Noir",
-          override: { accent: "#0a0a0a", font: "Georgia", radius: "card", chatStyle: "flat" },
+          override: { accent: "#0a0a0a", font: "Georgia", radius: "card", density: "compact" },
           css: ".body { color: red; }",
         }),
         ctheme({ name: "Plain" }),

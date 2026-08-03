@@ -1,19 +1,17 @@
-// The chatStyle variant map — one MessageRow surface, one `Record<ChatStyle, RowSkin>` dispatch table;
+// The chatStyle variant map — one MessageRow surface, one `Record<ThemeChatStyle, RowSkin>` dispatch table;
 // adding a chatStyle member fails tsc HERE until this table says how it paints. Immersive modes
 // (echo/whisper/hush/ripple/tide) extend RowSkin with data fields the row reads — never a switch(chatStyle)
 // in message-row.tsx. Echo/Whisper's feather is a layered background-image gradient, not literal
 // `mask-image` (that would also fade the text painted on top).
 
 import { blobBannerUrl, blobPortraitUrl } from "@orb/contracts/assets";
+import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { MessageRole } from "@orb/kit/message-role";
 import { avatarFallbackHueVar } from "@orb/ui/avatar";
-import type { THEME_SCOPE_CHAT_STYLES } from "@orb/ui/theme-scope";
 import type { CSSProperties } from "react";
 import { cn, messageBubbleClass } from "#lib";
 import type { RowAttribution } from "./attribution";
 import { BG_PHOTO_CHROME_SCRIM, BG_PHOTO_READING_SCRIM } from "./message-row-backing";
-
-type ChatStyle = (typeof THEME_SCOPE_CHAT_STYLES)[number];
 
 function alignFor(role: MessageRole): string {
   return role === "user" ? "items-end" : "items-start";
@@ -171,7 +169,7 @@ function whisperDecoration(args: BubbleDecorationArgs): BubbleDecoration {
 }
 
 /** The exhaustive chatStyle → skin table; a new chatStyle fails to compile without a row here. */
-export const MESSAGE_ROW_SKINS: Record<ChatStyle, RowSkin> = {
+export const MESSAGE_ROW_SKINS: Record<ThemeChatStyle, RowSkin> = {
   bubble: {
     outer: bubbleOuter,
     inner: bubbleInner,

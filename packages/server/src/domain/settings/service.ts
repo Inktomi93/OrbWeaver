@@ -14,6 +14,7 @@ import { createGetUserSettings } from "./verbs/get-user-settings";
 import { createGlobalSettings } from "./verbs/global-settings";
 import { createListThemes } from "./verbs/list-themes";
 import { createLoadUserSettings } from "./verbs/load-user-settings";
+import { createPromoteTheme } from "./verbs/promote-theme";
 import { createRemoveTheme } from "./verbs/remove-theme";
 import { createUpdateTheme } from "./verbs/update-theme";
 import { createUpdateUserSettingsSection } from "./verbs/update-user-settings-section";
@@ -37,6 +38,7 @@ export function createSettingsService(deps: SettingsServiceDeps): SettingsServic
     listThemes: createListThemes(ctx).listThemes,
     getTheme: createGetTheme(ctx).getTheme,
     createTheme: createCreateTheme(ctx).createTheme,
+    promoteTheme: createPromoteTheme(ctx).promoteTheme,
     duplicateTheme: createDuplicateTheme(ctx).duplicateTheme,
     updateTheme: createUpdateTheme(ctx).updateTheme,
     removeTheme: createRemoveTheme(ctx).removeTheme,

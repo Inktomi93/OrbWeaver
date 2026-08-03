@@ -12,6 +12,8 @@
 // carry a per-chat override the character-level producer doesn't).
 
 import type { ParticipantView } from "@orb/contracts/chat";
+import { soleTrueSoloCharacter } from "@orb/contracts/chat";
+import { cardEmbeddableSubset } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, PersonaId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -143,30 +145,18 @@ function isMultiCharacterRoom(participants: ReadonlyMap<CharacterId, Participant
 
 /** In a true-solo room (exactly one human and one character, no other seat) the character's authored
  *  themeOverride takes over the chat-root chrome; any other composition falls back to the viewer's own
- *  theme. Derived from roster composition by count, never an isGroup branch. */
-const SOLO_COUNT = 1;
-const TRUE_SOLO_SEATS = 2;
+ *  theme. The composition is NOT re-spelled here: `soleTrueSoloCharacter` (contracts/chat) is the ONE
+ *  home its header already claims to be, shared with the card-carried arm of the background takeover.
+ *  What rides is the CARD-EMBEDDABLE subset only — a card supplies the room's look, never the viewer's
+ *  ergonomics (TD §3). */
 export function resolveRoomTheme(participants: readonly ParticipantView[] | undefined): ThemeScopeTokens | undefined {
-  if (participants === undefined) {
-    return;
-  }
-  let humanCount = 0;
-  let characterCount = 0;
-  let soleCharacterOverride: ThemeScopeTokens | undefined;
-  for (const participant of participants) {
-    if (participant.kind === "human") {
-      humanCount += 1;
-    } else {
-      characterCount += 1;
-      soleCharacterOverride = participant.themeOverride ?? undefined;
-    }
-  }
-  const trueSolo = humanCount === SOLO_COUNT && characterCount === SOLO_COUNT && participants.length === TRUE_SOLO_SEATS;
-  return trueSolo ? soleCharacterOverride : undefined;
+  const override = soleTrueSoloCharacter(participants)?.themeOverride;
+  return override === null || override === undefined ? undefined : cardEmbeddableSubset(override);
 }
 
-/** For the merged-narrator `<speaker>`-split path: name -\> the character's authored themeOverride. Only
- *  characters with an override are included (others fall through to the hash tint). */
+/** For the merged-narrator `<speaker>`-split path: name -\> the character's authored themeOverride, through
+ *  the SAME card-embeddable projection the room takeover runs. Only characters whose override carries at
+ *  least one embeddable value are included (others fall through to the hash tint). */
 export function speakerThemesByName(participants: ReadonlyMap<CharacterId, ParticipantView> | undefined): ReadonlyMap<string, ThemeScopeTokens> {
   const byName = new Map<string, ThemeScopeTokens>();
   if (participants === undefined) {
@@ -174,8 +164,12 @@ export function speakerThemesByName(participants: ReadonlyMap<CharacterId, Parti
   }
   for (const participant of participants.values()) {
     const override = participant.themeOverride;
-    if (participant.kind === "character" && override !== null && override !== undefined) {
-      byName.set(participant.displayName, override);
+    if (participant.kind !== "character" || override === null || override === undefined) {
+      continue;
+    }
+    const carried = cardEmbeddableSubset(override);
+    if (Object.keys(carried).length > 0) {
+      byName.set(participant.displayName, carried);
     }
   }
   return byName;

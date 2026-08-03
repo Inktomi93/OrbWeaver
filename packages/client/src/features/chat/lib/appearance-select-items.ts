@@ -6,11 +6,30 @@
 // Split out of the settings feature's one `appearance-select-items.ts` at SET-SEAMS stage 1: the appearance
 // pane decomposed into sections owned by their READERS, and these tables belong to the chat-owned half. The
 // app-shell-owned half (elevation/surface texture/blur surfaces/background) lives at
-// `features/app-shell/lib/appearance-select-items.ts` — two features, two tables, no shared drawer. The two
-// THEME-shaped tables a third feature also renders (chatStyle/density) home at `#lib` instead.
+// `features/app-shell/lib/appearance-select-items.ts` — two features, two tables, no shared drawer.
+// `DENSITY_ITEMS` still homes at `#lib` (three features render it); `CHAT_STYLE_ITEMS` came back HERE when
+// the theme editor's Message-style select was struck (TD/O-4) and chat became its only reader — a table
+// homes with its reader (D114), and the shared floor is for vocabulary that is actually shared.
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
+import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { SelectItems } from "@orb/ui/select";
+
+const CHAT_STYLE_LABELS: Record<AppearanceSettings["chatStyle"], string> = {
+  bubble: "Bubble",
+  flat: "Flat",
+  document: "Document",
+  echo: "Echo (bled portrait)",
+  whisper: "Whisper (avatar banner)",
+  hush: "Hush (flat + speaker stripe)",
+  ripple: "Ripple (VN sticky portrait)",
+  tide: "Tide (paragraph bubbles)",
+};
+/** The message-row anatomy options — the viewer's own `appearance.chatStyle` setting (never card-forced). */
+export const CHAT_STYLE_ITEMS: SelectItems<string> = THEME_CHAT_STYLES.map((value) => ({
+  value,
+  label: CHAT_STYLE_LABELS[value],
+}));
 
 export const AVATAR_SIZE_ITEMS: SelectItems<string> = [
   { value: "sm", label: "Small" },

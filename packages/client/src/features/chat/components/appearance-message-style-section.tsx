@@ -26,9 +26,9 @@ import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
-import { CHAT_STYLE_ITEMS } from "#lib";
 import { settingsAnchorId } from "#state";
 import { APPEARANCE_MESSAGE_STYLE_KEYS, APPEARANCE_MESSAGE_STYLE_SUBCATEGORY } from "../lib/appearance-message-style-model";
+import { CHAT_STYLE_ITEMS } from "../lib/appearance-select-items";
 
 type MessageStyleForm = Pick<AppearanceSettings, (typeof APPEARANCE_MESSAGE_STYLE_KEYS)[number]>;
 

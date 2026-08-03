@@ -92,11 +92,17 @@ test("a font outside the allowlist is dropped; an allowed one becomes a stack", 
   expect(clampThemeTokens({ font: "Geist" }).vars["--font-sans"]).toContain("Geist");
 });
 
-test("radius maps to a token var; chatStyle/density ride the attribute axes, not vars", () => {
-  const clamped = clampThemeTokens({ radius: "full", chatStyle: "flat", density: "compact" });
+test("radius maps to a token var; density rides the attribute axis, not a var", () => {
+  const clamped = clampThemeTokens({ radius: "full", density: "compact" });
   expect(clamped.vars["--radius-card"]).toBe("var(--radius-full)");
-  expect(clamped.chatStyle).toBe("flat");
   expect(clamped.density).toBe("compact");
+});
+
+test("chatStyle is not a scope axis — an override carrying one is stripped, not stamped", () => {
+  // The schema strips unknown keys, so a legacy blob (or a hand-posted one) cannot resurrect the axis.
+  const clamped = clampThemeTokens({ background: "oklch(0.2 0.01 60)", chatStyle: "flat" });
+  expect("chatStyle" in clamped).toBe(false);
+  expect(clamped.vars["--color-background"]).toBe("oklch(0.2 0.01 60)");
 });
 
 // Regression (found live verifying §B.3 avatarShape="rounded" — every `rounded-card` consumer
