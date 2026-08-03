@@ -31,7 +31,7 @@
     // packages/{server,kit,contracts,db} is checked under nodenext by its OWN tsconfig via the
     // per-package `pnpm typecheck` — that is the stage-4 guarantee, and it is not weakened here.
     "module": "esnext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "bundler"
   },
   // Root-level config files JOINED 2026-08-03: they were typechecked by NO program, which let two
   // dead vitest keys (`minWorkers`, `poolOptions` — both removed in Vitest 4) sit silently in
@@ -43,7 +43,17 @@
   // exactOptionalPropertyTypes — a dual-vite type world no single program can own honestly. Re-add it
   // the day playwright-ct rides the same vite major.
   // `platform.d.ts` rides beside `reset.d.ts` — the root ambient pair (node-26 adoption program §1.2).
-  "include": ["packages/*/src", "scripts", "tests", "reset.d.ts", "platform.d.ts", "vitest.config.ts", "vitest.stryker.config.ts", "playwright.config.ts", "knip.ts"],
+  "include": [
+    "packages/*/src",
+    "scripts",
+    "tests",
+    "reset.d.ts",
+    "platform.d.ts",
+    "vitest.config.ts",
+    "vitest.stryker.config.ts",
+    "playwright.config.ts",
+    "knip.ts"
+  ],
   // Browser tsx under tests/ui, tests/client, and tests/support/ct import `@orb/ui`/`@orb/client` and
   // would drag dom-only source into this node program — exclude the whole browser-tsx SURFACE by
   // DIRECTORY, not by filename suffix. (A mis-named `-fixture.tsx` outlier slipped the old suffix globs

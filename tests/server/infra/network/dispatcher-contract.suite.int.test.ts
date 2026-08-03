@@ -22,6 +22,7 @@
 // which is exactly why it, and not a hardcoded symbol, is the thing to trust.
 
 import { createRequire } from "node:module";
+import process from "node:process";
 import type { buildConnector, Dispatcher } from "undici";
 import { Agent, getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { afterAll, afterEach, beforeAll, describe } from "vitest";
