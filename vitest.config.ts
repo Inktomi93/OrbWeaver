@@ -61,6 +61,11 @@ const SERIAL_INT = [
   // The composed first-run persona posture: same class (full-`createServices` app fixture, cold import on
   // the first test).
   "tests/server/entry/compose/assets-character.int.test.ts",
+  // The demo-pack virgin-boot proof: same class again — it boots the REAL composition root with vLLM
+  // disabled and replays six transcript fixtures + the rpg board, so its first test pays the cold graph
+  // import plus the seed work. Thrice-sighted 5s-timeout flake under full-battery fork contention;
+  // passes 7/7 isolated (2026-08-03).
+  "tests/server/entry/boot/seed-demo-chats.int.test.ts",
 ];
 
 export default defineConfig({
