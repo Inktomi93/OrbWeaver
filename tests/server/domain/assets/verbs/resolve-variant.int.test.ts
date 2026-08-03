@@ -4,7 +4,8 @@
 //   • cache hit ⇒ serve cached bytes, transform NOT called again.
 //   • off-ladder/absurd width, a non-hash, and a non-owner all ⇒ undefined (404) with no transform.
 
-import type { UserId } from "@orb/kit/ids";
+import type { CharacterHandle, Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { describe, onTestFinished } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -23,10 +24,10 @@ const TOP_RUNG = 400;
 async function storeOriginal(
   db: Awaited<ReturnType<typeof freshDb>>,
   h: Awaited<ReturnType<typeof makeHarness>>,
-  handle: string,
+  handle: CharacterHandle,
 ): Promise<{ ownerId: UserId; hash: string }> {
   const svc = createAssetsService(h.ctx);
-  const owner = await seedUser(db, { handle });
+  const owner = await seedUser(db, { handle: castId<Handle>(handle) });
   const stored = await svc.store({
     principal: principal(owner),
     bytes: pngBytes(1, 2, 3),
@@ -42,7 +43,7 @@ describe("resolveVariant", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const { ownerId, hash } = await storeOriginal(db, h, "owner");
+    const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("owner"));
 
     const first = await svc.resolveVariant({
       principal: principal(ownerId),
@@ -75,7 +76,7 @@ describe("resolveVariant", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const { ownerId, hash } = await storeOriginal(db, h, "owner");
+    const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("owner"));
 
     await svc.resolveVariant({
       principal: principal(ownerId),
@@ -95,7 +96,7 @@ describe("resolveVariant", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const { ownerId, hash } = await storeOriginal(db, h, "owner");
+    const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("owner"));
 
     const out = await svc.resolveVariant({
       principal: principal(ownerId),
@@ -112,7 +113,7 @@ describe("resolveVariant", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const out = await svc.resolveVariant({
       principal: principal(owner),
@@ -129,8 +130,8 @@ describe("resolveVariant", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const { hash } = await storeOriginal(db, h, "owner");
-    const other = await seedUser(db, { handle: "other" });
+    const { hash } = await storeOriginal(db, h, castId<CharacterHandle>("owner"));
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
 
     const out = await svc.resolveVariant({
       principal: principal(other),
@@ -160,7 +161,7 @@ describe("resolveVariant — portrait ladder (kind:'portrait')", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const { ownerId, hash } = await storeOriginal(db, h, "portrait_owner");
+    const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("portrait_owner"));
 
     const first = await svc.resolveVariant({
       principal: principal(ownerId),
@@ -195,7 +196,7 @@ describe("resolveVariant — portrait ladder (kind:'portrait')", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const { ownerId, hash } = await storeOriginal(db, h, "portrait_oversized");
+    const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("portrait_oversized"));
 
     await svc.resolveVariant({
       principal: principal(ownerId),
@@ -218,7 +219,7 @@ describe("resolveVariant — portrait ladder (kind:'portrait')", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const { ownerId, hash } = await storeOriginal(db, h, "portrait_vs_icon");
+    const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("portrait_vs_icon"));
 
     // 200 already sits exactly on BOTH ladders (an icon rung is 240, so use a width that snaps to 200
     // on the portrait ladder and to 240 on the icon ladder — the point is the CACHE KEY, not the number).
@@ -247,7 +248,7 @@ describe("resolveVariant — portrait ladder (kind:'portrait')", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const { ownerId, hash } = await storeOriginal(db, h, "portrait_absurd");
+    const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("portrait_absurd"));
 
     const out = await svc.resolveVariant({
       principal: principal(ownerId),
@@ -274,7 +275,7 @@ describe("resolveVariant — banner ladder (kind:'banner')", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const { ownerId, hash } = await storeOriginal(db, h, "banner_owner");
+    const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("banner_owner"));
 
     const first = await svc.resolveVariant({
       principal: principal(ownerId),
@@ -309,7 +310,7 @@ describe("resolveVariant — banner ladder (kind:'banner')", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const { ownerId, hash } = await storeOriginal(db, h, "banner_oversized");
+    const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("banner_oversized"));
 
     await svc.resolveVariant({
       principal: principal(ownerId),
@@ -332,7 +333,7 @@ describe("resolveVariant — banner ladder (kind:'banner')", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const { ownerId, hash } = await storeOriginal(db, h, "banner_vs_portrait");
+    const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("banner_vs_portrait"));
 
     // 400 sits exactly on the portrait ladder's top rung; the banner ladder snaps it up to 800 — two
     // DISTINCT (kind, width) cache keys, neither serving the other's transform.
@@ -362,7 +363,7 @@ describe("resolveVariant — banner ladder (kind:'banner')", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const { ownerId, hash } = await storeOriginal(db, h, "banner_absurd");
+    const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("banner_absurd"));
 
     const out = await svc.resolveVariant({
       principal: principal(ownerId),
@@ -383,7 +384,7 @@ describe("resolveVariant — animated bailout (G2)", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "gif_owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("gif_owner") });
     const original = gifBytes(1, 2, 3);
     const stored = await svc.store({
       principal: principal(owner),

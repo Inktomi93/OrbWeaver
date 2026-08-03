@@ -2,7 +2,7 @@
 // (FK is SET NULL, so the asset isn't FK-deleted), no character.updated emit fires (delete cascades the
 // embedding), and not-owned throws.
 
-import type { AssetId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CharacterNotFoundError, createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
@@ -15,11 +15,11 @@ describe("remove", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const avatar = await seedAsset(db, { ownerId: owner });
     const created = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "d", avatarAssetId: avatar },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d", avatarAssetId: avatar },
     });
     h.events.length = 0;
 
@@ -34,11 +34,11 @@ describe("remove", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const avatar = await seedAsset(db, { ownerId: owner });
     const created = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "d", avatarAssetId: avatar },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d", avatarAssetId: avatar },
     });
     const spriteAsset1 = castId<AssetId>("asset_sprite_1");
     const spriteAsset2 = castId<AssetId>("asset_sprite_2");
@@ -56,10 +56,10 @@ describe("remove", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "d" },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     const spriteAsset = castId<AssetId>("asset_sprite_only");
     h.setSpriteReapResult([spriteAsset]);
@@ -73,10 +73,10 @@ describe("remove", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "d" },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     await svc.remove({ principal: principal(owner), characterId: created.id });
     expect(h.reaps).toEqual([]);
@@ -85,11 +85,11 @@ describe("remove", () => {
   test("removing another user's character throws CharacterNotFoundError", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const created = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "d" },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     await expect(svc.remove({ principal: principal(other), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
   });

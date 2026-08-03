@@ -16,7 +16,7 @@
 import { utimes } from "node:fs/promises";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { assets, characters, chats, userSettings } from "@orb/db";
-import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
@@ -34,7 +34,7 @@ const MS_PER_SECOND = 1000;
 /** Insert this owner's `user_settings` row with the given `appearance` overrides merged onto defaults —
  *  the JSON blob the PD-131 live-source scan reads. `undefined` `assetId` leaves the pin cleared (kind
  *  `none`), modelling a removed background. */
-async function seedBackgroundPin(db: Awaited<ReturnType<typeof freshDb>>, owner: UserId, assetId?: string, hash?: string): Promise<void> {
+async function seedBackgroundPin(db: Awaited<ReturnType<typeof freshDb>>, owner: UserId, assetId?: AssetId, hash?: string): Promise<void> {
   const appearance =
     assetId === undefined
       ? DEFAULT_USER_SETTINGS.appearance
@@ -77,7 +77,7 @@ describe("collectGarbage", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // A blob with NO index row (the crash/DR leak shape).
     const put = await h.ctx.cas.putBytes(owner, pngBytes(1), FROZEN_AT_MS);
     await setBlobMtime(h, owner, put.hash, FROZEN_AT_MS - TWO_HOURS_MS);
@@ -93,7 +93,7 @@ describe("collectGarbage", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(2),
@@ -114,14 +114,14 @@ describe("collectGarbage", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(3),
       kind: "avatar",
       mime: PNG,
     });
-    const character = await seedCharacter(db, owner, { handle: "hero" });
+    const character = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     await setCharacterAvatar(db, character, stored.assetId);
     await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
 
@@ -137,7 +137,7 @@ describe("collectGarbage", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(4),
@@ -158,7 +158,7 @@ describe("collectGarbage", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(5),
@@ -179,7 +179,7 @@ describe("collectGarbage", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(6),
@@ -202,7 +202,7 @@ describe("collectGarbage", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(11), kind: "background", mime: PNG });
     // The ONLY liveness signal is the JSON background_override column on the character card.
     const characterId = await seedCharacter(db, owner);
@@ -226,7 +226,7 @@ describe("collectGarbage", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(12), kind: "background", mime: PNG });
     // The ONLY liveness signal is the JSON metadata.background sub-blob on the chat row.
     await db.insert(chats).values({
@@ -249,7 +249,7 @@ describe("collectGarbage", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(8),
@@ -272,7 +272,7 @@ describe("collectGarbage", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(9),
@@ -295,7 +295,7 @@ describe("collectGarbage", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(7),
@@ -318,7 +318,7 @@ describe("collectGarbage", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(13), kind: "background", mime: PNG });
     // A hand-crafted / pre-canonicalization row: `kind:"none"` but carrying a populated `assetId`. The GC scan's
     // kind guard must NOT root it — nothing legitimately references the blob, so it is reaped past grace.
@@ -342,7 +342,7 @@ describe("collectGarbage", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(14), kind: "background", mime: PNG });
     const characterId = await seedCharacter(db, owner);
     await db

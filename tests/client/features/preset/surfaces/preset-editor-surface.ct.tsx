@@ -22,6 +22,8 @@
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { PresetId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { assertTokenRoundtrip } from "../../../../support/ct/assert-token-roundtrip";
@@ -36,12 +38,12 @@ import {
   PresetForkOnceStory,
 } from "./_ct-stories";
 
-// The three fixed ids — the plain-string mirror of the story module's branded PresetIds (biome forbids the
-// story exporting non-component consts, so the literals live in both places).
-const PRESET_A = "preset_ct_aaaaaaaaaa";
-const PRESET_B = "preset_ct_bbbbbbbbbb";
-const BUILT_IN = "preset_00000000000000000000000000";
-const FORK = "preset_ct_forkedddddd";
+// The three fixed ids — the literal mirror of the story module's branded PresetIds (biome forbids the
+// story exporting non-component consts, so the literals live in both places), cast to the brand here.
+const PRESET_A = castId<PresetId>("preset_ct_aaaaaaaaaa");
+const PRESET_B = castId<PresetId>("preset_ct_bbbbbbbbbb");
+const BUILT_IN = castId<PresetId>("preset_00000000000000000000000000");
+const FORK = castId<PresetId>("preset_ct_forkedddddd");
 
 // Quality-dial option labels. The dial is a SELECT since owner ruling O-18 (the segmented strip died), so
 // the state is the TRIGGER'S TEXT — and "no dial" is the named OFF arm, not an empty selection.
@@ -117,7 +119,7 @@ interface UpdateCall {
   readonly config?: { readonly params?: { readonly quality?: string; readonly maxOutputTokens?: number } };
 }
 
-function updatesAgainst(trpc: TrpcRecorder, presetId: string): UpdateCall[] {
+function updatesAgainst(trpc: TrpcRecorder, presetId: PresetId): UpdateCall[] {
   return (trpc.inputs("preset.update") as UpdateCall[]).filter((call) => call.id === presetId);
 }
 
@@ -450,7 +452,7 @@ test("FORK-ONCE pin — a built-in edit mints exactly ONE copy; the editor, the 
 // converges onto a copy they had moved on from or hides the edit in a row they can't find — so the editor
 // asks BEFORE the write, at the one place a built-in edit enters the mutation path (`usePresetAutosave`).
 // The library list is mounted beside the editor because the answer is only legible against those rows.
-const FORK_ONE = "preset_ct_fork0000001";
+const FORK_ONE = castId<PresetId>("preset_ct_fork0000001");
 const FORK_ONE_NAME = "Default (edited)";
 const FORK_TWO = "preset_ct_fork0000002";
 const SUGGESTED_NAME = "Default fork 2";

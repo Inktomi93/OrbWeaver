@@ -8,6 +8,7 @@ import { characterStats, characters, chatParticipants, chats, dailyStats, messag
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type {
+  CharacterHandle,
   CharacterId,
   CharacterStatId,
   ChatId,
@@ -47,7 +48,7 @@ export async function seedCharacter(db: Db, ownerId: UserId, opts: { id?: string
   const id = castId<CharacterId>(opts.id ?? "character_a");
   await db.insert(characters).values({
     id,
-    handle: id,
+    handle: castId<CharacterHandle>(id),
     ownerId,
     name: opts.name ?? "Aria",
     contentHash: "hash",

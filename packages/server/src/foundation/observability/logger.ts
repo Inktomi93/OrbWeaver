@@ -8,6 +8,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import process from "node:process";
 import { Writable } from "node:stream";
+import type { Handle, UserId } from "@orb/kit/ids";
 import pino from "pino";
 import { env } from "#foundation/env";
 
@@ -61,7 +62,7 @@ export interface RequestRecord {
   at: number;
   /** The resolved caller (bound once auth resolves — see `bindRequestUser`). Absent on unauthenticated
    *  requests; lets the debug request browser attribute + filter by user on a multi-user deploy. */
-  userId?: string;
+  userId?: UserId;
 }
 
 class RequestRing {
@@ -159,7 +160,7 @@ interface RequestContext {
   requestId: string;
   log: Logger;
   /** Set once auth resolves (see `bindRequestUser`); read by the request-ring recorder. */
-  userId?: string;
+  userId?: UserId;
 }
 
 const requestContext = new AsyncLocalStorage<RequestContext>();
@@ -176,7 +177,7 @@ export function getLog(): Logger {
 
 /** Attach the resolved caller to the current request scope; afterwards every line carries `userId`/`handle`.
  *  No-op outside a request scope. */
-export function bindRequestUser(userId: string, handle?: string): void {
+export function bindRequestUser(userId: UserId, handle?: Handle): void {
   const store = requestContext.getStore();
   if (store === undefined) {
     return;
@@ -186,7 +187,7 @@ export function bindRequestUser(userId: string, handle?: string): void {
 }
 
 /** The current request's resolved caller id, if auth has bound it — for the request-ring record. */
-export function getRequestUserId(): string | undefined {
+export function getRequestUserId(): UserId | undefined {
   return requestContext.getStore()?.userId;
 }
 

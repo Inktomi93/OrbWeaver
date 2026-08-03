@@ -27,6 +27,7 @@
 // below (Narrator · Label each speaker · Advanced · the policy/visibility selects) is byte-identical; only
 // the navigation to them changed (`openGroupBehaviorSection`).
 
+import type { CharacterId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { castChipNames, castChips, openChatByTitle, openContextTab, openDetailPanel, openGroupBehaviorSection, openMemberRowMenu } from "./support/chat-room";
 import type { RosterSeat } from "./support/trpc";
@@ -73,7 +74,7 @@ async function mintCast(count: number): Promise<SeededCast> {
 
 /** The room's PRESENT character seat for one character (the roster read is present-only, so a removed
  *  member is simply absent). */
-function seatFor(seats: readonly RosterSeat[], characterId: string): RosterSeat | undefined {
+function seatFor(seats: readonly RosterSeat[], characterId: CharacterId): RosterSeat | undefined {
   return seats.find((s) => s.characterId === characterId);
 }
 

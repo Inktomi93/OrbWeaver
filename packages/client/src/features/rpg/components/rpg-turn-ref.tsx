@@ -6,6 +6,7 @@
 // transcript-scroll seam exists yet (it would ride the §12 state commons when chat exposes one). So v1 is
 // display-only, flagged; the chip is the anchor label, not yet a jump.
 
+import type { MessageId } from "@orb/kit/ids";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 
@@ -14,11 +15,11 @@ const REF_TAIL_LEN = 4;
 
 export interface RpgTurnRefProps {
   /** The origin message id — shown as a short mono ref (`t…` shorthand of the trailing id chars). */
-  readonly messageId: string;
+  readonly messageId: MessageId;
 }
 
 /** The short display form: the trailing id chars as a `t<chars>` token (a stable, compact anchor). */
-function shortRef(messageId: string): string {
+function shortRef(messageId: MessageId): string {
   return `t${messageId.slice(-REF_TAIL_LEN)}`;
 }
 

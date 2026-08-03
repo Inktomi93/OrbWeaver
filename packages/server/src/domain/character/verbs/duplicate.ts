@@ -9,6 +9,8 @@
 // standalone entities and are NEVER cloned. Emits `character.updated`. Throws `CharacterNotFoundError` when
 // the source isn't owned/found.
 
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { cardContentHash } from "#kit/serde/card";
 import type { CharacterContext } from "../context";
 import { CharacterNotFoundError } from "../contract/errors";
@@ -22,8 +24,8 @@ const COPY_SUFFIX = "-copy";
 const FIRST_INCREMENT = 2;
 
 /** First free `<handle>-copy[-n]` not already used by the owner. */
-function freeCopyHandle(sourceHandle: string, taken: ReadonlySet<string>): string {
-  const base = `${sourceHandle}${COPY_SUFFIX}`;
+function freeCopyHandle(sourceHandle: CharacterHandle, taken: ReadonlySet<string>): CharacterHandle {
+  const base = castId<CharacterHandle>(`${sourceHandle}${COPY_SUFFIX}`);
   if (!taken.has(base)) {
     return base;
   }
@@ -31,7 +33,7 @@ function freeCopyHandle(sourceHandle: string, taken: ReadonlySet<string>): strin
   while (taken.has(`${base}-${n}`)) {
     n += 1;
   }
-  return `${base}-${n}`;
+  return castId<CharacterHandle>(`${base}-${n}`);
 }
 
 export function createDuplicate(ctx: CharacterContext): CharacterService["duplicate"] {

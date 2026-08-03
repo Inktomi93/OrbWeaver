@@ -10,7 +10,19 @@ import type { RpgActorEntry, RpgBusEvent, RpgExtraction, RpgExtractionMode, RpgG
 import { RPG_PROFILE_FREEFORM, RPG_RECENT_BEATS_KEEP_DEFAULT } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { presets, rpgGames } from "@orb/db";
-import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, PresetId, RpgGameId, RpgQuestId, RpgSnapshotId, UserId } from "@orb/kit/ids";
+import type {
+  CharacterHandle,
+  CharacterId,
+  ChatId,
+  Handle,
+  MessageId,
+  MessageVariantId,
+  PresetId,
+  RpgGameId,
+  RpgQuestId,
+  RpgSnapshotId,
+  UserId,
+} from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
 import type { WireTool } from "@orb/server/infra/providers";
@@ -173,7 +185,7 @@ export function turnConnection(over: Partial<RpgTurnContext> = {}): RpgTurnConte
 }
 
 /** A test Principal for a user key (the id mirrors `seedUser`'s `user_<handle>`). */
-export function principal(handle: string): Principal {
+export function principal(handle: Handle): Principal {
   return { userId: castId<UserId>(`user_${handle}`), role: "user", handle: castId<Handle>(handle), externalId: null, via: "cookie" };
 }
 
@@ -240,51 +252,51 @@ export interface RpgFakes {
   presetUserMacros: UserMacroSpec[];
   /** Recorders — the tests assert these fired. */
   /** Every `copyPresetToUser` call, in order (the caller-gate proof: BOTH owners arrive explicitly). */
-  readonly presetCopies: { fromOwnerId: string; toUserId: string; presetId: string }[];
-  readonly pointers: { chatId: string; gameId: string; engaged: boolean }[];
+  readonly presetCopies: { fromOwnerId: string; toUserId: string; presetId: PresetId }[];
+  readonly pointers: { chatId: ChatId; gameId: string; engaged: boolean }[];
   /** The chatIds a `setPointer(chatId, null)` DETACHED (the §3.3 dangling-pointer heal — assert the null write). */
   readonly detaches: string[];
   /** Every narrator post a verb made. D124 killed the blank "state anchor" post, and the fake enforces the
    *  same write-boundary refusal the real op does — so `narratorPosts` is now a list of REAL content, and a
    *  test that expects zero posts for a hand write is asserting the row class is gone, not filtered. */
-  readonly narratorPosts: { chatId: string; content: string }[];
-  readonly toolRoundCalls: { chatId: string; messageId: string; variantId: string; reconcile: boolean }[];
+  readonly narratorPosts: { chatId: ChatId; content: string }[];
+  readonly toolRoundCalls: { chatId: ChatId; messageId: MessageId; variantId: string; reconcile: boolean }[];
   /** R1 — the FOLD fires (`foldTurnToolCalls`): the calls it folded + the beat it folded them onto. A fold
    *  entry with an EMPTY `toolRoundCalls` IS the proof that no second model call was paid. */
-  readonly foldCalls: { chatId: string; variantId: string; reconcile: boolean; toolCalls: readonly RpgToolCall[] }[];
+  readonly foldCalls: { chatId: ChatId; variantId: string; reconcile: boolean; toolCalls: readonly RpgToolCall[] }[];
   /** R1 — the GATHER's tool-mount asks (`buildFoldedTurn`): records the reconcile verdict the gather derived. */
-  readonly foldedToolBuilds: { chatId: string; reconcile: boolean }[];
+  readonly foldedToolBuilds: { chatId: ChatId; reconcile: boolean }[];
   /** R1 — the resolved state-round PATH per flush (`onStateRoundPath`): the fork's observability, so a test
    *  asserts a folded game folded (and that a fallback was NAMED, never silent). */
-  readonly stateRoundPaths: { chatId: string; mode: string; path: string; fallbackReason: string | null }[];
+  readonly stateRoundPaths: { chatId: ChatId; mode: string; path: string; fallbackReason: string | null }[];
   /** R1 — the swallowed PRE-commit tool-mount failures (`onFoldBuildFailed`). The mount is caught to protect
    *  the character turn, so this recorder is the ONLY evidence it happened. */
-  readonly foldBuildFailures: { chatId: string; gameId: string }[];
+  readonly foldBuildFailures: { chatId: ChatId; gameId: string }[];
   /** The `resyncFromStory` host model-call fires (§1.3) — records the host userId the call resolved UNDER + the
    *  window budget it read, so a test asserts the host-principal seam (never a caller-injected foreign id). */
-  readonly resyncCalls: { chatId: string; hostUserId: string; windowTokens: number }[];
+  readonly resyncCalls: { chatId: ChatId; hostUserId: string; windowTokens: number }[];
   /** The `resolveCanonWindow` reads (the injected chat op) — records the budget so a test pins the deep read. */
-  readonly canonWindowReads: { chatId: string; maxTokens: number }[];
+  readonly canonWindowReads: { chatId: ChatId; maxTokens: number }[];
   /** The `populateFromCharacter` host model call fires — records the host userId it resolved UNDER (the
    *  host-principal seam) + the target ref + the corpus it read, so a test proves the round ran on the CARD. */
-  readonly populateCalls: { chatId: string; hostUserId: string; targetRef: string; corpus: RpgCardCorpus }[];
+  readonly populateCalls: { chatId: ChatId; hostUserId: string; targetRef: string; corpus: RpgCardCorpus }[];
   /** The `resolveCardCorpus` reads (the injected chat op) — the characterId the verb asked for. */
-  readonly cardCorpusReads: { chatId: string; characterId: string }[];
+  readonly cardCorpusReads: { chatId: ChatId; characterId: CharacterId }[];
   /** R4 — force the PROMOTION's durable half to refuse (the exhausted-handle arm the compose impl produces).
    *  Set to a reason string; the fake then mints nothing. Default unset ⇒ the mint succeeds. */
   promoteRefusal?: string;
   /** R4 — the promotion mints fired (`promoteToRoster`): the room, the HOST userId the card was minted under
    *  (the injected-op caller-gate assertion — never a re-derived owner), and the card content the verb DERIVED
    *  off the actor's identity row. A test asserts the standing guides actually reached the card. */
-  readonly promoteMints: { chatId: string; hostUserId: string; name: string; handle: string; description: string; characterId: CharacterId | null }[];
+  readonly promoteMints: { chatId: ChatId; hostUserId: string; name: string; handle: CharacterHandle; description: string; characterId: CharacterId | null }[];
   /** The rpg-bus events a verb/flush emitted (the `emitBus` recorder — assert-the-mutation-fired for §4.9). */
   readonly busEvents: RpgBusEvent[];
   /** The write-boundary DROPS the flush surfaced (the `onFlushDropped` recorder — assert the drop was OBSERVED,
    *  never silent, when the F1 backstop refuses a contract-invalid extracted state). */
-  readonly flushDrops: { chatId: string; gameId: string; variantId: string | null; reason: string }[];
+  readonly flushDrops: { chatId: ChatId; gameId: string; variantId: string | null; reason: string }[];
   /** The flush-barrier TIMEOUTS (the `onTimeout` recorder — assert the barrier released + logged a hung flush
    *  rather than deadlocking the turn). */
-  readonly barrierTimeouts: { chatId: string }[];
+  readonly barrierTimeouts: { chatId: ChatId }[];
 }
 
 export interface RpgHarness {
@@ -548,7 +560,7 @@ export async function seedLiteGame(
   const chatId = await seedChat(db, key);
   const h = makeRpgService(db, over);
   h.fakes.membership.set("user_host", "host");
-  const { gameId } = await h.service.createGame({ principal: principal("host"), chatId, mode: "lite" });
+  const { gameId } = await h.service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite" });
   return { chatId, gameId, h };
 }
 
@@ -556,7 +568,7 @@ export async function seedLiteGame(
  *  is the default experience, D112), so any test that drives the DEDICATED post-commit round (cheap's
  *  tool round) must ask for that vehicle explicitly rather than inherit it. */
 export async function pinExtractionMode(h: RpgHarness, chatId: ChatId, extractionMode: RpgExtractionMode): Promise<void> {
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode });
 }
 
 /** A `character` roster actor entry for the tracker projection. */
@@ -565,13 +577,13 @@ export function rosterCharacter(key: string, name: string): RpgRosterActor {
 }
 
 /** A `user` roster actor entry. */
-export function rosterUser(handle: string, name: string): RpgRosterActor {
+export function rosterUser(handle: Handle, name: string): RpgRosterActor {
   return { actorRef: { kind: "user", userId: castId<UserId>(`user_${handle}`) }, name };
 }
 
 /** Seed a preset row for the gmPresetId knob FK (RESTRICT to `users`). Seeds the owner user too. */
 export async function seedPreset(db: Db, key: string, ownerHandle: string): Promise<PresetId> {
-  const owner = await seedUser(db, ownerHandle);
+  const owner = await seedUser(db, castId<Handle>(ownerHandle));
   const id = castId<PresetId>(`preset_${key}`);
   await db.insert(presets).values({
     id,

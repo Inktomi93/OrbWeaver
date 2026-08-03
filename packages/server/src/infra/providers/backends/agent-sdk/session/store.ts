@@ -3,6 +3,7 @@
 // backend seeds frames before any spawn, so replicating the SDK's cwd-derived projectKey would couple us to a wrapper internal.
 
 import type { SessionKey, SessionStore, SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
+import type { ChatId } from "@orb/kit/ids";
 import type { SeedTurn } from "./frames";
 import { buildSeedFrames, isBranchDivergence, seedSessionId, sessionContainsSeedPrefix, sessionMatchesSeed, toSeedTurns } from "./frames";
 
@@ -138,12 +139,12 @@ export class SessionCache {
     this.store = store;
   }
 
-  resolveResumeId(chatId: string): string | undefined {
+  resolveResumeId(chatId: ChatId): string | undefined {
     return this.byChat.get(chatId);
   }
 
   // @foreign-id-ok(sessionId): the Claude Agent SDK's OWN chat-session id (its `session_id` wire field) — a NAME COLLISION with our BFF `SessionId = TypeIdOf<"session">`, a different wire's id that merely shares the spelling. Ends if this position ever carries one of our session rows, or if the field is renamed `sdkSessionId` (which would dissolve this marker).
-  record(chatId: string, sessionId: string): void {
+  record(chatId: ChatId, sessionId: string): void {
     this.byChat.set(chatId, sessionId);
   }
 
@@ -152,7 +153,7 @@ export class SessionCache {
    * `forkSession`: it mints a random id, but swipe-back discovery is content-addressed (recomputes a
    * branch's id with `seedSessionId` from canon alone) — a random fork id would be unfindable on return.
    */
-  async ensureSeededSession(chatId: string, seed: readonly SeedTurn[]): Promise<SeededSessionDecision> {
+  async ensureSeededSession(chatId: ChatId, seed: readonly SeedTurn[]): Promise<SeededSessionDecision> {
     const turns = toSeedTurns(seed);
     if (turns.length === 0) {
       this.byChat.delete(chatId);
@@ -192,7 +193,7 @@ export class SessionCache {
    * prefix (exact or grown-superset) — the live subprocess appends its own frames after a turn runs, so
    * the pre-turn seed becomes a strict prefix of the stored lineage.
    */
-  private async readoptDeterministicCandidate(chatId: string, turns: readonly SeedTurn[]): Promise<SeededSessionDecision | null> {
+  private async readoptDeterministicCandidate(chatId: ChatId, turns: readonly SeedTurn[]): Promise<SeededSessionDecision | null> {
     for (let salt = 0; salt < MAX_SEED_SALT; salt++) {
       const sessionId = seedSessionId(chatId, turns, salt);
       // biome-ignore lint/performance/noAwaitInLoops: inherently sequential — a salted candidate is consulted only after the lower salt proved absent/mismatched.
@@ -206,7 +207,7 @@ export class SessionCache {
   }
 
   /** Seek (or seed) the deterministic lineage for this seed state; returns `fresh` past the salt ceiling. */
-  private async seedFresh(chatId: string, turns: readonly SeedTurn[], seededAs: "seeded" | "forked" = "seeded"): Promise<SeededSessionDecision> {
+  private async seedFresh(chatId: ChatId, turns: readonly SeedTurn[], seededAs: "seeded" | "forked" = "seeded"): Promise<SeededSessionDecision> {
     for (let salt = 0; salt < MAX_SEED_SALT; salt++) {
       const sessionId = seedSessionId(chatId, turns, salt);
       // biome-ignore lint/performance/noAwaitInLoops: inherently sequential — salt N is consulted only after salt N-1's stored transcript proved diverged.

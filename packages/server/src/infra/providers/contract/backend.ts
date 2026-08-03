@@ -14,6 +14,7 @@ import type {
   SummarizeResult,
   VerifyAuthResult,
 } from "@orb/contracts/providers";
+import type { ChatId } from "@orb/kit/ids";
 import type { AgentTurnRequest } from "./agent";
 import type { ChatRequest, ChatResult } from "./chat";
 import type {
@@ -94,7 +95,7 @@ export interface ProviderBackend {
  * sealed-backend contract home) so the two send boundaries share ONE shape; foundation owns the ring.
  */
 export type WireCaptureSink = (entry: {
-  readonly chatId: string | undefined;
+  readonly chatId: ChatId | undefined;
   readonly api: string;
   readonly backend: BackendKey;
   readonly model: string;

@@ -1,6 +1,8 @@
 // verb: attachToPersona — the persona-book join. Load-bearing: both ownership gates fire (foreign persona OR
 // foreign book → NotFound); idempotent; the book then appears in listForPersona with role null.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createWorldInfoService, WorldInfoNotFoundError } from "@orb/server/domain/world-info";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -11,7 +13,7 @@ describe("attachToPersona", () => {
   test("joins book↔persona (idempotent), role null", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const persona = await seedPersona(db, { ownerId: owner });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
 
@@ -26,8 +28,8 @@ describe("attachToPersona", () => {
   test("a foreign persona is NotFound", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreign = await seedPersona(db, { ownerId: other });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
 
@@ -37,8 +39,8 @@ describe("attachToPersona", () => {
   test("a foreign book is NotFound", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const persona = await seedPersona(db, { ownerId: owner });
     const theirs = await svc.createBook({ principal: principal(other), input: { name: "T" } });
 

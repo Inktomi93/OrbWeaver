@@ -15,7 +15,7 @@ import { sql } from "drizzle-orm";
 
 // The raw aggregated row as it comes back from the untyped `sql`` boundary — module-private.
 interface EconomicsRow {
-  readonly characterId: string;
+  readonly characterId: CharacterId;
   readonly generations: number;
   readonly tokensIn: number;
   readonly tokensOut: number;
@@ -25,7 +25,7 @@ interface EconomicsRow {
 }
 
 interface ModelEconomicsRow {
-  readonly characterId: string;
+  readonly characterId: CharacterId;
   readonly model: string;
   readonly provider: string | null;
   readonly generations: number;

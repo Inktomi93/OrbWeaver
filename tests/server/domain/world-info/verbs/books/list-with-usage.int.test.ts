@@ -3,6 +3,8 @@
 // never inflate a count), `global` is a flag that still counts as one attachment in `total`, and a book
 // nobody attached reads as a true zero rather than an absent key.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createWorldInfoService } from "@orb/server/domain/world-info";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -14,7 +16,7 @@ describe("listBooksWithUsage", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createWorldInfoService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, { ownerId: owner });
     const personaId = await seedPersona(db, { ownerId: owner });
 
@@ -34,8 +36,8 @@ describe("listBooksWithUsage", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createWorldInfoService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const theirCharacter = await seedCharacter(db, { id: "character_other", ownerId: other });
 
     const mine = await svc.createBook({ principal: principal(owner), input: { name: "Mine" } });

@@ -33,6 +33,8 @@
 // SEED (owner rule): NEVER seed the "Mara" character in a live-inference seed — she destabilizes the 8B →
 // flaky asserts. Each spec mints its OWN spec-owned chatless probe card (Thornwick) on a fresh chat.
 
+import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openContextTab, openNewestChat, typeAndSend } from "./support/chat-room";
@@ -95,7 +97,7 @@ async function openGamePanel(page: Page): Promise<void> {
 }
 
 /** The roster actor ref of the seeded character (the write target for the hand-plane backbone). */
-function characterRef(view: TrackerView, characterId: string): ActorRefInput {
+function characterRef(view: TrackerView, characterId: CharacterId): ActorRefInput {
   const found = view.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
   if (found === undefined) {
     throw new Error(`e2e: character ${characterId} absent from the tracker roster`);
@@ -104,7 +106,7 @@ function characterRef(view: TrackerView, characterId: string): ActorRefInput {
 }
 
 /** The seeded character's actor row from a fresh tracker read (the volatile-plane comparand). */
-async function characterActor(chatId: string, characterId: string): Promise<TrackerActor> {
+async function characterActor(chatId: ChatId, characterId: CharacterId): Promise<TrackerActor> {
   const view = await getTrackerView(chatId);
   const found = view.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
   if (found === undefined) {
@@ -125,7 +127,9 @@ const COHERENT_VLLM_ROUTE: ChatRoute = { api: "chat-completions", source: "vllm"
  *  Returns the ids + a cleanup handle that removes the character (its chats/game cascade) AND restores the
  *  prior chat route (the shared single-user settings row). The handle is UNIQUE per spec (a distinct card
  *  handle) so serial specs never collide on the shared DB. */
-async function seedGame(handle: string): Promise<{ readonly chatId: string; readonly characterId: string; readonly cleanup: () => Promise<void> }> {
+async function seedGame(
+  handle: CharacterHandle,
+): Promise<{ readonly chatId: ChatId; readonly characterId: CharacterId; readonly cleanup: () => Promise<void> }> {
   const priorRoute = await getChatRoute();
   await setChatRoute(COHERENT_VLLM_ROUTE);
   const characterId = await mintFreshCharacter(handle, GM_NAME, GM_GREETING);
@@ -148,7 +152,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
   tag: "@live",
 }, async ({ page }) => {
   test.setTimeout(120_000);
-  const { chatId, characterId, cleanup } = await seedGame("e2e-rpg-hand");
+  const { chatId, characterId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-hand"));
   try {
     // ── BORN-DEFAULT (no-born-seed synthesis): a freeform lite game starts with NO snapshot row, so the read
     // synthesizes the empty steady state — null ambient, no beats, no conditions, roster actors with null
@@ -339,7 +343,7 @@ test("rpg-lite: a hand edit auto-locks (canon wins) and the delta reaches the ne
   tag: "@live",
 }, async ({ page: _page }) => {
   test.setTimeout(120_000);
-  const { chatId, characterId, cleanup } = await seedGame("e2e-rpg-lock");
+  const { chatId, characterId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-lock"));
   try {
     const view = await getTrackerView(chatId);
     const ref = characterRef(view, characterId);
@@ -380,7 +384,7 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
   tag: "@live",
 }, async ({ page }) => {
   test.setTimeout(300_000);
-  const { chatId, cleanup } = await seedGame("e2e-rpg-default");
+  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-default"));
   try {
     // Pre-seed a KNOWN state so the reminder carries it into the turn's prompt (the steering proof): the model
     // reads a location the GM set, and the wire capture must contain it.
@@ -476,7 +480,7 @@ test("rpg-lite (cheap): the tool-round state-round arm wires end-to-end without 
   tag: "@live",
 }, async ({ page }) => {
   test.setTimeout(300_000);
-  const { chatId, cleanup } = await seedGame("e2e-rpg-cheap");
+  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-cheap"));
   try {
     await setExtractionMode(chatId, "cheap");
     expect((await getGame(chatId)).extractionMode).toBe("cheap");
@@ -514,7 +518,7 @@ test("rpg-lite: the tracker view is swipe-consistent — every plane resolves fr
   tag: "@live",
 }, async () => {
   test.setTimeout(60_000);
-  const { chatId, characterId, cleanup } = await seedGame("e2e-rpg-swipe");
+  const { chatId, characterId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-swipe"));
   try {
     const ref = characterRef(await getTrackerView(chatId), characterId);
     await editSnapshot(chatId, { location: "The Glass Bridge" });
@@ -546,7 +550,7 @@ test("rpg-lite: checkpoint captures the snapshot and restore rewinds it (FE=BE)"
   tag: "@live",
 }, async () => {
   test.setTimeout(90_000);
-  const { chatId, cleanup } = await seedGame("e2e-rpg-checkpoint");
+  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-checkpoint"));
   try {
     await editSnapshot(chatId, { location: "The Old Chapel", recentEvents: ["Lit the first candle"] });
     const checkpointId = await createCheckpoint(chatId, "at the chapel");
@@ -575,7 +579,7 @@ test("rpg-lite (sad paths): a deleted turn leaves the snapshot readable + an idl
   tag: "@live",
 }, async () => {
   test.setTimeout(90_000);
-  const { chatId, characterId, cleanup } = await seedGame("e2e-rpg-sad");
+  const { chatId, characterId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-sad"));
   try {
     // Hand-edit posts narrator rows; a subsequent read must stay well-formed after we delete one.
     await editSnapshot(chatId, { location: "The Watchtower" });
@@ -613,7 +617,7 @@ test("rpg-lite (readonly): a capability-absent connection is born read-only but 
   test.setTimeout(90_000);
   // seedGame pins the coherent route; we OVERRIDE to the retired pair for THIS spec, then rely on cleanup's
   // route-restore. A fresh game read under the retired route resolves readonly-by-construction.
-  const { chatId, cleanup } = await seedGame("e2e-rpg-readonly");
+  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-readonly"));
   try {
     await setChatRoute({ api: "agent-sdk", source: "vllm" });
     // The game read now derives read-only (the retired pair's resolveChat throws ⇒ no write path).

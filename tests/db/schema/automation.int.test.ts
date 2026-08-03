@@ -11,7 +11,7 @@ import { AUTOMATION_FIRE_OUTCOMES, AUTOMATION_TRIGGER_BUSES } from "@orb/contrac
 import type { Db } from "@orb/db";
 import { automationBudgets, automationFires, automationRules, chats, globalVariables } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
-import type { AutomationFireId, AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
+import type { AutomationFireId, AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../support/db";
@@ -24,7 +24,7 @@ const KEY_CAP = 128;
 const VALUE_CAP_BYTES = 65_536;
 
 async function seedOwnerAndChat(db: Db, tag: string): Promise<{ ownerId: UserId; chatId: ChatId }> {
-  const ownerId = await seedUser(db, { id: `user_${tag}`, handle: `auto-${tag}` });
+  const ownerId = await seedUser(db, { id: `user_${tag}`, handle: castId<Handle>(`auto-${tag}`) });
   const chatId = await seedChat(db, { id: `chat_${tag}` });
   return { ownerId, chatId };
 }

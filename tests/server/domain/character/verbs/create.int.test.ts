@@ -2,6 +2,8 @@
 // provenance is null (app-authored), `character.updated` is emitted (the indexer re-embeds), and a per-owner
 // handle collision throws `CharacterOperationError("handle_conflict")`.
 
+import type { CharacterHandle, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { AssetNotFoundError, CharacterOperationError, createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -13,11 +15,11 @@ describe("create", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const detail = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "a quiet oracle" },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "a quiet oracle" },
     });
 
     expect(detail.handle).toBe("nyx");
@@ -37,12 +39,12 @@ describe("create", () => {
   test("stamps + round-trips import provenance when provided (the PD-43 import wire)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const importHash = "a".repeat(64);
     const detail = await svc.create({
       principal: principal(owner),
-      input: { handle: "aria", name: "Aria", description: "imported" },
+      input: { handle: castId<CharacterHandle>("aria"), name: "Aria", description: "imported" },
       provenance: { importedFrom: "Aria.png", importHash },
     });
 
@@ -58,12 +60,12 @@ describe("create", () => {
   test("a null importedFrom with a hash persists (PNG-less / unlabeled import)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const importHash = "b".repeat(64);
     const detail = await svc.create({
       principal: principal(owner),
-      input: { handle: "nameless", name: "Nameless", description: "bare json card" },
+      input: { handle: castId<CharacterHandle>("nameless"), name: "Nameless", description: "bare json card" },
       provenance: { importedFrom: null, importHash },
     });
 
@@ -74,15 +76,15 @@ describe("create", () => {
   test("a duplicate per-owner handle throws CharacterOperationError(handle_conflict)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await svc.create({
       principal: principal(owner),
-      input: { handle: "dup", name: "A", description: "x" },
+      input: { handle: castId<CharacterHandle>("dup"), name: "A", description: "x" },
     });
 
     const conflict = svc.create({
       principal: principal(owner),
-      input: { handle: "dup", name: "B", description: "y" },
+      input: { handle: castId<CharacterHandle>("dup"), name: "B", description: "y" },
     });
     await expect(conflict).rejects.toBeInstanceOf(CharacterOperationError);
     await expect(conflict).rejects.toMatchObject({ code: "handle_conflict" });
@@ -91,15 +93,15 @@ describe("create", () => {
   test("the same handle under a DIFFERENT owner is allowed (per-owner namespace)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const a = await seedUser(db, { handle: "a" });
-    const b = await seedUser(db, { handle: "b" });
+    const a = await seedUser(db, { handle: castId<Handle>("a") });
+    const b = await seedUser(db, { handle: castId<Handle>("b") });
     await svc.create({
       principal: principal(a),
-      input: { handle: "shared", name: "A", description: "x" },
+      input: { handle: castId<CharacterHandle>("shared"), name: "A", description: "x" },
     });
     const bDetail = await svc.create({
       principal: principal(b),
-      input: { handle: "shared", name: "B", description: "y" },
+      input: { handle: castId<CharacterHandle>("shared"), name: "B", description: "y" },
     });
     expect(bDetail.handle).toBe("shared");
   });
@@ -108,11 +110,11 @@ describe("create", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const squat = svc.create({
       principal: principal(owner),
-      input: { handle: "__group__chat_1", name: "Squat", description: "x" },
+      input: { handle: castId<CharacterHandle>("__group__chat_1"), name: "Squat", description: "x" },
     });
     await expect(squat).rejects.toBeInstanceOf(CharacterOperationError);
     await expect(squat).rejects.toMatchObject({ code: "handle_reserved" });
@@ -123,14 +125,14 @@ describe("create", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreign = await seedAsset(db, { id: "asset_foreign", ownerId: other });
 
     await expect(
       svc.create({
         principal: principal(owner),
-        input: { handle: "thief", name: "Thief", description: "x", avatarAssetId: foreign },
+        input: { handle: castId<CharacterHandle>("thief"), name: "Thief", description: "x", avatarAssetId: foreign },
       }),
     ).rejects.toBeInstanceOf(AssetNotFoundError);
     expect(h.events).toHaveLength(0);

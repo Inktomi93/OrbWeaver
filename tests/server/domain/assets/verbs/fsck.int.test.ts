@@ -5,6 +5,8 @@
 //   • fsck mutates NOTHING (the row + blob survive a scan).
 
 import { assets } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
@@ -21,7 +23,7 @@ describe("fsck", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(1),
@@ -48,7 +50,7 @@ describe("fsck", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await h.ctx.cas.putBytes(owner, pngBytes(2), FROZEN_AT_MS);
 
     const report = await svc.fsck();
@@ -63,7 +65,7 @@ describe("fsck", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(3),

@@ -7,7 +7,8 @@
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import type { CharacterHandle, Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, onTestFinished, vi } from "vitest";
 import type { AssetsWorkloadDeps } from "../../../../packages/server/src/domain/assets/contract/service.ts";
@@ -45,7 +46,7 @@ function build(): {
 
 /** A character with a recorded import hash whose card blob IS in the CAS (a real backfill candidate). */
 async function seedStagedCard(owner: UserId, id: string): Promise<void> {
-  const characterId = await seedCharacter(db, owner, { id, handle: id });
+  const characterId = await seedCharacter(db, owner, { id, handle: castId<CharacterHandle>(id) });
   const { hash } = await cas.putBytes(owner, new Uint8Array([1, 2, 3, id.length]), T0);
   await db.update(characters).set({ importHash: hash }).where(eq(characters.id, characterId));
 }
@@ -55,8 +56,8 @@ beforeEach(async () => {
   const harness = await makeHarness(db);
   onTestFinished(harness.cleanup);
   cas = harness.ctx.cas;
-  ownerId = await seedUser(db, { id: "user_owner", handle: "owner" });
-  otherOwnerId = await seedUser(db, { id: "user_other", handle: "other" });
+  ownerId = await seedUser(db, { id: "user_owner", handle: castId<Handle>("owner") });
+  otherOwnerId = await seedUser(db, { id: "user_other", handle: castId<Handle>("other") });
 });
 
 describe("assets-backfill", () => {
@@ -84,7 +85,7 @@ describe("assets-backfill", () => {
   });
 
   test("a character whose card blob is NOT in the CAS is skipped (no phantom candidate)", async () => {
-    const characterId = await seedCharacter(db, ownerId, { id: "character_ghost", handle: "ghost" });
+    const characterId = await seedCharacter(db, ownerId, { id: "character_ghost", handle: castId<CharacterHandle>("ghost") });
     await db.update(characters).set({ importHash: "deadbeef-not-in-cas" }).where(eq(characters.id, characterId));
 
     const { assets, contributions } = build();

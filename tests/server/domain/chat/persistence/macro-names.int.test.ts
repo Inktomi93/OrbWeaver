@@ -4,6 +4,8 @@
 
 import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { resolveRowMacros } from "@orb/kit/macro";
 import { beforeEach, describe } from "vitest";
 import { loadChatMacroNameProducer } from "../../../../../packages/server/src/domain/chat/persistence/macro-names";
@@ -19,7 +21,7 @@ beforeEach(async () => {
 
 describe("persistence/macro-names — loadChatMacroNameProducer (§1 member-gated coverage)", () => {
   test("covers a participant's seated character + active persona", async () => {
-    const owner = await seedUser(db, "owner");
+    const owner = await seedUser(db, castId<Handle>("owner"));
     await seedChat(db, "a");
     const charId = await seedCharacter(db, owner, "aria");
     const personaId = await seedPersona(db, owner, "nyx");
@@ -32,7 +34,7 @@ describe("persistence/macro-names — loadChatMacroNameProducer (§1 member-gate
   });
 
   test("covers a message-stamped id NOT on any participant (a since-switched persona)", async () => {
-    const owner = await seedUser(db, "owner");
+    const owner = await seedUser(db, castId<Handle>("owner"));
     const activePersona = await seedPersona(db, owner, "zara");
     const oldPersona = await seedPersona(db, owner, "mara");
 
@@ -45,7 +47,7 @@ describe("persistence/macro-names — loadChatMacroNameProducer (§1 member-gate
   });
 
   test("dedupes an id referenced by BOTH a participant and a message row (one query, one entry)", async () => {
-    const owner = await seedUser(db, "owner");
+    const owner = await seedUser(db, castId<Handle>("owner"));
     const charId = await seedCharacter(db, owner, "kai");
 
     const producer = await loadChatMacroNameProducer(db, {
@@ -81,8 +83,8 @@ describe("persistence/macro-names — loadChatMacroNameProducer (§1 member-gate
 // resolves independently through the shared atom.
 describe("persistence/macro-names — multi-human coverage is member-gated, not owner-gated (§1)", () => {
   test("a persona owned by a DIFFERENT user than the chat's host still resolves (no owner filter)", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const hostPersona = await seedPersona(db, host, "host_pov");
     const memberPersona = await seedPersona(db, member, "member_pov");
     await seedChat(db, "a");
@@ -101,8 +103,8 @@ describe("persistence/macro-names — multi-human coverage is member-gated, not 
   });
 
   test("rows stamped with DIFFERENT participants' personaIds each resolve {{user}} to THEIR OWN persona", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const hostPersona = await seedPersona(db, host, "nova");
     const memberPersona = await seedPersona(db, member, "juno");
     await seedChat(db, "a");

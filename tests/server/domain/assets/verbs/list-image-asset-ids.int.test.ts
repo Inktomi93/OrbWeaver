@@ -3,6 +3,8 @@
 // mimes at the source (`mime LIKE 'image/%'`) so a non-image asset — an export zip — never reaches the
 // imageEmbed role.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { describe, onTestFinished } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -18,8 +20,8 @@ describe("listImageAssetIds", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const alice = await seedUser(db, { handle: "alice" });
-    const bob = await seedUser(db, { handle: "bob" });
+    const alice = await seedUser(db, { handle: castId<Handle>("alice") });
+    const bob = await seedUser(db, { handle: castId<Handle>("bob") });
 
     const aliceAvatar = await svc.store({
       principal: principal(alice),

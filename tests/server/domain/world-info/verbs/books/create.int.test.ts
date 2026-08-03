@@ -2,6 +2,8 @@
 // matches the inserted values; every create audits `worldInfo.createBook`.
 
 import { worldBooks } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createWorldInfoService } from "@orb/server/domain/world-info";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -14,7 +16,7 @@ describe("createBook", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createWorldInfoService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const book = await svc.createBook({
       principal: principal(owner),
@@ -31,7 +33,7 @@ describe("createBook", () => {
   test("a missing description stores + returns null", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const book = await svc.createBook({ principal: principal(owner), input: { name: "Bare" } });
 

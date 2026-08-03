@@ -3,7 +3,7 @@
 // principal it is handed. Handle/password strings are raw here, validated at the verb/transport boundary.
 
 import type { Principal, UserKind, UserRole } from "@orb/contracts/identity";
-import type { CharacterId, SessionId, UserId } from "@orb/kit/ids";
+import type { CharacterId, Handle, SessionId, UserId } from "@orb/kit/ids";
 
 interface AdminActorParams {
   readonly principal: Principal;
@@ -26,7 +26,7 @@ export interface SetEnabledParams extends AdminActorParams {
 }
 
 export interface CreateUserParams extends AdminActorParams {
-  readonly handle: string;
+  readonly handle: Handle;
   readonly password: string;
   /** Defaults to user when omitted; owner is refused (the bootstrap row, never minted). */
   readonly role?: UserRole;

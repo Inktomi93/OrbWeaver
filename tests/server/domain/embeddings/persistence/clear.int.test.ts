@@ -6,7 +6,7 @@
 // ADDITIVELY beside the old one, and the purge reclaims the old space leaving zero stale-space rows.
 
 import { characterEmbeddings, chatDigests, chatSegments, documentChunks, imageEmbeddings } from "@orb/db";
-import type { CharacterEmbeddingId, ChatDigestId, ChatSegmentId, DocumentChunkId, ImageEmbeddingId } from "@orb/kit/ids";
+import type { CharacterEmbeddingId, ChatDigestId, ChatSegmentId, DocumentChunkId, Handle, ImageEmbeddingId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { clearVectorTable, purgeStaleVectors } from "../../../../../packages/server/src/domain/embeddings/persistence/clear.ts";
@@ -28,7 +28,7 @@ const OLD_IMAGE_MODEL = "old-image-model-v1";
 describe("clearVectorTable", () => {
   test("empties the named table", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     await upsertCharacterEmbedding(db, {
       id: castId<CharacterEmbeddingId>("character_embedding_a"),
@@ -50,7 +50,7 @@ describe("clearVectorTable", () => {
 describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
   test("character_embeddings — the previously-ORPHANING family: a model change coexists additively, then the old space purges clean", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     // Space A (the old model), then space B (the new model). The upsert keys on (characterId, model), so
     // B INSERTS beside A rather than replacing it — the "orphan" the ORIGINAL bug stranded forever.
@@ -125,7 +125,7 @@ describe("purgeStaleVectors (PD-104 model-change purge+reindex)", () => {
 
   test("UNIFORMITY INVARIANT: all five live vector tables purge the old space identically — zero stale-space rows remain anywhere", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const assetId = await seedAsset(db, owner);
     const chatId = await seedChat(db);

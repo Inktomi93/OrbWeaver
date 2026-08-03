@@ -4,6 +4,8 @@
 // diagnostic's AccountCredits through untouched.
 
 import { DomainNoCredentialError } from "@orb/kit/errors";
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createConnectionService } from "@orb/server/domain/connection";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -16,7 +18,7 @@ describe("getOrCredits", () => {
     const h = makeConnHarness(db);
     const svc = createConnectionService(h.ctx);
 
-    const result = await svc.getOrCredits({ principal: principal("user_a") });
+    const result = await svc.getOrCredits({ principal: principal(castId<UserId>("user_a")) });
 
     expect(h.credentialCalls).toEqual(["openrouter"]);
     expect(result).toEqual({ total: 25, used: 7.5 });
@@ -31,6 +33,6 @@ describe("getOrCredits", () => {
     };
     const svc = createConnectionService(ctx);
 
-    await expect(svc.getOrCredits({ principal: principal("user_a") })).rejects.toBeInstanceOf(DomainNoCredentialError);
+    await expect(svc.getOrCredits({ principal: principal(castId<UserId>("user_a")) })).rejects.toBeInstanceOf(DomainNoCredentialError);
   });
 });

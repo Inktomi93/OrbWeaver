@@ -23,6 +23,7 @@
 //
 // `@live` — it drives a REAL turn (through the fixture, not an 8B) on the local multi-user stack.
 
+import type { CharacterHandle } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors";
 import { FIXTURE_COVER_MARKER, FIXTURE_LIE_TRUTH, startFixtureProvider } from "./support/fixture-provider";
@@ -74,7 +75,7 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
   const fixture = await startFixtureProvider(FIXTURE_PROVIDER_PORT);
 
   // Fresh spec-owned character (idempotent across crashed runs).
-  const priorList = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: string }[] }>("character.list", {});
+  const priorList = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[] }>("character.list", {});
   const prior = priorList.items.find((c) => c.handle === CARD_HANDLE);
   if (prior !== undefined) {
     await host.mutation("character.remove", { characterId: prior.id });

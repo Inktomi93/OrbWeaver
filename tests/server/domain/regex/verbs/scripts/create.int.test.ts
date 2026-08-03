@@ -3,6 +3,8 @@
 // audits + emits `regexChanged`.
 
 import { regexScripts } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createRegexService } from "@orb/server/domain/regex";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -15,7 +17,7 @@ describe("createScript", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const row = await svc.createScript({
       principal: principal(owner),
@@ -36,7 +38,7 @@ describe("createScript", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const row = await svc.createScript({ principal: principal(owner), input: { name: "n", enabled: true, ...behavior() } });
 

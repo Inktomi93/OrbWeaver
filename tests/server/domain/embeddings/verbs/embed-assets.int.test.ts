@@ -10,7 +10,8 @@
 //   • cooperative abort: an aborted signal does no work.
 
 import { imageEmbeddings } from "@orb/db";
-import type { AssetId } from "@orb/kit/ids";
+import type { AssetId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -26,7 +27,7 @@ async function seedOneAsset(db: Awaited<ReturnType<typeof freshDb>>): Promise<{
   ids: readonly AssetId[];
   bytes: ReadonlyMap<AssetId, Uint8Array>;
 }> {
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const assetId = await seedAsset(db, owner);
   return { assetId, ids: [assetId], bytes: new Map([[assetId, IMG]]) };
 }

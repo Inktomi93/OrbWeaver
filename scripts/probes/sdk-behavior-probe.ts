@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+
 /**
  * pnpm sdk:behavior-probe [--scenario p1,rz1,…] [--model <id>] [--verbose]
  *
@@ -17,6 +18,8 @@
 import process from "node:process";
 import type { ModelInfo, Options, Query, SDKMessage, SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import { query, SYSTEM_PROMPT_DYNAMIC_BOUNDARY } from "@anthropic-ai/claude-agent-sdk";
+import type { ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { ChatResult } from "@orb/server/infra/providers";
 import { buildClaudeOpenRouterEnv, buildClaudeSdkEnv, consumeTurnStream, dynamicContextOptions } from "@orb/server/infra/providers/backends/agent-sdk";
 import { buildSeedFrames, InMemorySessionStore, seedSessionId, toSeedTurns } from "@orb/server/infra/providers/backends/agent-sdk/session";
@@ -181,7 +184,7 @@ function reportedLeak(reply: string): boolean {
  *  earliest→latest order is ZULU, YANKEE, XRAY, WHISKEY, VICTOR and NOTHING non-prose leaks. */
 async function p1(): Promise<void> {
   const store = new InMemorySessionStore();
-  const sessionId = seedSessionId("probe-p1", toSeedTurns(SEED));
+  const sessionId = seedSessionId(castId<ChatId>("probe-p1"), toSeedTurns(SEED));
   await store.append({ projectKey: "probe", sessionId }, buildSeedFrames(toSeedTurns(SEED), sessionId));
   const r = await runTurn({
     prompt: POSITION_QUESTION,
@@ -205,7 +208,7 @@ async function p1(): Promise<void> {
  *  literal separator between the two halves show up in the model's context?). */
 async function p2(): Promise<void> {
   const store = new InMemorySessionStore();
-  const sessionId = seedSessionId("probe-p2", toSeedTurns(SEED));
+  const sessionId = seedSessionId(castId<ChatId>("probe-p2"), toSeedTurns(SEED));
   await store.append({ projectKey: "probe", sessionId }, buildSeedFrames(toSeedTurns(SEED), sessionId));
   const r = await runTurn({
     prompt: POSITION_QUESTION,
@@ -227,7 +230,7 @@ async function p2(): Promise<void> {
  *  and does it stay non-leaking? (Establishes the injection position relative to the prompt tail.) */
 async function p3(): Promise<void> {
   const store = new InMemorySessionStore();
-  const sessionId = seedSessionId("probe-p3", toSeedTurns(SEED));
+  const sessionId = seedSessionId(castId<ChatId>("probe-p3"), toSeedTurns(SEED));
   await store.append({ projectKey: "probe", sessionId }, buildSeedFrames(toSeedTurns(SEED), sessionId));
   const r = await runTurn({
     prompt: POSITION_QUESTION,
@@ -387,7 +390,7 @@ async function pf1(): Promise<void> {
     { role: "user" as const, content: "Complete the sentence I start." },
     { role: "assistant" as const, content: "The three primary colors are red, blue, and" },
   ];
-  const sessionId = seedSessionId("probe-pf1", toSeedTurns(canon));
+  const sessionId = seedSessionId(castId<ChatId>("probe-pf1"), toSeedTurns(canon));
   await store.append({ projectKey: "probe", sessionId }, buildSeedFrames(toSeedTurns(canon), sessionId));
   let threw = "";
   let reply = "";

@@ -5,7 +5,7 @@
 // (memory-backfill.test.ts), so this verb-level test drives the DELETE half directly.
 
 import { chatDigests, chatSegments } from "@orb/db";
-import type { ChatDigestId, ChatSegmentId } from "@orb/kit/ids";
+import type { ChatDigestId, ChatSegmentId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { describe } from "vitest";
@@ -20,7 +20,7 @@ const STALE_MODEL = "old-embed-model-v0";
 describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () => {
   test("purges the stranded old-model segment + digest rows, keeping only the active space", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const chatId = await seedChat(db);
     // One OLD-space + one active-space row in each model-keyed chat-memory table (both coexist because the
@@ -95,7 +95,7 @@ describe("purgeMemoryVectors — PD-139(b) chat-memory old-space reclaim", () =>
 
   test("is a no-op when every row is already in the active space", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const chatId = await seedChat(db);
     await upsertChatSegment(db, {

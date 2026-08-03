@@ -2,7 +2,7 @@
 // the mode-blind preset knob read, the send-path snapshot commit, the abort clear, and the always-null seat
 // read. The gather + flush have their own mirrors (`./gather`, `./flush`).
 
-import type { ChatTurnId, MessageId } from "@orb/kit/ids";
+import type { ChatTurnId, Handle, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { findSnapshotByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots";
 import { freshDb } from "../../../../support/db";
@@ -16,7 +16,7 @@ test("resolvePresetOverride is MODE-BLIND: born NULL (augment) until the knob is
   expect(await h.chatOps.resolvePresetOverride(chatId)).toBeNull();
 
   const presetId = await seedPreset(db, "gm", "host");
-  await h.service.updateConfig({ principal: principal("host"), chatId, gmPresetId: presetId });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, gmPresetId: presetId });
   expect(await h.chatOps.resolvePresetOverride(chatId)).toBe(presetId);
 });
 

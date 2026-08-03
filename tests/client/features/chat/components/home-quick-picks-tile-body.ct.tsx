@@ -4,6 +4,8 @@
 //
 // These assertions MOVED here from `chat-landing-surface.ct.tsx` when the launcher moved to home.
 
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { makeCharacterSummary, makeTagFixture } from "../../character/fixtures";
@@ -51,7 +53,7 @@ test("each row carries an HONEST tagline off the summary it already reads — pi
       items: [
         makeCharacterSummary({ id: "char_pitch", name: "Pitched", elevatorPitch: "The winter-court envoy" }),
         makeCharacterSummary({ id: "char_tags", name: "Tagged", tags: [makeTagFixture({ id: "t1", name: "noir" })] }),
-        makeCharacterSummary({ id: "char_bare", name: "Bare", handle: "bare_handle" }),
+        makeCharacterSummary({ id: "char_bare", name: "Bare", handle: castId<CharacterHandle>("bare_handle") }),
       ],
       nextCursor: null,
     },

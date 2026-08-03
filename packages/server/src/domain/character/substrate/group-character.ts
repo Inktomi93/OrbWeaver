@@ -5,18 +5,20 @@
 // bucket (§11.5 group-chat); `synthetic=true` filters it from every user-facing query + the embed pass.
 
 import type { CharacterCard } from "@orb/contracts/character";
+import type { CharacterHandle, ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 
 /** The reserved handle prefix for per-room synthetic group characters. */
 const GROUP_HANDLE_PREFIX = "__group__";
 
 /** The synthetic group character's handle for a room (`__group__<chatId>`). */
-export function groupHandle(chatId: string): string {
-  return `${GROUP_HANDLE_PREFIX}${chatId}`;
+export function groupHandle(chatId: ChatId): CharacterHandle {
+  return castId<CharacterHandle>(`${GROUP_HANDLE_PREFIX}${chatId}`);
 }
 
 /** True when a handle falls in the reserved synthetic group namespace — `character.create`/`update` REFUSE
  *  these (a user card may never squat the `__group__${chatId}` bucket the mint owns). */
-export function isReservedGroupHandle(handle: string): boolean {
+export function isReservedGroupHandle(handle: CharacterHandle): boolean {
   return handle.startsWith(GROUP_HANDLE_PREFIX);
 }
 

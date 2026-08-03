@@ -4,6 +4,8 @@
 // overwritten. A foreign book is NotFound.
 
 import type { UpsertEntriesResult } from "@orb/contracts/world-info";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createWorldInfoService, WorldInfoNotFoundError } from "@orb/server/domain/world-info";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -17,7 +19,7 @@ describe("upsertEntries", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createWorldInfoService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "Keeper" } });
 
     const result = await svc.upsertEntries({
@@ -36,7 +38,7 @@ describe("upsertEntries", () => {
   test("a re-run over the same title UPDATES in place (idempotent replace-same-span)", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "Keeper" } });
     const write = (content: string): Promise<UpsertEntriesResult> =>
       svc.upsertEntries({ principal: principal(owner), bookId: book.id, entries: [{ title: "Fact", keys: ["k"], content, span: SPAN }] });
@@ -53,7 +55,7 @@ describe("upsertEntries", () => {
   test("a host-edited entry is SKIPPED — the machine writer never overwrites a curated entry", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "Keeper" } });
     await svc.upsertEntries({ principal: principal(owner), bookId: book.id, entries: [{ title: "Fact", keys: ["k"], content: "machine text", span: SPAN }] });
 
@@ -78,8 +80,8 @@ describe("upsertEntries", () => {
   test("a foreign book is NotFound — nothing written", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const theirs = await svc.createBook({ principal: principal(other), input: { name: "Theirs" } });
 
     await expect(

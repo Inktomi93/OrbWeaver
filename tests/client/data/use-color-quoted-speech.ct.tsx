@@ -9,12 +9,14 @@
 // blanking the tint, and a `=== true` spelling turning a blob that predates the key into "off".
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../support/ct/route-trpc";
 import { ColorQuotedSpeechStory } from "./_ct-stories";
 
 interface SettingsWire {
-  readonly userId: string;
+  readonly userId: UserId;
   readonly schemaVersion: number;
   readonly config: unknown;
   readonly updatedAt: number;
@@ -22,7 +24,7 @@ interface SettingsWire {
 
 /** The `settings.getUserSettings` wire row carrying one appearance blob. */
 function settingsWire(appearance: unknown): SettingsWire {
-  return { userId: "user_ct", schemaVersion: 1, config: { ...DEFAULT_USER_SETTINGS, appearance }, updatedAt: 0 };
+  return { userId: castId<UserId>("user_ct"), schemaVersion: 1, config: { ...DEFAULT_USER_SETTINGS, appearance }, updatedAt: 0 };
 }
 
 test("the pref ON projects colorQuotes=true", async ({ mount, page }) => {

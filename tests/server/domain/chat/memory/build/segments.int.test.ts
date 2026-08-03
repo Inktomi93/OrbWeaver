@@ -1,6 +1,6 @@
 import type { Db } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, type Handle } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { generateSegments } from "../../../../../../packages/server/src/domain/chat/memory/build/segments";
 import { freshDb } from "../../../../../support/db";
@@ -13,7 +13,7 @@ const aria = castId<CharacterId>("character_aria");
 let db: Db;
 beforeEach(async () => {
   db = await freshDb();
-  const owner = await seedUser(db, "owner");
+  const owner = await seedUser(db, castId<Handle>("owner"));
   await seedCharacter(db, owner, "aria"); // FK target for messages.characterId
 });
 

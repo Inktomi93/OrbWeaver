@@ -9,8 +9,9 @@
 // §2 hashes its OWN identity tuple into this arg — same gate, two producers, each holding its own state).
 
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
+import type { CharacterId } from "@orb/kit/ids";
 import { sha256Hex } from "#kit/content-hash";
 
-export function identityHashFor(mode: PromptTemplateMode, characterId: string, contentHash: string): string {
+export function identityHashFor(mode: PromptTemplateMode, characterId: CharacterId, contentHash: string): string {
   return sha256Hex(`${mode}:${characterId}:${contentHash}`);
 }

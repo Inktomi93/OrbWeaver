@@ -9,6 +9,8 @@
 // section.ct ROSTER_STUB posture); every value crosses the routeTrpc JSON boundary as a plain object.
 
 import type { RpgExtractionMode } from "@orb/contracts/rpg";
+import type { MessageId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
@@ -160,7 +162,7 @@ function trackerView(trackersReadOnly: boolean): unknown {
 // A `rpg.revealHidden` stub — the P3 host-reveal read the Veiled ledger (Status, host-only) tails. Default
 // EMPTY (no hidden content ⇒ the ledger renders nothing); `standingLies` carries the crown-gold rows.
 function revealView(
-  lies: readonly { readonly character: string; readonly type: string; readonly truth: string; readonly reason: string; readonly messageId: string }[] = [],
+  lies: readonly { readonly character: string; readonly type: string; readonly truth: string; readonly reason: string; readonly messageId: MessageId }[] = [],
 ): unknown {
   const byCharacter = new Map<string, typeof lies>();
   for (const lie of lies) {
@@ -1048,8 +1050,14 @@ test("RV-2: a game with immersiveHtml OFF has no card section at all (applicabil
 test("the band's host-only VEILED count (P3) renders off rpg.revealHidden — crown-gold cue, absent at zero", async ({ mount, page }) => {
   await stubTakeover(page, {
     reveal: revealView([
-      { character: "Sera", type: "lie", truth: "she pocketed the key", reason: "claims she never touched it", messageId: "message_ct_beat_t41" },
-      { character: "Niko", type: "ofilter", truth: "the dart was poisoned", reason: "", messageId: "message_ct_beat_t43" },
+      {
+        character: "Sera",
+        type: "lie",
+        truth: "she pocketed the key",
+        reason: "claims she never touched it",
+        messageId: castId<MessageId>("message_ct_beat_t41"),
+      },
+      { character: "Niko", type: "ofilter", truth: "the dart was poisoned", reason: "", messageId: castId<MessageId>("message_ct_beat_t43") },
     ]),
   });
   const component = await mount(<RpgTakeoverStory />);
@@ -1063,7 +1071,13 @@ test("the band's host-only VEILED count (P3) renders off rpg.revealHidden — cr
 test("the Veiled ledger (P3, host) renders the standing lies off rpg.revealHidden — crown-gold, host-only", async ({ mount, page }) => {
   await stubTakeover(page, {
     reveal: revealView([
-      { character: "Sera", type: "lie", truth: "she pocketed the key", reason: "claims she never touched it", messageId: "message_ct_beat_t41" },
+      {
+        character: "Sera",
+        type: "lie",
+        truth: "she pocketed the key",
+        reason: "claims she never touched it",
+        messageId: castId<MessageId>("message_ct_beat_t41"),
+      },
     ]),
   });
   const component = await mount(<RpgTakeoverStory />);

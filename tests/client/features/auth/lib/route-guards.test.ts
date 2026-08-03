@@ -13,12 +13,14 @@
 // `fetch` is stubbed at the global boundary (the upload-asset.test.ts precedent). Deep imports, not
 // barrels (node lane — a feature barrel drags browser TSX into the dom-less program).
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { afterEach, vi } from "vitest";
 import type { AuthMe } from "../../../../../packages/client/src/data/auth-bootstrap";
 import { redirectIfAuthed, requireAuthed } from "../../../../../packages/client/src/features/auth/lib/route-guards";
 import { expect, test } from "../../../../support/fixtures";
 
-const AUTHED: AuthMe = { authenticated: true, handle: "alice", role: "user" };
+const AUTHED: AuthMe = { authenticated: true, handle: castId<Handle>("alice"), role: "user" };
 const ANON: AuthMe = { authenticated: false, handle: null, role: null };
 
 /** Stub `/api/auth/me` with the given identity (the guards only read `/me` now — no `/config`). */

@@ -5,6 +5,7 @@
 
 import type { Can, Principal } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
+import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { z } from "zod";
 import type { ToolDefinition, ToolExecutionContext, ToolHandler, ToolUseContext } from "../../../../packages/server/src/domain/tool-use";
@@ -40,13 +41,13 @@ export function makeHarness(): ToolUseHarness {
   };
 }
 
-function principalOf(handle: string): Principal {
+function principalOf(handle: Handle): Principal {
   return makePrincipal(castId(`user_${handle}`), { handle: castId(handle) });
 }
 
 export function execOf(over: Partial<ToolExecutionContext> = {}): ToolExecutionContext {
   return {
-    principal: principalOf("host"),
+    principal: principalOf(castId<Handle>("host")),
     triggeredBy: castId("user_trigger"),
     chatId: null,
     roster: null,

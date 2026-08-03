@@ -30,6 +30,8 @@
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { DemoChat, DemoChatGameSetup } from "../contract/seeder";
 
 /** The label every seeded example wears (owner law: an example is CLEARLY an example, never mistakable for
@@ -264,7 +266,7 @@ const ASHEN_SPIRE_SETUP: DemoChatGameSetup = {
     {
       seat: {
         kind: "handle",
-        handle: "sabine",
+        handle: castId<CharacterHandle>("sabine"),
       },
       present: true,
       sheet: {
@@ -341,7 +343,7 @@ const ASHEN_SPIRE_SETUP: DemoChatGameSetup = {
     {
       seat: {
         kind: "handle",
-        handle: "calamity",
+        handle: castId<CharacterHandle>("calamity"),
       },
       present: true,
       sheet: {
@@ -378,7 +380,7 @@ const ASHEN_SPIRE_SETUP: DemoChatGameSetup = {
     {
       seat: {
         kind: "handle",
-        handle: "morgatha",
+        handle: castId<CharacterHandle>("morgatha"),
       },
       present: true,
       sheet: {

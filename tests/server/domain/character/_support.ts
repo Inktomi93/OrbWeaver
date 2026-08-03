@@ -12,7 +12,7 @@ import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, characterStats, characterSummaries, characters } from "@orb/db";
-import type { AssetId, CharacterId, CharacterSnapshotId, CharacterStatId, Handle, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, CharacterStatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CharacterContext } from "../../../../packages/server/src/domain/character/context.ts";
 import type { AttachCardTagOp, DetachCardTagOp } from "../../../../packages/server/src/domain/character/contract/service.ts";
@@ -168,7 +168,7 @@ export function makeHarness(db: Db, overrides: { readonly materializeBackground?
 
 interface SeedUserOverrides {
   readonly id?: string;
-  readonly handle?: string;
+  readonly handle?: Handle;
   readonly role?: UserRole;
 }
 
@@ -208,7 +208,7 @@ export async function seedAsset(db: Db, overrides: SeedAssetOverrides): Promise<
 interface SeedRawCharacterOverrides {
   readonly id?: string;
   readonly ownerId: UserId;
-  readonly handle?: string;
+  readonly handle?: CharacterHandle;
   readonly name?: string;
   readonly starred?: boolean;
   readonly synthetic?: boolean;
@@ -231,7 +231,7 @@ export async function seedRawCharacter(db: Db, overrides: SeedRawCharacterOverri
   const id = castId<CharacterId>(overrides.id ?? "character_seed");
   await db.insert(characters).values({
     id,
-    handle: overrides.handle ?? id,
+    handle: overrides.handle ?? castId<CharacterHandle>(id),
     ownerId: overrides.ownerId,
     name: overrides.name ?? "Seed",
     starred: overrides.starred ?? false,
@@ -279,6 +279,6 @@ export async function seedCharacterSummary(db: Db, args: { readonly characterId:
 
 /** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
  *  `support/factories/principal` — character keeps its existing positional `(id, role, handle?)` convention. */
-export function principal(userId: UserId, role: UserRole = "user", handle: string = userId): Principal {
-  return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
+export function principal(userId: UserId, role: UserRole = "user", handle: Handle = castId<Handle>(userId)): Principal {
+  return makePrincipal(userId, { role, handle });
 }

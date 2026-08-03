@@ -4,6 +4,7 @@
 // query so a knob change re-ranks in place. `duplicateCharacters` / `imageDuplicates` / `duplicateChats`
 // list the owner's near-duplicate pairs (text/art/chat) — the chat pairs carry a forked/duplicate badge.
 
+import type { CharacterId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
@@ -126,12 +127,12 @@ function NearestPairs(): ReactElement {
 }
 
 interface GraphNode {
-  readonly characterId: string;
+  readonly characterId: CharacterId;
   readonly name: string;
 }
 interface GraphEdge {
-  readonly source: string;
-  readonly target: string;
+  readonly source: CharacterId;
+  readonly target: CharacterId;
   readonly similarity: number;
 }
 

@@ -7,6 +7,8 @@
 // The directory IS the re-link key: chat ids are not preserved across a box, so a transcript rejoins its
 // character by the handle it was exported under.
 
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { sha256Hex } from "#kit/content-hash";
 import { parseChatJsonl } from "#kit/serde/chat";
 import type { ImportContext } from "../context";
@@ -24,7 +26,7 @@ export function createImportChatFile(ctx: ImportContext, importChats: ImportServ
     if (slash === -1) {
       return { ok: false, error: "chat file is not under a character-handle directory" };
     }
-    const handle = filename.slice(0, slash);
+    const handle = castId<CharacterHandle>(filename.slice(0, slash));
     const leaf = filename.slice(slash + 1);
     const characterId = await ctx.findByHandle({ ownerId: ctx.ownerId, handle });
     if (characterId === null) {

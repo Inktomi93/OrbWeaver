@@ -4,6 +4,8 @@
 // the reverse `listAttachments` view surfaces the character binding.
 
 import { characterDocuments } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { DatabankCharacterNotFoundError, DocumentNotFoundError } from "@orb/server/domain/databank";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../../support/db.ts";
@@ -13,7 +15,7 @@ import { makeDatabankHarness, principalFor, seedCharacter, seedUser } from "../.
 test("owner attaches an owned document to an owned character; re-attach idempotent; detach removes it", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const characterId = await seedCharacter(db, owner, { id: "character_owned" });
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
 
@@ -29,8 +31,8 @@ test("owner attaches an owned document to an owned character; re-attach idempote
 test("a foreign DOCUMENT never attaches to an owned character (cross-tenant)", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
-  const attacker = await seedUser(db, { handle: "attacker" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const attacker = await seedUser(db, { handle: castId<Handle>("attacker") });
   const attackerCharacter = await seedCharacter(db, attacker, { id: "character_attacker" });
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
 
@@ -44,8 +46,8 @@ test("a foreign DOCUMENT never attaches to an owned character (cross-tenant)", a
 test("a foreign CHARACTER never receives a document, even the caller's own (cross-tenant)", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
-  const attacker = await seedUser(db, { handle: "attacker" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const attacker = await seedUser(db, { handle: castId<Handle>("attacker") });
   const ownerCharacter = await seedCharacter(db, owner, { id: "character_owned" });
   const { document } = await h.service.createFromText({ principal: principalFor(attacker), name: "d.md", text: "attacker canon" });
   // A REAL owner binding must exist for the detach arm to have teeth: the junction is keyed on characterId
@@ -72,7 +74,7 @@ test("a foreign CHARACTER never receives a document, even the caller's own (cros
 test("listAttachments surfaces the character binding (reverse view)", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const characterId = await seedCharacter(db, owner, { id: "character_owned" });
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
 

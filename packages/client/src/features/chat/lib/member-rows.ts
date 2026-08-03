@@ -4,7 +4,7 @@
 // (the row shell is components/member-row.tsx; the canonical action home is member-row-menu.tsx).
 
 import type { HandoffOffer, JoinHistoryVisibility } from "@orb/contracts/chat";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 
 /** A PEOPLE (human) row view — projected by the surface from `ParticipantView` (+ `pendingHostUserId`). */
 export interface MemberPersonRow {
@@ -13,7 +13,7 @@ export interface MemberPersonRow {
   readonly key: string;
   readonly userId: UserId;
   readonly displayName: string;
-  readonly handle: string | null;
+  readonly handle: Handle | null;
   readonly isHost: boolean;
   /** The viewer's own seat ("you" marker + the Leave action home). */
   readonly isViewer: boolean;

@@ -35,7 +35,7 @@ export interface Msg {
   role: Role;
   content: string;
   authorName?: string | null;
-  characterId?: string | null;
+  characterId?: CharacterId | null;
   /** namesBehavior="completion" sets the OpenAI-spec `name` field instead of prefixing content. */
   name?: string;
 }

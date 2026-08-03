@@ -5,6 +5,8 @@
 // the derive-not-stamp contract against resolver/facade drift). The verb does ZERO outbound fetch — the
 // harness's `resolveCredential` is a pure key-presence fake, never a network call.
 
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createConnectionService } from "@orb/server/domain/connection";
 import { afterEach, describe } from "vitest";
 import { CHAT_MODELS } from "../../../../../packages/server/src/domain/connection/catalog/chat-models.ts";
@@ -41,7 +43,7 @@ describe("getModelsForSource — openrouter", () => {
     const svc = createConnectionService(h.ctx);
 
     const result = await svc.getModelsForSource({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       source: "openrouter",
       role: "chat",
     });
@@ -69,7 +71,7 @@ describe("getModelsForSource — openrouter", () => {
     const svc = createConnectionService(h.ctx);
 
     const result = await svc.getModelsForSource({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       source: "openrouter",
       role: "chat",
     });
@@ -88,7 +90,7 @@ describe("getModelsForSource — openrouter", () => {
     const svc = createConnectionService(h.ctx);
 
     const result = await svc.getModelsForSource({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       source: "openrouter",
       role: "chat",
     });
@@ -104,7 +106,7 @@ describe("getModelsForSource — openrouter", () => {
     const svc = createConnectionService(h.ctx);
 
     const result = await svc.getModelsForSource({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       source: "openrouter",
       role: "generateImage",
     });
@@ -124,7 +126,7 @@ describe("getModelsForSource — max-pro-sub", () => {
     const svc = createConnectionService(h.ctx);
 
     const result = await svc.getModelsForSource({
-      principal: principal("owner_1", "owner"),
+      principal: principal(castId<UserId>("owner_1"), "owner"),
       source: "max-pro-sub",
       role: "chat",
     });
@@ -145,7 +147,7 @@ describe("getModelsForSource — max-pro-sub", () => {
     const svc = createConnectionService(h.ctx);
 
     const result = await svc.getModelsForSource({
-      principal: principal("owner_1", "owner"),
+      principal: principal(castId<UserId>("owner_1"), "owner"),
       source: "max-pro-sub",
       role: "chat",
     });
@@ -163,7 +165,7 @@ describe("getModelsForSource — max-pro-sub", () => {
     const svc = createConnectionService(h.ctx);
 
     const result = await svc.getModelsForSource({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       source: "max-pro-sub",
       role: "chat",
     });
@@ -180,7 +182,7 @@ describe("getModelsForSource — custom_openai (key presence only, never a fetch
     const svc = createConnectionService(h.ctx);
 
     const result = await svc.getModelsForSource({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       source: "custom_openai",
       role: "chat",
     });
@@ -195,7 +197,7 @@ describe("getModelsForSource — custom_openai (key presence only, never a fetch
     const svc = createConnectionService(h.ctx);
 
     const result = await svc.getModelsForSource({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       source: "custom_openai",
       role: "chat",
     });
@@ -212,7 +214,7 @@ describe("getModelsForSource — vllm (env/config read)", () => {
     const svc = createConnectionService(h.ctx);
 
     const result = await svc.getModelsForSource({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       source: "vllm",
       role: "embed",
     });
@@ -234,7 +236,7 @@ describe("getModelsForSource — vllm (env/config read)", () => {
     const svc = createConnectionService(h.ctx);
 
     const result = await svc.getModelsForSource({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       source: "vllm",
       role: "rerank",
     });
@@ -248,7 +250,7 @@ describe("getModelsForSource — vllm (env/config read)", () => {
     const svc = createConnectionService(h.ctx);
 
     const result = await svc.getModelsForSource({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       source: "vllm",
       role: "summarize",
     });
@@ -262,7 +264,7 @@ describe("getModelsForSource — vllm (env/config read)", () => {
     const svc = createConnectionService(h.ctx);
 
     const result = await svc.getModelsForSource({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       source: "vllm",
       role: "embed",
     });
@@ -278,7 +280,7 @@ describe("getModelsForSource — local-light (the injected builtin trio)", () =>
     const svc = createConnectionService(h.ctx);
 
     const result = await svc.getModelsForSource({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       source: "local-light",
       role: "embed",
     });
@@ -300,7 +302,7 @@ describe("getModelsForSource — local-light (the injected builtin trio)", () =>
     const svc = createConnectionService(h.ctx);
 
     const result = await svc.getModelsForSource({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       source: "local-light",
       role: "rerank",
     });
@@ -314,7 +316,7 @@ describe("getModelsForSource — local-light (the injected builtin trio)", () =>
     const svc = createConnectionService(h.ctx);
 
     const result = await svc.getModelsForSource({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       source: "local-light",
       role: "chat",
     });
@@ -335,11 +337,11 @@ describe("getModelsForSource — ghost parity with resolveRole (derive-not-stamp
     const svc = createConnectionService(h.ctx);
 
     const facade = await svc.getModelsForSource({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       source: "vllm",
       role: "embed",
     });
-    const resolved = await svc.resolveRole({ role: "embed", principal: principal("user_1") });
+    const resolved = await svc.resolveRole({ role: "embed", principal: principal(castId<UserId>("user_1")) });
 
     expect(facade.defaultModelId).toBe(resolved.model);
   });
@@ -350,11 +352,11 @@ describe("getModelsForSource — ghost parity with resolveRole (derive-not-stamp
     const svc = createConnectionService(h.ctx);
 
     const facade = await svc.getModelsForSource({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       source: "vllm",
       role: "rerank",
     });
-    const resolved = await svc.resolveRole({ role: "rerank", principal: principal("user_1") });
+    const resolved = await svc.resolveRole({ role: "rerank", principal: principal(castId<UserId>("user_1")) });
 
     expect(facade.defaultModelId).toBe(resolved.model);
   });
@@ -364,14 +366,14 @@ describe("getModelsForSource — ghost parity with resolveRole (derive-not-stamp
     const svc = createConnectionService(h.ctx);
 
     const facade = await svc.getModelsForSource({
-      principal: principal("owner_1", "owner"),
+      principal: principal(castId<UserId>("owner_1"), "owner"),
       source: "max-pro-sub",
       role: "chat",
     });
     // The owner's unset chat defaults to max-pro-sub/agent-sdk and heals the null model to the curated opus.
     const resolved = await svc.resolveRole({
       role: "chat",
-      principal: principal("owner_1", "owner"),
+      principal: principal(castId<UserId>("owner_1"), "owner"),
     });
 
     expect(facade.defaultModelId).toBe(resolved.model);

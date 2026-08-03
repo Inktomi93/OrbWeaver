@@ -2,7 +2,7 @@
 // file is the target side. Load-bearing: a foreign target and an ABSENT target collapse to the same
 // `RegexNotFoundError`, so the gate is never an existence oracle for someone else's library.
 
-import type { CharacterId, PresetId } from "@orb/kit/ids";
+import type { CharacterId, Handle, PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { RegexNotFoundError } from "@orb/server/domain/regex";
 import { describe } from "vitest";
@@ -14,8 +14,8 @@ import { seedCharacter, seedPreset, seedUser } from "../_support.ts";
 describe("regex ownership gates", () => {
   test("ensureCharacterOwned passes for the owner, refuses a stranger and an absent id identically", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const characterId = await seedCharacter(db, owner);
 
     await expect(ensureCharacterOwned(db, owner, characterId)).resolves.toBeUndefined();
@@ -25,8 +25,8 @@ describe("regex ownership gates", () => {
 
   test("ensurePresetOwned passes for the owner and refuses a stranger", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const presetId = await seedPreset(db, owner);
 
     await expect(ensurePresetOwned(db, owner, presetId)).resolves.toBeUndefined();
@@ -35,7 +35,7 @@ describe("regex ownership gates", () => {
 
   test("the NULL-owner system preset is un-attachable by construction", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const systemPreset = await seedPreset(db, null, "system");
 
     // A null ownerId matches no caller — the same equality check that gates a foreign preset is what makes

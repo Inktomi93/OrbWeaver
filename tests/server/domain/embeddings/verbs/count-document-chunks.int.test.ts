@@ -2,12 +2,14 @@
 // `document_chunks`). Returns a Map keyed by documentId for the active model; documents with zero chunks are
 // absent (the caller defaults to 0); a different model scopes to zero; empty input → empty map.
 
+import type { DocumentId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { EMBED_DIM, EMBED_MODEL, makeStoreHarness, seedDocument, seedUser } from "../_support.ts";
 
-async function storeChunk(svc: ReturnType<typeof createEmbeddingsService>, documentId: string, chunkIdx: number): Promise<void> {
+async function storeChunk(svc: ReturnType<typeof createEmbeddingsService>, documentId: DocumentId, chunkIdx: number): Promise<void> {
   await svc.store({
     kind: "document",
     lens: "chunk",
@@ -23,7 +25,7 @@ test("counts a document's chunks for the active model, grouped; other model → 
   const db = await freshDb();
   const h = makeStoreHarness(db);
   const svc = createEmbeddingsService(h.ctx);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const docA = await seedDocument(db, owner, { id: "document_a", text: "a" });
   const docB = await seedDocument(db, owner, { id: "document_b", text: "b" });
   await storeChunk(svc, docA, 0);

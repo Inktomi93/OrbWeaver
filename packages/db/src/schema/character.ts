@@ -18,7 +18,7 @@
 
 import type { CardDepthPrompt, CharacterCard, Greeting, RefinerySignals } from "@orb/contracts/character";
 import type { ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
-import type { AssetId, CharacterId, CharacterSnapshotId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, PersonaId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import {
   index,
@@ -39,9 +39,10 @@ export const characters = sqliteTable(
     // ── Identity (D28 flat row) ──────────────────────────────────────────────
     // TypeID PK (`character_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
     id: text("id").$type<CharacterId>().primaryKey(),
-    // plain-id: the character handle is a free-form label (incl. the synthetic `__group__<chatId>`
-    // namespace), NOT a branded entity id — so it carries no `.$type<…Id>()`.
-    handle: text("handle").notNull(),
+    // The character handle is a free-form label (incl. the synthetic `__group__<chatId>` namespace),
+    // NOT a branded entity id — its brand is the `CharacterHandle` identity-VALUE brand (the
+    // `users.handle`/`Handle` class), so a user-facing username can never land in a card-slug position.
+    handle: text("handle").$type<CharacterHandle>().notNull(),
     // KEEP `ownerId` (D23). User hard-delete cascades the owner's characters.
     ownerId: text("owner_id")
       .$type<UserId>()

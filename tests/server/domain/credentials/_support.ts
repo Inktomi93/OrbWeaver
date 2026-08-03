@@ -65,7 +65,7 @@ export interface CredentialHarness {
 
 interface SeedUserOverrides {
   readonly id?: string;
-  readonly handle?: string;
+  readonly handle?: Handle;
   readonly role?: UserRole;
 }
 

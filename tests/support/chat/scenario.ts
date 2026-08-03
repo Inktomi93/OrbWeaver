@@ -185,7 +185,7 @@ async function seedRoom(
   names: Record<string, string>;
 }> {
   const characters = options.characters ?? ["aria"];
-  const host = await seedUser(db, "host");
+  const host = await seedUser(db, castId<Handle>("host"));
   const group: Record<string, unknown> = {
     output: options.output ?? "per-speaker",
     policy: options.policy ?? "natural",

@@ -323,7 +323,7 @@ async function seedDemoContent(deps: SeedDemoDeps): Promise<void> {
 
   // A second human (idempotent: ensureUser upserts by handle). Passwordless — a demo participant, not a
   // login; sidesteps the AUTH_MODE=local password-hash SESSION_SECRET requirement.
-  const secondId = await built.sessions.ensureUser(SECOND_HUMAN_HANDLE);
+  const secondId = await built.sessions.ensureUser(castId<Handle>(SECOND_HUMAN_HANDLE));
   const second = principalOf(secondId, SECOND_HUMAN_HANDLE, "user");
   log(`second human ready: ${SECOND_HUMAN_HANDLE}`);
 

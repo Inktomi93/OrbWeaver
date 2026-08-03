@@ -12,7 +12,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { RpgActorView, RpgQuestView, RpgTrackerView } from "@orb/contracts/rpg";
-import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { DemoChatGame } from "@orb/server/domain/chat";
 import type { DemoChatGameDoorDeps } from "@orb/server/entry/compose";
@@ -130,14 +130,14 @@ const GAME: DemoChatGame = {
     snapshot: { location: "the throne hall" },
     actors: [
       { seat: { kind: "player" }, present: true, ops: [{ op: "setStatus", status: "ward-touched" }] },
-      { seat: { kind: "handle", handle: "sabine" }, present: true, ops: [{ op: "setStatus", status: "left of you, unarmed" }] },
+      { seat: { kind: "handle", handle: castId<CharacterHandle>("sabine") }, present: true, ops: [{ op: "setStatus", status: "left of you, unarmed" }] },
     ],
     quests: [{ name: "The Seal", status: "active", description: "", objectives: [{ text: "climb", completed: true }] }],
     journal: [{ type: "location", title: "The Ashen Spire", content: "black glass" }],
   },
 };
 
-const SEATS = [{ handle: "sabine", characterId: SABINE }];
+const SEATS = [{ handle: castId<CharacterHandle>("sabine"), characterId: SABINE }];
 
 describe("createDemoChatGameDoor", () => {
   test("THE PROPERTY: after the replay the seeded game carries NO lock — every authored datum is one the receiving user's own play can still move", async () => {

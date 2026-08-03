@@ -5,7 +5,7 @@
 // hash→any-owner oracle (PD-107).
 
 import type { ContentImageRef } from "@orb/kit/content";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImageRefAssets } from "@orb/server/entry/compose";
 import { resolveImageRefToUrl } from "@orb/server/entry/compose";
@@ -16,7 +16,7 @@ const HOST = castId<UserId>("u_host");
 const MEMBER = castId<UserId>("u_member");
 const STRANGER = castId<UserId>("u_stranger");
 const CHAT = castId<ChatId>("chat_a");
-const ASSET_ID = "asset_pic1";
+const ASSET_ID = castId<AssetId>("asset_pic1");
 
 const assetRef = (assetId = ASSET_ID): ContentImageRef => ({ kind: "asset", assetId });
 const dataUri = (mime: string, bytes: number[]): string => `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`;

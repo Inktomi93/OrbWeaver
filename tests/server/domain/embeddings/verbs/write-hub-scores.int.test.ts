@@ -3,7 +3,8 @@
 // non-matching model leaves the row alone (space-scoped); an empty batch is a 0-row noop.
 
 import { characterEmbeddings } from "@orb/db";
-import type { CharacterEmbeddingId } from "@orb/kit/ids";
+import type { CharacterEmbeddingId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -19,7 +20,7 @@ async function seedOneEmbedding(db: Awaited<ReturnType<typeof freshDb>>): Promis
 }> {
   const h = makeStoreHarness(db);
   const svc = createEmbeddingsService(h.ctx);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const characterId = await seedCharacter(db, owner);
   await svc.store({
     kind: "card",

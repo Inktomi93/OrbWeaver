@@ -9,7 +9,8 @@
 // re-stamped; and the pack's own shape invariants (unique handles, greetings[0] never groupOnly).
 
 import type { Principal } from "@orb/contracts/identity";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { CharacterDetail, CharacterService } from "@orb/server/domain/character";
 import { createCharacterService, createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import { describe } from "vitest";
@@ -92,7 +93,7 @@ describe("createDefaultCharacterSeeder", () => {
       attachCardTag: noopAttach,
       ...latch,
     });
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
 
     await seeder.ensureSeeded(actor);
@@ -111,7 +112,7 @@ describe("createDefaultCharacterSeeder", () => {
       attachCardTag: noopAttach,
       ...latch,
     });
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
 
     await seeder.ensureSeeded(actor);
@@ -125,7 +126,7 @@ describe("createDefaultCharacterSeeder", () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
     const latch = fakeLatch();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
 
     // First seeder seeds the pack + sets the latch.
@@ -155,7 +156,7 @@ describe("createDefaultCharacterSeeder", () => {
       attachCardTag: noopAttach,
       ...latch,
     });
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
     // A previous partial run already created the Assistant handle (latch NOT set — it crashed before marking).
     const existingAssistantId = await seedRawCharacter(db, {
@@ -203,7 +204,7 @@ describe("createDefaultCharacterSeeder", () => {
       attachCardTag: noopAttach,
       ...latch,
     });
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
 
     await seeder.ensureSeeded(actor);
@@ -231,7 +232,7 @@ describe("createDefaultCharacterSeeder", () => {
       attachCardTag: noopAttach,
       ...latch,
     });
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
     // The user already owns a card at the welcome handle (their own card, or a partial prior run).
     const existingId = await seedRawCharacter(db, {
@@ -257,7 +258,7 @@ describe("createDefaultCharacterSeeder", () => {
       attachCardTag: attach.attachCardTag,
       ...latch,
     });
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
 
     await seeder.ensureSeeded(actor);

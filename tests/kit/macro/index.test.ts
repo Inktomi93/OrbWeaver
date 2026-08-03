@@ -1,3 +1,5 @@
+import type { ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { GlobalVarWrite, MacroDiagnostic, ProcessMacroOptions } from "@orb/kit/macro";
 import {
   createDefaultRegistry,
@@ -499,12 +501,12 @@ test("the global plane is separate from runtime vars (env)", () => {
 // ── rpg data-fed macros (rpg-design/06 §1) — a game turn stages `rpgMacros`; a non-game chat resolves empty ──
 
 test("rpg macros render EMPTY when nothing is staged (a non-game / non-rpg chat) — byte-identical", () => {
-  expect(processMacros("[{{rpgWorld}}][{{rpgSceneState}}][{{rpgMorale}}]", opts({ chatId: "chat_x" }))).toBe("[][][]");
+  expect(processMacros("[{{rpgWorld}}][{{rpgSceneState}}][{{rpgMorale}}]", opts({ chatId: castId<ChatId>("chat_x") }))).toBe("[][][]");
 });
 
 test("rpg macros render their staged value by name (chat stays rpg-blind — the generic map)", () => {
   const rpgMacros = { rpgWorld: "The Shattered Realm", rpgMorale: "Morale: high (72/100)", rpgSceneState: "Day 3, 14:30" };
-  expect(processMacros("{{rpgWorld}} | {{rpgMorale}} | {{rpgSceneState}}", opts({ chatId: "chat_x", rpgMacros }))).toBe(
+  expect(processMacros("{{rpgWorld}} | {{rpgMorale}} | {{rpgSceneState}}", opts({ chatId: castId<ChatId>("chat_x"), rpgMacros }))).toBe(
     "The Shattered Realm | Morale: high (72/100) | Day 3, 14:30",
   );
 });

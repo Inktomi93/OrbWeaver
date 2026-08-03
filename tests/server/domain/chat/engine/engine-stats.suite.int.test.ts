@@ -18,7 +18,7 @@ import type { Db } from "@orb/db";
 import { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
-import type { CharacterId, ChatId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -241,7 +241,7 @@ let personaId: PersonaId;
 
 beforeEach(async () => {
   db = await freshDb();
-  await seedUser(db, "host");
+  await seedUser(db, castId<Handle>("host"));
   charId = await seedCharacter(db, HOST, "aria");
   personaId = await seedPersona(db, HOST, "nate");
   chatId = await seedChat(db, "a");

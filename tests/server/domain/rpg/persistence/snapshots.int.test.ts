@@ -7,7 +7,7 @@
 
 import type { Db } from "@orb/db";
 import { messages, rpgSnapshots } from "@orb/db";
-import type { MessageVariantId } from "@orb/kit/ids";
+import type { ChatId, MessageVariantId } from "@orb/kit/ids";
 import { eq, isNull } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { snapshotRowToState } from "../../../../../packages/server/src/domain/rpg/contract/service";
@@ -35,7 +35,7 @@ beforeEach(async () => {
 /** Insert a committed snapshot keyed to a variant, carrying a marker location. */
 async function seedSnapshot(opts: {
   gameId: string;
-  chatId: string;
+  chatId: ChatId;
   seq: number;
   variantId: MessageVariantId;
   key: string;
@@ -297,7 +297,7 @@ describe("write-boundary structural backstop (stickler F1)", () => {
 // order stamp. These tests pin the order the ladder now decides, in both walks.
 
 /** Write a hand row carrying a marker location; `now` drives the createdAt tie-break inside one as-of slot. */
-async function seedHandRow(opts: { gameId: string; chatId: string; key: string; location: string; now?: number }): Promise<void> {
+async function seedHandRow(opts: { gameId: string; chatId: ChatId; key: string; location: string; now?: number }): Promise<void> {
   await writeHandSnapshot(
     db,
     { ...emptyState(), location: opts.location },

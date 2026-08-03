@@ -12,7 +12,8 @@
 // That refusal is the reason promotion asks the host to rename first instead of quietly minting a shadow.
 
 import type { Db } from "@orb/db";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { beforeEach } from "vitest";
 import type { RpgGameRow } from "../../../../../packages/server/src/domain/rpg/contract/service";
 import { findGameByChat } from "../../../../../packages/server/src/domain/rpg/persistence/games";
@@ -26,7 +27,7 @@ beforeEach(async () => {
 });
 
 const VESNA = { kind: "cast", castKey: "vesna" } as const;
-const HOST = principal("host");
+const HOST = principal(castId<Handle>("host"));
 
 async function seedGame(): Promise<{
   chatId: ChatId;
@@ -35,7 +36,7 @@ async function seedGame(): Promise<{
   fakes: ReturnType<typeof makeRpgService>["fakes"];
 }> {
   const chatId = await seedChat(db, "a");
-  const h = makeRpgService(db, { roster: [rosterUser("host", "Nate")] });
+  const h = makeRpgService(db, { roster: [rosterUser(castId<Handle>("host"), "Nate")] });
   h.fakes.membership.set("user_host", "host");
   await h.service.createGame({ principal: HOST, chatId, mode: "lite" });
   const game = await findGameByChat(db, chatId);
@@ -144,7 +145,7 @@ test("a NAME the chat roster already carries is REFUSED as data — no card, no 
   const { chatId, game, service, fakes } = await seedGame();
   await seedVesna(service, chatId);
   // A roster human already answers to the same name: the model's name→ref index cannot hold both.
-  fakes.roster.push(rosterUser("other", "sister vesna"));
+  fakes.roster.push(rosterUser(castId<Handle>("other"), "sister vesna"));
   const slotsBefore = fakes.narratorPosts.length;
 
   const refused = await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA });

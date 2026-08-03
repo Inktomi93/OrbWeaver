@@ -5,7 +5,7 @@
 // closes on success; a failure keeps it open with the sticky mutation error inline. Base UI unmounts
 // the closed popup, so a reopen never shows the previous password.
 
-import type { UserId } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
@@ -20,7 +20,7 @@ import { ADMIN_MIN_PASSWORD_LENGTH } from "../lib/admin-model";
 
 export interface AdminResetPasswordDialogProps {
   readonly userId: UserId;
-  readonly handle: string;
+  readonly handle: Handle;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
 }

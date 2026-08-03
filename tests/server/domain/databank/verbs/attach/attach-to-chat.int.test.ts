@@ -3,6 +3,8 @@
 // attaches even for the host); idempotent re-attach.
 
 import { chatDocuments } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { DocumentNotFoundError } from "@orb/server/domain/databank";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../../support/db.ts";
@@ -12,7 +14,7 @@ import { makeDatabankHarness, principalFor, seedChat, seedUser } from "../../_su
 test("host attaches an owned document to the room; re-attach idempotent", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db); // default ensureChatHost resolves (host)
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const chatId = await seedChat(db, "chat_room");
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
 
@@ -25,7 +27,7 @@ test("host attaches an owned document to the room; re-attach idempotent", async 
 test("a non-host attach is rejected by the injected host guard — no junction row", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db, { ensureChatHost: () => Promise.reject(new Error("not host")) });
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const chatId = await seedChat(db, "chat_room");
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
 
@@ -36,8 +38,8 @@ test("a non-host attach is rejected by the injected host guard — no junction r
 test("a foreign document NEVER attaches to a chat even for the host (cross-tenant)", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db); // host guard resolves
-  const owner = await seedUser(db, { handle: "owner" });
-  const attacker = await seedUser(db, { handle: "attacker" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const attacker = await seedUser(db, { handle: castId<Handle>("attacker") });
   const chatId = await seedChat(db, "chat_room");
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
 

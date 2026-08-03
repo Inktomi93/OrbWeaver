@@ -2,6 +2,8 @@
 // room-PUBLIC (not owner-filtered — another member's attached book is visible; the pool assembles against
 // it either way); newest first; role null; a guard rejection propagates (a non-member never sees the list).
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createWorldInfoService } from "@orb/server/domain/world-info";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -16,8 +18,8 @@ describe("listForChat", () => {
       requireChatMember: () => Promise.resolve(),
     });
     const svc = createWorldInfoService(harness.ctx);
-    const host = await seedUser(db, { handle: "host" });
-    const member = await seedUser(db, { handle: "member" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const member = await seedUser(db, { handle: castId<Handle>("member") });
     const chatId = await seedChat(db);
     const older = await svc.createBook({ principal: principal(host), input: { name: "older" } });
     await svc.attachToChat({ principal: principal(host), chatId, bookId: older.id });
@@ -36,7 +38,7 @@ describe("listForChat", () => {
     const refusal = new Error("chat_not_found");
     const harness = makeHarness(db, { requireChatMember: () => Promise.reject(refusal) });
     const svc = createWorldInfoService(harness.ctx);
-    const outsider = await seedUser(db, { handle: "outsider" });
+    const outsider = await seedUser(db, { handle: castId<Handle>("outsider") });
     const chatId = await seedChat(db);
 
     await expect(svc.listForChat({ principal: principal(outsider), chatId })).rejects.toBe(refusal);

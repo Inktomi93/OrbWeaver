@@ -15,7 +15,8 @@
 //      a room the op drops (a kicked ex-member) is proven absent by a stubbed op that drops it.
 
 import { characterRegexScripts, chatRegexScripts, presetRegexScripts } from "@orb/db";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createRegexService, RegexNotFoundError } from "@orb/server/domain/regex";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -25,7 +26,7 @@ import { allowChat, makeHarness, principal, seedCharacter, seedChat, seedPreset,
 describe("listScriptUsage", () => {
   test("names every carrier that attaches the script, per scope, in name order", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "strip ooc" });
     // `seedPreset` names a preset "Preset <key>", so `z` sorts AFTER `a` — the arm would pass on insertion
     // order too if the rows went in alphabetically, so they deliberately do not.
@@ -63,7 +64,7 @@ describe("listScriptUsage", () => {
 
   test("an unattached script reports three empty rosters WITHOUT asking chat anything", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "lonely" });
 
     // The harness's `resolveVisibleRooms` default THROWS ("not stubbed"), so this passing at all is the
@@ -75,8 +76,8 @@ describe("listScriptUsage", () => {
 
   test("CROSS-OWNER: a stranger's preset/character holding my script is NOT named", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "mine" });
     const mine = await seedPreset(db, owner, "mine");
     const theirs = await seedPreset(db, stranger, "theirs");
@@ -98,8 +99,8 @@ describe("listScriptUsage", () => {
 
   test("CROSS-OWNER: a stranger asking about my script is refused, not answered with an empty roster", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "mine" });
 
     await expect(createRegexService(makeHarness(db).ctx).listScriptUsage({ principal: principal(stranger), scriptId })).rejects.toBeInstanceOf(
@@ -109,7 +110,7 @@ describe("listScriptUsage", () => {
 
   test("a room the caller can no longer SEE is dropped, even though the attachment row survives", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "mine" });
     const stillIn = await seedChat(db, "still_in");
     const kickedFrom = await seedChat(db, "kicked_from");

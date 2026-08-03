@@ -9,7 +9,7 @@
 // resolve to the one leak-free `null`.
 
 import type { Db } from "@orb/db";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { NO_HISTORY_FLOOR } from "../../../../../packages/server/src/domain/chat/substrate/auth/clamp.ts";
@@ -26,9 +26,9 @@ beforeEach(async () => {
 
 describe("resolveViewerVisibility — membership and the D16 floor are ONE answer", () => {
   test("a from-join member carries their own joinSeq as the floor; host + full members are unclamped", async () => {
-    const host = await seedUser(db, "host");
-    const clamped = await seedUser(db, "clamped");
-    const openMember = await seedUser(db, "open");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const clamped = await seedUser(db, castId<Handle>("clamped"));
+    const openMember = await seedUser(db, castId<Handle>("open"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "clamped", userId: clamped, role: "member", joinSeq: 7, joinHistoryVisibility: "from-join" });
@@ -48,7 +48,7 @@ describe("resolveViewerVisibility — membership and the D16 floor are ONE answe
   // withhold pre-join history while export-chat + discovery already handed them full canon. The row shape here
   // is exactly what a host-handoff leaves behind — the seat flips to `host`, the `joinSeq`/policy do not.
   test("a promoted host (from-join row, late joinSeq) is unclamped — F2 host full control", async () => {
-    const promoted = await seedUser(db, "promoted");
+    const promoted = await seedUser(db, castId<Handle>("promoted"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "promoted", userId: promoted, role: "host", joinSeq: 15, joinHistoryVisibility: "from-join" });
 
@@ -58,8 +58,8 @@ describe("resolveViewerVisibility — membership and the D16 floor are ONE answe
   });
 
   test("the floor is PER-CALLER — one member's restriction never clamps another member's read", async () => {
-    const clamped = await seedUser(db, "clamped");
-    const other = await seedUser(db, "other");
+    const clamped = await seedUser(db, castId<Handle>("clamped"));
+    const other = await seedUser(db, castId<Handle>("other"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "clamped", userId: clamped, role: "member", joinSeq: 12, joinHistoryVisibility: "from-join" });
     await seedParticipant(db, { chatId, key: "other", userId: other, role: "member", joinSeq: 3, joinHistoryVisibility: "from-join" });
@@ -71,9 +71,9 @@ describe("resolveViewerVisibility — membership and the D16 floor are ONE answe
   });
 
   test("non-member, unknown chat, and a LEFT member are all the one leak-free null (never a floor of 0)", async () => {
-    const host = await seedUser(db, "host");
-    const outsider = await seedUser(db, "outsider");
-    const gone = await seedUser(db, "gone");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const outsider = await seedUser(db, castId<Handle>("outsider"));
+    const gone = await seedUser(db, castId<Handle>("gone"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "gone", userId: gone, role: "member", joinSeq: 4, leftSeq: 11 });

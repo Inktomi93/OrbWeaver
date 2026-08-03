@@ -20,7 +20,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { isDeceptionActive } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { messageVariants, presets } from "@orb/db";
-import type { ChatId, MessageId, MessageVariantId, PresetId, RpgGameId, RpgSnapshotId, UserId } from "@orb/kit/ids";
+import type { ChatId, Handle, MessageId, MessageVariantId, PresetId, RpgGameId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { insertCheckpoint, listCheckpoints } from "../../../../../packages/server/src/domain/rpg/persistence/checkpoints";
 import { findGameByChat, insertGame, updateGame } from "../../../../../packages/server/src/domain/rpg/persistence/games";
@@ -56,7 +56,7 @@ async function seedSourceGame(
   variantId: MessageVariantId;
   snapshotId: RpgSnapshotId;
 }> {
-  const gm = await seedUser(db, gmHandle);
+  const gm = await seedUser(db, castId<Handle>(gmHandle));
   const chatId = await seedChat(db, `src_${gmHandle}`);
   const gameId = castId<RpgGameId>(`rpg_game_src_${gmHandle}`);
   const config = {
@@ -294,7 +294,7 @@ test("cross-tenant: EVERY fork row keys the new game/chat/variant — never a so
 
 test("swipe remap: a two-variant slot forks each variant's snapshot to ITS copied variant", async () => {
   const db = await freshDb();
-  const gm = await seedUser(db, "gm");
+  const gm = await seedUser(db, castId<Handle>("gm"));
   const chatId = await seedChat(db, "src_swipe");
   const gameId = castId<RpgGameId>("rpg_game_swipe");
   await insertGame(db, {
@@ -443,7 +443,7 @@ test("a HOST forker (readsHidden) copies verbatim — no strip (they already rea
 test("an OWNED gmPresetId is CARRIED even for a non-host forker (only a FOREIGN one drops)", async () => {
   const db = await freshDb();
   const src = await seedSourceGame(db, "gm");
-  const mallory = await seedUser(db, "mallory");
+  const mallory = await seedUser(db, castId<Handle>("mallory"));
   const forkerPreset = await seedPresetRow(db, castId<PresetId>("preset_mallory_owns"), mallory);
   await updateGame(db, src.gameId, { gmPresetId: forkerPreset });
   const { forkChatId, slotIdMap, variantIdMap } = await seedForkTarget(db, "owned", src);
@@ -484,7 +484,7 @@ test("pointer LAST: the pointer fires AFTER the rows exist, mirroring the cloned
 
 test("a fork of a DISENGAGED game is born disengaged (the pointer mirrors the cloned config)", async () => {
   const db = await freshDb();
-  const gm = await seedUser(db, "gm");
+  const gm = await seedUser(db, castId<Handle>("gm"));
   const chatId = await seedChat(db, "src_off");
   const gameId = castId<RpgGameId>("rpg_game_off");
   await insertGame(db, {

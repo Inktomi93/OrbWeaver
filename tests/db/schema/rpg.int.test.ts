@@ -10,6 +10,7 @@ import { RPG_CHECKPOINT_TRIGGERS, RPG_GAME_MODES, RPG_GAME_STATUSES, RPG_JOURNAL
 import { characters, chats, messages, messageVariants, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import type {
+  CharacterHandle,
   CharacterId,
   ChatId,
   Handle,
@@ -148,7 +149,7 @@ test("rpg_sheets enforces the character XOR user actor CHECK (neither set AND bo
   const ownerId = castId<UserId>("user_sheet_owner");
   await db.insert(users).values({ id: ownerId, handle: castId<Handle>("sheet_owner") });
   const characterId = castId<CharacterId>("character_sheet");
-  await db.insert(characters).values({ id: characterId, handle: "card-sheet", ownerId, contentHash: "hash", name: "Card" });
+  await db.insert(characters).values({ id: characterId, handle: castId<CharacterHandle>("card-sheet"), ownerId, contentHash: "hash", name: "Card" });
   const bothSet = { id: castId<RpgSheetId>("rpg_sheet_both"), gameId, characterId, userId: ownerId, sheet: EMPTY_SHEET };
   await expect(db.insert(rpgSheets).values(bothSet)).rejects.toSatisfy(isConstraint);
   // Exactly one set → accepted (the sanctioned shape).

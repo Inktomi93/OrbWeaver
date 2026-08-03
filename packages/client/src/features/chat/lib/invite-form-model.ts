@@ -43,7 +43,8 @@ export const INVITE_EXPIRY_ITEMS: SelectItems<string> = [
  *  `number | null` (null = unlimited). */
 export interface InviteFormValues {
   readonly mode: string;
-  readonly handle: string;
+  /** The invite-target handle DRAFT — `""` until typed (a draft is legally empty; the submit seam brands it). */
+  readonly handle: Handle | "";
   readonly expiry: string;
   readonly maxUses: number | null;
 }

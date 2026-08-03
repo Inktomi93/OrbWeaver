@@ -28,7 +28,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { messages } from "@orb/db";
-import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -88,7 +88,7 @@ function ctxWithCard(card: CharacterCard): ChatContext {
 }
 
 function inputOf(
-  chatId: string,
+  chatId: ChatId,
   ownerId: UserId,
   castIds: CharacterId[],
   personas: Parameters<typeof buildAssembleContext>[1]["personas"],
@@ -142,7 +142,7 @@ const NO_TURNS: ActiveTurns = {
 
 describe("THE FOUR WORKED EXAMPLES (FINAL-Persona §A.2 — the headline acceptance tests)", () => {
   test("worked example 1 — anchor=Nate, active=Nate: card AND prompt {{user}} both resolve to Nate", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "mary");
     const ctx = ctxWithCard(cardOf("Mary", "{{user}} is my brother"));
@@ -155,7 +155,7 @@ describe("THE FOUR WORKED EXAMPLES (FINAL-Persona §A.2 — the headline accepta
   });
 
   test("worked example 2 — swap (anchor=Nate, active=Steve): card stays Nate, prompt is Steve, and a pre-existing Nate-stamped message stays Nate in history", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "mary");
     const ctx = ctxWithCard(cardOf("Mary", "{{user}} is my brother"));
@@ -188,7 +188,7 @@ describe("THE FOUR WORKED EXAMPLES (FINAL-Persona §A.2 — the headline accepta
   });
 
   test("worked example 3 — re-pin (anchor=Steve, active=Steve): card {{user}} TRANSFERS to Steve", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "mary");
     const ctx = ctxWithCard(cardOf("Mary", "{{user}} is my brother"));
@@ -205,7 +205,7 @@ describe("THE FOUR WORKED EXAMPLES (FINAL-Persona §A.2 — the headline accepta
   });
 
   test("worked example 4 (BROWN-HAIR) — the anchor's description survives a swap in card-context, then drops on re-pin", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "mary");
     const ctx = ctxWithCard(cardOf("Mary", "Mary the innkeeper"));
@@ -228,7 +228,7 @@ describe("THE FOUR WORKED EXAMPLES (FINAL-Persona §A.2 — the headline accepta
 
 describe("the three {{persona}} (description) contexts — identical routing to {{user}} (§A.1)", () => {
   test("CARD {{persona}} resolves the ANCHOR's description, never the active speaker's", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "mary");
     // The card's own description field uses {{persona}} — the "orb pins the whole persona object, not just a
@@ -253,7 +253,7 @@ describe("canon freeze — swapping the Chat persona (#3) or the Anchor (#4) NEV
   };
 
   test("setParticipantActivePersona (Chat persona #3) leaves an existing message's personaId stamp untouched", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const nate = await seedPersona(db, host, "nate");
@@ -273,7 +273,7 @@ describe("canon freeze — swapping the Chat persona (#3) or the Anchor (#4) NEV
   });
 
   test("setChatAnchorPersona (Anchor #4 re-pin) leaves an existing message's personaId stamp untouched", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const nate = await seedPersona(db, host, "nate");

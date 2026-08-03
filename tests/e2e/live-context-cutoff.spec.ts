@@ -18,6 +18,7 @@
 //
 // @live: seeds via three real API turns (~10-18s warm). Skipped unless E2E_LIVE=1. Fully self-seeding.
 
+import type { ChatId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { messageRow, waitForAppReady } from "./support/chat-room";
 import { getUserSettings, listCanon, listCharacters, sendTurn, startChat, trpcMutation, trpcQuery } from "./support/trpc";
@@ -38,7 +39,7 @@ const TINY_CEILING = 200; // maxContextTokens small enough that only the newest 
 // live-managed-compaction spec.)
 const AUTO = { mode: "auto" as const };
 
-const previewFit = (chatId: string): Promise<ContextFitPreview> => trpcQuery<ContextFitPreview>("chat.previewContextFit", { chatId });
+const previewFit = (chatId: ChatId): Promise<ContextFitPreview> => trpcQuery<ContextFitPreview>("chat.previewContextFit", { chatId });
 
 test("the context-boundary divider is present-tense: preview-driven, knob-responsive, stale-stamp-proof", {
   tag: "@live",

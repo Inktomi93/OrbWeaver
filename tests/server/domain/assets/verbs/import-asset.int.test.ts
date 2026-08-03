@@ -10,7 +10,7 @@ import type { AssetKind } from "@orb/contracts/assets";
 import type { PortableFile } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
 import { assets, messages, messageVariants } from "@orb/db";
-import type { AssetId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, ChatId, Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createAssetsService, createExportAssets, createImportAsset } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
@@ -59,7 +59,7 @@ describe("importAsset — full re-link round-trip", () => {
     const src = await makeHarness(srcDb);
     onTestFinished(src.cleanup);
     const srcSvc = seedingService(src);
-    const owner = await seedUser(srcDb, { handle: "owner" });
+    const owner = await seedUser(srcDb, { handle: castId<Handle>("owner") });
 
     const avatarBytes = pngBytes(1, 2, 3);
     const avatar = await srcSvc.store({
@@ -68,7 +68,7 @@ describe("importAsset — full re-link round-trip", () => {
       kind: "avatar",
       mime: PNG,
     });
-    const hero = await seedCharacter(srcDb, owner, { handle: "hero" });
+    const hero = await seedCharacter(srcDb, owner, { handle: castId<CharacterHandle>("hero") });
     await setCharacterAvatar(srcDb, hero, avatar.assetId);
 
     const inlineBytes = pngBytes(9, 8, 7);
@@ -96,7 +96,7 @@ describe("importAsset — full re-link round-trip", () => {
     onTestFinished(dst.cleanup);
     const importAsset = createImportAsset(dst.ctx);
     const dstSvc = createAssetsService(dst.ctx);
-    const freshOwner = await seedUser(dstDb, { handle: "migrated" });
+    const freshOwner = await seedUser(dstDb, { handle: castId<Handle>("migrated") });
 
     for (const file of files) {
       // biome-ignore lint/performance/noAwaitInLoops: the delivery core imports one file at a time (per-file isolation); the test mirrors that sequential contract.
@@ -131,7 +131,7 @@ describe("importAsset — security belts", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const importAsset = createImportAsset(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const id = mintTypeId(ID_PREFIX.asset);
     const good = pngBytes(1, 1);
@@ -158,8 +158,8 @@ describe("importAsset — security belts", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const importAsset = createImportAsset(h.ctx);
-    const first = await seedUser(db, { handle: "first" });
-    const second = await seedUser(db, { handle: "second" });
+    const first = await seedUser(db, { handle: castId<Handle>("first") });
+    const second = await seedUser(db, { handle: castId<Handle>("second") });
 
     const id = mintTypeId(ID_PREFIX.asset);
     const file = fileFor(id, "avatar", PNG, pngBytes(3, 3));
@@ -175,7 +175,7 @@ describe("importAsset — security belts", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const importAsset = createImportAsset(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const id = mintTypeId(ID_PREFIX.asset);
     expect(await importAsset(owner, fileFor(id, "avatar", PNG, pngBytes(4, 4)))).toEqual({

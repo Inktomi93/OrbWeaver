@@ -4,7 +4,8 @@
 // to document_chunks the databank domain reaches (via injection), and it must never touch another document.
 
 import { documentChunks } from "@orb/db";
-import type { DocumentId } from "@orb/kit/ids";
+import type { DocumentId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -35,7 +36,7 @@ describe("pruneDocumentChunks (databank-design/05 §2.4)", () => {
   test("shrinks the tail: keepCount deletes exactly chunkIdx >= keepCount, survivors intact", async () => {
     const db = await freshDb();
     const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const documentId = await seedDocument(db, owner);
     await storeChunks(svc, documentId, 5, EMBED_MODEL); // idx 0..4
 
@@ -49,7 +50,7 @@ describe("pruneDocumentChunks (databank-design/05 §2.4)", () => {
   test("reclaims a retired (model) space regardless of keepCount", async () => {
     const db = await freshDb();
     const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const documentId = await seedDocument(db, owner);
     await storeChunks(svc, documentId, 3, OLD_MODEL); // the old space
     await storeChunks(svc, documentId, 3, EMBED_MODEL); // the active space
@@ -65,7 +66,7 @@ describe("pruneDocumentChunks (databank-design/05 §2.4)", () => {
   test("never touches another document's chunks", async () => {
     const db = await freshDb();
     const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const docA = await seedDocument(db, owner, { id: "document_a" });
     const docB = await seedDocument(db, owner, { id: "document_b" });
     await storeChunks(svc, docA, 4, EMBED_MODEL);

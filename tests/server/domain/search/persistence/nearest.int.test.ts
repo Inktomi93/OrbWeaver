@@ -3,6 +3,8 @@
 // returned) and OWNER-SCOPE (another owner's card is never returned), plus ascending-by-distance ordering
 // and the rerankable `sourceText` (name + description).
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { nearestCharacters } from "../../../../../packages/server/src/domain/search/persistence/nearest.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -12,7 +14,7 @@ import { EMBED_MODEL, seedCharacter, seedCharacterEmbedding, seedUser, vec } fro
 describe("nearestCharacters", () => {
   test("returns the owner's in-space cards ordered ascending by distance", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const near = await seedCharacter(db, { id: "character_near", ownerId: owner, name: "Near" });
     const far = await seedCharacter(db, { id: "character_far", ownerId: owner, name: "Far" });
@@ -32,7 +34,7 @@ describe("nearestCharacters", () => {
 
   test("never returns a row from a different embedding space (model filter)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const inSpace = await seedCharacter(db, { id: "character_in", ownerId: owner, name: "In" });
     const otherSpace = await seedCharacter(db, {
       id: "character_other",
@@ -58,8 +60,8 @@ describe("nearestCharacters", () => {
 
   test("never returns another owner's card (owner-scope belt)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const mine = await seedCharacter(db, { id: "character_mine", ownerId: owner, name: "Mine" });
     const theirs = await seedCharacter(db, {
       id: "character_theirs",
@@ -81,7 +83,7 @@ describe("nearestCharacters", () => {
 
   test("sourceText is the card name + description (the cross-encoder document)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const c = await seedCharacter(db, {
       id: "character_text",
       ownerId: owner,

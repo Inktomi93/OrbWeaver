@@ -4,7 +4,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, SessionId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
   CreateUserParams,
@@ -35,7 +35,7 @@ import type { AdminEngineStatus, SessionAdminView } from "./views";
  *  composition root. Not re-exported from the front door — a private port. */
 interface SessionAdminPort {
   readonly listForUser: (userId: UserId) => Promise<readonly SessionAdminView[]>;
-  readonly revoke: (sessionId: string) => Promise<void>;
+  readonly revoke: (sessionId: SessionId) => Promise<void>;
   readonly revokeAllForUser: (userId: UserId) => Promise<number>;
 }
 

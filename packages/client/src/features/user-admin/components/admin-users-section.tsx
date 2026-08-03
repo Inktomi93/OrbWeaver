@@ -8,7 +8,7 @@
 // is UX honesty over that floor, and its error state says so.
 
 import type { UserRole } from "@orb/contracts/identity";
-import type { UserId } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Icon, UserPlus } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -28,7 +28,7 @@ import { AdminUserSessionsDialog } from "./admin-user-sessions-dialog";
 
 interface UserTarget {
   readonly userId: UserId;
-  readonly handle: string;
+  readonly handle: Handle;
 }
 
 /** The Users section body — mounted at the admin pane's sections anchor. */

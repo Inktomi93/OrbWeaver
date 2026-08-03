@@ -4,7 +4,8 @@
 // them, while a MEMBER's payload is filtered to the visible set (a member never learns a hidden document's name).
 
 import { chats } from "@orb/db";
-import type { ChatId, DocumentId } from "@orb/kit/ids";
+import type { ChatId, DocumentId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -20,8 +21,8 @@ async function hideDocuments(db: Awaited<ReturnType<typeof freshDb>>, chatId: Ch
 test("D85: returns the membership union (every member's attached globals + chat-attached) for any member", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const host = await seedUser(db, { handle: "host" });
-  const member = await seedUser(db, { handle: "member" });
+  const host = await seedUser(db, { handle: castId<Handle>("host") });
+  const member = await seedUser(db, { handle: castId<Handle>("member") });
   const chatId = await seedChat(db, "chat_room");
   await seedChatHost(db, chatId, host, "host");
   await seedChatHost(db, chatId, member, "member");
@@ -42,8 +43,8 @@ test("D85: returns the membership union (every member's attached globals + chat-
 test("D85: the host sees a hidden document FLAGGED; a member never receives it (name-privacy filter)", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const host = await seedUser(db, { handle: "host" });
-  const member = await seedUser(db, { handle: "member" });
+  const host = await seedUser(db, { handle: castId<Handle>("host") });
+  const member = await seedUser(db, { handle: castId<Handle>("member") });
   const chatId = await seedChat(db, "chat_room");
   await seedChatHost(db, chatId, host, "host");
   await seedChatHost(db, chatId, member, "member");
@@ -73,7 +74,7 @@ test("D85: the host sees a hidden document FLAGGED; a member never receives it (
 test("D-2: each row carries the junction(s) crediting it — global · chat · character, several at once", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const host = await seedUser(db, { handle: "host" });
+  const host = await seedUser(db, { handle: castId<Handle>("host") });
   const chatId = await seedChat(db, "chat_room");
   await seedChatHost(db, chatId, host, "host");
   const characterId = await seedCharacter(db, host, { id: "character_azarael", name: "Azarael" });
@@ -102,7 +103,7 @@ test("D-2: each row carries the junction(s) crediting it — global · chat · c
 test("a non-member is rejected by the injected member guard", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db, { ensureChatMember: () => Promise.reject(new Error("not a member")) });
-  const stranger = await seedUser(db, { handle: "stranger" });
+  const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
   const chatId = await seedChat(db, "chat_room");
 
   await expect(h.service.listActiveForChat({ principal: principalFor(stranger), chatId })).rejects.toThrow("not a member");

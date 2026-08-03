@@ -5,6 +5,8 @@
 // `tags`/`character_tags`, so a break in tag's resolve-or-create-and-attach is visible from character's tree.
 
 import { characterTags, tags } from "@orb/db";
+import type { CharacterHandle, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -19,19 +21,19 @@ describe("bulk add card tag", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const a = await svc.create({
       principal: principal(owner),
-      input: { handle: "a", name: "A", description: "d" },
+      input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
     const b = await svc.create({
       principal: principal(owner),
-      input: { handle: "b", name: "B", description: "d" },
+      input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d" },
     });
     const foreign = await svc.create({
       principal: principal(other),
-      input: { handle: "c", name: "C", description: "d" },
+      input: { handle: castId<CharacterHandle>("c"), name: "C", description: "d" },
     });
 
     await svc.bulkAddCardTag({
@@ -54,15 +56,15 @@ describe("bulk add card tag", () => {
     const attachCardTagByName = createAttachCardTagByName(tagHarness.ctx);
     const svc = createCharacterService({ ...h.ctx, attachCardTag: attachCardTagByName });
 
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const a = await svc.create({
       principal: principal(owner),
-      input: { handle: "a", name: "A", description: "d" },
+      input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
     const foreign = await svc.create({
       principal: principal(other),
-      input: { handle: "c", name: "C", description: "d" },
+      input: { handle: castId<CharacterHandle>("c"), name: "C", description: "d" },
     });
 
     await svc.bulkAddCardTag({
@@ -99,10 +101,10 @@ describe("bulk add card tag", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const a = await svc.create({
       principal: principal(owner),
-      input: { handle: "a", name: "A", description: "d" },
+      input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
     await svc.bulkAddCardTag({ principal: principal(owner), tagName: "   ", characterIds: [a.id] });
     expect(h.tagAttaches).toEqual([]);

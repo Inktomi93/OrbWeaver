@@ -6,6 +6,7 @@
 import type { AutomationAction, AutomationCelEnv, AutomationTrigger, TriggerFact } from "@orb/contracts/automation";
 import type { CelBindings } from "@orb/kit/cel";
 import { CelEvalError, evalCel, isCelParseError, parseCel } from "@orb/kit/cel";
+import type { ChatId } from "@orb/kit/ids";
 import type { ArmPreview } from "../contract/results";
 import { renderArmTemplate } from "./macro-render";
 
@@ -23,7 +24,7 @@ function toCelBindings(env: AutomationCelEnv, withEvent: boolean): CelBindings {
 }
 
 /** Synthesize a minimal fact from a rule's trigger when the host supplies no sample (04 §2). */
-export function synthFact(trigger: AutomationTrigger, chatId: string | null): TriggerFact {
+export function synthFact(trigger: AutomationTrigger, chatId: ChatId | null): TriggerFact {
   return { type: trigger.type, bus: trigger.bus, chatId };
 }
 
@@ -82,7 +83,7 @@ export function renderArmPreview(action: AutomationAction, env: AutomationCelEnv
 /** The empty-context env for a dry run with no live chat vars/choice (A4). `global` is the author's own
  *  plane (read via the global-var persistence); `chat` carries the id + message count. */
 export function emptyDryRunEnv(parts: {
-  chatId: string;
+  chatId: ChatId;
   messageCount: number;
   global: Record<string, string>;
   event: TriggerFact;

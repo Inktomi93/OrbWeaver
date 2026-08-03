@@ -5,7 +5,7 @@
 // would take), that read-through composes two tool calls in one turn, and the off-game/errors-as-data lanes.
 
 import { RPG_LITE_TOOL_NAMES } from "@orb/contracts/rpg";
-import type { ChatId, ChatTurnId } from "@orb/kit/ids";
+import type { ChatId, ChatTurnId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { rpgToolDefinitions } from "../../../../../packages/server/src/domain/rpg/index";
@@ -23,7 +23,7 @@ function defOf(defs: readonly ToolDefinition[], name: string): ToolDefinition {
 }
 
 function exec(chatId: ChatId, turnId: ChatTurnId | null): ToolExecutionContext {
-  return { principal: principal("host"), triggeredBy: castId("user_host"), chatId, turnId, roster: null };
+  return { principal: principal(castId<Handle>("host")), triggeredBy: castId("user_host"), chatId, turnId, roster: null };
 }
 
 test("the factory returns the 7 lite tool defs — member-floor, builtin, projectable args", async ({ db }) => {

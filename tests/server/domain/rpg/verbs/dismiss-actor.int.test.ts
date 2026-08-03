@@ -6,7 +6,8 @@
 // row, the scene-presence row, and the element's locks — because half a dismissal is a ghost.
 
 import type { Db } from "@orb/db";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { beforeEach } from "vitest";
 import type { RpgGameRow } from "../../../../../packages/server/src/domain/rpg/contract/service";
 import { findGameByChat } from "../../../../../packages/server/src/domain/rpg/persistence/games";
@@ -20,7 +21,7 @@ beforeEach(async () => {
 });
 
 const MIRA = { kind: "cast", castKey: "mira" } as const;
-const HOST = principal("host");
+const HOST = principal(castId<Handle>("host"));
 
 async function seedGame(): Promise<{
   chatId: ChatId;

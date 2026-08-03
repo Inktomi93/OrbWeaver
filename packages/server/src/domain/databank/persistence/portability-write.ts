@@ -10,7 +10,8 @@
 import { assets, characterDocuments, characters, documents, globalDocuments } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
-import type { AssetId, CharacterId, DocumentId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, DocumentId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { and, eq, inArray } from "drizzle-orm";
 import type { CanonicalDocument } from "#kit/serde/databank";
@@ -102,7 +103,15 @@ async function resolveCharacters(ctx: Pick<DatabankPortabilityContext, "db">, ow
   const rows = await ctx.db
     .select({ id: characters.id })
     .from(characters)
-    .where(and(eq(characters.ownerId, ownerId), inArray(characters.handle, [...handles])));
+    .where(
+      and(
+        eq(characters.ownerId, ownerId),
+        inArray(
+          characters.handle,
+          [...handles].map((h) => castId<CharacterHandle>(h)),
+        ),
+      ),
+    );
   return rows.map((r) => r.id);
 }
 

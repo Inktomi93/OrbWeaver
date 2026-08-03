@@ -8,6 +8,7 @@
 import { blobUrl } from "@orb/contracts/assets";
 import type { TagView } from "@orb/contracts/tag";
 import type { ThemeOverride } from "@orb/contracts/theme";
+import type { CharacterHandle } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Badge } from "@orb/ui/badge";
@@ -27,7 +28,7 @@ export interface CharacterCardItem {
   readonly id: string;
   readonly name: string;
   /** Identity slug — the subtitle ladder's last fallback. */
-  readonly handle: string;
+  readonly handle: CharacterHandle;
   readonly archived: boolean;
   readonly starred: boolean;
   /** CAS key — null when no avatar; never `avatarAssetId` (blob route keyed by hash). */

@@ -16,6 +16,7 @@
 // used to be `chat.streamMessages`), the exact path a real member's browser bus rides — so what this
 // consumer receives IS what a member receives, byte for byte.
 
+import type { ChatId } from "@orb/kit/ids";
 import type { ChatBusEventLite } from "./sse-types";
 
 /** One collected room value — the durable `seq` cursor carried INSIDE the frame + the yielded event. */
@@ -28,7 +29,7 @@ export interface StreamValue {
  *  e2e-support import-free-of-package-trees rule). */
 interface ChatFrame {
   readonly channel: string;
-  readonly chatId?: string;
+  readonly chatId?: ChatId;
   readonly seq?: number;
   readonly event?: ChatBusEventLite;
 }
@@ -41,7 +42,7 @@ interface ChatFrame {
 export async function collectChatRoomFrames(args: {
   readonly baseUrl: string;
   readonly headers: Readonly<Record<string, string>>;
-  readonly chatId: string;
+  readonly chatId: ChatId;
   readonly until: (values: readonly StreamValue[]) => boolean;
   readonly timeoutMs: number;
   readonly sinceSeq?: number;
@@ -92,7 +93,7 @@ async function pumpStream(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   sink: StreamValue[],
   until: (values: readonly StreamValue[]) => boolean,
-  chatId: string,
+  chatId: ChatId,
 ): Promise<void> {
   const decoder = new TextDecoder();
   let buffer = "";
@@ -112,7 +113,7 @@ async function pumpStream(
 
 /** Split every COMPLETE frame (up to a blank line) out of `buffer`, push its parsed value to `sink`, and
  *  return the trailing incomplete remainder. */
-function drainFrames(buffer: string, sink: StreamValue[], chatId: string): string {
+function drainFrames(buffer: string, sink: StreamValue[], chatId: ChatId): string {
   let rest = buffer;
   let sep = rest.indexOf("\n\n");
   while (sep !== -1) {
@@ -130,7 +131,7 @@ function drainFrames(buffer: string, sink: StreamValue[], chatId: string): strin
  *  `httpSubscriptionLink` writes the YIELDED VALUE directly as the `data:` JSON (NOT wrapped in `{data:…}`),
  *  with the per-socket ordinal on a following `id:` line. A control frame — the `event: connected`
  *  handshake (`data: {}`), a ping, or a `channel:"control"` lifecycle frame — carries no room event. */
-function parseFrame(frame: string, chatId: string): StreamValue | null {
+function parseFrame(frame: string, chatId: ChatId): StreamValue | null {
   let dataLine: string | null = null;
   for (const line of frame.split("\n")) {
     if (line.startsWith("data:")) {

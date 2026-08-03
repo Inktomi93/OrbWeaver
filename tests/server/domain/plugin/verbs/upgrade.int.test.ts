@@ -2,7 +2,7 @@
 // rule (new caps ⇒ disabled), the old-bundle reap, and enabled-state preservation when no re-grant is needed.
 
 import { DomainForbiddenError } from "@orb/kit/errors";
-import type { PluginId } from "@orb/kit/ids";
+import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { ManifestInvalidError, PluginDowngradeRefusedError, PluginNotFoundError } from "@orb/server/domain/plugin";
 import { freshDb } from "../../../../support/db.ts";
@@ -12,7 +12,7 @@ import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUse
 test("upgrades the bundle: version bump, new bytes stored, old bundle reaped", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "pp", version: "1.0.0" }), grant: [] });
 
   const upgraded = await h.service.upgrade({ caller: ownerPrincipalFor(owner), pluginId: installed.id, bundle: makeBundle({ id: "pp", version: "1.1.0" }) });
@@ -24,7 +24,7 @@ test("upgrades the bundle: version bump, new bytes stored, old bundle reaped", a
 test("a version LOWER than installed is refused (no silent rollback)", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "pp", version: "2.0.0" }), grant: [] });
   await expect(
     h.service.upgrade({ caller: ownerPrincipalFor(owner), pluginId: installed.id, bundle: makeBundle({ id: "pp", version: "1.9.9" }) }),
@@ -34,7 +34,7 @@ test("a version LOWER than installed is refused (no silent rollback)", async () 
 test("a bundle whose slug differs from the installed plugin is refused", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "pp" }), grant: [] });
   await expect(
     h.service.upgrade({ caller: ownerPrincipalFor(owner), pluginId: installed.id, bundle: makeBundle({ id: "other", version: "2.0.0" }) }),
@@ -44,7 +44,7 @@ test("a bundle whose slug differs from the installed plugin is refused", async (
 test("an upgrade that declares a NEW capability lands disabled (pending re-grant) — and is NOT re-activated", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
     caller: ownerPrincipalFor(owner),
     bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }),
@@ -66,7 +66,7 @@ test("an upgrade that declares a NEW capability lands disabled (pending re-grant
 test("upgrading an ENABLED plugin with no new caps re-activates on the new bundle", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
     caller: ownerPrincipalFor(owner),
     bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }),
@@ -88,8 +88,8 @@ test("upgrading an ENABLED plugin with no new caps re-activates on the new bundl
 test("a missing/foreign plugin is a leak-free NotFound; a non-admin is refused", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
-  const user = await seedUser(db, { handle: "user" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const user = await seedUser(db, { handle: castId<Handle>("user") });
   const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "pp" }), grant: [] });
 
   await expect(

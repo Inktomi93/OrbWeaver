@@ -1,6 +1,6 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatParticipants } from "@orb/db";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
 import { createPersonaService, PersonaNotFoundError } from "@orb/server/domain/persona";
@@ -16,7 +16,7 @@ describe("setActivePersona", () => {
   test("updates active persona when valid", async () => {
     const db = await freshDb();
     let requireCalled = false;
-    let setCalledWith: { targetUserId: string; personaId: string | null } | null = null;
+    let setCalledWith: { targetUserId: string; personaId: PersonaId | null } | null = null;
 
     const harness = makeHarness(db, {
       requireChatAuthorOrHost: (): Promise<void> => {
@@ -54,8 +54,8 @@ describe("setActivePersona", () => {
     const harness = makeHarness(db);
     const svc = createPersonaService(harness.ctx);
 
-    const ownerId = await seedUser(db, { handle: "owner" });
-    const otherUserId = await seedUser(db, { handle: "other" });
+    const ownerId = await seedUser(db, { handle: castId<Handle>("owner") });
+    const otherUserId = await seedUser(db, { handle: castId<Handle>("other") });
     const created = await svc.create({
       principal: principal(otherUserId),
       input: { name: "other", description: "d" },
@@ -75,7 +75,7 @@ describe("setActivePersona", () => {
 
   test("allows null personaId to clear active persona", async () => {
     const db = await freshDb();
-    let setCalledWith: { targetUserId: string; personaId: string | null } | null = null;
+    let setCalledWith: { targetUserId: string; personaId: PersonaId | null } | null = null;
     const harness = makeHarness(db, {
       setChatActivePersona: (_chatId, targetUserId, pId): Promise<void> => {
         setCalledWith = { targetUserId, personaId: pId };
@@ -100,7 +100,7 @@ describe("setActivePersona", () => {
   test("omitted targetUserId defaults to the caller (self-case)", async () => {
     const db = await freshDb();
     let requireCalledWith: string | null = null;
-    let setCalledWith: { targetUserId: string; personaId: string | null } | null = null;
+    let setCalledWith: { targetUserId: string; personaId: PersonaId | null } | null = null;
     const harness = makeHarness(db, {
       requireChatAuthorOrHost: (_principal, _chatId, targetUserId): Promise<void> => {
         requireCalledWith = targetUserId;
@@ -131,7 +131,7 @@ describe("setActivePersona", () => {
 
   test("host with an explicit targetUserId stamps the TARGET, not the caller", async () => {
     const db = await freshDb();
-    let setCalledWith: { targetUserId: string; personaId: string | null } | null = null;
+    let setCalledWith: { targetUserId: string; personaId: PersonaId | null } | null = null;
     const harness = makeHarness(db, {
       requireChatAuthorOrHost: () => Promise.resolve(),
       setChatActivePersona: (_chatId, targetUserId, pId): Promise<void> => {
@@ -141,8 +141,8 @@ describe("setActivePersona", () => {
     });
     const svc = createPersonaService(harness.ctx);
 
-    const hostId = await seedUser(db, { handle: "host" });
-    const targetId = await seedUser(db, { handle: "target" });
+    const hostId = await seedUser(db, { handle: castId<Handle>("host") });
+    const targetId = await seedUser(db, { handle: castId<Handle>("target") });
     const created = await svc.create({
       principal: principal(targetId),
       input: { name: "target-persona", description: "d" },
@@ -165,8 +165,8 @@ describe("setActivePersona", () => {
     });
     const svc = createPersonaService(harness.ctx);
 
-    const callerId = await seedUser(db, { handle: "caller" });
-    const targetId = await seedUser(db, { handle: "target" });
+    const callerId = await seedUser(db, { handle: castId<Handle>("caller") });
+    const targetId = await seedUser(db, { handle: castId<Handle>("target") });
 
     await expect(
       svc.setActivePersona({
@@ -239,7 +239,7 @@ describe("setActivePersona", () => {
     });
     // A chat the caller is NOT a participant of (only some other user is seated).
     const chatId = await seedChat(db, "rw2");
-    const otherId = await seedUser(db, { handle: "seated" });
+    const otherId = await seedUser(db, { handle: castId<Handle>("seated") });
     await seedParticipant(db, { chatId, key: "seated", userId: otherId, role: "host" });
 
     await expect(

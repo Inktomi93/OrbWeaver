@@ -34,6 +34,7 @@ import type {
 } from "@orb/contracts/rpg";
 import type { Db, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
 import type {
+  CharacterHandle,
   CharacterId,
   ChatId,
   ChatTurnId,
@@ -223,7 +224,7 @@ interface RpgPromoteToRosterInput {
   /** The NPC's display name → the card's `name` (and the roster name every model `targetRef` resolves by). */
   readonly name: string;
   /** The desired per-owner card handle (the cast slug); the impl uniquifies against the owner's library. */
-  readonly handle: string;
+  readonly handle: CharacterHandle;
   /** The standing guides rendered as card prose (`rpgPromotedCardDescription`) — `""` when the story wrote
    *  none, which mints an empty description rather than an invented biography. */
   readonly description: string;

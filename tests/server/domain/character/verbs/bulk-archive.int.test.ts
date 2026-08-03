@@ -1,5 +1,7 @@
 // verb: bulkArchive — owner-scoped archive/un-archive flip; foreign rows are untouched; no emit.
 
+import type { CharacterHandle, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -11,15 +13,15 @@ describe("bulkArchive", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const a = await svc.create({
       principal: principal(owner),
-      input: { handle: "a", name: "A", description: "d" },
+      input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
     const foreign = await svc.create({
       principal: principal(other),
-      input: { handle: "b", name: "B", description: "d" },
+      input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d" },
     });
     h.events.length = 0;
 
@@ -39,10 +41,10 @@ describe("bulkArchive", () => {
   test("un-archive flips back", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const a = await svc.create({
       principal: principal(owner),
-      input: { handle: "a", name: "A", description: "d" },
+      input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
     await svc.bulkArchive({ principal: principal(owner), characterIds: [a.id], archived: true });
     await svc.bulkArchive({ principal: principal(owner), characterIds: [a.id], archived: false });

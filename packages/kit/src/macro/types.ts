@@ -1,4 +1,5 @@
 import type { CelBindings } from "#cel";
+import type { ChatId } from "#ids";
 
 export type MacroAST = MacroNode[];
 
@@ -267,7 +268,7 @@ export interface MacroContext {
   idleDuration?: string | undefined;
   // Run-environment shortcuts (legacy card-format compat). Threaded by the chat send/assembly path.
   model?: string | undefined; // → {{model}}
-  chatId?: string | undefined; // → {{chatId}}
+  chatId?: ChatId | undefined; // → {{chatId}}
   // IANA timezone (e.g. "America/New_York") for {{time}}/{{date}} — supplied per-request by the
   // browser (Intl.DateTimeFormat().resolvedOptions().timeZone). Absent/invalid → server-local.
   timezone?: string | undefined;

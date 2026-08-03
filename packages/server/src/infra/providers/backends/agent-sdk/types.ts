@@ -2,6 +2,7 @@
 // providers contract stays SDK-free.
 
 import type { query, SessionStore } from "@anthropic-ai/claude-agent-sdk";
+import type { ChatId } from "@orb/kit/ids";
 import type { ChatDeltaEvent, ChatEvent, ContextUsage, WireCaptureSink } from "../../contract";
 import type { NormalizeImageBytes } from "../kit";
 import type { SeededSessionDecision } from "./session";
@@ -45,7 +46,7 @@ export interface TurnStreamContext {
   readonly resumed: boolean;
   readonly disposition?: SeededSessionDecision["disposition"] | undefined;
   readonly now: () => number;
-  readonly chatId?: string | undefined;
+  readonly chatId?: ChatId | undefined;
   readonly onEvent?: ((event: ChatEvent) => void) | undefined;
   readonly onDelta?: ((event: ChatDeltaEvent) => void) | undefined;
   // @foreign-id-ok(sessionId): the Claude Agent SDK's OWN chat-session id (its `session_id` wire field) — a NAME COLLISION with our BFF `SessionId = TypeIdOf<"session">`, a different wire's id that merely shares the spelling. Ends if this position ever carries one of our session rows, or if the field is renamed `sdkSessionId` (which would dissolve this marker).

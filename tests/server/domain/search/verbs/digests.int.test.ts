@@ -5,7 +5,8 @@
 // mode `mixC` rerank reorder, and the empty-candidates short-circuit.
 
 import type { MemoryQueryOptions } from "@orb/contracts/search";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -27,7 +28,7 @@ function opts(chat: ChatId, scopedCharacterId: CharacterId, over: Partial<Memory
 }
 
 async function seedOwnerChatChar(db: Awaited<ReturnType<typeof freshDb>>): Promise<{ chat: ChatId; char: CharacterId }> {
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const char = await seedCharacter(db, { id: "character_pov", ownerId: owner, name: "POV" });
   const chat = await seedChat(db, "chat_a");
   return { chat, char };

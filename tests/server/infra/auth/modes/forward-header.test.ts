@@ -1,3 +1,5 @@
+import type { ExternalId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { AuthConfig, ForwardJwtClaims, ForwardJwtVerifier, ResolveDeps } from "@orb/server/infra/auth";
 import { MODE_RESOLVERS } from "@orb/server/infra/auth";
 import { describe } from "vitest";
@@ -153,7 +155,7 @@ describe("forward-header — signed JWT (fail-closed)", () => {
     const res = await resolveForwardHeader(
       headers({ "x-authentik-jwt": "aaa.bbb.ccc", "x-authentik-username": "spoofed" }),
       cfg({ verifyForwardJwt: true, jwksAllowlist: ["idp.example.com"] }),
-      verifyDeps({ handle: "x", externalId: null, groups: [], email: null }),
+      verifyDeps({ handle: castId<Handle>("x"), externalId: null, groups: [], email: null }),
     );
     expect(res).toBeNull();
   });
@@ -162,7 +164,7 @@ describe("forward-header — signed JWT (fail-closed)", () => {
     const res = await resolveForwardHeader(
       headers(SIGNED),
       cfg({ verifyForwardJwt: true, jwksAllowlist: [] }),
-      verifyDeps({ handle: "x", externalId: null, groups: [], email: null }),
+      verifyDeps({ handle: castId<Handle>("x"), externalId: null, groups: [], email: null }),
     );
     expect(res).toBeNull();
   });
@@ -181,7 +183,7 @@ describe("forward-header — signed JWT (fail-closed)", () => {
     const res = await resolveForwardHeader(
       headers(SIGNED),
       cfg({ verifyForwardJwt: true, jwksAllowlist: ["idp.example.com"] }),
-      verifyDeps({ handle: undefined, externalId: "sub", groups: [], email: null }),
+      verifyDeps({ handle: undefined, externalId: castId<ExternalId>("sub"), groups: [], email: null }),
     );
     expect(res).toBeNull();
   });
@@ -190,10 +192,10 @@ describe("forward-header — signed JWT (fail-closed)", () => {
     const res = await resolveForwardHeader(
       headers(SIGNED),
       cfg({ verifyForwardJwt: true, jwksAllowlist: ["idp.example.com"] }),
-      verifyDeps({ handle: "alice", externalId: "sub-a", groups: ["g"], email: "a@example.com" }),
+      verifyDeps({ handle: castId<Handle>("alice"), externalId: castId<ExternalId>("sub-a"), groups: ["g"], email: "a@example.com" }),
     );
     expect(res).toEqual({
-      externalId: "sub-a",
+      externalId: castId<ExternalId>("sub-a"),
       handle: "alice",
       groups: ["g"],
       email: "a@example.com",

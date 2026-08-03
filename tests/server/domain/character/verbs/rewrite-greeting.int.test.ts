@@ -3,7 +3,7 @@
 // steer), non-owner → leak-free CharacterNotFoundError BEFORE any template read / completion, and no DB write.
 
 import { ZWSP } from "@orb/kit/guided";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CharacterNotFoundError, createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
@@ -16,8 +16,8 @@ describe("rewriteGreeting", () => {
     const db = await freshDb();
     const harness = makeHarness(db);
     const svc = createCharacterService(harness.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const created = await svc.create({ principal: principal(owner), input: { handle: "nyx", name: "Nyx", description: "d" } });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
 
     const result = await svc.rewriteGreeting({ principal: principal(owner), characterId: created.id, greeting: "hey there", steer: "make it formal" });
 
@@ -35,8 +35,8 @@ describe("rewriteGreeting", () => {
     const harness = makeHarness(db);
     harness.setGreetingTemplate("Revise {{base}} per {{input}} for {{char}}");
     const svc = createCharacterService(harness.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const created = await svc.create({ principal: principal(owner), input: { handle: "nyx", name: "Nyx", description: "d" } });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
 
     // The base greeting carries a macro — it MUST be ZWSP-neutralized (other-author content), never resolved.
     await svc.rewriteGreeting({ principal: principal(owner), characterId: created.id, greeting: "{{user}} waves", steer: "warmer" });
@@ -51,9 +51,9 @@ describe("rewriteGreeting", () => {
     const db = await freshDb();
     const harness = makeHarness(db);
     const svc = createCharacterService(harness.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
-    const created = await svc.create({ principal: principal(owner), input: { handle: "nyx", name: "Nyx", description: "d" } });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
+    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
 
     await expect(svc.rewriteGreeting({ principal: principal(stranger), characterId: created.id, greeting: "hey", steer: "x" })).rejects.toBeInstanceOf(
       CharacterNotFoundError,
@@ -67,7 +67,7 @@ describe("rewriteGreeting", () => {
     const db = await freshDb();
     const harness = makeHarness(db);
     const svc = createCharacterService(harness.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await expect(
       svc.rewriteGreeting({ principal: principal(owner), characterId: castId<CharacterId>("character_ghost"), greeting: "h", steer: "s" }),
     ).rejects.toBeInstanceOf(CharacterNotFoundError);
@@ -78,10 +78,10 @@ describe("rewriteGreeting", () => {
     const db = await freshDb();
     const harness = makeHarness(db);
     const svc = createCharacterService(harness.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "d", greetings: [{ text: "original" }] },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d", greetings: [{ text: "original" }] },
     });
     const emitsBefore = harness.events.length;
 

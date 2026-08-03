@@ -3,6 +3,8 @@
 // byte-identical import is NOT returned — the dedup is per-user, not global), and a card created with
 // provenance is itself findable (the create→dedup round-trip the import composition root relies on).
 
+import type { CharacterHandle, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -13,12 +15,12 @@ describe("findByImportHash", () => {
   test("returns the owner's character carrying the hash", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const importHash = "c".repeat(64);
     const characterId = await seedRawCharacter(db, {
       id: "character_imported",
       ownerId: owner,
-      handle: "aria",
+      handle: castId<CharacterHandle>("aria"),
       importedFrom: "Aria.png",
       importHash,
     });
@@ -30,8 +32,8 @@ describe("findByImportHash", () => {
   test("returns null when no character carries the hash", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    await seedRawCharacter(db, { ownerId: owner, handle: "aria", importHash: "d".repeat(64) });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedRawCharacter(db, { ownerId: owner, handle: castId<CharacterHandle>("aria"), importHash: "d".repeat(64) });
 
     const ref = await svc.findByImportHash({ ownerId: owner, importHash: "e".repeat(64) });
     expect(ref).toBeNull();
@@ -40,14 +42,14 @@ describe("findByImportHash", () => {
   test("is owner-scoped — a different owner's same-hash card is not returned", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const a = await seedUser(db, { handle: "a" });
-    const b = await seedUser(db, { handle: "b" });
+    const a = await seedUser(db, { handle: castId<Handle>("a") });
+    const b = await seedUser(db, { handle: castId<Handle>("b") });
     const sharedHash = "f".repeat(64);
     // Owner B already imported the byte-identical card.
     await seedRawCharacter(db, {
       id: "character_b",
       ownerId: b,
-      handle: "aria",
+      handle: castId<CharacterHandle>("aria"),
       importHash: sharedHash,
     });
 
@@ -59,11 +61,11 @@ describe("findByImportHash", () => {
   test("a card created with provenance is findable by its hash (create→dedup round-trip)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const importHash = "1".repeat(64);
     const detail = await svc.create({
       principal: principal(owner),
-      input: { handle: "aria", name: "Aria", description: "imported" },
+      input: { handle: castId<CharacterHandle>("aria"), name: "Aria", description: "imported" },
       provenance: { importedFrom: "Aria.png", importHash },
     });
 

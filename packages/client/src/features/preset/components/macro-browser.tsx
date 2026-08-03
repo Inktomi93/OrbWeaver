@@ -5,6 +5,7 @@
 // exactly as registration reports it — the browser shows the truth of the registry, never a parallel list.
 
 import type { UserMacroSpec } from "@orb/contracts/preset";
+import type { PresetId } from "@orb/kit/ids";
 import type { MacroMetadata, UserMacroRegistration } from "@orb/kit/macro";
 import { createDefaultRegistry, MACRO_FLAG_DEFS, queryMacros, registerUserMacros } from "@orb/kit/macro";
 import { Badge } from "@orb/ui/badge";
@@ -17,7 +18,7 @@ export interface MacroBrowserProps {
   /** The preset's user-macro definitions — composed onto a fresh default registry for display. */
   readonly userMacros: readonly UserMacroSpec[];
   /** The owning preset id (source attribution — `preset:<id>`). */
-  readonly presetId: string;
+  readonly presetId: PresetId;
 }
 
 interface BrowserModel {
@@ -27,7 +28,7 @@ interface BrowserModel {
 
 // Compose the display registry exactly the way evaluation composes it (defaults + registerUserMacros) —
 // the browser reads the SAME metadata surface the engine enforces, so the two can never disagree.
-function buildModel(userMacros: readonly UserMacroSpec[], presetId: string): BrowserModel {
+function buildModel(userMacros: readonly UserMacroSpec[], presetId: PresetId): BrowserModel {
   const registry = createDefaultRegistry();
   const { rejected } = registerUserMacros(registry, userMacros, { source: { kind: "preset", id: presetId } });
   return { macros: queryMacros(registry, {}), rejected };

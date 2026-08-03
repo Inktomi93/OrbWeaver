@@ -14,7 +14,7 @@
 import type { GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { CharacterId, MessageId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -90,8 +90,8 @@ const NOVA = "persona_nova";
 const DRAFT_IDENTITY_STUB = {
   "persona.list": (): readonly { id: string; name: string; description: string }[] => [{ id: NOVA, name: "Nova", description: "a wandering cartographer" }],
   "persona.listConnectedToCharacter": (): readonly never[] => [],
-  "settings.getUserSettings": (): { userId: string; schemaVersion: number; config: unknown; updatedAt: number } => ({
-    userId: "user_ct",
+  "settings.getUserSettings": (): { userId: UserId; schemaVersion: number; config: unknown; updatedAt: number } => ({
+    userId: castId<UserId>("user_ct"),
     schemaVersion: 1,
     config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, currentPersonaId: NOVA } },
     updatedAt: 0,
@@ -136,7 +136,7 @@ test("a panel-added character renders a greeting row pre-commit (same cast the c
     ...DRAFT_IDENTITY_STUB,
     "chat.listMessages": () => makeMessagesPage([]),
     "character.get": (input: unknown): unknown =>
-      (input as { readonly characterId: string }).characterId === "char_ct_panel_added"
+      (input as { readonly characterId: CharacterId }).characterId === "char_ct_panel_added"
         ? { id: castId<CharacterId>("char_ct_panel_added"), name: "Bryn", greetings: ["Well met, wanderer."] }
         : { id: castId<CharacterId>("char_ct_room"), name: "Aria", greetings: ["Greetings, traveller."] },
   });
@@ -198,7 +198,7 @@ async function routeUnbalancedGreeting(page: Page, autoFixMarkdown: boolean): Pr
     ...PREVIEW_FIT_STUB,
     ...DRAFT_IDENTITY_STUB,
     "settings.getUserSettings": () => ({
-      userId: "user_ct",
+      userId: castId<UserId>("user_ct"),
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, autoFixMarkdown } },
       updatedAt: 0,
@@ -234,7 +234,7 @@ async function routeQuotedGreeting(page: Page, colorQuotedSpeech: boolean): Prom
     ...PREVIEW_FIT_STUB,
     ...DRAFT_IDENTITY_STUB,
     "settings.getUserSettings": () => ({
-      userId: "user_ct",
+      userId: castId<UserId>("user_ct"),
       schemaVersion: 1,
       config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, colorQuotedSpeech } },
       updatedAt: 0,

@@ -12,7 +12,7 @@
 // ref key, not an orphan `cast:<name>` the panel never reads. (The pure applier F1-mint / F2-resolve units live
 // in `tools/apply.test.ts`.)
 
-import type { ChatId, ChatTurnId, RpgQuestId } from "@orb/kit/ids";
+import type { ChatId, ChatTurnId, Handle, RpgQuestId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability";
 import type { RpgRosterActor } from "../../../../../packages/server/src/domain/rpg/index";
@@ -30,7 +30,7 @@ const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_t1");
 const POOLS_MAX_RE = /pools|max/i;
 
 function exec(chatId: ChatId, turnId: ChatTurnId): ToolExecutionContext {
-  return { principal: principal("host"), triggeredBy: castId("user_host"), chatId, turnId, roster: null };
+  return { principal: principal(castId<Handle>("host")), triggeredBy: castId("user_host"), chatId, turnId, roster: null };
 }
 
 test("cheap mode: the dedicated TOOL ROUND is called, its delta is staged + flushed (owner ruling 2026-07-27)", async () => {
@@ -39,7 +39,7 @@ test("cheap mode: the dedicated TOOL ROUND is called, its delta is staged + flus
   // parallel tool calls fold to a delta the flush stages + writes, NOT mid-turn-staged tools on the char turn.
   const toolRoundDelta = { statePatch: { location: "the cave mouth" }, journal: [] };
   const { chatId, gameId, h } = await seedLiteGame(db, { toolRoundDelta });
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap" });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   h.fakes.busEvents.length = 0; // drop the createGame/updateConfig emits — assert the flush emit alone
 
@@ -137,7 +137,7 @@ test("F1: a negative pool delta on a fresh pool flushes a CONTRACT-VALID row (ge
   const wizard = snap?.actorState?.find((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "wizard");
   expect(wizard?.volatile.trackerValues["mana"]).toEqual({ value: -3, items: null, max: null });
   // And the member tracker read no longer THROWS (the poison used to brick every later read forever).
-  await expect(h.service.getTrackerView({ principal: principal("host"), chatId })).resolves.toBeDefined();
+  await expect(h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId })).resolves.toBeDefined();
 });
 
 test("F1 (structural backstop): a would-be-INVALID staged state DROPS the whole flush, never commits", async () => {
@@ -172,7 +172,7 @@ test("F1 (structural backstop): a would-be-INVALID staged state DROPS the whole 
   // The invalid state was REFUSED at the write boundary — NO snapshot committed (canon uncorrupted).
   expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
   // The journal rode the same atomic drop — no orphan beat referencing a snapshot that never landed.
-  const journal = await h.service.listJournal({ principal: principal("host"), chatId, limit: 50 });
+  const journal = await h.service.listJournal({ principal: principal(castId<Handle>("host")), chatId, limit: 50 });
   expect(journal).toEqual([]);
   // VISIBILITY (the fix): the drop was OBSERVED, never silent — the recorder captured it WITH the field-level
   // reason (a state round that produced applicable output vanishing without a signal was the exact violation).
@@ -211,7 +211,7 @@ test("ROUND-TRIP (the exec's replayed output): extraction JSON → delta → flu
   // No silent drop — the flush COMMITTED (the whole point of the fix's root-cause half).
   expect(h.fakes.flushDrops).toEqual([]);
   // The panel READS BACK every plane the extraction wrote (the coordinator's bar: replayed output → tracker view).
-  const view = await h.service.getTrackerView({ principal: principal("host"), chatId });
+  const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
   expect(view.ambient?.location).toBe("cave");
   expect(view.ambient?.weather?.type).toBe("fog");
   expect(view.ambient?.weather?.label).toBe("nightfall mist");
@@ -316,7 +316,7 @@ test("F2: update_party on a ROSTER character surfaces under the roster key in ge
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
 
-  const view = await h.service.getTrackerView({ principal: principal("host"), chatId });
+  const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
   const kaelView = view.actors.find((a) => a.actorRef.kind === "character");
   // The write SURFACES under the roster character's key — not an orphan cast:Kael the panel never reads.
   expect(kaelView?.name).toBe("Kael");
@@ -334,7 +334,7 @@ test("F2: update_inventory on a ROSTER user surfaces its wallet under the roster
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
 
-  const view = await h.service.getTrackerView({ principal: principal("host"), chatId });
+  const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
   const playerView = view.actors.find((a) => a.actorRef.kind === "user");
   expect(playerView?.volatile?.wallet).toEqual([{ name: "gold", amount: 20 }]);
 });
@@ -359,7 +359,7 @@ async function driveReconcileBeat(h: Awaited<ReturnType<typeof seedLiteGame>>["h
 test("reconcile cadence N=2: fires on beats 2 and 4, incremental on beats 1 and 3", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db, { toolRoundDelta: { statePatch: { location: "somewhere" }, journal: [] } });
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap", patch: { reconcileEveryBeats: 2 } });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "cheap", patch: { reconcileEveryBeats: 2 } });
 
   expect(await driveReconcileBeat(h, chatId, 1)).toBe(false); // ordinal 1: 1 % 2 !== 0 → incremental
   expect(await driveReconcileBeat(h, chatId, 2)).toBe(true); //  ordinal 2: 2 % 2 === 0 → RECONCILE
@@ -370,7 +370,7 @@ test("reconcile cadence N=2: fires on beats 2 and 4, incremental on beats 1 and 
 test("reconcile cadence N=0: NEVER fires (opt-out) — every beat is incremental", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db, { toolRoundDelta: { statePatch: { location: "somewhere" }, journal: [] } });
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap", patch: { reconcileEveryBeats: 0 } });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "cheap", patch: { reconcileEveryBeats: 0 } });
 
   // Beats are SEQUENTIAL (each writes a snapshot that advances the counter) — one at a time, never Promise.all.
   expect(await driveReconcileBeat(h, chatId, 1)).toBe(false);
@@ -382,7 +382,7 @@ test("reconcile cadence N=0: NEVER fires (opt-out) — every beat is incremental
 test("reconcile cadence: cheap mode honors it too (the TOOL ROUND receives reconcile on the Nth beat)", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db, { toolRoundDelta: { statePatch: { location: "somewhere" }, journal: [] } });
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "cheap", patch: { reconcileEveryBeats: 2 } });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "cheap", patch: { reconcileEveryBeats: 2 } });
 
   const { messageId: m1, variantId: v1 } = await seedMessage(db, chatId, 1, { role: "assistant" });
   await h.chatOps.onTurnCompleted(chatId, m1, v1, castId<ChatTurnId>("chat_turn_cheap_1"), turnConnection());
@@ -408,7 +408,7 @@ test("R1 folded: the turn's OWN tool calls are folded — ZERO post-commit model
   const db = await freshDb();
   const foldedDelta = { statePatch: { location: "the ford" }, journal: [] };
   const { chatId, gameId, h } = await seedLiteGame(db, { foldedDelta });
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   h.fakes.busEvents.length = 0;
 
@@ -430,7 +430,7 @@ test("R1 folded: ZERO tool calls is a clean no-change beat — the fold runs, no
   const db = await freshDb();
   // The fold fake returns the empty delta (what the real op returns on a quiet beat).
   const { chatId, h } = await seedLiteGame(db);
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   h.fakes.busEvents.length = 0;
 
@@ -450,7 +450,7 @@ test("R1 folded FALLBACK: a null terminal channel runs cheap's tool round and NA
   const db = await freshDb();
   const toolRoundDelta = { statePatch: { location: "the ford" }, journal: [] };
   const { chatId, h } = await seedLiteGame(db, { toolRoundDelta });
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
   // `null` = the character turn could not mount the tools. The canonical case: the STATEFUL agent-sdk wire,
@@ -477,7 +477,7 @@ test("D112 fold guard: a folded game on the LOCAL engine rounds instead — name
   const db = await freshDb();
   const toolRoundDelta = { statePatch: { location: "the ford" }, journal: [] };
   const { chatId, h } = await seedLiteGame(db, { toolRoundDelta, foldGuarded: true });
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
   // The REAL local-engine capability (the resolver's own vllm arm), so the reason is read off the wire the turn
@@ -499,7 +499,7 @@ test("D112 fold guard: a folded game on the LOCAL engine rounds instead — name
 test("R1 folded: the readonly gate still wins — a tools-incapable connection fires NOTHING", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db, { foldedDelta: { statePatch: { location: "nope" }, journal: [] } });
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 
   // Structured-only capability: folded has no write path ⇒ manual-steering (honest arms), so even a populated
@@ -540,7 +540,7 @@ test("R1 regression pin: CHEAP IGNORES a populated terminal channel (the host's 
 test("R1 folded: the reconcile cadence still fires on the Nth beat (the fold carries it, not a round)", async () => {
   const db = await freshDb();
   const { chatId, h } = await seedLiteGame(db, { foldedDelta: { statePatch: { location: "somewhere" }, journal: [] } });
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded", patch: { reconcileEveryBeats: 2 } });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded", patch: { reconcileEveryBeats: 2 } });
 
   const withCalls = turnConnection({ terminalToolCalls: FOLDED_CALLS });
   const { messageId: m1, variantId: v1 } = await seedMessage(db, chatId, 1, { role: "assistant" });
@@ -557,7 +557,7 @@ test("R1: a turn whose fold-mount failed lands its state via the fallback round 
   // must still be captured — a failed MOUNT costs a call, never a beat.
   const toolRoundDelta = { statePatch: { location: "the ford" }, journal: [] };
   const { chatId, h } = await seedLiteGame(db, { toolRoundDelta, foldedToolsThrow: true });
-  await h.service.updateConfig({ principal: principal("host"), chatId, extractionMode: "folded" });
+  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "folded" });
   await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false }); // the mount throws + is swallowed here
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
 

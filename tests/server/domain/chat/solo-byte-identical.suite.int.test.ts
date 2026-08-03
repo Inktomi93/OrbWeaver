@@ -16,7 +16,7 @@ import type { AssembleContext, ChatBusEvent, GroupConfig } from "@orb/contracts/
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { TurnEngine, TurnRequest } from "../../../../packages/server/src/domain/chat/contract/results";
@@ -140,7 +140,7 @@ function historyText(req: TurnRequest): string {
  *  engine-minted turn ids) is identical across postures and the byte comparison covers everything. */
 async function makePosture(group: GroupConfig): Promise<ReturnType<typeof runPosture>> {
   const database = await freshDb();
-  await seedUser(database, "host");
+  await seedUser(database, castId<Handle>("host"));
   await seedCharacter(database, HOST, "aria");
   const chatId = await seedPosture(database, "c");
   return runPosture(database, chatId, group);

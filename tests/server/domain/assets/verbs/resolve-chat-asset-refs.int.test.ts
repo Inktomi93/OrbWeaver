@@ -9,7 +9,7 @@
 //   • once the OWNER leaves the chat, the attachment stops resolving (mirrors `resolve-image-ref.ts`).
 
 import type { Db } from "@orb/db";
-import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
+import type { AssetId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
@@ -36,9 +36,9 @@ interface AttachScenario {
 // per case (that's what the gate keys on), so only the base facts are seeded here.
 async function seedAttachment(db: Db, h: AssetsHarness): Promise<AttachScenario> {
   const svc = createAssetsService(h.ctx);
-  const owner = await seedUser(db, { handle: "owner" });
-  const member = await seedUser(db, { handle: "member" });
-  const outsider = await seedUser(db, { handle: "outsider" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const member = await seedUser(db, { handle: castId<Handle>("member") });
+  const outsider = await seedUser(db, { handle: castId<Handle>("outsider") });
   const stored = await svc.store({
     principal: principal(owner),
     bytes: pngBytes(1, 2, 3),

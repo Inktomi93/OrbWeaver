@@ -68,7 +68,7 @@ function RowLeading({
   portraits,
   title,
 }: {
-  readonly chatId: string;
+  readonly chatId: ChatId;
   readonly portraits: readonly ChatRowPortrait[];
   readonly title: string;
 }): ReactElement {
