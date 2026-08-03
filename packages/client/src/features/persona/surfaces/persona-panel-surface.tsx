@@ -11,7 +11,8 @@ import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-import { ChevronRight, CircleUser, Drama, Icon, Plus, Star } from "@orb/ui/icons";
+import { FileTrigger } from "@orb/ui/file-trigger";
+import { ChevronRight, CircleUser, Drama, Icon, Plus, Star, Upload } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Separator } from "@orb/ui/separator";
@@ -23,12 +24,13 @@ import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, useInvalidation, useTRPC } from "#data";
+import { notify } from "#lib";
 import type { ChromePresentation } from "#state";
 import { openModal } from "#state";
 import { PersonaPanelRow } from "../components/persona-panel-row";
 import { PersonaThisChatSection } from "../components/persona-this-chat-section";
 import { useSetPersonaSeed } from "../hooks/use-persona-identity";
-import { useCreatePersona, useRemovePersona } from "../hooks/use-persona-mutations";
+import { useCreatePersona, useImportPersonaFile, useRemovePersona } from "../hooks/use-persona-mutations";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 
@@ -58,6 +60,7 @@ function PanelBody({ presentation }: { readonly presentation: ChromePresentation
   const setSeed = useSetPersonaSeed({ trpc, invalidation });
   const create = useCreatePersona({ trpc, invalidation });
   const remove = useRemovePersona({ trpc, invalidation });
+  const importPersona = useImportPersonaFile({ trpc, invalidation });
   const { data: personas } = useSuspenseQuery(trpc.persona.list.queryOptions());
   const { data: settings } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
 
@@ -78,6 +81,19 @@ function PanelBody({ presentation }: { readonly presentation: ChromePresentation
       // `createEntityMutation`'s errorToast already surfaced the failure — nothing to expand.
     }
   };
+  // F3: IMPORT is a band affordance beside the ONE primary (the ruled anatomy) — it used to live in a
+  // settings pane, three clicks and a different surface away from the personas it restores.
+  const onImportFile = async (file: File): Promise<void> => {
+    try {
+      const restored = await importPersona.mutateAsync({ fileText: await file.text() });
+      notify.success(`Restored “${restored.name}”.`);
+      setExpandedId(restored.id);
+    } catch (error) {
+      // The SERVER's refusal reason, rendered as words — "written by a newer version of orbweaver" is a
+      // different problem from "that isn't a persona file", and the user can only act on the difference.
+      notify.error(error instanceof Error ? error.message : "Couldn't restore the persona.");
+    }
+  };
   const onDelete = (personaId: PersonaId): void => {
     remove.mutate({ personaId });
     if (expandedId === personaId) {
@@ -92,6 +108,9 @@ function PanelBody({ presentation }: { readonly presentation: ChromePresentation
       <Separator />
       <PersonaHeader
         current={current}
+        onImport={(file): void => {
+          void onImportFile(file);
+        }}
         onNew={(): void => {
           void onCreate();
         }}
@@ -199,7 +218,17 @@ function AccountStrip(): ReactElement {
 }
 
 /** The "playing as" identity + the create affordance. */
-function PersonaHeader({ current, onNew }: { readonly current: PersonaListItem | null; readonly onNew: () => void }): ReactElement {
+const IMPORT_LABEL = "Restore a persona from a backup file";
+
+function PersonaHeader({
+  current,
+  onNew,
+  onImport,
+}: {
+  readonly current: PersonaListItem | null;
+  readonly onNew: () => void;
+  readonly onImport: (file: File) => void;
+}): ReactElement {
   const avatarSrc = current === null || current.avatarHash === null ? {} : { src: blobUrl(current.avatarHash) };
   return (
     <Row gap="row" align="center" className="justify-between">
@@ -216,10 +245,29 @@ function PersonaHeader({ current, onNew }: { readonly current: PersonaListItem |
           </Text>
         </Stack>
       </Row>
-      <Button intent="primary" size="sm" onClick={onNew}>
-        <Icon icon={Plus} size="sm" />
-        New persona
-      </Button>
+      {/* Exactly ONE primary (New); Import sits beside it as a ghost icon — the preset band's grammar.
+          `size="icon"` (not `sm`) so the icon-only trigger keeps the token-driven 44px coarse floor, and the
+          native `title` is the SAME string as the aria-label so tooltip and accessible name can't drift. */}
+      <Row gap="field" align="center">
+        <FileTrigger
+          accept="application/json"
+          onFilesSelected={([file]): void => {
+            if (file !== undefined) {
+              onImport(file);
+            }
+          }}
+        >
+          {({ open }): ReactElement => (
+            <Button aria-label={IMPORT_LABEL} intent="ghost" onClick={open} size="icon" title={IMPORT_LABEL}>
+              <Icon icon={Upload} size="sm" />
+            </Button>
+          )}
+        </FileTrigger>
+        <Button intent="primary" size="sm" onClick={onNew}>
+          <Icon icon={Plus} size="sm" />
+          New persona
+        </Button>
+      </Row>
     </Row>
   );
 }

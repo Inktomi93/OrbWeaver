@@ -33,4 +33,13 @@ export const useDuplicatePersona = createEntityMutation<inferInput<Trpc["persona
   errorToast: "Couldn't duplicate the persona.",
 });
 
-// `persona.import` (restore-from-backup) lives in features/settings/surfaces/persona-settings-surface.tsx.
+// F3 — the ruled lifecycle anatomy (band=Import, kebab=Export, editors carry zero lifecycle chrome).
+// Import used to live in a SETTINGS surface and Export inside the persona EDITOR: four families, three
+// placements. Both doors now live where the anatomy puts them, over the FILE-shaped tRPC procs (the same
+// bytes the bundle carries).
+export const useImportPersonaFile = createEntityMutation<inferInput<Trpc["persona"]["import"]>, PersonaDetail>({
+  options: (trpc) => trpc.persona.import.mutationOptions(),
+  busDriven: true, // emits `personasChanged` → USER_BUS_FILTERS covers persona.path (list + get).
+  // The server's REFUSAL REASON is rendered by the caller (it needs the words); this is the last-resort copy.
+  errorToast: "Couldn't restore the persona.",
+});

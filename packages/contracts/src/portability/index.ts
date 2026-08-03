@@ -16,6 +16,10 @@ export const PORTABLE_KINDS = [
   // are NOT carried by this bundle — a restored script lands in the library, un-attached, except for the
   // GLOBAL scope (which is a property of the script itself and rides in the file).
   "regex",
+  // The databank DOCUMENT library (F1). `extractedText` IS the canon, so one file per document; the derived
+  // vector layer never travels (it is re-runnable — import re-enqueues the ingest). `global` + the character
+  // attachments ride (the latter by handle); the chat attachment does not (chat ids are not preserved).
+  "databank",
   "preset",
   "theme",
   "user-settings",
@@ -43,12 +47,41 @@ export const PORTABLE_IMPORT_ORDER = [
   // already exist (the world-info-before-character precedent).
   "regex",
   "character",
+  // databank after character + assets: its character attachments re-link by handle and its source blobs by
+  // the preserved assetId (the gallery shape). An unresolvable handle simply leaves the document unattached.
+  "databank",
   // gallery after character + assets; an unresolvable character handle survives un-charactered.
   "gallery",
   "preset",
   "theme",
   "chat",
 ] as const satisfies readonly PortableKind[];
+
+// ── the uniform file envelope (spec R7/R8) ───────────────────────────────────────────────────────────
+// Every orb-NATIVE portable file carries this header. Re-minted 2026-08-03 WITH consumers (the original
+// `PortableEnvelope` died unconsumed in `cfa2049f` because each serde re-spelled it structurally — the
+// drift that let world-info spell the version key `version` and persona ship no envelope at all): the ONE
+// consumer is `@orb/server/kit/serde/lib`, the spine every orb-native JSON serde is defined through, so a
+// family can no longer re-spell it. Foreign wire formats (ST cards, ST chat jsonl) carry no envelope by
+// design and are not defined through the spine.
+
+/** The uniform header on every orb-native portable file. `schemaKind` fences a file from every other
+ *  portable family (the upload router routes on it); `schemaVersion` is the lift-walk key — a reader
+ *  accepts `<= its own` and refuses newer. */
+export interface PortableEnvelope {
+  readonly schemaKind: string;
+  readonly schemaVersion: number;
+}
+
+/** Why a portable file did not parse. One axis for every orb-native family, so the per-file import outcome
+ *  can say "written by a newer orbweaver" instead of the old uniform "not a valid X file". */
+export const PORTABLE_PARSE_FAILURES = ["not-json", "foreign-kind", "newer-version", "malformed"] as const;
+
+export type PortableParseFailure = (typeof PORTABLE_PARSE_FAILURES)[number];
+
+/** A parse outcome: the canonical value, or the reason the bytes were refused. Never throws — the delivery
+ *  core's per-file isolation depends on a malformed file being a value, not an exception. */
+export type PortableParse<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly reason: PortableParseFailure };
 
 /** One portable file inside a bundle: its path relative to the entity's dir, plus the raw bytes. */
 export interface PortableFile {

@@ -9,13 +9,18 @@
 import type { ImportContext } from "./context";
 import type { ImportService } from "./contract/service";
 import { createImportCharacter } from "./verbs/import-character";
+import { createImportChatFile } from "./verbs/import-chat-file";
 import { createImportChats } from "./verbs/import-chats";
 import { createImportPersonas } from "./verbs/import-personas";
 
 export function createImportService(ctx: ImportContext): ImportService {
+  // The single-transcript door is a thin arm over the BULK write verb; the two are wired HERE (a verb never
+  // imports a sibling verb — `domain-no-cross-verb`).
+  const importChats = createImportChats(ctx);
   return {
     importCharacter: createImportCharacter(ctx),
-    importChats: createImportChats(ctx),
+    importChats,
+    importChatFile: createImportChatFile(ctx, importChats),
     importPersonas: createImportPersonas(ctx),
   };
 }

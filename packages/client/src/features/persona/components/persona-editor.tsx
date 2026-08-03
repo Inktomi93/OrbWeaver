@@ -9,16 +9,16 @@ import type { PersonaDescriptionPosition } from "@orb/kit/persona";
 import { PERSONA_DESCRIPTION_POSITIONS } from "@orb/kit/persona";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Copy, Download, Icon, Trash2 } from "@orb/ui/icons";
+import { Copy, Icon, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
-import { useInvalidation, useTRPC, useTRPCClient } from "#data";
+import { useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
-import { ASSISTANT_PREFILL_WARNING, downloadJson, MESSAGE_ROLE_ITEMS, notify, slugifyFilename } from "#lib";
+import { ASSISTANT_PREFILL_WARNING, MESSAGE_ROLE_ITEMS } from "#lib";
 import { PersonaForm } from "../hooks/use-persona-form";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations";
 import { PERSONA_DESCRIPTION_MACROS } from "../lib/persona-description-macros";
@@ -79,19 +79,9 @@ interface PersonaEditorBodyProps {
 function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorBodyProps): ReactElement {
   const { form } = session;
   const trpc = useTRPC();
-  const client = useTRPCClient();
   const invalidation = useInvalidation();
   const duplicate = useDuplicatePersona({ trpc, invalidation });
   const baseMetadata: PersonaMetadata | null = persona.metadata;
-
-  const onExport = async (): Promise<void> => {
-    try {
-      const backup = await client.persona.export.query({ personaId: persona.id });
-      downloadJson(`${slugifyFilename(persona.name, "persona")}.json`, backup);
-    } catch {
-      notify.error("Couldn't export the persona.");
-    }
-  };
 
   return (
     <Stack gap="row">
@@ -161,16 +151,6 @@ function PersonaEditorBody({ session, persona, onRequestDelete }: PersonaEditorB
         <Button intent="ghost" size="sm" onClick={(): void => duplicate.mutate({ personaId: persona.id })}>
           <Icon icon={Copy} size="sm" />
           Duplicate
-        </Button>
-        <Button
-          intent="ghost"
-          size="sm"
-          onClick={(): void => {
-            void onExport();
-          }}
-        >
-          <Icon icon={Download} size="sm" />
-          Export
         </Button>
       </Row>
     </Stack>

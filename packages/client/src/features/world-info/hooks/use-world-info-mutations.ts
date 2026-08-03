@@ -31,6 +31,15 @@ export const useRemoveWorldBook = createEntityMutation<inferInput<Trpc["worldInf
   errorToast: "Couldn't delete the book.",
 });
 
+/** F2: restore ONE book from a portable file — a thin arm over the SAME import verb the backup bundle
+ *  calls, so the dedupe-by-name semantics are the bundle's. The server's refusal REASON is what the caller
+ *  renders (this toast is the last resort). */
+export const useImportWorldBookFile = createEntityMutation<inferInput<Trpc["worldInfo"]["importFile"]>, inferOutput<Trpc["worldInfo"]["importFile"]>>({
+  options: (trpc) => trpc.worldInfo.importFile.mutationOptions(),
+  invalidates: (trpc) => [trpc.worldInfo.listBooks.pathFilter()],
+  errorToast: "Couldn't import the book.",
+});
+
 /** Deep-copy a book + all its entries into a fresh "<name> (copy)" book. Refetches the list; resolves to
  *  the new book so the caller can open it. */
 export const useDuplicateWorldBook = createEntityMutation<inferInput<Trpc["worldInfo"]["duplicateBook"]>, inferOutput<Trpc["worldInfo"]["duplicateBook"]>>({

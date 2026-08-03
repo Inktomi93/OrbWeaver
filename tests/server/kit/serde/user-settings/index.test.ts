@@ -5,6 +5,7 @@
 // that a settings blob carrying secret-adjacent fields (routing/credential source, seed ids) EXPORTS WITHOUT
 // THEM (the fence is fail-safe by allowlist, so an excluded namespace is structurally absent from the bytes).
 
+import type { PortableParse } from "@orb/contracts/portability";
 import type { UserSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { PortableUserSettings } from "@orb/server/kit/serde/user-settings";
@@ -17,6 +18,21 @@ import {
 } from "@orb/server/kit/serde/user-settings";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
+
+/** The parse outcome's value — the spine returns a typed refusal reason, never null. */
+function refusalOf<T>(result: PortableParse<T>): string {
+  if (result.ok) {
+    throw new Error("expected the file to be refused, but it parsed");
+  }
+  return result.reason;
+}
+
+function must<T>(result: PortableParse<T>): T {
+  if (!result.ok) {
+    throw new Error(`portable parse refused: ${result.reason}`);
+  }
+  return result.value;
+}
 
 /** A full UserSettings blob deliberately loaded with SECRET-ADJACENT fields in the fenced-out namespaces:
  *  `routing` carries a connection source + model (credential-adjacent CONFIG); `seeds` carries entity ids. */
@@ -66,18 +82,17 @@ describe("the secrets fence (R3 — a settings export MUST be safe to share)", (
 
 describe("parseUserSettingsBackup", () => {
   test("null for non-JSON / empty / foreign schemaKind", () => {
-    expect(parseUserSettingsBackup(new TextEncoder().encode("{nope"))).toBeNull();
-    expect(parseUserSettingsBackup(new Uint8Array())).toBeNull();
+    expect(refusalOf(parseUserSettingsBackup(new TextEncoder().encode("{nope")))).toBe("not-json");
+    expect(refusalOf(parseUserSettingsBackup(new Uint8Array()))).toBe("not-json");
     const foreign = new TextEncoder().encode(JSON.stringify({ schemaKind: "orb.theme", schemaVersion: 1, settings: {} }));
-    expect(parseUserSettingsBackup(foreign)).toBeNull();
+    expect(refusalOf(parseUserSettingsBackup(foreign))).toBe("foreign-kind");
   });
 
   test("returns ONLY the namespaces the file carried (R7 merge-only-present)", () => {
     const bytes = buildUserSettingsBackup({ appearance: DEFAULT_USER_SETTINGS.appearance });
-    const parsed = parseUserSettingsBackup(bytes);
-    expect(parsed).not.toBeNull();
-    expect(Object.keys(parsed ?? {})).toEqual(["appearance"]);
-    expect(parsed?.memory).toBeUndefined();
+    const parsed = must(parseUserSettingsBackup(bytes));
+    expect(Object.keys(parsed)).toEqual(["appearance"]);
+    expect(parsed.memory).toBeUndefined();
   });
 
   test("a crafted non-allowlisted key in the file is IGNORED (never read out — the fence holds on import)", () => {
@@ -91,10 +106,10 @@ describe("parseUserSettingsBackup", () => {
         },
       }),
     );
-    const parsed = parseUserSettingsBackup(hostile);
+    const parsed = must(parseUserSettingsBackup(hostile));
     // routing is not in the allowlist → never present on the parsed result, even though the file carried it.
-    expect(Object.keys(parsed ?? {})).toEqual(["appearance"]);
-    expect("routing" in (parsed ?? {})).toBe(false);
+    expect(Object.keys(parsed)).toEqual(["appearance"]);
+    expect("routing" in parsed).toBe(false);
   });
 });
 
@@ -102,11 +117,7 @@ describe("build -> parse -> build identity", () => {
   test("the serialized bytes are the stable fixed point (all allowlisted namespaces populated)", () => {
     const safe = projectShareSafe(settingsWithSecrets());
     const bytes1 = buildUserSettingsBackup(safe);
-    const reparsed = parseUserSettingsBackup(bytes1);
-    if (reparsed === null) {
-      throw new Error("reparse failed");
-    }
-    const bytes2 = buildUserSettingsBackup(reparsed);
+    const bytes2 = buildUserSettingsBackup(must(parseUserSettingsBackup(bytes1)));
     expect(new TextDecoder().decode(bytes2)).toBe(new TextDecoder().decode(bytes1));
   });
 });

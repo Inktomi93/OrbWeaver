@@ -28,6 +28,7 @@ const ACCEPTED_STATUS = tagStatusSchema.enum.accepted;
 // `cas.read` rejects with a Node ENOENT when the blob is absent — that one error falls through to the
 // placeholder; any other I/O error propagates (corrupt ≠ absent).
 const ENOENT = "ENOENT";
+const JSON_INDENT = 2;
 
 // Parse the typed `depth_prompt` JSON column through the canonical schema — a malformed/legacy value
 // collapses to null, never a throw.
@@ -66,7 +67,7 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
     }
   }
 
-  return async ({ principal, characterId }: ExportCharacterParams): Promise<ExportedCard | null> => {
+  return async ({ principal, characterId, format }: ExportCharacterParams): Promise<ExportedCard | null> => {
     const ownerId = principal.userId;
     const charRow = await fetchOwned(ctx.db, characters, characterId, ownerId);
     if (charRow === undefined) {
@@ -165,6 +166,11 @@ export function createExportCharacter(ctx: ExportContext): ExportService["export
       entries,
     );
 
+    // O-5: the SAME card object, two containers — the json arm skips the avatar read entirely (there is no
+    // image to weld into), so a card export never pays for a blob it isn't going to use.
+    if (format === "json") {
+      return { bytes: new TextEncoder().encode(JSON.stringify(card, null, JSON_INDENT)), filename: `${slug(charRow.name)}.json` };
+    }
     const png = await basePng(charRow.avatarAssetId, ownerId);
     const bytes = writeCardChunk(png, JSON.stringify(card));
     return { bytes, filename: `${slug(charRow.name)}.png` };

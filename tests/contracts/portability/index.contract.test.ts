@@ -5,8 +5,21 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures";
 
 // ── Kind membership: the closed set is EXACTLY the design's §2 eight, no more, no less ──────────────────
-test("PORTABLE_KINDS pins the eleven portable entity kinds", () => {
-  expect([...PORTABLE_KINDS]).toEqual(["character", "chat", "persona", "world-info", "regex", "preset", "theme", "user-settings", "tag", "gallery", "assets"]);
+test("PORTABLE_KINDS pins the twelve portable entity kinds", () => {
+  expect([...PORTABLE_KINDS]).toEqual([
+    "character",
+    "chat",
+    "persona",
+    "world-info",
+    "regex",
+    "databank",
+    "preset",
+    "theme",
+    "user-settings",
+    "tag",
+    "gallery",
+    "assets",
+  ]);
 });
 
 // Exhaustiveness over the derived union: a Record<PortableKind, …> fails tsc if a member is added or removed,
@@ -17,6 +30,7 @@ const KIND_SEEN: Record<PortableKind, true> = {
   persona: true,
   "world-info": true,
   regex: true,
+  databank: true,
   preset: true,
   theme: true,
   "user-settings": true,
@@ -40,6 +54,7 @@ test("PORTABLE_IMPORT_ORDER pins the exact dependency order", () => {
     "world-info",
     "regex",
     "character",
+    "databank",
     "gallery",
     "preset",
     "theme",

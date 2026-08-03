@@ -20,6 +20,16 @@ interface WorldInfoActorParams {
 
 export interface ListBooksParams extends WorldInfoActorParams {}
 
+/** The single-book EXPORT door (F2). Owner-scoped; a foreign/absent book returns null → 404-equivalent. */
+export interface ExportBookParams extends WorldInfoActorParams {
+  readonly bookId: WorldBookId;
+}
+
+/** The single-book IMPORT door (F2). The FILE is the unit — the same bytes the bundle descriptor handles. */
+export interface ImportBookFileParams extends WorldInfoActorParams {
+  readonly fileText: string;
+}
+
 export interface GetBookParams extends WorldInfoActorParams {
   readonly bookId: WorldBookId;
 }

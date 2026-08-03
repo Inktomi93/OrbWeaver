@@ -6,12 +6,22 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 
 export type ExportChatFormat = "jsonl" | "txt";
 
+/** O-5: the character door's format axis, the chat door's shape generalized. `png` is the ST-parity card
+ *  (the JSON welded into the avatar as a tEXt chunk); `json` is the SAME card object, unwrapped — the
+ *  format people paste into tooling and diff. One producer, two containers. */
+export type ExportCardFormat = "png" | "json";
+
 interface ExportActorParams {
   readonly principal: Principal;
 }
 
+/** No scope beyond the actor: the owner's own hosted chats. */
+export type ListHostChatsParams = ExportActorParams;
+
 export interface ExportCharacterParams extends ExportActorParams {
   readonly characterId: CharacterId;
+  /** Defaults to `png` — the bundle descriptor never passes it, so a backup always carries cards. */
+  readonly format?: ExportCardFormat | undefined;
 }
 
 /** The gate is the roster's host row; a non-host or missing chat returns null → 404. format defaults to jsonl. */

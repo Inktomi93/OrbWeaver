@@ -16,6 +16,7 @@ import type { UserId } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { BulkImportChats } from "#domain/chat";
+import type { DatabankPortabilityContext } from "#domain/databank";
 import type { ExportService } from "#domain/export";
 import type { ImportWorkloadDeps } from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
@@ -52,6 +53,8 @@ export interface PortabilityRunnerComposeDeps {
   readonly importStandaloneLorebook: ImportStandaloneLorebook;
   /** The gallery-extended assets ctx (the two character-handle resolvers the gallery export/import verbs need). */
   readonly galleryCtx: AssetsContext;
+  /** The databank portability bundle (db + clock + id minter + the ingest enqueue a restore re-runs). */
+  readonly databankCtx: DatabankPortabilityContext;
   readonly persona: PersonaService;
   readonly exportService: ExportService;
   readonly character: CharacterService;
@@ -118,6 +121,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     worldInfoExportCtx: deps.worldInfoExportCtx,
     importStandaloneLorebook: deps.importStandaloneLorebook,
     assetsCtx: deps.galleryCtx,
+    databankCtx: deps.databankCtx,
     persona: deps.persona,
     exportService: deps.exportService,
     listOwnedCharacterIds: deps.character.listEmbeddableCharacterIds,

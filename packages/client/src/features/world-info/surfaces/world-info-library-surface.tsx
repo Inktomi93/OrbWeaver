@@ -14,8 +14,8 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useDeferredValue, useRef, useState } from "react";
 import { LibraryListLayout, LibrarySurfaceShell } from "#components";
-import { useInvalidation, useTRPC } from "#data";
-import { useFocusOnMount } from "#lib";
+import { useInvalidation, useTRPC, useTRPCClient } from "#data";
+import { downloadTextFile, notify, useFocusOnMount } from "#lib";
 import { clearWorldBookSelection, selectWorldBook, useSelectedWorldBookId } from "#state";
 import { BookDetailsDialog } from "../components/book-details-dialog";
 import { WorldInfoLibraryRow } from "../components/world-info-library-row";
@@ -57,6 +57,7 @@ function BookList({ onSelectBook }: { readonly onSelectBook: (id: WorldBookId) =
 
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
+  const client = useTRPCClient();
   const [renameId, setRenameId] = useState<WorldBookId | null>(null);
 
   const globalIds = new Set(globalBooks.map((b) => b.id));
@@ -82,6 +83,19 @@ function BookList({ onSelectBook }: { readonly onSelectBook: (id: WorldBookId) =
       clearWorldBookSelection();
     }
     remove.mutate({ bookId: id });
+  };
+
+  // F2 — the ruled kebab=Export door. The bytes are the SERVER's (the same file the backup bundle carries
+  // for this book), downloaded verbatim so a shared book and a restored one can never diverge.
+  const onExport = (id: WorldBookId): void => {
+    void client.worldInfo.exportBook
+      .query({ bookId: id })
+      .then((file) => {
+        downloadTextFile(file.filename, file.fileText);
+      })
+      .catch((error: unknown) => {
+        notify.error(error instanceof Error ? error.message : "Couldn't export the book.");
+      });
   };
 
   const renameBook = books.find((b) => b.id === renameId) ?? null;
@@ -116,6 +130,7 @@ function BookList({ onSelectBook }: { readonly onSelectBook: (id: WorldBookId) =
             key={book.id}
             onDelete={onDelete}
             onDuplicate={onDuplicate}
+            onExport={onExport}
             onRename={(id): void => setRenameId(id)}
             onSelect={onSelectBook}
             selected={book.id === selectedId}
