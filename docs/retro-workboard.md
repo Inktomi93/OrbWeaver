@@ -698,8 +698,28 @@ CONTEXT pane ships WITHOUT the mock's attached-by rosters — the REVERSE lists 
 exist (**REGROSTER small queued**: one server verb + the rosters). SNAPX now UNBLOCKED
 (R1B released the nav bridge). LESSON banked (agents): a Field wrapper's aria-labelledby
 WINS over a child's aria-label — moving a control into a Field silently renames it.
-**Lane R2WI dispatched** (world-info → config, the R2 stage). LIVE (3): REGPAR · RESYNC-OR ·
-R2WI.
+**Lane R2WI dispatched** (world-info → config, the R2 stage; both mid-run forks ratified:
+worldInfo.listBooksWithUsage on the tag precedent [2nd with-usage instance — 3rd = REGROSTER,
+flag the shared-substrate question then] + the additive importFile contract field w/ its gate
+arm).
+✅ **RESYNC-OR MERGED (`d432ed51` lane commit, torn down) — resyncFromStory WORKS on OR and
+CAN'T LIE ANYMORE.** THE BRIEF'S MECHANISM WAS WRONG (re-derived after the log rotated —
+lesson): the SDK was innocent; the real wall = ANTHROPIC rejects response_format json_schema
+for our shape (integer bounds + "too many optional parameters (46)" = UNCLEARABLE — optionals
+ARE the extraction design). FIX = the structured role sends ONE FORCED TOOL CALL (the D112
+vehicle — both rpg write paths now one dialect); probe matrix receipts (sonnet-5/gpt/gemini
+all 200 via tools; strict response_format 400s on 2 of 3). Door 2: ResyncResult 3-arm
+(rebuilt/no-drift/refusal — no-drift = notify.info not error) through the SM5 refusal seam.
+Also silently fixes populateFromCharacter's provider half. **QUEUED SMALLS from its flags:**
+POPLOUD (populate still void+empty on failure — same 3-branch shape ~30 lines) · STRICTFMT
+(buildChatResponseFormat strict:true = a live 400 landmine on OpenAI chat-runner
+responseFormat paths — nobody's reported it yet because nobody drives that path on OpenAI).
+**⚠ 19 PRE-EXISTING CT REDS found on main** (message-list-surface ×10 · chat-room-surface ×8
+· notification-bell ×1) — the D124 FIXTURE-GHOST class: CTs hand-mint content-less anchor
+rows that are now unrepresentable; ANCHOR's floor ran vitest units, playwright CTs weren't in
+its scoped set (CT-coverage gap in lane floors — onboarding note). **Lane CTFIX dispatched**
+(per-test disposition: rewrite-subject / re-derive-scaffolding / delete-with-ledger).
+LIVE (3): REGPAR · R2WI · CTFIX.
 **═══ OVERNIGHT ENGAGED (owner OFF, 08-03 ~late; full-auto per the posture memory + ladder) ═══**
 LIVE: R1B (config workspace — collapsed-groups ruled, 400-tag fixture) · SM5 (5 smalls; MACU-2
 arm-a ratified) · NARCOLOR (final shape: both produce arms + tolerant parse + forge guard +
