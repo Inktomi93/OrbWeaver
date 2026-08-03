@@ -50,7 +50,7 @@ export { createRpgService } from "./service";
 export { createRpgStagingStore } from "./staging";
 // The pure honest-arms derivation (§4.6) — W1c wires it with the connection resolve + game config into the
 // `RpgResolveStateDelivery` injected op (the mode→axis mapping stays rpg's law).
-export { deriveTrackersReadOnly, hasStructuredWriter } from "./substrate/readonly-axis";
+export { deriveTrackersReadOnly, hasStructuredWriter, hasToolWriter } from "./substrate/readonly-axis";
 // The 7 cheap-mode state tool defs (§4.5) — a factory closing over `RpgContext`; W1c-b registers them into the
 // ONE `toolUse` registry at compose (the imagery precedent).
 export { rpgToolDefinitions } from "./tools";

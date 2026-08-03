@@ -88,4 +88,4 @@ export type {
   ChatReasoningDetail,
   ChatToolCallDelta,
 } from "./wire-schemas";
-export { extractChatReasoning, extractChatReply, parseChatCompletionResult } from "./wire-schemas";
+export { extractChatReasoning, extractChatRefusal, extractChatReply, parseChatCompletionResult } from "./wire-schemas";

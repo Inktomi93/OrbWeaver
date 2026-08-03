@@ -17,6 +17,10 @@ const chatCompletionResultSchema = z
             message: z
               .object({
                 content: z.unknown(),
+                /** The vendor's SAFETY REFUSAL. Documented by both families as arriving in its own field
+                 *  INSTEAD of schema-shaped content, so a structured caller that only reads `content`/
+                 *  `tool_calls` sees an empty-or-prose 200 and reports "the model wrote garbage". */
+                refusal: z.string().nullable().optional(),
                 reasoning: z.string().nullable().optional(),
                 reasoningDetails: z.array(chatReasoningDetailSchema).nullable().optional(),
                 toolCalls: z
@@ -104,6 +108,8 @@ export interface ChatMessageToolCall {
 // `content` is unknown (string OR content-parts).
 export interface ChatCompletionMessage {
   readonly content?: unknown;
+  /** The vendor's safety refusal, when the model declined instead of answering (see the schema note). */
+  readonly refusal?: string | null | undefined;
   readonly reasoning?: string | null | undefined;
   readonly reasoningDetails?: readonly ChatReasoningDetail[] | null | undefined;
   readonly toolCalls?: readonly ChatMessageToolCall[] | undefined;
@@ -164,6 +170,15 @@ export function extractChatReply(view: ChatCompletionResult): string {
       .trim();
   }
   return "";
+}
+
+/** The model's SAFETY REFUSAL for this reply, or `""` when it answered normally. A refusal is documented by
+ *  both hosted families as arriving in its own field rather than following the caller's schema — so it must be
+ *  read explicitly, never inferred from unparseable text (that inference is what made a refused extraction
+ *  look identical to a broken one). */
+export function extractChatRefusal(view: ChatCompletionResult): string {
+  const refusal = view.choices?.[0]?.message?.refusal;
+  return typeof refusal === "string" ? refusal.trim() : "";
 }
 
 // Skips `reasoning.encrypted` entries (opaque continuity blocks with no display text).

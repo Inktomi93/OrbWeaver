@@ -140,6 +140,9 @@ describe("PROVIDER_ERROR_KINDS", () => {
       "auth_failed",
       "billing",
       "moderation",
+      // The MODEL declined (a 200 carrying the vendor's `refusal` field) — distinct from `moderation`, which
+      // is the provider's own layer blocking the PROMPT with a 403.
+      "refused",
       "forbidden",
       "invalid",
       "model_unavailable",

@@ -21,6 +21,7 @@ import type { ChatContentPart } from "@orb/contracts/chat";
 import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
+import { scrubWireSchema } from "@orb/kit/json-schema";
 import type { ChatCompletionStreamChunk, ChatToolCallDelta, ProviderSamplingDrop, ReasoningRequest } from "../../../../backends/kit";
 import { cacheControlBlock, chatHistoryText, effectiveProviderRouting, extractHttpErrorDiagnostic, logProviderSampling } from "../../../../backends/kit";
 import type {
@@ -172,7 +173,11 @@ export function buildChatResponseFormat(format: ResponseFormat): ChatFormatJsonS
     type: "json_schema",
     jsonSchema: {
       name: format.name,
-      schema: { ...format.schema },
+      // The HOSTED-COMMON wire copy (2026-08-03): OpenRouter routes per PROVIDER, not per model, so a request
+      // cannot know whether the endpoint serving it is the one that refuses string bounds (both vendors) or
+      // numeric bounds (Anthropic). The strictest common subset is the only honest payload here; the bounds
+      // still ride the caller's own zod belt. `oneOf` is NOT refused on this wire — it carries it.
+      schema: scrubWireSchema(format.schema, "hosted-common").schema,
       ...(format.strict !== undefined ? { strict: format.strict } : {}),
       ...(format.description !== undefined ? { description: format.description } : {}),
     },

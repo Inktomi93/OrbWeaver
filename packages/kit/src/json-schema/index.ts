@@ -4,9 +4,13 @@
 // every object node.
 //
 // WHAT THE PIN ACTUALLY BUYS (probed on zod 4.4.3 — the pre-2026-08-02 header claimed the parse rejects extra
-// keys, which is FALSE): the pin is a GRAMMAR-LEVEL PREVENTION and nothing more. On an ENFORCING wire
-// (xgrammar/vLLM guided decoding, an OpenRouter `strict` tool) the model is token-level incapable of emitting
-// an undeclared key. On a NON-enforcing wire the pin is ADVISORY — and our own parse is no backstop, because
+// keys, which is FALSE): the pin is a GRAMMAR-LEVEL PREVENTION only on a wire that COMPILES a grammar, and we
+// drive exactly one — vLLM/xgrammar guided decoding (`vllm/surfaces/chat.ts`). It is ADVISORY everywhere else.
+// (The pre-2026-08-03 header also named "an OpenRouter `strict` tool" as an enforcing wire: NO SUCH TOOL EXISTS
+// in this tree — `WireTool` is `{name, description, parameters}` with no `strict` field
+// (`providers/contract/chat.ts`), and the OpenRouter structured vehicle is a FORCED TOOL CALL, which compiles
+// no grammar and therefore enforces nothing. Its schema is a prompt-shaped hint; the salvage parse is the
+// backstop.) On a NON-enforcing wire the pin is advisory — and our own parse is no backstop either, because
 // v4 `z.object` is STRIP mode: `z.object({targetRef,hpDelta}).safeParse({targetRef:"You",hpDelta:2,junk:"…"})`
 // returns `success:true` with `junk` silently removed. Only `z.strictObject`/`.strict()` fails there, and the
 // model-facing parses deliberately do NOT use it (EXT-4a salvage: rejecting a whole call over a junk key drops
@@ -18,6 +22,10 @@
 import { z } from "zod";
 
 export { JsonSchemaLiftError, LIFTABLE_JSON_SCHEMA, liftJsonSchema, MAX_LIFT_DEPTH } from "./lift";
+// The per-WIRE keyword subset (what a given endpoint may legally receive) is a separate concern from the
+// projection rule and is applied at each request-build site, never here — see `./wire-subset`.
+export type { WireSchemaMode, WireSchemaScrub } from "./wire-subset";
+export { dropNullValues, scrubWireSchema, WIRE_SCHEMA_MODES } from "./wire-subset";
 
 const OBJECT_TYPE = "object";
 
