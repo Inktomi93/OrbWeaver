@@ -62,6 +62,7 @@ const APP_CONFIG = {
   promptTransformDeadlineMs: 250,
   catalogRefreshIntervalMs: 86_400_000,
   imageVariantQuality: 80,
+  structuredOutputShape: "as-projected",
 };
 const OWNER_VIEWER = { userId: "user_owner", handle: "owner", globalRole: "owner" };
 

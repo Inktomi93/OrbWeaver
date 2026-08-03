@@ -25,6 +25,8 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { RpgBusEvent, RpgExtraction, RpgSnapshotState } from "@orb/contracts/rpg";
 import { RPG_TOOL_ROUND_TOOL_NAMES, rpgTrackerDefSchema } from "@orb/contracts/rpg";
+import type { StructuredOutputShape } from "@orb/contracts/settings";
+import { DEFAULT_STRUCTURED_OUTPUT_SHAPE } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { characters, messages, messageVariants, presets } from "@orb/db";
 import type { ChatId, ChatTurnId, MessageId, MessageVariantId, ModelId, PresetId, UserId } from "@orb/kit/ids";
@@ -181,6 +183,9 @@ interface ExtractionSpy {
   /** The response-format SCHEMA the impl put on the wire per call — so a test can assert the R1 ref enum
    *  (`constrainExtractionSchema`) reached the request, on either arm. */
   readonly schemas: Record<string, unknown>[];
+  /** The `strict` flag each `responseFormat` carried (undefined = unset ⇒ the BACKEND's own default). The
+   *  strict-shape half the schema alone can't show — D126's admin knob sets both, or neither. */
+  readonly strictFlags: (boolean | undefined)[];
   /** The system prompts the impl sent — so a test can assert the R1 ref enumeration (the fallback arm). */
   readonly systemPrompts: string[];
   /** The user prompts the impl sent — so a §1.3 test can assert the RECENT STORY block (window arm) + the
@@ -209,6 +214,7 @@ function recordChatTurn(spy: ExtractionSpy, req: Parameters<NonNullable<Paramete
   });
   if (req.responseFormat !== undefined) {
     spy.schemas.push(req.responseFormat.schema);
+    spy.strictFlags.push(req.responseFormat.strict);
   }
   if ("tools" in req && Array.isArray(req.tools)) {
     spy.wireTools.push(req.tools as { name: string; description: string; parameters: Record<string, unknown> }[]);
@@ -239,6 +245,9 @@ function buildCannedRpgWithText(args: {
   /** Override the resolved connection's capability — e.g. a STRUCTURED-only wire (no `tools`), which is what
    *  routes the resync down its structured degrade instead of the tool round. */
   readonly capability?: ReturnType<typeof makeModelCapability>;
+  /** The deployment's structured-output wire shape (D126) — the AppSettings knob the real composition root
+   *  feeds off `getEffectiveConfig()`. Omitted ⇒ the shipped floor, so every existing pin drives the default. */
+  readonly structuredOutputShape?: StructuredOutputShape;
 }): ReturnType<typeof buildRpg> {
   const { app, db, api, spy, cannedText, cannedToolCalls, structuredThrows, chatThrows, capability } = args;
   return buildRpg({
@@ -271,6 +280,7 @@ function buildCannedRpgWithText(args: {
         }
         spy.summarizeModels.push(req.model);
         spy.schemas.push(req.responseFormat.schema);
+        spy.strictFlags.push(req.responseFormat.strict);
         spy.systemPrompts.push(req.inputs[0]?.systemPrompt ?? "");
         spy.userPrompts.push(req.inputs[0]?.userPrompt ?? "");
         return Promise.resolve({
@@ -318,10 +328,13 @@ function buildCannedRpgWithText(args: {
     // R4 promotion deps — these tests exercise state rounds, never the mint; loud if ever reached.
     character: { create: () => Promise.reject(new Error("unused: promotion not exercised")), findByHandle: () => Promise.resolve(null) },
     chat: { addCharacterToChat: () => Promise.reject(new Error("unused: promotion not exercised")) },
+    // D126 — the admin-tier structured-output shape, threaded exactly as the real root threads it (a thunk off
+    // the resolved config). Unset ⇒ the shipped floor, so every existing pin still drives the default arm.
+    structuredOutputShape: () => args.structuredOutputShape ?? DEFAULT_STRUCTURED_OUTPUT_SHAPE,
   });
 }
 
-const emptySpy = (): ExtractionSpy => ({ summarizeModels: [], chatTurns: [], wireTools: [], schemas: [], systemPrompts: [], userPrompts: [] });
+const emptySpy = (): ExtractionSpy => ({ summarizeModels: [], chatTurns: [], wireTools: [], schemas: [], strictFlags: [], systemPrompts: [], userPrompts: [] });
 
 test("CHEAP turn (tool-round arm) — a wire that CAN carry tools rides them, never the structured dispatcher", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "cheap-toolround");
@@ -408,6 +421,109 @@ test("R1: the ref enum reaches the agent-sdk chat arm too (portable — same sha
   const schema = spy.schemas[0] as { properties?: { party?: { items?: { properties?: { targetRef?: { enum?: string[] } } } } } };
   expect(Array.isArray(schema.properties?.party?.items?.properties?.targetRef?.enum)).toBe(true);
   expect(spy.systemPrompts[0]).toContain("Valid targetRef values");
+});
+
+// ── D126: the structured-output SHAPE knob reaches the wire (the whole path: AppSettings → the request) ──
+// The admin knob is worthless if it stops at the settings write. These two pin the FAR end: the SAME composed
+// extraction, driven twice, puts two different schema SHAPES on the wire — and the shipped floor is unchanged
+// (the default STANDS; this lane built the switch, not a flip).
+//
+// The assertions walk EVERY object node, never just the root: the extraction schema's root properties are all
+// required already (six plane arrays), so the reshape is only observable NESTED — a root-only assertion would
+// have gone vacuously green on both arms.
+
+/** Every `{type:"object", properties}` node in a schema tree, root included. */
+function objectNodes(node: unknown, out: Record<string, unknown>[] = []): Record<string, unknown>[] {
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      objectNodes(item, out);
+    }
+    return out;
+  }
+  if (node === null || typeof node !== "object") {
+    return out;
+  }
+  const record = node as Record<string, unknown>;
+  if (record["type"] === "object" && typeof record["properties"] === "object" && record["properties"] !== null) {
+    out.push(record);
+  }
+  for (const value of Object.values(record)) {
+    objectNodes(value, out);
+  }
+  return out;
+}
+
+const propertyNames = (node: Record<string, unknown>): string[] => Object.keys(node["properties"] as Record<string, unknown>);
+const requiredNames = (node: Record<string, unknown>): string[] => (Array.isArray(node["required"]) ? (node["required"] as string[]) : []);
+/** Nodes spelled `anyOf:[…, {"type":"null"}]` — the strict-compatible optional. */
+function nullUnionCount(node: unknown, count = 0): number {
+  if (Array.isArray(node)) {
+    return node.reduce<number>((n, item) => nullUnionCount(item, n), count);
+  }
+  if (node === null || typeof node !== "object") {
+    return count;
+  }
+  const record = node as Record<string, unknown>;
+  const arms = record["anyOf"];
+  const isNullUnion = Array.isArray(arms) && arms.some((arm) => arm !== null && typeof arm === "object" && (arm as Record<string, unknown>)["type"] === "null");
+  return Object.values(record).reduce<number>((n, value) => nullUnionCount(value, n), count + (isNullUnion ? 1 : 0));
+}
+
+test("D126 (default): the shipped floor sends the schema AS PROJECTED — optionals stay optional, no `strict`", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "d126-floor");
+  const spy = emptySpy();
+  const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
+
+  const schema = spy.schemas[0] as Record<string, unknown>;
+  const nodes = objectNodes(schema);
+  expect(nodes.length).toBeGreaterThan(1);
+  // The projector's own shape: SOME node still leaves properties out of `required` …
+  expect(nodes.some((n) => requiredNames(n).length < propertyNames(n).length)).toBe(true);
+  // … and nothing anywhere was wrapped in a null union.
+  expect(nullUnionCount(schema)).toBe(0);
+  expect(spy.strictFlags).toEqual([undefined]); // unset ⇒ the backend's own default (D79)
+});
+
+test("D126 (switched): the admin knob's strict-compatible arm reaches scrubWireSchema — every property required, optionals as anyOf-null", async ({
+  app,
+  db,
+}) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "d126-strict");
+  const spy = emptySpy();
+  // The ONLY difference from the test above: the deployment's resolved AppSettings value.
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "agent-sdk",
+    spy,
+    cannedText: JSON.stringify(CANNED_EXTRACTION),
+    structuredOutputShape: "strict-compatible",
+  });
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
+
+  const schema = spy.schemas[0] as Record<string, unknown>;
+  const nodes = objectNodes(schema);
+  expect(nodes.length).toBeGreaterThan(1);
+  // OpenAI strict's demand, at EVERY depth: every property of every object node listed as required …
+  expect(nodes.filter((n) => requiredNames(n).length !== propertyNames(n).length)).toEqual([]);
+  // … with the ones that were optional now spelled `anyOf:[T,{"type":"null"}]` (the documented escape).
+  expect(nullUnionCount(schema)).toBeGreaterThan(0);
+  // The scrub also came off this wire copy: the dialect meta-key + the bound keywords both vendors refuse.
+  expect(schema["$schema"]).toBeUndefined();
+  expect(JSON.stringify(schema)).not.toContain("minLength");
+  expect(spy.strictFlags).toEqual([true]);
+
+  // The CONTRACT is unchanged: the same canned reply still folds and lands (`null ≡ absent` at the salvage
+  // boundary) — the reshape is a wire concern, not a semantics change.
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.ambient?.location).toBe("the obsidian tower");
 });
 
 // ── F1: the state round rides the NARRATION turn's connection + consent verdict, never a re-resolve ──────
@@ -828,6 +944,7 @@ function buildRpgWithCapability(app: ServicesResult, db: Db, capability: ModelCa
     // R4 promotion deps — these tests exercise state rounds, never the mint; loud if ever reached.
     character: { create: () => Promise.reject(new Error("unused: promotion not exercised")), findByHandle: () => Promise.resolve(null) },
     chat: { addCharacterToChat: () => Promise.reject(new Error("unused: promotion not exercised")) },
+    structuredOutputShape: () => DEFAULT_STRUCTURED_OUTPUT_SHAPE,
   });
 }
 
@@ -882,6 +999,9 @@ function buildRpgWithThrowingResolveChat(app: ServicesResult, db: Db, err: unkno
     // R4 promotion deps — these tests exercise state rounds, never the mint; loud if ever reached.
     character: { create: () => Promise.reject(new Error("unused: promotion not exercised")), findByHandle: () => Promise.resolve(null) },
     chat: { addCharacterToChat: () => Promise.reject(new Error("unused: promotion not exercised")) },
+    // D126 — the admin-tier structured-output shape, on its shipped floor (the real root reads it per call off
+    // `getEffectiveConfig()`); the strict-arm pin below overrides it.
+    structuredOutputShape: () => DEFAULT_STRUCTURED_OUTPUT_SHAPE,
   });
 }
 
@@ -2039,6 +2159,9 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
     // R4 promotion deps — these tests exercise state rounds, never the mint; loud if ever reached.
     character: { create: () => Promise.reject(new Error("unused: promotion not exercised")), findByHandle: () => Promise.resolve(null) },
     chat: { addCharacterToChat: () => Promise.reject(new Error("unused: promotion not exercised")) },
+    // D126 — the admin-tier structured-output shape, on its shipped floor (the real root reads it per call off
+    // `getEffectiveConfig()`); the strict-arm pin below overrides it.
+    structuredOutputShape: () => DEFAULT_STRUCTURED_OUTPUT_SHAPE,
   });
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
 
