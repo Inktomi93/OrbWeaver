@@ -25,6 +25,14 @@
 // (D124 — a message-less snapshot stamped with the chat's tail slot; it posts NOTHING to canon). An empty
 // rebuild (capability-absent connection / no writes) is a no-op — no row, no write.
 //
+// THE DOOR IS LOUD (`ResyncResult`, `contract/results.ts`). This verb returned `void`, which made a provider
+// REFUSAL and a story with nothing to re-derive render identically to the host: the button settled, the panel
+// did not move, and the client toasted nothing. That was live on the default hosted backend — every resync
+// 400'd at the provider, the compose op swallowed it into an empty delta, and the host was told it worked. All
+// three endings are now DATA: `{ok:true,rebuilt:true}` (the panel moved) · `{ok:true,rebuilt:false}` (the round
+// ran, the story implied no change — the idempotent second click) · `{ok:false,reason}` (the round could not
+// run, or the F1 boundary refused the rebuild). The client reads it through the `refusal` seam and toasts.
+//
 // IDEMPOTENCE — THE RECONCILER LANDS THE RE-DERIVED TRUTH, IT NEVER APPENDS ONTO IT (VER-1a). The resync is
 // the ONE verb a host fires repeatedly at an unchanged story, so "run it twice ⇒ the same state" is a
 // contract, not a nicety. The turn vehicles' delta is APPEND-shaped on the two log planes, and inheriting
@@ -43,6 +51,7 @@
 
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import type { ResyncFromStoryParams } from "../../contract/params";
+import type { ResyncResult } from "../../contract/results";
 import type { RpgContext, RpgService } from "../../contract/service";
 import { snapshotRowToState } from "../../contract/service";
 import { resolveHost } from "../../guard";
@@ -74,7 +83,7 @@ function resyncStatePatch(baseState: RpgSnapshotState, statePatch: Record<string
 }
 
 export function createResyncFromStory(ctx: RpgContext): Pick<RpgService, "resyncFromStory"> {
-  async function resyncFromStory(params: ResyncFromStoryParams): Promise<void> {
+  async function resyncFromStory(params: ResyncFromStoryParams): Promise<ResyncResult> {
     // HOST GATE at the model-call boundary — a member can never reach the host-principal model call.
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
     // The caller IS the host (resolveHost enforced it), so the host principal funding the model call is the
@@ -89,13 +98,20 @@ export function createResyncFromStory(ctx: RpgContext): Pick<RpgService, "resync
     const transcript = await ctx.resolveCanonWindow(game.chatId, { maxTokens: RPG_RESYNC_MAX_TOKENS });
 
     // The host-principal model call: resolves the room connection AS THE HOST, establish-EVERYTHING rebuild over
-    // the deep window. A capability-absent connection / empty rebuild returns an empty delta (a no-op resync).
-    const delta = await ctx.runResyncExtraction({ chatId: game.chatId, hostUserId, baseState, transcript });
+    // the deep window. The op is ERRORS-AS-DATA — a round that could not RUN (unresolvable connection / no
+    // structured writer / a failed model call) comes back `{ok:false, reason}` and is handed STRAIGHT to the
+    // host. It used to come back as an empty delta, indistinguishable from a story with nothing to re-derive.
+    const round = await ctx.runResyncExtraction({ chatId: game.chatId, hostUserId, baseState, transcript });
+    if (!round.ok) {
+      return round;
+    }
     // The RECONCILER re-shape (the header's idempotence contract): the beat window is REBUILT, not appended,
     // and the journal archive is not written at all — so a second click on an unchanged story is a no-op.
-    const statePatch = resyncStatePatch(baseState, delta.statePatch);
+    const statePatch = resyncStatePatch(baseState, round.delta.statePatch);
     if (Object.keys(statePatch).length === 0) {
-      return; // nothing rebuilt (readonly / model no-op) — no slot, no write (byte-identical non-writing action)
+      // The round RAN and re-derived nothing — no slot, no write (byte-identical non-writing action). Reported
+      // as `rebuilt:false`, which is the honest "nothing to fix", never conflated with a round that never ran.
+      return { ok: true, rebuilt: false };
     }
 
     // Merge the delta onto the base — locks HONORED (a resync repairs the model plane, never a hand-pin).
@@ -108,9 +124,10 @@ export function createResyncFromStory(ctx: RpgContext): Pick<RpgService, "resync
     if (!written.ok) {
       // The F1 backstop refused a contract-invalid rebuild — drop the whole resync (no journal, no emits), and
       // SURFACE it (never a silent vanish — the same observability contract the flush's drop honors). A hand
-      // write has no variant to name, so the drop reports `variantId: null`.
+      // write has no variant to name, so the drop reports `variantId: null`. The host gets the SAME reason the
+      // observability channel got: a refused write is not a rebuild that found nothing.
       ctx.onFlushDropped({ chatId: game.chatId, gameId: game.id, variantId: null, reason: written.reason });
-      return;
+      return { ok: false, reason: written.reason };
     }
 
     // NO journal write (the header's idempotence contract) — `delta.journal` is deliberately unread here, so
@@ -118,6 +135,7 @@ export function createResyncFromStory(ctx: RpgContext): Pick<RpgService, "resync
 
     // The resynced snapshot is the new resolved-current head → the whole panel re-resolves (§4.9).
     ctx.emitBus({ type: "snapshotPatched", chatId: game.chatId, snapshotId });
+    return { ok: true, rebuilt: true };
   }
   return { resyncFromStory };
 }
