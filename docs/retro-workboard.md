@@ -534,7 +534,17 @@ tree — ALL LANES DRAINED, ZERO worktrees.**
 **✅✅ RUN 3 = TRUE PASS, ALL STAGES CLEAN (tests:node 545s + e2e-smoke + all statics) —
 the --no-verify merge debt FULLY CLEARED by this run.**
 **✅✅✅ PUSHED TO ORIGIN (owner word "push", 08-03): `851f625e..865405d6`, 199 commits —
-origin ≡ local, 0 ahead.** (First attempt hit the 5-min tool timeout mid-transfer — ref
+origin ≡ local, 0 ahead.**
+**POST-PUSH WAVE (4 live): F-8 stickler (collection-contribution primitive; composes w/ BOTH
+config-rail arms) · TD stickler (theme doors + embeddable-by-card partition) · D8R (D121-G
+build: Prompt joins BINDING_VIEWS w/ real carrier rows + costs) · TRANSCRIPTS (demo regen on
+the persona'd stack — owner "idc" on the db drop; STACK REBOOTED: fresh db, seeds fired,
+**LIVE PROOF: the persona seeder auto-created under the dev latch with NO forced dialog —
+D122's discriminator arm working on its first real boot**; owner's OR credentials died with
+the re-mint [expected], generation rides local vLLM wake-on-demand; regex scripts await hand
+re-entry [BACKREST-MANUAL]).** Queue after: BRAND gate · R6 chat-bundle · smalls (X-16
+timestamp · snap-contexts port coupling · readout-parts pending-flash · span leftovers ·
+codemod smalls) · then **DATABANK, alone**. (First attempt hit the 5-min tool timeout mid-transfer — ref
 untouched, verified before retry; background push landed clean, 2,796 deltas.) The entire
 instrument-days era is REMOTE: D121+D122 · truth audit · tenancy family (2 holes closed) ·
 persona multi-human · regex reshape complete · handoff copy · portability/lifecycle ·
