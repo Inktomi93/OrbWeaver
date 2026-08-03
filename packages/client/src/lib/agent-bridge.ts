@@ -4,6 +4,7 @@
 // initial reads (a stable wait target that never hangs on the never-idle SSE bus); installAgentDebugHandle
 // installs dev-only `globalThis.__orb`.
 
+import type { ChatId } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import type { BusEventRecord } from "./bus-devlog";
 import { busEventRing, busLiveCount } from "./bus-devlog";
@@ -80,9 +81,9 @@ export type SeedProfile = "d20" | "freeform";
  *  client), injected into `installAgentDebugHandle`. Returns the created chatId — feed it to `nav.openChat`. */
 export interface OrbSeedHandle {
   /** Seed one fully-populated game of `profile` and return its chatId (open it with `nav.openChat`). */
-  readonly game: (args: { profile: SeedProfile; title?: string }) => Promise<{ readonly chatId: string }>;
+  readonly game: (args: { profile: SeedProfile; title?: string }) => Promise<{ readonly chatId: ChatId }>;
   /** Convenience: `game({ profile })` with `profile` defaulting to `freeform` (lite's create default). */
-  readonly richGame: (profile?: SeedProfile) => Promise<{ readonly chatId: string }>;
+  readonly richGame: (profile?: SeedProfile) => Promise<{ readonly chatId: ChatId }>;
 }
 
 /** Dev-only SPA-navigation bridge: drive the app's client-state navigation (rail section, modals,

@@ -4,6 +4,7 @@
 // weekday labelling) is unit-testable without a mounted surface. Params are inline structural shapes
 // (the FacetChips precedent) so the lib never re-spells a stats contract type.
 
+import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { BarListItem } from "@orb/ui/bar-list";
 import type { HeatmapMatrix } from "@orb/ui/heatmap";
 import type { HistogramBucket } from "@orb/ui/histogram";
@@ -97,7 +98,7 @@ export function formatSignedDelta(n: number): string {
 }
 
 /** Rising / falling momentum rows → ranked bars (magnitude of the swing; the label carries the sign). */
-export function momentumBarItems(rows: readonly { readonly characterId: string; readonly name: string; readonly delta: number }[]): BarListItem[] {
+export function momentumBarItems(rows: readonly { readonly characterId: CharacterId; readonly name: string; readonly delta: number }[]): BarListItem[] {
   return rows.map((row) => ({
     id: row.characterId,
     label: row.name,
@@ -153,7 +154,7 @@ export function byModelBarItems(rows: readonly { readonly model: string; readonl
 /** Persona-usage rows → ranked message-count bars. */
 export function personaBarItems(
   rows: readonly {
-    readonly personaId: string;
+    readonly personaId: PersonaId;
     readonly name: string;
     readonly messageCount: number;
   }[],

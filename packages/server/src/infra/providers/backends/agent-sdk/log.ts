@@ -1,6 +1,7 @@
 // agent-sdk `provider.*` event wrappers over the shared kit sink (`providerLog`). Doctrine: logs are
 // METADATA only — never prompt/RP/system-prompt content (Tier-2-Foundation esoteric #12).
 
+import type { ChatId } from "@orb/kit/ids";
 import type { ProviderCapabilityLog, ProviderTurnUsage } from "@orb/server/infra/providers/backends/kit";
 import { logProviderCapability as kitLogProviderCapability, providerLog } from "@orb/server/infra/providers/backends/kit";
 import type { ContextUsage, DynamicContextChannel, ProviderError } from "../../contract";
@@ -14,7 +15,7 @@ const BACKEND = "agent-sdk";
 /** One-line-per-turn anchor (`provider.turn`, info) — success or failure. */
 export interface ProviderTurnLog {
   readonly turnId?: string;
-  readonly chatId?: string;
+  readonly chatId?: ChatId;
   // @foreign-id-ok(sessionId): the Claude Agent SDK's OWN chat-session id (its `session_id` wire field) — a NAME COLLISION with our BFF `SessionId = TypeIdOf<"session">`, a different wire's id that merely shares the spelling. Ends if this position ever carries one of our session rows, or if the field is renamed `sdkSessionId` (which would dissolve this marker).
   readonly sessionId?: string;
   readonly apiKeySource?: string;
@@ -36,7 +37,7 @@ export function logProviderTurn(entry: ProviderTurnLog): void {
 
 /** `provider.session` (debug) — only when the decision was NOT a plain resume. */
 export function logProviderSession(entry: {
-  readonly chatId: string;
+  readonly chatId: ChatId;
   // @foreign-id-ok(sessionId): the Claude Agent SDK's OWN chat-session id (its `session_id` wire field) — a NAME COLLISION with our BFF `SessionId = TypeIdOf<"session">`, a different wire's id that merely shares the spelling. Ends if this position ever carries one of our session rows, or if the field is renamed `sdkSessionId` (which would dissolve this marker).
   readonly sessionId: string | null;
   readonly disposition: SeededSessionDecision["disposition"];

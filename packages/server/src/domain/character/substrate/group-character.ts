@@ -5,12 +5,13 @@
 // bucket (§11.5 group-chat); `synthetic=true` filters it from every user-facing query + the embed pass.
 
 import type { CharacterCard } from "@orb/contracts/character";
+import type { ChatId } from "@orb/kit/ids";
 
 /** The reserved handle prefix for per-room synthetic group characters. */
 const GROUP_HANDLE_PREFIX = "__group__";
 
 /** The synthetic group character's handle for a room (`__group__<chatId>`). */
-export function groupHandle(chatId: string): string {
+export function groupHandle(chatId: ChatId): string {
   return `${GROUP_HANDLE_PREFIX}${chatId}`;
 }
 

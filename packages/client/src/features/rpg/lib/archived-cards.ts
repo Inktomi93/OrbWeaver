@@ -7,7 +7,7 @@
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { CardSpanOrigin } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { resolveRowRenderPolicy } from "#lib";
 
@@ -16,7 +16,7 @@ import { resolveRowRenderPolicy } from "#lib";
 export interface ArchivedCard {
   readonly key: string;
   /** The origin message — the row's TurnRef anchor (§12.1.4 "only where the data really carries a ref"). */
-  readonly messageId: string;
+  readonly messageId: MessageId;
   readonly title: string | null;
   readonly html: string;
   readonly origin: CardSpanOrigin;
@@ -31,7 +31,7 @@ export interface ArchivedCard {
 /** The transcript row fields the projection reads: the body + its birth time, plus the ATTRIBUTION the
  *  render policy resolves from (`chat.listMessages` carries all six). */
 interface ArchivedCardSource {
-  readonly id: string;
+  readonly id: MessageId;
   readonly content: string;
   readonly createdAt: number;
   readonly role: MessageRole;

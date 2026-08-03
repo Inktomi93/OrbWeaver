@@ -6,6 +6,7 @@
 // concurrent import for one owner is a 409; an oversize upload a 413.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import type { WorkloadId } from "@orb/kit/ids";
 import { throwHttpError } from "./http-error";
 
 const BUNDLE_URL = "/api/import/bundle";
@@ -13,7 +14,7 @@ const ZIP_MIME = "application/zip";
 
 /** The `202` accept body: the id of the enqueued import workload to subscribe for progress + the result. */
 export interface BundleImportStarted {
-  readonly workloadId: string;
+  readonly workloadId: WorkloadId;
 }
 
 /** POST a portability zip as the raw request body; resolve the enqueued workload id. Throws on a non-OK

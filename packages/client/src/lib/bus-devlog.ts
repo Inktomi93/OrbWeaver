@@ -4,6 +4,7 @@
 // restores cause: subscription lifecycle + a live count, each canon event → the keys it invalidated,
 // and a duplicate-invalidate alarm (the storm signature). IS_DEV-gated; inert in prod.
 
+import type { ChatId } from "@orb/kit/ids";
 import { IS_DEV } from "./dev-flag";
 import { logClock } from "./log-clock";
 
@@ -34,7 +35,8 @@ const BUS_RING_CAP = 64;
 export interface BusEventRecord {
   readonly at: number;
   readonly type: string;
-  readonly chatId: string;
+  /** The room the event belongs to, or the `"user"` sentinel for the per-user (room-less) bus plane. */
+  readonly chatId: ChatId | "user";
   readonly keys: readonly string[];
 }
 const busEventLog: BusEventRecord[] = [];
@@ -62,7 +64,7 @@ function shortId(id: string): string {
 
 /** A subscription attached. `replay` ⇒ seeded with a replay cursor — the one path that can re-deliver
  *  early events, so it's called out explicitly. */
-export function busSubscribe(chatId: string, replay: boolean): void {
+export function busSubscribe(chatId: ChatId, replay: boolean): void {
   if (!IS_DEV) {
     return;
   }
@@ -76,7 +78,7 @@ export function busSubscribe(chatId: string, replay: boolean): void {
 }
 
 /** The paired detach — decrements the live count (floored at 0; a late cleanup can't drive it negative). */
-export function busUnsubscribe(chatId: string): void {
+export function busUnsubscribe(chatId: ChatId): void {
   if (!IS_DEV) {
     return;
   }
@@ -86,7 +88,7 @@ export function busUnsubscribe(chatId: string): void {
 
 /** A canon event dispatched through the invalidation seam → the query keys it refetched. Empty ⇒
  *  `(none)`. Pure-transient events never call `invalidate`, so they never reach here. */
-export function busInvalidate(type: string, chatId: string, keys: readonly string[]): void {
+export function busInvalidate(type: string, chatId: ChatId | "user", keys: readonly string[]): void {
   if (!IS_DEV) {
     return;
   }

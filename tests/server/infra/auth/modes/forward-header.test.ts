@@ -1,3 +1,5 @@
+import type { ExternalId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { AuthConfig, ForwardJwtClaims, ForwardJwtVerifier, ResolveDeps } from "@orb/server/infra/auth";
 import { MODE_RESOLVERS } from "@orb/server/infra/auth";
 import { describe } from "vitest";
@@ -181,7 +183,7 @@ describe("forward-header — signed JWT (fail-closed)", () => {
     const res = await resolveForwardHeader(
       headers(SIGNED),
       cfg({ verifyForwardJwt: true, jwksAllowlist: ["idp.example.com"] }),
-      verifyDeps({ handle: undefined, externalId: "sub", groups: [], email: null }),
+      verifyDeps({ handle: undefined, externalId: castId<ExternalId>("sub"), groups: [], email: null }),
     );
     expect(res).toBeNull();
   });
@@ -190,10 +192,10 @@ describe("forward-header — signed JWT (fail-closed)", () => {
     const res = await resolveForwardHeader(
       headers(SIGNED),
       cfg({ verifyForwardJwt: true, jwksAllowlist: ["idp.example.com"] }),
-      verifyDeps({ handle: "alice", externalId: "sub-a", groups: ["g"], email: "a@example.com" }),
+      verifyDeps({ handle: "alice", externalId: castId<ExternalId>("sub-a"), groups: ["g"], email: "a@example.com" }),
     );
     expect(res).toEqual({
-      externalId: "sub-a",
+      externalId: castId<ExternalId>("sub-a"),
       handle: "alice",
       groups: ["g"],
       email: "a@example.com",

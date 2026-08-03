@@ -4,6 +4,8 @@
 // load-bearing: full frames resume, an assistant-first seed gets a synthetic user stub, and identical
 // canon under the same sessionId rebuilds byte-identically (so the prompt cache survives a reseed).
 
+import type { ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { assertInitFrameShape } from "@orb/server/infra/providers/backends/agent-sdk";
 import {
   buildSeedFrames,
@@ -293,14 +295,14 @@ describe("seedSessionId — deterministic uuid-shaped session ids", () => {
   const seed = [{ role: "user" as const, content: "hello" }];
 
   test("uuid-v4-shaped (the SDK rejects arbitrary resume ids)", () => {
-    expect(seedSessionId("chat-1", seed)).toMatch(UUID_V4_SHAPE_RE);
+    expect(seedSessionId(castId<ChatId>("chat-1"), seed)).toMatch(UUID_V4_SHAPE_RE);
   });
 
   test("same chat + seed + salt → the same id; chat, seed, or salt changes it", () => {
-    expect(seedSessionId("chat-1", seed)).toBe(seedSessionId("chat-1", seed));
-    expect(seedSessionId("chat-2", seed)).not.toBe(seedSessionId("chat-1", seed));
-    expect(seedSessionId("chat-1", [{ role: "user", content: "other" }])).not.toBe(seedSessionId("chat-1", seed));
-    expect(seedSessionId("chat-1", seed, 1)).not.toBe(seedSessionId("chat-1", seed, 0));
+    expect(seedSessionId(castId<ChatId>("chat-1"), seed)).toBe(seedSessionId(castId<ChatId>("chat-1"), seed));
+    expect(seedSessionId(castId<ChatId>("chat-2"), seed)).not.toBe(seedSessionId(castId<ChatId>("chat-1"), seed));
+    expect(seedSessionId(castId<ChatId>("chat-1"), [{ role: "user", content: "other" }])).not.toBe(seedSessionId(castId<ChatId>("chat-1"), seed));
+    expect(seedSessionId(castId<ChatId>("chat-1"), seed, 1)).not.toBe(seedSessionId(castId<ChatId>("chat-1"), seed, 0));
   });
 });
 
