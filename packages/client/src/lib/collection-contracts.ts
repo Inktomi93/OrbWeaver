@@ -7,9 +7,13 @@
 // this is the tier-4 contribution contract (review F-2).
 //
 // WHO DRAWS WHAT (host-controls vocabulary, C-6): the HOST (`features/config`) owns the section frame, the
-// LIST band, every group band + its disclosure + create button + filter input, the welcome, the context
-// frame, and the ONE kinded selection. The CONTRIBUTION owns its rows, its member editor, its context body,
-// and every query and mutation behind them. The host never learns what a member IS.
+// LIST band, every group band + its disclosure + create button + IMPORT trigger + filter input, the welcome,
+// the context frame, and the ONE kinded selection. The CONTRIBUTION owns its rows, its member editor, its
+// context body, and every query and mutation behind them. The host never learns what a member IS.
+//
+// LIFECYCLE CHROME (D121-D `band=Import · kebab=Export`, landed here by R2's world-info migration): the
+// group band IS a collection's band in this workspace, so `importFile` is a DATA field the host renders
+// (below); EXPORT stays per-member and therefore owner-rendered, inside the row's own kebab.
 //
 // ROOM-TIER BOUNDARY: every collection here is a USER-TIER library. Room-tier overrides (a per-chat preset
 // binding, per-chat injections) never ride this seam — they stay on the chat context panel's machinery.
@@ -98,6 +102,19 @@ export interface CollectionContribution {
    *  selection write. The host calls it unconditionally, once, per rendered affordance. REQUIRED (not
    *  optional) so the call is never a conditional hook: a library you cannot add to is not a library. */
   readonly create: { readonly label: string; readonly useRun: () => () => void };
+  /** The optional IMPORT door, declared as DATA exactly like {@link create} — the host draws a ghost
+   *  `Upload` trigger in the group band beside the `+`, and the FileTrigger/accept plumbing stays one
+   *  grammar for every collection that has one. This is D121-D's `band=Import · kebab=Export` anatomy
+   *  landing on the group band: in this workspace the group band IS the collection's band, so a
+   *  contribution rendering its own import button inside the ROW area would be the second chrome grammar
+   *  C-4 exists to forbid. Export stays the row's own kebab arm (owner-rendered, per-member).
+   *
+   *  OPTIONAL, unlike `create`: a library you cannot ADD to is not a library, but a library with no
+   *  portable single-entity file genuinely has nothing to import (regex scripts travel inside the card
+   *  they belong to — `lifecycle-portability.ts`'s `{ ruled }` cells are the register of which is which).
+   *  `label` is the trigger's accessible name AND its tooltip; `accept` is the file-picker filter; `useRun`
+   *  is a HOOK returning the runner for the same reason `create.useRun` is. */
+  readonly importFile?: { readonly label: string; readonly accept: string; readonly useRun: () => (file: File) => void };
   /** CONTENT for a selected member of this kind — the full editor, owner-rendered, mounted, no popups. */
   readonly detail: (view: CollectionDetailView) => ReactNode;
   /** CONTEXT for a selected member of this kind (see {@link CollectionContext}). */

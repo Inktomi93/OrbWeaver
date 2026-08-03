@@ -25,7 +25,6 @@ import {
   clearCorpusSelection,
   clearNewChatPreset,
   clearSectionSaveStatus,
-  clearWorldBookSelection,
   clearWorldEntrySelection,
   closeModal,
   commitDraft,
@@ -53,8 +52,6 @@ import {
   selectPreset,
   selectPresetFromList,
   selectPresetSection,
-  selectWorldBook,
-  selectWorldBookFromList,
   selectWorldEntry,
   setActiveSection,
   setBulkMode,
@@ -108,7 +105,6 @@ import {
   useSelectedCorpusCharacterId,
   useSelectedPresetId,
   useSelectedPresetSectionId,
-  useSelectedWorldBookId,
   useSelectedWorldEntryId,
   useSettingsPaneRegistry,
   useSettingsSectionRegistry,
@@ -118,7 +114,7 @@ import {
   useSpoilerBlur,
   useTagFilter,
 } from "@orb/client/state";
-import type { CharacterId, ChatId, PresetId, TagId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PresetId, TagId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { Fragment, useState } from "react";
@@ -441,40 +437,22 @@ export function CharacterLibraryStoreProbe(): ReactElement {
   );
 }
 
-const PROBE_BOOK = castId<WorldBookId>("world_book_ct_probe");
 const PROBE_ENTRY = castId<WorldEntryId>("world_entry_ct_probe");
 
-/** WorldInfoSelectionProbe — renders the world-info-selection store's read hooks as text + buttons that fire
- *  its module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a browser)
- *  and assert select → clear for BOTH the open book (LIST drives CONTENT) and the drilled entry: selecting an
- *  entry reveals its editor; opening a different book clears a stale entry. Also drives the LIST-callback
- *  dual-write `selectWorldBookFromList`, which additionally closes the shell's open LIST slide-over (mirrors
- *  ActiveChatStoreProbe's `selectChatFromList` coverage). */
-export function WorldInfoSelectionProbe(): ReactElement {
-  const book = useSelectedWorldBookId();
+/** WorldEntrySelectionProbe — renders the world-ENTRY selection store's read hook as text + buttons that
+ *  fire its module actions, so a CT can drive the real hook-backed store (useSyncExternalStore needs a
+ *  browser) and assert select → clear. The BOOK half moved to the config workspace's kinded selection when
+ *  World Info left the rail (R2), so this store is the entry drill and nothing else. */
+export function WorldEntrySelectionProbe(): ReactElement {
   const entry = useSelectedWorldEntryId();
-  const openOverlayPanel = useOpenOverlayPanel();
   return (
     <div>
-      <output>{`book=${book ?? "none"} entry=${entry ?? "none"} openOverlayPanel=${openOverlayPanel ?? "none"}`}</output>
-      <button type="button" onClick={(): void => selectWorldBook(PROBE_BOOK)}>
-        select book
-      </button>
+      <output>{`entry=${entry ?? "none"}`}</output>
       <button type="button" onClick={(): void => selectWorldEntry(PROBE_ENTRY)}>
         select entry
       </button>
       <button type="button" onClick={(): void => clearWorldEntrySelection()}>
         clear entry
-      </button>
-      <button type="button" onClick={(): void => clearWorldBookSelection()}>
-        clear book selection
-      </button>
-      {/* Open the LIST slide-over first so `selectWorldBookFromList`'s dual-write close is observable. */}
-      <button type="button" onClick={(): void => setOpenOverlayPanel("list")}>
-        open list sheet
-      </button>
-      <button type="button" onClick={(): void => selectWorldBookFromList(PROBE_BOOK)}>
-        select book from list
       </button>
     </div>
   );

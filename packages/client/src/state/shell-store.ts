@@ -36,8 +36,19 @@ import { createPersistedStore } from "./create-persisted-store";
  *  EDITING THIS TUPLE: walk the ten coupled sites in client-architecture-lockdown.md §6a (the SECTION_IDS
  *  playbook) — tsc carries only the door Record; the sanitizers, agent-nav vocabulary, CT mirror, mobile
  *  curation and placeholder copy are each a separate hand edit. */
-export const SECTION_IDS = ["home", "chats", "characters", "corpus", "config", "worldInfo", "presets", "refinery", "analytics"] as const;
+export const SECTION_IDS = ["home", "chats", "characters", "corpus", "config", "presets", "refinery", "analytics"] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
+
+/** RETIRED section ids → where a user whose storage still names one should LAND. A retired id is not a
+ *  vocabulary member (it fails `isSectionId`, `__orb.nav` rejects it, no definition exists), but a stored
+ *  `activeSection` is the last place a user WAS — dropping them at the born default would silently teleport
+ *  them home from a section they were using yesterday. `worldInfo` heals to `config` and not to `home`
+ *  because the world-info library did not disappear: it is a collection in the Configuration workspace now
+ *  (R2), so `config` is the same shelf under a new roof. A row retires when nobody could still be carrying
+ *  the id — persisted shell state has no expiry, so in practice these rows are permanent. */
+const RETIRED_SECTION_HEAL: Readonly<Record<string, SectionId>> = {
+  worldInfo: "config",
+};
 
 /** The modal vocabulary — the ModalDefinition registry is total over this tuple (assembled at the door). */
 export const MODAL_SLOT_IDS = ["theme", "settings", "account", "command", "newChat", "you"] as const;
@@ -58,16 +69,7 @@ export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];
  *  workspace-grade CRUD libraries living as modal panes, and they are now `CollectionContribution`s in the
  *  `config` section's roster. The "Library" nav group disappeared with them; NOTHING tombstones — the union
  *  is closed, so tsc enumerated every `openSettingsTo` call site and each became `goToCollection(kind)`. */
-export const SETTINGS_CATEGORY_IDS = [
-  "personas",
-  "appearance",
-  "workloads",
-  "backup",
-  "chat-behavior",
-  "connections",
-  "automation",
-  "admin",
-] as const;
+export const SETTINGS_CATEGORY_IDS = ["personas", "appearance", "workloads", "backup", "chat-behavior", "connections", "automation", "admin"] as const;
 export type SettingsCategoryId = (typeof SETTINGS_CATEGORY_IDS)[number];
 
 // A settings-section contribution anchors at a `SettingsCategoryId` — EVERY pane is a host (SET-SEAMS
@@ -148,6 +150,15 @@ const PERSIST_VERSION = 2;
 function isSectionId(v: unknown): v is SectionId {
   return typeof v === "string" && (SECTION_IDS as readonly string[]).includes(v);
 }
+/** The stored `activeSection`, healed: a live id passes through, a RETIRED id lands on its successor, and
+ *  anything else (corrupt / never-existed) degrades to the born default. */
+function resolveStoredSection(v: unknown): SectionId {
+  if (isSectionId(v)) {
+    return v;
+  }
+  return (typeof v === "string" ? RETIRED_SECTION_HEAL[v] : undefined) ?? DEFAULT_STATE.activeSection;
+}
+
 function isPanelMode(v: unknown): v is PanelMode {
   return typeof v === "string" && (PANEL_MODES as readonly string[]).includes(v);
 }
@@ -198,7 +209,7 @@ function migrate(persisted: unknown): ShellState {
   }
   const p = persisted as Partial<Record<keyof PersistedShellState, unknown>>;
   return {
-    activeSection: isSectionId(p.activeSection) ? p.activeSection : DEFAULT_STATE.activeSection,
+    activeSection: resolveStoredSection(p.activeSection),
     panelOverrides: sanitizeOverrides(p.panelOverrides),
     openModal: null,
     contextTab: null,

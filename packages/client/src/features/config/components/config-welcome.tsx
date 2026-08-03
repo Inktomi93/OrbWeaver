@@ -28,12 +28,10 @@ export function ConfigWelcome({ collections }: ConfigWelcomeProps): ReactElement
   return (
     <Stack align="center" gap="block" className="mx-auto max-w-prose p-block" data-slot="config-welcome">
       <Icon icon={Package} size="lg" />
-      <Heading level={2}>
-        The parts every chat is built from
-      </Heading>
+      <Heading level={2}>The parts every chat is built from</Heading>
       <Text prose={true}>
-        Tags label your library. Regex scripts rewrite text on its way in or out. Nothing here is required — each one starts paying off the moment you make
-        the first.
+        Tags label your library. Regex scripts rewrite text on its way in or out. World books hold the lore your characters draw on. Nothing here is required —
+        each one starts paying off the moment you make the first.
       </Text>
       <Grid cols="cell" gap="field">
         {orderCollections(collections).map((collection) => (
