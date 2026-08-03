@@ -8,6 +8,7 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
+import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
@@ -15,7 +16,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import type { AppFormInstance } from "#forms";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
-import { useSelectedCharacterFacetId, useSelectedCharacterId } from "#state";
+import { openSettingsTo, useSelectedCharacterFacetId, useSelectedCharacterId } from "#state";
 import type { CHARACTER_CARD_FACET_IDS } from "../lib/character-card-facets";
 import { facetById } from "../lib/character-card-facets";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
@@ -27,6 +28,9 @@ import { CharacterProvenanceSection } from "./character-provenance-section";
 type CardForm = AppFormInstance<CharacterCardFormValues>;
 
 type CharacterFacetId = (typeof CHARACTER_CARD_FACET_IDS)[number];
+
+/** The regex library's own pane + section (the Regex settings surface stamps this anchor). */
+const REGEX_LIBRARY_ANCHOR = { category: "regex", sub: "scripts" } as const;
 
 export interface CharacterFacetInspectorProps {
   readonly characterId: CharacterId;
@@ -189,7 +193,12 @@ function ProvenanceDetail({ form, readOnly }: { readonly form: CardForm; readonl
 }
 
 /** regexScripts' SMALL detail — how many LIBRARY rows are attached to this character (D121-E: scripts are
- *  `character_regex_scripts` junction rows, not card content, so this is a read and not a form selector). */
+ *  `character_regex_scripts` junction rows, not card content, so this is a read and not a form selector).
+ *
+ *  THE COUNT CARRIES A DESTINATION (side-eye X-7). It used to be a lone sentence — "0 scripts attached to
+ *  this character." — with no action anywhere near it, on the one panel that states a fact the user would
+ *  immediately want to change and cannot change here (the attaching happens in CONTENT; the AUTHORING
+ *  happens in the settings library). A readout that reports a zero and offers nothing reads as unbuilt. */
 function RegexDetail({ characterId }: { readonly characterId: CharacterId }): ReactElement {
   const trpc = useTRPC();
   const attached = useQuery(trpc.regex.listForCharacter.queryOptions({ characterId }));
@@ -199,6 +208,11 @@ function RegexDetail({ characterId }: { readonly characterId: CharacterId }): Re
       <Text size="micro" tone="muted">
         {count} {count === 1 ? "script" : "scripts"} attached to this character.
       </Text>
+      <Row>
+        <Button intent="ghost" onClick={(): void => openSettingsTo(REGEX_LIBRARY_ANCHOR.category, REGEX_LIBRARY_ANCHOR.sub)} size="sm" type="button">
+          Open your script library
+        </Button>
+      </Row>
     </Section>
   );
 }

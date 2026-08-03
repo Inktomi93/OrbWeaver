@@ -1,6 +1,10 @@
 // SkeletonRows (rollup-audit C2): the shared QueryBoundary loading fallback. `LoadingRows` (×3) +
 // `PickerSkeleton` (×2 verbatim twins) + `LandingSkeleton` all hand-assemble a fixed count of
 // `Skeleton` placeholders in one of two row shapes — this is the one home.
+//
+// The `line` arm's PITCH (row height + gap + the block padding) is inverted by
+// `./skeleton-row-metrics.ts`, so a caller that knows the BOX it must fill can ask for the row count
+// instead of guessing one (side-eye R-1). The two files change together.
 
 import { Row, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";

@@ -11,6 +11,9 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { UserMacrosTabStory } from "./_add-flow-stories";
 
 const BUILTIN_LINT = /is a built-in macro/;
+/** The row-named Remove trigger (X-3) — the row's stored name depends on whether the collision lint let
+ *  the rename through, which is not what this test is about. */
+const REMOVE_ROW = /^Remove /;
 
 test("Macros: Add persists one row (no phantom), the builtin-collision lint fires, Remove persists empty", async ({ mount, page }) => {
   const probe = await mount(<UserMacrosTabStory />);
@@ -32,6 +35,9 @@ test("Macros: Add persists one row (no phantom), the builtin-collision lint fire
   await expect(page.getByText(BUILTIN_LINT)).toBeVisible();
   await page.getByRole("button", { name: "Done" }).click();
 
-  await probe.getByRole("button", { name: "Remove" }).first().click();
+  // REMOVE CONFIRMS NOW (side-eye X-3): every `EntryListEditor` consumer holds authored content, so the
+  // trailing Remove opens an alertdialog naming the row instead of deleting on the first click.
+  await probe.getByRole("button", { name: REMOVE_ROW }).first().click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Remove" }).click();
   await expect(spy).toContainText("savedLen=0");
 });

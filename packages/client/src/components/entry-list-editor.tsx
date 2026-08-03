@@ -7,6 +7,14 @@
 //
 // OWNER RULING: lives client-shared (NOT @orb/ui — an app-level composite of Section+ListRow+the add/empty
 // pattern; the ConfirmDialog homing precedent). Consumed across the preset + settings features.
+//
+// REMOVE IS CONFIRMED, IN ALL FOUR CONSUMERS (side-eye X-3, 2026-08-03). It used to delete on the first
+// click: no alertdialog, no undo toast, no destructive styling — a plain body-weight ghost button reading
+// "Remove" sitting next to the row it killed. Every one of the four lists this composite serves holds
+// AUTHORED content (regex scripts, preset variables, user macros, game macros), and for the regex library
+// the delete additionally detaches the row from every preset, character and room that referenced it. The
+// confirm lives HERE and not at the call sites for the same reason the kicker does: a per-call-site knob is
+// how a grammar diverges. Callers supply only the CONSEQUENCE sentence, which is genuinely per-list.
 
 import { Button } from "@orb/ui/button";
 import { Icon, Plus } from "@orb/ui/icons";
@@ -14,6 +22,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { ConfirmDialog } from "./confirm-dialog";
 
 export interface EntryListEditorProps<TItem> {
   /** The group's NAME. Rendered in the `kicker` voice — see the note at the render site. */
@@ -30,6 +39,14 @@ export interface EntryListEditorProps<TItem> {
   readonly onAdd: () => void;
   readonly onRemove: (index: number) => void;
   readonly onEdit: (index: number) => void;
+  /** The consequence sentence in the Remove confirm, under "Remove <title>?". Per-LIST copy (what deleting
+   *  this kind of entry costs), never per-row. Omit for the bare title-only confirm. */
+  readonly removeDescription?: ReactNode;
+  /** An extra per-row control, rendered in the trailing slot BEFORE Remove — for a scope/state switch that
+   *  belongs to the row itself. It exists because the alternative shipped once and was a defect: the regex
+   *  pane listed every script a SECOND time, 400px lower, purely to give each one a global switch (X-6). A
+   *  property of a row lives on the row. */
+  readonly renderRowAction?: (item: TItem, index: number) => ReactNode;
   /** The currently-edited index (`null` = no editor open). */
   readonly editIndex: number | null;
   /** Render the editor dialog for the given index (called only when `editIndex` is non-null). */
@@ -50,6 +67,8 @@ export function EntryListEditor<TItem>({
   onEdit,
   editIndex,
   renderEditor,
+  removeDescription,
+  renderRowAction,
 }: EntryListEditorProps<TItem>): ReactElement {
   return (
     // KICKER, NOT `heading` (side-eye F-8, 2026-08-03). Three group-heading grammars shipped across the
@@ -76,9 +95,25 @@ export function EntryListEditor<TItem>({
           items.map((item, index) => (
             <ListRow
               actions={
-                <Button intent="ghost" onClick={(): void => onRemove(index)} size="sm">
-                  Remove
-                </Button>
+                <Row align="center" gap="field">
+                  {renderRowAction?.(item, index)}
+                  {/* NAMED BY THE ROW IT KILLS: six rows each offering an unqualified "Remove" gave a
+                      screen-reader user six identical buttons for six different scripts. */}
+                  <ConfirmDialog
+                    confirmLabel="Remove"
+                    description={removeDescription}
+                    // Three of the four consumers render inside an open Dialog (the settings modal, the
+                    // preset editor, the rpg panel), where Base UI suppresses a nested backdrop by default.
+                    forceRender={true}
+                    onConfirm={(): void => onRemove(index)}
+                    title={`Remove “${getTitle(item, index)}”?`}
+                    trigger={
+                      <Button aria-label={`Remove ${getTitle(item, index)}`} intent="ghost" size="sm">
+                        Remove
+                      </Button>
+                    }
+                  />
+                </Row>
               }
               clickable={true}
               // biome-ignore lint/suspicious/noArrayIndexKey: entries are a positional, id-less list edited in place by index — the index IS the row identity.
