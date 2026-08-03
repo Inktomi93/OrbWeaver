@@ -586,6 +586,14 @@ rebuild-the-board door SILENTLY NO-OPS (returns null) on the default hosted back
 suspects). (2) Seeded demo replay auto-locked every written datum → received examples FROZEN
 against the user's own play (4 extraction rounds no-op'd live) — FIXED in-lane red-first
 (autoLock:false; the receiving-user-can-play property pinned).
+**STICKLER DISPATCHED (owner order, 08-03): STATE-ANCHOR ROW redesign** — the 8 blank
+"Group" rows in the flagship demo are the SYMPTOM (hand-door writes anchor snapshots to
+content-less message rows; consumers filter the artifact one-by-one — seeder drop-patch,
+notStateAnchor selectors — while exports/counts still see it). Owner: the seeder drop is
+"a sloppy fix"; design the PERMANENT shape (anchors invisible BY CONSTRUCTION everywhere:
+first-class row kind vs off-message-plane anchoring vs coalescing — weighed against the
+state-anchor law, variant-keyed swipe semantics, ST round-trip). Consumer scatter census =
+the evidence. Report → docs/reviews/stickler/2026-08-03-state-anchor-rows.md.
 **TD RULINGS #2 (owner, post-review):** O-4/O-5 CONFIRMED w/ tree receipts (chatStyle =
 the Chat-display modes incl. VN-flavored; the SETTING stays, the never-consumed OVERRIDE
 field + lying selects die) · O-6 inverse door BUILD · **zero-edit rider OVERRULED: interception
