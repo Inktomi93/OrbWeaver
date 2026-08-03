@@ -19,8 +19,9 @@
 //   • oidc                       → DEFERRED (owner decision). See the stub in playwright.config.ts.
 //
 // The wire subset shapes are declared LOCALLY (the e2e-support tree stays import-free of the package trees —
-// the `trpc.ts` CanonMessage posture); string-union axes stay `string` (the `no-inline-union-redecl` gate
-// bans re-spelling a homed tuple here, and specs compare to literals).
+// the `trpc.ts` CanonMessage posture, incl. its type-only `@orb/kit/ids` brand carve-out); string-union axes
+// stay `string` (the `no-inline-union-redecl` gate bans re-spelling a homed tuple here, and specs compare to
+// literals).
 
 import type { ChatId, Handle } from "@orb/kit/ids";
 import type { CryptoKey } from "jose";
