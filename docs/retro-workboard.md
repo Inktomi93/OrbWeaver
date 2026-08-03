@@ -53,11 +53,15 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 - Lane floors MUST name their playwright CT files explicitly — `pnpm verify --push` runs NO CTs
   (tests:node + e2e only); the full `pnpm test` battery at quiesce is the CT proof.
 
-## ═══ STATE (2026-08-03, after the tsx migration) ═══
+## ═══ STATE (2026-08-03, after the tsx migration + the guard fix) ═══
 
-- **main @ `cd74d861a`**, tree clean, **33 commits past origin**. Gates **183**. D-ledger through
+- **main @ `fe8f677f8`**, tree clean, **17 commits past origin** (`origin/main = f8cb5e948`,
+  SERVER-VERIFIED via `git ls-remote`, not the console summary). Gates **183**. D-ledger through
   **D126**; **D127 DRAFTED, UNMINTED** (compiler-owns-memoization + uncompiled-CT; text in the MEMOBAN
   block below). **NO LANES LIVE, no second session.**
+- **ONE ORPHANED WORKTREE** — `.claude/worktrees/agent-a3f941f8eb0e01d5a` @ `dcabb7bd5` (the W2-UNDICI
+  lane that died on the permission defer; zero commits of its own, base is an ancestor of HEAD). Tear it
+  down or reuse the path when W2 relaunches — do NOT resume the dead agent into it.
 - ✅ **TSX-SHEDDING: COMPLETE — all four stages, one sitting** (`2001aec5` · `896e3d22` · `e2bed75c` ·
   `e899498a`). `start` = `node …/entry/index.ts`; dev = `node --watch --watch-preserve-output`; all ~38
   tooling scripts on node; `tsx` dropped from `@orb/ui` (knip flagged it — the migration reporting its
@@ -112,6 +116,25 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   Bash call. Consistency is the signal — a real transient is ragged. Check
   `reports/tool-guard/decisions.jsonl`: all-`defer`/zero-deny exonerates the guard's RULES while still
   being the cause, because defer ≠ allow.
+  **✅ SECOND ARM LANDED (`fe8f677f8`) — every subagent is BRIEFED ONCE, on its first Bash call.** A
+  `BRIEFING` block (what the guard rewrites / denies / asks / warns on) is attached as
+  `additionalContext`, marker-file keyed by `agent_id` under `reports/tool-guard/briefed/`, so it costs
+  one paragraph per lane and never repeats. It carries the owner's instruction verbatim: **if a call
+  ever returns `settings deferred Bash`, that is a PERMISSION gap — you cannot answer a prompt, so
+  SendMessage the orchestrator the EXACT command and stop cleanly.** A lane that dies without reporting
+  reads as a transient and costs a re-dispatch. 11/11 guard tests green. (First cut threw: `ctx` wasn't
+  in `toHookOutput`'s scope, fail-open swallowed it and the warn lost its context — `ctx` is now threaded
+  through the signature.)
+  **⚑ OPEN DESIGN ITEM — `defer` is the wrong answer for an UNCOVERED command (owner raised it).**
+  `defer` is correct when the allowlist covers the command: the guard has no opinion, the allowlist
+  approves, work proceeds. It is wrong for a command NOTHING matches — there `defer` means "ask someone"
+  and a subagent has no one, so it dies mid-turn with no chance to report. **The shape to build: the
+  guard reads `.claude/settings.json` `permissions.allow` itself; when the caller is a subagent AND no
+  rule matches, return `deny` with a teaching reason** naming the command and instructing SendMessage.
+  That turns a silent unrecoverable death into an actionable event while auto-approving nothing.
+  **Deliberately NOT built same-session** — it gates every Bash call in the repo and the matcher must be
+  tested against the real allowlist's glob semantics (`Bash(pnpm check *)` etc.); a wrong matcher denies
+  everything. Own lane, fresh context.
 - **NEXT UP (node-26 program, `docs/design/node-26-adoption-program.md`):** W2-UNDICI (the untested SSRF
   dispatcher contract + the 7.28→8.x pin drift — **highest risk in the doc**) · W1-TOOLCHAIN (lib delta +
   `platform.d.ts` + the engines wall; **all six packages carry NO `engines` field**) · then W3/W4/W5, §8
@@ -458,7 +481,8 @@ identity chrome for ANY row kind.
       status line) — the graduation check reads findings TABLES, not the paragraphs around them. Add that line.
 - [ ] **PROMPT_MACROS phantom** (S) — `proposed/world-state-clips-trackers-spec.md:267` names the deleted symbol.
 - [ ] **BARREL ROOT-FIX** (M) — 56 `export * from` remain across `packages/*/src`.
-- [ ] **TSX-SHEDDING MIGRATION** (`docs/design/tsx-shedding-migration-spec.md`, adopted from the memoban
+- [x] ✅ **TSX-SHEDDING MIGRATION — DONE 2026-08-03, all four stages** (receipts in STATE above; the row
+      is kept for its rationale). Original text: (`docs/design/tsx-shedding-migration-spec.md`, adopted from the memoban
       session, probe-verified preconditions). **Owner has particular interest.** `tsx` is a RUNTIME dep in
       production — `start` runs `tsx …/entry/index.ts`, so the server's real module resolver is tsx's and
       any divergence from node is an invisible bug class. The whole migration is one hazard: **6,359
