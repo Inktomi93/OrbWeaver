@@ -661,7 +661,10 @@ reversal note at the site; nudge DEFAULTS strengthened + both texts flagged verb
 owner veto). NIGHT QUEUE in order: REGPAR (ST regex parity: display-ephemeral + tester) ·
 RESYNC-OR · IMGMAC · FACEFILT · BRAND · R2 world-info→config · combined side-eye (tonight's
 surfaces: config workspace · theme cluster · narrator tint · home tiles skeleton · persona
-row anatomy) · handoff-heal biome ticket · quiesce verify --push → PUSH-READY (NO push
+row anatomy) · handoff-heal biome ticket · **SNAPX small** (snap.ts: real fixture port
+override + offset-pair mode [the D22 gap] · --open-chat "first"/"latest" convenience [lives in
+the client nav bridge — AFTER R1B merges, it owns agent-nav] · a --file mode for rendering
+committed HTML mocks [R1C hand-rolled a scratch script for exactly this]) · quiesce verify --push → PUSH-READY (NO push
 overnight) · **if the board empties: DATABANK S1 (owner-ruled tonight)**. Morning owed:
 PUSH-READY verdict + the two nudge default texts + any ladder-logged judgment calls.
 **OWNER RULINGS #4 (08-03 night, pre-overnight):** IMGMAC = YES queue the server small

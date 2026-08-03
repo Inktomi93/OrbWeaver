@@ -205,7 +205,12 @@
  *   shared :5173/:8788 dev stack (which is always AUTH_MODE=single-user — one user, no login form,
  *   nothing to authenticate AS). The auth door is the real one a browser uses: `POST /api/auth/login`
  *   (handle+password → the session cookie), seeded into each context BEFORE its first navigation — never
- *   a bypass. The fixture's roster is fixed at 2 dev users today (owner, member — its own header
+ *   a bypass. HONESTY (2026-08-03): --contexts is UNUSABLE while the shared dev stack is up — the
+ *   fixture reuses stack.sh's OWN 8788/5173 (only the DB is isolated), so it must run INSTEAD of the
+ *   stack, never alongside; and SNAP_FIXTURE_SERVER_URL is read by NEITHER fixtureStatus() nor
+ *   opts.base. Until the boarded port-override/offset-pair small lands, two-human pixels on a live
+ *   stack ride tests/e2e/support/browser-actors.ts instead. The fixture's roster is fixed at 2 dev
+ *   users today (owner, member — its own header
  *   docstring); `--contexts N` assigns them in that order. Target a context with the SAME `@<idx>` suffix
  *   --pages uses (unsuffixed = context 0); shots suffix `-u<idx>` (distinct from --pages' `-p<idx>`, so
  *   the two never collide); RESULT gains contexts=N + users=<handles>. Combining `--contexts` with
