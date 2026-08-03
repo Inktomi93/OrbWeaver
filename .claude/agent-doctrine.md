@@ -49,18 +49,31 @@ Do not skim. You are an amnesiac agent; these docs are your memory.
 - **DB (pre-launch): schema changes SQUASH into `0000_baseline.sql`** (regen via drizzle-kit + biome-
   format the meta), never an incremental `0001`. The `db-structure` gate does NOT catch this.
 - **Use the right search tool — don't default to grep for everything (all these ARE installed):**
-  - **`ast-grep` (aka `sg`, v0.44) for code STRUCTURE** — "every `useState(...)` call", "components
-    matching a JSX shape", "functions with signature X", and AST-aware rewrites. Structural, no
-    regex-escaping pain, respects syntax. The flags that matter (run `sg run --help` for the rest — no
-    repo `sgconfig`, run ad-hoc):
-    - `sg run -p '<pattern>' -l ts <paths>` — search. Metavars: `$A` = one node, `$$$A` = many;
-      `-l/--lang` is `ts`/`tsx`/`js`/`css`/… (required for a bare pattern).
+  - **`ast-grep` for code STRUCTURE** — "every `useState(...)` call", "components matching a JSX shape",
+    "functions with signature X", and AST-aware rewrites. Structural, no regex-escaping pain, respects
+    syntax. **NEVER invoke it as `sg`:** on Debian/Ubuntu the shell's `sg` is `/usr/bin/sg` — `newgrp`,
+    a group-switching binary — so `sg run …` does not search anything and need not fail loudly. Always
+    type `ast-grep`. (Run `ast-grep run --help` for the rest; no repo `sgconfig`, run ad-hoc.)
+    - `ast-grep run -p '<pattern>' -l ts <paths>` — search. Metavars: `$A` = one node, `$$$A` = many;
+      `-l/--lang` is `ts`/`tsx`/`js`/`html`/`css`/… (required for a bare pattern).
+    - **`ts` and `tsx` are DIFFERENT LANGUAGES and there is NO superset flag — run BOTH and merge,
+      always.** `-l ts` matches no `.tsx`; `-l tsx` scans ZERO `.ts`-only files. One measured tree, same
+      pattern: `-l ts` scanned=303/matches=11 vs `-l tsx` scanned=359/matches=107.
+    - **A negative claim needs `--inspect summary`.** `ast-grep run` exits 1 on no-match — the IDENTICAL
+      exit as the wrong language, wrong path, or an ignored dir. `--inspect summary` prints
+      `scannedFileCount=…`; **`scannedFileCount=0` means the search never happened** — report "I could
+      not search", never "not found". A non-zero scan count is what entitles you to an absence claim.
     - `-r '<fix>'` rewrites, but **prints a diff only** — nothing is applied until `-U/--update-all`
       (batch) or `-i/--interactive` (confirm each). A search never mutates.
     - `--globs 'packages/ui/**'` to scope · `-C <n>` context lines · `--json=compact` machine output ·
       `--files-with-matches` for paths only · `-k <kind>` by AST node kind.
-    - `sg outline <paths>` lists symbols/imports/exports/members; `--debug-query -l ts` prints the
-      tree-sitter AST when a pattern won't match (your escape hatch, don't guess the node kind).
+    - `ast-grep outline <paths>` lists symbols/imports/exports/members — **syntax-only**: no references,
+      no types, no re-export chains, no call graph, so it maps structure but never proves reachability.
+      `--debug-query -l ts` prints the tree-sitter AST when a pattern won't match (don't guess the kind).
+    - Inline rules: `--inline-rules` (with `--stdin` for snippets), single-quoted or the shell eats
+      `$META`. **`stopBy` defaults to `neighbor`, not the whole subtree** — write `stopBy: end` unless
+      you mean direct-child-only. Validate any rule against a known-POSITIVE and known-NEGATIVE before
+      trusting a zero from it; every failure mode here returns a silent zero.
   - **The built-in Grep TOOL for literal text** — strings, comments, config values, a quick "does
     this token appear". It's ripgrep-backed, needs no permission prompt, and has no binary-skip
     issue. Don't force ast-grep on a literal, and don't shell out to grep for a plain search.
@@ -68,6 +81,21 @@ Do not skim. You are an amnesiac agent; these docs are your memory.
     `grep` is a ugrep wrapper that skips some `.ts` as binary → silent false-negative sweeps.
   - **`tree`** (v2.1) for directory structure at a glance; **`tokei`** (v12.1, `--output json`) for
     LOC/size stats by language when scoping how big a surface is.
+  - **The global `code-recon` SKILL is the standard for any recon claim** — load it with the Skill tool
+    before hunting in an unfamiliar codebase. It carries the evidence ladder this repo judges by
+    (declared → exported → imported → called), the three ways recon fails while LOOKING like success
+    ("a file existing is not evidence the thing is implemented"; "no-matches is not absence"), and the
+    ast-grep run/outline/scan mechanics. Absence claims need TWO independent methods.
+  - **Reading NEO (`legacy-main`) structurally:** it is a BRANCH, so nothing is on disk and `git show`
+    yields one file at a time — which is how a dig degrades into grep-guessing. Materialize it OUTSIDE
+    the repo and run ast-grep over that:
+    `git -C <repo> archive legacy-main | tar -x -C <scratchpad>/neo`. Never `checkout`, never
+    `worktree add`, never `cp` into the tree (lanes may be mid-sweep on the working tree). For
+    SillyTavern (`/home/inktomi/inktomi-stack/SillyTavern/`) use `ast-grep -l js` **and `-l html`** and
+    lead with `ast-grep outline` for the symbol map — hunt by SHAPE, not by the feature's English name.
+    **Much of ST's UI hides in TEMPLATE HTML** (`public/scripts/templates/`, inline `<template>`), so a
+    JS-only sweep misses whole capabilities; its locale/string tables are a cheap high-recall index of
+    every user-facing option.
   - **`scripts/codemods/codemod-kit.ts` BEFORE you hand-edit a repeated shape or write your own
     codemod.** It is a ts-morph toolkit with a documented index (search `── §`), and it already carries
     the helpers for campaigns this repo has run: `retypeIdAnnotations` (retype every `chatId: string`

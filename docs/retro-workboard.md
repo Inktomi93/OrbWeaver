@@ -56,7 +56,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 ## ═══ STATE (2026-08-03, at the audit) ═══
 
 - **main @ HEAD**, tree clean, **121+ commits past origin `865405d6`** (the 199-commit era was
-  pushed 08-03 on the owner word). Gates: **179 registered** (GATES3 minted three). D-ledger:
+  pushed 08-03 on the owner word). Gates: **180 registered** (GATES3 +3, SPANGATE +1). D-ledger:
   through **D126**, next free **D127**.
 - **PUSH-READY IS STALE.** It was declared at 85 commits (`7d91d01a`); ~36 have landed since (SCHEMA,
   DBANK2, SWEEP, HISTLEG, OBSCLOSE, GATES3, D125, board/doc edits) → **a fresh `pnpm verify --push` on
@@ -148,13 +148,63 @@ its rename-freshness gap fixed direct-on-main (`930955e4`).
 **OPEN — REGX2 (owner-ruled 08-03, dispatch when a slot frees):** bulk edit · the pipeline debugger ·
 the per-script JSON door. **NOT regex presets** — owner: "we made regex part of presets kinda" (the
 preset carrier already IS the named-set mechanism).
-**OPEN — TAGSORT (report-then-decide, do NOT delete blind):** owner challenged the premise of tag
-reorder — "this is an overall global tag manager across our entire lib." Tree check:
-`tags.sortOrder` EXISTS (`packages/db/src/schema/tag.ts:89`, NULL = name fallback) with a live
-`setTagOrder` writer (`domain/tag/verbs/set-order.ts` + the client hook), so manual order is BUILT and
-its only value is hand-curating a global library. **RULED: do NOT lift REGORDER's arm; the >30 cliff
-stays.** The standing question is whether `sortOrder` earns its keep at all — audit who READS it; if
-it is only the library sidebar's folder grouping, sort-by-usage/name may be strictly better.
+✅ **TAGSORT AUDITED + RULED (2026-08-03) — KEEP BUT NARROW. The owner's premise targeted a surface
+that never read the column.** He challenged manual tag order with *"this is an overall global tag manager
+across our entire lib"* — and the evidence says the surface he meant, the character-library folder-grouping
+sidebar (`features/character/lib/character-list-view.ts:52-74` `groupByTag`), **does not read `sortOrder`
+at all**: `RowTag` does not even carry the field, and groups sort by `name.localeCompare`. Same for pending
+tag suggestions (`character/persistence/queries.ts:270`, name only). So the objection is resolved by
+evidence, not by deleting anything.
+**Every reader (AST-confirmed, both languages scanned non-zero, grep-corroborated, zero disagreement):**
+`tag/persistence/queries.ts:39` `listOwnedTags` (`ORDER BY sortOrder IS NULL, sortOrder, name`) →
+`tag.listTagsWithUsage` · `character/persistence/queries.ts:387` `canonicalTagsFor` → every character
+summary's `tags` array · `tag/verbs/export.ts:17` (round-trip only, not a distinct decision). **No `.tsx`
+reads it** except the write hook.
+**Surfaces that can actually SEE it:** ONE primary — the tag-management collection rows
+(`features/tag/components/tag-collection-rows.tsx:75-81`, drag → `useSetTagOrder`), and ONE passive echo —
+tag-CHIP order on character cards (`character-card.tsx:75` + dossier + quick-picks), which render the
+server's array order with no client re-sort.
+**RULED:** keep `sortOrder`, its write verb and the sortable rows as-is — a real, bounded, actively-used
+affordance. **Do NOT extend it anywhere else** (not into `groupByTag`, not into suggestions); those already
+made the better call. Removal would cost only alphabetical-instead-of-curated on those two surfaces —
+survivable, but a real regression on a purpose-built UI, for no gain.
+**⚑ THE ONE THING THAT NEEDS THE OWNER'S EYES — the 30-of-400 ratio.** The drag arm is capped at ≤30 items
+(`COLLECTION_LARGE_GROUP`, `collection-contracts.ts:39`); above that the same order renders in a read-only
+`VirtualList` with NO drag affordance. At his stated ~400-tag scale that means **manual ordering is
+unreachable for ~92% of the library, while still silently deciding chip order on every character card.**
+That is not a bug and the cliff was a deliberate owner-flagged fork — but it is worth his explicit ruling
+now that the numbers are on the table.
+**Audit limits (stated):** packages outside server/client not exhaustively enumerated (none found);
+non-TS consumers (raw SQL/seed outside `db/src/schema`) not searched.
+✅ **TAGDIG — the full tag-experience audit vs ST + neo (2026-08-03).** Report:
+`docs/reviews/misc/2026-08-03-tag-experience-audit.md` (gap register by theme, every `-l ts`/`-l tsx`
+sweep run in PAIRS with scanned-file counts; neo read via `git archive legacy-main` into scratchpad,
+never checked out; a false-negative self-corrected mid-audit — a bare-identifier pattern returned 0/0
+and looked like absence until `$X.folderType` found the real site).
+**Sort-by-most-used CONFIRMED CHEAP (S, zero server cost):** `listOwnedTagsWithUsage`
+(`domain/tag/persistence/queries.ts:288`) already returns `usage.total` in every payload the client
+renders — it is a client comparator + a mode `Select`, mirroring ST's `tag_sort_mode`.
+**RANKED WANTS:** (1) sort mode Alphabetical/Most-Used, default Most-Used — S · (2) **autocomplete on
+the tag-attach input** (`components/tag-picker-dialog.tsx` is a bare `Input` with NO suggestion list on
+BOTH neo and main) — S–M, the highest value-per-effort row: at ~400 tags it is what prevents
+duplicate-tag rot, and the data is already cached client-side · (3) tag EXCLUSION / three-state filter
+(ST has `toggleTagThreeState`/`FILTER_STATES.EXCLUDED`; **neither lineage ever built it**) — M, needs a
+new axis threaded through `LibraryFilters`/`filterByChips`. Past #3 is L and changes the browsing MODEL
+— separate owner decision, not a queued build.
+**WE ARE AHEAD OF ST in one place:** the pending-suggestion Accept/Reject review queue
+(`character-tag-suggestions.tsx` + `tag/verbs/list-pending-suggestions.ts`) plus the LLM auto-distill
+producer (`discovery/verbs/distill.ts`) — ST has no equivalent.
+**DELIBERATELY NOT COPIED (with reasons):** ST's DUAL tag lists (local organizing tags vs a separately
+authored "tags to embed" export field — a known confusion source in ST itself; our WYSIWYG
+accepted-tags-are-what-exports model is better) · a user-facing AND/OR toggle (ST hardcodes
+`const TAG_LOGIC_AND = true; // switch to false…` — config-via-source-edit; AND is the right default and
+per-tag exclusion covers the real "not this one" need).
+**⚑ OWNER TASTE CALLS:** standalone tag-only backup/restore button (REC skip) · import-time
+Ask/All/Existing/None vs our always-queue model (REC keep ours, it is strictly more capable — record as a
+deliberate divergence) · **whether Manual/`sortOrder` retires once Alphabetical/Most-Used ship**, given the
+≤30 cap already makes it near-unreachable at ~400 tags · folder OPEN (collapsible, cheap) vs CLOSED
+drilldown (navigation-model change) — REC build OPEN, defer CLOSED.
+**Not covered (stated):** anti-troll import cap, non-English locale completeness, mobile/touch behaviour.
 **OPEN smalls:** "Untitled chat" in the regex rosters (REGROSTER's naming question) · X-16 edited-ago
 needs a `RegexScriptRow` timestamp (contracts + db — verified absent) · REGPAR's F6 residual (REASONING
 prints slot 4 but executes post-postProcess — unobservable; strict-fidelity is an owner nit).
@@ -312,7 +362,9 @@ identity chrome for ANY row kind.
 2. **The three nudge default texts** (I-8) — his veto, verbatim in NARCOLOR's report.
 3. **Structured-output nullable-union reshape** (I-1) — the A/B call.
 4. **Presets into the config rail** (I-3) — owner-timed, one array member forever.
-5. **`tags.sortOrder` earns its keep?** (I-4 TAGSORT) — report-then-decide.
+5. ✅ **`tags.sortOrder`** — AUDITED + RULED KEEP-BUT-NARROW (I-4). **One question left for him:** the
+   drag arm caps at 30 items while the library is ~400 — manual order is unreachable for ~92% of tags yet
+   still decides character-card chip order. His call whether that cliff is right.
 6. **DRAFT-TRUST** — drafts run the untrusted floor (strip `<i>`/`<b>`), committed `trustHtml` renders
    them; needs a "what render policy would this card get" server seam. Architecture call.
 7. **AGENT-1** — agent-sdk FIRST-CLASS for rpg-lite. Plumbing is ~complete (terminal tools · stateful
@@ -388,9 +440,15 @@ Items this audit could not prove either way from the tree. **None were dropped.*
   failure and teardown ran on a failed merge; a red hook left staged-no-commit and the chained `rm -rf`
   deleted a lane worktree that then needed resurrection). merge → SEPARATE verify call → THEN teardown.
   A staged-failed merge is `git merge --abort`, never `reset --hard` with uncommitted work.
-- **The orchestrator's own shell cwd can silently sit in (or die with) a worktree** — a bare `git
-  log`/`git merge` then acts on the WRONG repo and even the verification lies. `git -C <ABSOLUTE-main>`
-  always.
+- **NEVER `cd` INTO A WORKTREE AT ALL — not even as a throwaway prefix.** The Bash tool's cwd PERSISTS
+  across calls, so one `cd <wt> 2>/dev/null; git -C <wt> status` silently relocates every LATER command:
+  a board edit + `git add -A docs` + commit then landed a main-only doc commit on a LANE'S BRANCH, on top
+  of that lane's checkpoint, while it was mid-sweep (2026-08-03, BRAND-F). `git -C <ABSOLUTE-path>` is
+  sufficient for every worktree read — the `cd` buys nothing and costs this.
+  **The repair, when it happens:** cherry-pick the commit to main FIRST (bank the work), then in the lane
+  `reset --soft HEAD~1`, rewrite the stray file from `git show HEAD:<path>`, and `git reset -- <path>` to
+  unstage. NEVER `git restore`/`checkout <path>` in a lane's tree — it carries live uncommitted work.
+  Verify the lane's modified-file count is unchanged afterward and TELL the lane.
 - **HOLD merges while a `verify --push` runs** (merging mid-battery muddies what got certified).
 - Merge-hook format-drift reds: fix IN the staged merge (scoped biome on the named files, inspect the
   diff, `git add`, `commit --no-edit`).
@@ -544,10 +602,20 @@ The audit wrote SCHEMA / DBANK2 / SWEEP as *dispatched*. Since then:
   `tests/support/ct/ct-data-providers.tsx`'s `realSettingsSections`, or every pane CT lies.
 - 🔨 **SPANGATE DISPATCHED (`a40e2b5d8df6e2282`)** — the owner asked whether OBSCLOSE's class should be
   a gate or just discipline. **Gate**: the class recurred FIVE times (SM4 fixed one; OBSCLOSE found
-  four more of the identical shape in the same file). Arm A = untraced fire-and-forget (no detached
-  `root:true` span). **Arm B is the one that matters** = inside a `root:true` span callback, a `catch`
-  that does not rethrow — the shape that seals `status:"ok"` on every failure, i.e. a green dashboard
+  four more of the identical shape in the same file). Arm A = untraced fire-and-forget (work that never
+  opens a DETACHED root span). **Arm B is the one that matters** = inside a detached-root span callback,
+  a `catch` that does not rethrow — the shape that seals `status:"ok"` on every failure, i.e. a green dashboard
   over failing work. Tractable because `withRequestSpan` has only 15 call sites across 5 files.
+  **⚠️ MECHANISM CORRECTED MID-RUN (my brief was wrong):** `root: true` is NOT a call-site argument —
+  it is baked INSIDE `withRequestSpan` (`foundation/observability/tracing.ts:318`) and no call site
+  passes it. I inherited that phrasing from a prior lane's report and repeated it unchecked; the lane
+  applied the doctrine's "a brief's cited mechanism is a HYPOTHESIS" law and re-derived it from source.
+  The gate keys on **an EXPORTED function of `tracing.ts` that calls OTel `startActiveSpan` with
+  `root:true`** — which survives wrapper renames, cannot be defeated by a second wrapper, and gives the
+  §4.6 blindness tripwire a real hook (strip the detach → derivation empty → RED, probed live).
+  **A SIXTH instance found:** `fireRpgUserCommit` in `domain/chat/verbs/turn.ts` — a DB snapshot-commit
+  plus a dice consume, entirely untraced, in a DIFFERENT file. Tally is now SM4 (1) + OBSCLOSE (4) +
+  SPANGATE (1). The class demonstrably survives discipline.
   **Declared limit to carry when it lands:** a gate can prove a span is OPENED and that errors REACH
   it; it cannot prove the span is meaningful, named right, or correlated to the work. Floor, not
   ceiling.
@@ -580,9 +648,35 @@ The audit wrote SCHEMA / DBANK2 / SWEEP as *dispatched*. Since then:
   literals in the new CT. The lane's floor ran `typecheck:graph` + `tests-dom` but NOT the per-package
   `pnpm typecheck`, which is the only stage that sees `tests/client/**` from `packages/client`'s
   tsconfig. Fixed with `castId<DocumentId>`; **lane floors should name `pnpm typecheck` explicitly.**
-- **LIVE NOW (cap 5):** DBFIX (`a423c577e9d55294a` — databank ingest concurrency, the D117
-  contradiction — MERGED, see above) · **SPANGATE**
-  (`a40e2b5d8df6e2282` — the untraced/swallowed span gates, above) · **BRAND-F** (`a9c87d67eac1b22a2` — **the WHOLE I-5 burn-down on Fable**, briefed to read
+- ✅ **SPANGATE MERGED (`898eef25`) — gate #180 `detached-work-traced`.** ONE gate, TWO arms, live-green
+  on a FIXED tree. Arm A = fire-and-forget work under no detached root; **Arm B = a `catch` that does
+  not rethrow INSIDE an opener callback** — the shape that seals `status:"ok"` on failure, i.e. a green
+  dashboard over failing work. One gate not two, argued: same derived opener set, same marker resolver,
+  same stale/malformed arms — **and A2 is reachable BY "fixing" A1 wrongly** (move the discard inside the
+  callback), so one producer must judge both. Consolidated `pnpm check`: 14/14.
+  **A SIXTH instance of the class, in a THIRD file:** `fireRpgUserCommit` (`domain/chat/verbs/turn.ts`)
+  — a DB snapshot-commit plus a queued-dice consume, under no span at all. Tally: SM4 (1) → OBSCLOSE (4)
+  → SPANGATE (1). **The class survived one fix, a four-instance sweep of its own file, AND normal
+  review.** That is the sentence that justifies the gate.
+  **BOTH of my brief's premises died** (recorded so neither propagates): (1) `root:true` is baked INSIDE
+  `withRequestSpan` (`tracing.ts:318`) and no call site passes it — vocabulary derived from the mechanism
+  instead (*an exported fn of tracing.ts calling `startActiveSpan` with `root:true`*), which survives
+  wrapper renames and gives §4.6 a real hook, probed live. (2) "15 call sites across 5 files" was wrong:
+  `pnpm ast callers` → **32 hits in 12 files, 7 production**; the observability index/tracing pair are
+  the declaration + re-export, not call sites.
+  **Fixed, not parked:** `turn.ts` + both `search-discovery.ts` reindex enqueues open their own roots.
+  **Permanently marked** with position + reason + end condition: egress teardowns ×5, local-light
+  eviction dispose, the engine's inner warning-emit catch, and the rate-limit per-request GC — that last
+  one because a detached root per request would push one bucket per request through a **500-entry ring
+  and evict the real traces.**
+  **⚠️ DECLARED LIMITS (the gate's green is a FLOOR, not a ceiling) — verbatim:** *it can prove a root
+  span is OPENED and that errors REACH it; it CANNOT prove the span is MEANINGFUL — that its name,
+  request id, or attributes correlate to the work it wraps. A wrong-but-present span passes.* Also: only
+  DISCARDING handlers count · bare `void work()` is out (an unhandled rejection is loud) · statement
+  position only · an absorbed promise assigned to a variable is out · "traced" is satisfied by ANY opener
+  in the statement (proving it wraps THE work needs types) · Arm B reads only a SYNTACTIC `throw`, so a
+  rethrow routed through a helper is invisible · `scanRoot` is `packages/server/src/**` only.
+- **LIVE NOW (cap 5 — ONE lane):** **BRAND-F** (`a9c87d67eac1b22a2` — **the WHOLE I-5 burn-down on Fable**, briefed to read
   `codemod-kit.ts` + `ast.ts` IN FULL; the kit already carries `retypeIdAnnotations` +
   `castStringLiteralsByDiagnostic` from a prior id campaign).
 - **KILLED (owner word):** the first brand lane (mech-executor tier) — zero commits, one untracked
