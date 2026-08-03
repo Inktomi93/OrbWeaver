@@ -193,7 +193,7 @@ test("selecting a member routes CONTENT to its owner's editor and CONTEXT to its
   await workspace.locator(ROSTER).getByRole("button", { name: WORLD_INFO_BAND }).click();
   await workspace.getByText("42 entries · attached ×3").click();
   await expect(workspace.getByRole("heading", { name: "The Ninefold Reach" })).toBeVisible();
-  await expect(workspace.getByRole("switch", { name: "Attach globally" })).toBeVisible();
+  await expect(workspace.getByRole("switch", { name: "Fires in every chat" })).toBeVisible();
 });
 
 test("the group create verb fires the OWNER's create mutation", async ({ mount, page }) => {

@@ -39,6 +39,10 @@ import { LibraryRow, RowToggleAction } from "#components";
 import { timeLib } from "#lib";
 import { presetRowSubtitle } from "../lib/preset-row-view";
 
+/** How many §12.2 cluster slots THIS list reserves on every row — a fork row's state dot + inline Duplicate
+ *  + kebab is the widest cluster in the list, so the dot column holds one x on the built-in row too. */
+const PRESET_CLUSTER_SLOTS = 3;
+
 /** The minimal preset shape the row renders (a `PresetSummary` — tRPC-inferred at the surface). */
 interface PresetRowItem {
   readonly id: PresetId;
@@ -96,7 +100,9 @@ export function PresetLibraryRow({
     <LibraryRow
       // The cluster carries a rest-visible control (the pressed dot), so the strip is reserved in flow —
       // see the file header.
-      actionsReserved={true}
+      // The LIST's widest cluster is the full three (state dot · inline Duplicate · kebab) — a fork row
+      // renders all three, so every row reserves three and the dot column holds one x.
+      actionsReserved={PRESET_CLUSTER_SLOTS}
       onSelect={(): void => onSelect(preset.id)}
       selected={selected}
       title={preset.name}

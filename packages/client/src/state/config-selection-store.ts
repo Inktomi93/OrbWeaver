@@ -12,8 +12,19 @@ import { setActiveSection } from "./shell-store";
 
 const configSelection = createKindedSelectionStore("config-selection");
 
-/** Open a member (kind + id) — CONTENT swaps to that collection's editor. */
-export const selectCollectionMember = configSelection.select;
+/** Open a member (kind + id) — CONTENT swaps to that collection's editor, and that collection's group
+ *  EXPANDS so the roster shows the row that is open.
+ *
+ *  The expand is not a courtesy: groups start collapsed, so `+ New script` used to mount the new editor in
+ *  CONTENT while the roster still read `REGEX SCRIPTS 2 ›` — the thing you had just made was invisible in
+ *  the list, and with two rows both named "New script" there was no way to tell which one you were editing
+ *  (side-eye 2026-08-03 P3). Selection and disclosure are one act: a selected member the LIST cannot show is
+ *  a selection the user cannot see. `goToCollection` already paired the same two writes for the deep-link
+ *  arm; this is that pairing homed where every selection passes. */
+export function selectCollectionMember(kind: string, memberId: string): void {
+  openCollectionGroup(kind);
+  configSelection.select(kind, memberId);
+}
 /** Open a member from the LIST AND close any open LIST slide-over (no-op when the LIST is docked). */
 export const selectCollectionMemberFromList = configSelection.selectFromList;
 /** Clear the selection — back to the Configuration welcome (also fired after deleting the open member). */

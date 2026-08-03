@@ -45,3 +45,28 @@ export function isSafeColor(raw: string): boolean {
   }
   return RGB.test(value) || HSL.test(value) || OKL.test(value);
 }
+
+/** The three `oklch(L C H)` components, in order — the only form this reader parses. */
+const OKLCH_COMPONENTS = /^oklch\(\s*([\d.%-]+)\s+([\d.%-]+)\s+([\d.-]+)/iu;
+const HUE_WHEEL_DEGREES = 360;
+
+/**
+ * The HUE angle of an `oklch(L C H)` color, normalised to [0,360), or `null` for any other form.
+ *
+ * Deliberately narrow: it exists so a surface can tell whether two AUTHORED tints are perceptually the same
+ * colour (side-eye 2026-08-03 — two speakers' dialogue spans shipped 8° apart and read as one), and hue is
+ * the only axis that answers that at the fixed lightness/chroma this app tints at. `null` for hex/rgb/hsl is
+ * an honest "cannot compare", never a conversion guess: a caller that cannot read a hue must leave the
+ * authored value alone rather than de-collide against a fabricated number.
+ */
+export function oklchHue(raw: string): number | null {
+  const match = OKLCH_COMPONENTS.exec(raw.trim());
+  const hue = match === null ? Number.NaN : Number.parseFloat(match[3] ?? "");
+  return Number.isFinite(hue) ? ((hue % HUE_WHEEL_DEGREES) + HUE_WHEEL_DEGREES) % HUE_WHEEL_DEGREES : null;
+}
+
+/** The shortest angular distance between two hue angles, in degrees (0–180). */
+export function hueDistance(a: number, b: number): number {
+  const raw = Math.abs(a - b) % HUE_WHEEL_DEGREES;
+  return raw > HUE_WHEEL_DEGREES / 2 ? HUE_WHEEL_DEGREES - raw : raw;
+}

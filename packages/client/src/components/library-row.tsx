@@ -65,10 +65,16 @@ export interface LibraryRowProps {
    * both unclickable and an overlay. Reserving the strip is also what makes the row's geometry constant —
    * see `ROW_REVEAL_SWAP` for the hit-test oscillation a hover-variable row layout causes.
    *
-   * The reserved strip is padded to the §12.2 cluster's full three slots (`clusterSpacers`), so the state
-   * column lands at ONE x on every row of the list even when some rows carry no actions menu (F-4).
+   * THE VALUE IS THE **LIST'S** WIDEST CLUSTER, not this row's (§12.2 slot count, 1–{@link CLUSTER_SLOTS}).
+   * The strip pads to it (`clusterSpacers`) so the state column lands at ONE x on every row even when some
+   * rows carry no actions menu (F-4) — that alignment is a property of the LIST, which is why only the list
+   * can state it. It used to pad unconditionally to the full three: the regex roster renders exactly one
+   * slot per row, so every row reserved two dead boxes and 88px of a 290px row went blank while the script
+   * NAMES truncated at 128px (side-eye 2026-08-03 P1).
+   *
+   * Omit ⇒ the cluster FLOATS (the default; no reservation, no spacers).
    */
-  readonly actionsReserved?: boolean;
+  readonly actionsReserved?: number;
   /**
    * Rest-visible STATUS markers (Active / Global / a built-in lock) — rendered on the TITLE LINE, never in
    * the leading slot. A leading status badge is variable-width and only SOME rows have one, so the title
@@ -96,7 +102,7 @@ export interface LibraryRowProps {
 const CLUSTER_SLOTS = 3;
 
 /**
- * Pads a RESERVED cluster out to `CLUSTER_SLOTS`, TRAILING (side-eye F-4).
+ * Pads a RESERVED cluster out to the LIST's declared slot count, TRAILING (side-eye F-4).
  *
  * The defect: `actionsReserved` keeps the cluster in flow but reserves only what the row itself renders, so
  * a built-in row whose cluster is `[radio]` right-aligned its radio at x=312 while every fork row's
@@ -110,25 +116,16 @@ const CLUSTER_SLOTS = 3;
  * control it reserves. `aria-hidden` and empty: this is layout, never a disabled affordance (a spacer that
  * reached the a11y tree would announce three phantom controls per built-in row).
  */
-function clusterSpacers(rendered: number): readonly ReactElement[] {
-  return Array.from({ length: Math.max(0, CLUSTER_SLOTS - rendered) }, (_unused, at) => (
+function clusterSpacers(rendered: number, reserved: number): readonly ReactElement[] {
+  return Array.from({ length: Math.max(0, Math.min(reserved, CLUSTER_SLOTS) - rendered) }, (_unused, at) => (
     <Row aria-hidden={true} className="size-control-md shrink-0" data-slot="library-row-cluster-spacer" key={`cluster-spacer-${String(at)}`} />
   ));
 }
 
 /** One entity-library row: title/subtitle + title-line status markers · state toggle · Rename/Duplicate/
  *  Delete menu. */
-export function LibraryRow({
-  title,
-  subtitle,
-  selected,
-  onSelect,
-  markers,
-  leading,
-  stateToggle,
-  actions,
-  actionsReserved = false,
-}: LibraryRowProps): ReactElement {
+export function LibraryRow({ title, subtitle, selected, onSelect, markers, leading, stateToggle, actions, actionsReserved }: LibraryRowProps): ReactElement {
+  const reserved = actionsReserved !== undefined;
   const hasCluster = stateToggle !== undefined || actions !== undefined;
   // What this row actually renders into the §12.2 cluster: the toggle, the optional inline verb, the kebab.
   const renderedSlots = (stateToggle === undefined ? 0 : 1) + (actions === undefined ? 0 : (actions.inlineVerb === undefined ? 0 : 1) + 1);
@@ -139,11 +136,11 @@ export function LibraryRow({
       // Default: every trailing control is hover-revealed, so the cluster floats at the row's end instead of
       // reserving ~76px of the title column at rest (side-eye P1-2b). `actionsReserved` opts out for a row
       // that shows a control at rest — see the prop.
-      actionsFloat={!actionsReserved}
+      actionsFloat={!reserved}
       // A reserved strip is a SIBLING of the body, so the row's tint has to be painted on the root or the
       // highlight stops before the controls (and the cluster ends up minting its own panel to compensate —
       // the box-in-box the reserved arm exists to kill).
-      rowTint={actionsReserved ? "row" : "body"}
+      rowTint={reserved ? "row" : "body"}
       clickable={true}
       onClick={onSelect}
       selected={selected}
@@ -159,7 +156,7 @@ export function LibraryRow({
                 {actions === undefined ? null : <LibraryRowActionsMenu {...actions} />}
                 {/* Only the RESERVED arm pads: a FLOATED cluster is out of flow at the row's end and
                     reserves nothing, so spacers there would be dead boxes hovering over the title text. */}
-                {actionsReserved ? clusterSpacers(renderedSlots) : null}
+                {actionsReserved === undefined ? null : clusterSpacers(renderedSlots, actionsReserved)}
               </>
             ),
           }

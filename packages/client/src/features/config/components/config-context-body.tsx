@@ -11,6 +11,7 @@
 
 import { EmptyState } from "@orb/ui/empty-state";
 import { Anchor, Icon } from "@orb/ui/icons";
+import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { CollectionContribution, ContributorRegistry } from "#lib";
 import { useCollectionSelection } from "#state";
@@ -30,4 +31,18 @@ export function ConfigContextBody({ collections }: ConfigContextBodyProps): Reac
     return <EmptyState description={collection.context.description} icon={<Icon icon={collection.icon} size="lg" />} title={collection.context.title} />;
   }
   return <>{collection.context.render({ memberId: selection.memberId })}</>;
+}
+
+/** The CONTEXT BAND's identity for this workspace (`ContextDefinition.header`, the §6b P4 slot). It names
+ *  what the pane ANSWERS for the OPEN member's collection — "Where it runs" over a regex script — instead of
+ *  the shell's neutral "Details", which named nothing while the arms underneath it spoke different
+ *  grammars (side-eye 2026-08-03 P3). One home: the same `context.title` a `none` arm already declares. */
+export function ConfigContextHeader({ collections }: ConfigContextBodyProps): ReactElement {
+  const selection = useCollectionSelection();
+  const title = selection === null ? CONFIG_CONTEXT_EMPTY.title : collections.get(selection.kind).context.title;
+  return (
+    <Text as="span" voice="label">
+      {title}
+    </Text>
+  );
 }

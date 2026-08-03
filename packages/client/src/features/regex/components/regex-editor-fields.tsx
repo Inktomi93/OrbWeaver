@@ -25,7 +25,7 @@ import { Section, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Textarea } from "@orb/ui/textarea";
 import type { ChangeEvent, ReactElement } from "react";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useId } from "react";
 import type { AppFormInstance } from "#forms";
 import { REGEX_PLACEMENT_ITEMS } from "#lib";
 import { RegexTestPanel } from "./regex-test-panel";
@@ -78,6 +78,7 @@ export interface RegexEditorFieldsProps {
 
 /** The regex-script field set — bound to one library row, rendered wherever the caller mounts it. */
 export function RegexEditorFields({ form }: RegexEditorFieldsProps): ReactElement {
+  const patternId = useId();
   return (
     <Stack gap="block">
       <form.AppField name="name">{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
@@ -87,11 +88,28 @@ export function RegexEditorFields({ form }: RegexEditorFieldsProps): ReactElemen
           WRONG — carried none, so nothing on screen said whether to type `foo` or `/foo/gi`. Both are
           accepted (`parsePatternFlags` in `@orb/kit/regex` reads the slash form and forces `g`), which
           is exactly why it had to be stated. */}
+      {/* IT LOOKS AND BEHAVES LIKE A FIELD (side-eye 2026-08-03 P2). Three tells said otherwise: a 31px
+          line-number gutter on a one-line regex (`setup="line"` drops it), text starting flush against the
+          frame (the seal now insets `.cm-content` like an `<Input>`), and a `<label for>` that resolved to
+          nothing — Base UI mints the `for` from the Field context, and CodeMirror's editable is not a
+          `Field.Control`, so it pointed at an element that never mounts. `labelFor` + `contentId` make the
+          association real and the label click focus the editor. */}
       <form.AppField name="findRegex">
         {(field): ReactElement => (
-          <Field label="Find pattern" name={field.name} description="A regular expression — bare (ooc:.*) or slash-delimited with flags (/ooc:.*/gi).">
+          <Field
+            label="Find pattern"
+            labelFor={patternId}
+            name={field.name}
+            description="A regular expression — bare (ooc:.*) or slash-delimited with flags (/ooc:.*/gi)."
+          >
             <Suspense fallback={null}>
-              <CodeEditor ariaLabel="Find pattern" value={field.state.value} onChange={(next): void => field.handleChange(next)} />
+              <CodeEditor
+                ariaLabel="Find pattern"
+                contentId={patternId}
+                onChange={(next): void => field.handleChange(next)}
+                setup="line"
+                value={field.state.value}
+              />
             </Suspense>
           </Field>
         )}
@@ -127,7 +145,17 @@ export function RegexEditorFields({ form }: RegexEditorFieldsProps): ReactElemen
           save boundary — see `features/regex/lib/derive-tier-flags.ts` for the three arms and for why
           the import path is deliberately left alone. */}
       <form.AppField name="placement">
-        {(field): ReactElement => <field.MultiToggleField label="Runs on" description="Which text streams this script rewrites." items={PLACEMENT_ITEMS} />}
+        {(field): ReactElement => (
+          <field.MultiToggleField
+            description="Which text streams this script rewrites."
+            items={PLACEMENT_ITEMS}
+            label="Runs on"
+            // The F3 defect, stated (side-eye 2026-08-03 P2): every chip off is SAVEABLE — the schema stays
+            // lenient because the card-boundary heal needs it — and the script then runs nowhere with
+            // nothing on screen saying so. The row's scent says it too ("runs nowhere").
+            {...(field.state.value.length === 0 ? { error: "No stream selected — this script is saved, but nothing will ever run it." } : {})}
+          />
+        )}
       </form.AppField>
 
       <Section heading="Options">

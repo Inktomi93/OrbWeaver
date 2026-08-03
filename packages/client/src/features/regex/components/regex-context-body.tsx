@@ -66,7 +66,9 @@ function RegexScopePanel({
   const detach = useDetachRegexGlobal({ trpc, invalidation });
 
   return (
-    <Stack className="p-field" gap="block" data-slot="regex-context-body">
+    // `padding="block"` — the same inset its sibling arm (`BookAttachments`) uses, so one context slot has
+    // one edge (side-eye 2026-08-03 P3, the two-grammars finding).
+    <Stack data-slot="regex-context-body" gap="block" padding="block">
       <Row align="center" gap="field" justify="between">
         <Text as="span" voice="label">
           Runs in every chat
@@ -84,19 +86,14 @@ function RegexScopePanel({
         />
       </Row>
       <Text voice="gloss">The one scope this library owns — the other three attach this script from the thing it belongs to.</Text>
-      {/* Only once there is an order to author: one global script has no run order, and a non-global
-          script's pane has no business editing a tier it is not in. */}
-      {isGlobal && globals.length > 1 ? (
-        <Section kicker="Global run order">
-          <Stack gap="field">
-            <Text voice="gloss">First to last. Every always-on script runs in this order, on every message.</Text>
-            <RegexScopeOrder
-              renderItem={(row, index): ReactElement => <GlobalOrderRow current={row.id === script.id} position={index + 1} script={row} />}
-              scope={GLOBAL_SCOPE}
-              scripts={globals}
-            />
-          </Stack>
-        </Section>
+      {/* THE SCOPE IS MOOT WHEN THE SCRIPT RUNS ON NOTHING (side-eye 2026-08-03 P2). This pane's entire job
+          is "where does this script run", and with `placement: []` the honest answer is nowhere — no amount
+          of attaching changes that. Said here as well as on the row and in the editor, because this is the
+          pane a reader opens to ask the question. */}
+      {script.placement.length === 0 ? (
+        <Text className="text-destructive" voice="label">
+          This script has no “Runs on” stream selected, so it will not run in any of these scopes. Pick one in the editor.
+        </Text>
       ) : null}
       <AttachmentRoster
         emptyText="No preset attaches this script yet. Open a preset's Regex tab to attach it there."
@@ -116,6 +113,25 @@ function RegexScopePanel({
         noun="rooms"
         rows={usage.rooms}
       />
+      {/* THE ROSTERS LEAD, THE ORDER FOLLOWS (side-eye 2026-08-03 P2 "panel burial"). The order editor used
+          to sit directly under the global switch: at the owner's 34 global scripts its 34 rows pushed
+          "Attached by presets / characters / rooms" ~1400px below the fold, in a panel whose entire stated
+          job is telling you where this script runs. The three rosters ARE that answer and they are bounded
+          (a script is attached by a handful of carriers); the order list is unbounded in the library's size,
+          so it goes last. Still gated: one global script has no run order, and a non-global script's pane
+          has no business editing a tier it is not in. */}
+      {isGlobal && globals.length > 1 ? (
+        <Section kicker="Global run order">
+          <Stack gap="field">
+            <Text voice="gloss">First to last. Every always-on script runs in this order, on every message.</Text>
+            <RegexScopeOrder
+              renderItem={(row, index): ReactElement => <GlobalOrderRow current={row.id === script.id} position={index + 1} script={row} />}
+              scope={GLOBAL_SCOPE}
+              scripts={globals}
+            />
+          </Stack>
+        </Section>
+      ) : null}
     </Stack>
   );
 }

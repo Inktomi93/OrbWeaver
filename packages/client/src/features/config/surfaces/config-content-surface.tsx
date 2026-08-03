@@ -31,7 +31,13 @@ export function ConfigContentSurface({ collections }: ConfigContentSurfaceProps)
     // The retired World Info section carried this on its own surface; here it belongs to the host, or every
     // contribution has to remember it and the first one that forgets ships an amputated editor.
     <Container className="h-full min-h-0">
-      <Stack className="h-full min-h-0 overflow-y-auto outline-none" data-slot="config-content" ref={surfaceRef} tabIndex={-1}>
+      {/* THE REGION PADS, NOT THE EDITORS (side-eye 2026-08-03 P1). Every mounted member editor rendered
+          flush into the pane corner — the world-info `+ New entry` primary's right edge landed EXACTLY on
+          the pane boundary (content.right 896 = button.right 896) — because the welcome carried its own
+          `p-block` and the editors carried nothing. A per-editor inset is the same defect waiting for the
+          fourth collection: the frame is the host's, so the inset is the host's. `section` is the mock's
+          editor-pane inset (`workspace.html` `.mainbody{padding:20px 26px}`) on the token scale. */}
+      <Stack className="h-full min-h-0 overflow-y-auto outline-none" data-slot="config-content" padding="section" ref={surfaceRef} tabIndex={-1}>
         {selection === null ? (
           <ConfigWelcome collections={collections} />
         ) : (

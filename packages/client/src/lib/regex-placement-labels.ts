@@ -40,18 +40,39 @@ export function regexPlacementStep(placement: RegexPlacement): string {
 /** How much of a find pattern a row's scent shows before it stops being scannable. */
 const SCENT_PATTERN_CHARS = 32;
 
-/** What a row's subtitle says about a script, in ONE vocabulary across both list surfaces (side-eye X-15 /
- *  X-16). Both lists used to print only facts every default script SHARES — the settings pane printed
- *  `on · attached only` and the picker printed the five stage names — so a library of freshly-added rows
- *  was six identical lines under six identical names ("New script"). The FIND PATTERN is the one authored
- *  field that actually tells two scripts apart, so it is what the scent leads with; the enable state rides
- *  in front of it because an `off` row's presence in a list is otherwise unexplained. Scope is deliberately
- *  ABSENT: it is the row's own switch now (X-6), and a state printed beside the control that edits it is
- *  the doubling this pass exists to remove. */
-export function regexScriptScent(script: { readonly enabled: boolean; readonly findRegex: string }): string {
+/** What the scent says when `placement` is EMPTY — the F3 defect stated in words (side-eye 2026-08-03 P2:
+ *  "a script with `placement: []` is saveable, runs nowhere, and nothing says so"). The parse stays lenient
+ *  by law (the header's accept-and-drop heal: an ST card whose only placement was `SLASH_COMMAND` filters to
+ *  `[]` and must still import), so the empty set is REACHABLE and therefore has to be legible. The editor
+ *  says it too, on the `Runs on` field itself. */
+const SCENT_NO_PLACEMENT = "runs nowhere";
+
+/** The stages a script bites on, in pipeline order, as ONE lowercase phrase ("your message · model output"). */
+function placementPhrase(placement: readonly RegexPlacement[]): string {
+  const ordered = REGEX_PLACEMENTS.filter((stage) => placement.includes(stage));
+  return ordered.length === 0 ? SCENT_NO_PLACEMENT : ordered.map((stage) => REGEX_PLACEMENT_LABELS[stage].toLowerCase()).join(" · ");
+}
+
+/** What a row's subtitle says about a script, in ONE vocabulary across both list surfaces.
+ *
+ *  THE STAGE LEADS, THE PATTERN FOLLOWS (side-eye 2026-08-03 P2, amending X-15/X-16). The scent used to be
+ *  the raw find pattern alone, so a 128px title column produced `off · /\s*(?:ooc|OO…` — the least human
+ *  datum available, and it never said WHERE the script bites. X-15/X-16's finding stands and is why the
+ *  pattern is still HERE: freshly-created rows share a name ("New script"), and the pattern is the one
+ *  authored field that tells two of them apart. So the line carries both, stage first — the mock's
+ *  `AI output · …` reading order.
+ *
+ *  SCOPE (global/attached) stays ABSENT, refusing the mock's second half: X-6 moved scope onto the row's own
+ *  switch, which sits 40px to the right of this very line, and a state printed beside the control that edits
+ *  it is the doubling that pass removed. `placement` is not scope — it is which text STREAM the script
+ *  rewrites, which nothing else on the row says.
+ *
+ *  The enable state rides in front because an `off` row's presence in a list is otherwise unexplained. */
+export function regexScriptScent(script: { readonly enabled: boolean; readonly findRegex: string; readonly placement: readonly RegexPlacement[] }): string {
   const pattern = script.findRegex.trim();
   const shown = pattern === "" ? "no pattern yet" : pattern.slice(0, SCENT_PATTERN_CHARS) + (pattern.length > SCENT_PATTERN_CHARS ? "…" : "");
-  return script.enabled ? shown : `off · ${shown}`;
+  const scent = `${placementPhrase(script.placement)} · ${shown}`;
+  return script.enabled ? scent : `off · ${scent}`;
 }
 
 /** A script's NAME, with the empty-name arm spelled ONCE. Shared home for the same reason the scent is:

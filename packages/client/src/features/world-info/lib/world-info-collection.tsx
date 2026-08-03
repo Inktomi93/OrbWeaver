@@ -33,5 +33,6 @@ export const worldInfoCollection: CollectionContribution = {
   importFile: { label: "Import a world-info book", accept: "application/json", useRun: useImportWorldInfoMember },
   list: (view) => <WorldInfoCollectionRows view={view} />,
   detail: (view) => <WorldInfoMemberSurface memberId={view.memberId} />,
-  context: { kind: "body", render: (view) => <WorldInfoContextBody memberId={view.memberId} /> },
+  // Same question as the regex arm asks, in the same words — one grammar across the workspace's context band.
+  context: { kind: "body", title: "Where it fires", render: (view) => <WorldInfoContextBody memberId={view.memberId} /> },
 };
