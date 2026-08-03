@@ -66,9 +66,17 @@ the tile never says +1 (the squeezed-slot rule, width-sweep CT across 12 pane wi
 library favorites strip byte-identical (overflow opt-in). MICRO queued: add-member-popover
 wants the same autoFocusSearch one-liner (suspense-eats-initial-focus class). LESSON banked:
 a NUL byte in a template literal turns the FILE binary to git while every gate stays green —
-read git show --stat on your own commit; Bin on a source file = corrupt write. · REGROSTER
-(aedfcb0bab7f636e3 — attached-by rosters verb, 3rd with-usage instance) · SM7 (dispatched
-below — CUSTOMBYO strict arm · BRAND gate · the handoff-heal single-file biome ticket).**
+read git show --stat on your own commit; Bin on a source file = corrupt write. · ✅ REGROSTER MERGED (`6df02b16`, torn down — listScriptUsage + the rosters render per the
+mock; rooms via a NEW injected resolveVisibleRooms op [candidates-in, PRESENT-membership
+filter — a kicked ex-member never learns the room still runs their script]; shared-substrate
+verdict = NO [three axes diverge; the real dup is the two countByBook twins — flagged];
+**its flagged rename-freshness gap FIXED direct-on-main `930955e4`** [carrier renames repaint
+the rosters]; routeTrpc-null lesson: a new query on a shared component blanks sibling CTs —
+sweep mounts first) · SM7 (a5c8248291305c366 — items 1+3 DONE per mid-run report; BRAND
+gate FLOODED 402 [141 source + 261 tests] → **RULED arm A: §4.8 baseline ratchet ACTIVE,
+two-sided, + the 3 permanent foreign-wire classes markered AT LANDING** [agent-sdk sessionId
+name-collision · local-light HF modelId · plugin wire DTO — ~31 rows out at birth]; the 402
+become named burn-down lanes; sessionId→sdkSessionId rename noted as a dissolving candidate).**
 ✅ **SNAPX MERGED (`73f78c81`, torn down) — the snap debt is PAID:** the fixture is a
 SIDECAR now (own offset pair 8790/5175 + own STACK_RUN_DIR — a pidfile-collision hazard the
 lane FOUND: two stacks from one tree shared .cache/stack/stack.pgid, `pnpm stack stop` would
