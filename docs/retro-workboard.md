@@ -40,19 +40,21 @@ the merged result (caught reds twice tonight) · **CTs are NOT in verify --push*
 playwright CT files explicitly (ANCHOR's gap) · semantic conflicts → abort, recreate worktree
 if needed, lane reconciles (REGPAR precedent tonight) · D-numbers allocated at dispatch.
 
-**LIVE LANES (3, resumable by agent id via SendMessage):**
+**LIVE LANES (2, resumable by agent id via SendMessage):**
 · **R2WI** (id a433b9150dcd95ba5) — world-info → config workspace (R2 stage): both forks
   ratified (worldInfo.listBooksWithUsage on the tag precedent [sweep-classify the new proc!]
   + additive importFile contract field w/ gate-#175 arm). Rail returns to 8 when it lands.
 · **SM6** (id a2f4878e08572eab4) — POPLOUD (populate 3-arm loud) + STRICTFMT (strict:true
   400 landmine on OpenAI chat responseFormat; forced-tool-call fork = report not build) +
   IMGMAC (user macros into extractQuiet + imagery section wiring; owner-ruled YES).
-· **REGPAR-reconcile** (id a834a338c6fb53021) — its merge bounced modify/delete (R1B deleted
-  regex-settings-surface + editor dialog; editor is paneside-in-config now); worktree
-  RECREATED from its surviving branch @ 6d8c2da1; lane merges main + re-homes the tester
-  into the config member editor + moves its 6 CTs; READY = one reconcile commit, full hook.
-  Its cargo: the production-engine regex tester · Trim-out/Macros-in-find authorable · the
-  ST disabled-POLARITY card-seam fix · the parity table.
+· ✅ **REGPAR MERGED (reconcile `1a9687bf`, own hook 14/14, torn down)** — THE REGEX TESTER
+  LIVES paneside in config (feature-tier re-home per R1B's own two-consumer rule; 10/10 regex
+  CTs + 153 unit/contract green on the merged tree) + Trim-out/Macros-in-find authorable +
+  the ST disabled-POLARITY card-seam fix + the parity table. Its reconcile ALSO fixed 3
+  PRE-EXISTING biome format errors in R1B's regex feature — **main was carrying a red
+  lint:biome stage from the R1B --no-verify landing until this merge** (the consolidated-
+  check-after law caught it late; the reconcile fixed it by hand, no --write). REGORDER's
+  case strengthened (the config rail is where reorder naturally lives).
 
 **✅ CTFIX MERGED (last merge before this snapshot)** — honest diagnosis: only 1 of 19 reds
 was the D124 ghost (that test's subject no longer exists → deleted w/ D124 comment;
