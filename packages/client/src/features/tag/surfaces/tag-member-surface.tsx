@@ -149,6 +149,7 @@ function TagBehaviorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; 
   return (
     <Stack gap="block">
       <Field description="Whether this label also groups the library, and whether it opens by default." label="Folder type" name="tag-folder-type">
+        {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- the Field names the control (aria-labelledby); the rule can't see the association — the bound SelectField carries the same suppression. */}
         <Select
           items={FOLDER_TYPE_ITEMS}
           onValueChange={(value): void => {
