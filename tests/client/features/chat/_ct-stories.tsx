@@ -77,12 +77,12 @@ import type {
 import { buildCharacterAvatarMap, buildCharacterNameMap, buildPersonaNameMap, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { RewriteToggleId } from "@orb/contracts/preset";
 import { REWRITE_TOGGLES } from "@orb/contracts/preset";
+import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { composeRewriteSteer } from "@orb/kit/guided";
 import type { AssetId, CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Text } from "@orb/ui/text";
-import type { THEME_SCOPE_CHAT_STYLES } from "@orb/ui/theme-scope";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -170,7 +170,7 @@ interface CharacterStoryEntry {
 }
 
 export interface MessageRowStoryProps {
-  readonly chatStyle: (typeof THEME_SCOPE_CHAT_STYLES)[number];
+  readonly chatStyle: ThemeChatStyle;
   // Named `messageRole` (not `role`) so the JSX prop at the CT call site isn't read as an ARIA role.
   readonly messageRole?: MessageRole;
   readonly content?: string;

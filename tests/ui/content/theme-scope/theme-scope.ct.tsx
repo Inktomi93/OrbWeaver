@@ -85,14 +85,19 @@ test("derived accent-/primary-foreground RESOLVE to AA-legible colors under a li
   expect(await ratioOf("primary")).toBeGreaterThanOrEqual(3);
 });
 
-test("chatStyle/density become data-attributes, not custom properties", async ({ mount }) => {
+// Any value at all — the assertion is that the attribute is ABSENT, not what it would hold.
+const ANY_VALUE = /.*/u;
+
+test("density becomes a data-attribute, not a custom property", async ({ mount }) => {
   const cmp = await mount(
-    <ThemeScope tokens={{ chatStyle: "flat", density: "compact" }}>
+    <ThemeScope tokens={{ density: "compact" }}>
       <span>x</span>
     </ThemeScope>,
   );
-  await expect(cmp).toHaveAttribute("data-chat-style", "flat");
   await expect(cmp).toHaveAttribute("data-density", "compact");
+  // There is no chatStyle axis on a scope at all (TD/O-4): the row anatomy is the viewer's own appearance
+  // setting, and the attribute this used to stamp had zero selectors reading it.
+  await expect(cmp).not.toHaveAttribute("data-chat-style", ANY_VALUE);
 });
 
 // ── Nested-scope cascade (character > global > default) ────────────────────────────────────────

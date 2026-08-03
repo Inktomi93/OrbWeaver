@@ -9,10 +9,11 @@ export const THEME_FONT_ALLOWLIST = ["Geist", "ui-sans-serif", "ui-serif", "ui-m
 type ThemeFont = (typeof THEME_FONT_ALLOWLIST)[number];
 
 // Exported for the contracts↔ui structural pairing test — must stay byte-identical to the wire twin.
-export const THEME_SCOPE_CHAT_STYLES = ["bubble", "flat", "document", "echo", "whisper", "hush", "ripple", "tide"] as const;
+// No chatStyle axis: a theme/card cannot force a message-row anatomy (TD/O-4). The row skin reads the
+// viewer's own `appearance.chatStyle` setting, whose vocabulary is `@orb/contracts/theme`'s
+// THEME_CHAT_STYLES — nothing here ever stamped a `data-chat-style` any selector read.
 export const THEME_SCOPE_DENSITIES = ["comfortable", "compact"] as const;
 export const THEME_SCOPE_RADII = ["base", "control", "card", "full"] as const;
-const CHAT_STYLES = THEME_SCOPE_CHAT_STYLES;
 const DENSITIES = THEME_SCOPE_DENSITIES;
 const RADII = THEME_SCOPE_RADII;
 
@@ -33,20 +34,18 @@ export const themeScopeTokensSchema = z.object({
   radius: z.enum(RADII).optional(),
   background: colorToken.optional(),
   borderColor: colorToken.optional(),
-  chatStyle: z.enum(CHAT_STYLES).optional(),
   density: z.enum(DENSITIES).optional(),
 });
 export type ThemeScopeTokens = z.infer<typeof themeScopeTokensSchema>;
 
 /**
  * The clamped output: a CSS custom-property map safe to spread into `style` (only `--*` keys,
- * only validated values) plus the non-custom-property axes. `chatStyle`/`density` map to `data-*`;
+ * only validated values) plus the non-custom-property axes. `density` maps to a `data-*` attribute;
  * `colorScheme` maps to the `color-scheme` CSS property (NOT a `--*` var, so it stays OFF the vars
  * emit surface) — see the `colorSchemeFor` derivation for why it rides this struct.
  */
 export interface ClampedTheme {
   readonly vars: Readonly<Record<string, string>>;
-  readonly chatStyle?: (typeof CHAT_STYLES)[number];
   readonly density?: (typeof DENSITIES)[number];
   readonly colorScheme?: "light" | "dark";
 }
@@ -289,7 +288,6 @@ export function clampThemeTokens(raw: unknown): ClampedTheme {
   const colorScheme = t.background === undefined ? null : colorSchemeFor(t.background);
   return {
     vars,
-    ...(t.chatStyle === undefined ? {} : { chatStyle: t.chatStyle }),
     ...(t.density === undefined ? {} : { density: t.density }),
     ...(colorScheme === null ? {} : { colorScheme }),
   };

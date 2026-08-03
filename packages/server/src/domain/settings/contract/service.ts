@@ -17,6 +17,7 @@ import type {
   GetThemeParams,
   GetUserSettingsParams,
   ListThemesParams,
+  PromoteThemeParams,
   RemoveThemeParams,
   UpdateAppSettingsParams,
   UpdateThemeParams,
@@ -114,6 +115,11 @@ export interface SettingsService {
   /** Write a new OWNED theme from scratch. Runs `themeOverrideSchema.parse` + the css-validator at the
    *  write boundary; a taken `(ownerId, name)` throws `DomainConflictError`. */
   readonly createTheme: (params: CreateThemeParams) => Promise<ThemeView>;
+  /** PROMOTE a character card's authored look into the library (TD door 1): values are COPIED (never
+   *  referenced), projected through `cardEmbeddableSubset` so a promoted theme cannot carry a viewer-force
+   *  the card could not exert, with the name DE-COLLIDED at the mint (this door derives its default name;
+   *  `createTheme`'s typed conflict stays the answer for a name the user typed). */
+  readonly promoteTheme: (params: PromoteThemeParams) => Promise<ThemeView>;
   /** Copy-to-customize: source = any readable row (own or seed) → a NEW owned row (fresh id, deep-copied
    *  `override`/`css`, name de-duped by numeric suffix under the unique index). Throws
    *  `ThemeNotFoundError` when the source isn't readable. */

@@ -38,3 +38,30 @@ test("F9 the theme rows are label-left/control-right in the context panel — no
   // …and on the same line: the two boxes overlap vertically.
   expect(swatchBox.y).toBeLessThan(labelBox.y + labelBox.height);
 });
+
+// The theme cluster's header row carries THREE actions (the two theme doors + Reset). At the real panel
+// width they do not fit beside the "Theme" label — the row wraps them onto their own line. Caught live
+// during the TD build: before the wrap, "Reset to global" rendered as "Reset to glob", clipped by the panel
+// edge. Asserted on the rendered box (the label list is not the defect; the geometry is).
+test("no theme-cluster action clips the context panel's width", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.get": () => makeCharacterDetail({ themeOverride: { accent: "#c98a5b" } }),
+    "character.update": () => makeCharacterDetail({ themeOverride: { accent: "#c98a5b" } }),
+    "character.listSnapshots": () => [],
+    "settings.listThemes": () => [{ id: "theme_1", name: "Hearth", override: {}, css: null, isSeed: true, createdAt: 0, updatedAt: 0 }],
+  });
+  const component = await mount(<CharacterOptionsTabStory />);
+
+  const panel = await component.boundingBox();
+  if (panel === null) {
+    throw new Error("the options tab did not render a box");
+  }
+  const actions = ["Save as theme…", "Reset to global"];
+  const boxes = await Promise.all(actions.map((action) => page.getByRole("button", { name: action }).boundingBox()));
+  for (const [i, box] of boxes.entries()) {
+    if (box === null) {
+      throw new Error(`${actions[i]} did not render a box`);
+    }
+    expect(box.x + box.width, `${actions[i]} fits inside the panel`).toBeLessThanOrEqual(panel.x + panel.width);
+  }
+});

@@ -186,7 +186,10 @@ export interface ParticipantView {
    *  override for a character seat, or always `null` for a human seat. Resolution to "character over
    *  global over default" is a CLIENT ThemeScope NESTING concern (a per-speaker scope wrapping the root
    *  scope — `clampThemeTokens` only emits present fields, so the CSS custom-property cascade does the
-   *  merge for free); the client nests a per-speaker ThemeScope inside the root scope. */
+   *  merge for free); the client nests a per-speaker ThemeScope inside the root scope.
+   *  Every card-sourced READ projects through `cardEmbeddableSubset` (contracts/theme) first: the
+   *  blob is raw and may carry a viewer-sacred key (a legacy write, or a hand-posted one), and a card
+   *  supplies the room's LOOK, never the viewer's ergonomics (TD §3). */
   themeOverride?: ThemeOverride | null;
   /** BG-C — the RAW per-character carried BACKGROUND source (`character.backgroundOverride`, the
    *  `themeOverride` twin), threaded unmerged. `null` = no card background for a character seat, always

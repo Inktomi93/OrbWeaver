@@ -3,7 +3,7 @@
 // empty colour string, or `INHERIT` for an enum) is omitted from the built override, so that token
 // inherits the parent scope; all-sentinel collapses the override to `null`.
 
-import type { ThemeChatStyle, ThemeDensity, ThemeOverride, ThemeRadius } from "@orb/contracts/theme";
+import type { ThemeOverride, ThemeRadius } from "@orb/contracts/theme";
 import type { ThemeColorFields } from "#lib";
 import { assignThemeColorFields } from "#lib";
 
@@ -22,8 +22,6 @@ export interface CharacterThemeFormValues extends ThemeColorFields {
   readonly systemBubbleFg: string;
   readonly font: string;
   readonly radius: string;
-  readonly chatStyle: string;
-  readonly density: string;
 }
 
 /** The all-inherit seed (a character with no override). Also the target "Reset to global" clears every
@@ -44,8 +42,6 @@ export const EMPTY_CHARACTER_THEME_FORM: CharacterThemeFormValues = {
   systemBubbleFg: "",
   font: THEME_INHERIT,
   radius: THEME_INHERIT,
-  chatStyle: THEME_INHERIT,
-  density: THEME_INHERIT,
 };
 
 // Split in two to keep either function's `??` count under the cognitive-complexity gate.
@@ -94,8 +90,6 @@ export function characterThemeFormFromOverride(override: ThemeOverride | null): 
     ...colorFieldsFromOverride(override),
     font: override.font ?? THEME_INHERIT,
     radius: override.radius ?? THEME_INHERIT,
-    chatStyle: override.chatStyle ?? THEME_INHERIT,
-    density: override.density ?? THEME_INHERIT,
   };
 }
 
@@ -131,12 +125,6 @@ export function overrideFromCharacterThemeForm(v: CharacterThemeFormValues): The
   }
   if (v.radius !== THEME_INHERIT) {
     o.radius = v.radius as ThemeRadius;
-  }
-  if (v.chatStyle !== THEME_INHERIT) {
-    o.chatStyle = v.chatStyle as ThemeChatStyle;
-  }
-  if (v.density !== THEME_INHERIT) {
-    o.density = v.density as ThemeDensity;
   }
   return Object.keys(o).length === 0 ? null : o;
 }

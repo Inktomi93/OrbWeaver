@@ -62,7 +62,6 @@ test("enum fields are always present even when every color is cleared", () => {
   expect(o).toEqual({
     font: DEFAULT_THEME_FORM.font,
     radius: DEFAULT_THEME_FORM.radius,
-    chatStyle: DEFAULT_THEME_FORM.chatStyle,
     density: DEFAULT_THEME_FORM.density,
   });
 });

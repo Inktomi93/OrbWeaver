@@ -1,33 +1,19 @@
-// The two THEME-shaped appearance option tables — `chatStyle` and `density`. They are the one pair of
-// appearance knobs a THEME can also carry (`themeSettingsSchema`/the character theme override), so three
-// different features must render the same labels: chat's Message-style settings section, app-shell's
-// Sizing & motion section, and the settings feature's theme editor.
+// The `density` appearance option table — the one appearance knob a THEME can also carry (it is live on a
+// theme the viewer SELECTED; it is viewer-sacred from a card, TD §3). THREE features render the same
+// labels: app-shell's Sizing & motion section, the settings feature's theme editor, and — through the
+// appearance blob — the shell grid that reads the resolved value.
 //
 // Homed at the `#lib` util floor (tier 4) rather than in any one of them: SET-SEAMS stage 1 split the
 // appearance pane into sections owned by their READERS, and a table three features render can have no
 // feature owner — `client-features-no-cross` forbids the sideways import, and `#lib` is the sanctioned
-// shared-vocabulary home (the `message-role-labels` / `BACKGROUND_KIND_LABELS` precedent). Each `value` is
-// pinned to its AppearanceSettings field union via a total `Record`, so a typo'd value is a tsc error, not
-// a silently-unselectable option.
+// shared-vocabulary home (the `message-role-labels` / `BACKGROUND_KIND_LABELS` precedent). Its `value` is
+// pinned to the AppearanceSettings field union via a total `Record`, so a typo'd value is a tsc error, not
+// a silently-unselectable option. (`CHAT_STYLE_ITEMS` lived here too until its third reader — the theme
+// editor's Message-style select — was struck as a dead switch; it re-homed with chat, its one reader.)
 
 import type { AppearanceSettings } from "@orb/contracts/settings";
-import { THEME_CHAT_STYLES, THEME_DENSITIES } from "@orb/contracts/theme";
+import { THEME_DENSITIES } from "@orb/contracts/theme";
 import type { SelectItems } from "@orb/ui/select";
-
-const CHAT_STYLE_LABELS: Record<AppearanceSettings["chatStyle"], string> = {
-  bubble: "Bubble",
-  flat: "Flat",
-  document: "Document",
-  echo: "Echo (bled portrait)",
-  whisper: "Whisper (avatar banner)",
-  hush: "Hush (flat + speaker stripe)",
-  ripple: "Ripple (VN sticky portrait)",
-  tide: "Tide (paragraph bubbles)",
-};
-export const CHAT_STYLE_ITEMS: SelectItems<string> = THEME_CHAT_STYLES.map((value) => ({
-  value,
-  label: CHAT_STYLE_LABELS[value],
-}));
 
 const DENSITY_LABELS: Record<AppearanceSettings["density"], string> = {
   comfortable: "Comfortable",
