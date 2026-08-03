@@ -615,6 +615,12 @@ line + the [[rpg-state-anchor-slots]] memory at R2). Forks 2/3/5 taken on RECs
 **Lane ANCHOR (R0-R3) DISPATCHED** — sequenced to merge AFTER TRANSCRIPTS (fixtures settle
 first; post-ANCHOR the replay mints no anchors so the drop-patch dies naturally; R2 verifies
 whether a flagship regen is even needed). R1-config mock phase takes the NEXT drain.
+**OWNER NIT (08-03 late) → SM5 queue: the per-message WIRE-TRACE trigger is in the wrong
+home** — RAWVIEW grafted it onto MessageMetadataRow; it belongs in the MESSAGE KEBAB with the
+other message actions (host-gated menu item; the kebab is the ruled action home, D62 §12
+grammar). SM5 batch = WIREBTN (move it; presence-ratchet waiver row follows the move) +
+MACU-2 (user-macro plane to all MacroTextarea consumers) + INV-READ (render inventory
+description/location). Dispatches after R1-config takes its slot.
 (superseded dispatch line:) **STICKLER DISPATCHED (owner order, 08-03): STATE-ANCHOR ROW redesign** — the 8 blank
 "Group" rows in the flagship demo are the SYMPTOM (hand-door writes anchor snapshots to
 content-less message rows; consumers filter the artifact one-by-one — seeder drop-patch,
