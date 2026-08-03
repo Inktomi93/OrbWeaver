@@ -89,15 +89,21 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   in `files.includes` (added by tsx-shedding stage 2, `896e3d221`) are a hard parse error: **biome.json
   is strict JSON here, not JSONC.** Biome does not fail loudly — it falls back to **built-in defaults**
   (tabs, 80 cols, every rule on, `node_modules` walked): **73,518 files / 16,835 errors**, healthy is
-  **4,564**. **Both lanes independently misdiagnosed it as "biome is broken in git worktrees"** — that
-  nested-root error is real but only fires while a worktree exists, and this fired on a clean tree.
-  **It had been hiding 14 real diagnostics**, every one in code touched during the blind window: a
+  **4,564**. **It had been hiding 14 real diagnostics**, every one in code touched during the blind window: a
   trailing comma making `tsconfig.json` unparseable, an import after a statement in `pdf.ts`,
   method-style signatures in `platform.d.ts`, a bare `process` global in the new dispatcher test.
   **Probe for next time:** `npx biome check <one-known-clean-file>` — clean config prints `Checked 1
   file`, broken config prints a `parse` diagnostic naming `biome.json`. Two seconds.
-  **STANDING CONSEQUENCE:** a whole-tree biome run CANNOT pass while any lane worktree exists
-  (nested-root). That inverts the merge law for this stage alone — **teardown before the biome check**.
+  **⚑ THE "BIOME IS BROKEN IN WORKTREES" THEORY IS DEAD — and it was mine to kill sooner.** Both lanes
+  reported it, I believed them, and I wrote it into three fresh lane briefs. The owner challenged it
+  ("we've been using biome fine in worktrees for like a week") and was right. **Nested-root is a
+  downstream SYMPTOM of the parse failure**: broken config → defaults → the defaults have no `!.claude`
+  → biome walks into `.claude/worktrees/*` → finds each worktree's own `biome.json` → nested-root error.
+  **Measured with the fixed config, both directions:** from main, worktree paths are correctly IGNORED;
+  with cwd INSIDE a live lane worktree, `Checked 1 file`, **exit 0**. Retracted to all three lanes.
+  **The lesson worth more than the bug: two independent agents agreeing is NOT corroboration** when
+  both are looking at the same broken artifact — their agreement is correlated, not independent. Test
+  the two-second claim. (Use `env -C <dir> <cmd>` to test a cwd-sensitive claim; never `cd`.)
 - **LANE ROSTER — EMPTY** (both merged and torn down). Historical dispatch record:
   **W2-UNDICI** (security-executor) — node-26 program §2: bump catalog undici 7.28 → ^8.10, mint
   `tests/server/infra/network/dispatcher-contract.int.test.ts` as the cross-copy tripwire. Owns the
