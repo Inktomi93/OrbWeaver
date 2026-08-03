@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CONFIG RAIL — the Configuration workspace (tri-pane, owner-rendered groups)</title>
+<style>
+:root{
+  --color-background: oklch(0.158 0.006 60);
+  --color-foreground: oklch(0.955 0.004 75);
+  --color-card: oklch(0.205 0.006 60);
+  --color-popover: oklch(0.245 0.007 60);
+  --color-primary: oklch(0.72 0.175 52);
+  --color-primary-foreground: oklch(0.19 0.03 50);
+  --color-muted-foreground: oklch(0.74 0.008 65);
+  --color-warning: oklch(0.79 0.13 75);
+  --color-info: oklch(0.7 0.1 232);
+  --color-success: oklch(0.72 0.13 155);
+  --color-border: oklch(0.99 0.005 60 / 0.08);
+  --color-input: oklch(0.99 0.005 60 / 0.12);
+  --color-ring: oklch(0.72 0.175 52);
+  --color-sidebar: oklch(0.132 0.006 60);
+  --color-sidebar-accent: oklch(0.235 0.008 60);
+  --color-sidebar-border: oklch(0.99 0.005 60 / 0.07);
+  --radius-base:0.5rem; --radius-control:0.375rem; --radius-card:0.625rem; --radius-full:9999px;
+  --font-sans:Geist, ui-sans-serif, system-ui, sans-serif;
+  --font-mono:'Geist Mono', ui-monospace, SFMono-Regular, monospace;
+  --ember-tint: color-mix(in oklab, var(--color-primary) 10%, transparent);
+  /* the shell's real tracks (tokens.json): rail 3.5rem · list clamp(17,24vw,26rem) · context clamp(17,30vw,30rem) */
+  --rail-w:56px; --list-w:330px; --context-w:360px; --chrome-row:48px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:oklch(0.11 0.008 60);color:var(--color-foreground);
+  font-family:var(--font-sans);font-size:13px;line-height:1.5;padding:26px 24px 72px}
+.muted{color:var(--color-muted-foreground)}
+.mono{font-family:var(--font-mono)}
+h1{font-size:1.3rem;margin:0 0 3px;letter-spacing:-.01em}
+h2{font-size:1rem;margin:40px 0 10px;letter-spacing:-.01em}
+.lede{margin:0 0 22px;color:var(--color-muted-foreground);max-width:1040px}
+.lede b{color:var(--color-foreground);font-weight:650}
+.stage{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+.plabel{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-muted-foreground);font-weight:650;margin:0 0 7px}
+.note{font-size:11px;color:var(--color-muted-foreground);max-width:1240px;margin:12px 0 0;line-height:1.6}
+.note b{color:var(--color-foreground);font-weight:650}
+.notes{display:flex;gap:22px;flex-wrap:wrap;margin-top:14px}
+.notes .col{flex:1 1 380px;min-width:320px}
+:focus-visible{outline:2px solid var(--color-ring);outline-offset:2px;border-radius:var(--radius-control)}
+
+/* ═══ the shell frame ═══ */
+.shell{display:flex;width:1240px;height:806px;border:1px solid var(--color-sidebar-border);border-radius:14px;
+  overflow:hidden;background:var(--color-background);box-shadow:0 12px 40px rgb(0 0 0 / .35)}
+
+/* rail */
+.rail{width:var(--rail-w);flex:none;background:var(--color-sidebar);border-right:1px solid var(--color-sidebar-border);
+  display:flex;flex-direction:column;align-items:center}
+.brand{height:var(--chrome-row);width:100%;display:flex;align-items:center;justify-content:center;flex:none;
+  border-bottom:1px solid var(--color-sidebar-border)}
+.brand svg{width:24px;height:24px;color:var(--color-primary);stroke:currentColor;stroke-width:1.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.railgroup{display:flex;flex-direction:column;gap:2px;padding:8px 0;width:100%;align-items:center}
+.railgroup + .railgroup{border-top:1px solid var(--color-sidebar-border)}
+.rbtn{width:38px;height:38px;border-radius:var(--radius-control);display:flex;align-items:center;justify-content:center;
+  color:var(--color-muted-foreground);position:relative;cursor:pointer}
+.rbtn svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.rbtn.active{background:var(--ember-tint);color:var(--color-primary)}
+.rbtn.active::before{content:"";position:absolute;left:-9px;top:8px;bottom:8px;width:2px;border-radius:2px;background:var(--color-primary)}
+.railspacer{flex:1}
+
+/* the generic chrome band (ListPaneHeader / panel header — 48px, one hairline) */
+.band{height:var(--chrome-row);flex:none;display:flex;align-items:center;gap:8px;padding:0 12px;
+  border-bottom:1px solid var(--color-sidebar-border)}
+.band .caps{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:650;color:var(--color-muted-foreground)}
+.band .ttl{font-size:13.5px;font-weight:640;letter-spacing:-.005em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.band .grow{flex:1}
+.ghostbtn{background:none;border:none;color:var(--color-muted-foreground);cursor:pointer;padding:5px;border-radius:var(--radius-control);display:inline-flex}
+.ghostbtn svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* LIST pane */
+.list{width:var(--list-w);flex:none;background:var(--color-sidebar);border-right:1px solid var(--color-sidebar-border);
+  display:flex;flex-direction:column;min-height:0}
+.listbody{flex:1;min-height:0;overflow:hidden;padding:6px 7px 14px;display:flex;flex-direction:column;gap:4px}
+
+/* a GROUP = the host's frame; its rows are the contribution's own render */
+.group{display:flex;flex-direction:column}
+.group + .group{margin-top:6px;padding-top:6px;border-top:1px solid var(--color-sidebar-border)}
+.ghead{display:flex;align-items:center;gap:7px;padding:5px 5px 5px 7px;min-height:30px}
+.ghead .gi{width:13px;height:13px;flex:none;stroke:var(--color-muted-foreground);stroke-width:1.9;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.ghead .gname{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:650;color:var(--color-muted-foreground)}
+.ghead .gcount{font-family:var(--font-mono);font-size:9.5px;color:var(--color-muted-foreground);opacity:.8}
+.ghead .grow{flex:1}
+.gnew{width:24px;height:24px;flex:none;border:none;background:none;border-radius:var(--radius-control);cursor:pointer;
+  color:var(--color-muted-foreground);display:inline-flex;align-items:center;justify-content:center}
+.gnew:hover{background:color-mix(in oklab,var(--color-foreground) 6%,transparent);color:var(--color-foreground)}
+.gnew svg{width:14px;height:14px;stroke:currentColor;stroke-width:2.3;fill:none;stroke-linecap:round}
+
+.rows{display:flex;flex-direction:column;gap:1px}
+.row{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:var(--radius-control);cursor:pointer;position:relative;min-height:32px}
+.row:hover{background:color-mix(in oklab,var(--color-foreground) 4%,transparent)}
+.row.selected{background:var(--ember-tint)}
+.row.selected::before{content:"";position:absolute;left:0;top:5px;bottom:5px;width:2px;border-radius:2px;background:var(--color-primary)}
+.row .body{min-width:0;flex:1}
+.row .t{font-size:12.5px;font-weight:560;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row.selected .t{font-weight:640}
+.row .sub{font-family:var(--font-mono);font-size:9.5px;color:var(--color-muted-foreground);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.swatch{width:11px;height:11px;flex:none;border-radius:3px;box-shadow:0 0 0 1px rgb(255 255 255 / .1) inset}
+.rowtrail{flex:none;display:flex;align-items:center;gap:6px;color:var(--color-muted-foreground);font-family:var(--font-mono);font-size:9.5px}
+/* the regex row's own trailing control (the landed X-6 anatomy: global scope IS a property of the row) */
+.sw{width:26px;height:15px;border-radius:var(--radius-full);background:var(--color-input);position:relative;flex:none}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:var(--radius-full);background:var(--color-muted-foreground)}
+.sw.on{background:var(--color-primary)}
+.sw.on::after{left:13px;background:var(--color-primary-foreground)}
+.filter{display:flex;align-items:center;gap:6px;border:1px solid var(--color-input);border-radius:var(--radius-control);
+  margin:2px 5px 5px;padding:4px 8px;color:var(--color-muted-foreground);font-size:11px}
+.filter svg{width:12px;height:12px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round}
+
+/* CONTENT pane */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--color-background)}
+.mainbody{flex:1;min-height:0;overflow:hidden;padding:20px 26px}
+.form{display:flex;flex-direction:column;gap:16px;max-width:640px}
+.fld{display:flex;flex-direction:column;gap:5px}
+.flabel{font-size:11.5px;font-weight:600}
+.fdesc{font-size:10.5px;color:var(--color-muted-foreground)}
+.input{border:1px solid var(--color-input);border-radius:var(--radius-control);padding:7px 10px;font-size:12.5px;
+  background:color-mix(in oklab,var(--color-foreground) 3%,transparent)}
+.input.ph{color:var(--color-muted-foreground)}
+.code{border:1px solid var(--color-input);border-radius:var(--radius-control);padding:8px 10px;
+  font-family:var(--font-mono);font-size:12px;background:oklch(0.125 0.006 60);white-space:pre;overflow:hidden}
+.code .tok-d{color:var(--color-info)} .code .tok-c{color:var(--color-warning)} .code .tok-f{color:var(--color-primary)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--color-input);border-radius:var(--radius-full);padding:4px 11px;font-size:11px;color:var(--color-muted-foreground);cursor:pointer}
+.chip.on{background:var(--ember-tint);border-color:color-mix(in oklab,var(--color-primary) 45%,transparent);color:var(--color-foreground)}
+.togrow{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--color-border);border-radius:var(--radius-base);background:var(--color-card)}
+.togrow .tbody{flex:1;min-width:0}
+.togrow .tt{font-size:12px;font-weight:600}
+.togrow .td{font-size:10.5px;color:var(--color-muted-foreground);margin-top:1px}
+.saved{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--color-muted-foreground)}
+.saved svg{width:12px;height:12px;stroke:var(--color-success);stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* CONTEXT pane */
+.ctx{width:var(--context-w);flex:none;background:var(--color-sidebar);border-left:1px solid var(--color-sidebar-border);
+  display:flex;flex-direction:column;min-height:0}
+.ctxbody{flex:1;min-height:0;overflow:hidden;padding:14px 14px 18px;display:flex;flex-direction:column;gap:14px}
+.sect{display:flex;flex-direction:column;gap:7px}
+.kicker{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:650;color:var(--color-muted-foreground)}
+.card{border:1px solid var(--color-border);border-radius:var(--radius-base);background:var(--color-card);padding:9px 11px}
+.attach{display:flex;align-items:center;gap:8px;padding:5px 2px}
+.attach + .attach{border-top:1px solid var(--color-border)}
+.attach .ai{width:13px;height:13px;flex:none;stroke:var(--color-muted-foreground);stroke-width:1.9;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.attach .an{flex:1;min-width:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.emptyline{font-size:11px;color:var(--color-muted-foreground);padding:5px 2px}
+.meta{font-family:var(--font-mono);font-size:9.5px;color:var(--color-muted-foreground)}
+
+/* the seam overlay (who draws what) */
+.seam-host{outline:1px dashed color-mix(in oklab,var(--color-info) 70%,transparent);outline-offset:-1px;border-radius:var(--radius-control)}
+.seam-contrib{outline:1px dashed color-mix(in oklab,var(--color-primary) 75%,transparent);outline-offset:-1px;border-radius:var(--radius-control)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin:0 0 10px;font-size:11px;color:var(--color-muted-foreground)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.key{width:16px;height:0;border-top:1px dashed currentColor;display:inline-block}
+.key.host{color:var(--color-info)} .key.contrib{color:var(--color-primary)}
+</style></head><body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="i-weave"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M6 6l12 12M18 6 6 18"/></g>
+  <g id="i-msg"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></g>
+  <g id="i-users"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></g>
+  <g id="i-library"><path d="m16 6 4 14M12 6v14M8 8v12M4 4v16"/></g>
+  <g id="i-package"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></g>
+  <g id="i-sliders"><path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3"/><circle cx="12" cy="4" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="14" cy="20" r="2"/></g>
+  <g id="i-flask"><path d="M10 2v7.31M14 9.3V1.99M8.5 2h7M14 9.3a6.5 6.5 0 1 1-4 0M5.52 16h12.96"/></g>
+  <g id="i-chart"><path d="M3 3v16a2 2 0 0 0 2 2h16M18 17V9M13 17V5M8 17v-3"/></g>
+  <g id="i-compass"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z"/></g>
+  <g id="i-gear"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></g>
+  <g id="i-tag"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".9"/></g>
+  <g id="i-code"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></g>
+  <g id="i-book"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></g>
+  <g id="i-plus"><path d="M12 5v14M5 12h14"/></g>
+  <g id="i-search"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></g>
+  <g id="i-more"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></g>
+  <g id="i-check"><path d="M20 6 9 17l-5-5"/></g>
+  <g id="i-panel"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></g>
+  <g id="i-panelr"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/></g>
+</defs></svg>
+
+<h1>CONFIG RAIL — the Configuration workspace</h1>
+<p class="lede">A ninth rail section whose LIST is the <b>collection roster</b>: one owner-rendered group per
+<span class="mono">CollectionContribution</span> (F-5), CONTENT is the selected member's real editor mounted in the pane
+(no dialog), CONTEXT is that collection's own arm. The host (<span class="mono">features/config</span>) imports zero
+contributors — the door array IS the roster. <b>Presets are ABSENT by ruling</b> (they keep their own section; the R3 arm
+stays one door line away). Drawn at the R2 state: World Info has migrated off the rail into the roster.
+Spec: <span class="mono">docs/design/config-rail-spec.md</span> · contract: stickler review
+<span class="mono">2026-08-03-collection-contribution.md</span> §4.</p>
+
+<div class="stage">
+  <div>
+    <p class="plabel">Configuration — a regex script selected (1240 × 806)</p>
+    <div class="shell">
+
+      <!-- ═════ RAIL ═════ -->
+      <div class="rail">
+        <div class="brand"><svg viewBox="0 0 24 24"><use href="#i-weave"/></svg></div>
+        <div class="railgroup">
+          <div class="rbtn" title="Chats"><svg viewBox="0 0 24 24"><use href="#i-msg"/></svg></div>
+          <div class="rbtn" title="Characters"><svg viewBox="0 0 24 24"><use href="#i-users"/></svg></div>
+          <div class="rbtn" title="Corpus"><svg viewBox="0 0 24 24"><use href="#i-library"/></svg></div>
+        </div>
+        <div class="railgroup">
+          <div class="rbtn active" title="Configuration" aria-current="page"><svg viewBox="0 0 24 24"><use href="#i-package"/></svg></div>
+          <div class="rbtn" title="Presets"><svg viewBox="0 0 24 24"><use href="#i-sliders"/></svg></div>
+          <div class="rbtn" title="Refinery"><svg viewBox="0 0 24 24"><use href="#i-flask"/></svg></div>
+        </div>
+        <div class="railgroup">
+          <div class="rbtn" title="Analytics"><svg viewBox="0 0 24 24"><use href="#i-chart"/></svg></div>
+        </div>
+        <div class="railspacer"></div>
+        <div class="railgroup">
+          <div class="rbtn" title="Settings"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></div>
+        </div>
+      </div>
+
+      <!-- ═════ LIST — the roster ═════ -->
+      <div class="list">
+        <div class="band">
+          <span class="caps">Configuration</span>
+          <span class="grow"></span>
+          <button class="ghostbtn" title="Collapse the list"><svg viewBox="0 0 24 24"><use href="#i-panel"/></svg></button>
+        </div>
+        <div class="listbody">
+
+          <!-- ───── group 1: tags (features/tag) ───── -->
+          <div class="group">
+            <div class="ghead">
+              <svg class="gi" viewBox="0 0 24 24"><use href="#i-tag"/></svg>
+              <span class="gname">Tags</span><span class="gcount">12</span>
+              <span class="grow"></span>
+              <button class="gnew" title="New tag"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></button>
+            </div>
+            <div class="rows">
+              <div class="row"><span class="swatch" style="background:oklch(0.65 0.16 25)"></span>
+                <div class="body"><div class="t">favourite</div></div><div class="rowtrail">31</div></div>
+              <div class="row"><span class="swatch" style="background:oklch(0.68 0.14 150)"></span>
+                <div class="body"><div class="t">sci-fi</div></div><div class="rowtrail">18</div></div>
+              <div class="row"><span class="swatch" style="background:oklch(0.7 0.15 265)"></span>
+                <div class="body"><div class="t">long-form</div></div><div class="rowtrail">9</div></div>
+              <div class="row"><span class="swatch" style="background:oklch(0.74 0.16 85)"></span>
+                <div class="body"><div class="t">wip</div></div><div class="rowtrail">4</div></div>
+              <div class="row"><span class="swatch" style="background:oklch(0.6 0.02 60)"></span>
+                <div class="body"><div class="t">imported</div></div><div class="rowtrail">0</div></div>
+            </div>
+          </div>
+
+          <!-- ───── group 2: regex scripts (features/regex) — the selected kind ───── -->
+          <div class="group">
+            <div class="ghead">
+              <svg class="gi" viewBox="0 0 24 24"><use href="#i-code"/></svg>
+              <span class="gname">Regex scripts</span><span class="gcount">9</span>
+              <span class="grow"></span>
+              <button class="gnew" title="New script"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></button>
+            </div>
+            <div class="filter"><svg viewBox="0 0 24 24"><use href="#i-search"/></svg> Filter scripts</div>
+            <div class="rows">
+              <div class="row selected">
+                <div class="body"><div class="t">strip ooc</div><div class="sub">AI output · runs everywhere</div></div>
+                <div class="rowtrail"><span class="sw on" title="Runs in every chat"></span></div>
+              </div>
+              <div class="row">
+                <div class="body"><div class="t">de-purple the prose</div><div class="sub">AI output</div></div>
+                <div class="rowtrail"><span class="sw" title="Runs in every chat"></span></div>
+              </div>
+              <div class="row">
+                <div class="body"><div class="t">normalise em-dashes</div><div class="sub">user input · AI output</div></div>
+                <div class="rowtrail"><span class="sw on" title="Runs in every chat"></span></div>
+              </div>
+              <div class="row">
+                <div class="body"><div class="t">ST import — narrator fix</div><div class="sub">AI output · attached ×2</div></div>
+                <div class="rowtrail"><span class="sw" title="Runs in every chat"></span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ───── group 3: world info (features/world-info) ───── -->
+          <div class="group">
+            <div class="ghead">
+              <svg class="gi" viewBox="0 0 24 24"><use href="#i-book"/></svg>
+              <span class="gname">World Info</span><span class="gcount">4</span>
+              <span class="grow"></span>
+              <button class="gnew" title="New book"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></button>
+            </div>
+            <div class="rows">
+              <div class="row"><div class="body"><div class="t">The Ninefold Reach</div><div class="sub">42 entries · attached ×3</div></div></div>
+              <div class="row"><div class="body"><div class="t">Court etiquette</div><div class="sub">11 entries · attached ×1</div></div></div>
+              <div class="row"><div class="body"><div class="t">Scratch lore</div><div class="sub">3 entries · unattached</div></div></div>
+              <div class="row"><div class="body"><div class="t">ST import — Ashfall</div><div class="sub">88 entries · unattached</div></div></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ═════ CONTENT — the member editor, mounted (no dialog) ═════ -->
+      <div class="main">
+        <div class="band">
+          <span class="ttl">strip ooc</span>
+          <span class="grow"></span>
+          <span class="saved"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg> Synced across your devices.</span>
+          <button class="ghostbtn" title="More"><svg viewBox="0 0 24 24"><use href="#i-more"/></svg></button>
+        </div>
+        <div class="mainbody">
+          <div class="form">
+            <div class="fld">
+              <span class="flabel">Name</span>
+              <div class="input">strip ooc</div>
+            </div>
+            <div class="fld">
+              <span class="flabel">Find pattern</span>
+              <span class="fdesc">A regular expression — bare (ooc:.*) or slash-delimited with flags (/ooc:.*/gi).</span>
+              <div class="code"><span class="tok-d">/</span><span class="tok-c">^\s*</span>(?:ooc|OOC)<span class="tok-c">\s*:.*$</span><span class="tok-d">/</span><span class="tok-f">gim</span></div>
+            </div>
+            <div class="fld">
+              <span class="flabel">Replace with</span>
+              <div class="input ph">(leave blank to delete the match)</div>
+            </div>
+            <div class="fld">
+              <span class="flabel">Runs on</span>
+              <span class="fdesc">Which stage of the pipeline this script rewrites.</span>
+              <div class="chips">
+                <span class="chip">User input</span>
+                <span class="chip on">AI output</span>
+                <span class="chip">Slash command</span>
+                <span class="chip">World info</span>
+              </div>
+            </div>
+            <div class="togrow">
+              <div class="tbody"><div class="tt">Enabled</div><div class="td">Off keeps the script in your library without running it anywhere.</div></div>
+              <span class="sw on"></span>
+            </div>
+            <div class="togrow">
+              <div class="tbody"><div class="tt">Run on edit</div><div class="td">Re-apply when a message is edited, not only when it arrives.</div></div>
+              <span class="sw"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═════ CONTEXT — the collection's own arm ═════ -->
+      <div class="ctx">
+        <div class="band">
+          <span class="caps">Where it runs</span>
+          <span class="grow"></span>
+          <button class="ghostbtn" title="Collapse the context panel"><svg viewBox="0 0 24 24"><use href="#i-panelr"/></svg></button>
+        </div>
+        <div class="ctxbody">
+          <div class="togrow">
+            <div class="tbody"><div class="tt">Runs in every chat</div><div class="td">The one scope this library owns — the rest attach from the thing they belong to.</div></div>
+            <span class="sw on"></span>
+          </div>
+
+          <div class="sect">
+            <span class="kicker">Attached by presets · 2</span>
+            <div class="card" style="padding:2px 11px">
+              <div class="attach"><svg class="ai" viewBox="0 0 24 24"><use href="#i-sliders"/></svg><span class="an">Novella long-form</span></div>
+              <div class="attach"><svg class="ai" viewBox="0 0 24 24"><use href="#i-sliders"/></svg><span class="an">Local 8B — cheap mode</span></div>
+            </div>
+          </div>
+
+          <div class="sect">
+            <span class="kicker">Attached by characters · 1</span>
+            <div class="card" style="padding:2px 11px">
+              <div class="attach"><svg class="ai" viewBox="0 0 24 24"><use href="#i-users"/></svg><span class="an">Azarael</span></div>
+            </div>
+          </div>
+
+          <div class="sect">
+            <span class="kicker">Attached by rooms · 0</span>
+            <div class="card"><div class="emptyline">No room attaches this script yet. Open a chat's This-chat panel to attach it there.</div></div>
+          </div>
+
+          <div class="sect">
+            <span class="kicker">History</span>
+            <div class="meta">created Jul 14 · edited 2h ago</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="notes">
+  <div class="col">
+    <p class="note"><b>The editor is MOUNTED, not popped.</b> Today a regex script is authored in a Dialog
+    stacked on top of the settings modal — a modal inside a modal, with its own focus-return bug history
+    (side-eye X-8). In the workspace the same fields (name · find pattern via the code editor · replace ·
+    the placement chips · enabled · run-on-edit) are the CONTENT pane, autosave status in the band. The
+    field anatomy is <b>unchanged</b> — this design frames the existing editor, it does not redesign it.</p>
+    <p class="note"><b>Rows stay owner-rendered (F-5).</b> The host draws the group frame — icon, kicker,
+    count, the create button — and nothing inside it. The tag row keeps its swatch, the regex row keeps
+    its global switch as a row action (the landed X-6 anatomy), the world-info row keeps its entry count.
+    No cross-kind sort semantics, no data-shaped row contract: the host never learns what a member IS.</p>
+  </div>
+  <div class="col">
+    <p class="note"><b>CREATE lives at the GROUP header</b> (F-8, mock-pass answer): a per-group ghost
+    <span class="mono">+</span>, whose accessible name is the contribution's own
+    <span class="mono">create.label</span> ("New tag" / "New script" / "New book"). The band carries NO
+    aggregate primary — a band-level "New ▾" fold would force the user to pick a KIND from a menu before
+    seeing the group they are already looking at, and would put three collections' one primary in a place
+    that belongs to none of them. <b>Consequence to accept:</b> the LIST band is the first list band in
+    the app with no primary action.</p>
+    <p class="note"><b>Search is per-group and owner-drawn</b> — the Regex group carries a filter because
+    it is the one collection that outgrows a glance; Tags and World Info do not. Cross-collection search
+    is deferred (F-10): it would need a growth field on the contract and a result-row grammar nothing
+    demands yet. The shell's ⌘K stays the global door.</p>
+  </div>
+</div>
+
+<h2>Who draws what — the same pane, seams shown</h2>
+<div class="legend">
+  <span><i class="key host"></i> HOST (<span class="mono">features/config</span>) — frame, group band, selection, welcome</span>
+  <span><i class="key contrib"></i> CONTRIBUTION (<span class="mono">features/tag</span> · <span class="mono">regex</span> · <span class="mono">world-info</span>) — rows, editor, context body</span>
+</div>
+<div class="stage">
+  <div>
+    <p class="plabel">The seam, drawn</p>
+    <div class="list seam-host" style="height:312px;border-radius:14px;border:1px solid var(--color-sidebar-border)">
+      <div class="band"><span class="caps">Configuration</span><span class="grow"></span></div>
+      <div class="listbody">
+        <div class="group">
+          <div class="ghead seam-host">
+            <svg class="gi" viewBox="0 0 24 24"><use href="#i-tag"/></svg>
+            <span class="gname">Tags</span><span class="gcount">12</span><span class="grow"></span>
+            <button class="gnew" title="New tag"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></button>
+          </div>
+          <div class="rows seam-contrib">
+            <div class="row"><span class="swatch" style="background:oklch(0.65 0.16 25)"></span><div class="body"><div class="t">favourite</div></div><div class="rowtrail">31</div></div>
+            <div class="row"><span class="swatch" style="background:oklch(0.68 0.14 150)"></span><div class="body"><div class="t">sci-fi</div></div><div class="rowtrail">18</div></div>
+          </div>
+        </div>
+        <div class="group">
+          <div class="ghead seam-host">
+            <svg class="gi" viewBox="0 0 24 24"><use href="#i-code"/></svg>
+            <span class="gname">Regex scripts</span><span class="gcount">9</span><span class="grow"></span>
+            <button class="gnew" title="New script"><svg viewBox="0 0 24 24"><use href="#i-plus"/></svg></button>
+          </div>
+          <div class="rows seam-contrib">
+            <div class="row selected"><div class="body"><div class="t">strip ooc</div><div class="sub">AI output · runs everywhere</div></div><div class="rowtrail"><span class="sw on"></span></div></div>
+            <div class="row"><div class="body"><div class="t">de-purple the prose</div><div class="sub">AI output</div></div><div class="rowtrail"><span class="sw"></span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note" style="max-width:330px"><b>The contract, read off the drawing:</b>
+    <span class="mono">label</span> + <span class="mono">icon</span> + <span class="mono">useCount</span> feed the
+    band; <span class="mono">create</span> is DATA the host renders; <span class="mono">list(view)</span> paints
+    the rows with <span class="mono">selectedId</span> pre-bound to this kind;
+    <span class="mono">detail(view)</span> is CONTENT; <span class="mono">context(view)</span> is the right pane.
+    Zero contributions ⇒ the host renders its welcome and nothing else.</p>
+  </div>
+</div>
+
+</body></html>

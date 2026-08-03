@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CONFIG RAIL — the glyph, the rail arithmetic, the vacated homes</title>
+<style>
+:root{
+  --color-background: oklch(0.158 0.006 60);
+  --color-foreground: oklch(0.955 0.004 75);
+  --color-card: oklch(0.205 0.006 60);
+  --color-primary: oklch(0.72 0.175 52);
+  --color-primary-foreground: oklch(0.19 0.03 50);
+  --color-muted-foreground: oklch(0.74 0.008 65);
+  --color-warning: oklch(0.79 0.13 75);
+  --color-info: oklch(0.7 0.1 232);
+  --color-success: oklch(0.72 0.13 155);
+  --color-border: oklch(0.99 0.005 60 / 0.08);
+  --color-input: oklch(0.99 0.005 60 / 0.12);
+  --color-sidebar: oklch(0.132 0.006 60);
+  --color-sidebar-border: oklch(0.99 0.005 60 / 0.07);
+  --radius-base:0.5rem; --radius-control:0.375rem; --radius-card:0.625rem; --radius-full:9999px;
+  --font-sans:Geist, ui-sans-serif, system-ui, sans-serif;
+  --font-mono:'Geist Mono', ui-monospace, SFMono-Regular, monospace;
+  --ember-tint: color-mix(in oklab, var(--color-primary) 10%, transparent);
+  --rail-w:56px; --chrome-row:48px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:oklch(0.11 0.008 60);color:var(--color-foreground);
+  font-family:var(--font-sans);font-size:13px;line-height:1.5;padding:26px 24px 72px}
+.mono{font-family:var(--font-mono)}
+h1{font-size:1.3rem;margin:0 0 3px;letter-spacing:-.01em}
+h2{font-size:1rem;margin:38px 0 12px;letter-spacing:-.01em}
+.lede{margin:0 0 22px;color:var(--color-muted-foreground);max-width:1040px}
+.lede b{color:var(--color-foreground);font-weight:650}
+.stage{display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start}
+.plabel{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-muted-foreground);font-weight:650;margin:0 0 7px}
+.plabel .rec{color:var(--color-primary)}
+.note{font-size:11px;color:var(--color-muted-foreground);max-width:300px;margin:9px 0 0;line-height:1.6}
+.note.wide{max-width:1040px}
+.note b{color:var(--color-foreground);font-weight:650}
+
+.railwrap{width:var(--rail-w);border:1px solid var(--color-sidebar-border);border-radius:12px;overflow:hidden;
+  background:var(--color-sidebar);display:flex;flex-direction:column;height:492px}
+.brand{height:var(--chrome-row);width:100%;display:flex;align-items:center;justify-content:center;flex:none;border-bottom:1px solid var(--color-sidebar-border)}
+.brand svg{width:24px;height:24px;color:var(--color-primary);stroke:currentColor;stroke-width:1.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.railgroup{display:flex;flex-direction:column;gap:2px;padding:8px 0;width:100%;align-items:center}
+.railgroup + .railgroup{border-top:1px solid var(--color-sidebar-border)}
+.rbtn{width:38px;height:38px;border-radius:var(--radius-control);display:flex;align-items:center;justify-content:center;color:var(--color-muted-foreground);position:relative}
+.rbtn svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.rbtn.active{background:var(--ember-tint);color:var(--color-primary)}
+.rbtn.active::before{content:"";position:absolute;left:-9px;top:8px;bottom:8px;width:2px;border-radius:2px;background:var(--color-primary)}
+.rbtn.new{color:var(--color-primary)}
+.rbtn.gone{opacity:.28}
+.rbtn.gone::after{content:"";position:absolute;inset:9px;border-top:1.5px solid var(--color-warning);transform:rotate(-45deg)}
+.railspacer{flex:1}
+
+.candidates{display:flex;gap:18px;flex-wrap:wrap}
+.cand{border:1px solid var(--color-border);border-radius:var(--radius-card);background:var(--color-card);padding:14px;width:250px}
+.cand.pick{border-color:color-mix(in oklab,var(--color-primary) 50%,transparent);background:color-mix(in oklab,var(--color-primary) 6%,var(--color-card))}
+.candtop{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.big{width:44px;height:44px;flex:none;border-radius:var(--radius-base);display:flex;align-items:center;justify-content:center;background:oklch(0.132 0.006 60)}
+.big svg{width:26px;height:26px;stroke:var(--color-primary);stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.candname{font-size:13px;font-weight:650}
+.candmeta{font-family:var(--font-mono);font-size:9.5px;color:var(--color-muted-foreground)}
+.candbody{font-size:11px;color:var(--color-muted-foreground);line-height:1.6}
+.neighbours{display:flex;gap:4px;align-items:center;margin:10px 0 8px;padding:6px;border-radius:var(--radius-control);background:oklch(0.132 0.006 60)}
+.neighbours .n{width:30px;height:30px;border-radius:var(--radius-control);display:flex;align-items:center;justify-content:center;color:var(--color-muted-foreground)}
+.neighbours .n.subject{color:var(--color-primary);background:var(--ember-tint)}
+.neighbours .n svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* the settings modal nav (the vacated homes) */
+.modal{width:280px;border:1px solid var(--color-border);border-radius:var(--radius-card);background:var(--color-card);overflow:hidden}
+.modal .mh{height:40px;display:flex;align-items:center;padding:0 12px;border-bottom:1px solid var(--color-border);font-size:12.5px;font-weight:640}
+.navlist{padding:7px 6px;display:flex;flex-direction:column;gap:1px}
+.navgroup{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:650;color:var(--color-muted-foreground);padding:8px 8px 4px}
+.navrow{display:flex;align-items:center;gap:9px;padding:6px 9px;border-radius:var(--radius-control);font-size:12.5px}
+.navrow.on{background:var(--ember-tint);color:var(--color-foreground)}
+.navrow.gone{opacity:.35;text-decoration:line-through;text-decoration-color:var(--color-warning)}
+.navrow svg{width:14px;height:14px;flex:none;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round;stroke-linejoin:round;color:var(--color-muted-foreground)}
+.moved{margin-left:auto;font-size:9.5px;font-family:var(--font-mono);color:var(--color-warning)}
+
+table{border-collapse:collapse;font-size:11.5px;margin-top:6px}
+th,td{text-align:left;padding:6px 12px 6px 0;vertical-align:top;border-bottom:1px solid var(--color-border)}
+th{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-muted-foreground);font-weight:650}
+td.mono{font-family:var(--font-mono);font-size:10.5px;color:var(--color-muted-foreground)}
+</style></head><body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="i-weave"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18M6 6l12 12M18 6 6 18"/></g>
+  <g id="i-msg"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></g>
+  <g id="i-users"><circle cx="9" cy="7" r="4"/><path d="M2 21v-2a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></g>
+  <g id="i-library"><path d="m16 6 4 14M12 6v14M8 8v12M4 4v16"/></g>
+  <g id="i-package"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></g>
+  <g id="i-grid"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></g>
+  <g id="i-archive"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4"/></g>
+  <g id="i-sliders"><path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3"/><circle cx="12" cy="4" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="14" cy="20" r="2"/></g>
+  <g id="i-flask"><path d="M10 2v7.31M14 9.3V1.99M8.5 2h7M14 9.3a6.5 6.5 0 1 1-4 0M5.52 16h12.96"/></g>
+  <g id="i-chart"><path d="M3 3v16a2 2 0 0 0 2 2h16M18 17V9M13 17V5M8 17v-3"/></g>
+  <g id="i-gear"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></g>
+  <g id="i-tag"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".9"/></g>
+  <g id="i-code"><path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/></g>
+  <g id="i-book"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></g>
+  <g id="i-user"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></g>
+  <g id="i-paint"><circle cx="12" cy="12" r="9"/><circle cx="9" cy="9" r="1.4"/><circle cx="15" cy="9" r="1.4"/><circle cx="9.5" cy="15" r="1.4"/></g>
+  <g id="i-cable"><path d="M4 9V5a2 2 0 0 1 4 0v4M4 9h4M6 9v6a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V9M16 9h4M20 9V5a2 2 0 0 0-4 0v4"/></g>
+  <g id="i-key"><circle cx="8" cy="15" r="4"/><path d="m10.85 12.15 8.15-8.15 2 2-2 2 2 2-3 3-2-2-2 2"/></g>
+</defs></svg>
+
+<h1>CONFIG RAIL — the glyph, the rail arithmetic, the vacated homes</h1>
+<p class="lede">A rail glyph is a 19px silhouette in a column of eight; the only test that matters is whether it
+reads DIFFERENT from its two neighbours at that size. The Configuration section sits in the
+<span class="mono">authoring</span> group, immediately above Presets (<span class="mono">SlidersHorizontal</span>)
+and Refinery (<span class="mono">FlaskConical</span>), one group below Corpus
+(<span class="mono">Library</span>) and near World Info (<span class="mono">BookOpen</span>) while that still
+stands. Every candidate below is already in the sealed <span class="mono">@orb/ui/icons</span> allowlist — no
+seal edit needed.</p>
+
+<h2>Glyph candidates</h2>
+<div class="candidates">
+  <div class="cand pick">
+    <div class="candtop">
+      <div class="big"><svg viewBox="0 0 24 24"><use href="#i-package"/></svg></div>
+      <div><div class="candname">▸ Package</div><div class="candmeta">sealed · unused elsewhere</div></div>
+    </div>
+    <div class="neighbours">
+      <span class="n"><svg viewBox="0 0 24 24"><use href="#i-library"/></svg></span>
+      <span class="n subject"><svg viewBox="0 0 24 24"><use href="#i-package"/></svg></span>
+      <span class="n"><svg viewBox="0 0 24 24"><use href="#i-sliders"/></svg></span>
+      <span class="n"><svg viewBox="0 0 24 24"><use href="#i-flask"/></svg></span>
+      <span class="n"><svg viewBox="0 0 24 24"><use href="#i-book"/></svg></span>
+    </div>
+    <div class="candbody"><b>The crate of reusable parts.</b> A solid, closed volume — the only filled-looking
+    silhouette in the column, so it reads at 19px against four line-drawings. Says "things you assemble from",
+    which is exactly what a tag, a script and a book have in common. Risk: "package" also means npm/import to a
+    developer; it means nothing to a user, which is fine.</div>
+  </div>
+
+  <div class="cand">
+    <div class="candtop">
+      <div class="big"><svg viewBox="0 0 24 24"><use href="#i-grid"/></svg></div>
+      <div><div class="candname">LayoutGrid</div><div class="candmeta">sealed · unused elsewhere</div></div>
+    </div>
+    <div class="neighbours">
+      <span class="n"><svg viewBox="0 0 24 24"><use href="#i-library"/></svg></span>
+      <span class="n subject"><svg viewBox="0 0 24 24"><use href="#i-grid"/></svg></span>
+      <span class="n"><svg viewBox="0 0 24 24"><use href="#i-sliders"/></svg></span>
+      <span class="n"><svg viewBox="0 0 24 24"><use href="#i-flask"/></svg></span>
+      <span class="n"><svg viewBox="0 0 24 24"><use href="#i-book"/></svg></span>
+    </div>
+    <div class="candbody"><b>Several collections in one place.</b> Highest legibility of the three and the most
+    literal read of "a workspace of groups". Costs: it is the generic "dashboard/apps" glyph everywhere else in
+    software, and Home is already the app's front door — two front-door-ish glyphs in one rail.</div>
+  </div>
+
+  <div class="cand">
+    <div class="candtop">
+      <div class="big"><svg viewBox="0 0 24 24"><use href="#i-archive"/></svg></div>
+      <div><div class="candname">Archive</div><div class="candmeta">sealed · unused elsewhere</div></div>
+    </div>
+    <div class="neighbours">
+      <span class="n"><svg viewBox="0 0 24 24"><use href="#i-library"/></svg></span>
+      <span class="n subject"><svg viewBox="0 0 24 24"><use href="#i-archive"/></svg></span>
+      <span class="n"><svg viewBox="0 0 24 24"><use href="#i-sliders"/></svg></span>
+      <span class="n"><svg viewBox="0 0 24 24"><use href="#i-flask"/></svg></span>
+      <span class="n"><svg viewBox="0 0 24 24"><use href="#i-book"/></svg></span>
+    </div>
+    <div class="candbody"><b>The labelled drawer.</b> Reads as storage, which is honest for a library roster.
+    Costs: "archive" carries a strong "old / put away / done with" connotation in every other product, and
+    these libraries are live. Third by meaning, not by looks.</div>
+  </div>
+</div>
+<p class="note wide"><b>Ruled out, with reasons:</b> <span class="mono">Settings</span> (the gear) is the
+settings-modal trigger at <span class="mono">rail.end</span> — two gears would make "Configuration" and
+"Settings" indistinguishable, which is the exact confusion this migration is supposed to end;
+<span class="mono">Library</span> is Corpus; <span class="mono">SlidersHorizontal</span> is Presets;
+<span class="mono">BookOpen</span> is World Info (and stays its group icon INSIDE the roster).
+<span class="mono">Wrench</span> / <span class="mono">Blocks</span> / <span class="mono">Boxes</span> are not
+in the seal — picking one costs a seal edit plus a name verification, for no legibility gain over Package.</p>
+
+<h2>The rail arithmetic — one door line per stage</h2>
+<div class="stage">
+  <div>
+    <p class="plabel">Today — 8 sections</p>
+    <div class="railwrap">
+      <div class="brand"><svg viewBox="0 0 24 24"><use href="#i-weave"/></svg></div>
+      <div class="railgroup">
+        <div class="rbtn" title="Chats"><svg viewBox="0 0 24 24"><use href="#i-msg"/></svg></div>
+        <div class="rbtn" title="Characters"><svg viewBox="0 0 24 24"><use href="#i-users"/></svg></div>
+        <div class="rbtn" title="Corpus"><svg viewBox="0 0 24 24"><use href="#i-library"/></svg></div>
+      </div>
+      <div class="railgroup">
+        <div class="rbtn" title="World Info"><svg viewBox="0 0 24 24"><use href="#i-book"/></svg></div>
+        <div class="rbtn" title="Presets"><svg viewBox="0 0 24 24"><use href="#i-sliders"/></svg></div>
+        <div class="rbtn" title="Refinery"><svg viewBox="0 0 24 24"><use href="#i-flask"/></svg></div>
+      </div>
+      <div class="railgroup"><div class="rbtn" title="Analytics"><svg viewBox="0 0 24 24"><use href="#i-chart"/></svg></div></div>
+      <div class="railspacer"></div>
+      <div class="railgroup"><div class="rbtn" title="Settings"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></div></div>
+    </div>
+    <p class="note">Tags and Regex are invisible here — they live three clicks deep inside the settings modal.</p>
+  </div>
+
+  <div>
+    <p class="plabel">R1 — <span class="rec">+ Configuration</span> (9 sections)</p>
+    <div class="railwrap">
+      <div class="brand"><svg viewBox="0 0 24 24"><use href="#i-weave"/></svg></div>
+      <div class="railgroup">
+        <div class="rbtn" title="Chats"><svg viewBox="0 0 24 24"><use href="#i-msg"/></svg></div>
+        <div class="rbtn" title="Characters"><svg viewBox="0 0 24 24"><use href="#i-users"/></svg></div>
+        <div class="rbtn" title="Corpus"><svg viewBox="0 0 24 24"><use href="#i-library"/></svg></div>
+      </div>
+      <div class="railgroup">
+        <div class="rbtn new active" title="Configuration"><svg viewBox="0 0 24 24"><use href="#i-package"/></svg></div>
+        <div class="rbtn" title="World Info"><svg viewBox="0 0 24 24"><use href="#i-book"/></svg></div>
+        <div class="rbtn" title="Presets"><svg viewBox="0 0 24 24"><use href="#i-sliders"/></svg></div>
+        <div class="rbtn" title="Refinery"><svg viewBox="0 0 24 24"><use href="#i-flask"/></svg></div>
+      </div>
+      <div class="railgroup"><div class="rbtn" title="Analytics"><svg viewBox="0 0 24 24"><use href="#i-chart"/></svg></div></div>
+      <div class="railspacer"></div>
+      <div class="railgroup"><div class="rbtn" title="Settings"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></div></div>
+    </div>
+    <p class="note">Roster = Tags · Regex scripts. The <b>authoring group grows to four</b> — the widest the rail
+    has been. Settings loses two categories the same commit.</p>
+  </div>
+
+  <div>
+    <p class="plabel">R2 — World Info joins the roster (8)</p>
+    <div class="railwrap">
+      <div class="brand"><svg viewBox="0 0 24 24"><use href="#i-weave"/></svg></div>
+      <div class="railgroup">
+        <div class="rbtn" title="Chats"><svg viewBox="0 0 24 24"><use href="#i-msg"/></svg></div>
+        <div class="rbtn" title="Characters"><svg viewBox="0 0 24 24"><use href="#i-users"/></svg></div>
+        <div class="rbtn" title="Corpus"><svg viewBox="0 0 24 24"><use href="#i-library"/></svg></div>
+      </div>
+      <div class="railgroup">
+        <div class="rbtn new active" title="Configuration"><svg viewBox="0 0 24 24"><use href="#i-package"/></svg></div>
+        <div class="rbtn gone" title="World Info — now a collection"><svg viewBox="0 0 24 24"><use href="#i-book"/></svg></div>
+        <div class="rbtn" title="Presets"><svg viewBox="0 0 24 24"><use href="#i-sliders"/></svg></div>
+        <div class="rbtn" title="Refinery"><svg viewBox="0 0 24 24"><use href="#i-flask"/></svg></div>
+      </div>
+      <div class="railgroup"><div class="rbtn" title="Analytics"><svg viewBox="0 0 24 24"><use href="#i-chart"/></svg></div></div>
+      <div class="railspacer"></div>
+      <div class="railgroup"><div class="rbtn" title="Settings"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></div></div>
+    </div>
+    <p class="note">This is the state <span class="mono">workspace.html</span> draws. Net rail count returns to
+    eight; the roster is three groups.</p>
+  </div>
+
+  <div>
+    <p class="plabel">R3 — presets, OWNER-TIMED (not proposed here)</p>
+    <div class="railwrap">
+      <div class="brand"><svg viewBox="0 0 24 24"><use href="#i-weave"/></svg></div>
+      <div class="railgroup">
+        <div class="rbtn" title="Chats"><svg viewBox="0 0 24 24"><use href="#i-msg"/></svg></div>
+        <div class="rbtn" title="Characters"><svg viewBox="0 0 24 24"><use href="#i-users"/></svg></div>
+        <div class="rbtn" title="Corpus"><svg viewBox="0 0 24 24"><use href="#i-library"/></svg></div>
+      </div>
+      <div class="railgroup">
+        <div class="rbtn new active" title="Configuration"><svg viewBox="0 0 24 24"><use href="#i-package"/></svg></div>
+        <div class="rbtn gone" title="World Info — now a collection"><svg viewBox="0 0 24 24"><use href="#i-book"/></svg></div>
+        <div class="rbtn gone" title="Presets — owner has NOT ruled this"><svg viewBox="0 0 24 24"><use href="#i-sliders"/></svg></div>
+        <div class="rbtn" title="Refinery"><svg viewBox="0 0 24 24"><use href="#i-flask"/></svg></div>
+      </div>
+      <div class="railgroup"><div class="rbtn" title="Analytics"><svg viewBox="0 0 24 24"><use href="#i-chart"/></svg></div></div>
+      <div class="railspacer"></div>
+      <div class="railgroup"><div class="rbtn" title="Settings"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></div></div>
+    </div>
+    <p class="note"><b>PRESETS ARE ABSENT FROM THIS DESIGN BY RULING.</b> Drawn only to show the arithmetic
+    stays one door line either way — the preset surface keeps its own section, its context readout, and its
+    no-selection arm, none of which this design touches.</p>
+  </div>
+</div>
+
+<h2>The vacated homes — Settings loses two categories at R1</h2>
+<div class="stage">
+  <div>
+    <p class="plabel">Settings today</p>
+    <div class="modal">
+      <div class="mh">Settings</div>
+      <div class="navlist">
+        <div class="navgroup">You</div>
+        <div class="navrow"><svg viewBox="0 0 24 24"><use href="#i-user"/></svg> Personas</div>
+        <div class="navrow"><svg viewBox="0 0 24 24"><use href="#i-paint"/></svg> Appearance</div>
+        <div class="navgroup">Library</div>
+        <div class="navrow on"><svg viewBox="0 0 24 24"><use href="#i-tag"/></svg> Tags</div>
+        <div class="navrow on"><svg viewBox="0 0 24 24"><use href="#i-code"/></svg> Regex</div>
+        <div class="navgroup">System</div>
+        <div class="navrow"><svg viewBox="0 0 24 24"><use href="#i-cable"/></svg> Connections</div>
+        <div class="navrow"><svg viewBox="0 0 24 24"><use href="#i-key"/></svg> Credentials</div>
+      </div>
+    </div>
+    <p class="note">Two workspace-grade CRUD libraries living as modal panes — the thing the migration is for.
+    (Nav shown abridged; the real category list is longer.)</p>
+  </div>
+
+  <div>
+    <p class="plabel">Settings after R1</p>
+    <div class="modal">
+      <div class="mh">Settings</div>
+      <div class="navlist">
+        <div class="navgroup">You</div>
+        <div class="navrow"><svg viewBox="0 0 24 24"><use href="#i-user"/></svg> Personas</div>
+        <div class="navrow"><svg viewBox="0 0 24 24"><use href="#i-paint"/></svg> Appearance</div>
+        <div class="navgroup">System</div>
+        <div class="navrow"><svg viewBox="0 0 24 24"><use href="#i-cable"/></svg> Connections</div>
+        <div class="navrow"><svg viewBox="0 0 24 24"><use href="#i-key"/></svg> Credentials</div>
+        <div class="navgroup" style="color:var(--color-warning)">Retired</div>
+        <div class="navrow gone"><svg viewBox="0 0 24 24"><use href="#i-tag"/></svg> Tags <span class="moved">→ Configuration</span></div>
+        <div class="navrow gone"><svg viewBox="0 0 24 24"><use href="#i-code"/></svg> Regex <span class="moved">→ Configuration</span></div>
+      </div>
+    </div>
+    <p class="note"><b>No tombstone row ships.</b> The struck rows are drawn to show what leaves; the built
+    result is simply two fewer categories, and the "Library" group disappears with them. Deep links
+    (<span class="mono">openSettingsTo("tags")</span>, the <span class="mono">#settings-tags-*</span> anchors,
+    settings SEARCH hits) are the coupled sites that must REDIRECT rather than 404 — spec §5.</p>
+  </div>
+
+  <div>
+    <p class="plabel">What each stage costs</p>
+    <table>
+      <tr><th>Stage</th><th>Rail</th><th>Settings</th><th>Roster</th></tr>
+      <tr><td>R1</td><td class="mono">+ config</td><td class="mono">− tags, − regex</td><td>Tags · Regex</td></tr>
+      <tr><td>R2</td><td class="mono">− worldInfo</td><td class="mono">—</td><td>+ World Info</td></tr>
+      <tr><td>R3 (owner)</td><td class="mono">− presets</td><td class="mono">—</td><td>+ Presets</td></tr>
+    </table>
+    <p class="note">Each row is one <span class="mono">SECTION_IDS</span> edit + one door-array edit, walked
+    through the ten-step §6a playbook. Nothing about a contribution changes when its collection moves — that
+    is the whole point of door-array placement (F-3).</p>
+  </div>
+</div>
+
+</body></html>
