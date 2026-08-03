@@ -11,6 +11,11 @@ in it is landed or explicitly superseded/ruled-dead — verified against `docs/r
 `git log`, and the code. Partial = it stays where it lives. Moves only; nothing is ever deleted, and
 a moved file keeps its filename so its cites stay greppable.
 
+**The one exception, and its shape:** the live board FILE never moves, but its ARCHEOLOGY does. When the
+board is rewritten current-state-only after an audit, the superseded blocks land here as
+`retro-workboard-<date>.md` (the first: `retro-workboard-2026-08-03.md`) with an audit header saying what
+was proven done. Only proven-done claims may move; anything unprovable stays on the live board.
+
 **Never moves:** `docs/retro-workboard.md` (the live board) · `docs/Mission.md` ·
 `docs/architecture/core/**` and `docs/architecture/proposed/**` · any spec with an open ladder ·
 a live spec's mocks (mocks follow their spec).
