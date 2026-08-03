@@ -18,6 +18,7 @@
 // cross-table read; the domain-no-cross-feature gate bans importing sibling RUNTIME, not the shared @orb/db
 // schema — the visibility blob's schema is databank's own contract).
 
+import type { DocumentScopeSource } from "@orb/contracts/databank";
 import type { Db } from "@orb/db";
 import { characterDocuments, chatDocuments, chatParticipants, chats, documents, globalDocuments } from "@orb/db";
 import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
@@ -80,16 +81,25 @@ export async function resolveChatHiddenDocumentIds(db: Db, chatId: ChatId): Prom
   return parsed.success ? (parsed.data.hidden as DocumentId[]) : [];
 }
 
-/** Dedup a small id list (an id can be member-global, chat-attached, AND on a roster character). indexOf-filter,
- *  not a query-layer Set — the id sets are small (a chat's attached documents). */
-function dedup(ids: DocumentId[]): DocumentId[] {
-  return ids.filter((id, i) => ids.indexOf(id) === i);
+/** One deduplicated union member + WHICH junction(s) credit it. Persistence-internal (the panel's wire
+ *  shape is `ActiveChatDocumentView`, which the verb builds) — the `DocumentScope` precedent above. */
+interface ChatDocumentCredit {
+  readonly documentId: DocumentId;
+  readonly sources: DocumentScopeSource[];
 }
 
-/** The RAW membership-widened chat document union — NO visibility filter (the panel's full set + the retrieval
- *  pre-filter input). D85: every present human member's global docs ∪ the chat's attached docs ∪ the present
- *  roster characters' attached docs. Deduplicated. */
-export async function resolveChatDocumentUnion(db: Db, chatId: ChatId): Promise<DocumentId[]> {
+/** The RAW membership-widened chat document union WITH its PROVENANCE — which of the three scope junctions
+ *  credits each document (D-2, `DOCUMENT_SCOPE_SOURCES`). The three queries always ran separately here and
+ *  their answer was collapsed to a flat id list; keeping it is what lets the per-chat rack say WHY a
+ *  document is active, and which one the host may DETACH (only the `chat` junction is this room's) rather
+ *  than merely hide.
+ *
+ *  A document can be credited by SEVERAL junctions at once, so `sources` is a list, deduplicated per
+ *  document. The find-and-push (not a Map/Set) is this file's standing posture — persistence is
+ *  queries-only, and the id sets are a chat's attached documents, i.e. small. ORDER is global → chat →
+ *  character, exactly the order the previous indexOf-dedup produced, so the id-only
+ *  {@link resolveChatDocumentUnion} reader below sees the ordering it always saw. */
+export async function resolveChatDocumentSources(db: Db, chatId: ChatId): Promise<ChatDocumentCredit[]> {
   const [members, rosterCharacters] = await Promise.all([resolveHumanMembers(db, chatId), resolveRosterCharacters(db, chatId)]);
   const [globalRows, chatRows, characterRows] = await Promise.all([
     members.length === 0
@@ -100,7 +110,33 @@ export async function resolveChatDocumentUnion(db: Db, chatId: ChatId): Promise<
       ? Promise.resolve([] as { documentId: DocumentId }[])
       : db.select({ documentId: characterDocuments.documentId }).from(characterDocuments).where(inArray(characterDocuments.characterId, rosterCharacters)),
   ]);
-  return dedup([...globalRows.map((r) => r.documentId), ...chatRows.map((r) => r.documentId), ...characterRows.map((r) => r.documentId)]);
+  const credits: ChatDocumentCredit[] = [];
+  const credit = (rows: readonly { documentId: DocumentId }[], source: DocumentScopeSource): void => {
+    for (const row of rows) {
+      const existing = credits.find((each) => each.documentId === row.documentId);
+      if (existing === undefined) {
+        credits.push({ documentId: row.documentId, sources: [source] });
+      } else if (!existing.sources.includes(source)) {
+        existing.sources.push(source);
+      }
+    }
+  };
+  credit(globalRows, "global");
+  credit(chatRows, "chat");
+  credit(characterRows, "character");
+  return credits;
+}
+
+/** The RAW membership-widened chat document union — NO visibility filter (the RETRIEVAL pre-filter input).
+ *  D85: every present human member's global docs ∪ the chat's attached docs ∪ the present roster
+ *  characters' attached docs. Deduplicated — DERIVED from {@link resolveChatDocumentSources} so the union
+ *  and its provenance can never be two different answers to one question.
+ *
+ *  MODULE-LOCAL since D-2: the panel read (`verbs/list-active-for-chat.ts`) was the only other caller and
+ *  now takes the provenance-carrying twin, so the retrieval path below is the sole consumer. */
+async function resolveChatDocumentUnion(db: Db, chatId: ChatId): Promise<DocumentId[]> {
+  const credits = await resolveChatDocumentSources(db, chatId);
+  return credits.map((credit) => credit.documentId);
 }
 
 /** Resolve the documents ACTIVE for RETRIEVAL, deduplicated. `{ownerId}` = the whole bank (junctions don't

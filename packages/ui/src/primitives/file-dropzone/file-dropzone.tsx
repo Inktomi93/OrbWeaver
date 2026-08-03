@@ -1,4 +1,7 @@
 import { Field as BaseField } from "@base-ui/react/field";
+// The ONE byte-size formatter (kit) — this primitive spelled its own until databank's row subtitle and
+// the per-chat rack made it a third consumer.
+import { formatBytes } from "@orb/kit/strings";
 import type { ChangeEvent, ComponentPropsWithRef, DragEvent, ReactElement } from "react";
 import { useState } from "react";
 import { AlertTriangle, Check, Icon, Upload } from "#primitives/icons";
@@ -38,25 +41,6 @@ export interface FileDropzoneProps extends Omit<ComponentPropsWithRef<"input">, 
    */
   hint?: string;
   className?: string;
-}
-
-// Pure byte-count formatting — plain decimal-scale arithmetic, not locale-sensitive.
-const BYTES_PER_UNIT = 1024;
-const DECIMAL_PRECISION = 10;
-
-function formatBytes(bytes: number): string {
-  if (bytes < BYTES_PER_UNIT) {
-    return `${bytes} B`;
-  }
-  const units = ["KB", "MB", "GB"] as const;
-  let value = bytes;
-  let unitIndex = -1;
-  do {
-    value /= BYTES_PER_UNIT;
-    unitIndex += 1;
-  } while (value >= BYTES_PER_UNIT && unitIndex < units.length - 1);
-  const rounded = Math.round(value * DECIMAL_PRECISION) / DECIMAL_PRECISION;
-  return `${rounded} ${units[unitIndex] ?? "GB"}`;
 }
 
 function rejectionMessage(rejected: FileDropzoneRejection[], maxSizeBytes: number | undefined): string | undefined {

@@ -115,6 +115,9 @@ export {
   Trash2,
   Type,
   Undo2,
+  // The per-chat document rack's "Detach from this chat" — a broken link, for cutting a junction row (as
+  // distinct from `EyeOff`, which hides a document from retrieval while leaving every attachment intact).
+  Unlink,
   Unlock,
   Upload,
   UserPlus,

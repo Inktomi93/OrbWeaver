@@ -19,6 +19,12 @@
 // (Context-Panel-Program §1 CP-1) ride along below, each gated at SECTION granularity — the §8.1
 // permission-OMIT, moved from tab-level so the tab strip stays slim without dropping a control.
 //
+// D-4 (databank-surface-spec): "Documents" — the per-chat databank rack + the D85 host visibility toggle —
+// lands directly AFTER Injections. Same family ("extra content entering this room's prompt"), and it is
+// member-READABLE, so it belongs above the host-only band rather than inside it. It is COMMITTED-ONLY: a
+// draft has no room, so no membership union and no `chatId` to attach against (legacy's own `when` said the
+// same thing), which is why the draft arm below carries no Documents section.
+//
 // Both arms compose the SAME leaf bodies (RoomOverridesTab / InjectionsManager / ChatBackgroundSection and
 // the draft twins DraftOverridesTabBody / DraftInjectionsTab), so every moved read keeps its own query +
 // invalidation coverage unchanged and each override/injection/background control stays reachable + editable.
@@ -31,6 +37,7 @@ import { Section, Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { ChatDocumentsSection } from "./chat-documents-section";
 import { DraftGroupConfigTabBody, DraftInjectionsTab, DraftOverridesTabBody } from "./draft-context-tabs";
 import { CommittedGroupConfigTab } from "./group-config-form";
 import { HostDisplayScriptsControl } from "./host-display-scripts-control";
@@ -79,6 +86,15 @@ function InjectionsHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   return <HeadingWithCount count={data?.length ?? 0} label="Injections" />;
 }
 
+// The Documents count, on the same non-suspending shared-cache idiom as Injections above. It counts the
+// rows THIS VIEWER received, which is the only honest number: a member's payload is already filtered to the
+// visible set, and a chip saying "there are N more you cannot see" would leak the host's hidden count.
+function DocumentsHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
+  const trpc = useTRPC();
+  const { data } = useQuery(trpc.databank.listActiveForChat.queryOptions({ chatId }));
+  return <HeadingWithCount count={data?.length ?? 0} label="Documents" />;
+}
+
 export interface CommittedSettingsTabProps {
   readonly chatId: ChatId;
   readonly roomOverrides: RoomOverrides;
@@ -103,6 +119,18 @@ export function CommittedSettingsTab({ chatId, roomOverrides, isHost, background
           renderError={(_error, retry): ReactElement => <QueryErrorState label="injections" onRetry={retry} />}
         >
           <InjectionsManager chatId={chatId} isHost={isHost} />
+        </QueryBoundary>
+      </Section>
+      {/* Documents (D-4) — the per-chat databank rack, placed directly AFTER Injections because it is the
+          same family ("extra content entering this room's prompt") and, unlike the host-only band below, it
+          is member-READABLE: `listActiveForChat` is member-gated by design, so a member sees the rows and
+          simply gets no visibility toggle, no detach and no add (the §8.1 permission-OMIT at ROW level). */}
+      <Section kicker={<DocumentsHeading chatId={chatId} />}>
+        <QueryBoundary
+          fallback={<SkeletonRows count={2} shape="line" />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's documents" onRetry={retry} />}
+        >
+          <ChatDocumentsSection chatId={chatId} isHost={isHost} />
         </QueryBoundary>
       </Section>
       {/* Macro picks (#24) — the per-chat user-macro INPUT picks. NOT host-gated: the picks are room play

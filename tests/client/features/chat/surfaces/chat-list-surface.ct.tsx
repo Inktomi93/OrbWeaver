@@ -400,7 +400,11 @@ test("Arm B: the faces strip curates the recent cast, and tapping one SCOPES the
   await expect(component.getByText("Filtered:")).toBeVisible();
   await expect(component.getByText("Aria Nightshade", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Untitled chat")).toHaveCount(0);
-  await expect(face).toHaveAttribute("aria-current", "true");
+  // `aria-pressed`, not `aria-current`: the chats strip's faces TOGGLE a filter rather than navigate, and
+  // `FaceStrip` states its one fact in one vocabulary (`selectMode:"toggle"` → aria-pressed; the character
+  // library's favorites strip, which OPENS an editor, keeps aria-current). The source moved in the nightly
+  // fix-all; this assertion was its unswept half.
+  await expect(face).toHaveAttribute("aria-pressed", "true");
 });
 
 // Mock order (side-eye P2b/P2a): the faces are the shortcut you arrive for, so the strip is the FIRST thing
@@ -447,7 +451,7 @@ test("Arm B: the strip's kicker names the FILTER verb, so a face here can't read
   await expect(component.getByText("Faces", { exact: true })).toHaveCount(0);
 });
 
-test("Arm B: re-tapping the scoping face clears the scope (the same toggle its aria-current announces)", async ({ mount, page }) => {
+test("Arm B: re-tapping the scoping face clears the scope (the same toggle its aria-pressed announces)", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": [ADVENTURE, UNTITLED], "character.list": CHARACTERS });
 
   const component = await mount(<ChatListSurfaceStory />);
@@ -564,10 +568,10 @@ test("FACEFILT: a folded character picked from the roster scopes the pane AND ta
   await expect(component.getByRole("button", { name: `Thread ${ROSTER_SIZE - 1}`, exact: true })).toBeVisible();
   // …and she is a FACE now, current and inside the row's box — never a filter you can't see or re-tap.
   const face = component.getByRole("button", { name: `Show chats with ${FOLDED_NAME}`, exact: true });
-  await expect(face).toHaveAttribute("aria-current", "true");
+  await expect(face).toHaveAttribute("aria-pressed", "true");
   const inside = await component.locator(FACE_ROW).evaluate((row) => {
     const box = row.getBoundingClientRect();
-    const current = row.querySelector('[aria-current="true"]');
+    const current = row.querySelector('[aria-pressed="true"]');
     const rect = current?.getBoundingClientRect();
     return rect === undefined ? null : { left: rect.left - box.left, right: rect.right - box.right };
   });

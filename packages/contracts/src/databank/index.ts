@@ -113,6 +113,21 @@ export type ChatDocumentVisibility = z.infer<typeof chatDocumentVisibilitySchema
 /** Empty ⇒ nothing hidden; the widened union is retrieved in full (the off path). */
 export const DEFAULT_CHAT_DOCUMENT_VISIBILITY: ChatDocumentVisibility = { hidden: [] };
 
+// ── WHY a document is active in a chat (D-2, databank-surface-spec §11) ──────────────────────────────────
+// The D85 union is THREE junction reads (`databank/persistence/scope.ts`): every present human member's
+// GLOBAL documents ∪ the chat's directly-attached documents ∪ the present roster characters' documents. The
+// resolver ran all three separately and then threw the provenance away, so the panel could say a document
+// was active but never WHY — which is what made legacy render a read-only Switch as an information display
+// (the affordance lie §2.2 files). This is that provenance, promoted to the wire as ONE tuple (§5.5).
+//
+// It is a LIST per document, not a single value: a member's global document can ALSO be chat-attached and
+// ALSO ride a roster character. It is also the DETACHABILITY datum — only the `chat` junction belongs to
+// this room, so a host may detach a `chat`-sourced document and can only HIDE any other (D85's visibility
+// override is a retrieval switch, never a delete).
+export const DOCUMENT_SCOPE_SOURCES = ["global", "chat", "character"] as const;
+
+export type DocumentScopeSource = (typeof DOCUMENT_SCOPE_SOURCES)[number];
+
 // ── reindex scope + mode (the cross-boundary maintenance axis) ───────────────────────────────────────────
 // Both the tRPC `reindex` verb and the `databank-reindex` WORKLOAD params derive from these ONE schemas
 // (§7.5 no-inline-union-redecl). `document` re-runs one document; `owner` re-runs every document the caller
