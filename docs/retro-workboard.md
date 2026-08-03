@@ -544,7 +544,23 @@ D122's discriminator arm working on its first real boot**; owner's OR credential
 the re-mint [expected], generation rides local vLLM wake-on-demand; regex scripts await hand
 re-entry [BACKREST-MANUAL]).** Queue after: BRAND gate · R6 chat-bundle · smalls (X-16
 timestamp · snap-contexts port coupling · readout-parts pending-flash · span leftovers ·
-codemod smalls) · then **DATABANK, alone**. (First attempt hit the 5-min tool timeout mid-transfer — ref
+codemod smalls) · then **DATABANK, alone**.
+**✅ F-8 STICKLER DELIVERED (committed `e1567ffd`: docs/reviews/stickler/2026-08-03-
+collection-contribution.md) — VERDICT: the primitive EXISTS (coherent-as-is at 10 live
+families + D120); F-8 names an unminted ELEVENTH FAMILY** ("member collection inside a
+tri-pane rail workspace"), not a mechanism. Deliverables: the CollectionContribution
+contract (specced §4; deliberately NO anchor field — door-array placement keeps the
+config-rail fork one-line cheap both arms; NO owns-pin — cargo-cult exclusion reasoned) ·
+host = a thin features/config (home precedent; ships ONLY on rail-YES — no dead wire) ·
+**R0 = FORK-INDEPENDENT, dispatchable now**: section-factory-contribution-bundle gate
+(§12 row 5 finally gets its WALL — F-A: the row landed today with no enforcer) + the
+makeChatsSection 4→1 bundle refactor (blast radius receipted) + the SECTION_IDS coupled-site
+playbook ¶. Migration order on rail-YES: tags+regex → world-info → presets LAST owner-timed
+(the hesitation stays free forever). Characters+chats stay bespoke (the A+B convergence is
+NOT this primitive — stretch warned against). F-B hardening: orphan-def arm (home-tiles
+lacks it; specced from birth for the new family). 10 owner forks in §10, F-1 (the rail
+itself) deliberately left OPEN — rule by feel, the design composes with both arms.
+**R0 queued next drain.** (First attempt hit the 5-min tool timeout mid-transfer — ref
 untouched, verified before retry; background push landed clean, 2,796 deltas.) The entire
 instrument-days era is REMOTE: D121+D122 · truth audit · tenancy family (2 holes closed) ·
 persona multi-human · regex reshape complete · handoff copy · portability/lifecycle ·
