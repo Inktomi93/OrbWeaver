@@ -56,6 +56,20 @@ export interface ListRowProps {
    */
   markers?: ReactNode;
   /**
+   * A glyph/chip rendered at the HEAD OF THE SUBTITLE LINE, inside the subtitle's own span — for a status
+   * mark that belongs to the row's SCENT rather than to its name (a document's ingest phase: `Indexing` ·
+   * `Queued` · `Empty`, absent once the row is ready).
+   *
+   * Distinct from `markers`, which rides the TITLE line: a variable-width chip beside the title steals the
+   * name's width on exactly the rows that have one ("Duskwater B…" at the 320px pane floor — measured, not
+   * theorized), which is the same harm that moved status marks off the leading slot in the first place
+   * (side-eye P2-6). The subtitle line has slack the title line does not.
+   *
+   * It sits INSIDE the subtitle span, so its text rides the row's `aria-describedby` with the subtitle and
+   * needs no id of its own. Phrasing content only (a Badge/Icon), like every other slot in the body.
+   */
+  subtitleLead?: ReactNode;
+  /**
    * Optional hover/:focus-within reveal that display-swaps the `subtitle` on the same content-
    * column line. Lives in the content column (never `actions`), so it truncates within the
    * column rather than contending with trailing buttons for width. Requires `subtitle` to swap against.
@@ -145,6 +159,7 @@ function ListRowContent({
   title,
   fullTitle,
   subtitle,
+  subtitleLead,
   subtitleReveal,
   subtitleInline,
   subtitleDecorative,
@@ -157,6 +172,7 @@ function ListRowContent({
   title: string;
   fullTitle: string | undefined;
   subtitle: string | undefined;
+  subtitleLead: ReactNode;
   subtitleReveal: string | undefined;
   subtitleInline: boolean;
   subtitleDecorative: boolean;
@@ -177,6 +193,11 @@ function ListRowContent({
         id={ids.subtitleId}
         title={subtitle}
       >
+        {subtitleLead}
+        {/* A literal space between the chip and the scent: the accessible-description computation
+            concatenates adjacent inline nodes with NO separator, so a screen reader heard
+            "IndexingWiki · 91.7 KB" until this text node existed. Visual spacing is the chip's own margin. */}
+        {subtitleLead === undefined ? null : " "}
         {subtitle}
       </span>
     );
@@ -310,6 +331,7 @@ export function ListRow({
   title,
   fullTitle,
   subtitle,
+  subtitleLead,
   subtitleReveal,
   subtitleWrap = false,
   subtitlePlacement = "block",
@@ -363,6 +385,7 @@ export function ListRow({
           subtitle={subtitle}
           subtitleDecorative={subtitleDecorative}
           subtitleInline={subtitlePlacement !== "block"}
+          subtitleLead={subtitleLead}
           subtitleReveal={subtitleReveal}
           title={title}
         />

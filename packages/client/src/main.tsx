@@ -53,6 +53,7 @@ import {
 } from "#features/chat";
 import { makeConfigSection } from "#features/config";
 import { connectionsPane } from "#features/credentials";
+import { databankSection } from "#features/databank";
 import { corpusSection } from "#features/discovery";
 import { automationDormantTile, buddyDormantTile, makeHomeSection, sectionJumpTile } from "#features/home";
 import { notificationsChrome } from "#features/notifications";
@@ -224,6 +225,7 @@ const sections = createRegistry("sections", SECTION_IDS, {
   characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
   corpus: corpusSection,
   config: makeConfigSection(configCollections),
+  databank: databankSection,
   presets: presetsSection,
   refinery: refinerySection,
   analytics: analyticsSection,

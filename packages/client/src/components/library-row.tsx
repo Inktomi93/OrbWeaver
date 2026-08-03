@@ -12,6 +12,7 @@
 import { Button } from "@orb/ui/button";
 import { Copy, Icon, Pencil } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
+import type { ListRowProps } from "@orb/ui/list-row";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
@@ -28,7 +29,11 @@ export interface LibraryRowActions {
    *  names are unique. The delete-confirm keeps the bare name (a dialog carries its own context). */
   readonly qualifier?: string;
   readonly onRename: () => void;
-  readonly onDuplicate: () => void;
+  /** OPTIONAL — omit for an entity with no duplicate VERB. Absent ⇒ the menu renders no Duplicate item (and
+   *  `inlineVerb:"duplicate"` has nothing to run, so it is ignored). Minted for databank documents: there is
+   *  no server-side copy, and re-uploading the same bytes dedups on `importHash`, so a Duplicate item there
+   *  would be a control with no action behind it. Presets/world-info books are unaffected — both pass it. */
+  readonly onDuplicate?: () => void;
   readonly onDelete: () => void;
   /** The delete-confirm body — plain text/fragment only (see ConfirmDialog). */
   readonly deleteDescription: ReactNode;
@@ -85,6 +90,13 @@ export interface LibraryRowProps {
    */
   readonly markers?: ReactNode;
   /**
+   * A chip at the HEAD OF THE SUBTITLE line (`ListRow.subtitleLead`) — for a status mark that belongs to the
+   * row's SCENT rather than to its name. Databank's ingest phase is the founding consumer: on the TITLE line
+   * (`markers`) a variable-width chip truncated the name on exactly the rows that carry one ("Duskwater B…"),
+   * measured at the 320px pane floor; the subtitle line has the slack the title line does not.
+   */
+  readonly subtitleLead?: ReactNode;
+  /**
    * The row's ONE state toggle (`RowToggleAction`), rendered FIRST in the trailing cluster (§12.2 slot 1).
    * Independent of `actions`: a row with no CRUD menu can still carry state (the built-in preset is
    * activatable but neither renameable nor deletable). It rides the FLOATED cluster, so it must be
@@ -122,13 +134,33 @@ function clusterSpacers(rendered: number, reserved: number): readonly ReactEleme
   ));
 }
 
+/** The four OPTIONAL `ListRow` slots this composite forwards, assembled in one place.
+ *
+ *  They are spread rather than passed as `undefined` because the project runs `exactOptionalPropertyTypes`:
+ *  `subtitle={undefined}` is not the same as an absent `subtitle`. Hoisting the four conditionals out of the
+ *  component keeps its own complexity under the ceiling (they cost 1 each, and the row already spends its
+ *  budget on the cluster arithmetic below). */
+function optionalSlots({ leading, subtitle, markers, subtitleLead }: LibraryRowProps): Pick<ListRowProps, "leading" | "subtitle" | "markers" | "subtitleLead"> {
+  return {
+    ...(leading === undefined ? {} : { leading }),
+    ...(subtitle === undefined ? {} : { subtitle }),
+    ...(markers === undefined ? {} : { markers }),
+    ...(subtitleLead === undefined ? {} : { subtitleLead }),
+  };
+}
+
 /** One entity-library row: title/subtitle + title-line status markers · state toggle · Rename/Duplicate/
  *  Delete menu. */
-export function LibraryRow({ title, subtitle, selected, onSelect, markers, leading, stateToggle, actions, actionsReserved }: LibraryRowProps): ReactElement {
+export function LibraryRow(props: LibraryRowProps): ReactElement {
+  // UNION (merge 2026-08-03): DBANK's props-object shape (optionalSlots needs the whole bag) + NIGHTFIX's
+  // NUMERIC `actionsReserved` (the LIST's §12.2 slot count, not a boolean — a row reserves what its list
+  // declares, so a 1-verb list stops reserving three slots' worth of dead width).
+  const { title, selected, onSelect, stateToggle, actions, actionsReserved } = props;
   const reserved = actionsReserved !== undefined;
   const hasCluster = stateToggle !== undefined || actions !== undefined;
   // What this row actually renders into the §12.2 cluster: the toggle, the optional inline verb, the kebab.
-  const renderedSlots = (stateToggle === undefined ? 0 : 1) + (actions === undefined ? 0 : (actions.inlineVerb === undefined ? 0 : 1) + 1);
+  const renderedSlots =
+    (stateToggle === undefined ? 0 : 1) + (actions === undefined ? 0 : (actions.inlineVerb === undefined || actions.onDuplicate === undefined ? 0 : 1) + 1);
   return (
     <ListRow
       // `group` roots the row so an inline verb's ROW_REVEAL fires on row hover/focus-within (§12.2).
@@ -145,9 +177,7 @@ export function LibraryRow({ title, subtitle, selected, onSelect, markers, leadi
       onClick={onSelect}
       selected={selected}
       title={title}
-      {...(leading === undefined ? {} : { leading })}
-      {...(subtitle === undefined ? {} : { subtitle })}
-      {...(markers === undefined ? {} : { markers })}
+      {...optionalSlots(props)}
       {...(hasCluster
         ? {
             actions: (
@@ -182,10 +212,11 @@ function LibraryRowActionsMenu({
   menuItemsAfter,
 }: LibraryRowActions): ReactElement {
   const subject = actionSubject(name, qualifier);
+  const duplicate = onDuplicate;
   return (
     <>
-      {inlineVerb === undefined ? null : (
-        <Button aria-label={`Duplicate ${subject}`} className={ROW_REVEAL} intent="ghost" onClick={onDuplicate} size="icon" type="button">
+      {inlineVerb === undefined || duplicate === undefined ? null : (
+        <Button aria-label={`Duplicate ${subject}`} className={ROW_REVEAL} intent="ghost" onClick={duplicate} size="icon" type="button">
           <Icon icon={Copy} size="sm" />
         </Button>
       )}
@@ -193,8 +224,8 @@ function LibraryRowActionsMenu({
         deleteDescription={deleteDescription}
         name={name}
         onDelete={onDelete}
-        onDuplicate={onDuplicate}
         onRename={onRename}
+        {...(duplicate === undefined ? {} : { onDuplicate: duplicate })}
         {...(qualifier === undefined ? {} : { qualifier })}
         {...(menuItemsBefore === undefined ? {} : { menuItemsBefore })}
         {...(menuItemsAfter === undefined ? {} : { menuItemsAfter })}
@@ -234,10 +265,12 @@ function LibraryRowMenu({
         <Icon icon={Pencil} size="sm" />
         Rename
       </MenuItem>
-      <MenuItem onClick={onDuplicate}>
-        <Icon icon={Copy} size="sm" />
-        Duplicate
-      </MenuItem>
+      {onDuplicate === undefined ? null : (
+        <MenuItem onClick={onDuplicate}>
+          <Icon icon={Copy} size="sm" />
+          Duplicate
+        </MenuItem>
+      )}
       {menuItemsAfter}
     </RowActionsMenu>
   );

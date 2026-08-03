@@ -103,6 +103,9 @@ export const TEST_IDS = {
   corpusDiscoverEvidence: "corpus-discover-evidence",
   corpusBrowseView: "corpus-browse-view",
   corpusBrowseRow: "corpus-browse-row",
+  /** The add-document dialog's scrape arm submit — the FORM-body dialog's own button (FormSubmitButton
+   *  requires a registered key; the other two arms are plain buttons reachable by their labels). */
+  databankScrapeSubmit: "databank-scrape-submit",
   corpusHomeSurface: "corpus-home-surface",
   corpusDossierSurface: "corpus-dossier-surface",
   corpusAskInput: "corpus-ask-input",

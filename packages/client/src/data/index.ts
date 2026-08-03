@@ -52,6 +52,8 @@ export { SkeletonRows } from "./skeleton-rows";
 export type { Trpc } from "./trpc";
 export { createTrpcClient, createTrpcProxy, TRPCProvider, useTRPC, useTRPCClient } from "./trpc";
 export { uploadAsset } from "./upload-asset";
+export type { UploadDocumentResult } from "./upload-document";
+export { uploadDocument } from "./upload-document";
 export { useColorQuotedSpeech } from "./use-color-quoted-speech";
 export { useDisplayScripts } from "./use-display-scripts";
 export { useGatedQuery } from "./use-gated-query";
