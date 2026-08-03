@@ -480,6 +480,21 @@ produced most of the rows above, so expect a similar residue rate.
   side-eye pass today independently measured 0.2542 on the config pane and attributed it to
   collection-group expansion, pre-existing. **One shell-wide defect, three sightings, no owner yet.**
 
+- **⚠ MANUAL MEMO WAS HIDING CT FAILURES (owner report, 2026-08-03, second session).** The
+  React-modernization program's memo burn-down deleted the manual `useMemo`/`useCallback` cache sites —
+  and the CT suite **exploded**. Being fixed in that session.
+  **The load-bearing reading: those failures are LATENT ON MAIN TODAY.** Deleting the memo did not create
+  them; it stopped SUPPRESSING the re-render that reveals them. Same disease shape as the swallowed catch
+  inside a root span (SPANGATE/OBSCLOSE) — green because the reporting mechanism was disabled, not because
+  the behaviour was right.
+  **The question that decides whether this blocks a push:** are the exposed reds (a) FIXTURE artifacts (a
+  test that leaned on a memo boundary to hold a stale value — only the test was wrong) or (b) REAL product
+  defects memo was masking at runtime as well? Any (b) ships today regardless of the burn-down. Ask the
+  second session for the split before the push word is given.
+  **It also vindicates the direction** — [[react-compiler-no-manual-memo]] treats manual memo as
+  against-convention here; this is the first evidence it was actively concealing breakage, not merely
+  redundant. Worth a D-entry clause if the split shows real defects.
+
 ## ═══ WATCH LIST (flakes + pre-existing reds; none blocking) ═══
 
 - `code-editor.ct` completion flake under contention (documented CM6 75ms window).
