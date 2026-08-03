@@ -611,7 +611,7 @@
       }
     },
     {
-      "includes": ["packages/client/src/state/create-drill-selection-store.ts"],
+      "includes": ["packages/client/src/state/create-drill-selection-store.ts", "packages/client/src/state/create-kinded-selection-store.ts"],
       "linter": {
         "rules": {
           "nursery": {

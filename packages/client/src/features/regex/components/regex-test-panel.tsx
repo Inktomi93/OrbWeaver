@@ -2,9 +2,13 @@
 // without: you could author a pattern and the only way to find out whether it bit was to send a real turn
 // into a real chat and read the transcript. This panel answers the question in the editor, live.
 //
-// It runs the PRODUCTION engine (`#lib`'s `previewRegexScript` → `@orb/kit/regex`'s `executeRegexScripts`,
-// the same call the DISPLAY tier and the server legs make) — see that module's header for why a tester with
-// its own regex engine is worse than no tester, and for the client/server watchdog split it does not hide.
+// It runs the PRODUCTION engine (`../lib/regex-preview` → `@orb/kit/regex`'s `executeRegexScripts`, the
+// same call the DISPLAY tier and the server legs make) — see that module's header for why a tester with its
+// own regex engine is worse than no tester, and for the client/server watchdog split it does not hide.
+//
+// FEATURE-LOCAL, like the fields it sits under: the editor moved out of `components/` when the config rail
+// took over (regex-editor-fields.tsx's header states the rule — tier 2 is for what TWO features need), and
+// the panel has exactly one consumer.
 //
 // IT ALSO ANSWERS THE SECOND QUESTION — "would this ever run?". The probe deliberately neutralises
 // `enabled` and `placement` so a switched-off draft still previews (ST does the same), which would be a lie
@@ -19,8 +23,8 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ChangeEvent, ReactElement } from "react";
 import { useState } from "react";
-import type { RegexPreview } from "#lib";
-import { previewRegexScript, REGEX_PREVIEW_CHAR, REGEX_PREVIEW_DEFAULT_SAMPLE, REGEX_PREVIEW_MAX_INPUT, REGEX_PREVIEW_USER } from "#lib";
+import type { RegexPreview } from "../lib/regex-preview";
+import { previewRegexScript, REGEX_PREVIEW_CHAR, REGEX_PREVIEW_DEFAULT_SAMPLE, REGEX_PREVIEW_MAX_INPUT, REGEX_PREVIEW_USER } from "../lib/regex-preview";
 
 const SAMPLE_ROWS = 3;
 const ONE_MATCH = 1;
@@ -96,8 +100,11 @@ export function RegexTestPanel({ script }: RegexTestPanelProps): ReactElement {
           <Textarea readOnly={true} rows={SAMPLE_ROWS} value={preview.output} />
         </Field>
 
+        {/* `voice` + a token ink class, never the internal size/tone axes (density §2.3 — a feature passing
+            those is a gate violation, and this file became feature-tier when the editor left `components/`).
+            The colour is the point: this line contradicts the result directly above it. */}
         {caveat === null ? null : (
-          <Text size="micro" tone="warning">
+          <Text className="text-warning" voice="gloss">
             {caveat}
           </Text>
         )}

@@ -1,12 +1,13 @@
 // The tag-management CRUD mutations, one createEntityMutation per verb. Every tag verb emits
 // tagsChanged on the user-bus (always-on subscription), so these are busDriven.
 
-import type { inferInput } from "@trpc/tanstack-react-query";
+import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
-/** Create a tag from a name. Its own instance for a name-conflict-aware toast. */
-export const useCreateTag = createEntityMutation<inferInput<Trpc["tag"]["createTag"]>, unknown>({
+/** Create a tag from a name. Its own instance for a name-conflict-aware toast. The created ROW is typed
+ *  (not `unknown`) because the collection's create verb selects it in CONTENT on the next frame. */
+export const useCreateTag = createEntityMutation<inferInput<Trpc["tag"]["createTag"]>, inferOutput<Trpc["tag"]["createTag"]>>({
   options: (trpc) => trpc.tag.createTag.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't create the tag — that name may already be in use.",

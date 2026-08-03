@@ -51,6 +51,7 @@ import {
   newChatModal,
   proseSettingsSection,
 } from "#features/chat";
+import { makeConfigSection } from "#features/config";
 import { connectionsPane } from "#features/credentials";
 import { corpusSection } from "#features/discovery";
 import { automationDormantTile, buddyDormantTile, makeHomeSection, sectionJumpTile } from "#features/home";
@@ -58,11 +59,11 @@ import { notificationsChrome } from "#features/notifications";
 import { personaChrome, personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
-import { regexPane } from "#features/regex";
+import { regexCollection } from "#features/regex";
 import { makeRpgContextTabs, makeRpgHudRegion } from "#features/rpg";
 import { appearancePane, automationPane, chatBehaviorPane, settingsModal, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
-import { tagsPane } from "#features/tag";
+import { tagCollection } from "#features/tag";
 import {
   adminCatalogSection,
   adminEmbeddingsSection,
@@ -84,6 +85,7 @@ import type {
   CharacterDetailContribution,
   ChatContextState,
   ChatSurfaceContribution,
+  CollectionContribution,
   ContextRegionDef,
   ContextTabDef,
   HomeTileContribution,
@@ -205,6 +207,12 @@ const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", 
   automationDormantTile,
 ]);
 
+// The COLLECTION contributor seam (config-rail-spec.md · review §4) — the ELEVENTH contributor family and
+// the Configuration workspace's whole content: the DOOR ARRAY IS THE ROSTER, in group order. Moving a
+// library between the rail and this workspace is one line HERE and zero edits to the library itself; the
+// host (`features/config`) imports none of them.
+const configCollections = createContributorRegistry<CollectionContribution>("config-collections", [tagCollection, regexCollection]);
+
 // The ONE section assembly (G1/G8): total over SECTION_IDS by tsc; delivered as a context value so
 // app-shell reads it (incl. the use-shell-layout hook) without a #features import.
 const sections = createRegistry("sections", SECTION_IDS, {
@@ -215,6 +223,7 @@ const sections = createRegistry("sections", SECTION_IDS, {
   // the characters section (the `makeChatsSection` contributor precedent; a direct import is dep-cruiser RED).
   characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
   corpus: corpusSection,
+  config: makeConfigSection(configCollections),
   worldInfo: worldInfoSection,
   presets: presetsSection,
   refinery: refinerySection,
@@ -314,11 +323,9 @@ assertSettingsKeyPartition(settingsSections, DEFAULT_USER_SETTINGS);
 const settingsPanes = createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {
   personas: personasPane,
   appearance: appearancePane,
-  tags: tagsPane,
   workloads: workloadsPane,
   backup: backupPane,
   "chat-behavior": chatBehaviorPane,
-  regex: regexPane,
   connections: connectionsPane,
   automation: automationPane,
   admin: adminPane,

@@ -1,6 +1,6 @@
 // regex feature CT stories (core/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The stories
 // reach feature internals the front door doesn't re-export (the settings/workloads _ct-stories.tsx
-// precedent): `RegexSettingsSurface` is mounted by the settings host through `regexPane`. The DISPLAY-tier
+// precedent): the member editor is mounted by the CONFIG host through `regexCollection`. The DISPLAY-tier
 // story lives in the `#data` mirror beside the hook it exercises (`tests/client/data/_ct-stories.tsx`) —
 // the CT bundler registers stories per directory, so a cross-directory story import double-declares.
 
@@ -10,16 +10,20 @@ import type { CharacterId } from "@orb/kit/ids";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { RegexSettingsSurface } from "../../../../packages/client/src/features/regex/surfaces/regex-settings-surface";
+import { RegexMemberSurface } from "../../../../packages/client/src/features/regex/surfaces/regex-member-surface";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 
-/** The real Regex settings pane (the script LIBRARY) in isolation — `regex.listScripts`/`listGlobal` (reads)
- *  and `regex.createScript`/`updateScript`/`removeScript` (writes) are stubbed per-test via routeTrpc. */
-export function RegexSettingsStory(): ReactElement {
+/** The regex MEMBER EDITOR mounted in CONTENT (config-rail C-7 — the same fields the retired Dialog bound,
+ *  minus the Dialog) — `regex.listScripts` (the read) and `regex.updateScript`/`removeScript` (the writes)
+ *  are stubbed per-test via routeTrpc. The QueryBoundary is production's (the config host wraps
+ *  `detail(view)` in one): the surface reads through `useSuspenseQuery`. */
+export function RegexMemberStory({ memberId = "regex_script_stripooc" }: { readonly memberId?: string }): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 560, overflow: "auto", width: 720 }}>
-        <RegexSettingsSurface />
+      <div style={{ height: 700, overflow: "auto", width: 720 }}>
+        <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
+          <RegexMemberSurface memberId={memberId} />
+        </QueryBoundary>
       </div>
     </CtDataProviders>
   );

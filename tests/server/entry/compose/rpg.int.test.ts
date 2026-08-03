@@ -207,8 +207,11 @@ function buildCannedRpgWithText(args: {
   /** The tool calls the fake model answers a CHEAP tool round with (`ChatResult.toolCalls`) — the third
    *  delivery vehicle's canned output, so one harness can drive all three (EXT-4a's equal-drop pin). */
   readonly cannedToolCalls?: readonly { readonly name: string; readonly arguments: string }[];
+  /** Make the `structured` role REJECT — the provider-refusal arm (RESYNC-OR: an OpenRouter 400 on the
+   *  structured request is what the host actually hit, and the round must report it, not swallow it). */
+  readonly structuredThrows?: Error;
 }): ReturnType<typeof buildRpg> {
-  const { app, db, api, spy, cannedText, cannedToolCalls } = args;
+  const { app, db, api, spy, cannedText, cannedToolCalls, structuredThrows } = args;
   return buildRpg({
     db,
     now: () => FROZEN_AT,
@@ -234,6 +237,9 @@ function buildCannedRpgWithText(args: {
       // The array/vLLM extraction arm now rides the `structured` role (owner ruling 2026-07-27 — split from
       // summarize). The spy records the model + the constrained schema + the prompt.
       structured: (req): Promise<SummarizeResult> => {
+        if (structuredThrows !== undefined) {
+          return Promise.reject(structuredThrows);
+        }
         spy.summarizeModels.push(req.model);
         spy.schemas.push(req.responseFormat.schema);
         spy.systemPrompts.push(req.inputs[0]?.systemPrompt ?? "");
@@ -1613,6 +1619,31 @@ test("VER-1a: resyncFromStory is IDEMPOTENT — two consecutive resyncs leave by
   // …and the truth is the REBUILT window (one beat, not the turn's beat plus a paraphrase of it), with the
   // archive untouched by the rebuild (the turn's own entry, exactly once).
   expect(first).toEqual({ location: "the obsidian tower", beats: ["arrived at the tower"], journal: ["Arrival"] });
+});
+
+// RESYNC-OR — the END-TO-END loudness proof, through the REAL compose op. The provider refusing the structured
+// call is exactly what the host hit live (OpenRouter 400'd every `response_format: json_schema` extraction on
+// the default hosted model); the op swallowed it into an empty delta and the verb reported "nothing to resync".
+test("RESYNC-OR: a provider refusal reaches the HOST as a reason — never a silent 'nothing changed'", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "resync-or-loud");
+  const principal = hostPrincipal(hostId);
+  const compose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: emptySpy(),
+    cannedText: "{}",
+    structuredThrows: new Error("openrouter structured item 0 failed: Provider returned error"),
+  });
+  await compose.service.createGame({ principal, chatId, mode: "lite" });
+
+  const verdict = await compose.service.resyncFromStory({ principal, chatId });
+
+  expect(verdict.ok).toBe(false);
+  // The provider's own sentence rides out — the host learns the MODEL CALL died, not that their story was clean.
+  expect(verdict).toMatchObject({ ok: false, reason: expect.stringContaining("openrouter structured item 0 failed") });
+  // …and the failed round still writes nothing (the no-op tail is unchanged; only the silence is gone).
+  expect(await panelState(compose, hostId, chatId)).toMatchObject({ beats: [], journal: [] });
 });
 
 test("VER-1a: resyncFromStory COLLAPSES an already-accumulated beat window (the owner's one-click cleanup)", async ({ app, db }) => {

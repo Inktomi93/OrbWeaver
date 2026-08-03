@@ -36,6 +36,26 @@ function summarizeReply(content: string): unknown {
   };
 }
 
+// A structured reply the way a FORCED TOOL CALL comes back: no prose content, the payload in the call's
+// `arguments` string (the SDK's camelCase `toolCalls` shape).
+function toolCallReply(name: string, args: string): unknown {
+  return {
+    choices: [
+      {
+        message: { content: null, toolCalls: [{ id: "call_1", type: "function", function: { name, arguments: args } }] },
+        finishReason: "tool_calls",
+        index: 0,
+      },
+    ],
+    created: 0,
+    id: "g",
+    model: "m",
+    object: "chat.completion",
+    systemFingerprint: null,
+    usage: { promptTokens: 5, completionTokens: 2, totalTokens: 7, cost: 0.001 },
+  };
+}
+
 interface Tracker {
   apiKeys: string[];
   sends: number;
@@ -149,7 +169,17 @@ describe("createOpenRouterBackend — summarize shaper", () => {
     expect(result?.model).toBe("anthropic/claude-haiku-4-5");
   });
 
-  test("threads jsonSchema through as an OpenAI response_format (cross-backend structured output)", async () => {
+  // ── THE STRUCTURED VEHICLE IS A FORCED TOOL CALL, NOT `response_format` (RESYNC-OR, live-probed) ──
+  // `response_format: json_schema` is NOT servable across OpenRouter's hosted families. Measured against the
+  // REAL rpg extraction schema on 2026-08-02 (`anthropic/claude-sonnet-5` is the owner's default hosted model):
+  //   • anthropic  — 400 on `strict:true` AND `strict:false`: first "For 'integer' type, properties maximum,
+  //     minimum are not supported", then (bounds stripped) "Schemas contains too many optional parameters (46)".
+  //   • openai     — 400 on `strict:true` ("'required' is required to be supplied"); 200 only non-strict.
+  //   • google     — 200 on both.
+  // A FORCED TOOL CALL carrying the same JSON Schema is 200 on ALL THREE. That is why the structured role
+  // sends `tools:[…] + tool_choice:{function}` and reads the call's `arguments` — the vehicle the in-turn
+  // folded round already proved on this wire (D112). The host `resyncFromStory` door died on exactly this.
+  test("STRUCTURED rides a FORCED TOOL CALL carrying the schema — never response_format", async () => {
     const { backend, tracker } = backendWith((n) => summarizeReply(`S${n}`));
     const schema = {
       type: "object",
@@ -162,14 +192,25 @@ describe("createOpenRouterBackend — summarize shaper", () => {
       inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
       responseFormat: { name: "result", schema },
     });
-    // The shaper mapped `jsonSchema` onto the chat request's `responseFormat` in the SAME json_schema dialect
-    // the chat runners + the vLLM engine emit (schema name "result") — so the swappable summarize role enforces
-    // structured output whether it resolves to a hosted OR model or a local vLLM box.
-    const sent = tracker.sentRequests[0] as { chatRequest?: { responseFormat?: unknown } };
-    expect(sent.chatRequest?.responseFormat).toMatchObject({
-      type: "json_schema",
-      jsonSchema: { name: "result", schema, strict: true },
+    const sent = tracker.sentRequests[0] as { chatRequest?: { responseFormat?: unknown; tools?: unknown; toolChoice?: unknown } };
+    // The schema rides ONE tool named for the format, and the model is FORCED onto it (never `auto` — a
+    // structured call that came back as prose is a failed extraction, not a stylistic choice).
+    expect(sent.chatRequest?.tools).toEqual([{ type: "function", function: { name: "result", description: expect.any(String), parameters: schema } }]);
+    expect(sent.chatRequest?.toolChoice).toEqual({ type: "function", function: { name: "result" } });
+    // …and `response_format` is GONE: sending both is what 400s on anthropic.
+    expect(sent.chatRequest?.responseFormat).toBeUndefined();
+  });
+
+  test("STRUCTURED reads the JSON out of the forced tool call's arguments", async () => {
+    const args = '{"genre":"noir"}';
+    const { backend } = backendWith(() => toolCallReply("result", args));
+    const result = await callStructured(backend, {
+      credential: CRED,
+      model: castId<ModelId>("anthropic/claude-haiku-4-5"),
+      inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
+      responseFormat: { name: "result", schema: { type: "object" } },
     });
+    expect(result?.items[0]?.text).toBe(args);
   });
 
   // S3 — the structured role does NOT strip `<think>`: a literal `<think>…</think>` inside a JSON string value

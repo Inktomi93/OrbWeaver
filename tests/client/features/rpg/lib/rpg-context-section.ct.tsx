@@ -253,11 +253,16 @@ function stubTakeover(
     readonly restampFails?: boolean;
     /** EDITSNAP-OK — make every hand door answer with this errors-as-data REFUSAL instead of `{ok:true}`. */
     readonly handDoorRefusal?: { readonly ok: false; readonly reason: string };
+    /** RESYNC-OR — the resync's verdict (`ResyncResult`). Default: a rebuild that landed. */
+    readonly resyncVerdict?: { readonly ok: true; readonly rebuilt: boolean } | { readonly ok: false; readonly reason: string };
   } = {},
 ): ReturnType<typeof routeTrpc> {
   const readOnly = opts.readOnly ?? false;
   return routeTrpc(page, {
-    "rpg.resyncFromStory": () => undefined,
+    // RESYNC-OR — the resync answers with a `ResyncResult` VERDICT, never a bare `undefined`: it is a model
+    // call that can fail at the PROVIDER, and the client reads the verdict to tell "rebuilt" from "the round
+    // never ran". A stub returning `undefined` would be testing a contract the server no longer has.
+    "rpg.resyncFromStory": () => opts.resyncVerdict ?? { ok: true, rebuilt: true },
     "chat.reattributePersona": () => (opts.restampFails === true ? trpcError({ message: "restamp blew up" }) : undefined),
     "chat.getChat": () => opts.chat ?? gameChat(),
     "rpg.getGame": () => opts.game ?? gameView(readOnly),
@@ -2458,6 +2463,46 @@ test("unchecked ⇒ the rebuild ALONE — the resync never restamps anything the
 
   await expect.poll(() => trpc.count("rpg.resyncFromStory"), { intervals: [20, 50, 100] }).toBe(1);
   expect(trpc.count("chat.reattributePersona")).toBe(0); // ONESHOT-OK: settled — the restamp would precede the rebuild the poll above awaited
+});
+
+// RESYNC-OR — THE RESYNC DOOR IS LOUD. The verb returned `void`, so all three endings looked identical to the
+// host: the button settled and the panel didn't move. That was live — OpenRouter 400'd the structured request
+// on the DEFAULT hosted model (`response_format: json_schema` is unservable for this schema on anthropic), the
+// compose op swallowed it to an empty delta, and the client reported success. These pin the two endings that
+// have no other observable; the third (a real rebuild) announces itself by repainting the panel.
+test("RESYNC-OR: a provider refusal is TOLD to the host, with the server's own reason (it used to vanish)", async ({ mount, page }) => {
+  const reason = "the model call failed, so nothing was rebuilt: openrouter structured item 0 failed";
+  const trpc = await stubTakeover(page, { resyncVerdict: { ok: false, reason } });
+  const component = await mount(<RpgTakeoverNotifyStory />);
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  await component.getByRole("button", { name: "Resync from story" }).click();
+
+  await expect.poll(() => trpc.count("rpg.resyncFromStory"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(component.getByTestId("rpg-notified")).toContainText(reason);
+});
+
+test("RESYNC-OR: a rebuild that found NOTHING says so — not silence, and not an error either", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page, { resyncVerdict: { ok: true, rebuilt: false } });
+  const component = await mount(<RpgTakeoverNotifyStory />);
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  await component.getByRole("button", { name: "Resync from story" }).click();
+
+  await expect.poll(() => trpc.count("rpg.resyncFromStory"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(component.getByTestId("rpg-notified")).toContainText("Nothing to rebuild");
+});
+
+test("RESYNC-OR: a rebuild that LANDED stays quiet — the repainted panel is the feedback", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page, { resyncVerdict: { ok: true, rebuilt: true } });
+  const component = await mount(<RpgTakeoverNotifyStory />);
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  await component.getByRole("button", { name: "Resync from story" }).click();
+
+  await expect.poll(() => trpc.count("rpg.resyncFromStory"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(component.getByRole("button", { name: "Resync from story" })).toBeEnabled(); // settled
+  await expect(component.getByTestId("rpg-notified")).toHaveText("");
 });
 
 test("with no persona in this chat the option is DISABLED and says why (never hidden)", async ({ mount, page }) => {
