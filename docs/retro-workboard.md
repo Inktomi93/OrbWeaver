@@ -356,6 +356,43 @@ identity chrome for ANY row kind.
   already per-turn volatile, then pick between `scripts/probes/openrouter/RESULTS.md`'s two options.
 - **`E2E_LIVE=1 pnpm e2e`** is owed on a push window (never re-confirmed since the era's start).
 
+## ═══ ARCHIVE-RESCUED FOLLOW-UPS (owner ruling 2026-08-03: a named follow-up goes ON THE BOARD) ═══
+
+> **Why this section exists.** Several lanes ended with "FOLLOW-UPS named not built (freeze)" written into
+> their seal block — which then moved to `docs/history/` with the rest of the archeology. **A follow-up that
+> lives only in the archive is a follow-up that is forgotten.** Owner: *"if it needs follow up it goes on the
+> board, otherwise it gets forgotten."* Each row below was re-checked against TODAY's tree at rescue time;
+> re-verify before acting anyway ([[audit-lists-are-snapshots]]).
+
+- **ICON FILL-AXIS ADOPTION — the ability shipped, the adoption is at ZERO.** `@orb/ui`'s Icon carries
+  `fill` none|solid · `weight` hairline/regular/bold · `partialFill` 0..1, sealed with the `FillableIcon`
+  phantom-brand tsc enforcement and its own CT (ICON-SEAL, `89c787ae`). **VERIFIED 08-03: zero consumers in
+  `packages/client` — 464 `.tsx` scanned, no `<Icon fill=>`, no `weight=`, no `partialFill`.** The only
+  mentions tree-wide are the primitive, its fillable list, and its tests. Named targets from the freeze:
+  F-06 bolt → fill axis · tracker orbs · meter glyphs · `weight=` for selection emphasis. Also frozen:
+  the **`iconNode` door for brand glyphs** — `lib/weave-glyph.tsx` still hand-rolls `fill="currentColor"`
+  because that door was never built · LucideProvider at the client composition root · vector-effect CSS
+  stroke route · `fillRule=evenodd` probe to grow the fillable set.
+  **It will never show as dead code** — `packages/ui/src` exports are deliberately ALIVE ROOTS to the
+  chains lens (the R2 sealed surface), which is exactly why it needs a board row instead.
+- **S6 SEAL is NOT DONE, and half a migration is banned.** `SETTINGS_SECTION_ANCHORS` still has **2 live
+  references** (verified 08-03). The freeze text: delete `SETTINGS_SECTION_ANCHORS`, `make*Pane` factories,
+  emptied shells, `OWN_SUBCATEGORIES`; gates updated. Its sibling S5 (O3 amendment — `features/tag` +
+  `features/regex` mint + pane move) is ruled under D114.
+- **Barrel root-fix final sweep** — the freeze named ~8 src + ~19 tests to drop `export *`. **Today the tree
+  carries 60** `export *` sites across `packages/*/src` + `tests/` (verified 08-03), so either the estimate
+  was scoped narrower or it grew. Re-scope before dispatching.
+- **`PROMPT_MACROS` phantom in a parked spec** — `docs/architecture/proposed/world-state-clips-trackers-spec.md`
+  still names the DELETED `PROMPT_MACROS` (1 hit, verified 08-03). One-line repair; rides whoever next opens
+  that parked set.
+- ✅ **MAC follow-up (1) — PREMISE DIED, no action.** The "user/game-macro UNION gap CONFIRMED not built"
+  row named `withUserMacros` as the wiring shape; **it now has 18 references on the tree** (verified 08-03),
+  so it was built after that seal. Kept here as the record that it was checked, not dropped silently.
+- **Also frozen and NOT re-verified** (rescued verbatim, status unknown — check before acting): the
+  `batchLinkAvatars` cross-domain-write fork · the client `{ok:false}` seam (side-eye-scoped when an editor
+  can refuse) · **"NO host affordance clears ambient"** — weather/clock/date pickers lack "none" arms, the UI
+  gap behind the unreachable compact arm · folding the leaf-claim mechanism into spec §2.3.
+
 ## ═══ WATCH LIST (flakes + pre-existing reds; none blocking) ═══
 
 - `code-editor.ct` completion flake under contention (documented CM6 75ms window).
