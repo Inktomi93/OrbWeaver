@@ -48,12 +48,6 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   ([[side-eye-fix-all-findings]]).
 - **Gates land on a FIXED tree**: a new gate's live violations get FIXED in the same lane; allowlists
   are for permanent deliberate exemptions with a reason + stale arm, never debt parking.
-- **A PLAN RUNS IN ONE SITTING, ALONE (owner law, 2026-08-03).** A staged plan — especially one whose
-  stages leave the tree in a worse state between them — is executed START TO FINISH in a single sitting,
-  from the MAIN orchestrator session, with **nothing else running**: no sibling lanes, no concurrent
-  session, no "stages 1–3 now, the capstone later". The window between stages is the risky state, not the
-  safe one. Applies to the tsx-shedding migration (`docs/design/tsx-shedding-migration-spec.md`) and any
-  future multi-stage plan of that shape.
 - Board commits are `--no-verify` (owner word); code merges keep the hook. D-numbers are allocated at
   DISPATCH when two live lanes both mint.
 - Lane floors MUST name their playwright CT files explicitly — `pnpm verify --push` runs NO CTs
@@ -422,6 +416,20 @@ identity chrome for ANY row kind.
       status line) — the graduation check reads findings TABLES, not the paragraphs around them. Add that line.
 - [ ] **PROMPT_MACROS phantom** (S) — `proposed/world-state-clips-trackers-spec.md:267` names the deleted symbol.
 - [ ] **BARREL ROOT-FIX** (M) — 56 `export * from` remain across `packages/*/src`.
+- [ ] **TSX-SHEDDING MIGRATION** (`docs/design/tsx-shedding-migration-spec.md`, adopted from the memoban
+      session, probe-verified preconditions). **Owner has particular interest.** `tsx` is a RUNTIME dep in
+      production — `start` runs `tsx …/entry/index.ts`, so the server's real module resolver is tsx's and
+      any divergence from node is an invisible bug class. The whole migration is one hazard: **6,359
+      extensionless relative imports** (+ directory imports), fixed by Biome `useImportExtensions --write`
+      SCOPED to paths (never bare `--write .`), which then stays on as the permanent enforcer.
+      **⚑ THIS ONE RUNS IN A SINGLE SITTING, ALONE — owner-ruled, and SPECIFIC TO THIS MIGRATION, not a
+      general orchestration rule.** All four stages start-to-finish from the main session with no sibling
+      lanes and no concurrent session: Stage 1's ~6,359-file rewrite conflicts with any other writer, and
+      **stages 1–3 without 4 leave a state where GREEN ≠ BOOTABLE** — under bundler+extensions the checker
+      still accepts extensionless, so a missed extension typechecks green and crashes at boot with only the
+      biome rule in between; `nodenext` (stage 4) makes it a compile error. Verify by BATTERY, not by
+      reading 6,359 hunks. **Step zero: inventory what still needs `tsx`** (scripts/dev/*.sh, package.json,
+      probes, codemods, seeds — spec expects zero) and put the list to the owner before flipping anything.
 - [ ] **OWNER-OWABLES** — the archived "MORNING OWABLES" list, re-surfaced: the 3 nudge default texts ·
       REGPAR F3/F4/F5 menu · v3-transcripts-reach-new-installs-only · `countByBook` twins · "Untitled chat"
       in the regex rosters.
