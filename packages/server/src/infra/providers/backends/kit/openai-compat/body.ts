@@ -95,15 +95,27 @@ export function rawToolChoice(choice: ToolChoice): unknown {
   return choice.mode;
 }
 
-/** The contract `ResponseFormat` → raw `response_format` (`json_schema` dialect — the neo vLLM runner's
- *  exact shape; the projection rule upstream already produced a clean schema). */
+/**
+ * The contract `ResponseFormat` → raw `response_format` (`json_schema` dialect — the neo vLLM runner's exact
+ * shape; the projection rule upstream already produced a clean schema).
+ *
+ * STRICTFMT — `strict` rides ONLY when the CALLER set it. A translator never defaults a caller's optional wire
+ * knob, and this one is a 400 landmine: the live probe matrix pinned in `backends/openrouter/index.ts`
+ * (2026-08-02) measured OpenAI-family endpoints 400ing on `strict:true` ("'required' is required to be
+ * supplied") and serving 200 non-strict, on this exact field. Unclearable by "just emit `required`": our
+ * schemas are projected by the ONE rule (`@orb/kit/json-schema`) from zod payloads that are
+ * OPTIONAL-BY-CONSTRUCTION (omit = keep), and OpenAI strict demands every property be required. `custom-byo`
+ * points at an ARBITRARY OpenAI-compatible server (an OpenAI-family proxy included), so it must not carry an
+ * invented `strict`. vLLM — where guided decoding is the ENFORCING wire and strict is the point (the xgrammar
+ * populate lever) — PINS `strict: true` explicitly at its own call site (`vllm/surfaces/chat.ts`).
+ */
 export function rawResponseFormat(format: ResponseFormat): Record<string, unknown> {
   return {
     type: "json_schema",
     json_schema: {
       name: format.name,
       schema: format.schema,
-      strict: format.strict ?? true,
+      ...(format.strict !== undefined ? { strict: format.strict } : {}),
       ...(format.description !== undefined ? { description: format.description } : {}),
     },
   };

@@ -41,6 +41,7 @@ export interface PluginBridge {
   readonly imagery: {
     /** SPEND-classed generation (01 §2 `imagery.generatePicture`); returns the primary image's asset id. The
      *  domain builder closes over the installer for connection + spend attribution. */
+    // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
     readonly generatePicture: (chatId: ChatId, args: GenerateImageActionArgs) => Promise<{ readonly assetId: string }>;
   };
   readonly variables: {

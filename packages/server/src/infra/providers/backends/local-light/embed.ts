@@ -44,6 +44,7 @@ function selectInputs(inputs: readonly string[], instruction: string | undefined
 }
 
 /** Truncate (MRL) + L2-normalize one raw vector into its final stored form. */
+// @foreign-id-ok(modelId): a HuggingFace repo id (`Xenova/…`) handed straight to transformers.js, NOT the OpenRouter `ModelId` brand — a different registry's namespace sharing the spelling. Ends if local-light models ever enter the connection catalog under our brand.
 function finalizeVector(vec: Float32Array, dimensions: number | undefined, modelId: string): Float32Array<ArrayBuffer> {
   if (dimensions === undefined || dimensions === vec.length) {
     return normalizeVector(vec);

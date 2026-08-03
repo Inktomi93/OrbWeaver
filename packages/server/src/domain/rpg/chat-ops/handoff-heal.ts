@@ -125,7 +125,13 @@ function foldRekeys(head: HandStateHead, pairs: readonly HandoffCardPair[]): Han
     }
     lock.push(...(moved.locks.lock ?? []));
     clear.push(...(moved.locks.clear ?? []));
-    current = { state: moved.state, locks: current.locks };
+    // `head.locks`, NOT `current.locks` — the two are the same value (the fold only ever advances `state`;
+    // the lock CHANGES are accumulated into lock/clear above, never folded into the threaded head), and the
+    // self-read spelling is a biome landmine: `current = {…, locks: current.locks}` makes biome's type
+    // inference recurse on the loop-carried variable until `biome check` on THIS FILE ALONE aborts with a
+    // stack overflow (biome 2.5.1; whole-tree runs happen to survive on a bigger worker stack). Do not
+    // "restore" the self-read.
+    current = { state: moved.state, locks: head.locks };
   }
   return { ok: true, state: current.state, locks: { lock, clear } };
 }
