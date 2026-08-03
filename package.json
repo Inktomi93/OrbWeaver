@@ -141,6 +141,7 @@
     "tsx": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
+    "undici": "catalog:",
     "vitest": "catalog:",
     "zod": "catalog:",
     "zustand": "catalog:"

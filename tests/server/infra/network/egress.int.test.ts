@@ -17,15 +17,21 @@
 // denial never consults the allowlist.
 
 import { fetchOpenAiModels, installEgressFirewall } from "@orb/server/infra/network";
+import type { Dispatcher } from "undici";
+import { getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { afterAll, beforeAll, describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
-// undici stores the process-global dispatcher at this well-known globalThis slot. We can't `import "undici"`
-// from the tests package (it's a `packages/server` dep, unresolvable here), so we capture/restore through the
-// slot directly — restoring is MANDATORY: leaving the firewall installed would block a sibling integration
-// test's real 127.0.0.1 healthz fetch (lifecycle.int.test) if it shares this worker process.
-const UNDICI_GLOBAL_DISPATCHER = Symbol.for("undici.globalDispatcher.1");
-const globalSlots = globalThis as typeof globalThis & Record<symbol, unknown>;
+// Capture/restore the process-global dispatcher through undici's PUBLIC accessors. Restoring is MANDATORY:
+// leaving the firewall installed would block a sibling integration test's real 127.0.0.1 healthz fetch
+// (lifecycle.int.test) if it shares this worker process.
+//   This used to poke `Symbol.for("undici.globalDispatcher.1")` directly, because undici was a
+//   `packages/server` dep and pnpm-strict made it unresolvable from tests/. `undici` is now mirrored into
+//   root devDependencies (the house pattern — cf. jose/hono/fflate/sharp) precisely so this file can use the
+//   real API. That matters: undici 8 MOVED the slot to `.2` and left `.1` behind as a legacy alias nothing
+//   reads, so the old symbol-poking restore silently became a no-op and leaked the firewall into every
+//   later test in the worker. Never hardcode the slot; the accessors are the contract.
+//   (The handoff those accessors depend on is itself guarded by dispatcher-contract.suite.int.test.ts.)
 
 // Flatten the error → `.cause` chain into one string: undici wraps a connect rejection as a "fetch failed"
 // TypeError whose cause carries our SSRF_BLOCKED signal.
@@ -41,14 +47,14 @@ function errorChainText(err: unknown): string {
 
 describe("installEgressFirewall — boot-installed global SSRF dispatcher (s7 HIGH regression)", () => {
   // Importing `@orb/server/infra/network` above already loaded undici + set its default dispatcher.
-  const original = globalSlots[UNDICI_GLOBAL_DISPATCHER];
+  const original: Dispatcher = getGlobalDispatcher();
   beforeAll(() => {
     // EGRESS_FIREWALL defaults to "true" (env floor) exactly as production boot sees it → the installer
     // swaps in the private-IP-rejecting dispatcher.
     installEgressFirewall();
   });
   afterAll(() => {
-    globalSlots[UNDICI_GLOBAL_DISPATCHER] = original;
+    setGlobalDispatcher(original);
   });
 
   test("blocks the cloud-metadata link-local LITERAL (169.254.169.254) — the connector gate, never dialed", async () => {
