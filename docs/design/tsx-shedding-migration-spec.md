@@ -1,10 +1,21 @@
 ---
 kind: design
-status: proposed
+status: landed
 updated: 2026-08-03
 ---
 
 # Shedding tsx — native-node TypeScript migration (quiet-tree work order)
+
+> **LANDED 2026-08-03 — stages 1, 2, 4, 3 (in that order).** `start` and `dev` run on `node`; every
+> relative import carries its extension; `nodenext` makes a missing one a COMPILE ERROR (TS2835,
+> demonstrated); all ~38 tooling invocations swapped. **Deviation from this spec, deliberate:** the
+> tsconfig.json / tsconfig.tests-dom.json AGGREGATORS stay on `bundler` — they pull ui/client in
+> TRANSITIVELY, and node-strict resolution made tsc select different third-party declarations than the
+> ones that ship (echarts resolved two ways). Nodenext enforcement lives where node RUNS: per-package on
+> server/kit/contracts/db. **Two pre-existing defects surfaced on the way:** `domain/chat/memory/build/**`
+> was invisible to biome (its `!**/build` exclusion copied .gitignore WITHOUT the negations), hiding 13
+> unlinted files and 45 extensionless imports; and `tokens.build.ts` emitted an extensionless import, so
+> the GENERATOR was fixed, not just its artifact.
 
 > Research receipts from the 2026-08-03 memoban session (all probe-verified in-tree, none assumed).
 > Owner intent: move as far off tsx as practical. This spec is written to be executed cold by a lane

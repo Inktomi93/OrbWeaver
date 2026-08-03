@@ -9,10 +9,10 @@ The request for each fixture is assembled by the SERVER'S OWN code (`buildPrompt
 the two production steps deliberately skipped and why.
 
 ```sh
-node_modules/.bin/tsx scripts/probes/impersonate/run.ts          # local arm, 12 fixtures x 3
-IMP_ARMS=hosted node_modules/.bin/tsx scripts/probes/impersonate/run.ts
-IMP_JUDGE=1 node_modules/.bin/tsx scripts/probes/impersonate/run.ts   # blind who-is-speaking pass
-IMP_DRY=1 node_modules/.bin/tsx scripts/probes/impersonate/run.ts     # print prompts, no spend
+node scripts/probes/impersonate/run.ts          # local arm, 12 fixtures x 3
+IMP_ARMS=hosted node scripts/probes/impersonate/run.ts
+IMP_JUDGE=1 node scripts/probes/impersonate/run.ts   # blind who-is-speaking pass
+IMP_DRY=1 node scripts/probes/impersonate/run.ts     # print prompts, no spend
 ```
 
 **⚠ Live spend on the hosted arms.** The local arm needs the vLLM gen engine awake (`pnpm engines:wake`,

@@ -36,11 +36,11 @@
 // `git ls-files --cached --others --exclude-standard`, not a naive rsync `.gitignore` filter merge — git's
 // `!re-include` negation lines aren't rsync filter syntax and get mis-parsed as excludes) into a FIXED stage dir
 // (`.cache/snap-stage/dirty` — sha "dirty" is not a real ref, so it never collides with a commit-pinned
-// stage's key) and boots the exact same `stack.sh`-driven stack. That stack still runs `tsx watch`
+// stage's key) and boots the exact same `stack.sh`-driven stack. That stack runs `node --watch`
 // (dev.sh) — but only OUR rsync ever touches those files, never a concurrent lane's live edits, so the
 // watcher only restarts on a call WE made, by design. REFRESHABLE: a warm dirty stage re-syncs on every
 // `--dirty` call (rsync is cheap/idempotent) without a full re-stage (worktree/install/boot skipped) —
-// `tsx watch` on the stage picks up the synced diff itself. `--fresh` still forces the full rebuild.
+// `node --watch` on the stage picks up the synced diff itself. `--fresh` still forces the full rebuild.
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";

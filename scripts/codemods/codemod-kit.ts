@@ -33,7 +33,7 @@
  * ────────────────────
  *
  *   #!/usr/bin/env tsx
- *   import { runCodemod, repointImports, moveFiles, kit } from "./codemod-kit";
+ *   import { runCodemod, repointImports, moveFiles, kit } from "./codemod-kit.ts";
  *
  *   await runCodemod("rename-foo-to-bar", async (ctx) => {
  *     ctx.plan(moveFiles(ctx, [
@@ -2929,7 +2929,7 @@ export const RECIPES: readonly Recipe[] = [
     name: "preview-first",
     description: "Run any codemod safely. Default is dry-run; --apply commits.",
     code: `// In your codemod file:
-import { runCodemod } from "./codemod-kit";
+import { runCodemod } from "./codemod-kit.ts";
 
 await runCodemod("my-codemod", (ctx) => {
   // ... ctx.plan(...) calls
