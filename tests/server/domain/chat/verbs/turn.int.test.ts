@@ -2822,6 +2822,59 @@ test("the post-turn rpg round opens its OWN request trace (it outlives the reque
   expect(recentTraces(TRACE_SCAN_LIMIT).find((t) => t.requestId === OUTER_REQUEST_ID)?.rootName).toBe("http POST /api/trpc/chat.send");
 });
 
+// SPANGATE — the SIXTH instance of the outlives-the-request class, found by the `detached-work-traced` gate
+// after SM4 fixed one and OBSCLOSE found four more. `fireRpgUserCommit` runs the SEND-path snapshot commit
+// (a DB write + a queued-dice consume) fire-and-forget with `.catch(() => undefined)`, so before the fix its
+// cost and its failures were invisible everywhere: no span of its own, and a parented one would have been
+// dropped as a late orphan. Same proof shape as the round above, driven from inside an outer request root.
+const RPG_USER_COMMIT_ROOT = "rpg.userCommit";
+/** The commit's own trace-ring bucket key — `rpg-user-commit:<messageId>` (hoisted: useTopLevelRegex). */
+const RPG_USER_COMMIT_REQUEST_ID_RE = /^rpg-user-commit:/;
+const USER_COMMIT_OUTER_REQUEST_ID = "rpg-user-commit-outer-request";
+
+test("the send-path rpg user-commit opens its OWN request trace (it outlives the send that started it)", async () => {
+  initTracing();
+  const host = await seedUser(db, "rpgcommithost");
+  const charA = await seedCharacter(db, host, "aria");
+  const chatId = await seedChat(db, "rpg_commit_trace");
+  await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+  await seedParticipant(db, { chatId, key: "c", characterId: charA });
+
+  let commitDone = (): void => undefined;
+  const committed = new Promise<void>((resolve) => {
+    commitDone = resolve;
+  });
+  // FABRICATION-OK: minimal ChatRpgOps stub — the turn path reaches only these ops (the `fireOrderRpg` precedent).
+  const rpg = {
+    resolvePresetOverride: () => Promise.resolve(null),
+    resolveUserMacros: () => Promise.resolve([]),
+    gatherTurnContext: () => Promise.resolve(null),
+    markDicePreRollEligible: () => undefined,
+    onUserCommit: async () => {
+      // Real async work, so the commit genuinely spans a tick — the shape a snapshot commit has.
+      await Promise.resolve();
+      commitDone();
+    },
+    onTurnCompleted: () => Promise.resolve(),
+    onTurnAborted: () => Promise.resolve(),
+    resolveGmSeatHolderKind: () => Promise.resolve(null),
+    resolveReasoningHostOnly: () => Promise.resolve(false),
+  } as unknown as NonNullable<ChatContext["rpg"]>;
+  const h = harness(db, { [charA]: "Aria" }, { rpg });
+
+  await withRequestSpan(USER_COMMIT_OUTER_REQUEST_ID, "http POST /api/trpc/chat.send", {}, () =>
+    h.turn.send({ principal: makePrincipal(host), chatId, content: "I ford the river." }),
+  );
+  await committed;
+
+  const commit = recentTraces(TRACE_SCAN_LIMIT).find((t) => t.rootName === RPG_USER_COMMIT_ROOT);
+  expect(commit).toBeDefined();
+  expect(commit?.requestId).toMatch(RPG_USER_COMMIT_REQUEST_ID_RE);
+  expect(commit?.status).toBe("ok");
+  // Its OWN bucket, never the send's — the request root had already sealed when this work ran.
+  expect(commit?.requestId).not.toBe(USER_COMMIT_OUTER_REQUEST_ID);
+});
+
 // VER-1b — the REGEN SLOT reaches the rpg gather. A swipe regenerates an EXISTING slot whose currently-selected
 // variant is the one being abandoned, so rpg must read its tracked state as of BEFORE that slot (else the
 // reminder describes the very prose the model is being asked to rewrite). Chat owns slot mechanics and is the

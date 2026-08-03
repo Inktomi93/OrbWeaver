@@ -531,6 +531,12 @@ function writeFixtures(): void {
   // The fixture path is deliberately NOT in the committed brand-in-name-position.baseline.json, so its
   // per-file budget is 0 and the single finding is reported.
   fx("packages/server/src/domain/__g_brandpos/verbs/__g_brandpos.ts", "export function gPost(chatId: string): void {\n  void chatId;\n}\n");
+  // detached-work-traced: statement-position fire-and-forget with a DISCARDING rejection handler and no
+  // detached root span. The real tracing module supplies the derived `withRequestSpan` vocabulary.
+  fx(
+    "packages/server/src/domain/__g_detached/__g_detached.ts",
+    "export function gFire(ctx: C): void {\n  void ctx.rpg.onUserCommit(a, b).catch(() => undefined);\n}\n",
+  );
   // no-untyped-soft-ref: a `*Id` column with NO `.references()` FK (not in SOFT_REF_ALLOWLIST).
   fx(
     "packages/db/src/schema/__g_softref.ts",
