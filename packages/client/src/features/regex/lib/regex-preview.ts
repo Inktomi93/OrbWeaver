@@ -77,7 +77,12 @@ function failureMessage(err: unknown): string {
 /** The probe script. Three fields are forced, for the same reason ST forces them: the tester answers "what
  *  does this find/replace DO", which must not be silenced by the row being switched off, by its placement
  *  set, or by the derived display/prompt masks. Everything that shapes the TRANSFORMATION —
- *  `findRegex`, `replaceString`, `trimStrings`, `substituteRegex` — is taken from the live form. */
+ *  `findRegex`, `replaceString`, `trimStrings`, `substituteRegex` — is taken from the live form.
+ *
+ *  `historyDepth` is the one authored field deliberately NOT carried, and it is not a fourth silencing: the
+ *  gate needs a message's POSITION in an assembled history, and a loose sample has none (the call below
+ *  passes no `depth`, so the executor's gate is inert either way). The panel says so out loud rather than
+ *  letting the result imply the scope was honoured. */
 function probeOf(script: CreateRegexScriptInput): RegexScriptInput {
   return {
     findRegex: script.findRegex,

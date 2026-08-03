@@ -9,7 +9,9 @@ import type { NamesBehavior } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { CharacterId, MessageId, PersonaId } from "@orb/kit/ids";
 import { speakerTagsToPlain } from "@orb/kit/speaker-label";
+import type { PromptHistoryRegexEnv } from "../contract/regex";
 import type { HistoryMacroNames } from "../contract/results";
+import { applyPromptHistoryRegex } from "./history-regex";
 import { spliceInChatInjections } from "./injections";
 import { renderHistoryMacros } from "./macros";
 import { applyNamesBehavior } from "./names";
@@ -262,7 +264,20 @@ function compactionCoveredThroughSeq(ctx: AssembleContext): number {
   return ctx.compactedThroughSeq ?? 0; // null/undefined ⇒ 0 (no exclusion)
 }
 
-export function toShapeCanon(canon: readonly MessageView[], ctx: AssembleContext, macroNames: HistoryMacroNames): CanonRow[] {
+/**
+ * Map the loaded canon → SHAPE wire rows. `promptHistory` runs the `PROMPT_HISTORY` regex leg over the
+ * result (`assembly/history-regex` — the ephemeral prompt-build leg); it is REQUIRED and explicitly
+ * nullable rather than optional, because "this build shows the model something the transform would have
+ * changed" has to be a decision a caller makes out loud. `null` = no leg (a hand-built/preview call with no
+ * watchdog to run it under); the turn pipeline and the host `previewAssembly`/`getShapeTrace` reads all
+ * pass a real env, so what the preview prints is what the wire carries.
+ */
+export function toShapeCanon(
+  canon: readonly MessageView[],
+  ctx: AssembleContext,
+  macroNames: HistoryMacroNames,
+  promptHistory: PromptHistoryRegexEnv | null,
+): readonly CanonRow[] {
   const nameById = new Map<CharacterId, string>();
   const cast = ctx.cast ?? [];
   const ids = ctx.castCharacterIds ?? [];
@@ -307,5 +322,8 @@ export function toShapeCanon(canon: readonly MessageView[], ctx: AssembleContext
       });
     }
   }
-  return rows;
+  // MACROS FIRST, THEN REGEX (D121-E): every row above resolved its own stamps through
+  // `renderHistoryMacros`; the leg rewrites that resolved text and returns copies — `rows` itself is what
+  // gets discarded, and the `messages` rows it was read from were never touched.
+  return promptHistory === null ? rows : applyPromptHistoryRegex(rows, promptHistory);
 }

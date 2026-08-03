@@ -69,6 +69,32 @@ test("the empty set lands on the promptOnly arm and stays inert (the executor sk
   expect(deriveRegexTierFlags([])).toEqual({ markdownOnly: false, promptOnly: true });
 });
 
+// ── The SECOND derivation: the ephemeral leg's depth scope ───────────────────────────────────────────────
+// `historyDepth` is not a mask — it is a field that has no meaning without `PROMPT_HISTORY`, and the
+// contract refuses either half alone. So the save boundary owns the pairing exactly as it owns the flags:
+// the scope appears with the chip and leaves with it, and the editor renders its controls on the same
+// condition, so the screen and the row cannot disagree.
+
+test("adding the history leg mints the whole-history scope; the authored bounds survive a later save", () => {
+  const scoped = withDerivedTierFlags({ ...IMPORTED_CONTRADICTION, placement: ["PROMPT_HISTORY"] });
+  expect(scoped.historyDepth).toEqual({ min: 0, max: null });
+  const narrowed = withDerivedTierFlags({ ...scoped, historyDepth: { min: 2, max: 6 } });
+  expect(narrowed.historyDepth).toEqual({ min: 2, max: 6 });
+});
+
+test("dropping the history chip DROPS the scope — a depth that governs nothing is never persisted", () => {
+  const scoped = withDerivedTierFlags({ ...IMPORTED_CONTRADICTION, placement: ["PROMPT_HISTORY"], historyDepth: { min: 3, max: null } });
+  const unscoped = withDerivedTierFlags({ ...scoped, placement: ["AI_OUTPUT"] });
+  expect(unscoped).not.toHaveProperty("historyDepth");
+});
+
+test("the pairing holds for EVERY placement subset — scope iff leg", () => {
+  for (const placement of subsetsOf(REGEX_PLACEMENTS)) {
+    const saved = withDerivedTierFlags({ ...IMPORTED_CONTRADICTION, placement: [...placement], historyDepth: { min: 1, max: null } });
+    expect(saved.historyDepth !== undefined, `scope/leg disagree for [${placement.join(",")}]`).toBe(placement.includes("PROMPT_HISTORY"));
+  }
+});
+
 test("the save boundary HEALS a row whose stored flags contradict its placement (an ST import can)", () => {
   const saved = withDerivedTierFlags(IMPORTED_CONTRADICTION);
   // `AI_OUTPUT` + `DISPLAY` is the both-sides arm, so neither mask survives — the script goes from

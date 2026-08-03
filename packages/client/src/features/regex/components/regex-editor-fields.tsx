@@ -19,15 +19,18 @@
 // ONE editor at ONE capability level, and the pickers attach that row rather than authoring a fourth copy.
 
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
-import { SubstituteFindRegex } from "@orb/kit/regex";
+import type { RegexPlacement } from "@orb/kit/regex";
+import { HISTORY_DEPTH_PLACEMENT, SubstituteFindRegex } from "@orb/kit/regex";
 import { Field } from "@orb/ui/field";
-import { Section, Stack } from "@orb/ui/layout";
+import { Row, Section, Stack } from "@orb/ui/layout";
+import { NumberField } from "@orb/ui/number-field";
 import { Select } from "@orb/ui/select";
 import { Textarea } from "@orb/ui/textarea";
 import type { ChangeEvent, ReactElement } from "react";
 import { lazy, Suspense, useId } from "react";
 import type { AppFormInstance } from "#forms";
 import { REGEX_PLACEMENT_ITEMS } from "#lib";
+import { WHOLE_HISTORY_DEPTH } from "../lib/derive-tier-flags";
 import { RegexTestPanel } from "./regex-test-panel";
 
 // Lazy — CodeMirror is heavy and only this editor needs it.
@@ -68,9 +71,61 @@ function splitTrimStrings(value: string): string[] {
   return value === "" ? [] : value.split("\n");
 }
 
+/** The two depth bounds' labels — one string each for the visible label AND the stepper buttons' accessible
+ *  name (the `params-deck` Quality pattern; a bare "Decrease" tells a screen reader nothing about WHICH
+ *  bound it moves). */
+const DEPTH_MIN_LABEL = "From (messages back)";
+const DEPTH_MAX_LABEL = "To (messages back)";
+
 // The form these fields bind — a direct-bind form OR the autosave factory's reset-less form (nothing here
 // calls `reset`, so it accepts the wider shape).
 type RegexEditorForm = Omit<AppFormInstance<CreateRegexScriptInput>, "reset">;
+
+/** THE DEPTH SCOPE — rendered ONLY while `Runs on` carries the history leg, because it is the only leg that
+ *  HAS a depth (every other placement runs once, on one string, at persist or at render). This is the same
+ *  unrepresentable-contradiction discipline the tier flags got: rather than showing two bounds that would
+ *  govern nothing on a send-only script, the controls do not exist, and the save boundary keeps the stored
+ *  row in step (`../lib/derive-tier-flags`).
+ *
+ *  DEPTH 0 IS THE NEWEST MESSAGE and counts backwards (the ST semantic, cited in `@orb/kit/regex`'s
+ *  `RegexHistoryDepth`). "To" empty = no ceiling, which is Base UI's own null-is-empty shape rather than a
+ *  sentinel number. */
+function HistoryDepthFields({ form }: RegexEditorFieldsProps): ReactElement {
+  return (
+    <form.AppField name="historyDepth">
+      {(field): ReactElement => {
+        const scope = field.state.value ?? WHOLE_HISTORY_DEPTH;
+        return (
+          <Section heading="How far back it reaches">
+            <Row gap="field">
+              <Field description="0 is the newest message." label={DEPTH_MIN_LABEL}>
+                <NumberField
+                  aria-label={DEPTH_MIN_LABEL}
+                  min={0}
+                  onValueChange={(next: number | null): void => {
+                    field.handleChange({ ...scope, min: next ?? 0 });
+                  }}
+                  value={scope.min}
+                />
+              </Field>
+              <Field description="Leave empty to reach the whole history." label={DEPTH_MAX_LABEL}>
+                <NumberField
+                  aria-label={DEPTH_MAX_LABEL}
+                  min={0}
+                  onValueChange={(next: number | null): void => {
+                    field.handleChange({ ...scope, max: next });
+                  }}
+                  placeholder="no limit"
+                  value={scope.max}
+                />
+              </Field>
+            </Row>
+          </Section>
+        );
+      }}
+    </form.AppField>
+  );
+}
 
 export interface RegexEditorFieldsProps {
   readonly form: RegexEditorForm;
@@ -157,6 +212,12 @@ export function RegexEditorFields({ form }: RegexEditorFieldsProps): ReactElemen
           />
         )}
       </form.AppField>
+
+      {/* The depth scope appears with its leg and vanishes with it — see `HistoryDepthFields`. Subscribing
+          to `placement` alone (not the whole form state) keeps every other keystroke out of this branch. */}
+      <form.Subscribe selector={(state): readonly RegexPlacement[] => state.values.placement}>
+        {(placement): ReactElement | null => (placement.includes(HISTORY_DEPTH_PLACEMENT) ? <HistoryDepthFields form={form} /> : null)}
+      </form.Subscribe>
 
       <Section heading="Options">
         <form.AppField name="enabled">{(field): ReactElement => <field.SwitchField label="Enabled" />}</form.AppField>
