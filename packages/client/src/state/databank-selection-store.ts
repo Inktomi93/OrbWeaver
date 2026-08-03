@@ -9,8 +9,10 @@ import { createDrillSelectionStore } from "./create-drill-selection-store";
 
 const databankSelection = createDrillSelectionStore<DocumentId>("databank-selection");
 
-/** Open a document (a library-row click) — CONTENT swaps to its detail surface. */
-export const selectDocument = databankSelection.select;
+// There is deliberately NO bare `select` export: every way into a document is FROM THE LIST (a library-row
+// click and the add-dialog's `onCreated`), and databank has no deep-link / agent-nav door the way
+// `character` does. The factory arm stays available the day one lands — mirroring the whole factory API
+// here just minted an unreachable export.
 /** Open a document from the LIST AND close any open LIST slide-over (no-op when the LIST is docked). */
 export const selectDocumentFromList = databankSelection.selectFromList;
 /** Clear the selection (back to the Databank welcome state) — fired on delete of the open document. */
