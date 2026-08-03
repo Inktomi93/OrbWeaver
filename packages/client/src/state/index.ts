@@ -106,12 +106,7 @@ export type { KindedDrillStore, KindedSelection } from "./create-kinded-selectio
 export { createKindedSelectionStore } from "./create-kinded-selection-store";
 export type { PersistedStoreOptions } from "./create-persisted-store";
 export { createPersistedStore } from "./create-persisted-store";
-export {
-  clearDocumentSelection,
-  selectDocument,
-  selectDocumentFromList,
-  useSelectedDocumentId,
-} from "./databank-selection-store";
+export { clearDocumentSelection, selectDocumentFromList, useSelectedDocumentId } from "./databank-selection-store";
 export type { DraftConfig, DraftRosterOverride } from "./draft-config-store";
 export {
   addDraftCharacter,

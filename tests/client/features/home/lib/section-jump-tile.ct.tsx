@@ -5,10 +5,25 @@
 // carries the marker. Clicking a row fires the store action (assert the store, never a rendered echo).
 
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { SectionId } from "../../../../../packages/client/src/state/shell-store";
+import { SECTION_IDS } from "../../../../../packages/client/src/state/shell-store";
 import { HomeSectionJumpStory } from "../_ct-stories";
 
-// The registry order, minus home (which never links to itself).
-const EXPECTED = ["Chats", "Characters", "Corpus", "Configuration", "Presets", "Refinery", "Analytics"];
+// The expectation DERIVES from the registry tuple, never a frozen row list: the ORDER and the COUNT are
+// `SECTION_IDS` minus home (which never links to itself), and the labels come from a record tsc proves
+// TOTAL over the tuple. A new section is therefore a COMPILE error here (add its rail label) rather than a
+// silently-stale literal — which is exactly how this froze at seven rows when `databank` joined the rail.
+const RAIL_LABELS: Record<Exclude<SectionId, "home">, string> = {
+  chats: "Chats",
+  characters: "Characters",
+  corpus: "Corpus",
+  config: "Configuration",
+  databank: "Databank",
+  presets: "Presets",
+  refinery: "Refinery",
+  analytics: "Analytics",
+};
+const EXPECTED = SECTION_IDS.filter((id): id is Exclude<SectionId, "home"> => id !== "home").map((id) => RAIL_LABELS[id]);
 
 test("the jump rows ARE the section registry minus home, in registry order", async ({ mount }) => {
   const home = await mount(<HomeSectionJumpStory />);
