@@ -10,10 +10,16 @@
 //
 // Round-trip drift guard: buildThemeBackup(parseThemeBackup(buildThemeBackup(x))) deep-equals
 // buildThemeBackup(x).
+//
+// Defined through `#kit/serde/lib` — the envelope, the JSON decode, the version gate and the drop-bad-rows
+// loop are the spine's; this file owns only the canonical shape and its row schema.
 
+import type { PortableParse } from "@orb/contracts/portability";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { THEME_CSS_MAX, THEME_NAME_MAX, themeOverrideSchema } from "@orb/contracts/theme";
 import { z } from "zod";
+import type { EmptyJsonHeader } from "#kit/serde/lib";
+import { defineJsonRowsSerde, NO_JSON_HEADER, noJsonHeader } from "#kit/serde/lib";
 
 export const THEME_SCHEMA_KIND = "orb.theme";
 export const THEME_SCHEMA_VERSION = 1;
@@ -42,57 +48,42 @@ function themeToWire(t: CanonicalTheme): Record<string, unknown> {
   };
 }
 
+// A lenient per-row view: name validates (blank/whitespace fails this row → dropped); override runs the
+// wire clamp (hostile token values drop per-field); css clamps length + coerces to null.
+const wireThemeSchema = z
+  .object({
+    name: z.string().trim().min(1).max(THEME_NAME_MAX),
+    override: themeOverrideSchema.catch({}),
+    css: z.string().max(THEME_CSS_MAX).nullish().catch(null),
+  })
+  .transform(
+    (row): CanonicalTheme => ({
+      name: row.name,
+      override: row.override,
+      css: row.css ?? null,
+    }),
+  );
+
+const themeSerde = defineJsonRowsSerde<ThemeBackup, CanonicalTheme, EmptyJsonHeader>({
+  schemaKind: THEME_SCHEMA_KIND,
+  schemaVersion: THEME_SCHEMA_VERSION,
+  plural: "themes",
+  rowSchema: wireThemeSchema,
+  // A hostile row in a 40-theme library must not cost the other 39 (the ruled default).
+  rowPolicy: "drop",
+  headerSchema: noJsonHeader(),
+  toWire: (backup) => ({ header: NO_JSON_HEADER, rows: backup.themes.map(themeToWire) }),
+  fromWire: (themes) => ({ themes }),
+});
+
 /** Serialize a `ThemeBackup` to the orb-native theme-backup JSON interchange bytes (the inverse of
  *  `parseThemeBackup`). Deterministic key order makes the round-trip byte-identical. */
 export function buildThemeBackup(backup: ThemeBackup): Uint8Array {
-  const wire = {
-    schemaKind: THEME_SCHEMA_KIND,
-    schemaVersion: THEME_SCHEMA_VERSION,
-    themes: backup.themes.map(themeToWire),
-  };
-  return new TextEncoder().encode(JSON.stringify(wire, null, 2));
+  return themeSerde.build(backup);
 }
 
-// A lenient per-row view: name validates (blank/whitespace fails this row → dropped); override runs the
-// wire clamp (hostile token values drop per-field); css clamps length + coerces to null.
-const wireThemeSchema = z.object({
-  name: z.string().trim().min(1).max(THEME_NAME_MAX),
-  override: themeOverrideSchema.catch({}),
-  css: z.string().max(THEME_CSS_MAX).nullish().catch(null),
-});
-
-const wireBackupSchema = z.object({
-  schemaKind: z.literal(THEME_SCHEMA_KIND),
-  schemaVersion: z.number().int().positive(),
-  themes: z.array(z.unknown()),
-});
-
-function decodeJson(bytes: Uint8Array): unknown {
-  try {
-    return JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
-    return null;
-  }
-}
-
-/** Parse orb-native theme-backup JSON bytes to a `ThemeBackup`, or null when the bytes are not a
- *  theme-backup file. Resilient within a valid file: a single malformed row is dropped, never fatal. */
-export function parseThemeBackup(bytes: Uint8Array): ThemeBackup | null {
-  const envelope = wireBackupSchema.safeParse(decodeJson(bytes));
-  if (!envelope.success) {
-    return null;
-  }
-  const themes: CanonicalTheme[] = [];
-  for (const raw of envelope.data.themes) {
-    const row = wireThemeSchema.safeParse(raw);
-    if (!row.success) {
-      continue;
-    }
-    themes.push({
-      name: row.data.name,
-      override: row.data.override,
-      css: row.data.css ?? null,
-    });
-  }
-  return { themes };
+/** Parse orb-native theme-backup JSON bytes to a `ThemeBackup`, or the typed reason they were refused.
+ *  Resilient within a valid file: a single malformed row is dropped, never fatal. */
+export function parseThemeBackup(bytes: Uint8Array): PortableParse<ThemeBackup> {
+  return themeSerde.parse(bytes);
 }

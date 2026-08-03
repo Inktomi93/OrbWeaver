@@ -11,9 +11,12 @@
 // adapter here. The envelope is the uniform {schemaKind, schemaVersion} header; parseGallery rejects a
 // foreign/absent schemaKind and drops malformed rows.
 
+import type { PortableParse } from "@orb/contracts/portability";
 import type { AssetId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
+import type { EmptyJsonHeader } from "#kit/serde/lib";
+import { defineJsonRowsSerde, NO_JSON_HEADER, noJsonHeader } from "#kit/serde/lib";
 
 // The wire discriminant + schema version. `schemaKind` fences a gallery file from every other portable file
 // (the upload router routes on it); `schemaVersion` is the lift-walk key for a future shape change.
@@ -44,59 +47,42 @@ function itemToWire(item: CanonicalGalleryItem): Record<string, unknown> {
   };
 }
 
-/** Serialize a `GalleryExport` to the orb-native gallery JSON interchange bytes (the inverse of
- *  `parseGallery`). Deterministic key order makes the round-trip byte-identical. */
-export function buildGallery(gallery: GalleryExport): Uint8Array {
-  const wire = {
-    schemaKind: GALLERY_SCHEMA_KIND,
-    schemaVersion: GALLERY_SCHEMA_VERSION,
-    items: gallery.items.map(itemToWire),
-  };
-  return new TextEncoder().encode(JSON.stringify(wire, null, 2));
-}
-
 // A lenient per-row view: assetId is required as a non-empty branded id. Deliberately not typeIdSchema
 // (prefix-strict): the assetId is an opaque carried value re-linked against the db by the import verb's
 // ownership gate.
-const wireItemSchema = z.object({
-  assetId: brandedId<AssetId>(),
-  subjectCharacterHandle: z.string().trim().min(1).nullish().catch(null),
-  createdAt: z.number().int().nonnegative().nullish().catch(null),
-});
-
-const wireGallerySchema = z.object({
-  schemaKind: z.literal(GALLERY_SCHEMA_KIND),
-  schemaVersion: z.number().int().positive(),
-  items: z.array(z.unknown()),
-});
-
-function decodeJson(bytes: Uint8Array): unknown {
-  try {
-    return JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
-    return null;
-  }
-}
-
-/** Parse orb-native gallery JSON bytes to a `GalleryExport`, or null when the bytes are not a gallery
- *  file. Resilient within a valid file: a single malformed row is dropped, never fatal. */
-export function parseGallery(bytes: Uint8Array): GalleryExport | null {
-  const envelope = wireGallerySchema.safeParse(decodeJson(bytes));
-  if (!envelope.success) {
-    return null;
-  }
-  const items: CanonicalGalleryItem[] = [];
-  for (const raw of envelope.data.items) {
-    const row = wireItemSchema.safeParse(raw);
-    if (!row.success) {
-      continue;
-    }
-    const item = row.data;
-    items.push({
+const wireItemSchema = z
+  .object({
+    assetId: brandedId<AssetId>(),
+    subjectCharacterHandle: z.string().trim().min(1).nullish().catch(null),
+    createdAt: z.number().int().nonnegative().nullish().catch(null),
+  })
+  .transform(
+    (item): CanonicalGalleryItem => ({
       assetId: item.assetId,
       subjectCharacterHandle: item.subjectCharacterHandle ?? null,
       createdAt: item.createdAt ?? null,
-    });
-  }
-  return { items };
+    }),
+  );
+
+const gallerySerde = defineJsonRowsSerde<GalleryExport, CanonicalGalleryItem, EmptyJsonHeader>({
+  schemaKind: GALLERY_SCHEMA_KIND,
+  schemaVersion: GALLERY_SCHEMA_VERSION,
+  plural: "items",
+  rowSchema: wireItemSchema,
+  rowPolicy: "drop",
+  headerSchema: noJsonHeader(),
+  toWire: (gallery) => ({ header: NO_JSON_HEADER, rows: gallery.items.map(itemToWire) }),
+  fromWire: (items) => ({ items }),
+});
+
+/** Serialize a `GalleryExport` to the orb-native gallery JSON interchange bytes (the inverse of
+ *  `parseGallery`). Deterministic key order makes the round-trip byte-identical. */
+export function buildGallery(gallery: GalleryExport): Uint8Array {
+  return gallerySerde.build(gallery);
+}
+
+/** Parse orb-native gallery JSON bytes to a `GalleryExport`, or the typed reason they were refused.
+ *  Resilient within a valid file: a single malformed row is dropped, never fatal. */
+export function parseGallery(bytes: Uint8Array): PortableParse<GalleryExport> {
+  return gallerySerde.parse(bytes);
 }

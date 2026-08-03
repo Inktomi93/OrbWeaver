@@ -464,6 +464,14 @@ function writeFixtures(): void {
     "packages/db/src/schema/__g_ownerid.ts",
     'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gOwnerid = sqliteTable("__g_ownerid", { ownerId: text("owner_id").references(() => gOwnerid.ownerId) });\n',
   );
+  // lifecycle-portability: an OWNER-STAMPED canon table that no portable kind carries and no
+  // NON_PORTABLE_CANON row classifies — the F1 shape (databank sat exactly here while every full-account
+  // backup silently dropped it). Its own fixture rather than riding `__g_ownerid`'s: the two gates ask
+  // different questions of the same column, and a shared fixture hides it when one of them dies.
+  fx(
+    "packages/db/src/schema/__g_lifecycle.ts",
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const gLifecycle = sqliteTable("__g_lifecycle", { id: text("id").primaryKey(), ownerId: text("owner_id") });\n',
+  );
   // table-scoping-class: a schema table with NO row in TABLE_SCOPING_CLASSES — unclassified at birth.
   fx(
     "packages/db/src/schema/__g_scopeclass.ts",

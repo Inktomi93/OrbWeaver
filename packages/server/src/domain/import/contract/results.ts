@@ -34,3 +34,7 @@ export interface ImportPersonasResult {
   readonly personasSkipped: number;
   readonly defaultPersonaId: PersonaId | null;
 }
+
+/** `importChatFile` — never throws for a malformed/unmatched file; the refusal carries the operator-facing
+ *  reason the calling door renders. `created:false` ⇒ the transcript deduped against an existing chat. */
+export type ImportChatFileOutcome = { readonly ok: true; readonly created: boolean } | { readonly ok: false; readonly error: string };

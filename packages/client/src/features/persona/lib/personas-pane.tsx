@@ -11,7 +11,7 @@ export const personasPane: SettingsPaneDefinition = {
   group: "user",
   label: "Personas",
   icon: Drama,
-  description: "Notifications + restore-from-backup. Edit personas from the rail-foot panel.",
+  description: "Persona notifications. Edit, import and export personas from the rail-foot panel.",
   subcategories: [
     {
       id: PERSONA_SUBCATEGORY_IDS.personas,
@@ -21,11 +21,6 @@ export const personasPane: SettingsPaneDefinition = {
           id: "persona-notifications",
           label: "Persona change notifications",
           keywords: ["notify", "notification", "alert"],
-        },
-        {
-          id: "persona-restore",
-          label: "Restore personas from a backup",
-          keywords: ["import", "backup", "restore", "json"],
         },
       ],
     },

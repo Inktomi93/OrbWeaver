@@ -75,6 +75,13 @@ export interface ImportPersonaInput {
   readonly avatarAssetId?: AssetId | null;
 }
 
+/** ONE bundle-shaped chat file: `filename` is `<character-handle>/<leaf>.jsonl` (the directory IS the
+ *  re-link key — chat ids are not preserved across a box). */
+export interface ImportChatFileInput {
+  readonly filename: string;
+  readonly bytes: Uint8Array;
+}
+
 /** ST chat headers don't reliably carry the character name, so there's no safe auto-match. */
 export interface ImportChatsInput {
   readonly characterId: CharacterId;

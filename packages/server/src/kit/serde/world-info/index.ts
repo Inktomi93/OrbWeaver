@@ -10,8 +10,10 @@
 // Round-trip drift guard: buildWorldBookFile(parseWorldBookFile(buildWorldBookFile(b))) equals
 // buildWorldBookFile(b).
 
+import type { PortableParse } from "@orb/contracts/portability";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import { z } from "zod";
+import { defineJsonRowsSerde } from "#kit/serde/lib";
 
 export const WORLD_INFO_SCHEMA_KIND = "orb.world-info.book";
 const SCHEMA_VERSION = 1;
@@ -29,25 +31,29 @@ const fileEntrySchema = z.object({
   metadata: z.record(z.string(), z.unknown()).nullable(),
 });
 
-// Not .strict() — an unknown top-level key from a newer writer rides through (forward-tolerant), but a
-// modelled field that mistypes fails the parse to null.
-const fileSchema = z.object({
-  schemaKind: z.literal(WORLD_INFO_SCHEMA_KIND),
-  version: z.number(),
+// The book's own top-level fields, beside the envelope and the entry array. Not .strict() — an unknown
+// top-level key from a newer writer rides through (forward-tolerant).
+const headerSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
-  entries: z.array(fileEntrySchema),
 });
 
-/** Serialize the canonical lorebook shape to the portable worlds/*.json text (the inverse of
- *  `parseWorldBookFile`). Every field in a fixed key order so a re-serialize is byte-identical. */
-export function buildWorldBookFile(book: BulkImportLorebookInput): string {
-  const file = {
-    schemaKind: WORLD_INFO_SCHEMA_KIND,
-    version: SCHEMA_VERSION,
-    name: book.name,
-    description: book.description,
-    entries: book.entries.map((e) => ({
+const worldBookSerde = defineJsonRowsSerde<BulkImportLorebookInput, BulkImportLorebookInput["entries"][number], z.infer<typeof headerSchema>>({
+  schemaKind: WORLD_INFO_SCHEMA_KIND,
+  schemaVersion: SCHEMA_VERSION,
+  // ACCEPT-OLD-FOREVER: books written before the envelope was uniform spell the version key `version`.
+  // Build emits `schemaVersion`; both keys parse, forever (portable files are external artifacts —
+  // NO-LEGACY governs the db, not a user's on-disk lorebook).
+  legacyVersionKeys: ["version"],
+  plural: "entries",
+  rowSchema: fileEntrySchema,
+  // DECLARED opt-in (O-8): a lorebook is an integral whole — an entry silently missing from a restored
+  // book is a worse outcome than a refused file, because the book still LOOKS complete.
+  rowPolicy: "reject-file",
+  headerSchema,
+  toWire: (book) => ({
+    header: { name: book.name, description: book.description },
+    rows: book.entries.map((e) => ({
       title: e.title,
       description: e.description,
       content: e.content,
@@ -57,28 +63,11 @@ export function buildWorldBookFile(book: BulkImportLorebookInput): string {
       ignoreBudget: e.ignoreBudget,
       metadata: e.metadata,
     })),
-  };
-  return `${JSON.stringify(file, null, 2)}\n`;
-}
-
-/** Parse an untrusted worlds/*.json upload into the canonical `BulkImportLorebookInput` (the inverse of
- *  `buildWorldBookFile`), or null when malformed. The caller's import verb maps null to an isolated
- *  per-file failure, never a thrown bundle abort. */
-export function parseWorldBookFile(text: string): BulkImportLorebookInput | null {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch {
-    return null;
-  }
-  const parsed = fileSchema.safeParse(raw);
-  if (!parsed.success) {
-    return null;
-  }
-  return {
-    name: parsed.data.name,
-    description: parsed.data.description,
-    entries: parsed.data.entries.map((e) => ({
+  }),
+  fromWire: (entries, header) => ({
+    name: header.name,
+    description: header.description,
+    entries: entries.map((e) => ({
       title: e.title,
       description: e.description,
       content: e.content,
@@ -88,5 +77,18 @@ export function parseWorldBookFile(text: string): BulkImportLorebookInput | null
       ignoreBudget: e.ignoreBudget,
       metadata: e.metadata,
     })),
-  };
+  }),
+});
+
+/** Serialize the canonical lorebook shape to the portable world-info book bytes (the inverse of
+ *  `parseWorldBookFile`). Every field in a fixed key order so a re-serialize is byte-identical. */
+export function buildWorldBookFile(book: BulkImportLorebookInput): Uint8Array {
+  return worldBookSerde.build(book);
+}
+
+/** Parse an untrusted world-info book upload into the canonical `BulkImportLorebookInput` (the inverse of
+ *  `buildWorldBookFile`), or the typed reason it was refused. The caller's import verb maps the refusal to
+ *  an isolated per-file failure, never a thrown bundle abort. */
+export function parseWorldBookFile(bytes: Uint8Array): PortableParse<BulkImportLorebookInput> {
+  return worldBookSerde.parse(bytes);
 }

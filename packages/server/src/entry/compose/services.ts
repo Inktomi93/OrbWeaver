@@ -505,7 +505,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
 
   // ── databank (the databank seam) — built BEFORE chat so `gatherDatabank` (DB6) can inject into the chat build.
-  const { databank, databankIngest } = buildDatabank({
+  const { databank, databankIngest, databankPortability } = buildDatabank({
     db,
     now,
     audit,
@@ -669,6 +669,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       newEntryId: minter(ID_PREFIX.worldEntry),
     }),
     galleryCtx,
+    databankCtx: databankPortability,
     persona,
     exportService,
     character,

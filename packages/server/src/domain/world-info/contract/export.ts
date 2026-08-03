@@ -25,3 +25,7 @@ export interface ExportedWorldBook {
 /** Export ONE owned book (+ its entries) as the portable `worlds/*.json` file, or null when the book is not
  *  the caller's (or absent). */
 export type ExportWorldBook = (args: { readonly ownerId: UserId; readonly bookId: WorldBookId }) => Promise<ExportedWorldBook | null>;
+
+/** Every book the owner owns — the enumeration the bundle descriptor's `exportAll` streams over. Homed here
+ *  (F8) so the composition root wires a world-info op instead of running world-info's query itself. */
+export type ListOwnedBookIds = (args: { readonly ownerId: UserId }) => Promise<readonly WorldBookId[]>;

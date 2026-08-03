@@ -56,7 +56,7 @@ function book(over: Partial<BulkImportLorebookInput> = {}): BulkImportLorebookIn
 }
 
 function bytes(b: BulkImportLorebookInput): Uint8Array {
-  return new TextEncoder().encode(buildWorldBookFile(b));
+  return buildWorldBookFile(b);
 }
 
 describe("createImport", () => {

@@ -10,7 +10,7 @@ import { PORTABLE_KINDS } from "@orb/contracts/portability";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Hono } from "hono";
-import type { ExportChatFormat, ExportService } from "#domain/export";
+import type { ExportCardFormat, ExportChatFormat, ExportService } from "#domain/export";
 import type { ZipEntry } from "#infra/storage";
 import { packZip } from "#infra/storage";
 
@@ -20,6 +20,7 @@ const BAD_REQUEST = 400;
 const PNG_MIME = "image/png";
 const JSONL_MIME = "application/x-ndjson";
 const TXT_MIME = "text/plain; charset=utf-8";
+const JSON_MIME = "application/json; charset=utf-8";
 const ZIP_MIME = "application/zip";
 const CHARACTER_ROUTE = "/api/export/character/:characterId";
 const CHAT_ROUTE = "/api/export/chat/:chatId";
@@ -29,6 +30,7 @@ const KINDS_QUERY = "kinds";
 const LIBRARY_FILENAME = "orbweaver-library.zip";
 
 const CHAT_FORMATS: ReadonlySet<string> = new Set<ExportChatFormat>(["jsonl", "txt"]);
+const CARD_FORMATS: ReadonlySet<string> = new Set<ExportCardFormat>(["png", "json"]);
 const PORTABLE_KIND_VALUES: readonly string[] = PORTABLE_KINDS;
 
 export interface ExportDeps {
@@ -92,12 +94,18 @@ export function registerExport(app: Hono<PrincipalEnv>, deps: ExportDeps): void 
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);
     }
+    // O-5: the format axis the chat door already had. Absent ⇒ png (the ST-parity card).
+    const formatRaw = c.req.query(FORMAT_QUERY);
+    if (formatRaw !== undefined && !CARD_FORMATS.has(formatRaw)) {
+      return c.json({ error: `invalid "${FORMAT_QUERY}" — expected png or json` }, BAD_REQUEST);
+    }
+    const format = formatRaw as ExportCardFormat | undefined;
     const characterId = castId<CharacterId>(c.req.param("characterId"));
-    const card = await deps.export.exportCharacter({ principal, characterId });
+    const card = await deps.export.exportCharacter({ principal, characterId, format });
     if (card === null) {
       return c.body(null, NOT_FOUND);
     }
-    return serveDownload(card.bytes, PNG_MIME, card.filename);
+    return serveDownload(card.bytes, format === "json" ? JSON_MIME : PNG_MIME, card.filename);
   });
 
   app.get(CHAT_ROUTE, async (c) => {

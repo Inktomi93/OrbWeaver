@@ -3,10 +3,26 @@
 // schemaKind → null, non-JSON → null, a malformed row dropped not fatal, axis coercion), and the
 // build -> parse -> build ROUND-TRIP identity (the structural drift guard against the two halves diverging).
 
+import type { PortableParse } from "@orb/contracts/portability";
 import type { CanonicalTag, TagLibrary } from "@orb/server/kit/serde/tag";
 import { buildTagLibrary, parseTagLibrary, TAG_LIBRARY_SCHEMA_KIND, TAG_LIBRARY_SCHEMA_VERSION } from "@orb/server/kit/serde/tag";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
+
+/** The parse outcome's value — the spine returns a typed refusal reason, never null. */
+function refusalOf<T>(result: PortableParse<T>): string {
+  if (result.ok) {
+    throw new Error("expected the file to be refused, but it parsed");
+  }
+  return result.reason;
+}
+
+function must<T>(result: PortableParse<T>): T {
+  if (!result.ok) {
+    throw new Error(`portable parse refused: ${result.reason}`);
+  }
+  return result.value;
+}
 
 function ctag(over: Partial<CanonicalTag> = {}): CanonicalTag {
   return {
@@ -49,15 +65,19 @@ describe("buildTagLibrary", () => {
 
 describe("parseTagLibrary", () => {
   test("null for non-JSON bytes", () => {
-    expect(parseTagLibrary(new TextEncoder().encode("{not json"))).toBeNull();
-    expect(parseTagLibrary(new Uint8Array())).toBeNull();
+    expect(parseTagLibrary(new TextEncoder().encode("{not json")).ok, "a refused file must not parse").toBe(false);
+    expect(refusalOf(parseTagLibrary(new TextEncoder().encode("{not json")))).toBe("not-json");
+    expect(parseTagLibrary(new Uint8Array()).ok, "a refused file must not parse").toBe(false);
+    expect(refusalOf(parseTagLibrary(new Uint8Array()))).toBe("not-json");
   });
 
   test("null for a foreign / absent schemaKind (a different portable file)", () => {
     const foreign = new TextEncoder().encode(JSON.stringify({ schemaKind: "orb.persona", schemaVersion: 1, tags: [] }));
-    expect(parseTagLibrary(foreign)).toBeNull();
+    expect(parseTagLibrary(foreign).ok, "a refused file must not parse").toBe(false);
+    expect(refusalOf(parseTagLibrary(foreign))).toBe("foreign-kind");
     const noKind = new TextEncoder().encode(JSON.stringify({ tags: [] }));
-    expect(parseTagLibrary(noKind)).toBeNull();
+    expect(parseTagLibrary(noKind).ok, "a refused file must not parse").toBe(false);
+    expect(refusalOf(parseTagLibrary(noKind))).toBe("foreign-kind");
   });
 
   test("a malformed tag row is dropped, not fatal (blank name / non-object)", () => {
@@ -68,9 +88,9 @@ describe("parseTagLibrary", () => {
         tags: [{ name: "keep" }, { name: "   " }, 42, { color: "#fff" }],
       }),
     );
-    const lib = parseTagLibrary(bytes);
-    expect(lib?.tags).toHaveLength(1);
-    expect(lib?.tags[0]?.name).toBe("keep");
+    const lib = must(parseTagLibrary(bytes));
+    expect(lib.tags).toHaveLength(1);
+    expect(lib.tags[0]?.name).toBe("keep");
   });
 
   test("coerces a bad axis to its safe default rather than dropping the row", () => {
@@ -81,7 +101,7 @@ describe("parseTagLibrary", () => {
         tags: [{ name: "weird", source: "bogus", folderType: "NOPE", isHiddenOnCard: "yes" }],
       }),
     );
-    const row = parseTagLibrary(bytes)?.tags[0];
+    const row = must(parseTagLibrary(bytes)).tags[0];
     expect(row).toMatchObject({
       name: "weird",
       source: null,
@@ -101,7 +121,7 @@ describe("build -> parse -> build identity", () => {
       ],
     };
     const bytes1 = buildTagLibrary(source);
-    const reparsed = parseTagLibrary(bytes1);
+    const reparsed = must(parseTagLibrary(bytes1));
     if (reparsed === null) {
       throw new Error("reparse failed");
     }

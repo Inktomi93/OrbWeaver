@@ -47,6 +47,9 @@ const SERVICE_KEYS = [
   "persona",
   "plugin",
   "preset",
+  // The regex library service (D121-E) — this list was the one coupled site the regex lane missed, so the
+  // suite has been red on the standing tree since `0c4c3243` (the SERVICE_KEYS-phantom class).
+  "regex",
   "rpg",
   "search",
   "sessions",

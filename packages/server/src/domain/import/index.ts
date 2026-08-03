@@ -5,7 +5,7 @@ export type { ImportContext } from "./context";
 export type { ImportCardErrorCode } from "./contract/errors";
 export { ImportCardError } from "./contract/errors";
 export type { ImportCardInput, ImportCharacterInput } from "./contract/params";
-export type { ImportCharacterResult, ImportedCharacterRef } from "./contract/results";
+export type { ImportCharacterResult, ImportChatFileOutcome, ImportedCharacterRef } from "./contract/results";
 export type {
   CreateImportedCharacter,
   FindCharacterByImportHash,
@@ -17,6 +17,7 @@ export type {
   CollectedChat,
   CollectedPersona,
   CollectResult,
+  ImportChatFileInput,
   ImportChatsInput,
   ImportFsPort,
   ImportPersonaInput,

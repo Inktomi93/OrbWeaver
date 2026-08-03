@@ -341,7 +341,9 @@ describe("cardContentHash", () => {
 // ── the OUT half: buildCardV3 + exportBookEntry (PD-44) ────────────────────────────────────────────────
 
 const REGEX_SCRIPT = regexScriptSchema.parse({
-  id: "r1",
+  // A real `regex_script_…` TypeID: the schema's id became prefix-STRICT with the D121-E library lift, so
+  // the old bare "r1" fixture stopped parsing (this file was red on the standing tree before this lane).
+  id: "regex_script_00000000000000000000000001",
   name: "trim",
   findRegex: "a",
   replaceString: "b",

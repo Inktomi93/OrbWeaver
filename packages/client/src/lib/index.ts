@@ -33,7 +33,7 @@ export { CHARACTER_DETAIL_ANCHORS, CHAT_SURFACE_ANCHORS, SLASH_COMMAND_GROUP_LAB
 export type { RegistryContext } from "./create-registry-context";
 export { createRegistryContext } from "./create-registry-context";
 export { IS_DEV } from "./dev-flag";
-export { downloadJson, downloadUrl, slugifyFilename } from "./download-json";
+export { downloadJson, downloadTextFile, downloadUrl, slugifyFilename } from "./download-json";
 export type { AppErrorBoundaryProps } from "./error-boundary";
 export { AppErrorBoundary } from "./error-boundary";
 export type { DormantDoorway, HomeTileContribution, HomeTileSpan } from "./home-tile-contracts";

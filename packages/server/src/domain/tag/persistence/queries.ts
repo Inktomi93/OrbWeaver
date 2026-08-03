@@ -5,6 +5,7 @@
 import type { TagSource, TagSuggestionView, TagView, TagWithUsage } from "@orb/contracts/tag";
 import type { Db } from "@orb/db";
 import { characters as charactersTable, characterTags, chatTags, personaTags, presetTags, tags, worldBookTags } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, fetchOwned } from "@orb/db/kit";
 import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -80,15 +81,47 @@ export async function fetchOwnedTagIds(db: Db, ownerId: UserId, ids: readonly Ta
   return rows.map((r) => r.id);
 }
 
-/** Bulk-insert prepared tag rows for one owner, idempotently: each row no-ops on the functional unique
- *  conflict. Returns the count actually created. Caller pre-normalizes each name and mints each id. */
-export async function insertOwnedTagsIfAbsent(db: Db, values: readonly (typeof tags.$inferInsert)[]): Promise<number> {
+/** Idempotent RESTORE for the portable tag-library import (O-3: restore-wins). A same-folded-name tag is
+ *  UPDATED in place — it keeps its id, so every junction survives, and takes the backup's presentation axes.
+ *  Returns the newly-inserted count, so a re-import of the same library still reports `created: 0`. Caller
+ *  pre-normalizes each name and mints each id. */
+export async function restoreOwnedTags(db: Db, ownerId: UserId, values: readonly (typeof tags.$inferInsert)[]): Promise<number> {
   if (values.length === 0) {
+    return 0;
+  }
+  const existing = await listOwnedTags(db, ownerId);
+  const matchOf = (name: string): TagRow | undefined => existing.find((row) => row.name.toLowerCase() === name.toLowerCase());
+  // O-3 restore-wins: a same-name tag keeps its ID (every junction survives) and takes the backup's
+  // presentation axes. N statements (each payload differs), ONE batch.
+  const updates: BatchStmt[] = [];
+  for (const row of values) {
+    const match = matchOf(row.name);
+    if (match !== undefined) {
+      updates.push(
+        db
+          .update(tags)
+          .set({
+            color: row.color,
+            color2: row.color2,
+            source: row.source,
+            folderType: row.folderType,
+            sortOrder: row.sortOrder,
+            isHiddenOnCard: row.isHiddenOnCard,
+          })
+          .where(and(eq(tags.id, match.id), eq(tags.ownerId, ownerId))),
+      );
+    }
+  }
+  if (updates.length > 0) {
+    await db.batch(batchMany(updates));
+  }
+  const fresh = values.filter((row) => matchOf(row.name) === undefined);
+  if (fresh.length === 0) {
     return 0;
   }
   const inserted = await db
     .insert(tags)
-    .values([...values])
+    .values([...fresh])
     .onConflictDoNothing({ target: [tags.ownerId, sql`lower(${tags.name})`] })
     .returning({ id: tags.id });
   return inserted.length;
