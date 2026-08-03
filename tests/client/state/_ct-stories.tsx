@@ -28,6 +28,7 @@ import {
   clearWorldEntrySelection,
   closeModal,
   commitDraft,
+  cycleTagFilter,
   goToCollection,
   goToLanding,
   isCommitted,
@@ -66,12 +67,12 @@ import {
   setOpenOverlayPanel,
   setPanelMode,
   setPresetEditorView,
+  setTagSortMode,
   startNewChat,
   toggleCollectionGroup,
   toggleFavoritesOnly,
   toggleShowArchived,
   toggleSpoilerBlur,
-  toggleTagFilter,
   useActiveChatHandle,
   useActiveDraftSeed,
   useActiveSection,
@@ -113,6 +114,7 @@ import {
   useShowArchived,
   useSpoilerBlur,
   useTagFilter,
+  useTagSortMode,
 } from "@orb/client/state";
 import type { CharacterId, ChatId, PresetId, TagId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -407,7 +409,7 @@ export function CharacterLibraryStoreProbe(): ReactElement {
   return (
     <div>
       <output>
-        {`sort=${sort} view=${view} fav=${favoritesOnly} archived=${showArchived} bulk=${bulk} tags=${tags.join(",") || "none"} blur=${spoilerBlur}`}
+        {`sort=${sort} view=${view} fav=${favoritesOnly} archived=${showArchived} bulk=${bulk} tags=${tags.map((entry) => `${entry.id}:${entry.state}`).join(",") || "none"} blur=${spoilerBlur}`}
       </output>
       <button type="button" onClick={(): void => setCharacterSortMode("alpha")}>
         sort alpha
@@ -424,8 +426,8 @@ export function CharacterLibraryStoreProbe(): ReactElement {
       <button type="button" onClick={(): void => setBulkMode(true)}>
         enter bulk
       </button>
-      <button type="button" onClick={(): void => toggleTagFilter(PROBE_TAG)}>
-        toggle tag
+      <button type="button" onClick={(): void => cycleTagFilter(PROBE_TAG)}>
+        cycle tag
       </button>
       <button type="button" onClick={(): void => __resetTagFilter()}>
         clear tags
@@ -787,6 +789,26 @@ export function ComposerFocusProbe(): ReactElement {
         request other
       </button>
       <output>{`nonce=${nonce} other=${other}`}</output>
+    </div>
+  );
+}
+
+/** TagLibraryProbe — the tag roster's per-device SORT MODE store. Its default is the thing that matters:
+ *  the roster opens on MOST-USED, not on the authored order, at the owner's ~400-tag library. */
+export function TagLibraryProbe(): ReactElement {
+  const mode = useTagSortMode();
+  return (
+    <div>
+      <output>{`sort=${mode}`}</output>
+      <button type="button" onClick={(): void => setTagSortMode("alpha")}>
+        sort alpha
+      </button>
+      <button type="button" onClick={(): void => setTagSortMode("manual")}>
+        sort manual
+      </button>
+      <button type="button" onClick={(): void => setTagSortMode("used")}>
+        sort used
+      </button>
     </div>
   );
 }

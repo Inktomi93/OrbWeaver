@@ -21,6 +21,7 @@ import { createCollectionSurface, QueryErrorState, SkeletonRows, useInvalidation
 import { useFocusOnMount } from "#lib";
 import {
   clearCharacterSelection,
+  cycleTagFilter,
   selectCharacter,
   selectCharacterFromPicker,
   selectChat,
@@ -28,7 +29,6 @@ import {
   startNewChat,
   toggleFavoritesOnly,
   toggleShowArchived,
-  toggleTagFilter,
   useCharacterBulkMode,
   useCharacterSortMode,
   useCharacterViewMode,
@@ -186,9 +186,9 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
         <CharacterFilterChips
           availableTags={availableTags}
           favoritesOnly={favoritesOnly}
+          onCycleTag={cycleTagFilter}
           onToggleArchived={toggleShowArchived}
           onToggleFavorites={toggleFavoritesOnly}
-          onToggleTag={toggleTagFilter}
           showArchived={showArchived}
           tagFilter={tagFilter}
         />

@@ -20,8 +20,16 @@ export interface AutocompleteGroup {
 }
 
 // Forwarded straight to Base UI Root: `filter` swaps the match predicate, `autoHighlight`
-// auto-selects the first result, `limit` caps the rendered matches.
-type AutocompletePassthrough = Pick<BaseRootProps<string>, "filter" | "autoHighlight" | "limit">;
+// auto-selects the first result, `limit` caps the rendered matches, and `open`/`onOpenChange` are the
+// CONTROLLED-POPUP arm.
+//
+// WHY controlled open is exposed (the tag-picker's defect, 2026-08-03): the popup is an OVERLAY anchored
+// under the input, so an EMPTY popup lands on whatever sits below the field — in a prompt dialog that is
+// the Cancel/Confirm row. Measured: typing a name that matches nothing opened a popup reading "no match"
+// that physically intercepted the pointer on the very button it was pointing at, and (Base UI hides
+// outside content from AT while a combobox popup is open) removed that button from the accessibility tree
+// entirely. A caller that already knows its match count can therefore decline to open at all.
+type AutocompletePassthrough = Pick<BaseRootProps<string>, "filter" | "autoHighlight" | "limit" | "open" | "onOpenChange">;
 
 export interface AutocompleteProps extends AutocompletePassthrough {
   /**

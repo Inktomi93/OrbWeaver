@@ -47,19 +47,24 @@ test("spoiler blur toggles independently of the other filters", async ({ mount }
   await expect(state).toContainText("blur=false");
 });
 
-test("the tag filter adds, then removes (idempotent toggle) and clears", async ({ mount }) => {
+// THREE-STATE (the exclusion axis): one tag walks off → include → exclude → off, and `off` is stored as
+// the ABSENCE of an entry — a resting filter must persist as `[]`, never as inert rows.
+test("the tag filter cycles include → exclude → off, and clears", async ({ mount }) => {
   const probe = await mount(<CharacterLibraryStoreProbe />);
   const state = probe.locator("output");
   await expect(state).toContainText("tags=none");
 
-  await probe.getByRole("button", { name: "toggle tag" }).click();
-  await expect(state).toContainText("tags=tag_ct_probe");
+  await probe.getByRole("button", { name: "cycle tag" }).click();
+  await expect(state).toContainText("tags=tag_ct_probe:include");
 
-  // Toggling the same tag again removes it (AND-set membership toggle).
-  await probe.getByRole("button", { name: "toggle tag" }).click();
+  await probe.getByRole("button", { name: "cycle tag" }).click();
+  await expect(state).toContainText("tags=tag_ct_probe:exclude");
+
+  // The third step drops the entry entirely rather than storing an `off` row.
+  await probe.getByRole("button", { name: "cycle tag" }).click();
   await expect(state).toContainText("tags=none");
 
-  await probe.getByRole("button", { name: "toggle tag" }).click();
+  await probe.getByRole("button", { name: "cycle tag" }).click();
   await probe.getByRole("button", { name: "clear tags" }).click();
   await expect(state).toContainText("tags=none");
 });

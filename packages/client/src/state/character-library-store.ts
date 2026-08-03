@@ -9,6 +9,8 @@ import { CHARACTER_LIST_SORTS } from "@orb/contracts/character";
 import { isPlainObject } from "@orb/kit/guards";
 import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { ActiveTagFilterState, TagFilterEntry } from "#lib";
+import { cycleTagFilterEntries } from "#lib";
 import { createPersistedStore } from "./create-persisted-store";
 
 /** The §4.3 view axis — a single-home tuple, the union DERIVED (Spine §5.5). */
@@ -20,8 +22,9 @@ interface CharacterLibraryState {
   readonly viewMode: CharacterViewMode;
   readonly favoritesOnly: boolean;
   readonly showArchived: boolean;
-  /** Tag multi-select (AND-semantics) — a row must carry EVERY id here to pass. */
-  readonly tagFilter: readonly TagId[];
+  /** Tag multi-select, THREE-STATE: every `include` entry must be present on a row and every `exclude`
+   *  entry absent (AND-semantics on both arms). A tag with no entry is unfiltered. */
+  readonly tagFilter: readonly TagFilterEntry[];
   /** Bulk-select mode. Transient (not persisted). */
   readonly bulkMode: boolean;
   /** Blurs the editor's spoiler-bearing card text for screen-sharing. */
@@ -34,7 +37,7 @@ interface PersistedCharacterLibraryState {
   readonly viewMode: CharacterViewMode;
   readonly favoritesOnly: boolean;
   readonly showArchived: boolean;
-  readonly tagFilter: readonly TagId[];
+  readonly tagFilter: readonly TagFilterEntry[];
   readonly spoilerBlur: boolean;
 }
 
@@ -48,7 +51,9 @@ const DEFAULT_STATE: CharacterLibraryState = {
   spoilerBlur: false,
 };
 
-const PERSIST_VERSION = 1;
+// v2: `tagFilter` went from a flat id list (include-only) to three-state entries. `migrate` reads BOTH
+// shapes, so a persisted v1 blob keeps its selections as `include` rather than silently losing them.
+const PERSIST_VERSION = 2;
 
 function isSort(v: unknown): v is CharacterListSort {
   return typeof v === "string" && (CHARACTER_LIST_SORTS as readonly string[]).includes(v);
@@ -56,8 +61,30 @@ function isSort(v: unknown): v is CharacterListSort {
 function isViewMode(v: unknown): v is CharacterViewMode {
   return typeof v === "string" && (CHARACTER_VIEW_MODES as readonly string[]).includes(v);
 }
-function toTagFilter(v: unknown): readonly TagId[] {
-  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").map((x) => castId<TagId>(x)) : [];
+function toActiveState(v: unknown): ActiveTagFilterState | undefined {
+  return v === "include" || v === "exclude" ? v : undefined;
+}
+/** TOTAL: accepts the v1 `string[]` (all `include`) AND the v2 entry list, dropping anything malformed. */
+function toTagFilter(v: unknown): readonly TagFilterEntry[] {
+  if (!Array.isArray(v)) {
+    return [];
+  }
+  const entries: TagFilterEntry[] = [];
+  for (const raw of v) {
+    if (typeof raw === "string") {
+      entries.push({ id: castId<TagId>(raw), state: "include" });
+      continue;
+    }
+    if (!isPlainObject(raw)) {
+      continue;
+    }
+    const state = toActiveState(raw["state"]);
+    const id = raw["id"];
+    if (typeof id === "string" && state !== undefined) {
+      entries.push({ id: castId<TagId>(id), state });
+    }
+  }
+  return entries;
 }
 
 // TOTAL migrate: any unknown/corrupt persisted shape degrades field-by-field to the default (never throws).
@@ -106,14 +133,10 @@ export function toggleFavoritesOnly(): void {
 export function toggleShowArchived(): void {
   useCharacterLibraryStore.setState((s) => ({ showArchived: !s.showArchived }), false, "character-library/toggleShowArchived");
 }
-export function toggleTagFilter(tagId: TagId): void {
-  useCharacterLibraryStore.setState(
-    (s) => ({
-      tagFilter: s.tagFilter.includes(tagId) ? s.tagFilter.filter((id) => id !== tagId) : [...s.tagFilter, tagId],
-    }),
-    false,
-    "character-library/toggleTagFilter",
-  );
+/** Advance ONE tag chip one step around the off → include → exclude → off cycle (the cycle order itself
+ *  lives in `#lib`'s `NEXT_TAG_FILTER_STATE`, the axis's one home). */
+export function cycleTagFilter(tagId: TagId): void {
+  useCharacterLibraryStore.setState((s) => ({ tagFilter: cycleTagFilterEntries(s.tagFilter, tagId) }), false, "character-library/cycleTagFilter");
 }
 export function __resetTagFilter(): void {
   useCharacterLibraryStore.setState({ tagFilter: [] }, false, "character-library/__resetTagFilter");
@@ -137,7 +160,7 @@ export function useFavoritesOnly(): boolean {
 export function useShowArchived(): boolean {
   return useCharacterLibraryStore((s) => s.showArchived);
 }
-export function useTagFilter(): readonly TagId[] {
+export function useTagFilter(): readonly TagFilterEntry[] {
   return useCharacterLibraryStore((s) => s.tagFilter);
 }
 export function useCharacterBulkMode(): boolean {

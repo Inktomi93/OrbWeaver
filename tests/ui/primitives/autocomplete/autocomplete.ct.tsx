@@ -5,7 +5,7 @@ import { Autocomplete } from "@orb/ui/autocomplete";
 import { Field } from "@orb/ui/field";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { CustomFilterStory, DerivedItemsStory } from "./autocomplete.fixtures";
+import { ControlledOpenStory, CustomFilterStory, DerivedItemsStory } from "./autocomplete.fixtures";
 
 const NON_EMPTY = /.+/u;
 
@@ -156,4 +156,27 @@ test("a grouped items set renders GroupLabel category headers", async ({ mount, 
   await expect(page.getByRole("option", { name: "happy" })).toBeVisible();
   await expect(page.getByText("Genres")).toBeVisible();
   await expect(page.getByText("Moods")).toBeVisible();
+});
+
+// CONTROLLED OPEN (added 2026-08-03 for the tag picker): the popup is an overlay, so a caller that knows
+// its own match count must be able to decline to open one with nothing in it. Measured defect: an empty
+// popup intercepted the pointer on the control directly beneath the field.
+test("controlled open: a no-match query opens NO popup, and what sits below stays clickable", async ({ mount, page }) => {
+  const component = await mount(<ControlledOpenStory />);
+  const input = page.getByRole("combobox");
+  await input.click();
+  await input.pressSequentially("zzz");
+  await expect(page.locator('[data-slot="autocomplete-popup"]')).toHaveCount(0);
+
+  // No dismissal, no force: a real click on the element the popup would have covered.
+  await component.getByTestId("below").click();
+  await expect(component.getByTestId("below")).toHaveText("below 1");
+});
+
+test("controlled open: a matching query DOES open the popup", async ({ mount, page }) => {
+  await mount(<ControlledOpenStory />);
+  const input = page.getByRole("combobox");
+  await input.click();
+  await input.pressSequentially("myst");
+  await expect(page.getByRole("option", { name: "mystery" })).toBeVisible();
 });
