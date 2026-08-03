@@ -11,6 +11,8 @@
 // `makeMessagesPage`; the committed test also stubs `chat.getChat`'s roster + `macroNames` floor
 // (message-list-surface.ct.tsx's `ROSTER_STUB` precedent).
 
+import type { GroupConfig } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, MessageId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -70,12 +72,14 @@ const ROSTER_STUB = {
     macroNames: ReturnType<typeof makeMacroNameProducer>;
     personaAvatars: never[];
     characterAvatars: never[];
+    group: GroupConfig;
   } => ({
     participants: [],
     anchorPersonaId: null,
     macroNames: makeMacroNameProducer(),
     personaAvatars: [],
     characterAvatars: [],
+    group: DEFAULT_GROUP_CONFIG,
   }),
 };
 
@@ -280,12 +284,14 @@ test("the COMMITTED arm renders that same body identically — the draft is not 
       macroNames: ReturnType<typeof makeMacroNameProducer>;
       personaAvatars: never[];
       characterAvatars: never[];
+      group: GroupConfig;
     } => ({
       participants: [],
       anchorPersonaId: NOVA,
       macroNames: makeMacroNameProducer({ personaNames: [{ id: castId<PersonaId>(NOVA), name: "Nova", description: "a wandering cartographer" }] }),
       personaAvatars: [],
       characterAvatars: [],
+      group: DEFAULT_GROUP_CONFIG,
     }),
   });
 
