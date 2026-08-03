@@ -97,6 +97,28 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   and the pin's own comment claims it tracks the bundled major. **Nothing tests that contract.** If a
   bump breaks it the firewall silently stops governing `fetch` and nothing goes red.
 
+- **⚠️ SUBAGENTS DIE ON A PERMISSION DEFER — root-caused 2026-08-03, FIXED.** Seven lanes across five
+  dispatches "completed" after a one-line preamble at a suspiciously consistent **~42k tokens**. It read
+  as transient API failure. It was not: `settings deferred Bash · resume with -p --resume` — the command
+  was not in `.claude/settings.json` `permissions.allow`, the permission flow asked, and **a subagent has
+  nobody to ask**, so it stops silently. Trigger was the new PreToolUse guard returning `defer` for the
+  ~87% it does not object to; `defer` = "fall through to the normal permission flow", and that flow has
+  no one to prompt. **The guard denied nothing (189 decisions, 0 denies) and was still the cause.**
+  **FIX (owner chose option 2):** allowlist expanded **34 → 72** — read-only inspection (`wc`/`ls`/`cat`/
+  `find`/`sed -n`/`python3 -c`), structural search (`ast-grep`/`pnpm ast`), git read-only + the lane's own
+  `add`/`commit`/`merge`/`-C`, and the toolchain (`node`/`npx`/`pnpm exec`/`pnpm verify`/`e2e:smoke`).
+  **DELIBERATELY EXCLUDED: `git push`, `reset`, `stash`, `restore`, `checkout`.**
+  **The tell for next time:** several lanes stopping at a CONSISTENT token count right after their first
+  Bash call. Consistency is the signal — a real transient is ragged. Check
+  `reports/tool-guard/decisions.jsonl`: all-`defer`/zero-deny exonerates the guard's RULES while still
+  being the cause, because defer ≠ allow.
+- **NEXT UP (node-26 program, `docs/design/node-26-adoption-program.md`):** W2-UNDICI (the untested SSRF
+  dispatcher contract + the 7.28→8.x pin drift — **highest risk in the doc**) · W1-TOOLCHAIN (lib delta +
+  `platform.d.ts` + the engines wall; **all six packages carry NO `engines` field**) · then W3/W4/W5, §8
+  gate LAST. Also queued: convert the **17** `.mjs` probes to `.ts` (§7.4 undercounts this as one file) —
+  `.mjs` escapes every type program and sweep, and its only reason (bare-node runnability) died with the
+  tsx migration.
+
 ## ═══ INITIATIVES ═══
 
 ### I-1 · STRUCTURED OUTPUT — ✅ the four projector defects are CLOSED; one owner item remains
