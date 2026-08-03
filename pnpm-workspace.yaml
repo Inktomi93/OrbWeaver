@@ -1,6 +1,20 @@
 packages:
   - packages/*
 
+# The node-26 floor is a WALL, not a wish (node-26 adoption program §1.3, 2026-08-03). All seven manifests
+# (root + the six workspace packages) declare `"engines": { "node": ">=26" }`; THIS line is what makes an
+# install on a wrong major FAIL instead of proceeding — before it, the floor was declarative-only.
+#
+# It MUST live here and NOWHERE else. Probe-verified 2026-08-03 on pnpm 11.15.1, four arms against an
+# unsatisfiable `engines: {node: ">=99"}` with a real dependency: `.npmrc` `engine-strict=true` alone →
+# exit 0, INSTALLED; this key alone → exit 1 with the version-incompatible error; both → exit 1 (this key
+# is doing the work); control (`>=26`, satisfiable) → exit 0, no false positive. pnpm 10.6+ moved its
+# settings out of `.npmrc`, so an `.npmrc` `engine-strict` would be worse than nothing — the next reader
+# greps it, finds it, and believes a wall exists. There is deliberately NO root `.npmrc`: this repo is
+# pnpm-only (`packageManager` pins it, every script is `pnpm`), so an npm-CLI belt guards a scenario that
+# does not occur here.
+engineStrict: true
+
 # pnpm 11 gates packages with postinstall build scripts. Approve the ones we need:
 # esbuild powers tsx + vitest; lefthook fetches its hook-runner binary.
 allowBuilds:
