@@ -11,7 +11,7 @@ import type { AttachedBookRef, CreateCharacterInput, UpdateCharacterInput } from
 import type { BulkImportChatInput } from "@orb/contracts/chat";
 import type { BulkImportPersonaInput } from "@orb/contracts/persona";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
-import type { AssetId, CharacterId, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImportContext } from "../../../../packages/server/src/domain/import/context.ts";
 import type { ImportProfileDeps } from "../../../../packages/server/src/domain/import/contract/service.ts";
@@ -48,7 +48,7 @@ interface FindCall {
 
 interface FindByHandleCall {
   readonly ownerId: UserId;
-  readonly handle: string;
+  readonly handle: CharacterHandle;
 }
 
 interface TagAttachCall {
@@ -91,7 +91,7 @@ export interface ImportHarness {
   readonly setExisting: (importHash: string, characterId: CharacterId) => void;
   /** Seed the PD-108 (ownerId, handle) match oracle: a re-import deriving this `handle` resolves to
    *  `characterId` (edit-in-place) instead of inserting. */
-  readonly setExistingHandle: (handle: string, characterId: CharacterId) => void;
+  readonly setExistingHandle: (handle: CharacterHandle, characterId: CharacterId) => void;
 }
 
 /** Build an `ImportContext` over recording fakes. The fake `createCharacter` mints a deterministic id

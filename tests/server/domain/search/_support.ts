@@ -31,6 +31,7 @@ import {
 import type {
   AssetId,
   CharacterEmbeddingId,
+  CharacterHandle,
   CharacterId,
   ChatDigestId,
   ChatId,
@@ -214,7 +215,7 @@ export async function seedChatParticipant(db: Db, chatId: ChatId, userId: UserId
 
 interface SeedUserOverrides {
   readonly id?: string;
-  readonly handle?: string;
+  readonly handle?: Handle;
 }
 
 /** Thin delegate over the canonical factory — search's call sites want the id back, not the row. */
@@ -239,7 +240,7 @@ export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): 
   const id = castId<CharacterId>(overrides.id ?? "character_seed");
   await db.insert(characters).values({
     id,
-    handle: id,
+    handle: castId<CharacterHandle>(id),
     ownerId: overrides.ownerId,
     name: overrides.name ?? "Seed",
     description: overrides.description ?? null,

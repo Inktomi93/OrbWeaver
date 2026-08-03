@@ -3,7 +3,7 @@
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import { chatParticipants, users } from "@orb/db";
-import type { ChatId, ChatParticipantId } from "@orb/kit/ids";
+import type { ChatId, ChatParticipantId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { NotificationsService } from "@orb/server/domain/notifications";
 import { eq } from "drizzle-orm";
@@ -19,8 +19,8 @@ const clock = createFrozenClock();
 
 beforeEach(async () => {
   db = await freshDb();
-  await seedUser(db, ALICE, "alice");
-  await seedUser(db, BOB, "bob");
+  await seedUser(db, ALICE, castId<Handle>("alice"));
+  await seedUser(db, BOB, castId<Handle>("bob"));
   svc = makeNotificationsService(db, clock.now);
 });
 

@@ -37,7 +37,7 @@ function requireMintAuthority(principal: Principal, role: UserRole): void {
 
 /** Validate the create params into a clean `handle`, throwing the typed reason on each failure. The
  *  requested `role` is derived + authorized by `requireMintAuthority` BEFORE this runs. */
-function validateCreate(params: CreateUserParams, role: UserRole): string {
+function validateCreate(params: CreateUserParams, role: UserRole): Handle {
   const handle = params.handle.trim();
   if (handle.length === 0) {
     throw new DomainOperationError(ADMIN_OP_CODES.invalidHandle, "handle must not be empty");
@@ -51,15 +51,15 @@ function validateCreate(params: CreateUserParams, role: UserRole): string {
   if (params.password.length < MIN_PASSWORD_LENGTH) {
     throw new DomainOperationError(ADMIN_OP_CODES.weakPassword, `password must be at least ${MIN_PASSWORD_LENGTH} characters`);
   }
-  return handle;
+  return castId<Handle>(handle);
 }
 
-const handleTaken = (handle: string): DomainOperationError => new DomainOperationError(ADMIN_OP_CODES.userExists, `handle '${handle}' is already taken`);
+const handleTaken = (handle: Handle): DomainOperationError => new DomainOperationError(ADMIN_OP_CODES.userExists, `handle '${handle}' is already taken`);
 
 /** Insert the local user, translating a racing unique-violation to the same `user_exists` code the
  *  pre-SELECT throws (the raw driver error is kept as `cause`). */
 interface LocalUserInsert {
-  readonly handle: string;
+  readonly handle: Handle;
   readonly role: UserRole;
   readonly passwordHash: string;
   readonly at: number;
@@ -108,11 +108,7 @@ export function createCreateUser(ctx: AdminContext): AdminService["createUser"] 
     const handle = validateCreate(params, role);
 
     // Friendly pre-check — the unique index + the TOCTOU translation in insertLocalUser are the real defense.
-    const existing = await ctx.db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.handle, castId<Handle>(handle)))
-      .limit(LIMIT_ONE);
+    const existing = await ctx.db.select({ id: users.id }).from(users).where(eq(users.handle, handle)).limit(LIMIT_ONE);
     if (existing[0] !== undefined) {
       throw handleTaken(handle);
     }

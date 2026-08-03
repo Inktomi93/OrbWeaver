@@ -4,7 +4,7 @@
 // widening can never become an unscoped persona read. The REFUSAL arms are the point of this file: an op that
 // resolved by id alone would hand any room any persona in the database.
 
-import type { PersonaId, UserId } from "@orb/kit/ids";
+import type { Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPersonaService, createResolvePersonasForRoster } from "@orb/server/domain/persona";
 import { describe } from "vitest";
@@ -23,8 +23,8 @@ async function seedTwoOwners(): Promise<{
   const db = await freshDb();
   const harness = makeHarness(db);
   const svc = createPersonaService(harness.ctx);
-  const alice = await seedUser(db, { handle: "alice" });
-  const bob = await seedUser(db, { handle: "bob" });
+  const alice = await seedUser(db, { handle: castId<Handle>("alice") });
+  const bob = await seedUser(db, { handle: castId<Handle>("bob") });
   const alicePersona = (await svc.create({ principal: principal(alice), input: { name: "Zara", description: "a cartographer" } })).id;
   const bobPersona = (await svc.create({ principal: principal(bob), input: { name: "Mara", description: "a smith" } })).id;
   return { resolve: createResolvePersonasForRoster(harness.ctx), alice, bob, alicePersona, bobPersona };

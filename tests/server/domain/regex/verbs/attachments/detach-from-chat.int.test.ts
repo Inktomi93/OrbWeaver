@@ -1,5 +1,7 @@
 // verb: detachFromChat — remove a room attachment. HOST authority (the injected guard); idempotent.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createRegexService } from "@orb/server/domain/regex";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -11,7 +13,7 @@ describe("detachFromChat", () => {
     const db = await freshDb();
     const h = makeHarness(db, { requireChatHost: allowChat, requireChatMember: allowChat });
     const svc = createRegexService(h.ctx);
-    const host = await seedUser(db, { handle: "host" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
     const chatId = await seedChat(db);
     const scriptId = await seedScript(db, { ownerId: host, name: "room" });
     await svc.attachToChat({ principal: principal(host), chatId, scriptId });
@@ -22,7 +24,7 @@ describe("detachFromChat", () => {
 
   test("a non-host is refused and the attachment survives", async () => {
     const db = await freshDb();
-    const host = await seedUser(db, { handle: "host" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
     const chatId = await seedChat(db);
     const scriptId = await seedScript(db, { ownerId: host, name: "room" });
     const asHost = createRegexService(makeHarness(db, { requireChatHost: allowChat, requireChatMember: allowChat }).ctx);

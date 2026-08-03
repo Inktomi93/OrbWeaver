@@ -5,6 +5,8 @@
 // is the injected chat op the rpg resync verb reads its window through (rpg reads no chat table).
 
 import type { Db } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { beforeEach } from "vitest";
 import { createResolveCanonWindow } from "../../../../../packages/server/src/domain/chat/verbs/resolve-canon-window.ts";
 import { freshDb } from "../../../../support/db";
@@ -19,7 +21,7 @@ beforeEach(async () => {
 
 test("projects the selected-lineage canon, name-stamped + chronological, within the token budget", async () => {
   const chatId = await seedChat(db, "w");
-  const userId = await seedUser(db, "host");
+  const userId = await seedUser(db, castId<Handle>("host"));
   // seedCharacter/seedPersona use the key as the NAME (character_<key> / persona_<key>).
   const characterId = await seedCharacter(db, userId, "Mara");
   const personaId = await seedPersona(db, userId, "Aldric");

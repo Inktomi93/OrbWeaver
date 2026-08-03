@@ -5,6 +5,8 @@
 // Layout: <profileDir>/characters/*.png, /chats/<charDir>/*.jsonl, /settings.json, /User Avatars/*.png.
 // Cards and chat dirs pair by slugifyHandle. Every non-happy path is recorded in CollectResult, never silent.
 
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { parseChatJsonl } from "#kit/serde/chat";
 import type { CollectedCard, CollectedChat, CollectedPersona, CollectResult, ImportFsPort } from "../contract/views";
@@ -33,10 +35,10 @@ interface CollectState {
   readonly unreadableCards: string[];
   readonly skippedChats: string[];
   readonly skippedCharacters: string[];
-  readonly collidedCards: { file: string; handle: string }[];
+  readonly collidedCards: { file: string; handle: CharacterHandle }[];
 }
 
-function group(state: CollectState, handle: string): Group {
+function group(state: CollectState, handle: CharacterHandle): Group {
   const existing = state.byHandle.get(handle);
   if (existing !== undefined) {
     return existing;
@@ -53,12 +55,13 @@ async function listDir(fs: ImportFsPort, dir: string): Promise<{ name: string; k
   return [...capped].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-// Numeric suffix instead of silently overwriting the first card on a slug collision.
-function disambiguate(state: CollectState, base: string, file: string): string {
-  let handle = base;
+// Numeric suffix instead of silently overwriting the first card on a slug collision. THE seam where a
+// filename-derived slug becomes a card handle — castId here, so every downstream position stays branded.
+function disambiguate(state: CollectState, base: string, file: string): CharacterHandle {
+  let handle = castId<CharacterHandle>(base);
   let n = 2;
   while (state.byHandle.get(handle)?.card !== undefined) {
-    handle = `${base}-${n}`;
+    handle = castId<CharacterHandle>(`${base}-${n}`);
     n += 1;
   }
   if (handle !== base) {
@@ -92,7 +95,7 @@ async function collectCards(fs: ImportFsPort, profileDir: string, state: Collect
 }
 
 async function collectChatsForDir(fs: ImportFsPort, chatsDir: string, dirName: string, state: CollectState): Promise<void> {
-  const handle = slugifyHandle(dirName);
+  const handle = castId<CharacterHandle>(slugifyHandle(dirName));
   if (state.skippedHandles.has(handle)) {
     return;
   }
@@ -125,8 +128,8 @@ async function collectChatsForDir(fs: ImportFsPort, chatsDir: string, dirName: s
 }
 
 // A chat dir whose slug minus an ST folder-name decoration uniquely matches a card. First candidate wins.
-function fuzzyPair(state: CollectState): { chatDir: string; handle: string }[] {
-  const fuzzyPairedDirs: { chatDir: string; handle: string }[] = [];
+function fuzzyPair(state: CollectState): { chatDir: string; handle: CharacterHandle }[] {
+  const fuzzyPairedDirs: { chatDir: string; handle: CharacterHandle }[] = [];
   for (const [handle, g] of state.byHandle) {
     if (g.card !== undefined || g.chats.length === 0) {
       continue;
@@ -139,7 +142,7 @@ function fuzzyPair(state: CollectState): { chatDir: string; handle: string }[] {
       if (target?.card !== undefined && !state.skippedHandles.has(base)) {
         target.chats.push(...g.chats);
         g.chats = [];
-        fuzzyPairedDirs.push({ chatDir: handle, handle: base });
+        fuzzyPairedDirs.push({ chatDir: handle, handle: castId<CharacterHandle>(base) });
         break;
       }
     }

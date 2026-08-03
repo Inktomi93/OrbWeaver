@@ -3,7 +3,8 @@
 
 import type { Db } from "@orb/db";
 import { notifications } from "@orb/db";
-import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import type { Handle } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import {
@@ -21,8 +22,8 @@ let db: Db;
 
 beforeEach(async () => {
   db = await freshDb();
-  await seedUser(db, ALICE, "alice");
-  await seedUser(db, BOB, "bob");
+  await seedUser(db, ALICE, castId<Handle>("alice"));
+  await seedUser(db, BOB, castId<Handle>("bob"));
 });
 
 function insert(recipientUserId: typeof ALICE): ReturnType<typeof insertNotification> {

@@ -4,7 +4,7 @@
 // findCharacters, and — THE LOAD-BEARING CASE — REFUSES a cross-tenant seed (a foreign/unknown seed id
 // resolves to no owner-belted vector ⇒ an empty result, never another tenant's neighbourhood; neo V2-2).
 
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -14,7 +14,7 @@ import { makeSearch, seedAsset, seedCharacter, seedCharacterEmbedding, seedChara
 describe("similarCharacters", () => {
   test("returns the nearest neighbours of the seed, excluding the seed itself", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const seed = await seedCharacter(db, { id: "character_seed", ownerId: owner, name: "Seed" });
     const near = await seedCharacter(db, { id: "character_near", ownerId: owner, name: "Near" });
     const far = await seedCharacter(db, { id: "character_far", ownerId: owner, name: "Far" });
@@ -36,7 +36,7 @@ describe("similarCharacters", () => {
 
   test("enriches neighbours with the distilled facets + avatar hash", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const avatar = await seedAsset(db, { id: "asset_av", ownerId: owner, hash: "avhash" });
     const seed = await seedCharacter(db, { id: "character_seed", ownerId: owner, name: "Seed" });
     const near = await seedCharacter(db, {
@@ -66,8 +66,8 @@ describe("similarCharacters", () => {
 
   test("REFUSES a cross-tenant seed — a foreign seed id yields an empty result", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     // Owner A's world (the seed + a neighbour the stranger must never reach).
     const seed = await seedCharacter(db, { id: "character_seed", ownerId: owner, name: "Seed" });
     const neighbour = await seedCharacter(db, { id: "character_nb", ownerId: owner, name: "Nb" });
@@ -87,7 +87,7 @@ describe("similarCharacters", () => {
 
   test("an unknown seed id yields an empty result", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const svc = makeSearch(db);
 
     // A well-formed but non-existent seed id — the owner-belted seed read short-circuits to empty.

@@ -268,7 +268,7 @@ async function seedRoom(
     disabledKeys?: readonly string[];
   } = {},
 ): Promise<{ host: UserId; chatId: ChatId; chars: CharacterId[]; names: Record<string, string> }> {
-  const host = await seedUser(db, "host");
+  const host = await seedUser(db, castId<Handle>("host"));
   const group: Record<string, unknown> = {
     output: opts.output ?? "per-speaker",
     policy,
@@ -372,9 +372,9 @@ describe("commitMessage — post-without-generate (D56)", () => {
 
   test("an EXPLICIT foreign personaId is refused not_persona_owner — nothing committed (the trust boundary)", async () => {
     const { chatId, names } = await seedRoom("natural", ["aria"]);
-    const member = await seedUser(db, "member");
+    const member = await seedUser(db, castId<Handle>("member"));
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    const stranger = await seedUser(db, "stranger");
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
     const foreignPersona = await seedPersona(stranger, "stranger_pov");
     const h = harness(db, names);
 
@@ -386,7 +386,7 @@ describe("commitMessage — post-without-generate (D56)", () => {
 
   test("a non-member is refused (leak-free NOT_FOUND — the membership gate)", async () => {
     const { chatId, names } = await seedRoom("natural", ["aria"]);
-    const stranger = await seedUser(db, "stranger");
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
     const h = harness(db, names);
 
     await expect(h.turn.commitMessage({ principal: principal(stranger), chatId, content: "hi" })).rejects.toBeInstanceOf(ChatNotFoundError);
@@ -535,8 +535,8 @@ describe("send — presence cast-gating (PD-70)", () => {
     memberPersona: PersonaId;
     names: Record<string, string>;
   }> {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const hostPersona = await seedPersona(host, "host_pov");
     const memberPersona = await seedPersona(member, "member_pov");
     const chatId = await seedChat(db, "a", {
@@ -601,7 +601,7 @@ describe("send / impersonate — persona attribution fallback (PD-100)", () => {
     spare: PersonaId;
     names: Record<string, string>;
   }> {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const hostPersona = await seedPersona(host, "host_pov");
     const spare = await seedPersona(host, "spare_pov");
     const chatId = await seedChat(db, "a", {
@@ -1192,7 +1192,7 @@ describe("send — PD-146 custom stopping strings + auto-behaviors", () => {
 describe("send — the D19 triple (run-as-host attribution)", () => {
   test("a member's send runs the AI as the host; the user row is authored by the member", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
-    const member = await seedUser(db, "member");
+    const member = await seedUser(db, castId<Handle>("member"));
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const h = harness(db, names);
 
@@ -1209,7 +1209,7 @@ describe("send — the D19 triple (run-as-host attribution)", () => {
 
   test("a non-member is refused (leak-free NOT_FOUND — can() default-deny)", async () => {
     const { chatId, names } = await seedRoom("natural", ["aria"]);
-    const stranger = await seedUser(db, "stranger");
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
     const h = harness(db, names);
 
     await expect(h.turn.send({ principal: principal(stranger), chatId, content: "hi" })).rejects.toBeInstanceOf(ChatNotFoundError);
@@ -1230,7 +1230,7 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
     names: Record<string, string>;
   }> {
     const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
-    const member = await seedUser(db, "member");
+    const member = await seedUser(db, castId<Handle>("member"));
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     return { host, member, chatId, chars, names };
   }
@@ -1349,8 +1349,8 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
   test("two concurrent drains claim each row exactly once (no double-run / double-spend)", async () => {
     // N rows across N DISTINCT chats (no per-chat lock contention) — the atomic DELETE…RETURNING claim is
     // the only serializer, so overlapping boot ∥ host-return snapshots can't run or spend a row twice.
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatIds: ChatId[] = [];
     for (let i = 0; i < 4; i += 1) {
       // biome-ignore lint/performance/noAwaitInLoops: sequential deterministic fixture seeding.
@@ -1426,7 +1426,7 @@ describe("forceCharacterTurn — host-only", () => {
 
   test("a plain member is refused with not_host", async () => {
     const { chatId, chars, names } = await seedRoom("list", ["aria"]);
-    const member = await seedUser(db, "member");
+    const member = await seedUser(db, castId<Handle>("member"));
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const h = harness(db, names);
 
@@ -1498,7 +1498,7 @@ describe("generate — member-reachable speaker attribution is presence-gated (f
     // a room check — a member could forge attribution to a foreign (e.g. another user's private) character
     // and leak its name+portrait through the message-stamped roster-avatar/name producers.
     const { chatId, names } = await seedRoom("natural", ["aria"]);
-    const member = await seedUser(db, "member");
+    const member = await seedUser(db, castId<Handle>("member"));
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const h = harness(db, names);
 
@@ -1519,7 +1519,7 @@ describe("generate — member-reachable speaker attribution is presence-gated (f
     // present cast seat, so it may not be voiced by a fresh generate (the leftSeq === null sibling of
     // forceCharacterTurn's presence check).
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
-    const member = await seedUser(db, "member");
+    const member = await seedUser(db, castId<Handle>("member"));
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     // bryn is a DEPARTED cast seat: its participant row + card survive, but leftSeq is set (no longer present).
     const departed = await seedCharacter(db, host, "bryn");
@@ -1538,7 +1538,7 @@ describe("generate — member-reachable speaker attribution is presence-gated (f
 
   test("a member generating for a PRESENT cast character succeeds (regression: the legitimate path stays open)", async () => {
     const { chatId, chars, names } = await seedRoom("natural", ["aria", "bryn"]);
-    const member = await seedUser(db, "member");
+    const member = await seedUser(db, castId<Handle>("member"));
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const h = harness(db, names);
 
@@ -1558,7 +1558,7 @@ describe("generate — member-reachable speaker attribution is presence-gated (f
     // targeting — a member manually generating a muted seat is legitimate (it does NOT inherit any host
     // bypass; the only host-only bypass is a LEFT seat, refused above). Documented at the generate check site.
     const { chatId, chars, names } = await seedRoom("natural", ["aria", "bryn"], { disabledKeys: ["bryn"] });
-    const member = await seedUser(db, "member");
+    const member = await seedUser(db, castId<Handle>("member"));
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const h = harness(db, names);
 
@@ -1613,9 +1613,9 @@ describe("send / impersonate — an EXPLICIT foreign personaId is refused (cross
     // message-stamped persona name/avatar producers. reattributePersona already guards the re-stamp path;
     // this closes the initial-stamp path with the SAME code.
     const { chatId, names } = await seedRoom("natural", ["aria"]);
-    const member = await seedUser(db, "member");
+    const member = await seedUser(db, castId<Handle>("member"));
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    const stranger = await seedUser(db, "stranger");
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
     const foreignPersona = await seedPersona(stranger, "stranger_pov");
     const h = harness(db, names);
 
@@ -1637,7 +1637,7 @@ describe("send / impersonate — an EXPLICIT foreign personaId is refused (cross
 describe("abort — owner-only (rollback-theft defense)", () => {
   test("a caller aborting another user's in-flight turn is refused not_turn_owner", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
-    const member = await seedUser(db, "member");
+    const member = await seedUser(db, castId<Handle>("member"));
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const h = harness(db, names);
     h.activeTurns.register(chatId, host);
@@ -1739,7 +1739,7 @@ describe("guided steer routing (chat.md §6, PD-63)", () => {
     // A room with a host persona + a named character "aria". The harness's foreign-inputs resolver binds the
     // active persona name to "Alex" ({{user}}); the character is "aria" ({{char}}) — the two names that must
     // appear SUBSTITUTED in the wire nudge (not literal `{{user}}/{{char}}`).
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const hostPersona = await seedPersona(host, "host_pov");
     const chatId = await seedChat(db, "a", { metadata: { group: { output: "per-speaker", policy: "natural" } } });
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host", activePersonaId: hostPersona });
@@ -2043,8 +2043,8 @@ describe("cross-chat IDOR (F1) — swipe/continue/undo must be scoped to chatId"
     victimMessageId: MessageId;
     names: Record<string, string>;
   }> {
-    const alice = await seedUser(db, "alice");
-    const bob = await seedUser(db, "bob");
+    const alice = await seedUser(db, castId<Handle>("alice"));
+    const bob = await seedUser(db, castId<Handle>("bob"));
     const victimChat = await seedChat(db, "victim", {
       metadata: { group: { output: "per-speaker", policy: "natural" } },
     });
@@ -2247,7 +2247,7 @@ describe("requestTurn — the non-human turn seam (four walls: depth · authorit
 
   test("WALL 2 (cross-tenant): a funder with NO membership cannot fund a turn — leak-free NOT_FOUND, nothing commits", async () => {
     const { chatId, names } = await seedRoom("natural", ["aria"]);
-    const stranger = await seedUser(db, "stranger"); // a real user, but NOT a participant of this chat
+    const stranger = await seedUser(db, castId<Handle>("stranger")); // a real user, but NOT a participant of this chat
     const h = harness(db, names);
 
     await expect(h.requestTurn({ chatId, initiator: "automation", funderUserId: stranger, automationDepth: 1 })).rejects.toMatchObject({
@@ -2261,7 +2261,7 @@ describe("requestTurn — the non-human turn seam (four walls: depth · authorit
     // A present MEMBER funds the turn (funder ≠ host ⇒ by-proxy); the host box is a hosted credential + consent OFF
     // (the harness default policy). The engine's assertMaxProSubConsent belt refuses it — requestTurn re-routes it,
     // never bypasses it.
-    const member = await seedUser(db, "member");
+    const member = await seedUser(db, castId<Handle>("member"));
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const h = harness(db, names, { connectionSource: "max-pro-sub" });
 
@@ -2644,7 +2644,7 @@ function coEmittingTurn(sink: unknown[], calls: readonly { name: string; args: s
 }
 
 test("R1 end-to-end: a send mounts the gather's terminal tools on the wire and hands the co-emitted calls to the rpg flush", async () => {
-  const host = await seedUser(db, "r1host");
+  const host = await seedUser(db, castId<Handle>("r1host"));
   const charA = await seedCharacter(db, host, "aria");
   const chatId = await seedChat(db, "r1_fold");
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -2681,7 +2681,7 @@ test("R1 end-to-end: a send mounts the gather's terminal tools on the wire and h
 });
 
 test("R1 end-to-end: a game turn that mounts NO terminal tools hands the flush a NULL channel (fall back to a round)", async () => {
-  const host = await seedUser(db, "r1host2");
+  const host = await seedUser(db, castId<Handle>("r1host2"));
   const charA = await seedCharacter(db, host, "aria");
   const chatId = await seedChat(db, "r1_nofold");
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -2738,7 +2738,7 @@ const RPG_FIRE_MARK = "rpg:onTurnCompleted";
 const RPG_ROUND_REQUEST_ID_RE = /^rpg-turn:/;
 
 test("S1: the rpg post-turn flush is registered BEFORE the turnCompleted emit (after the commit)", async () => {
-  const host = await seedUser(db, "s1host");
+  const host = await seedUser(db, castId<Handle>("s1host"));
   const charA = await seedCharacter(db, host, "aria");
   const chatId = await seedChat(db, "s1_order");
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -2775,7 +2775,7 @@ const TRACE_SCAN_LIMIT = 50;
 
 test("the post-turn rpg round opens its OWN request trace (it outlives the request that started it)", async () => {
   initTracing();
-  const host = await seedUser(db, "rpgtracehost");
+  const host = await seedUser(db, castId<Handle>("rpgtracehost"));
   const charA = await seedCharacter(db, host, "aria");
   const chatId = await seedChat(db, "rpg_trace");
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -2849,7 +2849,7 @@ function gatherSpyRpg(): { slots: (MessageId | undefined)[]; rpg: NonNullable<Ch
 }
 
 test("VER-1b: a SWIPE tells the rpg gather which slot it regenerates; a SEND tells it none", async () => {
-  const host = await seedUser(db, "ver1bhost");
+  const host = await seedUser(db, castId<Handle>("ver1bhost"));
   const charA = await seedCharacter(db, host, "aria");
   const chatId = await seedChat(db, "ver1b_regen");
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });

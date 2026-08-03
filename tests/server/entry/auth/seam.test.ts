@@ -59,7 +59,7 @@ test("single-user fallback mints the OWNER (role=owner, via=fallback) via ensure
   const seam = createAuthSeam({
     config: baseConfig({ mode: "single-user" }),
     sessions: stubSessions({
-      ensureUser: (handle: string) => {
+      ensureUser: (handle: Handle) => {
         handles.push(handle);
         return Promise.resolve(FALLBACK_UID);
       },

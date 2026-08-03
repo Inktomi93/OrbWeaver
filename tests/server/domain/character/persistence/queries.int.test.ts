@@ -6,7 +6,7 @@
 
 import type { CharacterListCursor } from "@orb/contracts/character";
 import { characters, characterTags, tags } from "@orb/db";
-import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, Handle, TagId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -28,9 +28,9 @@ import { seedAsset, seedCharacterStats, seedCharacterSummary, seedRawCharacter, 
 describe("persistence/queries", () => {
   test("loadOwnedCharacterRow is owner-scoped (undefined for a foreign row)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
-    const id = await seedRawCharacter(db, { id: "character_x", ownerId: owner, handle: "x" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
+    const id = await seedRawCharacter(db, { id: "character_x", ownerId: owner, handle: castId<CharacterHandle>("x") });
 
     expect(await loadOwnedCharacterRow(db, owner, id)).toBeDefined();
     expect(await loadOwnedCharacterRow(db, other, id)).toBeUndefined();
@@ -38,12 +38,12 @@ describe("persistence/queries", () => {
 
   test("loadOwnedCharacterWithAvatar surfaces the joined avatar hash", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const avatar = await seedAsset(db, { ownerId: owner, hash: "avhash" });
     const id = await seedRawCharacter(db, {
       id: "character_a",
       ownerId: owner,
-      handle: "a",
+      handle: castId<CharacterHandle>("a"),
       avatarAssetId: avatar,
     });
     const row = await loadOwnedCharacterWithAvatar(db, owner, id);
@@ -55,16 +55,16 @@ describe("persistence/queries", () => {
 
   test("listOwnedCharactersWithAvatar excludes synthetic rows and other owners", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
-    await seedRawCharacter(db, { id: "character_real", ownerId: owner, handle: "real" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
+    await seedRawCharacter(db, { id: "character_real", ownerId: owner, handle: castId<CharacterHandle>("real") });
     await seedRawCharacter(db, {
       id: "character_grp",
       ownerId: owner,
-      handle: "__group__c1",
+      handle: castId<CharacterHandle>("__group__c1"),
       synthetic: true,
     });
-    await seedRawCharacter(db, { id: "character_foreign", ownerId: other, handle: "foreign" });
+    await seedRawCharacter(db, { id: "character_foreign", ownerId: other, handle: castId<CharacterHandle>("foreign") });
 
     const rows = await listOwnedCharactersWithAvatar(db, {
       ownerId: owner,
@@ -77,13 +77,13 @@ describe("persistence/queries", () => {
 
   test("summaryOf projects the FIX-#2 denorms (elevatorPitch + lastChattedAt), null when the JOINs miss", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const withDenorms = await seedRawCharacter(db, {
       id: "character_d",
       ownerId: owner,
-      handle: "d",
+      handle: castId<CharacterHandle>("d"),
     });
-    await seedRawCharacter(db, { id: "character_bare", ownerId: owner, handle: "bare" });
+    await seedRawCharacter(db, { id: "character_bare", ownerId: owner, handle: castId<CharacterHandle>("bare") });
     await seedCharacterSummary(db, {
       characterId: withDenorms,
       elevatorPitch: "A wandering bard.",
@@ -97,26 +97,26 @@ describe("persistence/queries", () => {
       cursor: undefined,
     });
     const byHandle = new Map(rows.map((r) => [r.character.handle, summaryOf(r, [])]));
-    expect(byHandle.get("d")?.elevatorPitch).toBe("A wandering bard.");
-    expect(byHandle.get("d")?.lastChattedAt).toBe(1_800_000_000_000);
+    expect(byHandle.get(castId<CharacterHandle>("d"))?.elevatorPitch).toBe("A wandering bard.");
+    expect(byHandle.get(castId<CharacterHandle>("d"))?.lastChattedAt).toBe(1_800_000_000_000);
     // No summary/stats row → both denorms are null (LEFT JOIN miss).
-    expect(byHandle.get("bare")?.elevatorPitch).toBeNull();
-    expect(byHandle.get("bare")?.lastChattedAt).toBeNull();
+    expect(byHandle.get(castId<CharacterHandle>("bare"))?.elevatorPitch).toBeNull();
+    expect(byHandle.get(castId<CharacterHandle>("bare"))?.lastChattedAt).toBeNull();
   });
 
   test("findByOwnerHandle + listOwnerHandles resolve per-owner", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    await seedRawCharacter(db, { id: "character_h", ownerId: owner, handle: "hero" });
-    expect((await findByOwnerHandle(db, owner, "hero"))?.handle).toBe("hero");
-    expect(await findByOwnerHandle(db, owner, "ghost")).toBeUndefined();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    await seedRawCharacter(db, { id: "character_h", ownerId: owner, handle: castId<CharacterHandle>("hero") });
+    expect((await findByOwnerHandle(db, owner, castId<CharacterHandle>("hero")))?.handle).toBe("hero");
+    expect(await findByOwnerHandle(db, owner, castId<CharacterHandle>("ghost"))).toBeUndefined();
     expect(await listOwnerHandles(db, owner)).toEqual(["hero"]);
   });
 
   test("cardOf degrades a corrupt always-a-list column to [] (parse-seam)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const id = await seedRawCharacter(db, { id: "character_corrupt", ownerId: owner, handle: "c" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const id = await seedRawCharacter(db, { id: "character_corrupt", ownerId: owner, handle: castId<CharacterHandle>("c") });
     // poke a corrupt JSON value into the always-a-list `greetings` column
     await db
       .update(characters)
@@ -134,21 +134,21 @@ describe("listOwnedCharactersWithAvatar — recent sort (lastActivityAt DESC NUL
   // Build 4 rows: two chatted (distinct lastActivityAt), two never-chatted (null → the tail, ordered by
   // createdAt DESC, id DESC). Expected recent order: chattedNew, chattedOld, then the null tail newest-first.
   async function seedRecent(db: Awaited<ReturnType<typeof freshDb>>): Promise<UserId> {
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedRawCharacter(db, {
       id: "character_hot",
       ownerId: owner,
-      handle: "hot",
+      handle: castId<CharacterHandle>("hot"),
       createdAt: 10,
     });
     await seedRawCharacter(db, {
       id: "character_warm",
       ownerId: owner,
-      handle: "warm",
+      handle: castId<CharacterHandle>("warm"),
       createdAt: 20,
     });
-    await seedRawCharacter(db, { id: "character_n1", ownerId: owner, handle: "n1", createdAt: 30 });
-    await seedRawCharacter(db, { id: "character_n2", ownerId: owner, handle: "n2", createdAt: 40 });
+    await seedRawCharacter(db, { id: "character_n1", ownerId: owner, handle: castId<CharacterHandle>("n1"), createdAt: 30 });
+    await seedRawCharacter(db, { id: "character_n2", ownerId: owner, handle: castId<CharacterHandle>("n2"), createdAt: 40 });
     await seedCharacterStats(db, {
       characterId: castId<CharacterId>("character_hot"),
       lastActivityAt: 9000,
@@ -252,17 +252,17 @@ describe("listOwnedCharactersWithAvatar — recent sort (lastActivityAt DESC NUL
     // (two characters chatted in the same tick). The keyset MUST break the tie deterministically (createdAt
     // DESC, then id DESC), so a page boundary landing BETWEEN them emits each exactly once.
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedRawCharacter(db, {
       id: "character_tieA",
       ownerId: owner,
-      handle: "tieA",
+      handle: castId<CharacterHandle>("tieA"),
       createdAt: 100,
     });
     await seedRawCharacter(db, {
       id: "character_tieB",
       ownerId: owner,
-      handle: "tieB",
+      handle: castId<CharacterHandle>("tieB"),
       createdAt: 200,
     });
     await seedCharacterStats(db, {
@@ -310,12 +310,12 @@ describe("listOwnedCharactersWithAvatar — recent sort (lastActivityAt DESC NUL
 describe("listOwnedCharactersWithAvatar — alpha sort (name ASC, id ASC)", () => {
   test("orders by name; a name tie is broken by id ASC; the cursor excludes at-or-before the boundary", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // Two rows share the name "Bo" — name alone can't order them; id ASC does.
-    await seedRawCharacter(db, { id: "character_1", ownerId: owner, handle: "a", name: "Ada" });
-    await seedRawCharacter(db, { id: "character_2", ownerId: owner, handle: "b1", name: "Bo" });
-    await seedRawCharacter(db, { id: "character_3", ownerId: owner, handle: "b2", name: "Bo" });
-    await seedRawCharacter(db, { id: "character_4", ownerId: owner, handle: "c", name: "Cy" });
+    await seedRawCharacter(db, { id: "character_1", ownerId: owner, handle: castId<CharacterHandle>("a"), name: "Ada" });
+    await seedRawCharacter(db, { id: "character_2", ownerId: owner, handle: castId<CharacterHandle>("b1"), name: "Bo" });
+    await seedRawCharacter(db, { id: "character_3", ownerId: owner, handle: castId<CharacterHandle>("b2"), name: "Bo" });
+    await seedRawCharacter(db, { id: "character_4", ownerId: owner, handle: castId<CharacterHandle>("c"), name: "Cy" });
 
     const all = await listOwnedCharactersWithAvatar(db, {
       ownerId: owner,
@@ -346,7 +346,7 @@ describe("listOwnedCharactersWithAvatar — alpha sort (name ASC, id ASC)", () =
 describe("listOwnedCharactersWithAvatar — starred sort (starred DESC, then the alpha keyset)", () => {
   test("starred rows lead (alpha within each group); the cursor pages across the starred boundary", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedRawCharacter(db, { id: "character_s1", ownerId: owner, name: "Zed", starred: true });
     await seedRawCharacter(db, { id: "character_s2", ownerId: owner, name: "Ann", starred: true });
     await seedRawCharacter(db, { id: "character_u1", ownerId: owner, name: "Bea", starred: false });
@@ -382,30 +382,30 @@ describe("listOwnedCharactersWithAvatar — newest / oldest sort (createdAt, id)
   // Three rows at distinct createdAt, plus a createdAt TIE broken by id. newest = createdAt DESC (id DESC);
   // oldest = the direction-flipped twin (createdAt ASC, id ASC).
   async function seedByAge(db: Awaited<ReturnType<typeof freshDb>>): Promise<UserId> {
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedRawCharacter(db, {
       id: "character_old",
       ownerId: owner,
-      handle: "old",
+      handle: castId<CharacterHandle>("old"),
       createdAt: 10,
     });
     await seedRawCharacter(db, {
       id: "character_mid",
       ownerId: owner,
-      handle: "mid",
+      handle: castId<CharacterHandle>("mid"),
       createdAt: 20,
     });
     // Two rows share createdAt 30 — id tiebreak (character_tieHi > character_tieLo lexically).
     await seedRawCharacter(db, {
       id: "character_tieLo",
       ownerId: owner,
-      handle: "tieLo",
+      handle: castId<CharacterHandle>("tieLo"),
       createdAt: 30,
     });
     await seedRawCharacter(db, {
       id: "character_tieHi",
       ownerId: owner,
-      handle: "tieHi",
+      handle: castId<CharacterHandle>("tieHi"),
       createdAt: 30,
     });
     return owner;
@@ -472,30 +472,30 @@ describe("listOwnedCharactersWithAvatar — mostChats / fewestChats sort (chats 
   // join-null tail). `chats` is join-nullable (no stats row = null), so never-chatted sinks to the tail in
   // BOTH directions.
   async function seedByChats(db: Awaited<ReturnType<typeof freshDb>>): Promise<UserId> {
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedRawCharacter(db, {
       id: "character_busy",
       ownerId: owner,
-      handle: "busy",
+      handle: castId<CharacterHandle>("busy"),
       createdAt: 10,
     });
     await seedRawCharacter(db, {
       id: "character_some",
       ownerId: owner,
-      handle: "some",
+      handle: castId<CharacterHandle>("some"),
       createdAt: 20,
     });
     await seedRawCharacter(db, {
       id: "character_zero",
       ownerId: owner,
-      handle: "zero",
+      handle: castId<CharacterHandle>("zero"),
       createdAt: 30,
     });
     // "none" has NO stats row → chats is join-null (the tail).
     await seedRawCharacter(db, {
       id: "character_none",
       ownerId: owner,
-      handle: "none",
+      handle: castId<CharacterHandle>("none"),
       createdAt: 40,
     });
     await seedCharacterStats(db, {
@@ -554,7 +554,7 @@ describe("listOwnedCharactersWithAvatar — mostChats / fewestChats sort (chats 
     await seedRawCharacter(db, {
       id: "character_none2",
       ownerId: owner,
-      handle: "none2",
+      handle: castId<CharacterHandle>("none2"),
       createdAt: 50,
     });
     // Full null tail in mostChats (id DESC): none2 > none (lexical). Boundary = none2 → only `none` follows.
@@ -601,17 +601,17 @@ describe("listOwnedCharactersWithAvatar — mostChats / fewestChats sort (chats 
 
   test("a chat-count TIE with the page boundary between the two rows: no skip, no dup", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedRawCharacter(db, {
       id: "character_tA",
       ownerId: owner,
-      handle: "tA",
+      handle: castId<CharacterHandle>("tA"),
       createdAt: 100,
     });
     await seedRawCharacter(db, {
       id: "character_tB",
       ownerId: owner,
-      handle: "tB",
+      handle: castId<CharacterHandle>("tB"),
       createdAt: 200,
     });
     // Identical chat count — id must break the tie deterministically (id DESC for mostChats).
@@ -661,30 +661,30 @@ describe("listOwnedCharactersWithAvatar — largestCards / smallestCards sort (t
   // `token_size` is notNull (no null tail). Two distinct sizes + a size TIE broken by id. largestCards =
   // token_size DESC (id DESC); smallestCards = the direction-flipped twin (token_size ASC, id ASC).
   async function seedBySize(db: Awaited<ReturnType<typeof freshDb>>): Promise<UserId> {
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedRawCharacter(db, {
       id: "character_big",
       ownerId: owner,
-      handle: "big",
+      handle: castId<CharacterHandle>("big"),
       tokenSize: 900,
     });
     await seedRawCharacter(db, {
       id: "character_mid",
       ownerId: owner,
-      handle: "mid",
+      handle: castId<CharacterHandle>("mid"),
       tokenSize: 400,
     });
     // Two rows share token_size 150 — id tiebreak (character_tieHi > character_tieLo lexically).
     await seedRawCharacter(db, {
       id: "character_tieLo",
       ownerId: owner,
-      handle: "tieLo",
+      handle: castId<CharacterHandle>("tieLo"),
       tokenSize: 150,
     });
     await seedRawCharacter(db, {
       id: "character_tieHi",
       ownerId: owner,
-      handle: "tieHi",
+      handle: castId<CharacterHandle>("tieHi"),
       tokenSize: 150,
     });
     return owner;
@@ -746,17 +746,17 @@ describe("listOwnedCharactersWithAvatar — largestCards / smallestCards sort (t
 
   test("a token_size TIE with the page boundary between the two rows: no skip, no dup", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedRawCharacter(db, {
       id: "character_sA",
       ownerId: owner,
-      handle: "sA",
+      handle: castId<CharacterHandle>("sA"),
       tokenSize: 500,
     });
     await seedRawCharacter(db, {
       id: "character_sB",
       ownerId: owner,
-      handle: "sB",
+      handle: castId<CharacterHandle>("sB"),
       tokenSize: 500,
     });
 
@@ -794,9 +794,9 @@ describe("listOwnedCharactersWithAvatar — largestCards / smallestCards sort (t
 describe("canonicalTagsFor — the accepted-junction db-layer consumer read", () => {
   test("returns ACCEPTED tags per character (pending excluded), ordered sortOrder-then-name", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const a = await seedRawCharacter(db, { id: "character_a", ownerId: owner, handle: "a" });
-    const b = await seedRawCharacter(db, { id: "character_b", ownerId: owner, handle: "b" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const a = await seedRawCharacter(db, { id: "character_a", ownerId: owner, handle: castId<CharacterHandle>("a") });
+    const b = await seedRawCharacter(db, { id: "character_b", ownerId: owner, handle: castId<CharacterHandle>("b") });
     const mk = async (id: string, name: string, sortOrder: number | null = null): Promise<TagId> => {
       const tagId = castId<TagId>(id);
       await db.insert(tags).values({ id: tagId, ownerId: owner, name, sortOrder });

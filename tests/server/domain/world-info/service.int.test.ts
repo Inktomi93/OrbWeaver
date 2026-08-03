@@ -8,6 +8,8 @@
 // dialog renders (including the case the old uniform copy hid — a book from a NEWER orbweaver).
 
 import { worldBooks } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createWorldInfoService } from "@orb/server/domain/world-info";
 import { WORLD_INFO_SCHEMA_KIND } from "@orb/server/kit/serde/world-info";
 import { eq } from "drizzle-orm";
@@ -22,8 +24,8 @@ describe("the single-book doors", () => {
   test("export -> import round-trips a book onto ANOTHER account (the sharing path F2 was missing)", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const author = await seedUser(db, { handle: "author" });
-    const friend = await seedUser(db, { handle: "friend" });
+    const author = await seedUser(db, { handle: castId<Handle>("author") });
+    const friend = await seedUser(db, { handle: castId<Handle>("friend") });
 
     const book = await svc.createBook({ principal: principal(author), input: { name: "Aria's World", description: "the lore" } });
     await svc.createEntry({
@@ -54,7 +56,7 @@ describe("the single-book doors", () => {
   test("a same-named re-import MERGES in place — the door inherits the bundle's dedupe, never its own", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "Solo" } });
     const file = await svc.exportBook({ principal: principal(owner), bookId: book.id });
     if (file === null) {
@@ -71,8 +73,8 @@ describe("the single-book doors", () => {
   test("a foreign / absent book exports as null (the leak-free owner gate reaches the door)", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const theirs = await svc.createBook({ principal: principal(stranger), input: { name: "Theirs" } });
 
     expect(await svc.exportBook({ principal: principal(owner), bookId: theirs.id })).toBeNull();
@@ -81,7 +83,7 @@ describe("the single-book doors", () => {
   test("a refused file carries the REASON as words — a newer-orbweaver book is not 'not a valid file'", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const garbage = await svc.importFile({ principal: principal(owner), fileText: "{not json" });
     expect(garbage.ok).toBe(false);

@@ -3,6 +3,8 @@
 // and the badge-intent maps. DOM-free; presentation-only labels, the enforceable truth stays server-side.
 
 import type { UserRole } from "@orb/contracts/identity";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { BadgeProps } from "@orb/ui/badge";
 import type { SelectItems } from "@orb/ui/select";
 
@@ -10,14 +12,14 @@ import type { SelectItems } from "@orb/ui/select";
 export const ADMIN_MIN_PASSWORD_LENGTH = 8;
 
 export interface CreateUserFormValues {
-  readonly handle: string;
+  readonly handle: Handle;
   readonly password: string;
   /** The assignable axis only — `user | admin` (never `owner`). */
   readonly role: string;
 }
 
 export const CREATE_USER_DEFAULTS: CreateUserFormValues = {
-  handle: "",
+  handle: castId<Handle>(""),
   password: "",
   role: "user",
 };

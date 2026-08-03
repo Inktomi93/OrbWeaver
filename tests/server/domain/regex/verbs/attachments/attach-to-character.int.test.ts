@@ -2,6 +2,8 @@
 // and a foreign character are each refused with the same not-found answer. Positions APPEND.
 
 import { characterRegexScripts } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createRegexService, RegexNotFoundError } from "@orb/server/domain/regex";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -14,7 +16,7 @@ describe("attachToCharacter", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const first = await seedScript(db, { ownerId: owner, id: "regex_script_1", name: "first" });
     const second = await seedScript(db, { ownerId: owner, id: "regex_script_2", name: "second" });
@@ -31,8 +33,8 @@ describe("attachToCharacter", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const characterId = await seedCharacter(db, owner);
     const scriptId = await seedScript(db, { ownerId: stranger, name: "theirs" });
 

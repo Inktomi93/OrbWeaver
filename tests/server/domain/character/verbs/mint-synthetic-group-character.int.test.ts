@@ -1,4 +1,4 @@
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 // verb: mintSyntheticGroupCharacter — find-or-mint the hidden `__group__<chatId>` identity. Load-bearing:
 // owner-stamped (never NULL author), synthetic=true, IDEMPOTENT (a second mint returns the same row), and
@@ -17,7 +17,7 @@ describe("mintSyntheticGroupCharacter", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const ref = await svc.mintSyntheticGroupCharacter({
       ownerId: owner,
@@ -36,7 +36,7 @@ describe("mintSyntheticGroupCharacter", () => {
   test("is idempotent — a second mint returns the same id", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const first = await svc.mintSyntheticGroupCharacter({
       ownerId: owner,
       chatId: castId<ChatId>("chat_1"),
@@ -53,12 +53,12 @@ describe("mintSyntheticGroupCharacter", () => {
   test("refuses to adopt a NON-synthetic row squatting the reserved handle (never authors under a real card)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // A raw non-synthetic card occupying the group handle (the create wire now refuses this — seed it directly).
     await seedRawCharacter(db, {
       id: "character_squat",
       ownerId: owner,
-      handle: "__group__chat_1",
+      handle: castId<CharacterHandle>("__group__chat_1"),
       synthetic: false,
     });
 
@@ -68,7 +68,7 @@ describe("mintSyntheticGroupCharacter", () => {
   test("different rooms mint distinct buckets", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const a = await svc.mintSyntheticGroupCharacter({
       ownerId: owner,
       chatId: castId<ChatId>("chat_1"),

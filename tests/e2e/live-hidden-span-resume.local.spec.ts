@@ -27,6 +27,7 @@
 //
 // `@live` — it drives a REAL streamed turn (through the scripted fixture, not an 8B).
 
+import type { CharacterHandle } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors";
 import {
@@ -73,7 +74,7 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
   const host = ownerActor(origin);
   const fixture = await startFixtureProvider(FIXTURE_PROVIDER_PORT);
 
-  const priorList = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: string }[] }>("character.list", {});
+  const priorList = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[] }>("character.list", {});
   const prior = priorList.items.find((c) => c.handle === CARD_HANDLE);
   if (prior !== undefined) {
     await host.mutation("character.remove", { characterId: prior.id });

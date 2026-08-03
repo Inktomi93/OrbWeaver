@@ -11,7 +11,7 @@
 
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
-import type { ChatId, ChatTurnId } from "@orb/kit/ids";
+import type { ChatId, ChatTurnId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach } from "vitest";
 import type { RpgGameRow } from "../../../../../packages/server/src/domain/rpg/contract/service";
@@ -27,7 +27,7 @@ beforeEach(async () => {
 });
 
 const MIRA = { kind: "cast", castKey: "mira" } as const;
-const HOST = principal("host");
+const HOST = principal(castId<Handle>("host"));
 
 interface Seeded {
   chatId: ChatId;

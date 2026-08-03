@@ -3,6 +3,8 @@
 // join); a card with no avatar yields a null hash; and the enrichment is owner-scoped (a crafted id list
 // can't read another owner's card).
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { resolveCharacterDisplay } from "../../../../../packages/server/src/domain/search/persistence/display.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -12,7 +14,7 @@ import { seedAsset, seedCharacter, seedCharacterSummary, seedUser } from "../_su
 describe("resolveCharacterDisplay", () => {
   test("enriches with summary facets + the avatar CAS hash", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const avatar = await seedAsset(db, { id: "asset_av", ownerId: owner, hash: "avhash" });
     const c = await seedCharacter(db, {
       id: "character_full",
@@ -39,7 +41,7 @@ describe("resolveCharacterDisplay", () => {
 
   test("a card with no summary + no avatar yields null facets + null hash", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const c = await seedCharacter(db, { id: "character_bare", ownerId: owner, name: "Bare" });
 
     const rows = await resolveCharacterDisplay(db, owner, [c]);
@@ -52,8 +54,8 @@ describe("resolveCharacterDisplay", () => {
 
   test("never resolves another owner's card (owner-scope belt)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const theirs = await seedCharacter(db, {
       id: "character_theirs",
       ownerId: other,
@@ -66,7 +68,7 @@ describe("resolveCharacterDisplay", () => {
 
   test("an empty id list short-circuits to an empty result", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     expect(await resolveCharacterDisplay(db, owner, [])).toEqual([]);
   });
 });

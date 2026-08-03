@@ -6,7 +6,7 @@
 import { blobUrl } from "@orb/contracts/assets";
 import type { TagView } from "@orb/contracts/tag";
 import type { ThemeOverride } from "@orb/contracts/theme";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
@@ -32,7 +32,7 @@ import { CharacterTagsRow } from "./character-tags-row";
 /** The identity/preview subset of the owner card the hero renders — draft card fields flow through `form`. */
 export interface CharacterHeroDetail {
   readonly id: CharacterId;
-  readonly handle: string;
+  readonly handle: CharacterHandle;
   readonly name: string;
   readonly starred: boolean;
   readonly archived: boolean;

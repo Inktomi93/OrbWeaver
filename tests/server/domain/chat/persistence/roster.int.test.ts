@@ -3,7 +3,7 @@
 // scoped (D18); no `users` join (the no-direct-users-read chokepoint — raw rows out).
 
 import type { Db } from "@orb/db";
-import type { CharacterId, ChatId, ChatParticipantId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { buildInitialRosterRows, loadRoster } from "../../../../../packages/server/src/domain/chat/persistence/roster";
@@ -20,11 +20,11 @@ beforeEach(async () => {
 describe("loadRoster", () => {
   test("default = PRESENT members only (leftSeq IS NULL), in join order", async () => {
     const chatId = await seedChat(db, "r1");
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host", joinSeq: 0 });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member", joinSeq: 1 });
-    const gone = await seedUser(db, "gone");
+    const gone = await seedUser(db, castId<Handle>("gone"));
     await seedParticipant(db, {
       chatId,
       key: "g",
@@ -40,8 +40,8 @@ describe("loadRoster", () => {
 
   test("includePast returns the full history (departed rows) for host audit / visibility", async () => {
     const chatId = await seedChat(db, "r2");
-    const host = await seedUser(db, "host2");
-    const gone = await seedUser(db, "gone2");
+    const host = await seedUser(db, castId<Handle>("host2"));
+    const gone = await seedUser(db, castId<Handle>("gone2"));
     await seedParticipant(db, { chatId, key: "h2", userId: host, role: "host", joinSeq: 0 });
     await seedParticipant(db, {
       chatId,

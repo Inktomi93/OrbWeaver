@@ -7,6 +7,8 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { Db } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { beforeEach } from "vitest";
 import { createResolveRpgCardCorpus } from "../../../../../packages/server/src/domain/chat/verbs/resolve-rpg-card-corpus.ts";
 import { freshDb } from "../../../../support/db";
@@ -28,7 +30,7 @@ function card(over: { name: string; description?: string | null; personality?: s
 
 test("renders the card's prose as labeled blocks + the room's OPENING line (the first slot, never the newest)", async () => {
   const chatId = await seedChat(db, "c");
-  const hostId = await seedUser(db, "host");
+  const hostId = await seedUser(db, castId<Handle>("host"));
   await seedParticipant(db, { chatId, key: "c_host", userId: hostId, role: "host" });
   const characterId = await seedCharacter(db, hostId, "Mara");
   await seedMessage(db, chatId, 1, { role: "assistant", content: "You meet at the ford." });
@@ -47,7 +49,7 @@ test("renders the card's prose as labeled blocks + the room's OPENING line (the 
 
 test("a room with no message yet yields an empty opening (the round runs on the card alone)", async () => {
   const chatId = await seedChat(db, "c2");
-  const hostId = await seedUser(db, "host2");
+  const hostId = await seedUser(db, castId<Handle>("host2"));
   await seedParticipant(db, { chatId, key: "c2_host", userId: hostId, role: "host" });
   const characterId = await seedCharacter(db, hostId, "Vesna");
 
@@ -59,7 +61,7 @@ test("a room with no message yet yields an empty opening (the round runs on the 
 
 test("a card unreadable under the room host resolves NULL (the verb refuses rather than running on nothing)", async () => {
   const chatId = await seedChat(db, "c3");
-  const hostId = await seedUser(db, "host3");
+  const hostId = await seedUser(db, castId<Handle>("host3"));
   await seedParticipant(db, { chatId, key: "c3_host", userId: hostId, role: "host" });
   const characterId = await seedCharacter(db, hostId, "Gone");
 
@@ -70,7 +72,7 @@ test("a card unreadable under the room host resolves NULL (the verb refuses rath
 
 test("a HOSTLESS room resolves NULL — a card read needs an owner (D18/D19)", async () => {
   const chatId = await seedChat(db, "c4");
-  const memberId = await seedUser(db, "member4");
+  const memberId = await seedUser(db, castId<Handle>("member4"));
   await seedParticipant(db, { chatId, key: "c4_member", userId: memberId, role: "member" });
   const characterId = await seedCharacter(db, memberId, "Orphan");
 

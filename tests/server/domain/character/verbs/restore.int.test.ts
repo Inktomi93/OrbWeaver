@@ -1,7 +1,7 @@
 // verb: restore — copy a snapshot blob → the live row in place. Load-bearing: snapshot-current-FIRST (so
 // restore is reversible) and character.updated emits. A foreign/absent snapshot collapses to NotFound.
 
-import type { CharacterSnapshotId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterSnapshotId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CharacterNotFoundError, createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
@@ -14,10 +14,10 @@ describe("restore", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "original" },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "original" },
     });
     const snap = await svc.snapshot({
       principal: principal(owner),
@@ -48,10 +48,10 @@ describe("restore", () => {
   test("an unknown snapshot id throws CharacterNotFoundError", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "d" },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     await expect(
       svc.restore({

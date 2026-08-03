@@ -7,7 +7,7 @@
 //   • an embed failure PROPAGATES (never swallowed) — the completed items' rows survive for the rerun.
 
 import { characterEmbeddings } from "@orb/db";
-import type { CharacterEmbeddingId, CharacterId } from "@orb/kit/ids";
+import type { CharacterEmbeddingId, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService, EmbedFailedError } from "@orb/server/domain/embeddings";
 import { describe } from "vitest";
@@ -27,7 +27,7 @@ async function seedTwoCards(db: Awaited<ReturnType<typeof freshDb>>): Promise<{
   ids: readonly CharacterId[];
   texts: ReadonlyMap<CharacterId, string>;
 }> {
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const a = await seedCharacter(db, owner, { id: "character_a", name: "Aria" });
   const b = await seedCharacter(db, owner, { id: "character_b", name: "Bram" });
   return {
@@ -148,7 +148,7 @@ describe("embedCorpus — the bulk card-text sweep", () => {
 describe("embedCorpus — PD-104 purge+reindex of the old vector space", () => {
   test("a completed BULK sweep re-embeds into the active space AND purges the stranded old-model rows", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner, { id: "character_a", name: "Aria" });
     // A row stranded in an OLD `(model, dim)` space (a prior embed model, since changed).
     await upsertCharacterEmbedding(db, {
@@ -179,7 +179,7 @@ describe("embedCorpus — PD-104 purge+reindex of the old vector space", () => {
 
   test("a SINGULAR per-owner sweep re-embeds but does NOT purge the global old space (bulk-only reclaim)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner, { id: "character_a", name: "Aria" });
     await upsertCharacterEmbedding(db, {
       id: castId<CharacterEmbeddingId>("character_embedding_stale"),

@@ -141,7 +141,7 @@ function harness(database: Db, names: Readonly<Record<string, string>>): Harness
 
 /** Seed a solo host+character chat; returns the host + chatId. */
 async function seedSolo(database: Db): Promise<{ host: UserId; chatId: ChatId }> {
-  const host = await seedUser(database, "host");
+  const host = await seedUser(database, castId<Handle>("host"));
   const chatId = await seedChat(database, "a", {
     metadata: { group: { output: "per-speaker", policy: "natural" } },
   });
@@ -196,7 +196,7 @@ describe("send — #67 attach TRUST BOUNDARY", () => {
 
   test("attaching ANOTHER user's asset is refused attachment_not_owned — no message, no row", async () => {
     const { host, chatId } = await seedSolo(db);
-    const stranger = await seedUser(db, "stranger");
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
     const foreignAsset = await seedAsset(db, stranger, "foreign");
     const h = harness(db, {});
 
@@ -217,7 +217,7 @@ describe("send — #67 attach TRUST BOUNDARY", () => {
 
   test("a non-member attaching to a foreign chat is a leak-free NOT_FOUND (the post gate wins first)", async () => {
     const { chatId } = await seedSolo(db);
-    const outsider = await seedUser(db, "outsider");
+    const outsider = await seedUser(db, castId<Handle>("outsider"));
     const outsiderAsset = await seedAsset(db, outsider, "outsider");
     const h = harness(db, {});
 

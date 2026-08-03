@@ -6,11 +6,12 @@
 
 import type { UserRole } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import type { Handle } from "@orb/kit/ids";
 
 /** The `/api/auth/me` wire shape — THIS request's seam-resolved identity (public; never a 401). */
 export interface AuthMe {
   readonly authenticated: boolean;
-  readonly handle: string | null;
+  readonly handle: Handle | null;
   readonly role: UserRole | null;
 }
 
@@ -41,7 +42,7 @@ export function fetchAuthMe(): Promise<AuthMe> {
 /** Local-mode login: POST the credential form → the server verifies (scrypt + dummy-hash floor) and
  *  mints the `__Host-orb_session` cookie. The route parses a FORM body (`parseBody`), so this posts
  *  urlencoded, not JSON. Throws {@link LoginFailedError} with the server's generic message on refusal. */
-export async function login(handle: string, password: string): Promise<void> {
+export async function login(handle: Handle, password: string): Promise<void> {
   const body = new URLSearchParams({ handle, password });
   const res = await fetch("/api/auth/login", {
     method: "POST",

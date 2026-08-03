@@ -1,6 +1,8 @@
 // verb: reindex — enqueue a databank-reindex workload (owner-gated). A `document` scope verifies ownership
 // before enqueue (foreign → NotFound, no enqueue); an `owner` scope enqueues over the caller's whole bank.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { DocumentNotFoundError } from "@orb/server/domain/databank";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -9,7 +11,7 @@ import { makeDatabankHarness, principalFor, seedUser } from "../_support.ts";
 test("owner-scope reindex enqueues a databank-reindex workload with the resolved mode", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
   const result = await h.service.reindex({ principal: principalFor(owner), scope: { kind: "owner" } });
   expect(result.workloadId).toBeDefined();
@@ -19,8 +21,8 @@ test("owner-scope reindex enqueues a databank-reindex workload with the resolved
 test("document-scope reindex verifies ownership; a foreign document throws and does NOT enqueue", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
-  const other = await seedUser(db, { handle: "other" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const other = await seedUser(db, { handle: castId<Handle>("other") });
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "doc.md", text: "canon" });
 
   await h.service.reindex({ principal: principalFor(owner), scope: { kind: "document", documentId: document.id }, mode: "re-extract" });

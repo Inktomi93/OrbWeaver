@@ -8,7 +8,7 @@ import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
 import type { PortableFile } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
 import { messages, messageVariants } from "@orb/db";
-import type { ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId, Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createAssetsService, createExportAssets } from "@orb/server/domain/assets";
 import { describe, onTestFinished } from "vitest";
@@ -50,13 +50,13 @@ describe("exportAssets", () => {
     onTestFinished(h.cleanup);
     const svc = seedingService(h);
 
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
 
     // (a) FK side: an avatar blob referenced by a character.
     const avatarBytes = pngBytes(1, 2, 3);
     const avatar = await store(svc, owner, avatarBytes, "avatar");
-    const hero = await seedCharacter(db, owner, { handle: "hero" });
+    const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     await setCharacterAvatar(db, hero, avatar.assetId);
 
     // (b) TEXT side: a blob referenced ONLY by a chat-inline `asset:<id>` (no FK row at all).
@@ -70,7 +70,7 @@ describe("exportAssets", () => {
     await store(svc, owner, pngBytes(5, 5), "gallery");
     // …and a foreign owner's referenced blob.
     const fAvatar = await store(svc, other, pngBytes(4, 4), "avatar");
-    const villain = await seedCharacter(db, other, { handle: "villain" });
+    const villain = await seedCharacter(db, other, { handle: castId<CharacterHandle>("villain") });
     await setCharacterAvatar(db, villain, fAvatar.assetId);
 
     const files: PortableFile[] = [];

@@ -22,7 +22,7 @@
 // the `trpc.ts` CanonMessage posture); string-union axes stay `string` (the `no-inline-union-redecl` gate
 // bans re-spelling a homed tuple here, and specs compare to literals).
 
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, Handle } from "@orb/kit/ids";
 import type { CryptoKey } from "jose";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 
@@ -58,7 +58,7 @@ export interface ActorClient {
 /** The `GET /api/auth/me` shape — the seam's resolved principal (handle + role), or unauthenticated. */
 interface Whoami {
   readonly authenticated: boolean;
-  readonly handle: string | null;
+  readonly handle: Handle | null;
   readonly role: string | null;
 }
 
@@ -132,7 +132,7 @@ export function ownerActor(baseUrl: string): ActorClient {
  *  `x-orb-csrf` header (so their mutations pass the CSRF gate). The member the multi-user seed mints
  *  (`FIXTURE_MEMBER_HANDLE`) is the canonical caller. `baseUrl` is the local project's vite origin. Throws if
  *  the login mints no session cookie. */
-export async function loginLocal(baseUrl: string, handle: string, password: string): Promise<ActorClient> {
+export async function loginLocal(baseUrl: string, handle: Handle, password: string): Promise<ActorClient> {
   const res = await fetch(`${baseUrl}/api/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
@@ -152,7 +152,7 @@ export async function loginLocal(baseUrl: string, handle: string, password: stri
 /** The forward-header signed-JWT claim inputs (a subset of the OIDC/authentik claim shape the resolver maps).
  *  `handle` → `preferred_username`; `sub`/`groups`/`email` are optional. */
 export interface ForwardClaims {
-  readonly handle: string;
+  readonly handle: Handle;
   readonly sub?: string;
   readonly groups?: readonly string[];
   readonly email?: string;

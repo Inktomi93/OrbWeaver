@@ -27,7 +27,7 @@ import type { CustomParameters, NamesBehavior, PromptConfig, UserIntent } from "
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import type { CharacterId, ChatId, ModelId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRunChatTurnBridge } from "@orb/server/entry/compose";
 import type { ChatRequest, ChatResult, OrSkinTierModels } from "@orb/server/infra/providers";
@@ -164,7 +164,7 @@ async function driveRow(opts: {
   intent: TurnRequest["intent"];
 }): Promise<Captured & { canon: readonly { role: string; content: string; model: string | null }[] }> {
   const database = await freshDb();
-  await seedUser(database, "host");
+  await seedUser(database, castId<Handle>("host"));
   await seedCharacter(database, HOST, "aria");
   const chatId = await seedChat(database, "c");
   await seedMessage(database, chatId, 1, { role: "user", authorUserId: HOST, content: "hello there" });

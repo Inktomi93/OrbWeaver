@@ -22,7 +22,7 @@ import { expect, test } from "../../support/fixtures";
 const AT = 1_700_000_000_000;
 
 /** A minimal valid `users` row (the born-compliant shape) for the given id/handle. */
-function userRow(id: string, handle: string): typeof users.$inferInsert {
+function userRow(id: string, handle: Handle): typeof users.$inferInsert {
   return {
     id: castId<UserId>(id),
     handle: castId<Handle>(handle),
@@ -37,7 +37,10 @@ describe("db.batch atomicity — a UNIQUE violation mid-batch lands ZERO rows (P
   test("the positive control: a valid two-statement batch commits BOTH rows", async () => {
     const db = await freshDb();
 
-    await db.batch([db.insert(users).values(userRow("user_ctl_a", "ctl-a")), db.insert(users).values(userRow("user_ctl_b", "ctl-b"))]);
+    await db.batch([
+      db.insert(users).values(userRow("user_ctl_a", castId<Handle>("ctl-a"))),
+      db.insert(users).values(userRow("user_ctl_b", castId<Handle>("ctl-b"))),
+    ]);
 
     const rows = await db.select({ id: users.id }).from(users);
     expect(rows.map((r) => r.id).sort()).toEqual(["user_ctl_a", "user_ctl_b"]);
@@ -46,12 +49,15 @@ describe("db.batch atomicity — a UNIQUE violation mid-batch lands ZERO rows (P
   test("a batch whose SECOND statement duplicates an existing PK rejects AND rolls back the FIRST", async () => {
     const db = await freshDb();
     // Pre-seed the row the batch's second statement will collide with (a UNIQUE primary-key violation).
-    await db.insert(users).values(userRow("user_existing", "existing"));
+    await db.insert(users).values(userRow("user_existing", castId<Handle>("existing")));
 
     // The batch: statement 1 is a brand-new valid row; statement 2 re-inserts the existing PK → UNIQUE
     // violation MID-BATCH. Atomicity demands statement 1 never lands.
     await expect(
-      db.batch([db.insert(users).values(userRow("user_fresh", "fresh")), db.insert(users).values(userRow("user_existing", "existing-dup"))]),
+      db.batch([
+        db.insert(users).values(userRow("user_fresh", castId<Handle>("fresh"))),
+        db.insert(users).values(userRow("user_existing", castId<Handle>("existing-dup"))),
+      ]),
     ).rejects.toThrow();
 
     // THE ATOMICITY ASSERT: the pre-batch row survived, but the batch's first (valid) row did NOT land —

@@ -2,6 +2,8 @@
 // state: create/update ride the clone-forward + `quests.<id>` lock machinery. Asserted at the resolved snapshot.
 
 import type { Db } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { resolveSnapshotForTurn } from "../../../../../../packages/server/src/domain/rpg/persistence/snapshots";
 import { freshDb } from "../../../../../support/db";
@@ -17,7 +19,12 @@ describe("upsertQuest", () => {
     const { chatId, gameId, h } = await seedLiteGame(db);
     h.fakes.busEvents.length = 0; // drop the createGame emit — assert the quest-write emits alone
 
-    const questId = await h.service.upsertQuest({ principal: principal("host"), chatId, name: "Slay the dragon", objectives: [{ text: "Find the lair" }] });
+    const questId = await h.service.upsertQuest({
+      principal: principal(castId<Handle>("host")),
+      chatId,
+      name: "Slay the dragon",
+      objectives: [{ text: "Find the lair" }],
+    });
     let snap = await resolveSnapshotForTurn(db, { id: gameId, chatId });
     expect(snap?.quests).toHaveLength(1);
     expect(snap?.quests?.[0]?.name).toBe("Slay the dragon");
@@ -31,7 +38,7 @@ describe("upsertQuest", () => {
       { type: "questChanged", chatId },
     ]);
 
-    await h.service.upsertQuest({ principal: principal("host"), chatId, questId, name: "Slay the dragon", status: "completed" });
+    await h.service.upsertQuest({ principal: principal(castId<Handle>("host")), chatId, questId, name: "Slay the dragon", status: "completed" });
     snap = await resolveSnapshotForTurn(db, { id: gameId, chatId });
     expect(snap?.quests?.[0]?.status).toBe("completed");
   });

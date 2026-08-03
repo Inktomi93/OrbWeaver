@@ -4,6 +4,8 @@
 // no second enqueue.
 
 import { documents } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -14,7 +16,7 @@ const TEXT = "A note on the northern passes and the toll each keeper charges.";
 test("creates a text-origin document, stamps the canon, and enqueues ingest", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
   const result = await h.service.createFromText({ principal: principalFor(owner), name: "note.md", text: TEXT });
   expect(result.outcome).toBe("created");
@@ -33,7 +35,7 @@ test("creates a text-origin document, stamps the canon, and enqueues ingest", as
 test("a re-paste of identical text dedups (duplicate/skipped, no second enqueue)", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
   const first = await h.service.createFromText({ principal: principalFor(owner), name: "note.md", text: TEXT });
   const second = await h.service.createFromText({ principal: principalFor(owner), name: "note-again.md", text: TEXT });
@@ -54,7 +56,7 @@ test("a re-paste of identical text dedups (duplicate/skipped, no second enqueue)
 test("a REJECTED ingest enqueue does not reject the create — the document lands, reported as un-indexed", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.enqueueIngest.mockRejectedValueOnce(new Error('That "databank-ingest" run is already in progress'));
 
   const result = await h.service.createFromText({ principal: principalFor(owner), name: "note.md", text: TEXT });
@@ -70,8 +72,8 @@ test("a REJECTED ingest enqueue does not reject the create — the document land
 test("two owners pasting identical text each get their OWN document (dedup is per-owner)", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const a = await seedUser(db, { handle: "a" });
-  const b = await seedUser(db, { handle: "b" });
+  const a = await seedUser(db, { handle: castId<Handle>("a") });
+  const b = await seedUser(db, { handle: castId<Handle>("b") });
 
   const da = await h.service.createFromText({ principal: principalFor(a), name: "n.md", text: TEXT });
   const db2 = await h.service.createFromText({ principal: principalFor(b), name: "n.md", text: TEXT });

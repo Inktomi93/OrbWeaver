@@ -8,7 +8,7 @@ import { automationActionSchema } from "@orb/contracts/automation";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, characterTags, chatParticipants, chats, tags, workloads } from "@orb/db";
-import type { ChatParticipantId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
@@ -198,10 +198,10 @@ test("character.bulkAddCardTag attaches via the real tag wiring (PD-49) — not 
     vllmDisabled: true,
   });
 
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const created = await result.services.character.create({
     principal: principal(owner),
-    input: { handle: "hero-card", name: "Hero", description: "a card" },
+    input: { handle: castId<CharacterHandle>("hero-card"), name: "Hero", description: "a card" },
   });
 
   // The injected attachCardTag port now reaches tag.attachCardTagByName (the inert throw is gone): a by-name
@@ -242,7 +242,7 @@ describe("default-card seeder wiring (PD-32)", () => {
   test("ensureSeeded seeds the owner's pack + lands the latch + stamps the welcome assistant", async () => {
     const db = await freshDb();
     const result = await buildGraph(db);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
 
     expect(result.characterSeeder).toBeDefined();
@@ -266,7 +266,7 @@ describe("default-card seeder wiring (PD-32)", () => {
 
   test("the pack stamp round-trips: a library rolled back to v0 is re-migrated, not re-seeded", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
     const first = await buildGraph(db);
     await first.characterSeeder.ensureSeeded(actor);
@@ -290,7 +290,7 @@ describe("default-card seeder wiring (PD-32)", () => {
   test("markSeeded never clobbers an explicit welcome-assistant pick", async () => {
     const db = await freshDb();
     const result = await buildGraph(db);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
     // The user already chose a welcome assistant before the first-run seed fires.
     await result.services.settings.updateUserSettingsSection({
@@ -378,10 +378,10 @@ describe("embeddings indexer bus subscription (PD-48)", () => {
     const db = await freshDb();
     const w = await wireIndexer(db);
     onTestFinished(w.cleanup);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await w.character.create({
       principal: principal(owner),
-      input: { handle: "bryn", name: "Bryn", description: "a lighthouse keeper" },
+      input: { handle: castId<CharacterHandle>("bryn"), name: "Bryn", description: "a lighthouse keeper" },
     });
     const expected = await w.character.loadCardText(created.id);
 
@@ -402,10 +402,10 @@ describe("embeddings indexer bus subscription (PD-48)", () => {
     const db = await freshDb();
     const w = await wireIndexer(db);
     onTestFinished(w.cleanup);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await w.character.create({
       principal: principal(owner),
-      input: { handle: "star", name: "Star", description: "a starred card" },
+      input: { handle: castId<CharacterHandle>("star"), name: "Star", description: "a starred card" },
     });
 
     // A star toggle: same card content, contentChanged=false → the indexer skips before touching the store,
@@ -420,7 +420,7 @@ describe("embeddings indexer bus subscription (PD-48)", () => {
     const db = await freshDb();
     const w = await wireIndexer(db);
     onTestFinished(w.cleanup);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const bytes = pngBytes(7, 7, 7, 7);
     const stored = await w.assets.store({
       principal: principal(owner),
@@ -501,8 +501,8 @@ describe("notifications fan-out (PD-23) — record (durable) → publishNotifica
       sessionSecret: "test-session-secret-at-least-32-chars",
       vllmDisabled: true,
     });
-    const host = await seedUser(db, { handle: "host" });
-    const member = await seedUser(db, { handle: "member" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const member = await seedUser(db, { handle: castId<Handle>("member") });
     // A REAL TypeID — the notification event schema validates the branded id shape at the record seam.
     const chatId = mintTypeId(ID_PREFIX.chat);
     await db.insert(chats).values({ id: chatId, createdAt: clock.now(), updatedAt: clock.now() });
@@ -570,7 +570,7 @@ describe("persona.setActivePersona → chat bus (PD-120)", () => {
       sessionSecret: "test-session-secret-at-least-32-chars",
       vllmDisabled: true,
     });
-    const host = await seedUser(db, { handle: "host" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
     const chatId = mintTypeId(ID_PREFIX.chat);
     await db.insert(chats).values({ id: chatId, createdAt: clock.now(), updatedAt: clock.now() });
     await db.insert(chatParticipants).values({
@@ -645,7 +645,7 @@ describe("persona.remove seed re-point (owner invariant)", () => {
   test("deleting the CURRENT persona re-points current → the default persona", async () => {
     const db = await freshDb();
     const result = await graph(db);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
     const keeper = await result.services.persona.create({
       principal: actor,
@@ -673,7 +673,7 @@ describe("persona.remove seed re-point (owner invariant)", () => {
   test("deleting the CURRENT persona with NO valid default re-points current → the newest remaining", async () => {
     const db = await freshDb();
     const result = await graph(db);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
     const older = await result.services.persona.create({
       principal: actor,
@@ -699,7 +699,7 @@ describe("persona.remove seed re-point (owner invariant)", () => {
   test("deleting the DEFAULT persona re-points the default pointer to the newest remaining", async () => {
     const db = await freshDb();
     const result = await graph(db);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
     const survivor = await result.services.persona.create({
       principal: actor,
@@ -736,7 +736,7 @@ describe("embed-model change reindex trigger (DBK-B(b))", () => {
   test("changing the embed model enqueues BOTH a bulk index AND a bulk databank-reindex", async () => {
     const db = await freshDb();
     const result = await buildGraph(db); // vLLM-disabled full graph
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     // No bulk reindex work exists before the change (causation control).
     const before = await db.select().from(workloads);
@@ -762,11 +762,11 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
     // The boot reload resolves this stored override into the effective-config the gate reads.
     await writeAppOverride(db, { corpusAutoindex: true, schemaVersion: 2 }, createFrozenClock().now());
     const result = await buildGatedGraph(db);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const created = await result.services.character.create({
       principal: principal(owner),
-      input: { handle: "bryn", name: "Bryn", description: "a lighthouse keeper" },
+      input: { handle: castId<CharacterHandle>("bryn"), name: "Bryn", description: "a lighthouse keeper" },
     });
     // Bounded, wall-clock-free flush of the fire-and-forget bus dispatch → the embed → the store write.
     await drain(() => false);
@@ -778,11 +778,11 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
   test("corpusAutoindex OFF (the test default) → indexer NOT subscribed; the write embeds nothing", async () => {
     const db = await freshDb();
     const result = await buildGatedGraph(db); // no override → env floor (false) resolves
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const created = await result.services.character.create({
       principal: principal(owner),
-      input: { handle: "bryn", name: "Bryn", description: "a lighthouse keeper" },
+      input: { handle: castId<CharacterHandle>("bryn"), name: "Bryn", description: "a lighthouse keeper" },
     });
     await drain(() => false);
 
@@ -801,7 +801,7 @@ describe("automation generate_image forwards diffusion params through the compos
   test("a rule-fired generate_image reaches imagery.generatePicture with its MA-8 diffusion knobs", async () => {
     const db = await freshDb();
     const result = await buildGraph(db);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const actor = principal(owner);
 
     // A host chat the owner authors + fires rules on (the real host-authority + dispatch gates read these rows).

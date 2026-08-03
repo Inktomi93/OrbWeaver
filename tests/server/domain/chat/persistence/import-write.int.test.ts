@@ -8,7 +8,18 @@ import type { BulkImportChatInput } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { AssetId, CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type {
+  AssetId,
+  CharacterHandle,
+  CharacterId,
+  ChatId,
+  ChatInjectionId,
+  ChatParticipantId,
+  MessageAssetId,
+  MessageId,
+  MessageVariantId,
+  UserId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -59,7 +70,7 @@ function importCtx(db: Db, ownerId: UserId, spy: MintSpy = { calls: [], byChat: 
       if (found !== undefined) {
         return { characterId: found };
       }
-      const row = await seedCharacter(db, { ownerId, name: "Group", handle: `__group__${chatId}`, synthetic: true });
+      const row = await seedCharacter(db, { ownerId, name: "Group", handle: castId<CharacterHandle>(`__group__${chatId}`), synthetic: true });
       spy.byChat.set(chatId, row.id);
       return { characterId: row.id };
     },

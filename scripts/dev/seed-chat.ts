@@ -38,7 +38,7 @@ import process from "node:process";
 import { pathToFileURL } from "node:url";
 import type { Principal } from "@orb/contracts/identity";
 import { chatParticipants, chats, createDb, preCloseHousekeeping } from "@orb/db";
-import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsService, ownerHandles } from "@orb/server/domain/sessions";
 import { runBootMigrations, seedDefaultCharacters, seedDefaultPersona, seedDefaultPreset, seedOwner, seedThemes } from "@orb/server/entry/boot";
@@ -110,7 +110,7 @@ async function ensureCast(
 ): Promise<{ id: CharacterId; name: string }[]> {
   const cast: { id: CharacterId; name: string }[] = [];
   for (let i = 0; i < count; i += 1) {
-    const handle = `${SEED_HANDLE_PREFIX}-${i + 1}`;
+    const handle = castId<CharacterHandle>(`${SEED_HANDLE_PREFIX}-${i + 1}`);
     const name = `Cast ${i + 1}`;
     // biome-ignore lint/performance/noAwaitInLoops: a handful of cards; serial keeps the create-or-reuse obvious.
     const existing = await services.character.findByHandle({ ownerId, handle });

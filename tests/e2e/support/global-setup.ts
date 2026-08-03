@@ -21,7 +21,7 @@
 
 import { execFileSync } from "node:child_process";
 import process from "node:process";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import type { ModeProject } from "./modes";
 import { DEV_TARGET_ALLOWED, LOCAL_MEMBER, LOCAL_OWNER, MODE_PROJECTS } from "./modes";
 import { probeTarget, targetRefusal } from "./target-guard";
@@ -36,7 +36,7 @@ const ANCHOR = {
 };
 
 interface CharacterListPage {
-  readonly items: readonly { readonly id: string; readonly handle: string }[];
+  readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[];
 }
 
 const encodeInput = (value: unknown): string => encodeURIComponent(JSON.stringify({ 0: value }));

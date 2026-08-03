@@ -26,7 +26,7 @@ import type { AssembleContext, AssemblePersona, ParticipantView } from "@orb/con
 import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroStamps } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
@@ -75,7 +75,7 @@ async function seedScene(
   chars: Record<string, CharacterId>;
   personas: Record<string, PersonaId>;
 }> {
-  const host = await seedUser(db, `${spec.key}_host`);
+  const host = await seedUser(db, castId<Handle>(`${spec.key}_host`));
   const chatId = await seedChat(db, spec.key);
   await seedParticipant(db, { chatId, key: `${spec.key}_h0`, userId: host, role: "host" });
 
@@ -96,7 +96,7 @@ async function seedScene(
     });
     personas[h.personaKey] = pid;
 
-    const hUser = await seedUser(db, `${spec.key}_hu_${h.personaKey}`);
+    const hUser = await seedUser(db, castId<Handle>(`${spec.key}_hu_${h.personaKey}`));
 
     await seedParticipant(db, {
       chatId,

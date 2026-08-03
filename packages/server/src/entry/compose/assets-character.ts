@@ -22,7 +22,7 @@ import {
   messages as messagesTable,
   personas as personasTable,
 } from "@orb/db";
-import type { AssetId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
@@ -363,7 +363,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
       return { id: detail.id };
     },
     storeAvatar: async (principal): Promise<AssetId | null> => {
-      const art = await readSeedAvatar("persona-you");
+      const art = await readSeedAvatar(castId<CharacterHandle>("persona-you"));
       if (art === null) {
         return null;
       }

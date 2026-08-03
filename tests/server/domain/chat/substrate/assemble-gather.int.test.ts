@@ -10,7 +10,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { chatBooks, chatInjections, chats, messages, worldBooks, worldEntries } from "@orb/db";
-import type { CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -80,7 +80,7 @@ function foreignOf(over: Partial<ForeignInputs> = {}): ForeignInputs {
 
 /** Seed a solo room (host + one character), returning the ids. */
 async function seedRoom(key: string): Promise<{ host: UserId; chatId: ChatId; aria: CharacterId }> {
-  const host = await seedUser(db, `${key}_host`);
+  const host = await seedUser(db, castId<Handle>(`${key}_host`));
   const chatId = await seedChat(db, key);
   const aria = await seedCharacter(db, host, `${key}_aria`);
   await seedParticipant(db, { chatId, key: `${key}_h`, userId: host, role: "host" });

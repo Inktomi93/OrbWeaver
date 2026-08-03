@@ -4,6 +4,8 @@
 // (a re-attach is silent: no phantom pool-invalidation event, no duplicate audit row).
 
 import { chatBooks } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createWorldInfoService, WorldInfoNotFoundError } from "@orb/server/domain/world-info";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -15,7 +17,7 @@ describe("attachToChat", () => {
     const db = await freshDb();
     const harness = makeHarness(db, { requireChatHost: () => Promise.resolve() });
     const svc = createWorldInfoService(harness.ctx);
-    const host = await seedUser(db, { handle: "host" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
     const chatId = await seedChat(db);
     const book = await svc.createBook({ principal: principal(host), input: { name: "B" } });
     harness.userEvents.length = 0; // drop createBook's own worldInfoChanged — assert only the attach's.
@@ -38,7 +40,7 @@ describe("attachToChat", () => {
     const refusal = new Error("not_host");
     const harness = makeHarness(db, { requireChatHost: () => Promise.reject(refusal) });
     const svc = createWorldInfoService(harness.ctx);
-    const member = await seedUser(db, { handle: "member" });
+    const member = await seedUser(db, { handle: castId<Handle>("member") });
     const chatId = await seedChat(db);
     const book = await svc.createBook({ principal: principal(member), input: { name: "B" } });
 
@@ -52,8 +54,8 @@ describe("attachToChat", () => {
     const db = await freshDb();
     const harness = makeHarness(db, { requireChatHost: () => Promise.resolve() });
     const svc = createWorldInfoService(harness.ctx);
-    const host = await seedUser(db, { handle: "host" });
-    const other = await seedUser(db, { handle: "other" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const chatId = await seedChat(db);
     const theirs = await svc.createBook({ principal: principal(other), input: { name: "T" } });
 

@@ -3,7 +3,7 @@
 
 import { users } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
-import type { UserId } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAdminService } from "@orb/server/domain/admin";
 import { eq } from "drizzle-orm";
@@ -19,11 +19,11 @@ describe("resetPassword", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createAdminService(h.ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     const target = await seedUser(db, {
       id: "user_t",
       role: "user",
-      handle: "t",
+      handle: castId<Handle>("t"),
       passwordHash: "old",
     });
 
@@ -41,7 +41,7 @@ describe("resetPassword", () => {
   test("a short password is rejected (weak_password)", async () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);
-    const target = await seedUser(db, { id: "user_t", role: "user", handle: "t" });
+    const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
     await expect(
       svc.resetPassword({
         principal: principal(admin, "admin"),
@@ -55,7 +55,7 @@ describe("resetPassword", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createAdminService(h.ctx);
-    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+    const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     await expect(
       svc.resetPassword({
         principal: principal(admin, "admin"),
@@ -70,8 +70,8 @@ describe("resetPassword", () => {
   test("a plain user is denied", async () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
-    const u = await seedUser(db, { id: "user_u", role: "user", handle: "u" });
-    const t = await seedUser(db, { id: "user_t", role: "user", handle: "t" });
+    const u = await seedUser(db, { id: "user_u", role: "user", handle: castId<Handle>("u") });
+    const t = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
     await expect(svc.resetPassword({ principal: principal(u, "user"), userId: t, password: NEW_PASSWORD })).rejects.toThrow(DomainForbiddenError);
   });
 });

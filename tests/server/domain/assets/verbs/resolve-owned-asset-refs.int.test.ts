@@ -4,7 +4,7 @@
 // FOREIGN / unknown / gone id is simply absent (owner-scoped — no leak, no cross-user hash oracle). Empty
 // input ⇒ empty result (no query).
 
-import type { AssetId } from "@orb/kit/ids";
+import type { AssetId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { describe, onTestFinished } from "vitest";
@@ -20,7 +20,7 @@ describe("resolveOwnedAssetRefs", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const one = await svc.store({
       principal: principal(owner),
@@ -49,8 +49,8 @@ describe("resolveOwnedAssetRefs", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
 
     const mine = await svc.store({
       principal: principal(owner),
@@ -75,7 +75,7 @@ describe("resolveOwnedAssetRefs", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     expect(await svc.resolveOwnedAssetRefs(owner, [castId<AssetId>("asset_missing")])).toEqual([]);
     expect(await svc.resolveOwnedAssetRefs(owner, [])).toEqual([]);

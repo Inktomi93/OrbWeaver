@@ -59,8 +59,8 @@ function compactionWith(text: string): ReturnType<typeof createCompaction> {
 }
 
 async function seedRoom(): Promise<{ host: UserId; member: UserId; chatId: Awaited<ReturnType<typeof seedChat>> }> {
-  const host = await seedUser(db, "host");
-  const member = await seedUser(db, "member");
+  const host = await seedUser(db, castId<Handle>("host"));
+  const member = await seedUser(db, castId<Handle>("member"));
   const chatId = await seedChat(db, "a");
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
   await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });

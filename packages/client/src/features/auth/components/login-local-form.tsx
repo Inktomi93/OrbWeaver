@@ -3,6 +3,8 @@
 // credential form — the sanctioned trivial-input carve-out. A real `<form>` element so password
 // managers + Enter-to-submit work natively.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
@@ -35,7 +37,7 @@ export function LoginLocalForm({ defaultHandle, onLoggedIn }: LoginLocalFormProp
     }
     setPending(true);
     setError(null);
-    login(handle.trim(), password).then(onLoggedIn, (err: unknown) => {
+    login(castId<Handle>(handle.trim()), password).then(onLoggedIn, (err: unknown) => {
       // `pending` stays true only until the failure lands — a success unmounts via the navigation.
       setError(err instanceof Error ? err.message : "Sign-in failed.");
       setPending(false);

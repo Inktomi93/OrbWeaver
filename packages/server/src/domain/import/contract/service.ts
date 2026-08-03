@@ -7,7 +7,7 @@ import type { AttachedBookRef, CreateCharacterInput, UpdateCharacterInput } from
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
-import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ImportCardScripts } from "#domain/regex";
 import type { ImportCharacterInput } from "./params";
 import type { ImportCharacterResult, ImportChatFileOutcome, ImportChatsResult, ImportedCharacterRef, ImportPersonasResult } from "./results";
@@ -24,7 +24,7 @@ export type CreateImportedCharacter = (args: {
 export type FindCharacterByImportHash = (args: { readonly ownerId: UserId; readonly importHash: string }) => Promise<CharacterId | null>;
 
 /** (ownerId, handle) re-import match oracle; fires only after FindCharacterByImportHash misses. */
-type FindCharacterByHandle = (args: { readonly ownerId: UserId; readonly handle: string }) => Promise<CharacterId | null>;
+type FindCharacterByHandle = (args: { readonly ownerId: UserId; readonly handle: CharacterHandle }) => Promise<CharacterId | null>;
 
 /** Edits an existing character's card in place for the handle-match re-import path. */
 type UpdateImportedCharacter = (args: { readonly ownerId: UserId; readonly characterId: CharacterId; readonly input: UpdateCharacterInput }) => Promise<void>;

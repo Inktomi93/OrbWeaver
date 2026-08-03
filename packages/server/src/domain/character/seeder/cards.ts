@@ -21,9 +21,11 @@
 // effect for a user the running process has not already seeded (restart, or a different user).
 
 import type { CreateCharacterInput } from "@orb/contracts/character";
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { SeedCard } from "../contract/seeder";
 
-export const WELCOME_ASSISTANT_HANDLE = "assistant";
+export const WELCOME_ASSISTANT_HANDLE = castId<CharacterHandle>("assistant");
 
 /** The shipped pack's version, stamped on a library at `onboarding.defaultCharactersPackVersion` once it
  *  holds this pack. BUMP IT whenever the authored cards below change in a way existing installs should
@@ -123,7 +125,7 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: "jfc-coder",
+      handle: castId<CharacterHandle>("jfc-coder"),
       name: "JFC",
       nickname: null,
       description:
@@ -178,7 +180,7 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: "niko",
+      handle: castId<CharacterHandle>("niko"),
       name: "Niko",
       nickname: null,
       description:
@@ -228,7 +230,7 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: "hana",
+      handle: castId<CharacterHandle>("hana"),
       name: "Hana Mizushima",
       nickname: null,
       description:
@@ -286,7 +288,7 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: "morgatha",
+      handle: castId<CharacterHandle>("morgatha"),
       name: "Morgatha, the Undying Dark",
       nickname: "Morgatha",
       description:
@@ -339,7 +341,7 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: "sabine",
+      handle: castId<CharacterHandle>("sabine"),
       name: "Sabine Veyra",
       nickname: null,
       description:
@@ -392,7 +394,7 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: "birdie",
+      handle: castId<CharacterHandle>("birdie"),
       name: "Birdie Mae Holloway",
       nickname: null,
       description:
@@ -438,7 +440,7 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: "kohaku",
+      handle: castId<CharacterHandle>("kohaku"),
       name: "Kohaku",
       nickname: null,
       description:
@@ -493,7 +495,7 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: "calamity",
+      handle: castId<CharacterHandle>("calamity"),
       name: "Calamity, Doomblade of the Ninth Epoch",
       nickname: "Calamity",
       description:
@@ -544,7 +546,7 @@ export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = [
     },
     input: {
       ...AUTHORED_CARD_DEFAULTS,
-      handle: "elias",
+      handle: castId<CharacterHandle>("elias"),
       name: "Elias Thorn",
       nickname: null,
       description:

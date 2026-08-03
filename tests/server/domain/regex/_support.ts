@@ -14,7 +14,7 @@ import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { characters, chats, presets, regexScripts } from "@orb/db";
-import type { CharacterId, ChatId, Handle, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, Handle, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RegexContext } from "../../../../packages/server/src/domain/regex/context.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
@@ -80,7 +80,7 @@ export function makeHarness(db: Db, overrides: HarnessOverrides = {}): RegexHarn
 
 interface SeedUserOverrides {
   readonly id?: string;
-  readonly handle?: string;
+  readonly handle?: Handle;
   readonly role?: UserRole;
 }
 
@@ -129,7 +129,7 @@ export async function seedCharacter(db: Db, ownerId: UserId, key = "c"): Promise
   const id = castId<CharacterId>(`character_${key}`);
   await db.insert(characters).values({
     id,
-    handle: id,
+    handle: castId<CharacterHandle>(id),
     ownerId,
     name: "Char",
     description: null,
@@ -153,8 +153,8 @@ export async function seedChat(db: Db, key = "c"): Promise<ChatId> {
   return id;
 }
 
-export function principal(userId: UserId, role: UserRole = "user", handle: string = userId): Principal {
-  return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
+export function principal(userId: UserId, role: UserRole = "user", handle: Handle = castId<Handle>(userId)): Principal {
+  return makePrincipal(userId, { role, handle });
 }
 
 /** The permissive chat-guard fake (a present host/member) — chat-scope tests that aren't ABOUT authority. */

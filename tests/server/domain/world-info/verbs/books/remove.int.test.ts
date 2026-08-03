@@ -2,6 +2,8 @@
 // have no independent existence); a foreign book is NotFound.
 
 import { worldEntries } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createWorldInfoService, WorldInfoNotFoundError } from "@orb/server/domain/world-info";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -13,7 +15,7 @@ describe("removeBook", () => {
   test("deletes an owned book and cascades its entries", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "Doomed" } });
     const entry = await svc.createEntry({
       principal: principal(owner),
@@ -30,8 +32,8 @@ describe("removeBook", () => {
   test("a foreign book is NotFound", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const theirs = await svc.createBook({ principal: principal(other), input: { name: "Theirs" } });
 
     await expect(svc.removeBook({ principal: principal(owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);

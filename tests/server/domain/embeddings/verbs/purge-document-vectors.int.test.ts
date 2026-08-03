@@ -4,6 +4,8 @@
 // beside the old). This deletes them, mirroring purgeMemoryVectors. The active model is roleClients.embedModel.
 
 import { documentChunks } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -16,7 +18,7 @@ describe("purgeDocumentVectors (PD-139(c))", () => {
   test("deletes only the rows outside the active embed space; the active space survives", async () => {
     const db = await freshDb();
     const svc = createEmbeddingsService(makeStoreHarness(db).ctx); // roleClients.embedModel === EMBED_MODEL
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const documentId = await seedDocument(db, owner);
 
     // The same chunk in the OLD space and the NEW (active) space — both coexist (model is in the upsert key).
@@ -35,7 +37,7 @@ describe("purgeDocumentVectors (PD-139(c))", () => {
   test("is a no-op when every row is already in the active space", async () => {
     const db = await freshDb();
     const svc = createEmbeddingsService(makeStoreHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const documentId = await seedDocument(db, owner);
     await svc.store({
       kind: "document",

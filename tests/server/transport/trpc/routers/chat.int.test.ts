@@ -8,7 +8,8 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants } from "@orb/db";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { loadRoster } from "../../../../../packages/server/src/domain/chat/persistence/roster";
@@ -36,7 +37,7 @@ beforeEach(async () => {
 
 describe("chat.removeCharacterFromChat — the symmetric drop, driven through the real router + roster service", () => {
   test("the host removes a present character seat — leftSeq-stamped out of the roster read-model", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const characterId = await seedCharacter(db, host, "aria");
     const chatId: ChatId = await seedChat(db, "room");
     await seedParticipant(db, { chatId, key: "room_h", userId: host, role: "host" });
@@ -63,8 +64,8 @@ describe("chat.removeCharacterFromChat — the symmetric drop, driven through th
   });
 
   test("a plain member caller is rejected — the seat stays present, unstamped", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const characterId = await seedCharacter(db, host, "aria");
     const chatId: ChatId = await seedChat(db, "room");
     await seedParticipant(db, { chatId, key: "room_h", userId: host, role: "host" });

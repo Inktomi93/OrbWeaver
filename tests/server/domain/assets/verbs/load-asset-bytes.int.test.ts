@@ -3,7 +3,7 @@
 // per-user CAS, round-trips the exact stored bytes back through CAS, and returns null for a missing asset
 // (deleted between emit and handler) — never a foreign-existence throw.
 
-import type { AssetId } from "@orb/kit/ids";
+import type { AssetId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { describe, onTestFinished } from "vitest";
@@ -19,7 +19,7 @@ describe("loadAssetBytes", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const bytes = pngBytes(11, 22, 33, 44);
 
     const stored = await svc.store({

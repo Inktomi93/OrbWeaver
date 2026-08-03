@@ -2,7 +2,7 @@
 // greeting and NEVER writes. Pins: owner ok (ONE completion, greeting_new template, NO {{base}}), non-owner →
 // leak-free CharacterNotFoundError BEFORE any template read / completion, and no DB write.
 
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CharacterNotFoundError, createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
@@ -17,8 +17,8 @@ describe("generateGreeting", () => {
     harness.setGreetingTemplate("Write a greeting for {{char}}: {{input}}");
     harness.setGreetingText({ text: "Hello, traveller.", costUsd: 0.001 });
     const svc = createCharacterService(harness.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const created = await svc.create({ principal: principal(owner), input: { handle: "nyx", name: "Nyx", description: "d" } });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
 
     const result = await svc.generateGreeting({ principal: principal(owner), characterId: created.id, steer: "cheerful and short" });
 
@@ -33,9 +33,9 @@ describe("generateGreeting", () => {
     const db = await freshDb();
     const harness = makeHarness(db);
     const svc = createCharacterService(harness.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
-    const created = await svc.create({ principal: principal(owner), input: { handle: "nyx", name: "Nyx", description: "d" } });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
+    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
 
     await expect(svc.generateGreeting({ principal: principal(stranger), characterId: created.id, steer: "x" })).rejects.toBeInstanceOf(CharacterNotFoundError);
     expect(harness.greetingTemplateCalls).toHaveLength(0);
@@ -46,7 +46,7 @@ describe("generateGreeting", () => {
     const db = await freshDb();
     const harness = makeHarness(db);
     const svc = createCharacterService(harness.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await expect(svc.generateGreeting({ principal: principal(owner), characterId: castId<CharacterId>("character_ghost"), steer: "s" })).rejects.toBeInstanceOf(
       CharacterNotFoundError,
     );
@@ -57,10 +57,10 @@ describe("generateGreeting", () => {
     const db = await freshDb();
     const harness = makeHarness(db);
     const svc = createCharacterService(harness.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
       principal: principal(owner),
-      input: { handle: "nyx", name: "Nyx", description: "d", greetings: [{ text: "original" }] },
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d", greetings: [{ text: "original" }] },
     });
     const emitsBefore = harness.events.length;
 

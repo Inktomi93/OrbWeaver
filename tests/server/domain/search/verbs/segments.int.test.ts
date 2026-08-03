@@ -3,7 +3,8 @@
 // REQUIRED-scopedCharacterId throw (the verbatim lens cannot key without an egocentric POV), and mixC rerank.
 
 import type { MemoryQueryOptions } from "@orb/contracts/search";
-import type { CharacterId, ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { SearchError } from "@orb/server/domain/search";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -25,7 +26,7 @@ function opts(chat: ChatId, scopedCharacterId: CharacterId | undefined, over: Pa
 }
 
 async function seedOwnerChatChar(db: Awaited<ReturnType<typeof freshDb>>): Promise<{ chat: ChatId; char: CharacterId }> {
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const char = await seedCharacter(db, { id: "character_pov", ownerId: owner, name: "POV" });
   const chat = await seedChat(db, "chat_a");
   return { chat, char };

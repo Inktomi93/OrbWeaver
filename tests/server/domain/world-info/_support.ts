@@ -10,7 +10,7 @@ import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { characters, chats, personas } from "@orb/db";
-import type { CharacterId, ChatId, Handle, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, Handle, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { WorldInfoContext } from "../../../../packages/server/src/domain/world-info/context.ts";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
@@ -82,7 +82,7 @@ export function makeHarness(db: Db, overrides: HarnessOverrides = {}): WorldInfo
 
 interface SeedUserOverrides {
   readonly id?: string;
-  readonly handle?: string;
+  readonly handle?: Handle;
   readonly role?: UserRole;
 }
 
@@ -101,7 +101,7 @@ interface SeedCharacterOverrides {
   readonly id?: string;
   readonly ownerId: UserId;
   readonly name?: string;
-  readonly handle?: string;
+  readonly handle?: CharacterHandle;
 }
 
 /** D28 — flat row, no version table. */
@@ -109,7 +109,7 @@ export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): 
   const id = castId<CharacterId>(overrides.id ?? "character_c");
   await db.insert(characters).values({
     id,
-    handle: overrides.handle ?? id,
+    handle: overrides.handle ?? castId<CharacterHandle>(id),
     ownerId: overrides.ownerId,
     name: overrides.name ?? "Char",
     description: null,
@@ -148,6 +148,6 @@ export async function seedPersona(db: Db, overrides: SeedPersonaOverrides): Prom
   return id;
 }
 
-export function principal(userId: UserId, role: UserRole = "user", handle: string = userId): Principal {
-  return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
+export function principal(userId: UserId, role: UserRole = "user", handle: Handle = castId<Handle>(userId)): Principal {
+  return makePrincipal(userId, { role, handle });
 }

@@ -8,6 +8,8 @@
 // `inArray` without the regroup would silently hand back table order, which no assertion on membership
 // alone would ever catch.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createRegexService } from "@orb/server/domain/regex";
 import { describe } from "vitest";
 import { createResolveRegexSources } from "../../../../../packages/server/src/domain/regex/persistence/resolve-sources.ts";
@@ -20,7 +22,7 @@ describe("resolveRegexSources", () => {
     const db = await freshDb();
     const h = makeHarness(db, { requireChatHost: allowChat });
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const presetId = await seedPreset(db, owner);
     const chatId = await seedChat(db);
@@ -46,7 +48,7 @@ describe("resolveRegexSources", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const chatId = await seedChat(db);
     // Seed/attach in one order …
     const aria = await seedCharacter(db, owner, "aria");
@@ -67,7 +69,7 @@ describe("resolveRegexSources", () => {
 
   test("a null presetId resolves an EMPTY preset slice without a read", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const chatId = await seedChat(db);
 
     const sources = await createResolveRegexSources({ db })({ ownerId: owner, presetId: null, characterIds: [], chatId });
@@ -78,8 +80,8 @@ describe("resolveRegexSources", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createRegexService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const chatId = await seedChat(db);
     const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });
     await svc.attachGlobal({ principal: principal(stranger), scriptId: theirs });
@@ -94,8 +96,8 @@ describe("resolveRegexSources", () => {
     const db = await freshDb();
     const h = makeHarness(db, { requireChatHost: allowChat });
     const svc = createRegexService(h.ctx);
-    const host = await seedUser(db, { handle: "host" });
-    const member = await seedUser(db, { handle: "member" });
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const member = await seedUser(db, { handle: castId<Handle>("member") });
     const chatId = await seedChat(db);
     const roomScript = await seedScript(db, { ownerId: host, name: "room quirk" });
     await svc.attachToChat({ principal: principal(host), chatId, scriptId: roomScript });

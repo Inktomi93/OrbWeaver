@@ -6,7 +6,7 @@
 import { pluginManifestSchema } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { assets } from "@orb/db";
-import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
+import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { buildPluginStorage, PLUGIN_KV_MAX_KEYS } from "../../../../../packages/server/src/domain/plugin/index.ts";
 import { getKv } from "../../../../../packages/server/src/domain/plugin/persistence/plugin-kv.ts";
@@ -42,7 +42,7 @@ async function seedPlugin(db: Db, ownerId: UserId, id: string, slug: string): Pr
 
 test("set → get → list → delete round-trips through the composed op", async () => {
   const db = await freshDb();
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const plugin = await seedPlugin(db, owner, "plugin_a", "alpha");
   const storage = buildPluginStorage(db, now);
 
@@ -57,7 +57,7 @@ test("set → get → list → delete round-trips through the composed op", asyn
 
 test("the 256-key cap: a NEW key past the ceiling is refused; an EXISTING-key overwrite always proceeds", async () => {
   const db = await freshDb();
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const plugin = await seedPlugin(db, owner, "plugin_a", "alpha");
   const storage = buildPluginStorage(db, now);
 
@@ -75,7 +75,7 @@ test("the 256-key cap: a NEW key past the ceiling is refused; an EXISTING-key ov
 
 test("cross-plugin isolation through the op: plugin A's key is invisible to plugin B (same owner)", async () => {
   const db = await freshDb();
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const a = await seedPlugin(db, owner, "plugin_a", "alpha");
   const b = await seedPlugin(db, owner, "plugin_b", "beta");
   const storage = buildPluginStorage(db, now);

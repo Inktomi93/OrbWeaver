@@ -24,7 +24,8 @@
 // swipe/continue/rewrite target (a tail assistant reply) is seeded by ONE UI-driven Guided response per
 // leg. Characters (and with them their chats) are removed in a finally.
 
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { messageRow, openChatByTitle } from "./support/chat-room";
@@ -123,7 +124,7 @@ test.describe("guided generations on the live local stack", () => {
     test.setTimeout(LIVE_TIMEOUT_MS);
     originalRoute = await getChatRoute();
     await setChatRoute(STATELESS_ROUTE);
-    const probeCharId = await mintFreshCharacter("e2e-guided-probe", "Guidedspec Probe", "Probe greeting.");
+    const probeCharId = await mintFreshCharacter(castId<CharacterHandle>("e2e-guided-probe"), "Guidedspec Probe", "Probe greeting.");
     // A DEFAULT-opening solo chat seeds the greeting as the assistant tail (no model turn); swiping it is
     // the cheapest REAL generation — the faithful backend-availability probe (the group-modes precedent).
     const probeChat = await startChat([probeCharId]);

@@ -2,6 +2,8 @@
 // own documents appear (cross-tenant isolation), the origin filter narrows, and the list never leaks another
 // owner's rows.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { makeDatabankHarness, principalFor, seedUser } from "../_support.ts";
@@ -9,8 +11,8 @@ import { makeDatabankHarness, principalFor, seedUser } from "../_support.ts";
 test("lists only the caller's documents, newest-activity first, and filters by origin", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
-  const other = await seedUser(db, { handle: "other" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const other = await seedUser(db, { handle: castId<Handle>("other") });
 
   const first = await h.service.createFromText({ principal: principalFor(owner), name: "one.md", text: "first note" });
   h.advance(1000);

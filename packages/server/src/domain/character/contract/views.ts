@@ -6,12 +6,12 @@ import type { CharacterCard } from "@orb/contracts/character";
 
 import type { TagView } from "@orb/contracts/tag";
 import type { ThemeBackground, ThemeOverride } from "@orb/contracts/theme";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 
 /** The full owned-card detail. What create/get/update/duplicate/restore return. */
 export interface CharacterDetail extends CharacterCard {
   readonly id: CharacterId;
-  readonly handle: string;
+  readonly handle: CharacterHandle;
   readonly starred: boolean;
   readonly archived: boolean;
   readonly synthetic: boolean;
@@ -35,7 +35,7 @@ export interface CharacterDetail extends CharacterCard {
 /** The library-list row — light, owner-scoped, synthetic rows excluded. */
 export interface CharacterSummary {
   readonly id: CharacterId;
-  readonly handle: string;
+  readonly handle: CharacterHandle;
   readonly name: string;
   readonly starred: boolean;
   readonly archived: boolean;

@@ -38,7 +38,7 @@ export interface SettingsHarness {
 
 interface SeedUserOverrides {
   readonly id?: string;
-  readonly handle?: string;
+  readonly handle?: Handle;
   readonly role?: UserRole;
 }
 
@@ -60,8 +60,8 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
 /** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
  *  `support/factories/principal` — settings keeps the positional `(id, role, handle?)` convention its
  *  call sites use; the shared home owns the literal (role/handle over the `overrides` axis). */
-export function principal(userId: UserId, role: UserRole, handle: string = userId): Principal {
-  return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
+export function principal(userId: UserId, role: UserRole, handle: Handle = castId<Handle>(userId)): Principal {
+  return makePrincipal(userId, { role, handle });
 }
 
 export function makeHarness(db: Db, overrides: { readonly materializeBackground?: MaterializeBackgroundOp } = {}): SettingsHarness {

@@ -4,6 +4,8 @@
 // leaves zero rows, zero bundle bytes. Also pins the determinism floor: two activations with the SAME seams
 // produce byte-identical logs (the guest's only clock is `host.clock`, injected — never ambient `Date`).
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures";
@@ -32,7 +34,7 @@ const LOGGING_MAIN = "const h = orb.host(1); h.log.info('activated at ' + h.cloc
 test("install → enable → getLog → disable → uninstall: full lifecycle through the real Sandbox", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: makeSandboxPort(seeds()) });
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
   const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "roundtrip" }, LOGGING_MAIN), grant: [] });
   expect(installed.status).toBe("disabled");
@@ -56,7 +58,7 @@ test("install → enable → getLog → disable → uninstall: full lifecycle th
 test("a main.js that throws at activation lands the row errored, host process healthy (contained)", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: makeSandboxPort(seeds()) });
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
     caller: ownerPrincipalFor(owner),
     bundle: makeBundle({ id: "boom" }, "throw new Error('activation boom');"),
@@ -72,7 +74,7 @@ test("a main.js that throws at activation lands the row errored, host process he
 test("determinism floor: two activations with the same seams produce byte-identical logs", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: makeSandboxPort(seeds()) });
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "determ" }, LOGGING_MAIN), grant: [] });
 
   await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });

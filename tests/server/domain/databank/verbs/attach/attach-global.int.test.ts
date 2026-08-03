@@ -2,6 +2,8 @@
 // FOREIGN document id must NEVER attach (throws DocumentNotFoundError, no junction row).
 
 import { globalDocuments } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { DocumentNotFoundError } from "@orb/server/domain/databank";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../../support/db.ts";
@@ -11,7 +13,7 @@ import { makeDatabankHarness, principalFor, seedUser } from "../../_support.ts";
 test("marks the owned document global; re-attach is idempotent", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
 
   await h.service.attachGlobal({ principal: principalFor(owner), documentId: document.id });
@@ -23,8 +25,8 @@ test("marks the owned document global; re-attach is idempotent", async () => {
 test("a foreign document id NEVER attaches — throws DocumentNotFoundError, no junction row (cross-tenant)", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
-  const attacker = await seedUser(db, { handle: "attacker" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const attacker = await seedUser(db, { handle: castId<Handle>("attacker") });
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
 
   await expect(h.service.attachGlobal({ principal: principalFor(attacker), documentId: document.id })).rejects.toBeInstanceOf(DocumentNotFoundError);

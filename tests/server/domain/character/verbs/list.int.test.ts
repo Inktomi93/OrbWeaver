@@ -5,7 +5,7 @@
 // tiebreak the `domain/assets` precedent exists for (a frozen clock stamps ties on `createdAt`).
 
 import { characterTags, tags } from "@orb/db";
-import type { TagId } from "@orb/kit/ids";
+import type { CharacterHandle, Handle, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
@@ -19,21 +19,21 @@ describe("list", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
 
     await svc.create({
       principal: principal(owner),
-      input: { handle: "a", name: "A", description: "d" },
+      input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
     h.advance(1000);
     const second = await svc.create({
       principal: principal(owner),
-      input: { handle: "b", name: "B", description: "d" },
+      input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d" },
     });
     await svc.create({
       principal: principal(other),
-      input: { handle: "c", name: "C", description: "d" },
+      input: { handle: castId<CharacterHandle>("c"), name: "C", description: "d" },
     });
 
     const page = await svc.list({ principal: principal(owner) });
@@ -46,15 +46,15 @@ describe("list", () => {
   test("synthetic group buckets are excluded from the list (invariant 3)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await svc.create({
       principal: principal(owner),
-      input: { handle: "real", name: "Real", description: "d" },
+      input: { handle: castId<CharacterHandle>("real"), name: "Real", description: "d" },
     });
     await seedRawCharacter(db, {
       id: "character_grp",
       ownerId: owner,
-      handle: "__group__chat_1",
+      handle: castId<CharacterHandle>("__group__chat_1"),
       synthetic: true,
     });
 
@@ -65,7 +65,7 @@ describe("list", () => {
   test("an owner with no characters gets an empty page (nextCursor null)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const page = await svc.list({ principal: principal(owner) });
     expect(page.items).toEqual([]);
@@ -78,21 +78,21 @@ describe("list — cursor paging", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const a = await svc.create({
       principal: principal(owner),
-      input: { handle: "a", name: "A", description: "d" },
+      input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
     h.advance(1000);
     const b = await svc.create({
       principal: principal(owner),
-      input: { handle: "b", name: "B", description: "d" },
+      input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d" },
     });
     h.advance(1000);
     const c = await svc.create({
       principal: principal(owner),
-      input: { handle: "c", name: "C", description: "d" },
+      input: { handle: castId<CharacterHandle>("c"), name: "C", description: "d" },
     });
 
     const first = await svc.list({ principal: principal(owner), limit: 2 });
@@ -119,16 +119,16 @@ describe("list — cursor paging", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     // Both created at the SAME frozen instant — createdAt alone can't order them.
     const first = await svc.create({
       principal: principal(owner),
-      input: { handle: "tie-1", name: "Tie1", description: "d" },
+      input: { handle: castId<CharacterHandle>("tie-1"), name: "Tie1", description: "d" },
     });
     const second = await svc.create({
       principal: principal(owner),
-      input: { handle: "tie-2", name: "Tie2", description: "d" },
+      input: { handle: castId<CharacterHandle>("tie-2"), name: "Tie2", description: "d" },
     });
     expect(first.createdAt).toBe(second.createdAt);
 
@@ -166,14 +166,14 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
   test("the recent sort ranks chatted characters first and carries lastChattedAt on the cursor", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const cold = await svc.create({
       principal: principal(owner),
-      input: { handle: "cold", name: "Cold", description: "d" },
+      input: { handle: castId<CharacterHandle>("cold"), name: "Cold", description: "d" },
     });
     const hot = await svc.create({
       principal: principal(owner),
-      input: { handle: "hot", name: "Hot", description: "d" },
+      input: { handle: castId<CharacterHandle>("hot"), name: "Hot", description: "d" },
     });
     // Only "hot" has been chatted → it leads; "cold" (never chatted) sinks to the null tail.
     await seedCharacterStats(db, { characterId: hot.id, lastActivityAt: 7000 });
@@ -204,14 +204,14 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
   test("the alpha sort orders by name and yields an alpha-shaped cursor", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await svc.create({
       principal: principal(owner),
-      input: { handle: "z", name: "Zoe", description: "d" },
+      input: { handle: castId<CharacterHandle>("z"), name: "Zoe", description: "d" },
     });
     const ada = await svc.create({
       principal: principal(owner),
-      input: { handle: "a", name: "Ada", description: "d" },
+      input: { handle: castId<CharacterHandle>("a"), name: "Ada", description: "d" },
     });
 
     const page = await svc.list({ principal: principal(owner), sort: "alpha", limit: 1 });
@@ -223,15 +223,15 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCharacterService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const first = await svc.create({
       principal: principal(owner),
-      input: { handle: "a", name: "A", description: "d" },
+      input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
     h.advance(1000);
     const second = await svc.create({
       principal: principal(owner),
-      input: { handle: "b", name: "B", description: "d" },
+      input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d" },
     });
 
     const newest = await svc.list({ principal: principal(owner), sort: "newest", limit: 1 });
@@ -250,15 +250,15 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
   test("mostChats/fewestChats carry a (nullable) chatCount on the cursor", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const busy = await svc.create({
       principal: principal(owner),
-      input: { handle: "busy", name: "Busy", description: "d" },
+      input: { handle: castId<CharacterHandle>("busy"), name: "Busy", description: "d" },
     });
     // "quiet" has no stats row → null chat count (the tail).
     await svc.create({
       principal: principal(owner),
-      input: { handle: "quiet", name: "Quiet", description: "d" },
+      input: { handle: castId<CharacterHandle>("quiet"), name: "Quiet", description: "d" },
     });
     await seedCharacterStats(db, { characterId: busy.id, lastActivityAt: 7000, chats: 9 });
 
@@ -276,10 +276,10 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
   test("summary tokenSize reads the stamped denorm column (== cardTokenSize of the written card)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // A card with real free-text content across several fields + a greeting (all contribute to the estimate).
     const input = {
-      handle: "hefty",
+      handle: castId<CharacterHandle>("hefty"),
       name: "Hefty",
       description: "A verbose character with a long, detailed backstory spanning many sentences.",
       personality: "curious, meticulous, verbose",
@@ -308,19 +308,19 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
   test("largestCards/smallestCards carry tokenSize on the cursor (the stamped denorm)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // "big" has a much longer definition → a larger stamped token_size than "small".
     const big = await svc.create({
       principal: principal(owner),
       input: {
-        handle: "big",
+        handle: castId<CharacterHandle>("big"),
         name: "Big",
         description: "An elaborate, sprawling description with a great deal of text so its token estimate is clearly the larger of the two.",
       },
     });
     await svc.create({
       principal: principal(owner),
-      input: { handle: "small", name: "Sm", description: "tiny" },
+      input: { handle: castId<CharacterHandle>("small"), name: "Sm", description: "tiny" },
     });
 
     const largest = await svc.list({ principal: principal(owner), sort: "largestCards", limit: 1 });
@@ -350,10 +350,10 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
   test("a cursor minted under a DIFFERENT sort is rejected (never silently re-keyed)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const made = await svc.create({
       principal: principal(owner),
-      input: { handle: "a", name: "Ada", description: "d" },
+      input: { handle: castId<CharacterHandle>("a"), name: "Ada", description: "d" },
     });
     // An alpha cursor threaded into a recent query — a threading bug the verb must catch, not apply.
     await expect(
@@ -370,14 +370,14 @@ describe("list — canonical tags (the library tag filter)", () => {
   test("each summary carries its ACCEPTED tags; pending suggestions and other rows' tags don't bleed", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const tagged = await svc.create({
       principal: principal(owner),
-      input: { handle: "tagged", name: "Tagged", description: "d" },
+      input: { handle: castId<CharacterHandle>("tagged"), name: "Tagged", description: "d" },
     });
     const bare = await svc.create({
       principal: principal(owner),
-      input: { handle: "bare", name: "Bare", description: "d" },
+      input: { handle: castId<CharacterHandle>("bare"), name: "Bare", description: "d" },
     });
     const fantasy = castId<TagId>("tag_fantasy");
     const staged = castId<TagId>("tag_staged");

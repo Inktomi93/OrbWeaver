@@ -57,8 +57,8 @@ async function seedRoom(): Promise<{
   member: UserId;
   chatId: Awaited<ReturnType<typeof seedChat>>;
 }> {
-  const host = await seedUser(db, "host");
-  const member = await seedUser(db, "member");
+  const host = await seedUser(db, castId<Handle>("host"));
+  const member = await seedUser(db, castId<Handle>("member"));
   const chatId = await seedChat(db, "a");
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
   await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
@@ -232,7 +232,7 @@ describe("setChatAnchorPersona — the manual/host Anchor re-pin (#4, FINAL-Pers
 
   test("a persona NOT owned by any present human participant is refused (not_persona_owner)", async () => {
     const { host, chatId } = await seedRoom();
-    const outsider = await seedUser(db, "outsider");
+    const outsider = await seedUser(db, castId<Handle>("outsider"));
     const foreignPersona = await seedPersona(db, outsider, "foreign_p");
     const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
 
@@ -345,7 +345,7 @@ describe("getVariablePicks — the picks pane's ChoiceBlock half (member)", () =
 
   test("a non-participant (stranger) is refused — neither declarations nor picks leak", async () => {
     const { chatId } = await seedRoom();
-    const stranger = await seedUser(db, "stranger");
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
 
     const err = await lifeWithVariables([povVariable])
       .getVariablePicks({ principal: principal(stranger), chatId })
@@ -368,7 +368,7 @@ describe("setUserMacroValues — the per-chat user-macro picks flush (WAVE MU, m
 
   test("a non-participant (stranger) is refused — no cross-tenant write", async () => {
     const { chatId } = await seedRoom();
-    const stranger = await seedUser(db, "stranger");
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
     const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
 
     const err = await life.setUserMacroValues({ principal: principal(stranger), chatId, values: { mood: { tone: "grim" } } }).catch((e: unknown) => e);
@@ -487,7 +487,7 @@ describe("getUserMacroPicks — the picks pane read (#24, member)", () => {
 
   test("a non-participant (stranger) is refused — neither declarations nor picks leak", async () => {
     const { chatId } = await seedRoom();
-    const stranger = await seedUser(db, "stranger");
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
 
     const err = await lifeWithMacros([pickableMacro])
       .getUserMacroPicks({ principal: principal(stranger), chatId })
@@ -554,8 +554,8 @@ describe("reapTemporaryChats — the caller's expired temp chats (PD-65)", () =>
   const expiredAt = FROZEN_AT - ttlMs - 1;
 
   test("reaps only expired+temporary+caller-hosted; fresh / non-temp / foreign-hosted survive", async () => {
-    const host = await seedUser(db, "host");
-    const other = await seedUser(db, "other");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const other = await seedUser(db, castId<Handle>("other"));
     // 1. expired temporary hosted by the caller → REAPED.
     const reapable = await seedChat(db, "reapable", { temporary: true, createdAt: expiredAt });
     await seedParticipant(db, { chatId: reapable, key: "r_h", userId: host, role: "host" });
@@ -585,7 +585,7 @@ describe("reapTemporaryChats — the caller's expired temp chats (PD-65)", () =>
   // ⑧(a) — the reap TTL is the caller's `UserSettings.chat.tempChatTtlHours` (via the FOREIGN op), not a
   // const. A shorter TTL reaps a chat the default (24h) window would spare.
   test("a user's tempChatTtlHours narrows the reap window (the knob threads, not a const)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     // Born 2h ago — SAFE under the 24h default, EXPIRED under a 1h TTL.
     const twoHoursAgo = FROZEN_AT - 2 * 3_600_000;
     const chatId = await seedChat(db, "recent-temp", { temporary: true, createdAt: twoHoursAgo });

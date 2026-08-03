@@ -10,6 +10,8 @@
 // pass-through (the DB7 checkpoint, doc 08 §1).
 
 import { documents } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import type { DatabankContext } from "@orb/server/domain/databank";
 import { createDatabankService, ScrapeFailedError } from "@orb/server/domain/databank";
@@ -35,7 +37,7 @@ function bytesOf(html: string): Uint8Array {
 test("scrapes a page: fetches over the guard, extracts html, stamps 'web' canon, enqueues ingest", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db, { extractor: { op: createExtractText(), version: EXTRACTOR_VERSION } });
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf(HTML_WITH_TITLE));
 
   const result = await h.service.scrapeWeb({ principal: principalFor(owner), url: URL_WITH_TITLE });
@@ -64,7 +66,7 @@ test("scrapes a page: fetches over the guard, extracts html, stamps 'web' canon,
 test("a page with no <title> falls back to hostname+path for the name", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db, { extractor: { op: createExtractText(), version: EXTRACTOR_VERSION } });
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf(HTML_NO_TITLE));
 
   const result = await h.service.scrapeWeb({ principal: principalFor(owner), url: URL_NO_TITLE });
@@ -74,7 +76,7 @@ test("a page with no <title> falls back to hostname+path for the name", async ()
 test("a re-scrape of identical bytes dedups (duplicate/skipped, no second enqueue)", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db, { extractor: { op: createExtractText(), version: EXTRACTOR_VERSION } });
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValue(bytesOf(HTML_WITH_TITLE)); // both scrapes fetch the same bytes
 
   const first = await h.service.scrapeWeb({ principal: principalFor(owner), url: URL_WITH_TITLE });
@@ -91,7 +93,7 @@ test("a re-scrape of identical bytes dedups (duplicate/skipped, no second enqueu
 test("an SSRF-refused fetch collapses to ScrapeFailedError — no row, no CAS write, no enqueue, not retried", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db, { extractor: { op: createExtractText(), version: EXTRACTOR_VERSION } });
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   // In prod this is safeFetch's EgressBlockedError (a private-range redirect / non-https / ip-literal target).
   h.fetchUrl.mockRejectedValueOnce(new Error("SSRF_BLOCKED: internal.corp → 10.0.0.5"));
 
@@ -107,7 +109,7 @@ test("an SSRF-refused fetch collapses to ScrapeFailedError — no row, no CAS wr
 test("the leak-free ScrapeFailedError never surfaces the resolved private address (no SSRF oracle)", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockRejectedValueOnce(new Error("SSRF_BLOCKED: internal.corp → 169.254.169.254"));
 
   const error = await h.service.scrapeWeb({ principal: principalFor(owner), url: "https://internal.corp/" }).catch((e: unknown) => e);
@@ -119,7 +121,7 @@ test("the leak-free ScrapeFailedError never surfaces the resolved private addres
 test("a fetch failure (non-2xx / network) also collapses to ScrapeFailedError with no canon written", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockRejectedValueOnce(new Error("scrape fetch failed: HTTP 404"));
 
   await expect(h.service.scrapeWeb({ principal: principalFor(owner), url: "https://example.com/missing" })).rejects.toBeInstanceOf(ScrapeFailedError);
@@ -129,7 +131,7 @@ test("a fetch failure (non-2xx / network) also collapses to ScrapeFailedError wi
 test("an html page that extracts to empty surfaces the empty-extraction warning (not a throw)", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db, { extractor: { op: createExtractText(), version: EXTRACTOR_VERSION } });
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf("<html><head><title>Empty</title></head><body></body></html>"));
 
   const result = await h.service.scrapeWeb({ principal: principalFor(owner), url: "https://example.com/empty" });
@@ -152,7 +154,7 @@ test("a real html scrape stores end-to-end through the REAL assets.store belt (n
   });
   const ctx: DatabankContext = { ...base.ctx, assetsStore: assets.store };
   const service = createDatabankService(ctx);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
   const result = await service.scrapeWeb({ principal: principalFor(owner), url: URL_WITH_TITLE });
 

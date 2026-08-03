@@ -4,7 +4,7 @@
 // throw — the source was deleted between emit and handler), and a synthetic group bucket is null (never
 // embedded).
 
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
@@ -17,11 +17,11 @@ describe("loadCardText", () => {
   test("un-principal by-id read: returns the card-text projection (no owner scope)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
       principal: principal(owner),
       input: {
-        handle: "bryn",
+        handle: castId<CharacterHandle>("bryn"),
         name: "Bryn",
         description: "a lighthouse keeper",
         personality: "stoic",
@@ -50,18 +50,18 @@ describe("loadCardText", () => {
   test("a missing id is null (deleted between emit and handler) — never throws", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    await seedUser(db, { handle: "owner" });
+    await seedUser(db, { handle: castId<Handle>("owner") });
     expect(await svc.loadCardText(castId<CharacterId>("character_ghost"))).toBeNull();
   });
 
   test("a synthetic group bucket is null (never embedded)", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const syntheticId = await seedRawCharacter(db, {
       id: "character_group",
       ownerId: owner,
-      handle: "__group__chat1",
+      handle: castId<CharacterHandle>("__group__chat1"),
       name: "Group Bucket",
       synthetic: true,
     });

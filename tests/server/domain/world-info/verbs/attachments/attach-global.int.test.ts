@@ -1,6 +1,8 @@
 // verb: attachGlobal — mark an owned book global. Load-bearing: the gate is plain book ownership (a foreign
 // book is NotFound); it is idempotent; the book then appears in listGlobal.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createWorldInfoService, WorldInfoNotFoundError } from "@orb/server/domain/world-info";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -11,7 +13,7 @@ describe("attachGlobal", () => {
   test("marks an owned book global (idempotent)", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "G" } });
 
     await svc.attachGlobal({ principal: principal(owner), bookId: book.id });
@@ -25,8 +27,8 @@ describe("attachGlobal", () => {
   test("a foreign book is NotFound", async () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const theirs = await svc.createBook({ principal: principal(other), input: { name: "T" } });
 
     await expect(svc.attachGlobal({ principal: principal(owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);

@@ -14,7 +14,7 @@ import type { TagStatus } from "@orb/contracts/tag";
 import type { EntryMetadata, WorldBookRole } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { assets, characterBooks, characters, characterTags, tags, worldBooks, worldEntries } from "@orb/db";
-import type { AssetId, CharacterId, Handle, TagId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, Handle, TagId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ExportContext } from "../../../../packages/server/src/domain/export/context.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
@@ -90,7 +90,7 @@ export function makeHarness(db: Db): ExportHarness {
 }
 
 interface SeedUserOverrides {
-  readonly handle?: string;
+  readonly handle?: Handle;
   readonly role?: UserRole;
 }
 
@@ -132,7 +132,7 @@ export async function seedAsset(db: Db, overrides: SeedAssetOverrides): Promise<
 // are actual column names, so overrides spread directly over the defaults (drizzle insert).
 interface SeedCharacterOverrides {
   readonly id?: string;
-  readonly handle?: string;
+  readonly handle?: CharacterHandle;
   readonly ownerId: UserId;
   readonly name?: string;
   readonly description?: string | null;
@@ -176,7 +176,7 @@ export async function seedCharacter(db: Db, overrides: SeedCharacterOverrides): 
     // overrides win over the defaults above; identity columns are set last.
     ...columns,
     id,
-    handle: handle ?? id,
+    handle: handle ?? castId<CharacterHandle>(id),
   });
   return id;
 }

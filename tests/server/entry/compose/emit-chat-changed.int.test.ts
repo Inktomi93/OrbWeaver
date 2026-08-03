@@ -7,6 +7,8 @@
 // process-local user bus (`subscribeUserEvents`), so a leak would surface as a cross-channel yield.
 
 import type { UserBusEvent } from "@orb/contracts/user-bus";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createChatChangedEmitter } from "@orb/server/entry/compose";
 import { publishUserEvent, subscribeUserEvents } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
@@ -25,9 +27,9 @@ async function next(stream: AsyncIterable<UserBusEvent>): Promise<UserBusEvent> 
 describe("emit-chat-changed — member fan + non-member isolation", () => {
   test("fans `chatsChanged` to EVERY present human member, and NEVER to a non-member", async () => {
     const db = await freshDb();
-    const memberA = await seedUser(db, "member_a");
-    const memberB = await seedUser(db, "member_b");
-    const nonMemberC = await seedUser(db, "nonmember_c");
+    const memberA = await seedUser(db, castId<Handle>("member_a"));
+    const memberB = await seedUser(db, castId<Handle>("member_b"));
+    const nonMemberC = await seedUser(db, castId<Handle>("nonmember_c"));
     const chatId = await seedChat(db, "shared");
     await seedParticipant(db, { chatId, key: "a", userId: memberA, role: "host" });
     await seedParticipant(db, { chatId, key: "b", userId: memberB, role: "member" });
@@ -59,8 +61,8 @@ describe("emit-chat-changed — member fan + non-member isolation", () => {
 
   test("the terminal-path fan (no `detail`) omits `chatId`; `extraUserIds` reaches a just-left member", async () => {
     const db = await freshDb();
-    const memberA = await seedUser(db, "t_member_a");
-    const leftUser = await seedUser(db, "t_left");
+    const memberA = await seedUser(db, castId<Handle>("t_member_a"));
+    const leftUser = await seedUser(db, castId<Handle>("t_left"));
     const chatId = await seedChat(db, "term");
     await seedParticipant(db, { chatId, key: "a", userId: memberA, role: "host" });
     // `leftUser` already left (leftSeq stamped) — NOT enumerated by the present-roster read, but a kick/delete

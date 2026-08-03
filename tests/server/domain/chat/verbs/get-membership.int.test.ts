@@ -3,6 +3,8 @@
 // leak-free `null` (the not-a-participant 404 rpg surfaces), and a LEFT member (leftSeq set) reads null.
 
 import type { Db } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { createGetMembership } from "../../../../../packages/server/src/domain/chat/verbs/get-membership.ts";
 import { freshDb } from "../../../../support/db";
@@ -17,9 +19,9 @@ beforeEach(async () => {
 
 describe("getMembership", () => {
   test("resolves a present member's role and null for a non-member", async () => {
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
-    const outsider = await seedUser(db, "outsider");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
+    const outsider = await seedUser(db, castId<Handle>("outsider"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "member", userId: member, role: "member" });
@@ -31,8 +33,8 @@ describe("getMembership", () => {
   });
 
   test("a member who left (leftSeq set) reads null", async () => {
-    const host = await seedUser(db, "host");
-    const gone = await seedUser(db, "gone");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const gone = await seedUser(db, castId<Handle>("gone"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "gone", userId: gone, role: "member", leftSeq: 5 });

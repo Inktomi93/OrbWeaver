@@ -5,7 +5,7 @@
 // always), and the emergent no-lore path (nothing attached ⇒ empty pool — no master toggle, ST parity).
 import type { Db } from "@orb/db";
 import { characterBooks, chatBooks, globalBooks, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
-import type { PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { Handle, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { loadWorldInfoPool } from "../../../../../../packages/server/src/domain/chat/assembly/world-info/pool";
@@ -52,8 +52,8 @@ async function seedBook(owner: UserId, key: string, entry: { content: string; ke
 
 describe("loadWorldInfoPool — the 4-scope union", () => {
   test("unions chat + character + global(host) + persona books, owner-scoping global, dedup by id", async () => {
-    const host = await seedUser(db, "host");
-    const other = await seedUser(db, "other");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const other = await seedUser(db, castId<Handle>("other"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const personaId = await seedPersona(host, "nyx");
@@ -101,7 +101,7 @@ describe("loadWorldInfoPool — the 4-scope union", () => {
   });
 
   test("a book attached at two scopes (chat + character) renders its entry ONCE (dedup)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
     const shared = await seedBook(host, "shared", { content: "shared lore" });
@@ -123,7 +123,7 @@ describe("loadWorldInfoPool — the 4-scope union", () => {
   });
 
   test("nothing attached → empty pool (emergent: no books ⇒ no lore, ST parity — no master toggle)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const pool = await loadWorldInfoPool(db, {
       chatId,

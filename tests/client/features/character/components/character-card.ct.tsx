@@ -7,6 +7,8 @@
 // announces as a toggle (`aria-pressed`), and its REST posture reverses what this card shipped —
 // pressed keeps its pixels, unpressed rests hidden and reveals with the row.
 
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { CharacterCardTileStory } from "../_ct-stories";
 
@@ -41,7 +43,7 @@ test("subtitle ladder: falls back to the tag line, suppressing hidden tags", asy
 });
 
 test("subtitle ladder: falls back to the handle when no pitch and no tags", async ({ mount }) => {
-  const component = await mount(<CharacterCardTileStory handle="aria-nightshade" />);
+  const component = await mount(<CharacterCardTileStory handle={castId<CharacterHandle>("aria-nightshade")} />);
   // Exact — the hover metadata reveal also contains the handle (`aria-nightshade · 128`); the subtitle is
   // the bare handle.
   await expect(component.getByText("aria-nightshade", { exact: true })).toBeVisible();
@@ -124,13 +126,13 @@ test("§4.4 progressive disclosure: the Chat CTA rests hidden, wired to reveal o
 });
 
 test("§4.4 the raw-metadata reveal carries handle · tokenSize (mono)", async ({ mount }) => {
-  const component = await mount(<CharacterCardTileStory handle="aria-nightshade" name="Aria Nightshade" />);
+  const component = await mount(<CharacterCardTileStory handle={castId<CharacterHandle>("aria-nightshade")} name="Aria Nightshade" />);
   // The story stamps tokenSize=128; the reveal shows `handle · tokenSize`.
   await expect(component.getByText("aria-nightshade · 128")).toBeAttached();
 });
 
 test("P0 regression: the title column keeps a real width at rest (reveal cluster must not starve it)", async ({ mount }) => {
-  const component = await mount(<CharacterCardTileStory handle="aria-nightshade" name="Aria Nightshade" />);
+  const component = await mount(<CharacterCardTileStory handle={castId<CharacterHandle>("aria-nightshade")} name="Aria Nightshade" />);
   // The story row is 360px. The regression measured the title at ~0px; it must claim a substantial share.
   const titleW = await component.locator('[data-slot="list-row-title"]').evaluate((el) => el.getBoundingClientRect().width);
   expect(titleW).toBeGreaterThan(150);
@@ -147,7 +149,7 @@ test("P0 regression: the title column keeps a real width at rest (reveal cluster
 });
 
 test("P0 regression: the reveal swap does not move the row's layout (the hover-oscillator class)", async ({ mount }) => {
-  const component = await mount(<CharacterCardTileStory handle="aria-nightshade" name="Aria Nightshade" />);
+  const component = await mount(<CharacterCardTileStory handle={castId<CharacterHandle>("aria-nightshade")} name="Aria Nightshade" />);
   const body = component.locator('[data-slot="list-row-body"]');
   await expect(component.locator('[data-slot="list-row-subtitle-reveal"]')).toHaveCSS("visibility", "hidden");
   const restBox = await body.boundingBox();
@@ -160,7 +162,7 @@ test("P0 regression: the reveal swap does not move the row's layout (the hover-o
 });
 
 test("P1 regression: the revealed metadata is legible and NEVER overlaps the action buttons", async ({ mount }) => {
-  const component = await mount(<CharacterCardTileStory handle="mara-soul-check" name="Mara" />);
+  const component = await mount(<CharacterCardTileStory handle={castId<CharacterHandle>("mara-soul-check")} name="Mara" />);
   // Reveal deterministically via keyboard focus (group-focus-within) — :focus-within is reliable in CT
   // where :hover is not; focusing the row BODY (the reveal lives in its content column) triggers the swap.
   await component.locator('[data-slot="list-row-body"]').focus();

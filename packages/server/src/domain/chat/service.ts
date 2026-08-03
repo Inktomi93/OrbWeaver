@@ -3,7 +3,7 @@
 // `ChatService` (so a missing/renamed verb fails tsc). Every verb body lives in its `verbs/*` factory.
 
 import type { ParticipantView } from "@orb/contracts/chat";
-import type { AssetId, ChatId } from "@orb/kit/ids";
+import type { AssetId, ChatId, Handle } from "@orb/kit/ids";
 import type { ChatContext, ChatServiceDeps } from "./context";
 import type { RequestTurnOp } from "./contract/results";
 import type { ChatService } from "./contract/service";
@@ -35,7 +35,7 @@ import { createRequestTurn, createTurn } from "./verbs/turn";
 function resolveSeatDisplayName(
   r: Awaited<ReturnType<typeof loadRoster>>[number],
   resolved: {
-    readonly publics: { displayName: string | null; handle: string | null } | null;
+    readonly publics: { displayName: string | null; handle: Handle | null } | null;
     readonly card: { name: string } | null;
   },
 ): string {

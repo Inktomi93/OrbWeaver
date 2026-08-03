@@ -3,7 +3,7 @@
 // nullable field; updatedAt advances on a real edit; a not-owned target throws.
 
 import { personas } from "@orb/db";
-import type { PersonaId } from "@orb/kit/ids";
+import type { Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { AssetNotFoundError, createPersonaService, PersonaNotFoundError } from "@orb/server/domain/persona";
 import { eq } from "drizzle-orm";
@@ -19,7 +19,7 @@ describe("update", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const avatar = await seedAsset(db, { ownerId: owner });
     const created = await svc.create({
       principal: principal(owner),
@@ -44,7 +44,7 @@ describe("update", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
       principal: principal(owner),
       input: { name: "Same", description: "d" },
@@ -65,8 +65,8 @@ describe("update", () => {
   test("a not-owned persona throws PersonaNotFoundError (no write)", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const created = await svc.create({
       principal: principal(owner),
       input: { name: "Mine", description: "d" },
@@ -79,7 +79,7 @@ describe("update", () => {
   test("a missing id throws PersonaNotFoundError", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await expect(
       svc.update({
         principal: principal(owner),
@@ -92,7 +92,7 @@ describe("update", () => {
   test("patches title + starred (D62 riders); null clears the title", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
       principal: principal(owner),
       input: { name: "Wren", title: "Old Title", description: "d" },
@@ -118,8 +118,8 @@ describe("update", () => {
   test("a FOREIGN avatar asset throws AssetNotFoundError (D21 cross-root belt — nothing written)", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreign = await seedAsset(db, { id: "asset_foreign", ownerId: other });
     const created = await svc.create({
       principal: principal(owner),

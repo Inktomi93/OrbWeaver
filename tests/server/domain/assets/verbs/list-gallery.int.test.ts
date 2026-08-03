@@ -4,7 +4,8 @@
 
 import type { GalleryItemView } from "@orb/contracts/assets";
 import { characters } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
@@ -37,8 +38,8 @@ describe("listGallery", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const a = await seedUser(db, { handle: "a" });
-    const b = await seedUser(db, { handle: "b" });
+    const a = await seedUser(db, { handle: castId<Handle>("a") });
+    const b = await seedUser(db, { handle: castId<Handle>("b") });
     const aItem = await addAsset(svc, a, 1);
     await addAsset(svc, b, 2);
 
@@ -51,8 +52,8 @@ describe("listGallery", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const hero = await seedCharacter(db, owner, { handle: "hero" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     const heroItem = await addAsset(svc, owner, 1, hero);
     const looseItem = await addAsset(svc, owner, 2);
 
@@ -72,8 +73,8 @@ describe("listGallery", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const hero = await seedCharacter(db, owner, { handle: "hero" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     const item = await addAsset(svc, owner, 1, hero);
 
     await db.delete(characters).where(eq(characters.id, hero));
@@ -90,7 +91,7 @@ describe("listGallery", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // 3 items, all stamped the same frozen createdAt → the (createdAt, galleryItemId) tiebreak orders them.
     const i0 = await addAsset(svc, owner, 0);
     const i1 = await addAsset(svc, owner, 1);

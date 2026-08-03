@@ -22,6 +22,7 @@ import {
 } from "@orb/db";
 import type {
   AssetId,
+  CharacterHandle,
   CharacterId,
   CharacterKeywordProfileId,
   ChatId,
@@ -233,7 +234,7 @@ export async function seedCharacter(
   const id = castId<CharacterId>(overrides.id);
   await db.insert(characters).values({
     id,
-    handle: overrides.id,
+    handle: castId<CharacterHandle>(overrides.id),
     ownerId: overrides.ownerId,
     name: overrides.name ?? overrides.id,
     ...(overrides.description !== undefined ? { description: overrides.description } : {}),
@@ -328,7 +329,7 @@ async function ensureGroupChar(db: Db): Promise<void> {
     .insert(characters)
     .values({
       id: GROUP_CHAR,
-      handle: "group",
+      handle: castId<CharacterHandle>("group"),
       ownerId: DIGEST_OWNER,
       name: "group",
       contentHash: "card_hash",

@@ -3,6 +3,8 @@
 // both ownership gates fire.
 
 import { DomainNotFoundError } from "@orb/kit/errors";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createPersonaService } from "@orb/server/domain/persona";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
@@ -14,7 +16,7 @@ describe("disconnectFromCharacter", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, { ownerId: owner });
     const persona = await svc.create({
       principal: principal(owner),
@@ -40,7 +42,7 @@ describe("disconnectFromCharacter", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, { ownerId: owner });
     const persona = await svc.create({
       principal: principal(owner),
@@ -60,8 +62,8 @@ describe("disconnectFromCharacter", () => {
   test("a foreign character throws (the ownership gate fires before the delete)", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreignCharacter = await seedCharacter(db, { ownerId: other });
     const persona = await svc.create({
       principal: principal(owner),

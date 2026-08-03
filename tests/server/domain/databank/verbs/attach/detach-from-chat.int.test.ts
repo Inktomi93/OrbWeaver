@@ -1,6 +1,8 @@
 // verb: detachFromChat — clear a document's chat scope, host-gated + idempotent.
 
 import { chatDocuments } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures";
@@ -9,7 +11,7 @@ import { makeDatabankHarness, principalFor, seedChat, seedUser } from "../../_su
 test("host detach removes the chat row; a non-host detach is rejected", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const chatId = await seedChat(db, "chat_room");
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
   await h.service.attachToChat({ principal: principalFor(owner), documentId: document.id, chatId });
@@ -23,7 +25,7 @@ test("host detach removes the chat row; a non-host detach is rejected", async ()
 test("a non-host detach is rejected by the injected host guard", async () => {
   const db = await freshDb();
   const denied = makeDatabankHarness(db, { ensureChatHost: () => Promise.reject(new Error("not host")) });
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const chatId = await seedChat(db, "chat_room");
   const { document } = await denied.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
 

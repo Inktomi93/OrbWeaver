@@ -11,6 +11,8 @@
 //     must not paint a blank roster row.
 
 import { chatRegexScripts } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { buildRegex } from "../../../../packages/server/src/entry/compose/regex.ts";
 import { freshDb } from "../../../support/db.ts";
@@ -23,7 +25,7 @@ const NOW = 1_700_000_000_000;
 describe("compose/regex — resolveVisibleRooms (the reverse roster's room filter)", () => {
   test("names only the rooms the caller is PRESENT in, titled, and drops left/never-joined rooms", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "strip ooc" });
 
     const present = await seedChat(db, "present", { title: "The Long Dark" });

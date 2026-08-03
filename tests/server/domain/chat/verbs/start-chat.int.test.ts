@@ -105,7 +105,7 @@ function makeDeps(
 
 describe("startChat — #40 draft-time game birth (startAsGame)", () => {
   test("a startAsGame carry calls the injected rpg.startGame for the minted chat, threading the profile blind", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const started: { chatId: ChatId; profile: unknown }[] = [];
     // FABRICATION-OK: minimal ChatRpgOps stub — startChat reaches ONLY `startGame` on this path.
@@ -124,7 +124,7 @@ describe("startChat — #40 draft-time game birth (startAsGame)", () => {
   });
 
   test("no startAsGame carry ⇒ the rpg op never fires (byte-identical plain creation)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const started: string[] = [];
     // FABRICATION-OK: minimal ChatRpgOps stub — asserting the ABSENCE of the call.
@@ -143,7 +143,7 @@ describe("startChat — #40 draft-time game birth (startAsGame)", () => {
 
 describe("startChat — canon-mutator stats push (stats.md)", () => {
   test("creation pushes the chat-created counters + the seeded greeting contribution", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const deltas: StatsDelta[] = [];
     const ctx = makeChatContext(db, {
@@ -169,7 +169,7 @@ describe("startChat — canon-mutator stats push (stats.md)", () => {
   });
 
   test("PD-96: a SECOND chat with the same character does NOT re-count it; a fresh co-founder rides its own newCharacter delta", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const bryn = await seedCharacter(db, host, "bryn");
     const deltas: StatsDelta[] = [];
@@ -201,7 +201,7 @@ describe("startChat — canon-mutator stats push (stats.md)", () => {
 
 describe("startChat — lazy room creation + opening", () => {
   test("first-message (solo): seeds the primary greeting VERBATIM; caller is host; D28 live roster", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const ctx = makeChatContext(db, {
       getCard: () => Promise.resolve(cardWith("Aria", "Hello, I am {{char}}.")),
@@ -239,7 +239,7 @@ describe("startChat — lazy room creation + opening", () => {
   });
 
   test("greet-all (group default): every founding character greets, in roster order (seq 1..N)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const borg = await seedCharacter(db, host, "borg");
     const ctx = makeChatContext(db, {
@@ -255,7 +255,7 @@ describe("startChat — lazy room creation + opening", () => {
   });
 
   test("greet-all: a character with no greeting is skipped (never an empty seeded row)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const mute = await seedCharacter(db, host, "mute");
     const ctx = makeChatContext(db, {
@@ -274,7 +274,7 @@ describe("startChat — lazy room creation + opening", () => {
   });
 
   test("none: seeds nothing; opening is null; only chatCreated fires; metadata records the policy", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     // getCard IS reached on every path now (the PD-21 founding-cast ownership validation) — but the `none`
     // policy still seeds nothing from it.
@@ -295,7 +295,7 @@ describe("startChat — lazy room creation + opening", () => {
   });
 
   test("generate: delegates the opening to the turn engine (kind:'opening') and returns its outcome", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const engineOutcome: TurnOutcome = { messages: [], aborted: false };
     const runTurn = vi.fn((_prep: TurnPrep): Promise<TurnOutcome> => Promise.resolve(engineOutcome));
@@ -331,7 +331,7 @@ describe("startChat — lazy room creation + opening", () => {
   });
 
   test("guided: the composer wand's degenerate 'Guide the opening' steer reaches the generated opening's turn prompt", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const engineOutcome: TurnOutcome = { messages: [], aborted: false };
     const runTurn = vi.fn((_prep: TurnPrep): Promise<TurnOutcome> => Promise.resolve(engineOutcome));
@@ -361,7 +361,7 @@ describe("startChat — lazy room creation + opening", () => {
   // DEGRADED-NOT-BROKEN (the forkChat game-clone posture): rejecting the verb orphaned a REAL committed chat
   // behind the draft UI under a "couldn't start the chat" toast, and the retry minted a second room.
   test("generate: an engine FAILURE never fails the verb — the room commits and the failure returns as data", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     // The dead-engine shape: a NON-domain throw (a provider fault), whose message is framework text.
     const runTurn = vi.fn((_prep: TurnPrep): Promise<TurnOutcome> => Promise.reject(new Error("connect ECONNREFUSED 127.0.0.1:8000")));
@@ -390,7 +390,7 @@ describe("startChat — lazy room creation + opening", () => {
   });
 
   test("generate: a DomainError failure rides its CURATED message back as the reason", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const runTurn = vi.fn((_prep: TurnPrep): Promise<TurnOutcome> => Promise.reject(new DomainUnavailableError("The model is overloaded — try again.")));
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "ignored")) });
@@ -406,7 +406,7 @@ describe("startChat — lazy room creation + opening", () => {
   });
 
   test("atomic: the chat row + the full roster commit together", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "hi")) });
 
@@ -420,7 +420,7 @@ describe("startChat — lazy room creation + opening", () => {
   });
 
   test("a foreign/unknown founding character is refused NOT_FOUND — no ghost roster row (PD-21)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     // The owner-scoped card read: a foreign character resolves null (foreign == missing, leak-free).
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(null) });
     const { startChat } = createStartChat(ctx, makeDeps());
@@ -436,7 +436,7 @@ describe("startChat — lazy room creation + opening", () => {
   });
 
   test("temporary: the flag lands on the row (ST Temporary Chat, PD-65); absent ⇒ persistent", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "hi")) });
     const { startChat } = createStartChat(ctx, makeDeps());
@@ -464,7 +464,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
   }
 
   test("no explicit anchor: the starter's user-level active persona seeds anchor + host activePersonaId", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const mine = await seedPersona(host, "persona_mine");
     const ctx = makeChatContext(db, {
@@ -482,7 +482,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
   });
 
   test("an explicit anchor always wins over the default seed", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const explicit = await seedPersona(host, "persona_explicit");
     const fallback = await seedPersona(host, "persona_fallback");
@@ -503,7 +503,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
   });
 
   test("no explicit anchor + no user-level persona: the anchor stays unset (null, never a broken FK)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const ctx = makeChatContext(db, {
       getCard: () => Promise.resolve(cardWith("Aria", "hi")),
@@ -517,7 +517,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
   });
 
   test("the connected persona (character-lock hop, D62) beats the default seed", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const connected = await seedPersona(host, "persona_connected");
     const fallback = await seedPersona(host, "persona_fallback");
@@ -537,7 +537,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
   });
 
   test("no connection (the hop yields null): the default seed still anchors", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const fallback = await seedPersona(host, "persona_fallback");
     const ctx = makeChatContext(db, {
@@ -554,7 +554,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
   });
 
   test("an explicit anchor beats the connected persona too (full precedence: explicit > connected > default)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const explicit = await seedPersona(host, "persona_explicit");
     const connected = await seedPersona(host, "persona_connected");
@@ -576,7 +576,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
 
   // Pointer #2 (FINAL-Persona §A.3): the seed chain is `explicit ?? connected ?? current ?? default`.
   test("the Current persona (#2) beats the Default seed (#1) when no explicit/connected anchor", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const current = await seedPersona(host, "persona_current");
     const fallback = await seedPersona(host, "persona_fallback");
@@ -594,7 +594,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
   });
 
   test("the connected persona (character-lock hop) beats the Current persona (#2)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const connected = await seedPersona(host, "persona_connected");
     const current = await seedPersona(host, "persona_current");
@@ -612,7 +612,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
   });
 
   test("an explicit anchor beats the Current persona (#2) too", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const explicit = await seedPersona(host, "persona_explicit");
     const current = await seedPersona(host, "persona_current");
@@ -633,7 +633,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
   });
 
   test("no current persona (resolves null): the Default seed (#1) still anchors", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const fallback = await seedPersona(host, "persona_fallback");
     const ctx = makeChatContext(db, {
@@ -655,7 +655,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
 // asserted above; these prove the carried edits land at creation.
 describe("startChat — the draft carry (pre-send edits persisted at creation)", () => {
   test("seedGreetings persists the chosen/edited opening text over the card's greeting[0]", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const ctx = makeChatContext(db, {
       getCard: () => Promise.resolve(cardWith("Aria", "the card's primary greeting")),
@@ -671,7 +671,7 @@ describe("startChat — the draft carry (pre-send edits persisted at creation)",
   });
 
   test("a whitespace-only seedGreetings seeds NO opening row (the empty-greeting gotcha)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const ctx = makeChatContext(db, {
       getCard: () => Promise.resolve(cardWith("Aria", "card greeting")),
@@ -689,7 +689,7 @@ describe("startChat — the draft carry (pre-send edits persisted at creation)",
   });
 
   test("rosterOverrides applies mute + talkativeness to the founding rows (deviating only)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const borg = await seedCharacter(db, host, "borg");
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("C", "")) });
@@ -710,7 +710,7 @@ describe("startChat — the draft carry (pre-send edits persisted at creation)",
   });
 
   test("groupConfig + roomOverrides persist (parsed/fully-defaulted) into the chat metadata", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "")) });
     const { startChat } = createStartChat(ctx, makeDeps());
@@ -729,7 +729,7 @@ describe("startChat — the draft carry (pre-send edits persisted at creation)",
   });
 
   test("groupDefaults seed: a creator with CUSTOM groupDefaults + no draft ⇒ the new chat carries them", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "")) });
     const custom: GroupConfig = groupConfigSchema.parse({ output: "narrator", policy: "list", speakerTags: false });
@@ -742,7 +742,7 @@ describe("startChat — the draft carry (pre-send edits persisted at creation)",
   });
 
   test("groupDefaults seed: an EXPLICIT draft wins over the creator's custom groupDefaults", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "")) });
     const custom: GroupConfig = groupConfigSchema.parse({ output: "narrator", policy: "list", speakerTags: false });
@@ -760,7 +760,7 @@ describe("startChat — the draft carry (pre-send edits persisted at creation)",
   });
 
   test("groupDefaults seed: a creator on DEFAULT settings + no draft ⇒ no group sub-blob written (byte-identical to today)", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "")) });
     // makeDeps defaults resolveCreatorGroupDefaults to DEFAULT_GROUP_CONFIG.
@@ -776,7 +776,7 @@ describe("startChat — the draft carry (pre-send edits persisted at creation)",
   });
 
   test("injections seed founding chat_injections rows in the same creation batch", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "")) });
     const { startChat } = createStartChat(ctx, makeDeps());
@@ -799,7 +799,7 @@ describe("startChat — PD-65 temporary rooms are HIDDEN from the library", () =
   // the launcher can offer a temp room without polluting the chats list, and it must hold in BOTH branches
   // of listMemberChats (an `includeArchived` caller must not lift it either).
   test("a temporary room is absent from listChats — with AND without includeArchived", async () => {
-    const host = await seedUser(db, "host");
+    const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "Hello.")) });
     const { startChat } = createStartChat(ctx, makeDeps());

@@ -23,13 +23,13 @@ beforeEach(async () => {
 
 describe("sessions.resolveHandle", () => {
   test("a known handle resolves to its user id; an unknown handle is null", async () => {
-    const userId = await svc.ensureUser("alice");
+    const userId = await svc.ensureUser(castId<Handle>("alice"));
     expect(await svc.resolveHandle(castId<Handle>("alice"))).toBe(userId);
     expect(await svc.resolveHandle(castId<Handle>("nobody"))).toBeNull();
   });
 
   test("a DISABLED row collapses to null (un-invitable == unknown — leak-free)", async () => {
-    const userId = await svc.ensureUser("alice");
+    const userId = await svc.ensureUser(castId<Handle>("alice"));
     await db.update(users).set({ enabled: false }).where(eq(users.id, userId));
     expect(await svc.resolveHandle(castId<Handle>("alice"))).toBeNull();
   });

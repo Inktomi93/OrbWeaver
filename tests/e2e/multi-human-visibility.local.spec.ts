@@ -15,7 +15,8 @@
 //
 // The wire subset shapes are declared LOCALLY (the e2e-support import-free-of-package-trees rule).
 
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import type { ActorClient } from "./support/actors";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors";
@@ -56,7 +57,7 @@ interface MemberCard {
 }
 interface UserRow {
   readonly id: string;
-  readonly handle: string;
+  readonly handle: Handle;
 }
 interface PersonaRow {
   readonly id: string;
@@ -79,8 +80,8 @@ async function memberUserId(host: ActorClient): Promise<string> {
 }
 
 /** Mint a spec-owned character, removing any residue from a crashed prior run (idempotent). */
-async function freshCharacter(host: ActorClient, handle: string, input: Record<string, unknown>): Promise<string> {
-  const prior = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: string }[] }>("character.list", {});
+async function freshCharacter(host: ActorClient, handle: CharacterHandle, input: Record<string, unknown>): Promise<string> {
+  const prior = await host.query<{ readonly items: readonly { readonly id: string; readonly handle: CharacterHandle }[] }>("character.list", {});
   const stale = prior.items.find((c) => c.handle === handle);
   if (stale !== undefined) {
     await host.mutation("character.remove", { characterId: stale.id });
@@ -128,7 +129,7 @@ test("D22: a MEMBER's card read is field-clamped at EVERY memberCardVisibility t
   test.setTimeout(120_000);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
-  const characterId = await freshCharacter(host, "e2e-d22-card", CARD_FIELDS);
+  const characterId = await freshCharacter(host, castId<CharacterHandle>("e2e-d22-card"), CARD_FIELDS);
 
   try {
     const started = await host.mutation<StartedChat>("chat.startChat", { characterIds: [characterId] });
@@ -201,7 +202,7 @@ test("D16 from-join: a member's list + durable replay carry NO row below their o
   test.setTimeout(120_000);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
-  const characterId = await freshCharacter(host, "e2e-d16-floor", {
+  const characterId = await freshCharacter(host, castId<CharacterHandle>("e2e-d16-floor"), {
     name: "Warden",
     description: "e2e history-floor probe",
     greetings: [{ text: GREETING }],
@@ -287,7 +288,7 @@ test("EXPORT: the chat transcript download 404s for a seated MEMBER and 200s for
   test.setTimeout(120_000);
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
-  const characterId = await freshCharacter(host, "e2e-export-gate", {
+  const characterId = await freshCharacter(host, castId<CharacterHandle>("e2e-export-gate"), {
     name: "Ledger",
     description: "e2e export-gate probe",
     greetings: [{ text: GREETING }],
@@ -332,7 +333,7 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
   // The card's own description probes CARD-context `{{user}}` — it renders against the room ANCHOR.
-  const characterId = await freshCharacter(host, "e2e-d122-persona", {
+  const characterId = await freshCharacter(host, castId<CharacterHandle>("e2e-d122-persona"), {
     name: "Marrow",
     description: CARD_USER_PROBE,
     greetings: [{ text: GREETING }],
@@ -426,7 +427,7 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
   const origin = baseURL ?? "";
   const host = ownerActor(origin);
   const fixture = await startFixtureProvider(FIXTURE_PROVIDER_PORT);
-  const characterId = await freshCharacter(host, "e2e-d122-trigger", {
+  const characterId = await freshCharacter(host, castId<CharacterHandle>("e2e-d122-trigger"), {
     name: "Marrow",
     description: "e2e member-triggered persona probe",
     greetings: [{ text: GREETING }],

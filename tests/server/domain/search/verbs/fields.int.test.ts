@@ -6,6 +6,8 @@
 // EACH TEST USES A UNIQUE OWNER — the field-index cache is a module-scope singleton keyed by ownerId, so a
 // shared handle would bleed one test's index into another (a fresh db won't reset the cache).
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { FIELD_INDEX_TTL_MS } from "../../../../../packages/server/src/domain/search/substrate/field-index.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
@@ -16,7 +18,7 @@ import { makeSearch, seedCharacter, seedUser } from "../_support.ts";
 describe("fields", () => {
   test("returns the lexically matching card", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "fields_match" });
+    const owner = await seedUser(db, { handle: castId<Handle>("fields_match") });
     const dragon = await seedCharacter(db, {
       id: "character_dragon",
       ownerId: owner,
@@ -32,7 +34,7 @@ describe("fields", () => {
 
   test("a name match outranks a description-only match (field boost)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "fields_boost" });
+    const owner = await seedUser(db, { handle: castId<Handle>("fields_boost") });
     const named = await seedCharacter(db, {
       id: "character_named",
       ownerId: owner,
@@ -54,7 +56,7 @@ describe("fields", () => {
 
   test("prefix matching finds a card by a partial term", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "fields_prefix" });
+    const owner = await seedUser(db, { handle: castId<Handle>("fields_prefix") });
     const c = await seedCharacter(db, {
       id: "character_pref",
       ownerId: owner,
@@ -69,8 +71,8 @@ describe("fields", () => {
 
   test("never returns another owner's card (the corpus is one owner's cards)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "fields_owner" });
-    const other = await seedUser(db, { handle: "fields_other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("fields_owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("fields_other") });
     const mine = await seedCharacter(db, {
       id: "character_mine",
       ownerId: owner,
@@ -86,7 +88,7 @@ describe("fields", () => {
 
   test("the per-owner index is TTL-cached (a new card appears only after the TTL rebuild)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "fields_ttl" });
+    const owner = await seedUser(db, { handle: castId<Handle>("fields_ttl") });
     await seedCharacter(db, { id: "character_first", ownerId: owner, name: "Dragon First" });
 
     let clock = FROZEN_AT_MS;
@@ -113,7 +115,7 @@ describe("fields", () => {
 describe("suggest", () => {
   test("autocompletes a partial query into whole-term suggestions", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "suggest_basic" });
+    const owner = await seedUser(db, { handle: castId<Handle>("suggest_basic") });
     await seedCharacter(db, { id: "character_sug", ownerId: owner, name: "Dragonborn" });
 
     const svc = makeSearch(db);
@@ -124,7 +126,7 @@ describe("suggest", () => {
 
   test("suggests nothing for a partial that matches no owner card", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "suggest_empty" });
+    const owner = await seedUser(db, { handle: castId<Handle>("suggest_empty") });
     await seedCharacter(db, { id: "character_sug2", ownerId: owner, name: "Wizard" });
 
     const svc = makeSearch(db);

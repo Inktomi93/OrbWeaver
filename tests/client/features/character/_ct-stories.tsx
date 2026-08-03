@@ -21,7 +21,7 @@ import {
 import type { CharacterDetailContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import { clearCharacterSelection, selectCharacter, useActiveDraftSeed, useActiveSection, useSectionRegistry } from "@orb/client/state";
-import type { CharacterId, TagId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
@@ -42,7 +42,7 @@ interface CharacterCardTileStoryTag {
 
 export interface CharacterCardTileStoryProps {
   readonly name?: string;
-  readonly handle?: string;
+  readonly handle?: CharacterHandle;
   readonly archived?: boolean;
   readonly starred?: boolean;
   readonly avatarHash?: string | null;
@@ -58,7 +58,7 @@ export interface CharacterCardTileStoryProps {
  *  right character id (the callback closures run in-browser, inside this story). */
 export function CharacterCardTileStory({
   name = "Aria Nightshade",
-  handle = "aria-nightshade",
+  handle = castId<CharacterHandle>("aria-nightshade"),
   archived = false,
   starred = false,
   avatarHash = null,

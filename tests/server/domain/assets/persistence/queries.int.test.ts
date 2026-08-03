@@ -6,7 +6,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { assets } from "@orb/db";
-import type { AssetId } from "@orb/kit/ids";
+import type { AssetId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCas } from "@orb/server/infra/storage";
 import { eq } from "drizzle-orm";
@@ -29,7 +29,7 @@ describe("storeBlob", () => {
   test("writes BOTH the CAS blob and the index row (coherence)", async () => {
     const db = await freshDb();
     const cas = await freshCas();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const bytes = pngBytes(1, 2, 3);
 
     const stored = await storeBlob(db, cas, {
@@ -53,7 +53,7 @@ describe("storeBlob", () => {
   test("dedups within an owner: second store of the same bytes is one row, created:false", async () => {
     const db = await freshDb();
     const cas = await freshCas();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const bytes = pngBytes(7, 7, 7);
 
     const first = await storeBlob(db, cas, {
@@ -86,8 +86,8 @@ describe("owner-scoped reads", () => {
   test("reads never leak across owners (the hash lookup + the metadata gate)", async () => {
     const db = await freshDb();
     const cas = await freshCas();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const bytes = pngBytes(2, 4, 6, 8);
 
     const stored = await storeBlob(db, cas, {
@@ -112,7 +112,7 @@ describe("owner-scoped reads", () => {
   test("storeBlob with enforceMagic rejects a non-image and writes nothing", async () => {
     const db = await freshDb();
     const cas = await freshCas();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     await expect(
       storeBlob(db, cas, {

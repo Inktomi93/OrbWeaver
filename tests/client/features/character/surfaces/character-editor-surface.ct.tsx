@@ -11,6 +11,8 @@
 //
 // `character.get`/`chat.listChats`/`character.update` are stubbed at the NETWORK (routeTrpc).
 
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color";
@@ -35,7 +37,7 @@ const GREETING_0 = "Hello, traveler. What brings you to my door?";
 
 const CARD = makeCharacterDetail({
   name: "Aria Nightshade",
-  handle: "aria",
+  handle: castId<CharacterHandle>("aria"),
   description: "A wandering cartographer with a sharp tongue.",
   greetings: [{ text: GREETING_0 }],
   systemPrompt: "You are Aria.",
@@ -45,7 +47,7 @@ const CARD = makeCharacterDetail({
 // A two-greeting card for the §7 array-TRAP removal path (needs a content-bearing alternate to remove).
 const GREETINGS_CARD = makeCharacterDetail({
   name: "Aria Nightshade",
-  handle: "aria",
+  handle: castId<CharacterHandle>("aria"),
   greetings: [{ text: "First hello." }, { text: "Second hello." }],
 });
 
@@ -283,7 +285,7 @@ function suggestionFixtures(): readonly unknown[] {
 /** The same card, carrying ONE accepted tag — the accepted chip is the fill this strip must stay under. */
 const SUGGESTIONS_CARD = makeCharacterDetail({
   name: "Aria Nightshade",
-  handle: "aria",
+  handle: castId<CharacterHandle>("aria"),
   greetings: [{ text: GREETING_0 }],
   tags: [makeTagFixture({ id: "tag_accepted", name: "rpg" })],
 });
@@ -327,7 +329,7 @@ test("F3 every pending suggestion renders at rest — no cap, no disclosure", as
 // editor. It now rests on the overview instrument card, with the pick-a-field hint as its FOOTER.
 const OVERVIEW_CARD = makeCharacterDetail({
   name: "Aria Nightshade",
-  handle: "aria",
+  handle: castId<CharacterHandle>("aria"),
   greetings: [{ text: GREETING_0 }, { text: "A second hello." }],
   importedFrom: "chub",
   tags: [makeTagFixture({ id: "tag_rpg", name: "rpg" }), makeTagFixture({ id: "tag_noir", name: "noir" })],

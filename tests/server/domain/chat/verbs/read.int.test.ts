@@ -90,8 +90,8 @@ async function seedRoom(key: string, host: UserId): Promise<ChatId> {
 
 describe("read — listings (membership-scoped, D18)", () => {
   test("listChats returns ONLY the caller's chats, with canon stats + participant names", async () => {
-    const me = await seedUser(db, "me");
-    const other = await seedUser(db, "other");
+    const me = await seedUser(db, castId<Handle>("me"));
+    const other = await seedUser(db, castId<Handle>("other"));
     const mine = await seedRoom("mine", me);
     const theirs = await seedRoom("theirs", other);
     await seedMessage(db, mine, 1, { role: "user", authorUserId: me, content: "hi" });
@@ -111,8 +111,8 @@ describe("read — listings (membership-scoped, D18)", () => {
   // can list — so their own name is a constant prefix that carries nothing and eats the title's width.
   describe("listChats participantNames suppress the VIEWER'S OWN seat", () => {
     test("a room with another seat drops the viewer — the row names who it is ABOUT", async () => {
-      const me = await seedUser(db, "me");
-      const friend = await seedUser(db, "friend");
+      const me = await seedUser(db, castId<Handle>("me"));
+      const friend = await seedUser(db, castId<Handle>("friend"));
       const chatId = await seedRoom("shared", me);
       await seedParticipant(db, { chatId, key: "shared_friend", userId: friend, role: "member" });
 
@@ -126,7 +126,7 @@ describe("read — listings (membership-scoped, D18)", () => {
     });
 
     test("a SOLO chat keeps the viewer's name — suppression never empties the cast", async () => {
-      const me = await seedUser(db, "me");
+      const me = await seedUser(db, castId<Handle>("me"));
       const solo = await seedChat(db, "solo");
       await seedParticipant(db, { chatId: solo, key: "solo_me", userId: me, role: "host" });
 
@@ -139,8 +139,8 @@ describe("read — listings (membership-scoped, D18)", () => {
   });
 
   test("listChats derives viewerRole per-caller from the roster (host vs member)", async () => {
-    const me = await seedUser(db, "me");
-    const other = await seedUser(db, "other");
+    const me = await seedUser(db, castId<Handle>("me"));
+    const other = await seedUser(db, castId<Handle>("other"));
     // A chat I host, and a chat someone else hosts where I am a plain member.
     const hosted = await seedRoom("hosted", me);
     const guested = await seedRoom("guested", other);
@@ -154,7 +154,7 @@ describe("read — listings (membership-scoped, D18)", () => {
   });
 
   test("listChats excludes archived unless includeArchived", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const live = await seedChat(db, "live");
     const archived = await seedChat(db, "arch", { archived: true });
     await seedParticipant(db, { chatId: live, key: "l", userId: me, role: "host" });
@@ -167,7 +167,7 @@ describe("read — listings (membership-scoped, D18)", () => {
   });
 
   test("listChats ALWAYS hides temporary chats (ST Temporary Chat, PD-65)", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const normal = await seedChat(db, "normal");
     const temp = await seedChat(db, "temp", { temporary: true });
     await seedParticipant(db, { chatId: normal, key: "n", userId: me, role: "host" });
@@ -182,7 +182,7 @@ describe("read — listings (membership-scoped, D18)", () => {
 
   // ── the two SCENT fields (the list row's second line + the game marker) ──────────────────────────────
   test("listChats: lastMessagePreview is the NEWEST visible body, markdown-flattened + hidden-span stripped", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("scent", me);
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: me, content: "an older beat" });
     await seedMessage(db, chatId, 2, {
@@ -200,7 +200,7 @@ describe("read — listings (membership-scoped, D18)", () => {
   });
 
   test("listChats: an EMPTY chat and an rpg STATE-ANCHOR-only chat both preview as null", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const empty = await seedRoom("empty", me);
     const anchorOnly = await seedRoom("anchoronly", me);
     // A state-anchor slot is an EMPTY-body assistant row — durable canon no reader sees.
@@ -214,9 +214,9 @@ describe("read — listings (membership-scoped, D18)", () => {
   });
 
   test("listChats: the D16 floor clamps the preview PER-CALLER — a from-join member below it sees NOTHING", async () => {
-    const host = await seedUser(db, "host");
-    const clamped = await seedUser(db, "clamped");
-    const unclamped = await seedUser(db, "unclamped");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const clamped = await seedUser(db, castId<Handle>("clamped"));
+    const unclamped = await seedUser(db, castId<Handle>("unclamped"));
     const chatId = await seedRoom("clamp", host);
     await seedMessage(db, chatId, 1, { role: "assistant", content: "the pre-join secret" });
     // `from-join` with a joinSeq ABOVE the newest row: the member's whole readable window is empty.
@@ -234,7 +234,7 @@ describe("read — listings (membership-scoped, D18)", () => {
   });
 
   test("listChats: isGame marks a LIVE game only (no pointer / a disengaged pointer are both false)", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const plain = await seedChat(db, "plain");
     const game = await seedChat(db, "game", { metadata: { rpg: { gameId: mintTypeId(ID_PREFIX.rpgGame), engaged: true } } });
     const off = await seedChat(db, "off", { metadata: { rpg: { gameId: mintTypeId(ID_PREFIX.rpgGame), engaged: false } } });
@@ -259,7 +259,7 @@ describe("read — listings (membership-scoped, D18)", () => {
 
 describe("read — fork lineage (D27, membership-gated per ancestor)", () => {
   test("listForks returns the fork children the caller is ALSO a member of", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const parent = await seedChat(db, "parent");
     await seedParticipant(db, { chatId: parent, key: "p", userId: me, role: "host" });
     const childMine = await seedChat(db, "child_mine", { parentChatId: parent });
@@ -273,7 +273,7 @@ describe("read — fork lineage (D27, membership-gated per ancestor)", () => {
   });
 
   test("getChatLineage walks ancestors root-first; a non-member ancestor is omitted (sparse)", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const root = await seedChat(db, "root");
     const mid = await seedChat(db, "mid", { parentChatId: root });
     const leaf = await seedChat(db, "leaf", { parentChatId: mid });
@@ -289,7 +289,7 @@ describe("read — fork lineage (D27, membership-gated per ancestor)", () => {
 
 describe("read — single reads", () => {
   test("getChat returns the detail (roster + default room behavior)", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);
 
     const { getChat } = createRead(makeChatContext(db), makeDeps());
@@ -307,7 +307,7 @@ describe("read — single reads", () => {
   });
 
   test("getChat's viewerActivePersonaId reflects a setActivePersona write (chat_participants.activePersonaId)", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);
     const personaId = await seedPersona(db, me, "worn");
     // `persona.setActivePersona` ultimately writes this same column (`setParticipantActivePersona`,
@@ -323,8 +323,8 @@ describe("read — single reads", () => {
   });
 
   test("getChat's viewerIsHost is false for a present MEMBER (not the host)", async () => {
-    const host = await seedUser(db, "host2");
-    const member = await seedUser(db, "member2");
+    const host = await seedUser(db, castId<Handle>("host2"));
+    const member = await seedUser(db, castId<Handle>("member2"));
     const chatId = await seedRoom("room2", host);
     await seedParticipant(db, { chatId, key: "room2_m", userId: member, role: "member" });
 
@@ -340,7 +340,7 @@ describe("read — single reads", () => {
   // leak-free NOT_FOUND. The verdict-classification itself is proven in connection/verbs/check-chat-
   // availability.int.test.ts; here we prove the chat-verb WIRING (host resolution + gate + pass-through).
   test("checkSendAvailability returns the injected verdict for a member (available)", async () => {
-    const host = await seedUser(db, "avail_host");
+    const host = await seedUser(db, castId<Handle>("avail_host"));
     const chatId = await seedRoom("avail_room", host);
 
     const { checkSendAvailability } = createRead(makeChatContext(db), makeDeps());
@@ -349,7 +349,7 @@ describe("read — single reads", () => {
   });
 
   test("checkSendAvailability passes an UNAVAILABLE verdict through (engine-off)", async () => {
-    const host = await seedUser(db, "off_host");
+    const host = await seedUser(db, castId<Handle>("off_host"));
     const chatId = await seedRoom("off_room", host);
 
     const { checkSendAvailability } = createRead(
@@ -361,8 +361,8 @@ describe("read — single reads", () => {
   });
 
   test("checkSendAvailability is member-gated — a non-participant is a leak-free NOT_FOUND", async () => {
-    const host = await seedUser(db, "gate_host");
-    const stranger = await seedUser(db, "gate_stranger");
+    const host = await seedUser(db, castId<Handle>("gate_host"));
+    const stranger = await seedUser(db, castId<Handle>("gate_stranger"));
     const chatId = await seedRoom("gate_room", host);
 
     const { checkSendAvailability } = createRead(makeChatContext(db), makeDeps());
@@ -370,7 +370,7 @@ describe("read — single reads", () => {
   });
 
   test("listMessages returns the D26 slot⋈variant views in chronological order; hidden flag rides", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: me, content: "first" });
     await seedMessage(db, chatId, 2, {
@@ -391,7 +391,7 @@ describe("read — single reads", () => {
   });
 
   test("listMessages' macroNames covers the roster's character AND a message-stamped persona not on the roster (Chat-Macro-Resolution.md §1)", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);
     const oldPersona = await seedPersona(db, me, "old_persona");
     // A since-switched persona: stamped on a message but not any participant's CURRENT active persona.
@@ -404,7 +404,7 @@ describe("read — single reads", () => {
   });
 
   test("listMessageVariants returns the full sibling set ordered by idx, no content", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);
     const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
     const v1 = await addVariant(db, messageId, 1, "second take");
@@ -418,7 +418,7 @@ describe("read — single reads", () => {
   });
 
   test("listMessageVariants is leak-free NOT_FOUND for a foreign-chat messageId (member of the caller's chat, not this slot's)", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);
     const other = await seedRoom("other", me);
     const { messageId } = await seedMessage(db, other, 1);
@@ -428,7 +428,7 @@ describe("read — single reads", () => {
   });
 
   test("listParticipants returns the present roster", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);
 
     const { listParticipants } = createRead(makeChatContext(db), makeDeps());
@@ -460,8 +460,8 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
   }
 
   test("a from-join member cannot read canon below their joinSeq (the live repro: greetings + pre-join rows absent)", async () => {
-    const host = await seedUser(db, "jh_host");
-    const joiner = await seedUser(db, "jh_joiner");
+    const host = await seedUser(db, castId<Handle>("jh_host"));
+    const joiner = await seedUser(db, castId<Handle>("jh_joiner"));
     const chatId = await seedRoomWithHistory("jh", host);
     // The invite-redeem shape: role `member`, joinSeq stamped at the canon head when they joined (4 rows
     // existed, so the FIRST row they may see is seq 4 — the floor is INCLUSIVE). The host RESTRICTED this
@@ -484,8 +484,8 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
   // (their old member floor) while export-chat + discovery already handed them full canon — an incoherent
   // split. The derive now floors a HOST at 0 in the ONE resolver, so `listMessages` sees the whole transcript.
   test("a PROMOTED host (from-join row, late joinSeq) reads the WHOLE pre-join history — F2 host full control", async () => {
-    const founder = await seedUser(db, "f2_founder");
-    const promoted = await seedUser(db, "f2_promoted");
+    const founder = await seedUser(db, castId<Handle>("f2_founder"));
+    const promoted = await seedUser(db, castId<Handle>("f2_promoted"));
     const chatId = await seedRoomWithHistory("f2", founder);
     // The row a host-handoff leaves on a formerly-clamped member: role `host`, but joinSeq 4 + from-join intact.
     await seedParticipant(db, { chatId, key: "f2_p", userId: promoted, role: "host", joinSeq: 4, joinHistoryVisibility: "from-join" });
@@ -504,8 +504,8 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
   // writes, which never names the column — must read the ENTIRE canon, including rows below their `joinSeq`.
   // This is the guard against a future schema edit silently re-restricting every invitee.
   test("the COLUMN DEFAULT is `full`: a member joined at head 4 with NO explicit policy reads the whole history", async () => {
-    const host = await seedUser(db, "jhd_host");
-    const joiner = await seedUser(db, "jhd_joiner");
+    const host = await seedUser(db, castId<Handle>("jhd_host"));
+    const joiner = await seedUser(db, castId<Handle>("jhd_joiner"));
     const chatId = await seedRoomWithHistory("jhd", host);
     const participantId = await seedParticipant(db, { chatId, key: "jhd_m", userId: joiner, role: "member", joinSeq: 4 });
 
@@ -520,8 +520,8 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
   });
 
   test("a `full` member DOES see everything — the policy's other arm actually works", async () => {
-    const host = await seedUser(db, "jhf_host");
-    const joiner = await seedUser(db, "jhf_joiner");
+    const host = await seedUser(db, castId<Handle>("jhf_host"));
+    const joiner = await seedUser(db, castId<Handle>("jhf_joiner"));
     const chatId = await seedRoomWithHistory("jhf", host);
     await seedParticipant(db, { chatId, key: "jhf_m", userId: joiner, role: "member", joinSeq: 4, joinHistoryVisibility: "full" });
 
@@ -534,8 +534,8 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
   // (no write path existed anywhere: only a manual SQL edit produced `from-join`). These two prove the host's
   // verb actually moves what the member reads, in both directions, with no other wiring.
   test("the host RESTRICTS a member (setMemberHistoryVisibility → from-join) and their next listMessages is clamped at their joinSeq", async () => {
-    const host = await seedUser(db, "jhw_host");
-    const joiner = await seedUser(db, "jhw_joiner");
+    const host = await seedUser(db, castId<Handle>("jhw_host"));
+    const joiner = await seedUser(db, castId<Handle>("jhw_joiner"));
     const chatId = await seedRoomWithHistory("jhw", host);
     // The invite-redeem shape: no explicit policy → the `full` column default. They read everything first.
     await seedParticipant(db, { chatId, key: "jhw_m", userId: joiner, role: "member", joinSeq: 4 });
@@ -554,8 +554,8 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
   });
 
   test("the host RESTORES a member (→ full) and they read the whole canon again", async () => {
-    const host = await seedUser(db, "jhwr_host");
-    const joiner = await seedUser(db, "jhwr_joiner");
+    const host = await seedUser(db, castId<Handle>("jhwr_host"));
+    const joiner = await seedUser(db, castId<Handle>("jhwr_joiner"));
     const chatId = await seedRoomWithHistory("jhwr", host);
     await seedParticipant(db, { chatId, key: "jhwr_m", userId: joiner, role: "member", joinSeq: 4, joinHistoryVisibility: "from-join" });
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
@@ -568,8 +568,8 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
   });
 
   test("the HOST is never clamped by a member's floor (the clamp is per-CALLER)", async () => {
-    const host = await seedUser(db, "jhh_host");
-    const joiner = await seedUser(db, "jhh_joiner");
+    const host = await seedUser(db, castId<Handle>("jhh_host"));
+    const joiner = await seedUser(db, castId<Handle>("jhh_joiner"));
     const chatId = await seedRoomWithHistory("jhh", host);
     await seedParticipant(db, { chatId, key: "jhh_m", userId: joiner, role: "member", joinSeq: 4, joinHistoryVisibility: "from-join" });
 
@@ -580,8 +580,8 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
   });
 
   test("pagination stays honest: a beforeSeq cursor at/below the floor is an EMPTY page, never a fabricated one", async () => {
-    const host = await seedUser(db, "jhp_host");
-    const joiner = await seedUser(db, "jhp_joiner");
+    const host = await seedUser(db, castId<Handle>("jhp_host"));
+    const joiner = await seedUser(db, castId<Handle>("jhp_joiner"));
     const chatId = await seedRoomWithHistory("jhp", host);
     await seedParticipant(db, { chatId, key: "jhp_m", userId: joiner, role: "member", joinSeq: 3, joinHistoryVisibility: "from-join" });
 
@@ -595,8 +595,8 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
   });
 
   test("the compaction checkpoint is withheld from a clamped member (a summary distills the canon their floor hides)", async () => {
-    const host = await seedUser(db, "jhc_host");
-    const joiner = await seedUser(db, "jhc_joiner");
+    const host = await seedUser(db, castId<Handle>("jhc_host"));
+    const joiner = await seedUser(db, castId<Handle>("jhc_joiner"));
     const chatId = await seedRoomWithHistory("jhc", host);
     await seedParticipant(db, { chatId, key: "jhc_m", userId: joiner, role: "member", joinSeq: 4, joinHistoryVisibility: "from-join" });
     await db.update(chatsTable).set({ compactSummary: "the pre-join story so far", compactedAtSeq: 3 }).where(eq(chatsTable.id, chatId));
@@ -612,8 +612,8 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
   });
 
   test("the durable replay from lastEventId:'0' hands a clamped member NO pre-join content", async () => {
-    const host = await seedUser(db, "jhr_host");
-    const joiner = await seedUser(db, "jhr_joiner");
+    const host = await seedUser(db, castId<Handle>("jhr_host"));
+    const joiner = await seedUser(db, castId<Handle>("jhr_joiner"));
     const chatId = await seedRoom("jhr", host);
     const pre = await seedMessage(db, chatId, 1, { role: "assistant", content: "pre-join greeting" });
     const post = await seedMessage(db, chatId, 5, { role: "assistant", content: "post-join reply" });
@@ -658,8 +658,8 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
   // LIVE half with (the durable half is clamped in `replayChatEvents` above). Pinned here at the source —
   // the transport's use of it is pinned in `tests/server/transport/trpc/routers/chat.int.test.ts`.
   test("chatEventBounds carries the CALLER's own floor — clamped for the joiner, 0 for the host, from one member-gated read", async () => {
-    const host = await seedUser(db, "jhb_host");
-    const joiner = await seedUser(db, "jhb_joiner");
+    const host = await seedUser(db, castId<Handle>("jhb_host"));
+    const joiner = await seedUser(db, castId<Handle>("jhb_joiner"));
     const chatId = await seedRoomWithHistory("jhb", host);
     await seedParticipant(db, { chatId, key: "jhb_m", userId: joiner, role: "member", joinSeq: 4, joinHistoryVisibility: "from-join" });
 
@@ -670,8 +670,8 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
   });
 
   test("a `full` member's durable replay is unchanged (the other arm, on the event path too)", async () => {
-    const host = await seedUser(db, "jhrf_host");
-    const joiner = await seedUser(db, "jhrf_joiner");
+    const host = await seedUser(db, castId<Handle>("jhrf_host"));
+    const joiner = await seedUser(db, castId<Handle>("jhrf_joiner"));
     const chatId = await seedRoom("jhrf", host);
     const pre = await seedMessage(db, chatId, 1, { role: "assistant", content: "pre-join greeting" });
     await seedParticipant(db, { chatId, key: "jhrf_m", userId: joiner, role: "member", joinSeq: 5, joinHistoryVisibility: "full" });
@@ -696,8 +696,8 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
   // era — the row retains no era history, so that is the only reading it can support (and the conservative
   // one). Pinned because it is surprising, not because it is a preference.
   test("a re-joined from-join member is floored at their LATEST joinSeq (their previous era is not re-granted)", async () => {
-    const host = await seedUser(db, "jhrj_host");
-    const joiner = await seedUser(db, "jhrj_joiner");
+    const host = await seedUser(db, castId<Handle>("jhrj_host"));
+    const joiner = await seedUser(db, castId<Handle>("jhrj_joiner"));
     const chatId = await seedRoomWithHistory("jhrj", host);
     // First era: joined at head 1, so seqs 1-4 were all visible to them at the time.
     await seedParticipant(db, { chatId, key: "jhrj_m", userId: joiner, role: "member", joinSeq: 1, leftSeq: 2, joinHistoryVisibility: "from-join" });
@@ -712,8 +712,8 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
   });
 
   test("the SSE token-log replay is clamped too (raw transcript text anchored to a pre-join slot)", async () => {
-    const host = await seedUser(db, "jhs_host");
-    const joiner = await seedUser(db, "jhs_joiner");
+    const host = await seedUser(db, castId<Handle>("jhs_host"));
+    const joiner = await seedUser(db, castId<Handle>("jhs_joiner"));
     const chatId = await seedRoom("jhs", host);
     const pre = await seedMessage(db, chatId, 1, { role: "assistant", content: "pre" });
     const post = await seedMessage(db, chatId, 5, { role: "assistant", content: "post" });
@@ -729,7 +729,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
 
 describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
   test("peekPrompt + previewAssembly build the prompt without persisting or emitting", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: me, content: "hi" });
 
@@ -751,8 +751,8 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
   test("peekPrompt + previewAssembly are HOST-only; a present non-host member is refused (not_host)", async () => {
     // The full assembled prompt merges every roster member's card at FULL — exposing it to a plain member
     // would bypass the D22 `memberCardVisibility` clamp. Both verbs gate at `requireHost` (matrix `host`).
-    const host = await seedUser(db, "host");
-    const member = await seedUser(db, "member");
+    const host = await seedUser(db, castId<Handle>("host"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedRoom("room", host);
     await seedParticipant(db, { chatId, key: "room_m", userId: member, role: "member" });
 
@@ -773,7 +773,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
   });
 
   test("previewAssembly routes a guided steer through the SAME assembly a real turn gets (PD-63)", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);
 
     const { previewAssembly } = createRead(makeChatContext(db), makeDeps());
@@ -796,7 +796,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // The host preview's honesty contract: `Σ sources[].tokens === totalTokens`, every source's `text` is
     // text the model actually receives, the ceiling is the SAME `min(window, maxContextTokens)` the fit uses,
     // and a PLAIN chat carries no `game-state` row.
-    const me = await seedUser(db, "budget_host");
+    const me = await seedUser(db, castId<Handle>("budget_host"));
     const chatId = await seedRoom("budget", me);
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: me, content: "the older turn" });
     await seedMessage(db, chatId, 2, { role: "assistant", content: "a reply worth some tokens" });
@@ -826,7 +826,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // The preset editor's bound Prompt readout reads THIS partition: the same bytes, keyed by `PromptSection.id`
     // so the readout can price the rack it already draws. The pivot is the row the editor can never price
     // chat-free — its cost is the conversation's — so it is the one this test follows end to end.
-    const me = await seedUser(db, "sect_host");
+    const me = await seedUser(db, castId<Handle>("sect_host"));
     const chatId = await seedRoom("sect", me);
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: me, content: "the older turn" });
     await seedMessage(db, chatId, 2, { role: "assistant", content: "a reply worth some tokens" });
@@ -853,7 +853,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // The §7.1 seam, shared with `previewActionTemplates`: the editor inspects a preset the room has NOT
     // adopted, so the override rides `ResolveForeignInputsOp.presetOverride` (resolved owned-or-system under
     // the HOST at compose) and the priced rack is the OVERRIDE's rack, not the room's.
-    const me = await seedUser(db, "over_host");
+    const me = await seedUser(db, castId<Handle>("over_host"));
     const chatId = await seedRoom("over", me);
     const overrideConfig: PromptConfig = {
       ...DEFAULT_PROMPT_CONFIG,
@@ -892,7 +892,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // "The context panel definitely has the current characters' total token size that are in the room."
     // The BUDGET's `cards` row must therefore break down per ROSTER MEMBER — real names, real token counts,
     // resolved through the same `getCard` op the turn assembles from (no client-side guessing, no shim).
-    const me = await seedUser(db, "cast_host");
+    const me = await seedUser(db, castId<Handle>("cast_host"));
     const chatId = await seedChat(db, "cast");
     const maraId = await seedCharacter(db, me, "mara");
     const nikoId = await seedCharacter(db, me, "niko");
@@ -931,7 +931,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // ceiling must be whatever THIS chat's resolved connection reports — and when that window is itself a
     // fallback guess (a catalog that couldn't be read), the wire must say `ceilingEstimated` so the panel
     // refuses to draw a ratio against it instead of showing a fabricated denominator.
-    const me = await seedUser(db, "ceiling_host");
+    const me = await seedUser(db, castId<Handle>("ceiling_host"));
     const chatId = await seedRoom("ceiling", me);
 
     // A small-context local model: the ceiling tracks IT, not any blanket default.
@@ -959,7 +959,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
   test("a user's own maxContextTokens cap is TRUTH — it binds, so the ceiling stops being a guess", async () => {
     // The nuance the flag must respect: when the preset's soft cap is below the guessed model window, the cap
     // is what actually bounds the context and the user declared it — the ratio is honest again.
-    const me = await seedUser(db, "cap_host");
+    const me = await seedUser(db, castId<Handle>("cap_host"));
     const chatId = await seedRoom("cap", me);
     const guessed = makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 } }, context: { window: 200_000, windowEstimated: true } });
     const { previewAssembly } = createRead(
@@ -987,7 +987,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // Before D-4 the preview omitted the rpg reminder entirely — the host's honesty instrument showed a prompt
     // the model never receives. The gather now runs on the preview path (read-only, turnless) and its depth-0
     // reminder is accounted as `game-state`, disjoint from `steering`.
-    const me = await seedUser(db, "game_host");
+    const me = await seedUser(db, castId<Handle>("game_host"));
     const chatId = await seedRoom("game", me);
     const gatherTurnContext = vi.fn(() =>
       Promise.resolve({
@@ -1060,7 +1060,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     read: ReturnType<typeof createRead>;
     rePin: (personaId: PersonaId) => Promise<void>;
   }> {
-    const me = await seedUser(db, "swap_host");
+    const me = await seedUser(db, castId<Handle>("swap_host"));
     const chatId = await seedRoom("swap", me);
     const oldPersona = await seedPersona(db, me, "You", { description: "the old traveller nobody plays anymore" });
     const newPersona = await seedPersona(db, me, "Alex", { description: "Alex, the current player" });
@@ -1112,9 +1112,9 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
   test("a human who LEFT the room takes their persona out of the context with them (live membership)", async () => {
     // Presence, not history, decides contribution: `loadRoster` is present-only, so a departed member's
     // active persona stops being a `personaIds` candidate the moment their seat is leftSeq-stamped.
-    const host = await seedUser(db, "left_host");
+    const host = await seedUser(db, castId<Handle>("left_host"));
     const chatId = await seedRoom("left", host);
-    const guest = await seedUser(db, "left_guest");
+    const guest = await seedUser(db, castId<Handle>("left_guest"));
     const guestPersona = await seedPersona(db, guest, "Departed", { description: "the guest who walked out" });
     await seedParticipant(db, { chatId, key: "left_guest", userId: guest, role: "member", activePersonaId: guestPersona });
 
@@ -1135,7 +1135,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
   });
 
   test("getActivePresetConfig returns the resolved PromptConfig", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);
 
     const { getActivePresetConfig } = createRead(makeChatContext(db), makeDeps());
@@ -1159,7 +1159,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
   };
 
   test("previewActionTemplates resolves identity through the CHAT and keeps the fire-time tokens as TOKENS", async () => {
-    const me = await seedUser(db, "bind_host");
+    const me = await seedUser(db, castId<Handle>("bind_host"));
     const chatId = await seedRoom("bind", me);
 
     const { previewActionTemplates } = createRead(
@@ -1198,8 +1198,8 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
   });
 
   test("previewActionTemplates is HOST-only — a rendered template carries full-fidelity card bytes (D22)", async () => {
-    const host = await seedUser(db, "bind_h2");
-    const member = await seedUser(db, "bind_m2");
+    const host = await seedUser(db, castId<Handle>("bind_h2"));
+    const member = await seedUser(db, castId<Handle>("bind_m2"));
     const chatId = await seedRoom("bind2", host);
     await seedParticipant(db, { chatId, key: "bind2_m", userId: member, role: "member" });
 
@@ -1213,7 +1213,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
   });
 
   test("previewSection renders a known section for the HOST; an unknown sectionId is NOT_FOUND", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);
     const sectionId = DEFAULT_PROMPT_CONFIG.sections[0]?.id ?? "main";
 
@@ -1262,8 +1262,8 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
   /** A room at the LOWEST D22 tier (`name-avatar` — the member may see a name and an avatar, nothing else),
    *  with a host, a plain member, and the secret-card character seated. */
   async function seedClampedRoom(key: string): Promise<{ host: UserId; member: UserId; chatId: ChatId }> {
-    const host = await seedUser(db, `${key}_host`);
-    const member = await seedUser(db, `${key}_member`);
+    const host = await seedUser(db, castId<Handle>(`${key}_host`));
+    const member = await seedUser(db, castId<Handle>(`${key}_member`));
     const chatId = await seedChat(db, key, {
       metadata: { group: { output: "per-speaker", policy: "natural", memberCardVisibility: "name-avatar" } },
     });
@@ -1338,8 +1338,8 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // `resolvePreviewInputs` used to pass only `personaIds` (roster order), so the composition root's
     // `triggerPersonaId ?? personaIds.at(0)` fell through to whoever joined first — a host's own preview
     // could render ANOTHER member's persona as {{user}}, and the answer changed with join order.
-    const host = await seedUser(db, "pp_host");
-    const other = await seedUser(db, "pp_other");
+    const host = await seedUser(db, castId<Handle>("pp_host"));
+    const other = await seedUser(db, castId<Handle>("pp_other"));
     const hostPersonaId = await seedPersona(db, host, "pp_host_persona");
     const otherPersonaId = await seedPersona(db, other, "pp_other_persona");
     const chatId = await seedChat(db, "pp");
@@ -1374,8 +1374,8 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
   });
 
   test("getShapeTrace returns the content-free SHAPE trace for the host; a non-host member is refused (not_host)", async () => {
-    const me = await seedUser(db, "me");
-    const member = await seedUser(db, "member");
+    const me = await seedUser(db, castId<Handle>("me"));
+    const member = await seedUser(db, castId<Handle>("member"));
     const chatId = await seedRoom("room", me);
     await seedParticipant(db, { chatId, key: "room_m", userId: member, role: "member" });
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: me, content: "hi" });
@@ -1430,7 +1430,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     }
 
     test("the HOST reads the sent prompt + params; the projection drops `trace` and never surfaces a raw blob", async () => {
-      const host = await seedUser(db, "host");
+      const host = await seedUser(db, castId<Handle>("host"));
       const { chatId, variantId } = await seedWiredRoom("wire_host", host);
 
       const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
@@ -1449,8 +1449,8 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     });
 
     test("a present non-host MEMBER is refused (not_host) — the stored prompt is never loaded", async () => {
-      const host = await seedUser(db, "host");
-      const member = await seedUser(db, "member");
+      const host = await seedUser(db, castId<Handle>("host"));
+      const member = await seedUser(db, castId<Handle>("member"));
       const { chatId, variantId } = await seedWiredRoom("wire_member", host);
       await seedParticipant(db, { chatId, key: "wire_member_m", userId: member, role: "member" });
 
@@ -1464,8 +1464,8 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     });
 
     test("a NON-MEMBER stranger gets the leak-free NOT_FOUND (never learns the room or the variant exists)", async () => {
-      const host = await seedUser(db, "host");
-      const stranger = await seedUser(db, "stranger");
+      const host = await seedUser(db, castId<Handle>("host"));
+      const stranger = await seedUser(db, castId<Handle>("stranger"));
       const { chatId, variantId } = await seedWiredRoom("wire_stranger", host);
 
       const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
@@ -1478,8 +1478,8 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // `requireHost` passes — the only thing standing between them and another room's assembled prompt is the
     // query's `messages.chatId` join. A dropped join here is a silent IDOR over every stored prompt in the db.
     test("a legitimate HOST passing ANOTHER room's real variantId gets NOT_FOUND (the messages.chatId join is the belt)", async () => {
-      const hostA = await seedUser(db, "hostA");
-      const hostB = await seedUser(db, "hostB");
+      const hostA = await seedUser(db, castId<Handle>("hostA"));
+      const hostB = await seedUser(db, castId<Handle>("hostB"));
       const mine = await seedWiredRoom("wire_mine", hostA);
       const theirs = await seedWiredRoom("wire_theirs", hostB);
 
@@ -1494,7 +1494,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     });
 
     test("a variant that captured nothing reads as an honest null prompt, never an error", async () => {
-      const host = await seedUser(db, "host");
+      const host = await seedUser(db, castId<Handle>("host"));
       const chatId = await seedRoom("wire_empty", host);
       // A user row: authored, never generated — no snapshot was ever stamped.
       const m = await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hi" });
@@ -1508,7 +1508,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     });
 
     test("a MALFORMED snapshot blob degrades to null at the read seam (never a throw, never a raw cast)", async () => {
-      const host = await seedUser(db, "host");
+      const host = await seedUser(db, castId<Handle>("host"));
       const chatId = await seedRoom("wire_bad", host);
       const m = await seedMessage(db, chatId, 1, { role: "assistant", content: "x" });
       // A garbage blob is exactly what the read seam exists to bound: `$type<>` is a compile-time claim, and
@@ -1529,7 +1529,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
 describe("read — resumable stream ring", () => {
   test("replayStreamEvents resumes after a cursor; streamEventBounds reports min/max", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);
     await seedStreamEvent(db, chatId, 1, "a");
     await seedStreamEvent(db, chatId, 2, "b");
@@ -1545,8 +1545,8 @@ describe("read — resumable stream ring", () => {
 
 describe("read — default-deny (membership chokepoint)", () => {
   test("a non-participant gets a leak-free NOT_FOUND on every chatId read", async () => {
-    const me = await seedUser(db, "me");
-    const stranger = await seedUser(db, "stranger");
+    const me = await seedUser(db, castId<Handle>("me"));
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
     const chatId = await seedRoom("room", me);
     const { messageId } = await seedMessage(db, chatId, 1);
 
@@ -1565,8 +1565,8 @@ describe("read — default-deny (membership chokepoint)", () => {
 
 describe("read — durable chat-bus log (the chat room SSE resume)", () => {
   test("replayChatEvents resumes after a cursor; chatEventBounds reports min/max; both member-gated", async () => {
-    const me = await seedUser(db, "me");
-    const stranger = await seedUser(db, "stranger");
+    const me = await seedUser(db, castId<Handle>("me"));
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
     const chatId = await seedRoom("room", me);
     // Emit through the REAL domain bus (durable-first) — the replay reads what emit wrote.
     const ctx = makeChatContext(db);
@@ -1599,7 +1599,7 @@ describe("read — durable chat-bus log (the chat room SSE resume)", () => {
   // sibling events.int.test only round-trips flat `chatUpdated`/`chatDeleted`; nothing else exercises a
   // real-bus-emitted `delta` (the token-carrying member) through the member-gated replay verb.
   test("a replay from afterSeq 0 returns a fresh chat's head deltas in order, payload intact (the #1 first-turn-race pin)", async () => {
-    const me = await seedUser(db, "me");
+    const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);
     // Emit the HEAD of a turn through the REAL domain bus (durable-first: the chat_events INSERT commits
     // before the ring push) — turnStarted + two text deltas, exactly the shape that races the attach.
@@ -1661,7 +1661,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
   }
 
   test("reproduces the engine's stamped boundary (earliest kept id) + honest budget numbers", async () => {
-    const host = await seedUser(db, "fit_host");
+    const host = await seedUser(db, castId<Handle>("fit_host"));
     const chatId = await seedRoom("fit", host);
     // 11 alternating id-bearing turns ending on a USER row (odd count) so no continuation nudge is appended.
     // The seq is explicit per row, so insertion order is irrelevant (Promise.all avoids the await-in-loop gate).
@@ -1694,7 +1694,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
   // droppedCount > 0 with boundaryMessageId null, an unrenderable divider. The irreducible TAIL (newest
   // id-bearing turn + trailing synthetics) keeps the newest real row and names it.
   test("a blown budget (tiny window, nudge tail) still names the newest real row as the boundary", async () => {
-    const host = await seedUser(db, "fit_host3");
+    const host = await seedUser(db, castId<Handle>("fit_host3"));
     const chatId = await seedRoom("fit3", host);
     await Promise.all(
       Array.from({ length: 6 }, (_, i) =>
@@ -1714,7 +1714,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
   });
 
   test("everything fits under a wide window ⇒ null boundary, zero dropped", async () => {
-    const host = await seedUser(db, "fit_host2");
+    const host = await seedUser(db, castId<Handle>("fit_host2"));
     const chatId = await seedRoom("fit2", host);
     await Promise.all(
       Array.from({ length: 4 }, (_, i) => seedMessage(db, chatId, i + 1, { role: (i + 1) % 2 === 1 ? "user" : "assistant", content: `short turn ${i + 1}` })),
@@ -1736,7 +1736,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     db.update(chatsTable).set({ compactSummary: "the story so far", compactedAtSeq: coveredThroughSeq }).where(eq(chatsTable.id, chatId));
 
   test("a marker covering seq 2 ⇒ wide window keeps NOTHING dropped but the boundary is the first row above coverage (seq 3) + summary exposed", async () => {
-    const host = await seedUser(db, "fit_cov");
+    const host = await seedUser(db, castId<Handle>("fit_cov"));
     const chatId = await seedRoom("fitcov", host);
     await Promise.all(
       Array.from({ length: 4 }, (_, i) => seedMessage(db, chatId, i + 1, { role: (i + 1) % 2 === 1 ? "user" : "assistant", content: `short turn ${i + 1}` })),
@@ -1755,7 +1755,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
   });
 
   test("a marker covering seq 2 + a tiny window ⇒ the fit trims the post-marker window FURTHER; boundary > coverage, summary still exposed", async () => {
-    const host = await seedUser(db, "fit_cov2");
+    const host = await seedUser(db, castId<Handle>("fit_cov2"));
     const chatId = await seedRoom("fitcov2", host);
     await Promise.all(
       Array.from({ length: 8 }, (_, i) =>
@@ -1777,7 +1777,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
   });
 
   test("no marker ⇒ compactSummary is null even with dropped rows (a plain fit boundary, no memory fact)", async () => {
-    const host = await seedUser(db, "fit_nocov");
+    const host = await seedUser(db, castId<Handle>("fit_nocov"));
     const chatId = await seedRoom("fitnocov", host);
     await Promise.all(
       Array.from({ length: 8 }, (_, i) =>
@@ -1804,8 +1804,8 @@ describe("read — the §3.6 hidden-content member-strip", () => {
   const lieTag = '<lie character="Zandik" type="location" truth="He is in the crypt" reason="the heist"/>';
 
   test("listMessages: a MEMBER's payload carries ZERO hidden bytes; the HOST reads the full stored body", async () => {
-    const host = await seedUser(db, "ms_host");
-    const member = await seedUser(db, "ms_member");
+    const host = await seedUser(db, castId<Handle>("ms_host"));
+    const member = await seedUser(db, castId<Handle>("ms_member"));
     const chatId = await seedRoom("ms", host);
     await seedParticipant(db, { chatId, key: "ms_m", userId: member, role: "member" });
     await seedMessage(db, chatId, 1, { role: "assistant", content: `He nods. ${lieTag} "Nothing," he says.` });
@@ -1844,8 +1844,8 @@ describe("read — the §3.6 hidden-content member-strip", () => {
   }
 
   test("listMessages (deception game): a MEMBER's payload carries ZERO durable reasoning bytes; the HOST reads the trace", async () => {
-    const host = await seedUser(db, "dr_host");
-    const member = await seedUser(db, "dr_member");
+    const host = await seedUser(db, castId<Handle>("dr_host"));
+    const member = await seedUser(db, castId<Handle>("dr_member"));
     const chatId = await seedRoom("dr", host);
     await seedParticipant(db, { chatId, key: "dr_m", userId: member, role: "member" });
     await seedMessage(db, chatId, 1, { role: "assistant", content: "He shrugs.", reasoning: reasoningSpill });
@@ -1864,8 +1864,8 @@ describe("read — the §3.6 hidden-content member-strip", () => {
   });
 
   test("listMessages (deception game): a host HANDOFF moves the channel — the PROMOTED member gains the reasoning on the next read, the DEMOTED host loses it", async () => {
-    const founder = await seedUser(db, "dh_founder");
-    const successor = await seedUser(db, "dh_successor");
+    const founder = await seedUser(db, castId<Handle>("dh_founder"));
+    const successor = await seedUser(db, castId<Handle>("dh_successor"));
     const chatId = await seedRoom("dh", founder);
     await seedParticipant(db, { chatId, key: "dh_s", userId: successor, role: "member" });
     await seedMessage(db, chatId, 1, { role: "assistant", content: "He shrugs.", reasoning: reasoningSpill });
@@ -1893,8 +1893,8 @@ describe("read — the §3.6 hidden-content member-strip", () => {
   });
 
   test("listMessages (NO deception): a member KEEPS the durable reasoning channel — the P3 cut is game-conditional, not a blanket withhold", async () => {
-    const host = await seedUser(db, "nd_host");
-    const member = await seedUser(db, "nd_member");
+    const host = await seedUser(db, castId<Handle>("nd_host"));
+    const member = await seedUser(db, castId<Handle>("nd_member"));
     const chatId = await seedRoom("nd", host);
     await seedParticipant(db, { chatId, key: "nd_m", userId: member, role: "member" });
     await seedMessage(db, chatId, 1, { role: "assistant", content: "He shrugs.", reasoning: "weighing two openings" });
@@ -1906,8 +1906,8 @@ describe("read — the §3.6 hidden-content member-strip", () => {
   });
 
   test("replayChatEvents: a replayed view payload is stripped for a MEMBER, full for the HOST; chatEventBounds resolves viewerIsHost", async () => {
-    const host = await seedUser(db, "mr_host");
-    const member = await seedUser(db, "mr_member");
+    const host = await seedUser(db, castId<Handle>("mr_host"));
+    const member = await seedUser(db, castId<Handle>("mr_member"));
     const chatId = await seedRoom("mr", host);
     await seedParticipant(db, { chatId, key: "mr_m", userId: member, role: "member" });
     const { messageId } = await seedMessage(db, chatId, 1, { role: "assistant", content: `prose ${lieTag}` });
@@ -1938,8 +1938,8 @@ describe("read — the §3.6 hidden-content member-strip", () => {
   // deception-active game, the whole reasoning channel the live stream withheld. Deception-active is injected
   // via the `rpg.resolveReasoningHostOnly` op (the ONE seam chat reads the verdict from).
   test("replayChatEvents (deception game): a MEMBER's durable resume withholds reasoning DELTAS + scrubs hidden TEXT deltas; the HOST gets both", async () => {
-    const host = await seedUser(db, "drd_host");
-    const member = await seedUser(db, "drd_member");
+    const host = await seedUser(db, castId<Handle>("drd_host"));
+    const member = await seedUser(db, castId<Handle>("drd_member"));
     const chatId = await seedRoom("drd", host);
     await seedParticipant(db, { chatId, key: "drd_m", userId: member, role: "member" });
     // A committed reply slot at seq 1 (the deltas below stream INTO it — slotSeq 1).
@@ -1985,8 +1985,8 @@ describe("read — the §3.6 hidden-content member-strip", () => {
   // member the secret's last bytes — while the SAME log read from seq 0 came back clean, which is why an
   // afterSeq:0 test could never see it. The bytes are now decided once at emit, so every cursor agrees.
   test("replayChatEvents: a resume cursor landing INSIDE an open <lie …/> still withholds the tail (no cold start)", async () => {
-    const host = await seedUser(db, "midspan_host");
-    const member = await seedUser(db, "midspan_member");
+    const host = await seedUser(db, castId<Handle>("midspan_host"));
+    const member = await seedUser(db, castId<Handle>("midspan_member"));
     const chatId = await seedRoom("midspan", host);
     await seedParticipant(db, { chatId, key: "midspan_m", userId: member, role: "member" });
 
@@ -2093,8 +2093,8 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
   /** Seed a room whose group config sets `memberCardVisibility`, with a host + the card character seated +
    *  a plain member. Returns the ids. The card char's WI (`loadCharacterCardLore` source) is seeded separately. */
   async function seedCardRoom(key: string, visibility: MemberCardVisibility): Promise<{ host: UserId; member: UserId; chatId: ChatId }> {
-    const host = await seedUser(db, `${key}_host`);
-    const member = await seedUser(db, `${key}_member`);
+    const host = await seedUser(db, castId<Handle>(`${key}_host`));
+    const member = await seedUser(db, castId<Handle>(`${key}_member`));
     const chatId = await seedChat(db, key, { metadata: { group: { output: "per-speaker", policy: "natural", memberCardVisibility: visibility } } });
     await seedParticipant(db, { chatId, key: `${key}_h`, userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: `${key}_m`, userId: member, role: "member" });
@@ -2187,7 +2187,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
 
   test("a NON-PARTICIPANT gets a leak-free NOT_FOUND (no card bytes)", async () => {
     const { chatId } = await seedCardRoom("mc_stranger", "full");
-    const stranger = await seedUser(db, "mc_the_stranger");
+    const stranger = await seedUser(db, castId<Handle>("mc_the_stranger"));
 
     const { getMemberCard } = createRead(makeCardCtx(), makeCardDeps());
     const err = await getMemberCard({ principal: principal(stranger), chatId, characterId: cardChar }).catch((e: unknown) => e);

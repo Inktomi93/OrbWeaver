@@ -4,6 +4,8 @@
 // idempotent (returns the existing item).
 
 import { DomainNotFoundError } from "@orb/kit/errors";
+import type { CharacterHandle, Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { describe, onTestFinished } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -19,8 +21,8 @@ describe("addToGallery", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const character = await seedCharacter(db, owner, { handle: "hero" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const character = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     const asset = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(1),
@@ -49,7 +51,7 @@ describe("addToGallery", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const asset = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(2),
@@ -66,8 +68,8 @@ describe("addToGallery", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const character = await seedCharacter(db, owner, { handle: "hero" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const character = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     const asset = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(3),
@@ -96,8 +98,8 @@ describe("addToGallery", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreign = await svc.store({
       principal: principal(other),
       bytes: pngBytes(4),
@@ -113,9 +115,9 @@ describe("addToGallery", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
-    const foreignChar = await seedCharacter(db, other, { handle: "villain" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
+    const foreignChar = await seedCharacter(db, other, { handle: castId<CharacterHandle>("villain") });
     const asset = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(5),

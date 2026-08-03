@@ -3,6 +3,8 @@
 // that only SPOKE in a co-star block (never the egocentric producer) must still return that block — the
 // OR-branch is what catches it. Also pins the dispatch tagging, the owner-scope refusals, and the owner belt.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -24,7 +26,7 @@ import {
 describe("search (unified dispatch)", () => {
   test("digests · character scope: the OR-branch includes a co-star block the character only spoke in", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // Alice is the egocentric producer of the digest; Bob merely SPOKE in it (a chat_digest_speakers row).
     const alice = await seedCharacter(db, { id: "character_alice", ownerId: owner, name: "Alice" });
     const bob = await seedCharacter(db, { id: "character_bob", ownerId: owner, name: "Bob" });
@@ -68,7 +70,7 @@ describe("search (unified dispatch)", () => {
 
   test("digests · character scope: a character present in NO block gets an empty result", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const alice = await seedCharacter(db, { id: "character_alice", ownerId: owner, name: "Alice" });
     const ghost = await seedCharacter(db, { id: "character_ghost", ownerId: owner, name: "Ghost" });
     const chat = await seedChat(db, "chat_solo");
@@ -92,8 +94,8 @@ describe("search (unified dispatch)", () => {
 
   test("digests · character scope: a FOREIGN character id leaks nothing (owner belt)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const alice = await seedCharacter(db, { id: "character_alice", ownerId: owner, name: "Alice" });
     const chat = await seedChat(db, "chat_solo");
     const dg = await seedChatDigest(db, {
@@ -118,7 +120,7 @@ describe("search (unified dispatch)", () => {
 
   test("characters target · owner scope: delegates to findCharacters and tags the branch", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const alice = await seedCharacter(db, { id: "character_alice", ownerId: owner, name: "Alice" });
     await seedCharacterEmbedding(db, { characterId: alice, embedding: vec(1) });
 
@@ -138,7 +140,7 @@ describe("search (unified dispatch)", () => {
 
   test("an owner-wide target refuses a narrower scope (flag-don't-fake)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const svc = makeSearch(db, { embedVector: () => vec(1) });
     await expect(
       svc.search({
@@ -153,7 +155,7 @@ describe("search (unified dispatch)", () => {
 
   test("the images target without a lens throws lens_required", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const svc = makeSearch(db, { embedVector: () => vec(1) });
     await expect(svc.search({ ownerId: owner, query: "x", topN: 5, over: "images", scope: { kind: "owner" } })).rejects.toMatchObject({
       code: "lens_required",
@@ -162,8 +164,8 @@ describe("search (unified dispatch)", () => {
 
   test("digests · chat scope: a FOREIGN chat leaks nothing (characters-join owner belt)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const theirChar = await seedCharacter(db, {
       id: "character_them",
       ownerId: other,
@@ -192,8 +194,8 @@ describe("search (unified dispatch)", () => {
 
   test("segments · chat scope: owned chat returns hits, an unowned chat returns [] (ownedChatIds gate)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const alice = await seedCharacter(db, { id: "character_alice", ownerId: owner, name: "Alice" });
     // The owner's chat: it must carry a digest so ownedChatIds materializes it, plus the verbatim segment.
     const myChat = await seedChat(db, "chat_mine");
@@ -255,8 +257,8 @@ describe("search (unified dispatch)", () => {
 
   test("documents · owner scope reaches the caller's OWN bank only; chat scope is refused on the wire (DBK-C)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const stranger = await seedUser(db, { handle: "stranger" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const mine = await seedDocument(db, { id: "document_mine", ownerId: owner, name: "Mine" });
     const theirs = await seedDocument(db, { id: "document_theirs", ownerId: stranger, name: "Theirs" });
     await seedDocumentChunk(db, { documentId: mine, chunkIdx: 0, content: "my canon", embedding: vec(1) });

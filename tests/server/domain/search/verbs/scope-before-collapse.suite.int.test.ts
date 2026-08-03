@@ -15,6 +15,8 @@
 // worse rank). mixB (no rerank) so the cosine order is the whole story. Deterministic embed via the
 // scripted role-clients; real :memory: db.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
@@ -25,8 +27,8 @@ const SHARED_HASH = "shared_content_hash";
 describe("corpus — D20 scope precedes rank/collapse", () => {
   test("a foreign, MORE-similar, same-contentHash digest neither collapses the in-scope block out nor leaks", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const mine = await seedCharacter(db, { id: "character_mine", ownerId: owner, name: "Mine" });
     const theirs = await seedCharacter(db, {
       id: "character_theirs",
@@ -69,8 +71,8 @@ describe("corpus — D20 scope precedes rank/collapse", () => {
 
   test("a foreign, MORE-similar, DISTINCT-contentHash digest never displaces or leaks either", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const mine = await seedCharacter(db, { id: "character_mine", ownerId: owner, name: "Mine" });
     const theirs = await seedCharacter(db, {
       id: "character_theirs",

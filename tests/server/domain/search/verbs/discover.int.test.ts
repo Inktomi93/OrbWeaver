@@ -6,6 +6,8 @@
 // matchCount; owner isolation (the segment scan is bounded to the owner's materialized chats); rerank-before-
 // grouping; and the empty-query SearchError.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { SearchError } from "@orb/server/domain/search";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -15,7 +17,7 @@ import { makeSearch, seedCharacter, seedChat, seedChatDigest, seedChatDigestSpea
 describe("discover", () => {
   test("credits a solo block to its scoped character with the segment as evidence", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const nyx = await seedCharacter(db, { id: "character_nyx", ownerId: owner, name: "Nyx" });
     const chat = await seedChat(db, "chat_solo");
     // A tier-0 digest keys the block to Nyx (the segment credit path requires it); the segment matches.
@@ -46,7 +48,7 @@ describe("discover", () => {
 
   test("a GROUP block credits every co-star speaker (not the synthetic group char)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const alice = await seedCharacter(db, { id: "character_alice", ownerId: owner, name: "Alice" });
     const bob = await seedCharacter(db, { id: "character_bob", ownerId: owner, name: "Bob" });
     // The hidden group-as-character bucket the digest is scoped under (synthetic — must NOT be credited).
@@ -87,7 +89,7 @@ describe("discover", () => {
 
   test("caps evidence per character at DISCOVER_SEGMENTS_PER_CHAR but counts every match", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const nyx = await seedCharacter(db, { id: "character_nyx", ownerId: owner, name: "Nyx" });
     const chat = await seedChat(db, "chat_many");
     // Four matching blocks, all credited to Nyx (each with its own tier-0 digest + verbatim segment).
@@ -118,8 +120,8 @@ describe("discover", () => {
 
   test("never surfaces another owner's lived scenes", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const mine = await seedCharacter(db, { id: "character_mine", ownerId: owner, name: "Mine" });
     const theirs = await seedCharacter(db, {
       id: "character_theirs",
@@ -156,7 +158,7 @@ describe("discover", () => {
 
   test("rerank promotes a segment before grouping", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const a = await seedCharacter(db, { id: "character_a", ownerId: owner, name: "A" });
     const b = await seedCharacter(db, { id: "character_b", ownerId: owner, name: "B" });
     const chat = await seedChat(db, "chat_rr");
@@ -210,7 +212,7 @@ describe("discover", () => {
 
   test("a query that embeds to nothing throws a typed SearchError", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const svc = makeSearch(db, { embedVector: () => null });
     await expect(svc.discover({ ownerId: owner, queryText: "anything", topN: 5 })).rejects.toBeInstanceOf(SearchError);

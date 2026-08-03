@@ -3,7 +3,7 @@
 // reflect what's actually persisted: an empty db is all-zero; seeded rows bump exactly their table's count.
 
 import { characters, chats, users } from "@orb/db";
-import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { tableCounts } from "@orb/server/foundation/observability/debug";
 import { getTableName } from "drizzle-orm";
@@ -30,7 +30,7 @@ test("counts reflect persisted rows — exactly the seeded tables bump", async (
   await db.insert(chats).values({ id: castId<ChatId>("chat_stats_b") });
   await db.insert(characters).values({
     id: castId<CharacterId>("character_stats"),
-    handle: "card-stats",
+    handle: castId<CharacterHandle>("card-stats"),
     ownerId: userId,
     contentHash: "hash-stats",
     name: "Stat",

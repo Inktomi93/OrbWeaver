@@ -2,7 +2,8 @@
 // collapse into one answer (undefined → 404; no foreign-existence leak).
 
 import type { Db } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { describe, onTestFinished } from "vitest";
@@ -41,7 +42,7 @@ describe("getMetadata", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const bytes = pngBytes(1, 2, 3, 4);
 
     const stored = await svc.store({
@@ -60,8 +61,8 @@ describe("getMetadata", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
 
     const stored = await svc.store({
       principal: principal(owner),
@@ -79,7 +80,7 @@ describe("getMetadata", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const meta = await svc.getMetadata({ principal: principal(owner), hash: "f".repeat(64) });
     expect(meta).toBeUndefined();
@@ -95,8 +96,8 @@ describe("getMetadata — PD-107 roster-avatar reference-check", () => {
   // Seeds: `charOwner` owns a character whose avatar is a stored PNG; `caller` is a separate user. Returns
   // the pieces each case tweaks. The chat + rosterings are seeded per-case (they're what varies).
   async function seedAvatar(db: Db, h: AssetsHarness): Promise<AvatarScenario> {
-    const charOwner = await seedUser(db, { handle: "char_owner" });
-    const caller = await seedUser(db, { handle: "caller" });
+    const charOwner = await seedUser(db, { handle: castId<Handle>("char_owner") });
+    const caller = await seedUser(db, { handle: castId<Handle>("caller") });
     const svc = createAssetsService(h.ctx);
     const avatar = await svc.store({
       principal: principal(charOwner),
@@ -104,7 +105,7 @@ describe("getMetadata — PD-107 roster-avatar reference-check", () => {
       kind: "avatar",
       mime: PNG,
     });
-    const character = await seedCharacter(db, charOwner, { handle: "hero" });
+    const character = await seedCharacter(db, charOwner, { handle: castId<CharacterHandle>("hero") });
     await setCharacterAvatar(db, character, avatar.assetId);
     return { svc, charOwner, caller, character, avatarHash: avatar.hash, avatarSize: avatar.size };
   }
@@ -215,8 +216,8 @@ describe("getMetadata — PD-28 persona-sibling reference-check (multi-human gro
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const personaOwner = await seedUser(db, { handle: "persona_owner" });
-    const caller = await seedUser(db, { handle: "caller" });
+    const personaOwner = await seedUser(db, { handle: castId<Handle>("persona_owner") });
+    const caller = await seedUser(db, { handle: castId<Handle>("caller") });
     const avatar = await svc.store({
       principal: principal(personaOwner),
       bytes: pngBytes(11, 22, 33),
@@ -244,8 +245,8 @@ describe("getMetadata — PD-28 persona-sibling reference-check (multi-human gro
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const personaOwner = await seedUser(db, { handle: "persona_owner_2" });
-    const caller = await seedUser(db, { handle: "caller_2" });
+    const personaOwner = await seedUser(db, { handle: castId<Handle>("persona_owner_2") });
+    const caller = await seedUser(db, { handle: castId<Handle>("caller_2") });
     const avatar = await svc.store({
       principal: principal(personaOwner),
       bytes: pngBytes(44, 55, 66),
@@ -280,8 +281,8 @@ describe("getMetadata — #67 attachment co-participant reference-check", () => 
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "att_owner" });
-    const member = await seedUser(db, { handle: "att_member" });
+    const owner = await seedUser(db, { handle: castId<Handle>("att_owner") });
+    const member = await seedUser(db, { handle: castId<Handle>("att_member") });
     const att = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(7, 7, 7),
@@ -303,8 +304,8 @@ describe("getMetadata — #67 attachment co-participant reference-check", () => 
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "att_owner_2" });
-    const outsider = await seedUser(db, { handle: "att_outsider" });
+    const owner = await seedUser(db, { handle: castId<Handle>("att_owner_2") });
+    const outsider = await seedUser(db, { handle: castId<Handle>("att_outsider") });
     const att = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(6, 6, 6),
@@ -326,8 +327,8 @@ describe("getMetadata — #67 attachment co-participant reference-check", () => 
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "att_owner_3" });
-    const member = await seedUser(db, { handle: "att_member_3" });
+    const owner = await seedUser(db, { handle: castId<Handle>("att_owner_3") });
+    const member = await seedUser(db, { handle: castId<Handle>("att_member_3") });
     // The owner stores an asset but never attaches it to a message in the shared chat — a co-participant must
     // NOT be able to probe its existence just by sharing a chat with the owner.
     const unattached = await svc.store({
@@ -349,8 +350,8 @@ describe("getMetadata — #67 attachment co-participant reference-check", () => 
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
-    const owner = await seedUser(db, { handle: "att_owner_4" });
-    const member = await seedUser(db, { handle: "att_member_4" });
+    const owner = await seedUser(db, { handle: castId<Handle>("att_owner_4") });
+    const member = await seedUser(db, { handle: castId<Handle>("att_member_4") });
     const att = await svc.store({
       principal: principal(owner),
       bytes: pngBytes(2, 2, 2),

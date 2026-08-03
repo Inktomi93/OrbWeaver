@@ -10,7 +10,7 @@ import type { ChatMetadata } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { RpgActorOp, RpgJournalType, RpgPackagedProfileKey, RpgQuestStatus, RpgTrackerDef } from "@orb/contracts/rpg";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import type { BulkImportChats } from "./import";
 
 /** One bundled EXAMPLE conversation. The transcript itself is NOT here — it is the verbatim output of the
@@ -69,7 +69,7 @@ export interface DemoChatGameSetup {
 export type DemoChatActorSeat =
   | { readonly kind: "player" }
   /** A seated card, by the manifest handle it was resolved from. */
-  | { readonly kind: "handle"; readonly handle: string }
+  | { readonly kind: "handle"; readonly handle: CharacterHandle }
   /** A scene-only NPC the transcript introduced — minted by the first hand op on it (`patchActor` mints an
    *  absent target). The slug MUST already be canonical (`rpgCastSlug`), which the wire enforces. */
   | { readonly kind: "cast"; readonly slug: string };
@@ -113,7 +113,7 @@ interface DemoChatGameJournalEntry {
  *  authored `handle` seats become real `{kind:"character"}` actor refs at the entry seam (domain/chat never
  *  spells an rpg actor ref). */
 export interface DemoChatSeat {
-  readonly handle: string;
+  readonly handle: CharacterHandle;
   readonly characterId: CharacterId;
 }
 
@@ -124,7 +124,7 @@ export interface DemoChatSeederDeps {
    *  lines by name, so the seat map is name-keyed). Null ⇒ the pack did not seed it (skip the example). */
   readonly findCharacterByHandle: (args: {
     readonly principal: Principal;
-    readonly handle: string;
+    readonly handle: CharacterHandle;
   }) => Promise<{ readonly characterId: CharacterId; readonly name: string } | null>;
   /** Chat's own canon-safe bulk write — the ONE chat-write seam (D34 Option B), never a raw INSERT. */
   readonly writeChats: BulkImportChats;

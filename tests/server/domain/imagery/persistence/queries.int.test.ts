@@ -137,7 +137,7 @@ async function seedGeneration(args: SeedArgs): Promise<void> {
   });
 }
 
-async function seedUser(handle: string): Promise<UserId> {
+async function seedUser(handle: Handle): Promise<UserId> {
   const id = castId<UserId>(`user_${handle}`);
   await db.insert(users).values({ id, handle: castId<Handle>(handle), role: "user", enabled: true });
   return id;
@@ -149,7 +149,7 @@ function lookup(owner: UserId, identityHash: string): Promise<Awaited<ReturnType
 
 describe("findReusableGeneration", () => {
   test("matches on (owner, subject, mode, identityHash) — the newest generation, all its images", async () => {
-    const owner = await seedUser("owner");
+    const owner = await seedUser(castId<Handle>("owner"));
     // An older single-image generation, then a newer 3-image generation (shared createdAt).
     await seedGeneration({ owner, generationId: "g_old", assetId: castId<AssetId>("asset_old"), createdAt: FROZEN_AT });
     for (let i = 0; i < 3; i += 1) {
@@ -164,14 +164,14 @@ describe("findReusableGeneration", () => {
   });
 
   test("a changed identity hash misses (no reuse)", async () => {
-    const owner = await seedUser("owner");
+    const owner = await seedUser(castId<Handle>("owner"));
     await seedGeneration({ owner, generationId: "g1", assetId: castId<AssetId>("asset_1"), createdAt: FROZEN_AT });
     expect(await lookup(owner, "different_hash")).toHaveLength(0);
   });
 
   test("cross-owner isolation — a match under another owner is never returned", async () => {
-    const owner = await seedUser("owner");
-    const other = await seedUser("other");
+    const owner = await seedUser(castId<Handle>("owner"));
+    const other = await seedUser(castId<Handle>("other"));
     await seedGeneration({ owner: other, generationId: "g_other", assetId: castId<AssetId>("asset_other"), createdAt: FROZEN_AT });
     expect(await lookup(owner, HASH)).toHaveLength(0);
   });
@@ -179,7 +179,7 @@ describe("findReusableGeneration", () => {
 
 describe("readProvenanceByAsset", () => {
   test("returns the provenance for an owned generated asset", async () => {
-    const owner = await seedUser("owner");
+    const owner = await seedUser(castId<Handle>("owner"));
     await seedGeneration({ owner, generationId: "g1", assetId: castId<AssetId>("asset_1"), createdAt: FROZEN_AT });
     const prov = await readProvenanceByAsset(db, owner, castId<AssetId>("asset_1"));
     expect(prov).toMatchObject({
@@ -195,14 +195,14 @@ describe("readProvenanceByAsset", () => {
   });
 
   test("a foreign owner reads null (no cross-owner provenance leak)", async () => {
-    const owner = await seedUser("owner");
-    const other = await seedUser("other");
+    const owner = await seedUser(castId<Handle>("owner"));
+    const other = await seedUser(castId<Handle>("other"));
     await seedGeneration({ owner, generationId: "g1", assetId: castId<AssetId>("asset_1"), createdAt: FROZEN_AT });
     expect(await readProvenanceByAsset(db, other, castId<AssetId>("asset_1"))).toBeNull();
   });
 
   test("an asset with no provenance row reads null", async () => {
-    const owner = await seedUser("owner");
+    const owner = await seedUser(castId<Handle>("owner"));
     const assetId = castId<AssetId>("asset_bare");
     await db.insert(assets).values({ id: assetId, ownerId: owner, kind: "generated", mime: "image/png", size: 8, hash: "bare" });
     expect(await readProvenanceByAsset(db, owner, assetId)).toBeNull();

@@ -4,7 +4,7 @@
 // foreign owner, and the segment candidate restriction matches on `(chatId, blockIdx)`.
 
 import { characters, chatDigests, chatSegments } from "@orb/db";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
@@ -16,7 +16,7 @@ import { EMBED_MODEL, seedCharacter, seedChat, seedChatDigest, seedChatSegment, 
 describe("digestScopeCond", () => {
   test("the candidate restriction matches the full block key (not just chat+block)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const x = await seedCharacter(db, { id: "character_x", ownerId: owner, name: "X" });
     const y = await seedCharacter(db, { id: "character_y", ownerId: owner, name: "Y" });
     const chat = await seedChat(db, "chat_a");
@@ -50,8 +50,8 @@ describe("digestScopeCond", () => {
 
   test("the owner belt excludes a foreign owner's digest", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
-    const other = await seedUser(db, { handle: "other" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
     const mine = await seedCharacter(db, { id: "character_mine", ownerId: owner, name: "Mine" });
     const theirs = await seedCharacter(db, {
       id: "character_theirs",
@@ -86,7 +86,7 @@ describe("digestScopeCond", () => {
 describe("segmentScopeCond", () => {
   test("the candidate restriction matches on (chatId, blockIdx)", async () => {
     const db = await freshDb();
-    const owner = await seedUser(db, { handle: "owner" });
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedCharacter(db, { id: "character_pov", ownerId: owner, name: "POV" });
     const chat = await seedChat(db, "chat_a");
     await seedChatSegment(db, { chatId: chat, blockIdx: 0, embedding: vec(1) });

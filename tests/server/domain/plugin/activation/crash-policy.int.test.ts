@@ -2,6 +2,8 @@
 // detail; at the threshold (3) the plugin auto-disables (status errored) + is deactivated; a clean run resets.
 
 import type { NotificationEvent } from "@orb/contracts/notifications";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
 import { createCrashPolicy } from "../../../../../packages/server/src/domain/plugin/activation/crash-policy.ts";
 import { getById } from "../../../../../packages/server/src/domain/plugin/persistence/plugins.ts";
@@ -24,7 +26,7 @@ test("crashes below the threshold record the detail but keep the plugin runnable
     },
   };
   const h = makePluginHarness(db, { ops });
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
 
   const deactivated: string[] = [];
@@ -55,7 +57,7 @@ test("crashes below the threshold record the detail but keep the plugin runnable
 test("a clean run resets the crash counter", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const owner = await seedUser(db, { handle: "owner" });
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
   const policy = createCrashPolicy(h.ctx, () => undefined);
 

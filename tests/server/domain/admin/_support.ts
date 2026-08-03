@@ -40,7 +40,7 @@ const FROZEN_AT = 1_750_000_000_000;
 
 interface SeedUserOverrides {
   readonly id?: string;
-  readonly handle?: string;
+  readonly handle?: Handle;
   readonly role?: UserRole;
   readonly enabled?: boolean;
   readonly passwordHash?: string | null;
@@ -64,15 +64,15 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
 /** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
  *  `support/factories/principal` — admin keeps the positional `(id, role, handle?)` convention its ~40
  *  call sites use; the shared home owns the literal (role/handle over the `overrides` axis). */
-export function principal(userId: UserId, role: UserRole, handle: string = userId): Principal {
-  return makePrincipal(userId, { role, handle: castId<Handle>(handle) });
+export function principal(userId: UserId, role: UserRole, handle: Handle = castId<Handle>(userId)): Principal {
+  return makePrincipal(userId, { role, handle });
 }
 
 /** The repeated "wire the service, seed the admin caller" prologue (~7 call sites): builds a real
  *  `AdminService` over a fresh harness and seeds a `user_adm` admin-role caller. */
 export async function seedAdminCaller(db: Db): Promise<{ svc: AdminService; admin: UserId }> {
   const svc = createAdminService(makeHarness(db).ctx);
-  const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: "adm" });
+  const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
   return { svc, admin };
 }
 
