@@ -2,10 +2,10 @@
 // identity, panel defaults, placeholder copy, list, content, header, and CONTEXT model in one place.
 // CONTEXT is minted via `defineContextTabs<ChatContextState>` (§6b) over the phase-discriminated
 // projection, unifying the committed panel and its draft twin into one tab set; `useChatContextState`
-// pairs with the tabs so `S` never crosses the shell seam. `makeChatsSection` takes the chat-context
-// contributor registry (§6c) so rpg/crew can graft tabs at the door without importing chat — and the
-// REGION-CLAIM registry (HUD-1 §3.2) so a contributor can own the whole CONTEXT pane for a state it
-// declares, still without either feature importing the other.
+// pairs with the tabs so `S` never crosses the shell seam. `makeChatsSection` takes its four contributor
+// seams as ONE named-field bundle (§12 row 5, gate `section-factory-contribution-bundle`) — context tabs
+// (§6c) + REGION claims (HUD-1 §3.2) + surface anchors + tool renderers — so rpg/crew graft at the door
+// without importing chat, and a fifth seam is a FIELD rather than an arity churn at every caller.
 
 import { Eye, MessagesSquare, SlidersHorizontal, Users } from "@orb/ui/icons";
 import type {
@@ -95,12 +95,21 @@ const CHAT_CONTEXT_TABS: readonly (ContextTabDef<ChatContextState> & { readonly 
   },
 ];
 
-export function makeChatsSection(
-  chatContextContributors: ContributorRegistry<ContextTabDef<ChatContextState>>,
-  chatContextRegions: ContributorRegistry<ContextRegionDef<ChatContextState>>,
-  chatSurfaceContributors: ContributorRegistry<ChatSurfaceContribution>,
-  toolRenderers: ContributorRegistry<ToolRenderer>,
-): SectionDefinition {
+/** The chat section's contributor seams as ONE named-field bundle (client-architecture-lockdown.md §12
+ *  row 5, gate `section-factory-contribution-bundle`): a fifth seam is a FIELD here, not another positional
+ *  parameter churned through the door and both CT overrides. */
+interface ChatsSectionContributors {
+  /** §6c — the chat-context TAB contributors, merged after chat's own tabs at the `defineContextTabs` mint. */
+  readonly contextTabs: ContributorRegistry<ContextTabDef<ChatContextState>>;
+  /** HUD-1 §3.2 — the whole-pane REGION-CLAIM contributors; zero claimants ⇒ the generic panel. */
+  readonly contextRegions: ContributorRegistry<ContextRegionDef<ChatContextState>>;
+  /** §6c/M8 — the CONTENT-surface anchor contributors (thread-flank / above-composer / message-footer). */
+  readonly surfaces: ContributorRegistry<ChatSurfaceContribution>;
+  /** §6c — the per-tool-name renderers; zero ⇒ every tool record renders through the generic fallback. */
+  readonly toolRenderers: ContributorRegistry<ToolRenderer>;
+}
+
+export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRenderers }: ChatsSectionContributors): SectionDefinition {
   return {
     id: "chats",
     rail: { label: "Chats", icon: MessagesSquare, group: "primary", mobile: "tab" },
@@ -118,7 +127,7 @@ export function makeChatsSection(
     ),
     // The LIST chrome-band content (§4 N2): "CHATS" title + count + the ONE primary New action.
     listHeader: () => <ChatListHeader />,
-    content: () => <ChatContent surfaceContributors={chatSurfaceContributors} toolRenderers={toolRenderers} />,
+    content: () => <ChatContent surfaceContributors={surfaces} toolRenderers={toolRenderers} />,
     // Topbar identity: committed roster header vs draft seed, resolved from #state/#data inside the body.
     header: () => <ChatsTopbarHeader />,
     context: defineContextTabs<ChatContextState>({
@@ -129,11 +138,11 @@ export function makeChatsSection(
       // band reduces to neutral chrome above the tab strip. (`ChatContextHeader` was DELETED for knip;
       // CP-4's scene banner will be a NEW component grafted into this `header` slot, not a resurrection.)
       actions: (s) => (s.phase === "draft" ? <DraftAddMemberPopover draftKey={s.draftKey} existingCharacterIds={s.cast} /> : null),
-      contributors: chatContextContributors,
+      contributors: contextTabs,
       // The whole-pane REGION-CLAIM arm (HUD-1 §3.2): chat consumes it BLIND — a claiming contributor
       // (the rpg HUD on an engaged game chat) renders the entire CONTEXT pane from the tabs + selection
       // this same mint resolved. Zero claimants ⇒ the generic panel, unchanged.
-      regions: chatContextRegions,
+      regions: contextRegions,
       // The no-selection ARM (side-eye F-12) — this pane shared one voiceless
       // "Select something to see its details here." with two other sections.
       empty: {
