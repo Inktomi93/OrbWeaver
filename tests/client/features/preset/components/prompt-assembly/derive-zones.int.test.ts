@@ -60,3 +60,17 @@ test("summaries count only ENABLED sections and sum their token estimates per zo
   expect(zones.summaries.post.enabledCount).toBe(2); // the enabled literal + the enabled pivot
   expect(zones.summaries.post.tokenEstimate).toBe(3); // the pivot contributes 0
 });
+
+test("a supplied price OVERRIDES the author-text estimate — the bound readout's zone strip (D121-G)", () => {
+  // Bound to a chat, the strip must add up the SAME numbers the bars under it show (F-29: one column, one
+  // producer) — and the pivot, which has no author text at all, is exactly where the two used to disagree.
+  const sections = [literal("a", "aaaaaaaa"), pivot("hist"), literal("b", "bbbbbbbbbbbb")];
+  const priced: Record<string, number> = { a: 400, hist: 1624, b: 30 };
+  const zones = deriveZones(sections, (section) => priced[section.id] ?? 0);
+
+  expect(zones.summaries.setup.tokenEstimate).toBe(400);
+  // The conversation carrier now carries real weight — the whole point of the binding.
+  expect(zones.summaries.post.tokenEstimate).toBe(1654);
+  // The DEFAULT is untouched: no price supplied ⇒ the chat-free author-text estimate, as before.
+  expect(deriveZones(sections).summaries.post.tokenEstimate).toBe(3);
+});

@@ -108,6 +108,12 @@ export interface GetMemberCardParams extends ChatScopedParams {
 export interface PreviewAssemblyParams extends ChatScopedParams {
   readonly speakerCharacterId?: CharacterId | null | undefined;
   readonly guided?: GuidedSteer | undefined;
+  /** D121-G / §7.1 — assemble this room as if THIS preset were active, for the preset editor's BOUND Prompt
+   *  readout (which prices a preset the chat has not adopted). Rides the SAME
+   *  `ResolveForeignInputsOp.presetOverride` seam as {@link PreviewActionTemplatesParams.presetId} and
+   *  inherits its safety: resolved owned-or-system UNDER THE HOST, degraded to the host's own default on a
+   *  stale/unowned id. Absent ⇒ the chat's own active preset (every pre-existing caller). */
+  readonly presetOverride?: PresetId | undefined;
 }
 
 /** `getActivePresetConfig` — the resolved PromptConfig the chat assembles against. */

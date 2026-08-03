@@ -37,8 +37,12 @@ function isPivot(section: PromptSection): boolean {
  * Derive the setup/post zones for a rack ordering. Pure over the passed section array; nothing is
  * mutated or stamped. The pivot itself is classified `post` (it opens the conversation band), so a
  * section AT `pivotIndex` and everything after it are `post`; everything strictly before is `setup`.
+ *
+ * `tokensOf` is the PRICE of one section, defaulting to the chat-free author-text estimate. The bound Prompt
+ * readout (D121-G) passes the BOUND CHAT's real per-section costs instead — so the zone strip and the bars
+ * under it can never be reading two different budgets (the F-29 class: one column, two producers).
  */
-export function deriveZones(sections: readonly PromptSection[]): DerivedZones {
+export function deriveZones(sections: readonly PromptSection[], tokensOf: (section: PromptSection) => number = estimateSectionTokens): DerivedZones {
   const pivotIndexes = sections.reduce<number[]>((acc, section, i) => {
     if (isPivot(section)) {
       acc.push(i);
@@ -64,7 +68,7 @@ export function deriveZones(sections: readonly PromptSection[]): DerivedZones {
     const bucket = summaries[zone];
     summaries[zone] = {
       enabledCount: bucket.enabledCount + 1,
-      tokenEstimate: bucket.tokenEstimate + estimateSectionTokens(section),
+      tokenEstimate: bucket.tokenEstimate + tokensOf(section),
     };
   }
 

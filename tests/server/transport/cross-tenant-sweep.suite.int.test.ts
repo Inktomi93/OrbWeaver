@@ -595,7 +595,14 @@ const PROBES: readonly Probe[] = [
     path: "chat.getVariablePicks",
     call: (c, i) => c.chat.getVariablePicks({ chatId: i.chatId }),
   },
-  { path: "chat.previewAssembly", call: (c, i) => c.chat.previewAssembly({ chatId: i.chatId }) },
+  {
+    // Probed with the D121-G `presetOverride` ON, so the sweep exercises the SAME two-foreign-id shape the
+    // preset editor's bound Prompt readout sends. Identical verdict to `previewActionTemplates` below: the
+    // chatId gate (`requireHost`) is the one that must bite, and the override needs no probe of its own
+    // because compose resolves it under the ROOM HOST.
+    path: "chat.previewAssembly",
+    call: (c, i) => c.chat.previewAssembly({ chatId: i.chatId, presetOverride: i.presetId }),
+  },
   {
     // D8's bound readout. TWO foreign-id surfaces on one call, and the chatId gate is the one that must bite:
     // `requireHost` refuses the stranger's chat BEFORE any preset is resolved or any template is rendered. The

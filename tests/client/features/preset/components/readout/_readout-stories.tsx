@@ -7,8 +7,10 @@
 // `selectChat` (the LAST-OPEN CHAT handle the readout auto-binds to). Nothing is stubbed above the network:
 // the binding is only proven if the real `useActiveChatId` read is what drives it.
 //
-// TWO STORIES, one component: BOUND (a chat is active — the auto-bind arm) and UNBOUND (no chat was ever
-// selected — the honest-token fallback, which is also where a DISMISS lands).
+// FOUR STORIES, one component: the ACTIONS pair — BOUND (a chat is active, the auto-bind arm) and UNBOUND
+// (no chat was ever selected — the honest-token fallback, which is also where a DISMISS lands) — and the
+// PROMPT pair (D121-G), where the same binding decides whether the rack's bars carry the bound chat's REAL
+// materialized costs or the chat-free `~—` floor.
 
 import { PresetReadout } from "@orb/client/features/preset";
 import {
@@ -17,6 +19,7 @@ import {
   goToLanding,
   selectChat,
   selectPreset,
+  selectPresetSection,
   selectPresetTemplate,
   setPresetEditorView,
 } from "@orb/client/state";
@@ -31,14 +34,20 @@ import { CtDataProviders } from "../../../../../support/ct/ct-data-providers";
 const STORY_PRESET = castId<PresetId>("preset_ct_readoutbind");
 const STORY_CHAT = castId<ChatId>("chat_ct_readoutbind");
 
-/** Open the preset on the ACTIONS view; `chatId` non-null also makes that chat the active (last-open) one. */
-function useReadoutFixture(chatId: ChatId | null): void {
+/** The rack row the PROMPT stories select — the conversation CARRIER, the row whose whole point is that the
+ *  editor cannot price it chat-free (`DEFAULT_PROMPT_CONFIG`'s own pivot id). */
+const STORY_SECTION = "chat-history";
+
+/** Open the preset on `view`; `chatId` non-null also makes that chat the active (last-open) one. Every axis is
+ *  driven through its PRODUCTION store door, so the CT proves the projection rather than a prop. */
+function useReadoutFixture(chatId: ChatId | null, view: string): void {
   useEffect(() => {
     selectPreset(STORY_PRESET);
-    setPresetEditorView("actions");
-    // The SELECTION the readout echoes (§6.1: the Actions row body selects, the readout resolves that row).
-    // Driven through the production store door, so the CT proves the projection rather than a prop.
+    setPresetEditorView(view);
+    // The SELECTIONS the readout echoes (§6.1: the row body selects, the readout resolves that row) — the
+    // Actions template and the Prompt rack row.
     selectPresetTemplate("impersonate");
+    selectPresetSection(STORY_SECTION);
     if (chatId !== null) {
       selectChat(chatId);
     }
@@ -47,11 +56,11 @@ function useReadoutFixture(chatId: ChatId | null): void {
       __resetPresetTemplate();
       goToLanding();
     };
-  }, [chatId]);
+  }, [chatId, view]);
 }
 
-function ReadoutFrame({ chatId }: { readonly chatId: ChatId | null }): ReactElement {
-  useReadoutFixture(chatId);
+function ReadoutFrame({ chatId, view }: { readonly chatId: ChatId | null; readonly view: string }): ReactElement {
+  useReadoutFixture(chatId, view);
   return (
     <div style={{ height: 720, width: 380 }}>
       <PresetReadout />
@@ -63,7 +72,7 @@ function ReadoutFrame({ chatId }: { readonly chatId: ChatId | null }): ReactElem
 export function PresetReadoutBoundStory(): ReactElement {
   return (
     <CtDataProviders>
-      <ReadoutFrame chatId={STORY_CHAT} />
+      <ReadoutFrame chatId={STORY_CHAT} view="actions" />
     </CtDataProviders>
   );
 }
@@ -72,7 +81,36 @@ export function PresetReadoutBoundStory(): ReactElement {
 export function PresetReadoutUnboundStory(): ReactElement {
   return (
     <CtDataProviders>
-      <ReadoutFrame chatId={null} />
+      <ReadoutFrame chatId={null} view="actions" />
+    </CtDataProviders>
+  );
+}
+
+/** PROMPT + BOUND (D121-G): the rack priced by the bound chat's own assembly — real carrier costs and the
+ *  selected carrier's materialized rows. */
+export function PresetReadoutPromptBoundStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ReadoutFrame chatId={STORY_CHAT} view="prompt" />
+    </CtDataProviders>
+  );
+}
+
+/** PROMPT + UNBOUND: the chat-free floor — carriers read `~—` and nothing is fetched to price them. */
+export function PresetReadoutPromptUnboundStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ReadoutFrame chatId={null} view="prompt" />
+    </CtDataProviders>
+  );
+}
+
+/** PARAMS + BOUND: the view the binding deliberately does NOT reach (`BINDING_VIEWS.params === false`) — a
+ *  chip there would claim a resolution that is not happening. */
+export function PresetReadoutParamsBoundStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ReadoutFrame chatId={STORY_CHAT} view="params" />
     </CtDataProviders>
   );
 }
@@ -85,7 +123,7 @@ export function PromptReadoutDisclosureStory(): ReactElement {
   return (
     <CtDataProviders>
       <div data-readout-scroller="" style={{ height: 300, overflowY: "auto", width: 380 }}>
-        <PromptReadout sections={DEFAULT_PROMPT_CONFIG.sections} selectedSectionId={null} />
+        <PromptReadout boundChatId={null} presetId={STORY_PRESET} sections={DEFAULT_PROMPT_CONFIG.sections} selectedSectionId={null} />
       </div>
     </CtDataProviders>
   );
