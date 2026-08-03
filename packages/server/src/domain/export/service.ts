@@ -6,10 +6,12 @@ import type { ExportContext } from "./context";
 import type { ExportService } from "./contract/service";
 import { createExportCharacter } from "./verbs/export-character";
 import { createExportChat } from "./verbs/export-chat";
+import { createListHostChats } from "./verbs/list-host-chats";
 
 export function createExportService(ctx: ExportContext): ExportService {
   return {
     exportCharacter: createExportCharacter(ctx),
     exportChat: createExportChat(ctx),
+    listHostChats: createListHostChats(ctx),
   };
 }

@@ -7,8 +7,13 @@
 import { createBookSchema, createEntrySchema, updateBookSchema, updateEntrySchema, worldBookRoleSchema } from "@orb/contracts/world-info";
 import type { CharacterId, ChatId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc";
+
+// A lorebook is the biggest orb-native JSON artifact people share; the cap only fences a hostile upload.
+const MAX_BOOK_FILE_CHARS = 8_000_000;
+const DEC = new TextDecoder();
 
 export const worldInfoRouter = t.router({
   listBooks: authedProcedure.query(({ ctx }) => ctx.services.worldInfo.listBooks({ principal: ctx.auth })),
@@ -36,6 +41,26 @@ export const worldInfoRouter = t.router({
   duplicateBook: authedProcedure
     .input(z.object({ bookId: brandedId<WorldBookId>() }))
     .mutation(({ ctx, input }) => ctx.services.worldInfo.duplicateBook({ principal: ctx.auth, bookId: input.bookId })),
+
+  // The two single-book DOORS (F2 — the verbs shipped with none, so sharing one lorebook required a full
+  // library-zip round-trip). Both are thin arms over the bundle descriptor's own verbs.
+  exportBook: authedProcedure.input(z.object({ bookId: brandedId<WorldBookId>() })).query(async ({ ctx, input }) => {
+    const file = await ctx.services.worldInfo.exportBook({ principal: ctx.auth, bookId: input.bookId });
+    if (file === null) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "That world-info book doesn't exist." });
+    }
+    return { filename: file.filename, fileText: DEC.decode(file.bytes) };
+  }),
+
+  importFile: authedProcedure.input(z.object({ fileText: z.string().max(MAX_BOOK_FILE_CHARS) })).mutation(async ({ ctx, input }) => {
+    const outcome = await ctx.services.worldInfo.importFile({ principal: ctx.auth, fileText: input.fileText });
+    if (!outcome.ok) {
+      // The refusal REASON reaches the user as words — a book written by a newer orbweaver no longer reads
+      // as "not a valid file". The import dialog renders this message.
+      throw new TRPCError({ code: "BAD_REQUEST", message: outcome.error ?? "That file isn't a valid world-info book." });
+    }
+    return { created: outcome.created === true };
+  }),
 
   listEntries: authedProcedure
     .input(z.object({ bookId: brandedId<WorldBookId>() }))

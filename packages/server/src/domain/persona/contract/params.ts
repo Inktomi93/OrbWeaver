@@ -4,7 +4,7 @@
 // principal.userId (never a users read — no-direct-users-read gate).
 
 import type { Principal } from "@orb/contracts/identity";
-import type { CreatePersonaInput, PersonaBackupInput, UpdatePersonaInput } from "@orb/contracts/persona";
+import type { CreatePersonaInput, UpdatePersonaInput } from "@orb/contracts/persona";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 
 export type { CreatePersonaInput, UpdatePersonaInput } from "@orb/contracts/persona";
@@ -68,7 +68,9 @@ export interface ExportPersonaParams extends PersonaActorParams {
   readonly personaId: PersonaId;
 }
 
-/** Never carries avatarAssetId — the backup shape (personaBackupSchema) excludes it. */
+/** The FILE is the unit (the thin-arm law): the single-entity door and the bundle descriptor hand the same
+ *  bytes to the same verb, so the two paths can never drift. Never carries avatarAssetId — the backup shape
+ *  (personaBackupSchema) excludes it. */
 export interface ImportPersonaParams extends PersonaActorParams {
-  readonly input: PersonaBackupInput;
+  readonly bytes: Uint8Array;
 }

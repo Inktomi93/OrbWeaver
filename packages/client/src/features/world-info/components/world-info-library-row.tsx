@@ -7,6 +7,8 @@
 
 import type { WorldBookId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
+import { Download, Icon } from "@orb/ui/icons";
+import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { LibraryRow } from "#components";
 
@@ -26,10 +28,12 @@ export interface WorldInfoLibraryRowProps {
   readonly onDelete: (id: WorldBookId) => void;
   readonly onDuplicate: (id: WorldBookId) => void;
   readonly onRename: (id: WorldBookId) => void;
+  /** F2 — the ruled kebab=Export door. Downloads the SAME bytes the backup bundle carries for this book. */
+  readonly onExport: (id: WorldBookId) => void;
 }
 
 /** A single world-book library row (its Rename/Duplicate/Delete menu + delete-confirm come from LibraryRow). */
-export function WorldInfoLibraryRow({ book, selected, global, onSelect, onDelete, onDuplicate, onRename }: WorldInfoLibraryRowProps): ReactElement {
+export function WorldInfoLibraryRow({ book, selected, global, onSelect, onDelete, onDuplicate, onExport, onRename }: WorldInfoLibraryRowProps): ReactElement {
   return (
     <LibraryRow
       actions={{
@@ -38,6 +42,13 @@ export function WorldInfoLibraryRow({ book, selected, global, onSelect, onDelete
         onDuplicate: (): void => onDuplicate(book.id),
         onDelete: (): void => onDelete(book.id),
         deleteDescription: "This permanently removes the book and every entry in it, and detaches it everywhere. This can't be undone.",
+        // Below Duplicate, above the destructive Delete — the §9 kebab order.
+        menuItemsAfter: (
+          <MenuItem onClick={(): void => onExport(book.id)}>
+            <Icon icon={Download} size="sm" />
+            Export
+          </MenuItem>
+        ),
       }}
       onSelect={(): void => onSelect(book.id)}
       selected={selected}

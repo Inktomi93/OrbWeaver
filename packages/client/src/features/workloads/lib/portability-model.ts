@@ -20,6 +20,7 @@ export const PORTABLE_KIND_LABELS: Record<PortableKind, string> = {
   persona: "Personas",
   "world-info": "World info",
   regex: "Regex scripts",
+  databank: "Databank",
   preset: "Presets",
   theme: "Themes",
   "user-settings": "Settings",

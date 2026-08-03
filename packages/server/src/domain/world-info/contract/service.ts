@@ -11,6 +11,8 @@ import type { LoreConstantCanonRow, LoreEntryIndexRow, UpsertEntriesResult, WiBu
 import type { Db } from "@orb/db";
 import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
+import type { ExportedWorldBook } from "./export";
+import type { ImportWorldBookOutcome } from "./import";
 import type {
   ApplyEntryOrderParams,
   AttachGlobalParams,
@@ -25,8 +27,10 @@ import type {
   DetachFromPersonaParams,
   DetachGlobalParams,
   DuplicateBookParams,
+  ExportBookParams,
   GetBookParams,
   GetEntryParams,
+  ImportBookFileParams,
   ListBooksParams,
   ListConstantCanonParams,
   ListEntriesParams,
@@ -67,6 +71,14 @@ export interface WorldInfoService {
   readonly removeBook: (params: RemoveBookParams) => Promise<RemoveResult>;
   /** Deep-copies a book + all its entries into a fresh "<name> (copy)" book, unattached at every scope. */
   readonly duplicateBook: (params: DuplicateBookParams) => Promise<BookView>;
+  /** THE single-book export door (F2 — the verbs were built and had ZERO doors, so sharing one lorebook
+   *  meant a full library-zip round-trip). A thin arm over the SAME `ExportWorldBook` the bundle descriptor
+   *  streams, so a shared book is byte-identical to the one inside a backup. `null` = not the caller's. */
+  readonly exportBook: (params: ExportBookParams) => Promise<ExportedWorldBook | null>;
+  /** THE single-book import door — a thin arm over the SAME `ImportWorldBook` the bundle descriptor calls,
+   *  so the dedupe-by-name semantics are the bundle's by construction. Never throws for a malformed file;
+   *  the refusal reason is what the import dialog renders. */
+  readonly importFile: (params: ImportBookFileParams) => Promise<ImportWorldBookOutcome>;
 
   /** By descending priority (the display/injection order). */
   readonly listEntries: (params: ListEntriesParams) => Promise<EntryView[]>;

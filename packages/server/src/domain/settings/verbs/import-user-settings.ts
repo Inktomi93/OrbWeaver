@@ -5,7 +5,8 @@
 import type { UserSettings } from "@orb/contracts/settings";
 import { isPlainObject } from "@orb/kit/guards";
 import type { UserId } from "@orb/kit/ids";
-import { parseUserSettingsBackup, SHARE_SAFE_SETTINGS_NAMESPACES } from "#kit/serde/user-settings";
+import { portableParseError } from "#kit/serde/lib";
+import { parseUserSettingsBackup, SHARE_SAFE_SETTINGS_NAMESPACES, USER_SETTINGS_SCHEMA_KIND } from "#kit/serde/user-settings";
 import type { SettingsImportOutcome } from "../contract/portability";
 import type { SettingsContext } from "../contract/service";
 import { readUserSettings, writeUserConfig } from "../persistence/queries";
@@ -18,16 +19,17 @@ const SETTINGS_ENTITY = "settings";
 export function createImportUserSettings(ctx: SettingsContext): (ownerId: UserId, bytes: Uint8Array) => Promise<SettingsImportOutcome> {
   return async (ownerId: UserId, bytes: Uint8Array): Promise<SettingsImportOutcome> => {
     const parsed = parseUserSettingsBackup(bytes);
-    if (parsed === null) {
-      return { ok: false, error: "the file is not a valid orb user-settings export" };
+    if (!parsed.ok) {
+      return { ok: false, error: portableParseError(USER_SETTINGS_SCHEMA_KIND, parsed.reason) };
     }
+    const carried = parsed.value;
 
     return await ctx.serializeUserWrite(ownerId, async () => {
       const current = (await readUserSettings(ctx.db, ownerId)).config;
       const merged: Record<string, unknown> = { ...current };
       const applied: string[] = [];
       for (const ns of SHARE_SAFE_SETTINGS_NAMESPACES) {
-        const incoming = parsed[ns];
+        const incoming = carried[ns];
         if (!isPlainObject(incoming)) {
           continue;
         }

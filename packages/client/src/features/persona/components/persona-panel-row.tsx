@@ -10,18 +10,19 @@ import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel } from "@orb/ui/collapsible";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import type { LucideIcon } from "@orb/ui/icons";
-import { ChevronDown, ChevronRight, Crown, Heart, Icon, Star, Trash2 } from "@orb/ui/icons";
+import { ChevronDown, ChevronRight, Crown, Download, Heart, Icon, Star } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
+import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog, ROW_REVEAL } from "#components";
+import { ConfirmDialog, ROW_REVEAL, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
-import { useInvalidation, useTRPC, useUploadAsset } from "#data";
-import { cn, notify } from "#lib";
+import { useInvalidation, useTRPC, useTRPCClient, useUploadAsset } from "#data";
+import { cn, downloadTextFile, notify } from "#lib";
 import { useUpdatePersona } from "../hooks/use-persona-mutations";
 import { PersonaEditor } from "./persona-editor";
 
@@ -50,9 +51,12 @@ export function PersonaPanelRow({
   onDelete,
 }: PersonaPanelRowProps): ReactElement {
   const trpc = useTRPC();
+  const client = useTRPCClient();
   const invalidation = useInvalidation();
   const update = useUpdatePersona({ trpc, invalidation });
   const upload = useUploadAsset();
+  // The EDITOR's own Delete button routes through this confirm; the kebab's destructive item owns its own
+  // (RowActionsMenu). ONE copy string, so the two confirms can't drift.
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState(persona.name);
@@ -79,6 +83,18 @@ export function PersonaPanelRow({
 
   const onToggleFavorite = (): void => {
     update.mutate({ personaId: persona.id, input: { starred: !persona.starred } });
+  };
+
+  // F3: EXPORT is a kebab item on the ROW (the ruled anatomy), not a button inside the editor. The bytes
+  // are the SERVER's — the same file the backup bundle carries — so a shared persona and a restored one
+  // can't diverge.
+  const onExport = async (): Promise<void> => {
+    try {
+      const file = await client.persona.export.query({ personaId: persona.id });
+      downloadTextFile(file.filename, file.fileText);
+    } catch {
+      notify.error("Couldn't export the persona.");
+    }
   };
 
   return (
@@ -180,7 +196,25 @@ export function PersonaPanelRow({
             label={isDefault ? "Your default" : "Set as default"}
             onClick={onSetDefault}
           />
-          <IconAction icon={Trash2} label="Delete persona" onClick={(): void => setDeleteOpen(true)} />
+          {/* §12.2 caps the trailing cluster at three: state · state · kebab. Export and Delete both ride
+              the kebab, which is also the ruled lifecycle home for a low-frequency row verb. */}
+          <RowActionsMenu
+            destructive={{
+              title: "Delete this persona?",
+              description: deleteCopy(persona.name),
+              onConfirm: onDelete,
+            }}
+            label={`Actions for ${persona.name}`}
+          >
+            <MenuItem
+              onClick={(): void => {
+                void onExport();
+              }}
+            >
+              <Icon icon={Download} size="sm" />
+              Export
+            </MenuItem>
+          </RowActionsMenu>
         </Row>
 
         <IconAction
@@ -191,6 +225,15 @@ export function PersonaPanelRow({
         />
       </Row>
 
+      <ConfirmDialog
+        confirmLabel="Delete"
+        description={deleteCopy(persona.name)}
+        onConfirm={onDelete}
+        onOpenChange={setDeleteOpen}
+        open={deleteOpen}
+        title="Delete this persona?"
+      />
+
       <Collapsible onOpenChange={onToggleExpand} open={expanded}>
         <CollapsiblePanel>
           <Stack className="rounded-card border border-border p-block" gap="section">
@@ -198,17 +241,13 @@ export function PersonaPanelRow({
           </Stack>
         </CollapsiblePanel>
       </Collapsible>
-
-      <ConfirmDialog
-        confirmLabel="Delete"
-        description={<>This permanently deletes “{persona.name}”. Past messages you authored as it keep their name and avatar. This can't be undone.</>}
-        onConfirm={onDelete}
-        onOpenChange={setDeleteOpen}
-        open={deleteOpen}
-        title="Delete this persona?"
-      />
     </Stack>
   );
+}
+
+/** The ONE delete-confirm body — both confirms (the kebab's and the editor's) render it. */
+function deleteCopy(name: string): ReactElement {
+  return <>This permanently deletes “{name}”. Past messages you authored as it keep their name and avatar. This can't be undone.</>;
 }
 
 interface IconActionProps {

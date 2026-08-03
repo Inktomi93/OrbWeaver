@@ -15,6 +15,8 @@ import {
   characters as charactersTable,
   chatParticipants,
   chats as chatsTable,
+  documents as documentsTable,
+  globalDocuments,
   galleryItems,
   messageAssets,
   messages as messagesTable,
@@ -178,6 +180,14 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
       input: { name: "My Theme", override: {}, css: null },
     });
     await app.services.worldInfo.createBook({ principal: owner, input: { name: "My World" } });
+    // F1: the databank library. It was ABSENT from PORTABLE_KINDS entirely, so this whole plane used to
+    // vanish from a full-account backup — the P1 the registry gate now makes unrepresentable.
+    const documentCreated = await app.services.databank.createFromText({
+      principal: owner,
+      name: "Field Notes",
+      text: "The kingdom's dusk lasts nine hours.",
+    });
+    await app.services.databank.attachGlobal({ principal: owner, documentId: documentCreated.document.id });
     // A NON-default chat toggle (continueOnSend defaults true) so a positive read on the fresh box proves the
     // VALUE transferred, not merely that the namespace exists.
     await app.services.settings.updateUserSettingsSection({
@@ -368,6 +378,16 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
       const freshBooks = await freshDatabase.select({ id: worldBooks.id }).from(worldBooks).where(eq(worldBooks.ownerId, targetId));
       expect(freshBooks).toHaveLength(1);
 
+      // F1: the databank document's CANON travels (not merely a row), and its global attachment re-links.
+      const freshDocs = await freshDatabase
+        .select({ id: documentsTable.id, text: documentsTable.extractedText })
+        .from(documentsTable)
+        .where(eq(documentsTable.ownerId, targetId));
+      expect(freshDocs).toHaveLength(1);
+      expect(freshDocs[0]?.text).toBe("The kingdom's dusk lasts nine hours.");
+      const freshGlobalDocs = await freshDatabase.select({ documentId: globalDocuments.documentId }).from(globalDocuments).where(eq(globalDocuments.ownerId, targetId));
+      expect(freshGlobalDocs.map((r) => r.documentId)).toEqual([freshDocs[0]?.id]);
+
       // The chat re-seated its host + character (handle-layout resolved on import).
       const freshHostSeat = await freshDatabase
         .select({ chatId: chatParticipants.chatId })
@@ -421,6 +441,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
           ).length,
           persona: await owned(personasTable),
           worldInfo: (await freshDatabase.select({ id: worldBooks.id }).from(worldBooks).where(eq(worldBooks.ownerId, targetId))).length,
+          databank: (await freshDatabase.select({ id: documentsTable.id }).from(documentsTable).where(eq(documentsTable.ownerId, targetId))).length,
           preset: await owned(presetsTable),
           theme: await owned(themesTable),
           userSettings: (await freshDatabase.select({ id: userSettingsTable.userId }).from(userSettingsTable).where(eq(userSettingsTable.userId, targetId)))

@@ -8,16 +8,17 @@
 // a bundle import (the delivery-core per-file isolation posture, the card `failures[]` precedent).
 // `export.ts` is the round-trip twin.
 
-import { parseWorldBookFile } from "#kit/serde/world-info";
+import { portableParseError } from "#kit/serde/lib";
+import { parseWorldBookFile, WORLD_INFO_SCHEMA_KIND } from "#kit/serde/world-info";
 import type { ImportWorldBook, ImportWorldBookContext, ImportWorldBookOutcome } from "../contract/import";
 
 export function createImport(ctx: ImportWorldBookContext): ImportWorldBook {
   return async ({ ownerId, bytes }): Promise<ImportWorldBookOutcome> => {
-    const canonical = parseWorldBookFile(new TextDecoder().decode(bytes));
-    if (canonical === null) {
-      return { ok: false, error: "Not a valid world-info book file." };
+    const parsed = parseWorldBookFile(bytes);
+    if (!parsed.ok) {
+      return { ok: false, error: portableParseError(WORLD_INFO_SCHEMA_KIND, parsed.reason) };
     }
-    const result = await ctx.importStandalone({ ownerId, book: canonical });
+    const result = await ctx.importStandalone({ ownerId, book: parsed.value });
     return { ok: true, created: !result.replaced };
   };
 }

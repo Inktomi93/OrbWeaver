@@ -34,7 +34,7 @@ export function createExport(ctx: WorldInfoExportContext): ExportWorldBook {
     };
     return {
       filename: `${slugifyHandle(book.name)}.json`,
-      bytes: new TextEncoder().encode(buildWorldBookFile(canonical)),
+      bytes: buildWorldBookFile(canonical),
     };
   };
 }

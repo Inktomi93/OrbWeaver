@@ -5,9 +5,18 @@
 
 export type { DatabankContext } from "./context";
 export { DatabankCharacterNotFoundError, DocumentNotFoundError, ScrapeFailedError } from "./contract/errors";
+export type {
+  DatabankImportOutcome,
+  DatabankPortabilityContext,
+  ExportDocument,
+  ExportedDocumentFile,
+  ImportDocument,
+  ListOwnedDocumentIds,
+} from "./contract/portability";
 export type { DatabankIngest, DatabankService, DatabankWorkloadDeps } from "./contract/service";
 export type { ActiveChatDocumentView, DocumentAttachmentsView, DocumentDetailView, DocumentView } from "./contract/views";
 export { createDatabankIngest } from "./ingest";
+export { createExportDocument, createImportDocument, createListOwnedDocumentIds } from "./persistence/portability-write";
 export { resolveActiveDocumentIds } from "./persistence/scope";
 export { createDatabankService } from "./service";
 export { createDatabankWorkloadContributions } from "./workload-contributions";

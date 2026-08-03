@@ -4,11 +4,27 @@
 // build -> parse -> build ROUND-TRIP identity (the structural drift guard against the two halves diverging),
 // including the handle re-link field carried through unchanged.
 
+import type { PortableParse } from "@orb/contracts/portability";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { CanonicalGalleryItem, GalleryExport } from "@orb/server/kit/serde/gallery";
 import { buildGallery, GALLERY_SCHEMA_KIND, GALLERY_SCHEMA_VERSION, parseGallery } from "@orb/server/kit/serde/gallery";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
+
+/** The parse outcome's value — the spine returns a typed refusal reason, never null. */
+function refusalOf<T>(result: PortableParse<T>): string {
+  if (result.ok) {
+    throw new Error("expected the file to be refused, but it parsed");
+  }
+  return result.reason;
+}
+
+function must<T>(result: PortableParse<T>): T {
+  if (!result.ok) {
+    throw new Error(`portable parse refused: ${result.reason}`);
+  }
+  return result.value;
+}
 
 const ASSET_A = mintTypeId(ID_PREFIX.asset);
 const ASSET_B = mintTypeId(ID_PREFIX.asset);
@@ -50,13 +66,17 @@ describe("buildGallery", () => {
 
 describe("parseGallery", () => {
   test("null for non-JSON bytes", () => {
-    expect(parseGallery(new TextEncoder().encode("{not json"))).toBeNull();
-    expect(parseGallery(new Uint8Array())).toBeNull();
+    expect(parseGallery(new TextEncoder().encode("{not json")).ok, "a refused file must not parse").toBe(false);
+    expect(refusalOf(parseGallery(new TextEncoder().encode("{not json")))).toBe("not-json");
+    expect(parseGallery(new Uint8Array()).ok, "a refused file must not parse").toBe(false);
+    expect(refusalOf(parseGallery(new Uint8Array()))).toBe("not-json");
   });
 
   test("null for a foreign / absent schemaKind (a different portable file)", () => {
-    expect(parseGallery(encode({ schemaKind: "orb.tag-library", schemaVersion: 1, items: [] }))).toBeNull();
-    expect(parseGallery(encode({ items: [] }))).toBeNull();
+    expect(parseGallery(encode({ schemaKind: "orb.tag-library", schemaVersion: 1, items: [] })).ok, "a refused file must not parse").toBe(false);
+    expect(refusalOf(parseGallery(encode({ schemaKind: "orb.tag-library", schemaVersion: 1, items: [] })))).toBe("foreign-kind");
+    expect(parseGallery(encode({ items: [] })).ok, "a refused file must not parse").toBe(false);
+    expect(refusalOf(parseGallery(encode({ items: [] })))).toBe("foreign-kind");
   });
 
   test("a malformed row is dropped, not fatal (blank / missing assetId, non-object)", () => {
@@ -65,10 +85,10 @@ describe("parseGallery", () => {
       schemaVersion: 1,
       items: [{ assetId: ASSET_A, subjectCharacterHandle: "keep", createdAt: 5 }, { assetId: "" }, 42, { subjectCharacterHandle: "orphan" }],
     });
-    const gallery = parseGallery(bytes);
-    expect(gallery?.items).toHaveLength(1);
-    expect(gallery?.items[0]?.assetId).toBe(ASSET_A);
-    expect(gallery?.items[0]?.subjectCharacterHandle).toBe("keep");
+    const gallery = must(parseGallery(bytes));
+    expect(gallery.items).toHaveLength(1);
+    expect(gallery.items[0]?.assetId).toBe(ASSET_A);
+    expect(gallery.items[0]?.subjectCharacterHandle).toBe("keep");
   });
 
   test("coerces a bad handle / createdAt to null rather than dropping the row", () => {
@@ -77,7 +97,7 @@ describe("parseGallery", () => {
       schemaVersion: 1,
       items: [{ assetId: ASSET_A, subjectCharacterHandle: "   ", createdAt: "nope" }],
     });
-    const row = parseGallery(bytes)?.items[0];
+    const row = must(parseGallery(bytes)).items[0];
     expect(row).toEqual({ assetId: ASSET_A, subjectCharacterHandle: null, createdAt: null });
   });
 });
@@ -92,7 +112,7 @@ describe("build -> parse -> build identity", () => {
       ],
     };
     const bytes1 = buildGallery(source);
-    const reparsed = parseGallery(bytes1);
+    const reparsed = must(parseGallery(bytes1));
     if (reparsed === null) {
       throw new Error("reparse failed");
     }

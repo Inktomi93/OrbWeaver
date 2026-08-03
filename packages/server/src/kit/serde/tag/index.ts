@@ -6,10 +6,15 @@
 //
 // Round-trip drift guard: buildTagLibrary(parseTagLibrary(buildTagLibrary(x))) deep-equals
 // buildTagLibrary(x).
+//
+// Defined through `#kit/serde/lib` — envelope, decode, version gate and row loop are the spine's.
 
+import type { PortableParse } from "@orb/contracts/portability";
 import type { TagFolderType, TagSource } from "@orb/contracts/tag";
 import { tagFolderTypeSchema, tagSourceSchema } from "@orb/contracts/tag";
 import { z } from "zod";
+import type { EmptyJsonHeader } from "#kit/serde/lib";
+import { defineJsonRowsSerde, NO_JSON_HEADER, noJsonHeader } from "#kit/serde/lib";
 
 export const TAG_LIBRARY_SCHEMA_KIND = "orb.tag-library";
 export const TAG_LIBRARY_SCHEMA_VERSION = 1;
@@ -45,58 +50,20 @@ function tagToWire(t: CanonicalTag): Record<string, unknown> {
   };
 }
 
-/** Serialize a `TagLibrary` to the orb-native tag-library JSON interchange bytes (the inverse of
- *  `parseTagLibrary`). Deterministic key order makes the round-trip byte-identical. */
-export function buildTagLibrary(library: TagLibrary): Uint8Array {
-  const wire = {
-    schemaKind: TAG_LIBRARY_SCHEMA_KIND,
-    schemaVersion: TAG_LIBRARY_SCHEMA_VERSION,
-    tags: library.tags.map(tagToWire),
-  };
-  return new TextEncoder().encode(JSON.stringify(wire, null, 2));
-}
-
 // A lenient per-row view: the axes validate (a bad source/folderType/name fails this row → dropped); the
 // display fields coerce via .catch to a safe default rather than nulling the row.
-const wireTagSchema = z.object({
-  name: z.string().trim().min(1),
-  color: z.string().nullish().catch(null),
-  color2: z.string().nullish().catch(null),
-  source: tagSourceSchema.nullish().catch(null),
-  folderType: tagFolderTypeSchema.catch("NONE"),
-  sortOrder: z.number().int().nullish().catch(null),
-  isHiddenOnCard: z.boolean().catch(false),
-});
-
-const wireLibrarySchema = z.object({
-  schemaKind: z.literal(TAG_LIBRARY_SCHEMA_KIND),
-  schemaVersion: z.number().int().positive(),
-  tags: z.array(z.unknown()),
-});
-
-function decodeJson(bytes: Uint8Array): unknown {
-  try {
-    return JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
-    return null;
-  }
-}
-
-/** Parse orb-native tag-library JSON bytes to a `TagLibrary`, or null when the bytes are not a tag-library
- *  file. Resilient within a valid file: a single malformed tag row is dropped, never fatal. */
-export function parseTagLibrary(bytes: Uint8Array): TagLibrary | null {
-  const envelope = wireLibrarySchema.safeParse(decodeJson(bytes));
-  if (!envelope.success) {
-    return null;
-  }
-  const tags: CanonicalTag[] = [];
-  for (const raw of envelope.data.tags) {
-    const row = wireTagSchema.safeParse(raw);
-    if (!row.success) {
-      continue;
-    }
-    const t = row.data;
-    tags.push({
+const wireTagSchema = z
+  .object({
+    name: z.string().trim().min(1),
+    color: z.string().nullish().catch(null),
+    color2: z.string().nullish().catch(null),
+    source: tagSourceSchema.nullish().catch(null),
+    folderType: tagFolderTypeSchema.catch("NONE"),
+    sortOrder: z.number().int().nullish().catch(null),
+    isHiddenOnCard: z.boolean().catch(false),
+  })
+  .transform(
+    (t): CanonicalTag => ({
       name: t.name,
       color: t.color ?? null,
       color2: t.color2 ?? null,
@@ -104,7 +71,28 @@ export function parseTagLibrary(bytes: Uint8Array): TagLibrary | null {
       folderType: t.folderType,
       sortOrder: t.sortOrder ?? null,
       isHiddenOnCard: t.isHiddenOnCard,
-    });
-  }
-  return { tags };
+    }),
+  );
+
+const tagSerde = defineJsonRowsSerde<TagLibrary, CanonicalTag, EmptyJsonHeader>({
+  schemaKind: TAG_LIBRARY_SCHEMA_KIND,
+  schemaVersion: TAG_LIBRARY_SCHEMA_VERSION,
+  plural: "tags",
+  rowSchema: wireTagSchema,
+  rowPolicy: "drop",
+  headerSchema: noJsonHeader(),
+  toWire: (library) => ({ header: NO_JSON_HEADER, rows: library.tags.map(tagToWire) }),
+  fromWire: (tags) => ({ tags }),
+});
+
+/** Serialize a `TagLibrary` to the orb-native tag-library JSON interchange bytes (the inverse of
+ *  `parseTagLibrary`). Deterministic key order makes the round-trip byte-identical. */
+export function buildTagLibrary(library: TagLibrary): Uint8Array {
+  return tagSerde.build(library);
+}
+
+/** Parse orb-native tag-library JSON bytes to a `TagLibrary`, or the typed reason they were refused.
+ *  Resilient within a valid file: a single malformed tag row is dropped, never fatal. */
+export function parseTagLibrary(bytes: Uint8Array): PortableParse<TagLibrary> {
+  return tagSerde.parse(bytes);
 }

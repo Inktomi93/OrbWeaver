@@ -10,8 +10,8 @@ import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/con
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ImportCardScripts } from "#domain/regex";
 import type { ImportCharacterInput } from "./params";
-import type { ImportCharacterResult, ImportChatsResult, ImportedCharacterRef, ImportPersonasResult } from "./results";
-import type { ImportChatsInput, ImportPersonaInput } from "./views";
+import type { ImportCharacterResult, ImportChatFileOutcome, ImportChatsResult, ImportedCharacterRef, ImportPersonasResult } from "./results";
+import type { ImportChatFileInput, ImportChatsInput, ImportPersonaInput } from "./views";
 
 export type CreateImportedCharacter = (args: {
   readonly ownerId: UserId;
@@ -99,6 +99,9 @@ export interface ImportService {
   readonly importCharacter: (input: ImportCharacterInput) => Promise<ImportCharacterResult>;
   /** Imports loose ST chat .jsonl files into an existing owned character. Requires ctx.profile. */
   readonly importChats: (input: ImportChatsInput) => Promise<ImportChatsResult>;
+  /** Imports ONE bundle-shaped `<handle>/<leaf>.jsonl` — the single-transcript door AND the bundle
+   *  descriptor's one path. Requires ctx.profile. Never throws for a malformed/unmatched file. */
+  readonly importChatFile: (input: ImportChatFileInput) => Promise<ImportChatFileOutcome>;
   /** Imports a profile's personas; must run before the chat importers (populates personaByUserName). */
   readonly importPersonas: (input: { readonly personas: readonly ImportPersonaInput[] }) => Promise<ImportPersonasResult>;
 }

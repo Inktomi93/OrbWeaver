@@ -3,7 +3,6 @@
 // `principal.userId`; persona sideways-imports nothing.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { PersonaBackupInput } from "@orb/contracts/persona";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
@@ -23,7 +22,7 @@ import type {
   SetActivePersonaParams,
   UpdatePersonaParams,
 } from "./params";
-import type { DisconnectResult, RemovePersonaResult } from "./results";
+import type { DisconnectResult, PersonaImportOutcome, PersonaPortableFile, RemovePersonaResult } from "./results";
 import type { PersonaDetail } from "./views";
 
 /** The DI bundle every persona verb closes over, wired at the composition root. */
@@ -75,11 +74,12 @@ export interface PersonaService {
    *  carried forward verbatim (re-pointing to the SAME asset is trivial — no new asset is minted). Throws
    *  {@link PersonaNotFoundError} when the source isn't owned/found. */
   readonly duplicate: (params: DuplicatePersonaParams) => Promise<PersonaDetail>;
-  /** Read an owned persona as the portable backup shape (gap #3 — `@orb/contracts/persona`
-   *  `personaBackupSchema`; excludes `avatarAssetId`). Throws {@link PersonaNotFoundError} when not
-   *  owned/found. */
-  readonly export: (params: ExportPersonaParams) => Promise<PersonaBackupInput>;
-  /** Mint a fresh owned persona from a backup blob (gap #3 — the `export` round-trip twin). Never carries
-   *  an avatar (re-attaching one after restore is a separate, explicit action). */
-  readonly import: (params: ImportPersonaParams) => Promise<PersonaDetail>;
+  /** Read an owned persona as ONE portable file (excludes `avatarAssetId`). The bundle descriptor streams
+   *  it and the single-entity export door serves the same bytes — one producer, no drift. Throws
+   *  {@link PersonaNotFoundError} when not owned/found. */
+  readonly export: (params: ExportPersonaParams) => Promise<PersonaPortableFile>;
+  /** Restore ONE portable persona file (the `export` round-trip twin). Idempotent: a same-named persona is
+   *  merged in place. Never throws for a malformed file — the refusal is a typed outcome the calling door
+   *  renders. Never carries an avatar (re-attaching one after restore is a separate, explicit action). */
+  readonly import: (params: ImportPersonaParams) => Promise<PersonaImportOutcome>;
 }

@@ -51,6 +51,18 @@ export function downloadJson(filename: string, payload: unknown): void {
   }, REVOKE_DELAY_MS);
 }
 
+/** Download text the SERVER produced, verbatim. Distinct from `downloadJson` (which serializes a
+ *  client-side payload and would re-format the bytes): a portable file's bytes are the serde's, so a
+ *  file shared one-at-a-time is byte-identical to the same file inside a backup zip. */
+export function downloadTextFile(filename: string, text: string, mime = "application/json"): void {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  clickAnchor(url, filename);
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, REVOKE_DELAY_MS);
+}
+
 /** Download a same-origin URL (the session cookie rides the GET; the server's Content-Disposition
  *  names the file). For server-streamed downloads (the PD-109 export registrar) — distinct from
  *  `downloadJson`, which serializes a client-side payload. */

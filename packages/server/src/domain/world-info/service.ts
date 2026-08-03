@@ -9,6 +9,7 @@
 
 import type { WorldInfoContext } from "./context";
 import type { WorldInfoService } from "./contract/service";
+import { createImportStandaloneLorebook } from "./persistence/import-write";
 import {
   createAttachGlobal,
   createAttachToCharacter,
@@ -36,9 +37,18 @@ import {
   createUpdateEntry,
   createUpsertEntries,
 } from "./verbs/entries";
+import { createExport } from "./verbs/export";
+import { createImport } from "./verbs/import";
 
 export function createWorldInfoService(ctx: WorldInfoContext): WorldInfoService {
+  // The two single-book DOORS are thin arms over the SAME two verbs the bundle descriptor composes (the
+  // ratified thin-arm law): one producer, one parser, so a book shared one-at-a-time and a book inside a
+  // backup zip can never diverge. Both factories are pure over this same DI bundle.
+  const exportBook = createExport(ctx);
+  const importBook = createImport({ importStandalone: createImportStandaloneLorebook(ctx) });
   return {
+    exportBook: ({ principal, bookId }) => exportBook({ ownerId: principal.userId, bookId }),
+    importFile: ({ principal, fileText }) => importBook({ ownerId: principal.userId, bytes: new TextEncoder().encode(fileText) }),
     listBooks: createListBooks(ctx),
     getBook: createGetBook(ctx),
     createBook: createCreateBook(ctx),
