@@ -358,40 +358,75 @@ identity chrome for ANY row kind.
 
 ## ═══ ARCHIVE-RESCUED FOLLOW-UPS (owner ruling 2026-08-03: a named follow-up goes ON THE BOARD) ═══
 
-> **Why this section exists.** Several lanes ended with "FOLLOW-UPS named not built (freeze)" written into
-> their seal block — which then moved to `docs/history/` with the rest of the archeology. **A follow-up that
-> lives only in the archive is a follow-up that is forgotten.** Owner: *"if it needs follow up it goes on the
-> board, otherwise it gets forgotten."* Each row below was re-checked against TODAY's tree at rescue time;
-> re-verify before acting anyway ([[audit-lists-are-snapshots]]).
+> **Why this section exists.** Lanes ended seal blocks with follow-ups they named but did not build; those
+> blocks then moved to `docs/history/` with the archeology. **A follow-up that lives only in the archive is
+> forgotten.** Owner: *"if it needs follow up it goes on the board, otherwise it gets forgotten."*
+> My first pass used a GREP for one exact phrase and the owner correctly called it fragile — lane ARCHIVE
+> then READ all 25 docs archived since 2026-07-23 line by line and verified ~45 candidates against the tree.
+> Full report + per-document tables: **`docs/reviews/misc/2026-08-03-archive-rescue-audit.md`**.
+> **22 of 25 documents yielded ZERO still-open rows** — recorded there so nobody re-reads them.
 
-- **ICON FILL-AXIS ADOPTION — the ability shipped, the adoption is at ZERO.** `@orb/ui`'s Icon carries
-  `fill` none|solid · `weight` hairline/regular/bold · `partialFill` 0..1, sealed with the `FillableIcon`
-  phantom-brand tsc enforcement and its own CT (ICON-SEAL, `89c787ae`). **VERIFIED 08-03: zero consumers in
-  `packages/client` — 464 `.tsx` scanned, no `<Icon fill=>`, no `weight=`, no `partialFill`.** The only
-  mentions tree-wide are the primitive, its fillable list, and its tests. Named targets from the freeze:
-  F-06 bolt → fill axis · tracker orbs · meter glyphs · `weight=` for selection emphasis. Also frozen:
-  the **`iconNode` door for brand glyphs** — `lib/weave-glyph.tsx` still hand-rolls `fill="currentColor"`
-  because that door was never built · LucideProvider at the client composition root · vector-effect CSS
-  stroke route · `fillRule=evenodd` probe to grow the fillable set.
-  **It will never show as dead code** — `packages/ui/src` exports are deliberately ALIVE ROOTS to the
-  chains lens (the R2 sealed surface), which is exactly why it needs a board row instead.
-- **S6 SEAL is NOT DONE, and half a migration is banned.** `SETTINGS_SECTION_ANCHORS` still has **2 live
-  references** (verified 08-03). The freeze text: delete `SETTINGS_SECTION_ANCHORS`, `make*Pane` factories,
-  emptied shells, `OWN_SUBCATEGORIES`; gates updated. Its sibling S5 (O3 amendment — `features/tag` +
-  `features/regex` mint + pane move) is ruled under D114.
-- **Barrel root-fix final sweep** — the freeze named ~8 src + ~19 tests to drop `export *`. **Today the tree
-  carries 60** `export *` sites across `packages/*/src` + `tests/` (verified 08-03), so either the estimate
-  was scoped narrower or it grew. Re-scope before dispatching.
-- **`PROMPT_MACROS` phantom in a parked spec** — `docs/architecture/proposed/world-state-clips-trackers-spec.md`
-  still names the DELETED `PROMPT_MACROS` (1 hit, verified 08-03). One-line repair; rides whoever next opens
-  that parked set.
-- ✅ **MAC follow-up (1) — PREMISE DIED, no action.** The "user/game-macro UNION gap CONFIRMED not built"
-  row named `withUserMacros` as the wiring shape; **it now has 18 references on the tree** (verified 08-03),
-  so it was built after that seal. Kept here as the record that it was checked, not dropped silently.
-- **Also frozen and NOT re-verified** (rescued verbatim, status unknown — check before acting): the
-  `batchLinkAvatars` cross-domain-write fork · the client `{ok:false}` seam (side-eye-scoped when an editor
-  can refuse) · **"NO host affordance clears ambient"** — weather/clock/date pickers lack "none" arms, the UI
-  gap behind the unreachable compact arm · folding the leaf-claim mechanism into spec §2.3.
+**⚠ THREE OF MY FIVE GREP-RESCUED ROWS WERE WRONG. Corrected:**
+- ~~S6 SEAL not done~~ — **DONE.** Both `SETTINGS_SECTION_ANCHORS` hits are comments DOCUMENTING the
+  retirement (`shell-store.ts:79`: *"the old … subset tuple retired with stage 0"*). Zero declarations,
+  zero consumers. My existence-check counted prose as code — the exact failure the audit was ordered to
+  avoid.
+- ~~Icon fill-axis has zero consumers~~ — **STALE.** `FillableIcon` has TWO live consumers:
+  `preset-library-row.tsx` (the O-1 active dot) and `components/row-toggle-action.tsx`. Demoted from debt
+  to taste; the named adoption targets (F-06 bolt · tracker orbs · meter glyphs · `weight=` emphasis) and
+  the unbuilt `iconNode` door for `weave-glyph.tsx` stand as OPPORTUNITIES, not rot.
+- ~~MAC macro-union PREMISE-DIED~~ — right outcome, **wrong label: DONE SINCE**, built by lane MACU
+  (`95f4c00b`); `withUserMacros` has 7 consuming modules.
+- **HELD:** the `PROMPT_MACROS` phantom, and the barrel sweep (measured **56** `export *`, not 60).
+
+### BOARD THESE — still-open, ranked by value-per-effort (paste-ready from the audit)
+
+- [ ] **PRESET-SLIDER-VERIFY** (S) — the preset program CLOSED without the re-verification its own crunch
+      list demanded: *"Re-verify the slider deck on a vLLM/OR connection before closing the program"*
+      (sonnet-5 exposes no sampling knobs, so the deck was never seen rendered).
+- [ ] **CP-DROPPED-WARN** (S) — `custom_parameters_dropped` was never built (zero hits): a BYO-style preset
+      pointed at OpenRouter **silently loses its blob**. New `WARNING_CODES` member + emit in both OR
+      runners — the D41 no-silent-degrade belt the removal blueprint specified.
+- [ ] **REGX2** (M) — an owner BUILD RULING that got archived: regex bulk edit + pipeline debugger +
+      per-script JSON door (NOT regex presets). Ruled 08-03 dawn, queued, never dispatched.
+- [ ] **RPG-ROUND-SIGNAL** (S) — the rpg state round is still UNCANCELABLE: no `AbortSignal` threaded into
+      `runExtraction`/`runToolRound` (`entry/compose/rpg.ts`). The barrier-leak half IS fixed.
+- [ ] **HAND-EDIT-VS-FLUSH** (M) — a hand `editSnapshot` during an in-flight turn can be clobbered by the
+      flush. **Two independent sightings** (the watch list's "seen once, unchased" + the actor-state
+      review's unconfirmed suspicion), nobody chased it. Reproduce and rule.
+- [ ] **CONTRACTS-BARREL** (S) — `packages/contracts/src/index.ts` still promises "re-exports added as
+      modules land" after 41 modules landed with zero importers. Delete the sentence.
+- [ ] **CODEMOD-DOCS** (S) — `pnpm codemod` is cited by codemod-kit docs but absent from package.json.
+- [ ] **CODEMOD-PATHMAP** (S) — the moved-path cache lie survives in `moveFiles`/`deleteFiles`/`copyFile`
+      path VALIDATION (loud refusal today, but the asserts want the exact `getSourceFiles` map).
+- [ ] **EDITSNAP-OK residual** (S) — `field-reachability.suite.ts:358` ignores `HandDoorResult.ok`.
+- [ ] **SSE-SPEC-STATUS** (S) — `docs/history/design/sse-multiplex-spec.md:3-4` has a corrupted status line.
+- [ ] **L8-INBOUND** (S) — foreign ST `mes:""` rows at import: refuse or strip. Named one-liner.
+- [ ] **REGEX-REASONING-FIDELITY** (S, owner-call) — REASONING prints at slot 4 but executes
+      post-postProcess. Unobservable today; flagged as an owner call that was never posed.
+- [ ] **FLAKE-WATCH** (S) — `code-editor.ct` CM6 75ms window + `drawer.ct:162` focus-trap (pre-existing at
+      HEAD) have no durable home beyond a watch list.
+- [ ] **HISTORY-GRADUATION RULE** (S) — `docs/history/README.md` says a doc graduates only when EVERY
+      finding is landed; **four moved docs carried live obligations anyway, and in every case the survivor
+      was a PROSE TAIL** (a "Process notes" bullet, a blueprint step 4, an INFO-rank F10, a corrupted
+      status line) — the graduation check reads findings TABLES, not the paragraphs around them. Add that line.
+- [ ] **PROMPT_MACROS phantom** (S) — `proposed/world-state-clips-trackers-spec.md:267` names the deleted symbol.
+- [ ] **BARREL ROOT-FIX** (M) — 56 `export * from` remain across `packages/*/src`.
+- [ ] **OWNER-OWABLES** — the archived "MORNING OWABLES" list, re-surfaced: the 3 nudge default texts ·
+      REGPAR F3/F4/F5 menu · v3-transcripts-reach-new-installs-only · `countByBook` twins · "Untitled chat"
+      in the regex rosters.
+
+**⚑ TWO ROWS THE AUDIT REFUSED TO GUESS ON (UNVERIFIABLE, each names what would settle it):**
+`SSE-STARVATION-PIN` (the spec §12 live-socket regression pin — could not find it, and it did NOT run a
+two-method absence check, so it will not say "not found") · `SM7-STRICT-RESIDUE` (the "second
+`response_format` builder" at a path that no longer exists — `backends/vllm/` was restructured away;
+re-locate and re-check).
+
+**⚑ COVERAGE GAP — one cheap lane owed:** the audit read `retro-workboard-2026-08-03.md` **lines 1–2130 of
+3515 (~61%)** and stopped where the budget forced a choice between finishing and VERIFYING what it already
+had; verification won, which was the right call. The remaining **39%** is the 08-02-and-earlier archeology
+(PRESET wave blocks, SSE S0–S5 seals, W-chunk seals, the earliest retro layers) — the same block class that
+produced most of the rows above, so expect a similar residue rate.
 
 ## ═══ WATCH LIST (flakes + pre-existing reds; none blocking) ═══
 
