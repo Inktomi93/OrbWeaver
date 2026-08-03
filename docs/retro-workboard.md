@@ -509,6 +509,28 @@ produced most of the rows above, so expect a similar residue rate.
   against-convention here; this is the first evidence it was actively concealing breakage, not merely
   redundant. Worth a D-entry clause if the split shows real defects.
 
+- **⚙ ENGINES FLEET FIX — QUEUED IN A SECOND-SESSION WORKTREE (`a386a4fae`, not merged).** Root-caused the
+  long-standing "esbuild and something else running at the same time" annoyance: it is the **engines fleet
+  launcher**, not the dep-optimizer / CT cache / gate fixtures (all three tested and RULED OUT). Every
+  `pnpm engines adopt` left an immortal `tsx engines.ts --detach` + node-loader + esbuild cluster, because
+  the `--detach` path says "and EXITS" but never `unref()`'d its child handles — so the launcher's event
+  loop was held for the fleet's entire life (two were alive ~8h). **A DUPLICATE FLEET existed for ~8h
+  holding ~17 GiB serving nothing:** a second adopter 6 min into the first's cold boot passed the VRAM
+  headroom gate (mid-boot VRAM is ambiguous by construction) and `waitHealthy` reported success **because
+  it polls the PORT — it validated the FIRST fleet's engines** ([[health-check-validates-the-port-not-your-process]]).
+  Bonus defect: a no-op adopt overwrites the pidfile UNCONDITIONALLY, which can blank the live fleet's rows
+  and orphan `engines:stop`.
+  **Fix (4 arms, in that worktree):** an atomic boot lock for the adopt window · **adopt-in-place** (a
+  healthy port is adopted, never re-spawned — the dupe class becomes unrepresentable) · pidfile MERGE ·
+  `unref()` + fd-close in detach. **Honestly flagged by its author: not live-tested against a real fleet**
+  per [[never-run-engine-launcher-live]] — the next real adopt IS the verification.
+  **Box state 2026-08-03 (verified by the orchestrator, read-only first):** the owner had already reaped the
+  dupes and stale launchers — all six cited pids gone, no detached launchers resident, **3 engines healthy
+  one per port, ~40 GiB free across both cards.** Nothing left to clean.
+  **⚠ DO NOT run a fresh `engines adopt` until that fix merges**, or a third launcher joins the pile.
+  Also corrected in passing: the workspace comment blaming ancient `esbuild@0.18.20` on tsx — it is a
+  **drizzle-kit transitive** (`pnpm why` receipt in the commit).
+
 ## ═══ WATCH LIST (flakes + pre-existing reds; none blocking) ═══
 
 - `code-editor.ct` completion flake under contention (documented CM6 75ms window).
