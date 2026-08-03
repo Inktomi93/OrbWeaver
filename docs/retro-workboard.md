@@ -653,6 +653,17 @@ fixture = the repro). (4) **REGPAR queued next drain**: ST regex-extension parit
 owner names DISPLAY-EPHEMERAL semantics + the REGEX TESTER as missing; audit the local ST
 source checkout feature-for-feature, spec-then-build (with IMGMAC + RESYNC-OR in the bug
 queue).
+**═══ OVERNIGHT ENGAGED (owner OFF, 08-03 ~late; full-auto per the posture memory + ladder) ═══**
+LIVE: R1B (config workspace — collapsed-groups ruled, 400-tag fixture) · SM5 (5 smalls; MACU-2
+arm-a ratified) · NARCOLOR (final shape: both produce arms + tolerant parse + forge guard +
+one color producer; label suppression RESCINDED — narrator narrates, label unconditional,
+reversal note at the site; nudge DEFAULTS strengthened + both texts flagged verbatim for
+owner veto). NIGHT QUEUE in order: REGPAR (ST regex parity: display-ephemeral + tester) ·
+RESYNC-OR · IMGMAC · FACEFILT · BRAND · R2 world-info→config · combined side-eye (tonight's
+surfaces: config workspace · theme cluster · narrator tint · home tiles skeleton · persona
+row anatomy) · handoff-heal biome ticket · quiesce verify --push → PUSH-READY (NO push
+overnight) · **if the board empties: DATABANK S1 (owner-ruled tonight)**. Morning owed:
+PUSH-READY verdict + the two nudge default texts + any ladder-logged judgment calls.
 **OWNER RULINGS #4 (08-03 night, pre-overnight):** IMGMAC = YES queue the server small
 (thread the user-macro registry into extractQuiet — imagery templates resolve the plane;
 behind tonight's set) · **DATABANK STARTS OVERNIGHT if the board empties** (ruled — the
