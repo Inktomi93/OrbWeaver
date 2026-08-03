@@ -657,6 +657,52 @@ export function classify(command, ctx) {
 
 // ── hook plumbing ──
 
+// ── first-contact briefing: tell each SUBAGENT the guard's rules ONCE, on its first Bash call ──
+// A lane cannot see this file and does not read the doctrine section about it, so it learns the rules
+// only by tripping them. One `additionalContext` injection per agent_id fixes that — and it doubles as
+// the visible marker that the guard is live, which is exactly what was missing when seven lanes died on
+// a permission defer and the guard was repeatedly (wrongly) exonerated.
+const BRIEFING = [
+  "TOOL-GUARD IS ACTIVE on Bash in this repo (.claude/hooks/tool-guard.mjs). What it does to you:",
+  "· REWRITES a harness command piped into tail/head/grep into a redirect + reader — your exit code and",
+  "  artifacts survive. A pipeline returns the READER's status, and it can hang forever because",
+  "  playwright/vite/stack children inherit the pipe. Just redirect: `<cmd> > run.log 2>&1`, then read",
+  "  the log and reports/verify.json.",
+  "· DENIES: `git stash`/`restore`/`checkout <path>` (they destroy uncommitted work — use",
+  "  `git show HEAD:<path>` to read an old version), whole-tree `biome check --write` fix-alls, and",
+  "  `cd` into a worktree (the Bash cwd PERSISTS across calls — use `git -C <abs-path>`).",
+  "· ASKS on `git push` from a lane: you do not push. Commit on your branch and report; the orchestrator",
+  "  merges and the owner gives an explicit word per push.",
+  "· WARNS on bare `npx vitest` (drops the json reporter), `grep -r` without --exclude-dir=node_modules,",
+  "  and `sg` (use `ast-grep` — `sg` is deprecated upstream and is `newgrp` on most boxes).",
+  "If a command is refused, the message names the correct form — use it rather than working around it.",
+  "IF A BASH CALL EVER RETURNS `settings deferred Bash`: that is a PERMISSION gap, not this guard and not",
+  "your mistake. You cannot answer a prompt, so you CANNOT recover by retrying. Use SendMessage to tell",
+  "the orchestrator the EXACT command that was deferred, then stop cleanly — it adds the shape to",
+  ".claude/settings.json permissions.allow and resumes you. Do not silently give up: a lane that dies",
+  "without reporting looks like a transient failure and costs the orchestrator a re-dispatch.",
+].join("\n");
+
+/** True the FIRST time this agent_id is seen; writes a marker so later calls stay quiet. Best-effort:
+ *  any fs failure returns false (never brief twice-noisily, never block on a marker write). */
+function firstContact(projectDir, agentId) {
+  if (!agentId) {
+    return false;
+  }
+  try {
+    const dir = path.join(projectDir, "reports", "tool-guard", "briefed");
+    mkdirSync(dir, { recursive: true });
+    const marker = path.join(dir, `${String(agentId).replace(/[^\w.-]/g, "_")}.txt`);
+    if (readdirSync(dir).includes(path.basename(marker))) {
+      return false;
+    }
+    appendFileSync(marker, `${new Date().toISOString()}\n`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function emit(output) {
   process.stdout.write(`${JSON.stringify(output)}\n`);
 }
@@ -696,7 +742,7 @@ function readStdin(deadlineMs) {
   });
 }
 
-function toHookOutput(result) {
+function toHookOutput(result, ctx) {
   if (result.decision === "deny" || result.decision === "ask") {
     return hookOutput({ permissionDecision: result.decision, permissionDecisionReason: result.reason });
   }
@@ -712,8 +758,10 @@ function toHookOutput(result) {
       additionalContext: result.contexts.join("\n"),
     });
   }
-  if (result.contexts.length > 0) {
-    return hookOutput({ permissionDecision: "defer", additionalContext: result.contexts.join("\n") });
+  const brief = ctx !== undefined && firstContact(ctx.projectDir, ctx.agentId) ? [BRIEFING] : [];
+  const contexts = [...brief, ...result.contexts];
+  if (contexts.length > 0) {
+    return hookOutput({ permissionDecision: "defer", additionalContext: contexts.join("\n") });
   }
   return DEFER;
 }
@@ -785,7 +833,7 @@ async function runHookMode() {
       cmd: command.slice(0, CMD_LOG_MAX),
       ...(result.rewrite ? { rewrittenTo: result.rewrite.command.slice(0, CMD_LOG_MAX) } : {}),
     });
-    emit(toHookOutput(result));
+    emit(toHookOutput(result, ctx));
   } catch (err) {
     // FAIL OPEN — a broken guard must never block work.
     logDecision(projectDir, { t: new Date().toISOString(), decision: "defer", rule: "guard-error", error: String(err) });
