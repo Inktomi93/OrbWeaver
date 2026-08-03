@@ -43,12 +43,17 @@ import type { WorkloadContributions, WorkloadService } from "#domain/workloads";
 import { createWorkloadService } from "#domain/workloads";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
+import { withRequestSpan } from "#foundation/observability";
 import type { RoleClientsWithSignal } from "#infra/providers";
 import { requireAuthorOrHost, resolveTier0Range, setParticipantActivePersona } from "../../domain/chat";
 import { publishUserEvent } from "../../transport/trpc";
 import { createCharacterUpdatedChatFan } from "./emit-character-updated";
 import type { DomainEventBus } from "./event-bus";
 import { minter } from "./minter";
+
+/** The embed-model-change reindex enqueue's own trace root. One name so the debug surface and any future
+ *  filter agree; the two enqueues share it and are told apart by the `workloadKind` attribute. */
+const EMBED_REINDEX_SPAN = "embeddings.modelChangeReindex";
 
 /** Exhaustiveness guard for the closed `DomainEvent` union — a new event member without a bus route is a
  *  tsc error here, not a silent drop. */
@@ -284,13 +289,23 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   // embed space (DBK-B(b)). Both are enqueued together; each is independent. Fire-and-forget: a duplicate run (a
   // kind is already active → DomainConflictError) or any enqueue failure is swallowed here — it must never fail
   // the settings write that triggered it (mirrors the `emitUserEvent` treatment in updateUserSettingsSection).
+  // Each enqueue opens its OWN DETACHED root span: it outlives the settings write that triggered it, so a
+  // parented span would be dropped as a late orphan and a failed enqueue (the reindex that never ran) would
+  // be invisible on /api/_debug/traces. The absorbing `.catch` stays OUTSIDE the root, so the span still
+  // records the error while the settings write is never faulted.
   const enqueueEmbedReindex = (): void => {
-    void workloads
-      .start({ input: { kind: "index", params: { source: "all", force: true } }, caller: null, mode: "bulk", ownerId: null })
-      .catch(() => undefined);
-    void workloads
-      .start({ input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } }, caller: null, mode: "bulk", ownerId: null })
-      .catch(() => undefined);
+    const at = now();
+    void withRequestSpan(`embed-reindex:index:${at}`, EMBED_REINDEX_SPAN, { workloadKind: "index" }, () =>
+      workloads.start({ input: { kind: "index", params: { source: "all", force: true } }, caller: null, mode: "bulk", ownerId: null }),
+    ).catch(() => undefined);
+    void withRequestSpan(`embed-reindex:databank:${at}`, EMBED_REINDEX_SPAN, { workloadKind: "databank-reindex" }, () =>
+      workloads.start({
+        input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } },
+        caller: null,
+        mode: "bulk",
+        ownerId: null,
+      }),
+    ).catch(() => undefined);
   };
 
   return {

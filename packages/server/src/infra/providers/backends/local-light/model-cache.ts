@@ -191,6 +191,9 @@ export function createMemo<T>(load: (id: string) => Promise<T>, dispose: (value:
         const evicted = entries.get(oldest);
         entries.delete(oldest);
         if (evicted !== undefined) {
+          // @swallowed-ok(evicted): disposing a cache-evicted model in a process-lifetime memo — there is no
+          // request to attribute it to (the eviction is triggered by whoever happened to overflow the cap)
+          // and a dispose that fails only costs RAM until exit. Ends if dispose ever gains a real failure mode.
           void evicted.then(dispose).catch(() => undefined);
         }
       }
