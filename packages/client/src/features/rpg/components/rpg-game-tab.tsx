@@ -30,6 +30,7 @@ import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import { AddRow, HintEditor, SettingCheckboxRow, TrackerValue } from "#components";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { notify } from "#lib";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state";
 import { useReattributePersona, useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations";
 import { mintDefKey } from "../lib/mint-key";
@@ -319,7 +320,13 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
       if (restampFirst && personaId !== null) {
         await restamp.mutateAsync({ chatId, scope: { kind: "mine" }, personaId });
       }
-      await resync.mutateAsync({ chatId });
+      const verdict = await resync.mutateAsync({ chatId });
+      // The THIRD ending (RESYNC-OR): the round RAN and re-derived nothing. The refusal seam owns `{ok:false}`
+      // (it toasts an error, which this is not), and a real rebuild announces itself by repainting the panel —
+      // so this arm is the only one with no signal of its own. The host paid for a model call; say what it found.
+      if (verdict.ok && !verdict.rebuilt) {
+        notify.info("Nothing to rebuild — the tracked state already matches the story.");
+      }
     } catch {
       // The failed mutation's own error toast has already spoken; the rest of the sequence is abandoned.
     }

@@ -59,6 +59,7 @@ import {
 } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
+import { errorMessage } from "@orb/kit/error-message";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, newId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
@@ -1011,15 +1012,21 @@ function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolC
 // construction: the §1.6 registry composes the surface-only clause on a deception-active game, so the rebuild
 // never writes hidden truth into a member-visible plane (the hidden layer stays in the reveal channel).
 
+// The three sentences a resync REFUSAL can carry (`ResyncResult.reason` → the host's toast). Written as host
+// prose, not log vocabulary: the person reading them clicked a button and is owed what to do next. Each pairs
+// with the `rpg.resync.*` warn the same branch already emitted — the log is for us, the reason is for them.
+const RESYNC_UNRESOLVABLE_REASON = "this room's connection didn't resolve, so the rebuild never ran — check the chat's model/connection.";
+const RESYNC_READONLY_REASON = "this room's model can't write structured state, so there's nothing to rebuild with — switch to a connection that can.";
+const RESYNC_FAILED_REASON = "the model call failed, so nothing was rebuilt:";
+
 /** Build the host `resyncFromStory` model call. Resolves the room connection AS THE HOST, gates readonly
- *  (capability-absent ⇒ empty no-op delta), runs the establish-EVERYTHING extraction over the deep window. */
+ *  (capability-absent ⇒ a legible refusal), runs the establish-EVERYTHING extraction over the deep window. */
 function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncExtraction"] {
   return async ({ chatId, hostUserId, baseState, transcript }) => {
-    const empty = { statePatch: {}, journal: [] };
     // Resolve the ROOM connection AS THE HOST — fresh, at the verb (the `resolveStateDelivery` host-resolve
     // precedent). The host principal is minted from the room-host userId the VERB resolved by role, never a
-    // caller-supplied id (the injected-op caller-gate class). A misconfigured/incoherent backend degrades the
-    // resync to a no-op (never a 500); anything else rethrows (never swallow a real bug).
+    // caller-supplied id (the injected-op caller-gate class). A misconfigured/incoherent backend REFUSES the
+    // resync legibly (never a 500); anything else rethrows (never swallow a real bug).
     const host = await deps.resolveHostPrincipal(hostUserId);
     const routableChat = await readRoutableChat(deps.db, chatId);
     let conn: ResolvedConnection;
@@ -1028,7 +1035,7 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
     } catch (err) {
       if (err instanceof ConnectionRoutingError || err instanceof AgentModelHealError) {
         logger.warn({ event: "rpg.resync.unresolvable", chatId }, "rpg resync: room connection did not resolve — no rebuild");
-        return empty;
+        return { ok: false, reason: RESYNC_UNRESOLVABLE_REASON };
       }
       throw err;
     }
@@ -1037,7 +1044,7 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
     // on a manual-steering connection would predictably fail and, on hosted creds, cost real spend).
     if (!hasStructuredWriter(conn.capability)) {
       logger.warn({ event: "rpg.resync.readonly", chatId, model: conn.model, api: conn.api }, "rpg resync: connection has no structured writer — no rebuild");
-      return empty;
+      return { ok: false, reason: RESYNC_READONLY_REASON };
     }
     // Establish-EVERYTHING (`reconcile: true`) over the WHOLE window (`extractionContext: "full"`, forced — the
     // resync deliberately re-reads the deepest story, regardless of the game's per-turn context knob).
@@ -1058,7 +1065,10 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
       text = conn.api === "agent-sdk" ? await extractViaChat(deps, ctx) : await extractViaStructured(deps, ctx);
     } catch (err) {
       logger.warn({ event: "rpg.resync.failed", chatId, model: conn.model, api: conn.api, err }, "rpg resync extraction failed");
-      return empty;
+      // THE HOST HEARS IT. This catch used to return an empty delta, which the verb reported as "nothing to
+      // resync" — so a provider that refused every single call (live, on the DEFAULT hosted backend) looked
+      // exactly like a story with no drift. The provider's own sentence rides out to the toast.
+      return { ok: false, reason: `${RESYNC_FAILED_REASON} ${errorMessage(err)}` };
     }
     // EXT-4a — the resync reads the SAME structured emission the in-turn degrade does, so it salvages the same
     // way: one malformed entry in a deep-window rebuild must not throw away the other five planes' worth of
@@ -1075,7 +1085,7 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
     const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
     const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
     logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
-    return delta;
+    return { ok: true, delta };
   };
 }
 
