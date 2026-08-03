@@ -74,9 +74,11 @@ if [[ ! -e "$DEST/node_modules" ]]; then
   echo "==> symlinked node_modules → $SRC/node_modules"
 fi
 
-TSX="$DEST/node_modules/.bin/tsx"
-if [[ ! -x "$TSX" ]]; then
-  echo "FATAL: tsx not found at $TSX — is the source repo's node_modules installed?" >&2
+# node is the platform binary now (tsx-shedding stage 3) — no node_modules/.bin lookup, and
+# nothing to be "not installed". Kept as a var so the call site below reads the same.
+TSX="node"
+if ! command -v "$TSX" >/dev/null 2>&1; then
+  echo "FATAL: node not found on PATH" >&2
   exit 1
 fi
 
