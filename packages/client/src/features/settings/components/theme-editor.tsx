@@ -1,8 +1,16 @@
-// The theme editor — edits one owned themes row. Token-override pickers, font/radius/style/density
-// selects, a custom-CSS code editor with live validateThemeCss diagnostics + a themeable-var reference, a
-// scoped live <ThemeScope> preview (authoring never restyles the real app), and non-blocking WCAG AA
-// badges on the picked text colors. Button-gated save through updateTheme — the preview is live off the
-// form's unsaved values; Save is the only thing that persists.
+// The theme editor — edits one owned themes row. Token-override pickers, font/radius/density selects, a
+// custom-CSS code editor with live validateThemeCss diagnostics + a themeable-var reference, a scoped live
+// <ThemeScope> preview (authoring never restyles the real app), and non-blocking WCAG AA badges on the
+// picked text colors. Button-gated save through updateTheme — the preview is live off the form's unsaved
+// values; Save is the only thing that persists.
+//
+// DRAFT sessions (`mint`): "Customize a built-in" and "New theme" open this editor on values that have NO
+// row behind them yet. The mint is INTERCEPTED here — nothing is written until the first real edit lands,
+// so opening a customize and going straight back leaves nothing behind (it used to leave a copy nobody
+// asked for). The mechanism is the preset editor's (`use-preset-autosave`): one serialized mint promise
+// held in a ref, every later write retargeted to the row it returned, so the copy is minted exactly ONCE
+// per session — by an edit, never by a click and never per-keystroke. A Save that races the mint awaits
+// the same promise, so it can never patch the seed it was customizing.
 
 import type { Theme, ThemeRadius } from "@orb/contracts/theme";
 import { THEME_FONT_ALLOWLIST, THEME_RADII } from "@orb/contracts/theme";
@@ -16,12 +24,12 @@ import { THEME_SCOPE_EMIT_VARS, ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 // biome's resolver mis-enumerates react's conditional-CJS export map and misses lazy/Suspense
 // specifically (main.tsx precedent); tsc resolves them and the client typechecks clean.
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { useInvalidation, useTRPC } from "#data";
-// The two THEME-shaped appearance tables. They used to ride the settings feature's own
+// The THEME-shaped appearance table. It used to ride the settings feature's own
 // `appearance-select-items.ts`; SET-SEAMS stage 1 split that file into its chat- and app-shell-owned halves,
-// so the pair three features render homes at the `#lib` shared-vocabulary floor.
-import { CHAT_STYLE_ITEMS, DENSITY_ITEMS, messageBubbleClass } from "#lib";
+// so the table three features render homes at the `#lib` shared-vocabulary floor.
+import { DENSITY_ITEMS, messageBubbleClass } from "#lib";
 import { useThemeForm } from "../hooks/use-theme-form";
 import { useUpdateTheme } from "../hooks/use-theme-mutations";
 import { AA_CONTRAST_FLOOR, contrastRatio } from "../lib/theme-contrast";
@@ -50,19 +58,54 @@ const RADIUS_ITEMS: SelectItems<string> = THEME_RADII.map((value) => ({
 }));
 
 export interface ThemeEditorProps {
-  /** The OWNED theme being edited (seeds are read-only → the picker duplicates before opening this). */
+  /** The OWNED theme being edited — or, with `mint`, the DRAFT values a not-yet-existing row starts from
+   *  (seeds are read-only, so the picker never opens this on one directly). */
   readonly theme: Theme;
+  /**
+   * DRAFT session: create the row this session edits, and resolve to it. Called AT MOST ONCE, on the first
+   * real edit (or by a Save that beat it). Omit for an existing row.
+   */
+  readonly mint?: () => Promise<Theme>;
 }
 
-/** The token-override + custom-CSS editor for one owned theme. */
-export function ThemeEditor({ theme }: ThemeEditorProps): ReactElement {
+/** The token-override + custom-CSS editor for one owned theme (or one draft — see `mint`). */
+export function ThemeEditor({ theme, mint }: ThemeEditorProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const updateTheme = useUpdateTheme({ trpc, invalidation });
   const themeId = theme.id as ThemeId;
 
+  // The row this session actually writes to, and the single in-flight mint. Both are refs: they are read
+  // and written inside the save/mint callbacks only, and a re-render must never re-arm either.
+  const rowIdRef = useRef<ThemeId | null>(mint === undefined ? themeId : null);
+  const mintRef = useRef<Promise<Theme> | null>(null);
+
+  const ensureRow = async (): Promise<ThemeId> => {
+    const existing = rowIdRef.current;
+    if (existing !== null || mint === undefined) {
+      return existing ?? themeId;
+    }
+    const pending = mintRef.current ?? mint();
+    mintRef.current = pending;
+    try {
+      const row = await pending;
+      rowIdRef.current = row.id as ThemeId;
+      // The server de-collides a derived name ("Mocha copy" → "Mocha copy 2"), so an UNTOUCHED name field
+      // would otherwise submit a stale name and collide on the very next save. The row's real name wins;
+      // a name the author already changed is theirs and is left alone.
+      if (form.state.values.name === theme.name) {
+        form.setFieldValue("name", row.name);
+      }
+      return row.id as ThemeId;
+    } catch (err) {
+      // Let a retry (the next edit, or the Save button) mint again rather than inheriting the rejection.
+      mintRef.current = null;
+      throw err;
+    }
+  };
+
   const save = async (values: ThemeFormValues): Promise<ThemeFormValues> => {
-    const saved = await updateTheme.mutateAsync({ id: themeId, input: themeInputFromForm(values) });
+    const saved = await updateTheme.mutateAsync({ id: await ensureRow(), input: themeInputFromForm(values) });
     return themeFormFromEntity(saved);
   };
 
@@ -82,6 +125,13 @@ export function ThemeEditor({ theme }: ThemeEditorProps): ReactElement {
       }}
     >
       <Stack gap="section">
+        {mint === undefined ? null : (
+          // `!isDefaultValue` is the "a real change landed" read the DirtyPill uses (raw `isDirty` never
+          // clears). Rendering the arm as a child of Subscribe keeps the mint OUT of the render path.
+          <form.Subscribe selector={(state): boolean => !state.isDefaultValue}>
+            {(edited): ReactElement => <MintOnFirstEdit edited={edited} onFirstEdit={ensureRow} />}
+          </form.Subscribe>
+        )}
         <form.AppField name="name">{(field): ReactElement => <field.TextField label="Theme name" />}</form.AppField>
 
         <Grid cols="wide" gap="gutter">
@@ -113,7 +163,6 @@ export function ThemeEditor({ theme }: ThemeEditorProps): ReactElement {
           <Section heading="Type & shape">
             <form.AppField name="font">{(field): ReactElement => <field.SelectField label="Font" items={FONT_ITEMS} />}</form.AppField>
             <form.AppField name="radius">{(field): ReactElement => <field.SelectField label="Corner radius" items={RADIUS_ITEMS} />}</form.AppField>
-            <form.AppField name="chatStyle">{(field): ReactElement => <field.SelectField label="Message style" items={CHAT_STYLE_ITEMS} />}</form.AppField>
             <form.AppField name="density">{(field): ReactElement => <field.SelectField label="Density" items={DENSITY_ITEMS} />}</form.AppField>
           </Section>
         </Grid>
@@ -138,6 +187,24 @@ export function ThemeEditor({ theme }: ThemeEditorProps): ReactElement {
       </Stack>
     </form>
   );
+}
+
+/** The deferred mint's trigger: renders nothing, fires `onFirstEdit` once the form reports a real change.
+ *  An EFFECT, not a render-path call — minting during render would write on a re-render. The ref makes it
+ *  fire once per session even though `edited` stays true and the callback identity changes each render; a
+ *  failed mint is retried by the next Save (which awaits the same seam), not by re-arming here. */
+function MintOnFirstEdit({ edited, onFirstEdit }: { readonly edited: boolean; readonly onFirstEdit: () => Promise<unknown> }): null {
+  const firedRef = useRef(false);
+  useEffect(() => {
+    if (!edited || firedRef.current) {
+      return;
+    }
+    firedRef.current = true;
+    // The mutation's own errorToast reports a failure; the promise is settled here so a rejection can
+    // never surface as an unhandled rejection.
+    onFirstEdit().catch(() => undefined);
+  }, [edited, onFirstEdit]);
+  return null;
 }
 
 /** The custom-CSS code editor + live validator diagnostics (warn on `@import`, reject `position:fixed`). */

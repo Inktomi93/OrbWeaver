@@ -13,7 +13,9 @@ import {
 } from "../../../../../packages/client/src/features/character/lib/character-theme-form-model";
 import { expect, test } from "../../../../support/fixtures";
 
-// A fully-populated override — every colour scalar, both slots of every bubble, and all four enums set.
+// A fully-populated CARD override — every colour scalar, both slots of every bubble, and both enums the
+// card can carry. `density` is deliberately absent: it is viewer-sacred (TD §3), so this form has no field
+// for it and a card can never author one (see the stripping test below).
 const FULL: ThemeOverride = {
   background: "#101014",
   accent: "#c98a5b",
@@ -27,8 +29,6 @@ const FULL: ThemeOverride = {
   systemBubble: { bg: "#242430", fg: "#d0d0d0" },
   font: "Georgia",
   radius: "card",
-  chatStyle: "echo",
-  density: "compact",
 };
 
 test("round-trips a fully-populated override through the flat form unchanged", () => {
@@ -49,6 +49,13 @@ test("a sentinel field is OMITTED — the token inherits, the set fields survive
     // font stays `inherit`, every other colour stays "" → all omitted.
   };
   expect(overrideFromCharacterThemeForm(form)).toEqual({ accent: "#c98a5b", radius: "card" });
+});
+
+test("a VIEWER-SACRED key on a stale blob is dropped by the round-trip, never re-authored", () => {
+  // A card written before the partition (or by a hand-posted blob) can carry `density`. The form has no
+  // field for it, so the next autosave writes it out of existence — derive-don't-migrate.
+  const stale: ThemeOverride = { accent: "#c98a5b", density: "compact" };
+  expect(overrideFromCharacterThemeForm(characterThemeFormFromOverride(stale))).toEqual({ accent: "#c98a5b" });
 });
 
 test("a bubble keeps only its set slot (bg without fg, and vice-versa)", () => {

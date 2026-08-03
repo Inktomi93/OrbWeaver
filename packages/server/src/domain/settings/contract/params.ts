@@ -5,7 +5,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { AppSettings, UserSettingsSection } from "@orb/contracts/settings";
-import type { CreateThemeInput, UpdateThemeInput } from "@orb/contracts/theme";
+import type { CreateThemeInput, PromoteThemeInput, UpdateThemeInput } from "@orb/contracts/theme";
 import type { ThemeId } from "@orb/kit/ids";
 
 /** patch is a deep-partial of the named namespace, deep-merged into the stored section (arrays/primitives
@@ -58,6 +58,14 @@ export interface GetThemeParams extends ThemeActorParams {
 
 export interface CreateThemeParams extends ThemeActorParams {
   readonly input: CreateThemeInput;
+}
+
+/** The PROMOTE door (TD door 1) — a character card's look becomes an owned library row. The CLIENT supplies
+ *  the values it already holds (its own `character.get`): a server-side re-read would buy nothing (the same
+ *  caller can post arbitrary values to `createTheme`, and the clamp is identical) at the cost of a
+ *  settings→character edge the cake does not need. */
+export interface PromoteThemeParams extends ThemeActorParams {
+  readonly input: PromoteThemeInput;
 }
 
 export interface DuplicateThemeParams extends ThemeActorParams {

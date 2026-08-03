@@ -6,19 +6,19 @@
 // system-bubble fg once drifted 0.705 vs the AA-corrected 0.74 — W3). Tests may import both packages; the
 // packages never import each other.
 //
-// THIRD copy, same property (2026-08-02): each default-character CARD carries its palette as its authored
-// `themeOverride` (`domain/character/seeder/cards.ts`). domain→domain imports are illegal, so the card's
-// colours are a literal mirror of the same value-set and are pinned here too — one drift gate for all three
-// copies of a palette.
+// There WAS a third copy: each default-character card carried the same palette as its authored
+// `themeOverride`, pinned here byte-equal. The picker curation (TD/O-9) retired those ten value-sets, so
+// the card is now the ONLY copy of its palette and has nothing to pair against — the surviving invariant
+// (a complete palette, card-embeddable keys only) is pinned self-contained at
+// `tests/server/domain/character/seeder/cards.contract.test.ts`.
 //
 // The palette list is DERIVED from the SEED_THEMES registry (never a hand list), so a new seed palette is
 // auto-covered; set-equality against the value-set jsons is asserted both ways at the bottom.
 //
-// Not pinned: chatStyle/density — those are template PREFS a user overrides when duplicating a seed, not
-// palette values, so they carry no ui counterpart to pair against.
+// Not pinned: density — a template PREF a user overrides when duplicating a seed, not a palette value, so
+// it carries no ui counterpart to pair against.
 
 import type { ThemeOverride } from "@orb/contracts/theme";
-import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { describe } from "vitest";
 import { THEME_HEARTH_NAME } from "../../../../packages/server/src/domain/settings/constants.ts";
@@ -51,30 +51,6 @@ const seedSetValue = (name: string, cssVar: string): string | undefined => VALUE
 const authorityFor = (name: string): ((cssVar: string) => string | undefined) =>
   name === THEME_HEARTH_NAME ? hearthValue : (cssVar): string | undefined => seedSetValue(name, cssVar);
 
-// Card handle → the seed palette it wears. Declared HERE because the three copies live in packages that
-// cannot import each other (ui ← contracts ← server-domain-settings ⊥ server-domain-character); this suite is
-// the seam that holds them together. A card missing from this table fails the completeness test below, so a
-// new default card cannot land unpaired.
-const CARD_THEME_BY_HANDLE: Readonly<Record<string, string>> = {
-  assistant: "Charlotte",
-  "jfc-coder": "JFC",
-  niko: "Niko",
-  hana: "Hana",
-  morgatha: "Morgatha",
-  sabine: "Sabine",
-  birdie: "Birdie",
-  kohaku: "Kohaku",
-  calamity: "Calamity",
-  elias: "Elias",
-};
-const CARD_PALETTE_BY_THEME = new Map<string, ThemeOverride>(
-  DEFAULT_CHARACTER_CARDS.flatMap((card) => {
-    const override = card.presentation.themeOverride;
-    const themeName = CARD_THEME_BY_HANDLE[card.input.handle];
-    return override === null || override === undefined || themeName === undefined ? [] : [[themeName, override] as const];
-  }),
-);
-
 describe("seed-theme OVERRIDE ↔ @orb/ui palette pairing (W3)", () => {
   for (const { name, override } of SEED_THEMES) {
     const authority = authorityFor(name);
@@ -99,6 +75,14 @@ describe("seed-theme OVERRIDE ↔ @orb/ui palette pairing (W3)", () => {
   // Hearth is exempt — it IS the base palette (its values live in TOKENS, not a [data-theme] value-set), so
   // the value-set names must equal exactly the lowercased NON-Hearth seed names. A value-set json with no
   // server seed row (or a new seed row with no value-set) goes red here.
+  // The RETIRED palettes (TD/O-9) must stay retired in BOTH directions — a json coming back without its
+  // seeder row, or a seeder row without its json, is what this set-equality already catches; this names
+  // the specific regression so the next reader knows the shrink was deliberate, not a deletion accident.
+  test("the shipped set is the D62 three — the ten character palettes are gone from both sides", () => {
+    expect(SEED_THEMES.map((t) => t.name)).toEqual(["Hearth", "Mocha", "Light"]);
+    expect(Object.keys(SEED_THEME_VALUE_SETS).sort()).toEqual(["light", "mocha"]);
+  });
+
   test("SEED_THEME_VALUE_SETS names == the lowercased non-Hearth seed names", () => {
     const byText = (a: string, b: string): number => a.localeCompare(b);
     const valueSetNames = Object.keys(SEED_THEME_VALUE_SETS).sort(byText);
@@ -108,25 +92,5 @@ describe("seed-theme OVERRIDE ↔ @orb/ui palette pairing (W3)", () => {
     expect(valueSetNames).toEqual(seedNames);
     // Hearth is the base palette (its values live in TOKENS), so it must NOT appear as a value-set.
     expect(valueSetNames).not.toContain(THEME_HEARTH_NAME.toLowerCase());
-  });
-});
-
-describe("default-character CARD themeOverride ↔ the same palette (the third copy)", () => {
-  for (const [themeName, cardOverride] of CARD_PALETTE_BY_THEME) {
-    const authority = authorityFor(themeName);
-    for (const { label, get, cssVar } of COLOR_FIELDS) {
-      test(`card ${themeName}.${label} matches ${cssVar}`, () => {
-        expect(get(cardOverride)).toBe(authority(cssVar));
-      });
-    }
-  }
-
-  test("every default card's palette is a REAL seed palette (card set ⊆ seed registry)", () => {
-    const seedNames = new Set(SEED_THEMES.map((t) => t.name));
-    for (const themeName of CARD_PALETTE_BY_THEME.keys()) {
-      expect(seedNames.has(themeName), `${themeName} is a seeded palette`).toBe(true);
-    }
-    // And the pack is fully covered: one palette per card.
-    expect(CARD_PALETTE_BY_THEME.size).toBe(DEFAULT_CHARACTER_CARDS.length);
   });
 });

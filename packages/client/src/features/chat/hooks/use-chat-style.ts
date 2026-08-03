@@ -10,14 +10,12 @@
 // directly (a sanctioned cross-feature read, §11.0 — never a `#features/settings` import).
 
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
-import type { THEME_SCOPE_CHAT_STYLES } from "@orb/ui/theme-scope";
+import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
 
-type ChatStyle = (typeof THEME_SCOPE_CHAT_STYLES)[number];
-
 /** The active chatStyle — the synced appearance pref, `bubble` until the settings read resolves. */
-export function useChatStyle(): ChatStyle {
+export function useChatStyle(): ThemeChatStyle {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.settings.getUserSettings.queryOptions());
   return data?.config.appearance.chatStyle ?? DEFAULT_APPEARANCE_SETTINGS.chatStyle;

@@ -329,3 +329,30 @@ test("Layer 3 spans: speakerThemesByName maps a character's NAME to its override
   expect(byName.get("Alice")).toEqual(HEARTH_TOKENS);
   expect(byName.has("Bob")).toBe(false);
 });
+
+// ── The card-embeddable partition at the two card-sourced READ seams (TD §3) ──────────────────────────
+// A card supplies the room's LOOK, never the viewer's ergonomics. Both takeover planes project through
+// `cardEmbeddableSubset`, so a viewer-sacred key on the blob — a legacy write, or a hand-posted one —
+// paints nowhere. Pinned at BOTH seams: they are two call sites of one rule, and a re-spelling of either
+// is exactly the drift the projection exists to prevent.
+
+test("resolveRoomTheme carries the card's LOOK and strips the viewer-sacred half", () => {
+  const human = makeParticipant({ kind: "human", characterId: null, displayName: "Nate" });
+  const alice = makeParticipant({
+    characterId: ALICE_ID,
+    displayName: "Alice",
+    themeOverride: { ...HEARTH_TOKENS, density: "compact" },
+  });
+  expect(resolveRoomTheme([human, alice])).toEqual(HEARTH_TOKENS);
+});
+
+test("speakerThemesByName strips the same half — and a card carrying ONLY a sacred key is omitted", () => {
+  const participants = new Map([
+    [ALICE_ID, makeParticipant({ displayName: "Alice", themeOverride: { ...HEARTH_TOKENS, density: "compact" } })],
+    [BOB_ID, makeParticipant({ characterId: BOB_ID, displayName: "Bob", themeOverride: { density: "compact" } })],
+  ]);
+  const byName = speakerThemesByName(participants);
+  expect(byName.get("Alice")).toEqual(HEARTH_TOKENS);
+  // Nothing embeddable survived the projection → no scope at all, so the row keeps its hash tint.
+  expect(byName.has("Bob")).toBe(false);
+});

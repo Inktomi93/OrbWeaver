@@ -8,24 +8,12 @@ import type { DuplicateThemeParams } from "../contract/params";
 import type { SettingsContext, SettingsService } from "../contract/service";
 import type { ThemeView } from "../contract/views";
 import { insertTheme, isThemeNameConflict, listOwnedThemeNames, readableTheme } from "../persistence/theme-queries";
+import { freeThemeName } from "../substrate/names";
 import { toThemeView } from "../substrate/theme-views";
 
 const THEME_DUPLICATE = "theme.duplicate";
 const THEME_ENTITY = "theme";
 const COPY_SUFFIX = " copy";
-const FIRST_INCREMENT = 2;
-
-/** First free "<base>[ N]" not already used by the owner. */
-function freeThemeName(base: string, taken: ReadonlySet<string>): string {
-  if (!taken.has(base)) {
-    return base;
-  }
-  let n = FIRST_INCREMENT;
-  while (taken.has(`${base} ${n}`)) {
-    n += 1;
-  }
-  return `${base} ${n}`;
-}
 
 export function createDuplicateTheme(ctx: SettingsContext): Pick<SettingsService, "duplicateTheme"> {
   async function duplicateTheme(params: DuplicateThemeParams): Promise<ThemeView> {

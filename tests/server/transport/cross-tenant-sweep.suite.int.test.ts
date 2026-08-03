@@ -1024,6 +1024,7 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "settings.addExternalBackground": "self-scoped: materializes the pasted URL into the caller's OWN CAS (principal.userId); no foreign id in params",
   "settings.listThemes": "self-scoped: owned ∪ seeds",
   "settings.createTheme": "self-scoped",
+  "settings.promoteTheme": "self-scoped: mints an owned row from VALUES only (name + override) — no foreign id to reach through",
   "sessions.me": "self-scoped: projects the caller's own Principal",
   "search.fields": "self-scoped: ownerId = principal.userId (index corpus = owner's cards; query text, no id)",
   "search.suggest": "self-scoped: ownerId = principal.userId (index corpus = owner's cards; query text, no id)",
