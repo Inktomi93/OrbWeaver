@@ -31,7 +31,9 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 
 ## ═══ STANDING LAWS (the posture — all owner-set, all still in force) ═══
 
-- **Cap THREE concurrent lanes** (owner: "six ate our usage too fast"). **ONE COMMIT per lane**, terse
+- **Cap FIVE concurrent lanes** (owner raised it from three, 2026-08-03, to burn the almost-done
+  initiatives to CLOSED; the original three-cap came from "six ate our usage too fast" — five is the
+  tested ceiling, six is not). **ONE COMMIT per lane**, terse
   message drafted in seconds; receipts go in the final report, never the commit message.
 - **Merges** `--no-ff --no-verify` on branch-side hook-green receipts — BUT any branch certified
   BEFORE sibling merges landed gets a consolidated `pnpm check` on the merged result (caught reds
@@ -86,10 +88,15 @@ grammar and has ZERO schema enforcement today; the kit header claiming grammar-l
 describes a tool that cannot exist.
 **Rides it:** `engine/chat-completion.ts` holds a SECOND `response_format` builder that never emitted
 strict (SM7 flagged, deliberately not touched).
-**⚑ OWNER FORK (A/B, needs a live probe):** OpenAI's documented **nullable-union pattern** — every prop
-`required`, optionals as `anyOf [T, null]`, `null ≡ absent` — would preserve omit-means-keep AND clear
-Anthropic's undocumented "too many optionals" wall in one edit. It stays a RECOMMENDATION at the schema
-header until the owner rules. Blanket-vs-capability already ruled: KEEP BLANKET.
+**⚑ OWNER RULED (08-03) — IT IS A CONFIG OPTION, NOT AN A/B FLIP.** Owner: *"i kinda wanted it to be
+somethign we could swap to if we wanted or like a config thing etc. I dont want it to be seen as dead
+its a config option for us to use maybe put in settings or find a home for it."* The nullable-union arm
+(every prop `required`, optionals as `anyOf [T, null]`, `null ≡ absent` — preserves omit-means-keep AND
+clears Anthropic's undocumented "too many optionals" wall) is BUILT but reachable only by editing
+`EXTRACTION_STRICT_WIRE` and restarting, which is functionally dead. **Lane STRUCTOUT** gives it a real
+home (default ruling: the AppSettings tier — env floor, DB override wins — surfaced in settings, per
+[[settings-section-seam-body-only]]); the DEFAULT behaviour does not change, only the reachability.
+D126 allocated if it mints. Blanket-vs-capability already ruled: KEEP BLANKET.
 
 ### I-2 · DATABANK — S1 shipped, S2 in flight, S3 unstarted (LANE DBANK2 LIVE)
 
@@ -217,11 +224,13 @@ Recast-is-story is NOT the answer; the design derives from the pin concept.
 scope-no-color (pre-existing; the likely next "still not colored" report). `GhostMessageRow` has NO
 identity chrome for ANY row kind.
 
-### I-9 · CEREMONY + DOC GRADUATION — one mint and one move owed
+### I-9 · CEREMONY + DOC GRADUATION — 2 of 3 done; HCOPY's D-entry is the survivor
 
-- **D125 is UNMINTED.** HCOPY's handoff-copy D-entry text (amends D64) lives only in its final report.
-  Next free number confirmed at `Core-Path-Registry.md:11`. Mint it at the next ceremony batch,
-  alongside any REGPAR / R2WI ledger deltas.
+- ✅ **D125 MINTED** — the fifth regex leg (`PROMPT_HISTORY`, amends D121-E), from HISTLEG's report.
+  Both range headers + the master enumeration updated (which was itself behind: D123/D124 had never
+  been appended to `Core-Laws-and-Precedents.md:62` — backfilled in the same edit). **Next free: D126**
+  (allocated to STRUCTOUT). HCOPY's handoff-copy D-entry (amends D64) is STILL unminted and rolls to
+  the next ceremony batch alongside any REGPAR / R2WI deltas — that is the initiative's one survivor.
 - ✅ **Graduation move DONE (08-03):** the 36/36-ACCOUNTED preset-execution crunch list graduated to
   `docs/history/reviews/misc/`; its three inbound refs repointed. (The board's "that dir is EMPTY"
   claim was stale — it already held six graduated reviews.)
@@ -466,11 +475,27 @@ The audit wrote SCHEMA / DBANK2 / SWEEP as *dispatched*. Since then:
 - ✅ **DBANK2 MERGED (`2b4c2d24`)** — the per-chat rack + **the D85 visibility toggle (the
   board's oldest unbuilt item)**; D-2 sources threaded; hide writes the FULL set; `formatBytes`
   promoted to `@orb/kit/strings`. Databank tail: D-3 arm (a) · S6 character rack · D-7 tile.
-- **LIVE NOW:** SWEEP (`ac9ffb2bcce6316a7` — side-eye tail + mock-vs-rendered delta tables +
-  hunt-and-fix) · HISTLEG (`ab0741b3191da9c89` — **the prompt-build history regex leg**, owner
-  one-time authorization: ephemeral by construction, depth returns ONLY on that leg, joins the
-  D121-E order table; D-entry text owed → mint as **D125**) · GATES3 (`ac3f82aceafab7894` —
-  nullable-`ne()` · NUL-bytes-in-source · the hosted-keyword lock).
+- ✅ **HISTLEG MERGED (`537a475e`, merge `fc35b0d9`)** — the FIFTH regex leg `PROMPT_HISTORY` is
+  live: transforms the assembled history at prompt-build time and never reaches canon, with
+  `historyDepth {min,max|null}` scoped to that leg alone (contracts-checked in BOTH directions,
+  because `placement` is a SET and no discriminated arm can say "this field exists only here").
+  **D125 MINTED** from its text. Consolidated `pnpm check` on the merged result: **14/14 PASS**.
+  795 node tests / 143 CT green; ephemerality pinned at the SHARED source all four planes read
+  (`message_variants.content`, D26) plus the mutation route — not four verb-level round-trips.
+  **Deviation ACCEPTED:** the leg runs before the token FIT, not after — which is ST's own order
+  (`script.js:4475-4501` precedes `getMaxPromptTokens()`) and the better arm, because stripping
+  before the fit is what makes "strip it from the prompt" actually buy context back.
+  **⚑ TWO FORKS IT RAISED, both boarded not built:** (1) ST derives a ROLE scope from the
+  placement; our persist-time legs can't, so `PROMPT_HISTORY` hits ALL history rows — a role axis
+  is a later two-member split, deliberately not a silent difference. (2) The card lift
+  accept-and-DROPS an imported card's flat `minDepth`/`maxDepth` rather than mapping them onto
+  `historyDepth` (ST scopes them on placements meaning something else here) — **the only place
+  ST's stored depth data is currently discarded**; re-scoping is one chip in the editor.
+- **LIVE NOW (cap 5):** GATES3 (`ac3f82aceafab7894` — nullable-`ne()` · NUL-bytes-in-source · the
+  hosted-keyword lock) · DBFIX (`a423c577e9d55294a` — databank ingest concurrency, the D117
+  contradiction) · STRUCTOUT (`a8be7d2d06f5157b0` — the nullable-union wire mode gets a real
+  config home; **D126 allocated**) · OBSCLOSE (`a02d4bfd89a9321f0` — I-7's last three spans, to
+  close that initiative outright).
 - **OWNER RULINGS (dawn):** databank KEEPS its rail section (fork closed) · tag manual reorder
   NOT lifted (premise challenged: `tags.sortOrder` exists but a global manager may not want it
   — TAGSORT audit queued, do not delete blind) · prompt-ephemerality **now BUILDING** via
