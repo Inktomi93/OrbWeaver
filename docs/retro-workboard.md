@@ -532,8 +532,13 @@ serde re-home — the serde defines its own concrete interface; twin DELETED `2c
 ratchet re-run 0/0, hook-green). **RUN 3 FIRED (background) on the fully-merged quiesced
 tree — ALL LANES DRAINED, ZERO worktrees.**
 **✅✅ RUN 3 = TRUE PASS, ALL STAGES CLEAN (tests:node 545s + e2e-smoke + all statics) —
-PUSH-READY @ `08ce434a`, 198 commits past origin `851f625e`. The --no-verify merge debt is
-FULLY CLEARED by this run. Awaiting the owner's push word.** All of F-1/3/4/5/6/7 landed:
+the --no-verify merge debt FULLY CLEARED by this run.**
+**✅✅✅ PUSHED TO ORIGIN (owner word "push", 08-03): `851f625e..865405d6`, 199 commits —
+origin ≡ local, 0 ahead.** (First attempt hit the 5-min tool timeout mid-transfer — ref
+untouched, verified before retry; background push landed clean, 2,796 deltas.) The entire
+instrument-days era is REMOTE: D121+D122 · truth audit · tenancy family (2 holes closed) ·
+persona multi-human · regex reshape complete · handoff copy · portability/lifecycle ·
+client-arch law · D22 live battery · gates 145→173. All of F-1/3/4/5/6/7 landed:
 README pointer-card rewrite (island-sentence dead) · comp-tier WALLED (new depcruise rule
 #53, probe-receipted) · client-structure RECURSES + rule 8 (bucket-axis re-declaration RED;
 nesting legislated: legal everywhere, contracts recurse) · §15a illustrative-blocks law (the
