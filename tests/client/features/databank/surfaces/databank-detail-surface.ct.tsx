@@ -9,7 +9,7 @@
 //     never a `Textarea` (legacy's form control announced the canon as an editable textbox).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DatabankDetailStory, DatabankWorkspaceStory } from "../_ct-stories";
+import { DatabankDetailStory, DatabankDetailWideStory, DatabankWorkspaceStory } from "../_ct-stories";
 import { INDEXING_DOC, READY_DOC, SOURCE_TEXT, stubDatabank } from "../fixtures";
 
 /** The row bodies open a document — matched loosely because the row's accessible name carries its scent
@@ -47,6 +47,37 @@ test("the detail states its metadata, keeps its Ready chip, and offers Reindex",
 
   await workspace.getByRole("button", { name: "Reindex" }).click();
   await expect.poll(() => trpc.lastInput("databank.reindex"), { intervals: [20, 50, 100] }).toEqual({ scope: { kind: "document", documentId: READY_DOC.id } });
+});
+
+// THE DETAIL KEEPS A MEASURE (side-eye sweep 2026-08-03). `justify="between"` label/value rows spend
+// whatever width they are given: at the 1448px desktop CONTENT pane "Origin" sat at x=496 and its own value
+// "Text" at x=1387 — 890px of nothing between a label and the thing it labels, and Reindex flung to the far
+// edge of its sentence. Both sibling member editors (tag, regex) keep `max-w-prose`; this one did not.
+// Asserted at the WIDEST real host (the 720px story cannot see it) as the RENDERED readout width against
+// the pane's own, so a token change cannot drift out from under it and a px literal cannot satisfy it.
+test("the detail keeps a MEASURE at a desktop-wide pane — it does not spread with the window", async ({ mount, page }) => {
+  await stubDatabank(page);
+  const wide = await mount(<DatabankDetailWideStory />);
+  await wide.getByRole("button", { name: CRIMSON_ROW }).first().click();
+  await expect(wide.getByText("application/pdf")).toBeVisible();
+
+  const measured = await page.evaluate(() => {
+    const label = [...document.querySelectorAll("p,span")].find((el) => el.textContent?.trim() === "Origin" && el.children.length === 0);
+    const pane = document.querySelector('[data-slot="databank-content"]');
+    if (label === undefined || pane === null) {
+      return null;
+    }
+    // The readout ROW is the label's parent — its width is what the whole finding is about.
+    const row = label.parentElement;
+    return { row: row === null ? 0 : row.getBoundingClientRect().width, pane: pane.getBoundingClientRect().width };
+  });
+
+  expect(measured).not.toBeNull();
+  // The pane really is the wide one…
+  expect(measured?.pane ?? 0).toBeGreaterThan(1200);
+  // …and the readout is not. `max-w-prose` is the measure both sibling member editors (tag, regex) keep;
+  // asserted as a RELATION to the pane, so the token behind it can move without rotting this line.
+  expect(measured?.row ?? Number.POSITIVE_INFINITY).toBeLessThan((measured?.pane ?? 0) * 0.7);
 });
 
 test("source text is a read-only REGION, fetched only on reveal — not a Textarea, not part of the open read", async ({ mount, page }) => {

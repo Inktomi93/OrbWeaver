@@ -15,7 +15,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { CollectionContribution, ContributorRegistry } from "#lib";
 import { useCollectionSelection } from "#state";
-import { CONFIG_CONTEXT_EMPTY } from "../lib/config-copy";
+import { CONFIG_CONTEXT_BAND_NEUTRAL, CONFIG_CONTEXT_EMPTY } from "../lib/config-copy";
 
 export interface ConfigContextBodyProps {
   readonly collections: ContributorRegistry<CollectionContribution>;
@@ -36,12 +36,25 @@ export function ConfigContextBody({ collections }: ConfigContextBodyProps): Reac
 /** The CONTEXT BAND's identity for this workspace (`ContextDefinition.header`, the §6b P4 slot). It names
  *  what the pane ANSWERS for the OPEN member's collection — "Where it runs" over a regex script — instead of
  *  the shell's neutral "Details", which named nothing while the arms underneath it spoke different
- *  grammars (side-eye 2026-08-03 P3). One home: the same `context.title` a `none` arm already declares. */
+ *  grammars (side-eye 2026-08-03 P3).
+ *
+ *  IT NAMES ONLY WHAT THE PANE ANSWERS (side-eye sweep 2026-08-03). The two arms whose BODY is an
+ *  `EmptyState` already print their sentence as that state's title, so a band echoing it rendered "Nothing
+ *  to attach" / "Nothing selected" twice, ~78px apart — the F-12 defect (`registry-contracts.ts`: "the word
+ *  'Details' twice — the band's, then the body placeholder's title") rebuilt one tier up. Those two arms
+ *  fall back to {@link CONFIG_CONTEXT_BAND_NEUTRAL}, which is the frame `empty-states.html` draws for both
+ *  (band "Details" over body "Nothing to attach") and is why this cannot simply render nothing: an empty
+ *  band collapses to 0px and takes the pane's D66 A1 horizon with it. */
 export function ConfigContextHeader({ collections }: ConfigContextBodyProps): ReactElement {
   const selection = useCollectionSelection();
-  const title = selection === null ? CONFIG_CONTEXT_EMPTY.title : collections.get(selection.kind).context.title;
+  const collection = selection === null ? null : collections.get(selection.kind);
+  const title = collection === null || collection.context.kind === "none" ? CONFIG_CONTEXT_BAND_NEUTRAL : collection.context.title;
   return (
-    <Text as="span" voice="label">
+    // `kicker`, not `label`: this is a BAND's name, and the LIST band 1000px to its left on the same 48px
+    // horizon paints micro-caps (`ListPaneHeader`'s `micro/caps/semibold/muted`). At `label` the two bands
+    // of one workspace read 10.5px-uppercase vs 13px-sentence-case — measured, and both are `.caps` in
+    // `workspace.html`. `kicker` IS that treatment, in the feature-legal spelling.
+    <Text as="span" voice="kicker">
       {title}
     </Text>
   );

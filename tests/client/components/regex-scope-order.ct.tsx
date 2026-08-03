@@ -95,6 +95,31 @@ test("the attached slice is an ordered group and the rest of the library follows
   expect(await gripNames(page)).toEqual(["Reorder strip ooc", "Reorder rename hero"]);
 });
 
+// "RUNS HERE, IN ORDER" IS A CLAIM THE ROWS HAVE TO SUPPORT (side-eye sweep 2026-08-03). The kicker
+// promised a sequence over rows that showed no rank, so at the owner's 34 attached scripts the only way to
+// learn where the row you just moved landed was to count them by eye — while the config rail's global
+// readout, the same concept in its other home, had led with a position all along. Asserted as the RENDERED
+// leading text of each ordered row (what a reader actually sees), and as its ABSENCE from the unordered
+// slice, where a rank would be a number that means nothing.
+test("the ordered slice ranks its rows, and the unattached slice does not", async ({ mount, page }) => {
+  await stubScope(page, "regex.listForCharacter", [FIRST, SECOND, LOOSE], [FIRST, SECOND]);
+  await mount(<RegexPickerStory />);
+  await expect(page.getByRole("switch", { name: "Attach strip ooc" })).toBeVisible();
+
+  const leads = await page.evaluate(() => {
+    // The row IS the attach switch's parent (identity cluster + switch), so its first rendered line is
+    // whatever leads the row — the rank where there is one, the name where there is not.
+    const rowFor = (label: string): string => {
+      const row = document.querySelector(`[aria-label="Attach ${label}"]`)?.parentElement;
+      return (row as HTMLElement | null)?.innerText.split("\n")[0]?.trim() ?? "";
+    };
+    return { first: rowFor("strip ooc"), second: rowFor("rename hero"), loose: rowFor("not attached one") };
+  });
+  expect(leads.first).toBe("1");
+  expect(leads.second).toBe("2");
+  expect(leads.loose).toBe("not attached one");
+});
+
 test("a keyboard reorder writes the new id order to applyScopeOrder and repaints in it", async ({ mount, page }) => {
   const trpc = await stubScope(page, "regex.listForCharacter", [FIRST, SECOND, LOOSE], [FIRST, SECOND]);
   await mount(<RegexPickerStory />);

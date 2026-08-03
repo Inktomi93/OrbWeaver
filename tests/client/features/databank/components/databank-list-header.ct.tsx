@@ -23,3 +23,29 @@ test("the maintenance kebab fires the owner-wide sweep, and re-extract waits for
   await page.getByRole("alertdialog").getByRole("button", { name: "Re-extract" }).click();
   await expect.poll(() => trpc.lastInput("databank.reindex"), { intervals: [20, 50, 100] }).toEqual({ scope: { kind: "owner" }, mode: "re-extract" });
 });
+
+// EVERY ARM OWES A WAY OUT (side-eye sweep 2026-08-03). Each ingest arm draws its own footer because each
+// has its own submit verb, and the UPLOAD arm — where picking the file IS the submit — shipped with no
+// footer at all: the dialog held ZERO buttons besides its three mode toggles, so its only exit was Esc or
+// the backdrop, while both sibling arms offered a labelled one. A dismiss is not part of a submit.
+test("every arm of the Add dialog offers a labelled way out — including the one with no submit", async ({ mount, page }) => {
+  await stubDatabank(page);
+  const band = await mount(<DatabankListHeaderStory />);
+
+  await band.getByRole("button", { name: "Add" }).click();
+  const dialog = page.getByRole("dialog");
+  // The dialog opens ON the upload arm.
+  await expect(dialog.getByRole("button", { name: "Upload a file" })).toHaveAttribute("aria-pressed", "true");
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Paste text" }).click();
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeVisible();
+
+  await dialog.getByRole("button", { name: "From a link" }).click();
+  await expect(dialog.getByRole("button", { name: "Cancel" })).toBeVisible();
+
+  // …and it works: the upload arm's Cancel closes the dialog, not just decorates it.
+  await dialog.getByRole("button", { name: "Upload a file" }).click();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});

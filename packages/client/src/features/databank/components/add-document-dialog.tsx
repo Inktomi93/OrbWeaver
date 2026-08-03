@@ -134,10 +134,20 @@ function UploadBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement
   };
 
   return (
-    <Field error={error} label="File">
-      {/* The cap is the DEPLOYMENT's, read live (§2.2) — the dropzone also prints it as its own hint. */}
-      <FileDropzone accept={UPLOAD_ACCEPT} loading={loading} maxSizeBytes={caps.databankUpload} onFilesSelected={onFilesSelected} success={success} />
-    </Field>
+    <Stack gap="block">
+      <Field error={error} label="File">
+        {/* The cap is the DEPLOYMENT's, read live (§2.2) — the dropzone also prints it as its own hint. */}
+        <FileDropzone accept={UPLOAD_ACCEPT} loading={loading} maxSizeBytes={caps.databankUpload} onFilesSelected={onFilesSelected} success={success} />
+      </Field>
+      {/* CANCEL, EVEN THOUGH THIS ARM HAS NO SUBMIT (side-eye sweep 2026-08-03). Each arm draws its own
+          footer because each has its own submit verb, and this one — where picking the file IS the submit —
+          shipped with no footer at all: the dialog had ZERO buttons besides the three mode toggles, so its
+          only exit was Esc or the backdrop, while both sibling arms offered a labelled way out. A dismiss is
+          not part of the submit; it is owed by every arm. */}
+      <Row gap="field" justify="end">
+        <DialogClose render={<Button intent="ghost">Cancel</Button>} />
+      </Row>
+    </Stack>
   );
 }
 

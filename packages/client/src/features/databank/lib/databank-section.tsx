@@ -31,7 +31,7 @@
 import { Database } from "@orb/ui/icons";
 import type { SectionDefinition } from "#state";
 import { DatabankLibraryAnchor } from "../anchors/databank-library-anchor";
-import { DatabankContextBody } from "../components/databank-context-body";
+import { DatabankContextBody, DatabankContextHeader } from "../components/databank-context-body";
 import { DatabankListHeader } from "../components/databank-list-header";
 import { DatabankDetailSurface } from "../surfaces/databank-detail-surface";
 import { DatabankLibrarySurface } from "../surfaces/databank-library-surface";
@@ -56,5 +56,10 @@ export const databankSection: SectionDefinition = {
   // ONE activation body (the world-info posture): where the open document fires, plus the pointer to the
   // retrieval knobs. `empty` names what the pane WILL show — never the generic "Details / select something"
   // filler (side-eye F-12).
-  context: { kind: "single", body: () => <DatabankContextBody />, empty: DATABANK_CONTEXT_EMPTY },
+  //
+  // `header` names the pane's SUBJECT (`library.html`'s CONTEXT band: "Document"). Without it the band fell
+  // back to the shell's neutral "Details" — which named nothing over three arms that answer where a document
+  // FEEDS, and collided with the CONTENT pane's own "Details" group heading ~950px to the left: the same
+  // generic-band defect the config workspace was swept for (side-eye 2026-08-03 P3).
+  context: { kind: "single", body: () => <DatabankContextBody />, header: () => <DatabankContextHeader />, empty: DATABANK_CONTEXT_EMPTY },
 };
