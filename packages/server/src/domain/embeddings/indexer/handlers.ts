@@ -4,8 +4,8 @@
 
 import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
 import { getLog } from "#foundation/observability";
-import type { EmbeddingsIndexerContext } from "../contract/service";
-import { generateAvatarCaption } from "./caption";
+import type { EmbeddingsIndexerContext } from "../contract/service.ts";
+import { generateAvatarCaption } from "./caption.ts";
 
 /** `character.updated` → re-embed the card text (`store(kind='card', lens='card-text')`). Idempotent: the
  *  store verb hash-gates, so a no-op edit is a cheap noop (no re-embed). */

@@ -6,12 +6,12 @@
 // bled/banner art) and each mode's OWN mechanic.
 
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
-import type { BubbleDecorationArgs } from "../../../../../packages/client/src/features/chat/lib/message-row-variants";
-import { MESSAGE_ROW_SKINS } from "../../../../../packages/client/src/features/chat/lib/message-row-variants";
+import type { BubbleDecorationArgs } from "../../../../../packages/client/src/features/chat/lib/message-row-variants.ts";
+import { MESSAGE_ROW_SKINS } from "../../../../../packages/client/src/features/chat/lib/message-row-variants.ts";
 // Deep imports, NOT the @orb/ui barrels: this is a NODE-lane test, and a barrel import drags browser
 // TSX + #lib (which re-exports portal-container's ShadowRoot) into the dom-less typecheck:graph program.
-import { avatarFallbackHueVar } from "../../../../../packages/ui/src/primitives/avatar/hue";
-import { expect, test } from "../../../../support/fixtures";
+import { avatarFallbackHueVar } from "../../../../../packages/ui/src/primitives/avatar/hue.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A `bubbleDecoration` argument builder — the two no-image FALLBACK fields (`hueSeed`/`initial`, the
  *  owner-ruled first-class tile inputs) default to fixed test values; a case overrides what it asserts. */

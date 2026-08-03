@@ -12,8 +12,8 @@ import {
   ingestStallHint,
   isIngestInFlight,
   showsPhaseChip,
-} from "../../../../../packages/client/src/features/databank/lib/databank-model";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/client/src/features/databank/lib/databank-model.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const AT = 1_700_000_000_000;
 const FIVE_MINUTES = 300_000;

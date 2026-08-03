@@ -7,7 +7,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeSearch, seedCharacter, seedChat, seedChatDigest, seedChatSegment, seedUser, vec } from "../_support.ts";
 
 describe("corpus", () => {

@@ -9,7 +9,7 @@
 import type { EmbedPassResult } from "@orb/contracts/embeddings";
 import { indexWorkloadParams } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
-import type { EmbeddingsWorkloadDeps } from "./contract/service";
+import type { EmbeddingsWorkloadDeps } from "./contract/service.ts";
 
 /**
  * `index` — the parameterized embeddings reindex: text (corpus + chat-block memory), image (avatars), or

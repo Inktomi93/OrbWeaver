@@ -7,8 +7,8 @@
 // unmounts the closed popup) so a reopened dialog never shows a prior attempt.
 
 import { createSavedEntityForm } from "#forms";
-import type { InviteFormValues } from "../lib/invite-form-model";
-import { INVITE_FORM_DEFAULTS, validateInviteForm } from "../lib/invite-form-model";
+import type { InviteFormValues } from "../lib/invite-form-model.ts";
+import { INVITE_FORM_DEFAULTS, validateInviteForm } from "../lib/invite-form-model.ts";
 
 export const useInviteForm = createSavedEntityForm<InviteFormValues>({
   defaultValues: INVITE_FORM_DEFAULTS,

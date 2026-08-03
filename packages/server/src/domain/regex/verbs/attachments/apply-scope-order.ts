@@ -12,10 +12,10 @@ import { characterRegexScripts, chatRegexScripts, globalRegexScripts, presetRege
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import { and, eq } from "drizzle-orm";
-import type { RegexContext } from "../../context";
-import type { ApplyScopeOrderParams, RegexAttachScopeRef } from "../../contract/params";
-import type { RegexService } from "../../contract/service";
-import { ensureCharacterOwned, ensurePresetOwned } from "../../persistence/ownership";
+import type { RegexContext } from "../../context.ts";
+import type { ApplyScopeOrderParams, RegexAttachScopeRef } from "../../contract/params.ts";
+import type { RegexService } from "../../contract/service.ts";
+import { ensureCharacterOwned, ensurePresetOwned } from "../../persistence/ownership.ts";
 
 /** Per-scope: authorize the scope, then build the per-attachment position writes. Exhaustive over the ref
  *  union — a new scope is a compile error here, not a silently un-orderable junction. */

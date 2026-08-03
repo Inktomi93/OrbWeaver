@@ -21,8 +21,8 @@ import type { ThemeOverride } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import type { ThemeId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import { RETIRED_SEED_THEME_IDS, THEME_HEARTH_ID, THEME_HEARTH_NAME, THEME_LIGHT_ID, THEME_LIGHT_NAME, THEME_MOCHA_ID, THEME_MOCHA_NAME } from "./constants";
-import { clearSelectedThemeIds, deleteSeedThemes, upsertSeedTheme } from "./persistence/theme-queries";
+import { RETIRED_SEED_THEME_IDS, THEME_HEARTH_ID, THEME_HEARTH_NAME, THEME_LIGHT_ID, THEME_LIGHT_NAME, THEME_MOCHA_ID, THEME_MOCHA_NAME } from "./constants.ts";
+import { clearSelectedThemeIds, deleteSeedThemes, upsertSeedTheme } from "./persistence/theme-queries.ts";
 
 const HEARTH_OVERRIDE: ThemeOverride = {
   accent: "oklch(0.72 0.175 52)",

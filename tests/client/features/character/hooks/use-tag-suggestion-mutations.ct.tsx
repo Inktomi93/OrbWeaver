@@ -14,9 +14,9 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { CharacterEditorSuggestToastStory } from "../_ct-stories";
-import { makeCharacterDetail } from "../fixtures";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { CharacterEditorSuggestToastStory } from "../_ct-stories.tsx";
+import { makeCharacterDetail } from "../fixtures.ts";
 
 // A NAME-ONLY card — the state under test, modelled honestly (no description, no opening line).
 const CARD = makeCharacterDetail({ name: "Bare", handle: castId<CharacterHandle>("bare"), description: null, greetings: [] });

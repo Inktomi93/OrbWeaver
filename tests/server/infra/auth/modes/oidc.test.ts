@@ -1,7 +1,7 @@
 import { MODE_RESOLVERS, SESSION_COOKIE_NAME } from "@orb/server/infra/auth";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
-import { makeAuthConfig as cfg, headers } from "../_support";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeAuthConfig as cfg, headers } from "../_support.ts";
 
 // `resolveOidc` (the `oidc` AUTH_MODE arm, wired via MODE_RESOLVERS.oidc) delegates to the shared cookie
 // layer. Post-D40 that layer is INERT at infra: the seam validates the session cookie via

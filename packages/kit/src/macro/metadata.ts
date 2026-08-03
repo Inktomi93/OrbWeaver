@@ -4,7 +4,7 @@
 // file imports DOWN from types.ts only. Pure + isomorphic — the client bundles the same registry for
 // editor autocomplete, so nothing here touches server/node concerns.
 
-import type { MacroArgDef, MacroArgViolation, MacroCategory, MacroDiagnostic, MacroMetadata, MacroRegistry, MacroSpan } from "./types";
+import type { MacroArgDef, MacroArgViolation, MacroCategory, MacroDiagnostic, MacroMetadata, MacroRegistry, MacroSpan } from "./types.ts";
 
 const BOOLEAN_LITERALS = new Set(["true", "false", "on", "off", "0", "1", ""]);
 

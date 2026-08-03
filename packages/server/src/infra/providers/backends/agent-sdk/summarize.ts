@@ -5,15 +5,15 @@
 
 import type { Options, SDKMessage, SDKUserMessage } from "@anthropic-ai/claude-agent-sdk";
 import type { ContentBlockParam } from "@anthropic-ai/sdk/resources/messages";
-import type { StructuredRequest, SummarizeRequest, SummarizeRequestItem, SummarizeResult, SummarizeResultItem } from "../../contract";
-import { ProviderError } from "../../contract";
-import type { NormalizeImageBytes } from "../kit";
-import { toAnthImageBlock } from "../kit";
-import { logProviderSummarize } from "./log";
-import { sanitizeAnthropicOutputSchema } from "./output-schema";
-import { disciplineOptions, observabilityOptions } from "./translate";
-import type { AgentSdkDeps } from "./types";
-import { assertInitFrameShape } from "./verify";
+import type { StructuredRequest, SummarizeRequest, SummarizeRequestItem, SummarizeResult, SummarizeResultItem } from "../../contract/index.ts";
+import { ProviderError } from "../../contract/index.ts";
+import type { NormalizeImageBytes } from "../kit/index.ts";
+import { toAnthImageBlock } from "../kit/index.ts";
+import { logProviderSummarize } from "./log.ts";
+import { sanitizeAnthropicOutputSchema } from "./output-schema.ts";
+import { disciplineOptions, observabilityOptions } from "./translate.ts";
+import type { AgentSdkDeps } from "./types.ts";
+import { assertInitFrameShape } from "./verify.ts";
 
 // The agent-sdk sub summarizer accepts BOTH role requests: plain `summarize` (prose) + `structured` (schema).
 // `responseFormat` is present only on the structured arm (the union narrows it optional). agent-sdk stays OUT

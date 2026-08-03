@@ -19,9 +19,9 @@ import { useRef } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
 import { setActiveSection } from "#state";
-import { RhythmFigures } from "../components/rhythm-figures";
-import { isRecomputeAlreadyRunning, useRecomputeStats } from "../hooks/use-recompute-stats";
-import { formatCompact, formatDurationMs, formatMs, formatPercent, formatSignedDelta, momentumBarItems } from "../lib/analytics-view-model";
+import { RhythmFigures } from "../components/rhythm-figures.tsx";
+import { isRecomputeAlreadyRunning, useRecomputeStats } from "../hooks/use-recompute-stats.ts";
+import { formatCompact, formatDurationMs, formatMs, formatPercent, formatSignedDelta, momentumBarItems } from "../lib/analytics-view-model.ts";
 
 export function AnalyticsOverviewSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);

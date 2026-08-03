@@ -40,7 +40,7 @@ import { on } from "node:events";
 import type { StreamDataFrame } from "@orb/contracts/stream";
 import type { WorkloadEvent } from "@orb/contracts/workloads";
 import { getRecentWorkloadEvents, workloadStreamEmitter } from "#domain/workloads";
-import type { RoomSourceDef } from "../room-source";
+import type { RoomSourceDef } from "../room-source.ts";
 
 /** The (unexported) bus channel `emitWorkloadEvent` publishes on — mirrored here so the live tail listens on
  *  the same channel. The progress bus is single-process (single-replica) by design. */

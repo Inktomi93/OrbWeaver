@@ -20,17 +20,17 @@ import type { ReactElement, ReactNode } from "react";
 import { AmbientStrip, BeatLine, GoalLine, MeterRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { revealContextPanel } from "#state";
-import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useDismissActor, useEditSnapshot, usePatchActor, usePromoteActor, useResyncFromStory } from "../hooks/use-rpg-mutations";
-import { TRACKER_SHAPE_GLYPHS } from "../lib/glyphs";
-import { resolveTrackerColor, trackColorProps } from "../lib/track-color";
-import { RpgChoiceEcho } from "./rpg-choice-echo";
-import { RpgDoorwayLine } from "./rpg-doorway-line";
-import { RpgFieldLock } from "./rpg-field-lock";
-import { Kicker } from "./rpg-kicker";
-import { RpgSceneCards } from "./rpg-scene-cards";
-import type { SceneCastEdit } from "./rpg-scene-cast";
-import { SceneCast, SceneKnownCharacters } from "./rpg-scene-cast";
+import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
+import { useDismissActor, useEditSnapshot, usePatchActor, usePromoteActor, useResyncFromStory } from "../hooks/use-rpg-mutations.ts";
+import { TRACKER_SHAPE_GLYPHS } from "../lib/glyphs.ts";
+import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
+import { RpgChoiceEcho } from "./rpg-choice-echo.tsx";
+import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
+import { RpgFieldLock } from "./rpg-field-lock.tsx";
+import { Kicker } from "./rpg-kicker.tsx";
+import { RpgSceneCards } from "./rpg-scene-cards.tsx";
+import type { SceneCastEdit } from "./rpg-scene-cast.tsx";
+import { SceneCast, SceneKnownCharacters } from "./rpg-scene-cast.tsx";
 
 const RECENT_BEATS = 3;
 

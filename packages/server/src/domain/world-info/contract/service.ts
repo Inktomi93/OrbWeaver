@@ -11,8 +11,8 @@ import type { LoreConstantCanonRow, LoreEntryIndexRow, UpsertEntriesResult, WiBu
 import type { Db } from "@orb/db";
 import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
-import type { ExportedWorldBook } from "./export";
-import type { ImportWorldBookOutcome } from "./import";
+import type { ExportedWorldBook } from "./export.ts";
+import type { ImportWorldBookOutcome } from "./import.ts";
 import type {
   ApplyEntryOrderParams,
   AttachGlobalParams,
@@ -44,9 +44,9 @@ import type {
   UpdateBookParams,
   UpdateEntryParams,
   UpsertEntriesParams,
-} from "./params";
-import type { BackfillResult, DetachResult, RemoveResult, ReorderResult } from "./results";
-import type { BookAttachmentView, BookView, BookWithUsage, EntryView } from "./views";
+} from "./params.ts";
+import type { BackfillResult, DetachResult, RemoveResult, ReorderResult } from "./results.ts";
+import type { BookAttachmentView, BookView, BookWithUsage, EntryView } from "./views.ts";
 
 /** DI bundle every world-info verb closes over. Chat-scope guards/emit are injected from chat itself. */
 export interface WorldInfoContext {

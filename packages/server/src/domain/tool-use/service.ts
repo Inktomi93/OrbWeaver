@@ -4,15 +4,15 @@
 // SECOND projection: it wraps the resolved set over the SAME executeToolCalls, so both projections share
 // one execute path (its dependency, the D47 agent-sdk factory, is injected by the caller, never imported).
 
-import type { ToolUseContext } from "./context";
-import type { ToolRegistry } from "./contract/results";
-import type { ToolUseService } from "./contract/service";
-import { createExecuteToolCalls } from "./verbs/execute-tool-calls";
-import { createProjectMcp } from "./verbs/project-mcp";
-import { createRegister } from "./verbs/register";
-import { createRegisterPluginTool } from "./verbs/register-plugin-tool";
-import { createResolveTools } from "./verbs/resolve-tools";
-import { createToWireTools } from "./verbs/to-wire-tools";
+import type { ToolUseContext } from "./context.ts";
+import type { ToolRegistry } from "./contract/results.ts";
+import type { ToolUseService } from "./contract/service.ts";
+import { createExecuteToolCalls } from "./verbs/execute-tool-calls.ts";
+import { createProjectMcp } from "./verbs/project-mcp.ts";
+import { createRegister } from "./verbs/register.ts";
+import { createRegisterPluginTool } from "./verbs/register-plugin-tool.ts";
+import { createResolveTools } from "./verbs/resolve-tools.ts";
+import { createToWireTools } from "./verbs/to-wire-tools.ts";
 
 export function createToolUseService(ctx: ToolUseContext): ToolUseService {
   const registry: ToolRegistry = new Map();

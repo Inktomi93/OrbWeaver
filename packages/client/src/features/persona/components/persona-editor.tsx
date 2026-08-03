@@ -19,11 +19,11 @@ import type { Trpc } from "#data";
 import { useInvalidation, usePromptMacroSuggestions, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { ASSISTANT_PREFILL_WARNING, MESSAGE_ROLE_ITEMS } from "#lib";
-import { PersonaForm } from "../hooks/use-persona-form";
-import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations";
-import type { PersonaFormValues } from "../lib/persona-editor-model";
-import { isPrefillCombo, personaFormFromEntity, personaInputFromForm } from "../lib/persona-editor-model";
-import { PersonaLoreBookField } from "./persona-world-books-section";
+import { PersonaForm } from "../hooks/use-persona-form.ts";
+import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations.ts";
+import type { PersonaFormValues } from "../lib/persona-editor-model.ts";
+import { isPrefillCombo, personaFormFromEntity, personaInputFromForm } from "../lib/persona-editor-model.ts";
+import { PersonaLoreBookField } from "./persona-world-books-section.tsx";
 
 type PersonaDetail = inferOutput<Trpc["persona"]["get"]>;
 

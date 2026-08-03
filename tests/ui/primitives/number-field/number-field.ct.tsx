@@ -5,7 +5,7 @@ import { NumberField } from "@orb/ui/number-field";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
 
 const TOUCH_FLOOR_PX = 44;
 const NON_EMPTY = /.+/u;

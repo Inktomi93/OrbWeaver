@@ -13,11 +13,11 @@
 // need this sibling bridge. Added here (a substrate fixed-slot file — the legal mediator), not a verb-side
 // direct import (which would be RED).
 
-import { runAutoMode } from "../engine/auto-mode";
-import { driveRound } from "../engine/round";
-import { resolveMentions, selectSpeakers } from "../engine/select-speakers";
-import { smartArbitrate } from "../engine/smart-arbitrate";
-import { resolveTurnIdentity } from "../engine/turn-identity";
+import { runAutoMode } from "../engine/auto-mode.ts";
+import { driveRound } from "../engine/round.ts";
+import { resolveMentions, selectSpeakers } from "../engine/select-speakers.ts";
+import { smartArbitrate } from "../engine/smart-arbitrate.ts";
+import { resolveTurnIdentity } from "../engine/turn-identity.ts";
 
 /** Resolve the D19 turn-identity triple (`triggeredBy`/`runAsUserId`) from the ids the verb holds. PURE. */
 export function resolveTurnIdentityVia(...args: Parameters<typeof resolveTurnIdentity>): ReturnType<typeof resolveTurnIdentity> {

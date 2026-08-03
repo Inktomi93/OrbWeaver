@@ -3,7 +3,7 @@
 // is a sanctioned-dormant SSE seam, so the doorway cites it rather than promising nothing.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { HomeRealDoorwaysStory } from "../_ct-stories";
+import { HomeRealDoorwaysStory } from "../_ct-stories.tsx";
 
 const AUTOMATION_TEASER_RE = /Rules that fire on your rooms/u;
 const AUTOMATION_REASON_RE = /waiting on: automation\.stream/u;

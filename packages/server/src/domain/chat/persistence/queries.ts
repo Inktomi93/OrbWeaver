@@ -31,9 +31,9 @@ import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserI
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { and, asc, count, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, max, min, ne, or, sql } from "drizzle-orm";
-import type { ChatMetadata } from "../contract/metadata";
-import { parseChatMetadata } from "../contract/metadata";
-import type { ChatStreamReplayEvent, StreamEventBounds, VariantWireView } from "../contract/views";
+import type { ChatMetadata } from "../contract/metadata.ts";
+import { parseChatMetadata } from "../contract/metadata.ts";
+import type { ChatStreamReplayEvent, StreamEventBounds, VariantWireView } from "../contract/views.ts";
 
 const LIMIT_ONE = 1;
 

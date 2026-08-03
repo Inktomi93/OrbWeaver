@@ -52,12 +52,12 @@ import {
   useSettingsSubTarget,
   useSettingsTarget,
 } from "#state";
-import { SettingsPanePlaceholder } from "../components/settings-pane-placeholder";
-import { SettingsSaveFooter } from "../components/settings-save-footer";
-import { SETTINGS_GROUP_LABELS } from "../lib/settings-nav-model";
-import { afterPaint, computeActiveSub, flashAnchor } from "../lib/settings-scroll-spy";
-import type { SettingsSearchEntry } from "../lib/settings-search";
-import { buildSettingsSearchEntries } from "../lib/settings-search";
+import { SettingsPanePlaceholder } from "../components/settings-pane-placeholder.tsx";
+import { SettingsSaveFooter } from "../components/settings-save-footer.tsx";
+import { SETTINGS_GROUP_LABELS } from "../lib/settings-nav-model.ts";
+import { afterPaint, computeActiveSub, flashAnchor } from "../lib/settings-scroll-spy.ts";
+import type { SettingsSearchEntry } from "../lib/settings-search.ts";
+import { buildSettingsSearchEntries } from "../lib/settings-search.ts";
 
 /** Narrow the shell store's typed `settingsCategory` deep-link to the tuple (defensive against a stale
  *  persisted/cross-version value; the type already guarantees a live category, but `null` still routes

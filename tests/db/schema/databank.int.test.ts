@@ -12,8 +12,8 @@ import { isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, DocumentChunkId, DocumentId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../support/db";
-import { expect, test } from "../../support/fixtures";
+import { freshDb } from "../../support/db.ts";
+import { expect, test } from "../../support/fixtures.ts";
 import { seedUser } from "./_support.ts";
 
 // `.toSatisfy` needs a `=> boolean`; `isConstraintViolation` returns the violation|undefined, so wrap it.

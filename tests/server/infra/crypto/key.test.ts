@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { dataDirFromDbUrl, decode32Bytes, loadOrCreateKeyfile } from "@orb/server/infra/crypto";
 import { afterEach, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const tmpDirs: string[] = [];
 function freshDir(): string {

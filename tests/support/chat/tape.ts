@@ -21,8 +21,8 @@
 
 import type { ProviderErrorKind } from "@orb/server/infra/providers";
 import { ProviderError } from "@orb/server/infra/providers";
-import type { RunChatTurnOp } from "../../../packages/server/src/domain/chat/contract/context";
-import type { TurnEconomics, TurnRequest, TurnStreamChunk } from "../../../packages/server/src/domain/chat/contract/results";
+import type { RunChatTurnOp } from "../../../packages/server/src/domain/chat/contract/context.ts";
+import type { TurnEconomics, TurnRequest, TurnStreamChunk } from "../../../packages/server/src/domain/chat/contract/results.ts";
 
 /** The default per-turn economics a scripted `reply` reports (matches the hand-rolled chat int fakes —
  *  `{ tokensIn: 4, tokensOut: 2, model: "test-model" }` — so a converted test's stats deltas stay identical).

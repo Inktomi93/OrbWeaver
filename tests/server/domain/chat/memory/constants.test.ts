@@ -1,6 +1,6 @@
 import { describe } from "vitest";
-import { DEFAULTS, resolveCfg } from "../../../../../packages/server/src/domain/chat/memory/constants";
-import { expect, test } from "../../../../support/fixtures";
+import { DEFAULTS, resolveCfg } from "../../../../../packages/server/src/domain/chat/memory/constants.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("memory/constants — DEFAULTS + resolveCfg", () => {
   test("DEFAULTS are the grounded core/Knowledge-Cluster.md §5 numbers (blockSize 8 · verbatimWindow 8 · fanOut 4 · maxTier 3)", () => {

@@ -7,9 +7,9 @@
 import type { CharacterAvatarEntry, ChatMacroNameProducer, ChatMetadata, ParticipantView, PersonaAvatarEntry } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
-import type { ChatDetail } from "../contract/views";
-import { NO_HISTORY_FLOOR } from "./auth";
-import { viewerHoldsHost } from "./member-visibility";
+import type { ChatDetail } from "../contract/views.ts";
+import { NO_HISTORY_FLOOR } from "./auth/index.ts";
+import { viewerHoldsHost } from "./member-visibility.ts";
 
 /** The projected `chats` row (metadata already parsed) — structurally the persistence `ChatRow`, which
  *  both `loadChatRow` and `listMemberChats` return. Only the fields `ChatDetail` reads. */

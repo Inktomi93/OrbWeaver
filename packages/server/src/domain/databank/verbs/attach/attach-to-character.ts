@@ -6,10 +6,10 @@
 // character-scope participates in retrieval as of this wave, not storage-only). Idempotent re-attach.
 
 import { characterDocuments } from "@orb/db";
-import { DocumentNotFoundError } from "../../contract/errors";
-import type { CharacterAttachParams } from "../../contract/params";
-import type { DatabankContext, DatabankService } from "../../contract/service";
-import { ensureCharacterOwned, loadOwnedMeta } from "../../persistence/queries";
+import { DocumentNotFoundError } from "../../contract/errors.ts";
+import type { CharacterAttachParams } from "../../contract/params.ts";
+import type { DatabankContext, DatabankService } from "../../contract/service.ts";
+import { ensureCharacterOwned, loadOwnedMeta } from "../../persistence/queries.ts";
 
 export function createAttachToCharacter(ctx: DatabankContext): DatabankService["attachToCharacter"] {
   return async ({ principal, documentId, characterId }: CharacterAttachParams): Promise<void> => {

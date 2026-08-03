@@ -17,8 +17,8 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { ChatContextPanelStory, ChatContextTabContributorStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { ChatContextPanelStory, ChatContextTabContributorStory } from "../_ct-stories.tsx";
 
 const NATE_HOST_RE = /Nate — host/u;
 const BUDDY_MEMBER_RE = /Buddy — member/u;

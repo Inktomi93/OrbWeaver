@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { stageDirectory } from "@orb/server/infra/storage";
 import { afterEach, beforeEach, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 let root: string;
 

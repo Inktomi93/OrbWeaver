@@ -14,7 +14,7 @@ import { crc32, deflateRawSync, gzipSync } from "node:zlib";
 import type { ExtractOptions, StagedArchive, ZipEntry } from "@orb/server/infra/storage";
 import { extractZip, packZip } from "@orb/server/infra/storage";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const enc = new TextEncoder();
 

@@ -7,9 +7,9 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { CharacterOptionsTabStory } from "../_ct-stories";
-import { makeCharacterDetail } from "../fixtures";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { CharacterOptionsTabStory } from "../_ct-stories.tsx";
+import { makeCharacterDetail } from "../fixtures.ts";
 
 function route(page: Page): Promise<unknown> {
   const card = makeCharacterDetail({ themeOverride: null });

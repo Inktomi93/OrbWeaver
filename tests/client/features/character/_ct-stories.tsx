@@ -25,8 +25,8 @@ import type { CharacterHandle, CharacterId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { CtAppDataProviders, CtCharacterContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
-import { CtToastSurface } from "../../lib/_ct-stories";
+import { CtAppDataProviders, CtCharacterContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 // The door's empty character-detail registry (§6c) — stories that don't test the seam pass this, mirroring
 // main.tsx's zero-contribution assembly (byte-identical to today's editor, no review-section wrapper).

@@ -6,12 +6,12 @@
 // (`importChats` / `importPersonas`) — the latter close over `ctx.profile` (the db handle + minters +
 // `personaByUserName` + the PD-78 ops, RULING A); they throw if `ctx.profile` is absent (a card-only wiring).
 
-import type { ImportContext } from "./context";
-import type { ImportService } from "./contract/service";
-import { createImportCharacter } from "./verbs/import-character";
-import { createImportChatFile } from "./verbs/import-chat-file";
-import { createImportChats } from "./verbs/import-chats";
-import { createImportPersonas } from "./verbs/import-personas";
+import type { ImportContext } from "./context.ts";
+import type { ImportService } from "./contract/service.ts";
+import { createImportCharacter } from "./verbs/import-character.ts";
+import { createImportChatFile } from "./verbs/import-chat-file.ts";
+import { createImportChats } from "./verbs/import-chats.ts";
+import { createImportPersonas } from "./verbs/import-personas.ts";
 
 export function createImportService(ctx: ImportContext): ImportService {
   // The single-transcript door is a thin arm over the BULK write verb; the two are wired HERE (a verb never

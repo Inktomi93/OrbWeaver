@@ -15,8 +15,8 @@ import type { UserIntent } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
-import type { QuietGenerate, QuietGenerateDeps, QuietGenerateParams } from "../contract/context";
-import type { TurnMessage } from "../contract/results";
+import type { QuietGenerate, QuietGenerateDeps, QuietGenerateParams } from "../contract/context.ts";
+import type { TurnMessage } from "../contract/results.ts";
 
 /** The minimal `AssembledPrompt` a quiet generation carries: the instruction as the static system prefix, an
  *  empty dynamic suffix, no injections, `sendHistory` true (the one user message IS the history). The trace is

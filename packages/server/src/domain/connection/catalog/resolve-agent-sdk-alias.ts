@@ -6,9 +6,9 @@
 
 import type { AgentSdkModel, ModelCapability } from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
-import type { AgentSdkAliasResolution } from "../contract/results";
-import { CLAUDE_CAPABILITY_FLOOR, getChatModel } from "./chat-models";
-import { detectModelFamily } from "./model-family";
+import type { AgentSdkAliasResolution } from "../contract/results.ts";
+import { CLAUDE_CAPABILITY_FLOOR, getChatModel } from "./chat-models.ts";
+import { detectModelFamily } from "./model-family.ts";
 
 const CLAUDE_CONTEXT_WINDOW = 200_000;
 const CLAUDE_MAX_OUTPUT = 64_000;

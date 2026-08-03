@@ -18,7 +18,7 @@
 
 import { fetchOpenAiModels, installEgressFirewall } from "@orb/server/infra/network";
 import { afterAll, beforeAll, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 // undici stores the process-global dispatcher at this well-known globalThis slot. We can't `import "undici"`
 // from the tests package (it's a `packages/server` dep, unresolvable here), so we capture/restore through the

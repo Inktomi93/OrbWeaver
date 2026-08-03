@@ -14,7 +14,7 @@ import { CircleUser, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { useBoundField } from "./use-bound-field";
+import { useBoundField } from "./use-bound-field.ts";
 
 export interface AvatarUploadFieldProps {
   readonly label: ReactNode;

@@ -7,7 +7,7 @@
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { WorkloadId } from "@orb/kit/ids";
-import { throwHttpError } from "./http-error";
+import { throwHttpError } from "./http-error.ts";
 
 const BUNDLE_URL = "/api/import/bundle";
 const ZIP_MIME = "application/zip";

@@ -7,7 +7,7 @@
 // (the magnitude-display family; svg-legal data-viz allowlist, §13.7).
 import type { ReactElement } from "react";
 import { cn, isSafeColor } from "#lib";
-import { TRACK_FILL, trackBarVariants } from "./variants";
+import { TRACK_FILL, trackBarVariants } from "./variants.ts";
 
 /** Which `--color-track-N` step fills a bar/ring (categorical, by definition order). */
 export type TrackColor = 1 | 2 | 3 | 4 | 5 | 6;

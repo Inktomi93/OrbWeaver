@@ -16,7 +16,7 @@ import type { ReactNode } from "react";
 import { use, useRef } from "react";
 import type { SlashCommandContext, SlashCommandContribution, SlashCommandRunner } from "#lib";
 import { SlashCommandRegistryContext } from "#state";
-import { commandNotReadyNotice, parseSlashDraft, unknownCommandNotice } from "../lib/slash-command";
+import { commandNotReadyNotice, parseSlashDraft, unknownCommandNotice } from "../lib/slash-command.ts";
 
 // The result of a composer send. Non-exported (a feature hooks module is not a `no-inline-types` home);
 // the composer consumes it by inference and narrows on `kind`.

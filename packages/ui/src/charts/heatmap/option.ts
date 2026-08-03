@@ -3,8 +3,8 @@
 // resolved values (never `var()`/`TOKENS[...].value`), because ECharts paints to Canvas where `var()`
 // can't resolve. The gradient runs `background` → `series` (chart-1), a single-hue sequential ramp that
 // retints with a custom theme.
-import type { OrbChartOption } from "../chart/echarts-setup";
-import type { ChartColors } from "../chart/use-chart-theme";
+import type { OrbChartOption } from "../chart/echarts-setup.ts";
+import type { ChartColors } from "../chart/use-chart-theme.ts";
 
 export interface HeatmapMatrix {
   /** Row (y) category labels, top → bottom. */

@@ -15,9 +15,9 @@ import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { RelationshipBadge } from "./relationship-badge";
-import { TrackerChip } from "./tracker-blocks";
-import { TrackerValue } from "./tracker-value";
+import { RelationshipBadge } from "./relationship-badge.tsx";
+import { TrackerChip } from "./tracker-blocks.tsx";
+import { TrackerValue } from "./tracker-value.tsx";
 
 interface CastRelationshipProps {
   readonly name: string;

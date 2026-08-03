@@ -1,4 +1,4 @@
-export type { AvatarProps } from "./avatar";
-export { Avatar } from "./avatar";
-export type { AvatarFallbackHue } from "./hue";
-export { avatarFallbackHue, avatarFallbackHueVar } from "./hue";
+export type { AvatarProps } from "./avatar.tsx";
+export { Avatar } from "./avatar.tsx";
+export type { AvatarFallbackHue } from "./hue.ts";
+export { avatarFallbackHue, avatarFallbackHueVar } from "./hue.ts";

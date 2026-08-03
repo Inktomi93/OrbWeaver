@@ -36,9 +36,9 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { selectPreset } from "#state";
-import { mergeOnSubmit } from "../lib/preset-editor-model";
-import { findConvergenceFork, suggestForkName } from "../lib/preset-fork-choice";
-import { useSetDefaultPreset, useUpdatePreset } from "./use-preset-mutations";
+import { mergeOnSubmit } from "../lib/preset-editor-model.ts";
+import { findConvergenceFork, suggestForkName } from "../lib/preset-fork-choice.ts";
+import { useSetDefaultPreset, useUpdatePreset } from "./use-preset-mutations.ts";
 
 export interface PresetAutosaveDeps {
   /** The preset the editor currently has open (the LIST selection). */

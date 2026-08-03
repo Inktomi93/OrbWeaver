@@ -14,7 +14,7 @@ import { boundHostFn, getPluginQuickJS, Sandbox } from "@orb/server/infra/plugin
 import type { QuickJSContext, QuickJSHandle, VmCallResult } from "quickjs-emscripten-core";
 import { isFail } from "quickjs-emscripten-core";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const FIXED_EPOCH = 1_700_000_000_000;
 const MS_PER_SEC = 1000;

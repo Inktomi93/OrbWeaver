@@ -13,8 +13,8 @@
 // advance, which is exactly the punctuation-detachment (`{{user}} 's voice`) the inline arm exists to kill.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { MacroText } from "../../../../../packages/client/src/features/preset/components/macro-text";
-import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color";
+import { MacroText } from "../../../../../packages/client/src/features/preset/components/macro-text.tsx";
+import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color.ts";
 
 /** One literal run, one macro run, one literal run — the shape every real readout hands this component. */
 const RUN = [

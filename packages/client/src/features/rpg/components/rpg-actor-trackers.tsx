@@ -29,9 +29,9 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { MeterRow, TrackerValue } from "#components";
-import { resolveConditionGlyph } from "../lib/glyphs";
-import { resolveTrackerColor, trackColorProps } from "../lib/track-color";
-import { RpgFieldLock } from "./rpg-field-lock";
+import { resolveConditionGlyph } from "../lib/glyphs.ts";
+import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
+import { RpgFieldLock } from "./rpg-field-lock.tsx";
 
 type ActorVolatile = NonNullable<RpgActorView["volatile"]>;
 

@@ -4,10 +4,10 @@
 // leak-free DomainNotFoundError and nothing is mutated.
 
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CancelWorkloadParams, CancelWorkloadResult } from "../contract/params";
-import type { WorkloadService, WorkloadServiceContext } from "../contract/service";
-import { loadWorkload, markCancelling } from "../persistence/queries";
-import { isVisibleToCaller } from "../substrate/authorize";
+import type { CancelWorkloadParams, CancelWorkloadResult } from "../contract/params.ts";
+import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
+import { loadWorkload, markCancelling } from "../persistence/queries.ts";
+import { isVisibleToCaller } from "../substrate/authorize.ts";
 
 const ENTITY = "workload";
 

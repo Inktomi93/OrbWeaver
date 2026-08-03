@@ -6,7 +6,7 @@
 
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import type { ChatMetadata } from "./metadata";
+import type { ChatMetadata } from "./metadata.ts";
 
 /** One resolved variant (swipe) row for a bulk-imported message (D26 — the SELECTED variant carries the
  *  rendered content). `idx` is 0-based within the slot's pool; the economics subset is what an ST import

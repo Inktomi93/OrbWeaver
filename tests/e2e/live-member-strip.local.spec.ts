@@ -29,8 +29,8 @@
 import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import { addMemberToChat, loginLocal, ownerActor } from "./support/actors";
-import { LOCAL_MEMBER } from "./support/modes";
+import { addMemberToChat, loginLocal, ownerActor } from "./support/actors.ts";
+import { LOCAL_MEMBER } from "./support/modes.ts";
 
 const LIE_TRUTH = "he is the smuggler the guards seek";
 const LIE_TAG = `<lie character="Thornwick" type="identity" truth="${LIE_TRUTH}" reason="to keep the party from turning him in"/>`;

@@ -7,15 +7,15 @@
 // `credentialId` on the runner-consumed brand — marginal value over save-then-test.
 
 import type { EndpointInspection } from "@orb/contracts/providers";
-import type { CredentialContext } from "../context";
-import type { InspectEndpointParams } from "../contract/params";
-import type { CredentialsService } from "../contract/service";
-import { aadFor } from "../persistence/aad";
-import { fetchOwnedCredential } from "../persistence/queries";
-import { requireOwned } from "../substrate/credential-not-found";
-import { decryptSealed } from "../substrate/decrypt";
-import { mintCustomOpenAi } from "../substrate/mint";
-import { parseCustomOpenAiEndpoint } from "../substrate/parse-metadata";
+import type { CredentialContext } from "../context.ts";
+import type { InspectEndpointParams } from "../contract/params.ts";
+import type { CredentialsService } from "../contract/service.ts";
+import { aadFor } from "../persistence/aad.ts";
+import { fetchOwnedCredential } from "../persistence/queries.ts";
+import { requireOwned } from "../substrate/credential-not-found.ts";
+import { decryptSealed } from "../substrate/decrypt.ts";
+import { mintCustomOpenAi } from "../substrate/mint.ts";
+import { parseCustomOpenAiEndpoint } from "../substrate/parse-metadata.ts";
 
 /** A non-throwing inspection result for the "this isn't a custom endpoint" case (never leaks a key). */
 function notCustomEndpoint(): EndpointInspection {

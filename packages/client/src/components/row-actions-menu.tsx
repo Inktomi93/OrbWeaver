@@ -16,8 +16,8 @@ import { Icon, MoreHorizontal, Trash2 } from "@orb/ui/icons";
 import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { ConfirmDialog } from "./confirm-dialog";
-import { ROW_REVEAL } from "./row-reveal";
+import { ConfirmDialog } from "./confirm-dialog.tsx";
+import { ROW_REVEAL } from "./row-reveal.ts";
 
 /** The optional destructive menu item + its ConfirmDialog (state owned by RowActionsMenu). */
 export interface RowDestructiveAction {

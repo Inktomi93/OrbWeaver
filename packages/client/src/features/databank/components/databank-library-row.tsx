@@ -36,7 +36,7 @@ import { Globe, Icon, RefreshCw } from "@orb/ui/icons";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { LibraryRow, RowToggleAction } from "#components";
-import { documentSubtitle, ingestBadge, ingestPhase, ingestStallHint, showsPhaseChip } from "../lib/databank-model";
+import { documentSubtitle, ingestBadge, ingestPhase, ingestStallHint, showsPhaseChip } from "../lib/databank-model.ts";
 
 export interface DatabankLibraryRowProps {
   readonly document: DocumentView;

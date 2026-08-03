@@ -5,10 +5,10 @@
 
 import { personas } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import type { PersonaContext } from "../context";
-import { LastPersonaError, PersonaNotFoundError } from "../contract/errors";
-import type { RemovePersonaParams } from "../contract/params";
-import type { PersonaService } from "../contract/service";
+import type { PersonaContext } from "../context.ts";
+import { LastPersonaError, PersonaNotFoundError } from "../contract/errors.ts";
+import type { RemovePersonaParams } from "../contract/params.ts";
+import type { PersonaService } from "../contract/service.ts";
 
 /** One more row than "last" — the guard only needs to know whether a SECOND persona exists. */
 const LAST_PERSONA_PROBE = 2;

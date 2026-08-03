@@ -1,5 +1,5 @@
 import { pickKeys, stripUndefined } from "@orb/kit/objects";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("pickKeys returns EXACTLY the named keys — the un-named siblings are absent, not undefined", () => {
   const result = pickKeys({ a: 1, b: 2, c: 3 }, ["a", "c"]);

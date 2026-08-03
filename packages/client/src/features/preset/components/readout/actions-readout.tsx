@@ -40,12 +40,12 @@ import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { testId } from "#lib";
 import { useSelectedPresetTemplateId } from "#state";
-import { openSectionInPrompt } from "../../lib/preset-nav";
-import type { TemplateRow } from "../../lib/template-rows";
-import { templatePreview, templateRowById } from "../../lib/template-rows";
-import { MacroText } from "../macro-text";
-import { deriveZones } from "../prompt-assembly/derive-zones";
-import { DatumRow } from "./readout-parts";
+import { openSectionInPrompt } from "../../lib/preset-nav.ts";
+import type { TemplateRow } from "../../lib/template-rows.ts";
+import { templatePreview, templateRowById } from "../../lib/template-rows.ts";
+import { MacroText } from "../macro-text.tsx";
+import { deriveZones } from "../prompt-assembly/derive-zones.ts";
+import { DatumRow } from "./readout-parts.tsx";
 
 export interface ActionsReadoutProps {
   readonly sections: readonly PromptSection[];

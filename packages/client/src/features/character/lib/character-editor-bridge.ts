@@ -6,7 +6,7 @@
 import type { CharacterId } from "@orb/kit/ids";
 import type { AppFormInstance } from "#forms";
 import { createFormHandleBridge } from "#forms";
-import type { CharacterCardFormValues } from "./character-card-form-model";
+import type { CharacterCardFormValues } from "./character-card-form-model.ts";
 
 /** The live handle the editor publishes: which character is open + its bound draft-card form instance. */
 export interface CharacterFormHandle {

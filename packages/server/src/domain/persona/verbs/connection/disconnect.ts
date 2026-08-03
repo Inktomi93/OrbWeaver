@@ -4,10 +4,10 @@
 
 import { characterPersonas } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import type { PersonaContext } from "../../context";
-import type { DisconnectParams } from "../../contract/params";
-import type { PersonaService } from "../../contract/service";
-import { ensureCharacterOwned, ensurePersonaOwned } from "../../persistence/queries";
+import type { PersonaContext } from "../../context.ts";
+import type { DisconnectParams } from "../../contract/params.ts";
+import type { PersonaService } from "../../contract/service.ts";
+import { ensureCharacterOwned, ensurePersonaOwned } from "../../persistence/queries.ts";
 
 export function createDisconnect(ctx: PersonaContext): PersonaService["disconnectFromCharacter"] {
   return async ({ principal, characterId, personaId }: DisconnectParams) => {

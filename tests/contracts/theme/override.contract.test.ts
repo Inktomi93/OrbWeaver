@@ -3,7 +3,7 @@
 
 import { themeOverrideSchema } from "@orb/contracts/theme";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 describe("themeOverrideSchema (the wire clamp)", () => {
   test("a full safe override round-trips", () => {

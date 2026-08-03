@@ -8,10 +8,10 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { readClippedNavLabels, readSettingsShellColumns } from "../../../../support/ct/settings-geometry";
-import { makeResolvedChatCapability } from "../../../../support/factories/resolved-connection";
-import { SettingsModalStory, SettingsShellDeepLinkStory, SettingsShellFitsStory, SettingsShellNarrowStory, SettingsShellStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { readClippedNavLabels, readSettingsShellColumns } from "../../../../support/ct/settings-geometry.ts";
+import { makeResolvedChatCapability } from "../../../../support/factories/resolved-connection.ts";
+import { SettingsModalStory, SettingsShellDeepLinkStory, SettingsShellFitsStory, SettingsShellNarrowStory, SettingsShellStory } from "../_ct-stories.tsx";
 
 /** The getUserSettings read-model the Appearance pane suspends on — defaults are enough to render it. */
 const USER_SETTINGS_VIEW = {

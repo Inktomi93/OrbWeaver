@@ -9,15 +9,15 @@ import path from "node:path";
 import process from "node:process";
 import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
-import { registerVllmEngineController } from "./engine-control";
-import type { ENGINE_LIFECYCLE_STATUSES } from "./engine-status";
-import { setEngineStatus } from "./engine-status";
-import { engineBaseUrl } from "./engine-url";
-import { VLLM_ENGINES } from "./engines";
-import type { AutoSleepState, EngineMetrics } from "./fleet-control";
-import { advanceAutoSleep, fetchEngineMetrics, initialAutoSleepState, postSleep } from "./fleet-control";
-import { detectGpu } from "./gpu";
-import { reapOrphanedFamily } from "./reaper";
+import { registerVllmEngineController } from "./engine-control.ts";
+import type { ENGINE_LIFECYCLE_STATUSES } from "./engine-status.ts";
+import { setEngineStatus } from "./engine-status.ts";
+import { engineBaseUrl } from "./engine-url.ts";
+import { VLLM_ENGINES } from "./engines.ts";
+import type { AutoSleepState, EngineMetrics } from "./fleet-control.ts";
+import { advanceAutoSleep, fetchEngineMetrics, initialAutoSleepState, postSleep } from "./fleet-control.ts";
+import { detectGpu } from "./gpu.ts";
+import { reapOrphanedFamily } from "./reaper.ts";
 
 const SS_PID_RE = /pid=(\d+)/;
 

@@ -16,9 +16,9 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeOrbSocket } from "../../../support/ct/route-orb-socket";
-import { routeTrpc } from "../../../support/ct/route-trpc";
-import { RpgBusStory, TwoRoomStory, UserBusStory } from "./_ct-stories";
+import { routeOrbSocket } from "../../../support/ct/route-orb-socket.ts";
+import { routeTrpc } from "../../../support/ct/route-trpc.ts";
+import { RpgBusStory, TwoRoomStory, UserBusStory } from "./_ct-stories.tsx";
 
 const GAME_CHAT = castId<ChatId>("chat_ct_game_01");
 const PLAIN_CHAT = castId<ChatId>("chat_ct_plain_01");

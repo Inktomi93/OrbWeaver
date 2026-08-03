@@ -8,7 +8,7 @@
 
 import { describe } from "vitest";
 import { TIER_A_ELEMENTS, TIER_A_UNTRUSTED_ELEMENTS, UNTRUSTED_ALLOWED_PREFIXES, untrustedUrlTransform } from "../../../packages/ui/src/markdown/policy.ts";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // Streamdown's UrlTransform is called with (url, key, node); `untrustedUrlTransform` reads ONLY the url,
 // so the hast node arg is an unused deliberate stub. The `UrlTransform` return type is `string | null |

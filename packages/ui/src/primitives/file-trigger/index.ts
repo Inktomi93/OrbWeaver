@@ -1,2 +1,2 @@
-export type { FileTriggerProps, FileTriggerRenderProps } from "./file-trigger";
-export { FileTrigger } from "./file-trigger";
+export type { FileTriggerProps, FileTriggerRenderProps } from "./file-trigger.tsx";
+export { FileTrigger } from "./file-trigger.tsx";

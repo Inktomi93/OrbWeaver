@@ -18,7 +18,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { useCreateGame, useUpdateConfig } from "../hooks/use-rpg-mutations";
+import { useCreateGame, useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 
 export interface RpgGameDoorProps {
   readonly chatId: ChatId;

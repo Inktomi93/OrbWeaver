@@ -26,10 +26,13 @@ import {
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { themeOverrideSchema } from "@orb/contracts/theme";
 import { describe } from "vitest";
-import type { CharacterThemeFormValues } from "../../../packages/client/src/features/character/lib/character-theme-form-model";
-import { characterThemeFormFromOverride, overrideFromCharacterThemeForm } from "../../../packages/client/src/features/character/lib/character-theme-form-model";
-import { projectMessageHandlingForm, toMessageHandlingPatch } from "../../../packages/client/src/features/chat/lib/chat-behavior-message-handling-model";
-import { expect, test } from "../../support/fixtures";
+import type { CharacterThemeFormValues } from "../../../packages/client/src/features/character/lib/character-theme-form-model.ts";
+import {
+  characterThemeFormFromOverride,
+  overrideFromCharacterThemeForm,
+} from "../../../packages/client/src/features/character/lib/character-theme-form-model.ts";
+import { projectMessageHandlingForm, toMessageHandlingPatch } from "../../../packages/client/src/features/chat/lib/chat-behavior-message-handling-model.ts";
+import { expect, test } from "../../support/fixtures.ts";
 
 // The SERVER SHAPE for a `userSettings` section: the section patch is deep-merged into the settings blob
 // and re-parsed (the `updateUserSettingsSection` write path), then the section is plucked back. This runs

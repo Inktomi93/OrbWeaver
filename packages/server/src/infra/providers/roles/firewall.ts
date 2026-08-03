@@ -5,8 +5,8 @@
 
 import type { CredentialSource } from "@orb/contracts/credentials";
 import { securityEvent } from "#foundation/observability";
-import type { FirewallRequest, ProviderRole } from "../contract";
-import { ProviderError } from "../contract";
+import type { FirewallRequest, ProviderRole } from "../contract/index.ts";
+import { ProviderError } from "../contract/index.ts";
 
 // Exhaustive over ProviderRole (a new role without an entry is a tsc error). A source not listed is denied.
 const ROLE_SOURCE_POLICY: Record<ProviderRole, readonly CredentialSource[]> = {

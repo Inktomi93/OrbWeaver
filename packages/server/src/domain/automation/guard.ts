@@ -7,10 +7,10 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
-import { AutomationChatNotFoundError, RuleNotFoundError } from "./contract/errors";
-import type { AutomationContext } from "./contract/service";
-import { loadCallerRole } from "./persistence/canon-reads";
-import { selectRuleRow } from "./persistence/rules";
+import { AutomationChatNotFoundError, RuleNotFoundError } from "./contract/errors.ts";
+import type { AutomationContext } from "./contract/service.ts";
+import { loadCallerRole } from "./persistence/canon-reads.ts";
+import { selectRuleRow } from "./persistence/rules.ts";
 
 type GuardCtx = Pick<AutomationContext, "db" | "can">;
 

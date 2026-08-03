@@ -13,7 +13,7 @@
 // the row (recall's `?? castCharacterIds[0]` fallback only covers the pre-first-build empty pool).
 
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
-import type { ChatContext } from "../context";
+import type { ChatContext } from "../context.ts";
 
 /** The shared group bucket's scope key: the synthetic group-as-character's REAL row id (find-or-mint,
  *  idempotent — race-safe on the `(ownerId, handle)` unique). Callers gate on cast size (`>1`); a solo room keys

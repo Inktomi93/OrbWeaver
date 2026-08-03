@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { createSecretBox } from "@orb/server/infra/crypto";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 // Keys are MINTED via randomBytes (the function the boot path uses) rather than hardcoded high-entropy
 // literals (noSecrets). The IV is produced by the box under test; we assert its shape/uniqueness

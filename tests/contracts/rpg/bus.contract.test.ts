@@ -5,7 +5,7 @@
 
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import { RPG_BUS_EVENT_TYPES } from "@orb/contracts/rpg";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("RPG_BUS_EVENT_TYPES is the committed lite-v1 member set", () => {
   expect([...RPG_BUS_EVENT_TYPES]).toEqual(["gameChanged", "snapshotPatched", "sheetChanged", "questChanged", "journalChanged"]);

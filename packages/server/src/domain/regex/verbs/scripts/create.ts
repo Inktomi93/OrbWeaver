@@ -4,9 +4,9 @@
 // values (a script has no joined data, so no re-read is needed).
 
 import { regexScripts } from "@orb/db";
-import type { RegexContext } from "../../context";
-import type { CreateScriptParams } from "../../contract/params";
-import type { RegexService } from "../../contract/service";
+import type { RegexContext } from "../../context.ts";
+import type { CreateScriptParams } from "../../contract/params.ts";
+import type { RegexService } from "../../contract/service.ts";
 
 export function createCreate(ctx: RegexContext): RegexService["createScript"] {
   return async ({ principal, input }: CreateScriptParams) => {

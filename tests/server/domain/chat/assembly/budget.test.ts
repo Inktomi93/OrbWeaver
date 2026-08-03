@@ -6,9 +6,9 @@
 // ids, prices the pivot off the FIT, and omits what rendered nothing.
 
 import type { PromptSection } from "@orb/contracts/preset";
-import { buildAssemblyBudget } from "../../../../../packages/server/src/domain/chat/assembly/budget";
-import type { AssemblySlice } from "../../../../../packages/server/src/domain/chat/contract/results";
-import { expect, test } from "../../../../support/fixtures";
+import { buildAssemblyBudget } from "../../../../../packages/server/src/domain/chat/assembly/budget.ts";
+import type { AssemblySlice } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const NO_HISTORY = { usedTokens: 0, keptCount: 0, droppedCount: 0, rows: [] } as const;
 

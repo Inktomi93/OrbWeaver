@@ -11,8 +11,8 @@ import {
   makeSection,
   sectionKind,
   triggersPillLabel,
-} from "../../../../../packages/client/src/features/preset/lib/assembly-model";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/client/src/features/preset/lib/assembly-model.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 // The literal branch carries the optional `trigger` (a `GenerationType[]`); indexing `PromptSection["trigger"]`
 // would fail since the plain-marker branch has no such field, so annotate the element array directly.

@@ -7,8 +7,8 @@
 import type { ReactElement } from "react";
 import type { CharacterDetailContribution, ContributorRegistry } from "#lib";
 import { revealContextPanel, useSelectedCharacterId } from "#state";
-import { CharacterEditorSurface } from "../surfaces/character-editor-surface";
-import { CharacterLibraryWelcome } from "./character-library-welcome";
+import { CharacterEditorSurface } from "../surfaces/character-editor-surface.tsx";
+import { CharacterLibraryWelcome } from "./character-library-welcome.tsx";
 
 export interface CharacterContentProps {
   /** The character-DETAIL contributor registry (§6c) — threaded from `makeCharactersSection` at the door

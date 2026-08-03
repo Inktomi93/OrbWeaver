@@ -5,7 +5,7 @@
 // mutation semantics: BOTH the live handlers (registry.ts) and the fold call it, so record-time and
 // replay-time can never diverge.
 
-import type { MacroEnv, VarOp } from "./types";
+import type { MacroEnv, VarOp } from "./types.ts";
 
 const DECIMAL_RADIX = 10;
 

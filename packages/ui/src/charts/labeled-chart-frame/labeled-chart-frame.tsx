@@ -4,7 +4,7 @@
 // contract (north-star rule 0.7 — selector stability is API).
 import type { ReactElement, ReactNode } from "react";
 import { EmptyState } from "#primitives/empty-state";
-import { labeledChartFrameVariants } from "./variants";
+import { labeledChartFrameVariants } from "./variants.ts";
 
 interface LabeledChartFrameProps {
   /** The chart's accessible name AND its visible heading (or the EmptyState title when empty). */

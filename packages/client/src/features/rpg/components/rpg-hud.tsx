@@ -59,7 +59,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary } from "#data";
 import type { ContextRegionView, ResolvedContextTab } from "#lib";
 import { useActiveChatId } from "#state";
-import { RpgHeaderBand } from "./rpg-header-band";
+import { RpgHeaderBand } from "./rpg-header-band.tsx";
 
 export interface RpgHudProps {
   readonly view: ContextRegionView;

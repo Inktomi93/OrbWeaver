@@ -12,9 +12,9 @@ import { assets, characters, chatParticipants, chats, documentChunks, users } fr
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, isNotNull } from "drizzle-orm";
-import { resolveSeedVllmDisabled, runFullSeed } from "../../scripts/seed/seed-demo";
-import { freshDb } from "../support/db";
-import { expect, test } from "../support/fixtures";
+import { resolveSeedVllmDisabled, runFullSeed } from "../../scripts/seed/seed-demo.ts";
+import { freshDb } from "../support/db.ts";
+import { expect, test } from "../support/fixtures.ts";
 
 const FROZEN_NOW = 1_700_000_000_000;
 const SEED_SECRET = "seed-demo-test-session-secret-0000000000";

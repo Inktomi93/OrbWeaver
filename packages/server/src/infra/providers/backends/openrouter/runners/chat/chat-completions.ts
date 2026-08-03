@@ -7,10 +7,10 @@ import { CACHE_MIN_FLOOR } from "@orb/contracts/connection";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
-import type { ChatResult, OpenRouterChatRequest, ResolvedChatKnobs } from "../../../../contract";
-import { ProviderError } from "../../../../contract";
-import { resolveChat } from "../../../../resolve-chat";
-import type { ChatCompletionResult, StreamReduceOptions } from "../../../kit";
+import type { ChatResult, OpenRouterChatRequest, ResolvedChatKnobs } from "../../../../contract/index.ts";
+import { ProviderError } from "../../../../contract/index.ts";
+import { resolveChat } from "../../../../resolve-chat.ts";
+import type { ChatCompletionResult, StreamReduceOptions } from "../../../kit/index.ts";
 import {
   cacheControlBlock,
   computeCacheBreakpointOffsets,
@@ -23,9 +23,9 @@ import {
   reduceChatCompletionStream,
   runWithPreCommitRetry,
   turnAbortSignal,
-} from "../../../kit";
-import { withContextCompressionPlugin } from "./context-compression";
-import type { OpenRouterChatDeps } from "./shared";
+} from "../../../kit/index.ts";
+import { withContextCompressionPlugin } from "./context-compression.ts";
+import type { OpenRouterChatDeps } from "./shared.ts";
 import {
   buildChatResponseFormat,
   buildHistoryMessages,
@@ -43,7 +43,7 @@ import {
   withCustomParametersDrop,
   withToolResultErrorDrop,
   withVerbosityDrop,
-} from "./shared";
+} from "./shared.ts";
 
 const REASONING_OFF = "none";
 

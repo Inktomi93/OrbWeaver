@@ -7,11 +7,11 @@
 
 import type { AssetId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { CharacterContext } from "../context";
-import type { BulkRemoveParams } from "../contract/params";
-import type { CharacterService } from "../contract/service";
-import { deleteOwnedCharacter } from "../persistence/card";
-import { loadOwnedCharacterRow } from "../persistence/queries";
+import type { CharacterContext } from "../context.ts";
+import type { BulkRemoveParams } from "../contract/params.ts";
+import type { CharacterService } from "../contract/service.ts";
+import { deleteOwnedCharacter } from "../persistence/card.ts";
+import { loadOwnedCharacterRow } from "../persistence/queries.ts";
 
 export function createBulkRemove(ctx: CharacterContext): CharacterService["bulkRemove"] {
   return async ({ principal, characterIds }: BulkRemoveParams) => {

@@ -10,11 +10,11 @@ import { AUTH_MODES } from "@orb/contracts/identity";
 import { LOG_LEVELS } from "@orb/contracts/settings";
 import { config as loadDotenv } from "dotenv";
 import { z } from "zod";
-import type { EnginesPosture } from "./posture";
-import { ENGINES_POSTURES } from "./posture";
+import type { EnginesPosture } from "./posture.ts";
+import { ENGINES_POSTURES } from "./posture.ts";
 
-export type { EnginesPosture } from "./posture";
-export { ENGINES_POSTURES, postureManages, postureRegistersBackend, resolveEnginesPosture } from "./posture";
+export type { EnginesPosture } from "./posture.ts";
+export { ENGINES_POSTURES, postureManages, postureRegistersBackend, resolveEnginesPosture } from "./posture.ts";
 
 const DEFAULT_PORT = 8788;
 // vLLM loopback engine ports (must match what the stack supervisor passes).

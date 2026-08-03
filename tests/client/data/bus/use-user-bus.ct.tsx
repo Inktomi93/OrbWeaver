@@ -16,9 +16,9 @@
 
 import type { StreamFrame } from "@orb/contracts/stream";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeOrbSocket } from "../../../support/ct/route-orb-socket";
-import { routeTrpc } from "../../../support/ct/route-trpc";
-import { UserBusGapHealStory, UserBusRemountStory } from "./_ct-stories";
+import { routeOrbSocket } from "../../../support/ct/route-orb-socket.ts";
+import { routeTrpc } from "../../../support/ct/route-trpc.ts";
+import { UserBusGapHealStory, UserBusRemountStory } from "./_ct-stories.tsx";
 
 const ROUTES = {
   "persona.list": (): readonly { id: string }[] => [{ id: "persona_ctuserbus" }],

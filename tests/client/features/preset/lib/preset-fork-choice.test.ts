@@ -4,8 +4,8 @@
 // `persistence/queries.ts#findOwnedForkOf`, which the CT can't prove because it stubs the server), and the
 // suggested name for a new fork must not be one the owner already uses.
 
-import { findConvergenceFork, suggestForkName } from "../../../../../packages/client/src/features/preset/lib/preset-fork-choice";
-import { expect, test } from "../../../../support/fixtures";
+import { findConvergenceFork, suggestForkName } from "../../../../../packages/client/src/features/preset/lib/preset-fork-choice.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const BUILT_IN = "preset_00000000000000000000000000";
 

@@ -7,9 +7,9 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { TagCollectionRowsStory } from "../_ct-stories";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { TagCollectionRowsStory } from "../_ct-stories.tsx";
 
 const TAGS = [
   {

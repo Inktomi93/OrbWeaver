@@ -8,7 +8,7 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { nearestDigests, nearestSegments } from "../../../../../packages/server/src/domain/search/persistence/digest-rows.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_MODEL, seedCharacter, seedChat, seedChatDigest, seedChatSegment, seedUser, vec } from "../_support.ts";
 
 describe("nearestDigests", () => {

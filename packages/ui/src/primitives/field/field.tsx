@@ -6,7 +6,7 @@ import { cn } from "#lib";
 import { Button } from "#primitives/button";
 import { Icon, Info } from "#primitives/icons";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "#primitives/tooltip";
-import { fieldVariants } from "./variants";
+import { fieldVariants } from "./variants.ts";
 
 export type FieldOrientation = "vertical" | "horizontal";
 

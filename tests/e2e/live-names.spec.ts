@@ -15,8 +15,8 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { openNewestChat, renameOpenChat, reopenFirstChat, typeAndSend, waitForStreamOpen } from "./support/chat-room";
-import { listCharacters, startChat } from "./support/trpc";
+import { openNewestChat, renameOpenChat, reopenFirstChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
+import { listCharacters, startChat } from "./support/trpc.ts";
 
 const USER_DISPLAY_NAME = "You";
 const NON_WS = /\S/u;

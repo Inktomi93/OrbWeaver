@@ -39,8 +39,8 @@ export type {
   AgentMcpStdioServer,
   AgentToolServer,
   AgentTurnRequest,
-} from "./agent";
-export { AGENT_DIALOG_KINDS } from "./agent";
+} from "./agent.ts";
+export { AGENT_DIALOG_KINDS } from "./agent.ts";
 export type {
   BackendKey,
   BackendRegistry,
@@ -50,9 +50,9 @@ export type {
   ProviderExecutor,
   ProviderRole,
   WireCaptureSink,
-} from "./backend";
+} from "./backend.ts";
 // ── Infra-internal: the sealed-backend contract + dispatch surface ───────────────────────────────
-export { BACKEND_KEYS, PROVIDER_ROLES } from "./backend";
+export { BACKEND_KEYS, PROVIDER_ROLES } from "./backend.ts";
 export type {
   AgentMcpServerHealth,
   AgentSdkChatRequest,
@@ -71,14 +71,14 @@ export type {
   ToolCallInput,
   ToolChoice,
   WireTool,
-} from "./chat";
+} from "./chat.ts";
 // ── Infra-internal: the chat role (request/result/usage/finish vocab + the D48 wire-role axis) ───
 export {
   AGENT_PROMPT_TAIL_JOINER,
   HISTORY_ROLES,
   NORMALIZED_FINISH_REASONS,
   normalizeFinishReason,
-} from "./chat";
+} from "./chat.ts";
 // ── Infra-internal: the diagnostic request shapes + the bound diagnostic surface ─────────────────
 export type {
   AccountCreditsRequest,
@@ -89,12 +89,12 @@ export type {
   ProbeRequest,
   ProviderDiagnostics,
   VerifyAuthRequest,
-} from "./diagnostics";
-export type { ProviderErrorInit, ProviderErrorKind } from "./errors";
+} from "./diagnostics.ts";
+export type { ProviderErrorInit, ProviderErrorKind } from "./errors.ts";
 // ── Infra-internal: errors ───────────────────────────────────────────────────────────────────────
-export { PROVIDER_ERROR_KINDS, ProviderError } from "./errors";
+export { PROVIDER_ERROR_KINDS, ProviderError } from "./errors.ts";
 // ── Infra-internal: per-turn observability vocab ─────────────────────────────────────────────────
-export type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events";
+export type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
 export type {
   DynamicContextChannel,
   ResolvedChatKnobs,
@@ -102,9 +102,9 @@ export type {
   ResolvedSampling,
   ResolvedWarning,
   WarningCode,
-} from "./resolve";
+} from "./resolve.ts";
 // ── Infra-internal: the resolve-chat funnel's output shapes ──────────────────────────────────────
-export { DYNAMIC_CONTEXT_CHANNELS, WARNING_CODES } from "./resolve";
+export { DYNAMIC_CONTEXT_CHANNELS, WARNING_CODES } from "./resolve.ts";
 // ── Infra-internal: the non-chat role requests + image-gen result ────────────────────────────────
 export type {
   EmbedRequest,
@@ -118,4 +118,4 @@ export type {
   SummarizeCallOptions,
   SummarizeRequest,
   SummarizeRequestItem,
-} from "./roles";
+} from "./roles.ts";

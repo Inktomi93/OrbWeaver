@@ -5,8 +5,8 @@
 //
 // Every color here is a theme token or a `color-mix()` over tokens — zero raw literals, so any seed theme
 // restyles the stone for free (D71).
-import type { WaystoneCloudLayer, WaystoneParticleLayer, WaystonePhase } from "./waystone-treatment";
-import { waystoneBandTint } from "./waystone-treatment";
+import type { WaystoneCloudLayer, WaystoneParticleLayer, WaystonePhase } from "./waystone-treatment.ts";
+import { waystoneBandTint } from "./waystone-treatment.ts";
 
 // ─── Geometry (viewBox units) ────────────────────────────────────────────────────────────────────
 export const VIEW = 96;

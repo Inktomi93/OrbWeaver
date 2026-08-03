@@ -4,7 +4,7 @@ import { castId } from "@orb/kit/ids";
 import { createPresetService, ensureSystemDefaultPreset, PresetNotFoundError, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeHarness, seedPreset, seedUser } from "../_support.ts";
 
 describe("update (owned)", () => {

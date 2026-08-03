@@ -25,7 +25,7 @@
 import type { PresetId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import { withUserMacros } from "#lib";
-import { useTRPC } from "./trpc";
+import { useTRPC } from "./trpc.ts";
 
 /** The plane-less arm, hoisted so the identity handed to `withUserMacros` is stable across renders (it is
  *  the key its memo — and behind it `<MacroTextarea>`'s fuzzy index — is built on). */

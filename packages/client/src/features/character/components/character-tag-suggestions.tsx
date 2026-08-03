@@ -24,7 +24,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
-import { useAcceptSuggestion, useRejectSuggestion, useSuggestCharacterTags } from "../hooks/use-tag-suggestion-mutations";
+import { useAcceptSuggestion, useRejectSuggestion, useSuggestCharacterTags } from "../hooks/use-tag-suggestion-mutations.ts";
 
 export interface CharacterTagSuggestionsProps {
   readonly characterId: CharacterId;

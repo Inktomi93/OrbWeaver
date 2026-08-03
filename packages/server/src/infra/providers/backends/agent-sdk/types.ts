@@ -3,9 +3,9 @@
 
 import type { query, SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatId } from "@orb/kit/ids";
-import type { ChatDeltaEvent, ChatEvent, ContextUsage, WireCaptureSink } from "../../contract";
-import type { NormalizeImageBytes } from "../kit";
-import type { SeededSessionDecision } from "./session";
+import type { ChatDeltaEvent, ChatEvent, ContextUsage, WireCaptureSink } from "../../contract/index.ts";
+import type { NormalizeImageBytes } from "../kit/index.ts";
+import type { SeededSessionDecision } from "./session/index.ts";
 
 /** Subset of SDK `Options` the firewall base (`disciplineOptions`) pins; spread into `query` options. */
 export interface DisciplineOptions {

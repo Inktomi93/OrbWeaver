@@ -7,8 +7,8 @@
 
 import type { Db } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
-import type { EnabledRuleIndex } from "../contract/ops";
-import { hasEnabledDomainRules, loadEnabledChatIds } from "../persistence/rules";
+import type { EnabledRuleIndex } from "../contract/ops.ts";
+import { hasEnabledDomainRules, loadEnabledChatIds } from "../persistence/rules.ts";
 
 /** Build the pre-check index over `db`. Call `reload()` once at boot before the watcher subscribes. */
 export function createEnabledRuleIndex(db: Db): EnabledRuleIndex {

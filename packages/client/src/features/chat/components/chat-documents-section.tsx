@@ -34,9 +34,9 @@ import { Fragment, useState } from "react";
 import { RowActionsMenu, RowToggleAction } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { useDetachDocumentFromChat, useSetChatDocumentVisibility } from "../hooks/use-chat-document-mutations";
-import { isDetachableFromChat, nextHiddenSet, sourceChips } from "../lib/chat-documents-model";
-import { AddChatDocumentDialog } from "./add-chat-document-dialog";
+import { useDetachDocumentFromChat, useSetChatDocumentVisibility } from "../hooks/use-chat-document-mutations.ts";
+import { isDetachableFromChat, nextHiddenSet, sourceChips } from "../lib/chat-documents-model.ts";
+import { AddChatDocumentDialog } from "./add-chat-document-dialog.tsx";
 
 /** One row of the rack — DERIVED from the read's wire type, never re-spelled (§5.4). */
 type ActiveDocument = inferOutput<Trpc["databank"]["listActiveForChat"]>[number];

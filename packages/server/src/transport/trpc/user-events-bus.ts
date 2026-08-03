@@ -10,7 +10,7 @@
 
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import { defineBusChannel } from "./bus-channel";
+import { defineBusChannel } from "./bus-channel.ts";
 
 const channelFor = (userId: UserId): string => `user:${userId}`;
 

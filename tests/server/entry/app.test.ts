@@ -17,7 +17,7 @@ import { describe } from "vitest";
 import { layer } from "../../../packages/server/src/domain/settings/effective-config/layer.ts";
 import type { AppDeps } from "../../../packages/server/src/entry/app.ts";
 import { createApp, rateLimitResponseMeta } from "../../../packages/server/src/entry/app.ts";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 /** Build the classifier-mapped `TRPCError` (cause-carrying) that `rateLimitResponseMeta` receives at the
  *  mount — mirrors the real path (`error-mapping.ts` wraps the DomainError as `.cause`). */

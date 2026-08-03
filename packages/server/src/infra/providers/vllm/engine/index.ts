@@ -1,35 +1,35 @@
 // biome-ignore-all lint/performance/noBarrelFile: the engine sub-barrel — the ONE seam surfaces register
 // against; surfaces import engine pieces through here, never each other (`vllm-surface-isolation`).
 
-export type { EngineArgvContext, EngineLaunchConfig, EngineLaunchEnvFloor, EngineLaunchOverride } from "./build-argv";
-export { buildEngineArgv, engineCudaVisibleDevices, resolveEngineLaunchConfig } from "./build-argv";
+export type { EngineArgvContext, EngineLaunchConfig, EngineLaunchEnvFloor, EngineLaunchOverride } from "./build-argv.ts";
+export { buildEngineArgv, engineCudaVisibleDevices, resolveEngineLaunchConfig } from "./build-argv.ts";
 export type {
   VllmChatCompletionRequest,
   VllmChatCompletionResult,
   VllmChatMessage,
-} from "./chat-completion";
-export { cleanJsonSchema, runVllmChatCompletion } from "./chat-completion";
-export type { VllmEngineClient } from "./client";
-export { createVllmEngineClient } from "./client";
+} from "./chat-completion.ts";
+export { cleanJsonSchema, runVllmChatCompletion } from "./chat-completion.ts";
+export type { VllmEngineClient } from "./client.ts";
+export { createVllmEngineClient } from "./client.ts";
 export {
   DOC_INSTRUCTION,
   normalizeVector,
   QUERY_INSTRUCTION,
   toEmbedPrompt,
   truncateToDim,
-} from "./embedding";
-export type { VllmEngineController } from "./engine-control";
-export { getVllmEngineController, registerVllmEngineController } from "./engine-control";
-export type { EngineStatusRecord } from "./engine-status";
+} from "./embedding.ts";
+export type { VllmEngineController } from "./engine-control.ts";
+export { getVllmEngineController, registerVllmEngineController } from "./engine-control.ts";
+export type { EngineStatusRecord } from "./engine-status.ts";
 export {
   allEngineStatuses,
   ENGINE_LIFECYCLE_STATUSES,
   getEngineStatus,
   setEngineStatus,
-} from "./engine-status";
-export { engineBaseUrl } from "./engine-url";
-export { VLLM_ENGINES } from "./engines";
-export type { AutoSleepState, EngineMetrics, WakeDecision } from "./fleet-control";
+} from "./engine-status.ts";
+export { engineBaseUrl } from "./engine-url.ts";
+export { VLLM_ENGINES } from "./engines.ts";
+export type { AutoSleepState, EngineMetrics, WakeDecision } from "./fleet-control.ts";
 export {
   advanceAutoSleep,
   clearHold,
@@ -47,19 +47,19 @@ export {
   postWakeAndAwait,
   WAKE_READY_TIMEOUT_MS,
   writeHold,
-} from "./fleet-control";
-export { fetchEngineMaxModelLen, fetchGenMaxModelLen } from "./gen-window";
-export { countGpus, detectGpu } from "./gpu";
-export { sniffMime, toDataUri } from "./image";
-export { findOrphanedFamily, makeCwdMarker, parsePsRows, reapOrphanedFamily } from "./reaper";
-export type { EngineDeploymentEnv, EngineDeploymentFacts, EngineSpawnSpec } from "./spawn-engine";
-export { buildEngineSpawnSpec, resolveEngineDeploymentFacts, resolveStoreRoot } from "./spawn-engine";
+} from "./fleet-control.ts";
+export { fetchEngineMaxModelLen, fetchGenMaxModelLen } from "./gen-window.ts";
+export { countGpus, detectGpu } from "./gpu.ts";
+export { sniffMime, toDataUri } from "./image.ts";
+export { findOrphanedFamily, makeCwdMarker, parsePsRows, reapOrphanedFamily } from "./reaper.ts";
+export type { EngineDeploymentEnv, EngineDeploymentFacts, EngineSpawnSpec } from "./spawn-engine.ts";
+export { buildEngineSpawnSpec, resolveEngineDeploymentFacts, resolveStoreRoot } from "./spawn-engine.ts";
 export {
   breakerAllows,
   decideTick,
   startVllmEngines,
-} from "./supervisor";
-export type { EngineUtilFractions, EngineVramNeed, GpuShortfall, GpuTenant, GpuVram, WakeBudgetVerdict } from "./wake-budget";
-export { decideWakeBudget, engineVramNeed, parseComputeAppsCsv, parseGpuVramCsv, queryGpuVram } from "./wake-budget";
-export type { WakeGateDeps } from "./wake-gate";
-export { __resetWakeGateCache, ensureAwake } from "./wake-gate";
+} from "./supervisor.ts";
+export type { EngineUtilFractions, EngineVramNeed, GpuShortfall, GpuTenant, GpuVram, WakeBudgetVerdict } from "./wake-budget.ts";
+export { decideWakeBudget, engineVramNeed, parseComputeAppsCsv, parseGpuVramCsv, queryGpuVram } from "./wake-budget.ts";
+export type { WakeGateDeps } from "./wake-gate.ts";
+export { __resetWakeGateCache, ensureAwake } from "./wake-gate.ts";

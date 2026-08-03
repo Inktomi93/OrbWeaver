@@ -5,7 +5,7 @@
 // hard reload landing back on the dashboard is fine).
 
 import type { CharacterId } from "@orb/kit/ids";
-import { createDrillSelectionStore } from "./create-drill-selection-store";
+import { createDrillSelectionStore } from "./create-drill-selection-store.ts";
 
 const analyticsSelection = createDrillSelectionStore<CharacterId>("analytics-selection");
 

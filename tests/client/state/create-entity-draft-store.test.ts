@@ -7,7 +7,7 @@ import { createEntityDraftStore } from "@orb/client/state";
 import { describe } from "vitest";
 import { z } from "zod";
 import type { StateStorage } from "zustand/middleware";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const DUPLICATE_NAME_RE = /duplicate store name/u;
 

@@ -47,4 +47,4 @@ export interface AnalyticsResult {
 
 // The PROSE-1 discovery slot table (the three whole side-generation system prompts) — `#prose` imports it
 // to compose `PROSE_SLOTS`.
-export { DISCOVERY_PROSE_SLOTS } from "./prose";
+export { DISCOVERY_PROSE_SLOTS } from "./prose.ts";

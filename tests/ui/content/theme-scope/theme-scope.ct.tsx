@@ -4,7 +4,7 @@ import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Select } from "@orb/ui/select";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ThemedFloatScope } from "./float-theming.fixtures";
+import { ThemedFloatScope } from "./float-theming.fixtures.tsx";
 
 test("a legal override lands as a scoped custom property", async ({ mount }) => {
   const cmp = await mount(

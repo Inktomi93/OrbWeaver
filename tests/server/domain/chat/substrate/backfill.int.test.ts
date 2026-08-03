@@ -11,10 +11,10 @@ import { castId } from "@orb/kit/ids";
 import { beforeEach, describe, vi } from "vitest";
 import type { ResolveBackfillMemoryConfig } from "../../../../../packages/server/src/domain/chat/contract/memory.ts";
 import { backfillGroupCharacters, backfillMemory } from "../../../../../packages/server/src/domain/chat/substrate/backfill.ts";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support";
-import { fakeEmbeddingsStore, fakeSummarize, seedTurns } from "../memory/_support";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
+import { fakeEmbeddingsStore, fakeSummarize, seedTurns } from "../memory/_support.ts";
 
 /** A memory-config resolver that leaves the host's memory ENABLED (empty partial ⇒ the baked floor, `mixC`),
  *  so the sweep builds exactly as the pre-#54 baked-defaults path did (the enumeration assertions below). */

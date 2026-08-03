@@ -22,30 +22,30 @@ import type {
   SummarizeRequest,
   SummarizeResult,
   VerifyAuthRequest,
-} from "../../contract";
-import { ProviderError } from "../../contract";
-import { passthroughImageNormalizer } from "../kit";
-import { runAgentTurn } from "./agent-runner";
-import { fetchAgentSdkModels } from "./catalog";
-import { ensureFreshHostSubToken } from "./host-token";
-import { runChatTurn } from "./runner";
-import { SessionCache } from "./session";
-import { summarize } from "./summarize";
-import type { AgentSdkDeps } from "./types";
-import { verifyAuth } from "./verify-auth";
+} from "../../contract/index.ts";
+import { ProviderError } from "../../contract/index.ts";
+import { passthroughImageNormalizer } from "../kit/index.ts";
+import { runAgentTurn } from "./agent-runner.ts";
+import { fetchAgentSdkModels } from "./catalog.ts";
+import { ensureFreshHostSubToken } from "./host-token.ts";
+import { runChatTurn } from "./runner.ts";
+import { SessionCache } from "./session/index.ts";
+import { summarize } from "./summarize.ts";
+import type { AgentSdkDeps } from "./types.ts";
+import { verifyAuth } from "./verify-auth.ts";
 
-export { fetchAgentSdkModels } from "./catalog";
+export { fetchAgentSdkModels } from "./catalog.ts";
 export {
   buildClaudeAnthEnv,
   buildClaudeOpenRouterEnv,
   buildClaudeSdkEnv,
   RESERVED_CLAUDE_ENV_KEYS,
-} from "./env";
+} from "./env.ts";
 export {
   ensureFreshHostSubToken,
   type HostTokenDeps,
   refreshHostSubTokenIfMode1,
-} from "./host-token";
+} from "./host-token.ts";
 export {
   logProviderCompaction,
   logProviderDialog,
@@ -62,12 +62,12 @@ export {
   type ProviderMcpServerHealth,
   type ProviderTurnLog,
   type ProviderTurnUsage,
-} from "./log";
-export { sanitizeAnthropicOutputSchema } from "./output-schema";
-export { consumeTurnStream } from "./runner";
-export { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools";
-export { disciplineOptions, dynamicContextOptions, firewallBase, TERMINAL_MCP_NAMESPACE } from "./translate";
-export { assertInitFrameShape, classifyTerminalReason } from "./verify";
+} from "./log.ts";
+export { sanitizeAnthropicOutputSchema } from "./output-schema.ts";
+export { consumeTurnStream } from "./runner.ts";
+export { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools.ts";
+export { disciplineOptions, dynamicContextOptions, firewallBase, TERMINAL_MCP_NAMESPACE } from "./translate.ts";
+export { assertInitFrameShape, classifyTerminalReason } from "./verify.ts";
 
 const DEFAULT_TOOL_SERVER_NAME = "orbweaver";
 

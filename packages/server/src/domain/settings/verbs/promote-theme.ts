@@ -20,12 +20,12 @@
 
 import { cardEmbeddableSubset, themeOverrideSchema } from "@orb/contracts/theme";
 import { DomainConflictError } from "@orb/kit/errors";
-import type { PromoteThemeParams } from "../contract/params";
-import type { SettingsContext, SettingsService } from "../contract/service";
-import type { ThemeView } from "../contract/views";
-import { insertTheme, isThemeNameConflict, listOwnedThemeNames } from "../persistence/theme-queries";
-import { freeThemeName } from "../substrate/names";
-import { toThemeView } from "../substrate/theme-views";
+import type { PromoteThemeParams } from "../contract/params.ts";
+import type { SettingsContext, SettingsService } from "../contract/service.ts";
+import type { ThemeView } from "../contract/views.ts";
+import { insertTheme, isThemeNameConflict, listOwnedThemeNames } from "../persistence/theme-queries.ts";
+import { freeThemeName } from "../substrate/names.ts";
+import { toThemeView } from "../substrate/theme-views.ts";
 
 const THEME_PROMOTE = "theme.promote";
 const THEME_ENTITY = "theme";

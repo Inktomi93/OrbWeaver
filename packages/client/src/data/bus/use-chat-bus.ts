@@ -32,10 +32,10 @@
 import type { ChatId } from "@orb/kit/ids";
 import { useEffect, useState } from "react";
 import { busSubscribe, busUnsubscribe, notify } from "#lib";
-import type { ChatBusDeps } from "./apply-chat-bus-event";
-import { applyChatBusEvent } from "./apply-chat-bus-event";
-import { createChatEventSeqGuard } from "./chat-event-seq-guard";
-import { useBusRoom } from "./use-bus-room";
+import type { ChatBusDeps } from "./apply-chat-bus-event.ts";
+import { applyChatBusEvent } from "./apply-chat-bus-event.ts";
+import { createChatEventSeqGuard } from "./chat-event-seq-guard.ts";
+import { useBusRoom } from "./use-bus-room.ts";
 
 // ONE process guard shared across every (possibly concurrent) chat room — a monotonic cursor, not slot
 // state, so it lives here and not in the store.

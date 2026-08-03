@@ -3,8 +3,8 @@
 
 import { globalDocuments } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import type { GlobalAttachParams } from "../../contract/params";
-import type { DatabankContext, DatabankService } from "../../contract/service";
+import type { GlobalAttachParams } from "../../contract/params.ts";
+import type { DatabankContext, DatabankService } from "../../contract/service.ts";
 
 export function createDetachGlobal(ctx: DatabankContext): DatabankService["detachGlobal"] {
   return async ({ principal, documentId }: GlobalAttachParams): Promise<void> => {

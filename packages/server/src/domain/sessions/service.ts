@@ -5,18 +5,18 @@
 // clock is injected for determinism (no ambient `Date.now()` in a verb).
 
 import type { Db } from "@orb/db";
-import { createSessionsContext } from "./context";
-import type { SessionsService } from "./contract/service";
-import { createAuthenticate } from "./verbs/authenticate";
-import { createCreate } from "./verbs/create";
-import { createEnsureUser } from "./verbs/ensure-user";
-import { createList } from "./verbs/list";
-import { createLoadUserById } from "./verbs/load-user-by-id";
+import { createSessionsContext } from "./context.ts";
+import type { SessionsService } from "./contract/service.ts";
+import { createAuthenticate } from "./verbs/authenticate.ts";
+import { createCreate } from "./verbs/create.ts";
+import { createEnsureUser } from "./verbs/ensure-user.ts";
+import { createList } from "./verbs/list.ts";
+import { createLoadUserById } from "./verbs/load-user-by-id.ts";
 
-import { createProvisionIdentity } from "./verbs/provision-identity";
-import { createResolveHandle } from "./verbs/resolve-handle";
-import { createRevoke } from "./verbs/revoke";
-import { createValidate } from "./verbs/validate";
+import { createProvisionIdentity } from "./verbs/provision-identity.ts";
+import { createResolveHandle } from "./verbs/resolve-handle.ts";
+import { createRevoke } from "./verbs/revoke.ts";
+import { createValidate } from "./verbs/validate.ts";
 
 /** What the composition root needs: the db handle, the injected clock, and the raw `SESSION_SECRET` pepper
  *  (read DOWN from `foundation/env` at `entry/`; bound into the token hasher here). */

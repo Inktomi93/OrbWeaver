@@ -8,7 +8,7 @@ import type { Db } from "@orb/db";
 import { characterEmbeddings, chatDigests, chatSegments, documentChunks, imageEmbeddings } from "@orb/db";
 import type { DocumentId } from "@orb/kit/ids";
 import { and, eq, gte, ne, or } from "drizzle-orm";
-import type { VectorTable } from "../contract/params";
+import type { VectorTable } from "../contract/params.ts";
 
 function assertNever(value: never): never {
   throw new Error(`clearVectorTable: unhandled vector table ${String(value)}`);

@@ -9,9 +9,9 @@
 // here — they belong to `backends/agent-sdk`. This module is the HTTP path only.
 
 import { errorMessage } from "@orb/kit/error-message";
-import type { ProviderErrorKind } from "../../contract";
-import { ProviderError } from "../../contract";
-import { sanitizeApiError } from "./sanitize";
+import type { ProviderErrorKind } from "../../contract/index.ts";
+import { ProviderError } from "../../contract/index.ts";
+import { sanitizeApiError } from "./sanitize.ts";
 
 // Transport-name patterns (hoisted per useTopLevelRegex — classifiers run on the hot error path).
 const TRANSIENT_TRANSPORT_RE = /timeout|connection|network|overload/i;

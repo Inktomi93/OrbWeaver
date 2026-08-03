@@ -5,8 +5,8 @@ import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService } from "../_support.ts";
 
 const USER_ID = castId<UserId>("user_alice");

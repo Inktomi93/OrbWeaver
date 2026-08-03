@@ -17,7 +17,7 @@ import {
   verbositySchema,
 } from "@orb/contracts/connection";
 import type { CredentialSource } from "@orb/contracts/credentials";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // --- connection re-exports CredentialSource verbatim (D31, the load-bearing pin) ---------------
 // The type-level identity pin (connection's re-export ≡ CredentialSource) lives in `index.test-d.ts`

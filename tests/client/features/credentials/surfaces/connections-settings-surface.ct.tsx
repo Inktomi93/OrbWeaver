@@ -15,10 +15,10 @@ import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { makeResolvedChatCapability } from "../../../../support/factories/resolved-connection";
-import { ConnectionsSettingsStory } from "../_ct-stories";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { makeResolvedChatCapability } from "../../../../support/factories/resolved-connection.ts";
+import { ConnectionsSettingsStory } from "../_ct-stories.tsx";
 
 const SYNC_CHIP = '[data-slot="role-row-sync"]';
 const APP_DEFAULT = '[data-slot="role-app-default"]';

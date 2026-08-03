@@ -14,8 +14,8 @@ import type { ComponentPropsWithoutRef, ReactElement, ReactNode } from "react";
 // there is no data array to map instead. Ends if Streamdown ever hands the seam its source nodes.
 import { Children, isValidElement } from "react";
 import type { StreamdownProps } from "streamdown";
-import type { DialoguePart, DialoguePiece } from "./dialogue";
-import { hasQuoteChar, splitDialogue } from "./dialogue";
+import type { DialoguePart, DialoguePiece } from "./dialogue.ts";
+import { hasQuoteChar, splitDialogue } from "./dialogue.ts";
 
 /** An element child's participating text: only Streamdown's per-word streaming-reveal span, whose single
  *  string child IS the text (so a run still resolves mid-stream, not just after commit). Everything else

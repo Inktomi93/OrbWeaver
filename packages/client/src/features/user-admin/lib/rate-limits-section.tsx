@@ -3,8 +3,8 @@
 // settings-section registry (G8) at the `admin` anchor. user-admin owns it (it owns the admin pane).
 
 import type { SettingsSectionContribution } from "#state";
-import { RateLimitsSection } from "../components/rate-limits-section";
-import { RATE_LIMITS_SUBCATEGORY } from "./rate-limits-nav";
+import { RateLimitsSection } from "../components/rate-limits-section.tsx";
+import { RATE_LIMITS_SUBCATEGORY } from "./rate-limits-nav.ts";
 
 // The contribution id has ONE home — this const. It is both the registry key and the id the body REPORTS
 // its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.

@@ -27,7 +27,7 @@ import type { ChatImportContext } from "../../../../../packages/server/src/domai
 import { createBulkImportChats } from "../../../../../packages/server/src/domain/chat/persistence/import-write.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedCharacter, seedUser } from "../../../../support/factories/index.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
 const CHAT_CREATED = 1_699_999_990_000;

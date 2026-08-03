@@ -26,27 +26,27 @@ import { resolveRowMacros } from "@orb/kit/macro";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns";
-import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
-import { ChatNotFoundError } from "../../../../../packages/server/src/domain/chat/contract/errors";
-import type { ChatBehaviorInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign";
-import type { TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
-import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
-import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries";
-import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall";
-import { loadPendingTurns, loadPendingTurnsForReclaim } from "../../../../../packages/server/src/domain/chat/persistence/invites";
-import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock";
+import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns.ts";
+import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
+import { ChatNotFoundError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
+import type { ChatBehaviorInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign.ts";
+import type { TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
+import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
+import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
+import { loadPendingTurns, loadPendingTurnsForReclaim } from "../../../../../packages/server/src/domain/chat/persistence/invites.ts";
+import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock.ts";
 import {
   loadCanonHistory,
   loadMaxMessageSeq,
   loadMessageView,
   loadSlotTarget,
   loadTurnOrigin,
-} from "../../../../../packages/server/src/domain/chat/persistence/queries";
-import { createRequestTurn, createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn";
-import { freshDb } from "../../../../support/db";
+} from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { createRequestTurn, createTurn } from "../../../../../packages/server/src/domain/chat/verbs/turn.ts";
+import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import {
   FROZEN_AT,
   makeChatContext,
@@ -59,7 +59,7 @@ import {
   stubRunCompaction,
   TEST_CAPABILITY,
   testConnection,
-} from "../_support";
+} from "../_support.ts";
 
 const card = (name: string): CharacterCard => ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
 

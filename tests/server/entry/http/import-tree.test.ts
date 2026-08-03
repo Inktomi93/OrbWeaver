@@ -17,7 +17,7 @@ import { castId } from "@orb/kit/ids";
 import type { ImportTreeDeps } from "@orb/server/entry/http";
 import { registerImportTree } from "@orb/server/entry/http";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const TREE_ROUTE = "POST /api/import/tree";
 

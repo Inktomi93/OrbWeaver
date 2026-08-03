@@ -6,8 +6,8 @@ import type { ChatInjection } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { computeHistoryBreakpoint, shape } from "../../../../../packages/server/src/domain/chat/assembly/shape";
-import { expect, test } from "../../../../support/fixtures";
+import { computeHistoryBreakpoint, shape } from "../../../../../packages/server/src/domain/chat/assembly/shape.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const ARIA = castId<CharacterId>("character_aria");
 const KAI = castId<CharacterId>("character_kai");

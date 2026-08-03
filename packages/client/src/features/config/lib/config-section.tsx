@@ -20,10 +20,10 @@ import { Package } from "@orb/ui/icons";
 import { ListPaneHeader } from "#components";
 import type { CollectionContribution, ContributorRegistry } from "#lib";
 import type { SectionDefinition } from "#state";
-import { ConfigContextBody, ConfigContextHeader } from "../components/config-context-body";
-import { ConfigContentSurface } from "../surfaces/config-content-surface";
-import { ConfigRosterSurface } from "../surfaces/config-roster-surface";
-import { CONFIG_CONTEXT_EMPTY } from "./config-copy";
+import { ConfigContextBody, ConfigContextHeader } from "../components/config-context-body.tsx";
+import { ConfigContentSurface } from "../surfaces/config-content-surface.tsx";
+import { ConfigRosterSurface } from "../surfaces/config-roster-surface.tsx";
+import { CONFIG_CONTEXT_EMPTY } from "./config-copy.ts";
 
 export function makeConfigSection(collections: ContributorRegistry<CollectionContribution>): SectionDefinition {
   return {

@@ -6,7 +6,7 @@
 
 import { rowQualifiers } from "@orb/client/lib";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const HOUR = 3_600_000;
 const MINUTE = 60_000;

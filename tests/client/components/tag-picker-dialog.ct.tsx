@@ -18,8 +18,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc, trpcError } from "../../support/ct/route-trpc";
-import { TagPickerDialogHarness } from "./tag-picker-dialog.fixtures";
+import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
+import { TagPickerDialogHarness } from "./tag-picker-dialog.fixtures.tsx";
 
 const tag = (id: string, name: string, total: number): unknown => ({
   id,

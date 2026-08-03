@@ -3,7 +3,7 @@
 // syntax verbatim. Normalization is the dispatch's job, so this asserts the raw decode only.
 
 import { loadTextlike } from "../../../../../packages/server/src/infra/extraction/loaders/textlike.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const enc = new TextEncoder();
 

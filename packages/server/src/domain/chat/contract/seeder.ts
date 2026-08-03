@@ -11,7 +11,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { RpgActorOp, RpgJournalType, RpgPackagedProfileKey, RpgQuestStatus, RpgTrackerDef } from "@orb/contracts/rpg";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterHandle, CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
-import type { BulkImportChats } from "./import";
+import type { BulkImportChats } from "./import.ts";
 
 /** One bundled EXAMPLE conversation. The transcript itself is NOT here — it is the verbatim output of the
  *  real export verb, bundled as `entry/boot/seed-assets/demo-chats/<slug>.jsonl` and handed in by the

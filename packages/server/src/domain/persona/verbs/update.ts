@@ -6,12 +6,12 @@
 import { personas } from "@orb/db";
 import { stripUndefined } from "@orb/kit/objects";
 import { and, eq } from "drizzle-orm";
-import type { PersonaContext } from "../context";
-import { PersonaNotFoundError } from "../contract/errors";
-import type { UpdatePersonaParams } from "../contract/params";
-import type { PersonaService } from "../contract/service";
-import { detailOf, ensureAssetOwned, loadOwnedPersonaWithAvatar } from "../persistence/queries";
-import { normalizeWriteMetadata } from "../substrate/metadata";
+import type { PersonaContext } from "../context.ts";
+import { PersonaNotFoundError } from "../contract/errors.ts";
+import type { UpdatePersonaParams } from "../contract/params.ts";
+import type { PersonaService } from "../contract/service.ts";
+import { detailOf, ensureAssetOwned, loadOwnedPersonaWithAvatar } from "../persistence/queries.ts";
+import { normalizeWriteMetadata } from "../substrate/metadata.ts";
 
 export function createUpdate(ctx: PersonaContext): PersonaService["update"] {
   return async ({ principal, personaId, input }: UpdatePersonaParams) => {

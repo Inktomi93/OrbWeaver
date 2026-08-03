@@ -7,15 +7,15 @@
 
 import type { CharacterHandle } from "@orb/kit/ids";
 import { cardContentHash } from "#kit/serde/card";
-import type { CharacterContext } from "../context";
-import { CHARACTER_HANDLE_CONFLICT, CHARACTER_HANDLE_RESERVED, CharacterOperationError } from "../contract/errors";
-import type { MintGroupCharParams } from "../contract/params";
-import type { CharacterRef } from "../contract/results";
-import type { CharacterService } from "../contract/service";
-import { insertCharacter } from "../persistence/card";
-import { findByOwnerHandle } from "../persistence/queries";
-import { cardTokenSize } from "../substrate/card-tokens";
-import { buildGroupCard, groupHandle } from "../substrate/group-character";
+import type { CharacterContext } from "../context.ts";
+import { CHARACTER_HANDLE_CONFLICT, CHARACTER_HANDLE_RESERVED, CharacterOperationError } from "../contract/errors.ts";
+import type { MintGroupCharParams } from "../contract/params.ts";
+import type { CharacterRef } from "../contract/results.ts";
+import type { CharacterService } from "../contract/service.ts";
+import { insertCharacter } from "../persistence/card.ts";
+import { findByOwnerHandle } from "../persistence/queries.ts";
+import { cardTokenSize } from "../substrate/card-tokens.ts";
+import { buildGroupCard, groupHandle } from "../substrate/group-character.ts";
 
 /** Adopt an EXISTING row on the reserved handle as the group identity — but ONLY if it is synthetic. A
  *  non-synthetic squatter is refused loudly (create/update now refuse this namespace, so this is defense-in-

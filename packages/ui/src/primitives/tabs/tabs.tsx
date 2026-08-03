@@ -9,7 +9,7 @@ import { Tabs as BaseTabs } from "@base-ui/react/tabs";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { tabsVariants } from "./variants";
+import { tabsVariants } from "./variants.ts";
 
 export interface TabsProps extends BaseTabsRootProps {
   className?: string;

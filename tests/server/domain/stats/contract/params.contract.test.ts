@@ -5,7 +5,7 @@
 import { describe } from "vitest";
 import type { LeaderboardSort } from "../../../../../packages/server/src/domain/stats/contract/params.ts";
 import { LEADERBOARD_SORTS } from "../../../../../packages/server/src/domain/stats/contract/params.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("LEADERBOARD_SORTS", () => {
   test("is the exact sort axis, in order", () => {

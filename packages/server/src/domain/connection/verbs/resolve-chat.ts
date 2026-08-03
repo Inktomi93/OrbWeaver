@@ -13,8 +13,8 @@
 // (no writer verb, no UI). This verb drops it today; wiring it is a deferred feature, not an accident.
 
 import type { ResolvedConnection } from "@orb/contracts/connection";
-import type { ResolveChatParams, RouteOverride } from "../contract/params";
-import type { ConnectionService } from "../contract/service";
+import type { ResolveChatParams, RouteOverride } from "../contract/params.ts";
+import type { ConnectionService } from "../contract/service.ts";
 
 export function createResolveChat(resolveRole: ConnectionService["resolveRole"]): ConnectionService["resolveChat"] {
   return (params: ResolveChatParams): Promise<ResolvedConnection> => {

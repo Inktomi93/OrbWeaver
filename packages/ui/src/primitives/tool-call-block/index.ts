@@ -1,2 +1,2 @@
-export type { ToolCallBlockProps, ToolCallBlockRecord } from "./tool-call-block";
-export { ToolCallBlock } from "./tool-call-block";
+export type { ToolCallBlockProps, ToolCallBlockRecord } from "./tool-call-block.tsx";
+export { ToolCallBlock } from "./tool-call-block.tsx";

@@ -10,10 +10,10 @@ import type { StatsDelta } from "@orb/contracts/stats";
 import type { AssetId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
 import { modelKey, utcDay } from "@orb/kit/stats-tally";
-import { GenerationFailedError } from "../contract/errors";
-import type { GeneratedPictureImage, GenerationOutcome, GenerationProvenanceInput } from "../contract/results";
-import type { GeneratedImage, ImageGenerateRequest, ImageryContext } from "../contract/service";
-import { insertGeneration } from "../persistence/queries";
+import { GenerationFailedError } from "../contract/errors.ts";
+import type { GeneratedPictureImage, GenerationOutcome, GenerationProvenanceInput } from "../contract/results.ts";
+import type { GeneratedImage, ImageGenerateRequest, ImageryContext } from "../contract/service.ts";
+import { insertGeneration } from "../persistence/queries.ts";
 
 /** The media block's `alt` is the prompt, truncated (a full 2k-char prompt is not alt text). */
 const ALT_MAX_CHARS = 300;

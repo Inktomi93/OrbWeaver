@@ -4,8 +4,8 @@
 import { create } from "zustand";
 import type { StateStorage } from "zustand/middleware";
 import { createJSONStorage, devtools, persist, subscribeWithSelector } from "zustand/middleware";
-import type { GatedSet, GatedStoreHook } from "./create-gated-store";
-import { STORE_DEVTOOLS_ENABLED } from "./create-gated-store";
+import type { GatedSet, GatedStoreHook } from "./create-gated-store.ts";
+import { STORE_DEVTOOLS_ENABLED } from "./create-gated-store.ts";
 
 const STORAGE_KEY_PREFIX = "orb:";
 const registeredNames = new Set<string>();

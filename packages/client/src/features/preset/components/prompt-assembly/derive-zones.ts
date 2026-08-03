@@ -4,7 +4,7 @@
 // and flags `missingPivot`.
 
 import type { PromptSection } from "@orb/contracts/preset";
-import { estimateSectionTokens } from "./estimate-tokens";
+import { estimateSectionTokens } from "./estimate-tokens.ts";
 
 /** The two conversation zones. `Zone` is derived inline, never an exported alias. */
 const ZONES = ["setup", "post"] as const;

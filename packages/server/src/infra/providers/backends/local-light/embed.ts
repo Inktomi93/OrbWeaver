@@ -5,10 +5,10 @@
 // normalize, since truncation breaks unit length), and carry `model` provenance so `embeddings` can tag
 // the vector space. The model DEFINES the space; the dim is the vector length. No vector COMPARISON here.
 
-import type { EmbedRequest, EmbedResult } from "../../contract";
-import { ProviderError } from "../../contract";
-import type { LocalLightModelCache } from "./model-cache";
-import { normalizeVector, resolveModelId, throwIfAborted } from "./model-cache";
+import type { EmbedRequest, EmbedResult } from "../../contract/index.ts";
+import { ProviderError } from "../../contract/index.ts";
+import type { LocalLightModelCache } from "./model-cache.ts";
+import { normalizeVector, resolveModelId, throwIfAborted } from "./model-cache.ts";
 
 /** The "any box" default text embedder — the jina-clip-v2 text encoder, 1024-dim into the unified
  *  text↔image joint space (fits the `F32_BLOB(1024)` column; the SAME model serves imageEmbed, so a

@@ -2,6 +2,6 @@
 // JSX module never mixes a hook export with a component export (useComponentExportOnlyModules). The
 // Provider is the createRegistryContext mint's Provider, bound to the chrome registry.
 
-import { chromeRegistryContext } from "./chrome-registry-context";
+import { chromeRegistryContext } from "./chrome-registry-context.ts";
 
 export const ChromeRegistryProvider = chromeRegistryContext.Provider;

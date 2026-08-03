@@ -8,14 +8,14 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import { cardContentHash } from "#kit/serde/card";
-import type { CharacterContext } from "../context";
-import { CHARACTER_HANDLE_RESERVED, CharacterNotFoundError, CharacterOperationError } from "../contract/errors";
-import type { CharacterImportProvenance, CreateCharacterParams } from "../contract/params";
-import type { CharacterService } from "../contract/service";
-import { insertCharacter } from "../persistence/card";
-import { canonicalTagsOf, detailOf, ensureAssetOwned, loadOwnedCharacterWithAvatar } from "../persistence/queries";
-import { cardTokenSize } from "../substrate/card-tokens";
-import { isReservedGroupHandle } from "../substrate/group-character";
+import type { CharacterContext } from "../context.ts";
+import { CHARACTER_HANDLE_RESERVED, CharacterNotFoundError, CharacterOperationError } from "../contract/errors.ts";
+import type { CharacterImportProvenance, CreateCharacterParams } from "../contract/params.ts";
+import type { CharacterService } from "../contract/service.ts";
+import { insertCharacter } from "../persistence/card.ts";
+import { canonicalTagsOf, detailOf, ensureAssetOwned, loadOwnedCharacterWithAvatar } from "../persistence/queries.ts";
+import { cardTokenSize } from "../substrate/card-tokens.ts";
+import { isReservedGroupHandle } from "../substrate/group-character.ts";
 
 /** Split the optional provenance into the two nullable row columns (null/null when app-authored). Extracted
  *  so the verb closure stays under the cognitive-complexity gate that the card-defaults block already loads. */

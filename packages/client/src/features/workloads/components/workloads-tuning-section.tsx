@@ -19,8 +19,8 @@ import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, 
 import type { AutosaveSession } from "#forms";
 import { SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import { WORKLOADS_TUNING_ENTITY_ID, WorkloadsTuningAutosaveForm } from "../hooks/use-workloads-tuning-form";
-import type { WorkloadsTuningForm } from "../lib/workloads-tuning-model";
+import { WORKLOADS_TUNING_ENTITY_ID, WorkloadsTuningAutosaveForm } from "../hooks/use-workloads-tuning-form.ts";
+import type { WorkloadsTuningForm } from "../lib/workloads-tuning-model.ts";
 import {
   COMPUTE_THEMES_K_MAX,
   COMPUTE_THEMES_K_MIN,
@@ -32,8 +32,8 @@ import {
   MAX_PAIRS_MIN,
   projectWorkloadsTuningForm,
   toWorkloadsSectionPatch,
-} from "../lib/workloads-tuning-model";
-import { WORKLOADS_TUNING_SUBCATEGORY } from "../lib/workloads-tuning-nav";
+} from "../lib/workloads-tuning-model.ts";
+import { WORKLOADS_TUNING_SUBCATEGORY } from "../lib/workloads-tuning-nav.ts";
 
 interface UpdateWorkloadsVars {
   readonly section: "workloads";

@@ -13,10 +13,10 @@ import {
   markAllReadScoped,
   markReadScoped,
   selectInbox,
-} from "../../../../../packages/server/src/domain/notifications/persistence/queries";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { ALICE, BOB, inviteEvent, kickedEvent, seedUser } from "../_support";
+} from "../../../../../packages/server/src/domain/notifications/persistence/queries.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { ALICE, BOB, inviteEvent, kickedEvent, seedUser } from "../_support.ts";
 
 let db: Db;
 

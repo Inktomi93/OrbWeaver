@@ -4,5 +4,5 @@ export type {
   TabsPanelProps,
   TabsProps,
   TabsTabProps,
-} from "./tabs";
-export { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "./tabs";
+} from "./tabs.tsx";
+export { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "./tabs.tsx";

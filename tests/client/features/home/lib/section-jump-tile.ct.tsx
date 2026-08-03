@@ -5,9 +5,9 @@
 // carries the marker. Clicking a row fires the store action (assert the store, never a rendered echo).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { SectionId } from "../../../../../packages/client/src/state/shell-store";
-import { SECTION_IDS } from "../../../../../packages/client/src/state/shell-store";
-import { HomeSectionJumpStory } from "../_ct-stories";
+import type { SectionId } from "../../../../../packages/client/src/state/shell-store.ts";
+import { SECTION_IDS } from "../../../../../packages/client/src/state/shell-store.ts";
+import { HomeSectionJumpStory } from "../_ct-stories.tsx";
 
 // The expectation DERIVES from the registry tuple, never a frozen row list: the ORDER and the COUNT are
 // `SECTION_IDS` minus home (which never links to itself), and the labels come from a record tsc proves

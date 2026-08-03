@@ -25,10 +25,10 @@ import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
-import { anyFieldOverridden, isOverridden, saveStateOf } from "../lib/app-override-model";
-import { MEMORY_TUNING_SUBCATEGORY } from "../lib/memory-tuning-nav";
-import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSelect, AdminOverrideSwitch } from "./admin-override-field";
+import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
+import { anyFieldOverridden, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
+import { MEMORY_TUNING_SUBCATEGORY } from "../lib/memory-tuning-nav.ts";
+import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSelect, AdminOverrideSwitch } from "./admin-override-field.tsx";
 
 // The numeric memoryDefaults knobs — each a MemoryDefaults field with a floor in DEFAULT_MEMORY_DEFAULTS.
 const NUMERIC_KNOBS = [

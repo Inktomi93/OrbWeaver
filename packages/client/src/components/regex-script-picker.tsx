@@ -22,7 +22,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { regexScriptScent, regexScriptTitle } from "#lib";
-import { RegexScopeOrder } from "./regex-scope-order";
+import { RegexScopeOrder } from "./regex-scope-order.tsx";
 
 // Every regex verb is `busDriven` (`regexChanged` path-invalidates the whole router), so no call site
 // hand-invalidates its own attached-list read. The six factories live at the BOTTOM of this file, next to

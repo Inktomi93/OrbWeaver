@@ -7,10 +7,10 @@
 // on any removal it fires `charactersChanged` (the user-bus event that drives `trpc.character.*` — the editor's
 // card + its tag chips), NOT `tagsChanged` (the attach doesn't emit that either; a tag is not card content).
 
-import type { CharacterContext } from "../context";
-import type { BulkRemoveCardTagParams } from "../contract/params";
-import type { CharacterService } from "../contract/service";
-import { loadOwnedCharacterRow } from "../persistence/queries";
+import type { CharacterContext } from "../context.ts";
+import type { BulkRemoveCardTagParams } from "../contract/params.ts";
+import type { CharacterService } from "../contract/service.ts";
+import { loadOwnedCharacterRow } from "../persistence/queries.ts";
 
 export function createBulkRemoveCardTag(ctx: CharacterContext): CharacterService["bulkRemoveCardTag"] {
   return async ({ principal, tagName, characterIds }: BulkRemoveCardTagParams) => {

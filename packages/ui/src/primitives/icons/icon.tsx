@@ -18,7 +18,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import type { FillableIcon } from "./fillable";
+import type { FillableIcon } from "./fillable.ts";
 
 /** 12px — pairs with `--text-label`; sub-`sm` indicator marks (checkbox/select/number-field glyphs). */
 export const ICON_XS = 12;

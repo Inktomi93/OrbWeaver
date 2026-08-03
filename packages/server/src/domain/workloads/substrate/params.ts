@@ -7,7 +7,7 @@
 import type { StartWorkloadInput, WorkloadKind, WorkloadParamsByKind } from "@orb/contracts/workloads";
 import { DEFAULT_ADMISSION_KEY, startWorkloadEnvelope } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
-import type { WorkloadContributions } from "../contract/contribution";
+import type { WorkloadContributions } from "../contract/contribution.ts";
 
 /** Parse ONE kind's params blob against its contribution schema. Throws the raw Zod error — callers that
  *  face a client wrap it (`parseWorkloadInput`); the row read path catches it for poison tolerance. */

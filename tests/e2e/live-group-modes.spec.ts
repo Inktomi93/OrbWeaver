@@ -33,7 +33,7 @@
 import type { CharacterHandle, CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import type { ChatRoute, RosterSeat } from "./support/trpc";
+import type { ChatRoute, RosterSeat } from "./support/trpc.ts";
 import {
   assistantTurns,
   characterSeats,
@@ -49,7 +49,7 @@ import {
   speakerSequence,
   startGroupChat,
   swipeMessage,
-} from "./support/trpc";
+} from "./support/trpc.ts";
 
 /** The stateless openai-compat local wire — the arm that honors the per-send `maxOutputTokens` ceiling. */
 const STATELESS_ROUTE: ChatRoute = { api: "chat-completions", source: "vllm" };

@@ -24,10 +24,10 @@ import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { CharacterChatsProjectionView } from "#lib";
 import { chatsWithCharacter } from "#lib";
 import { selectChatFromList, setActiveSection, useActiveChatId } from "#state";
-import { useChatPortraitMap } from "../hooks/use-chat-portrait-map";
-import { chatPortraits, chatRowQualifiers } from "../lib/chat-summary-row";
-import { filterChats } from "../lib/filter-chats";
-import { ChatListRow } from "./chat-list-row";
+import { useChatPortraitMap } from "../hooks/use-chat-portrait-map.ts";
+import { chatPortraits, chatRowQualifiers } from "../lib/chat-summary-row.ts";
+import { filterChats } from "../lib/filter-chats.ts";
+import { ChatListRow } from "./chat-list-row.tsx";
 
 const SKELETON_ROW_COUNT = 4;
 /** Above this many rows the pane grows a search field — the same `useDeferredValue` + `filterChats` pattern

@@ -14,7 +14,7 @@ import * as schema from "@orb/db";
 import { is } from "drizzle-orm";
 import { getTableConfig, SQLiteTable } from "drizzle-orm/sqlite-core";
 import { ASSET_REFS, DERIVED_ASSET_COLUMNS } from "../../../../../packages/server/src/domain/assets/persistence/asset-refs.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 /** `table.column` key for a registry entry or a schema FK. */
 function keyOf(tableName: string, columnName: string): string {

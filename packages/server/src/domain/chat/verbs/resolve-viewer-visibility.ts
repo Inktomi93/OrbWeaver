@@ -19,11 +19,11 @@
 // resolver's inputs widen (e.g. role-aware "authority implies visibility"), this op passes the whole loaded
 // membership row through, so it inherits the change instead of drifting from it.
 
-import type { ChatContext } from "../context";
-import type { ResolveViewerVisibility } from "../contract/context";
-import { loadPresentVisibilityRow } from "../persistence/roster";
-import { resolveHistoryFloorSeq } from "../substrate/auth";
-import { viewerReadsHidden } from "../substrate/member-visibility";
+import type { ChatContext } from "../context.ts";
+import type { ResolveViewerVisibility } from "../contract/context.ts";
+import { loadPresentVisibilityRow } from "../persistence/roster.ts";
+import { resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
+import { viewerReadsHidden } from "../substrate/member-visibility.ts";
 
 /** Only the db — the verdict is a pure function of the caller's own participant row (the `guard.ts::GuardCtx`
  *  narrowing precedent), so the composition root can build this op without the full chat DI bundle. */

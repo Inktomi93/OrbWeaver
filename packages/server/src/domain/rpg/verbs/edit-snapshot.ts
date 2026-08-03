@@ -31,11 +31,11 @@
 // `{}` that means "I did nothing and I'm not telling you".
 
 import { RPG_HAND_PATCH_PLANES, RPG_OP_SHAPED_PLANES } from "@orb/contracts/rpg";
-import type { EditSnapshotParams } from "../contract/params";
-import type { HandDoorResult } from "../contract/results";
-import type { RpgContext, RpgService } from "../contract/service";
-import { assertHostRole, resolveMember } from "../guard";
-import { applyHandEdit } from "../snapshot-edit";
+import type { EditSnapshotParams } from "../contract/params.ts";
+import type { HandDoorResult } from "../contract/results.ts";
+import type { RpgContext, RpgService } from "../contract/service.ts";
+import { assertHostRole, resolveMember } from "../guard.ts";
+import { applyHandEdit } from "../snapshot-edit.ts";
 
 export function createEditSnapshot(ctx: RpgContext): Pick<RpgService, "editSnapshot"> {
   async function editSnapshot(params: EditSnapshotParams): Promise<HandDoorResult> {

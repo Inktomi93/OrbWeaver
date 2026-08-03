@@ -1,2 +1,2 @@
-export type { OptionStripItem, OptionStripProps } from "./option-strip";
-export { OptionStrip } from "./option-strip";
+export type { OptionStripItem, OptionStripProps } from "./option-strip.tsx";
+export { OptionStrip } from "./option-strip.tsx";

@@ -10,12 +10,12 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/shell-store";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { makeCharacterSummary } from "../../character/fixtures";
-import { makeChatSummary } from "../../chat/fixtures";
-import { ShellCascadeFixture } from "../_cascade-fixtures";
-import { AppShellDropGuardStory, AppShellOnSectionStory, AppShellStory, AppShellWidthProbeStory, ModalScrollStory } from "../_ct-stories";
+import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/shell-store.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { makeCharacterSummary } from "../../character/fixtures.ts";
+import { makeChatSummary } from "../../chat/fixtures.ts";
+import { ShellCascadeFixture } from "../_cascade-fixtures.tsx";
+import { AppShellDropGuardStory, AppShellOnSectionStory, AppShellStory, AppShellWidthProbeStory, ModalScrollStory } from "../_ct-stories.tsx";
 
 /** The thumb-reach budget (L6/J12): rendered mobile-bar buttons (`mobile: "tab"` sections + "You") must
  *  never exceed this — a def flipping to `mobile: "tab"` must not silently balloon the bar. */

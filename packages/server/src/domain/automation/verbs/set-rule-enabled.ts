@@ -2,10 +2,10 @@
 // disabled). This flip is the primary maintainer of the watcher's in-process enabled index (01 §3): after the
 // write, reload the index so the pre-check sees the new enablement immediately.
 
-import type { SetRuleEnabledParams } from "../contract/params";
-import type { AutomationContext, AutomationService } from "../contract/service";
-import { requireRuleHost } from "../guard";
-import { setRuleEnabledRow } from "../persistence/rules";
+import type { SetRuleEnabledParams } from "../contract/params.ts";
+import type { AutomationContext, AutomationService } from "../contract/service.ts";
+import { requireRuleHost } from "../guard.ts";
+import { setRuleEnabledRow } from "../persistence/rules.ts";
 
 export function createSetRuleEnabled(ctx: AutomationContext): AutomationService["setRuleEnabled"] {
   return async ({ principal, ruleId, enabled }: SetRuleEnabledParams): Promise<void> => {

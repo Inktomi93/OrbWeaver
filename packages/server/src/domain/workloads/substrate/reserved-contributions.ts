@@ -9,7 +9,7 @@
 
 import type { DeferredResult } from "@orb/contracts/workloads";
 import { emptyWorkloadParams } from "@orb/contracts/workloads";
-import type { WorkloadContribution } from "../contract/contribution";
+import type { WorkloadContribution } from "../contract/contribution.ts";
 
 /**
  * `reconcile-world-state` — FLAG[PD-18], v2 (Knowledge-Cluster.md §9). The world-state reconciler's owner is

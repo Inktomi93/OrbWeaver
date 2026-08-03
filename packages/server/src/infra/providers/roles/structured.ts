@@ -4,9 +4,9 @@
 // through the chat outputFormat path), and runs it. Batch-shaped like summarize; `responseFormat` required.
 
 import type { SummarizeResult } from "@orb/contracts/providers";
-import type { ProviderDeps, StructuredRequest } from "../contract";
-import { backendForSource, requireBackend, runRole } from "./dispatch";
-import { assertCredentialAllowed } from "./firewall";
+import type { ProviderDeps, StructuredRequest } from "../contract/index.ts";
+import { backendForSource, requireBackend, runRole } from "./dispatch.ts";
+import { assertCredentialAllowed } from "./firewall.ts";
 
 const ROLE = "structured";
 

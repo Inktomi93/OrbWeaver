@@ -23,7 +23,7 @@
 import type { Page, Request } from "@playwright/test";
 // The ONE tRPC code union home (tests/support/matchers.ts, derived through classifyDomainError —
 // gate no-inline-union-redecl). Type-only: erased, no vitest runtime in the Playwright process.
-import type { TrpcErrorCode } from "../matchers";
+import type { TrpcErrorCode } from "../matchers.ts";
 
 /** A response: static data, or a function of the decoded input (return `trpcError(…)` to fail). */
 export type TrpcResponder = unknown | ((input: unknown) => unknown);

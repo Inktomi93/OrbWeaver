@@ -7,13 +7,13 @@
 // directives. Deep-imports the pure model (NOT the hook — its `#forms` import drags browser TSX into
 // typecheck:graph).
 
-import type { RoomOverridesFormValues } from "../../../../../packages/client/src/features/chat/lib/room-overrides-form-model";
+import type { RoomOverridesFormValues } from "../../../../../packages/client/src/features/chat/lib/room-overrides-form-model.ts";
 import {
   EMPTY_ROOM_OVERRIDES_FORM,
   fromRoomOverridesForm,
   toRoomOverridesForm,
-} from "../../../../../packages/client/src/features/chat/lib/room-overrides-form-model";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/client/src/features/chat/lib/room-overrides-form-model.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 function form(overrides: Partial<RoomOverridesFormValues> = {}): RoomOverridesFormValues {
   return { ...EMPTY_ROOM_OVERRIDES_FORM, ...overrides };

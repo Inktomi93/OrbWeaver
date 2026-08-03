@@ -13,10 +13,10 @@ import type { ImageryContext } from "@orb/server/domain/imagery";
 import { createImageryService } from "@orb/server/domain/imagery";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { freshDb } from "../../../../support/db";
-import { makeCharacter } from "../../../../support/factories/character";
-import { expect, test } from "../../../../support/fixtures";
-import { fakeCard, makeHarness, PNG_BYTES, principal, resolutionWith, seedOwner } from "../_support";
+import { freshDb } from "../../../../support/db.ts";
+import { makeCharacter } from "../../../../support/factories/character.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { fakeCard, makeHarness, PNG_BYTES, principal, resolutionWith, seedOwner } from "../_support.ts";
 
 let db: Db;
 

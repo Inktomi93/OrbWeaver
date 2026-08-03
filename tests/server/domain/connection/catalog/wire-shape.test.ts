@@ -5,7 +5,7 @@
 import type { CredentialSource } from "@orb/contracts/connection";
 import { describe } from "vitest";
 import { deriveWireShape, WIRE_SHAPES } from "../../../../../packages/server/src/domain/connection/catalog/wire-shape.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const SOURCES: readonly CredentialSource[] = ["max-pro-sub", "openrouter", "vllm", "local-light", "custom_openai"];
 

@@ -4,7 +4,7 @@
 
 import { logClock } from "@orb/client/lib";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const CLOCK_RE = /^\d{2}:\d{2}:\d{2}\.\d{3}$/u;
 

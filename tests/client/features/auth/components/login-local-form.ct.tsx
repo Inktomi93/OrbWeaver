@@ -7,7 +7,7 @@
 // parses a FORM body, not JSON).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { LoginLocalFormStory } from "../_ct-stories";
+import { LoginLocalFormStory } from "../_ct-stories.tsx";
 
 test("pre-fills the handle and gates submit on a non-empty password", async ({ mount, page }) => {
   await mount(<LoginLocalFormStory defaultHandle="owner" />);

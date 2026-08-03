@@ -6,7 +6,7 @@ import type { ChatContentPart } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ChatCompletionStreamChunk, MapTurnContext, StreamDelta } from "../../backends/kit";
+import type { ChatCompletionStreamChunk, MapTurnContext, StreamDelta } from "../../backends/kit/index.ts";
 import {
   buildOpenAiSamplingFields,
   chatHistoryText,
@@ -19,10 +19,10 @@ import {
   rawWireTools,
   reduceChatCompletionStream,
   turnAbortSignal,
-} from "../../backends/kit";
-import type { ChatHistoryMessage, ChatRequest, ChatResult, HistoryRole, ResponseFormat, WireCaptureSink } from "../../contract";
-import { ProviderError } from "../../contract";
-import type { VllmEngineClient } from "../engine";
+} from "../../backends/kit/index.ts";
+import type { ChatHistoryMessage, ChatRequest, ChatResult, HistoryRole, ResponseFormat, WireCaptureSink } from "../../contract/index.ts";
+import { ProviderError } from "../../contract/index.ts";
+import type { VllmEngineClient } from "../engine/index.ts";
 
 // Qwen3-VL-8B-Instruct card default applied when the preset is silent (not in generation_config.json). The
 // FALLBACK when compose doesn't inject the resolved getter (tests); the LIVE value comes from

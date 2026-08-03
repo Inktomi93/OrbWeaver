@@ -4,8 +4,8 @@
 // literal empty color. Enum fields (font/radius/style/density) are fixed-choice Selects, never cleared.
 // DOM-free pure logic → a browser-free unit test (Spine-Testing.md §7); deep-imports the lib module.
 
-import { DEFAULT_THEME_FORM, themeOverrideFromForm } from "../../../../../packages/client/src/features/settings/lib/theme-editor-model";
-import { expect, test } from "../../../../support/fixtures";
+import { DEFAULT_THEME_FORM, themeOverrideFromForm } from "../../../../../packages/client/src/features/settings/lib/theme-editor-model.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 test("a fully-populated form maps every token into the override", () => {
   const o = themeOverrideFromForm(DEFAULT_THEME_FORM);

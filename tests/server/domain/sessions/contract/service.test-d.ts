@@ -8,8 +8,8 @@
 
 import type { SessionToken } from "@orb/kit/ids";
 import { expectTypeOf, test } from "vitest";
-import type { CreateSessionResult } from "../../../../../packages/server/src/domain/sessions/contract/results";
-import type { SessionsContext, SessionsService } from "../../../../../packages/server/src/domain/sessions/contract/service";
+import type { CreateSessionResult } from "../../../../../packages/server/src/domain/sessions/contract/results.ts";
+import type { SessionsContext, SessionsService } from "../../../../../packages/server/src/domain/sessions/contract/service.ts";
 
 test("the session-token READ seams accept only a SessionToken — a plain string is refused", () => {
   expectTypeOf<SessionsService["validate"]>().parameter(0).toEqualTypeOf<SessionToken>();

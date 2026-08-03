@@ -5,7 +5,7 @@
 
 import { deepMergeRequestBody } from "@orb/server/kit/custom-parameters";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 describe("deepMergeRequestBody — prototype-pollution defense (PD-101 Layer 2)", () => {
   test("a top-level __proto__ on the patch does not pollute Object.prototype", () => {

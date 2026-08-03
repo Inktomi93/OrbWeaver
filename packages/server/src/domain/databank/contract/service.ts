@@ -38,9 +38,9 @@ import type {
   ScrapeWikiParams,
   ScrapeYoutubeParams,
   UploadDocumentParams,
-} from "./params";
-import type { DatabankGatherResult, UploadResult } from "./results";
-import type { ActiveChatDocumentView, DocumentAttachmentsView, DocumentDetailView, DocumentView } from "./views";
+} from "./params.ts";
+import type { DatabankGatherResult, UploadResult } from "./results.ts";
+import type { ActiveChatDocumentView, DocumentAttachmentsView, DocumentDetailView, DocumentView } from "./views.ts";
 
 /** assets.store, narrowed to the CAS write databank drives (`kind:'document'`). Returns the stored blob's id
  *  + sha-256 hash (the hash IS the document's `importHash` — the CAS already content-addressed the bytes). */

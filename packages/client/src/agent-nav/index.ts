@@ -24,7 +24,7 @@ import {
   setActiveSection,
   setContextTab,
 } from "#state";
-import type { NavResult, OrbNavHandle } from "../lib/agent-bridge";
+import type { NavResult, OrbNavHandle } from "../lib/agent-bridge.ts";
 
 const OK: NavResult = { ok: true };
 // One generous page covers a dev character library (small by construction) — enough to resolve any id/name

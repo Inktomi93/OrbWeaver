@@ -5,7 +5,7 @@
 // state to openid-client's authorizationCodeGrant, which verifies state + nonce + PKCE on the exchange.
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
-import { resolveCookieSession } from "./cookie-session";
+import { resolveCookieSession } from "./cookie-session.ts";
 
 export function resolveOidc(): Promise<ResolvedIdentity | null> {
   return resolveCookieSession();

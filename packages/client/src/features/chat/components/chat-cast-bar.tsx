@@ -17,8 +17,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { testId } from "#lib";
-import { filterCharacters, resolveHumanParticipants } from "../lib/roster";
-import { AddMemberPopover } from "./add-member-popover";
+import { filterCharacters, resolveHumanParticipants } from "../lib/roster.ts";
+import { AddMemberPopover } from "./add-member-popover.tsx";
 
 export interface ChatCastBarProps {
   readonly chatId: ChatId;

@@ -5,8 +5,8 @@
 
 import type { Db } from "@orb/db";
 import { createPasswordHasher } from "#infra/auth";
-import type { SessionsContext } from "./contract/service";
-import { createTokenHasher, mintSessionToken, SESSION_TTL_MS, SLIDE_THROTTLE_MS } from "./tokens/tokens";
+import type { SessionsContext } from "./contract/service.ts";
+import { createTokenHasher, mintSessionToken, SESSION_TTL_MS, SLIDE_THROTTLE_MS } from "./tokens/tokens.ts";
 
 export function createSessionsContext(db: Db, now: () => number, sessionSecret: string | null): SessionsContext {
   return {

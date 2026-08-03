@@ -7,7 +7,7 @@
 // restarts, so the `draft-N` keys are deterministic.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ActiveChatStoreProbe } from "./_ct-stories";
+import { ActiveChatStoreProbe } from "./_ct-stories.tsx";
 
 test("new-chat mints a fresh sessionKey each time and carries the roster seed", async ({ mount }) => {
   const probe = await mount(<ActiveChatStoreProbe />);

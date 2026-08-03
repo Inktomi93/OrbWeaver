@@ -14,17 +14,17 @@
 
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
-import type { SearchContext } from "../context";
-import { SEARCH_EMPTY_QUERY, SEARCH_LENS_REQUIRED, SEARCH_SCOPE_REQUIRED, SEARCH_SCOPE_UNSUPPORTED, SearchError } from "../contract/errors";
-import type { SearchScope, UnifiedSearchParams } from "../contract/params";
-import type { DigestSearchHit, SegmentSearchHit, UnifiedSearchResult } from "../contract/results";
-import type { SearchService } from "../contract/service";
-import { nearestDigests, ownedChatIds } from "../persistence/digest-rows";
-import { OWNER_OVERFETCH, SCOPED_POOL_K } from "../substrate/constants";
-import { compareCslsBy, cslsAdjust } from "../substrate/csls";
-import { blockKeyStr } from "../substrate/dedupe";
-import { SCOPE_INSTRUCTIONS } from "../substrate/instructions";
-import { applyRerank } from "../substrate/rerank";
+import type { SearchContext } from "../context.ts";
+import { SEARCH_EMPTY_QUERY, SEARCH_LENS_REQUIRED, SEARCH_SCOPE_REQUIRED, SEARCH_SCOPE_UNSUPPORTED, SearchError } from "../contract/errors.ts";
+import type { SearchScope, UnifiedSearchParams } from "../contract/params.ts";
+import type { DigestSearchHit, SegmentSearchHit, UnifiedSearchResult } from "../contract/results.ts";
+import type { SearchService } from "../contract/service.ts";
+import { nearestDigests, ownedChatIds } from "../persistence/digest-rows.ts";
+import { OWNER_OVERFETCH, SCOPED_POOL_K } from "../substrate/constants.ts";
+import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
+import { blockKeyStr } from "../substrate/dedupe.ts";
+import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
+import { applyRerank } from "../substrate/rerank.ts";
 
 /** The sibling verbs the dispatch delegates to for the owner-wide card/corpus/image surfaces + the
  *  (owner-gated) within-chat verbatim `segments`. Digests are NOT delegated — every digest scope routes

@@ -3,7 +3,7 @@
 import { Field } from "@orb/ui/field";
 import { Textarea } from "@orb/ui/textarea";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
 
 const NON_EMPTY = /.+/u;
 

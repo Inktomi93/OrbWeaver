@@ -1,2 +1,2 @@
-export type { CardProps } from "./card";
-export { Card } from "./card";
+export type { CardProps } from "./card.tsx";
+export { Card } from "./card.tsx";

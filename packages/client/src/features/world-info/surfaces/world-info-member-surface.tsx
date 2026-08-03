@@ -25,9 +25,9 @@ import { useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId } from "#state";
-import { BookDetailsDialog } from "../components/book-details-dialog";
-import { EntryEditor } from "../components/entry-editor";
-import { useApplyEntryOrder, useBackfillWorldTitles, useCreateWorldEntry, useUpdateWorldBook } from "../hooks/use-world-info-mutations";
+import { BookDetailsDialog } from "../components/book-details-dialog.tsx";
+import { EntryEditor } from "../components/entry-editor.tsx";
+import { useApplyEntryOrder, useBackfillWorldTitles, useCreateWorldEntry, useUpdateWorldBook } from "../hooks/use-world-info-mutations.ts";
 
 const NEW_ENTRY_TITLE = "New entry";
 const NEW_ENTRY_CONTENT = "New lore.";

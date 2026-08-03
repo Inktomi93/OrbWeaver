@@ -1,9 +1,9 @@
 import { DateTime } from "luxon";
 import type { CelValue } from "#cel";
 import { evalCel, isCelParseError, parseCel } from "#cel";
-import { BUILTIN_MACRO_METADATA } from "./builtin-metadata";
-import type { MacroAST, MacroContext, MacroHandler, MacroMetadata, MacroMetadataInput, MacroRegisterOptions, MacroRegistry, VarOp } from "./types";
-import { applyVarOp } from "./variables";
+import { BUILTIN_MACRO_METADATA } from "./builtin-metadata.ts";
+import type { MacroAST, MacroContext, MacroHandler, MacroMetadata, MacroMetadataInput, MacroRegisterOptions, MacroRegistry, VarOp } from "./types.ts";
+import { applyVarOp } from "./variables.ts";
 
 const DECIMAL_RADIX = 10;
 const RANDOM_DEFAULT_CEIL = 101; // bare {{random}} rolls 0..100 inclusive

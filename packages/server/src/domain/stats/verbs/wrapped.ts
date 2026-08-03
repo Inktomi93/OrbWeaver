@@ -1,7 +1,7 @@
 import type { UserId } from "@orb/kit/ids";
-import type { StatsContext, StatsService } from "../contract/service";
-import type { WrappedSummary } from "../contract/views";
-import { readWrapped } from "../persistence/rollups";
+import type { StatsContext, StatsService } from "../contract/service.ts";
+import type { WrappedSummary } from "../contract/views.ts";
+import { readWrapped } from "../persistence/rollups.ts";
 
 // wrapped — the shareable "your RP in numbers" headline (owner rollup + leaderboard top + temporal).
 // `null` until the rollup has run.

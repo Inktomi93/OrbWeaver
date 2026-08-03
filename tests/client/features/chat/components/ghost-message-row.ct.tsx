@@ -12,7 +12,7 @@
 
 import type { MountResult } from "@playwright/experimental-ct-react";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { GhostRowScriptedStory, GhostRowStory } from "../_ct-stories";
+import { GhostRowScriptedStory, GhostRowStory } from "../_ct-stories.tsx";
 
 const ERROR_FALLBACK = "Content failed to render.";
 

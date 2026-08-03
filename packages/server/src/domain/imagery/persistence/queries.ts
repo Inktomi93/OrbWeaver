@@ -8,7 +8,7 @@ import type { Db } from "@orb/db";
 import { assets, imageryGenerations } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import { and, desc, eq } from "drizzle-orm";
-import type { GenerationProvenance, ReuseRow } from "../contract/results";
+import type { GenerationProvenance, ReuseRow } from "../contract/results.ts";
 
 interface InsertGenerationInput {
   readonly id: ImageryGenerationId;

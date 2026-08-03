@@ -12,8 +12,8 @@ import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
-import type { EditImageParams, ExtractionMode, ExtractPromptParams, GeneratePictureParams, MultimodalMode, ReadProvenanceParams } from "./params";
-import type { ExtractedPrompt, GeneratedPicture, GenerationProvenance, ImageryWarning } from "./results";
+import type { EditImageParams, ExtractionMode, ExtractPromptParams, GeneratePictureParams, MultimodalMode, ReadProvenanceParams } from "./params.ts";
+import type { ExtractedPrompt, GeneratedPicture, GenerationProvenance, ImageryWarning } from "./results.ts";
 
 // ── Internal verb-wiring op types (verb-to-verb factory injection, wired at service.ts) ──
 

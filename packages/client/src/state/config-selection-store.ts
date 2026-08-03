@@ -6,9 +6,9 @@
 // A `P extends string` primary could only express that by string-packing, which is the stringly state the
 // house style rejects. Not persisted — landing back on the workspace welcome after a reload is fine.
 
-import { openCollectionGroup } from "./config-group-open-store";
-import { createKindedSelectionStore } from "./create-kinded-selection-store";
-import { setActiveSection } from "./shell-store";
+import { openCollectionGroup } from "./config-group-open-store.ts";
+import { createKindedSelectionStore } from "./create-kinded-selection-store.ts";
+import { setActiveSection } from "./shell-store.ts";
 
 const configSelection = createKindedSelectionStore("config-selection");
 

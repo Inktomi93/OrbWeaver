@@ -13,7 +13,7 @@ import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeDiscoveryHarness, seedCharacter, seedUser } from "../_support.ts";
 
 // Insert a distilled summary row directly (the browse read is decoupled from the distill compute; a direct

@@ -6,7 +6,7 @@
 // class of user-facing error notifications was console-only.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { NotifyToastStory } from "./_ct-stories";
+import { NotifyToastStory } from "./_ct-stories.tsx";
 
 test("a failed mutation with errorToast meta renders a toast (the notify render half)", async ({ mount, page }) => {
   await mount(<NotifyToastStory />);

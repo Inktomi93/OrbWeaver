@@ -30,8 +30,8 @@ import type { StreamDataFrame } from "@orb/contracts/stream";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { InboxView, NotificationsService } from "#domain/notifications";
 import { securityEvent } from "#foundation/observability";
-import { subscribeNotifications } from "../../notifications-bus";
-import type { RoomSourceDef } from "../room-source";
+import { subscribeNotifications } from "../../notifications-bus.ts";
+import type { RoomSourceDef } from "../room-source.ts";
 
 // Bound the reconnect replay so a client that resumes from a very old cursor can't page its whole inbox in
 // one attach; older-than-this is the client's job to refetch via `list`.

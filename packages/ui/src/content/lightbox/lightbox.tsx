@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { Dialog, DialogPopup } from "#primitives/dialog";
-import type { MediaSource } from "../message-media";
-import { MessageMedia } from "../message-media";
+import type { MediaSource } from "../message-media/index.ts";
+import { MessageMedia } from "../message-media/index.ts";
 
 export interface LightboxProps {
   readonly open: boolean;

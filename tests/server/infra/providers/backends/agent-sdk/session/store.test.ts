@@ -9,7 +9,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { buildSeedFrames, InMemorySessionStore, SessionCache, seedSessionId } from "@orb/server/infra/providers/backends/agent-sdk/session";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../../support/fixtures";
+import { expect, test } from "../../../../../../support/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat-store");
 const SESSION_ID = "33333333-3333-4333-8333-333333333333";

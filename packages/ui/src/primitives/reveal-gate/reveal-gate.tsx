@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { Eye, EyeOff, Icon, Lock } from "#primitives/icons";
-import { revealGateVariants } from "./variants";
+import { revealGateVariants } from "./variants.ts";
 
 export interface RevealGateProps extends Omit<ComponentProps<"div">, "children"> {
   /** The reveal trigger's label. Default `"Reveal"`. */

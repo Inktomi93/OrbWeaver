@@ -3,9 +3,9 @@
 // `max-pro-sub`/`custom_openai` (those endpoints don't authenticate text embeddings).
 
 import type { EmbedResult } from "@orb/contracts/providers";
-import type { EmbedRequest, ProviderDeps } from "../contract";
-import { backendForSource, requireBackend, runRole } from "./dispatch";
-import { assertCredentialAllowed } from "./firewall";
+import type { EmbedRequest, ProviderDeps } from "../contract/index.ts";
+import { backendForSource, requireBackend, runRole } from "./dispatch.ts";
+import { assertCredentialAllowed } from "./firewall.ts";
 
 const ROLE = "embed";
 

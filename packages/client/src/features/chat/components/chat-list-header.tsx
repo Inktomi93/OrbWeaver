@@ -23,7 +23,7 @@ import { useState } from "react";
 import { ListPaneHeader } from "#components";
 import { useTRPC } from "#data";
 import { openModal } from "#state";
-import { ChatImportDialog } from "./chat-import-dialog";
+import { ChatImportDialog } from "./chat-import-dialog.tsx";
 
 export function ChatListHeader(): ReactElement {
   const trpc = useTRPC();

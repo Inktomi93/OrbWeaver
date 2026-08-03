@@ -24,8 +24,8 @@
 import type { UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { RPG_RELATIONSHIP_KINDS } from "./enums";
-import { rpgTrackerValueSchema, rpgTrackerValuesSchema } from "./tracker";
+import { RPG_RELATIONSHIP_KINDS } from "./enums.ts";
+import { rpgTrackerValueSchema, rpgTrackerValuesSchema } from "./tracker.ts";
 
 // The slug grammar (ASCII match, no `u` flag — `useUnicodeRegex` is deliberately absent from biome.json).
 // Hoisted to module scope (the top-level-regex rule) and deliberately LOSSY: it folds case, collapses every

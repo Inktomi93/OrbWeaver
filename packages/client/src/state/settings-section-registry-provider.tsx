@@ -2,6 +2,6 @@
 // module never mixes a hook export with a component export (useComponentExportOnlyModules). The Provider
 // is the createRegistryContext mint's Provider, bound to the settings-section registry.
 
-import { settingsSectionRegistryContext } from "./settings-section-registry-context";
+import { settingsSectionRegistryContext } from "./settings-section-registry-context.ts";
 
 export const SettingsSectionRegistryProvider = settingsSectionRegistryContext.Provider;

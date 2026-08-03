@@ -2,7 +2,7 @@
 // bit-shift form) is used to cross-check the codec's emitted CRC against the canonical polynomial.
 import { deflateSync } from "node:zlib";
 import { isPng, readCardChunk, writeCardChunk } from "@orb/kit/png-card-chunk";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 const IEND_TYPE_BYTES = [0x49, 0x45, 0x4e, 0x44]; // "IEND"

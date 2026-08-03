@@ -3,10 +3,10 @@
 // with markRevokedByUser (which does ownership-check) until userId is threaded through the runner revoke path.
 
 import { securityEvent } from "#foundation/observability";
-import type { CredentialContext } from "../context";
-import type { MarkRevokedParams } from "../contract/params";
-import type { CredentialsService } from "../contract/service";
-import { setRevokedById } from "../persistence/queries";
+import type { CredentialContext } from "../context.ts";
+import type { MarkRevokedParams } from "../contract/params.ts";
+import type { CredentialsService } from "../contract/service.ts";
+import { setRevokedById } from "../persistence/queries.ts";
 
 export function createMarkRevoked(ctx: CredentialContext): CredentialsService["markRevoked"] {
   return async (params: MarkRevokedParams): Promise<void> => {

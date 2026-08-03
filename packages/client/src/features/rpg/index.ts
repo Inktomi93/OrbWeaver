@@ -9,6 +9,6 @@
 // makes the CONTEXT panel BE the HUD on an engaged game chat. Same deps, same predicate, same one-directional
 // flow — the tabs supply the content, the region supplies the arrangement.
 
-export { makeRpgContextTabs } from "./lib/rpg-context-section";
-export type { RpgContextTabsDeps } from "./lib/rpg-game-chat";
-export { makeRpgHudRegion } from "./lib/rpg-hud-region";
+export { makeRpgContextTabs } from "./lib/rpg-context-section.tsx";
+export type { RpgContextTabsDeps } from "./lib/rpg-game-chat.ts";
+export { makeRpgHudRegion } from "./lib/rpg-hud-region.tsx";

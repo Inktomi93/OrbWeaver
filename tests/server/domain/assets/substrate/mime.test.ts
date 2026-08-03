@@ -5,7 +5,7 @@
 
 import { describe } from "vitest";
 import { assertMagicMatches } from "../../../../../packages/server/src/domain/assets/substrate/mime.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 // PNG 8-byte signature (an animated PNG carries the SAME leading bytes — the acTL chunk sits past it).
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);

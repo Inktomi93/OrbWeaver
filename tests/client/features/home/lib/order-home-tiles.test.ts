@@ -4,8 +4,8 @@
 
 import type { HomeTileContribution } from "@orb/client/lib";
 import { Clock } from "@orb/ui/icons";
-import { orderHomeTiles } from "../../../../../packages/client/src/features/home/lib/order-home-tiles";
-import { expect, test } from "../../../../support/fixtures";
+import { orderHomeTiles } from "../../../../../packages/client/src/features/home/lib/order-home-tiles.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 function tile(id: string, order?: number): HomeTileContribution {
   return { id, title: id, icon: Clock, body: () => null, ...(order === undefined ? {} : { order }) };

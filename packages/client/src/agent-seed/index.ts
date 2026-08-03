@@ -31,7 +31,7 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server";
 import type { TRPCClient } from "@trpc/client";
-import type { OrbSeedHandle, SeedProfile } from "../lib/agent-bridge";
+import type { OrbSeedHandle, SeedProfile } from "../lib/agent-bridge.ts";
 
 /**
  * EDITSNAP-OK — the errors-as-data CHECK for this seeder's two hand-door calls.

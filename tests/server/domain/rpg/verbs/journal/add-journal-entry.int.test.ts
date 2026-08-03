@@ -5,9 +5,9 @@ import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { listActiveJournal } from "../../../../../../packages/server/src/domain/rpg/persistence/journal";
-import { freshDb } from "../../../../../support/db";
-import { expect, principal, seedLiteGame, test } from "../../_support";
+import { listActiveJournal } from "../../../../../../packages/server/src/domain/rpg/persistence/journal.ts";
+import { freshDb } from "../../../../../support/db.ts";
+import { expect, principal, seedLiteGame, test } from "../../_support.ts";
 
 let db: Db;
 beforeEach(async () => {

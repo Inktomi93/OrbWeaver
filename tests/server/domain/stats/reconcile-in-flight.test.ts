@@ -10,7 +10,7 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { createReconcileInFlight } from "../../../../packages/server/src/domain/stats/reconcile-in-flight.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const ALICE: UserId = castId<UserId>("user_alice");
 const BOB: UserId = castId<UserId>("user_bob");

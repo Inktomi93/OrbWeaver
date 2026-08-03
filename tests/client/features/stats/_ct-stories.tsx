@@ -10,8 +10,8 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
-import { SectionContextHeader } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
+import { SectionContextHeader } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
+import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The Analytics LIST leaderboard navigator over the real data layer. */
 export function AnalyticsListSurfaceStory(): ReactElement {

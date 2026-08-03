@@ -6,7 +6,7 @@
 import { StatFigure } from "@orb/ui/stat-figure";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
 
 test("renders label + value with no chart when trend is omitted", async ({ mount }) => {
   const component = await mount(<StatFigure label="Documents indexed" value="1,204" />);

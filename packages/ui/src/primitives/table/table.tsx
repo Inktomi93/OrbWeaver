@@ -6,7 +6,7 @@ import { Checkbox } from "#primitives/checkbox";
 import { EmptyState } from "#primitives/empty-state";
 import type { LucideIcon } from "#primitives/icons";
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronsUpDown, ChevronUp, Icon } from "#primitives/icons";
-import { tableVariants } from "./variants";
+import { tableVariants } from "./variants.ts";
 
 const DEFAULT_PAGE_SIZE = 10;
 // A frozen stable default — a fresh new Set() every render would break referential equality for no reason.

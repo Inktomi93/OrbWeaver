@@ -21,7 +21,7 @@
 // resolving, so a stale anchor falls to the active persona instead of being copied or resurrected).
 
 import type { PersonaId, UserId } from "@orb/kit/ids";
-import type { PersonaRosterView } from "./views";
+import type { PersonaRosterView } from "./views.ts";
 
 /** Resolve the presentation surface of personas a room's ROSTER consents to.
  *

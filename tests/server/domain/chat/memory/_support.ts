@@ -10,9 +10,9 @@ import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, chatSegments } from "@orb/db";
 import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { EmbeddingsStoreOp, StoreDigestParams, StoreSegmentParams } from "../../../../../packages/server/src/domain/chat/contract/context";
-import type { MemoryScope } from "../../../../../packages/server/src/domain/chat/memory/types";
-import { seedMessage } from "../_support";
+import type { EmbeddingsStoreOp, StoreDigestParams, StoreSegmentParams } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
+import type { MemoryScope } from "../../../../../packages/server/src/domain/chat/memory/types.ts";
+import { seedMessage } from "../_support.ts";
 
 export const MODEL = "test-embed-1024";
 const DIM = 1024;

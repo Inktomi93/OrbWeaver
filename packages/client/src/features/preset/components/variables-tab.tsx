@@ -8,7 +8,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { EntryListEditor } from "#components";
 import type { AppFormInstance } from "#forms";
-import { VariableEditorDialog } from "./variable-editor-dialog";
+import { VariableEditorDialog } from "./variable-editor-dialog.tsx";
 
 type AppForm = AppFormInstance<PromptConfig>;
 

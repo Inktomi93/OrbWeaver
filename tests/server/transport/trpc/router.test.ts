@@ -8,7 +8,7 @@
 
 import { logger } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "./_support.ts";
 
 describe("clientError (PD-58 — the client error boundary's report verb)", () => {

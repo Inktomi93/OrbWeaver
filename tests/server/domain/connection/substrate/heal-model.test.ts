@@ -6,7 +6,7 @@ import { DEFAULT_CHAT_MODEL_ID } from "@orb/contracts/connection";
 import { getLog } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
 import { healToChatDefault } from "../../../../../packages/server/src/domain/connection/substrate/heal-model.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("healToChatDefault", () => {
   test("null heals to the curated default", () => {

@@ -14,8 +14,8 @@ import {
   slashCompletionToken,
   slashOptionId,
   unknownCommandNotice,
-} from "../../../../../packages/client/src/features/chat/lib/slash-command";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/client/src/features/chat/lib/slash-command.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 function command(id: string): SlashCommandContribution {
   return { id, label: id, describe: id, mount: () => null };

@@ -13,7 +13,7 @@ import type { ReactElement } from "react";
 import { CharacterPicker } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { addDraftCharacter } from "#state";
-import { useAddCharacterToChat } from "../hooks/use-roster-mutations";
+import { useAddCharacterToChat } from "../hooks/use-roster-mutations.ts";
 
 function AddMemberShell({
   existingCharacterIds,

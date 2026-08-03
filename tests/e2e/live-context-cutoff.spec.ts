@@ -21,8 +21,8 @@
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import { messageRow, waitForAppReady } from "./support/chat-room";
-import { getUserSettings, listCanon, listCharacters, sendTurn, startChat, trpcMutation, trpcQuery } from "./support/trpc";
+import { messageRow, waitForAppReady } from "./support/chat-room.ts";
+import { getUserSettings, listCanon, listCharacters, sendTurn, startChat, trpcMutation, trpcQuery } from "./support/trpc.ts";
 
 interface ContextFitPreview {
   readonly boundaryMessageId: string | null;

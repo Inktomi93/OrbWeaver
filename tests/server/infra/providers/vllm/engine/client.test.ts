@@ -11,7 +11,7 @@ import { ProviderError } from "@orb/server/infra/providers";
 import type { GpuVram, WakeGateDeps } from "@orb/server/infra/providers/vllm/engine";
 import { __resetWakeGateCache, createVllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 beforeEach(() => {
   __resetWakeGateCache();

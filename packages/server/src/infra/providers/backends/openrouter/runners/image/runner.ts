@@ -13,10 +13,17 @@
 
 import type { ChatContentItems, ChatMessages, ChatRequest, ChatStreamChunk, ChatUserMessageContent, ChatResult as SdkChatResult } from "@openrouter/sdk/models";
 import type { ContentImageURL, CreateEmbeddingsRequestBody, CreateEmbeddingsResponse, Input } from "@openrouter/sdk/models/operations";
-import type { GeneratedImage, ImageEmbedRequest, ImageEmbedResult, ImageGenerateRequest, ImageGenerateResult, ResolvedWarning } from "../../../../contract";
-import { ProviderError } from "../../../../contract";
-import type { NormalizeImageBytes } from "../../../kit";
-import { providerErrorFromHttp } from "../../../kit";
+import type {
+  GeneratedImage,
+  ImageEmbedRequest,
+  ImageEmbedResult,
+  ImageGenerateRequest,
+  ImageGenerateResult,
+  ResolvedWarning,
+} from "../../../../contract/index.ts";
+import { ProviderError } from "../../../../contract/index.ts";
+import type { NormalizeImageBytes } from "../../../kit/index.ts";
+import { providerErrorFromHttp } from "../../../kit/index.ts";
 
 const BASE64 = "base64";
 const DATA_URL_PREFIX = "data:";

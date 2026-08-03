@@ -1,1 +1,1 @@
-export { LabeledChartFrame } from "./labeled-chart-frame";
+export { LabeledChartFrame } from "./labeled-chart-frame.tsx";

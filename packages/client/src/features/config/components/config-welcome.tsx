@@ -18,7 +18,7 @@ import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import type { CollectionContribution, ContributorRegistry } from "#lib";
-import { orderCollections } from "../lib/order-collections";
+import { orderCollections } from "../lib/order-collections.ts";
 
 export interface ConfigWelcomeProps {
   readonly collections: ContributorRegistry<CollectionContribution>;

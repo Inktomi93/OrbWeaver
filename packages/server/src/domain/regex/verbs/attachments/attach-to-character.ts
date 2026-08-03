@@ -3,12 +3,12 @@
 // composite PK; a re-attach keeps the existing position rather than jumping the script to the end.
 
 import { characterRegexScripts } from "@orb/db";
-import type { RegexContext } from "../../context";
-import { RegexNotFoundError } from "../../contract/errors";
-import type { AttachToCharacterParams } from "../../contract/params";
-import type { RegexService } from "../../contract/service";
-import { ensureCharacterOwned } from "../../persistence/ownership";
-import { listCharacterScripts, loadOwnedScript } from "../../persistence/queries";
+import type { RegexContext } from "../../context.ts";
+import { RegexNotFoundError } from "../../contract/errors.ts";
+import type { AttachToCharacterParams } from "../../contract/params.ts";
+import type { RegexService } from "../../contract/service.ts";
+import { ensureCharacterOwned } from "../../persistence/ownership.ts";
+import { listCharacterScripts, loadOwnedScript } from "../../persistence/queries.ts";
 
 export function createAttachToCharacter(ctx: RegexContext): RegexService["attachToCharacter"] {
   return async ({ principal, characterId, scriptId }: AttachToCharacterParams) => {

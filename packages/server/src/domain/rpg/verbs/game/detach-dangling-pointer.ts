@@ -17,10 +17,10 @@
 // a different door. So the heal only ever fires when the pointed-at game is genuinely gone.
 
 import { DomainOperationError } from "@orb/kit/errors";
-import type { DetachDanglingPointerParams } from "../../contract/params";
-import type { RpgContext, RpgService } from "../../contract/service";
-import { assertHostRole, notFoundGame } from "../../guard";
-import { findGameByChat } from "../../persistence/games";
+import type { DetachDanglingPointerParams } from "../../contract/params.ts";
+import type { RpgContext, RpgService } from "../../contract/service.ts";
+import { assertHostRole, notFoundGame } from "../../guard.ts";
+import { findGameByChat } from "../../persistence/games.ts";
 
 export function createDetachDanglingPointer(ctx: RpgContext): Pick<RpgService, "detachDanglingPointer"> {
   async function detachDanglingPointer(params: DetachDanglingPointerParams): Promise<void> {

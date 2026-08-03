@@ -12,7 +12,7 @@ import { createAssetsService } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, pngBytes, seedCharacter, seedUser } from "../_support.ts";
 
 function sha256(bytes: Uint8Array): string {

@@ -33,11 +33,11 @@ import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { settingsAnchorId } from "#state";
-import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations";
-import { WORKLOAD_KIND_LABELS } from "../lib/workloads-model";
-import { SCHEDULE_CADENCE_LABELS } from "../lib/workloads-schedule-model";
-import { WORKLOADS_SCHEDULES_SUBCATEGORY } from "../lib/workloads-schedules-nav";
-import { CreateScheduleDialog, EditScheduleDialog } from "./create-schedule-dialog";
+import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations.ts";
+import { WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
+import { SCHEDULE_CADENCE_LABELS } from "../lib/workloads-schedule-model.ts";
+import { WORKLOADS_SCHEDULES_SUBCATEGORY } from "../lib/workloads-schedules-nav.ts";
+import { CreateScheduleDialog, EditScheduleDialog } from "./create-schedule-dialog.tsx";
 
 type ScheduleItem = inferOutput<Trpc["workloads"]["listSchedules"]>[number];
 

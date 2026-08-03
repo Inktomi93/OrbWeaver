@@ -24,10 +24,10 @@ import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import { selectChat, setActiveSection } from "#state";
-import { useAcceptHostHandoff } from "../hooks/use-handoff-actions";
-import { useDismissNotification, useInbox, useMarkAllNotificationsRead } from "../hooks/use-inbox";
-import { useInboxStream } from "../hooks/use-inbox-stream";
-import { useAcceptInvite, useDeclineInvite } from "../hooks/use-invite-actions";
+import { useAcceptHostHandoff } from "../hooks/use-handoff-actions.ts";
+import { useDismissNotification, useInbox, useMarkAllNotificationsRead } from "../hooks/use-inbox.ts";
+import { useInboxStream } from "../hooks/use-inbox-stream.ts";
+import { useAcceptInvite, useDeclineInvite } from "../hooks/use-invite-actions.ts";
 
 type InboxItem = inferOutput<Trpc["notifications"]["list"]>["items"][number];
 

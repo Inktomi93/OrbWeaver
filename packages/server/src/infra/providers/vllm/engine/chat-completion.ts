@@ -5,8 +5,8 @@
 import type { ImageInput, RepetitionDetection, ResponseFormat } from "@orb/contracts/role-clients";
 import { scrubWireSchema } from "@orb/kit/json-schema";
 import type { MessageRole } from "@orb/kit/message-role";
-import type { VllmEngineClient } from "./client";
-import { toDataUri } from "./image";
+import type { VllmEngineClient } from "./client.ts";
+import { toDataUri } from "./image.ts";
 
 export interface VllmChatMessage {
   readonly role: MessageRole;

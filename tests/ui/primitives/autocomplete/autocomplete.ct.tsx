@@ -5,7 +5,7 @@ import { Autocomplete } from "@orb/ui/autocomplete";
 import { Field } from "@orb/ui/field";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ControlledOpenStory, CustomFilterStory, DerivedItemsStory, InlineStory } from "./autocomplete.fixtures";
+import { ControlledOpenStory, CustomFilterStory, DerivedItemsStory, InlineStory } from "./autocomplete.fixtures.tsx";
 
 const NON_EMPTY = /.+/u;
 

@@ -5,7 +5,7 @@
 // query-boundary.ct.tsx's offline test.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { OnlineStatusProbeStory } from "./_ct-stories";
+import { OnlineStatusProbeStory } from "./_ct-stories.tsx";
 
 test("tracks the browser online/offline events, both directions", async ({ mount, page, context }) => {
   await mount(<OnlineStatusProbeStory />);

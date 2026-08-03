@@ -3,9 +3,9 @@
 // each vector onto its caller position. Requests the OpenAI `dimensions` param; if a pooling combo rejects
 // it, retries full-dim and truncates+renormalizes client-side.
 
-import type { EmbedRequest, EmbedResult } from "../../contract";
-import type { VllmEngineClient } from "../engine";
-import { DOC_INSTRUCTION, normalizeVector, QUERY_INSTRUCTION, toEmbedPrompt, truncateToDim } from "../engine";
+import type { EmbedRequest, EmbedResult } from "../../contract/index.ts";
+import type { VllmEngineClient } from "../engine/index.ts";
+import { DOC_INSTRUCTION, normalizeVector, QUERY_INSTRUCTION, toEmbedPrompt, truncateToDim } from "../engine/index.ts";
 
 // vLLM rejects over-long input with HTTP 400 by default; `-1` tells it to truncate using its own tokenizer.
 const TRUNCATE_TO_MODEL_MAX = -1;

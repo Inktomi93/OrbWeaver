@@ -17,8 +17,8 @@ import type { CharacterHandle, CharacterId, ChatId, PersonaId, UserId, WorldBook
 import { castId } from "@orb/kit/ids";
 import { resolveEntryInjection, resolveEntryPosition, resolveEntryScope } from "@orb/kit/world-info";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../support/db";
-import { expect, test } from "../../support/fixtures";
+import { freshDb } from "../../support/db.ts";
+import { expect, test } from "../../support/fixtures.ts";
 import { seedChat, seedUser } from "./_support.ts";
 
 // A non-default injection depth (named — keeps the metadata round-trip self-documenting).

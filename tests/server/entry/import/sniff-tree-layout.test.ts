@@ -6,7 +6,7 @@
 
 import { sniffTreeLayout } from "@orb/server/entry/import";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 // The registry's orb-only entity dirs (bare names), i.e. the full portable set MINUS the ST-shared
 // characters/chats — the positive orb signal the route passes in.

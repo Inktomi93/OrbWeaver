@@ -20,8 +20,8 @@ import type {
 import { castId } from "@orb/kit/ids";
 import { inspectChatState } from "@orb/server/foundation/observability/debug";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../../../../support/db";
-import { expect, test } from "../../../../../support/fixtures";
+import { freshDb } from "../../../../../support/db.ts";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const SEEDED_THROUGH_SEQ = 4;
 const CANON_HASH = "canon-hash-inspect";

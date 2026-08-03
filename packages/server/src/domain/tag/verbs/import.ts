@@ -10,9 +10,9 @@ import type { UserId } from "@orb/kit/ids";
 import { normalizeTagName } from "@orb/kit/tag";
 import { portableParseError } from "#kit/serde/lib";
 import { parseTagLibrary, TAG_LIBRARY_SCHEMA_KIND } from "#kit/serde/tag";
-import type { TagLibraryImportResult } from "../contract/results";
-import type { TagContext } from "../contract/service";
-import { restoreOwnedTags } from "../persistence/queries";
+import type { TagLibraryImportResult } from "../contract/results.ts";
+import type { TagContext } from "../contract/service.ts";
+import { restoreOwnedTags } from "../persistence/queries.ts";
 
 /** Parse tag-library bytes and merge them into the owner's namespace (idempotent, dedup by folded name). */
 export function createImport(ctx: TagContext): (ownerId: UserId, bytes: Uint8Array) => Promise<TagLibraryImportResult> {

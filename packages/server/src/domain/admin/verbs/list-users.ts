@@ -1,11 +1,11 @@
 // verb: listUsers — the admin user table. admin-gated (owner ∪ admin); defense-in-depth even though the
 // transport `adminMiddleware` already gated (the verb is safe independent of its caller).
 
-import type { AdminContext } from "../context";
-import type { ListUsersParams } from "../contract/params";
-import type { AdminService } from "../contract/service";
-import { requireAdmin } from "../guard";
-import { listUsers } from "../persistence/queries";
+import type { AdminContext } from "../context.ts";
+import type { ListUsersParams } from "../contract/params.ts";
+import type { AdminService } from "../contract/service.ts";
+import { requireAdmin } from "../guard.ts";
+import { listUsers } from "../persistence/queries.ts";
 
 export function createListUsers(ctx: AdminContext): AdminService["listUsers"] {
   // `async` so a gate-deny surfaces as a REJECTED promise (consistent with every other verb), not a

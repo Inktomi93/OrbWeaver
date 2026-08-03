@@ -6,8 +6,8 @@
 // component), so they never appear here even when `showTimestamps` is on.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { MessageMetadataVisibility } from "../../../../../packages/client/src/features/chat/components/message-metadata-row";
-import { MessageMetadataRowStory } from "../_ct-stories";
+import type { MessageMetadataVisibility } from "../../../../../packages/client/src/features/chat/components/message-metadata-row.tsx";
+import { MessageMetadataRowStory } from "../_ct-stories.tsx";
 
 const ALL_OFF: MessageMetadataVisibility = {
   showTimestamps: false,

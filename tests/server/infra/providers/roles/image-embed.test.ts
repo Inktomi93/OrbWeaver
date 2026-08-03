@@ -5,7 +5,7 @@
 
 import type { ImageEmbedRequest, ResolvedCredential } from "@orb/server/infra/providers";
 import { createImageEmbedRole } from "@orb/server/infra/providers";
-import { runEmbedShapedRoleTests } from "./_support";
+import { runEmbedShapedRoleTests } from "./_support.ts";
 
 runEmbedShapedRoleTests({
   method: "imageEmbed",

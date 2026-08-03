@@ -9,9 +9,9 @@ import type { Db } from "@orb/db";
 import type { CharacterId, Handle, RpgSheetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { findSheet, listSheets, upsertSheet } from "../../../../../packages/server/src/domain/rpg/persistence/sheets";
-import { freshDb } from "../../../../support/db";
-import { expect, FROZEN_AT, seedCharacter, seedChat, seedGame, seedUser, test } from "../_support";
+import { findSheet, listSheets, upsertSheet } from "../../../../../packages/server/src/domain/rpg/persistence/sheets.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, FROZEN_AT, seedCharacter, seedChat, seedGame, seedUser, test } from "../_support.ts";
 
 let db: Db;
 beforeEach(async () => {

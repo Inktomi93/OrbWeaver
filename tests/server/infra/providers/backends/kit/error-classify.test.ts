@@ -4,7 +4,7 @@
 import { ProviderError } from "@orb/server/infra/providers";
 import { classifyHttpStatus, classifyTransportName, extractHttpErrorDiagnostic, providerErrorFromHttp } from "@orb/server/infra/providers/backends/kit";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 describe("classifyHttpStatus", () => {
   test("maps each documented status to its kind + retryability", () => {

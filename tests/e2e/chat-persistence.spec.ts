@@ -13,7 +13,7 @@
 // list-vs-header title duplication unambiguous. Bootstrap: openOrCreateChat (support/chat-room.ts).
 
 import { expect, test } from "@playwright/test";
-import { openOrCreateChat, renameOpenChat, reopenFirstChat, waitForAppReady } from "./support/chat-room";
+import { openOrCreateChat, renameOpenChat, reopenFirstChat, waitForAppReady } from "./support/chat-room.ts";
 
 const STAR_MENU_ITEM = /^(Star|Unstar)$/u;
 

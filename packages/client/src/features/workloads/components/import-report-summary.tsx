@@ -8,8 +8,8 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { testId } from "#lib";
-import type { ImportSummary } from "../lib/portability-model";
-import { summaryCaption } from "../lib/portability-model";
+import type { ImportSummary } from "../lib/portability-model.ts";
+import { summaryCaption } from "../lib/portability-model.ts";
 
 export interface ImportReportSummaryProps {
   readonly summary: ImportSummary;

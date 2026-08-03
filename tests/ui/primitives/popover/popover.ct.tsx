@@ -1,7 +1,7 @@
 import { Popover, PopoverArrow, PopoverClose, PopoverDescription, PopoverPopup, PopoverTitle, PopoverTrigger } from "@orb/ui/popover";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { PopoverHandleHarness } from "./popover-handle.fixtures";
+import { PopoverHandleHarness } from "./popover-handle.fixtures.tsx";
 
 test("opens on trigger click and closes on Escape", async ({ mount, page }) => {
   await mount(

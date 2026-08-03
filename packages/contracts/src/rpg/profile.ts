@@ -13,7 +13,7 @@
 // color a chat (they cost bytes, and shipping them makes the graft map's profile row "full adds nothing").
 
 import { z } from "zod";
-import type { RpgTrackerDef } from "./tracker";
+import type { RpgTrackerDef } from "./tracker.ts";
 
 /** One attribute definition in a profile's vocabulary — the label-as-mini-prompt (`{key, label, hint}`).
  *  `key` is the machine name (a sheet's `attributes` record keys off it); `label`/`hint` are prompt prose. */

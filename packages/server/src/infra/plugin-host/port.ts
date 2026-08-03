@@ -16,10 +16,10 @@
 // storage.kv) is now COMPOSED — the bridge closes the pluginId/installer over those ops domain-side.
 
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginLogLevel } from "@orb/contracts/plugin";
-import { EVENT_QUEUE_DEPTH, PLUGIN_MEMORY_LIMIT_BYTES, SNIPPET_WALL_MS } from "./budgets";
-import { getPluginQuickJS } from "./module";
-import type { HostSeams } from "./realm";
-import { Sandbox } from "./sandbox";
+import { EVENT_QUEUE_DEPTH, PLUGIN_MEMORY_LIMIT_BYTES, SNIPPET_WALL_MS } from "./budgets.ts";
+import { getPluginQuickJS } from "./module.ts";
+import type { HostSeams } from "./realm.ts";
+import { Sandbox } from "./sandbox.ts";
 
 /** The determinism seams every instance's realm binds (the guest's ONLY clock/entropy/id — `test-determinism`).
  *  Injected at compose (production wall-clock/PRNG; a frozen clock in tests). */

@@ -22,7 +22,7 @@ import {
   writeUserConfig,
 } from "../../../../../packages/server/src/domain/settings/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
 const AT = 1_750_000_000_000;

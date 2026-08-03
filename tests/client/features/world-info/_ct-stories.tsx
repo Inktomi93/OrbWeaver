@@ -10,12 +10,12 @@ import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { EntryEditor } from "../../../../packages/client/src/features/world-info/components/entry-editor";
-import { WorldInfoCollectionRows } from "../../../../packages/client/src/features/world-info/components/world-info-collection-rows";
-import { WorldInfoContextBody } from "../../../../packages/client/src/features/world-info/components/world-info-context-body";
-import { WorldInfoSettingsSection } from "../../../../packages/client/src/features/world-info/components/world-info-settings-section";
-import { WorldInfoMemberSurface } from "../../../../packages/client/src/features/world-info/surfaces/world-info-member-surface";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+import { EntryEditor } from "../../../../packages/client/src/features/world-info/components/entry-editor.tsx";
+import { WorldInfoCollectionRows } from "../../../../packages/client/src/features/world-info/components/world-info-collection-rows.tsx";
+import { WorldInfoContextBody } from "../../../../packages/client/src/features/world-info/components/world-info-context-body.tsx";
+import { WorldInfoSettingsSection } from "../../../../packages/client/src/features/world-info/components/world-info-settings-section.tsx";
+import { WorldInfoMemberSurface } from "../../../../packages/client/src/features/world-info/surfaces/world-info-member-surface.tsx";
+import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The World-info settings SECTION (Phase B ②) over the real data layer — getUserSettings +
  *  updateUserSettingsSection("worldInfo") stubbed in the `.ct.tsx`. Proves the contributed section's

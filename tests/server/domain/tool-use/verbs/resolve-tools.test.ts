@@ -3,9 +3,9 @@
 // request bodies).
 
 import { z } from "zod";
-import { createToolUseService, ToolNotFoundError } from "../../../../../packages/server/src/domain/tool-use";
-import { expect, test } from "../../../../support/fixtures";
-import { defOf, makeHarness } from "../_support";
+import { createToolUseService, ToolNotFoundError } from "../../../../../packages/server/src/domain/tool-use/index.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { defOf, makeHarness } from "../_support.ts";
 
 const okHandler = (): Promise<{ ok: true; value: unknown }> => Promise.resolve({ ok: true, value: null });
 

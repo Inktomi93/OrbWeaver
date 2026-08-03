@@ -8,10 +8,10 @@ import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../../../../../packages/server/src/domain/chat/persistence/roster-avatars";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { seedAsset, seedCharacter, seedPersona, seedUser } from "../_support";
+import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../../../../../packages/server/src/domain/chat/persistence/roster-avatars.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { seedAsset, seedCharacter, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
 

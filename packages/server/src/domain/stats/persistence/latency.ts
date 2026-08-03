@@ -4,9 +4,9 @@
 
 import type { Db } from "@orb/db";
 import { sql } from "drizzle-orm";
-import type { LatencyScope } from "../contract/params";
-import type { LatencyStats } from "../contract/views";
-import { percentiles } from "../substrate/percentiles";
+import type { LatencyScope } from "../contract/params.ts";
+import type { LatencyStats } from "../contract/views.ts";
+import { percentiles } from "../substrate/percentiles.ts";
 
 // The "(unknown)" provider sentinel — coalesced at every key site so a null-provider variant matches the
 // model_stats bucket.

@@ -12,7 +12,7 @@ import {
   getChatModel,
   isChatModelId,
 } from "../../../../../packages/server/src/domain/connection/catalog/chat-models.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("getChatModel — 3-stage lookup", () => {
   test("stage 1: exact curated id", () => {

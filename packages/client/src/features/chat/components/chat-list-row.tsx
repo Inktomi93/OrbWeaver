@@ -9,11 +9,11 @@ import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
-import { useStarChat } from "../hooks/use-chat-row-mutations";
-import type { ChatRowPortrait } from "../lib/chat-summary-row";
-import { chatRowActionName, deriveChatTitle } from "../lib/chat-summary-row";
-import { ChatListRowMenu } from "./chat-list-row-menu";
-import { ChatSummaryRow } from "./chat-summary-row";
+import { useStarChat } from "../hooks/use-chat-row-mutations.ts";
+import type { ChatRowPortrait } from "../lib/chat-summary-row.ts";
+import { chatRowActionName, deriveChatTitle } from "../lib/chat-summary-row.ts";
+import { ChatListRowMenu } from "./chat-list-row-menu.tsx";
+import { ChatSummaryRow } from "./chat-summary-row.tsx";
 
 type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>[number];
 

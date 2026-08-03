@@ -1,7 +1,7 @@
 // Mirrors seed-default-characters: seed the default "You" persona for the deployment owner.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { DefaultPersonaSeeder } from "./seed-default-persona";
+import type { DefaultPersonaSeeder } from "./seed-default-persona.ts";
 
 export interface SeedDefaultPersonaDeps {
   /** Shared with the app first-request hook. */

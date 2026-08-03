@@ -2,10 +2,10 @@
 // only insofar as the guard first proves the rule exists + the caller hosts its chat (a leak-free NOT_FOUND
 // otherwise).
 
-import type { DeleteRuleParams } from "../contract/params";
-import type { AutomationContext, AutomationService } from "../contract/service";
-import { requireRuleHost } from "../guard";
-import { deleteRuleRow } from "../persistence/rules";
+import type { DeleteRuleParams } from "../contract/params.ts";
+import type { AutomationContext, AutomationService } from "../contract/service.ts";
+import { requireRuleHost } from "../guard.ts";
+import { deleteRuleRow } from "../persistence/rules.ts";
 
 export function createDeleteRule(ctx: AutomationContext): AutomationService["deleteRule"] {
   return async ({ principal, ruleId }: DeleteRuleParams): Promise<void> => {

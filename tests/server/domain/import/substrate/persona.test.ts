@@ -6,7 +6,7 @@
 
 import { describe } from "vitest";
 import { parseStPersonas } from "../../../../../packages/server/src/domain/import/substrate/persona.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("parseStPersonas", () => {
   test("empty / non-object / no personas → empty list, never throws", () => {

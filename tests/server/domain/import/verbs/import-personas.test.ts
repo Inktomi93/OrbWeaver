@@ -8,7 +8,7 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { ImportPersonaInput } from "../../../../../packages/server/src/domain/import/contract/views.ts";
 import { createImportPersonas } from "../../../../../packages/server/src/domain/import/verbs/import-personas.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeProfileHarness } from "../_support.ts";
 
 const OWNER = castId<UserId>("user_owner");

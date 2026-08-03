@@ -20,7 +20,7 @@
 // superRefine) and `LOCAL_INITIAL_PASSWORD` ≥8 (the owner seed).
 
 import process from "node:process";
-import { devTargetAllowed } from "./target-guard";
+import { devTargetAllowed } from "./target-guard.ts";
 
 /** One auth-mode project's boot + seed contract. `webServerEnv` is the exact env its `stack.sh start-fg`
  *  webServer boots with; `baseUrl` is its vite origin (the specs' `E2E_BASE_URL`); `backendUrl` is the Hono

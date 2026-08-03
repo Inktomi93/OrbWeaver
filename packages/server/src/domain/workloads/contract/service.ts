@@ -6,10 +6,10 @@ import type { Db } from "@orb/db";
 import type { WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { IsAdmin, RequireOwner } from "#domain/admin";
 import type { AuditEntry } from "#foundation/observability";
-import type { WorkloadContributions } from "./contribution";
-import type { CancelWorkloadParams, CancelWorkloadResult, GetWorkloadParams, ListWorkloadsParams, RetryWorkloadParams, StartWorkloadParams } from "./params";
-import type { WorkloadScheduleService } from "./schedule";
-import type { WorkloadRowAnyKind } from "./workload-row";
+import type { WorkloadContributions } from "./contribution.ts";
+import type { CancelWorkloadParams, CancelWorkloadResult, GetWorkloadParams, ListWorkloadsParams, RetryWorkloadParams, StartWorkloadParams } from "./params.ts";
+import type { WorkloadScheduleService } from "./schedule.ts";
+import type { WorkloadRowAnyKind } from "./workload-row.ts";
 
 /** Mint a fresh `WorkloadId` — the injected determinism seam. */
 type NewWorkloadId = () => WorkloadId;

@@ -13,7 +13,7 @@ import {
   RangeExtractorMessageList,
   TailGrowthList,
   UnboundedMessageList,
-} from "./message-list.fixtures";
+} from "./message-list.fixtures.tsx";
 
 const ROW_HEIGHT_PX = 40;
 const LIST_HEIGHT_PX = 200; // 5 rows visible

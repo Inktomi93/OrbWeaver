@@ -9,7 +9,7 @@ import {
   upsertGlobalVariable,
 } from "../../../../../packages/server/src/domain/automation/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { FIXED_NOW_MS, seedUser } from "../_support.ts";
 
 describe("global_variables persistence", () => {

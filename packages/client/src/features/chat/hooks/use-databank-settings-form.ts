@@ -5,8 +5,8 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { createAutosaveEntityForm } from "#forms";
-import type { DatabankSettingsForm } from "../lib/databank-settings-model";
-import { projectDatabankForm } from "../lib/databank-settings-model";
+import type { DatabankSettingsForm } from "../lib/databank-settings-model.ts";
+import { projectDatabankForm } from "../lib/databank-settings-model.ts";
 
 /** The singleton entity id — the databank prefs are one row per user, so a fixed key. */
 export const DATABANK_SETTINGS_ENTITY_ID = "databank-settings";

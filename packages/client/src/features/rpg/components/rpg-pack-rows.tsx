@@ -26,7 +26,7 @@ import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { ConfirmDialog, TrackerValue } from "#components";
-import { ITEM_ICON_CHOICES, resolveItemIcon } from "../lib/glyphs";
+import { ITEM_ICON_CHOICES, resolveItemIcon } from "../lib/glyphs.ts";
 
 /** The quest-bound tell - the model-written item `type` naming the quest taxonomy (DESIGN.md 12.2). */
 const QUEST_TYPE_RE = /quest/i;

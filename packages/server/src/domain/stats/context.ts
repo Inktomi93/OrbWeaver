@@ -5,7 +5,7 @@
 // is in, because the caller-scoped rebuild is a verb of this service (the workload's bulk arm is not).
 
 import type { Db } from "@orb/db";
-import type { StatsContext } from "./contract/service";
+import type { StatsContext } from "./contract/service.ts";
 
 export function createStatsContext(db: Db, now: () => number): StatsContext {
   return { db, now };

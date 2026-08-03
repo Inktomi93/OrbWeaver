@@ -10,9 +10,9 @@
 // loop is policy-free orchestration.
 
 import type { MessageView, SpeakerRef } from "@orb/contracts/chat";
-import type { AutoModeResult, AutoModeStopReason, CastName } from "../contract/arbitration";
-import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors";
-import type { TurnOutcome } from "../contract/results";
+import type { AutoModeResult, AutoModeStopReason, CastName } from "../contract/arbitration.ts";
+import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
+import type { TurnOutcome } from "../contract/results.ts";
 
 interface AutoModeParams {
   readonly maxTurns: number;

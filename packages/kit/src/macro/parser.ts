@@ -9,8 +9,8 @@
 // Degrade-don't-throw posture throughout: unclosed/invalid tags re-emit their literal bytes, an unmatched
 // close re-emits verbatim, and every re-emit uses the ORIGINAL source span (`raw`) for byte-identity.
 
-import type { MacroAST, MacroBlockNode, MacroCallNode, MacroFlagKey, MacroNode, MacroSpan } from "./types";
-import { MACRO_FLAG_DEFS } from "./types";
+import type { MacroAST, MacroBlockNode, MacroCallNode, MacroFlagKey, MacroNode, MacroSpan } from "./types.ts";
+import { MACRO_FLAG_DEFS } from "./types.ts";
 
 // A `/`-flagged tag — consumed structurally by buildBlocks (it closes a block, or re-emits verbatim).
 interface FlatClose {

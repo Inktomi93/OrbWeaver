@@ -29,7 +29,7 @@ import {
 import type { ChatId, ChatInviteId, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
-import { multiHumanProcedure, t } from "../trpc";
+import { multiHumanProcedure, t } from "../trpc.ts";
 
 const createSchema = z.object({
   chatId: brandedId<ChatId>(),

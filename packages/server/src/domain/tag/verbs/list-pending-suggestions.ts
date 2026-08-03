@@ -7,9 +7,9 @@
 // is `attachTag(status:'accepted')` (flips the row), Reject is `detachTag` — no new write verb here.
 
 import type { TagSuggestionView } from "@orb/contracts/tag";
-import type { ListPendingSuggestionsParams } from "../contract/params";
-import type { TagContext } from "../contract/service";
-import { listPendingCharacterSuggestions } from "../persistence/queries";
+import type { ListPendingSuggestionsParams } from "../contract/params.ts";
+import type { TagContext } from "../contract/service.ts";
+import { listPendingCharacterSuggestions } from "../persistence/queries.ts";
 
 export function createListPendingSuggestions(ctx: TagContext): (params: ListPendingSuggestionsParams) => Promise<TagSuggestionView[]> {
   return ({ principal, characterId }) => listPendingCharacterSuggestions(ctx.db, principal.userId, characterId);

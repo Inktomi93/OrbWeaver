@@ -2,8 +2,8 @@
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { fitHistoryToWindow } from "../../../../../packages/server/src/domain/chat/assembly/history-budget";
-import { expect, test } from "../../../../support/fixtures";
+import { fitHistoryToWindow } from "../../../../../packages/server/src/domain/chat/assembly/history-budget.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const turn = (content: string): { role: "user"; content: string } => ({ role: "user", content });
 

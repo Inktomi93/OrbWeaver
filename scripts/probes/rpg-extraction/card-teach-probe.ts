@@ -36,8 +36,8 @@ import fs from "node:fs";
 import type { RpgSnapshotState, RpgTrackerDef, RpgTrackerView } from "@orb/contracts/rpg";
 import { tokenizeContent } from "@orb/kit/content";
 import { RPG_PROFILE_FREEFORM, rpgTrackerDefSchema } from "@orb/contracts/rpg";
-import type { LiteReminderInput } from "../../../packages/server/src/domain/rpg/contract/params";
-import { RPG_CARD_TEACH, buildLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder";
+import type { LiteReminderInput } from "../../../packages/server/src/domain/rpg/contract/params.ts";
+import { RPG_CARD_TEACH, buildLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder.ts";
 
 const REPO = "/home/inktomi/inktomi-stack/development/orbweaver";
 

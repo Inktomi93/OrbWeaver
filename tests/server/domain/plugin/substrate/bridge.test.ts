@@ -12,7 +12,7 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { PluginHostOps } from "../../../../../packages/server/src/domain/plugin/contract/ops.ts";
 import { buildPluginBridge } from "../../../../../packages/server/src/domain/plugin/substrate/bridge.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeInertOps } from "../_support.ts";
 
 const INSTALLER = castId<UserId>("user_installer00000000000000");

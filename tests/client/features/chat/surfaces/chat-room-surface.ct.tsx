@@ -18,11 +18,11 @@ import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { testId } from "../../../../../packages/client/src/lib/test-ids";
-import { routeOrbSocket } from "../../../../support/ct/route-orb-socket";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { ChatRoomSurfaceStory, ChatSurfaceContributorStory } from "../_ct-stories";
-import { CHAT_ID, makeMacroNameProducer, makeMessagesPage, makeMessageView } from "../fixtures";
+import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
+import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { ChatRoomSurfaceStory, ChatSurfaceContributorStory } from "../_ct-stories.tsx";
+import { CHAT_ID, makeMacroNameProducer, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 // The divider's present-tense preview (PD-#7). Every map stubs it with a VALID resolved shape — the
 // harness's unlisted-proc default (`data: null`) is out-of-contract for this query and crashes the

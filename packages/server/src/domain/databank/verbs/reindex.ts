@@ -4,10 +4,10 @@
 // runs asynchronously in the runner (build-never-blocks); the verb returns the workload id immediately.
 
 import type { WorkloadId } from "@orb/kit/ids";
-import { DocumentNotFoundError } from "../contract/errors";
-import type { ReindexParams } from "../contract/params";
-import type { DatabankContext, DatabankService } from "../contract/service";
-import { loadOwnedMeta } from "../persistence/queries";
+import { DocumentNotFoundError } from "../contract/errors.ts";
+import type { ReindexParams } from "../contract/params.ts";
+import type { DatabankContext, DatabankService } from "../contract/service.ts";
+import { loadOwnedMeta } from "../persistence/queries.ts";
 
 const DEFAULT_MODE = "chunk-embed" as const;
 

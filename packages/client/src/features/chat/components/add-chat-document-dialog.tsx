@@ -27,8 +27,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { FormDialog } from "#components";
 import { SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { useAttachDocumentToChat } from "../hooks/use-chat-document-mutations";
-import { attachableDocuments } from "../lib/chat-documents-model";
+import { useAttachDocumentToChat } from "../hooks/use-chat-document-mutations.ts";
+import { attachableDocuments } from "../lib/chat-documents-model.ts";
 
 /** The candidate list's shape-matched loading skeleton (house loading law — never a spinner/text void). */
 const PICKER_SKELETON_ROWS = 3;

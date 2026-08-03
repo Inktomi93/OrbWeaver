@@ -10,7 +10,7 @@
 import type { ParsedChat, ParsedChatMessage } from "@orb/server/kit/serde/chat";
 import { buildChatJsonl, buildChatTxt, formatStDate, parseChatJsonl, parseStDate } from "@orb/server/kit/serde/chat";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 // ── parse ────────────────────────────────────────────────────────────────────────────────────────────────
 

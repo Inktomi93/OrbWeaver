@@ -12,7 +12,7 @@
 
 import { characterBooks, worldBooks } from "@orb/db";
 import { and, eq, inArray } from "drizzle-orm";
-import type { LinkCarriedBooks, WorldInfoDuplicateCarryContext } from "../contract/import";
+import type { LinkCarriedBooks, WorldInfoDuplicateCarryContext } from "../contract/import.ts";
 
 export function createLinkCarriedBooks(ctx: WorldInfoDuplicateCarryContext): LinkCarriedBooks {
   return async ({ ownerId, characterId, refs }) => {

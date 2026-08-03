@@ -9,7 +9,7 @@ import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const KIRA = castId<CharacterId>("char_testrenderaaaa");
 const NATE = castId<PersonaId>("persona_testrenderaaaa");

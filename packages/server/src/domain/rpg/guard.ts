@@ -24,8 +24,8 @@ import type { Can, ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { RpgActorRef } from "@orb/contracts/rpg";
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
-import type { RpgAuthorized, RpgContext } from "./contract/service";
-import { findGameByChat } from "./persistence/games";
+import type { RpgAuthorized, RpgContext } from "./contract/service.ts";
+import { findGameByChat } from "./persistence/games.ts";
 
 /** The leak-free not-found — indistinguishable across "no such chat", "not a game", and "not a member". A
  *  foreigner never learns the chat's game-ness. Uses `chatId` as the surfaced id (the caller already has it).

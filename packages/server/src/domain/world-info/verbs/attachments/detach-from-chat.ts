@@ -7,9 +7,9 @@
 
 import { chatBooks } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import type { WorldInfoContext } from "../../context";
-import type { DetachFromChatParams } from "../../contract/params";
-import type { WorldInfoService } from "../../contract/service";
+import type { WorldInfoContext } from "../../context.ts";
+import type { DetachFromChatParams } from "../../contract/params.ts";
+import type { WorldInfoService } from "../../contract/service.ts";
 
 export function createDetachFromChat(ctx: WorldInfoContext): WorldInfoService["detachFromChat"] {
   return async ({ principal, chatId, bookId }: DetachFromChatParams) => {

@@ -8,10 +8,10 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { getLog } from "#foundation/observability";
-import { SYSTEM_DEFAULT_PRESET_ID, SYSTEM_DEFAULT_PRESET_KIND, SYSTEM_DEFAULT_PRESET_NAME } from "./constants";
-import type { PackagedPreset } from "./contract/packaged";
-import { PACKAGED_PRESETS } from "./contract/packaged";
-import { insertPreset, reseedPackagedPreset, reseedSystemDefault, selectPackagedPreset, selectSystemDefault } from "./persistence/queries";
+import { SYSTEM_DEFAULT_PRESET_ID, SYSTEM_DEFAULT_PRESET_KIND, SYSTEM_DEFAULT_PRESET_NAME } from "./constants.ts";
+import type { PackagedPreset } from "./contract/packaged.ts";
+import { PACKAGED_PRESETS } from "./contract/packaged.ts";
+import { insertPreset, reseedPackagedPreset, reseedSystemDefault, selectPackagedPreset, selectSystemDefault } from "./persistence/queries.ts";
 
 export async function ensureSystemDefaultPreset(db: Db, now: () => number): Promise<void> {
   const existing = await selectSystemDefault(db);

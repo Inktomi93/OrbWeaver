@@ -21,7 +21,7 @@
 import type { HandoffOffer } from "@orb/contracts/chat";
 import type { chatParticipants } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { ChatContext, HandoffCopyPlan, OfferedSeat } from "../contract/context";
+import type { ChatContext, HandoffCopyPlan, OfferedSeat } from "../contract/context.ts";
 
 /** The present character seats the DEPARTING host owns — the copy candidates for an accepted offer.
  *

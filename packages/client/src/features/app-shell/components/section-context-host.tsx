@@ -17,9 +17,9 @@ import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary } from "#data";
 import type { ResolvedContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
-import { ContextRegionHost } from "./context-region-host";
-import { ContextTabsPanel } from "./context-tabs-panel";
-import { SectionPlaceholder } from "./section-placeholder";
+import { ContextRegionHost } from "./context-region-host.tsx";
+import { ContextTabsPanel } from "./context-tabs-panel.tsx";
+import { SectionPlaceholder } from "./section-placeholder.tsx";
 
 // THE UN-SWEPT FALLBACK (side-eye F-12). Its title is no longer the word "Details": the CONTEXT band
 // directly above it already says that, so the pane printed "Details" twice over one voiceless sentence.

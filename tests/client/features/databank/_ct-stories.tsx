@@ -8,11 +8,11 @@
 // generated component consts, so a mixed export (component + constant) fails to parse.
 
 import type { ReactElement } from "react";
-import { DatabankContextBody } from "../../../../packages/client/src/features/databank/components/databank-context-body";
-import { DatabankListHeader } from "../../../../packages/client/src/features/databank/components/databank-list-header";
-import { DatabankDetailSurface } from "../../../../packages/client/src/features/databank/surfaces/databank-detail-surface";
-import { DatabankLibrarySurface } from "../../../../packages/client/src/features/databank/surfaces/databank-library-surface";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+import { DatabankContextBody } from "../../../../packages/client/src/features/databank/components/databank-context-body.tsx";
+import { DatabankListHeader } from "../../../../packages/client/src/features/databank/components/databank-list-header.tsx";
+import { DatabankDetailSurface } from "../../../../packages/client/src/features/databank/surfaces/databank-detail-surface.tsx";
+import { DatabankLibrarySurface } from "../../../../packages/client/src/features/databank/surfaces/databank-library-surface.tsx";
+import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The LIST pane at its REAL production width — the 320px panel floor the §6.1 width math is stated at, so
  *  a clipped title or a cluster that does not fit is visible here rather than hidden by a roomy story box. */

@@ -9,10 +9,10 @@ import { presets } from "@orb/db";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { createCopyPresetToUser, SYSTEM_DEFAULT_PRESET_ID } from "../../../../../packages/server/src/domain/preset";
-import { freshDb } from "../../../../support/db";
-import { seedUser } from "../../../../support/factories/user";
-import { expect, test } from "../../../../support/fixtures";
+import { createCopyPresetToUser, SYSTEM_DEFAULT_PRESET_ID } from "../../../../../packages/server/src/domain/preset/index.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { seedUser } from "../../../../support/factories/user.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const AT = 1_700_000_000_000;
 

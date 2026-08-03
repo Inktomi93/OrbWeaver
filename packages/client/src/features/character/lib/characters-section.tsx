@@ -16,15 +16,15 @@ import type { ReactNode } from "react";
 import type { CharacterChatsProjectionView, CharacterContextState, CharacterDetailContribution, ContributorRegistry } from "#lib";
 import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
-import { CharacterLibraryAnchor } from "../anchors/character-library-anchor";
-import { CharacterActionsMenu } from "../components/character-actions-menu";
-import { CharacterContent } from "../components/character-content";
-import { CharacterFacetInspector } from "../components/character-facet-inspector";
-import { CharacterOptionsTab } from "../components/character-options-tab";
-import { CharacterRelationsTab } from "../components/character-relations-tab";
-import { CharactersListHeader } from "../components/characters-list-header";
-import { CharactersListPane } from "../components/characters-list-pane";
-import { useCharacterContextState } from "../hooks/use-character-context-state";
+import { CharacterLibraryAnchor } from "../anchors/character-library-anchor.tsx";
+import { CharacterActionsMenu } from "../components/character-actions-menu.tsx";
+import { CharacterContent } from "../components/character-content.tsx";
+import { CharacterFacetInspector } from "../components/character-facet-inspector.tsx";
+import { CharacterOptionsTab } from "../components/character-options-tab.tsx";
+import { CharacterRelationsTab } from "../components/character-relations-tab.tsx";
+import { CharactersListHeader } from "../components/characters-list-header.tsx";
+import { CharactersListPane } from "../components/characters-list-pane.tsx";
+import { useCharacterContextState } from "../hooks/use-character-context-state.ts";
 
 export function makeCharactersSection(
   detailContributors: ContributorRegistry<CharacterDetailContribution>,

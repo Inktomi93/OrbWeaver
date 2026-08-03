@@ -22,18 +22,28 @@ import type { CharacterId, ChatId, Handle, ModelId, PersonaId, UserId } from "@o
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
-import type { TurnPrep, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
-import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine";
-import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries";
-import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall";
-import { chatCreatedDelta } from "../../../../../packages/server/src/domain/chat/substrate/stats-delta";
-import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta";
-import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon";
-import { createFrozenClock } from "../../../../support/clock";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedParticipant, seedPersona, seedUser, stubRunCompaction, TEST_CAPABILITY } from "../_support";
+import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
+import type { TurnPrep, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import { createTurnEngine } from "../../../../../packages/server/src/domain/chat/engine/engine.ts";
+import { loadWitnessHorizons } from "../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
+import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
+import { chatCreatedDelta } from "../../../../../packages/server/src/domain/chat/substrate/stats-delta.ts";
+import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
+import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
+import { createFrozenClock } from "../../../../support/clock.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import {
+  FROZEN_AT,
+  makeChatContext,
+  seedCharacter,
+  seedChat,
+  seedParticipant,
+  seedPersona,
+  seedUser,
+  stubRunCompaction,
+  TEST_CAPABILITY,
+} from "../_support.ts";
 
 const HOST = castId<UserId>("user_host");
 

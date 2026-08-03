@@ -4,7 +4,7 @@
 
 import { describe } from "vitest";
 import { floodMatte } from "../../../packages/server/src/kit/image-matte/index.ts";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const BG = 221; // #DDDDDD
 const OPAQUE = 255;

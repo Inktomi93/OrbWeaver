@@ -23,7 +23,7 @@ import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import type { AssetsHarness } from "../_support.ts";
 import { makeHarness, pngBytes, principal, seedCharacter, seedUser, setCharacterAvatar } from "../_support.ts";
 

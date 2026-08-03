@@ -8,7 +8,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeDatabankHarness, principalFor, seedUser } from "../_support.ts";
 
 const TEXT = "A note on the northern passes and the toll each keeper charges.";

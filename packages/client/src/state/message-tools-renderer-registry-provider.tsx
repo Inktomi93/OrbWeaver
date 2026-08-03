@@ -3,6 +3,6 @@
 // (useComponentExportOnlyModules). The Provider is the createRegistryContext mint's Provider, bound to the
 // whole-message tool-renderer registry.
 
-import { messageToolsRendererRegistryContext } from "./message-tools-renderer-registry-context";
+import { messageToolsRendererRegistryContext } from "./message-tools-renderer-registry-context.ts";
 
 export const MessageToolsRendererRegistryProvider = messageToolsRendererRegistryContext.Provider;

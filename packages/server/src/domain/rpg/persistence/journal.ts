@@ -11,7 +11,7 @@ import type { Db } from "@orb/db";
 import { messages, messageVariants, rpgJournal } from "@orb/db";
 import type { MessageVariantId, RpgGameId, RpgJournalId } from "@orb/kit/ids";
 import { and, desc, eq, exists, isNull, or } from "drizzle-orm";
-import type { NewRpgJournal, RpgJournalRow } from "../contract/service";
+import type { NewRpgJournal, RpgJournalRow } from "../contract/service.ts";
 
 /** Insert a journal entry (hand entry: `variantId` NULL; model entry: the committed variant). `id`/`now`
  *  injected. Returns the row. */

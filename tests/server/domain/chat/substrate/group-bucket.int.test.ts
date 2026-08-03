@@ -10,13 +10,13 @@ import { chatDigests } from "@orb/db";
 import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { generateDigests } from "../../../../../packages/server/src/domain/chat/memory/build/digests";
-import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall";
-import { resolveGroupBucketCharacterId } from "../../../../../packages/server/src/domain/chat/substrate/group-bucket";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support";
-import { fakeEmbeddingsStore, fakeSummarize } from "../memory/_support";
+import { generateDigests } from "../../../../../packages/server/src/domain/chat/memory/build/digests.ts";
+import { recallMemory } from "../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
+import { resolveGroupBucketCharacterId } from "../../../../../packages/server/src/domain/chat/substrate/group-bucket.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
+import { fakeEmbeddingsStore, fakeSummarize } from "../memory/_support.ts";
 
 const BUILD_CFG = { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 } as const;
 

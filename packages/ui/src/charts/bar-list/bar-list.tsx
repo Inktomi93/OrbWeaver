@@ -1,13 +1,13 @@
 // Horizontal ranked bars — array order is the rank; this component does not sort.
 import type { ReactElement } from "react";
-import type { OrbEChartsInstance } from "../chart";
-import { Chart } from "../chart";
-import { useChartTheme } from "../chart/use-chart-theme";
-import { LabeledChartFrame } from "../labeled-chart-frame";
-import type { BarListItem } from "./option";
-import { buildBarListOption } from "./option";
+import type { OrbEChartsInstance } from "../chart/index.ts";
+import { Chart } from "../chart/index.ts";
+import { useChartTheme } from "../chart/use-chart-theme.ts";
+import { LabeledChartFrame } from "../labeled-chart-frame/index.ts";
+import type { BarListItem } from "./option.ts";
+import { buildBarListOption } from "./option.ts";
 
-export type { BarListItem } from "./option";
+export type { BarListItem } from "./option.ts";
 
 export interface BarListProps {
   /** Pre-sorted rank order — index 0 renders as the TOP row. */

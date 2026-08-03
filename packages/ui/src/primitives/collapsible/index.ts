@@ -2,5 +2,5 @@ export type {
   CollapsiblePanelProps,
   CollapsibleProps,
   CollapsibleTriggerProps,
-} from "./collapsible";
-export { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "./collapsible";
+} from "./collapsible.tsx";
+export { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "./collapsible.tsx";

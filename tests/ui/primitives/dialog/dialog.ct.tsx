@@ -1,7 +1,7 @@
 import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle, DialogTrigger } from "@orb/ui/dialog";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DialogHandleHarness } from "./dialog-handle.fixtures";
+import { DialogHandleHarness } from "./dialog-handle.fixtures.tsx";
 
 test("opens on trigger click and closes on Escape", async ({ mount, page }) => {
   await mount(

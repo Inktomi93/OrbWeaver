@@ -5,7 +5,7 @@
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "../../../../../packages/server/src/domain/chat/contract/views";
+import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "../../../../../packages/server/src/domain/chat/contract/views.ts";
 import {
   createMemberDeltaStamper,
   projectViewForMember,
@@ -16,8 +16,8 @@ import {
   stripHiddenForMember,
   stripMessagesForViewer,
   stripReasoningFromView,
-} from "../../../../../packages/server/src/domain/chat/substrate/member-visibility";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/server/src/domain/chat/substrate/member-visibility.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const LIE = '<lie character="Zandik" type="location" truth="He is in the crypt" reason="the heist"/>';
 const chatId = castId<ChatId>("chat_1");

@@ -3,10 +3,10 @@
 
 import { personaBooks } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import type { WorldInfoContext } from "../../context";
-import type { DetachFromPersonaParams } from "../../contract/params";
-import type { WorldInfoService } from "../../contract/service";
-import { ensurePersonaOwned } from "../../persistence/ownership";
+import type { WorldInfoContext } from "../../context.ts";
+import type { DetachFromPersonaParams } from "../../contract/params.ts";
+import type { WorldInfoService } from "../../contract/service.ts";
+import { ensurePersonaOwned } from "../../persistence/ownership.ts";
 
 export function createDetachFromPersona(ctx: WorldInfoContext): WorldInfoService["detachFromPersona"] {
   return async ({ principal, personaId, bookId }: DetachFromPersonaParams) => {

@@ -7,9 +7,9 @@ import { tags } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import { normalizeTagName } from "@orb/kit/tag";
-import type { CreateTagParams } from "../contract/params";
-import type { TagContext, TagService } from "../contract/service";
-import { toTagView } from "../persistence/queries";
+import type { CreateTagParams } from "../contract/params.ts";
+import type { TagContext, TagService } from "../contract/service.ts";
+import { toTagView } from "../persistence/queries.ts";
 
 export function createCreate(ctx: TagContext): TagService["createTag"] {
   return async (params: CreateTagParams) => {

@@ -6,8 +6,8 @@
 // verbs (start/cancel/retry), so it is exempt from the §2.3 key partition.
 
 import type { SettingsSectionContribution } from "#state";
-import { WorkloadsJobsSection } from "../components/workloads-jobs-section";
-import { WORKLOADS_JOBS_SUBCATEGORY } from "./workloads-jobs-nav";
+import { WorkloadsJobsSection } from "../components/workloads-jobs-section.tsx";
+import { WORKLOADS_JOBS_SUBCATEGORY } from "./workloads-jobs-nav.ts";
 
 export const workloadsJobsSection: SettingsSectionContribution = {
   id: "workloads-jobs",

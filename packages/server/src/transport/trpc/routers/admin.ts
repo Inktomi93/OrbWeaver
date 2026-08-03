@@ -11,7 +11,7 @@ import { userRoleSchema } from "@orb/contracts/identity";
 import type { CharacterId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
-import { adminProcedure, t } from "../trpc";
+import { adminProcedure, t } from "../trpc.ts";
 
 export const adminRouter = t.router({
   listUsers: adminProcedure.query(({ ctx }) => ctx.services.admin.listUsers({ principal: ctx.auth })),

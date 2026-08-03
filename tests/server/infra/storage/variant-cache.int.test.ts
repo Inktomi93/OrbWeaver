@@ -9,7 +9,7 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createVariantCache } from "@orb/server/infra/storage";
 import { afterEach, beforeEach, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_A = castId<UserId>("user_alpha");
 const OWNER_B = castId<UserId>("user_beta");

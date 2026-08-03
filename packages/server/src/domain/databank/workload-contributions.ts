@@ -8,7 +8,7 @@
 import type { IngestRunResult } from "@orb/contracts/databank";
 import { databankIngestWorkloadParams, databankReindexWorkloadParams } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
-import type { DatabankWorkloadDeps } from "./contract/service";
+import type { DatabankWorkloadDeps } from "./contract/service.ts";
 
 type DatabankContributions = readonly [WorkloadContribution<"databank-ingest">, WorkloadContribution<"databank-reindex">];
 

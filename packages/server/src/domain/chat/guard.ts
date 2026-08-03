@@ -16,9 +16,9 @@
 import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ChatId } from "@orb/kit/ids";
-import type { ChatContext } from "./context";
-import { loadMemberChat } from "./persistence/queries";
-import { assertAuthorOrHost, assertHost, assertParticipant, resolveHistoryFloorSeq } from "./substrate/auth";
+import type { ChatContext } from "./context.ts";
+import { loadMemberChat } from "./persistence/queries.ts";
+import { assertAuthorOrHost, assertHost, assertParticipant, resolveHistoryFloorSeq } from "./substrate/auth/index.ts";
 
 /** The chokepoint's deps: the DB read (`loadMemberChat`) + the injected `can()` decision seam. */
 type GuardCtx = Pick<ChatContext, "db" | "can">;

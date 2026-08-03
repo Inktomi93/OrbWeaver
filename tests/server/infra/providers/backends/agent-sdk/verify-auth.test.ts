@@ -12,7 +12,7 @@ import type { VerifyAuthResult } from "@orb/contracts/providers";
 import { createAgentSdkBackend } from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe, vi } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 import { streamOf } from "./_support.ts";
 
 const MODEL = "claude-haiku-test";

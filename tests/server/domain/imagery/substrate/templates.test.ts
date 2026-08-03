@@ -11,7 +11,7 @@ import {
   ensurePrefix,
   PROMPT_TEMPLATES,
 } from "../../../../../packages/server/src/domain/imagery/substrate/templates.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("PROMPT_TEMPLATES / CAPTION_INSTRUCTIONS", () => {
   test("every extraction template resolves {{char}} for chat's shaper + ends with its required prefix", () => {

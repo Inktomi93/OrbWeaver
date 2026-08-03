@@ -6,7 +6,7 @@
 import type { TrpcOpLogEntry } from "@orb/client/lib";
 import { formatTrpcOp } from "@orb/client/lib";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 function upEntry(input: unknown, path = "character.get"): TrpcOpLogEntry {
   return { direction: "up", type: "query", path, input };

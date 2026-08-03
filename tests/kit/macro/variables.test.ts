@@ -4,7 +4,7 @@
 
 import type { MacroEnv, VarOp } from "@orb/kit/macro";
 import { applyVarOp, foldVarOps, processMacros } from "@orb/kit/macro";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // ── applyVarOp — the ONE mutation-semantics home ──────────────────────────────────────────────
 

@@ -10,8 +10,8 @@ import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { useEffect, useState } from "react";
 import { isLiveTurnPhase, useSwipeTargetMessageId, useTurnPhase } from "#state";
-import type { ArrivalDiff } from "../lib/new-arrivals";
-import { initialArrivals, NO_ARRIVALS, nextArrivals } from "../lib/new-arrivals";
+import type { ArrivalDiff } from "../lib/new-arrivals.ts";
+import { initialArrivals, NO_ARRIVALS, nextArrivals } from "../lib/new-arrivals.ts";
 
 const GHOST_APPEND_KEY = "__ghost__";
 

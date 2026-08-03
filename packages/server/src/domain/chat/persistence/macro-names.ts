@@ -14,9 +14,9 @@ import type { Db } from "@orb/db";
 import { characters, personas } from "@orb/db";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { inArray } from "drizzle-orm";
-import type { MessageMacroIdSource, ParticipantMacroIdSource } from "../contract/macro-ids";
+import type { MessageMacroIdSource, ParticipantMacroIdSource } from "../contract/macro-ids.ts";
 
-export type { MessageMacroIdSource, ParticipantMacroIdSource } from "../contract/macro-ids";
+export type { MessageMacroIdSource, ParticipantMacroIdSource } from "../contract/macro-ids.ts";
 
 /** Collect the DISTINCT `characterId`/`personaId` sets the producer must cover (§1), from whichever of the
  *  two optional sources the caller has loaded. Pure — no I/O; `loadChatMacroNameProducer` runs the query.

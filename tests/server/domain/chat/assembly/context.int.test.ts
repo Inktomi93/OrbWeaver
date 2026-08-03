@@ -15,14 +15,14 @@ import { ZWSP } from "@orb/kit/guided";
 import type { CharacterId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble";
-import { buildAssembleContext } from "../../../../../packages/server/src/domain/chat/assembly/context";
-import { spliceInChatInjections } from "../../../../../packages/server/src/domain/chat/assembly/injections";
-import { renderMacros } from "../../../../../packages/server/src/domain/chat/assembly/macros";
-import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedUser } from "../_support";
+import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble.ts";
+import { buildAssembleContext } from "../../../../../packages/server/src/domain/chat/assembly/context.ts";
+import { spliceInChatInjections } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
+import { renderMacros } from "../../../../../packages/server/src/domain/chat/assembly/macros.ts";
+import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedUser } from "../_support.ts";
 
 let db: Db;
 beforeEach(async () => {

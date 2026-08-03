@@ -11,7 +11,7 @@
 //  - a claimed pane's BAND renders nothing at all (D66 A1 suspended for a claimed context panel).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ContextRegionClaimStory, ContextRegionHeaderStory, ContextRegionNoClaimStory } from "../_ct-stories";
+import { ContextRegionClaimStory, ContextRegionHeaderStory, ContextRegionNoClaimStory } from "../_ct-stories.tsx";
 
 test("a claiming region owns the pane: it renders, the generic strip does not", async ({ mount }) => {
   const component = await mount(<ContextRegionClaimStory />);

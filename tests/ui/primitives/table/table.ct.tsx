@@ -5,7 +5,7 @@
 // freshly-derived-array footgun (ui-primitive-contract §13).
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { BasicTableStory, NullableSortStory, PaginatedTableStory, ShrinkingDataStory } from "./table.fixtures";
+import { BasicTableStory, NullableSortStory, PaginatedTableStory, ShrinkingDataStory } from "./table.fixtures.tsx";
 
 test("renders columns and rows", async ({ mount, page }) => {
   await mount(<BasicTableStory />);

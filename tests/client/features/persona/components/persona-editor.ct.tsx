@@ -12,8 +12,8 @@
 // satisfiable by the builtin catalog alone).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { PersonaEditorMacroStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { PersonaEditorMacroStory } from "../_ct-stories.tsx";
 
 const USER_MACRO_ROW = "{{sceneTone}}";
 const USER_MACRO_GLOSS = "This game's tonal register.";

@@ -3,11 +3,11 @@
 
 import { chatRegexScripts } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import type { RegexContext } from "../../context";
-import { RegexNotFoundError } from "../../contract/errors";
-import type { DetachFromChatParams } from "../../contract/params";
-import type { RegexService } from "../../contract/service";
-import { loadOwnedScript } from "../../persistence/queries";
+import type { RegexContext } from "../../context.ts";
+import { RegexNotFoundError } from "../../contract/errors.ts";
+import type { DetachFromChatParams } from "../../contract/params.ts";
+import type { RegexService } from "../../contract/service.ts";
+import { loadOwnedScript } from "../../persistence/queries.ts";
 
 export function createDetachFromChat(ctx: RegexContext): RegexService["detachFromChat"] {
   return async ({ principal, chatId, scriptId }: DetachFromChatParams) => {

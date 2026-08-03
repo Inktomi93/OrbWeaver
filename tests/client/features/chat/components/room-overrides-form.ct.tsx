@@ -11,7 +11,7 @@
 // the saved overrides' UNTOUCHED mainPrompt must be B's (absent), never A's frozen "A-prompt".
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { RoomOverridesSwitchStory } from "../_ct-stories";
+import { RoomOverridesSwitchStory } from "../_ct-stories.tsx";
 
 const SAVED = '[data-testid="room-overrides-saved"]';
 

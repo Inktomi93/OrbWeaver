@@ -10,7 +10,7 @@ import { useSortable } from "@dnd-kit/react/sortable";
 import type { ReactElement, ReactNode } from "react";
 import { cn, usePrefersReducedMotion } from "#lib";
 import { GripVertical, Icon } from "#primitives/icons";
-import { sortableVariants } from "./variants";
+import { sortableVariants } from "./variants.ts";
 
 // Mirrors @dnd-kit/abstract's UniqueIdentifier shape locally to avoid importing the undeclared transitive dep.
 export type SortableItemKey = string | number;

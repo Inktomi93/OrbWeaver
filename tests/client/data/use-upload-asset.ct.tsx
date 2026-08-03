@@ -11,8 +11,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../support/ct/route-trpc";
-import { UploadAssetStory } from "./_ct-stories";
+import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { UploadAssetStory } from "./_ct-stories.tsx";
 
 const UPLOAD_URL = "**/api/assets/upload";
 const STORED_HASH = "ctuploadhash0001";

@@ -1,2 +1,2 @@
-export type { SettingRowProps } from "./setting-row";
-export { SettingRow } from "./setting-row";
+export type { SettingRowProps } from "./setting-row.tsx";
+export { SettingRow } from "./setting-row.tsx";

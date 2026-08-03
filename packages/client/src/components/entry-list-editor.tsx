@@ -22,7 +22,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { ConfirmDialog } from "./confirm-dialog";
+import { ConfirmDialog } from "./confirm-dialog.tsx";
 
 export interface EntryListEditorProps<TItem> {
   /** The group's NAME. Rendered in the `kicker` voice — see the note at the render site. */

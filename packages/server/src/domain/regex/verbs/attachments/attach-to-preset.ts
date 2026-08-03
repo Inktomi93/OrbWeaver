@@ -3,12 +3,12 @@
 // composite PK; a re-attach keeps the existing position rather than jumping the script to the end.
 
 import { presetRegexScripts } from "@orb/db";
-import type { RegexContext } from "../../context";
-import { RegexNotFoundError } from "../../contract/errors";
-import type { AttachToPresetParams } from "../../contract/params";
-import type { RegexService } from "../../contract/service";
-import { ensurePresetOwned } from "../../persistence/ownership";
-import { listPresetScripts, loadOwnedScript } from "../../persistence/queries";
+import type { RegexContext } from "../../context.ts";
+import { RegexNotFoundError } from "../../contract/errors.ts";
+import type { AttachToPresetParams } from "../../contract/params.ts";
+import type { RegexService } from "../../contract/service.ts";
+import { ensurePresetOwned } from "../../persistence/ownership.ts";
+import { listPresetScripts, loadOwnedScript } from "../../persistence/queries.ts";
 
 export function createAttachToPreset(ctx: RegexContext): RegexService["attachToPreset"] {
   return async ({ principal, presetId, scriptId }: AttachToPresetParams) => {

@@ -6,10 +6,10 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { setNumber } from "../../../../support/ct/set-number";
-import { MemoryTuningSectionStory } from "../_ct-stories";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { setNumber } from "../../../../support/ct/set-number.ts";
+import { MemoryTuningSectionStory } from "../_ct-stories.tsx";
 
 // The section reads its knob VALUES from `overrides` (⊕ the contract floors), not `resolved` — so a plain
 // partial resolved slice suffices (routeTrpc stubs are untyped; the admin-surface CT's APP_SETTINGS

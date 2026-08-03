@@ -9,7 +9,7 @@
 // SCRIM_BASE is the bare full-bleed fill (no z, no motion) — the drawer backdrops compose it with
 // their OWN z + `--motion-layout` fade because they track the sliding panel, a different motion
 // contract from the standard overlay fade.
-import { OVERLAY_MOTION } from "./overlay-motion";
+import { OVERLAY_MOTION } from "./overlay-motion.ts";
 
 export const SCRIM_BASE = "fixed inset-0 bg-scrim";
 

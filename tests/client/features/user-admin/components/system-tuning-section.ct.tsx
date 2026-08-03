@@ -6,10 +6,10 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { setNumber } from "../../../../support/ct/set-number";
-import { SystemTuningSectionStory } from "../_ct-stories";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { setNumber } from "../../../../support/ct/set-number.ts";
+import { SystemTuningSectionStory } from "../_ct-stories.tsx";
 
 // The resolved slice the section reads (getAppSettingsWithOverrides.resolved) — only the ⑩ fields matter; the
 // handler returns are untyped stubs so a partial suffices (the rate-limits CT precedent — no fabricated shape).

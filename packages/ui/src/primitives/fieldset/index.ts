@@ -1,2 +1,2 @@
-export type { FieldsetLegendProps, FieldsetProps } from "./fieldset";
-export { Fieldset, FieldsetLegend } from "./fieldset";
+export type { FieldsetLegendProps, FieldsetProps } from "./fieldset.tsx";
+export { Fieldset, FieldsetLegend } from "./fieldset.tsx";

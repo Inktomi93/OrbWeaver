@@ -19,7 +19,7 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { seedUser } from "../../../support/factories/index.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 function principalOf(userId: UserId): Principal {
   return { userId, role: "user", handle: castId("firstrun"), externalId: null, via: "header" };

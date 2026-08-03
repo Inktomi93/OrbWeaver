@@ -3,7 +3,7 @@
 import { Buffer } from "node:buffer";
 import { sniffMime, toDataUri } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 describe("sniffMime", () => {
   test("recognizes the formats CAS assets hold by their magic bytes", () => {

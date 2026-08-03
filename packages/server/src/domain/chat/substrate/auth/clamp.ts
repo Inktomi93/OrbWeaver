@@ -35,7 +35,7 @@ import type { ChatBusEvent, HistoryFloorSeq, JoinHistoryVisibility, MemberCardVi
 import { historyFloor, MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { CharacterId } from "@orb/kit/ids";
-import { viewerHoldsHost } from "../member-visibility";
+import { viewerHoldsHost } from "../member-visibility.ts";
 
 /** The floor for an unclamped reader (`full`, every born-here character seat, AND every host — F2) —
  *  `messages.seq` is 1-based, so 0 admits the whole canon. Also the "no clamp in force" sentinel consumers

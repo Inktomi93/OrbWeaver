@@ -8,7 +8,7 @@ import { __resetSelection, enterSelectionMode, exitSelectionMode, readSelectedMe
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const MSG_A = castId<MessageId>("msg_testselectionaaa");
 const MSG_B = castId<MessageId>("msg_testselectionbbb");

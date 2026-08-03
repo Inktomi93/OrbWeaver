@@ -5,7 +5,7 @@
 import { getConnInfo } from "@hono/node-server/conninfo";
 import type { Context, MiddlewareHandler } from "hono";
 import { env } from "#foundation/env";
-import { isInRanges, isPrivateOrLoopback } from "./ip-ranges";
+import { isInRanges, isPrivateOrLoopback } from "./ip-ranges.ts";
 
 const XFF_HEADER = "x-forwarded-for";
 const FORBIDDEN = 403;

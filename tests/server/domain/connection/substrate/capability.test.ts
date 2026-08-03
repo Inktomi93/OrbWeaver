@@ -5,7 +5,7 @@
 import type { ModelCatalogEntry } from "@orb/contracts/connection";
 import { describe } from "vitest";
 import { resolveCapability } from "../../../../../packages/server/src/domain/connection/substrate/capability.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeAgentSdkModel } from "../_support.ts";
 
 const gpt5: ModelCatalogEntry = {

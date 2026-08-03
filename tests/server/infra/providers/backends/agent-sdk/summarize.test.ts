@@ -19,7 +19,7 @@ import type { StructuredRequest, SummarizeRequest, SummarizeResult } from "@orb/
 import { createAgentSdkBackend } from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe, vi } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const MODEL = "claude-haiku-test";
 const SESSION_ID = "sess-summarize";

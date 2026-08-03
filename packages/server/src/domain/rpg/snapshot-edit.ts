@@ -26,11 +26,11 @@
 import type { RpgFieldLocks, RpgSnapshotState } from "@orb/contracts/rpg";
 import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import type { MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
-import type { HandEditLocks, HandEditResult, HandStateHead, HandStateWrite, RpgContext, RpgGameRow } from "./contract/service";
-import { snapshotRowToState } from "./contract/service";
-import { resolveSnapshotBeforeSlot, resolveSnapshotForTurn, updateSnapshotState, writeHandSnapshot } from "./persistence/snapshots";
-import { defaultSnapshotState } from "./substrate/default-state";
-import { applyLockedPatch } from "./substrate/merge";
+import type { HandEditLocks, HandEditResult, HandStateHead, HandStateWrite, RpgContext, RpgGameRow } from "./contract/service.ts";
+import { snapshotRowToState } from "./contract/service.ts";
+import { resolveSnapshotBeforeSlot, resolveSnapshotForTurn, updateSnapshotState, writeHandSnapshot } from "./persistence/snapshots.ts";
+import { defaultSnapshotState } from "./substrate/default-state.ts";
+import { applyLockedPatch } from "./substrate/merge.ts";
 
 /** The `committed` column's draft value — an UNcommitted TURN row is the only in-place-editable head. */
 const UNCOMMITTED = 0;

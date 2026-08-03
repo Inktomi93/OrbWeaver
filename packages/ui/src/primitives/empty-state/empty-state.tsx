@@ -1,5 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
-import { emptyStateVariants } from "./variants";
+import { emptyStateVariants } from "./variants.ts";
 
 export interface EmptyStateProps {
   /** Brand-glyph slot, renders unstyled and, when supplied, takes the head slot instead of `icon`. */

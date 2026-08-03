@@ -15,8 +15,8 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId } from "@orb/kit/ids";
 import { createImportService } from "#domain/import";
-import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "./build-import-context";
-import { buildImportContext } from "./build-import-context";
+import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "./build-import-context.ts";
+import { buildImportContext } from "./build-import-context.ts";
 
 /** One card file to import: the raw bytes + an optional source filename (provenance + name fallback). */
 export interface ImportFile {

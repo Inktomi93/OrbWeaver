@@ -21,7 +21,7 @@ import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, 
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import type { ChatMessageHandlingForm } from "../lib/chat-behavior-message-handling-model";
+import type { ChatMessageHandlingForm } from "../lib/chat-behavior-message-handling-model.ts";
 import {
   AUTO_CONTINUE_ROUNDS_MAX,
   AUTO_CONTINUE_ROUNDS_MIN,
@@ -31,7 +31,7 @@ import {
   TEMP_CHAT_TTL_HOURS_MAX,
   TEMP_CHAT_TTL_HOURS_MIN,
   toMessageHandlingPatch,
-} from "../lib/chat-behavior-message-handling-model";
+} from "../lib/chat-behavior-message-handling-model.ts";
 
 interface UpdateMessageHandlingVars {
   readonly section: "chat";

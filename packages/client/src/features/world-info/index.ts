@@ -4,5 +4,5 @@
 // collection, and `features/config` mounts its rows, its book editor and its attachment panel blind. The
 // activation knobs (scan depth / token budget) stay a contributed SETTINGS section, unchanged.
 
-export { worldInfoCollection } from "./lib/world-info-collection";
-export { worldInfoSettingsSection } from "./lib/world-info-settings-section";
+export { worldInfoCollection } from "./lib/world-info-collection.tsx";
+export { worldInfoSettingsSection } from "./lib/world-info-settings-section.tsx";

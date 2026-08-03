@@ -14,7 +14,7 @@ import { castId } from "@orb/kit/ids";
 import { Toaster, ToastProvider } from "@orb/ui/toast";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ActionsView } from "../../../../../packages/client/src/features/preset/components/actions-view";
+import { ActionsView } from "../../../../../packages/client/src/features/preset/components/actions-view.tsx";
 
 const STORY_PRESET = castId<PresetId>("preset_actionsstoryy");
 

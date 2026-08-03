@@ -4,7 +4,7 @@
 
 import { describe } from "vitest";
 import { normalizeWriteMetadata } from "../../../../../packages/server/src/domain/persona/substrate/metadata.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("normalizeWriteMetadata", () => {
   test("null passes straight through", () => {

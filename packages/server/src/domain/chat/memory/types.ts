@@ -15,4 +15,4 @@ export type {
   ParsedDigest,
   ResolvedMemoryConfig,
   WitnessInterval,
-} from "../contract/memory";
+} from "../contract/memory.ts";

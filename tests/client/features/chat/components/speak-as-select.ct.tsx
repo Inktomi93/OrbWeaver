@@ -7,8 +7,8 @@
 // (`page.getByRole`), never `component` — the composer-guided-cluster.ct.tsx precedent.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { SpeakAsSelectStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { SpeakAsSelectStory } from "../_ct-stories.tsx";
 
 function character(key: string, name: string, over: Record<string, unknown> = {}): unknown {
   return {

@@ -13,11 +13,11 @@
 // NOT by redacting this feed).
 
 import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
-import type { ChatContext } from "../context";
-import type { ResolveCanonWindow } from "../contract/context";
-import { loadChatMacroNameProducer } from "../persistence/macro-names";
-import { loadCanonHistory } from "../persistence/queries";
-import { projectRpgTranscript, sliceCanonWindow } from "../substrate/rpg-transcript";
+import type { ChatContext } from "../context.ts";
+import type { ResolveCanonWindow } from "../contract/context.ts";
+import { loadChatMacroNameProducer } from "../persistence/macro-names.ts";
+import { loadCanonHistory } from "../persistence/queries.ts";
+import { projectRpgTranscript, sliceCanonWindow } from "../substrate/rpg-transcript.ts";
 
 export function createResolveCanonWindow(ctx: ChatContext): ResolveCanonWindow {
   return async (chatId, opts) => {

@@ -4,7 +4,7 @@
 // stack nests the real chrome registry, mirroring main.tsx).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ChromeRegistryProbe } from "./_ct-stories";
+import { ChromeRegistryProbe } from "./_ct-stories.tsx";
 
 test("useChromeRegistry resolves the real registered topbar.trail widgets inside the provider", async ({ mount }) => {
   const probe = await mount(<ChromeRegistryProbe />);

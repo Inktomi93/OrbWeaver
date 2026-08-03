@@ -8,8 +8,8 @@
 import type { ReconcileStatsWorkloadResult } from "@orb/contracts/stats";
 import { emptyWorkloadParams } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
-import type { StatsWorkloadDeps } from "./contract/service";
-import { reconcileStats } from "./write/rebuild-from-canon";
+import type { StatsWorkloadDeps } from "./contract/service.ts";
+import { reconcileStats } from "./write/rebuild-from-canon.ts";
 
 /** `reconcile-stats` — rebuild the rollups from canon. `ownerId` scopes to ONE owner (SINGULAR: rebuild
  *  MY rollups); `null` sweeps every owner (BULK). */

@@ -19,9 +19,9 @@ import type { DocumentId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { AddChatDocumentDialogStory } from "../_ct-stories";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { AddChatDocumentDialogStory } from "../_ct-stories.tsx";
 
 const CHAT_ID = "chat_ct_keystone";
 

@@ -29,14 +29,14 @@ import type { CharacterHandle, CharacterId, ChatDigestId, ChatId, Handle, UserId
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { createCopyHandoffCards, handoffProvenance } from "../../../../../packages/server/src/domain/character";
-import { createRoster } from "../../../../../packages/server/src/domain/chat/verbs/roster";
-import { createHandoffRestampStatements } from "../../../../../packages/server/src/domain/embeddings";
-import { createCopyHandoffBooks } from "../../../../../packages/server/src/domain/world-info";
-import { freshDb } from "../../../../support/db";
+import { createCopyHandoffCards, handoffProvenance } from "../../../../../packages/server/src/domain/character/index.ts";
+import { createRoster } from "../../../../../packages/server/src/domain/chat/verbs/roster.ts";
+import { createHandoffRestampStatements } from "../../../../../packages/server/src/domain/embeddings/index.ts";
+import { createCopyHandoffBooks } from "../../../../../packages/server/src/domain/world-info/index.ts";
+import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];

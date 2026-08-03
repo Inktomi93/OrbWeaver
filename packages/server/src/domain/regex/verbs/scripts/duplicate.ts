@@ -2,11 +2,11 @@
 // (the `duplicateBook` posture: a copy is a new authored artifact, not a second attachment of the original).
 
 import { regexScripts } from "@orb/db";
-import type { RegexContext } from "../../context";
-import { RegexNotFoundError } from "../../contract/errors";
-import type { DuplicateScriptParams } from "../../contract/params";
-import type { RegexService } from "../../contract/service";
-import { loadOwnedScript, toRow } from "../../persistence/queries";
+import type { RegexContext } from "../../context.ts";
+import { RegexNotFoundError } from "../../contract/errors.ts";
+import type { DuplicateScriptParams } from "../../contract/params.ts";
+import type { RegexService } from "../../contract/service.ts";
+import { loadOwnedScript, toRow } from "../../persistence/queries.ts";
 
 const COPY_SUFFIX = " (copy)";
 

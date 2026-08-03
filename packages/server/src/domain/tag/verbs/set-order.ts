@@ -2,9 +2,9 @@
 // batch. The transport enforces `min(1)`; the verb guards the empty case (an empty batch is rejected by
 // libSQL) by no-op'ing.
 
-import type { SetTagOrderParams } from "../contract/params";
-import type { TagContext, TagService } from "../contract/service";
-import { setTagOrderBatch } from "../persistence/queries";
+import type { SetTagOrderParams } from "../contract/params.ts";
+import type { TagContext, TagService } from "../contract/service.ts";
+import { setTagOrderBatch } from "../persistence/queries.ts";
 
 export function createSetOrder(ctx: TagContext): TagService["setTagOrder"] {
   return async (params: SetTagOrderParams) => {

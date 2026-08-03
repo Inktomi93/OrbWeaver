@@ -13,7 +13,7 @@ import {
   isAnthropicModel,
 } from "@orb/server/infra/providers/backends/kit";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 describe("isAnthropicModel — the load-bearing anchor", () => {
   test("matches the bare Anthropic id and the OpenRouter-prefixed form", () => {

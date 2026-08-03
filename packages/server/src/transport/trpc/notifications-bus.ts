@@ -8,7 +8,7 @@
 
 import type { UserId } from "@orb/kit/ids";
 import type { InboxView } from "#domain/notifications";
-import { defineBusChannel } from "./bus-channel";
+import { defineBusChannel } from "./bus-channel.ts";
 
 const channelFor = (userId: UserId): string => `notify:${userId}`;
 

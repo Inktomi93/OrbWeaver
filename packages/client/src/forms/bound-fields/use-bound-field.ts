@@ -6,8 +6,8 @@
 // (G28 `bound-field-via-hook`), so a new bound field cannot re-hand-roll the wiring.
 
 import type { ReactNode } from "react";
-import { useFieldContext } from "../contexts";
-import { touchedFieldError } from "./field-error";
+import { useFieldContext } from "../contexts.ts";
+import { touchedFieldError } from "./field-error.ts";
 
 /** The label/description/hint/disabled a bound field passes through to `<Field>`. */
 export interface BoundFieldShellProps {

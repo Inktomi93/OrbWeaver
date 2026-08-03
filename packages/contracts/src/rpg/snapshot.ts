@@ -11,11 +11,11 @@
 import type { RpgQuestId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
-import type { RpgActorRef } from "./actor";
-import { actorRefKey, rpgActorEntrySchema } from "./actor";
-import { rpgClockTimeSchema, rpgWeatherSchema } from "./ambient";
-import { RPG_QUEST_STATUSES } from "./enums";
-import { rpgTrackerValuesSchema } from "./tracker";
+import type { RpgActorRef } from "./actor.ts";
+import { actorRefKey, rpgActorEntrySchema } from "./actor.ts";
+import { rpgClockTimeSchema, rpgWeatherSchema } from "./ambient.ts";
+import { RPG_QUEST_STATUSES } from "./enums.ts";
+import { rpgTrackerValuesSchema } from "./tracker.ts";
 
 // The PLOT plane (parity-plus P5 — the campaign-scale progression datum; workboard ruling #2). SNAPSHOT-
 // RESIDENT like quests: clone-forward on every variant, so the acts are swipe-consistent by the same

@@ -6,9 +6,9 @@
 
 import type { ContributorRegistry } from "#lib";
 import { createRegistryContext } from "#lib";
-import type { ResolvedSettingsSection, SettingsSectionContribution, SettingsViewerView } from "./settings-pane-registry";
-import { resolveSettingsSections } from "./settings-pane-registry";
-import type { SettingsCategoryId } from "./shell-store";
+import type { ResolvedSettingsSection, SettingsSectionContribution, SettingsViewerView } from "./settings-pane-registry.ts";
+import { resolveSettingsSections } from "./settings-pane-registry.ts";
+import type { SettingsCategoryId } from "./shell-store.ts";
 
 /** The open contributor view over every settings section, keyed by contribution id. */
 export type SettingsSectionRegistry = ContributorRegistry<SettingsSectionContribution>;

@@ -15,15 +15,15 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { testId } from "../../../../../../packages/client/src/lib/test-ids";
-import { routeTrpc, trpcError } from "../../../../../support/ct/route-trpc";
+import { testId } from "../../../../../../packages/client/src/lib/test-ids.ts";
+import { routeTrpc, trpcError } from "../../../../../support/ct/route-trpc.ts";
 import {
   PresetReadoutBoundStory,
   PresetReadoutParamsBoundStory,
   PresetReadoutPromptBoundStory,
   PresetReadoutPromptUnboundStory,
   PresetReadoutUnboundStory,
-} from "./_readout-stories";
+} from "./_readout-stories.tsx";
 
 const PRESET = "preset_ct_readoutbind";
 const CHAT = "chat_ct_readoutbind";

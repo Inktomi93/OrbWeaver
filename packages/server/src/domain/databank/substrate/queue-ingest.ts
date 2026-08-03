@@ -17,8 +17,8 @@
 
 import type { DocumentId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { QueuedIngest } from "../contract/results";
-import type { DatabankContext } from "../contract/service";
+import type { QueuedIngest } from "../contract/results.ts";
+import type { DatabankContext } from "../contract/service.ts";
 
 /** Enqueue the derived-layer build for a freshly-written document. NEVER throws: a queue refusal comes back
  *  as `ingest:'not-queued'` so the canon write that already landed is reported honestly (see the header).

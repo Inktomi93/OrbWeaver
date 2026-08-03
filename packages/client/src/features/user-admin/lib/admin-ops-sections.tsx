@@ -8,8 +8,8 @@
 // carries the viewer gate.
 
 import type { SettingsSectionContribution } from "#state";
-import { AdminCatalogSection, AdminEmbedCardSection } from "../components/admin-ops-section";
-import { ADMIN_CATALOG_SUBCATEGORY, ADMIN_EMBEDDINGS_SUBCATEGORY } from "./admin-ops-nav";
+import { AdminCatalogSection, AdminEmbedCardSection } from "../components/admin-ops-section.tsx";
+import { ADMIN_CATALOG_SUBCATEGORY, ADMIN_EMBEDDINGS_SUBCATEGORY } from "./admin-ops-nav.ts";
 
 export const adminCatalogSection: SettingsSectionContribution = {
   id: "admin-model-catalog",

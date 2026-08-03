@@ -6,8 +6,8 @@
 // execute-time unknown is errors-as-data instead (verbs/execute-tool-calls.ts). Order = caller order (the request
 // body stays byte-stable for a given attachment list — the prompt cache cares).
 
-import { ToolNotFoundError } from "../contract/errors";
-import type { RegisteredTool, ResolvedToolSet, ToolRegistry } from "../contract/results";
+import { ToolNotFoundError } from "../contract/errors.ts";
+import type { RegisteredTool, ResolvedToolSet, ToolRegistry } from "../contract/results.ts";
 
 export function createResolveTools(registry: ToolRegistry): (names: readonly string[]) => ResolvedToolSet {
   return (names: readonly string[]): ResolvedToolSet => {

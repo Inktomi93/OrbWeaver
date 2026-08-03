@@ -3,10 +3,10 @@
 // source tag in one atomic batch. A self-merge is a coded DomainOperationError, checked before the owner loads.
 
 import { DomainOperationError } from "@orb/kit/errors";
-import { TagNotFoundError } from "../contract/errors";
-import type { MergeTagsParams } from "../contract/params";
-import type { TagContext, TagService } from "../contract/service";
-import { loadOwnedTag, mergeTagBatch } from "../persistence/queries";
+import { TagNotFoundError } from "../contract/errors.ts";
+import type { MergeTagsParams } from "../contract/params.ts";
+import type { TagContext, TagService } from "../contract/service.ts";
+import { loadOwnedTag, mergeTagBatch } from "../persistence/queries.ts";
 
 export function createMerge(ctx: TagContext): TagService["mergeTags"] {
   return async (params: MergeTagsParams) => {

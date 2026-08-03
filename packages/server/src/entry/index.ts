@@ -4,7 +4,7 @@
 
 import process from "node:process";
 import { getLog } from "#foundation/observability";
-import { createLifecycle } from "./lifecycle";
+import { createLifecycle } from "./lifecycle.ts";
 
 const EXIT_BOOT_FAILURE = 1;
 

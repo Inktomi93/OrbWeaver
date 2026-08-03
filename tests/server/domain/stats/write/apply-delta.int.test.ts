@@ -14,7 +14,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { applyStatsDelta } from "../../../../../packages/server/src/domain/stats/write/apply-delta.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedUser, T0 } from "../_support.ts";
 
 let db: Db;

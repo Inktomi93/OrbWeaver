@@ -10,7 +10,7 @@ import type { Db } from "@orb/db";
 import { messages, messageVariants } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { and, asc, eq } from "drizzle-orm";
-import type { RevealBodyRow } from "../contract/service";
+import type { RevealBodyRow } from "../contract/service.ts";
 
 /** The chat's assistant transcript on the SELECTED-VARIANT lineage, chronological. Joins each assistant slot
  *  to its `selectedVariantId` variant so the reveal reads exactly what the reader saw (a swipe changes the

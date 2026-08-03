@@ -4,7 +4,7 @@
 
 import { describe } from "vitest";
 import { slug } from "../../../../../packages/server/src/domain/export/substrate/download-slug.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("slug", () => {
   test("keeps safe chars and collapses unsafe runs to a single underscore", () => {

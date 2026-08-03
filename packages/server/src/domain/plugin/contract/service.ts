@@ -10,7 +10,7 @@ import type { Can, Principal } from "@orb/contracts/identity";
 import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, PluginId, UserId } from "@orb/kit/ids";
-import type { PluginHostOps, PluginRegistrationHandle } from "./ops";
+import type { PluginHostOps, PluginRegistrationHandle } from "./ops.ts";
 import type {
   GetPluginLogParams,
   InstallPluginParams,
@@ -19,8 +19,8 @@ import type {
   SetPluginEnabledParams,
   UninstallPluginParams,
   UpgradePluginParams,
-} from "./params";
-import type { PluginLogView, PluginView, SnippetResult } from "./results";
+} from "./params.ts";
+import type { PluginLogView, PluginView, SnippetResult } from "./results.ts";
 
 /** The caller's leak-free chat authority for the snippet gate (03 §1): `canRead` admits the chat at all,
  *  `canWrite` unlocks the write half of the fixed profile (host authority). An unknown/foreign chat resolves

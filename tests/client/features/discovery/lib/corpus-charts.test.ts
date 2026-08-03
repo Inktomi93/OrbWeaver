@@ -3,8 +3,8 @@
 // bucketed into <Scatter> series by top-N frequency, deterministic tie-break, an "Other" catch-all for the
 // overflow + null). The surfaces lean on both; this asserts the shaping, not a trivial passthrough.
 
-import { toBarItems, toGenreSeries } from "../../../../../packages/client/src/features/discovery/lib/corpus-charts";
-import { expect, test } from "../../../../support/fixtures";
+import { toBarItems, toGenreSeries } from "../../../../../packages/client/src/features/discovery/lib/corpus-charts.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 function point(id: string, genre: string | null): { id: string; label: string; x: number; y: number; genre: string | null } {
   return { id, label: id, x: 0, y: 0, genre };

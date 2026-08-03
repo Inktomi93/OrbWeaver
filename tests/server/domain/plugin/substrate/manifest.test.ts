@@ -7,7 +7,7 @@ import { strToU8, zipSync } from "fflate";
 import { describe } from "vitest";
 import { ManifestInvalidError } from "../../../../../packages/server/src/domain/plugin/contract/errors.ts";
 import { isVersionDowngrade, parseBundle } from "../../../../../packages/server/src/domain/plugin/substrate/manifest.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const VALID_MANIFEST = {
   id: "my-plugin",

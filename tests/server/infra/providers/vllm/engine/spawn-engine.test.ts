@@ -7,7 +7,7 @@ import { resolveEngineDeploymentFacts } from "@orb/server/infra/providers";
 import type { EngineLaunchConfig } from "@orb/server/infra/providers/vllm/engine";
 import { buildEngineSpawnSpec } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 // A minimal launch config for the gen/embed spawn-spec env tests — those arms make NO huggingface_hub call
 // (only rerank does), and an explicit deployment.storeRoot short-circuits resolveStoreRoot's git shell, so

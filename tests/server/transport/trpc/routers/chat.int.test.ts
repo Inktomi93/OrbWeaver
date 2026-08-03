@@ -12,12 +12,12 @@ import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { loadRoster } from "../../../../../packages/server/src/domain/chat/persistence/roster";
-import { createRoster } from "../../../../../packages/server/src/domain/chat/verbs/roster";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../../../domain/chat/_support";
-import { caller, principal as callerPrincipal, makeContext } from "../_support";
+import { loadRoster } from "../../../../../packages/server/src/domain/chat/persistence/roster.ts";
+import { createRoster } from "../../../../../packages/server/src/domain/chat/verbs/roster.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../../../domain/chat/_support.ts";
+import { caller, principal as callerPrincipal, makeContext } from "../_support.ts";
 
 /** Owner-scoped `getCard` fake mirroring the real one (D28) — `addCharacterToChat` resolves the card only
  *  for its OWNER (a foreign character reads as missing, leak-free). */

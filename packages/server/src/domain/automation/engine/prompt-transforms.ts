@@ -15,12 +15,12 @@ import type { AutomationCelEnv } from "@orb/contracts/automation";
 import { automationActionsSchema } from "@orb/contracts/automation";
 import type { PromptTransform } from "@orb/contracts/chat";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { PromptTransformIndex, PromptTransformIndexDeps, RuleRow } from "../contract/ops";
-import { countChatMessages } from "../persistence/canon-reads";
-import { loadEnabledTurnStartedRules } from "../persistence/rules";
-import { authorGlobals } from "../substrate/cel-env";
-import { evaluatePredicate, nowFields } from "../substrate/dry-run";
-import { renderArmTemplate } from "../substrate/macro-render";
+import type { PromptTransformIndex, PromptTransformIndexDeps, RuleRow } from "../contract/ops.ts";
+import { countChatMessages } from "../persistence/canon-reads.ts";
+import { loadEnabledTurnStartedRules } from "../persistence/rules.ts";
+import { authorGlobals } from "../substrate/cel-env.ts";
+import { evaluatePredicate, nowFields } from "../substrate/dry-run.ts";
+import { renderArmTemplate } from "../substrate/macro-render.ts";
 
 /** The `PromptTransform.id` namespace for automation-registered transforms (`automation:<ruleId>:<armIndex>` —
  *  the arm index disambiguates a rule with more than one `transform_draft` arm; every id is unique in the

@@ -15,7 +15,7 @@
 
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { ChatId } from "@orb/kit/ids";
-import { defineBusChannel } from "./bus-channel";
+import { defineBusChannel } from "./bus-channel.ts";
 
 const channelFor = (chatId: ChatId): string => `automation:${chatId}`;
 

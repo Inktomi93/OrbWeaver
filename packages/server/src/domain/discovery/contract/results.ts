@@ -2,7 +2,7 @@
 
 import type { DuplicateRelation } from "@orb/contracts/discovery";
 import type { CharacterId, ChatId, DuplicateCharacterPairId, DuplicateChatPairId, MessageId, ThemeClusterId } from "@orb/kit/ids";
-import type { ThemeLevel } from "./params";
+import type { ThemeLevel } from "./params.ts";
 
 // ── near-duplicate characters ─────────────────────────────────────────────────
 /** One owner-scoped near-duplicate character pair (canonical `A<B`). `similarity` is the raw cosine;

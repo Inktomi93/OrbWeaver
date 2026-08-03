@@ -14,7 +14,7 @@ import { promptTemplateModeSchema, sizePresetSchema } from "@orb/contracts/image
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
-import { authedProcedure, t } from "../trpc";
+import { authedProcedure, t } from "../trpc.ts";
 
 // The edit instruction cap mirrors the generation prompt cap (imagery-design/02 §7 — the verbatim edit
 // instruction rides the same 2000-char ceiling as a resolved prompt).

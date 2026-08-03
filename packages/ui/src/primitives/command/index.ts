@@ -7,7 +7,7 @@ export type {
   CommandLoadingProps,
   CommandProps,
   CommandSeparatorProps,
-} from "./command";
+} from "./command.tsx";
 export {
   Command,
   CommandEmpty,
@@ -18,4 +18,4 @@ export {
   CommandLoading,
   CommandSeparator,
   CommandStatus,
-} from "./command";
+} from "./command.tsx";

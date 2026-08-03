@@ -14,7 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { isCommitted, useActiveChatHandle, useActiveDraftSeed } from "#state";
-import { ChatHeaderSurface, DraftChatHeader } from "./chat-header";
+import { ChatHeaderSurface, DraftChatHeader } from "./chat-header.tsx";
 
 /** Is the COMMITTED room ephemeral? A plain `useQuery` off the same `getChat` the room already reads —
  *  this header must never suspend on its own account, so an unresolved read reads as "not temporary"

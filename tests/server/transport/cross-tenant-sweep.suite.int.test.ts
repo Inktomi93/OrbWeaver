@@ -37,9 +37,9 @@ import type {
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { appRouter } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
-import type { AppCaller } from "../../support/fixtures";
-import { expect, OWNER_USER_ID, test } from "../../support/fixtures";
-import { seedChat, seedMessage, seedParticipant } from "../domain/chat/_support";
+import type { AppCaller } from "../../support/fixtures.ts";
+import { expect, OWNER_USER_ID, test } from "../../support/fixtures.ts";
+import { seedChat, seedMessage, seedParticipant } from "../domain/chat/_support.ts";
 
 // ── Owner A's distinctive marker names — these strings exist ONLY in A's owned rows, so their appearance in
 //    a stranger's result is an unambiguous LEAK signal (an echoed input id is NOT a leak — a stranger's own

@@ -1,7 +1,7 @@
 // Base UI Toolbar — roving tabindex + ARIA for free, skinned as a Row.
 import { Toolbar as BaseToolbar } from "@base-ui/react/toolbar";
 import type { ComponentProps, ReactElement } from "react";
-import { toolbarButtonVariants, toolbarSeparatorVariants, toolbarVariants } from "./variants";
+import { toolbarButtonVariants, toolbarSeparatorVariants, toolbarVariants } from "./variants.ts";
 
 export interface ToolbarProps extends Omit<ComponentProps<typeof BaseToolbar.Root>, "className"> {
   className?: string;

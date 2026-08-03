@@ -38,17 +38,17 @@ import {
   useShowArchived,
   useTagFilter,
 } from "#state";
-import { CharacterBulkBar } from "../components/character-bulk-bar";
-import type { CharacterCardItem } from "../components/character-card";
-import { CharacterCardTile } from "../components/character-card";
-import { CharacterCategorizedList } from "../components/character-categorized-list";
-import { CharacterCreateButton } from "../components/character-create-actions";
-import { CharacterFilterChips } from "../components/character-filter-chips";
-import { CharacterLibraryToolbar } from "../components/character-library-toolbar";
-import { useDuplicateCharacter, useRemoveCharacter } from "../hooks/use-character-context-mutations";
-import { useUpdateCharacter } from "../hooks/use-character-mutations";
-import { filterByChips, groupByTag, resumeTargets } from "../lib/character-list-view";
-import { filterCharacters } from "../lib/filter-characters";
+import { CharacterBulkBar } from "../components/character-bulk-bar.tsx";
+import type { CharacterCardItem } from "../components/character-card.tsx";
+import { CharacterCardTile } from "../components/character-card.tsx";
+import { CharacterCategorizedList } from "../components/character-categorized-list.tsx";
+import { CharacterCreateButton } from "../components/character-create-actions.tsx";
+import { CharacterFilterChips } from "../components/character-filter-chips.tsx";
+import { CharacterLibraryToolbar } from "../components/character-library-toolbar.tsx";
+import { useDuplicateCharacter, useRemoveCharacter } from "../hooks/use-character-context-mutations.ts";
+import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
+import { filterByChips, groupByTag, resumeTargets } from "../lib/character-list-view.ts";
+import { filterCharacters } from "../lib/filter-characters.ts";
 
 const ESTIMATED_ROW_PX = 80;
 /** How many frames the back-focus restore waits for the virtualizer to mount her row before giving up. */

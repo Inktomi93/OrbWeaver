@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { kbdVariants } from "./variants";
+import { kbdVariants } from "./variants.ts";
 
 export interface KbdProps extends ComponentProps<"kbd">, VariantProps<typeof kbdVariants> {}
 

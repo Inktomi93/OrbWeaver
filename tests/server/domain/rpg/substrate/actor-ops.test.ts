@@ -6,8 +6,8 @@
 import type { RpgActorEntry, RpgActorOp } from "@orb/contracts/rpg";
 import type { UserId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
-import { applyActorOps, emptyActorEntry } from "../../../../../packages/server/src/domain/rpg/substrate/actor-ops";
-import { expect, test } from "../../../../support/fixtures";
+import { applyActorOps, emptyActorEntry } from "../../../../../packages/server/src/domain/rpg/substrate/actor-ops.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const MIRA = { kind: "cast", castKey: "mira" } as const;
 const USER_ID = newId<UserId>();

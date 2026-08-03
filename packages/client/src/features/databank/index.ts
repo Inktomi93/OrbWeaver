@@ -10,4 +10,4 @@
 //     authority over a room, so it homes in `features/chat` too — a tRPC call is a DATA seam, not a
 //     feature import. That surface is the program's next stage, not this one.
 
-export { databankSection } from "./lib/databank-section";
+export { databankSection } from "./lib/databank-section.tsx";

@@ -14,7 +14,7 @@ import type { AuthRoutesDeps, AuthSessionsPort, LocalAuthenticator, OidcClaimMap
 import { deriveRedirectUri, identityFromClaims, registerAuthRoutes, serializeClearedSessionCookie, serializeSessionCookie } from "@orb/server/entry/http";
 import type { OidcTransaction } from "@orb/server/infra/auth";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
 const THIRTY_DAYS_MS = 2_592_000_000;

@@ -15,7 +15,7 @@ import { WORLD_INFO_SCHEMA_KIND } from "@orb/server/kit/serde/world-info";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "./_support.ts";
 
 const DEC = new TextDecoder();

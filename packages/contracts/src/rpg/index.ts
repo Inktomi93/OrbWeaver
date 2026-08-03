@@ -28,19 +28,19 @@
 //   • KISS/YAGNI SUSPENDED: the full-mode shape ships as DATA from day one so full grafts add siblings, never
 //     re-spell (the graft-map invariant, §C).
 
-export * from "./actor";
-export * from "./ambient";
-export * from "./bus";
-export * from "./config";
-export * from "./enums";
-export * from "./extraction";
-export * from "./extraction-prompt";
-export * from "./inputs";
-export * from "./mode";
-export * from "./pointer";
-export * from "./profile";
-export * from "./sheet";
-export * from "./snapshot";
-export * from "./tools";
-export * from "./tracker";
-export * from "./views";
+export * from "./actor.ts";
+export * from "./ambient.ts";
+export * from "./bus.ts";
+export * from "./config.ts";
+export * from "./enums.ts";
+export * from "./extraction.ts";
+export * from "./extraction-prompt.ts";
+export * from "./inputs.ts";
+export * from "./mode.ts";
+export * from "./pointer.ts";
+export * from "./profile.ts";
+export * from "./sheet.ts";
+export * from "./snapshot.ts";
+export * from "./tools.ts";
+export * from "./tracker.ts";
+export * from "./views.ts";

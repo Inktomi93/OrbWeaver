@@ -2,7 +2,7 @@
 
 import { Settings } from "@orb/ui/icons";
 import type { ModalDefinition } from "#state";
-import { SettingsShell } from "../surfaces/settings-shell-surface";
+import { SettingsShell } from "../surfaces/settings-shell-surface.tsx";
 
 export const settingsModal: ModalDefinition = {
   id: "settings",

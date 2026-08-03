@@ -16,7 +16,7 @@
 // migration itself never changes.
 
 import type { Greeting } from "@orb/contracts/character";
-import type { SeededCardContent } from "../contract/seeder";
+import type { SeededCardContent } from "../contract/seeder.ts";
 
 /** The v1 pack's authored content, keyed by handle. Frozen — see the file header. */
 export const PRIOR_PACK_CONTENT: Readonly<Record<string, SeededCardContent>> = {

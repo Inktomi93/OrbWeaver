@@ -5,9 +5,9 @@
 
 import type { WorkloadError } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
-import type { WorkloadContributions } from "../contract/contribution";
-import { findStaleInFlight, markTerminal } from "../persistence/queries";
-import { emitWorkloadEvent } from "./progress-bus";
+import type { WorkloadContributions } from "../contract/contribution.ts";
+import { findStaleInFlight, markTerminal } from "../persistence/queries.ts";
+import { emitWorkloadEvent } from "./progress-bus.ts";
 
 const DEFAULT_STALE_THRESHOLD_MS = 15_000;
 const REAPED_MESSAGE = "worker heartbeat went stale — row reaped (worker_died)";

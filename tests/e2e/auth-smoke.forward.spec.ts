@@ -10,7 +10,7 @@
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import { actorViaHeader } from "./support/actors";
+import { actorViaHeader } from "./support/actors.ts";
 
 test("a signed-JWT identity with a non-owner handle resolves as role=user", async ({ baseURL }) => {
   const alice = await actorViaHeader(baseURL ?? "", { handle: castId<Handle>("alice"), sub: "sub-alice" });

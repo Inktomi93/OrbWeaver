@@ -1,7 +1,7 @@
 import type { ProgressRootProps as BaseRootProps } from "@base-ui/react/progress";
 import { Progress as BaseProgress } from "@base-ui/react/progress";
 import type { ReactElement, ReactNode } from "react";
-import { progressVariants } from "./variants";
+import { progressVariants } from "./variants.ts";
 
 const slots = progressVariants();
 

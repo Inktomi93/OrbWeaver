@@ -21,7 +21,7 @@ import { ensureFreshHostSubToken, refreshHostSubTokenIfMode1 } from "@orb/server
 import type { Mock } from "vitest";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import { makeOpenRouterCredential, makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 /** A typed fake `fetch` — `vi.fn<typeof fetch>()` so no `as unknown as` double-cast is needed (the
  *  no-test-fabrication gate); the `.mock` inspection stays type-safe. */

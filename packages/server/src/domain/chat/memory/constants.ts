@@ -9,7 +9,7 @@
 // does not apply).
 
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
-import type { MemoryConfig, ResolvedMemoryConfig } from "./types";
+import type { MemoryConfig, ResolvedMemoryConfig } from "./types.ts";
 
 /** The baked-in resolver floor — the core/Knowledge-Cluster.md §5 grounded defaults. ONE home: the values
  *  live in `@orb/contracts/settings` `DEFAULT_MEMORY_DEFAULTS` (so the admin surface reads the same floor it

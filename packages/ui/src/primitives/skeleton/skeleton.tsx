@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { skeletonVariants } from "./variants";
+import { skeletonVariants } from "./variants.ts";
 
 export interface SkeletonProps extends ComponentProps<"div">, VariantProps<typeof skeletonVariants> {}
 

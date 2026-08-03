@@ -9,7 +9,7 @@ import { committedChat, draftChat, isCommitted, isLanding, landingChat } from "@
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_handletest0001");
 

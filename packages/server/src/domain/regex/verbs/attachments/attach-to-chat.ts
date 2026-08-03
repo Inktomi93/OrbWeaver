@@ -5,11 +5,11 @@
 // their own scripts.
 
 import { chatRegexScripts } from "@orb/db";
-import type { RegexContext } from "../../context";
-import { RegexNotFoundError } from "../../contract/errors";
-import type { AttachToChatParams } from "../../contract/params";
-import type { RegexService } from "../../contract/service";
-import { listChatScripts, loadOwnedScript } from "../../persistence/queries";
+import type { RegexContext } from "../../context.ts";
+import { RegexNotFoundError } from "../../contract/errors.ts";
+import type { AttachToChatParams } from "../../contract/params.ts";
+import type { RegexService } from "../../contract/service.ts";
+import { listChatScripts, loadOwnedScript } from "../../persistence/queries.ts";
 
 export function createAttachToChat(ctx: RegexContext): RegexService["attachToChat"] {
   return async ({ principal, chatId, scriptId }: AttachToChatParams) => {

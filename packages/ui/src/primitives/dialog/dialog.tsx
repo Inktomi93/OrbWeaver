@@ -11,7 +11,7 @@ import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { usePortalContainer } from "#lib";
-import { dialogVariants } from "./variants";
+import { dialogVariants } from "./variants.ts";
 
 const slots = dialogVariants();
 

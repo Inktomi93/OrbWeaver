@@ -4,7 +4,7 @@ import { Field } from "@orb/ui/field";
 import { Select } from "@orb/ui/select";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { RenderValueStory } from "./select.fixtures";
+import { RenderValueStory } from "./select.fixtures.tsx";
 
 const NON_EMPTY = /.+/u;
 

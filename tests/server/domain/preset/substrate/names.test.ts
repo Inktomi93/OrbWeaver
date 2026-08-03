@@ -3,7 +3,7 @@
 // under one identical name (visual-blech audit F5: nine unreadable "Default (edited)" rows).
 
 import { uniquePresetName } from "../../../../../packages/server/src/domain/preset/substrate/names.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 test("a free name is returned untouched (the FIRST mint is never numbered)", () => {
   expect(uniquePresetName("Default (edited)", ["Roleplay", "Default"])).toBe("Default (edited)");

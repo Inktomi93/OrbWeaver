@@ -2,7 +2,7 @@
 // the admin domain service reads it through the providers front door (no driver→driver import).
 // Process-local, like the status registry next door.
 
-import type { VLLM_ENGINES } from "./engines";
+import type { VLLM_ENGINES } from "./engines.ts";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 

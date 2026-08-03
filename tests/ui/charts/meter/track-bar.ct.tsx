@@ -5,7 +5,7 @@
 import { TrackBar } from "@orb/ui/meter";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
 
 test("fill width is value/max and the fill rides the track-ramp token color", async ({ mount }) => {
   const component = await mount(<TrackBar value={24} max={30} color={1} />);

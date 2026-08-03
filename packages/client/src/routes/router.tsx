@@ -1,9 +1,9 @@
 import { createRoute, createRouter } from "@tanstack/react-router";
 import { redirectIfAuthed, requireAuthed } from "#features/auth";
-import { rootRoute } from "./__root";
-import { AppRoot } from "./app-root";
-import { LoginPage } from "./login-page";
-import { RoutePending } from "./route-pending";
+import { rootRoute } from "./__root.tsx";
+import { AppRoot } from "./app-root.tsx";
+import { LoginPage } from "./login-page.tsx";
+import { RoutePending } from "./route-pending.tsx";
 
 // Hand-written code-based route tree — 2 routes, no file-based codegen. The URL stays effectively pinned
 // at `/`; entity ids never enter the address bar. Admin is a pane inside the Settings modal at `/`, not a

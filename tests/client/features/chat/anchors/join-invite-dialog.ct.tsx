@@ -6,8 +6,8 @@
 // text). A bad token renders the ONE flat "invalid or expired" state — leak-free, no oracle.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { JoinInviteDialogStory } from "../_ct-stories";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { JoinInviteDialogStory } from "../_ct-stories.tsx";
 
 const PREVIEW = {
   chatId: "chat_ct_join",

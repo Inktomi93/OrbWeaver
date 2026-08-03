@@ -12,7 +12,7 @@ import { Slider } from "@orb/ui/slider";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
-import type { MemberCastRow } from "../lib/member-rows";
+import type { MemberCastRow } from "../lib/member-rows.ts";
 
 /** Percent display factor for the 0–1 talkativeness weight. */
 const PERCENT = 100;

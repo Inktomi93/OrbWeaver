@@ -33,9 +33,9 @@ import type { ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RegexPlacement } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";
-import type { ChatContext } from "../context";
-import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
-import type { ResolveForeignInputsOp } from "../contract/foreign";
+import type { ChatContext } from "../context.ts";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
+import type { ResolveForeignInputsOp } from "../contract/foreign.ts";
 import type {
   ClearReasoningParams,
   DeleteMessagesParams,
@@ -47,9 +47,9 @@ import type {
   ReattributePersonaParams,
   SelectVariantParams,
   SetMessageHiddenParams,
-} from "../contract/params";
-import type { ChatService } from "../contract/service";
-import { requireAuthorOrHost, requireHost, requireParticipant } from "../guard";
+} from "../contract/params.ts";
+import type { ChatService } from "../contract/service.ts";
+import { requireAuthorOrHost, requireHost, requireParticipant } from "../guard.ts";
 import {
   buildCommittedMessageView,
   deleteMessagesStatement,
@@ -62,7 +62,7 @@ import {
   setMessageHiddenStatement,
   setMessageSeqStatement,
   shiftSeqRangeStatement,
-} from "../persistence/canon-write";
+} from "../persistence/canon-write.ts";
 import {
   loadAuthoredUserMessageIds,
   loadCanonStatRows,
@@ -74,17 +74,17 @@ import {
   loadVariantDelta,
   loadVariantMessageId,
   loadVariantsByMessageIds,
-} from "../persistence/queries";
-import { loadRoster } from "../persistence/roster";
-import { gatherAssembleContext } from "../substrate/assemble-gather";
-import { buildTurnMacroContext } from "../substrate/assembly-access";
-import { assertAuthorOrHost } from "../substrate/auth";
-import { projectViewReturnForViewer } from "../substrate/member-visibility";
-import { resolveHostTierRegexScripts } from "../substrate/regex-tier";
-import { hostUserIdOf } from "../substrate/roster-host";
-import { presentHumanUserIdsOf } from "../substrate/roster-humans";
-import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables";
-import { canonMessageDelta, editMessageDelta, swipeVariantDelta } from "../substrate/stats-delta";
+} from "../persistence/queries.ts";
+import { loadRoster } from "../persistence/roster.ts";
+import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
+import { buildTurnMacroContext } from "../substrate/assembly-access.ts";
+import { assertAuthorOrHost } from "../substrate/auth/index.ts";
+import { projectViewReturnForViewer } from "../substrate/member-visibility.ts";
+import { resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
+import { hostUserIdOf } from "../substrate/roster-host.ts";
+import { presentHumanUserIdsOf } from "../substrate/roster-humans.ts";
+import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
+import { canonMessageDelta, editMessageDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 
 /** The emit op the edit verbs close over. */
 type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;

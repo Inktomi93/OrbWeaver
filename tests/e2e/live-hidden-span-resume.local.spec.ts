@@ -30,7 +30,7 @@
 import type { CharacterHandle, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors";
+import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
 import {
   FIXTURE_COVER_MARKER,
   FIXTURE_LIE_REASON,
@@ -38,10 +38,10 @@ import {
   FIXTURE_LIE_TAIL,
   FIXTURE_POST_SPAN_PROSE,
   startFixtureProvider,
-} from "./support/fixture-provider";
-import { FIXTURE_PROVIDER_PORT, LOCAL_MEMBER } from "./support/modes";
-import type { StreamValue } from "./support/sse";
-import { collectChatRoomFrames } from "./support/sse";
+} from "./support/fixture-provider.ts";
+import { FIXTURE_PROVIDER_PORT, LOCAL_MEMBER } from "./support/modes.ts";
+import type { StreamValue } from "./support/sse.ts";
+import { collectChatRoomFrames } from "./support/sse.ts";
 
 const CARD_HANDLE = "e2e-span-resume";
 const STREAM_TIMEOUT_MS = 60_000;

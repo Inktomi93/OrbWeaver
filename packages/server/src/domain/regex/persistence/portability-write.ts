@@ -24,9 +24,9 @@ import type {
   ImportCardScriptsResult,
   ImportRegexScript,
   RegexPortabilityContext,
-} from "../contract/portability";
-import { findDuplicate, planCardLift, splitScript } from "../substrate/dedup";
-import { listOwnedScripts, loadOwnedScriptsByIds, toRow } from "./queries";
+} from "../contract/portability.ts";
+import { findDuplicate, planCardLift, splitScript } from "../substrate/dedup.ts";
+import { listOwnedScripts, loadOwnedScriptsByIds, toRow } from "./queries.ts";
 
 /**
  * The card LIFT (the `importLorebook` twin). Reads the owner's library + the carried references THIS owner

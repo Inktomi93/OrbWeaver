@@ -7,7 +7,7 @@ import { Field } from "@orb/ui/field";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
 import type { ReactElement, ReactNode } from "react";
-import { useBoundField } from "./use-bound-field";
+import { useBoundField } from "./use-bound-field.ts";
 
 export interface SelectFieldProps {
   readonly label: ReactNode;

@@ -18,9 +18,9 @@ import { z } from "zod";
 import type { EffortLevel as ModelEffortLevel } from "#connection";
 import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, roleHandlingSchema, VERBOSITY_LEVELS } from "#connection";
 import { defineVersionedConfig } from "#versioned-config";
-import { PRESET_PROSE_SLOTS } from "./prose";
+import { PRESET_PROSE_SLOTS } from "./prose.ts";
 
-export * from "./prose";
+export * from "./prose.ts";
 
 const MAX_NAME_LENGTH = 200;
 const MIN_ID_LENGTH = 1;

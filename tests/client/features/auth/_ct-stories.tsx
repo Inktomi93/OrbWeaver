@@ -9,10 +9,10 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 // The form + the per-mode dispatcher are feature INTERNALS the front door doesn't re-export — the
 // settings _ct-stories.tsx precedent for reaching one directly.
-import type { AuthConfig } from "../../../../packages/client/src/data/auth-config";
-import { LoginLocalForm } from "../../../../packages/client/src/features/auth/components/login-local-form";
-import { LoginBody } from "../../../../packages/client/src/features/auth/surfaces/login-surface";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+import type { AuthConfig } from "../../../../packages/client/src/data/auth-config.ts";
+import { LoginLocalForm } from "../../../../packages/client/src/features/auth/components/login-local-form.tsx";
+import { LoginBody } from "../../../../packages/client/src/features/auth/surfaces/login-surface.tsx";
+import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The REAL `AccountSurface` (the modal body the desktop rail-foot Account entry opens via
  *  `openModal("account")`) inside the client data layer — the auth `/config` + `/me` reads are stubbed

@@ -7,7 +7,7 @@
 import { coEmitsProseWithTools } from "@orb/contracts/connection";
 import { describe } from "vitest";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("resolveModelCapability — curated arm (wins first)", () => {
   test("opus is adaptive with no sampling (agent-sdk honors none)", () => {

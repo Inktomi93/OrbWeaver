@@ -13,7 +13,7 @@ import type { StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey, STREAM_CHANNELS, streamAttachInputSchema, streamConnectInputSchema, streamDetachInputSchema } from "@orb/contracts/stream";
 import type { ChatId, SocketId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const CHAT_A = castId<ChatId>("chat_aaa");
 const CHAT_B = castId<ChatId>("chat_bbb");

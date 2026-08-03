@@ -14,7 +14,7 @@
 
 import { DomainConflictError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
-import type { ReconcileInFlight } from "./contract/reconcile-in-flight";
+import type { ReconcileInFlight } from "./contract/reconcile-in-flight.ts";
 
 /** The refusal copy — honest and actionable: there is nothing to do but wait for the running pass. */
 const ALREADY_RUNNING = "a recompute is already running";

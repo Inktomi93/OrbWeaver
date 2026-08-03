@@ -4,7 +4,7 @@
 
 import { describe } from "vitest";
 import { contentHash } from "../../../../../packages/server/src/domain/embeddings/substrate/hash.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const SHA256_HEX = /^[0-9a-f]{64}$/u;
 

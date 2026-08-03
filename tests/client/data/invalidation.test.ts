@@ -18,7 +18,7 @@ import type { CharacterId, ChatId, MessageId, PresetId, RpgSheetId, RpgSnapshotI
 import { castId } from "@orb/kit/ids";
 import { QueryClient } from "@tanstack/react-query";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const CHAT_ID = castId<ChatId>("chat_invalidationtest");
 const MESSAGE_ID = castId<MessageId>("msg_invalidationtest0");

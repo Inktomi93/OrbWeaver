@@ -6,8 +6,8 @@ import type { Db } from "@orb/db";
 import { auditLogs } from "@orb/db";
 import { getAuditFailureSnapshot, logAudit, resetAuditFailureCount } from "@orb/server/foundation/observability";
 import { describe } from "vitest";
-import { freshDb } from "../../../support/db";
-import { expect, test } from "../../../support/fixtures";
+import { freshDb } from "../../../support/db.ts";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const STAMP = 1_700_000_000_000; // a fixed epoch-ms (determinism — never the wall clock)
 const FAIL_STAMP = 1_700_000_999_999;

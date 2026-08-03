@@ -11,7 +11,7 @@ import type { PortableParse } from "@orb/contracts/portability";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import { buildWorldBookFile, parseWorldBookFile, WORLD_INFO_SCHEMA_KIND } from "@orb/server/kit/serde/world-info";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The parse outcome's value — the spine returns a typed refusal reason, never null. */
 function refusalOf<T>(result: PortableParse<T>): string {

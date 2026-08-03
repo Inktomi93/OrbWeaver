@@ -7,10 +7,10 @@ import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { findGameByChat } from "../../../../../packages/server/src/domain/rpg/persistence/games";
-import { findSheet } from "../../../../../packages/server/src/domain/rpg/persistence/sheets";
-import { freshDb } from "../../../../support/db";
-import { expect, makeRpgService, principal, seedChat, seedUser, test } from "../_support";
+import { findGameByChat } from "../../../../../packages/server/src/domain/rpg/persistence/games.ts";
+import { findSheet } from "../../../../../packages/server/src/domain/rpg/persistence/sheets.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, makeRpgService, principal, seedChat, seedUser, test } from "../_support.ts";
 
 const RANGE_RE = /out of range/i;
 const UNKNOWN_ATTR_RE = /not in the profile/i;

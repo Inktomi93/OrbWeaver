@@ -8,8 +8,8 @@
 import type { UserId } from "@orb/kit/ids";
 import type { CanonicalTag } from "#kit/serde/tag";
 import { buildTagLibrary } from "#kit/serde/tag";
-import type { TagContext } from "../contract/service";
-import { listOwnedTags } from "../persistence/queries";
+import type { TagContext } from "../contract/service.ts";
+import { listOwnedTags } from "../persistence/queries.ts";
 
 /** Read the owner's tags and serialize them to tag-library JSON bytes. */
 export function createExport(ctx: TagContext): (ownerId: UserId) => Promise<Uint8Array> {

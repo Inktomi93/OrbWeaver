@@ -12,7 +12,7 @@ import {
 } from "@orb/contracts/character";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import { SubstituteFindRegex } from "@orb/kit/regex";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // A fully-specified regex script (every field present) so `parse` is an identity on the card → the card
 // round-trips byte-for-byte. Mirrors the regex node's own FULL_SCRIPT fixture (no high-entropy literals).

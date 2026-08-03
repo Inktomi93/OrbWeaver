@@ -7,8 +7,8 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { chatStream } from "#state";
-import { useInvalidation } from "../use-invalidation";
-import type { ChatBusDeps } from "./apply-chat-bus-event";
+import { useInvalidation } from "../use-invalidation.ts";
+import type { ChatBusDeps } from "./apply-chat-bus-event.ts";
 
 /** Assemble the composition root's ChatBusDeps — `stream` is the chatStream write API, `invalidate`
  *  is the central seam's bus half. */

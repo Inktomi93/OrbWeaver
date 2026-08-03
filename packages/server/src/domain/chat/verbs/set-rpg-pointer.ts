@@ -17,9 +17,9 @@ import type { ChatRpgPointer } from "@orb/contracts/rpg";
 import { chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import type { ChatContext } from "../context";
-import type { SetRpgPointer } from "../contract/context";
-import { loadChatRow } from "../persistence/queries";
+import type { ChatContext } from "../context.ts";
+import type { SetRpgPointer } from "../contract/context.ts";
+import { loadChatRow } from "../persistence/queries.ts";
 
 export function createSetRpgPointer(ctx: ChatContext): SetRpgPointer {
   return async (chatId: ChatId, pointer: ChatRpgPointer | null): Promise<void> => {

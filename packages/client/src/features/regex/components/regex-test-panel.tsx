@@ -23,8 +23,8 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ChangeEvent, ReactElement } from "react";
 import { useState } from "react";
-import type { RegexPreview } from "../lib/regex-preview";
-import { previewRegexScript, REGEX_PREVIEW_CHAR, REGEX_PREVIEW_DEFAULT_SAMPLE, REGEX_PREVIEW_MAX_INPUT, REGEX_PREVIEW_USER } from "../lib/regex-preview";
+import type { RegexPreview } from "../lib/regex-preview.ts";
+import { previewRegexScript, REGEX_PREVIEW_CHAR, REGEX_PREVIEW_DEFAULT_SAMPLE, REGEX_PREVIEW_MAX_INPUT, REGEX_PREVIEW_USER } from "../lib/regex-preview.ts";
 
 const SAMPLE_ROWS = 3;
 const ONE_MATCH = 1;

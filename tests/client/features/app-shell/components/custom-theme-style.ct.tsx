@@ -5,7 +5,7 @@
 //   • the injected `.shell-rail` rule beats shell.css's own `.shell-rail` (unlayered + mounted last).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { CustomThemeStyleStory } from "../_ct-stories";
+import { CustomThemeStyleStory } from "../_ct-stories.tsx";
 
 const OVERRIDE_CSS = ":root { --color-primary: rgb(255, 0, 255); } .shell-rail { background: rgb(1, 2, 3); }";
 

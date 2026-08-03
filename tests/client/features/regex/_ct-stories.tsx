@@ -10,9 +10,9 @@ import type { CharacterId } from "@orb/kit/ids";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { RegexContextBody } from "../../../../packages/client/src/features/regex/components/regex-context-body";
-import { RegexMemberSurface } from "../../../../packages/client/src/features/regex/surfaces/regex-member-surface";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+import { RegexContextBody } from "../../../../packages/client/src/features/regex/components/regex-context-body.tsx";
+import { RegexMemberSurface } from "../../../../packages/client/src/features/regex/surfaces/regex-member-surface.tsx";
+import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The regex MEMBER EDITOR mounted in CONTENT (config-rail C-7 — the same fields the retired Dialog bound,
  *  minus the Dialog) — `regex.listScripts` (the read) and `regex.updateScript`/`removeScript` (the writes)

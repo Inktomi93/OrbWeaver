@@ -7,7 +7,7 @@
 // The per-viewer `chatOpened` trigger is NOT on either bus (D81 — a transport-attach synthesis); it is tapped
 // separately at the composition root and fed to the same `handleEvent`.
 
-import type { AutomationWatcherEnv, AutomationWatcherHandle } from "../contract/service";
+import type { AutomationWatcherEnv, AutomationWatcherHandle } from "../contract/service.ts";
 
 /** Start the automation watcher. Idempotent teardown via the returned stop(). */
 export function startAutomationWatcher(env: AutomationWatcherEnv): AutomationWatcherHandle {

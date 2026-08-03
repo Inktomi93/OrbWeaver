@@ -5,7 +5,7 @@
 // drives this; presence in the map IS the edit-mode flag (undefined = not editing).
 
 import type { MessageId } from "@orb/kit/ids";
-import { createGatedStore } from "./create-gated-store";
+import { createGatedStore } from "./create-gated-store.ts";
 
 interface MessageEditDraftState {
   readonly drafts: Readonly<Record<string, string>>;

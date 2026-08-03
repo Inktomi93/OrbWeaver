@@ -18,8 +18,8 @@ import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import type { CharacterChatsProjectionView } from "#lib";
 import { useSelectedCharacterId } from "#state";
-import { CharacterLibrarySurface } from "../surfaces/character-library-surface";
-import { CharacterChatsProjectionShell } from "./character-chats-projection-shell";
+import { CharacterLibrarySurface } from "../surfaces/character-library-surface.tsx";
+import { CharacterChatsProjectionShell } from "./character-chats-projection-shell.tsx";
 
 export interface CharactersListPaneProps {
   /** The chat-owned projection body, injected at the door (§3.2) — character never imports chat. */

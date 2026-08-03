@@ -12,7 +12,7 @@ import { afterEach, describe, vi } from "vitest";
 import { writeCatalogSnapshot } from "../../../../../packages/server/src/domain/connection/persistence/catalog-snapshot.ts";
 import { __resetOrModelCache } from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeConnHarness, makeOrEntry, principal } from "../_support.ts";
 
 const MS_PER_HOUR = 3_600_000;

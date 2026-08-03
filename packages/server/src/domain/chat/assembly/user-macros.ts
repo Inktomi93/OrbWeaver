@@ -24,8 +24,8 @@
 import type { UserMacroDraws } from "@orb/contracts/chat";
 import type { MacroRegistry, RejectedUserMacro, UserMacroDef } from "@orb/kit/macro";
 import { createDefaultRegistry, createVolatileOnlyRegistry, registerUserMacros, resolveUserMacroInputs } from "@orb/kit/macro";
-import type { BuildTurnUserMacrosArgs, TurnUserMacros, UserMacroDefGroup } from "../contract/assembly-macros";
-import { shadowPresetUserMacros } from "../substrate/user-macros";
+import type { BuildTurnUserMacrosArgs, TurnUserMacros, UserMacroDefGroup } from "../contract/assembly-macros.ts";
+import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
 
 /** One source group's registration onto BOTH registries (the same defs + the same bindings, so the section
  *  walk and the freeze bake resolve identically). Reports the RENDER registry's refusals — a genuine

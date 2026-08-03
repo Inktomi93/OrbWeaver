@@ -5,8 +5,8 @@
 // (mirrors the applier's `acts.length >= act` maintenance). FINE lock paths per #10: `plot.acts` for a
 // title edit, `plot.act` for a progress edit — a pinned act rail is precise, never a whole-plot pin.
 
-import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import type { useEditSnapshot } from "../hooks/use-rpg-mutations";
+import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
+import type { useEditSnapshot } from "../hooks/use-rpg-mutations.ts";
 
 /** The plot hand-edit callbacks the act rail consumes. */
 export interface PlotEdit {

@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 import { Button } from "#primitives/button";
-import { optionStripVariants } from "./variants";
+import { optionStripVariants } from "./variants.ts";
 
 /**
  * One offer in the strip. Domain-agnostic — the container knows nothing of what a row MEANS; a caller maps

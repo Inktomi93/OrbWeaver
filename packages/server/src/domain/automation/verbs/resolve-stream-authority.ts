@@ -9,11 +9,11 @@
 // participant). This is the injected-op-caller-gate class realized fail-closed: the chatId is the untrusted
 // input, the present-membership read is the chokepoint, and it runs BEFORE any bus tail attaches.
 
-import { AutomationChatNotFoundError } from "../contract/errors";
-import type { ResolveStreamAuthorityParams } from "../contract/params";
-import type { StreamAuthority } from "../contract/results";
-import type { AutomationContext, AutomationService } from "../contract/service";
-import { loadCallerRole } from "../persistence/canon-reads";
+import { AutomationChatNotFoundError } from "../contract/errors.ts";
+import type { ResolveStreamAuthorityParams } from "../contract/params.ts";
+import type { StreamAuthority } from "../contract/results.ts";
+import type { AutomationContext, AutomationService } from "../contract/service.ts";
+import { loadCallerRole } from "../persistence/canon-reads.ts";
 
 export function createResolveStreamAuthority(ctx: AutomationContext): AutomationService["resolveStreamAuthority"] {
   return async ({ principal, chatId }: ResolveStreamAuthorityParams): Promise<StreamAuthority> => {

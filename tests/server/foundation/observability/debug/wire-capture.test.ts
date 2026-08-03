@@ -10,7 +10,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { isWireCaptureEnabled, recentWireCaptures, recordWireCapture, resetWireCaptures } from "@orb/server/foundation/observability";
 import { beforeEach, describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 function capture(chatId: ChatId, backend: "vllm" | "agent-sdk", body: Record<string, unknown> = {}): void {
   recordWireCapture({ chatId, api: backend === "vllm" ? "chat-completions" : "agent-sdk", backend, model: "m", at: 0, body });

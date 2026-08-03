@@ -7,8 +7,8 @@
 // arm is added. `segment`/`digest` carry a precomputed `contentHash` (memory folds it; not recomputed
 // here). There is no principal/ownership check — the substrate FKs to its producer only.
 
-import type { EmbeddingsContext } from "../context";
-import { EmbedFailedError, SpaceMismatchError } from "../contract/errors";
+import type { EmbeddingsContext } from "../context.ts";
+import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
 import type {
   CardTextStoreParams,
   DigestStoreParams,
@@ -17,9 +17,9 @@ import type {
   ImageRawStoreParams,
   SegmentStoreParams,
   StoreParams,
-} from "../contract/params";
-import type { StoreResult } from "../contract/results";
-import type { EmbeddingsService } from "../contract/service";
+} from "../contract/params.ts";
+import type { StoreResult } from "../contract/results.ts";
+import type { EmbeddingsService } from "../contract/service.ts";
 import {
   existingCharacterHash,
   existingChunkHash,
@@ -32,8 +32,8 @@ import {
   upsertChatSegment,
   upsertDocumentChunk,
   upsertImageEmbedding,
-} from "../persistence/queries";
-import { contentHash } from "../substrate/hash";
+} from "../persistence/queries.ts";
+import { contentHash } from "../substrate/hash.ts";
 
 function assertNever(value: never): never {
   throw new Error(`embeddings.store: unhandled lens ${String(value)}`);

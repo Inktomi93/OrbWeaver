@@ -12,7 +12,7 @@ import {
   trimTrailingWhitespace,
 } from "@orb/server/kit/post-process";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 function cfg(over: Partial<PostProcessConfig> = {}): PostProcessConfig {
   return {

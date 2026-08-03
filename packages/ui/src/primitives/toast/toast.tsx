@@ -2,7 +2,7 @@ import type { ToastPortalProps as BasePortalProps, ToastProviderProps as BasePro
 import { Toast as BaseToast } from "@base-ui/react/toast";
 import type { ReactElement } from "react";
 import { Icon, X } from "#primitives/icons";
-import { toastVariants } from "./variants";
+import { toastVariants } from "./variants.ts";
 
 const slots = toastVariants();
 

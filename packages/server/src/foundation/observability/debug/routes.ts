@@ -13,11 +13,11 @@ import { castId } from "@orb/kit/ids";
 import type { Context, Hono, MiddlewareHandler, Next } from "hono";
 import { APP_VERSION } from "#foundation/config";
 import { env } from "#foundation/env";
-import { getAuditFailureSnapshot } from "../audit";
-import { logRing, recentRequests } from "../logger";
-import { getTraceByRequestId, recentTraces } from "../tracing";
-import { characterListSummaries, chatListSummaries, inspectChatState, integrityProbe, tableCounts } from "./inspect";
-import { recentWireCaptures } from "./wire-capture";
+import { getAuditFailureSnapshot } from "../audit.ts";
+import { logRing, recentRequests } from "../logger.ts";
+import { getTraceByRequestId, recentTraces } from "../tracing.ts";
+import { characterListSummaries, chatListSummaries, inspectChatState, integrityProbe, tableCounts } from "./inspect/index.ts";
+import { recentWireCaptures } from "./wire-capture.ts";
 
 const ERROR_LEVEL = 50; // pino numeric level for "error"
 const MAX_RING_READ = 2000;

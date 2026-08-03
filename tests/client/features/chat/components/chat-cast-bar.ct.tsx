@@ -8,8 +8,8 @@
 
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { ChatCastBarStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { ChatCastBarStory } from "../_ct-stories.tsx";
 
 /** A character seat — only the fields the cast bar reads; the rest is filler the bar ignores. */
 function character(key: string, name: string, over: Record<string, unknown> = {}): unknown {

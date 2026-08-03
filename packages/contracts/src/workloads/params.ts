@@ -14,8 +14,8 @@
 import { z } from "zod";
 import { documentIdSchema, reindexModeSchema, reindexScopeSchema } from "#databank";
 import type { ComputeThemesWorkloadParams, FindDuplicatesWorkloadParams } from "#discovery";
-import type { WorkloadKind } from "./axes";
-import { indexSourceSchema, workloadKindSchema } from "./axes";
+import type { WorkloadKind } from "./axes.ts";
+import { indexSourceSchema, workloadKindSchema } from "./axes.ts";
 
 const noParams = z.object({});
 

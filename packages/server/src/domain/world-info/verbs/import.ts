@@ -10,7 +10,7 @@
 
 import { portableParseError } from "#kit/serde/lib";
 import { parseWorldBookFile, WORLD_INFO_SCHEMA_KIND } from "#kit/serde/world-info";
-import type { ImportWorldBook, ImportWorldBookContext, ImportWorldBookOutcome } from "../contract/import";
+import type { ImportWorldBook, ImportWorldBookContext, ImportWorldBookOutcome } from "../contract/import.ts";
 
 export function createImport(ctx: ImportWorldBookContext): ImportWorldBook {
   return async ({ ownerId, bytes }): Promise<ImportWorldBookOutcome> => {

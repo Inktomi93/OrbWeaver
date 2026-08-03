@@ -13,10 +13,10 @@
 import type { StreamFrame } from "@orb/contracts/stream";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket";
-import { routeOrbSocket } from "../../../../support/ct/route-orb-socket";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { NotificationBellStory, NotificationBellToastStory } from "../_ct-stories";
+import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket.ts";
+import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { NotificationBellStory, NotificationBellToastStory } from "../_ct-stories.tsx";
 
 /** One inbox row in the wire shape (`InboxView` — domain/notifications/contract/views.ts). */
 function inviteRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {

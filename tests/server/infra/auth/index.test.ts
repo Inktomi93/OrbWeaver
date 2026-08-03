@@ -1,7 +1,7 @@
 import { resolve } from "@orb/server/infra/auth";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
-import { makeAuthConfig as cfg, headers } from "./_support";
+import { expect, test } from "../../../support/fixtures.ts";
+import { makeAuthConfig as cfg, headers } from "./_support.ts";
 
 // VERIFICATION-only: `resolve(headers, deps)` → an `IdentityResolution` (the pre-row `ResolvedIdentity`
 // + the seam's signals). It carries NO `userId` and NO `role` (invariant #3); it does NOT upsert and

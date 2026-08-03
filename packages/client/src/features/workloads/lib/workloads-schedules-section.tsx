@@ -5,8 +5,8 @@
 // behind the `workloads.*Schedule` verbs, so it is exempt from the §2.3 key partition.
 
 import type { SettingsSectionContribution } from "#state";
-import { SchedulesSection } from "../components/schedules-section";
-import { WORKLOADS_SCHEDULES_SUBCATEGORY } from "./workloads-schedules-nav";
+import { SchedulesSection } from "../components/schedules-section.tsx";
+import { WORKLOADS_SCHEDULES_SUBCATEGORY } from "./workloads-schedules-nav.ts";
 
 export const workloadsSchedulesSection: SettingsSectionContribution = {
   id: "workloads-schedules",

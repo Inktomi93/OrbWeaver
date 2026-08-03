@@ -7,7 +7,7 @@
 import type { RoleClients } from "@orb/contracts/role-clients";
 import { describe } from "vitest";
 import { applyRerank } from "../../../../../packages/server/src/domain/search/substrate/rerank.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 interface Cand {
   readonly id: string;

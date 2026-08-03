@@ -1,7 +1,7 @@
 // domain/connection/substrate/probe-model — the diagnostic probe-model pick (pure; the substrate seam
 // through which verbs reach the `catalog/` subsystem — domain-substrate-mediates-subsystems).
 
-import { CHAT_MODELS } from "../catalog/chat-models";
+import { CHAT_MODELS } from "../catalog/chat-models.ts";
 
 /** The CHEAPEST curated Claude tier (haiku) — the `testClaudeAuth` verify turn's model (neo parity:
  *  "defaults to the cheapest tier"). The shortlist always carries a haiku entry; the first-entry fallback

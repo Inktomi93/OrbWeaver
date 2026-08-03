@@ -7,7 +7,7 @@
 
 import type { ResolvedChatKnobs, ResolvedSampling } from "../../../../../packages/server/src/infra/providers/contract/resolve.ts";
 import { DYNAMIC_CONTEXT_CHANNELS, WARNING_CODES } from "../../../../../packages/server/src/infra/providers/contract/resolve.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 test("WARNING_CODES carries the verbosity_dropped member (D68-B)", () => {
   expect(WARNING_CODES).toContain("verbosity_dropped");

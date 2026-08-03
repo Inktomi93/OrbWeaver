@@ -13,11 +13,11 @@
 
 import type { AccountInfo, Query } from "@anthropic-ai/claude-agent-sdk";
 import type { VerifyAuthAccount, VerifyAuthResult } from "@orb/contracts/providers";
-import type { VerifyAuthRequest } from "../../contract";
-import { refreshHostSubTokenIfMode1 } from "./host-token";
-import { disciplineOptions, observabilityOptions } from "./translate";
-import type { AgentSdkDeps } from "./types";
-import { assertInitFrameShape } from "./verify";
+import type { VerifyAuthRequest } from "../../contract/index.ts";
+import { refreshHostSubTokenIfMode1 } from "./host-token.ts";
+import { disciplineOptions, observabilityOptions } from "./translate.ts";
+import type { AgentSdkDeps } from "./types.ts";
+import { assertInitFrameShape } from "./verify.ts";
 
 /** The trivial probe prompt (one cheap turn; the reply pins the round-trip actually generated). */
 const VERIFY_PROMPT = "Reply with exactly the two characters: ok";

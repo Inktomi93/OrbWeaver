@@ -12,7 +12,7 @@ import type { RerankRequest } from "@orb/server/infra/providers";
 import { ProviderError } from "@orb/server/infra/providers";
 import { runRerank } from "@orb/server/infra/providers/backends/openrouter";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../../../support/fixtures";
+import { expect, test } from "../../../../../../../support/fixtures.ts";
 
 const MODEL = "qwen/qwen3-reranker";
 const CRED = {

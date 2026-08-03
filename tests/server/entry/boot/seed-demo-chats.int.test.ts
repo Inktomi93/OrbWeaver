@@ -20,8 +20,8 @@ import { castId } from "@orb/kit/ids";
 import { DEMO_CHAT_NARRATOR_NAME, DEMO_CHAT_PACK_VERSION, DEMO_CHATS } from "@orb/server/domain/chat";
 import { seedDefaultCharacters, seedDefaultPersona } from "@orb/server/entry/boot";
 import { describe } from "vitest";
-import { seedUser } from "../../../support/factories/user";
-import { expect, test } from "../../../support/fixtures";
+import { seedUser } from "../../../support/factories/user.ts";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const USER_ID = castId<UserId>("user_virgin_boot");
 const HANDLE = castId<Handle>("newcomer");

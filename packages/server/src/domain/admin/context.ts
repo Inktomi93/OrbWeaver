@@ -5,4 +5,4 @@
 // `audit`/`hashPassword` adapters + the SessionAdminPort/VllmSupervisorPort + the injected clock/id seam)
 // and handed to `createAdminService` — admin sideways-imports none of those (domain-no-cross-feature).
 
-export type { AdminContext } from "./contract/service";
+export type { AdminContext } from "./contract/service.ts";

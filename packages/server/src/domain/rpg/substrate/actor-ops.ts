@@ -20,7 +20,7 @@
 
 import type { RpgActorEntry, RpgActorOp, RpgActorOpField, RpgActorRef, RpgActorVolatile, RpgInventoryItem, RpgTrackerValue } from "@orb/contracts/rpg";
 import { RPG_TRACKER_VALUE_EMPTY, rpgActorIdentityLockBase, rpgActorVolatileLockBase } from "@orb/contracts/rpg";
-import type { ApplyActorOpsResult } from "../contract/results";
+import type { ApplyActorOpsResult } from "../contract/results.ts";
 
 /** The empty ACTOR ROW a first write on an actor with no state row seeds — zero volatile state, plus (for a
  *  `cast` ref only) a born IDENTITY whose display name falls back to the slug until something authors a real

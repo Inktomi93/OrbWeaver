@@ -50,9 +50,9 @@ import {
   updatePartyArgsSchema,
   updateSceneArgsSchema,
   upsertQuestArgsSchema,
-} from "./tools";
-import type { RpgTrackerDef, RpgTrackerWriteGroup } from "./tracker";
-import { actorTrackerWriteKeys } from "./tracker";
+} from "./tools.ts";
+import type { RpgTrackerDef, RpgTrackerWriteGroup } from "./tracker.ts";
+import { actorTrackerWriteKeys } from "./tracker.ts";
 
 /** The extraction delta the model emits in ONE structured-output object (§4.6). Every field is
  *  OPTIONAL and defaults empty — a "nothing changed this turn" extraction is the empty object, which the

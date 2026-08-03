@@ -24,9 +24,9 @@ import { LibraryListLayout, LibrarySurfaceShell } from "#components";
 import { useInvalidation, useTRPC, useTRPCClient } from "#data";
 import { downloadJson, notify, rowQualifiers, slugifyFilename, timeLib, useFocusOnMount } from "#lib";
 import { selectPreset, useSelectedPresetId } from "#state";
-import { PresetLibraryRow } from "../components/preset-library-row";
-import { PresetRenameDialog } from "../components/preset-rename-dialog";
-import { useCreatePreset, useRemovePreset, useSetDefaultPreset, useUpdatePreset } from "../hooks/use-preset-mutations";
+import { PresetLibraryRow } from "../components/preset-library-row.tsx";
+import { PresetRenameDialog } from "../components/preset-rename-dialog.tsx";
+import { useCreatePreset, useRemovePreset, useSetDefaultPreset, useUpdatePreset } from "../hooks/use-preset-mutations.ts";
 
 const NEW_PRESET_NAME = "New preset";
 const NEW_PRESET_KIND = "generation";

@@ -10,12 +10,12 @@
 // The entry root wires the op (a direct owner-scoped `characters` read), so the HTTP path always enforces it.
 
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { AssetsContext } from "../context";
-import { AssetNotFoundError } from "../contract/errors";
-import type { GalleryAddParams } from "../contract/params";
-import type { AssetsService } from "../contract/service";
-import type { GalleryItemView } from "../contract/views";
-import { galleryItemViewById, insertGalleryItem, ownedAssetForGallery } from "../persistence/queries";
+import type { AssetsContext } from "../context.ts";
+import { AssetNotFoundError } from "../contract/errors.ts";
+import type { GalleryAddParams } from "../contract/params.ts";
+import type { AssetsService } from "../contract/service.ts";
+import type { GalleryItemView } from "../contract/views.ts";
+import { galleryItemViewById, insertGalleryItem, ownedAssetForGallery } from "../persistence/queries.ts";
 
 export function createAddToGallery(ctx: AssetsContext): AssetsService["addToGallery"] {
   return async ({ principal, assetId, subjectCharacterId }: GalleryAddParams): Promise<GalleryItemView> => {

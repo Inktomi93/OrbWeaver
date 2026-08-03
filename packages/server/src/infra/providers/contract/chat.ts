@@ -8,7 +8,7 @@ import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { CustomParameters, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ChatId, ModelId } from "@orb/kit/ids";
-import type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events";
+import type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events.ts";
 
 // The structured-output request vocabulary lives at its cross-boundary home (D79); re-exported here so the
 // infra wire arms + the `#providers` barrel keep importing it from the chat-role contract they already read.

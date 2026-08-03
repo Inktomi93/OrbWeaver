@@ -7,7 +7,7 @@
 
 import { logger, recordMemoryLog } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 describe("recordMemoryLog", () => {
   test("logs at debug level, tagged memory:true, with the event as the log message", () => {

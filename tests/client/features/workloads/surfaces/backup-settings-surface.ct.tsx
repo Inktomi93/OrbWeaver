@@ -11,10 +11,10 @@ import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket";
-import { routeOrbSocket } from "../../../../support/ct/route-orb-socket";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { BackupSettingsStory } from "../_ct-stories";
+import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket.ts";
+import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { BackupSettingsStory } from "../_ct-stories.tsx";
 
 /** The tab's ONE socket, scripted with the import run's frames. The tracker mounts only AFTER the upload
  *  returns a workloadId, so the stub holds the stream open until that room attaches (a frame for an unjoined

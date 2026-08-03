@@ -1,8 +1,8 @@
 // Unit: `filterChats` (features/chat/lib/filter-chats) — the pure title/participant search predicate the
 // Chats-LIST surface's `useDeferredValue` search box feeds (UIP-303).
 
-import { filterChats } from "../../../../../packages/client/src/features/chat/lib/filter-chats";
-import { expect, test } from "../../../../support/fixtures";
+import { filterChats } from "../../../../../packages/client/src/features/chat/lib/filter-chats.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const ADVENTURE = { title: "A grand adventure", participantNames: ["Aria Nightshade"], lastMessagePreview: "The court remembers what she did." };
 const BLANK = { title: null, participantNames: ["Bolt"], lastMessagePreview: null };

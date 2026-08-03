@@ -11,7 +11,7 @@ import type { RpgTraceInspector, SocketInspector } from "@orb/server/foundation/
 import { registerDebugRoutes } from "@orb/server/foundation/observability/debug";
 import { Hono } from "hono";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const TOKEN = "debug-secret-token";
 

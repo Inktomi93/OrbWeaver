@@ -17,9 +17,9 @@
 
 import type { AssembleContext } from "@orb/contracts/chat";
 import { DEFAULT_FORMAT_STRINGS } from "@orb/contracts/preset";
-import { buildPrompt, resolveNudgeText, shapeTurn } from "../../../packages/server/src/domain/chat/substrate/assembly-access";
-import type { ImpersonateFixture } from "./fixtures";
-import { configFor } from "./fixtures";
+import { buildPrompt, resolveNudgeText, shapeTurn } from "../../../packages/server/src/domain/chat/substrate/assembly-access.ts";
+import type { ImpersonateFixture } from "./fixtures.ts";
+import { configFor } from "./fixtures.ts";
 
 export interface WireMessage {
   readonly role: "system" | "user" | "assistant";

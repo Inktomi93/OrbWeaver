@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import { cn } from "#lib";
 import { Badge } from "#primitives/badge";
 import { AlertTriangle, Check, Icon } from "#primitives/icons";
-import { toolCallBlockVariants } from "./variants";
+import { toolCallBlockVariants } from "./variants.ts";
 
 // ui-local structural mirror of @orb/contracts/chat's ToolCallRecord — ui never imports contracts.
 export interface ToolCallBlockRecord {

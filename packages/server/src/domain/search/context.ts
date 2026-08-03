@@ -7,4 +7,4 @@
 // READ-ONLY: `db` is typed `ReadOnlyDb` (`@orb/db` — `select`/`query` only), so a write call is a `tsc`
 // error, not just a behavioral convention (invariant #3, PD-102).
 
-export type { SearchContext } from "./contract/service";
+export type { SearchContext } from "./contract/service.ts";

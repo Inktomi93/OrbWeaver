@@ -4,8 +4,8 @@
 
 import type { SessionKey, SessionStore, SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatId } from "@orb/kit/ids";
-import type { SeedTurn } from "./frames";
-import { buildSeedFrames, isBranchDivergence, seedSessionId, sessionContainsSeedPrefix, sessionMatchesSeed, toSeedTurns } from "./frames";
+import type { SeedTurn } from "./frames.ts";
+import { buildSeedFrames, isBranchDivergence, seedSessionId, sessionContainsSeedPrefix, sessionMatchesSeed, toSeedTurns } from "./frames.ts";
 
 // "" is internal-only for the main transcript's subpath — never handed back to the SDK, where "" is invalid.
 const MAIN_TRANSCRIPT_SUBPATH = "";

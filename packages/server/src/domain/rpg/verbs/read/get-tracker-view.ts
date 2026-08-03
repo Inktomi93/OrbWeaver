@@ -4,10 +4,10 @@
 // injection never drift). Resolves `trackersReadOnly` (the CP read-only pill) and hands it to the projection.
 
 import type { RpgTrackerView } from "@orb/contracts/rpg";
-import { buildTrackerView } from "../../chat-ops/tracker-view";
-import type { ReadGameParams } from "../../contract/params";
-import type { RpgContext, RpgService } from "../../contract/service";
-import { resolveMember } from "../../guard";
+import { buildTrackerView } from "../../chat-ops/tracker-view.ts";
+import type { ReadGameParams } from "../../contract/params.ts";
+import type { RpgContext, RpgService } from "../../contract/service.ts";
+import { resolveMember } from "../../guard.ts";
 
 export function createGetTrackerView(ctx: RpgContext): Pick<RpgService, "getTrackerView"> {
   async function getTrackerView(params: ReadGameParams): Promise<RpgTrackerView> {

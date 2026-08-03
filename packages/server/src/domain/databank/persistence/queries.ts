@@ -10,8 +10,8 @@ import type { Db } from "@orb/db";
 import { characterDocuments, characters, chatDocuments, documents, globalDocuments } from "@orb/db";
 import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { DatabankCharacterNotFoundError } from "../contract/errors";
-import type { DocumentAttachmentsView } from "../contract/views";
+import { DatabankCharacterNotFoundError } from "../contract/errors.ts";
+import type { DocumentAttachmentsView } from "../contract/views.ts";
 
 const LIMIT_ONE = 1;
 

@@ -11,7 +11,7 @@ import type { RoutingRoleKey } from "@orb/contracts/connection";
 import { isConfigDerivedModelSource } from "@orb/contracts/connection";
 import type { CredentialSource } from "@orb/contracts/credentials";
 import { env } from "#foundation/env";
-import type { ConnectionContext } from "../context";
+import type { ConnectionContext } from "../context.ts";
 
 /** The two roles that consume the embed engine (text + image share one 1024-dim space). */
 export const EMBED_ROLES: ReadonlySet<RoutingRoleKey> = new Set<RoutingRoleKey>(["embed", "imageEmbed"]);

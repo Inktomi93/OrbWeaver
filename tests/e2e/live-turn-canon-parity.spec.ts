@@ -30,8 +30,8 @@ import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { assistantRows, busEventTypes, openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room";
-import { listCanon, listCharacters, startChat } from "./support/trpc";
+import { assistantRows, busEventTypes, openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
+import { listCanon, listCharacters, startChat } from "./support/trpc.ts";
 
 const GEN_LOG = path.join(process.cwd(), ".cache/stack/vllm-gen.log");
 const GEN_POST_MARKER = "POST /v1/chat/completions";

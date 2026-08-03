@@ -5,8 +5,8 @@
 import type { CompareBlock } from "@orb/ui/compare-blocks";
 import { CompareBlocks } from "@orb/ui/compare-blocks";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
-import { AcceptHarness } from "./compare-blocks.fixtures";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
+import { AcceptHarness } from "./compare-blocks.fixtures.tsx";
 
 const TWO_BLOCKS: readonly CompareBlock[] = [
   { label: "Name", before: "Aria", after: "Aria Nightshade" },

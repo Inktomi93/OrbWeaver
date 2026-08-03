@@ -20,7 +20,7 @@ import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, 
 import { useReportSaveStatus } from "#forms";
 import type { SaveLifecycleState } from "#state";
 import { settingsAnchorId } from "#state";
-import { LIBRARY_SETTINGS_SUBCATEGORY } from "../lib/library-settings-nav";
+import { LIBRARY_SETTINGS_SUBCATEGORY } from "../lib/library-settings-nav.ts";
 
 interface UpdateLibraryVars {
   readonly section: "library";

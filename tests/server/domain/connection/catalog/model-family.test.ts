@@ -4,7 +4,7 @@
 
 import { describe } from "vitest";
 import { detectModelFamily } from "../../../../../packages/server/src/domain/connection/catalog/model-family.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("detectModelFamily", () => {
   test("matches bare and anthropic/-prefixed Claude ids", () => {

@@ -8,11 +8,11 @@
 import { worldEntries } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import { eq } from "drizzle-orm";
-import type { WorldInfoContext } from "../../context";
-import { WorldInfoNotFoundError } from "../../contract/errors";
-import type { BackfillTitlesParams } from "../../contract/params";
-import type { WorldInfoService } from "../../contract/service";
-import { listBookEntries, loadOwnedBook } from "../../persistence/queries";
+import type { WorldInfoContext } from "../../context.ts";
+import { WorldInfoNotFoundError } from "../../contract/errors.ts";
+import type { BackfillTitlesParams } from "../../contract/params.ts";
+import type { WorldInfoService } from "../../contract/service.ts";
+import { listBookEntries, loadOwnedBook } from "../../persistence/queries.ts";
 
 export function createBackfillTitles(ctx: WorldInfoContext): WorldInfoService["backfillTitles"] {
   return async ({ principal, bookId }: BackfillTitlesParams) => {

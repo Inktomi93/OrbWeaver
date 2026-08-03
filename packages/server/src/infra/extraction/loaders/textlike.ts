@@ -4,7 +4,7 @@
 // blank lines markdown already carries; NO md→plaintext rendering. Normalization (BOM/CRLF/NFC/blank-line
 // collapse) runs in the dispatch; this loader only decodes.
 
-import type { RawExtraction } from "../loader";
+import type { RawExtraction } from "../loader.ts";
 
 const STRICT_UTF8 = new TextDecoder("utf-8", { fatal: true });
 

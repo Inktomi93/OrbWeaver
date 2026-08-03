@@ -3,7 +3,7 @@
 
 import { CircleUser } from "@orb/ui/icons";
 import type { ModalDefinition } from "#state";
-import { YouSheet } from "../components/you-sheet";
+import { YouSheet } from "../components/you-sheet.tsx";
 
 export const youModal: ModalDefinition = {
   id: "you",

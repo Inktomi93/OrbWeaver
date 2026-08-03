@@ -5,7 +5,7 @@ import { Button } from "#primitives/button";
 import { AlertTriangle, CircleAlert, Copy, Icon, Info } from "#primitives/icons";
 import type { MessageListHandle } from "#primitives/message-list";
 import { MessageList } from "#primitives/message-list";
-import { logViewerVariants } from "./variants";
+import { logViewerVariants } from "./variants.ts";
 
 const LOG_LEVELS = ["info", "warn", "error"] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];

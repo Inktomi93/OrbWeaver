@@ -5,8 +5,8 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { createAutosaveEntityForm } from "#forms";
-import type { WorkloadsTuningForm } from "../lib/workloads-tuning-model";
-import { projectWorkloadsTuningForm } from "../lib/workloads-tuning-model";
+import type { WorkloadsTuningForm } from "../lib/workloads-tuning-model.ts";
+import { projectWorkloadsTuningForm } from "../lib/workloads-tuning-model.ts";
 
 /** The singleton entity id — the workloads tuning is one row per user, so a fixed key. */
 export const WORKLOADS_TUNING_ENTITY_ID = "workloads-tuning";

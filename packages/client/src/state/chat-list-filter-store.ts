@@ -6,7 +6,7 @@
 // createGatedStore, not persisted: a hard reload landing on the unfiltered list is fine.
 
 import type { CharacterId } from "@orb/kit/ids";
-import { createGatedStore } from "./create-gated-store";
+import { createGatedStore } from "./create-gated-store.ts";
 
 /** The active per-character chat-list filter — `null` = the full list. `name` backs the clear-chip label. */
 export interface ChatListCharacterFilter {

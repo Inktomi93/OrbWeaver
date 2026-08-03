@@ -26,8 +26,8 @@ import { ListPaneHeader } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { selectPresetFromList } from "#state";
-import { useCreatePreset, useImportPresetFile } from "../hooks/use-preset-mutations";
-import { PresetImportDialog } from "./preset-import-dialog";
+import { useCreatePreset, useImportPresetFile } from "../hooks/use-preset-mutations.ts";
+import { PresetImportDialog } from "./preset-import-dialog.tsx";
 
 const NEW_PRESET_NAME = "New preset";
 const NEW_PRESET_KIND = "generation";

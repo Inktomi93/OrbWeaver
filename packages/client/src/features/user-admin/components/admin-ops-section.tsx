@@ -14,8 +14,8 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { settingsAnchorId } from "#state";
-import { useEmbedCharacterCard, useRefreshAgentSdkCatalog, useRefreshCatalog } from "../hooks/use-admin-mutations";
-import { ADMIN_CATALOG_SUBCATEGORY, ADMIN_EMBEDDINGS_SUBCATEGORY } from "../lib/admin-ops-nav";
+import { useEmbedCharacterCard, useRefreshAgentSdkCatalog, useRefreshCatalog } from "../hooks/use-admin-mutations.ts";
+import { ADMIN_CATALOG_SUBCATEGORY, ADMIN_EMBEDDINGS_SUBCATEGORY } from "../lib/admin-ops-nav.ts";
 
 /** The two model-catalog refreshers — re-fetch the catalogs the role pickers browse. */
 export function AdminCatalogSection(): ReactElement {

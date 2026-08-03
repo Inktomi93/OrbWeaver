@@ -8,9 +8,9 @@ import { Button } from "@orb/ui/button";
 import { Expand, Icon } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import type { ArchivedCard } from "../lib/archived-cards";
-import { cardLabel } from "../lib/archived-cards";
-import { RpgTurnRef } from "./rpg-turn-ref";
+import type { ArchivedCard } from "../lib/archived-cards.ts";
+import { cardLabel } from "../lib/archived-cards.ts";
+import { RpgTurnRef } from "./rpg-turn-ref.tsx";
 
 export interface RpgCardRowProps {
   readonly card: ArchivedCard;

@@ -5,12 +5,12 @@
 // failure it falls back to the persisted snapshot if one exists (stale-but-serviceable), else throws
 // `CatalogUnavailableError` (flagged, not a silent empty — invariant: best-effort, never fake).
 
-import type { ConnectionContext } from "../context";
-import { CatalogUnavailableError } from "../contract/errors";
-import type { RefreshCatalogParams } from "../contract/params";
-import type { CatalogSnapshot } from "../contract/results";
-import type { ConnectionService } from "../contract/service";
-import { persistCatalogSnapshot, readCatalogSnapshot } from "../persistence/catalog-snapshot";
+import type { ConnectionContext } from "../context.ts";
+import { CatalogUnavailableError } from "../contract/errors.ts";
+import type { RefreshCatalogParams } from "../contract/params.ts";
+import type { CatalogSnapshot } from "../contract/results.ts";
+import type { ConnectionService } from "../contract/service.ts";
+import { persistCatalogSnapshot, readCatalogSnapshot } from "../persistence/catalog-snapshot.ts";
 
 export function createRefreshCatalog(ctx: ConnectionContext): ConnectionService["refreshCatalog"] {
   return async (params: RefreshCatalogParams): Promise<CatalogSnapshot> => {

@@ -23,21 +23,21 @@ import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
 import type { CharacterDetailContribution, CharacterDetailState, ContributorRegistry } from "#lib";
 import { chatsWithCharacter, useFocusOnMount } from "#lib";
 import { clearCharacterFacet, listProjectionOwnsFocus, selectCharacterFacet, useNarrowViewport, useSelectedCharacterFacetId } from "#state";
-import { CharacterFacetEditor } from "../components/character-facet-editor";
-import { CharacterFacetList } from "../components/character-facet-list";
-import { CharacterHeroBand } from "../components/character-hero-band";
-import { useUpdateCharacter } from "../hooks/use-character-mutations";
-import type { CharacterCardFacet } from "../lib/character-card-facets";
-import type { CharacterCardFormValues } from "../lib/character-card-form-model";
+import { CharacterFacetEditor } from "../components/character-facet-editor.tsx";
+import { CharacterFacetList } from "../components/character-facet-list.tsx";
+import { CharacterHeroBand } from "../components/character-hero-band.tsx";
+import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
+import type { CharacterCardFacet } from "../lib/character-card-facets.ts";
+import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
 import {
   characterCardFormFromDetail,
   characterUpdateDiff,
   DEFAULT_CHARACTER_CARD_FORM,
   permanentTokenCount,
   totalTokenCount,
-} from "../lib/character-card-form-model";
-import { revealChatsProjection, startChatWithCharacter } from "../lib/character-chat-intents";
-import { clearCharacterForm, publishCharacterForm } from "../lib/character-editor-bridge";
+} from "../lib/character-card-form-model.ts";
+import { revealChatsProjection, startChatWithCharacter } from "../lib/character-chat-intents.ts";
+import { clearCharacterForm, publishCharacterForm } from "../lib/character-editor-bridge.ts";
 
 // The character-card session boundary (D78 L2). Module-scope so both the boundary and its keyed Session
 // have stable identities; the boundary owns the entity key, so a character switch remounts the form

@@ -8,7 +8,7 @@ import { describe } from "vitest";
 import { PACKAGED_PRESETS } from "../../../../../packages/server/src/domain/preset/contract/packaged.ts";
 import { selectPackagedPreset } from "../../../../../packages/server/src/domain/preset/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeHarness, seedUser } from "../_support.ts";
 
 const RPG_GM = PACKAGED_PRESETS["rpg-gm"];

@@ -64,8 +64,8 @@ import {
 } from "@orb/contracts/rpg";
 import { resolveGuidedInstruction } from "@orb/kit/guided";
 import { createNamesOnlyRegistry } from "@orb/kit/macro";
-import type { LiteReminderInput } from "../contract/params";
-import { buildDeltaBlock } from "./delta";
+import type { LiteReminderInput } from "../contract/params.ts";
+import { buildDeltaBlock } from "./delta.ts";
 
 /** The steering LICENSE (§4.7 #2) — a VERSIONED constant (a bump = a legible copy revision, never a silent
  *  drift; the marinara-derived line): the tracked values visibly shape behaviour, dialogue, and scene;

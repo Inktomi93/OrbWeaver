@@ -120,7 +120,7 @@ import type { CharacterId, ChatId, PresetId, TagId, WorldEntryId } from "@orb/ki
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { Fragment, useState } from "react";
-import { CtFakeSectionRegistry } from "../../support/ct/ct-data-providers";
+import { CtFakeSectionRegistry } from "../../support/ct/ct-data-providers.tsx";
 
 export function ShellStoreProbe(): ReactElement {
   const section = useActiveSection();

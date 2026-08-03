@@ -3,8 +3,8 @@
 // read side.
 
 import type { UserId } from "@orb/kit/ids";
-import type { SettingsContext, SettingsServiceDeps } from "./contract/service";
-import { getEffectiveConfig, reloadEffectiveConfig } from "./effective-config/cache";
+import type { SettingsContext, SettingsServiceDeps } from "./contract/service.ts";
+import { getEffectiveConfig, reloadEffectiveConfig } from "./effective-config/cache.ts";
 
 export function createSettingsContext(deps: SettingsServiceDeps): SettingsContext {
   // Per-user write serializer: both user-settings write paths are read-merge-write against the same row,

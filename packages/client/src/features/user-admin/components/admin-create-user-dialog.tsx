@@ -13,10 +13,10 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { FormDialog, FormSubmitButton } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { useCreateUser } from "../hooks/use-admin-mutations";
-import { useCreateUserForm } from "../hooks/use-create-user-form";
-import type { CreateUserFormValues } from "../lib/admin-model";
-import { ADMIN_MIN_PASSWORD_LENGTH, ROLE_ITEMS } from "../lib/admin-model";
+import { useCreateUser } from "../hooks/use-admin-mutations.ts";
+import { useCreateUserForm } from "../hooks/use-create-user-form.ts";
+import type { CreateUserFormValues } from "../lib/admin-model.ts";
+import { ADMIN_MIN_PASSWORD_LENGTH, ROLE_ITEMS } from "../lib/admin-model.ts";
 
 export interface AdminCreateUserDialogProps {
   readonly open: boolean;

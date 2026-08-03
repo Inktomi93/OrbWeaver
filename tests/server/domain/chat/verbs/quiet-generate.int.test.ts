@@ -10,13 +10,13 @@ import { messages, messageVariants } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
-import type { QuietGenerateParams } from "../../../../../packages/server/src/domain/chat/contract/context";
-import type { TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results";
-import { createQuietGenerate } from "../../../../../packages/server/src/domain/chat/verbs/quiet-generate";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { seedChat, testConnection } from "../_support";
+import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
+import type { QuietGenerateParams } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
+import type { TurnRequest, TurnStreamChunk } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import { createQuietGenerate } from "../../../../../packages/server/src/domain/chat/verbs/quiet-generate.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { seedChat, testConnection } from "../_support.ts";
 
 let db: Db;
 beforeEach(async () => {

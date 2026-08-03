@@ -18,7 +18,7 @@ import type { FillableIcon, LucideIcon } from "@orb/ui/icons";
 import { Icon } from "@orb/ui/icons";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
-import { ROW_REVEAL } from "./row-reveal";
+import { ROW_REVEAL } from "./row-reveal.ts";
 
 interface RowToggleActionBaseProps {
   readonly pressed: boolean;

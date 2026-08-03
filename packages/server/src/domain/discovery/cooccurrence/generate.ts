@@ -9,12 +9,12 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { eq, inArray } from "drizzle-orm";
-import type { ComputeCooccurrenceOptions } from "../contract/params";
-import type { CooccurrenceStats } from "../contract/results";
-import type { ComputeCooccurrenceDeps } from "../contract/service";
-import { readOwnedDigestKeywords } from "../persistence/embed-store-reads";
-import { collapseByHash } from "../substrate/collapse";
-import { normalizeKeyword } from "./utils";
+import type { ComputeCooccurrenceOptions } from "../contract/params.ts";
+import type { CooccurrenceStats } from "../contract/results.ts";
+import type { ComputeCooccurrenceDeps } from "../contract/service.ts";
+import { readOwnedDigestKeywords } from "../persistence/embed-store-reads.ts";
+import { collapseByHash } from "../substrate/collapse.ts";
+import { normalizeKeyword } from "./utils.ts";
 
 /** Keep the top-N pairs per owner by count (the count-1 long tail is noise). */
 export const DEFAULT_MAX_PAIRS = 10_000;

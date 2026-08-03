@@ -7,7 +7,7 @@
 // close the shell's open slide-over (mirrors ActiveChatStoreProbe's `selectChatFromList` coverage).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { PresetSelectionProbe } from "./_ct-stories";
+import { PresetSelectionProbe } from "./_ct-stories.tsx";
 
 test("select sets the id; clear resets to none", async ({ mount }) => {
   const probe = await mount(<PresetSelectionProbe />);

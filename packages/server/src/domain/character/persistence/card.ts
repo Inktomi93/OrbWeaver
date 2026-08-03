@@ -10,7 +10,7 @@ import { characterSnapshots, characters } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
-import { CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors";
+import { CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors.ts";
 
 type CharacterInsert = typeof characters.$inferInsert;
 type CharacterEdits = Partial<CharacterInsert>;

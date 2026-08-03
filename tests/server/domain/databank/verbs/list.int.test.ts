@@ -5,7 +5,7 @@
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeDatabankHarness, principalFor, seedUser } from "../_support.ts";
 
 test("lists only the caller's documents, newest-activity first, and filters by origin", async () => {

@@ -9,13 +9,13 @@
 // "the engine's pipeline imports shape from here" — that DIRECT cross-subsystem import is gate-illegal; this
 // substrate bridge is the legal form of the same coupling.)
 
-import { assemblePrompt, assemblePromptWithSlices, previewSection as previewSectionImpl } from "../assembly/assemble";
-import { buildAssemblyBudget as buildAssemblyBudgetImpl } from "../assembly/budget";
+import { assemblePrompt, assemblePromptWithSlices, previewSection as previewSectionImpl } from "../assembly/assemble.ts";
+import { buildAssemblyBudget as buildAssemblyBudgetImpl } from "../assembly/budget.ts";
 import {
   buildHistoryBudget as buildHistoryBudgetImpl,
   fitHistoryToWindow,
   materializeOutputReserve as materializeOutputReserveImpl,
-} from "../assembly/history-budget";
+} from "../assembly/history-budget.ts";
 import {
   buildTurnMacroContext as buildTurnMacroContextImpl,
   freezeVolatileMacros as freezeVolatileMacrosImpl,
@@ -23,12 +23,12 @@ import {
   renderMacros as renderMacrosImpl,
   resolveGuidedActionText as resolveGuidedActionTextImpl,
   resolveNudgeText as resolveNudgeTextImpl,
-} from "../assembly/macros";
-import { shape, toShapeCanon as toShapeCanonImpl } from "../assembly/shape";
-import { shapeContextForSpeaker as shapeContextForSpeakerImpl } from "../assembly/speaker-card";
-import { buildShapeTrace as buildShapeTraceImpl } from "../assembly/trace";
-import { buildTurnUserMacros as buildTurnUserMacrosImpl } from "../assembly/user-macros";
-import { loadCharacterCardLore as loadCharacterCardLoreImpl } from "../assembly/world-info/pool";
+} from "../assembly/macros.ts";
+import { shape, toShapeCanon as toShapeCanonImpl } from "../assembly/shape.ts";
+import { shapeContextForSpeaker as shapeContextForSpeakerImpl } from "../assembly/speaker-card.ts";
+import { buildShapeTrace as buildShapeTraceImpl } from "../assembly/trace.ts";
+import { buildTurnUserMacros as buildTurnUserMacrosImpl } from "../assembly/user-macros.ts";
+import { loadCharacterCardLore as loadCharacterCardLoreImpl } from "../assembly/world-info/pool.ts";
 
 /** BUILD: render the prompt config against the immutable assemble ctx → the static/dynamic halves + splices. */
 export function buildPrompt(...args: Parameters<typeof assemblePrompt>): ReturnType<typeof assemblePrompt> {

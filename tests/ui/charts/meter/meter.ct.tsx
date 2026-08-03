@@ -3,7 +3,7 @@
 // milestone ticks, and the dangerBelow token swap asserted against the destructive oklch value.
 import { Meter } from "@orb/ui/meter";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
 
 // --color-destructive — the danger INTENT token (a token swap, never a color calc).
 const DESTRUCTIVE = resolvedTokenColor("color.destructive");

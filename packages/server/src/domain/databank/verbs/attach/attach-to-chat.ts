@@ -4,10 +4,10 @@
 // The document gate stays ownership (`loadOwnedMeta` — the host shares THEIR document). Idempotent re-attach.
 
 import { chatDocuments } from "@orb/db";
-import { DocumentNotFoundError } from "../../contract/errors";
-import type { ChatAttachParams } from "../../contract/params";
-import type { DatabankContext, DatabankService } from "../../contract/service";
-import { loadOwnedMeta } from "../../persistence/queries";
+import { DocumentNotFoundError } from "../../contract/errors.ts";
+import type { ChatAttachParams } from "../../contract/params.ts";
+import type { DatabankContext, DatabankService } from "../../contract/service.ts";
+import { loadOwnedMeta } from "../../persistence/queries.ts";
 
 export function createAttachToChat(ctx: DatabankContext): DatabankService["attachToChat"] {
   return async ({ principal, documentId, chatId }: ChatAttachParams): Promise<void> => {

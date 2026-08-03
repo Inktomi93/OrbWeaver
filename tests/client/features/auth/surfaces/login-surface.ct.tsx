@@ -7,8 +7,8 @@
 
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config";
-import { LoginArmStory } from "../_ct-stories";
+import type { AuthConfig } from "../../../../../packages/client/src/data/auth-config.ts";
+import { LoginArmStory } from "../_ct-stories.tsx";
 
 function config(overrides: Partial<AuthConfig>): AuthConfig {
   return {

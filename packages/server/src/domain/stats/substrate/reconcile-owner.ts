@@ -8,8 +8,8 @@
 
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import type { ReconcileStatsResult } from "../contract/results";
-import { reconcileStats } from "../write/rebuild-from-canon";
+import type { ReconcileStatsResult } from "../contract/results.ts";
+import { reconcileStats } from "../write/rebuild-from-canon.ts";
 
 /** Rebuild exactly ONE owner's rollups from canon (never the deployment-wide sweep). */
 export async function reconcileOwnerStats(db: Db, args: { ownerId: UserId; now: () => number }): Promise<ReconcileStatsResult> {

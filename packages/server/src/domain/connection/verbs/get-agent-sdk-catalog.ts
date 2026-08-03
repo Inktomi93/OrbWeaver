@@ -4,11 +4,11 @@
 // reads the empty snapshot (`fetchedAt:0, models:[]`) rather than throwing; `refreshAgentSdkCatalog`
 // populates it.
 
-import type { ConnectionContext } from "../context";
-import type { GetCatalogParams } from "../contract/params";
-import type { AgentSdkCatalogSnapshot } from "../contract/results";
-import type { ConnectionService } from "../contract/service";
-import { readAgentSdkCatalogSnapshot } from "../persistence/agent-sdk-catalog-snapshot";
+import type { ConnectionContext } from "../context.ts";
+import type { GetCatalogParams } from "../contract/params.ts";
+import type { AgentSdkCatalogSnapshot } from "../contract/results.ts";
+import type { ConnectionService } from "../contract/service.ts";
+import { readAgentSdkCatalogSnapshot } from "../persistence/agent-sdk-catalog-snapshot.ts";
 
 const EMPTY_SNAPSHOT: AgentSdkCatalogSnapshot = { fetchedAt: 0, models: [] };
 

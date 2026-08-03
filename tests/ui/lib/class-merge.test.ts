@@ -10,7 +10,7 @@
 // merger in this module graph (nothing here imports a variants module), so it exercises exactly the
 // cold-graph state that used to be wrong; the second proves a warm graph gives the same answer.
 import { cn } from "@orb/ui/lib";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // `text-title` is a custom DTCG type-scale utility (--text-title); `text-muted-foreground` is a real
 // text COLOR. They are different axes and MUST both survive. An unconfigured tailwind-merge puts them

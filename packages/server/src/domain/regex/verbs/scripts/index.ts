@@ -1,9 +1,9 @@
 // verbs/scripts — the library CRUD verb group barrel. One verb per file (verb-naming gate); the composition
 // root imports the factories from here.
 
-export { createCreate } from "./create";
-export { createDuplicate } from "./duplicate";
-export { createGet } from "./get";
-export { createList } from "./list";
-export { createRemove } from "./remove";
-export { createUpdate } from "./update";
+export { createCreate } from "./create.ts";
+export { createDuplicate } from "./duplicate.ts";
+export { createGet } from "./get.ts";
+export { createList } from "./list.ts";
+export { createRemove } from "./remove.ts";
+export { createUpdate } from "./update.ts";

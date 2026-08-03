@@ -11,7 +11,7 @@ import type { ReactElement, ReactNode, RefObject } from "react";
 // biome's resolver can't see Activity as a named export through react's namespace merge; this file carries a scoped noUnresolvedImports override — tsc remains the real gate.
 import { Activity, useLayoutEffect, useRef, useState } from "react";
 import type { SectionId } from "#state";
-import { RegionAnchor } from "../anchors/region-anchor";
+import { RegionAnchor } from "../anchors/region-anchor.tsx";
 
 /** How many recently-active sections stay mounted-but-hidden at once (the active one + N-1 prior). */
 const KEEP_MOUNTED_LIMIT = 3;

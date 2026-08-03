@@ -11,12 +11,12 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeOrbSocket } from "../../../../support/ct/route-orb-socket";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { findSettingsColumnViolation, readSettingsPaneGeometry, readSettingsShellColumns } from "../../../../support/ct/settings-geometry";
-import { SettingsShellDeepLinkStory, SettingsShellNarrowStory, SettingsShellStory } from "../../settings/_ct-stories";
-import { WorkloadsPaneStory } from "../_ct-stories";
+import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { findSettingsColumnViolation, readSettingsPaneGeometry, readSettingsShellColumns } from "../../../../support/ct/settings-geometry.ts";
+import { SettingsShellDeepLinkStory, SettingsShellNarrowStory, SettingsShellStory } from "../../settings/_ct-stories.tsx";
+import { WorkloadsPaneStory } from "../_ct-stories.tsx";
 
 const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" };
 

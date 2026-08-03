@@ -11,8 +11,8 @@
 // the whole point of the lane.
 
 import type { StreamDataFrame } from "@orb/contracts/stream";
-import { subscribeUserEvents } from "../../user-events-bus";
-import type { RoomSourceDef } from "../room-source";
+import { subscribeUserEvents } from "../../user-events-bus.ts";
+import type { RoomSourceDef } from "../room-source.ts";
 
 export const userRoomSource: RoomSourceDef<"user"> = {
   // LIVE-ONLY: no durable log, no cursor — the client's blanket gap-heal is this room's recovery.

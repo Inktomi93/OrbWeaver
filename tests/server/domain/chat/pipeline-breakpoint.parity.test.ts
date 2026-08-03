@@ -18,9 +18,9 @@
 // keyed by neoHead (no wall-clock) so a re-capture is a clean diff.
 
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
-import type { ShapeCase } from "../../../support/parity-runner";
-import { loadFixture, loadReference, rollingDelta, runOrbweaverShape, UNSKIP_WHEN } from "../../../support/parity-runner";
+import { expect, test } from "../../../support/fixtures.ts";
+import type { ShapeCase } from "../../../support/parity-runner.ts";
+import { loadFixture, loadReference, rollingDelta, runOrbweaverShape, UNSKIP_WHEN } from "../../../support/parity-runner.ts";
 
 const SHA1 = /^[0-9a-f]{40}$/u;
 

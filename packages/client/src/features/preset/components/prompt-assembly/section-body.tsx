@@ -26,9 +26,9 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
 import { goToCollection } from "#state";
-import { isTemplatedMarker } from "../../lib/assembly-model";
-import { PresetMacroSuggestions } from "../preset-macro-suggestions";
-import { CARRIER_ATTRIBUTION, MARKER_COPY } from "./marker-copy";
+import { isTemplatedMarker } from "../../lib/assembly-model.ts";
+import { PresetMacroSuggestions } from "../preset-macro-suggestions.tsx";
+import { CARRIER_ATTRIBUTION, MARKER_COPY } from "./marker-copy.ts";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;
 

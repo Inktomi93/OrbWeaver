@@ -5,10 +5,10 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { clearNumber, setNumber } from "../../../../support/ct/set-number";
-import { ComputeSectionStory } from "../_ct-stories";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { clearNumber, setNumber } from "../../../../support/ct/set-number.ts";
+import { ComputeSectionStory } from "../_ct-stories.tsx";
 
 const UPDATE_PROC = "settings.updateAppSettings";
 const RESOLVED = { vllmConcurrency: { embed: 4, summarize: 2 } };

@@ -3,9 +3,9 @@
 // Truncation is delegated to the engine (`truncate_prompt_tokens: -1`) — it 400s on over-context pairs.
 
 import type { RerankDocument } from "@orb/contracts/role-clients";
-import type { RerankHit, RerankRequest, RerankResult } from "../../contract";
-import type { VllmEngineClient } from "../engine";
-import { toDataUri } from "../engine";
+import type { RerankHit, RerankRequest, RerankResult } from "../../contract/index.ts";
+import type { VllmEngineClient } from "../engine/index.ts";
+import { toDataUri } from "../engine/index.ts";
 
 // See header — engine-side, model-tokenizer truncation that auto-tracks --max-model-len.
 const TRUNCATE_TO_MODEL_MAX = -1;

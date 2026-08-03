@@ -1,8 +1,8 @@
 // Unit: `filterCharacters` (features/character/lib/filter-characters) — the pure name/tag search
 // predicate the library surface's `useDeferredValue` search box feeds.
 
-import { filterCharacters } from "../../../../../packages/client/src/features/character/lib/filter-characters";
-import { expect, test } from "../../../../support/fixtures";
+import { filterCharacters } from "../../../../../packages/client/src/features/character/lib/filter-characters.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const ARIA = { name: "Aria Nightshade", tags: [{ name: "rpg" }, { name: "fantasy" }] };
 const BOLT = { name: "Bolt", tags: [{ name: "sci-fi" }] };

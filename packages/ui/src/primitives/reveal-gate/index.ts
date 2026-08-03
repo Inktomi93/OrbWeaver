@@ -1,2 +1,2 @@
-export type { RevealGateProps } from "./reveal-gate";
-export { RevealGate } from "./reveal-gate";
+export type { RevealGateProps } from "./reveal-gate.tsx";
+export { RevealGate } from "./reveal-gate.tsx";

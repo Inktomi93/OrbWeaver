@@ -29,8 +29,8 @@ import type { Invalidation, Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { clearCollectionSelection } from "#state";
-import { useMergeTags, useRemoveTag, useRenameTag, useUpdateTagStyle } from "../hooks/use-tag-settings-mutations";
-import { FOLDER_TYPE_ITEMS, usageBreakdown, usageTotalLabel } from "../lib/tags-model";
+import { useMergeTags, useRemoveTag, useRenameTag, useUpdateTagStyle } from "../hooks/use-tag-settings-mutations.ts";
+import { FOLDER_TYPE_ITEMS, usageBreakdown, usageTotalLabel } from "../lib/tags-model.ts";
 
 /** Apply a partial patch to this tag (the immediate-commit style writer the sub-controls share). */
 type PatchStyle = (patch: UpdateTagInput) => void;

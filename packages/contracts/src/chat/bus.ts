@@ -12,7 +12,7 @@
 import type { CharacterId, ChatId, MessageId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { ChatApi, CredentialSource } from "#connection";
 import type { WiBusEvent } from "#world-info";
-import type { MessageView } from "./messages";
+import type { MessageView } from "./messages.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE CHAT STREAM DELTA + THE CHAT BUS UNION

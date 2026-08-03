@@ -14,8 +14,8 @@ import {
   groupModelEntries,
   isCuratedFallback,
   MODEL_PICKER_RENDER_CAP,
-} from "../../../../../packages/client/src/features/credentials/lib/model-picker-model";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/client/src/features/credentials/lib/model-picker-model.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const SYNCED_RE = /^synced /;
 

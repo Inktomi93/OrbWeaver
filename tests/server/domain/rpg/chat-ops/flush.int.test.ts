@@ -14,17 +14,17 @@
 
 import type { ChatId, ChatTurnId, Handle, RpgQuestId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability";
-import type { RpgRosterActor } from "../../../../../packages/server/src/domain/rpg/index";
-import { rpgToolDefinitions } from "../../../../../packages/server/src/domain/rpg/index";
-import { listJournalByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/journal";
-import { findSnapshotByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots";
-import { defaultSnapshotState } from "../../../../../packages/server/src/domain/rpg/substrate/default-state";
-import { buildRosterRefIndex, extractionToStateDelta } from "../../../../../packages/server/src/domain/rpg/tools/apply";
-import type { ToolExecutionContext } from "../../../../../packages/server/src/domain/tool-use";
-import { freshDb } from "../../../../support/db";
-import { makeModelCapability, makeResolvedConnection } from "../../../../support/factories/resolved-connection";
-import { expect, pinExtractionMode, principal, seedLiteGame, seedMessage, test, turnConnection } from "../_support";
+import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
+import type { RpgRosterActor } from "../../../../../packages/server/src/domain/rpg/index.ts";
+import { rpgToolDefinitions } from "../../../../../packages/server/src/domain/rpg/index.ts";
+import { listJournalByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/journal.ts";
+import { findSnapshotByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { defaultSnapshotState } from "../../../../../packages/server/src/domain/rpg/substrate/default-state.ts";
+import { buildRosterRefIndex, extractionToStateDelta } from "../../../../../packages/server/src/domain/rpg/tools/apply.ts";
+import type { ToolExecutionContext } from "../../../../../packages/server/src/domain/tool-use/index.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { makeModelCapability, makeResolvedConnection } from "../../../../support/factories/resolved-connection.ts";
+import { expect, pinExtractionMode, principal, seedLiteGame, seedMessage, test, turnConnection } from "../_support.ts";
 
 const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_t1");
 const POOLS_MAX_RE = /pools|max/i;

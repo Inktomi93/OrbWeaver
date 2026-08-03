@@ -6,8 +6,8 @@
 // affordances gated exactly as the server re-gates them.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { WorkloadsSchedulesSectionStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { WorkloadsSchedulesSectionStory } from "../_ct-stories.tsx";
 
 const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" };
 /** Matches BOTH homes of the create action ("New schedule…" in the header, "New schedule" in the empty state)

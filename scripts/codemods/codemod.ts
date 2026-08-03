@@ -21,7 +21,7 @@
  *   the threshold with `--max-output-lines=N` or `NEO_CODEMOD_MAX_LINES=N`.
  */
 import process from "node:process";
-import { printHelp, printList, printRecipe, printRecipes, searchHelpers } from "./codemod-kit";
+import { printHelp, printList, printRecipe, printRecipes, searchHelpers } from "./codemod-kit.ts";
 
 const args = process.argv.slice(2);
 // Skip the `--max-output-lines=N` flag — the kit reads it from argv itself.

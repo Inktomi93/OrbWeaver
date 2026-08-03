@@ -12,7 +12,7 @@ import {
   loadPresentHumanMemberIds,
 } from "../../../../../packages/server/src/domain/automation/persistence/canon-reads.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedMessage, seedParticipant } from "../../chat/_support.ts";
 import { seedHostChat, seedUser } from "../_support.ts";
 

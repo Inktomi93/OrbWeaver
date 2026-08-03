@@ -8,7 +8,7 @@ import { Field } from "@orb/ui/field";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { useBoundField } from "./use-bound-field";
+import { useBoundField } from "./use-bound-field.ts";
 
 /** What an EMPTY colour reads as — the one word this app's fallback story uses everywhere. */
 const INHERIT_LABEL = "Inherit";

@@ -6,7 +6,7 @@
 import { Field } from "@orb/ui/field";
 import { Input } from "@orb/ui/input";
 import type { ReactElement, ReactNode } from "react";
-import { useBoundField } from "./use-bound-field";
+import { useBoundField } from "./use-bound-field.ts";
 
 export interface TextFieldProps {
   readonly label: ReactNode;

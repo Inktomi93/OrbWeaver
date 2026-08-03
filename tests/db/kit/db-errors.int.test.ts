@@ -4,8 +4,8 @@
 // constraint errors (raw inserts that bypass drizzle's typed-insert guards).
 import { isConstraintViolation } from "@orb/db/kit";
 import { sql } from "drizzle-orm";
-import { freshDb } from "../../support/db";
-import { expect, test } from "../../support/fixtures";
+import { freshDb } from "../../support/db.ts";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("classifies a CHECK violation as kind 'check'", async () => {
   const db = await freshDb();

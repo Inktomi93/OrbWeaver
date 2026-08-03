@@ -3,7 +3,7 @@ export type {
   AlertDialogDescriptionProps,
   AlertDialogPopupProps,
   AlertDialogTitleProps,
-} from "./alert-dialog";
+} from "./alert-dialog.tsx";
 export {
   AlertDialog,
   AlertDialogActions,
@@ -12,6 +12,6 @@ export {
   AlertDialogPopup,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "./alert-dialog";
-export type { AlertDialogHandle } from "./handle";
-export { createAlertDialogHandle } from "./handle";
+} from "./alert-dialog.tsx";
+export type { AlertDialogHandle } from "./handle.ts";
+export { createAlertDialogHandle } from "./handle.ts";

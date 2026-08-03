@@ -23,10 +23,10 @@ import type {
   ResolvedReasoning,
   ResolvedWarning,
   WireCaptureSink,
-} from "../../../contract";
-import { ProviderError } from "../../../contract";
-import { resolveChat } from "../../../resolve-chat";
-import type { ChatCompletionStreamChunk, OpenAiSamplingInput, StreamReduceOptions } from "../../kit";
+} from "../../../contract/index.ts";
+import { ProviderError } from "../../../contract/index.ts";
+import { resolveChat } from "../../../resolve-chat.ts";
+import type { ChatCompletionStreamChunk, OpenAiSamplingInput, StreamReduceOptions } from "../../kit/index.ts";
 import {
   applyIncludeExclude,
   buildOpenAiSamplingFields,
@@ -44,7 +44,7 @@ import {
   runWithPreCommitRetry,
   secretHeaderValues,
   turnAbortSignal,
-} from "../../kit";
+} from "../../kit/index.ts";
 
 export interface CustomByoRunnerDeps {
   readonly now: () => number;

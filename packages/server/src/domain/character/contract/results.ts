@@ -3,8 +3,8 @@
 // Only the history + synthetic-identity verbs carry their own small shapes.
 
 import type { CharacterId, CharacterSnapshotId } from "@orb/kit/ids";
-import type { CharacterListCursor } from "./params";
-import type { CharacterSummary } from "./views";
+import type { CharacterListCursor } from "./params.ts";
+import type { CharacterSummary } from "./views.ts";
 
 /** A handle to a character identity row — the return of the injected synthetic-group mint/find ops
  *  (chat consumes it cross-feature; type-only re-exported from the front door). */

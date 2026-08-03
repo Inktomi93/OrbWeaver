@@ -10,7 +10,7 @@
 import type { BackfillPassResult, MemoryBackfillResult } from "@orb/contracts/chat";
 import { emptyWorkloadParams } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
-import type { ChatWorkloadDeps } from "./contract/workloads";
+import type { ChatWorkloadDeps } from "./contract/workloads.ts";
 
 type ChatContributions = readonly [WorkloadContribution<"memory-backfill">, WorkloadContribution<"group-character-backfill">];
 

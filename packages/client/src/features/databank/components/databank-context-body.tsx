@@ -26,8 +26,8 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useSelectedDocumentId } from "#state";
-import { useAttachDocumentGlobal, useDetachDocumentGlobal } from "../hooks/use-databank-mutations";
-import { DATABANK_CONTEXT_EMPTY } from "../lib/databank-copy";
+import { useAttachDocumentGlobal, useDetachDocumentGlobal } from "../hooks/use-databank-mutations.ts";
+import { DATABANK_CONTEXT_EMPTY } from "../lib/databank-copy.ts";
 
 export function DatabankContextBody(): ReactElement {
   const documentId = useSelectedDocumentId();

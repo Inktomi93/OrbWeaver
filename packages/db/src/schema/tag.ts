@@ -39,12 +39,12 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
-import { characters } from "./character";
-import { chats } from "./chat";
-import { personas } from "./persona";
-import { presets } from "./preset";
-import { users } from "./users";
-import { worldBooks } from "./world-info";
+import { characters } from "./character.ts";
+import { chats } from "./chat.ts";
+import { personas } from "./persona.ts";
+import { presets } from "./preset.ts";
+import { users } from "./users.ts";
+import { worldBooks } from "./world-info.ts";
 
 // A CHECK list is a static DDL fragment derived from the canonical tuple (NOT re-spelled): e.g.
 // `source in ('manual', 'auto', 'card')`. A CHECK cannot carry bound parameters (chat.ts/world-info.ts pattern).

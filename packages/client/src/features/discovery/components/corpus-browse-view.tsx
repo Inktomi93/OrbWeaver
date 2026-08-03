@@ -18,9 +18,9 @@ import { useDeferredValue, useState } from "react";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import { selectCorpusCharacter } from "#state";
-import { characterFacetLine } from "../lib/character-facet";
-import { CharacterAvatar } from "./character-avatar";
-import { ParamSelect } from "./corpus-controls";
+import { characterFacetLine } from "../lib/character-facet.ts";
+import { CharacterAvatar } from "./character-avatar.tsx";
+import { ParamSelect } from "./corpus-controls.tsx";
 
 const ANY_VALUE = "";
 const SKELETON_ROW_COUNT = 5;

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { usePrefersReducedMotion } from "#lib";
-import { snapToGraphemeBoundary, snapToWordBoundary } from "./snap";
+import { snapToGraphemeBoundary, snapToWordBoundary } from "./snap.ts";
 
 // Adaptive streaming-text pacer: decouples the visual reveal from jittery network chunk cadence by
 // lagging a display cursor behind the target on a requestAnimationFrame loop, with a trickle floor

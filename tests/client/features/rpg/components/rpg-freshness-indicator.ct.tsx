@@ -10,7 +10,13 @@
 // state, so the pill renders nothing rather than a freshness claim beside the Read-only pill).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { RpgFreshnessCheapIdleStory, RpgFreshnessCheapStory, RpgFreshnessFoldedStory, RpgFreshnessGuardedStory, RpgFreshnessNoneStory } from "../_ct-stories";
+import {
+  RpgFreshnessCheapIdleStory,
+  RpgFreshnessCheapStory,
+  RpgFreshnessFoldedStory,
+  RpgFreshnessGuardedStory,
+  RpgFreshnessNoneStory,
+} from "../_ct-stories.tsx";
 
 // The two title phrases that separate "the host chose the two-call arm" from "this room was downgraded" — the
 // whole point of the EFF-3 arm is that those are different sentences.

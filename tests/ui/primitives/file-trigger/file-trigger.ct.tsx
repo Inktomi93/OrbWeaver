@@ -1,7 +1,7 @@
 // CT: the file-trigger headless seal — a caller-rendered trigger element opens a REAL, visually
 // hidden <input type="file">, and a picked file reaches onFilesSelected (ui rollup audit C3).
 import { expect, test } from "@playwright/experimental-ct-react";
-import { FileTriggerHarness } from "./file-trigger.fixtures";
+import { FileTriggerHarness } from "./file-trigger.fixtures.tsx";
 
 test("clicking the caller's trigger opens the native file picker and a selection reaches onFilesSelected", async ({ mount, page }) => {
   await mount(<FileTriggerHarness />);

@@ -14,13 +14,13 @@ import type { CharacterId, ChatId, Handle, UserId, WorldBookId, WorldEntryId } f
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import type { ForeignInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign";
-import { gatherAssembleContext } from "../../../../../packages/server/src/domain/chat/substrate/assemble-gather";
-import type { DatabankGatherParams } from "../../../../../packages/server/src/domain/databank/contract/params";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support";
-import { fakeSearchDigests, GROUP_CHAR, seedDigest } from "../memory/_support";
+import type { ForeignInputs } from "../../../../../packages/server/src/domain/chat/contract/foreign.ts";
+import { gatherAssembleContext } from "../../../../../packages/server/src/domain/chat/substrate/assemble-gather.ts";
+import type { DatabankGatherParams } from "../../../../../packages/server/src/domain/databank/contract/params.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
+import { fakeSearchDigests, GROUP_CHAR, seedDigest } from "../memory/_support.ts";
 
 const MIN_MS = 60_000;
 

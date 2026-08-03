@@ -21,7 +21,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { useDetachDanglingPointer } from "../hooks/use-rpg-mutations";
+import { useDetachDanglingPointer } from "../hooks/use-rpg-mutations.ts";
 
 export interface RpgErrorStateProps {
   /** The chat whose game read failed — the detach target for a dangling pointer. */

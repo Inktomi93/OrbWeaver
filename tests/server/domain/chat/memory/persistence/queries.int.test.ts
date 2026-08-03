@@ -11,11 +11,11 @@ import {
   loadSegmentHashes,
   loadSegmentSpans,
   loadWitnessHorizons,
-} from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries";
-import { freshDb } from "../../../../../support/db";
-import { expect, test } from "../../../../../support/fixtures";
-import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../_support";
-import { GROUP_CHAR, seedDigest, seedSegment } from "../_support";
+} from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
+import { freshDb } from "../../../../../support/db.ts";
+import { expect, test } from "../../../../../support/fixtures.ts";
+import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../_support.ts";
+import { GROUP_CHAR, seedDigest, seedSegment } from "../_support.ts";
 
 const aria = castId<CharacterId>("character_aria");
 

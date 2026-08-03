@@ -23,8 +23,8 @@
 // Growing this taxonomy further needs a convicted path with a throw site AND a surfaced client state — a class
 // with neither is the exact lie that was deleted.
 
-export type { DiscoveryContext } from "./context";
-export { CardNotDistillableError, DistillFailedError } from "./contract/errors";
+export type { DiscoveryContext } from "./context.ts";
+export { CardNotDistillableError, DistillFailedError } from "./contract/errors.ts";
 export type {
   ArchetypesOptions,
   BrowseFilter,
@@ -40,8 +40,8 @@ export type {
   SimilarityGraphOptions,
   ThemeLevel,
   TopKeywordsOptions,
-} from "./contract/params";
-export { BROWSE_SORTS, IMAGE_FACET_KEYS, THEME_LEVELS } from "./contract/params";
+} from "./contract/params.ts";
+export { BROWSE_SORTS, IMAGE_FACET_KEYS, THEME_LEVELS } from "./contract/params.ts";
 // Consumed via service-method-signature inference at the tRPC routers + tests, not direct imports.
 export type {
   Archetype,
@@ -83,26 +83,26 @@ export type {
   ThemeRow,
   UnusedCharacter,
   VisualArchetype,
-} from "./contract/results";
-export type { DiscoveryService, DiscoveryWorkloadDeps } from "./contract/service";
+} from "./contract/results.ts";
+export type { DiscoveryService, DiscoveryWorkloadDeps } from "./contract/service.ts";
 export {
   computeCooccurrence,
   DEFAULT_HUB_FRACTION,
   DEFAULT_MAX_PAIRS,
-} from "./cooccurrence/generate";
+} from "./cooccurrence/generate.ts";
 export {
   computeChatDuplicatePairs,
   computeDuplicatePairs,
   DEFAULT_CHAT_JACCARD,
   DEFAULT_DUP_THRESHOLD,
-} from "./duplicates/generate";
-export { createDiscoveryService } from "./service";
-export { CSLS_K, HUBNESS_DENSE_MAX } from "./substrate/hub-math";
-export { computeThemes } from "./themes/generate";
+} from "./duplicates/generate.ts";
+export { createDiscoveryService } from "./service.ts";
+export { CSLS_K, HUBNESS_DENSE_MAX } from "./substrate/hub-math.ts";
+export { computeThemes } from "./themes/generate.ts";
 export {
   computeCharacterHubScores,
   computeDigestHubScores,
   computeImageHubScores,
   computeSegmentHubScores,
-} from "./verbs/compute-hub-scores";
-export { createDiscoveryWorkloadContributions } from "./workload-contributions";
+} from "./verbs/compute-hub-scores.ts";
+export { createDiscoveryWorkloadContributions } from "./workload-contributions.ts";

@@ -10,8 +10,8 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { avatarFallbackHueVar } from "@orb/ui/avatar";
 import type { CSSProperties } from "react";
 import { cn, messageBubbleClass } from "#lib";
-import type { RowAttribution } from "./attribution";
-import { BG_PHOTO_CHROME_SCRIM, BG_PHOTO_READING_SCRIM } from "./message-row-backing";
+import type { RowAttribution } from "./attribution.ts";
+import { BG_PHOTO_CHROME_SCRIM, BG_PHOTO_READING_SCRIM } from "./message-row-backing.ts";
 
 function alignFor(role: MessageRole): string {
   return role === "user" ? "items-end" : "items-start";

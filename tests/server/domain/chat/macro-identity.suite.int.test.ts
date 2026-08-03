@@ -30,13 +30,13 @@ import type { CharacterId, Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroStamps } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
-import { resolveMessageRenderContext } from "../../../../packages/client/src/features/chat/lib/message-render-context";
-import { renderMessageForDisplay } from "../../../../packages/client/src/lib/message-render";
-import { renderHistoryMacros } from "../../../../packages/server/src/domain/chat/assembly/macros";
-import { loadChatMacroNameProducer } from "../../../../packages/server/src/domain/chat/persistence/macro-names";
-import { freshDb } from "../../../support/db";
-import { expect, test } from "../../../support/fixtures";
-import { seedCharacter, seedChat, seedParticipant, seedPersona, seedUser } from "./_support";
+import { resolveMessageRenderContext } from "../../../../packages/client/src/features/chat/lib/message-render-context.ts";
+import { renderMessageForDisplay } from "../../../../packages/client/src/lib/message-render.ts";
+import { renderHistoryMacros } from "../../../../packages/server/src/domain/chat/assembly/macros.ts";
+import { loadChatMacroNameProducer } from "../../../../packages/server/src/domain/chat/persistence/macro-names.ts";
+import { freshDb } from "../../../support/db.ts";
+import { expect, test } from "../../../support/fixtures.ts";
+import { seedCharacter, seedChat, seedParticipant, seedPersona, seedUser } from "./_support.ts";
 
 /** One row awaiting resolution (the raw stored content + its D26 stamps). */
 interface Row {

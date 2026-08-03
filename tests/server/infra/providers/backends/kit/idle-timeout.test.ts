@@ -3,7 +3,7 @@
 
 import { IDLE_TIMEOUT_MS, turnAbortSignal } from "@orb/server/infra/providers/backends/kit";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 describe("turnAbortSignal — rolling idle abort", () => {
   beforeEach(() => {

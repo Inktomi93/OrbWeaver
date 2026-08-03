@@ -8,7 +8,7 @@ import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
 import { createCrashPolicy } from "../../../../../packages/server/src/domain/plugin/activation/crash-policy.ts";
 import { getById } from "../../../../../packages/server/src/domain/plugin/persistence/plugins.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makeInertOps, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 test("crashes below the threshold record the detail but keep the plugin runnable; the threshold auto-disables + notifies the owner", async () => {

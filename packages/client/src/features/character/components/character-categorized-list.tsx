@@ -11,7 +11,7 @@ import { ChevronDown, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import type { TagGroup } from "../lib/character-list-view";
+import type { TagGroup } from "../lib/character-list-view.ts";
 
 const UNCATEGORIZED_KEY = "__uncategorized";
 

@@ -8,7 +8,7 @@ import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { describe, onTestFinished } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import type { AssetsHarness } from "../_support.ts";
 import {
   makeHarness,

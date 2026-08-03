@@ -16,7 +16,7 @@ import {
   readSegmentHubVectors,
 } from "../../../../../packages/server/src/domain/discovery/persistence/embed-store-reads.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import {
   EMBED_MODEL,
   seedAsset,

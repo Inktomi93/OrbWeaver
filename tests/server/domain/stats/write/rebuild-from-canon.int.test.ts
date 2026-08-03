@@ -12,7 +12,7 @@ import { beforeEach, describe } from "vitest";
 import { reconcileStats } from "../../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { createFrozenClock } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedMessage, seedPersona, seedUser, T0 } from "../_support.ts";
 
 let db: Db;

@@ -7,5 +7,5 @@ export {
   THEME_SCOPE_RADII,
   type ThemeScopeTokens,
   themeScopeTokensSchema,
-} from "./clamp";
-export { ThemeScope, type ThemeScopeProps } from "./theme-scope";
+} from "./clamp.ts";
+export { ThemeScope, type ThemeScopeProps } from "./theme-scope.tsx";

@@ -5,7 +5,7 @@
 
 import { chatRpgPointerSchema } from "@orb/contracts/rpg";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("the pointer is a mode-free {gameId} — no mode field", () => {
   const gameId = mintTypeId(ID_PREFIX.rpgGame);

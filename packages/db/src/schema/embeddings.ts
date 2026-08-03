@@ -65,11 +65,11 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
-import { vector32 } from "../custom-types";
-import { assets } from "./assets";
-import { characters } from "./character";
-import { chats } from "./chat";
-import { documents } from "./databank";
+import { vector32 } from "../custom-types/index.ts";
+import { assets } from "./assets.ts";
+import { characters } from "./character.ts";
+import { chats } from "./chat.ts";
+import { documents } from "./databank.ts";
 
 // The one 1024-dim space (Qwen3-VL, text↔image cosine-comparable — core/Knowledge-Cluster.md §1). Every
 // `embedding` column is F32_BLOB(1024); the row's `dim` column records it for the `(model, dim)` space tag.

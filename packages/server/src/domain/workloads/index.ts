@@ -4,7 +4,7 @@
 // browser, so they are a WIRE contract, and a reader takes them from `@orb/contracts/workloads` directly
 // rather than through this door (the bus PRODUCER, `emitWorkloadEvent`, is still ours).
 
-export type { AnyWorkloadContribution, WorkloadContribution, WorkloadContributions } from "./contract/contribution";
+export type { AnyWorkloadContribution, WorkloadContribution, WorkloadContributions } from "./contract/contribution.ts";
 export type {
   CancelWorkloadParams,
   CancelWorkloadResult,
@@ -12,7 +12,7 @@ export type {
   ListWorkloadsParams,
   RetryWorkloadParams,
   StartWorkloadParams,
-} from "./contract/params";
+} from "./contract/params.ts";
 
 export type {
   CreateScheduleParams,
@@ -23,18 +23,18 @@ export type {
   UpdateScheduleParams,
   WorkloadScheduleRow,
   WorkloadScheduleService,
-} from "./contract/schedule";
-export type { WorkloadRunnerDeps, WorkloadService, WorkloadServiceDeps } from "./contract/service";
-export type { WorkloadRowAnyKind, WorkloadRunnableRow } from "./contract/workload-row";
+} from "./contract/schedule.ts";
+export type { WorkloadRunnerDeps, WorkloadService, WorkloadServiceDeps } from "./contract/service.ts";
+export type { WorkloadRowAnyKind, WorkloadRunnableRow } from "./contract/workload-row.ts";
 export {
   emitWorkloadEvent,
   getRecentWorkloadEvents,
   subscribeWorkloadWake,
   workloadStreamEmitter,
-} from "./engine/progress-bus";
-export { reapOrphanedWorkloads } from "./engine/reaper";
-export { runWorkload } from "./engine/runner";
-export { tickWorkloadSchedules } from "./engine/schedule-tick";
-export { loadWorkload, nextRunnableWorkload } from "./persistence/queries";
-export { createWorkloadService } from "./service";
-export { createReservedWorkloadContributions } from "./substrate/reserved-contributions";
+} from "./engine/progress-bus.ts";
+export { reapOrphanedWorkloads } from "./engine/reaper.ts";
+export { runWorkload } from "./engine/runner.ts";
+export { tickWorkloadSchedules } from "./engine/schedule-tick.ts";
+export { loadWorkload, nextRunnableWorkload } from "./persistence/queries.ts";
+export { createWorkloadService } from "./service.ts";
+export { createReservedWorkloadContributions } from "./substrate/reserved-contributions.ts";

@@ -10,9 +10,9 @@
 import { AUTOMATION_CHAT_BUDGET_DEFAULTS } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
-import type { BudgetVerdict, RuleRow } from "../contract/ops";
-import { selectBudget } from "../persistence/budgets";
-import { countChatFiresSince, countRuleFiresSince } from "../persistence/fires";
+import type { BudgetVerdict, RuleRow } from "../contract/ops.ts";
+import { selectBudget } from "../persistence/budgets.ts";
+import { countChatFiresSince, countRuleFiresSince } from "../persistence/fires.ts";
 
 const HOUR_MS = 3_600_000;
 const MS_PER_SECOND = 1000;

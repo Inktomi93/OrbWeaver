@@ -12,7 +12,7 @@ import { describe } from "vitest";
 import type { DocumentChunkHit } from "../../../../../packages/server/src/domain/search/contract/results.ts";
 import { DEFAULT_DOCUMENT_K, DEFAULT_DOCUMENT_MIN_SCORE } from "../../../../../packages/server/src/domain/search/substrate/constants.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeDatabankHarness } from "../_support.ts";
 
 const CHAT = castId<ChatId>("chat_gather");

@@ -4,7 +4,7 @@
 import { Badge } from "@orb/ui/badge";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
 
 test("default intent is the neutral (muted) token background", async ({ mount }) => {
   const badge = await mount(<Badge>Draft</Badge>);

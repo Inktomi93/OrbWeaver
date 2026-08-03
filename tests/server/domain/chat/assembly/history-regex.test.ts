@@ -11,9 +11,9 @@ import type { ProcessMacroOptions } from "@orb/kit/macro";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { HISTORY_DEPTH_PLACEMENT } from "@orb/kit/regex";
 import { vi } from "vitest";
-import { applyPromptHistoryRegex } from "../../../../../packages/server/src/domain/chat/assembly/history-regex";
-import type { PromptHistoryRegexEnv } from "../../../../../packages/server/src/domain/chat/contract/regex";
-import { expect, test } from "../../../../support/fixtures";
+import { applyPromptHistoryRegex } from "../../../../../packages/server/src/domain/chat/assembly/history-regex.ts";
+import type { PromptHistoryRegexEnv } from "../../../../../packages/server/src/domain/chat/contract/regex.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const MACRO_CTX: ProcessMacroOptions = { char: "Aria", user: "Nate", persona: "", scenario: "", env: {} };
 

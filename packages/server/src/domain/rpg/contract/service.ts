@@ -50,7 +50,7 @@ import type {
   UserId,
 } from "@orb/kit/ids";
 import type { WireTool } from "#infra/providers";
-import type { ResolveRpgCardCorpus, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "../../chat";
+import type { ResolveRpgCardCorpus, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "../../chat/index.ts";
 import type {
   AddJournalEntryParams,
   CreateCheckpointParams,
@@ -75,8 +75,8 @@ import type {
   StagedTurnFlush,
   UpdateConfigParams,
   UpsertQuestParams,
-} from "./params";
-import type { CreateGameResult, HandDoorResult, PopulateResult, ResyncResult, RollDiceResult } from "./results";
+} from "./params.ts";
+import type { CreateGameResult, HandDoorResult, PopulateResult, ResyncResult, RollDiceResult } from "./results.ts";
 
 export type RpgGameRow = typeof rpgGames.$inferSelect;
 export type NewRpgGame = typeof rpgGames.$inferInsert;

@@ -13,7 +13,7 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { StatsDelta } from "@orb/contracts/stats";
 import { expect } from "vitest";
-import type { TurnRequest } from "../../../packages/server/src/domain/chat/contract/results";
+import type { TurnRequest } from "../../../packages/server/src/domain/chat/contract/results.ts";
 
 /**
  * The KV-CACHE SAFETY invariant (steal-list §N1 "cache-safety"): the assembled STATIC system prefix

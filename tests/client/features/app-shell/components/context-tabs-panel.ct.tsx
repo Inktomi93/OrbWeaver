@@ -13,7 +13,7 @@
 // pins the React contract + the CSS collapse behavior.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ContextDefaultTabStory, ContextTabStatesStory, ContextTabStripStory } from "../_ct-stories";
+import { ContextDefaultTabStory, ContextTabStatesStory, ContextTabStripStory } from "../_ct-stories.tsx";
 
 const TAB_NAMES = ["Members", "Settings", "Preview", "Injections"] as const;
 

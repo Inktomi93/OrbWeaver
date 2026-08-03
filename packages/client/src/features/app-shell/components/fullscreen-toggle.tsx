@@ -7,8 +7,8 @@
 
 import { Expand, Shrink } from "@orb/ui/icons";
 import type { ReactElement } from "react";
-import { useShellLayout } from "../hooks/use-shell-layout";
-import { TopbarIconButton } from "./shell-topbar";
+import { useShellLayout } from "../hooks/use-shell-layout.ts";
+import { TopbarIconButton } from "./shell-topbar.tsx";
 
 export function FullscreenToggle(): ReactElement {
   const layout = useShellLayout();

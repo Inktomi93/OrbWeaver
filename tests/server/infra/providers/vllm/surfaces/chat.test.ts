@@ -12,7 +12,7 @@ import { createVllmChat } from "@orb/server/infra/providers/vllm";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
 import { makeModelCapability, makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const CRED = makeResolvedCredential("vllm");
 const MODEL = "Qwen/Qwen3-VL-8B-Instruct" as ModelId;

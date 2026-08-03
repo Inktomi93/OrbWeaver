@@ -4,8 +4,8 @@
 // injected `now` (the fake-timers substitute — the breaker holds no real timers of its own).
 
 import { describe } from "vitest";
-import { createSaveCircuitBreaker, DEFAULT_SAVE_BREAKER } from "../../../packages/client/src/forms/save-circuit-breaker";
-import { expect, test } from "../../support/fixtures";
+import { createSaveCircuitBreaker, DEFAULT_SAVE_BREAKER } from "../../../packages/client/src/forms/save-circuit-breaker.ts";
+import { expect, test } from "../../support/fixtures.ts";
 
 /** A hand-cranked clock — the breaker's only time source, so the whole thing is deterministic. */
 function fakeClock(): { readonly now: () => number; readonly advance: (ms: number) => void } {

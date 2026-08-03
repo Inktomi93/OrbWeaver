@@ -20,8 +20,8 @@ import process from "node:process";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import { openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room";
-import { getUserSettings, listCanon, listCharacters, startChat } from "./support/trpc";
+import { openNewestChat, typeAndSend, waitForStreamOpen } from "./support/chat-room.ts";
+import { getUserSettings, listCanon, listCharacters, startChat } from "./support/trpc.ts";
 
 const GEN_LOG = path.join(process.cwd(), ".cache/stack/vllm-gen.log");
 const GEN_POST_MARKER = "POST /v1/chat/completions";

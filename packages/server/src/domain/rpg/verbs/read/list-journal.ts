@@ -2,10 +2,10 @@
 // archive (a swipe changes the page's contents with zero writes — §2.5). Member-gated.
 
 import type { RpgJournalEntryView } from "@orb/contracts/rpg";
-import type { ListJournalParams } from "../../contract/params";
-import type { RpgContext, RpgService } from "../../contract/service";
-import { resolveMember } from "../../guard";
-import { listActiveJournal } from "../../persistence/journal";
+import type { ListJournalParams } from "../../contract/params.ts";
+import type { RpgContext, RpgService } from "../../contract/service.ts";
+import { resolveMember } from "../../guard.ts";
+import { listActiveJournal } from "../../persistence/journal.ts";
 
 const DEFAULT_JOURNAL_LIMIT = 50;
 

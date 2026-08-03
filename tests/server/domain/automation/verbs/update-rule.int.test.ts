@@ -1,6 +1,6 @@
 // verb: updateRule — replace editable fields (host-only), same validation, resets the error ledger.
 
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { MSG_COMMITTED, principal, ruleFixture, SET_VAR } from "../_support.ts";
 
 test("updateRule replaces the editable fields", async () => {

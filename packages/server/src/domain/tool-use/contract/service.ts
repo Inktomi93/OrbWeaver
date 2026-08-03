@@ -4,8 +4,8 @@
 
 import type { Can } from "@orb/contracts/identity";
 import type { AgentToolServer, WireTool } from "#infra/providers";
-import type { CreateAgentToolServer, PluginToolSpec, ToolCallBatch, ToolDefinition, ToolExecutionContext } from "./params";
-import type { PluginToolHandle, ResolvedToolSet, ToolCallRecord } from "./results";
+import type { CreateAgentToolServer, PluginToolSpec, ToolCallBatch, ToolDefinition, ToolExecutionContext } from "./params.ts";
+import type { PluginToolHandle, ResolvedToolSet, ToolCallRecord } from "./results.ts";
 
 export interface ToolUseContext {
   readonly can: Can;

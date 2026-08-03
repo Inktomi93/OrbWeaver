@@ -26,16 +26,16 @@ import type { ChatInjection } from "@orb/contracts/chat";
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import { actorRefKey } from "@orb/contracts/rpg";
 import type { ChatId, MessageId } from "@orb/kit/ids";
-import type { RpgGatherResult } from "../contract/params";
-import type { RpgContext, RpgGameRow } from "../contract/service";
-import { snapshotRowToState } from "../contract/service";
-import { findGameByChat } from "../persistence/games";
-import { resolveTurnSnapshotPair } from "../persistence/snapshots";
-import { defaultSnapshotState } from "../substrate/default-state";
-import { buildLiteReminder } from "../substrate/reminder";
-import { buildRpgMacroFeed } from "./macro-view";
-import { isReconcileBeat } from "./reconcile-cadence";
-import { buildTrackerView } from "./tracker-view";
+import type { RpgGatherResult } from "../contract/params.ts";
+import type { RpgContext, RpgGameRow } from "../contract/service.ts";
+import { snapshotRowToState } from "../contract/service.ts";
+import { findGameByChat } from "../persistence/games.ts";
+import { resolveTurnSnapshotPair } from "../persistence/snapshots.ts";
+import { defaultSnapshotState } from "../substrate/default-state.ts";
+import { buildLiteReminder } from "../substrate/reminder.ts";
+import { buildRpgMacroFeed } from "./macro-view.ts";
+import { isReconcileBeat } from "./reconcile-cadence.ts";
+import { buildTrackerView } from "./tracker-view.ts";
 
 /** Build the folded turn's TERMINAL tools, or `null` on ANY failure (R1 — narrative inviolability on the BUILD
  *  half). The mount is the one piece of the fold that runs PRE-commit: it reads the db (the roster + the game

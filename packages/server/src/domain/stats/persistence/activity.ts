@@ -8,7 +8,7 @@ import type { Db } from "@orb/db";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
-import type { ActivityHeatmap, CharacterMomentum, MomentumRow } from "../contract/views";
+import type { ActivityHeatmap, CharacterMomentum, MomentumRow } from "../contract/views.ts";
 
 const DAYS_PER_WEEK = 7;
 const HOURS_PER_DAY = 24;

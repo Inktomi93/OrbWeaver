@@ -3,7 +3,7 @@
 
 import { describe } from "vitest";
 import { kmeans } from "../../../../../packages/server/src/domain/discovery/substrate/kmeans.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const v = (...xs: number[]): Float32Array => new Float32Array(xs);
 const norm = (a: Float32Array): number => Math.sqrt(a.reduce((s, x) => s + x * x, 0));

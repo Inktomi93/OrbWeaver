@@ -8,8 +8,8 @@
 // ONLY pre-first-run (the user owns zero personas).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../support/ct/route-trpc";
-import { ViewerStory } from "./_ct-stories";
+import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { ViewerStory } from "./_ct-stories.tsx";
 
 const IDENTITY = { userId: "user_viewer", handle: "nate", globalRole: "admin" };
 const PERSONAS = [

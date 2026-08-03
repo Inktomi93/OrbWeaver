@@ -1,7 +1,7 @@
 import type { AuthConfig } from "@orb/server/infra/auth";
 import { authConfigFromEnv } from "@orb/server/infra/auth";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 // `authConfigFromEnv` — the SOLE env→AuthConfig projection for this slice. The frozen `env` cannot be
 // re-varied per test (parsed once at module load), so the private parse helpers (parseCsv / parseHostList /

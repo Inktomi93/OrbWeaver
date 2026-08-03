@@ -3,8 +3,8 @@
 // must designate its mint target — mirrors the start verb's own requirement as teaching.
 
 import { createSavedEntityForm } from "#forms";
-import type { RunWorkloadFormValues } from "../lib/workloads-model";
-import { RUN_WORKLOAD_FORM_DEFAULTS, workloadKindNeedsBulkTarget } from "../lib/workloads-model";
+import type { RunWorkloadFormValues } from "../lib/workloads-model.ts";
+import { RUN_WORKLOAD_FORM_DEFAULTS, workloadKindNeedsBulkTarget } from "../lib/workloads-model.ts";
 
 export const useRunWorkloadForm = createSavedEntityForm<RunWorkloadFormValues>({
   defaultValues: RUN_WORKLOAD_FORM_DEFAULTS,

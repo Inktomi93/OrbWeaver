@@ -6,8 +6,8 @@
 // no prefix search (the transport rate-limits the probe surface).
 
 import type { Handle, UserId } from "@orb/kit/ids";
-import type { SessionsContext, SessionsService } from "../contract/service";
-import { selectForProvisionByHandle } from "../persistence/users";
+import type { SessionsContext, SessionsService } from "../contract/service.ts";
+import { selectForProvisionByHandle } from "../persistence/users.ts";
 
 export function createResolveHandle(ctx: SessionsContext): Pick<SessionsService, "resolveHandle"> {
   async function resolveHandle(handle: Handle): Promise<UserId | null> {

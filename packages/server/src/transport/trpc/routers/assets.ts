@@ -13,7 +13,7 @@ import {
   resolveChatBlobRefsParamsSchema,
 } from "@orb/contracts/assets";
 import { z } from "zod";
-import { authedProcedure, t } from "../trpc";
+import { authedProcedure, t } from "../trpc.ts";
 
 export const assetsRouter = t.router({
   listOwned: authedProcedure.input(listOwnedParamsSchema).query(({ ctx, input }) => ctx.services.assets.listOwned({ principal: ctx.auth, ...input })),

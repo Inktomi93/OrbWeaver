@@ -11,7 +11,7 @@
 import { FaceStrip } from "@orb/client/components";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { FaceStripFoldHarness } from "./face-strip.fixtures";
+import { FaceStripFoldHarness } from "./face-strip.fixtures.tsx";
 
 const AZARAEL = { id: "char_azarael", name: "Azarael", avatarHash: null };
 const SERA = { id: "char_sera", name: "Sera of the Long Winter Court", avatarHash: null };

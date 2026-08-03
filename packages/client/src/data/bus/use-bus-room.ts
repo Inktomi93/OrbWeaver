@@ -16,8 +16,8 @@
 import type { StreamChannel, StreamFrameFor, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
 import { useEffect, useRef } from "react";
-import type { SinceSeqSource } from "./room-registry";
-import { roomRegistry } from "./room-registry";
+import type { SinceSeqSource } from "./room-registry.ts";
+import { roomRegistry } from "./room-registry.ts";
 
 /** What a room's consumer wants, narrowed to that channel's own frame arm. */
 export interface BusRoomHandlers<C extends StreamChannel> {

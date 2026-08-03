@@ -9,10 +9,10 @@ import type { Db } from "@orb/db";
 import { messages } from "@orb/db";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { listSelectedAssistantBodies } from "../../../../../packages/server/src/domain/rpg/persistence/reveal";
-import { buildRevealView } from "../../../../../packages/server/src/domain/rpg/substrate/reveal";
-import { freshDb } from "../../../../support/db";
-import { addVariant, expect, seedChat, seedMessage, test } from "../_support";
+import { listSelectedAssistantBodies } from "../../../../../packages/server/src/domain/rpg/persistence/reveal.ts";
+import { buildRevealView } from "../../../../../packages/server/src/domain/rpg/substrate/reveal.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { addVariant, expect, seedChat, seedMessage, test } from "../_support.ts";
 
 const LIE = (character: string, truth: string): string => `<lie character="${character}" type="motive" truth="${truth}" reason="greed" />`;
 const OFILTER = '<ofilter event="a spy watches from the roof" reason="the player is indoors" />';

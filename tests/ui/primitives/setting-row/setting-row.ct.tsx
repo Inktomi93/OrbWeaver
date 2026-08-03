@@ -3,7 +3,7 @@
 // (ui-package-design §6.1; work-order item 20).
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { AutoSaveRow } from "./setting-row.fixtures";
+import { AutoSaveRow } from "./setting-row.fixtures.tsx";
 
 test("wires the label to the caller's control — clicking the label focuses it", async ({ mount, page }) => {
   await mount(<AutoSaveRow />);

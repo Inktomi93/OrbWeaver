@@ -13,7 +13,7 @@
 // first time), then both tabs read the list fresh. The unique minted title makes `getByText` unambiguous.
 
 import { expect, test } from "@playwright/test";
-import { openOrCreateChat, renameFirstChatViaRowKebab, waitForAppReady } from "./support/chat-room";
+import { openOrCreateChat, renameFirstChatViaRowKebab, waitForAppReady } from "./support/chat-room.ts";
 
 test("rename in tab A propagates live to tab B's list via the user-bus", async ({ browser }) => {
   const ctx = await browser.newContext();

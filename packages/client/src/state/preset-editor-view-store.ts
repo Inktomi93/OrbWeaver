@@ -17,7 +17,7 @@
 //
 // Device-transient, never persisted: landing on Params after a hard reload is the intended reset.
 
-import { createGatedStore } from "./create-gated-store";
+import { createGatedStore } from "./create-gated-store.ts";
 
 interface PresetEditorViewState {
   /** The active editor view id (`null` = unset — the tab strip resolves the tuple's first view). */

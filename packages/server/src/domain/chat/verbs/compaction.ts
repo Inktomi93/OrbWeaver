@@ -30,15 +30,15 @@ import { batchMany } from "@orb/db/kit";
 import { projectBodyForSummary } from "@orb/kit/content";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import type { ChatContext } from "../context";
-import type { QuietGenerate } from "../contract/context";
-import { ChatNotFoundError, ChatOperationError } from "../contract/errors";
-import type { CompactParams } from "../contract/params";
-import type { CompactResult } from "../contract/results";
-import type { ChatService } from "../contract/service";
-import { requireHost } from "../guard";
-import { loadCanonHistoryAfter, loadChatRow } from "../persistence/queries";
-import { compactionCostDelta } from "../substrate/stats-delta";
+import type { ChatContext } from "../context.ts";
+import type { QuietGenerate } from "../contract/context.ts";
+import { ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
+import type { CompactParams } from "../contract/params.ts";
+import type { CompactResult } from "../contract/results.ts";
+import type { ChatService } from "../contract/service.ts";
+import { requireHost } from "../guard.ts";
+import { loadCanonHistoryAfter, loadChatRow } from "../persistence/queries.ts";
+import { compactionCostDelta } from "../substrate/stats-delta.ts";
 
 /** `coveragePoint` = the seq through which the new marker covers (the fit/marker boundary the caller resolved).
  *  Absent ⇒ cover every committed turn. `connection` is the chat's resolved connection the quiet generation

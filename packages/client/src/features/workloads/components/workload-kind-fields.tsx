@@ -4,8 +4,8 @@
 
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
-import type { WorkloadRunValues } from "../lib/workloads-model";
-import { INDEX_SOURCE_ITEMS, isRunnableWorkloadKind, WORKLOAD_PARAM_SHAPE_BY_KIND } from "../lib/workloads-model";
+import type { WorkloadRunValues } from "../lib/workloads-model.ts";
+import { INDEX_SOURCE_ITEMS, isRunnableWorkloadKind, WORKLOAD_PARAM_SHAPE_BY_KIND } from "../lib/workloads-model.ts";
 
 /** The active kind's param controls, shared byte-for-byte between the run and schedule dialogs. */
 export function WorkloadParamFields<TValues extends WorkloadRunValues & { readonly kind: string }>({

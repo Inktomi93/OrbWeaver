@@ -6,9 +6,9 @@ import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createImageryService } from "@orb/server/domain/imagery";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, principal, seedOwner } from "../_support";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeHarness, principal, seedOwner } from "../_support.ts";
 
 const CHAT = castId<ChatId>("chat_room");
 

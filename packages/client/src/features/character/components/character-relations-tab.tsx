@@ -16,7 +16,7 @@ import {
   useConnectPersonaToCharacter,
   useDetachBookFromCharacter,
   useDisconnectPersonaFromCharacter,
-} from "../hooks/use-character-context-mutations";
+} from "../hooks/use-character-context-mutations.ts";
 
 export interface CharacterRelationsTabProps {
   readonly characterId: CharacterId;

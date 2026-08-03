@@ -16,7 +16,7 @@ import { consumeTurnStream, createAgentSdkBackend } from "@orb/server/infra/prov
 import { seedSessionId } from "@orb/server/infra/providers/backends/agent-sdk/session";
 import { describe, vi } from "vitest";
 import { makeModelCapability, makeOpenRouterCredential } from "../../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 import { streamOf as sharedStreamOf } from "./_support.ts";
 
 /** Pull the tagged `provider.*` lines a spied pino level captured (filters out other backend chatter). */

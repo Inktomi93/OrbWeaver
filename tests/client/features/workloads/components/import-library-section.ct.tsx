@@ -11,9 +11,9 @@
 // arm is the P1 guard — a dropped card used to be swallowed inside the dropzone with ZERO requests made.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { dropFiles } from "../../../../support/ct/drop-files";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { BackupSettingsStory } from "../_ct-stories";
+import { dropFiles } from "../../../../support/ct/drop-files.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { BackupSettingsStory } from "../_ct-stories.tsx";
 
 const DROPZONE_ROOT = '[data-slot="file-dropzone"]';
 const A_CARD = { name: "villain.png", mimeType: "image/png", buffer: Buffer.from("PNG") };

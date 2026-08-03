@@ -18,7 +18,7 @@
 import type { PortableRegexScript, RegexScriptBehavior, RegexScriptCard, RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
-import type { CardLiftInput, CardLiftPlan, PlannedInsert, SplitScript } from "../contract/dedup";
+import type { CardLiftInput, CardLiftPlan, PlannedInsert, SplitScript } from "../contract/dedup.ts";
 
 /** The content-equality key: name + canonical (key-sorted) behavior JSON. See the header. */
 export function dedupKey(name: string, behavior: RegexScriptBehavior): string {

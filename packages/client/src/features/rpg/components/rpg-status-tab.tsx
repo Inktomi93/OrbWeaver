@@ -27,15 +27,15 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useEditSnapshot, usePatchActor } from "../hooks/use-rpg-mutations";
-import { actorKey } from "../lib/actor-key";
-import type { ActorEdit } from "./rpg-actor-trackers";
-import { ActorMeters, ActorTrackerRows, ConditionChips, StatusLine } from "./rpg-actor-trackers";
-import { RpgCharacterDetail } from "./rpg-character-detail";
-import { RpgFieldLock } from "./rpg-field-lock";
-import { Kicker } from "./rpg-kicker";
-import { RpgVeiledSection } from "./rpg-veiled-section";
+import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
+import { useEditSnapshot, usePatchActor } from "../hooks/use-rpg-mutations.ts";
+import { actorKey } from "../lib/actor-key.ts";
+import type { ActorEdit } from "./rpg-actor-trackers.tsx";
+import { ActorMeters, ActorTrackerRows, ConditionChips, StatusLine } from "./rpg-actor-trackers.tsx";
+import { RpgCharacterDetail } from "./rpg-character-detail.tsx";
+import { RpgFieldLock } from "./rpg-field-lock.tsx";
+import { Kicker } from "./rpg-kicker.tsx";
+import { RpgVeiledSection } from "./rpg-veiled-section.tsx";
 
 export interface RpgStatusTabProps {
   readonly state: RpgPanelState;

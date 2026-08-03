@@ -4,8 +4,8 @@
 // token-estimate roll-ups the summary strip reads. Zones are DERIVED here, never stamped (BUILD-SPEC §2.1).
 
 import type { PromptSection } from "@orb/contracts/preset";
-import { deriveZones } from "../../../../../../packages/client/src/features/preset/components/prompt-assembly/derive-zones";
-import { expect, test } from "../../../../../support/fixtures";
+import { deriveZones } from "../../../../../../packages/client/src/features/preset/components/prompt-assembly/derive-zones.ts";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 function literal(id: string, content: string, enabled = true): PromptSection {
   return { type: "literal", id, name: id, role: "system", content, enabled };

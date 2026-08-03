@@ -9,7 +9,7 @@ import type { Db } from "@orb/db";
 import { assets, chatParticipants, messages, messageVariants } from "@orb/db";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { and, eq, isNotNull, like } from "drizzle-orm";
-import { ASSET_REFS } from "./asset-refs";
+import { ASSET_REFS } from "./asset-refs.ts";
 
 const LIMIT_ONE = 1;
 const INLINE_REF_LIKE = "%asset:%";

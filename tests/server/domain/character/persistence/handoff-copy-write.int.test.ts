@@ -8,11 +8,11 @@ import { assets, characters } from "@orb/db";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import type { CopyAvatarToOwner } from "../../../../../packages/server/src/domain/character";
-import { createCopyHandoffCards, handoffProvenance } from "../../../../../packages/server/src/domain/character";
-import { freshDb } from "../../../../support/db";
-import { seedUser } from "../../../../support/factories/user";
-import { expect, test } from "../../../../support/fixtures";
+import type { CopyAvatarToOwner } from "../../../../../packages/server/src/domain/character/index.ts";
+import { createCopyHandoffCards, handoffProvenance } from "../../../../../packages/server/src/domain/character/index.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { seedUser } from "../../../../support/factories/user.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const AT = 1_700_000_000_000;
 const CHAT = castId<ChatId>("chat_transfer");

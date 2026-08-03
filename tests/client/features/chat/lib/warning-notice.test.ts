@@ -5,8 +5,8 @@
 // to catch: the compaction degrades (#9 — compaction_failed, context_trimmed_no_summary).
 
 import { CHAT_WARNING_CODES } from "@orb/contracts/chat";
-import { warningNotice } from "../../../../../packages/client/src/features/chat/lib/warning-notice";
-import { expect, test } from "../../../../support/fixtures";
+import { warningNotice } from "../../../../../packages/client/src/features/chat/lib/warning-notice.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 // ── Specific arms: each degrade reads honestly + names WHAT was dropped ──────────────────────────────
 

@@ -8,7 +8,7 @@
 
 import { toAnthImageBlock } from "@orb/server/infra/providers/backends/kit";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 // A normalize seam that labels bytes as png (identity bytes), so [1,2,3] → base64 "AQID".
 const pngNormalize = (bytes: Uint8Array): Promise<{ bytes: Uint8Array; mediaType: string }> => Promise.resolve({ bytes, mediaType: "image/png" });

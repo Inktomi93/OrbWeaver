@@ -4,7 +4,7 @@
 // variance-sound by construction.
 
 import type { ZodRawShape } from "zod";
-import type { ToolCapability, ToolExecutionContext, ToolSource } from "./params";
+import type { ToolCapability, ToolExecutionContext, ToolSource } from "./params.ts";
 
 export type { ToolCallRecord } from "@orb/contracts/chat";
 

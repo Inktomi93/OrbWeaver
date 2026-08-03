@@ -24,8 +24,8 @@ import { castId } from "@orb/kit/ids";
 import type { JWTPayload } from "jose";
 import { createLocalJWKSet, createRemoteJWKSet, jwtVerify } from "jose";
 import { securityEvent } from "#foundation/observability";
-import type { ForwardJwtClaims, ForwardJwtVerifier, ForwardJwtVerifyArgs } from "./contract";
-import { normalizeHost } from "./host";
+import type { ForwardJwtClaims, ForwardJwtVerifier, ForwardJwtVerifyArgs } from "./contract.ts";
+import { normalizeHost } from "./host.ts";
 
 // authentik joins groups with "|"; tolerate commas too. Mirrors modes/forward-header.ts' unsigned parser
 // (module-private there — a five-line repeat beats an infra-internal export just to share it).

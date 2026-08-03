@@ -8,10 +8,10 @@
 import type { AutomationCelEnv, TriggerFact } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { AutomationOps } from "../contract/ops";
-import { countChatMessages } from "../persistence/canon-reads";
-import { listGlobalVariables } from "../persistence/queries";
-import { nowFields } from "./dry-run";
+import type { AutomationOps } from "../contract/ops.ts";
+import { countChatMessages } from "../persistence/canon-reads.ts";
+import { listGlobalVariables } from "../persistence/queries.ts";
+import { nowFields } from "./dry-run.ts";
 
 /** The author's per-user globals as the CEL `global` map (02 §4). */
 export async function authorGlobals(db: Db, authorUserId: UserId): Promise<Record<string, string>> {

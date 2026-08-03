@@ -8,7 +8,7 @@
 // maintenance) carry the explicit `non-chat-scoped` marker (their gate is documented inline), so the
 // default-deny set is exactly the chatId-scoped surfaces.
 
-import type { ChatService } from "../../contract/service";
+import type { ChatService } from "../../contract/service.ts";
 
 // NOTE: the type aliases here are NON-exported (the `types-in-contract` gate homes exported feature types in
 // `contract/`, which this chunk does not own). Consumers key on the exported VALUE maps + literals; a caller

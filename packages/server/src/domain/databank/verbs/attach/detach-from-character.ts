@@ -6,9 +6,9 @@
 
 import { characterDocuments } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import type { CharacterAttachParams } from "../../contract/params";
-import type { DatabankContext, DatabankService } from "../../contract/service";
-import { ensureCharacterOwned } from "../../persistence/queries";
+import type { CharacterAttachParams } from "../../contract/params.ts";
+import type { DatabankContext, DatabankService } from "../../contract/service.ts";
+import { ensureCharacterOwned } from "../../persistence/queries.ts";
 
 export function createDetachFromCharacter(ctx: DatabankContext): DatabankService["detachFromCharacter"] {
   return async ({ principal, documentId, characterId }: CharacterAttachParams): Promise<void> => {

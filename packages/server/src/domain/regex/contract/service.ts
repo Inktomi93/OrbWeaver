@@ -33,10 +33,10 @@ import type {
   ListScriptUsageParams,
   RemoveScriptParams,
   UpdateScriptParams,
-} from "./params";
-import type { ResolveVisibleRooms, RoomDisplayPolicy } from "./resolve";
-import type { DetachResult, RemoveResult, ReorderResult } from "./results";
-import type { RegexScriptRow, RegexScriptUsage } from "./views";
+} from "./params.ts";
+import type { ResolveVisibleRooms, RoomDisplayPolicy } from "./resolve.ts";
+import type { DetachResult, RemoveResult, ReorderResult } from "./results.ts";
+import type { RegexScriptRow, RegexScriptUsage } from "./views.ts";
 
 /** DI bundle every regex verb closes over. Chat-scope guards are injected from chat itself. */
 export interface RegexContext {

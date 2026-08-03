@@ -11,8 +11,8 @@ import { resolveGuidedInstruction } from "@orb/kit/guided";
 import type { ChatId } from "@orb/kit/ids";
 import type { MacroContext, MacroRegistry, ProcessMacroOptions, RowMacroStamps } from "@orb/kit/macro";
 import { createMacroContext, createVolatileOnlyRegistry, globalMacroRegistry, processMacros, resolveRowMacros } from "@orb/kit/macro";
-import type { RenderMacrosOptions } from "../contract/assembly-macros";
-import type { HistoryMacroNames } from "../contract/results";
+import type { RenderMacrosOptions } from "../contract/assembly-macros.ts";
+import type { HistoryMacroNames } from "../contract/results.ts";
 
 // Commit-time freeze registry: resolves ONLY the nondeterministic macros ({{roll}}/{{random}}/{{time}}/…),
 // re-emitting identity + everything else verbatim. Built once — a per-call rebuild would be pure waste.

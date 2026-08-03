@@ -1,2 +1,2 @@
-export type { VirtualListProps } from "./virtual-list";
-export { VirtualList } from "./virtual-list";
+export type { VirtualListProps } from "./virtual-list.tsx";
+export { VirtualList } from "./virtual-list.tsx";

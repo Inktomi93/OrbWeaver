@@ -14,7 +14,7 @@ import type { BundleImportWorkloadResult, MaintenanceResult } from "@orb/contrac
 import { importBundleWorkloadParams, importStWorkloadParams } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { WorkloadContribution } from "#domain/workloads";
-import type { ImportWorkloadDeps } from "./contract/workloads";
+import type { ImportWorkloadDeps } from "./contract/workloads.ts";
 
 type ImportContributions = readonly [WorkloadContribution<"import-st">, WorkloadContribution<"import-bundle">];
 

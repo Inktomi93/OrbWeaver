@@ -12,7 +12,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import type { ModalDefinition, ModalSlotId } from "#state";
 import { useModalRegistry } from "#state";
-import { SectionPlaceholder } from "./section-placeholder";
+import { SectionPlaceholder } from "./section-placeholder.tsx";
 
 export interface ModalHostProps {
   readonly openModal: ModalSlotId | null;

@@ -4,7 +4,7 @@
 // anchor's contributions, in declared order, `when`-filtered by the viewer projection.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { SettingsSectionRegistryProbe } from "./_ct-stories";
+import { SettingsSectionRegistryProbe } from "./_ct-stories.tsx";
 
 test("useSettingsSections resolves only the anchor's contributions, in declared registry order", async ({ mount }) => {
   const probe = await mount(<SettingsSectionRegistryProbe isAdmin={true} />);

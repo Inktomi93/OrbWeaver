@@ -9,10 +9,10 @@
 // entry of the connection-internal shortlist, resolved from the catalog subsystem, never a magic string.
 
 import type { VerifyAuthResult } from "@orb/contracts/providers";
-import type { ConnectionContext } from "../context";
-import type { TestClaudeAuthParams } from "../contract/params";
-import type { ConnectionService } from "../contract/service";
-import { cheapestChatModelId } from "../substrate/probe-model";
+import type { ConnectionContext } from "../context.ts";
+import type { TestClaudeAuthParams } from "../contract/params.ts";
+import type { ConnectionService } from "../contract/service.ts";
+import { cheapestChatModelId } from "../substrate/probe-model.ts";
 
 export function createTestClaudeAuth(ctx: ConnectionContext): ConnectionService["testClaudeAuth"] {
   return async ({ principal }: TestClaudeAuthParams): Promise<VerifyAuthResult> => {

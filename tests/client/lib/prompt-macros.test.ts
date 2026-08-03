@@ -8,7 +8,7 @@
 
 import { withUserMacros } from "@orb/client/lib";
 import type { UserMacroDef } from "@orb/kit/macro";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 function def(name: string, description = "d"): UserMacroDef {
   return { name, description, args: [], body: "x", inputs: [], strict: false };

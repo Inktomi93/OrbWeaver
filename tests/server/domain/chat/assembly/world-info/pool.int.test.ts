@@ -8,10 +8,10 @@ import { characterBooks, chatBooks, globalBooks, personaBooks, personas, worldBo
 import type { Handle, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { loadWorldInfoPool } from "../../../../../../packages/server/src/domain/chat/assembly/world-info/pool";
-import { freshDb } from "../../../../../support/db";
-import { expect, test } from "../../../../../support/fixtures";
-import { FROZEN_AT, seedCharacter, seedChat, seedUser } from "../../_support";
+import { loadWorldInfoPool } from "../../../../../../packages/server/src/domain/chat/assembly/world-info/pool.ts";
+import { freshDb } from "../../../../../support/db.ts";
+import { expect, test } from "../../../../../support/fixtures.ts";
+import { FROZEN_AT, seedCharacter, seedChat, seedUser } from "../../_support.ts";
 
 let db: Db;
 beforeEach(async () => {

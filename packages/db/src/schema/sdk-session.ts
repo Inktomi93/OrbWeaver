@@ -20,7 +20,7 @@
 import type { ChatId, SessionEntryId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { chats } from "./chat";
+import { chats } from "./chat.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // session_entries — one persisted agent-sdk session in a chat's prompt-cache lineage (D8). Keyed by

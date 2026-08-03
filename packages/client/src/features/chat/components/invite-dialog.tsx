@@ -19,10 +19,10 @@ import { useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { notify, testId, timeLib } from "#lib";
-import { useInviteForm } from "../hooks/use-invite-form";
-import { useCreateInvite, useRevokeInvite } from "../hooks/use-invite-mutations";
-import type { InviteFormValues } from "../lib/invite-form-model";
-import { INVITE_EXPIRY_ITEMS, toCreateInviteInput } from "../lib/invite-form-model";
+import { useInviteForm } from "../hooks/use-invite-form.ts";
+import { useCreateInvite, useRevokeInvite } from "../hooks/use-invite-mutations.ts";
+import type { InviteFormValues } from "../lib/invite-form-model.ts";
+import { INVITE_EXPIRY_ITEMS, toCreateInviteInput } from "../lib/invite-form-model.ts";
 
 type InviteView = inferOutput<Trpc["invites"]["listInvites"]>[number];
 

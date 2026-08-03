@@ -10,7 +10,7 @@
 
 import { STREAM_CHANNELS } from "@orb/contracts/stream";
 import { OVERFLOW_POLICIES, ROOM_SOURCES } from "@orb/server/transport/trpc";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 test("a channel is `resumable` exactly when its overflow policy is `lag` — durability, stated once per meaning", () => {
   const resumable = STREAM_CHANNELS.filter((channel) => ROOM_SOURCES[channel].resumable);

@@ -3,7 +3,7 @@
 // inside the panel width (its right edge ≤ the panel's), which `size="sm"` restores.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { CharacterBulkBarStory } from "../_ct-stories";
+import { CharacterBulkBarStory } from "../_ct-stories.tsx";
 
 test("the bulk actions fit the narrow panel — Delete is not clipped past the edge", async ({ mount, page }) => {
   const component = await mount(<CharacterBulkBarStory />);

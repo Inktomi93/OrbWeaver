@@ -7,7 +7,7 @@
 // means anything across a set of radios. See the harness for the anatomy.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { LibraryListHarness } from "./library-surface.fixtures";
+import { LibraryListHarness } from "./library-surface.fixtures.tsx";
 
 test("F-4: the state column lands at ONE x on every row, whatever each row's cluster holds", async ({ mount, page }) => {
   await mount(<LibraryListHarness />);

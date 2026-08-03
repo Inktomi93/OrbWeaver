@@ -9,9 +9,9 @@ import { validateThemeCss } from "@orb/kit/css-validate";
 import type { UserId } from "@orb/kit/ids";
 import { portableParseError } from "#kit/serde/lib";
 import { parseThemeBackup, THEME_SCHEMA_KIND } from "#kit/serde/theme";
-import type { SettingsImportOutcome } from "../contract/portability";
-import type { SettingsContext } from "../contract/service";
-import { restoreOwnedThemes } from "../persistence/theme-queries";
+import type { SettingsImportOutcome } from "../contract/portability.ts";
+import type { SettingsContext } from "../contract/service.ts";
+import { restoreOwnedThemes } from "../persistence/theme-queries.ts";
 
 const THEME_IMPORT_BACKUP = "theme.importBackup";
 const THEME_ENTITY = "theme";

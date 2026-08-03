@@ -12,8 +12,8 @@
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
 import { REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
 import { describe } from "vitest";
-import { deriveRegexTierFlags, withDerivedTierFlags } from "../../../../../packages/client/src/features/regex/lib/derive-tier-flags";
-import { expect, test } from "../../../../support/fixtures";
+import { deriveRegexTierFlags, withDerivedTierFlags } from "../../../../../packages/client/src/features/regex/lib/derive-tier-flags.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 /** Exactly what an ST card carrying BOTH tier flags lifts into: stored as imported (deliberately — see the
  *  derive site's header), inert at execution because the two masks cancel, and healed on the next save. */

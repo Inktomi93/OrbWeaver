@@ -10,8 +10,8 @@ import type { AppSettings, UserSettings, UserSettingsSection } from "@orb/contra
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { ContributorRegistry } from "#lib";
-import type { SettingsCategoryId } from "./shell-store";
-import { SETTINGS_CATEGORY_IDS } from "./shell-store";
+import type { SettingsCategoryId } from "./shell-store.ts";
+import { SETTINGS_CATEGORY_IDS } from "./shell-store.ts";
 
 /** The two nav groups — the settings region's USER + APP micro-caps taxonomy (pane taxonomy homes WITH
  *  the Def, not shell-store — the section-registry `SectionGroup` precedent). */

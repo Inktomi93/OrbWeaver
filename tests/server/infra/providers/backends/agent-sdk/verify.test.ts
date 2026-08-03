@@ -8,7 +8,7 @@
 
 import { assertInitFrameShape, classifyTerminalReason } from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const MISSING_SESSION_ID_RE = /missing session_id/u;
 const MISSING_API_KEY_SOURCE_RE = /missing apiKeySource/u;

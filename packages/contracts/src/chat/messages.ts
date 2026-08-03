@@ -9,7 +9,7 @@ import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
-import { messageRoleSchema } from "./participants";
+import { messageRoleSchema } from "./participants.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE MESSAGE / VARIANT WIRE CONTRACT (D26) — `messages` is a pure SLOT; ALL content/economics live on

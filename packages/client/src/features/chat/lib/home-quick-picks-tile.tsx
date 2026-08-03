@@ -6,7 +6,7 @@ import { Button } from "@orb/ui/button";
 import { Users } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#lib";
 import { setActiveSection } from "#state";
-import { HomeQuickPicksTileBody } from "../components/home-quick-picks-tile-body";
+import { HomeQuickPicksTileBody } from "../components/home-quick-picks-tile-body.tsx";
 
 const QUICK_PICKS_TILE_ORDER = 20;
 

@@ -13,7 +13,7 @@ import { workloadSchedules } from "@orb/db";
 import type { UserId, WorkloadScheduleId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, desc, eq, lte } from "drizzle-orm";
-import type { WorkloadScheduleRow } from "../contract/schedule";
+import type { WorkloadScheduleRow } from "../contract/schedule.ts";
 
 /** A new schedule row (file-local; the verb mints `id`, resolves the owner, passes its injected clock). */
 interface ScheduleInsert {

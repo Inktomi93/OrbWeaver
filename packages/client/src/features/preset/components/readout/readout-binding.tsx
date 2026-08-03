@@ -11,7 +11,7 @@ import { Icon, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import type { ReadoutBinding } from "../../hooks/use-readout-binding";
+import type { ReadoutBinding } from "../../hooks/use-readout-binding.ts";
 
 /** The binding chip — the readout's own header row, above the per-view panel (the mock draws it exactly
  *  there: an info-tinted bar naming the chat, with the dismiss at its trailing edge).

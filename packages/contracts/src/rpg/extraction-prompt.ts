@@ -19,12 +19,12 @@
 // construction; the fork-strip §3.2 leak vector evaporates). Deception-gated — a non-deception game composes
 // byte-identically to the pre-registry per-plane prose.
 
-import { RPG_WEATHER_TYPES, TIME_OF_DAY } from "./ambient";
-import type { RpgGameConfig } from "./config";
-import { isDeceptionActive, rpgGameConfigSchema } from "./config";
-import type { ExtractionRefs, RpgExtraction } from "./extraction";
-import type { RpgTrackerDef } from "./tracker";
-import { gameTrackers, sortTrackers } from "./tracker";
+import { RPG_WEATHER_TYPES, TIME_OF_DAY } from "./ambient.ts";
+import type { RpgGameConfig } from "./config.ts";
+import { isDeceptionActive, rpgGameConfigSchema } from "./config.ts";
+import type { ExtractionRefs, RpgExtraction } from "./extraction.ts";
+import type { RpgTrackerDef } from "./tracker.ts";
+import { gameTrackers, sortTrackers } from "./tracker.ts";
 
 /** The context a fragment builder reads: the game config (feature gates, cast-field defs + hints, dateMode)
  *  and the per-call refs (widget labels, cast-field keys). A fragment returns `null` when its plane is OFF

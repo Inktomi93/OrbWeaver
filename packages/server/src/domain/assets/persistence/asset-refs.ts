@@ -17,7 +17,7 @@ import { characters, chats, documents, galleryItems, imageryGenerations, message
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { isNotNull, sql } from "drizzle-orm";
-import type { AssetRef } from "../contract/maintenance";
+import type { AssetRef } from "../contract/maintenance.ts";
 
 /** RETAINING references — a non-null value here keeps its asset (and blob) LIVE; the safe default for an
  *  ambiguous asset-FK column (over-retaining leaks a blob, under-retaining is data loss). */

@@ -4,7 +4,7 @@
 // never styled text. CT (not headless) because the retry is a render + click contract (§7).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { AutosaveStatusStory } from "./_ct-stories";
+import { AutosaveStatusStory } from "./_ct-stories.tsx";
 
 test("reads out each lifecycle state and the error-state Retry fires onRetry", async ({ mount }) => {
   const component = await mount(<AutosaveStatusStory />);

@@ -5,7 +5,7 @@ import { Field } from "@orb/ui/field";
 import { Switch } from "@orb/ui/switch";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
 
 const NON_EMPTY = /.+/u;
 

@@ -7,7 +7,7 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { loadCardFields } from "../../../../../packages/server/src/domain/search/persistence/cards.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedUser } from "../_support.ts";
 
 describe("loadCardFields", () => {

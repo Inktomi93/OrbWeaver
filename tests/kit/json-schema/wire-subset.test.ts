@@ -6,7 +6,7 @@
 import type { WireSchemaMode } from "@orb/kit/json-schema";
 import { dropNullValues, projectJsonSchema, scrubWireSchema, WIRE_SCHEMA_MODES } from "@orb/kit/json-schema";
 import { z } from "zod";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 /** Every keyword appearing anywhere in a schema tree. */
 function collectKeys(node: unknown, acc: Set<string> = new Set()): Set<string> {

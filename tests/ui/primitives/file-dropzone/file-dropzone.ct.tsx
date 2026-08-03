@@ -4,8 +4,8 @@
 import { Field } from "@orb/ui/field";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { dropFiles } from "../../../support/ct/drop-files";
-import { FileDropzoneHarness } from "./file-dropzone.fixtures";
+import { dropFiles } from "../../../support/ct/drop-files.ts";
+import { FileDropzoneHarness } from "./file-dropzone.fixtures.tsx";
 
 const NON_EMPTY = /.+/u;
 const TWENTY_MEBIBYTES = 20 * 1024 * 1024;

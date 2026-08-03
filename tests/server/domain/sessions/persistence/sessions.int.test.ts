@@ -11,9 +11,9 @@ import {
   revokeByTokenHash,
   selectForValidation,
   slideExpiry,
-} from "../../../../../packages/server/src/domain/sessions/persistence/sessions";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/server/src/domain/sessions/persistence/sessions.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const USER_ID = castId<UserId>("user_alice");
 const HANDLE = castId<Handle>("alice");

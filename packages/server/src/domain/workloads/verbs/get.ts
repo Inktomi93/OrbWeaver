@@ -6,11 +6,11 @@
 // caller or an admin sees any row.
 
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { GetWorkloadParams } from "../contract/params";
-import type { WorkloadService, WorkloadServiceContext } from "../contract/service";
-import type { WorkloadRowAnyKind } from "../contract/workload-row";
-import { loadWorkload } from "../persistence/queries";
-import { isVisibleToCaller } from "../substrate/authorize";
+import type { GetWorkloadParams } from "../contract/params.ts";
+import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
+import type { WorkloadRowAnyKind } from "../contract/workload-row.ts";
+import { loadWorkload } from "../persistence/queries.ts";
+import { isVisibleToCaller } from "../substrate/authorize.ts";
 
 const ENTITY = "workload";
 

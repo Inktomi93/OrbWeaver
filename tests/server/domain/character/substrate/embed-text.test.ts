@@ -6,7 +6,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import { describe } from "vitest";
 import { buildCardEmbedText } from "../../../../../packages/server/src/domain/character/substrate/embed-text.ts";
 import { buildGroupCard } from "../../../../../packages/server/src/domain/character/substrate/group-character.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 function card(overrides: Partial<CharacterCard> = {}): CharacterCard {
   return { ...buildGroupCard(), name: "", description: null, greetings: [], ...overrides };

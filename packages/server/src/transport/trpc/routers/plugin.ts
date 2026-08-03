@@ -18,7 +18,7 @@ import { PLUGIN_CAPABILITIES } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { authedProcedure, t } from "../trpc";
+import { authedProcedure, t } from "../trpc.ts";
 
 const pluginIdSchema = typeIdSchema(ID_PREFIX.plugin);
 // Lax like the chat router's chatId (leak-free gating is the service's `resolveChatAuthority`, not a strict

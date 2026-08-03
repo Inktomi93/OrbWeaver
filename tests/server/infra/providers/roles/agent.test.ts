@@ -7,7 +7,7 @@
 import type { AgentTurnRequest, ChatResult, ProviderBackend, ResolvedCredential } from "@orb/server/infra/providers";
 import { createAgentRole, ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 function cred(source: ResolvedCredential["source"]): ResolvedCredential {
   return { source, credentialId: null } as unknown as ResolvedCredential;

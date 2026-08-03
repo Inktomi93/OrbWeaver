@@ -15,8 +15,8 @@ import { Separator } from "@orb/ui/separator";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { TrackerValue } from "#components";
-import type { PlotEdit } from "../lib/plot-edit";
-import { RpgFieldLock } from "./rpg-field-lock";
+import type { PlotEdit } from "../lib/plot-edit.ts";
+import { RpgFieldLock } from "./rpg-field-lock.tsx";
 
 // Roman act labels for the rail (acts beyond the table fall back to the arabic number — a 20-act
 // campaign still labels honestly).

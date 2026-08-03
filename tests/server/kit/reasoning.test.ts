@@ -6,7 +6,7 @@
 
 import { parseReasoningTags } from "@orb/server/kit/reasoning";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const TAGS = { prefix: "<think>", suffix: "</think>" } as const;
 

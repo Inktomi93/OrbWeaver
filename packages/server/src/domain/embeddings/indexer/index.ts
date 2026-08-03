@@ -3,8 +3,8 @@
 // onCharacterUpdated, `asset.created` → onAssetCreated). Exports only the factory (a function) — the
 // `EmbeddingsIndexer` / `EmbeddingsIndexerContext` TYPES live in `contract/` (no-inline-types).
 
-import type { EmbeddingsIndexer, EmbeddingsIndexerContext } from "../contract/service";
-import { onAssetCreated, onCharacterUpdated } from "./handlers";
+import type { EmbeddingsIndexer, EmbeddingsIndexerContext } from "../contract/service.ts";
+import { onAssetCreated, onCharacterUpdated } from "./handlers.ts";
 
 export function createEmbeddingsIndexer(ctx: EmbeddingsIndexerContext): EmbeddingsIndexer {
   return {

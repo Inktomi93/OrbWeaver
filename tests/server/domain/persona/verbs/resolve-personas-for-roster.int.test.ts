@@ -9,7 +9,7 @@ import { castId } from "@orb/kit/ids";
 import { createPersonaService, createResolvePersonasForRoster } from "@orb/server/domain/persona";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 /** A room of two humans, each with one persona. Returns the op under test plus the ids. */

@@ -12,8 +12,8 @@ import { messages, rpgSnapshots } from "@orb/db";
 import type { ChatId, Handle, MessageId, MessageVariantId, RpgGameId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../../../support/db";
-import type { RpgHarness } from "../_support";
+import { freshDb } from "../../../../support/db.ts";
+import type { RpgHarness } from "../_support.ts";
 import {
   addVariant,
   emptyState,
@@ -27,7 +27,7 @@ import {
   seedMessage,
   target,
   test,
-} from "../_support";
+} from "../_support.ts";
 
 /** The HP tracker def the seeded beats read against (R3 — health is an ordinary meter now, so the delta
  *  block only renders it when the GAME defines it, which is the whole point of the demotion). */

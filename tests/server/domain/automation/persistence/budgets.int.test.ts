@@ -4,7 +4,7 @@
 import { describe } from "vitest";
 import { selectBudget, upsertBudget } from "../../../../../packages/server/src/domain/automation/persistence/budgets.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { FIXED_NOW_MS, seedHostChat, seedUser } from "../_support.ts";
 
 describe("automation_budgets persistence", () => {

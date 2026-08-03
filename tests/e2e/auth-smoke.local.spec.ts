@@ -9,8 +9,8 @@
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import { loginLocal, ownerActor } from "./support/actors";
-import { LOCAL_MEMBER, LOCAL_OWNER } from "./support/modes";
+import { loginLocal, ownerActor } from "./support/actors.ts";
+import { LOCAL_MEMBER, LOCAL_OWNER } from "./support/modes.ts";
 
 const NO_SESSION_COOKIE = /no session cookie/u;
 

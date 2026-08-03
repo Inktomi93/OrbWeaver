@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { rowVariants } from "./variants";
+import { rowVariants } from "./variants.ts";
 
 export interface RowProps extends ComponentProps<"div">, VariantProps<typeof rowVariants> {}
 

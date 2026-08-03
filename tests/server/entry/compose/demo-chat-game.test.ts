@@ -18,7 +18,7 @@ import type { DemoChatGame } from "@orb/server/domain/chat";
 import type { DemoChatGameDoorDeps } from "@orb/server/entry/compose";
 import { createDemoChatGameDoor } from "@orb/server/entry/compose";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 /** The hand doors' errors-as-data verdict, DERIVED off the door's own dep contract rather than re-spelled or
  *  imported from a server-internal alias the test program cannot resolve. */

@@ -1,2 +1,2 @@
-export type { ListRowProps } from "./list-row";
-export { ListRow } from "./list-row";
+export type { ListRowProps } from "./list-row.tsx";
+export { ListRow } from "./list-row.tsx";

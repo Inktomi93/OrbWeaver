@@ -7,7 +7,7 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { loadRawWorkloadParams } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService, principal, seedUser, seedWorkloadRow } from "../_support.ts";
 
 describe("workloads.retry", () => {

@@ -6,8 +6,8 @@
 
 import type { Registry } from "#lib";
 import { createRegistryContext } from "#lib";
-import type { SectionDefinition } from "./section-registry";
-import type { SectionId } from "./shell-store";
+import type { SectionDefinition } from "./section-registry.ts";
+import type { SectionId } from "./shell-store.ts";
 
 export type SectionRegistry = Registry<SectionId, SectionDefinition>;
 

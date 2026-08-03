@@ -18,7 +18,7 @@ import {
   writeHold,
 } from "@orb/server/infra/providers/vllm/engine";
 import { afterEach, beforeEach, describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 /** Narrow a wake decision to its refusal arm or fail the test — avoids conditional-expect. */
 function refused(d: WakeDecision): Extract<WakeDecision, { ok: false }> {

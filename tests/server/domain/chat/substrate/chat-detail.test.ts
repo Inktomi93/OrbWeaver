@@ -7,8 +7,8 @@
 import type { ChatMacroNameProducer, ParticipantView } from "@orb/contracts/chat";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { toChatDetail } from "../../../../../packages/server/src/domain/chat/substrate/chat-detail";
-import { expect, test } from "../../../../support/fixtures";
+import { toChatDetail } from "../../../../../packages/server/src/domain/chat/substrate/chat-detail.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const chatId = castId<ChatId>("chat_detail_1");
 const hostId = castId<UserId>("user_host");

@@ -7,7 +7,7 @@
 
 import type { Can, ChatAction, ChatRoster, GlobalAction, Principal, ResourceRef, UserRole } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
-import type { IsAdmin, RequireAdmin, RequireOwner } from "./contract/guard";
+import type { IsAdmin, RequireAdmin, RequireOwner } from "./contract/guard.ts";
 
 // The role set that satisfies each global action — the sole encoding of `owner ⊇ admin`. Exhaustive: a new
 // `GlobalAction` member fails tsc here.

@@ -5,32 +5,32 @@
 // runners call directly — the compute* passes stay standalone-exportable).
 
 import type { UserId } from "@orb/kit/ids";
-import type { DiscoveryContext } from "./context";
-import type { ThemeLevel } from "./contract/params";
-import type { DuplicateCharacterPair, DuplicateChatPair, ThemeRow } from "./contract/results";
-import type { DiscoveryService, ViewsDeps } from "./contract/service";
-import { computeCooccurrence as runComputeCooccurrence } from "./cooccurrence/generate";
-import { characterKeywords, cooccurringKeywords, topKeywords } from "./cooccurrence/retrieve";
-import { computeChatDuplicatePairs as runComputeChatDuplicatePairs, computeDuplicatePairs as runComputeDuplicatePairs } from "./duplicates/generate";
-import { readDuplicateCharacters, readDuplicateChats } from "./duplicates/retrieve";
-import { createImageAnalyticsFacets } from "./image-analytics/facets";
-import { createImageAnalyticsRetrieve } from "./image-analytics/retrieve";
-import { backfillMsgMidAt } from "./themes/backfill";
-import { computeThemes as runComputeThemes } from "./themes/generate";
-import { readThemes } from "./themes/retrieve";
-import { createAnalyze } from "./verbs/analyze";
-import { createArchetypes } from "./verbs/archetypes";
-import { createBrowse } from "./verbs/browse";
-import { createCatalog } from "./verbs/catalog";
-import { createComputeHubScores } from "./verbs/compute-hub-scores";
-import { createDistill } from "./verbs/distill";
-import { createEconomicsInsights } from "./verbs/economics-insights";
-import { createInsights } from "./verbs/insights";
-import { createProjection } from "./verbs/projection";
-import { createSimilarChats } from "./verbs/similar-chats";
-import { createSimilarityGraph } from "./verbs/similarity-graph";
-import { createSwipes } from "./verbs/swipes";
-import { createViews } from "./verbs/views";
+import type { DiscoveryContext } from "./context.ts";
+import type { ThemeLevel } from "./contract/params.ts";
+import type { DuplicateCharacterPair, DuplicateChatPair, ThemeRow } from "./contract/results.ts";
+import type { DiscoveryService, ViewsDeps } from "./contract/service.ts";
+import { computeCooccurrence as runComputeCooccurrence } from "./cooccurrence/generate.ts";
+import { characterKeywords, cooccurringKeywords, topKeywords } from "./cooccurrence/retrieve.ts";
+import { computeChatDuplicatePairs as runComputeChatDuplicatePairs, computeDuplicatePairs as runComputeDuplicatePairs } from "./duplicates/generate.ts";
+import { readDuplicateCharacters, readDuplicateChats } from "./duplicates/retrieve.ts";
+import { createImageAnalyticsFacets } from "./image-analytics/facets.ts";
+import { createImageAnalyticsRetrieve } from "./image-analytics/retrieve.ts";
+import { backfillMsgMidAt } from "./themes/backfill.ts";
+import { computeThemes as runComputeThemes } from "./themes/generate.ts";
+import { readThemes } from "./themes/retrieve.ts";
+import { createAnalyze } from "./verbs/analyze.ts";
+import { createArchetypes } from "./verbs/archetypes.ts";
+import { createBrowse } from "./verbs/browse.ts";
+import { createCatalog } from "./verbs/catalog.ts";
+import { createComputeHubScores } from "./verbs/compute-hub-scores.ts";
+import { createDistill } from "./verbs/distill.ts";
+import { createEconomicsInsights } from "./verbs/economics-insights.ts";
+import { createInsights } from "./verbs/insights.ts";
+import { createProjection } from "./verbs/projection.ts";
+import { createSimilarChats } from "./verbs/similar-chats.ts";
+import { createSimilarityGraph } from "./verbs/similarity-graph.ts";
+import { createSwipes } from "./verbs/swipes.ts";
+import { createViews } from "./verbs/views.ts";
 
 export function createDiscoveryService(ctx: DiscoveryContext): DiscoveryService {
   const dupDeps = {

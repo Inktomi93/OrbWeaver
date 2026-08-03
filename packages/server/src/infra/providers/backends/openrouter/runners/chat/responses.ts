@@ -27,9 +27,9 @@ import type {
   ToolCallInput,
   ToolChoice,
   WireTool,
-} from "../../../../contract";
-import { normalizeFinishReason, ProviderError } from "../../../../contract";
-import { resolveChat } from "../../../../resolve-chat";
+} from "../../../../contract/index.ts";
+import { normalizeFinishReason, ProviderError } from "../../../../contract/index.ts";
+import { resolveChat } from "../../../../resolve-chat.ts";
 import {
   ANTHROPIC_CACHE_1H,
   chatHistoryText,
@@ -38,9 +38,9 @@ import {
   providerErrorFromHttp,
   runWithPreCommitRetry,
   turnAbortSignal,
-} from "../../../kit";
-import { withContextCompressionPlugin } from "./context-compression";
-import type { OpenRouterChatDeps } from "./shared";
+} from "../../../kit/index.ts";
+import { withContextCompressionPlugin } from "./context-compression.ts";
+import type { OpenRouterChatDeps } from "./shared.ts";
 import {
   buildReasoningRequest,
   emitSamplingReceipt,
@@ -51,7 +51,7 @@ import {
   warningEvents,
   withCustomParametersDrop,
   withToolResultErrorDrop,
-} from "./shared";
+} from "./shared.ts";
 
 const USER_ROLE = "user";
 const REASONING_OFF = "none";

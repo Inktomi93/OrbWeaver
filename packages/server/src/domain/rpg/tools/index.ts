@@ -32,12 +32,12 @@ import {
 import type { ChatTurnId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
 import type { ToolDefinition, ToolExecutionContext, ToolHandlerResult } from "#domain/tool-use";
-import type { RpgContext, RpgGameRow } from "../contract/service";
-import { snapshotRowToState } from "../contract/service";
-import { findGameByChat } from "../persistence/games";
-import { resolveSnapshotForTurn } from "../persistence/snapshots";
-import { defaultSnapshotState } from "../substrate/default-state";
-import type { RosterRefIndex } from "./apply";
+import type { RpgContext, RpgGameRow } from "../contract/service.ts";
+import { snapshotRowToState } from "../contract/service.ts";
+import { findGameByChat } from "../persistence/games.ts";
+import { resolveSnapshotForTurn } from "../persistence/snapshots.ts";
+import { defaultSnapshotState } from "../substrate/default-state.ts";
+import type { RosterRefIndex } from "./apply.ts";
 import {
   applySetTracker,
   applyUpdateInventory,
@@ -46,8 +46,8 @@ import {
   applyUpsertQuest,
   buildRosterRefIndex,
   toStagedJournalEntry,
-} from "./apply";
-import { rollNotation } from "./dice";
+} from "./apply.ts";
+import { rollNotation } from "./dice.ts";
 
 /** The sanctioned erasure (the imagery/buddy precedent): a typed `ToolDefinition<A>` is unassignable to
  *  `ToolDefinition<unknown>` (handler contravariance), so mint with its own `A` and widen for the array;

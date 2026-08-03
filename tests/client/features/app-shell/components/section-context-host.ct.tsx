@@ -4,7 +4,7 @@
 // (no shell-side per-section switch) and mint-fed.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { SectionContextHeaderChannelStory, SectionContextHeaderDefaultStory } from "../_ct-stories";
+import { SectionContextHeaderChannelStory, SectionContextHeaderDefaultStory } from "../_ct-stories.tsx";
 
 test("a section's minted `header` renders in the context band (the definition-owned channel)", async ({ mount }) => {
   const component = await mount(<SectionContextHeaderChannelStory />);

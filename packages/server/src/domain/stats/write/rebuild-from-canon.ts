@@ -13,9 +13,9 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { utcDay, wordCount } from "@orb/kit/stats-tally";
 import type { SQL } from "drizzle-orm";
 import { eq, sql } from "drizzle-orm";
-import type { ReconcileStatsResult } from "../contract/results";
+import type { ReconcileStatsResult } from "../contract/results.ts";
 
-export type { ReconcileStatsResult } from "../contract/results";
+export type { ReconcileStatsResult } from "../contract/results.ts";
 
 const CHUNK = 5000; // rows per streaming page — bounds peak memory on large corpora
 const DAY_MS = 86_400_000;

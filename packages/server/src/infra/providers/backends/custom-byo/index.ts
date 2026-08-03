@@ -10,15 +10,15 @@
 // credential firewall forbids `custom_openai` for every non-chat role, so this backend implements only
 // `runChatTurn`.
 
-import type { ChatRequest, ChatResult, EndpointInspection, InspectRequest, ProviderBackend } from "../../contract";
-import { ProviderError } from "../../contract";
-import { inspectCustomByoEndpoint } from "./inspect";
-import type { CustomByoRunnerDeps } from "./runners/chat";
-import { runChatTurn } from "./runners/chat";
+import type { ChatRequest, ChatResult, EndpointInspection, InspectRequest, ProviderBackend } from "../../contract/index.ts";
+import { ProviderError } from "../../contract/index.ts";
+import { inspectCustomByoEndpoint } from "./inspect.ts";
+import type { CustomByoRunnerDeps } from "./runners/chat.ts";
+import { runChatTurn } from "./runners/chat.ts";
 
 // ── Family-internal surface (entry wiring + the family's OWN tests). NOT domain-reachable. ──────────────
-export { inspectCustomByoEndpoint } from "./inspect";
-export { reshapeChunk } from "./runners/chat";
+export { inspectCustomByoEndpoint } from "./inspect.ts";
+export { reshapeChunk } from "./runners/chat.ts";
 
 const CUSTOM_OPENAI_SOURCE = "custom_openai";
 

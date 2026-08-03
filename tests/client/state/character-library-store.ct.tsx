@@ -6,7 +6,7 @@
 // belongs to the persist factory's own test).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { CharacterLibraryStoreProbe } from "./_ct-stories";
+import { CharacterLibraryStoreProbe } from "./_ct-stories.tsx";
 
 test("sort + view transitions reflect in the read hooks", async ({ mount }) => {
   const probe = await mount(<CharacterLibraryStoreProbe />);

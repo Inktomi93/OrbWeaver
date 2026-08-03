@@ -4,9 +4,9 @@
 
 import { buildPresetFile, parsePromptConfig } from "@orb/contracts/preset";
 import { slugifyHandle } from "@orb/kit/slug";
-import type { PresetContext } from "../context";
-import type { ExportPresets, PresetExportFile } from "../contract/portability";
-import { listOwned } from "../persistence/queries";
+import type { PresetContext } from "../context.ts";
+import type { ExportPresets, PresetExportFile } from "../contract/portability.ts";
+import { listOwned } from "../persistence/queries.ts";
 
 export function createExport(ctx: PresetContext): ExportPresets {
   return async ({ ownerId }): Promise<PresetExportFile[]> => {

@@ -2,7 +2,7 @@ import type { PortabilityRegistry, PortableEntity, PortableFile, PortableImportO
 import { PORTABLE_IMPORT_ORDER, PORTABLE_KINDS } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // ── Kind membership: the closed set is EXACTLY the design's §2 eight, no more, no less ──────────────────
 test("PORTABLE_KINDS pins the twelve portable entity kinds", () => {

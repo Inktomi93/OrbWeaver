@@ -26,13 +26,13 @@ import { credentialsKeyFromEnv } from "#infra/crypto";
 import { installEgressFirewall } from "#infra/network";
 import { detectGpu } from "#infra/providers";
 import { createCas } from "#infra/storage";
-import { startCatalogRefreshScheduler } from "../transport/jobs/catalog-refresh-scheduler";
-import { startOidcGcScheduler } from "../transport/jobs/oidc-gc-scheduler";
-import { startWorkloadScheduleScheduler } from "../transport/jobs/workload-schedule-scheduler";
-import { startWorkloadsWorker } from "../transport/jobs/workloads-worker";
-import { setChatOpenTap } from "../transport/trpc";
-import { createApp } from "./app";
-import { createAuthSeam } from "./auth";
+import { startCatalogRefreshScheduler } from "../transport/jobs/catalog-refresh-scheduler.ts";
+import { startOidcGcScheduler } from "../transport/jobs/oidc-gc-scheduler.ts";
+import { startWorkloadScheduleScheduler } from "../transport/jobs/workload-schedule-scheduler.ts";
+import { startWorkloadsWorker } from "../transport/jobs/workloads-worker.ts";
+import { setChatOpenTap } from "../transport/trpc/index.ts";
+import { createApp } from "./app.ts";
+import { createAuthSeam } from "./auth/index.ts";
 import {
   reclaimLocksOnBoot,
   runBootMigrations,
@@ -43,11 +43,11 @@ import {
   seedDemoChats,
   seedOwner,
   seedThemes,
-} from "./boot";
-import { createServices } from "./compose";
-import { createAutomationWatcherEnv } from "./compose/automation-watcher";
-import type { LocalAuthenticator, OidcRoutesDeps } from "./http";
-import { createRateLimitGate } from "./rate-limit-gate";
+} from "./boot/index.ts";
+import { createAutomationWatcherEnv } from "./compose/automation-watcher.ts";
+import { createServices } from "./compose/index.ts";
+import type { LocalAuthenticator, OidcRoutesDeps } from "./http/index.ts";
+import { createRateLimitGate } from "./rate-limit-gate.ts";
 
 const MS_PER_HOUR = 3_600_000;
 const CATALOG_CHECK_INTERVAL_MS = MS_PER_HOUR;

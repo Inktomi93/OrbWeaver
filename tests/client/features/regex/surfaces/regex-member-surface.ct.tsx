@@ -8,10 +8,10 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { deriveRegexTierFlags } from "../../../../../packages/client/src/features/regex/lib/derive-tier-flags";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { RegexMemberStory } from "../_ct-stories";
+import { deriveRegexTierFlags } from "../../../../../packages/client/src/features/regex/lib/derive-tier-flags.ts";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { RegexMemberStory } from "../_ct-stories.tsx";
 
 const RUN_ON_EDIT = /Run on edit/;
 const DELETE_CASCADE = /removes it from every preset, character, and room/;

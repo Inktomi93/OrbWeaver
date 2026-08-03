@@ -1,15 +1,15 @@
 // domain/character — FRONT DOOR: the only legal external import; re-exports the public surface. Cross-
 // boundary wire types/schemas live in `@orb/contracts/character` and are NOT re-exported here.
 
-export type { CharacterContext } from "./context";
-export type { CharacterAvatarLink, CharacterAvatarLinkContext, LinkCharacterAvatars } from "./contract/avatar-link";
+export type { CharacterContext } from "./context.ts";
+export type { CharacterAvatarLink, CharacterAvatarLinkContext, LinkCharacterAvatars } from "./contract/avatar-link.ts";
 export {
   AssetNotFoundError,
   CharacterNotFoundError,
   CharacterOperationError,
-} from "./contract/errors";
-export type { CharacterHandoffCopyContext, CopyAvatarToOwner, CopyHandoffCards, HandoffCardCopy } from "./contract/handoff-copy";
-export { handoffProvenance } from "./contract/handoff-copy";
+} from "./contract/errors.ts";
+export type { CharacterHandoffCopyContext, CopyAvatarToOwner, CopyHandoffCards, HandoffCardCopy } from "./contract/handoff-copy.ts";
+export { handoffProvenance } from "./contract/handoff-copy.ts";
 export type {
   BulkAddCardTagParams,
   BulkArchiveParams,
@@ -33,24 +33,24 @@ export type {
   RewriteGreetingParams,
   SnapshotParams,
   UpdateCharacterParams,
-} from "./contract/params";
+} from "./contract/params.ts";
 export type {
   CharacterRef,
   GeneratedGreeting,
   ListCharactersResult,
   SnapshotRef,
   SnapshotSummary,
-} from "./contract/results";
+} from "./contract/results.ts";
 export type {
   AttachCardTagOp,
   CharacterService,
   DetachCardTagOp,
   ReapAssetsOp,
-} from "./contract/service";
-export type { CharacterDetail, CharacterSummary } from "./contract/views";
-export { createLinkCharacterAvatars } from "./persistence/avatar-link-write";
-export { createCopyHandoffCards } from "./persistence/handoff-copy-write";
-export type { DefaultCharacterSeeder, DefaultCharacterSeederDeps, SeededCardContent } from "./seeder";
+} from "./contract/service.ts";
+export type { CharacterDetail, CharacterSummary } from "./contract/views.ts";
+export { createLinkCharacterAvatars } from "./persistence/avatar-link-write.ts";
+export { createCopyHandoffCards } from "./persistence/handoff-copy-write.ts";
+export type { DefaultCharacterSeeder, DefaultCharacterSeederDeps, SeededCardContent } from "./seeder/index.ts";
 export {
   CARD_PACK_VERSION,
   createDefaultCharacterSeeder,
@@ -58,5 +58,5 @@ export {
   matchesPriorPack,
   PRIOR_PACK_CONTENT,
   WELCOME_ASSISTANT_HANDLE,
-} from "./seeder";
-export { createCharacterService } from "./service";
+} from "./seeder/index.ts";
+export { createCharacterService } from "./service.ts";

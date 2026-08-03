@@ -13,10 +13,10 @@
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { engineBaseUrl } from "./engine-url";
-import type { VLLM_ENGINES } from "./engines";
-import type { EngineUtilFractions, GpuVram, WakeBudgetVerdict } from "./wake-budget";
-import { decideWakeBudget, engineVramNeed } from "./wake-budget";
+import { engineBaseUrl } from "./engine-url.ts";
+import type { VLLM_ENGINES } from "./engines.ts";
+import type { EngineUtilFractions, GpuVram, WakeBudgetVerdict } from "./wake-budget.ts";
+import { decideWakeBudget, engineVramNeed } from "./wake-budget.ts";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 

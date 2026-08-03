@@ -10,8 +10,8 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import type { ReactElement } from "react";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { SettingsShellStory } from "../_ct-stories";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { SettingsShellStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = {
   userId: "user_ct_save_status",

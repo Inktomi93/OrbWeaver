@@ -16,7 +16,7 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { BROWSE_SORTS, IMAGE_FACET_KEYS, THEME_LEVELS } from "#domain/discovery";
-import { authedProcedure, t } from "../trpc";
+import { authedProcedure, t } from "../trpc.ts";
 
 export const discoveryRouter = t.router({
   // PD-40 write-half, on-demand: distill ONE owned character into `character_summaries` + staged `pending`

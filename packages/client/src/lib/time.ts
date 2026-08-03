@@ -6,7 +6,7 @@
 
 import type { TimeLib } from "@orb/kit/time";
 import { createTimeLib } from "@orb/kit/time";
-import { isProbeMode } from "./probe-mode";
+import { isProbeMode } from "./probe-mode.ts";
 
 const PROBE_RELATIVE_PLACEHOLDER = "some time ago";
 /** The stamp form's frozen twin — a fixed-width plausible stamp, so a probe diff sees the row's real geometry. */

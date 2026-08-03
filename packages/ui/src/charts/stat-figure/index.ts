@@ -3,5 +3,5 @@
  * §9 v1 corpus-viz set). See stat-figure.tsx for the API.
  */
 
-export type { StatFigureDelta, StatFigureProps } from "./stat-figure";
-export { StatFigure } from "./stat-figure";
+export type { StatFigureDelta, StatFigureProps } from "./stat-figure.tsx";
+export { StatFigure } from "./stat-figure.tsx";

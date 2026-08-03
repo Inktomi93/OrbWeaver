@@ -8,7 +8,7 @@ import { env } from "@orb/server/foundation/env";
 import { beforeEach, describe } from "vitest";
 import { __resetEffectiveConfigCache } from "../../../../../packages/server/src/domain/settings/effective-config/cache.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 beforeEach(() => {

@@ -10,9 +10,9 @@ import { settings } from "@orb/db";
 import type { JsonValue } from "@orb/kit/json";
 import { eq } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
-import type { CatalogSnapshot } from "../contract/results";
-import { catalogSnapshotSchema } from "../contract/results";
-import { seedOrModelCache } from "../substrate/or-model-cache";
+import type { CatalogSnapshot } from "../contract/results.ts";
+import { catalogSnapshotSchema } from "../contract/results.ts";
+import { seedOrModelCache } from "../substrate/or-model-cache.ts";
 
 const SNAPSHOT_KEY = "openrouter-model-catalog";
 

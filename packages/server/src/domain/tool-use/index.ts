@@ -5,8 +5,8 @@
 // read per turn via resolveTools, and projected onto the OpenAI wire. Every invocation funnels through the
 // same executeToolCalls, producing the same ToolCallRecord[] that chat persistence stores on the variant.
 
-export type { ToolUseContext } from "./context";
-export { ToolNameCollisionError, ToolNotFoundError } from "./contract/errors";
+export type { ToolUseContext } from "./context.ts";
+export { ToolNameCollisionError, ToolNotFoundError } from "./contract/errors.ts";
 export type {
   CreateAgentToolServer,
   PluginToolSpec,
@@ -17,8 +17,8 @@ export type {
   ToolHandler,
   ToolHandlerResult,
   ToolSource,
-} from "./contract/params";
-export { TOOL_NAME_RE, TOOL_SOURCES } from "./contract/params";
-export type { PluginToolHandle, ResolvedToolSet, ToolCallRecord } from "./contract/results";
-export type { ToolUseService } from "./contract/service";
-export { createToolUseService } from "./service";
+} from "./contract/params.ts";
+export { TOOL_NAME_RE, TOOL_SOURCES } from "./contract/params.ts";
+export type { PluginToolHandle, ResolvedToolSet, ToolCallRecord } from "./contract/results.ts";
+export type { ToolUseService } from "./contract/service.ts";
+export { createToolUseService } from "./service.ts";

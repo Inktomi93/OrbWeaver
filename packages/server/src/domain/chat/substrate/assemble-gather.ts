@@ -19,17 +19,17 @@ import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
 import { humanizeDuration } from "@orb/kit/time";
-import { buildAssembleContext } from "../assembly/context";
-import type { ChatContext } from "../context";
+import { buildAssembleContext } from "../assembly/context.ts";
+import type { ChatContext } from "../context.ts";
 
-import type { ForeignInputs } from "../contract/foreign";
-import type { MemoryRecallInputs, MsgRow } from "../contract/memory";
-import type { GuidedSteer } from "../contract/params";
-import { recallMemory } from "../memory/recall/recall";
-import { loadCanonHistory, loadChatInjections, loadChatRow, loadStoredVariables, loadVariableDeltas } from "../persistence/queries";
-import { resolveHostTierRegexScripts } from "./regex-tier";
-import { foldChain } from "./runtime-variables";
-import { resolveChoiceVariables } from "./variables";
+import type { ForeignInputs } from "../contract/foreign.ts";
+import type { MemoryRecallInputs, MsgRow } from "../contract/memory.ts";
+import type { GuidedSteer } from "../contract/params.ts";
+import { recallMemory } from "../memory/recall/recall.ts";
+import { loadCanonHistory, loadChatInjections, loadChatRow, loadStoredVariables, loadVariableDeltas } from "../persistence/queries.ts";
+import { resolveHostTierRegexScripts } from "./regex-tier.ts";
+import { foldChain } from "./runtime-variables.ts";
+import { resolveChoiceVariables } from "./variables.ts";
 
 /** The SEND USER_INPUT regex out-param sink — `buildAssembleContext` writes the post-regex user text
  *  here so the verb persists that. Threaded straight through to the pure core. */

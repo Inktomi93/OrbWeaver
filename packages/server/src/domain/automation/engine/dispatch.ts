@@ -18,14 +18,14 @@ import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { ArmOutcome, DispatchFrame, ResolvedTrigger, RuleRow } from "../contract/ops";
-import type { AutomationContext } from "../contract/service";
-import { loadCallerRole } from "../persistence/canon-reads";
-import { insertFire } from "../persistence/fires";
-import { disableRule, recordRuleError, stampRuleFired } from "../persistence/rules";
-import { buildCelEnv } from "../substrate/cel-env";
-import { evaluatePredicate } from "../substrate/dry-run";
-import { checkBudget } from "./budget-gate";
+import type { ArmOutcome, DispatchFrame, ResolvedTrigger, RuleRow } from "../contract/ops.ts";
+import type { AutomationContext } from "../contract/service.ts";
+import { loadCallerRole } from "../persistence/canon-reads.ts";
+import { insertFire } from "../persistence/fires.ts";
+import { disableRule, recordRuleError, stampRuleFired } from "../persistence/rules.ts";
+import { buildCelEnv } from "../substrate/cel-env.ts";
+import { evaluatePredicate } from "../substrate/dry-run.ts";
+import { checkBudget } from "./budget-gate.ts";
 
 // The hard cascade-depth cap is homed ONCE in `@orb/contracts/chat` (turn-origin depth vocabulary, below both
 // chat + automation — chat's `requestTurn` write-side belt cannot import automation, so the shared home must

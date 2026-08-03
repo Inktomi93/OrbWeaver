@@ -26,8 +26,8 @@
 
 import type { RpgActorRef, RpgSnapshotState } from "@orb/contracts/rpg";
 import { actorRefKey, rpgActorLockBase } from "@orb/contracts/rpg";
-import type { HandEditLocks, HandStateHead } from "../contract/service";
-import { emptyActorEntry } from "./actor-ops";
+import type { HandEditLocks, HandStateHead } from "../contract/service.ts";
+import { emptyActorEntry } from "./actor-ops.ts";
 
 /** What a re-key produces: the next state + the lock delta that moves the actor's pins, or an errors-as-data
  *  refusal raised before anything durable happens.

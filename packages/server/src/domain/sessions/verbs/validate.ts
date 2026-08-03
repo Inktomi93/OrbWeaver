@@ -1,7 +1,7 @@
 import type { SessionToken } from "@orb/kit/ids";
-import type { ValidatedSession } from "../contract/results";
-import type { SessionsContext, SessionsService } from "../contract/service";
-import { selectForValidation, slideExpiry } from "../persistence/sessions";
+import type { ValidatedSession } from "../contract/results.ts";
+import type { SessionsContext, SessionsService } from "../contract/service.ts";
+import { selectForValidation, slideExpiry } from "../persistence/sessions.ts";
 
 // The Route-A identity-resolution step (ledger D40): cookie token → the caller's principal-fields incl.
 // `userId`. The `entry/auth/seam` calls this DIRECTLY (it returns `userId`, unlike the removed infra

@@ -8,8 +8,8 @@
 // ECharts paints to Canvas where `var(--token)` can't resolve. <StatFigure> resolves the DTCG token
 // live via `useChartTheme` (§11.3) and passes it in; this builder never touches tokens. (The bare
 // number+delta tile mounts no chart, so it never reaches here.)
-import type { OrbChartOption } from "../chart/echarts-setup";
-import type { ChartColors } from "../chart/use-chart-theme";
+import type { OrbChartOption } from "../chart/echarts-setup.ts";
+import type { ChartColors } from "../chart/use-chart-theme.ts";
 
 const SPARKLINE_LINE_WIDTH = 2;
 const SPARKLINE_AREA_OPACITY = 0.12;

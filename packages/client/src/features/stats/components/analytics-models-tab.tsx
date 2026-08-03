@@ -11,7 +11,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
-import { byModelBarItems, formatCompact, formatMs, formatUsd } from "../lib/analytics-view-model";
+import { byModelBarItems, formatCompact, formatMs, formatUsd } from "../lib/analytics-view-model.ts";
 
 export function AnalyticsModelsTab(): ReactElement {
   return (

@@ -5,8 +5,8 @@
 // mirroring main.tsx's door). AppRoot mounts the shell + active-chat + the four regions.
 
 import type { ReactElement } from "react";
-import { AppRoot } from "../../../packages/client/src/routes/app-root";
-import { CtDataProviders, CtRealSectionRegistry } from "../../support/ct/ct-data-providers";
+import { AppRoot } from "../../../packages/client/src/routes/app-root.tsx";
+import { CtDataProviders, CtRealSectionRegistry } from "../../support/ct/ct-data-providers.tsx";
 
 /** The whole `/` route inside the real client data layer + the real section registry — the composed
  *  shell + active-chat seam (rail/list/content ride the registry; CONTEXT via app-root's M3 bridge). */

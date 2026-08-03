@@ -3,9 +3,9 @@
 // on the entry (read back through resolveTools).
 
 import { z } from "zod";
-import { createToolUseService, ToolNameCollisionError } from "../../../../../packages/server/src/domain/tool-use";
-import { expect, test } from "../../../../support/fixtures";
-import { defOf, makeHarness } from "../_support";
+import { createToolUseService, ToolNameCollisionError } from "../../../../../packages/server/src/domain/tool-use/index.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { defOf, makeHarness } from "../_support.ts";
 
 const okHandler = (): Promise<{ ok: true; value: unknown }> => Promise.resolve({ ok: true, value: null });
 

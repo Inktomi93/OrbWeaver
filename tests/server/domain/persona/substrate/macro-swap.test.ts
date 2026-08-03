@@ -4,7 +4,7 @@
 
 import { describe } from "vitest";
 import { swapPersonaMacros } from "../../../../../packages/server/src/domain/persona/substrate/macro-swap.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("swapPersonaMacros", () => {
   test("inverts both macros in a string containing BOTH (the collision case)", () => {

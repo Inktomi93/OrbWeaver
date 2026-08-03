@@ -24,15 +24,15 @@ import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { and, eq, isNull } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
-import type { ChatContext } from "../context";
-import type { BackfillPassCounts, MemoryBackfillCounts, MemoryConfig, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory";
-import { generateDigests } from "../memory/build/digests";
-import { generateSegments } from "../memory/build/segments";
-import { loadWitnessHorizons } from "../memory/persistence/queries";
-import { loadChatMacroNameProducer } from "../persistence/macro-names";
-import { loadRoster } from "../persistence/roster";
-import { resolveGroupBucketCharacterId } from "./group-bucket";
-import { hostUserIdOf } from "./roster-host";
+import type { ChatContext } from "../context.ts";
+import type { BackfillPassCounts, MemoryBackfillCounts, MemoryConfig, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
+import { generateDigests } from "../memory/build/digests.ts";
+import { generateSegments } from "../memory/build/segments.ts";
+import { loadWitnessHorizons } from "../memory/persistence/queries.ts";
+import { loadChatMacroNameProducer } from "../persistence/macro-names.ts";
+import { loadRoster } from "../persistence/roster.ts";
+import { resolveGroupBucketCharacterId } from "./group-bucket.ts";
+import { hostUserIdOf } from "./roster-host.ts";
 
 /** The sweep universe (temporary chats included; they are live rooms until reaped). `ownerId` scopes to
  *  the chats that user hosts (a present, non-departed host participant); omitted/null = every chat. */

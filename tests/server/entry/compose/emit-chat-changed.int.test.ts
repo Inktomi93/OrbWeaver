@@ -13,7 +13,7 @@ import { createChatChangedEmitter } from "@orb/server/entry/compose";
 import { publishUserEvent, subscribeUserEvents } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
 import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { seedChat, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 /** Read the next event off a live stream — `on()` buffered anything published after subscribe. */

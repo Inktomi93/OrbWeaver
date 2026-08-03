@@ -3,8 +3,8 @@
 // redacted request + raw response, and — the credential-surface belt — never leaks a raw key into the DOM.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { CustomCredentialKeyRowStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { CustomCredentialKeyRowStory } from "../_ct-stories.tsx";
 
 // An OpenAI-shaped secret key (`sk-…`) — asserted absent from the rendered inspection.
 const SECRET_KEY_RE = /sk-[A-Za-z0-9]/;

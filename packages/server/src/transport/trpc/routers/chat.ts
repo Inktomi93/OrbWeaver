@@ -33,8 +33,8 @@ import { tracked } from "@trpc/server";
 import { z } from "zod";
 import type { ImpersonateStreamDelta } from "#domain/chat";
 import { toolRecurseLimitSchema } from "#domain/chat";
-import { withSubscriptionErrors } from "../subscriptions";
-import { authedProcedure, t } from "../trpc";
+import { withSubscriptionErrors } from "../subscriptions.ts";
+import { authedProcedure, t } from "../trpc.ts";
 
 const startChatSchema = z.object({
   characterIds: z.array(brandedId<CharacterId>()),

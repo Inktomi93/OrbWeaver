@@ -10,7 +10,7 @@ import { castId } from "@orb/kit/ids";
 import { createRegexService, RegexNotFoundError } from "@orb/server/domain/regex";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 import { allowChat, makeHarness, principal, seedChat, seedScript, seedUser } from "../../_support.ts";
 
 describe("attachToChat", () => {

@@ -3,8 +3,8 @@
 
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { Trpc } from "./trpc";
-import { useTRPC } from "./trpc";
+import type { Trpc } from "./trpc.ts";
+import { useTRPC } from "./trpc.ts";
 
 /** The lean current-persona summary, resolved current-pointer -\> default-pointer -\> first owned -\> null. */
 export interface ViewerPersona {

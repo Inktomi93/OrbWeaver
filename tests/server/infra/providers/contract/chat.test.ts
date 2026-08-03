@@ -6,7 +6,7 @@
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { HISTORY_ROLES, NORMALIZED_FINISH_REASONS, normalizeFinishReason } from "@orb/server/infra/providers";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("normalizeFinishReason — the cross-backend finish-reason map", () => {
   test("maps every documented raw dialect onto the normalized vocab", () => {

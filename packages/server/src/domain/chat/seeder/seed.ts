@@ -20,8 +20,8 @@ import { castId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { ParsedChat, ParsedChatMessage } from "#kit/serde/chat";
 import { parseChatJsonl } from "#kit/serde/chat";
-import type { DemoChat, DemoChatSeeder, DemoChatSeederDeps, SeededChatDressing } from "../contract/seeder";
-import { DEMO_CHAT_NARRATOR_NAME, DEMO_CHAT_PACK_VERSION, DEMO_CHATS } from "./demo-chats";
+import type { DemoChat, DemoChatSeeder, DemoChatSeederDeps, SeededChatDressing } from "../contract/seeder.ts";
+import { DEMO_CHAT_NARRATOR_NAME, DEMO_CHAT_PACK_VERSION, DEMO_CHATS } from "./demo-chats.ts";
 
 /** The per-example dedup oracle written to `chats.importHash`. Stable across releases (keyed by the slug,
  *  never by the transcript bytes) so re-generating a transcript does not resurrect a deleted example. */

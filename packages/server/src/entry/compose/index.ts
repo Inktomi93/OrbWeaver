@@ -1,20 +1,20 @@
 // Front door for the composition root; app/boot/lifecycle import compose factories from here, never an
 // internal file. `services.ts` is the keystone graph; the sibling files are the seams it composes.
 
-export { activePersonaIdFor, createRunChatTurnBridge, extractTrailingSystemRows, flattenAgentHistory, splitAgentHistory } from "./chat";
-export type { DemoChatGameDoorArgs, DemoChatGameDoorDeps } from "./demo-chat-game";
-export { createDemoChatGameDoor } from "./demo-chat-game";
-export type { EffectiveConfigWiring } from "./effective-config";
-export { createEffectiveConfigWiring } from "./effective-config";
-export { createCharacterUpdatedChatFan } from "./emit-character-updated";
-export { createChatChangedEmitter } from "./emit-chat-changed";
-export type { DomainEventBus } from "./event-bus";
-export { createDomainEventBus } from "./event-bus";
-export type { MaterializeBackgroundDeps } from "./materialize-background";
-export { createMaterializeBackground } from "./materialize-background";
-export type { ImageRefAssets } from "./resolve-image-ref";
-export { resolveImageRefToUrl } from "./resolve-image-ref";
-export type { RoleClientsBinderDeps } from "./role-clients";
-export { bindRoleClientsForUser } from "./role-clients";
-export type { ServicesDeps, ServicesResult } from "./services";
-export { createServices } from "./services";
+export { activePersonaIdFor, createRunChatTurnBridge, extractTrailingSystemRows, flattenAgentHistory, splitAgentHistory } from "./chat.ts";
+export type { DemoChatGameDoorArgs, DemoChatGameDoorDeps } from "./demo-chat-game.ts";
+export { createDemoChatGameDoor } from "./demo-chat-game.ts";
+export type { EffectiveConfigWiring } from "./effective-config.ts";
+export { createEffectiveConfigWiring } from "./effective-config.ts";
+export { createCharacterUpdatedChatFan } from "./emit-character-updated.ts";
+export { createChatChangedEmitter } from "./emit-chat-changed.ts";
+export type { DomainEventBus } from "./event-bus.ts";
+export { createDomainEventBus } from "./event-bus.ts";
+export type { MaterializeBackgroundDeps } from "./materialize-background.ts";
+export { createMaterializeBackground } from "./materialize-background.ts";
+export type { ImageRefAssets } from "./resolve-image-ref.ts";
+export { resolveImageRefToUrl } from "./resolve-image-ref.ts";
+export type { RoleClientsBinderDeps } from "./role-clients.ts";
+export { bindRoleClientsForUser } from "./role-clients.ts";
+export type { ServicesDeps, ServicesResult } from "./services.ts";
+export { createServices } from "./services.ts";

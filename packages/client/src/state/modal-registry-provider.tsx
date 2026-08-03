@@ -2,6 +2,6 @@
 // JSX module never mixes a hook export with a component export (useComponentExportOnlyModules). The
 // Provider is the createRegistryContext mint's Provider, bound to the modal registry.
 
-import { modalRegistryContext } from "./modal-registry-context";
+import { modalRegistryContext } from "./modal-registry-context.ts";
 
 export const ModalRegistryProvider = modalRegistryContext.Provider;

@@ -6,7 +6,7 @@ import { castId } from "@orb/kit/ids";
 import { createConnectionService } from "@orb/server/domain/connection";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeConnHarness, principal } from "../_support.ts";
 
 describe("resolveChat — row beats settings", () => {

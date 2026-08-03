@@ -6,7 +6,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CharacterService, ListCharactersResult } from "@orb/server/domain/character";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const ACTOR = castId<UserId>("user_actor");

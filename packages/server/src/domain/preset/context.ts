@@ -4,4 +4,4 @@
 // injected clock/id seam) and handed to `createPresetService`. Preset sideways-imports nothing: it
 // gates by `ownerId === userId`, so there's no cross-feature op and no guard to wire.
 
-export type { PresetContext } from "./contract/service";
+export type { PresetContext } from "./contract/service.ts";

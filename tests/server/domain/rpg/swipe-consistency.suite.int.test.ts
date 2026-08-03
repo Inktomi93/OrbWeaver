@@ -13,17 +13,17 @@ import type { ChatTurnId, MessageId, MessageVariantId, RpgJournalId } from "@orb
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { snapshotRowToState } from "../../../../packages/server/src/domain/rpg/contract/service";
-import { insertJournalEntry, listActiveJournal } from "../../../../packages/server/src/domain/rpg/persistence/journal";
+import { snapshotRowToState } from "../../../../packages/server/src/domain/rpg/contract/service.ts";
+import { insertJournalEntry, listActiveJournal } from "../../../../packages/server/src/domain/rpg/persistence/journal.ts";
 import {
   findSnapshotByVariant,
   resolveSnapshotForTurn,
   writeHandSnapshot,
   writeStagedSnapshot,
-} from "../../../../packages/server/src/domain/rpg/persistence/snapshots";
-import { createRpgStagingStore } from "../../../../packages/server/src/domain/rpg/staging";
-import { freshDb } from "../../../support/db";
-import { actorWithWallet, addVariant, emptyState, expect, FROZEN_AT, handTarget, quest, seedChat, seedGame, seedMessage, target, test } from "./_support";
+} from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { createRpgStagingStore } from "../../../../packages/server/src/domain/rpg/staging.ts";
+import { freshDb } from "../../../support/db.ts";
+import { actorWithWallet, addVariant, emptyState, expect, FROZEN_AT, handTarget, quest, seedChat, seedGame, seedMessage, target, test } from "./_support.ts";
 
 let db: Db;
 beforeEach(async () => {

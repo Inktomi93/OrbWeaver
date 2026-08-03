@@ -7,19 +7,19 @@
 // See each file header for the orb-vs-neo divergences (ONE runChatTurn seam, no group/solo split; rate-limit
 // as a thrown ProviderError above the retry layer).
 
-export type { EventSequenceOptions } from "./assertions";
+export type { EventSequenceOptions } from "./assertions.ts";
 export {
   assertEventSequence,
   assertStaticPrefixStable,
   assertTokenTotalsConsistent,
-} from "./assertions";
-export type { ChatScenario, ChatScenarioOptions, SendOptions } from "./scenario";
-export { scenario } from "./scenario";
+} from "./assertions.ts";
+export type { ChatScenario, ChatScenarioOptions, SendOptions } from "./scenario.ts";
+export { scenario } from "./scenario.ts";
 export type {
   ErrorOptions,
   RateLimitOptions,
   ReplyOptions,
   ScriptedRunnerOptions,
   Tape,
-} from "./tape";
-export { scriptedRunner, tape } from "./tape";
+} from "./tape.ts";
+export { scriptedRunner, tape } from "./tape.ts";

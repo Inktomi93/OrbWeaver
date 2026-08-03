@@ -10,7 +10,7 @@
 
 import { resolvePanelMode } from "@orb/client/state";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ShellStoreProbe } from "./_ct-stories";
+import { ShellStoreProbe } from "./_ct-stories.tsx";
 
 // The BORN default is `home` (owner decision H1 = D-1) — a fresh install lands on the section that HAS a
 // launcher, not on "nothing selected".

@@ -26,8 +26,8 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
-import { usePopulateFromCharacter } from "../hooks/use-rpg-mutations";
-import { Kicker } from "./rpg-kicker";
+import { usePopulateFromCharacter } from "../hooks/use-rpg-mutations.ts";
+import { Kicker } from "./rpg-kicker.tsx";
 
 /** Why this character CANNOT be filled from a card, or `""` when the round is available — the two
  *  server-owned refusals, as the button's stated reason. */

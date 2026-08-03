@@ -1,6 +1,6 @@
 import type { MouseEventHandler, ReactElement, ReactNode, RefObject } from "react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
-import { listRowVariants } from "./variants";
+import { listRowVariants } from "./variants.ts";
 
 export interface ListRowProps {
   /** Leading slot — avatar/icon, rendered before the title/subtitle stack. */

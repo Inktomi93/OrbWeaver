@@ -7,10 +7,10 @@
 
 import type { PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { DraftAnchorPersonaInput } from "../../../../../packages/client/src/features/chat/lib/draft-commit";
-import { resolveDraftAnchorPersona, resolveDraftCommit } from "../../../../../packages/client/src/features/chat/lib/draft-commit";
-import { landingChat } from "../../../../../packages/client/src/state/chat-handle";
-import { expect, test } from "../../../../support/fixtures";
+import type { DraftAnchorPersonaInput } from "../../../../../packages/client/src/features/chat/lib/draft-commit.ts";
+import { resolveDraftAnchorPersona, resolveDraftCommit } from "../../../../../packages/client/src/features/chat/lib/draft-commit.ts";
+import { landingChat } from "../../../../../packages/client/src/state/chat-handle.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const PINNED = castId<PersonaId>("persona_pinned");
 const CONNECTED = castId<PersonaId>("persona_connected");

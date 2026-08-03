@@ -4,11 +4,11 @@
 // only indexes a book it owns — the same `loadOwnedBook` gate as every entry read).
 
 import type { LoreEntryIndexRow } from "@orb/contracts/world-info";
-import type { WorldInfoContext } from "../../context";
-import { WorldInfoNotFoundError } from "../../contract/errors";
-import type { ListEntryIndexParams } from "../../contract/params";
-import type { WorldInfoService } from "../../contract/service";
-import { listBookEntries, loadOwnedBook } from "../../persistence/queries";
+import type { WorldInfoContext } from "../../context.ts";
+import { WorldInfoNotFoundError } from "../../contract/errors.ts";
+import type { ListEntryIndexParams } from "../../contract/params.ts";
+import type { WorldInfoService } from "../../contract/service.ts";
+import { listBookEntries, loadOwnedBook } from "../../persistence/queries.ts";
 
 export function createListEntryIndex(ctx: WorldInfoContext): WorldInfoService["listEntryIndex"] {
   return async ({ principal, bookId }: ListEntryIndexParams): Promise<readonly LoreEntryIndexRow[]> => {

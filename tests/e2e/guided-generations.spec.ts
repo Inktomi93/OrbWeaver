@@ -28,8 +28,8 @@ import type { CharacterHandle, ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { messageRow, openChatByTitle } from "./support/chat-room";
-import type { ChatRoute } from "./support/trpc";
+import { messageRow, openChatByTitle } from "./support/chat-room.ts";
+import type { ChatRoute } from "./support/trpc.ts";
 import {
   assembledPromptText,
   canonMessage,
@@ -47,7 +47,7 @@ import {
   startGroupChat,
   swipeMessage,
   tailAssistant,
-} from "./support/trpc";
+} from "./support/trpc.ts";
 
 /** The stateless openai-compat local wire — the arm that keeps a UI-fired turn bounded (the group-modes
  *  precedent). The wand fires without an output-ceiling intent, so this pin is what caps the spend. */

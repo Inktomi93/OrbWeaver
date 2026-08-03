@@ -8,8 +8,8 @@ import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import { parseAppSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { logger } from "#foundation/observability";
-import { readAppOverrideRaw } from "../persistence/queries";
-import { layer } from "./layer";
+import { readAppOverrideRaw } from "../persistence/queries.ts";
+import { layer } from "./layer.ts";
 
 let cache: EffectiveAppConfig | undefined;
 

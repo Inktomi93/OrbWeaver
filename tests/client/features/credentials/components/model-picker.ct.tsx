@@ -7,8 +7,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { ComponentProps } from "react";
-import type { ModelPicker } from "../../../../../packages/client/src/features/credentials/components/model-picker";
-import { ModelPickerStory } from "../_ct-stories";
+import type { ModelPicker } from "../../../../../packages/client/src/features/credentials/components/model-picker.tsx";
+import { ModelPickerStory } from "../_ct-stories.tsx";
 
 type PickerResult = ComponentProps<typeof ModelPicker>["result"];
 

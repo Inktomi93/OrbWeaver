@@ -36,7 +36,7 @@ import type { SettingsSectionContribution, SettingsViewerView } from "@orb/clien
 import { assertSettingsKeyPartition, resolveSettingsSections, settingsAnchorId, settingsSectionNavs, UNCLAIMED_SETTINGS_KEYS } from "@orb/client/state";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 describe("settingsAnchorId", () => {
   test("stamps settings-anchor-<category>-<sub>", () => {

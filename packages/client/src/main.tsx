@@ -111,24 +111,24 @@ import {
   SettingsSectionRegistryProvider,
   SlashCommandRegistryProvider,
 } from "#state";
-import { buildAgentNav } from "./agent-nav";
-import { buildAgentSeed } from "./agent-seed";
-import { installAgentDebugHandle, installAppReadySignal } from "./lib/agent-bridge";
-import { isProbeMode } from "./lib/probe-mode";
-import { router } from "./routes/router";
+import { buildAgentNav } from "./agent-nav/index.ts";
+import { buildAgentSeed } from "./agent-seed/index.ts";
+import { installAgentDebugHandle, installAppReadySignal } from "./lib/agent-bridge.ts";
+import { isProbeMode } from "./lib/probe-mode.ts";
+import { router } from "./routes/router.tsx";
 import "./styles/globals.css";
 
 // Both arms behind the literal import.meta.env.DEV, which the bundler constant-folds so neither
 // module lands in the prod output. Dynamic import keeps the tracer out of the entry chunk in dev too.
 if (import.meta.env.DEV) {
-  void import("./lib/long-task-tracer").then(({ installLongTaskTracer }) => {
+  void import("./lib/long-task-tracer.ts").then(({ installLongTaskTracer }) => {
     installLongTaskTracer();
   });
 }
 // Deep import on purpose — dev-tools must never ride a barrel that also exports prod code.
 const DevTools = import.meta.env.DEV
   ? lazy(async () => {
-      const mod = await import("./lib/dev-tools");
+      const mod = await import("./lib/dev-tools.tsx");
       return { default: mod.DevTools };
     })
   : null;

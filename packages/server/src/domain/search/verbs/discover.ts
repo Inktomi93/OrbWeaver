@@ -5,16 +5,16 @@
 // card match and corpus' block match). Rerank rejections propagate — search owns no fallback.
 
 import type { CharacterId } from "@orb/kit/ids";
-import type { SearchContext } from "../context";
-import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors";
-import type { DiscoverParams } from "../contract/params";
-import type { DiscoverCharacter, DiscoverSegment } from "../contract/results";
-import type { SearchService } from "../contract/service";
-import { nearestSegments, ownedChatIds } from "../persistence/digest-rows";
-import { resolveSegmentDisplay } from "../persistence/display";
-import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENTS_PER_CHAR, SNIPPET_CHARS } from "../substrate/constants";
-import { compareCslsBy, cslsAdjust } from "../substrate/csls";
-import { applyRerank } from "../substrate/rerank";
+import type { SearchContext } from "../context.ts";
+import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
+import type { DiscoverParams } from "../contract/params.ts";
+import type { DiscoverCharacter, DiscoverSegment } from "../contract/results.ts";
+import type { SearchService } from "../contract/service.ts";
+import { nearestSegments, ownedChatIds } from "../persistence/digest-rows.ts";
+import { resolveSegmentDisplay } from "../persistence/display.ts";
+import { DISCOVER_SEGMENT_POOL_CAP, DISCOVER_SEGMENT_POOL_FACTOR, DISCOVER_SEGMENTS_PER_CHAR, SNIPPET_CHARS } from "../substrate/constants.ts";
+import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
+import { applyRerank } from "../substrate/rerank.ts";
 
 interface DiscoverCandidate {
   readonly id: string;

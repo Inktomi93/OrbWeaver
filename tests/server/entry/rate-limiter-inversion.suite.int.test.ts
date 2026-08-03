@@ -24,10 +24,10 @@ import { env } from "@orb/server/foundation/env";
 import type { RateLimitDecision } from "@orb/server/transport/trpc";
 import { like } from "drizzle-orm";
 import { describe } from "vitest";
-import { layer } from "../../../packages/server/src/domain/settings/effective-config/layer";
-import { createRateLimitGate } from "../../../packages/server/src/entry/rate-limit-gate";
-import { freshDb } from "../../support/db";
-import { expect, test } from "../../support/fixtures";
+import { layer } from "../../../packages/server/src/domain/settings/effective-config/layer.ts";
+import { createRateLimitGate } from "../../../packages/server/src/entry/rate-limit-gate.ts";
+import { freshDb } from "../../support/db.ts";
+import { expect, test } from "../../support/fixtures.ts";
 
 const T0 = 1_700_000_000_000;
 const PUBLIC_CAP = env.RATE_LIMIT_PUBLIC_IP;

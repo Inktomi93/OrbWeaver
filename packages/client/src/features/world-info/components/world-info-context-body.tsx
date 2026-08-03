@@ -10,7 +10,7 @@ import { BookOpen, Icon } from "@orb/ui/icons";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import { BookAttachments } from "./book-attachments";
+import { BookAttachments } from "./book-attachments.tsx";
 
 export function WorldInfoContextBody({ memberId }: { readonly memberId: string }): ReactElement {
   const trpc = useTRPC();

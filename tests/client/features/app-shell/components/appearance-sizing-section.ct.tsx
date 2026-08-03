@@ -8,10 +8,10 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN } from "../../../../../packages/client/src/features/app-shell/lib/appearance-bounds";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { AppearanceSizingSectionStory } from "../_ct-stories";
+import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN } from "../../../../../packages/client/src/features/app-shell/lib/appearance-bounds.ts";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { AppearanceSizingSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_sizing", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";

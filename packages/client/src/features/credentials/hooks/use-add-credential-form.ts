@@ -6,8 +6,8 @@
 // the subtree per open (Base UI unmounts the closed popup) so a reopened dialog never shows a prior attempt.
 
 import { createSavedEntityForm } from "#forms";
-import type { AddCredentialFormValues } from "../lib/add-credential-form-model";
-import { ADD_CREDENTIAL_DEFAULTS, validateAddCredential } from "../lib/add-credential-form-model";
+import type { AddCredentialFormValues } from "../lib/add-credential-form-model.ts";
+import { ADD_CREDENTIAL_DEFAULTS, validateAddCredential } from "../lib/add-credential-form-model.ts";
 
 export const useAddCredentialForm = createSavedEntityForm<AddCredentialFormValues>({
   defaultValues: ADD_CREDENTIAL_DEFAULTS,

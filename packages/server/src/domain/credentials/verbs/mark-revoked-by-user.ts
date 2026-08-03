@@ -4,11 +4,11 @@
 // "manually revoked by user" (logged, not persisted).
 
 import { securityEvent } from "#foundation/observability";
-import type { CredentialContext } from "../context";
-import type { MarkRevokedByUserParams } from "../contract/params";
-import type { CredentialsService } from "../contract/service";
-import { fetchOwnedCredential, setRevokedById } from "../persistence/queries";
-import { requireOwned } from "../substrate/credential-not-found";
+import type { CredentialContext } from "../context.ts";
+import type { MarkRevokedByUserParams } from "../contract/params.ts";
+import type { CredentialsService } from "../contract/service.ts";
+import { fetchOwnedCredential, setRevokedById } from "../persistence/queries.ts";
+import { requireOwned } from "../substrate/credential-not-found.ts";
 
 const DEFAULT_REASON = "manually revoked by user";
 

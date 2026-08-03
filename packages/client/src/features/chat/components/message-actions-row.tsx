@@ -29,8 +29,8 @@ import { RowActionsMenu } from "#components";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { NEEDS_CONTINUATION, notify, testId } from "#lib";
 import { startEditingMessage } from "#state";
-import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal";
-import { VariantWireViewer } from "./variant-wire-viewer";
+import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal.ts";
+import { VariantWireViewer } from "./variant-wire-viewer.tsx";
 
 interface HideVars {
   readonly chatId: ChatId;

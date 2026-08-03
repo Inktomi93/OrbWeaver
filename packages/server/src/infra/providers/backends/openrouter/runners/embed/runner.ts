@@ -5,9 +5,9 @@
 // `backends/kit` DOWN; never a sibling backend.
 
 import type { CreateEmbeddingsRequestBody, CreateEmbeddingsResponse } from "@openrouter/sdk/models/operations";
-import type { EmbedRequest, EmbedResult } from "../../../../contract";
-import { ProviderError } from "../../../../contract";
-import { providerErrorFromHttp } from "../../../kit";
+import type { EmbedRequest, EmbedResult } from "../../../../contract/index.ts";
+import { ProviderError } from "../../../../contract/index.ts";
+import { providerErrorFromHttp } from "../../../kit/index.ts";
 
 const BASE64 = "base64";
 

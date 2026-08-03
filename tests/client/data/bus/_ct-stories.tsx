@@ -18,7 +18,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The app-root shape: ONE socket, above every room hook. */
 function SocketHost({ children }: { readonly children: ReactNode }): ReactElement {

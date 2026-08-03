@@ -27,10 +27,10 @@ import { QueryBoundary, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import type { ChromePresentation } from "#state";
 import { openModal } from "#state";
-import { PersonaPanelRow } from "../components/persona-panel-row";
-import { PersonaThisChatSection } from "../components/persona-this-chat-section";
-import { useSetPersonaSeed } from "../hooks/use-persona-identity";
-import { useCreatePersona, useImportPersonaFile, useRemovePersona } from "../hooks/use-persona-mutations";
+import { PersonaPanelRow } from "../components/persona-panel-row.tsx";
+import { PersonaThisChatSection } from "../components/persona-this-chat-section.tsx";
+import { useSetPersonaSeed } from "../hooks/use-persona-identity.ts";
+import { useCreatePersona, useImportPersonaFile, useRemovePersona } from "../hooks/use-persona-mutations.ts";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 

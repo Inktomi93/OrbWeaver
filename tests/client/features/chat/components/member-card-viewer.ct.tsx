@@ -8,8 +8,8 @@
 // The read is GATED on `open` and the viewer starts open, so the CT asserts the loaded card directly.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { MemberCardViewerStory } from "../_ct-stories";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { MemberCardViewerStory } from "../_ct-stories.tsx";
 
 const CHARACTER_ID = "character_ct_membercard";
 const NAME_RE = /Aria Vex/u;

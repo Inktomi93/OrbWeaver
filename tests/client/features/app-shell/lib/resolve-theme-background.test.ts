@@ -14,9 +14,9 @@ import {
   appearanceBackgroundSource,
   resolveChatBackgroundSource,
   resolveThemeBackgroundUrl,
-} from "../../../../../packages/client/src/features/app-shell/lib/resolve-theme-background";
-import { expect, test } from "../../../../support/fixtures";
-import { makeParticipant } from "../../chat/lib/_support";
+} from "../../../../../packages/client/src/features/app-shell/lib/resolve-theme-background.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeParticipant } from "../../chat/lib/_support.ts";
 
 const CHAT_BG: ThemeBackground = {
   kind: "asset",

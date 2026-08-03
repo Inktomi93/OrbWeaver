@@ -13,7 +13,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createStatsService } from "../../../../../packages/server/src/domain/stats/service.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedMessage, seedPersona, seedUser, T0 } from "../_support.ts";
 
 /** A fixed instant for the service's injected clock — the rebuild stamps `computedAt` with it. */

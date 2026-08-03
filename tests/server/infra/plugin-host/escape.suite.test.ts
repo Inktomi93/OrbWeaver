@@ -20,7 +20,7 @@ import { createPluginHost, getPluginQuickJS, installRealm, LogRing, Sandbox } fr
 import type { QuickJSContext } from "quickjs-emscripten-core";
 import { isFail } from "quickjs-emscripten-core";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const FIXED_EPOCH = 1_700_000_000_000;
 const CHAT_A = "chat_aaaa000000000000000000000" as ChatId;

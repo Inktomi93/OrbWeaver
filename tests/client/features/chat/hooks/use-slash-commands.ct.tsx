@@ -9,9 +9,9 @@
 // "byte-identical with no contributions" is the property the whole seam is allowed to exist under.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { COMPOSER_CHAT_ID, SLASH_LOCKED_REASON } from "../fixtures";
-import { SlashComposerStory } from "./_slash-command-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { COMPOSER_CHAT_ID, SLASH_LOCKED_REASON } from "../fixtures.ts";
+import { SlashComposerStory } from "./_slash-command-stories.tsx";
 
 const UNKNOWN_NOTICE = /Unknown command \/nope/u;
 const ESCAPE_HINT = /\/\/nope to send it as a message/u;

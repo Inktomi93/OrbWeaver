@@ -18,7 +18,7 @@ import type {
   SetEnabledParams,
   SetRoleParams,
   VllmEnginesParams,
-} from "./params";
+} from "./params.ts";
 import type {
   CreateUserResult,
   ListSessionsResult,
@@ -27,8 +27,8 @@ import type {
   SetEnabledResult,
   SetRoleResult,
   VllmEnginesResult,
-} from "./results";
-import type { AdminEngineStatus, SessionAdminView } from "./views";
+} from "./results.ts";
+import type { AdminEngineStatus, SessionAdminView } from "./views.ts";
 
 /** The session-management slice admin needs — satisfied structurally by the real `SessionsService` at the
  *  composition root. Not re-exported from the front door — a private port. */

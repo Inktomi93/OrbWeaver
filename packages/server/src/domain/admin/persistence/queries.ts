@@ -8,7 +8,7 @@ import { users } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
-import type { AdminUserView } from "../contract/views";
+import type { AdminUserView } from "../contract/views.ts";
 
 const LIMIT_ONE = 1;
 

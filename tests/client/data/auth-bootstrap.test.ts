@@ -7,8 +7,8 @@
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, vi } from "vitest";
-import { fetchAuthMe, login, logout } from "../../../packages/client/src/data/auth-bootstrap";
-import { expect, test } from "../../support/fixtures";
+import { fetchAuthMe, login, logout } from "../../../packages/client/src/data/auth-bootstrap.ts";
+import { expect, test } from "../../support/fixtures.ts";
 
 afterEach(() => {
   vi.unstubAllGlobals();

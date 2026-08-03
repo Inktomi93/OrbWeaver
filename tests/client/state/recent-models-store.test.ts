@@ -6,7 +6,7 @@
 
 import { __readRecentModelsForTest, __resetAllRecentModels, pushRecentModel, RECENT_MODELS_CAP } from "@orb/client/state";
 import { beforeEach, describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 describe("recent-models MRU store", () => {
   beforeEach(() => {

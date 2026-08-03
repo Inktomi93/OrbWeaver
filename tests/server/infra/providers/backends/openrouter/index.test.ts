@@ -13,7 +13,7 @@ import type { OrClient } from "@orb/server/infra/providers/backends/openrouter";
 import { createOpenRouterBackend } from "@orb/server/infra/providers/backends/openrouter";
 import { describe, vi } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const FIXED_NOW = 1000;
 const OR_KEY = "sk-or-secret";

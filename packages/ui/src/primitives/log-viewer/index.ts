@@ -1,2 +1,2 @@
-export type { LogLevel, LogLine, LogViewerProps } from "./log-viewer";
-export { LogViewer } from "./log-viewer";
+export type { LogLevel, LogLine, LogViewerProps } from "./log-viewer.tsx";
+export { LogViewer } from "./log-viewer.tsx";

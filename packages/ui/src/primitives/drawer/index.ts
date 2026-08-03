@@ -6,7 +6,7 @@ export type {
   DrawerProps,
   DrawerSwipeAreaProps,
   DrawerTitleProps,
-} from "./drawer";
+} from "./drawer.tsx";
 export {
   Drawer,
   DrawerClose,
@@ -19,6 +19,6 @@ export {
   DrawerTitle,
   DrawerTrigger,
   DrawerVirtualKeyboardProvider,
-} from "./drawer";
-export type { DrawerHandle } from "./handle";
-export { createDrawerHandle } from "./handle";
+} from "./drawer.tsx";
+export type { DrawerHandle } from "./handle.ts";
+export { createDrawerHandle } from "./handle.ts";

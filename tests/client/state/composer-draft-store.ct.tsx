@@ -5,7 +5,7 @@
 // a browser render — the character-selection-store.ct.tsx posture).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ComposerDraftProbe } from "./_ct-stories";
+import { ComposerDraftProbe } from "./_ct-stories.tsx";
 
 test("a typed draft survives a reader REMOUNT (module-scoped — the nav papercut is dead)", async ({ mount }) => {
   const probe = await mount(<ComposerDraftProbe />);

@@ -14,7 +14,7 @@
 import type { DocumentView } from "@orb/contracts/databank";
 import { documentViewSchema } from "@orb/contracts/databank";
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import { throwHttpError } from "./http-error";
+import { throwHttpError } from "./http-error.ts";
 
 const UPLOAD_URL = "/api/databank/upload";
 const UPLOAD_FIELD = "file";

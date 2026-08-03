@@ -4,19 +4,19 @@
 // (patch-sheet/edit-snapshot/patch-actor/dismiss-actor/promote-actor/roll-dice); each `create<Verb>` factory
 // closes over the ctx and returns its slice.
 
-import { createRpgContext } from "./context";
-import type { RpgContextDeps, RpgService } from "./contract/service";
-import { createCreateCheckpoint, createListCheckpoints, createRestoreCheckpoint } from "./verbs/checkpoint";
-import { createDismissActor } from "./verbs/dismiss-actor";
-import { createEditSnapshot } from "./verbs/edit-snapshot";
-import { createCreateGame, createDetachDanglingPointer, createPopulateFromCharacter, createResyncFromStory, createUpdateConfig } from "./verbs/game";
-import { createAddJournalEntry, createDeleteJournalEntry, createEditJournalEntry } from "./verbs/journal";
-import { createPatchActor } from "./verbs/patch-actor";
-import { createPatchSheet } from "./verbs/patch-sheet";
-import { createPromoteActor } from "./verbs/promote-actor";
-import { createDeleteQuest, createUpsertQuest } from "./verbs/quest";
-import { createGetConfigView, createGetGame, createGetTrackerView, createListJournal, createRevealHidden } from "./verbs/read";
-import { createRollDice } from "./verbs/roll-dice";
+import { createRpgContext } from "./context.ts";
+import type { RpgContextDeps, RpgService } from "./contract/service.ts";
+import { createCreateCheckpoint, createListCheckpoints, createRestoreCheckpoint } from "./verbs/checkpoint/index.ts";
+import { createDismissActor } from "./verbs/dismiss-actor.ts";
+import { createEditSnapshot } from "./verbs/edit-snapshot.ts";
+import { createCreateGame, createDetachDanglingPointer, createPopulateFromCharacter, createResyncFromStory, createUpdateConfig } from "./verbs/game/index.ts";
+import { createAddJournalEntry, createDeleteJournalEntry, createEditJournalEntry } from "./verbs/journal/index.ts";
+import { createPatchActor } from "./verbs/patch-actor.ts";
+import { createPatchSheet } from "./verbs/patch-sheet.ts";
+import { createPromoteActor } from "./verbs/promote-actor.ts";
+import { createDeleteQuest, createUpsertQuest } from "./verbs/quest/index.ts";
+import { createGetConfigView, createGetGame, createGetTrackerView, createListJournal, createRevealHidden } from "./verbs/read/index.ts";
+import { createRollDice } from "./verbs/roll-dice.ts";
 
 export function createRpgService(deps: RpgContextDeps): RpgService {
   const ctx = createRpgContext(deps);

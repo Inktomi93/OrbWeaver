@@ -6,11 +6,11 @@
 
 import { worldBooks, worldEntries } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
-import type { WorldInfoContext } from "../../context";
-import { WorldInfoNotFoundError } from "../../contract/errors";
-import type { DuplicateBookParams } from "../../contract/params";
-import type { WorldInfoService } from "../../contract/service";
-import { listBookEntries, loadOwnedBook } from "../../persistence/queries";
+import type { WorldInfoContext } from "../../context.ts";
+import { WorldInfoNotFoundError } from "../../contract/errors.ts";
+import type { DuplicateBookParams } from "../../contract/params.ts";
+import type { WorldInfoService } from "../../contract/service.ts";
+import { listBookEntries, loadOwnedBook } from "../../persistence/queries.ts";
 
 export function createDuplicate(ctx: WorldInfoContext): WorldInfoService["duplicateBook"] {
   return async ({ principal, bookId }: DuplicateBookParams) => {

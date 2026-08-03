@@ -8,7 +8,7 @@
 
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { RowToggleActionHarness } from "./row-toggle-action.fixtures";
+import { RowToggleActionHarness } from "./row-toggle-action.fixtures.tsx";
 
 const REVEAL_ON_HOVER = /group-hover:opacity-100/;
 const REVEAL_ON_FOCUS = /group-focus-within:opacity-100/;

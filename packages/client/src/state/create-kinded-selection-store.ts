@@ -11,8 +11,8 @@
 // the same LIST dual-write — and G27's `selection-store-via-factory` seal still holds, since a
 // `state/*-selection-store.ts` calls THIS mint and never the raw door.
 
-import { createGatedStore } from "./create-gated-store";
-import { setOpenOverlayPanel } from "./shell-store";
+import { createGatedStore } from "./create-gated-store.ts";
+import { setOpenOverlayPanel } from "./shell-store.ts";
 
 /** A MIXED-KIND selection: which collection the member belongs to, and which member (review F-7). Both
  *  halves are opaque strings — the kind axis is host-opaque by design (no closed tuple to gate), and the

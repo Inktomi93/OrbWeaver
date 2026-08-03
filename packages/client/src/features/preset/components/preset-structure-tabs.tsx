@@ -34,12 +34,12 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import type { AppFormInstance } from "#forms";
 import { selectPresetSection, useSelectedPresetSectionId } from "#state";
-import { makeSection } from "../lib/assembly-model";
-import { CONTINUE_POSTFIX_ITEMS, continuePostfixLabel, NAMES_BEHAVIOR_ITEMS, namesBehaviorLabel } from "../lib/preset-nav";
-import { AssemblyToolbar } from "./assembly-toolbar";
-import { MessageHandlingSection } from "./message-handling-section";
-import { AssemblyRack } from "./prompt-assembly/assembly-rack";
-import { SectionDrillIn } from "./prompt-assembly/section-drill-in";
+import { makeSection } from "../lib/assembly-model.ts";
+import { CONTINUE_POSTFIX_ITEMS, continuePostfixLabel, NAMES_BEHAVIOR_ITEMS, namesBehaviorLabel } from "../lib/preset-nav.ts";
+import { AssemblyToolbar } from "./assembly-toolbar.tsx";
+import { MessageHandlingSection } from "./message-handling-section.tsx";
+import { AssemblyRack } from "./prompt-assembly/assembly-rack.tsx";
+import { SectionDrillIn } from "./prompt-assembly/section-drill-in.tsx";
 
 type AppForm = AppFormInstance<PromptConfig>;
 

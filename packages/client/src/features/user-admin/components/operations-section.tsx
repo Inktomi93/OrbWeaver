@@ -18,11 +18,11 @@ import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
-import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model";
-import { LOG_LEVEL_ITEMS } from "../lib/log-level-items";
-import { OPERATIONS_SUBCATEGORY } from "../lib/system-config-nav";
-import { AdminOverrideResetRow, AdminOverrideSelect, AdminOverrideSwitch } from "./admin-override-field";
+import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
+import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
+import { LOG_LEVEL_ITEMS } from "../lib/log-level-items.ts";
+import { OPERATIONS_SUBCATEGORY } from "../lib/system-config-nav.ts";
+import { AdminOverrideResetRow, AdminOverrideSelect, AdminOverrideSwitch } from "./admin-override-field.tsx";
 
 /** The section's own suspense/error boundary — it reads for itself, so it must recover for itself. */
 export function OperationsSection({ sectionId }: { readonly sectionId: string }): ReactElement {

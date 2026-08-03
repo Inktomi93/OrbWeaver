@@ -13,8 +13,8 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { selectCorpusCharacter } from "#state";
-import { toGenreSeries } from "../lib/corpus-charts";
-import { CorpusDistillEmptyState } from "./corpus-distill-empty-state";
+import { toGenreSeries } from "../lib/corpus-charts.ts";
+import { CorpusDistillEmptyState } from "./corpus-distill-empty-state.tsx";
 
 const SKELETON_ROW_COUNT = 3;
 

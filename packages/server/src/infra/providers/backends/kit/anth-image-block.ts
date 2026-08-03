@@ -6,7 +6,7 @@
 
 import type { Base64ImageSource, ImageBlockParam } from "@anthropic-ai/sdk/resources/messages";
 import type { ImageInput } from "@orb/contracts/role-clients";
-import type { NormalizeImageBytes } from "./image-normalize";
+import type { NormalizeImageBytes } from "./image-normalize.ts";
 
 const BASE64 = "base64";
 // data:<mime>;base64,<payload> — the only data-URL form our image seam ever emits.

@@ -19,10 +19,10 @@ import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { createAutosaveEntityForm } from "#forms";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
-import { useDeleteChatInjection, useSetChatInjection } from "../hooks/use-context-panel-mutations";
-import type { InjectionFormValues } from "../lib/injection-row-model";
-import { DEFAULT_INJECTION_FORM, fromInjectionForm, toInjectionForm } from "../lib/injection-row-model";
-import { NEW_INJECTION } from "../lib/injection-seed";
+import { useDeleteChatInjection, useSetChatInjection } from "../hooks/use-context-panel-mutations.ts";
+import type { InjectionFormValues } from "../lib/injection-row-model.ts";
+import { DEFAULT_INJECTION_FORM, fromInjectionForm, toInjectionForm } from "../lib/injection-row-model.ts";
+import { NEW_INJECTION } from "../lib/injection-seed.ts";
 
 // The per-injection-row session-boundary autosave form (D78 L3). Built at MODULE scope (stable component
 // identity, §13.1); the persist fn arrives per-instance (closes over the live tRPC client + the row's

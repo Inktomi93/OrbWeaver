@@ -1,6 +1,6 @@
 // verb: reorderRules — total position rewrite (host-only); listRules reads position order.
 
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { MSG_COMMITTED, principal, ruleFixture, SET_VAR } from "../_support.ts";
 
 test("reorderRules rewrites position as a total order", async () => {

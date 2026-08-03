@@ -5,10 +5,10 @@
 
 import type { Db } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { DiscoveryContext } from "../context";
-import type { SwipeHotspot } from "../contract/results";
-import type { DiscoveryService } from "../contract/service";
-import { readSwipeHotspots } from "../persistence/message-reads";
+import type { DiscoveryContext } from "../context.ts";
+import type { SwipeHotspot } from "../contract/results.ts";
+import type { DiscoveryService } from "../contract/service.ts";
+import { readSwipeHotspots } from "../persistence/message-reads.ts";
 
 const DEFAULT_LIMIT = 20;
 // The selected-take preview is a browsing snippet, not the full scene — trimmed for the hotspot list.

@@ -13,11 +13,11 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useTRPC } from "#data";
-import type { ArchivedCard } from "../lib/archived-cards";
-import { cardLabel, collectArchivedCards } from "../lib/archived-cards";
-import { RpgCardRow } from "./rpg-card-row";
-import { RpgDoorwayLine } from "./rpg-doorway-line";
-import { Kicker } from "./rpg-kicker";
+import type { ArchivedCard } from "../lib/archived-cards.ts";
+import { cardLabel, collectArchivedCards } from "../lib/archived-cards.ts";
+import { RpgCardRow } from "./rpg-card-row.tsx";
+import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
+import { Kicker } from "./rpg-kicker.tsx";
 
 /** The archived-card LIGHTBOX — the one sandboxed-card dialog (this file is the gate-sanctioned Dialog
  *  home for the card-viewer species; Journal's day-group archive reuses it rather than minting a second

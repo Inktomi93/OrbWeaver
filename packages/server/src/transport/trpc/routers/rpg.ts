@@ -42,7 +42,7 @@ import {
   rpgUpdateConfigInputSchema,
   rpgUpsertQuestInputSchema,
 } from "@orb/contracts/rpg";
-import { authedProcedure, t } from "../trpc";
+import { authedProcedure, t } from "../trpc.ts";
 
 export const rpgRouter = t.router({
   // ── writes (host-gated shared planes + member own-row writes; authz INSIDE each verb) ──────────────────

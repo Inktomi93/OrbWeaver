@@ -4,4 +4,4 @@
 // the entry composition root (db + injected clock/id + the injected cross-feature ops) and handed to
 // `createDatabankService` / `createDatabankIngest`.
 
-export type { DatabankContext } from "./contract/service";
+export type { DatabankContext } from "./contract/service.ts";

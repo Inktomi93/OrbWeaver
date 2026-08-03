@@ -12,7 +12,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { logout, useAuthConfig } from "#data";
 import { notify, testId, useFocusOnMount } from "#lib";
-import { useAuthMe } from "../hooks/use-auth-meta";
+import { useAuthMe } from "../hooks/use-auth-meta.ts";
 
 /** Sign out, then hard-redirect (see the file header for why a full document load is the reset). */
 async function signOut(): Promise<void> {

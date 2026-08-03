@@ -21,9 +21,9 @@ import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
 import { selectCorpusCharacter } from "#state";
-import { CharacterAvatar } from "../components/character-avatar";
-import { AllThemes, FacetBars, KeywordExplorer, ThemeDrift } from "../components/corpus-home-charts";
-import { toBarItems } from "../lib/corpus-charts";
+import { CharacterAvatar } from "../components/character-avatar.tsx";
+import { AllThemes, FacetBars, KeywordExplorer, ThemeDrift } from "../components/corpus-home-charts.tsx";
+import { toBarItems } from "../lib/corpus-charts.ts";
 
 type ThemeLevel = "scene" | "arc";
 type ThemeRow = inferOutput<Trpc["discovery"]["home"]>["topSceneThemes"][number];

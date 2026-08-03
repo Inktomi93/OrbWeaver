@@ -11,7 +11,7 @@ import { logger } from "@orb/server/foundation/observability";
 import type { OpenRouterChatRequest } from "@orb/server/infra/providers";
 import { runResponsesTurn } from "@orb/server/infra/providers/backends/openrouter";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../../../../support/fixtures";
+import { expect, test } from "../../../../../../../support/fixtures.ts";
 
 const FIXED_NOW = 1000;
 const ANTHROPIC_MODEL = "anthropic/claude-opus-4-5";

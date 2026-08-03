@@ -16,9 +16,9 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import { useSubscription } from "@trpc/tanstack-react-query";
 import { useEffect } from "react";
 import { notify } from "#lib";
-import { useTRPC, useTRPCClient } from "../trpc";
-import { roomRegistry } from "./room-registry";
-import { socketId } from "./socket-id";
+import { useTRPC, useTRPCClient } from "../trpc.ts";
+import { roomRegistry } from "./room-registry.ts";
+import { socketId } from "./socket-id.ts";
 
 /** One arriving envelope payload: a frame, or the typed terminal frame `withSubscriptionErrors` yields for a
  *  genuine SOCKET-level fault (a per-ROOM fault is a `roomFailed` control frame and never gets here). */

@@ -5,7 +5,7 @@
 // Not persisted — landing back on the section welcome after a hard reload is fine.
 
 import type { DocumentId } from "@orb/kit/ids";
-import { createDrillSelectionStore } from "./create-drill-selection-store";
+import { createDrillSelectionStore } from "./create-drill-selection-store.ts";
 
 const databankSelection = createDrillSelectionStore<DocumentId>("databank-selection");
 

@@ -5,7 +5,7 @@ import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService, principal, seedUser, T0 } from "../_support.ts";
 
 describe("workloads.createSchedule", () => {

@@ -8,7 +8,7 @@ import { getPluginQuickJS } from "@orb/server/infra/plugin-host";
 import type { QuickJSContext } from "quickjs-emscripten-core";
 import { describe } from "vitest";
 import { jsToHandle } from "../../../../packages/server/src/infra/plugin-host/marshal.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 /** Marshal `value` into a guest handle, dump it back to a JS value, and dispose the handle — the round-trip the
  *  membrane performs on every host-fn result. */

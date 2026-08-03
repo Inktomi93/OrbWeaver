@@ -9,7 +9,7 @@ import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { publishUserEvent, subscribeUserEvents } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const USER_A = castId<UserId>("user_a");
 const USER_B = castId<UserId>("user_b");

@@ -14,8 +14,8 @@ import {
   isDetachableFromChat,
   nextHiddenSet,
   sourceChips,
-} from "../../../../../packages/client/src/features/chat/lib/chat-documents-model";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/client/src/features/chat/lib/chat-documents-model.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const AT = 1_700_000_000_000;
 

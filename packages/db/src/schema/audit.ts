@@ -10,7 +10,7 @@
 
 import type { AuditLogId, UserId } from "@orb/kit/ids";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { users } from "./users";
+import { users } from "./users.ts";
 
 export const auditLogs = sqliteTable(
   "audit_logs",

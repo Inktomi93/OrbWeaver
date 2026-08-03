@@ -23,7 +23,7 @@ import {
   toPluginView,
 } from "../../../../../packages/server/src/domain/plugin/persistence/plugins.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
 const AT = 1000;

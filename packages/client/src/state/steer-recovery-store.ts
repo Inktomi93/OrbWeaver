@@ -6,7 +6,7 @@
 // read by the wand's "recent steers" affordance. The restore-on-ERROR half lives at the fire call site
 // (use-guided-actions.ts) — this ring is the "I fired something earlier, put it back" recall.
 
-import { createGatedStore } from "./create-gated-store";
+import { createGatedStore } from "./create-gated-store.ts";
 
 /** How many fired steers the ring remembers (the source keeps 10; match it — a modest recall list). */
 export const STEER_RECOVERY_CAP = 10;

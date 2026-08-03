@@ -4,10 +4,10 @@
 // bundle FK is ON DELETE RESTRICT, so the row MUST go before the asset can be reaped (`reapIfOrphan` re-checks
 // references — a within-user dedup that shares the asset with another plugin is never reaped, 02 §3).
 
-import { PluginNotFoundError } from "../contract/errors";
-import type { UninstallPluginParams } from "../contract/params";
-import type { ActivationDeps, PluginContext, PluginService } from "../contract/service";
-import { deletePlugin, getById } from "../persistence/plugins";
+import { PluginNotFoundError } from "../contract/errors.ts";
+import type { UninstallPluginParams } from "../contract/params.ts";
+import type { ActivationDeps, PluginContext, PluginService } from "../contract/service.ts";
+import { deletePlugin, getById } from "../persistence/plugins.ts";
 
 export function createUninstall(ctx: PluginContext, deps: Pick<ActivationDeps, "deactivate">): PluginService["uninstall"] {
   return async ({ caller, pluginId }: UninstallPluginParams): Promise<void> => {

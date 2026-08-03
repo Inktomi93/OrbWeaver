@@ -10,7 +10,7 @@
 
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import type { PDFDocumentProxy, TextItem, TextMarkedContent } from "pdfjs-dist/types/src/display/api";
-import type { RawExtraction } from "../loader";
+import type { RawExtraction } from "../loader.ts";
 
 const PAGE_SEPARATOR = "\n\n";
 const LINE_SEPARATOR = "\n";

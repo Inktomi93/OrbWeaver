@@ -1,2 +1,2 @@
-export type { KbdProps } from "./kbd";
-export { Kbd } from "./kbd";
+export type { KbdProps } from "./kbd.tsx";
+export { Kbd } from "./kbd.tsx";

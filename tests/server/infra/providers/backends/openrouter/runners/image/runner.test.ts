@@ -14,7 +14,7 @@ import type { ImageEmbedRequest, ImageGenerateRequest } from "@orb/server/infra/
 import { createImageNormalizer, passthroughImageNormalizer } from "@orb/server/infra/providers/backends/kit";
 import { runGenerateImage, runImageEmbed } from "@orb/server/infra/providers/backends/openrouter";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../../../support/fixtures";
+import { expect, test } from "../../../../../../../support/fixtures.ts";
 
 const EMBED_MODEL = "qwen/qwen3-vl-embedding";
 const GEN_MODEL = "openrouter/image-gen";

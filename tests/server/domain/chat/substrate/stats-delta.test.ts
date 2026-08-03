@@ -4,8 +4,8 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { utcDay, wordCount } from "@orb/kit/stats-tally";
 import { describe } from "vitest";
-import { assistantTurnDelta, canonMessageDelta, userMessageDelta } from "../../../../../packages/server/src/domain/chat/substrate/stats-delta";
-import { expect, test } from "../../../../support/fixtures";
+import { assistantTurnDelta, canonMessageDelta, userMessageDelta } from "../../../../../packages/server/src/domain/chat/substrate/stats-delta.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("user_host");
 const ARIA = castId<CharacterId>("character_aria");

@@ -13,12 +13,12 @@
 import { SlidersHorizontal } from "@orb/ui/icons";
 import type { SectionDefinition } from "#state";
 import { selectPresetFromList } from "#state";
-import { PresetLibraryAnchor } from "../anchors/preset-library-anchor";
-import { PresetContent } from "../components/preset-content";
-import { PresetListHeader } from "../components/preset-list-header";
-import { PresetReadout } from "../components/readout/preset-readout";
-import { PresetReadoutHeader } from "../components/readout/preset-readout-header";
-import { PresetLibrarySurface } from "../surfaces/preset-library-surface";
+import { PresetLibraryAnchor } from "../anchors/preset-library-anchor.tsx";
+import { PresetContent } from "../components/preset-content.tsx";
+import { PresetListHeader } from "../components/preset-list-header.tsx";
+import { PresetReadout } from "../components/readout/preset-readout.tsx";
+import { PresetReadoutHeader } from "../components/readout/preset-readout-header.tsx";
+import { PresetLibrarySurface } from "../surfaces/preset-library-surface.tsx";
 
 export const presetsSection: SectionDefinition = {
   id: "presets",

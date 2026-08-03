@@ -22,8 +22,8 @@
 import type { ResolvedRateLimits } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { env } from "#foundation/env";
-import { createRateLimiter } from "../transport/rate-limit";
-import type { RateLimitDecision, RateLimitGate } from "../transport/trpc";
+import { createRateLimiter } from "../transport/rate-limit.ts";
+import type { RateLimitDecision, RateLimitGate } from "../transport/trpc/index.ts";
 
 // The anonymous caller has no userId to key on; key the tight per-IP bucket on a stable sentinel when the
 // peer address couldn't be derived (better to share one throttle than to leak an un-throttled hole).

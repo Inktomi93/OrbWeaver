@@ -12,7 +12,7 @@
 import type { ChatBusEvent, PromptTransform, PromptTransformEnv, PromptTransformPoint } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { PromptTransformRegistry } from "../contract/context";
+import type { PromptTransformRegistry } from "../contract/context.ts";
 
 /** The per-call deadline FLOOR each transform apply is bounded by (04 §6 LEAN — the plugin bridge is async by
  *  nature). A transform that outruns it is SKIPPED (the draft passes through unchanged). Now the born-in-DB

@@ -2,8 +2,8 @@
 // single home MessageActionsRow + GreetingActionsRow share (D66 A3). Pins both pref modes so the
 // hidden-at-rest posture and the always-visible `expanded` posture can't silently drift apart.
 
-import { messageActionsRevealClass } from "../../../../../packages/client/src/features/chat/lib/message-actions-reveal";
-import { expect, test } from "../../../../support/fixtures";
+import { messageActionsRevealClass } from "../../../../../packages/client/src/features/chat/lib/message-actions-reveal.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 test("hover (default): hidden + inert at rest, revealed on hover / focus-within / coarse pointer (A3)", () => {
   const cls = messageActionsRevealClass("hover");

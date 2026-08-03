@@ -7,7 +7,7 @@ import { createCredentialsService } from "@orb/server/domain/credentials";
 import { createSecretBox } from "@orb/server/infra/crypto";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 // A different key to simulate a rotation (all-42s vs the harness all-7s key).

@@ -5,7 +5,7 @@
 import type { ChunkParams, TextChunk } from "@orb/kit/chunk";
 import { chunkText } from "@orb/kit/chunk";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const P = (over: Partial<ChunkParams> = {}): ChunkParams => ({ chunkSize: 100, overlapPercent: 0, wholeFileThreshold: 50, ...over });
 

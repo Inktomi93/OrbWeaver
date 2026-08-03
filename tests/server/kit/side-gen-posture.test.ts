@@ -5,7 +5,7 @@
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("maps maxOutputTokens → maxTokens and passes temperature through", () => {
   expect(toSummarizeOptions({ temperature: 0.2, maxOutputTokens: 24 })).toEqual({ temperature: 0.2, maxTokens: 24 });

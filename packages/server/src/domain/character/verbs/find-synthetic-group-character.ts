@@ -2,11 +2,11 @@
 // minted. Internal + chat-injected (acts on the resolved room `ownerId`). Guards `synthetic` so a real card
 // that somehow occupied the namespace is never mistaken for the bucket. A read: no audit, no emit.
 
-import type { CharacterContext } from "../context";
-import type { FindGroupCharParams } from "../contract/params";
-import type { CharacterService } from "../contract/service";
-import { findByOwnerHandle } from "../persistence/queries";
-import { groupHandle } from "../substrate/group-character";
+import type { CharacterContext } from "../context.ts";
+import type { FindGroupCharParams } from "../contract/params.ts";
+import type { CharacterService } from "../contract/service.ts";
+import { findByOwnerHandle } from "../persistence/queries.ts";
+import { groupHandle } from "../substrate/group-character.ts";
 
 export function createFindSyntheticGroupCharacter(ctx: CharacterContext): CharacterService["findSyntheticGroupCharacter"] {
   return async ({ ownerId, chatId }: FindGroupCharParams) => {

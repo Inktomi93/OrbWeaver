@@ -1,6 +1,6 @@
 import { createPasswordHasher, DUMMY_PASSWORD_HASH } from "@orb/server/infra/auth";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 // Local-password mint/verify. Descriptive (low-entropy) fixture peppers — not real secrets (noSecrets).
 const PEPPER = "test-session-secret-at-least-32-chars";

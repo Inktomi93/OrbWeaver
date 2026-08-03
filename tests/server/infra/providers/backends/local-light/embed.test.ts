@@ -15,7 +15,7 @@ import type { LocalLightModelCache } from "@orb/server/infra/providers/backends/
 import { createLocalLightBackend, DEFAULT_EMBED_MODEL } from "@orb/server/infra/providers/backends/local-light";
 import { describe } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 // Keyless local-light credential — a pure routing marker the backend never reads (the brand is
 // unconstructable from a literal, so double-cast for the test).

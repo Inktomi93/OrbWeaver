@@ -3,7 +3,7 @@ import { Button as BaseButton } from "@base-ui/react/button";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { buttonVariants } from "./variants";
+import { buttonVariants } from "./variants.ts";
 
 export interface ButtonProps extends BaseButtonProps, VariantProps<typeof buttonVariants> {
   className?: string;

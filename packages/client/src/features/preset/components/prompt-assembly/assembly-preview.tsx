@@ -18,8 +18,8 @@ import { Icon, MessagesSquare } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { MacroText } from "../macro-text";
-import type { AssembledPreview, PreviewBlock, RoleGroup } from "./preview-model";
+import { MacroText } from "../macro-text.tsx";
+import type { AssembledPreview, PreviewBlock, RoleGroup } from "./preview-model.ts";
 
 /** The role → header label map (the block-header voice above a run of same-role sections). */
 const ROLE_HEADER: Record<MessageRole, string> = {

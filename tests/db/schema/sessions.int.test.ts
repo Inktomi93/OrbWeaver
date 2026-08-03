@@ -8,8 +8,8 @@ import { isConstraintViolation } from "@orb/db/kit";
 import type { SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../support/db";
-import { expect, test } from "../../support/fixtures";
+import { freshDb } from "../../support/db.ts";
+import { expect, test } from "../../support/fixtures.ts";
 import { seedUser } from "./_support.ts";
 
 // epoch-ms literal — timestamp columns are plain integer numbers (contracts views type timestamps as numbers).

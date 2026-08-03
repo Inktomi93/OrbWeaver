@@ -9,8 +9,8 @@
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { backgroundMaterializeMessage } from "@orb/contracts/theme";
 import { DomainOperationError } from "@orb/kit/errors";
-import type { AddExternalBackgroundParams } from "../contract/params";
-import type { SettingsContext, SettingsService } from "../contract/service";
+import type { AddExternalBackgroundParams } from "../contract/params.ts";
+import type { SettingsContext, SettingsService } from "../contract/service.ts";
 
 /** A human name for the entry, from the URL's last path segment (minus extension); "Background" otherwise. */
 function deriveName(url: string): string {

@@ -3,21 +3,21 @@
 // `SettingsService`. ZERO business logic — only factory calls + assembly. The effective-config read side is
 // surfaced straight off the context (it was bound there at the composition surface).
 
-import { createSettingsContext } from "./context";
-import type { SettingsService, SettingsServiceDeps } from "./contract/service";
-import { createAddExternalBackground } from "./verbs/add-external-background";
-import { createAppSettings } from "./verbs/app-settings";
-import { createCreateTheme } from "./verbs/create-theme";
-import { createDuplicateTheme } from "./verbs/duplicate-theme";
-import { createGetTheme } from "./verbs/get-theme";
-import { createGetUserSettings } from "./verbs/get-user-settings";
-import { createGlobalSettings } from "./verbs/global-settings";
-import { createListThemes } from "./verbs/list-themes";
-import { createLoadUserSettings } from "./verbs/load-user-settings";
-import { createPromoteTheme } from "./verbs/promote-theme";
-import { createRemoveTheme } from "./verbs/remove-theme";
-import { createUpdateTheme } from "./verbs/update-theme";
-import { createUpdateUserSettingsSection } from "./verbs/update-user-settings-section";
+import { createSettingsContext } from "./context.ts";
+import type { SettingsService, SettingsServiceDeps } from "./contract/service.ts";
+import { createAddExternalBackground } from "./verbs/add-external-background.ts";
+import { createAppSettings } from "./verbs/app-settings.ts";
+import { createCreateTheme } from "./verbs/create-theme.ts";
+import { createDuplicateTheme } from "./verbs/duplicate-theme.ts";
+import { createGetTheme } from "./verbs/get-theme.ts";
+import { createGetUserSettings } from "./verbs/get-user-settings.ts";
+import { createGlobalSettings } from "./verbs/global-settings.ts";
+import { createListThemes } from "./verbs/list-themes.ts";
+import { createLoadUserSettings } from "./verbs/load-user-settings.ts";
+import { createPromoteTheme } from "./verbs/promote-theme.ts";
+import { createRemoveTheme } from "./verbs/remove-theme.ts";
+import { createUpdateTheme } from "./verbs/update-theme.ts";
+import { createUpdateUserSettingsSection } from "./verbs/update-user-settings-section.ts";
 
 export function createSettingsService(deps: SettingsServiceDeps): SettingsService {
   const ctx = createSettingsContext(deps);

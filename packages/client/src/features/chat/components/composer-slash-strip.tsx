@@ -20,7 +20,7 @@ import { OptionStrip } from "@orb/ui/option-strip";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { SlashCommandContribution } from "#lib";
-import { SLASH_LISTBOX_ID, slashOptionId } from "../lib/slash-command";
+import { SLASH_LISTBOX_ID, slashOptionId } from "../lib/slash-command.ts";
 
 export interface ComposerSlashStripProps {
   /** The commands matching the in-progress token, in registry order. Empty ⇒ no completion offer. */

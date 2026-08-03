@@ -3,7 +3,7 @@
 
 import type { Db } from "@orb/db";
 import { sql } from "drizzle-orm";
-import { getLog } from "../../logger";
+import { getLog } from "../../logger.ts";
 
 /** The integrity probe result (foundation-internal; returned as JSON by /api/_debug/db/integrity). */
 export interface IntegrityReport {

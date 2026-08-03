@@ -1,6 +1,6 @@
 import process from "node:process";
 import { defineConfig, devices } from "@playwright/test";
-import { DEV_TARGET_ALLOWED, MODE_PROJECTS, SINGLE_USER } from "./tests/e2e/support/modes";
+import { DEV_TARGET_ALLOWED, MODE_PROJECTS, SINGLE_USER } from "./tests/e2e/support/modes.ts";
 
 // E2E — full-stack `.spec.ts` under tests/e2e (NOT a src mirror; spans the whole app). Browser lane =
 // Playwright, never vitest (browser-mode hangs — core/Spine-Testing.md §7). Separate runner, NOT in `pnpm

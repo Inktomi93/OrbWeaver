@@ -9,7 +9,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { AccountSurfaceStory } from "../_ct-stories";
+import { AccountSurfaceStory } from "../_ct-stories.tsx";
 
 async function stubAuth(page: Page, opts: { mode: string; handle: Handle; role: string }): Promise<void> {
   await page.route("**/api/auth/config", (route) =>

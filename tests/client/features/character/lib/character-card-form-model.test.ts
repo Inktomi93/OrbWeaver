@@ -11,9 +11,9 @@ import {
   DEFAULT_CHARACTER_CARD_FORM,
   permanentTokenCount,
   totalTokenCount,
-} from "../../../../../packages/client/src/features/character/lib/character-card-form-model";
-import { expect, test } from "../../../../support/fixtures";
-import { makeCharacterDetail } from "../fixtures";
+} from "../../../../../packages/client/src/features/character/lib/character-card-form-model.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeCharacterDetail } from "../fixtures.ts";
 
 // Single downcast of the plain-literal fixture to the inferred (brand-carrying) `character.get` output the
 // mappers accept — the honest bridge the fixture file itself documents (branded ids are compile-time only;

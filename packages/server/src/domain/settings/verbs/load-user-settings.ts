@@ -4,8 +4,8 @@
 // composition root injects it into `chat.context` / the discovery workload contributions. Returns the parsed
 // `UserSettings` (the corruption-guarding `storedVersion` thread happens inside `readUserSettings`).
 
-import type { SettingsContext, SettingsService } from "../contract/service";
-import { readUserSettings } from "../persistence/queries";
+import type { SettingsContext, SettingsService } from "../contract/service.ts";
+import { readUserSettings } from "../persistence/queries.ts";
 
 export function createLoadUserSettings(ctx: SettingsContext): SettingsService["loadUserSettings"] {
   return async (userId) => (await readUserSettings(ctx.db, userId)).config;

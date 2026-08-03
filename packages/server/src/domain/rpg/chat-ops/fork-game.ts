@@ -30,13 +30,13 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import { stripHiddenSpans } from "@orb/kit/content";
 import type { MessageId, MessageVariantId, PresetId, RpgGameId, RpgSnapshotId, UserId } from "@orb/kit/ids";
-import type { ForkGameArgs, ForkGameResult } from "../../chat";
-import type { RpgCheckpointRow, RpgContext, RpgGameRow, RpgJournalRow, RpgSheetRow, RpgSnapshotRow } from "../contract/service";
-import { listCheckpoints } from "../persistence/checkpoints";
-import { findGameByChat } from "../persistence/games";
-import { listAllJournal } from "../persistence/journal";
-import { listSheets } from "../persistence/sheets";
-import { listSnapshots } from "../persistence/snapshots";
+import type { ForkGameArgs, ForkGameResult } from "../../chat/index.ts";
+import type { RpgCheckpointRow, RpgContext, RpgGameRow, RpgJournalRow, RpgSheetRow, RpgSnapshotRow } from "../contract/service.ts";
+import { listCheckpoints } from "../persistence/checkpoints.ts";
+import { findGameByChat } from "../persistence/games.ts";
+import { listAllJournal } from "../persistence/journal.ts";
+import { listSheets } from "../persistence/sheets.ts";
+import { listSnapshots } from "../persistence/snapshots.ts";
 
 /** Strip the host-only `steeringNote` from a cloned config for a non-host forker (identity for a host forker).
  *  Everything else (statProfile, features, extraction knobs, userMacros) is play-style — member-visible by

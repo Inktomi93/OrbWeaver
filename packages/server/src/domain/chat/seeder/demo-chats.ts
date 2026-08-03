@@ -32,7 +32,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import { themeBackgroundSchema } from "@orb/contracts/theme";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { DemoChat, DemoChatGameSetup } from "../contract/seeder";
+import type { DemoChat, DemoChatGameSetup } from "../contract/seeder.ts";
 
 /** The label every seeded example wears (owner law: an example is CLEARLY an example, never mistakable for
  *  the user's own history). One home — the seeder never re-spells it and the titles below embed it. */

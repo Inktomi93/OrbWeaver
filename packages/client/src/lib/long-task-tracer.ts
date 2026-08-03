@@ -6,7 +6,7 @@
 // cannot. Falls back to `longtask` only where LoAF is unsupported. Dynamically imported behind
 // import.meta.env.DEV — never re-export from the lib barrel, that would drag it into the prod bundle.
 
-import { logClock } from "./log-clock";
+import { logClock } from "./log-clock.ts";
 
 const LONG_FRAME_MS = 100;
 const SLOW_EVENT_MS = 200;

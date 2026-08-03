@@ -19,7 +19,7 @@ import { createExtractText, EXTRACTOR_VERSION } from "@orb/server/infra/extracti
 import { eq } from "drizzle-orm";
 import { onTestFinished } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeHarness as makeAssetsHarness } from "../../../assets/_support.ts";
 import { makeDatabankHarness, principalFor, seedUser } from "../../_support.ts";
 

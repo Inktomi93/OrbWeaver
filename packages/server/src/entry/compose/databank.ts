@@ -18,8 +18,8 @@ import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { EXTRACTOR_VERSION } from "#infra/extraction";
 import { fetchWebDocument } from "#infra/network";
-import { requireHost, requireParticipant } from "../../domain/chat";
-import { minter } from "./minter";
+import { requireHost, requireParticipant } from "../../domain/chat/index.ts";
+import { minter } from "./minter.ts";
 
 /** What the databank seam needs from the composition root: infra handles + the already-built sibling service
  *  front doors databank's injected ops route through. */

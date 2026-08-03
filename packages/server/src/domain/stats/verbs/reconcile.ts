@@ -16,10 +16,10 @@
 // registry built once per service; WHY in-memory is sanctioned lives in `../reconcile-in-flight.ts`.
 
 import type { UserId } from "@orb/kit/ids";
-import type { ReconcileInFlight } from "../contract/reconcile-in-flight";
-import type { ReconcileStatsResult } from "../contract/results";
-import type { StatsContext, StatsService } from "../contract/service";
-import { reconcileOwnerStats } from "../substrate/reconcile-owner";
+import type { ReconcileInFlight } from "../contract/reconcile-in-flight.ts";
+import type { ReconcileStatsResult } from "../contract/results.ts";
+import type { StatsContext, StatsService } from "../contract/service.ts";
+import { reconcileOwnerStats } from "../substrate/reconcile-owner.ts";
 
 export function createReconcile(ctx: StatsContext, inFlight: ReconcileInFlight): Pick<StatsService, "reconcile"> {
   async function reconcile(ownerId: UserId): Promise<ReconcileStatsResult> {

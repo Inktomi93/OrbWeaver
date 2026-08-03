@@ -4,4 +4,4 @@
 // character.create-with-provenance / character-by-importHash / assets.store ops — import sideways-imports
 // none of those (domain-no-cross-feature).
 
-export type { ImportContext } from "./contract/service";
+export type { ImportContext } from "./contract/service.ts";

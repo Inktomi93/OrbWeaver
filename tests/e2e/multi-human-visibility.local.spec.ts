@@ -18,11 +18,11 @@
 import type { CharacterHandle, CharacterId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import type { ActorClient } from "./support/actors";
-import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors";
-import { FIXTURE_COVER_MARKER, startFixtureProvider } from "./support/fixture-provider";
-import { FIXTURE_PROVIDER_PORT, LOCAL_MEMBER } from "./support/modes";
-import { collectChatRoomFrames } from "./support/sse";
+import type { ActorClient } from "./support/actors.ts";
+import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
+import { FIXTURE_COVER_MARKER, startFixtureProvider } from "./support/fixture-provider.ts";
+import { FIXTURE_PROVIDER_PORT, LOCAL_MEMBER } from "./support/modes.ts";
+import { collectChatRoomFrames } from "./support/sse.ts";
 
 const STREAM_TIMEOUT_MS = 20_000;
 const REPLY_POLL_TIMEOUT_MS = 60_000;

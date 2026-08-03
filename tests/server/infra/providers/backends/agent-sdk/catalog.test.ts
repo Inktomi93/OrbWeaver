@@ -8,7 +8,7 @@
 import type { AgentSdkModel } from "@orb/contracts/connection";
 import { createAgentSdkBackend } from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 /** The wired discovery fn (the backend always sets it; the cast drops the contract's `| undefined`). */
 type FetchModelsFn = (req: { readonly signal?: AbortSignal }) => Promise<AgentSdkModel[]>;

@@ -11,7 +11,7 @@ import { ProviderError } from "@orb/server/infra/providers";
 import type { GpuVram, WakeGateDeps } from "@orb/server/infra/providers/vllm/engine";
 import { __resetWakeGateCache, ensureAwake, setEngineStatus } from "@orb/server/infra/providers/vllm/engine";
 import { beforeEach, describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const GIB = 1_073_741_824;
 const freeGpus: GpuVram[] = [

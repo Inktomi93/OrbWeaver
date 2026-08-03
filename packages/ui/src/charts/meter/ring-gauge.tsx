@@ -7,8 +7,8 @@
 // inline data-viz svg is legal only in charts/**, §13.7 — the sibling of <Meter kind="arc">).
 import type { ReactElement } from "react";
 import { cn, isSafeColor } from "#lib";
-import type { TrackColor } from "./track-bar";
-import { RING_STROKE, ringGaugeVariants } from "./variants";
+import type { TrackColor } from "./track-bar.tsx";
+import { RING_STROKE, ringGaugeVariants } from "./variants.ts";
 
 /** RingGauge shares the track-ramp step vocabulary with TrackBar. */
 export type RingColor = TrackColor;

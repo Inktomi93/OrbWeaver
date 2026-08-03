@@ -9,7 +9,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { __pinnedAgentForTest } from "@orb/server/infra/network";
 import { afterAll, beforeAll, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 // A host that can NEVER resolve via real DNS (.invalid, RFC 6761) — so a successful connect proves the
 // pinned lookup supplied the address, not the resolver.

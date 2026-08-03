@@ -20,7 +20,7 @@ import type { ImportAssetPort, ImportTagPort } from "@orb/server/entry/import";
 import { runProfileImport } from "@orb/server/entry/import";
 import { describe } from "vitest";
 import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { makeHarness as makeCharacterHarness, seedUser } from "../../domain/character/_support.ts";
 import { makeHarness as makeExportHarness } from "../../domain/export/_support.ts";
 

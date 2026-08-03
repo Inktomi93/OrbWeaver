@@ -1,1 +1,1 @@
-export { ImmersiveCard, type ImmersiveCardProps } from "./immersive-card";
+export { ImmersiveCard, type ImmersiveCardProps } from "./immersive-card.tsx";

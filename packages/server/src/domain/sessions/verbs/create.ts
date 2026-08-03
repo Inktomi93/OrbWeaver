@@ -1,9 +1,9 @@
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { getLog, logAudit } from "#foundation/observability";
-import type { CreateSessionParams } from "../contract/params";
-import type { CreateSessionResult } from "../contract/results";
-import type { SessionsContext, SessionsService } from "../contract/service";
-import { insertSession } from "../persistence/sessions";
+import type { CreateSessionParams } from "../contract/params.ts";
+import type { CreateSessionResult } from "../contract/results.ts";
+import type { SessionsContext, SessionsService } from "../contract/service.ts";
+import { insertSession } from "../persistence/sessions.ts";
 
 // Mint a revocable BFF session: a 32-byte opaque token whose peppered hash alone is persisted. Every
 // mint is a login (local route + OIDC callback funnel here), so it audits AUTH_LOGIN; admin-initiated

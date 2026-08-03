@@ -7,7 +7,7 @@
 import { routingRoleKeySchema } from "@orb/contracts/connection";
 import { credentialSourceSchema } from "@orb/contracts/credentials";
 import { z } from "zod";
-import { adminProcedure, authedProcedure, t } from "../trpc";
+import { adminProcedure, authedProcedure, t } from "../trpc.ts";
 
 export const connectionRouter = t.router({
   getCatalog: authedProcedure.query(({ ctx, signal }) => ctx.services.connection.getCatalog({ signal })),

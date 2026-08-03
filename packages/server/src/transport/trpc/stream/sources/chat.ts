@@ -65,9 +65,9 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatService } from "#domain/chat";
 import { isBelowHistoryFloor, scrubDeltaEventForMember, stripChatEventForMember } from "#domain/chat";
-import { notifyChatOpened } from "../../automation-chat-open-tap";
-import { subscribeChatEvents } from "../../chat-events-bus";
-import type { RoomSourceDef } from "../room-source";
+import { notifyChatOpened } from "../../automation-chat-open-tap.ts";
+import { subscribeChatEvents } from "../../chat-events-bus.ts";
+import type { RoomSourceDef } from "../room-source.ts";
 
 /** What the member-gated `chatEventBounds` attach probe returns (derived off the service type — no new
  *  front-door export; the shape is `{ minSeq, maxSeq, historyFloorSeq, viewerIsHost, reasoningHostOnly }`). */

@@ -1,10 +1,10 @@
-import type { PresetContext } from "../context";
-import { PresetNotFoundError } from "../contract/errors";
-import type { GetPresetParams } from "../contract/params";
-import type { PresetService } from "../contract/service";
-import type { PresetDetail } from "../contract/views";
-import { readablePreset } from "../persistence/queries";
-import { toPresetDetail } from "../substrate/views";
+import type { PresetContext } from "../context.ts";
+import { PresetNotFoundError } from "../contract/errors.ts";
+import type { GetPresetParams } from "../contract/params.ts";
+import type { PresetService } from "../contract/service.ts";
+import type { PresetDetail } from "../contract/views.ts";
+import { readablePreset } from "../persistence/queries.ts";
+import { toPresetDetail } from "../substrate/views.ts";
 
 // verb: get — one preset readable by this owner (their own row OR the shared system default). Throws
 // PresetNotFoundError when nothing readable matches. Read-only; no audit.

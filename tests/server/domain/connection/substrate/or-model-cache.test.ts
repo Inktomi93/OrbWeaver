@@ -8,7 +8,7 @@
 import type { ModelCatalogEntry } from "@orb/contracts/connection";
 import { afterEach, describe } from "vitest";
 import { __resetOrModelCache, getCachedOrModels, seedOrModelCache } from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const FETCHED_AT = 1_750_000_000_000;
 const MS_PER_HOUR = 3_600_000;

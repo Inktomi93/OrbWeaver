@@ -4,10 +4,10 @@
 
 import { characterBooks } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import type { WorldInfoContext } from "../../context";
-import type { DetachFromCharacterParams } from "../../contract/params";
-import type { WorldInfoService } from "../../contract/service";
-import { ensureCharacterOwned } from "../../persistence/ownership";
+import type { WorldInfoContext } from "../../context.ts";
+import type { DetachFromCharacterParams } from "../../contract/params.ts";
+import type { WorldInfoService } from "../../contract/service.ts";
+import { ensureCharacterOwned } from "../../persistence/ownership.ts";
 
 export function createDetachFromCharacter(ctx: WorldInfoContext): WorldInfoService["detachFromCharacter"] {
   return async ({ principal, characterId, bookId }: DetachFromCharacterParams) => {

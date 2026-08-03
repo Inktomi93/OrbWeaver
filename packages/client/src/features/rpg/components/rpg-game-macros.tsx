@@ -34,7 +34,7 @@ import { useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm } from "#forms";
 import { withUserMacros } from "#lib";
-import { useUpdateConfig } from "../hooks/use-rpg-mutations";
+import { useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
 
 // The autosave macro-list form. Module scope (stable identity — the D54 §13.1 factory pattern); keyed by the
 // chatId so switching chats with the Game tab open is a full remount seeded from the new game's macros.

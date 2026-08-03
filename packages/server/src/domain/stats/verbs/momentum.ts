@@ -1,7 +1,7 @@
 import type { UserId } from "@orb/kit/ids";
-import type { StatsContext, StatsService } from "../contract/service";
-import type { CharacterMomentum } from "../contract/views";
-import { readCharacterMomentum } from "../persistence/activity";
+import type { StatsContext, StatsService } from "../contract/service.ts";
+import type { CharacterMomentum } from "../contract/views.ts";
+import { readCharacterMomentum } from "../persistence/activity.ts";
 
 // momentum — per-character attention shift between the two most-recent active months (rising / falling),
 // anchored to the data's latest months (on-read canon scan — character_stats is cumulative, no monthly axis).

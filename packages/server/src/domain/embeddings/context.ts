@@ -5,4 +5,4 @@
 // determinism seam) and handed to `createEmbeddingsService`; embeddings sideways-imports none of those
 // (domain-no-cross-feature — they arrive type-only).
 
-export type { EmbeddingsContext } from "./contract/service";
+export type { EmbeddingsContext } from "./contract/service.ts";

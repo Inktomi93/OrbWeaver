@@ -34,7 +34,7 @@ import { applyStatsDelta } from "#domain/stats";
 import type { ToolUseService } from "#domain/tool-use";
 import { fetchImageBytes } from "#infra/network";
 import type { ProviderExecutor, RoleClientsWithSignal } from "#infra/providers";
-import { minter } from "./minter";
+import { minter } from "./minter.ts";
 
 /** The infra `WarningCode` members that are imagery's concern (mapped onto `ImageryWarning` at the generateImage
  *  op): the whole edit strip (`image_edit_dropped`). The resolve-chat knob codes (sampling/effort/etc.) are not

@@ -10,8 +10,8 @@ import { Text } from "@orb/ui/text";
 import { QueryErrorResetBoundary } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { Component, Suspense } from "react";
-import { QueryErrorState } from "./query-error-state";
-import { useOnlineStatus } from "./use-online-status";
+import { QueryErrorState } from "./query-error-state.tsx";
+import { useOnlineStatus } from "./use-online-status.ts";
 
 export interface QueryBoundaryProps {
   /** The suspense fallback (a skeleton, never a spinner-only flash). */

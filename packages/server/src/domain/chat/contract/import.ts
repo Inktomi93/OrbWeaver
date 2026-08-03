@@ -11,7 +11,7 @@
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import type { AssetId, CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
-import type { MintSyntheticGroupCharacterOp } from "./context";
+import type { MintSyntheticGroupCharacterOp } from "./context.ts";
 
 /** The DI bundle `createBulkImportChats` closes over (assembled at the entry composition root). All ids are
  *  minted by the INJECTED minters (determinism — no ambient `mintTypeId()` in the write). */

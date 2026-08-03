@@ -8,7 +8,7 @@ import type { ModelsListResponse } from "@openrouter/sdk/models";
 import type { GetModelsResponse } from "@openrouter/sdk/models/operations";
 import type { PageIterator } from "@openrouter/sdk/types";
 import type { ModelCatalogEntry } from "@orb/contracts/connection";
-import { providerErrorFromHttp } from "../kit";
+import { providerErrorFromHttp } from "../kit/index.ts";
 
 // The structural slice this verb needs off the client port. `models.list()` is the public `/models`
 // endpoint (no auth required) — connection may inject a keyless client. SDK 1.x returns an auto-paginating

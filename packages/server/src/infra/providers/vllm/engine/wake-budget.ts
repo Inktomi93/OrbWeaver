@@ -15,7 +15,7 @@
 // still holding VRAM must be reaped as ours, never NAMED as a "foreign tenant" in a refusal.
 
 import { execFile } from "node:child_process";
-import type { VLLM_ENGINES } from "./engines";
+import type { VLLM_ENGINES } from "./engines.ts";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 

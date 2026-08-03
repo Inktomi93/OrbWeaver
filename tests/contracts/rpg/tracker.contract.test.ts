@@ -23,7 +23,7 @@ import {
   trackerReading,
   trackersForCarrier,
 } from "@orb/contracts/rpg";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 /** A def with the axes a case cares about; everything else takes its schema default. */
 function def(over: Partial<RpgTrackerDef> & Pick<RpgTrackerDef, "key" | "label" | "shape" | "write" | "subject">): RpgTrackerDef {

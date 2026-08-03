@@ -19,7 +19,7 @@ import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { makeModelCapability, makeResolvedChatCapability } from "../../../../support/factories/index.ts";
 import { principal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, seedPreset, seedUser } from "../_support.ts";
 
 const PRESET_ID = castId<PresetId>("preset_effective");

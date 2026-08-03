@@ -15,7 +15,7 @@ import {
 import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 describe("tokenizeContent", () => {
   test("plain text → a single text span", () => {

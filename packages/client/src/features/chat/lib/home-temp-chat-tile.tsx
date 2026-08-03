@@ -3,7 +3,7 @@
 
 import { Clock } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#lib";
-import { HomeTempChatTileBody } from "../components/home-temp-chat-tile-body";
+import { HomeTempChatTileBody } from "../components/home-temp-chat-tile-body.tsx";
 
 const TEMP_CHAT_TILE_ORDER = 30;
 

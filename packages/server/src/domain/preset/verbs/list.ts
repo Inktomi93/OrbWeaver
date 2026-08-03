@@ -1,9 +1,9 @@
-import type { PresetContext } from "../context";
-import type { ListPresetsParams } from "../contract/params";
-import type { PresetService } from "../contract/service";
-import type { PresetSummary } from "../contract/views";
-import { listReadable } from "../persistence/queries";
-import { toPresetSummary } from "../substrate/views";
+import type { PresetContext } from "../context.ts";
+import type { ListPresetsParams } from "../contract/params.ts";
+import type { PresetService } from "../contract/service.ts";
+import type { PresetSummary } from "../contract/views.ts";
+import { listReadable } from "../persistence/queries.ts";
+import { toPresetSummary } from "../substrate/views.ts";
 
 // verb: list — the owner's library rows PLUS the shared system default, as summaries (the two-armed read).
 // Read-only; no audit.

@@ -9,7 +9,7 @@ import type { Db } from "@orb/db";
 import { plugins } from "@orb/db";
 import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, sql } from "drizzle-orm";
-import type { PluginView } from "../contract/results";
+import type { PluginView } from "../contract/results.ts";
 
 /** The stored `plugins` row. Homed as the db `$inferSelect` (the RuleRow precedent) — persistence's unit. */
 type PluginRow = typeof plugins.$inferSelect;

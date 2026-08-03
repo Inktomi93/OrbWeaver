@@ -7,8 +7,8 @@
 
 import { parsePromptConfig } from "@orb/contracts/preset";
 import type { presets } from "@orb/db";
-import { SYSTEM_DEFAULT_PRESET_ID } from "../constants";
-import type { PresetDetail, PresetSummary } from "../contract/views";
+import { SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
+import type { PresetDetail, PresetSummary } from "../contract/views.ts";
 
 type PresetRow = typeof presets.$inferSelect;
 

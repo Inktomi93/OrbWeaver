@@ -5,7 +5,7 @@
 
 import type { EmbedRequest, ResolvedCredential } from "@orb/server/infra/providers";
 import { createEmbedRole } from "@orb/server/infra/providers";
-import { runEmbedShapedRoleTests } from "./_support";
+import { runEmbedShapedRoleTests } from "./_support.ts";
 
 runEmbedShapedRoleTests({
   method: "embed",

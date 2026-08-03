@@ -1,3 +1,3 @@
-export type { ToasterProps } from "./toast";
-export { Toaster, ToastProvider } from "./toast";
-export { createToastManager, useToastManager } from "./use-toast-manager";
+export type { ToasterProps } from "./toast.tsx";
+export { Toaster, ToastProvider } from "./toast.tsx";
+export { createToastManager, useToastManager } from "./use-toast-manager.ts";

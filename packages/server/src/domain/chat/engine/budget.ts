@@ -14,8 +14,8 @@
 
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
-import type { DebitBudgetOp } from "../contract/context";
-import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors";
+import type { DebitBudgetOp } from "../contract/context.ts";
+import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 
 /**
  * Debit ONE turn against `triggeredBy`'s per-member budget (IN-LOCK — the engine calls this inside the

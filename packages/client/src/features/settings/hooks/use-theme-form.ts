@@ -9,8 +9,8 @@
 // with), so there is no un-brickability reason to autosave.
 
 import { createSavedEntityForm } from "#forms";
-import type { ThemeFormValues } from "../lib/theme-editor-model";
-import { DEFAULT_THEME_FORM } from "../lib/theme-editor-model";
+import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
+import { DEFAULT_THEME_FORM } from "../lib/theme-editor-model.ts";
 
 export const useThemeForm = createSavedEntityForm<ThemeFormValues>({
   defaultValues: DEFAULT_THEME_FORM,

@@ -4,18 +4,18 @@
 // are PascalCase by necessity (createFormHook exposes them as JSX components: `<field.TextField>`).
 
 import { createFormHook } from "@tanstack/react-form";
-import { AvatarUploadField } from "./bound-fields/avatar-upload-field";
-import { BoundColorField } from "./bound-fields/color-field";
-import { DirtyPill, FormErrorBanner, SubmitButton } from "./bound-fields/form-chrome";
-import { MacroField } from "./bound-fields/macro-field";
-import { MultiToggleField } from "./bound-fields/multi-toggle-field";
-import { BoundNumberField } from "./bound-fields/number-field";
-import { SelectField } from "./bound-fields/select-field";
-import { BoundSliderField } from "./bound-fields/slider-field";
-import { SwitchField } from "./bound-fields/switch-field";
-import { TextField } from "./bound-fields/text-field";
-import { TextareaField } from "./bound-fields/textarea-field";
-import { fieldContext, formContext } from "./contexts";
+import { AvatarUploadField } from "./bound-fields/avatar-upload-field.tsx";
+import { BoundColorField } from "./bound-fields/color-field.tsx";
+import { DirtyPill, FormErrorBanner, SubmitButton } from "./bound-fields/form-chrome.tsx";
+import { MacroField } from "./bound-fields/macro-field.tsx";
+import { MultiToggleField } from "./bound-fields/multi-toggle-field.tsx";
+import { BoundNumberField } from "./bound-fields/number-field.tsx";
+import { SelectField } from "./bound-fields/select-field.tsx";
+import { BoundSliderField } from "./bound-fields/slider-field.tsx";
+import { SwitchField } from "./bound-fields/switch-field.tsx";
+import { TextField } from "./bound-fields/text-field.tsx";
+import { TextareaField } from "./bound-fields/textarea-field.tsx";
+import { fieldContext, formContext } from "./contexts.ts";
 
 export const { useAppForm } = createFormHook({
   fieldContext,

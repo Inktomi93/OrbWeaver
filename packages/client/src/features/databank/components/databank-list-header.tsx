@@ -28,8 +28,8 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, ListPaneHeader, RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { useReindexDocuments } from "../hooks/use-databank-mutations";
-import { AddDocumentDialog } from "./add-document-dialog";
+import { useReindexDocuments } from "../hooks/use-databank-mutations.ts";
+import { AddDocumentDialog } from "./add-document-dialog.tsx";
 
 export function DatabankListHeader(): ReactElement {
   const trpc = useTRPC();

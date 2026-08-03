@@ -3,8 +3,8 @@
 // owns its own verbs — this pins both, which the pane-surface era never covered.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { AdminOpsSectionsStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { AdminOpsSectionsStory } from "../_ct-stories.tsx";
 
 test("each ops section stamps its OWN admin anchor (the ids the nav + search jump to)", async ({ mount, page }) => {
   await routeTrpc(page, {});

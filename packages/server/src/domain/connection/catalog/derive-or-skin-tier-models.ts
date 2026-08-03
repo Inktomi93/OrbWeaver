@@ -4,8 +4,8 @@
 // (a) daemon's resolved id present in the OR list → (b) newest same-family OR id → (c) curated shortlist pick.
 
 import type { AgentSdkModel } from "@orb/contracts/connection";
-import type { OrSkinTierModels } from "../contract/results";
-import { CHAT_MODELS } from "./chat-models";
+import type { OrSkinTierModels } from "../contract/results.ts";
+import { CHAT_MODELS } from "./chat-models.ts";
 
 /** A tier family key — derived from the output shape's keys (NOT a re-spelled member union): the three
  *  families the firewall envs map. `OrSkinTierModels` is the one home for this axis. */

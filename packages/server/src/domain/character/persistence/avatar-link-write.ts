@@ -14,7 +14,7 @@
 import { characters } from "@orb/db";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import { and, eq } from "drizzle-orm";
-import type { CharacterAvatarLinkContext, LinkCharacterAvatars } from "../contract/avatar-link";
+import type { CharacterAvatarLinkContext, LinkCharacterAvatars } from "../contract/avatar-link.ts";
 
 /** Build the character-owned avatar-relink op. */
 export function createLinkCharacterAvatars(ctx: CharacterAvatarLinkContext): LinkCharacterAvatars {

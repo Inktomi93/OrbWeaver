@@ -5,15 +5,15 @@
 import type { CredentialHealth } from "@orb/contracts/credentials";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { CredentialContext } from "../context";
-import type { TestHealthParams } from "../contract/params";
-import type { CredentialsService } from "../contract/service";
-import { aadFor } from "../persistence/aad";
-import { clearRevokedOwned, fetchOwnedCredential, setRevokedById } from "../persistence/queries";
-import { requireOwned } from "../substrate/credential-not-found";
-import { decryptSealed } from "../substrate/decrypt";
-import { beginProbe, recordStrike, resetStrikes } from "../substrate/health-throttle";
-import { mintOpenRouter } from "../substrate/mint";
+import type { CredentialContext } from "../context.ts";
+import type { TestHealthParams } from "../contract/params.ts";
+import type { CredentialsService } from "../contract/service.ts";
+import { aadFor } from "../persistence/aad.ts";
+import { clearRevokedOwned, fetchOwnedCredential, setRevokedById } from "../persistence/queries.ts";
+import { requireOwned } from "../substrate/credential-not-found.ts";
+import { decryptSealed } from "../substrate/decrypt.ts";
+import { beginProbe, recordStrike, resetStrikes } from "../substrate/health-throttle.ts";
+import { mintOpenRouter } from "../substrate/mint.ts";
 
 /** The openrouter probe path (decrypt-by-id → probe → side-effects); split out for complexity. */
 async function probeOpenRouterHealth(

@@ -1,7 +1,7 @@
 import type { UserId } from "@orb/kit/ids";
-import type { UserPrincipalFields } from "../contract/results";
-import type { SessionsContext, SessionsService } from "../contract/service";
-import { selectForProvisionById } from "../persistence/users";
+import type { UserPrincipalFields } from "../contract/results.ts";
+import type { SessionsContext, SessionsService } from "../contract/service.ts";
+import { selectForProvisionById } from "../persistence/users.ts";
 
 // Resolve a bare `users` row id → its live principal-fields (role/handle/externalId), or `null` for an
 // unknown id. The frozen-host → `Principal` bridge (PD-73): chat's D19 cross-feature ops carry only the

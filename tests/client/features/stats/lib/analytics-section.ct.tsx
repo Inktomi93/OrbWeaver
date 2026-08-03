@@ -8,8 +8,8 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { AnalyticsContextHeaderStory, AnalyticsListHeaderStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { AnalyticsContextHeaderStory, AnalyticsListHeaderStory } from "../_ct-stories.tsx";
 
 const DRILLED_CHARACTER = {
   id: "character_ct_analytics",

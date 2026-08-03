@@ -4,7 +4,7 @@
 
 import { peekQueryData } from "@orb/client/data";
 import { QueryClient } from "@tanstack/react-query";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("peekQueryData returns cached data for a seeded key", () => {
   const qc = new QueryClient();

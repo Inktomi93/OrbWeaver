@@ -14,7 +14,7 @@ import { Button } from "@orb/ui/button";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import type { AutosaveSaveState } from "./create-autosave-entity-form";
+import type { AutosaveSaveState } from "./create-autosave-entity-form.tsx";
 
 export interface AutosaveStatusProps {
   readonly state: AutosaveSaveState;

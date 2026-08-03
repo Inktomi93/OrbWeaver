@@ -11,14 +11,14 @@
 import { DEFAULT_ADMISSION_KEY } from "@orb/contracts/workloads";
 import { DomainConflictError, DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadId } from "@orb/kit/ids";
-import type { WorkloadContributions } from "../contract/contribution";
-import type { RetryWorkloadParams } from "../contract/params";
-import type { WorkloadService, WorkloadServiceContext } from "../contract/service";
-import type { WorkloadRowAnyKind } from "../contract/workload-row";
-import { isActiveKindUniqueViolation } from "../persistence/constraints";
-import { insertWorkload, loadRawWorkloadParams, loadWorkload } from "../persistence/queries";
-import { isVisibleToCaller } from "../substrate/authorize";
-import { activeConflictMessage, resolveAdmissionKey } from "../substrate/params";
+import type { WorkloadContributions } from "../contract/contribution.ts";
+import type { RetryWorkloadParams } from "../contract/params.ts";
+import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
+import type { WorkloadRowAnyKind } from "../contract/workload-row.ts";
+import { isActiveKindUniqueViolation } from "../persistence/constraints.ts";
+import { insertWorkload, loadRawWorkloadParams, loadWorkload } from "../persistence/queries.ts";
+import { isVisibleToCaller } from "../substrate/authorize.ts";
+import { activeConflictMessage, resolveAdmissionKey } from "../substrate/params.ts";
 
 const ENTITY = "workload";
 

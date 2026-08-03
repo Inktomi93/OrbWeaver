@@ -27,15 +27,15 @@ import { HISTORY_DEPTH_PLACEMENT } from "@orb/kit/regex";
 import { createRegexApplyReplace } from "@orb/server/kit/regex";
 import { asc } from "drizzle-orm";
 import { beforeEach } from "vitest";
-import { buildAssembleContext } from "../../../../../packages/server/src/domain/chat/assembly/context";
-import { buildTurnMacroContext } from "../../../../../packages/server/src/domain/chat/assembly/macros";
-import { toShapeCanon } from "../../../../../packages/server/src/domain/chat/assembly/shape";
-import type { PromptHistoryRegexEnv } from "../../../../../packages/server/src/domain/chat/contract/regex";
-import type { HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results";
-import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedMessage, seedUser } from "../_support";
+import { buildAssembleContext } from "../../../../../packages/server/src/domain/chat/assembly/context.ts";
+import { buildTurnMacroContext } from "../../../../../packages/server/src/domain/chat/assembly/macros.ts";
+import { toShapeCanon } from "../../../../../packages/server/src/domain/chat/assembly/shape.ts";
+import type { PromptHistoryRegexEnv } from "../../../../../packages/server/src/domain/chat/contract/regex.ts";
+import type { HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import { loadCanonHistory } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeChatContext, seedCharacter, seedChat, seedMessage, seedUser } from "../_support.ts";
 
 let db: Db;
 beforeEach(async () => {

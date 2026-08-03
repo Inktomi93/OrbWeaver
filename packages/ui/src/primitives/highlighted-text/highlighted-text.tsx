@@ -2,7 +2,7 @@ import type { ComponentProps, ReactElement } from "react";
 import { useEffect, useRef } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { highlightedTextVariants } from "./variants";
+import { highlightedTextVariants } from "./variants.ts";
 
 export interface HighlightedTextRange {
   /** Inclusive start char offset. */

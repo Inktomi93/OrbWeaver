@@ -11,7 +11,7 @@ import { chatDigestSpeakers, chatDigests } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchStmt } from "@orb/db/kit";
 import { and, eq, inArray } from "drizzle-orm";
-import type { EmbeddingsHandoffRestampContext, HandoffRestampStatements } from "../contract/handoff-restamp";
+import type { EmbeddingsHandoffRestampContext, HandoffRestampStatements } from "../contract/handoff-restamp.ts";
 
 export function createHandoffRestampStatements(ctx: EmbeddingsHandoffRestampContext): HandoffRestampStatements {
   return ({ chatId, pairs }): Promise<readonly BatchStmt[]> => {

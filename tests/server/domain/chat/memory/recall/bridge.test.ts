@@ -1,9 +1,9 @@
 import type { CharacterId, ChatDigestId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { computeBridge } from "../../../../../../packages/server/src/domain/chat/memory/recall/bridge";
-import type { DigestRow, MemoryScope } from "../../../../../../packages/server/src/domain/chat/memory/types";
-import { expect, test } from "../../../../../support/fixtures";
+import { computeBridge } from "../../../../../../packages/server/src/domain/chat/memory/recall/bridge.ts";
+import type { DigestRow, MemoryScope } from "../../../../../../packages/server/src/domain/chat/memory/types.ts";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const chatId = castId<ChatId>("chat_b");
 // The shared bucket keys to the synthetic group-as-character (a real CharacterId — inv 8, no `''` sentinel).

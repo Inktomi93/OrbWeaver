@@ -16,8 +16,8 @@ import { createSessionsService } from "@orb/server/domain/sessions";
 import { seedOwner } from "@orb/server/entry/boot";
 import { createPasswordHasher } from "@orb/server/infra/auth";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../../support/db";
-import { expect, test } from "../../../support/fixtures";
+import { freshDb } from "../../../support/db.ts";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("u_owner");
 const OTHER_ID = castId<UserId>("u_other");

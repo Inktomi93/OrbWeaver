@@ -18,9 +18,9 @@ import { DEFAULT_COMPACTION_MODE, MANAGED_COMPACT_DEFAULT_PCT, MANAGED_VERBATIM_
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { compactionModeLabel } from "../../../../../packages/client/src/features/preset/lib/preset-nav";
-import { clearNumber, setNumber } from "../../../../support/ct/set-number";
-import { CompactionTabDefaultsStory, CompactionTabSetStory } from "./_add-flow-stories";
+import { compactionModeLabel } from "../../../../../packages/client/src/features/preset/lib/preset-nav.ts";
+import { clearNumber, setNumber } from "../../../../support/ct/set-number.ts";
+import { CompactionTabDefaultsStory, CompactionTabSetStory } from "./_add-flow-stories.tsx";
 import {
   ParamsDeckCapabilityErrorStory,
   ParamsDeckCustomParamsStory,
@@ -28,7 +28,7 @@ import {
   ParamsDeckGhostStory,
   ParamsDeckPendingCapabilityStory,
   ParamsDeckStaleStory,
-} from "./_params-deck-stories";
+} from "./_params-deck-stories.tsx";
 
 const SAVE_POLL = { intervals: [100, 200, 300, 500] };
 // The capability-gate notes + the ADVANCED gloss (hoisted — useTopLevelRegex). ONE note for the model-fed

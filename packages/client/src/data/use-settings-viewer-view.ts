@@ -10,7 +10,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import type { SettingsViewerView } from "#state";
-import { useTRPC } from "./trpc";
+import { useTRPC } from "./trpc.ts";
 
 /** The narrow viewer projection a settings `when` predicate consumes. The React Compiler caches the
  *  projection on the derived flags, so it stays stable across unrelated re-renders (D54: manual memo is

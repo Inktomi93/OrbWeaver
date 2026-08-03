@@ -9,7 +9,7 @@
 // entry drill alone.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { WorldEntrySelectionProbe } from "./_ct-stories";
+import { WorldEntrySelectionProbe } from "./_ct-stories.tsx";
 
 test("select sets the entry id; clear resets to none", async ({ mount }) => {
   const probe = await mount(<WorldEntrySelectionProbe />);

@@ -3,8 +3,8 @@
 // settings-section registry at the `admin` anchor. user-admin owns it (admin-tier config).
 
 import type { SettingsSectionContribution } from "#state";
-import { StructuredOutputSection } from "../components/structured-output-section";
-import { STRUCTURED_OUTPUT_SUBCATEGORY } from "./structured-output-nav";
+import { StructuredOutputSection } from "../components/structured-output-section.tsx";
+import { STRUCTURED_OUTPUT_SUBCATEGORY } from "./structured-output-nav.ts";
 
 // The contribution id has ONE home — this const. It is both the registry key and the id the body REPORTS its
 // save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.

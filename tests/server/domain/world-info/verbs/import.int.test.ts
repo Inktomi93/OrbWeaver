@@ -17,7 +17,7 @@ import { createImportStandaloneLorebook } from "../../../../../packages/server/s
 import { createImport } from "../../../../../packages/server/src/domain/world-info/verbs/import.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/index.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
 

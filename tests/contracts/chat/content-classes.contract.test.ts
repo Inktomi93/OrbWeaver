@@ -4,7 +4,7 @@
 
 import { CONTENT_CLASS_POLICY } from "@orb/contracts/chat";
 import { CONTENT_SPAN_KINDS } from "@orb/kit/content";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("CONTENT_CLASS_POLICY covers EVERY ContentSpanKind (registry totality — a new kind is a row, not a build)", () => {
   for (const kind of CONTENT_SPAN_KINDS) {

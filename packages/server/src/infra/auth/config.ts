@@ -4,8 +4,8 @@
 // varied per-test); production omits `deps.config` and gets `authConfigFromEnv()`.
 
 import { env } from "#foundation/env";
-import type { AuthConfig } from "./contract";
-import { normalizeHost } from "./host";
+import type { AuthConfig } from "./contract.ts";
+import { normalizeHost } from "./host.ts";
 
 /** Parse a comma-list env value into trimmed non-empty entries (CIDR strings, header names, …). */
 function parseCsv(raw: string | undefined): string[] {

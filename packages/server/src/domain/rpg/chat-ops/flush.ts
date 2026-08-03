@@ -22,14 +22,14 @@ import { coEmitsProseWithTools } from "@orb/contracts/connection";
 import type { RpgExtractionMode, RpgFoldFallbackReason } from "@orb/contracts/rpg";
 import { rpgJournalTypeSchema } from "@orb/contracts/rpg";
 import type { ChatTurnId, MessageId, MessageVariantId } from "@orb/kit/ids";
-import type { RpgTurnContext } from "../../chat";
-import type { StagedTurnFlush } from "../contract/params";
-import type { RpgContext, RpgGameRow, RpgRunToolRound } from "../contract/service";
-import { insertJournalEntry } from "../persistence/journal";
-import { writeStagedSnapshot } from "../persistence/snapshots";
-import { snapshotStateBeforeSlot } from "../snapshot-edit";
-import { deriveTrackersReadOnly } from "../substrate/readonly-axis";
-import { isReconcileBeat } from "./reconcile-cadence";
+import type { RpgTurnContext } from "../../chat/index.ts";
+import type { StagedTurnFlush } from "../contract/params.ts";
+import type { RpgContext, RpgGameRow, RpgRunToolRound } from "../contract/service.ts";
+import { insertJournalEntry } from "../persistence/journal.ts";
+import { writeStagedSnapshot } from "../persistence/snapshots.ts";
+import { snapshotStateBeforeSlot } from "../snapshot-edit.ts";
+import { deriveTrackersReadOnly } from "../substrate/readonly-axis.ts";
+import { isReconcileBeat } from "./reconcile-cadence.ts";
 
 /** The committed assistant slot a completed turn flushes onto (the snapshot key + the journal lineage stamp)
  *  PLUS the character turn's already-resolved route + consent verdict the state round rides (F1/F2). */

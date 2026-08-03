@@ -53,7 +53,7 @@ import {
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { users } from "./users";
+import { users } from "./users.ts";
 
 // The default lifecycle state of a freshly-enqueued row (start() inserts a `queued` row).
 const DEFAULT_STATUS = "queued";

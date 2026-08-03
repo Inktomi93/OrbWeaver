@@ -10,13 +10,13 @@ export {
   NO_HISTORY_FLOOR,
   resolveCardVisibility,
   resolveHistoryFloorSeq,
-} from "./clamp";
+} from "./clamp.ts";
 export {
   assertAuthorOrHost,
   assertHost,
   assertParticipant,
   permitsHost,
-} from "./decide";
+} from "./decide.ts";
 export {
   authorityForSurface,
   CHAT_AUTHORITIES,
@@ -24,4 +24,4 @@ export {
   CHAT_SURFACE_AUTHORITY,
   CHAT_VERB_AUTHORITY,
   DENY,
-} from "./matrix";
+} from "./matrix.ts";

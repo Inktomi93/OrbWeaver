@@ -12,9 +12,9 @@
 
 import type { CreateRerankRequestBody, CreateRerankResponse } from "@openrouter/sdk/models/operations";
 import type { RerankQuery } from "@orb/contracts/role-clients";
-import type { RerankRequest, RerankResult } from "../../../../contract";
-import { ProviderError } from "../../../../contract";
-import { providerErrorFromHttp } from "../../../kit";
+import type { RerankRequest, RerankResult } from "../../../../contract/index.ts";
+import { ProviderError } from "../../../../contract/index.ts";
+import { providerErrorFromHttp } from "../../../kit/index.ts";
 
 // The structural slice this runner needs off the client port.
 interface OrRerankClient {

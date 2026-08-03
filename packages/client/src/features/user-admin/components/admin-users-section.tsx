@@ -19,12 +19,12 @@ import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import { settingsAnchorId } from "#state";
-import { useSetEnabled, useSetRole } from "../hooks/use-admin-mutations";
-import { ADMIN_USERS_SUBCATEGORY } from "../lib/admin-users-nav";
-import { AdminCreateUserDialog } from "./admin-create-user-dialog";
-import { AdminResetPasswordDialog } from "./admin-reset-password-dialog";
-import { AdminUserRow } from "./admin-user-row";
-import { AdminUserSessionsDialog } from "./admin-user-sessions-dialog";
+import { useSetEnabled, useSetRole } from "../hooks/use-admin-mutations.ts";
+import { ADMIN_USERS_SUBCATEGORY } from "../lib/admin-users-nav.ts";
+import { AdminCreateUserDialog } from "./admin-create-user-dialog.tsx";
+import { AdminResetPasswordDialog } from "./admin-reset-password-dialog.tsx";
+import { AdminUserRow } from "./admin-user-row.tsx";
+import { AdminUserSessionsDialog } from "./admin-user-sessions-dialog.tsx";
 
 interface UserTarget {
   readonly userId: UserId;

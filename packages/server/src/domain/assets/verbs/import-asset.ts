@@ -6,9 +6,9 @@
 
 import type { PortableEntity, PortableFile, PortableImportOutcome } from "@orb/contracts/portability";
 import type { UserId } from "@orb/kit/ids";
-import type { AssetsPortabilityContext } from "../contract/portability";
-import { loadAssetCasRefById, storeBlob } from "../persistence/queries";
-import { hashAssetBytes, parsePortableAssetFilename } from "../substrate/portable-asset-file";
+import type { AssetsPortabilityContext } from "../contract/portability.ts";
+import { loadAssetCasRefById, storeBlob } from "../persistence/queries.ts";
+import { hashAssetBytes, parsePortableAssetFilename } from "../substrate/portable-asset-file.ts";
 
 export function createImportAsset(ctx: AssetsPortabilityContext): PortableEntity["importFile"] {
   return async (ownerId: UserId, file: PortableFile): Promise<PortableImportOutcome> => {

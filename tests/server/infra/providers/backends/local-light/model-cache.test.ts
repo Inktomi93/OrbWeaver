@@ -14,7 +14,7 @@ import {
   resolveModelId,
   throwIfAborted,
 } from "../../../../../../packages/server/src/infra/providers/backends/local-light/model-cache.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const flush = async (): Promise<void> => {
   await Promise.resolve();

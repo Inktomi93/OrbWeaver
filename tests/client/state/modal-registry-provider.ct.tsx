@@ -3,7 +3,7 @@
 // rendered AND received the full registry (all six ids), proving the value reached the consumer tree.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ModalRegistryProbe } from "./_ct-stories";
+import { ModalRegistryProbe } from "./_ct-stories.tsx";
 
 test("ModalRegistryProvider renders children and delivers the registry to a nested consumer", async ({ mount }) => {
   const probe = await mount(<ModalRegistryProbe />);

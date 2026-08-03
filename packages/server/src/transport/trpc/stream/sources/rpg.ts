@@ -28,7 +28,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatService } from "#domain/chat";
 import { subscribeRpgEvents } from "#domain/rpg";
-import type { RoomSourceDef } from "../room-source";
+import type { RoomSourceDef } from "../room-source.ts";
 
 /** Is the caller a present member of `chatId`? Reuses chat's member-scoped attach probe (rpg authority
  *  derives through the chat FK chain). `false` on the withhold-not-throw NOT_FOUND (no chat / not a member);

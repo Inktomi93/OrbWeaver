@@ -10,7 +10,7 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { tickWorkloadSchedules } from "../../../../../packages/server/src/domain/workloads/engine/schedule-tick.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService, principal, seedUser, seedWorkloadRow, T0 } from "../_support.ts";
 
 /** Seed a schedule row directly (the tick needs arbitrary `nextRunAt`/`enabled` the verbs won't make). */

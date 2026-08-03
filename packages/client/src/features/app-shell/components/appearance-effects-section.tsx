@@ -27,9 +27,9 @@ import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, 
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import { BLUR_STRENGTH_MAX, BLUR_STRENGTH_MIN } from "../lib/appearance-bounds";
-import { APPEARANCE_EFFECTS_KEYS, APPEARANCE_EFFECTS_SUBCATEGORY } from "../lib/appearance-effects-model";
-import { BLUR_SURFACE_ITEMS, SURFACE_TEXTURE_ITEMS } from "../lib/appearance-select-items";
+import { BLUR_STRENGTH_MAX, BLUR_STRENGTH_MIN } from "../lib/appearance-bounds.ts";
+import { APPEARANCE_EFFECTS_KEYS, APPEARANCE_EFFECTS_SUBCATEGORY } from "../lib/appearance-effects-model.ts";
+import { BLUR_SURFACE_ITEMS, SURFACE_TEXTURE_ITEMS } from "../lib/appearance-select-items.ts";
 
 type EffectsForm = Pick<AppearanceSettings, (typeof APPEARANCE_EFFECTS_KEYS)[number]>;
 

@@ -6,7 +6,7 @@ import type { ChangeEvent, ComponentPropsWithRef, DragEvent, ReactElement } from
 import { useState } from "react";
 import { AlertTriangle, Check, Icon, Upload } from "#primitives/icons";
 import { Spinner } from "#primitives/spinner";
-import { fileDropzoneVariants } from "./variants";
+import { fileDropzoneVariants } from "./variants.ts";
 
 /** A file dropped by the client-side `maxSizeBytes` pre-check (the only rejection reason today). */
 export interface FileDropzoneRejection {

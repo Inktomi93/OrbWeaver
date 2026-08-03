@@ -6,8 +6,8 @@
 // composing the sanctioned `createGatedStore` door internally. Sealed by G27 `selection-store-via-factory`:
 // a `state/*-selection-store.ts` calling `createGatedStore(` directly (instead of this mint) is RED.
 
-import { createGatedStore } from "./create-gated-store";
-import { setOpenOverlayPanel } from "./shell-store";
+import { createGatedStore } from "./create-gated-store.ts";
+import { setOpenOverlayPanel } from "./shell-store.ts";
 
 interface DrillSelectionState<P extends string, S extends string> {
   /** The drilled primary entity — `null` = the section's overview/welcome home. */

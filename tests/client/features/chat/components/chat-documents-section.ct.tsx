@@ -18,9 +18,9 @@
 import type { DocumentId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { ChatDocumentsSectionStory } from "../_ct-stories";
+import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { ChatDocumentsSectionStory } from "../_ct-stories.tsx";
 
 const SET_VISIBILITY = "chat.setChatDocumentVisibility";
 const DETACH = "databank.detachFromChat";

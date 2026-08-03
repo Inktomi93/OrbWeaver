@@ -2,7 +2,7 @@
 // owned) to the typed CredentialsNotFoundError, keeping persistence/ a pure query slot.
 
 import type { UserCredentialId } from "@orb/kit/ids";
-import { CredentialsNotFoundError } from "../contract/errors";
+import { CredentialsNotFoundError } from "../contract/errors.ts";
 
 export function requireOwned<T>(row: T | undefined, credentialId: UserCredentialId): T {
   if (row === undefined) {

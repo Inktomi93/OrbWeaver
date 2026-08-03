@@ -4,20 +4,20 @@
 // wired here (the retrieval ranking has one home; `find-characters` never re-implements or sideways-imports
 // it). The memory/discover/image/lexical verbs join here as they land (see `contract/service.ts` ledger).
 
-import type { SearchContext } from "./context";
-import type { SearchService } from "./contract/service";
-import { createCorpus } from "./verbs/corpus";
-import { createDigests } from "./verbs/digests";
-import { createDiscover } from "./verbs/discover";
-import { createDocuments } from "./verbs/documents";
-import { createFields, createSuggest } from "./verbs/fields";
-import { createFindCharacters } from "./verbs/find-characters";
-import { createImages } from "./verbs/images";
-import { createKnn } from "./verbs/knn";
-import { createSearch } from "./verbs/search";
-import { createSegments } from "./verbs/segments";
-import { createSimilarArt } from "./verbs/similar-art";
-import { createSimilarCharacters } from "./verbs/similar-characters";
+import type { SearchContext } from "./context.ts";
+import type { SearchService } from "./contract/service.ts";
+import { createCorpus } from "./verbs/corpus.ts";
+import { createDigests } from "./verbs/digests.ts";
+import { createDiscover } from "./verbs/discover.ts";
+import { createDocuments } from "./verbs/documents.ts";
+import { createFields, createSuggest } from "./verbs/fields.ts";
+import { createFindCharacters } from "./verbs/find-characters.ts";
+import { createImages } from "./verbs/images.ts";
+import { createKnn } from "./verbs/knn.ts";
+import { createSearch } from "./verbs/search.ts";
+import { createSegments } from "./verbs/segments.ts";
+import { createSimilarArt } from "./verbs/similar-art.ts";
+import { createSimilarCharacters } from "./verbs/similar-characters.ts";
 
 export function createSearchService(ctx: SearchContext): SearchService {
   const knn = createKnn(ctx);

@@ -8,7 +8,7 @@
 // is `abortAll`, reserved for the room-gone case (the host deleted the chat) — see its contract note.
 
 import type { ChatId, UserId } from "@orb/kit/ids";
-import type { AbortResult, ActiveTurnHandle, ActiveTurns } from "./contract/active-turns";
+import type { AbortResult, ActiveTurnHandle, ActiveTurns } from "./contract/active-turns.ts";
 
 interface Entry {
   readonly controller: AbortController;

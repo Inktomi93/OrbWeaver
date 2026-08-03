@@ -29,9 +29,9 @@ import type {
 } from "@orb/contracts/rpg";
 import { actorRefKey, gameTrackers, trackerCeiling, trackerNumber, trackersForCarrier } from "@orb/contracts/rpg";
 import type { CharacterId, MessageId, UserId } from "@orb/kit/ids";
-import type { RpgContext, RpgGameRow } from "../contract/service";
-import { listSheets } from "../persistence/sheets";
-import { currentSnapshotState, snapshotStateBeforeSlot } from "../snapshot-edit";
+import type { RpgContext, RpgGameRow } from "../contract/service.ts";
+import { listSheets } from "../persistence/sheets.ts";
+import { currentSnapshotState, snapshotStateBeforeSlot } from "../snapshot-edit.ts";
 
 /** The orb-row envelope (§4.11 #5) — the band fits at most this many orbs at the 17rem floor. Caps the
  *  PINNED set so a host over-pinning can't crush the row (the pins are ordered by the tracker `sort`, so the

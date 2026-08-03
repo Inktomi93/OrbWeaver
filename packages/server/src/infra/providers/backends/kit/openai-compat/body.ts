@@ -8,8 +8,8 @@
 // must not depend on that infra-internal funnel type (which doesn't exist yet), so this takes a minimal
 // {@link OpenAiSamplingInput} the runner projects its resolved knobs into.
 
-import type { ResponseFormat, ToolChoice, WireTool } from "../../../contract/chat";
-import type { ChatToolCallDelta } from "../wire-schemas";
+import type { ResponseFormat, ToolChoice, WireTool } from "../../../contract/chat.ts";
+import type { ChatToolCallDelta } from "../wire-schemas.ts";
 
 /** The provider-agnostic sampler knobs a runner hands in (camelCase) — each emitted to the wire only when
  *  set. Mirrors the relevant `UserIntent` knobs without coupling to that contract. */

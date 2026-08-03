@@ -4,9 +4,9 @@
 // the game turn's authority before its `skill_check` re-reads the roll), the `createGetMembership` precedent.
 // `null` = no user message yet; the check then rolls normally (no queued die to feed).
 
-import type { ChatContext } from "../context";
-import type { GetPendingUserText } from "../contract/context";
-import { loadPendingUserText } from "../persistence/queries";
+import type { ChatContext } from "../context.ts";
+import type { GetPendingUserText } from "../contract/context.ts";
+import { loadPendingUserText } from "../persistence/queries.ts";
 
 export function createGetPendingUserText(ctx: ChatContext): GetPendingUserText {
   return (chatId) => loadPendingUserText(ctx.db, chatId);

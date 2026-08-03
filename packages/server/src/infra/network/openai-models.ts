@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { getLog } from "#foundation/observability";
-import { safeFetch } from "./egress";
+import { safeFetch } from "./egress.ts";
 
 // `/models` probe against a USER-CONFIGURED OpenAI-compatible endpoint (configured-endpoint consumer
 // class, D61 §2). The owner's own `baseUrl` IS the declared intent — legitimately LAN/private and often

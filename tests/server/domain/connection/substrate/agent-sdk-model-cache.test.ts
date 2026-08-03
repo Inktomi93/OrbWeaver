@@ -13,7 +13,7 @@ import {
   getCachedAgentSdkModels,
   seedAgentSdkModelCache,
 } from "../../../../../packages/server/src/domain/connection/substrate/agent-sdk-model-cache.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const FETCHED_AT = 1_750_000_000_000;
 const MS_PER_HOUR = 3_600_000;

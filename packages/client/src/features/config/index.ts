@@ -4,4 +4,4 @@
 // through the `config-collections` contributor registry assembled at the door (the `features/home`
 // precedent one family across).
 
-export { makeConfigSection } from "./lib/config-section";
+export { makeConfigSection } from "./lib/config-section.tsx";

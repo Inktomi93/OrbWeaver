@@ -5,7 +5,7 @@
 
 import { isIngressAllowed, parseAllowlist, resolveClientIp } from "@orb/server/infra/network";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 describe("parseAllowlist", () => {
   test("splits, trims, and drops empties; unset is the empty belt-off list", () => {

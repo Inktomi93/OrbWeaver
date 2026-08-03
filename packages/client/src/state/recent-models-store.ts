@@ -3,7 +3,7 @@
 // pushRecentModel unshifts (most-recent-first).
 
 import { isPlainObject } from "@orb/kit/guards";
-import { createPersistedStore } from "./create-persisted-store";
+import { createPersistedStore } from "./create-persisted-store.ts";
 
 /** The MRU cap for the device-local Recent group (per source). */
 export const RECENT_MODELS_CAP = 5;

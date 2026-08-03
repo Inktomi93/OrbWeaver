@@ -6,7 +6,7 @@
 import type { BulkImportChatInput, BulkImportMessageInput, BulkImportVariantInput } from "@orb/contracts/chat";
 import type { PersonaId } from "@orb/kit/ids";
 import type { ParsedChatMessage } from "#kit/serde/chat";
-import type { CollectedChat } from "../contract/views";
+import type { CollectedChat } from "../contract/views.ts";
 
 const JSONL_EXT = /\.jsonl$/i;
 

@@ -6,7 +6,7 @@
 // consumer falls back to the env-owned window for that engine — the engine's answer WINS whenever it's
 // cached-and-fresh (a misconfigured env can never lie to the capability math).
 
-import type { VllmWindowEngine } from "../contract/service";
+import type { VllmWindowEngine } from "../contract/service.ts";
 
 /** The `cache` attribute every span event about this mirror carries (the catalog mirrors' twin). */
 export const VLLM_WINDOW_CACHE_NAME = "connection.vllm-window";

@@ -12,8 +12,8 @@
 //      that opened empty on the first keystroke would read as "this field has no macros".
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../support/ct/route-trpc";
-import { PromptMacroSuggestionsStory } from "./_ct-stories";
+import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { PromptMacroSuggestionsStory } from "./_ct-stories.tsx";
 
 const ACTIVE_PRESET_ID = "preset_ct_active";
 const USER_MACROS = [{ name: "sceneTone", description: "This game's tonal register.", args: [], body: "hushed", inputs: [], strict: false }];

@@ -16,7 +16,7 @@ import {
   securityEvent,
 } from "@orb/server/foundation/observability";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 function rec(id: string): RequestRecord {
   return { id, method: "GET", path: `/${id}`, status: 200, durationMs: 1, at: 1 };

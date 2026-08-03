@@ -5,4 +5,4 @@
 // guard here — ownership-scoped surfaces gate off `principal.userId`; `setActivePersona`'s host-or-self
 // check is a separate injected chat guard (`requireChatAuthorOrHost`, see contract/service.ts).
 
-export type { PersonaContext } from "./contract/service";
+export type { PersonaContext } from "./contract/service.ts";

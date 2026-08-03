@@ -3,7 +3,7 @@
 
 import { extractChatReasoning, extractChatReply, parseChatCompletionResult } from "@orb/server/infra/providers/backends/kit";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 describe("parseChatCompletionResult — lenient wire parse", () => {
   test("parses a realistic body and KEEPS unknown fields (.loose)", () => {

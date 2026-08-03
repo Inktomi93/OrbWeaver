@@ -7,7 +7,7 @@ import { getTraceByRequestId, initTracing, withRequestSpan } from "@orb/server/f
 import { ProviderError } from "@orb/server/infra/providers";
 import { computeBackoffMs, runWithPreCommitRetry } from "@orb/server/infra/providers/backends/kit";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const serverErr = (): ProviderError => new ProviderError({ kind: "server", retryable: true, message: "boom" });
 

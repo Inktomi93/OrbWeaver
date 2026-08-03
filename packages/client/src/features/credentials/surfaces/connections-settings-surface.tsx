@@ -27,11 +27,11 @@ import type { AutosaveSession } from "#forms";
 import { AutosaveStatus } from "#forms";
 import { useFocusOnMount } from "#lib";
 import { settingsAnchorId } from "#state";
-import { AddCredentialDialog } from "../components/add-credential-dialog";
-import { CredentialKeyRow } from "../components/credential-key-row";
-import { RoleSlotRow } from "../components/role-slot-row";
-import { CONNECTIONS_ENTITY_ID, ConnectionsForm } from "../hooks/use-connections-form";
-import type { RoutingForm } from "../lib/connections-model";
+import { AddCredentialDialog } from "../components/add-credential-dialog.tsx";
+import { CredentialKeyRow } from "../components/credential-key-row.tsx";
+import { RoleSlotRow } from "../components/role-slot-row.tsx";
+import { CONNECTIONS_ENTITY_ID, ConnectionsForm } from "../hooks/use-connections-form.ts";
+import type { RoutingForm } from "../lib/connections-model.ts";
 import {
   embedDimensionWarning,
   groupCredentialsByProvider,
@@ -40,8 +40,8 @@ import {
   ROLE_SLOTS_ORDERED,
   routingFormDrifted,
   toRoutingSection,
-} from "../lib/connections-model";
-import { CONNECTIONS_SUBCATEGORY_IDS } from "../lib/connections-nav";
+} from "../lib/connections-model.ts";
+import { CONNECTIONS_SUBCATEGORY_IDS } from "../lib/connections-nav.ts";
 
 const anchor = (sub: string): string => settingsAnchorId("connections", sub);
 

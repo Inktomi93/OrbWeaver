@@ -9,7 +9,7 @@ import { USER_BUS_EVENT_TYPES } from "@orb/contracts/user-bus";
 import type { ChatId } from "@orb/kit/ids";
 import type { InvalidateQueryFilters, QueryClient } from "@tanstack/react-query";
 import { busDupCheck, busInvalidate, IS_DEV } from "#lib";
-import type { Trpc } from "./trpc";
+import type { Trpc } from "./trpc.ts";
 
 /** What the proxy's `.queryFilter()`/`.pathFilter()` return — accepted by `invalidateQueries`. */
 export type InvalidateFilter = InvalidateQueryFilters;

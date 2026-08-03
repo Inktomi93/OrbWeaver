@@ -10,7 +10,7 @@ import {
   seedVllmGenWindow,
   seedVllmWindow,
 } from "../../../../../packages/server/src/domain/connection/substrate/vllm-gen-window-cache.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const HOUR_MS = 3_600_000;
 

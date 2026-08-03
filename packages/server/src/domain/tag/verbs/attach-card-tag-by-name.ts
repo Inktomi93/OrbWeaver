@@ -7,10 +7,10 @@
 
 import { DomainOperationError } from "@orb/kit/errors";
 import { normalizeTagName } from "@orb/kit/tag";
-import type { AttachCardTagByNameParams } from "../contract/params";
-import type { TagContext, TagService } from "../contract/service";
-import { attachCharacterTag } from "../persistence/junctions";
-import { findTagIdByName, insertTagIfAbsent } from "../persistence/queries";
+import type { AttachCardTagByNameParams } from "../contract/params.ts";
+import type { TagContext, TagService } from "../contract/service.ts";
+import { attachCharacterTag } from "../persistence/junctions.ts";
+import { findTagIdByName, insertTagIfAbsent } from "../persistence/queries.ts";
 
 export function createAttachCardTagByName(ctx: TagContext): TagService["attachCardTagByName"] {
   return async ({ ownerId, characterId, tagName, source = "manual", status = "accepted" }: AttachCardTagByNameParams): Promise<boolean> => {

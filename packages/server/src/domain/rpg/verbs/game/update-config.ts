@@ -6,11 +6,11 @@ import type { RpgGameConfig, RpgGameFeatures, RpgStatProfile } from "@orb/contra
 import { RPG_EXTRACTION_MODES, rpgGameConfigSchema } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { RpgGameId } from "@orb/kit/ids";
-import type { UpdateConfigParams } from "../../contract/params";
-import type { RpgContext, RpgService } from "../../contract/service";
-import { resolveHost } from "../../guard";
-import { updateGame } from "../../persistence/games";
-import { listSheets } from "../../persistence/sheets";
+import type { UpdateConfigParams } from "../../contract/params.ts";
+import type { RpgContext, RpgService } from "../../contract/service.ts";
+import { resolveHost } from "../../guard.ts";
+import { updateGame } from "../../persistence/games.ts";
+import { listSheets } from "../../persistence/sheets.ts";
 
 /** Assert a profile change is legal against the game's existing sheets (§2.3 mutability). Adds are always
  *  legal; a REMOVED attribute key must be referenced by NO sheet (attributes record) NOR the profile's own

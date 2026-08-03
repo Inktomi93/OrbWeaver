@@ -6,7 +6,7 @@ import type {
 import { Collapsible as BaseCollapsible } from "@base-ui/react/collapsible";
 import type { ReactElement } from "react";
 import { ChevronDown, Icon } from "#primitives/icons";
-import { collapsibleVariants } from "./variants";
+import { collapsibleVariants } from "./variants.ts";
 
 const slots = collapsibleVariants();
 

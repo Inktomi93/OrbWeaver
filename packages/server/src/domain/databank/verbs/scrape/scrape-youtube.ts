@@ -8,11 +8,11 @@
 // empty cue set → the same `ScrapeFailedError` (there is nothing to ingest — a caption-less video is not canon).
 // Stamps: origin 'youtube', sourceUrl = the canonical watch URL, name = the video id (timedtext carries no title).
 
-import { ScrapeFailedError } from "../../contract/errors";
-import type { ScrapeYoutubeParams } from "../../contract/params";
-import type { UploadResult } from "../../contract/results";
-import type { DatabankContext, DatabankService } from "../../contract/service";
-import { finalizeScrape } from "../../substrate/scrape-canon";
+import { ScrapeFailedError } from "../../contract/errors.ts";
+import type { ScrapeYoutubeParams } from "../../contract/params.ts";
+import type { UploadResult } from "../../contract/results.ts";
+import type { DatabankContext, DatabankService } from "../../contract/service.ts";
+import { finalizeScrape } from "../../substrate/scrape-canon.ts";
 
 const PLAIN_MIME = "text/plain";
 const TIMEDTEXT_ORIGIN = "https://www.youtube.com/api/timedtext";

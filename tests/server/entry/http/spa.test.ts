@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { registerSpa, resolveSpaDistDir } from "@orb/server/entry/http";
 import { Hono } from "hono";
 import { afterAll, beforeAll, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const OK = 200;
 const NOT_FOUND = 404;

@@ -9,8 +9,8 @@ import type { Db } from "@orb/db";
 import { assets, characterPersonas, characters, personas } from "@orb/db";
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, inArray } from "drizzle-orm";
-import { AssetNotFoundError, PersonaCharacterNotFoundError, PersonaNotFoundError } from "../contract/errors";
-import type { PersonaDetail, PersonaRosterView } from "../contract/views";
+import { AssetNotFoundError, PersonaCharacterNotFoundError, PersonaNotFoundError } from "../contract/errors.ts";
+import type { PersonaDetail, PersonaRosterView } from "../contract/views.ts";
 
 const LIMIT_ONE = 1;
 

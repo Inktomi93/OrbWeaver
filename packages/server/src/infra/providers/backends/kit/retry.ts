@@ -16,7 +16,7 @@
 // distinguish "a delta had already streamed" from "attempts exhausted".
 
 import { addSpanEvent } from "#foundation/observability";
-import { ProviderError } from "../../contract";
+import { ProviderError } from "../../contract/index.ts";
 
 const DEFAULT_MAX_ATTEMPTS = 3; // total tries including the first
 const DEFAULT_BASE_MS = 500; // first sleep

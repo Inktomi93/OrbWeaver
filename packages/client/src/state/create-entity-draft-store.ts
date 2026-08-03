@@ -18,7 +18,7 @@ import type { StateStorage } from "zustand/middleware";
 import { createJSONStorage, devtools, persist } from "zustand/middleware";
 import { useStore } from "zustand/react";
 import { createStore } from "zustand/vanilla";
-import { STORE_DEVTOOLS_ENABLED } from "./create-gated-store";
+import { STORE_DEVTOOLS_ENABLED } from "./create-gated-store.ts";
 
 // Stable no-draft ref: a fresh {} per render would infinite-loop useSyncExternalStore under Object.is.
 const EMPTY: Readonly<Record<string, never>> = Object.freeze({});

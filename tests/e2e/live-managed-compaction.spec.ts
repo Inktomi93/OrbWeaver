@@ -21,8 +21,8 @@
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import { waitForAppReady } from "./support/chat-room";
-import type { ChatRoute } from "./support/trpc";
+import { waitForAppReady } from "./support/chat-room.ts";
+import type { ChatRoute } from "./support/trpc.ts";
 import {
   getChatRoute,
   getUserSettings,
@@ -35,7 +35,7 @@ import {
   startChat,
   trpcMutation,
   trpcQuery,
-} from "./support/trpc";
+} from "./support/trpc.ts";
 
 // Managed compaction is agent-sdk-only; since the agent-sdk × vllm skin retired (D109), the only agent-sdk
 // route is the owner's hosted Claude subscription. Each test pins this and restores the prior route.

@@ -6,7 +6,7 @@
 import type { Theme, ThemeOverride } from "@orb/contracts/theme";
 import { describe } from "vitest";
 import { resolveThemeScopeTokens } from "../../../../../packages/client/src/features/app-shell/lib/resolve-theme-scope-tokens.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const FULL_OVERRIDE: ThemeOverride = {
   accent: "oklch(0.72 0.175 52)",

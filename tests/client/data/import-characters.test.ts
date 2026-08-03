@@ -8,8 +8,8 @@
 // the dom-less root typecheck:graph program (a dom-lib landmine by construction — the 2026-06-28 incident).
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { afterEach, vi } from "vitest";
-import { importCharacters } from "../../../packages/client/src/data/import-characters";
-import { expect, test } from "../../support/fixtures";
+import { importCharacters } from "../../../packages/client/src/data/import-characters.ts";
+import { expect, test } from "../../support/fixtures.ts";
 
 afterEach(() => {
   vi.unstubAllGlobals();

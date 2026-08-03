@@ -6,8 +6,8 @@
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { publishRpgEvent, subscribeRpgEvents } from "../../../../packages/server/src/domain/rpg/index";
-import { expect, test } from "../../../support/fixtures";
+import { publishRpgEvent, subscribeRpgEvents } from "../../../../packages/server/src/domain/rpg/index.ts";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const chatA = castId<ChatId>("chat_a");
 const chatB = castId<ChatId>("chat_b");

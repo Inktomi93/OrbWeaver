@@ -7,9 +7,9 @@
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { makeCharacterSummary, makeTagFixture } from "../../character/fixtures";
-import { ChatQuickPicksTileStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { makeCharacterSummary, makeTagFixture } from "../../character/fixtures.ts";
+import { ChatQuickPicksTileStory } from "../_ct-stories.tsx";
 
 const ARIA = makeCharacterSummary({ id: "char_aria", name: "Aria" });
 const BOLT = makeCharacterSummary({ id: "char_bolt", name: "Bolt" });

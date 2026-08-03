@@ -20,12 +20,12 @@ import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
-import { RpgFreshnessIndicator } from "../../../../packages/client/src/features/rpg/components/rpg-freshness-indicator";
-import { RpgCardLightbox } from "../../../../packages/client/src/features/rpg/components/rpg-scene-cards";
-import type { ArchivedCard } from "../../../../packages/client/src/features/rpg/lib/archived-cards";
-import { CtChatContributorSectionRegistry, CtDataProviders } from "../../../support/ct/ct-data-providers";
-import { CHAT_ID } from "../chat/fixtures";
+import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
+import { RpgFreshnessIndicator } from "../../../../packages/client/src/features/rpg/components/rpg-freshness-indicator.tsx";
+import { RpgCardLightbox } from "../../../../packages/client/src/features/rpg/components/rpg-scene-cards.tsx";
+import type { ArchivedCard } from "../../../../packages/client/src/features/rpg/lib/archived-cards.ts";
+import { CtChatContributorSectionRegistry, CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CHAT_ID } from "../chat/fixtures.ts";
 
 /** Mounts the chats section's CONTEXT through the real host, with BOTH rpg contributions merged in — the tab
  *  contributors AND the whole-pane HUD region claim — built here with the CT's own trpc/queryClient (the

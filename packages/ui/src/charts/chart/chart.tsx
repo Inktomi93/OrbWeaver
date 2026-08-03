@@ -5,10 +5,10 @@
 import ReactEChartsCoreDefault from "echarts-for-react/lib/core";
 import type { ReactElement } from "react";
 import { cn, usePrefersReducedMotion } from "#lib";
-import type { OrbChartOption, OrbEChartsInstance } from "./echarts-setup";
-import { echartsCore } from "./echarts-setup";
-import { mergeChartOption } from "./merge-option";
-import { chartVariants } from "./variants";
+import type { OrbChartOption, OrbEChartsInstance } from "./echarts-setup.ts";
+import { echartsCore } from "./echarts-setup.ts";
+import { mergeChartOption } from "./merge-option.ts";
+import { chartVariants } from "./variants.ts";
 
 // `echarts-for-react/lib/core` is CJS (`exports.default = class`). Some bundler interop paths
 // (notably the dev server's ESM<->CJS bridge) hand back the module namespace object

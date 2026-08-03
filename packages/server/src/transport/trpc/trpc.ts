@@ -11,8 +11,8 @@ import { DomainRateLimitError } from "@orb/kit/errors";
 import { initTRPC, TRPCError } from "@trpc/server";
 import { requireAdmin } from "#domain/admin";
 import { securityEvent, setSpanAttrs, span } from "#foundation/observability";
-import type { Context } from "./context";
-import { classifyDomainError, domainReason } from "./error-mapping";
+import type { Context } from "./context.ts";
+import { classifyDomainError, domainReason } from "./error-mapping.ts";
 
 // SSE heartbeat (SSE-1 §8) — the deployment-wide subscription liveness policy, set once here because
 // `initTRPC.create` is the ONE home for it. tRPC ships ping DISABLED by default and no client inactivity

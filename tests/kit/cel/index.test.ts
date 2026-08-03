@@ -4,7 +4,7 @@
 
 import type { CelBindings, CelProgram } from "@orb/kit/cel";
 import { CelEvalError, evalCel, isCelParseError, parseCel } from "@orb/kit/cel";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 import goldens from "./cel-goldens.json" with { type: "json" };
 
 interface Golden {

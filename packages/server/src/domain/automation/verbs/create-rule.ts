@@ -3,12 +3,12 @@
 // cooldown floor), assigns `position = max+1`, and inserts the rule BORN DISABLED (enabling is the consent
 // act). Returns the stored view.
 
-import type { CreateRuleParams } from "../contract/params";
-import type { RuleView } from "../contract/results";
-import type { AutomationContext, AutomationService } from "../contract/service";
-import { requireChatHost } from "../guard";
-import { insertRule, maxPosition, selectRuleRow, toRuleView } from "../persistence/rules";
-import { RULE_MAX_FIRES_DEFAULT, validateRuleInput } from "../substrate/validate";
+import type { CreateRuleParams } from "../contract/params.ts";
+import type { RuleView } from "../contract/results.ts";
+import type { AutomationContext, AutomationService } from "../contract/service.ts";
+import { requireChatHost } from "../guard.ts";
+import { insertRule, maxPosition, selectRuleRow, toRuleView } from "../persistence/rules.ts";
+import { RULE_MAX_FIRES_DEFAULT, validateRuleInput } from "../substrate/validate.ts";
 
 export function createCreateRule(ctx: AutomationContext): AutomationService["createRule"] {
   return async (params: CreateRuleParams): Promise<RuleView> => {

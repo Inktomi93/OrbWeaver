@@ -29,9 +29,9 @@ import type { Trpc } from "#data";
 import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { DRAFT_UNLOCK_AFTER_SEND } from "#lib";
 import { enterSelectionMode, goToLanding, setDraftStartAsGame, startNewChat, useDraftConfig } from "#state";
-import { CharacterGalleryDialog } from "../anchors/character-gallery-dialog";
-import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations";
-import { RenameChatDialog } from "./rename-chat-dialog";
+import { CharacterGalleryDialog } from "../anchors/character-gallery-dialog.tsx";
+import { useDeleteChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations.ts";
+import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 
 // The #40 GAME front-door mutations — the ⋯ menu's start/pause/resume rides the rpg procs DIRECTLY
 // (lockdown §12 — a feature rides another domain's tRPC procedure directly, never its client; the rpg

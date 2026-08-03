@@ -17,8 +17,8 @@
 import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatTurnId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { freshDb } from "../../../../../support/db";
-import { expect, principal, seedLiteGame, seedMessage, test, turnConnection } from "../../_support";
+import { freshDb } from "../../../../../support/db.ts";
+import { expect, principal, seedLiteGame, seedMessage, test, turnConnection } from "../../_support.ts";
 
 test("HOST rebuild: a drifted state + resync → corrected (born-committed as a message-less HAND row)", async () => {
   const db = await freshDb();

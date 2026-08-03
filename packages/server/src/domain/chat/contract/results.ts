@@ -26,9 +26,9 @@ import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { HistoryRole, ToolCallInput, ToolChoice, WireTool } from "#infra/providers";
-import type { MemoryConfig, MemoryRecallInputs } from "./memory";
-import type { RequestTurnParams } from "./params";
-import type { ChatDetail, ChatVariables } from "./views";
+import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
+import type { RequestTurnParams } from "./params.ts";
+import type { ChatDetail, ChatVariables } from "./views.ts";
 
 export type { TurnIntent } from "@orb/contracts/chat";
 

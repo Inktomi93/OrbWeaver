@@ -4,9 +4,9 @@
 
 import type { ProfilerOnRenderCallback, ReactNode } from "react";
 import { Profiler } from "react";
-import { IS_DEV } from "./dev-flag";
-import { logClock } from "./log-clock";
-import { recordRender } from "./render-stats";
+import { IS_DEV } from "./dev-flag.ts";
+import { logClock } from "./log-clock.ts";
+import { recordRender } from "./render-stats.ts";
 
 const SLOW_COMMIT_MS = 12;
 

@@ -3,13 +3,13 @@
 // to a retryable {@link ProviderError} enriched with the supervisor's known status (`failed` is the one
 // non-retryable lifecycle state). Two seams: `enginePost` (typed JSON) and `engineStream` (raw SSE bytes).
 
-import { ProviderError } from "../../contract";
-import { getEngineStatus } from "./engine-status";
+import { ProviderError } from "../../contract/index.ts";
+import { getEngineStatus } from "./engine-status.ts";
 // engineBaseUrl lives in the engine-url LEAF (extracted to break the client↔wake-gate↔fleet-control cycle).
-import { engineBaseUrl } from "./engine-url";
-import type { VLLM_ENGINES } from "./engines";
-import type { WakeGateDeps } from "./wake-gate";
-import { ensureAwake } from "./wake-gate";
+import { engineBaseUrl } from "./engine-url.ts";
+import type { VLLM_ENGINES } from "./engines.ts";
+import type { WakeGateDeps } from "./wake-gate.ts";
+import { ensureAwake } from "./wake-gate.ts";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 

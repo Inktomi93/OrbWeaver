@@ -23,7 +23,7 @@ import { ChatNotFoundError } from "@orb/server/domain/chat";
 import type { Context } from "@orb/server/transport/trpc";
 import { publishChatEvent } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../../_support.ts";
 
 const MEMBER = castId<UserId>("user_member");

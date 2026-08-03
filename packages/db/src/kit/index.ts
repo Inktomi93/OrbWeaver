@@ -2,8 +2,8 @@
 // batch tuple bridge, the unified constraint classifier, the owner-scoped fetch, the bound-variable
 // chunker, and the JSON read-seam parsers.
 
-export * from "./batch";
-export * from "./db-errors";
-export * from "./fetch-owned";
-export * from "./insert-chunk";
-export * from "./parsers";
+export * from "./batch.ts";
+export * from "./db-errors.ts";
+export * from "./fetch-owned.ts";
+export * from "./insert-chunk.ts";
+export * from "./parsers.ts";

@@ -41,13 +41,13 @@ import type { RpgActorOp, RpgActorRef, RpgDateMode, RpgExtraction, RpgTrackerDef
 import { actorRefKey, actorTrackerWriteKeys, RPG_PROFILE_D20, rpgSheetSchema, rpgSnapshotStateSchema, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId, ChatTurnId, Handle, RpgGameId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { RpgGatherResult } from "../../../../packages/server/src/domain/rpg/contract/params";
-import type { RpgRosterActor } from "../../../../packages/server/src/domain/rpg/index";
-import { RPG_DELTA_HEADING, RPG_SCENE_OPENS_HEADING } from "../../../../packages/server/src/domain/rpg/substrate/delta";
-import { freshDb } from "../../../support/db";
-import { zodLeafPaths } from "../../../support/zod-leaf-paths";
-import type { RpgHarness } from "./_support";
-import { expect, principal, rosterUser, seedCharacter, seedLiteGame, seedMessage, seedUser, test, turnConnection } from "./_support";
+import type { RpgGatherResult } from "../../../../packages/server/src/domain/rpg/contract/params.ts";
+import type { RpgRosterActor } from "../../../../packages/server/src/domain/rpg/index.ts";
+import { RPG_DELTA_HEADING, RPG_SCENE_OPENS_HEADING } from "../../../../packages/server/src/domain/rpg/substrate/delta.ts";
+import { freshDb } from "../../../support/db.ts";
+import { zodLeafPaths } from "../../../support/zod-leaf-paths.ts";
+import type { RpgHarness } from "./_support.ts";
+import { expect, principal, rosterUser, seedCharacter, seedLiteGame, seedMessage, seedUser, test, turnConnection } from "./_support.ts";
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE INVENTORY — derived from the contracts, never hand-listed.

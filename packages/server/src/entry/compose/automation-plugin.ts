@@ -45,11 +45,11 @@ import type { ToolUseService } from "#domain/tool-use";
 import type { WorldInfoService } from "#domain/world-info";
 import { createPluginHost } from "#infra/plugin-host";
 import type { RoleClientsWithSignal } from "#infra/providers";
-import { publishAutomationEvent, publishNotification } from "../../transport/trpc";
-import { createAutomationOps } from "./automation-watcher";
-import type { ChatComposeResult } from "./chat";
-import { minter } from "./minter";
-import { loadPluginMessages } from "./plugin-chat-reads";
+import { publishAutomationEvent, publishNotification } from "../../transport/trpc/index.ts";
+import { createAutomationOps } from "./automation-watcher.ts";
+import type { ChatComposeResult } from "./chat.ts";
+import { minter } from "./minter.ts";
+import { loadPluginMessages } from "./plugin-chat-reads.ts";
 
 const AUTOBG_SYSTEM =
   "You choose the single best-matching background for a scene. Reply with ONLY the exact background name from the provided list, nothing else.";

@@ -9,7 +9,7 @@ import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_DIM, EMBED_MODEL, makeStoreHarness, seedCharacter, seedUser } from "../_support.ts";
 
 const CARD_TEXT = "a card to score";

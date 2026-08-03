@@ -5,16 +5,16 @@
 // FLAG[PD-35]: recencyBias + verbatimWindow are accepted on params but NOT applied here — verbatimWindow
 // is memory's pre-call query-assembly knob, and recencyBias's blend formula is undecided.
 
-import type { SearchContext } from "../context";
-import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors";
-import type { DigestsParams } from "../contract/params";
-import type { DigestSearchHit } from "../contract/results";
-import type { SearchService } from "../contract/service";
-import { nearestDigests } from "../persistence/digest-rows";
-import { SCOPED_POOL_K } from "../substrate/constants";
-import { compareCslsBy, cslsAdjust } from "../substrate/csls";
-import { blockKeyStr } from "../substrate/dedupe";
-import { applyRerank } from "../substrate/rerank";
+import type { SearchContext } from "../context.ts";
+import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
+import type { DigestsParams } from "../contract/params.ts";
+import type { DigestSearchHit } from "../contract/results.ts";
+import type { SearchService } from "../contract/service.ts";
+import { nearestDigests } from "../persistence/digest-rows.ts";
+import { SCOPED_POOL_K } from "../substrate/constants.ts";
+import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
+import { blockKeyStr } from "../substrate/dedupe.ts";
+import { applyRerank } from "../substrate/rerank.ts";
 
 const MIN_TERM_LEN = 3;
 const WORD_SPLIT = /[^a-z0-9]+/u;

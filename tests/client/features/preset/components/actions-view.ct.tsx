@@ -10,7 +10,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { ActionsStory } from "./_actions-stories";
+import { ActionsStory } from "./_actions-stories.tsx";
 
 /** The rendered box, rounded — sub-pixel noise is not a defect, an 8/16px shear is. */
 async function boxOf(locator: Locator): Promise<{ readonly top: number; readonly height: number }> {

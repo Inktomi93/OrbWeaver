@@ -6,23 +6,23 @@
 // and the `reconcile-stats` workload (the all-owners bulk sweep). `applyStatsDelta` is not a verb here.
 
 import type { Db } from "@orb/db";
-import { createStatsContext } from "./context";
-import type { StatsService } from "./contract/service";
-import { createReconcileInFlight } from "./reconcile-in-flight";
-import { createActivityHeatmap } from "./verbs/activity-heatmap";
-import { createByModel } from "./verbs/by-model";
-import { createCharacter } from "./verbs/character";
-import { createEconomics } from "./verbs/economics";
-import { createFreshness } from "./verbs/freshness";
-import { createLatency } from "./verbs/latency";
-import { createLeaderboard } from "./verbs/leaderboard";
-import { createMomentum } from "./verbs/momentum";
-import { createOverview } from "./verbs/overview";
-import { createPersonaUsage } from "./verbs/persona-usage";
-import { createReconcile } from "./verbs/reconcile";
-import { createTemporal } from "./verbs/temporal";
-import { createTimeseries } from "./verbs/timeseries";
-import { createWrapped } from "./verbs/wrapped";
+import { createStatsContext } from "./context.ts";
+import type { StatsService } from "./contract/service.ts";
+import { createReconcileInFlight } from "./reconcile-in-flight.ts";
+import { createActivityHeatmap } from "./verbs/activity-heatmap.ts";
+import { createByModel } from "./verbs/by-model.ts";
+import { createCharacter } from "./verbs/character.ts";
+import { createEconomics } from "./verbs/economics.ts";
+import { createFreshness } from "./verbs/freshness.ts";
+import { createLatency } from "./verbs/latency.ts";
+import { createLeaderboard } from "./verbs/leaderboard.ts";
+import { createMomentum } from "./verbs/momentum.ts";
+import { createOverview } from "./verbs/overview.ts";
+import { createPersonaUsage } from "./verbs/persona-usage.ts";
+import { createReconcile } from "./verbs/reconcile.ts";
+import { createTemporal } from "./verbs/temporal.ts";
+import { createTimeseries } from "./verbs/timeseries.ts";
+import { createWrapped } from "./verbs/wrapped.ts";
 
 export function createStatsService(db: Db, now: () => number): StatsService {
   const ctx = createStatsContext(db, now);

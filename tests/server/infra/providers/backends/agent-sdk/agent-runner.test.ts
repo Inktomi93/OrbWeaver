@@ -16,7 +16,7 @@ import type { consumeTurnStream } from "@orb/server/infra/providers/backends/age
 import { createAgentSdkBackend } from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe, vi } from "vitest";
 import { makeOpenRouterCredential } from "../../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 import { streamOf as sharedStreamOf } from "./_support.ts";
 
 const MODEL = "claude-agent-x";

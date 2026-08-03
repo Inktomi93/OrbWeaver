@@ -2,7 +2,7 @@ import type { ComponentProps, ReactElement } from "react";
 import { cn } from "#lib";
 import type { AvatarProps } from "#primitives/avatar";
 import { Avatar } from "#primitives/avatar";
-import { avatarStackVariants } from "./variants";
+import { avatarStackVariants } from "./variants.ts";
 
 export interface AvatarStackItem {
   readonly src?: string;

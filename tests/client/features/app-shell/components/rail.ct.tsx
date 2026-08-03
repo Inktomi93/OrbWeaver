@@ -3,7 +3,7 @@
 // the buttons are keyboard-focusable in order.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { RailBrandActiveStory, RailBrandNavStory, RailStory } from "../_ct-stories";
+import { RailBrandActiveStory, RailBrandNavStory, RailStory } from "../_ct-stories.tsx";
 
 test("renders every section + footer action as a named button; active = aria-current", async ({ mount }) => {
   const rail = await mount(<RailStory />);

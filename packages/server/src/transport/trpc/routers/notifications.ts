@@ -17,7 +17,7 @@
 import type { NotificationId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
-import { multiHumanProcedure, t } from "../trpc";
+import { multiHumanProcedure, t } from "../trpc.ts";
 
 export const notificationsRouter = t.router({
   list: multiHumanProcedure.input(z.object({ cursor: z.number().optional(), limit: z.number().optional() }).optional()).query(({ ctx, input }) =>

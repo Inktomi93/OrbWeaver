@@ -5,7 +5,7 @@
 import type { AppSettings } from "@orb/contracts/settings";
 import { describe } from "vitest";
 import { deepMergeAppSettings, deepMergePlain } from "../../../../../packages/server/src/domain/settings/substrate/merge.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("deepMergeAppSettings", () => {
   test("undefined skips, null clears a top-level override", () => {

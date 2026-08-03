@@ -9,9 +9,9 @@
 
 import type { RpgCyoaChoiceBehavior } from "@orb/contracts/rpg";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { ChoiceProviderStory } from "../_ct-stories";
-import { COMPOSER_CHAT_ID } from "../fixtures";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { ChoiceProviderStory } from "../_ct-stories.tsx";
+import { COMPOSER_CHAT_ID } from "../fixtures.ts";
 
 // `rpg.getGame` shaped as the publicConfig slice the provider reads; `chatId` echoes the room. `behavior`
 // is the knob under test; the other play-style fields are the defaults (irrelevant to the branch).

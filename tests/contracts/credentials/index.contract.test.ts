@@ -7,7 +7,7 @@ import {
   parseProviderMetadata,
   providerMetadataSchema,
 } from "@orb/contracts/credentials";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // --- The two axes round-trip + stay distinct (D31, §7.5) ---------------------
 

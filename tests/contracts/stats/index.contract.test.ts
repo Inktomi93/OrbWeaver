@@ -2,7 +2,7 @@ import type { ApplyStatsDelta, StatsDelta } from "@orb/contracts/stats";
 import { statsDeltaSchema } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // Sample keys: a low-entropy owner brand at the untyped seam + a minted character TypeID (no pasted
 // high-entropy literals — noSecrets). The day grain is what `@orb/kit/stats-tally.utcDay` emits.

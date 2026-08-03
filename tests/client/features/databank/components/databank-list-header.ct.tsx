@@ -3,8 +3,8 @@
 // every stored source file — waits for an explicit confirm before a single call leaves the client.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DatabankListHeaderStory } from "../_ct-stories";
-import { stubDatabank } from "../fixtures";
+import { DatabankListHeaderStory } from "../_ct-stories.tsx";
+import { stubDatabank } from "../fixtures.ts";
 
 test("the maintenance kebab fires the owner-wide sweep, and re-extract waits for a confirm (D-6)", async ({ mount, page }) => {
   const trpc = await stubDatabank(page);

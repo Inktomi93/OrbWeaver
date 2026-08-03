@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TOKENS } from "@orb/ui/tokens";
 import { generateArtifacts } from "../../../packages/ui/tokens.build.ts";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const UI_ROOT = join(import.meta.dirname, "../../../packages/ui");
 

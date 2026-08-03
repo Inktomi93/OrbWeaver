@@ -23,8 +23,8 @@ import type {
   ResolveCredentialParams,
   SetActiveParams,
   TestHealthParams,
-} from "./params";
-import type { CredentialView } from "./views";
+} from "./params.ts";
+import type { CredentialView } from "./views.ts";
 
 /** The args the injected `/models` fetch op takes (infra/network's `fetchOpenAiModels` shape, declared
  *  here so the domain never imports the infra arg type). */

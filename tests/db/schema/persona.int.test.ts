@@ -9,10 +9,10 @@ import { isConstraintViolation, parseRecord } from "@orb/db/kit";
 import type { AssetId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../support/db";
+import { freshDb } from "../../support/db.ts";
 // The user factory replaces the hand-rolled seedOwner (support/factories — the one seeding home).
 import { seedUser } from "../../support/factories/index.ts";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("personas insert→select round-trips (branded id survives, metadata JSON parses)", async () => {
   const db = await freshDb();

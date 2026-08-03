@@ -19,10 +19,10 @@ import {
   loadPendingTurnsForReclaim,
   redeemInviteAtomic,
   revokeInviteById,
-} from "../../../../../packages/server/src/domain/chat/persistence/invites";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { FROZEN_AT, seedChat, seedMessage, seedParticipant, seedPendingTurn, seedUser } from "../_support";
+} from "../../../../../packages/server/src/domain/chat/persistence/invites.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { FROZEN_AT, seedChat, seedMessage, seedParticipant, seedPendingTurn, seedUser } from "../_support.ts";
 
 let db: Db;
 

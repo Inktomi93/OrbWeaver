@@ -18,7 +18,7 @@
 // (D93 close-out). `anyOf` (nullable()) is likewise accepted; only `oneOf` (discriminatedUnion) is refused.
 
 import { scrubWireSchema } from "@orb/kit/json-schema";
-import { ProviderError } from "../../contract";
+import { ProviderError } from "../../contract/index.ts";
 
 /**
  * Strip the bound keywords Anthropic rejects from a projected structured-output schema and throw on `oneOf`

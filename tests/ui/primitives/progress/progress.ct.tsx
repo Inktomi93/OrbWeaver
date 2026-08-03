@@ -3,7 +3,7 @@
 import { Progress } from "@orb/ui/progress";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
 
 test("determinate progress reflects its value", async ({ mount, page }) => {
   await mount(<Progress aria-label="Uploading" value={72} />);

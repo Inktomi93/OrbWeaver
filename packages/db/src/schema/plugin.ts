@@ -14,8 +14,8 @@ import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
 import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { assets } from "./assets";
-import { users } from "./users";
+import { assets } from "./assets.ts";
+import { users } from "./users.ts";
 
 // CHECK lists derived from the canonical contract tuples (NOT re-spelled) — a CHECK is static DDL and cannot
 // carry bound parameters, so it is built as a raw fragment (assets.ts / notifications.ts pattern).

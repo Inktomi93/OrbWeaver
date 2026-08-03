@@ -7,12 +7,12 @@ import type { ThemeOverride, UpdateThemeInput } from "@orb/contracts/theme";
 import { themeOverrideSchema } from "@orb/contracts/theme";
 import { validateThemeCss } from "@orb/kit/css-validate";
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
-import { SETTINGS_OP_CODES, ThemeNotFoundError } from "../contract/errors";
-import type { UpdateThemeParams } from "../contract/params";
-import type { SettingsContext, SettingsService } from "../contract/service";
-import type { ThemeView } from "../contract/views";
-import { isThemeNameConflict, updateOwnedTheme } from "../persistence/theme-queries";
-import { toThemeView } from "../substrate/theme-views";
+import { SETTINGS_OP_CODES, ThemeNotFoundError } from "../contract/errors.ts";
+import type { UpdateThemeParams } from "../contract/params.ts";
+import type { SettingsContext, SettingsService } from "../contract/service.ts";
+import type { ThemeView } from "../contract/views.ts";
+import { isThemeNameConflict, updateOwnedTheme } from "../persistence/theme-queries.ts";
+import { toThemeView } from "../substrate/theme-views.ts";
 
 const THEME_UPDATE = "theme.update";
 const THEME_ENTITY = "theme";

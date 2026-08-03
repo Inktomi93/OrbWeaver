@@ -1,5 +1,5 @@
 import { cosineSim, cosineToMany, l2Normalize, mean, pairwiseCosine } from "@orb/kit/vector-math";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const v = (...xs: number[]): Float32Array => Float32Array.from(xs);
 // Row-major index into a flat N×N matrix (kept out of the assertions so biome's no-implicit-coercion

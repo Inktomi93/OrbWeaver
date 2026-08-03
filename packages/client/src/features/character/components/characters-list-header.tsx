@@ -21,8 +21,8 @@ import type { ReactElement } from "react";
 import { ListPaneHeader } from "#components";
 import { useTRPC } from "#data";
 import { clearCharacterSelection, useSelectedCharacterId } from "#state";
-import { startChatWithCharacter } from "../lib/character-chat-intents";
-import { CharacterCreateActions } from "./character-create-actions";
+import { startChatWithCharacter } from "../lib/character-chat-intents.ts";
+import { CharacterCreateActions } from "./character-create-actions.tsx";
 
 export function CharactersListHeader(): ReactElement {
   const selectedId = useSelectedCharacterId();

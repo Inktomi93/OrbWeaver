@@ -1,8 +1,8 @@
 import { userCredentials } from "@orb/db";
-import type { CredentialContext } from "../context";
-import type { CredentialsService } from "../contract/service";
-import { aadFor } from "../persistence/aad";
-import { decryptSealed } from "../substrate/decrypt";
+import type { CredentialContext } from "../context.ts";
+import type { CredentialsService } from "../contract/service.ts";
+import { aadFor } from "../persistence/aad.ts";
+import { decryptSealed } from "../substrate/decrypt.ts";
 
 /** Boot probe: decrypts the FIRST stored credential row to catch a rotated/lost CREDENTIALS_KEY vs EXISTING ciphertext. */
 export function createProbeKeyDecrypt(ctx: CredentialContext): CredentialsService["probeKeyDecrypt"] {

@@ -1,6 +1,6 @@
 // verb: setBudgets — upsert the per-chat fire-rate cap (host-only); a re-set updates it.
 
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { principal, ruleFixture } from "../_support.ts";
 
 test("setBudgets upserts the fire-rate cap and a re-set updates it", async () => {

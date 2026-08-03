@@ -13,11 +13,11 @@ import { batchMany } from "@orb/db/kit";
 import type { CharacterHandle, CharacterId, ChatDigestId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { createHandoffRestampStatements } from "../../../../../packages/server/src/domain/embeddings";
-import { freshDb } from "../../../../support/db";
-import { seedChat } from "../../../../support/factories/chat";
-import { seedUser } from "../../../../support/factories/user";
-import { expect, test } from "../../../../support/fixtures";
+import { createHandoffRestampStatements } from "../../../../../packages/server/src/domain/embeddings/index.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { seedChat } from "../../../../support/factories/chat.ts";
+import { seedUser } from "../../../../support/factories/user.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const AT = 1_700_000_000_000;
 

@@ -1,2 +1,2 @@
-export type { SortableItemKey, SortableListProps } from "./sortable";
-export { SortableList } from "./sortable";
+export type { SortableItemKey, SortableListProps } from "./sortable.tsx";
+export { SortableList } from "./sortable.tsx";

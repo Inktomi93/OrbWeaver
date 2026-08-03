@@ -9,7 +9,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { beforeEach, describe, vi } from "vitest";
 import { createStatsWorkloadContributions } from "../../../../packages/server/src/domain/stats/workload-contributions.ts";
 import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedMessage, seedUser, T0 } from "./_support.ts";
 
 let db: Db;

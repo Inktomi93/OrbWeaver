@@ -30,22 +30,22 @@ import type { CharacterId, ChatId, ChatTurnId, MessageId, UserId } from "@orb/ki
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog, withRequestSpan } from "#foundation/observability";
-import type { ChatContext } from "../context";
-import type { DebitBudgetOp, ResolveTurnPolicyOp, RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context";
-import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
-import type { MemoryConfig, MemoryPassCounts, MemoryScope, MsgRow, WitnessInterval } from "../contract/memory";
-import { TOOL_RECURSE_LIMIT_DEFAULT } from "../contract/metadata";
-import type { GeneratedText, HistoryMacroNames, TurnEconomics, TurnEngine, TurnOutcome, TurnPersist, TurnPrep } from "../contract/results";
-import { KIND_TO_INTENT } from "../contract/results";
+import type { ChatContext } from "../context.ts";
+import type { DebitBudgetOp, ResolveTurnPolicyOp, RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
+import type { MemoryConfig, MemoryPassCounts, MemoryScope, MsgRow, WitnessInterval } from "../contract/memory.ts";
+import { TOOL_RECURSE_LIMIT_DEFAULT } from "../contract/metadata.ts";
+import type { GeneratedText, HistoryMacroNames, TurnEconomics, TurnEngine, TurnOutcome, TurnPersist, TurnPrep } from "../contract/results.ts";
+import { KIND_TO_INTENT } from "../contract/results.ts";
 import {
   appendVariantStatements,
   buildCommittedMessageView,
   combineReasoning,
   continueVariantStatements,
   insertCanonMessageStatements,
-} from "../persistence/canon-write";
-import { refreshLock, releaseLock, tryAcquireLock } from "../persistence/lock";
-import { loadChatMacroNameProducer } from "../persistence/macro-names";
+} from "../persistence/canon-write.ts";
+import { refreshLock, releaseLock, tryAcquireLock } from "../persistence/lock.ts";
+import { loadChatMacroNameProducer } from "../persistence/macro-names.ts";
 import {
   loadCanonHistory,
   loadCanonStatRows,
@@ -54,16 +54,16 @@ import {
   loadMessageView,
   loadSlotTarget,
   loadVariableDeltas,
-} from "../persistence/queries";
-import { loadRoster } from "../persistence/roster";
-import { resolveGroupBucketCharacterId } from "../substrate/group-bucket";
-import { projectRpgTranscript } from "../substrate/rpg-transcript";
-import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables";
-import { assistantTurnDelta, canonMessageDelta, swipeVariantDelta } from "../substrate/stats-delta";
-import { debitTurnBudget } from "./budget";
-import { runTurnPipeline } from "./pipeline";
-import { abortedOutcome, committedOutcome } from "./result";
-import { assertMaxProSubConsent, resolveOwnerConsented } from "./turn-identity";
+} from "../persistence/queries.ts";
+import { loadRoster } from "../persistence/roster.ts";
+import { resolveGroupBucketCharacterId } from "../substrate/group-bucket.ts";
+import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
+import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
+import { assistantTurnDelta, canonMessageDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
+import { debitTurnBudget } from "./budget.ts";
+import { runTurnPipeline } from "./pipeline.ts";
+import { abortedOutcome, committedOutcome } from "./result.ts";
+import { assertMaxProSubConsent, resolveOwnerConsented } from "./turn-identity.ts";
 
 /** The non-ctx engine deps wired at the composition root. */
 interface EngineDeps {

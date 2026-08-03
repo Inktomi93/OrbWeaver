@@ -1,5 +1,5 @@
 import { estimateTokens } from "@orb/kit/tokens";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("empty string is zero tokens", () => {
   expect(estimateTokens("")).toBe(0);

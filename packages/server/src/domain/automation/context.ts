@@ -4,4 +4,4 @@
 // The bundle is ASSEMBLED at the entry composition root (db + the injected clock) and handed to
 // `createAutomationService`.
 
-export type { AutomationContext } from "./contract/service";
+export type { AutomationContext } from "./contract/service.ts";

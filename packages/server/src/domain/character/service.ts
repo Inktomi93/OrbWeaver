@@ -8,35 +8,35 @@
 //   `create`/`findByHandle` verbs (`createDefaultCharacterSeeder` lives in `seeder/`, re-exported from the
 //   front door). See seeder/ + contract/seeder.ts.
 
-import type { CharacterContext } from "./context";
-import type { CharacterService } from "./contract/service";
+import type { CharacterContext } from "./context.ts";
+import type { CharacterService } from "./contract/service.ts";
 
-import { createBulkAddCardTag } from "./verbs/bulk-add-card-tag";
-import { createBulkArchive } from "./verbs/bulk-archive";
-import { createBulkRemove } from "./verbs/bulk-remove";
-import { createBulkRemoveCardTag } from "./verbs/bulk-remove-card-tag";
-import { createCreate } from "./verbs/create";
+import { createBulkAddCardTag } from "./verbs/bulk-add-card-tag.ts";
+import { createBulkArchive } from "./verbs/bulk-archive.ts";
+import { createBulkRemove } from "./verbs/bulk-remove.ts";
+import { createBulkRemoveCardTag } from "./verbs/bulk-remove-card-tag.ts";
+import { createCreate } from "./verbs/create.ts";
 
-import { createDuplicate } from "./verbs/duplicate";
-import { createFindByHandle } from "./verbs/find-by-handle";
-import { createFindByImportHash } from "./verbs/find-by-import-hash";
-import { createFindByImportedFrom } from "./verbs/find-by-imported-from";
-import { createFindSyntheticGroupCharacter } from "./verbs/find-synthetic-group-character";
-import { createGenerateGreeting } from "./verbs/generate-greeting";
-import { createGet } from "./verbs/get";
-import { createGetCard } from "./verbs/get-card";
-import { createList } from "./verbs/list";
+import { createDuplicate } from "./verbs/duplicate.ts";
+import { createFindByHandle } from "./verbs/find-by-handle.ts";
+import { createFindByImportHash } from "./verbs/find-by-import-hash.ts";
+import { createFindByImportedFrom } from "./verbs/find-by-imported-from.ts";
+import { createFindSyntheticGroupCharacter } from "./verbs/find-synthetic-group-character.ts";
+import { createGenerateGreeting } from "./verbs/generate-greeting.ts";
+import { createGet } from "./verbs/get.ts";
+import { createGetCard } from "./verbs/get-card.ts";
+import { createList } from "./verbs/list.ts";
 
-import { createListEmbeddableCharacterIds } from "./verbs/list-embeddable-character-ids";
-import { createListSnapshots } from "./verbs/list-snapshots";
-import { createLoadCardText } from "./verbs/load-card-text";
-import { createMintSyntheticGroupCharacter } from "./verbs/mint-synthetic-group-character";
+import { createListEmbeddableCharacterIds } from "./verbs/list-embeddable-character-ids.ts";
+import { createListSnapshots } from "./verbs/list-snapshots.ts";
+import { createLoadCardText } from "./verbs/load-card-text.ts";
+import { createMintSyntheticGroupCharacter } from "./verbs/mint-synthetic-group-character.ts";
 
-import { createRemove } from "./verbs/remove";
-import { createRestore } from "./verbs/restore";
-import { createRewriteGreeting } from "./verbs/rewrite-greeting";
-import { createSnapshot } from "./verbs/snapshot";
-import { createUpdate } from "./verbs/update";
+import { createRemove } from "./verbs/remove.ts";
+import { createRestore } from "./verbs/restore.ts";
+import { createRewriteGreeting } from "./verbs/rewrite-greeting.ts";
+import { createSnapshot } from "./verbs/snapshot.ts";
+import { createUpdate } from "./verbs/update.ts";
 
 export function createCharacterService(ctx: CharacterContext): CharacterService {
   return {

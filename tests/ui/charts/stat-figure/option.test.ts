@@ -8,7 +8,7 @@
 // sparkline is a canvas ECharts line that can't resolve `var()`. This pins the pass-through.
 import type { ChartColors } from "../../../../packages/ui/src/charts/chart/use-chart-theme.ts";
 import { buildSparklineOption } from "../../../../packages/ui/src/charts/stat-figure/option.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const COLORS: ChartColors = {
   series: "rgb(1, 2, 3)",

@@ -7,9 +7,9 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../support/ct/route-trpc";
-import { SettingsShellStory } from "../features/settings/_ct-stories";
-import { WorldInfoSettingsSectionStory } from "../features/world-info/_ct-stories";
+import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { SettingsShellStory } from "../features/settings/_ct-stories.tsx";
+import { WorldInfoSettingsSectionStory } from "../features/world-info/_ct-stories.tsx";
 
 const SETTINGS_VIEW = {
   userId: "user_ct_save_seam",

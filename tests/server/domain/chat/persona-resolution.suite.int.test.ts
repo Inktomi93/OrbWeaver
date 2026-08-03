@@ -32,18 +32,18 @@ import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/id
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { assemblePrompt } from "../../../../packages/server/src/domain/chat/assembly/assemble";
-import { buildAssembleContext } from "../../../../packages/server/src/domain/chat/assembly/context";
-import { renderHistoryMacros } from "../../../../packages/server/src/domain/chat/assembly/macros";
-import type { ChatContext } from "../../../../packages/server/src/domain/chat/context";
-import type { ActiveTurns } from "../../../../packages/server/src/domain/chat/contract/active-turns";
-import type { HistoryMacroNames } from "../../../../packages/server/src/domain/chat/contract/results";
-import { createChatLifecycle } from "../../../../packages/server/src/domain/chat/verbs/chat-lifecycle";
-import { setParticipantActivePersona } from "../../../../packages/server/src/domain/chat/verbs/roster";
-import { freshDb } from "../../../support/db";
+import { assemblePrompt } from "../../../../packages/server/src/domain/chat/assembly/assemble.ts";
+import { buildAssembleContext } from "../../../../packages/server/src/domain/chat/assembly/context.ts";
+import { renderHistoryMacros } from "../../../../packages/server/src/domain/chat/assembly/macros.ts";
+import type { ChatContext } from "../../../../packages/server/src/domain/chat/context.ts";
+import type { ActiveTurns } from "../../../../packages/server/src/domain/chat/contract/active-turns.ts";
+import type { HistoryMacroNames } from "../../../../packages/server/src/domain/chat/contract/results.ts";
+import { createChatLifecycle } from "../../../../packages/server/src/domain/chat/verbs/chat-lifecycle.ts";
+import { setParticipantActivePersona } from "../../../../packages/server/src/domain/chat/verbs/roster.ts";
+import { freshDb } from "../../../support/db.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
-import { expect, test } from "../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "./_support";
+import { expect, test } from "../../../support/fixtures.ts";
+import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "./_support.ts";
 
 let db: Db;
 beforeEach(async () => {

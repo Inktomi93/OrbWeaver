@@ -3,7 +3,7 @@
 // hook resolves the total, ordered vocabulary + `get(id)` returns a member's title.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ModalRegistryProbe } from "./_ct-stories";
+import { ModalRegistryProbe } from "./_ct-stories.tsx";
 
 test("useModalRegistry resolves the ordered modal list + get(id) inside the provider", async ({ mount }) => {
   const probe = await mount(<ModalRegistryProbe />);

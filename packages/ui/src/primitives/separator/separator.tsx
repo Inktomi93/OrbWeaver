@@ -1,7 +1,7 @@
 import type { SeparatorProps as BaseSeparatorProps } from "@base-ui/react/separator";
 import { Separator as BaseSeparator } from "@base-ui/react/separator";
 import type { ReactElement } from "react";
-import { separatorVariants } from "./variants";
+import { separatorVariants } from "./variants.ts";
 
 export interface SeparatorProps extends Omit<BaseSeparatorProps, "className"> {
   className?: string;

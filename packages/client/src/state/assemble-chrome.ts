@@ -14,10 +14,10 @@
 // surface reached by `openModal(id)` · the mobile bar). The persona identity avatar is no longer a modal
 // placement at all — it's a `rail.end` WIDGET entry (`personaChrome`, §E-6), passed straight through below.
 
-import type { ChromeEntry, ChromeZone } from "./chrome-registry";
-import { CHROME_ZONES } from "./chrome-registry";
-import type { ModalDefinition, ModalTriggerPlacement } from "./modal-registry";
-import type { SectionDefinition } from "./section-registry";
+import type { ChromeEntry, ChromeZone } from "./chrome-registry.ts";
+import { CHROME_ZONES } from "./chrome-registry.ts";
+import type { ModalDefinition, ModalTriggerPlacement } from "./modal-registry.ts";
+import type { SectionDefinition } from "./section-registry.ts";
 
 const CHROME_ZONE_SET = new Set<string>(CHROME_ZONES);
 

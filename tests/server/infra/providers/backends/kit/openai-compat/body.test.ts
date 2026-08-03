@@ -16,7 +16,7 @@ import {
   secretHeaderValues,
 } from "@orb/server/infra/providers/backends/kit/openai-compat";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../../support/fixtures";
+import { expect, test } from "../../../../../../support/fixtures.ts";
 
 describe("buildOpenAiSamplingFields", () => {
   test("emits only the set knobs, in snake_case wire form", () => {

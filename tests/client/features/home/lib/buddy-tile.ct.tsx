@@ -7,7 +7,7 @@
 // fake a spinner, a skeleton, or a disabled button.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { HomeRealDoorwaysStory } from "../_ct-stories";
+import { HomeRealDoorwaysStory } from "../_ct-stories.tsx";
 
 const BUDDY_TEASER_RE = /Your companion/u;
 const BUDDY_REASON_RE = /waiting on: domain\/buddy/u;

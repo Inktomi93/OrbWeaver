@@ -6,8 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { selectCollectionMember } from "#state";
-import { WORLD_INFO_COLLECTION_ID } from "../lib/world-info-model";
-import { useCreateWorldBook, useImportWorldBookFile } from "./use-world-info-mutations";
+import { WORLD_INFO_COLLECTION_ID } from "../lib/world-info-model.ts";
+import { useCreateWorldBook, useImportWorldBookFile } from "./use-world-info-mutations.ts";
 
 const NEW_BOOK_NAME = "New book";
 

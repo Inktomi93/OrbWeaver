@@ -8,8 +8,8 @@
 
 import type { Db } from "@orb/db";
 import type { PluginId, UserId } from "@orb/kit/ids";
-import type { PluginHostOps } from "../contract/ops";
-import { countKeys, deleteKv, getKv, listKv, upsertKv } from "../persistence/plugin-kv";
+import type { PluginHostOps } from "../contract/ops.ts";
+import { countKeys, deleteKv, getKv, listKv, upsertKv } from "../persistence/plugin-kv.ts";
 
 /** The per-plugin key ceiling (02 §3 — "≤ 256 keys/plugin"). Enforced HERE (a count the DDL cannot do); the
  *  value/key BYTE caps are DDL CHECKs. ONE home for the count cap. */

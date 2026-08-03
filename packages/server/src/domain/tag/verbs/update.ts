@@ -6,10 +6,10 @@ import type { UpdateTagInput } from "@orb/contracts/tag";
 import { isConstraintViolation } from "@orb/db/kit";
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import { normalizeTagName } from "@orb/kit/tag";
-import { TagNotFoundError } from "../contract/errors";
-import type { UpdateTagParams } from "../contract/params";
-import type { TagContext, TagService } from "../contract/service";
-import { loadOwnedTag, toTagView, updateOwnedTag } from "../persistence/queries";
+import { TagNotFoundError } from "../contract/errors.ts";
+import type { UpdateTagParams } from "../contract/params.ts";
+import type { TagContext, TagService } from "../contract/service.ts";
+import { loadOwnedTag, toTagView, updateOwnedTag } from "../persistence/queries.ts";
 
 type TagPatch = Parameters<typeof updateOwnedTag>[3];
 

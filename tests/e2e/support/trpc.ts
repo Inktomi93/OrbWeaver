@@ -16,7 +16,7 @@
 
 import process from "node:process";
 import type { CharacterHandle, CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
-import { SINGLE_USER } from "./modes";
+import { SINGLE_USER } from "./modes.ts";
 
 // The vite front door (the specs' baseURL). Every consumer of this module is a single-user-project spec, so
 // the default is SINGLE_USER.baseUrl — derived, never a literal: the project moved off the dev ports (a

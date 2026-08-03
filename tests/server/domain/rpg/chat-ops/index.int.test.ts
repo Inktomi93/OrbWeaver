@@ -4,9 +4,9 @@
 
 import type { ChatTurnId, Handle, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { findSnapshotByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots";
-import { freshDb } from "../../../../support/db";
-import { emptyState, expect, principal, seedChat, seedLiteGame, seedMessage, seedPreset, test, turnConnection } from "../_support";
+import { findSnapshotByVariant } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { emptyState, expect, principal, seedChat, seedLiteGame, seedMessage, seedPreset, test, turnConnection } from "../_support.ts";
 
 const TURN: ChatTurnId = castId<ChatTurnId>("chat_turn_c1");
 

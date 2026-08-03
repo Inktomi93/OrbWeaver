@@ -3,7 +3,7 @@
 // 2026-07-26 amendment), full is all-true, and the prompt-strategy + tool tuples are per-mode.
 
 import { MODE_POLICY, RPG_LITE_TOOL_NAMES } from "@orb/contracts/rpg";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("MODE_POLICY carries both mode rows as data from day one", () => {
   expect(Object.keys(MODE_POLICY).sort()).toEqual(["full", "lite"]);

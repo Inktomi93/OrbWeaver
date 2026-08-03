@@ -9,8 +9,8 @@ import { isConstraintViolation } from "@orb/db/kit";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
-import { freshDb } from "../../support/db";
-import { expect, test } from "../../support/fixtures";
+import { freshDb } from "../../support/db.ts";
+import { expect, test } from "../../support/fixtures.ts";
 import { seedUser } from "./_support.ts";
 
 test("user_credentials insert→select round-trips (branded id + metadata JSON parses)", async () => {

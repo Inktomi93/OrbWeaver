@@ -1,11 +1,11 @@
-export type { PopoverHandle } from "./handle";
-export { createPopoverHandle } from "./handle";
+export type { PopoverHandle } from "./handle.ts";
+export { createPopoverHandle } from "./handle.ts";
 export type {
   PopoverArrowProps,
   PopoverDescriptionProps,
   PopoverPopupProps,
   PopoverTitleProps,
-} from "./popover";
+} from "./popover.tsx";
 export {
   Popover,
   PopoverArrow,
@@ -14,4 +14,4 @@ export {
   PopoverPopup,
   PopoverTitle,
   PopoverTrigger,
-} from "./popover";
+} from "./popover.tsx";

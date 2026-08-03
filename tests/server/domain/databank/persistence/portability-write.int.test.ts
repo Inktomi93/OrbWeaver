@@ -25,7 +25,7 @@ import {
   createListOwnedDocumentIds,
 } from "../../../../../packages/server/src/domain/databank/persistence/portability-write.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedUser } from "../_support.ts";
 
 const NOW = 1_700_000_000_000;

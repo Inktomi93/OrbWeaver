@@ -8,7 +8,7 @@ import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import type { ConnectionWorkloadDeps } from "../../../../packages/server/src/domain/connection/contract/service.ts";
 import { createConnectionWorkloadContributions } from "../../../../packages/server/src/domain/connection/workload-contributions.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const T0 = 1_700_000_000_000;
 // A catalog refresh is deployment-wide (bulk-only): the row carries no owner.

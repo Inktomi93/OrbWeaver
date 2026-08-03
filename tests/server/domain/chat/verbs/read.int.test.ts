@@ -18,21 +18,21 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
-import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns";
-import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus";
-import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
-import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
-import { upsertMemberOnJoin } from "../../../../../packages/server/src/domain/chat/persistence/participant";
-import { loadMessageView } from "../../../../../packages/server/src/domain/chat/persistence/queries";
-import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle";
-import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read";
+import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns.ts";
+import { createChatBus } from "../../../../../packages/server/src/domain/chat/bus.ts";
+import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
+import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
+import { upsertMemberOnJoin } from "../../../../../packages/server/src/domain/chat/persistence/participant.ts";
+import { loadMessageView } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { createChatLifecycle } from "../../../../../packages/server/src/domain/chat/verbs/chat-lifecycle.ts";
+import { createRead } from "../../../../../packages/server/src/domain/chat/verbs/read.ts";
 // The D16 policy SETTER (verbs/roster.ts) — imported here so the round-trip tests below drive the real
 // write path against the real read clamp in one room (the setter's own gates live in roster.int.test.ts).
-import { createRoster, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/verbs/roster";
-import { freshDb } from "../../../../support/db";
+import { createRoster, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/verbs/roster.ts";
+import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { makeModelCapability, makeResolvedConnection } from "../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import {
   addVariant,
   FROZEN_AT,
@@ -45,7 +45,7 @@ import {
   seedPersona,
   seedStreamEvent,
   seedUser,
-} from "../_support";
+} from "../_support.ts";
 
 let db: Db;
 let loadParticipantViews: ReturnType<typeof makeLoadParticipantViews>;

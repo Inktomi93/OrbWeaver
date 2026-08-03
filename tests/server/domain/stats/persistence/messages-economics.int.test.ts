@@ -6,7 +6,7 @@ import type { Db } from "@orb/db";
 import { describe } from "vitest";
 import { readCharacterEconomics, readCharacterModelEconomics } from "../../../../../packages/server/src/domain/stats/persistence/messages-economics.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedMessage, seedUser } from "../_support.ts";
 
 let db: Db;

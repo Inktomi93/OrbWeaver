@@ -14,7 +14,7 @@ import { createAssetsService, createExportAssets } from "@orb/server/domain/asse
 import { describe, onTestFinished } from "vitest";
 import { parsePortableAssetFilename } from "../../../../../packages/server/src/domain/assets/substrate/portable-asset-file.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import type { AssetsHarness } from "../_support.ts";
 import { makeHarness, pngBytes, principal, seedCharacter, seedChatRow, seedParticipant, seedUser, setCharacterAvatar } from "../_support.ts";
 

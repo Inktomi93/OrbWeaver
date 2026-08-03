@@ -17,13 +17,13 @@ import type { ReactElement } from "react";
 import { FormDialog, FormSubmitButton } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { useCreateScheduleForm } from "../hooks/use-create-schedule-form";
-import { useCreateSchedule, useUpdateSchedule } from "../hooks/use-workload-mutations";
-import { buildStartInput, isMaintenanceWorkloadKind, isStartableWorkloadKind, workloadKindItems } from "../lib/workloads-model";
-import type { CreateScheduleFormValues } from "../lib/workloads-schedule-model";
-import { resolveScheduleMode, SCHEDULE_CADENCE_ITEMS, scheduleFormValuesFromRow, workloadKindBulkSchedulable } from "../lib/workloads-schedule-model";
-import { MaintenanceKindNote } from "./maintenance-kind-note";
-import { WorkloadParamFields } from "./workload-kind-fields";
+import { useCreateScheduleForm } from "../hooks/use-create-schedule-form.ts";
+import { useCreateSchedule, useUpdateSchedule } from "../hooks/use-workload-mutations.ts";
+import { buildStartInput, isMaintenanceWorkloadKind, isStartableWorkloadKind, workloadKindItems } from "../lib/workloads-model.ts";
+import type { CreateScheduleFormValues } from "../lib/workloads-schedule-model.ts";
+import { resolveScheduleMode, SCHEDULE_CADENCE_ITEMS, scheduleFormValuesFromRow, workloadKindBulkSchedulable } from "../lib/workloads-schedule-model.ts";
+import { MaintenanceKindNote } from "./maintenance-kind-note.tsx";
+import { WorkloadParamFields } from "./workload-kind-fields.tsx";
 
 type ScheduleItem = inferOutput<Trpc["workloads"]["listSchedules"]>[number];
 

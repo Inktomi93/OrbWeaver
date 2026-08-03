@@ -19,8 +19,8 @@ import { CHAT_BUS_EVENT_TYPES } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId, PersonaId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures";
-import { makeMessageView } from "../../features/chat/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
+import { makeMessageView } from "../../features/chat/fixtures.ts";
 
 // ── Harness: real store, spy-wrapped deps ──────────────────────────────────────────────────────────
 

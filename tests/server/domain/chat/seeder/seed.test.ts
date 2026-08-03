@@ -15,8 +15,8 @@ import type { ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { DemoChatSeederDeps, SeededChatDressing } from "@orb/server/domain/chat";
 import { createDemoChatSeeder, DEMO_CHAT_PACK_VERSION, DEMO_CHATS } from "@orb/server/domain/chat";
-import { principal } from "../../../../support/factories/principal";
-import { expect, test } from "../../../../support/fixtures";
+import { principal } from "../../../../support/factories/principal.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const USER_ID = castId<UserId>("user_demo_seed");
 const PERSONA_ID = castId<PersonaId>("persona_traveler");

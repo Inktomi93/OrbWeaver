@@ -5,7 +5,7 @@ import { useId } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { Icon, Lock, Minus, MoveHorizontal, Plus } from "#primitives/icons";
-import { numberFieldVariants } from "./variants";
+import { numberFieldVariants } from "./variants.ts";
 
 // THE STEPPERS NAME THEIR SUBJECT (side-eye F-20, 2026-08-03). A bare "Decrease"/"Increase" is fine for
 // ONE number on a screen; the params deck stacks three NumberFields in one column, so a screen-reader user

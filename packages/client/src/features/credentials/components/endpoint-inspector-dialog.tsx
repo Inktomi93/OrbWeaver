@@ -18,7 +18,7 @@ import { useEffect, useState } from "react";
 import { FormDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { testId } from "#lib";
-import { useInspectEndpoint } from "../hooks/use-connections-mutations";
+import { useInspectEndpoint } from "../hooks/use-connections-mutations.ts";
 
 /** A 2xx inspection carries a real `response`; the fallback verdict number when the shape ever lacks one. */
 const OK_STATUS_FALLBACK = 200;

@@ -13,8 +13,8 @@ import type { PersonaMetadata } from "@orb/contracts/persona";
 import type { AssetId, PersonaId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { assets } from "./assets";
-import { users } from "./users";
+import { assets } from "./assets.ts";
+import { users } from "./users.ts";
 
 export const personas = sqliteTable(
   "personas",

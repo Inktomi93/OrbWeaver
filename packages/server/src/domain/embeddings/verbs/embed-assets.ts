@@ -12,13 +12,13 @@
 // space is never left with a gap. A no-op unless the box image-embed model changed.
 
 import type { AssetId } from "@orb/kit/ids";
-import type { EmbeddingsContext } from "../context";
-import type { EmbedPassParams } from "../contract/params";
-import type { BulkEmbedResult } from "../contract/results";
-import type { EmbeddingsService } from "../contract/service";
-import { purgeStaleVectors } from "../persistence/clear";
-import { existingImageHash } from "../persistence/queries";
-import { contentHash } from "../substrate/hash";
+import type { EmbeddingsContext } from "../context.ts";
+import type { EmbedPassParams } from "../contract/params.ts";
+import type { BulkEmbedResult } from "../contract/results.ts";
+import type { EmbeddingsService } from "../contract/service.ts";
+import { purgeStaleVectors } from "../persistence/clear.ts";
+import { existingImageHash } from "../persistence/queries.ts";
+import { contentHash } from "../substrate/hash.ts";
 
 interface EmbedAssetsDeps {
   readonly store: EmbeddingsService["store"];

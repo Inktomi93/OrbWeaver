@@ -13,9 +13,9 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { TagMemberStory } from "../_ct-stories";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { TagMemberStory } from "../_ct-stories.tsx";
 
 const TAP_FAIL_PX = 32;
 /** The delete-confirm's cascade line for "adventure" (5 characters, 1 chat, 1 world book). */

@@ -15,10 +15,10 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import type { AppFormInstance } from "#forms";
-import type { CharacterCardFacet } from "../lib/character-card-facets";
-import { CHARACTER_CARD_FACETS, CHARACTER_FACET_TIER_LABELS, CHARACTER_FACET_TIERS } from "../lib/character-card-facets";
-import type { CharacterCardFormValues } from "../lib/character-card-form-model";
-import { CharacterFacetRow } from "./character-facet-row";
+import type { CharacterCardFacet } from "../lib/character-card-facets.ts";
+import { CHARACTER_CARD_FACETS, CHARACTER_FACET_TIER_LABELS, CHARACTER_FACET_TIERS } from "../lib/character-card-facets.ts";
+import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
+import { CharacterFacetRow } from "./character-facet-row.tsx";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
 

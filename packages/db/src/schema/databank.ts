@@ -34,10 +34,10 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
-import { assets } from "./assets";
-import { characters } from "./character";
-import { chats } from "./chat";
-import { users } from "./users";
+import { assets } from "./assets.ts";
+import { characters } from "./character.ts";
+import { chats } from "./chat.ts";
+import { users } from "./users.ts";
 
 // CHECK list derived from the canonical tuple (NOT re-spelled) — static DDL fragment, the assets.ts /
 // workloads.ts pattern. The `documents.origin` column carries BOTH the drizzle `{ enum }` (type-side) AND

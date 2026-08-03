@@ -9,11 +9,11 @@
 // reach domain/assets — the avatar store is injected, same as the card PNG).
 
 import type { BulkImportPersonaInput, PersonaMetadata } from "@orb/contracts/persona";
-import type { ImportContext } from "../context";
-import type { ImportPersonasResult } from "../contract/results";
-import type { ImportService } from "../contract/service";
-import type { ImportPersonaInput } from "../contract/views";
-import { requireProfile } from "../guard";
+import type { ImportContext } from "../context.ts";
+import type { ImportPersonasResult } from "../contract/results.ts";
+import type { ImportService } from "../contract/service.ts";
+import type { ImportPersonaInput } from "../contract/views.ts";
+import { requireProfile } from "../guard.ts";
 
 export function createImportPersonas(ctx: ImportContext): ImportService["importPersonas"] {
   return async ({ personas: input }: { readonly personas: readonly ImportPersonaInput[] }): Promise<ImportPersonasResult> => {

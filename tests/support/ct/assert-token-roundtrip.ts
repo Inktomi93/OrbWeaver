@@ -23,7 +23,7 @@
 
 import { expect } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import type { TrpcRecorder } from "./route-trpc";
+import type { TrpcRecorder } from "./route-trpc.ts";
 
 /** The probe text: a bare identity macro plus prose, so a resolution bug changes the string VISIBLY (an
  *  empty-value resolve would leave " is watching" and still be caught by the exact-equality assert). */

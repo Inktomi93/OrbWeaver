@@ -26,17 +26,17 @@ import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { assertTokenRoundtrip } from "../../../../support/ct/assert-token-roundtrip";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { makeModelCapability, makeResolvedChatCapability } from "../../../../support/factories/resolved-connection";
+import { assertTokenRoundtrip } from "../../../../support/ct/assert-token-roundtrip.ts";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { makeModelCapability, makeResolvedChatCapability } from "../../../../support/factories/resolved-connection.ts";
 import {
   PresetEditorCapabilityFreshnessStory,
   PresetEditorSurfaceStory,
   PresetEditorSwitchStory,
   PresetForkChoiceStory,
   PresetForkOnceStory,
-} from "./_ct-stories";
+} from "./_ct-stories.tsx";
 
 // The three fixed ids — the literal mirror of the story module's branded PresetIds (biome forbids the
 // story exporting non-component consts, so the literals live in both places), cast to the brand here.

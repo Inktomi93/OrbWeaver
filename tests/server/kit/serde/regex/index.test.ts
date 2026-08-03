@@ -8,7 +8,7 @@ import type { PortableRegexScript } from "@orb/contracts/regex";
 import { SubstituteFindRegex } from "@orb/kit/regex";
 import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND } from "@orb/server/kit/serde/regex";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();

@@ -1,6 +1,6 @@
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("jsonValueSchema accepts every JSON primitive", () => {
   expect(jsonValueSchema.safeParse("s").success).toBe(true);

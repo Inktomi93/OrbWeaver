@@ -5,12 +5,12 @@
 // resolved-current snapshot, so a swipe re-resolves everything at once (the owner's ratification demand).
 
 import type { ChatId, MessageId, RpgGameId } from "@orb/kit/ids";
-import type { RpgActorIdentity, RpgActorRef, RpgActorVolatile } from "./actor";
-import type { RpgClockTime, RpgWeather } from "./ambient";
-import type { RpgDeliveryPath, RpgFoldFallbackReason, RpgGameConfig } from "./config";
-import type { RpgGameMode, RpgGameStatus } from "./enums";
-import type { RpgPlot } from "./snapshot";
-import type { RpgTrackerDef, RpgTrackerValue } from "./tracker";
+import type { RpgActorIdentity, RpgActorRef, RpgActorVolatile } from "./actor.ts";
+import type { RpgClockTime, RpgWeather } from "./ambient.ts";
+import type { RpgDeliveryPath, RpgFoldFallbackReason, RpgGameConfig } from "./config.ts";
+import type { RpgGameMode, RpgGameStatus } from "./enums.ts";
+import type { RpgPlot } from "./snapshot.ts";
+import type { RpgTrackerDef, RpgTrackerValue } from "./tracker.ts";
 
 /** EFF-3 — the EFFECTIVE state delivery for this room, as opposed to the `extractionMode` KNOB that asked for
  *  it (D112 (4)'s KNOWN GAP: a `folded` game whose wire cannot fold was still showing "Live" while it rounded a

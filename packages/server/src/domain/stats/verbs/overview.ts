@@ -1,7 +1,7 @@
 import type { UserId } from "@orb/kit/ids";
-import type { StatsContext, StatsService } from "../contract/service";
-import type { OwnerStatsView } from "../contract/views";
-import { readOverview } from "../persistence/rollups";
+import type { StatsContext, StatsService } from "../contract/service.ts";
+import type { OwnerStatsView } from "../contract/views.ts";
+import { readOverview } from "../persistence/rollups.ts";
 
 // overview — the owner-grain dashboard hero: the live owner_stats rollup + on-read latency. `null` when the
 // owner has no rollup row yet. ownerId is the caller's principal.userId (never input — §7.1).

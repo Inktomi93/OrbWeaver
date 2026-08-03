@@ -26,7 +26,7 @@ import type {
   SimilarCharactersParams,
   SuggestParams,
   UnifiedSearchParams,
-} from "./params";
+} from "./params.ts";
 import type {
   CharacterCardHit,
   CorpusHit,
@@ -40,7 +40,7 @@ import type {
   SegmentSearchHit,
   SimilarArtHit,
   UnifiedSearchResult,
-} from "./results";
+} from "./results.ts";
 
 /** The databank scope-junction resolver, INJECTED into search at compose (DB5, databank-design/05 §3.2).
  *  The union SQL has ONE home in `domain/databank` (`persistence/scope.ts`) — search never re-implements

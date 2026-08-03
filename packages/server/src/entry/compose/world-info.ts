@@ -23,11 +23,11 @@ import type { SessionsService } from "#domain/sessions";
 import type { WorldInfoService } from "#domain/world-info";
 import { createBulkImportLorebook, createLinkCarriedBooks, createWorldInfoService } from "#domain/world-info";
 import type { AuditEntry } from "#foundation/observability";
-import { createBulkImportChats, requireHost, requireParticipant } from "../../domain/chat";
-import { publishUserEvent } from "../../transport/trpc";
-import { createHostPrincipalResolver } from "../auth";
-import type { ImportWorldInfoPort } from "../import";
-import { minter } from "./minter";
+import { createBulkImportChats, requireHost, requireParticipant } from "../../domain/chat/index.ts";
+import { publishUserEvent } from "../../transport/trpc/index.ts";
+import { createHostPrincipalResolver } from "../auth/index.ts";
+import type { ImportWorldInfoPort } from "../import/index.ts";
+import { minter } from "./minter.ts";
 
 /** What the world-info seam needs from the composition root. */
 export interface WorldInfoComposeDeps {

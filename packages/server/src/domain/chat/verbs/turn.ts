@@ -22,15 +22,15 @@ import { foreignLabelStops } from "@orb/kit/speaker-label";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { getLog, withRequestSpan } from "#foundation/observability";
 import type { WireTool } from "#infra/providers";
-import type { ChatContext } from "../context";
-import type { ActiveTurns } from "../contract/active-turns";
-import type { ArbiterCandidate, AutoModeResult, CastName } from "../contract/arbitration";
-import type { TurnUserMacros } from "../contract/assembly-macros";
-import type { ChatRpgGatherResult } from "../contract/context";
-import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
-import type { ChatBehaviorInputs, ForeignInputs, ResolveForeignInputsOp } from "../contract/foreign";
-import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign";
-import type { MemoryConfig, MemoryRecallInputs } from "../contract/memory";
+import type { ChatContext } from "../context.ts";
+import type { ActiveTurns } from "../contract/active-turns.ts";
+import type { ArbiterCandidate, AutoModeResult, CastName } from "../contract/arbitration.ts";
+import type { TurnUserMacros } from "../contract/assembly-macros.ts";
+import type { ChatRpgGatherResult } from "../contract/context.ts";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
+import type { ChatBehaviorInputs, ForeignInputs, ResolveForeignInputsOp } from "../contract/foreign.ts";
+import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
+import type { MemoryConfig, MemoryRecallInputs } from "../contract/memory.ts";
 import type {
   AbortParams,
   CommitMessageParams,
@@ -44,7 +44,7 @@ import type {
   SendParams,
   SwipeParams,
   UndoContinueParams,
-} from "../contract/params";
+} from "../contract/params.ts";
 import type {
   DrainDeferredTurnsScope,
   DrainReport,
@@ -54,18 +54,18 @@ import type {
   TurnKind,
   TurnOutcome,
   TurnPrep,
-} from "../contract/results";
-import { KIND_TO_INTENT } from "../contract/results";
-import type { ChatService } from "../contract/service";
-import { requireHost, requireParticipant } from "../guard";
+} from "../contract/results.ts";
+import { KIND_TO_INTENT } from "../contract/results.ts";
+import type { ChatService } from "../contract/service.ts";
+import { requireHost, requireParticipant } from "../guard.ts";
 import {
   buildCommittedMessageView,
   combineReasoning,
   insertCanonMessageStatements,
   insertMessageAssetStatements,
   setVariantContentStatement,
-} from "../persistence/canon-write";
-import { claimPendingTurn, insertPendingTurn, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites";
+} from "../persistence/canon-write.ts";
+import { claimPendingTurn, insertPendingTurn, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites.ts";
 import {
   loadCanonHistory,
   loadChatRow,
@@ -75,15 +75,15 @@ import {
   loadMessageView,
   loadSlotTarget,
   loadStoredUserMacroValues,
-} from "../persistence/queries";
-import { loadPresentRole, loadRoster } from "../persistence/roster";
-import { gatherAssembleContext } from "../substrate/assemble-gather";
-import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../substrate/assembly-access";
-import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility";
-import { hostUserIdOf } from "../substrate/roster-host";
-import { presentHumanUserIdsOf } from "../substrate/roster-humans";
-import { userMessageDelta } from "../substrate/stats-delta";
-import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access";
+} from "../persistence/queries.ts";
+import { loadPresentRole, loadRoster } from "../persistence/roster.ts";
+import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
+import { buildTurnUserMacros, freezeVolatileMacros, resolveNudgeText } from "../substrate/assembly-access.ts";
+import { projectViewReturnForViewer, stripMessagesForViewer, viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { hostUserIdOf } from "../substrate/roster-host.ts";
+import { presentHumanUserIdsOf } from "../substrate/roster-humans.ts";
+import { userMessageDelta } from "../substrate/stats-delta.ts";
+import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeVia, selectSpeakersVia, smartArbitrateVia } from "../substrate/turn-access.ts";
 
 /** SEND USER_INPUT regex out-param sink: `buildAssembleContext` writes the post-regex user text here so the
  *  verb persists that (the haystack and the stored row never diverge). Also receives the round-level recall

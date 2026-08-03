@@ -36,8 +36,8 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { charactersRailButton, openChatOptions, openOrCreateChat, openUtilityMenu, waitForAppReady } from "./support/chat-room";
-import { mintFreshCharacter, removeCharacter } from "./support/trpc";
+import { charactersRailButton, openChatOptions, openOrCreateChat, openUtilityMenu, waitForAppReady } from "./support/chat-room.ts";
+import { mintFreshCharacter, removeCharacter } from "./support/trpc.ts";
 
 // The spec-owned draft character — minted per-test via the API, removed in a finally. Its Chat CTA opens
 // a genuinely FRESH draft; the "New chat draft" status band disambiguates draft from a resumed room.

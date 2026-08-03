@@ -11,9 +11,9 @@
 import type { DocumentId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { DocumentChunkHit } from "#domain/search";
-import type { DatabankGatherParams } from "../contract/params";
-import type { DatabankGatherResult } from "../contract/results";
-import type { DatabankContext, DatabankService } from "../contract/service";
+import type { DatabankGatherParams } from "../contract/params.ts";
+import type { DatabankGatherResult } from "../contract/results.ts";
+import type { DatabankContext, DatabankService } from "../contract/service.ts";
 
 /** An id-only provenance ref for a kept chunk (never re-rendered into the prompt). */
 interface KeptRef {

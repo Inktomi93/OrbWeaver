@@ -14,8 +14,8 @@ import { isConstraintViolation } from "@orb/db/kit";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
-import { freshDb } from "../support/db";
-import { expect, test } from "../support/fixtures";
+import { freshDb } from "../support/db.ts";
+import { expect, test } from "../support/fixtures.ts";
 
 const FK_ON = 1;
 const BUSY_TIMEOUT_MS = 5000;

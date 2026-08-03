@@ -14,7 +14,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT_A = castId<ChatId>("chat_seqguard_aaaaaaaa");
 const CHAT_B = castId<ChatId>("chat_seqguard_bbbbbbbb");

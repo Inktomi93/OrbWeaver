@@ -4,7 +4,7 @@
 
 import type { ContributorRegistry } from "#lib";
 import { createRegistryContext } from "#lib";
-import type { ChromeEntry } from "./chrome-registry";
+import type { ChromeEntry } from "./chrome-registry.ts";
 
 export type ChromeRegistry = ContributorRegistry<ChromeEntry>;
 

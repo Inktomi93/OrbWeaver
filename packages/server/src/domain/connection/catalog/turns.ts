@@ -4,7 +4,7 @@
 
 import type { ModelCapability } from "@orb/contracts/connection";
 import { CACHE_MIN_FLOOR, TURNS_FLOOR } from "@orb/contracts/connection";
-import type { WIRE_SHAPES } from "./wire-shape";
+import type { WIRE_SHAPES } from "./wire-shape.ts";
 
 type WireShape = (typeof WIRE_SHAPES)[number];
 type Turns = NonNullable<ModelCapability["turns"]>;

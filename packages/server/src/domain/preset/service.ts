@@ -4,18 +4,18 @@
 // `ownerId === userId`) and exactly ONE cross-feature op: the chat-role capability read `resolveEffective`
 // projects the generation funnel against.
 
-import type { PresetContext } from "./context";
-import type { PresetService } from "./contract/service";
-import { createClonePackaged } from "./verbs/clone-packaged";
-import { createCreate } from "./verbs/create";
-import { createGet } from "./verbs/get";
-import { createImport } from "./verbs/import";
-import { createImportFile } from "./verbs/import-file";
-import { createList } from "./verbs/list";
-import { createRemove } from "./verbs/remove";
-import { createResetToDefault } from "./verbs/reset-to-default";
-import { createResolveEffective } from "./verbs/resolve-effective";
-import { createUpdate } from "./verbs/update";
+import type { PresetContext } from "./context.ts";
+import type { PresetService } from "./contract/service.ts";
+import { createClonePackaged } from "./verbs/clone-packaged.ts";
+import { createCreate } from "./verbs/create.ts";
+import { createGet } from "./verbs/get.ts";
+import { createImport } from "./verbs/import.ts";
+import { createImportFile } from "./verbs/import-file.ts";
+import { createList } from "./verbs/list.ts";
+import { createRemove } from "./verbs/remove.ts";
+import { createResetToDefault } from "./verbs/reset-to-default.ts";
+import { createResolveEffective } from "./verbs/resolve-effective.ts";
+import { createUpdate } from "./verbs/update.ts";
 
 export function createPresetService(ctx: PresetContext): PresetService {
   return {

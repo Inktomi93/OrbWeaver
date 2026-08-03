@@ -3,7 +3,7 @@
 
 import { createClientCache, createOpenRouterClient } from "@orb/server/infra/providers/backends/openrouter";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 describe("createOpenRouterClient", () => {
   test("builds a client exposing the role sub-APIs the family calls", () => {

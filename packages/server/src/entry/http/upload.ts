@@ -16,8 +16,8 @@ import { bodyLimit } from "hono/body-limit";
 
 import type { DatabankService } from "#domain/databank";
 import { hasCsrfHeader } from "#infra/auth";
-import type { ImportAssetPort, ImportCharacterPort, ImportFile, ImportTagPort, ImportWorldInfoPort, ProfileImportResult } from "../import";
-import { runProfileImport } from "../import";
+import type { ImportAssetPort, ImportCharacterPort, ImportFile, ImportTagPort, ImportWorldInfoPort, ProfileImportResult } from "../import/index.ts";
+import { runProfileImport } from "../import/index.ts";
 
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;

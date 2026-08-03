@@ -12,9 +12,9 @@ import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createPostNarratorMessage } from "../../../../../packages/server/src/domain/chat/verbs/post-narrator-message.ts";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedAsset, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeChatContext, seedAsset, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];

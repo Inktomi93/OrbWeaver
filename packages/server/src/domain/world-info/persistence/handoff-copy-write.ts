@@ -16,7 +16,7 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
-import type { CopyHandoffBooks, WorldInfoHandoffCopyContext } from "../contract/handoff-copy";
+import type { CopyHandoffBooks, WorldInfoHandoffCopyContext } from "../contract/handoff-copy.ts";
 
 type BookRow = typeof worldBooks.$inferSelect;
 

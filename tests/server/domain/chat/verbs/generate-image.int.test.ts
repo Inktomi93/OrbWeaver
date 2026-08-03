@@ -12,11 +12,11 @@ import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { createGenerateImage } from "../../../../../packages/server/src/domain/chat/verbs/generate-image";
-import { freshDb } from "../../../../support/db";
+import { createGenerateImage } from "../../../../../packages/server/src/domain/chat/verbs/generate-image.ts";
+import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedChat, seedParticipant, seedUser } from "../_support";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeChatContext, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];

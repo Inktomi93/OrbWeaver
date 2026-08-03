@@ -4,8 +4,8 @@
 
 import type { ReactElement } from "react";
 import { clearAnalyticsSelection, useSelectedAnalyticsCharacterId } from "#state";
-import { AnalyticsCharacterSurface } from "../surfaces/analytics-character-surface";
-import { AnalyticsOverviewSurface } from "../surfaces/analytics-overview-surface";
+import { AnalyticsCharacterSurface } from "../surfaces/analytics-character-surface.tsx";
+import { AnalyticsOverviewSurface } from "../surfaces/analytics-overview-surface.tsx";
 
 export function AnalyticsContent(): ReactElement {
   const selectedAnalyticsCharacterId = useSelectedAnalyticsCharacterId();

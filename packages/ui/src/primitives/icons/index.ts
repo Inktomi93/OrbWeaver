@@ -128,7 +128,7 @@ export {
   WandSparkles,
   X,
 } from "lucide-react";
-export type { FillableIcon } from "./fillable";
-export { Bookmark, Circle, Droplet, Flag, Flame, Heart, Pause, Play, Shield, Square, Star, Zap } from "./fillable";
-export type { IconProps } from "./icon";
-export { ICON_LG, ICON_MD, ICON_SM, ICON_XS, Icon } from "./icon";
+export type { FillableIcon } from "./fillable.ts";
+export { Bookmark, Circle, Droplet, Flag, Flame, Heart, Pause, Play, Shield, Square, Star, Zap } from "./fillable.ts";
+export type { IconProps } from "./icon.tsx";
+export { ICON_LG, ICON_MD, ICON_SM, ICON_XS, Icon } from "./icon.tsx";

@@ -22,7 +22,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { timeLib } from "#lib";
-import { characterCardFormFromDetail, permanentTokenCount, totalTokenCount } from "../lib/character-card-form-model";
+import { characterCardFormFromDetail, permanentTokenCount, totalTokenCount } from "../lib/character-card-form-model.ts";
 
 /** The greeting the token TOTAL is computed against — the hero previews `greetings[0]` on open. */
 const FIRST_GREETING = 0;

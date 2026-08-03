@@ -9,7 +9,7 @@ import type { Db } from "@orb/db";
 import { rpgCheckpoints } from "@orb/db";
 import type { RpgCheckpointId, RpgGameId } from "@orb/kit/ids";
 import { desc, eq } from "drizzle-orm";
-import type { NewRpgCheckpoint, RpgCheckpointRow } from "../contract/service";
+import type { NewRpgCheckpoint, RpgCheckpointRow } from "../contract/service.ts";
 
 /** Create a checkpoint row pointing at a snapshot. */
 export async function insertCheckpoint(db: Db, values: NewRpgCheckpoint): Promise<RpgCheckpointRow> {

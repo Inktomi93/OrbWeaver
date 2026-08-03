@@ -4,8 +4,8 @@
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { createActiveTurns } from "../../../../packages/server/src/domain/chat/active-turns";
-import { expect, test } from "../../../support/fixtures";
+import { createActiveTurns } from "../../../../packages/server/src/domain/chat/active-turns.ts";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_a");
 const OTHER = castId<ChatId>("chat_b");

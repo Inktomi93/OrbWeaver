@@ -18,11 +18,11 @@
 // rather than reporting a write that removed nothing.
 
 import { actorRefKey, rpgActorLockBase } from "@orb/contracts/rpg";
-import type { DismissActorParams } from "../contract/params";
-import type { HandDoorResult } from "../contract/results";
-import type { RpgContext, RpgService } from "../contract/service";
-import { assertHostRole, resolveMember } from "../guard";
-import { writeHandState } from "../snapshot-edit";
+import type { DismissActorParams } from "../contract/params.ts";
+import type { HandDoorResult } from "../contract/results.ts";
+import type { RpgContext, RpgService } from "../contract/service.ts";
+import { assertHostRole, resolveMember } from "../guard.ts";
+import { writeHandState } from "../snapshot-edit.ts";
 
 export function createDismissActor(ctx: RpgContext): Pick<RpgService, "dismissActor"> {
   async function dismissActor(params: DismissActorParams): Promise<HandDoorResult> {

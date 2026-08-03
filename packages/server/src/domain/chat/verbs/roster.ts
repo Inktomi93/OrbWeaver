@@ -35,9 +35,9 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, isNull } from "drizzle-orm";
-import type { ChatContext } from "../context";
-import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
-import { TOOL_RECURSE_LIMIT_MAX, TOOL_RECURSE_LIMIT_MIN, toolRecurseLimitSchema } from "../contract/metadata";
+import type { ChatContext } from "../context.ts";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
+import { TOOL_RECURSE_LIMIT_MAX, TOOL_RECURSE_LIMIT_MIN, toolRecurseLimitSchema } from "../contract/metadata.ts";
 import type {
   AcceptHostHandoffParams,
   AddCharacterToChatParams,
@@ -55,10 +55,10 @@ import type {
   SetRoomOverridesParams,
   SetSeatKnobsParams,
   SetToolRecurseLimitParams,
-} from "../contract/params";
-import type { ChatService } from "../contract/service";
-import { requireHost, requireParticipant } from "../guard";
-import { restampChatCharacterStatement } from "../persistence/canon-write";
+} from "../contract/params.ts";
+import type { ChatService } from "../contract/service.ts";
+import { requireHost, requireParticipant } from "../guard.ts";
+import { restampChatCharacterStatement } from "../persistence/canon-write.ts";
 import {
   acceptHostHandoffSwapStatements,
   assertForcedCharacterMember,
@@ -68,12 +68,12 @@ import {
   markUserLeftStatement,
   repointCharacterSeatStatement,
   setPendingHostStatement,
-} from "../persistence/participant";
-import { loadMaxMessageSeq, loadPendingHandoff } from "../persistence/queries";
-import { loadRoster } from "../persistence/roster";
-import { resolveHandoffCopyPlan } from "../substrate/handoff-copy";
-import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name";
-import { hostUserIdOf } from "../substrate/roster-host";
+} from "../persistence/participant.ts";
+import { loadMaxMessageSeq, loadPendingHandoff } from "../persistence/queries.ts";
+import { loadRoster } from "../persistence/roster.ts";
+import { resolveHandoffCopyPlan } from "../substrate/handoff-copy.ts";
+import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name.ts";
+import { hostUserIdOf } from "../substrate/roster-host.ts";
 
 /** The emit op the mutating roster verbs close over. */
 type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;

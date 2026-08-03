@@ -8,9 +8,9 @@
 // precedent).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { ChatOptionsMenuStory } from "../_ct-stories";
-import { CHAT_ID } from "../fixtures";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { ChatOptionsMenuStory } from "../_ct-stories.tsx";
+import { CHAT_ID } from "../fixtures.ts";
 
 // ── #8 grey-out (owner ruling 2026-07-24: "i fucking hate things hiding and when it's disabled on hover
 // tell why") — the DRAFT arm renders the IDENTICAL item set to a committed chat: nothing HIDDEN, the

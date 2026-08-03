@@ -28,7 +28,7 @@ import type { Services } from "@orb/server/transport/trpc";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedParticipant, seedPersona, seedUser } from "../../domain/chat/_support.ts";
 
 /** The card whose own description carries the CARD-context probe (§A.2's "{{user}} is my brother" shape). */

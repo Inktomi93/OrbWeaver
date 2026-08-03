@@ -6,26 +6,26 @@
 // binds the wired `BackendRegistry` into the bound role surface. Backend agents each export a
 // `ProviderBackend` factory; `entry/` wires them into the registry without touching this core.
 
-import type { AgentSdkBackendDeps } from "./backends/agent-sdk";
-import { createAgentSdkBackend } from "./backends/agent-sdk";
+import type { AgentSdkBackendDeps } from "./backends/agent-sdk/index.ts";
+import { createAgentSdkBackend } from "./backends/agent-sdk/index.ts";
 
-import { createCustomByoBackend } from "./backends/custom-byo";
-import type { ImageToPng } from "./backends/kit";
-import { createImageNormalizer } from "./backends/kit";
-import { createLocalLightBackend, createLocalLightMatte, createModelCache } from "./backends/local-light";
-import type { OpenRouterBackendDeps } from "./backends/openrouter";
-import { createOpenRouterBackend } from "./backends/openrouter";
-import type { BackendRegistry, ProviderBackend, ProviderDeps, ProviderExecutor, WireCaptureSink } from "./contract";
-import { createAgentRole } from "./roles/agent";
-import { createChatRole } from "./roles/chat";
-import { createEmbedRole } from "./roles/embed";
-import { createGenerateImageRole } from "./roles/generate-image";
-import { createImageEmbedRole } from "./roles/image-embed";
-import { createRerankRole } from "./roles/rerank";
-import { createStructuredRole } from "./roles/structured";
-import { createSummarizeRole } from "./roles/summarize";
-import type { VllmBackendDeps, VllmEngineHandle } from "./vllm";
-import { createVllmBackend } from "./vllm";
+import { createCustomByoBackend } from "./backends/custom-byo/index.ts";
+import type { ImageToPng } from "./backends/kit/index.ts";
+import { createImageNormalizer } from "./backends/kit/index.ts";
+import { createLocalLightBackend, createLocalLightMatte, createModelCache } from "./backends/local-light/index.ts";
+import type { OpenRouterBackendDeps } from "./backends/openrouter/index.ts";
+import { createOpenRouterBackend } from "./backends/openrouter/index.ts";
+import type { BackendRegistry, ProviderBackend, ProviderDeps, ProviderExecutor, WireCaptureSink } from "./contract/index.ts";
+import { createAgentRole } from "./roles/agent.ts";
+import { createChatRole } from "./roles/chat.ts";
+import { createEmbedRole } from "./roles/embed.ts";
+import { createGenerateImageRole } from "./roles/generate-image.ts";
+import { createImageEmbedRole } from "./roles/image-embed.ts";
+import { createRerankRole } from "./roles/rerank.ts";
+import { createStructuredRole } from "./roles/structured.ts";
+import { createSummarizeRole } from "./roles/summarize.ts";
+import type { VllmBackendDeps, VllmEngineHandle } from "./vllm/index.ts";
+import { createVllmBackend } from "./vllm/index.ts";
 
 export function createProviderExecutor(deps: ProviderDeps): ProviderExecutor {
   return {
@@ -148,29 +148,29 @@ export function createBackendRegistry(deps: BackendRegistryDeps): BackendRegistr
   return { backends: registry, vllmEngine, matteModel: createLocalLightMatte(localLightCache) };
 }
 
-export type { AgentToolResult, AgentToolSpec } from "./backends/agent-sdk";
-export { createAgentToolServer, fetchAgentSdkModels } from "./backends/agent-sdk";
+export type { AgentToolResult, AgentToolSpec } from "./backends/agent-sdk/index.ts";
+export { createAgentToolServer, fetchAgentSdkModels } from "./backends/agent-sdk/index.ts";
 export {
   DEFAULT_EMBED_MODEL,
   DEFAULT_IMAGE_EMBED_MODEL,
   DEFAULT_RERANK_MODEL,
-} from "./backends/local-light";
-export { fetchOrCatalog } from "./backends/openrouter";
-export * from "./contract";
-export { createProviderDiagnostics } from "./diagnostics";
+} from "./backends/local-light/index.ts";
+export { fetchOrCatalog } from "./backends/openrouter/index.ts";
+export * from "./contract/index.ts";
+export { createProviderDiagnostics } from "./diagnostics.ts";
 // The (UserIntent × ModelCapability) → resolved wire knobs FUNNEL. Public because it has a SECOND consumer
 // besides the runners: `preset.resolveEffective` projects the very same call for the editor, so the deck
 // shows what the next turn will actually send instead of a client re-derivation (redesign §4.3, D5).
-export { resolveChat } from "./resolve-chat";
-export { createAgentRole } from "./roles/agent";
-export { createChatRole } from "./roles/chat";
-export { backendForSource, deriveRunner, requireBackend, requireRoleImpl } from "./roles/dispatch";
-export { createEmbedRole } from "./roles/embed";
-export { assertCredentialAllowed } from "./roles/firewall";
-export { createGenerateImageRole } from "./roles/generate-image";
-export { createImageEmbedRole } from "./roles/image-embed";
-export { createRerankRole } from "./roles/rerank";
-export { createStructuredRole } from "./roles/structured";
-export { createSummarizeRole } from "./roles/summarize";
-export type { EngineDeploymentFacts, EngineStatusRecord, VllmEngineHandle } from "./vllm";
-export { detectGpu, fetchEngineMaxModelLen, fetchGenMaxModelLen, resolveEngineDeploymentFacts } from "./vllm";
+export { resolveChat } from "./resolve-chat.ts";
+export { createAgentRole } from "./roles/agent.ts";
+export { createChatRole } from "./roles/chat.ts";
+export { backendForSource, deriveRunner, requireBackend, requireRoleImpl } from "./roles/dispatch.ts";
+export { createEmbedRole } from "./roles/embed.ts";
+export { assertCredentialAllowed } from "./roles/firewall.ts";
+export { createGenerateImageRole } from "./roles/generate-image.ts";
+export { createImageEmbedRole } from "./roles/image-embed.ts";
+export { createRerankRole } from "./roles/rerank.ts";
+export { createStructuredRole } from "./roles/structured.ts";
+export { createSummarizeRole } from "./roles/summarize.ts";
+export type { EngineDeploymentFacts, EngineStatusRecord, VllmEngineHandle } from "./vllm/index.ts";
+export { detectGpu, fetchEngineMaxModelLen, fetchGenMaxModelLen, resolveEngineDeploymentFacts } from "./vllm/index.ts";

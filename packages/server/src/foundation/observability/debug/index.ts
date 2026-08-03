@@ -11,7 +11,7 @@ export {
   inspectChatState,
   integrityProbe,
   tableCounts,
-} from "./inspect";
+} from "./inspect/index.ts";
 export {
   type AdminAuthChecker,
   type AssetInspector,
@@ -22,7 +22,7 @@ export {
   registerDebugRoutes,
   type SocketInspector,
   tokenMatches,
-} from "./routes";
+} from "./routes.ts";
 export {
   isWireCaptureEnabled,
   recentWireCaptures,
@@ -30,4 +30,4 @@ export {
   resetWireCaptures,
   type WireCapture,
   type WireCaptureFilter,
-} from "./wire-capture";
+} from "./wire-capture.ts";

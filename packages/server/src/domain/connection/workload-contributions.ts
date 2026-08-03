@@ -9,7 +9,7 @@
 import type { CatalogRefreshResult } from "@orb/contracts/connection";
 import { emptyWorkloadParams } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
-import type { ConnectionWorkloadDeps } from "./contract/service";
+import type { ConnectionWorkloadDeps } from "./contract/service.ts";
 
 /** `refresh-model-catalog` — refresh BOTH provider catalogs (OpenRouter `/models` + the agent-sdk daemon's
  *  supported-model map) and report COUNTS ONLY, so no provider entry shape leaks into the queue's wire. */

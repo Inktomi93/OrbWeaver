@@ -13,7 +13,7 @@ import {
 } from "@orb/kit/errors";
 import { classifyDomainError, domainReason } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 describe("classifyDomainError — one case per subclass", () => {
   test("DomainNotFoundError → NOT_FOUND", () => {

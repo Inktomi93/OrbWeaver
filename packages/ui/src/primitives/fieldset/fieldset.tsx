@@ -2,7 +2,7 @@ import type { FieldsetLegendProps as BaseLegendProps, FieldsetRootProps as BaseR
 import { Fieldset as BaseFieldset } from "@base-ui/react/fieldset";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
-import { fieldsetVariants } from "./variants";
+import { fieldsetVariants } from "./variants.ts";
 
 const slots = fieldsetVariants();
 

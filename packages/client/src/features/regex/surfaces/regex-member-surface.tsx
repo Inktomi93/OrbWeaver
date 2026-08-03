@@ -22,10 +22,10 @@ import type { AutosaveSession } from "#forms";
 import { AutosaveStatus } from "#forms";
 import { regexScriptTitle, useFocusOnMount } from "#lib";
 import { clearCollectionSelection } from "#state";
-import { RegexEditorFields } from "../components/regex-editor-fields";
-import { useRemoveRegexScript, useUpdateRegexScript } from "../hooks/use-regex-library";
-import { RegexScriptForm } from "../hooks/use-regex-script-form";
-import { withDerivedTierFlags } from "../lib/derive-tier-flags";
+import { RegexEditorFields } from "../components/regex-editor-fields.tsx";
+import { useRemoveRegexScript, useUpdateRegexScript } from "../hooks/use-regex-library.ts";
+import { RegexScriptForm } from "../hooks/use-regex-script-form.ts";
+import { withDerivedTierFlags } from "../lib/derive-tier-flags.ts";
 
 /** Strip a row down to the authored fields the editor binds (id is identity, not content). */
 function toFormValues(row: RegexScriptRow): CreateRegexScriptInput {

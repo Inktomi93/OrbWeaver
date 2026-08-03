@@ -18,7 +18,7 @@ import {
   summarizeResultSchema,
   verifyAuthResultSchema,
 } from "@orb/contracts/providers";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // Sample vectors — built (not pasted) so they carry no high-entropy literal (noSecrets).
 const vecA = new Float32Array([0.1, 0.2, 0.3]);

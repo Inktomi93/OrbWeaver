@@ -5,7 +5,7 @@
 
 import { ExtractionFailedError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
 import { createExtractText, EXTRACTOR_VERSION } from "@orb/server/infra/extraction";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { buildDocx, buildEpub, buildPdf } from "./_fixtures.ts";
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";

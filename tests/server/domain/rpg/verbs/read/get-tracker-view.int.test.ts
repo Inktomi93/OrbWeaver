@@ -8,8 +8,8 @@ import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { freshDb } from "../../../../../support/db";
-import { expect, principal, rosterCharacter, rosterUser, seedLiteGame, seedUser, test } from "../../_support";
+import { freshDb } from "../../../../../support/db.ts";
+import { expect, principal, rosterCharacter, rosterUser, seedLiteGame, seedUser, test } from "../../_support.ts";
 
 let db: Db;
 beforeEach(async () => {

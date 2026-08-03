@@ -19,9 +19,9 @@ import type {
   ResetToDefaultParams,
   ResolveEffectiveParams,
   UpdatePresetParams,
-} from "./params";
-import type { PresetImportOutcome } from "./portability";
-import type { EffectivePreset, PresetDetail, PresetSummary } from "./views";
+} from "./params.ts";
+import type { PresetImportOutcome } from "./portability.ts";
+import type { EffectivePreset, PresetDetail, PresetSummary } from "./views.ts";
 
 /** The injected chat-role capability read — `connection.resolveChatCapability` at the composition root. Takes
  *  the acting Principal and NOTHING else (no caller-supplied user id or role), so the injected op can only

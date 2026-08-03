@@ -4,8 +4,8 @@
 // stint-2 truer-owner test).
 
 import type { SettingsSectionContribution } from "#state";
-import { WorkloadsTuningSection } from "../components/workloads-tuning-section";
-import { WORKLOADS_TUNING_SUBCATEGORY } from "./workloads-tuning-nav";
+import { WorkloadsTuningSection } from "../components/workloads-tuning-section.tsx";
+import { WORKLOADS_TUNING_SUBCATEGORY } from "./workloads-tuning-nav.ts";
 
 // The contribution id has ONE home — this const. It is both the registry key and the id the body REPORTS
 // its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.

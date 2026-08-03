@@ -6,9 +6,9 @@
 //
 // The consent rule + why the gate rides IN the params: `contract/ops.ts`. A read: no audit, no writes.
 
-import type { PersonaContext } from "../context";
-import type { ResolvePersonasForRoster } from "../contract/ops";
-import { loadPersonasForOwners } from "../persistence/queries";
+import type { PersonaContext } from "../context.ts";
+import type { ResolvePersonasForRoster } from "../contract/ops.ts";
+import { loadPersonasForOwners } from "../persistence/queries.ts";
 
 export function createResolvePersonasForRoster(ctx: PersonaContext): ResolvePersonasForRoster {
   return async ({ personaIds, allowedOwnerIds }) => {

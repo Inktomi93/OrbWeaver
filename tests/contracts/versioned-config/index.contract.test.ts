@@ -1,6 +1,6 @@
 import { defineVersionedConfig } from "@orb/contracts/versioned-config";
 import { z } from "zod";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // A 3-version config with a NON-IDEMPOTENT lift (appends to a counter) so we can prove the
 // storedVersion-beats-probe invariant: re-running the lift would corrupt `count`.

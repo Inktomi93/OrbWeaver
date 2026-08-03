@@ -20,13 +20,13 @@ import { executeRegexScripts } from "@orb/kit/regex";
 import { estimateTokens } from "@orb/kit/tokens";
 import { buildKeywordHaystack, matchEntryKeys } from "@orb/kit/world-info";
 import { getLog } from "#foundation/observability";
-import type { ChatContext } from "../context";
-import type { ApplyRegexReplaceOp } from "../contract/context";
-import type { ResolvedPersonas } from "../contract/foreign";
-import type { GuidedSteer } from "../contract/params";
-import { BEFORE_HISTORY_DEPTH, renderInjection } from "./injections";
-import { buildTurnMacroContext, freezeVolatileMacros, renderMacros, resolveGuidedActionText } from "./macros";
-import { loadWorldInfoPool } from "./world-info/pool";
+import type { ChatContext } from "../context.ts";
+import type { ApplyRegexReplaceOp } from "../contract/context.ts";
+import type { ResolvedPersonas } from "../contract/foreign.ts";
+import type { GuidedSteer } from "../contract/params.ts";
+import { BEFORE_HISTORY_DEPTH, renderInjection } from "./injections.ts";
+import { buildTurnMacroContext, freezeVolatileMacros, renderMacros, resolveGuidedActionText } from "./macros.ts";
+import { loadWorldInfoPool } from "./world-info/pool.ts";
 
 interface MatchedKey {
   key: string;

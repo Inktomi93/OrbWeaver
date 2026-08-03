@@ -18,7 +18,7 @@ import { automationActionsSchema, automationTriggerSchema } from "@orb/contracts
 import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
-import { authedProcedure, t } from "../trpc";
+import { authedProcedure, t } from "../trpc.ts";
 
 // The editable rule fields shared by create + update (the PUT-style replace — updateRule re-runs the same
 // validation). The trigger + action shapes ride the contract vocabulary; the scalars are wire wrappers. `name`

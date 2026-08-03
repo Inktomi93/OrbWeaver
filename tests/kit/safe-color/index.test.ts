@@ -4,7 +4,7 @@
 
 import { hueDistance, isSafeColor, oklchHue } from "@orb/kit/safe-color";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 describe("isSafeColor", () => {
   test("accepts the whole permitted surface (hex / rgb / hsl / oklch / oklab / named)", () => {

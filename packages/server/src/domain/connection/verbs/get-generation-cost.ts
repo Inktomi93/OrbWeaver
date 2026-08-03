@@ -5,9 +5,9 @@
 // error verbatim); connection adds no reshaping.
 
 import type { GenerationCost } from "@orb/contracts/providers";
-import type { ConnectionContext } from "../context";
-import type { GetGenerationCostParams } from "../contract/params";
-import type { ConnectionService } from "../contract/service";
+import type { ConnectionContext } from "../context.ts";
+import type { GetGenerationCostParams } from "../contract/params.ts";
+import type { ConnectionService } from "../contract/service.ts";
 
 export function createGetGenerationCost(ctx: ConnectionContext): ConnectionService["getGenerationCost"] {
   return async ({ principal, generationId, signal }: GetGenerationCostParams): Promise<GenerationCost> => {

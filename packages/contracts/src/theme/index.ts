@@ -8,17 +8,17 @@
 // `schema/search.ts` naming lie (themes-design §3.1).
 
 import { z } from "zod";
-import { themeOverrideSchema } from "./override";
+import { themeOverrideSchema } from "./override.ts";
 
-export type { BackgroundImageKind, ThemeBackground } from "./background";
-export { BACKGROUND_IMAGE_KINDS, canonicalBackgroundSource, themeBackgroundSchema } from "./background";
+export type { BackgroundImageKind, ThemeBackground } from "./background.ts";
+export { BACKGROUND_IMAGE_KINDS, canonicalBackgroundSource, themeBackgroundSchema } from "./background.ts";
 export type {
   BackgroundMaterializeFailure,
   MaterializeBackgroundOp,
   MaterializeBackgroundResult,
   MaterializedBackgroundAsset,
-} from "./materialize";
-export { BACKGROUND_MATERIALIZE_FAILURES, backgroundMaterializeMessage } from "./materialize";
+} from "./materialize.ts";
+export { BACKGROUND_MATERIALIZE_FAILURES, backgroundMaterializeMessage } from "./materialize.ts";
 export type {
   CardEmbeddableTheme,
   CardEmbeddableThemeKey,
@@ -29,7 +29,7 @@ export type {
   ThemeOverride,
   ThemeRadius,
   ViewerSacredThemeKey,
-} from "./override";
+} from "./override.ts";
 export {
   CARD_EMBEDDABLE_THEME_KEYS,
   cardEmbeddableSubset,
@@ -40,9 +40,9 @@ export {
   THEME_RADII,
   themeOverrideSchema,
   VIEWER_SACRED_THEME_KEYS,
-} from "./override";
-export type { SeededBackground } from "./seeded-backgrounds";
-export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "./seeded-backgrounds";
+} from "./override.ts";
+export type { SeededBackground } from "./seeded-backgrounds.ts";
+export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "./seeded-backgrounds.ts";
 
 /** Name/CSS length caps (themes-design §3.2 — named constants, shared with the future db CHECKs). */
 export const THEME_NAME_MAX = 80;

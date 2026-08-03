@@ -40,7 +40,7 @@ import type {
   SimilarityGraphOptions,
   ThemeLevel,
   TopKeywordsOptions,
-} from "./params";
+} from "./params.ts";
 import type {
   Archetype,
   AskCardAnswer,
@@ -77,7 +77,7 @@ import type {
   ThemeRow,
   UnusedCharacter,
   VisualArchetype,
-} from "./results";
+} from "./results.ts";
 
 // ── injected cross-feature ops (type-only; wired at the root) ─────────────────
 /** The `hub_score` write seam — the embeddings domain's `writeHubScores` verb, bound at the entry root. */

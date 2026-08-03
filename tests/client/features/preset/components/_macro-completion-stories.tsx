@@ -15,9 +15,9 @@ import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Toaster, ToastProvider } from "@orb/ui/toast";
 import type { ReactElement } from "react";
-import { ActionsView } from "../../../../../packages/client/src/features/preset/components/actions-view";
-import { PresetStructureTabs } from "../../../../../packages/client/src/features/preset/components/preset-structure-tabs";
-import { UserMacrosTab } from "../../../../../packages/client/src/features/preset/components/user-macros-tab";
+import { ActionsView } from "../../../../../packages/client/src/features/preset/components/actions-view.tsx";
+import { PresetStructureTabs } from "../../../../../packages/client/src/features/preset/components/preset-structure-tabs.tsx";
+import { UserMacrosTab } from "../../../../../packages/client/src/features/preset/components/user-macros-tab.tsx";
 
 const STORY_PRESET = castId<PresetId>("preset_macrounionsy");
 

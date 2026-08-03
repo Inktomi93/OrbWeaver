@@ -4,10 +4,10 @@
 // — the route passes true, trusted non-HTTP callers omit it.
 
 import { DomainOperationError } from "@orb/kit/errors";
-import type { AssetsContext } from "../context";
-import type { StoreParams } from "../contract/params";
-import type { AssetsService } from "../contract/service";
-import { storeBlob } from "../persistence/queries";
+import type { AssetsContext } from "../context.ts";
+import type { StoreParams } from "../contract/params.ts";
+import type { AssetsService } from "../contract/service.ts";
+import { storeBlob } from "../persistence/queries.ts";
 
 export function createStore(ctx: AssetsContext): AssetsService["store"] {
   return async ({ principal, bytes, kind, mime, enforceMagic, maxBytes }: StoreParams) => {

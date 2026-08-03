@@ -8,10 +8,10 @@ import type { RpgCheckpointId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { findCheckpoint, insertCheckpoint, listCheckpoints } from "../../../../../packages/server/src/domain/rpg/persistence/checkpoints";
-import { insertSnapshot, writeRestoredSnapshot } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots";
-import { freshDb } from "../../../../support/db";
-import { expect, FROZEN_AT, handTarget, seedChat, seedGame, seedMessage, snapshotId, test } from "../_support";
+import { findCheckpoint, insertCheckpoint, listCheckpoints } from "../../../../../packages/server/src/domain/rpg/persistence/checkpoints.ts";
+import { insertSnapshot, writeRestoredSnapshot } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, FROZEN_AT, handTarget, seedChat, seedGame, seedMessage, snapshotId, test } from "../_support.ts";
 
 let db: Db;
 beforeEach(async () => {

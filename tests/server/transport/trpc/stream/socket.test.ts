@@ -18,7 +18,7 @@ import type { ChatService } from "@orb/server/domain/chat";
 import type { SocketRegistry } from "@orb/server/transport/trpc";
 import { createSocketRegistry, FRAME_QUEUE_CAPACITY, publishChatEvent } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const MEMBER = castId<UserId>("user_member");

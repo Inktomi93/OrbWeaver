@@ -3,8 +3,8 @@
 // recorder. Copy this file's shape for every client-feature CT.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../support/ct/route-trpc";
-import { DeferredEchoBoundaryStory, EchoBoundaryStory } from "./_ct-stories";
+import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
+import { DeferredEchoBoundaryStory, EchoBoundaryStory } from "./_ct-stories.tsx";
 
 test("renders suspended data through the boundary and records the decoded input", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {

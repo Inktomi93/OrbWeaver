@@ -5,7 +5,7 @@
 import type { ContextRegionDef, ContextTabDef, ContextTabsSpec } from "@orb/client/lib";
 import { createContributorRegistry, defineContextRegion, defineContextTabs, resolveContextTabs } from "@orb/client/lib";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 interface State {
   readonly n: number;

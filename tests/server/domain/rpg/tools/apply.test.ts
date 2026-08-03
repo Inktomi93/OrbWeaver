@@ -17,8 +17,8 @@ import {
   extractionToStateDelta,
   ghostTargetRefs,
   toStagedJournalEntry,
-} from "../../../../../packages/server/src/domain/rpg/tools/apply";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/server/src/domain/rpg/tools/apply.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 /** An actor row on the state plane — `over` patches the VOLATILE half. */
 function actorRow(castKey: string, over: Partial<RpgSnapshotState["actorState"][number]["volatile"]> = {}): RpgSnapshotState["actorState"][number] {

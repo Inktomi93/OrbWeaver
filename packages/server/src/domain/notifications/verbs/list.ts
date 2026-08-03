@@ -3,10 +3,10 @@
 // excluded, newest-first, cursor-paged on the monotonic `seq`. `nextCursor` is the last row's `seq` when a
 // full page came back (more may remain below it), else `null` (inbox exhausted).
 
-import type { ListInboxParams } from "../contract/params";
-import type { ListInboxResult } from "../contract/results";
-import type { NotificationsContext, NotificationsService } from "../contract/service";
-import { selectInbox } from "../persistence/queries";
+import type { ListInboxParams } from "../contract/params.ts";
+import type { ListInboxResult } from "../contract/results.ts";
+import type { NotificationsContext, NotificationsService } from "../contract/service.ts";
+import { selectInbox } from "../persistence/queries.ts";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;

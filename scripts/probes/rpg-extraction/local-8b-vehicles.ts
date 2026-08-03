@@ -64,9 +64,9 @@ import {
 } from "@orb/contracts/rpg";
 import type { UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { buildRosterRefIndex, extractionToStateDelta } from "../../../packages/server/src/domain/rpg/tools/apply";
-import { buildLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder";
-import { cleanJsonSchema } from "../../../packages/server/src/infra/providers/vllm/engine/chat-completion";
+import { buildRosterRefIndex, extractionToStateDelta } from "../../../packages/server/src/domain/rpg/tools/apply.ts";
+import { buildLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder.ts";
+import { cleanJsonSchema } from "../../../packages/server/src/infra/providers/vllm/engine/chat-completion.ts";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(DIR, process.env["SPIKE_OUT"] ?? "v2");

@@ -6,8 +6,8 @@
 // them with `ctx.now()`), so this is deterministic + unit-testable.
 
 import type { AgentSdkModel, ModelCatalogEntry } from "@orb/contracts/connection";
-import { deriveOrSkinTierModels } from "../catalog/derive-or-skin-tier-models";
-import type { OrSkinTierModels } from "../contract/results";
+import { deriveOrSkinTierModels } from "../catalog/derive-or-skin-tier-models.ts";
+import type { OrSkinTierModels } from "../contract/results.ts";
 
 /** Derive the mode-2 tier→OR-slug map from the two cache snapshots. `null` (cold cache) ⇒ empty input —
  *  the derivation falls back to the curated shortlist so a mode-2 turn always gets a coherent trio. The

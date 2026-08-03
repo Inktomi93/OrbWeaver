@@ -28,10 +28,10 @@
 
 import type { RpgActorView, RpgDateMode, RpgQuestView, RpgSnapshotState, RpgStatProfile, RpgTrackerView } from "@orb/contracts/rpg";
 import type { CelValue } from "@orb/kit/cel";
-import type { DeltaContext } from "../contract/delta";
-import type { RpgMacroFeed } from "../contract/params";
-import { buildDeltaBlock } from "../substrate/delta";
-import { actorLine, ambientLine, castHeader, gameTrackerLine, plotLine, questLine } from "../substrate/reminder";
+import type { DeltaContext } from "../contract/delta.ts";
+import type { RpgMacroFeed } from "../contract/params.ts";
+import { buildDeltaBlock } from "../substrate/delta.ts";
+import { actorLine, ambientLine, castHeader, gameTrackerLine, plotLine, questLine } from "../substrate/reminder.ts";
 
 /** The scene-cast actors, in the reminder's own partition (R2): cast-kind actors who stand on stage. */
 function onStage(view: RpgTrackerView): readonly RpgActorView[] {

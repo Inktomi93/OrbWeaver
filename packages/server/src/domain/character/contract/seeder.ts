@@ -5,7 +5,7 @@
 import type { CharacterCard, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import type { AssetId, CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
-import type { CharacterService } from "./service";
+import type { CharacterService } from "./service.ts";
 
 /** One authored default card: the create input, its author-shipped native tags (attached separately —
  *  CreateCharacterInput carries no tags field), and its PRESENTATION (carried theme + background).

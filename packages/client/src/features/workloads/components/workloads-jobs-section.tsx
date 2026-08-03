@@ -21,8 +21,8 @@ import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import { settingsAnchorId } from "#state";
-import { useCancelWorkload, useRetryWorkload } from "../hooks/use-workload-mutations";
-import { WORKLOADS_JOBS_SUBCATEGORY } from "../lib/workloads-jobs-nav";
+import { useCancelWorkload, useRetryWorkload } from "../hooks/use-workload-mutations.ts";
+import { WORKLOADS_JOBS_SUBCATEGORY } from "../lib/workloads-jobs-nav.ts";
 import {
   groupWorkloadsByLane,
   isActiveWorkloadStatus,
@@ -31,9 +31,9 @@ import {
   WORKLOAD_FILTERS,
   WORKLOAD_LANE_LABELS,
   workloadFilterMatches,
-} from "../lib/workloads-model";
-import { RunWorkloadDialog } from "./run-workload-dialog";
-import { WorkloadRow } from "./workload-row";
+} from "../lib/workloads-model.ts";
+import { RunWorkloadDialog } from "./run-workload-dialog.tsx";
+import { WorkloadRow } from "./workload-row.tsx";
 
 type WorkloadItem = inferOutput<Trpc["workloads"]["list"]>[number];
 

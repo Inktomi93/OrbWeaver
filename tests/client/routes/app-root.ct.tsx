@@ -14,10 +14,10 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { testId } from "../../../packages/client/src/lib/test-ids";
-import { routeTrpc } from "../../support/ct/route-trpc";
-import { makeCharacterSummary } from "../features/character/fixtures";
-import { HomePageStory } from "./_ct-stories";
+import { testId } from "../../../packages/client/src/lib/test-ids.ts";
+import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { makeCharacterSummary } from "../features/character/fixtures.ts";
+import { HomePageStory } from "./_ct-stories.tsx";
 
 const ARIA = makeCharacterSummary({ id: "char_home_aria", name: "Aria Nightshade" });
 const LIST_TOGGLE_RE = /^(?:Show|Hide) list panel$/u;

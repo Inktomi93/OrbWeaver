@@ -4,7 +4,7 @@
 // (a new tuple member fails to key a Record / falls through a guard until it declares its arm).
 
 import type { PromptTemplateMode } from "@orb/contracts/imagery";
-import type { ExtractionMode, MultimodalMode, PortraitMode } from "../contract/params";
+import type { ExtractionMode, MultimodalMode, PortraitMode } from "../contract/params.ts";
 
 const MULTIMODAL_MODES = new Set<PromptTemplateMode>(["character_multimodal", "face_multimodal"]);
 const PORTRAIT_MODES = new Set<PromptTemplateMode>(["character", "face", "character_multimodal", "face_multimodal"]);

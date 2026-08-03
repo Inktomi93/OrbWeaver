@@ -4,8 +4,8 @@
 // read by character-library-surface), so it lands here instead of staying inside features/settings.
 
 import type { SettingsSectionContribution } from "#state";
-import { LibrarySettingsSection } from "../components/library-settings-section";
-import { LIBRARY_SETTINGS_SUBCATEGORY } from "./library-settings-nav";
+import { LibrarySettingsSection } from "../components/library-settings-section.tsx";
+import { LIBRARY_SETTINGS_SUBCATEGORY } from "./library-settings-nav.ts";
 
 // The contribution id has ONE home — this const. It is both the registry key and the id the body REPORTS
 // its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.

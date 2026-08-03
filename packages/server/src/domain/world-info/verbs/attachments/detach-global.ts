@@ -4,11 +4,11 @@
 
 import { globalBooks } from "@orb/db";
 import { eq } from "drizzle-orm";
-import type { WorldInfoContext } from "../../context";
-import { WorldInfoNotFoundError } from "../../contract/errors";
-import type { DetachGlobalParams } from "../../contract/params";
-import type { WorldInfoService } from "../../contract/service";
-import { loadOwnedBook } from "../../persistence/queries";
+import type { WorldInfoContext } from "../../context.ts";
+import { WorldInfoNotFoundError } from "../../contract/errors.ts";
+import type { DetachGlobalParams } from "../../contract/params.ts";
+import type { WorldInfoService } from "../../contract/service.ts";
+import { loadOwnedBook } from "../../persistence/queries.ts";
 
 export function createDetachGlobal(ctx: WorldInfoContext): WorldInfoService["detachGlobal"] {
   return async ({ principal, bookId }: DetachGlobalParams) => {

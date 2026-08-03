@@ -26,7 +26,7 @@ import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import { setDraftGreeting, startEditingMessage } from "#state";
-import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal";
+import { MESSAGE_ACTION_ICON_CLASS, messageActionsRevealClass } from "../lib/message-actions-reveal.ts";
 
 /** Append a greeting alternate to the card (busDriven — `charactersChanged` covers list + get). */
 const useAppendGreeting = createEntityMutation<{ characterId: CharacterId; input: { greetings: { text: string }[] } }, unknown>({

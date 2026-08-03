@@ -102,12 +102,17 @@ function scanDbStructure(ctx: CheckContext): Violation[] {
   const checkMirror = existsSync(domainRoot); // pre-Phase-4 snapshots have no domain/ tree — skip arm 2.
   for (const f of files) {
     const name = f.replace(TS_EXT_RE, "");
+    // BOTH spellings are accepted: `./name` (the pre-2026-08-03 convention) and `./name.ts` (the current
+    // one — the tsx-shedding migration made every relative import extension-ful, because node's type
+    // stripping does no extensionless resolution). A matcher pinned to one spelling reports 27 phantom
+    // "missing" re-exports the moment the barrel is rewritten, which is exactly what it did.
     const spec = `./${name}`;
-    if (!reExported.has(spec)) {
+    const reExportedHere = reExported.has(spec) || reExported.has(`${spec}.ts`);
+    if (!reExportedHere) {
       violations.push({
         file: `${SCHEMA_REL}/${f}`,
         line: 0,
-        message: `schema file is NOT re-exported from the barrel schema/index.ts — add \`export * from "${spec}";\` or its tables silently vanish from \`typeof schema\` (migrations + the relational query API).`,
+        message: `schema file is NOT re-exported from the barrel schema/index.ts — add \`export * from "${spec}.ts";\` or its tables silently vanish from \`typeof schema\` (migrations + the relational query API).`,
       });
     }
     if (!checkMirror || RESERVED_CROSS_CUTTING.has(name)) {

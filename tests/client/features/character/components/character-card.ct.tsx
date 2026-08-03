@@ -10,7 +10,7 @@
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { CharacterCardTileStory } from "../_ct-stories";
+import { CharacterCardTileStory } from "../_ct-stories.tsx";
 
 const GROUP_CLASS = /group/;
 const REVEAL_ON_HOVER = /group-hover:opacity-100/;

@@ -22,20 +22,20 @@ import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from 
 import { useFocusOnMount } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";
 import { isCommitted, isLiveTurnPhase, useDraftConfig, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
-import { GhostMessageRow } from "../components/ghost-message-row";
-import { JumpToLatestPill } from "../components/jump-to-latest-pill";
-import { MessageRow } from "../components/message-row";
-import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs";
-import { useChatStyle } from "../hooks/use-chat-style";
-import { useJumpToLatest } from "../hooks/use-jump-to-latest";
-import { useMessageAppearance } from "../hooks/use-message-appearance";
-import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items";
-import { resolveRowAttribution } from "../lib/attribution";
-import { resolveContextBoundaryMessageId } from "../lib/context-boundary";
-import { resolveDraftAnchorPersona, resolveDraftCharacterIds } from "../lib/draft-commit";
-import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
-import { buildParticipantsById, resolveViewerActivePersonaId, resolveViewerUserId } from "../lib/roster";
-import { synthGreetingRow } from "../lib/synth-greeting-row";
+import { GhostMessageRow } from "../components/ghost-message-row.tsx";
+import { JumpToLatestPill } from "../components/jump-to-latest-pill.tsx";
+import { MessageRow } from "../components/message-row.tsx";
+import { useChatBehaviorPrefs } from "../hooks/use-chat-behavior-prefs.ts";
+import { useChatStyle } from "../hooks/use-chat-style.ts";
+import { useJumpToLatest } from "../hooks/use-jump-to-latest.ts";
+import { useMessageAppearance } from "../hooks/use-message-appearance.ts";
+import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items.ts";
+import { resolveRowAttribution } from "../lib/attribution.ts";
+import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
+import { resolveDraftAnchorPersona, resolveDraftCharacterIds } from "../lib/draft-commit.ts";
+import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
+import { buildParticipantsById, resolveViewerActivePersonaId, resolveViewerUserId } from "../lib/roster.ts";
+import { synthGreetingRow } from "../lib/synth-greeting-row.ts";
 
 /** Initial per-row height guess (px) — rows re-measure themselves after mount (the seal's job). */
 const ESTIMATED_ROW_PX = 96;

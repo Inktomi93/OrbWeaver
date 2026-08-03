@@ -5,8 +5,8 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { createAutosaveEntityForm } from "#forms";
-import type { ImageryTemplatesForm } from "../lib/imagery-templates-model";
-import { projectImageryTemplatesForm } from "../lib/imagery-templates-model";
+import type { ImageryTemplatesForm } from "../lib/imagery-templates-model.ts";
+import { projectImageryTemplatesForm } from "../lib/imagery-templates-model.ts";
 
 /** The singleton entity id — the imagery prompt overrides are one row per user, so a fixed key. */
 export const IMAGERY_TEMPLATES_ENTITY_ID = "imagery-templates-settings";

@@ -8,9 +8,9 @@
 import type { ProcessMacroOptions, UserMacroDef } from "@orb/kit/macro";
 import { createMacroContext } from "@orb/kit/macro";
 import { describe } from "vitest";
-import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros";
-import type { TurnUserMacros } from "../../../../../packages/server/src/domain/chat/contract/assembly-macros";
-import { expect, test } from "../../../../support/fixtures";
+import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros.ts";
+import type { TurnUserMacros } from "../../../../../packages/server/src/domain/chat/contract/assembly-macros.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 /** Assert-and-narrow: `buildTurnUserMacros` returns `TurnUserMacros | null`; every non-empty-defs test
  *  wants the built value, so unwrap once (fails loudly on the fast-path null instead of `?.`-guarding). */

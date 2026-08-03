@@ -31,10 +31,10 @@ import {
   routeImpersonateStream,
   routeImpersonateStreamOnce,
   ZOMBIE_WATCH_MS,
-} from "../../../../support/ct/route-impersonate-stream";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { ComposerStory } from "../_ct-stories";
-import { COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures";
+} from "../../../../support/ct/route-impersonate-stream.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { ComposerStory } from "../_ct-stories.tsx";
+import { COMPOSER_CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 const RESPONSE = "Generate reply";
 // P3-dualmode: the guided icons' accessible name reflects the active mode — "Guided …" when the composer has text.

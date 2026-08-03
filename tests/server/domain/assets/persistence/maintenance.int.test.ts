@@ -17,7 +17,7 @@ import {
 } from "../../../../../packages/server/src/domain/assets/persistence/maintenance.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedUser } from "../_support.ts";
 
 const PNG = "image/png";

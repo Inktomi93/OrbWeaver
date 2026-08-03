@@ -1,10 +1,10 @@
 import { getLog } from "#foundation/observability";
-import { SYSTEM_DEFAULT_PRESET_ID } from "../constants";
-import type { PresetContext } from "../context";
-import { PRESET_OP_CODES, PresetNotFoundError, PresetOperationError } from "../contract/errors";
-import type { RemovePresetParams } from "../contract/params";
-import type { PresetService } from "../contract/service";
-import { deletePreset } from "../persistence/queries";
+import { SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
+import type { PresetContext } from "../context.ts";
+import { PRESET_OP_CODES, PresetNotFoundError, PresetOperationError } from "../contract/errors.ts";
+import type { RemovePresetParams } from "../contract/params.ts";
+import type { PresetService } from "../contract/service.ts";
+import { deletePreset } from "../persistence/queries.ts";
 
 // verb: remove — delete an OWNED preset. The system default is GUARDED (its lifecycle is the boot seeder's
 // alone — never removable through the verb API). Owned deletes scope on `ownerId = userId`, so a foreign or

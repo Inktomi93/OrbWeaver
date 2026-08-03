@@ -8,7 +8,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { requireAuthorOrHost, setParticipantActivePersona } from "../../../../../packages/server/src/domain/chat/index.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 

@@ -6,13 +6,13 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
-import type { BusEventRecord } from "./bus-devlog";
-import { busEventRing, busLiveCount } from "./bus-devlog";
-import { IS_DEV } from "./dev-flag";
-import type { AnimationRecord, MotionSnapshot } from "./motion-stats";
-import { activeAnimations, installMotionObservers, motionSnapshot } from "./motion-stats";
-import { perfMeasureFromLoad, recentMeasures } from "./perf-marks";
-import { renderHeatmap } from "./render-stats";
+import type { BusEventRecord } from "./bus-devlog.ts";
+import { busEventRing, busLiveCount } from "./bus-devlog.ts";
+import { IS_DEV } from "./dev-flag.ts";
+import type { AnimationRecord, MotionSnapshot } from "./motion-stats.ts";
+import { activeAnimations, installMotionObservers, motionSnapshot } from "./motion-stats.ts";
+import { perfMeasureFromLoad, recentMeasures } from "./perf-marks.ts";
+import { renderHeatmap } from "./render-stats.ts";
 
 const READY_ATTR = "data-app-ready";
 const READY_FALLBACK_MS = 3000;

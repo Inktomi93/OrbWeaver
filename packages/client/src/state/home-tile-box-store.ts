@@ -19,7 +19,7 @@
 // registered as such in scripts/check/gates/persistence-boundary.ts.
 
 import { isPlainObject } from "@orb/kit/guards";
-import { createPersistedStore } from "./create-persisted-store";
+import { createPersistedStore } from "./create-persisted-store.ts";
 
 /** Heights above this are a bug (a mis-measured detached node), not a tile — never reserve them. */
 const MAX_REMEMBERED_PX = 4000;

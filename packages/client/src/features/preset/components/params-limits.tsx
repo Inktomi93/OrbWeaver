@@ -33,10 +33,10 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { KeyboardEvent, ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
-import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model";
-import type { EffectiveProfileRow } from "../lib/effective-knobs";
-import { COMPACTION_MODE_ITEMS, compactionModeLabel } from "../lib/preset-nav";
-import { KnobRow } from "./knob-row";
+import { pageStep, verbosityLevelsFor } from "../lib/capability-panel-model.ts";
+import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
+import { COMPACTION_MODE_ITEMS, compactionModeLabel } from "../lib/preset-nav.ts";
+import { KnobRow } from "./knob-row.tsx";
 
 type AppForm = AppFormInstance<PromptConfig>;
 

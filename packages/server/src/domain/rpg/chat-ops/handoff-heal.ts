@@ -35,11 +35,11 @@
 
 import type { BatchStmt } from "@orb/db/kit";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
-import type { HandStateHead, HandStateWrite, RpgContext } from "../contract/service";
-import { clearGmPresetStatement, findGameByChat, setGmPresetStatement } from "../persistence/games";
-import { rekeySheetCharacterStatement } from "../persistence/sheets";
-import { writeHandState } from "../snapshot-edit";
-import { rekeyActor } from "../substrate/actor-rekey";
+import type { HandStateHead, HandStateWrite, RpgContext } from "../contract/service.ts";
+import { clearGmPresetStatement, findGameByChat, setGmPresetStatement } from "../persistence/games.ts";
+import { rekeySheetCharacterStatement } from "../persistence/sheets.ts";
+import { writeHandState } from "../snapshot-edit.ts";
+import { rekeyActor } from "../substrate/actor-rekey.ts";
 
 /** One source→copy card pairing the handoff minted (the structural shape of chat's `HandoffCardCopy`). */
 interface HandoffCardPair {

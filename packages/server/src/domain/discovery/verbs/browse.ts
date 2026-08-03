@@ -6,10 +6,10 @@ import type { Db } from "@orb/db";
 import { assets, characterSummaries, characters } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
-import type { DiscoveryContext } from "../context";
-import type { BrowseFilter } from "../contract/params";
-import type { BrowseCharacter, CharacterFacets, FacetCount } from "../contract/results";
-import type { DiscoveryService } from "../contract/service";
+import type { DiscoveryContext } from "../context.ts";
+import type { BrowseFilter } from "../contract/params.ts";
+import type { BrowseCharacter, CharacterFacets, FacetCount } from "../contract/results.ts";
+import type { DiscoveryService } from "../contract/service.ts";
 
 // The page size when the caller names none. A library past this is TRUNCATED silently — deliberate (the row
 // set is a browse page, not a count), and the reason the catalog's `totalDistilled` is a separate read: a

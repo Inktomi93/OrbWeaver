@@ -12,8 +12,8 @@ import { useState } from "react";
 import { FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { notify, testId } from "#lib";
-import { useSetPersonaSeed } from "../hooks/use-persona-identity";
-import { useCreatePersona } from "../hooks/use-persona-mutations";
+import { useSetPersonaSeed } from "../hooks/use-persona-identity.ts";
+import { useCreatePersona } from "../hooks/use-persona-mutations.ts";
 
 /** Mounted on `/` (an AppShell sibling); renders nothing until the zero-personas trigger fires. */
 export function FirstRunPersonaDialog(): ReactElement | null {

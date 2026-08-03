@@ -7,7 +7,7 @@
 
 import { themeOverrideSchema } from "@orb/contracts/theme";
 import type { themes } from "@orb/db";
-import type { ThemeView } from "../contract/views";
+import type { ThemeView } from "../contract/views.ts";
 
 type ThemeRow = typeof themes.$inferSelect;
 

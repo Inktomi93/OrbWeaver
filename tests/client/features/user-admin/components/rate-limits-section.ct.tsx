@@ -5,10 +5,10 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { setNumber } from "../../../../support/ct/set-number";
-import { RateLimitsSectionStory } from "../_ct-stories";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { setNumber } from "../../../../support/ct/set-number.ts";
+import { RateLimitsSectionStory } from "../_ct-stories.tsx";
 
 // The resolved slice the section reads (getAppSettingsWithOverrides.resolved). Only `rateLimits` is read
 // here; routeTrpc handler returns are untyped stubs, so a plain partial suffices (the admin-surface CT's

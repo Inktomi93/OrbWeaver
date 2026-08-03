@@ -10,7 +10,7 @@ import type { AppearanceSettings } from "@orb/contracts/settings";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
-import type { MessageMetadataVisibility } from "../components/message-metadata-row";
+import type { MessageMetadataVisibility } from "../components/message-metadata-row.tsx";
 
 /** The row-display subset of the appearance prefs (the knobs `MessageRow` consumes). */
 export interface MessageAppearance {

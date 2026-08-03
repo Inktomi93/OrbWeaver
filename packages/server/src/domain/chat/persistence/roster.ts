@@ -9,7 +9,7 @@ import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
-import { assertForcedCharacterMember } from "./participant";
+import { assertForcedCharacterMember } from "./participant.ts";
 
 /** How many rows an existence probe needs. */
 const LIMIT_ONE = 1;

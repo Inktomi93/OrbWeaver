@@ -11,7 +11,7 @@ import { promptConfigWriteSchema } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
-import { authedProcedure, t } from "../trpc";
+import { authedProcedure, t } from "../trpc.ts";
 
 /** Upload bound for one `orb.preset` file. A preset blob is sections + knobs + templates — generous next to
  *  the schema's own per-field caps (100k-char section bodies × 500 sections is the real ceiling), and a bound

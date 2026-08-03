@@ -25,9 +25,9 @@
 
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import type { ChatTurnId } from "@orb/kit/ids";
-import type { StagedJournalEntry, StagedTurnFlush } from "./contract/params";
-import type { RpgStagingStore } from "./contract/service";
-import { applyLockedPatch } from "./substrate/merge";
+import type { StagedJournalEntry, StagedTurnFlush } from "./contract/params.ts";
+import type { RpgStagingStore } from "./contract/service.ts";
+import { applyLockedPatch } from "./substrate/merge.ts";
 
 /** One turn's in-flight accumulation: the effective snapshot state (base + every staged overlay) and the
  *  staged journal entries (flushed stamped with the committed variant at turn-end). Module-private. */

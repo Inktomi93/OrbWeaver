@@ -20,8 +20,8 @@ import type { GroupConfig, SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { escapeRegExp } from "@orb/kit/strings";
-import type { ArbiterCandidate, CastName } from "../contract/arbitration";
-import { isArbiterEligible } from "../persistence/participant";
+import type { ArbiterCandidate, CastName } from "../contract/arbitration.ts";
+import { isArbiterEligible } from "../persistence/participant.ts";
 
 /** The arbitration inputs (file-local — callers pass a literal). */
 interface SelectSpeakersParams {

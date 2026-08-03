@@ -4,9 +4,9 @@
 // sub / OR-Anthropic — vLLM is NOT agent-sdk-eligible since 2026-07-27, and BYO is never allowed) + the
 // owner-consent belt.
 
-import type { AgentTurnRequest, ChatResult, ProviderDeps } from "../contract";
-import { requireBackend, runRole } from "./dispatch";
-import { assertCredentialAllowed } from "./firewall";
+import type { AgentTurnRequest, ChatResult, ProviderDeps } from "../contract/index.ts";
+import { requireBackend, runRole } from "./dispatch.ts";
+import { assertCredentialAllowed } from "./firewall.ts";
 
 const ROLE = "agent";
 const AGENT_BACKEND = "agent-sdk";

@@ -2,12 +2,12 @@
 // (chosen explicitly; ST chat headers don't reliably carry the character name). Translates each parsed
 // chat to `BulkImportChatInput` and delegates the write to the injected `bulkImportChats` op.
 
-import type { ImportContext } from "../context";
-import type { ImportChatsResult } from "../contract/results";
-import type { ImportService } from "../contract/service";
-import type { ImportChatsInput } from "../contract/views";
-import { requireProfile } from "../guard";
-import { buildBulkImportChatInput } from "../substrate/chat-input";
+import type { ImportContext } from "../context.ts";
+import type { ImportChatsResult } from "../contract/results.ts";
+import type { ImportService } from "../contract/service.ts";
+import type { ImportChatsInput } from "../contract/views.ts";
+import { requireProfile } from "../guard.ts";
+import { buildBulkImportChatInput } from "../substrate/chat-input.ts";
 
 export function createImportChats(ctx: ImportContext): ImportService["importChats"] {
   return async (input: ImportChatsInput): Promise<ImportChatsResult> => {

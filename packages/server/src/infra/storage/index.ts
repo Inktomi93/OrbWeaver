@@ -4,11 +4,11 @@
 // and injected DOWN into `domain/assets` (+ `domain/export`). The `assets` INDEX (the table + the
 // `storeBlob` coherence primitive + GC/reap policy) is the domain's; storage owns the bytes.
 
-export type { Cas, PutResult } from "./cas";
-export { createCas } from "./cas";
+export type { Cas, PutResult } from "./cas.ts";
+export { createCas } from "./cas.ts";
 
-export { stageDirectory } from "./stage-dir";
-export type { VariantCache } from "./variant-cache";
-export { createVariantCache } from "./variant-cache";
-export type { ExtractOptions, StagedArchive, StagedEntry, ZipEntry } from "./zip";
-export { extractZip, packZip, ZipRejectedError } from "./zip";
+export { stageDirectory } from "./stage-dir.ts";
+export type { VariantCache } from "./variant-cache.ts";
+export { createVariantCache } from "./variant-cache.ts";
+export type { ExtractOptions, StagedArchive, StagedEntry, ZipEntry } from "./zip.ts";
+export { extractZip, packZip, ZipRejectedError } from "./zip.ts";

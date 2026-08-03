@@ -2,7 +2,7 @@
 
 import { describe } from "vitest";
 import { collapseByHash } from "../../../../../packages/server/src/domain/discovery/substrate/collapse.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 interface Row {
   readonly id: string;

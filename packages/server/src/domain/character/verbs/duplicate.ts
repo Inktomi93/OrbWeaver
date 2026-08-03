@@ -12,13 +12,13 @@
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { cardContentHash } from "#kit/serde/card";
-import type { CharacterContext } from "../context";
-import { CharacterNotFoundError } from "../contract/errors";
-import type { DuplicateCharacterParams } from "../contract/params";
-import type { CharacterService } from "../contract/service";
-import { insertCharacter } from "../persistence/card";
-import { canonicalTagsOf, cardOf, detailOf, listOwnerHandles, loadOwnedCharacterRow, loadOwnedCharacterWithAvatar } from "../persistence/queries";
-import { cardTokenSize } from "../substrate/card-tokens";
+import type { CharacterContext } from "../context.ts";
+import { CharacterNotFoundError } from "../contract/errors.ts";
+import type { DuplicateCharacterParams } from "../contract/params.ts";
+import type { CharacterService } from "../contract/service.ts";
+import { insertCharacter } from "../persistence/card.ts";
+import { canonicalTagsOf, cardOf, detailOf, listOwnerHandles, loadOwnedCharacterRow, loadOwnedCharacterWithAvatar } from "../persistence/queries.ts";
+import { cardTokenSize } from "../substrate/card-tokens.ts";
 
 const COPY_SUFFIX = "-copy";
 const FIRST_INCREMENT = 2;

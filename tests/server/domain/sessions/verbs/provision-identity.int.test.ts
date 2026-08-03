@@ -6,8 +6,8 @@ import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService } from "../_support.ts";
 
 const EXTERNAL = castId<ExternalId>("authentik|abc-123");

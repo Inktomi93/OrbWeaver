@@ -3,10 +3,10 @@
 // never exposed on the transport surface. Returns null when the card is gone or synthetic.
 
 import type { CharacterId } from "@orb/kit/ids";
-import type { CharacterContext } from "../context";
-import type { CharacterService } from "../contract/service";
-import { cardOf, loadCharacterRowById } from "../persistence/queries";
-import { buildCardEmbedText } from "../substrate/embed-text";
+import type { CharacterContext } from "../context.ts";
+import type { CharacterService } from "../contract/service.ts";
+import { cardOf, loadCharacterRowById } from "../persistence/queries.ts";
+import { buildCardEmbedText } from "../substrate/embed-text.ts";
 
 export function createLoadCardText(ctx: CharacterContext): CharacterService["loadCardText"] {
   return async (characterId: CharacterId): Promise<string | null> => {

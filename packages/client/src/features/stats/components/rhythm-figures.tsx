@@ -6,7 +6,7 @@ import { StatFigure } from "@orb/ui/stat-figure";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
-import { formatCompact } from "../lib/analytics-view-model";
+import { formatCompact } from "../lib/analytics-view-model.ts";
 
 type Temporal = inferOutput<Trpc["stats"]["temporal"]>;
 

@@ -4,7 +4,7 @@
 
 import type { Can } from "@orb/contracts/identity";
 import { DomainForbiddenError } from "@orb/kit/errors";
-import type { ToolCapability, ToolExecutionContext } from "../contract/params";
+import type { ToolCapability, ToolExecutionContext } from "../contract/params.ts";
 
 /** null capability = the member floor — passes. A scope:"chat" ceiling with a null roster is a denial. */
 export function checkToolCapability(capability: ToolCapability | null, exec: ToolExecutionContext, can: Can): void {

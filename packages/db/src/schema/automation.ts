@@ -43,8 +43,8 @@ import {
   sqliteTable,
   text,
 } from "drizzle-orm/sqlite-core";
-import { chats } from "./chat";
-import { users } from "./users";
+import { chats } from "./chat.ts";
+import { users } from "./users.ts";
 
 // CHECK list derived from the canonical tuple (NOT re-spelled) — static DDL fragment.
 function checkList(values: readonly string[]): string {

@@ -4,7 +4,7 @@
 // the `domain/plugin` lifecycle errors (02 §5 — ManifestInvalid/HostVersionUnserved/PluginCrashed etc., P3),
 // which never reach a guest.
 
-import type { PluginCapability } from "./manifest";
+import type { PluginCapability } from "./manifest.ts";
 
 /** Thrown UNIFORMLY by every capability-gated host function when its capability is not in `grants` (01 §2 pt 3)
  *  — so a guest can feature-detect by try/catch or by reading `host.grants`. */

@@ -3,7 +3,7 @@ import { isIP } from "node:net";
 import { Agent, buildConnector, setGlobalDispatcher } from "undici";
 import { env } from "#foundation/env";
 import { getLog, securityEvent } from "#foundation/observability";
-import { DEFAULT_TRUSTED_RANGES, isInRanges } from "./ip-ranges";
+import { DEFAULT_TRUSTED_RANGES, isInRanges } from "./ip-ranges.ts";
 
 // SSRF egress firewall via undici.setGlobalDispatcher (swapping http.globalAgent doesn't work — Node's
 // fetch ignores it). Two gates: a DNS lookup override for hostname targets (closes the DNS-rebinding

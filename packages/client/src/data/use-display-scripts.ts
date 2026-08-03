@@ -28,7 +28,7 @@
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { ChatId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
-import { useTRPC } from "./trpc";
+import { useTRPC } from "./trpc.ts";
 
 const NO_SCRIPTS: readonly RegexScriptRow[] = [];
 const DISPLAY_PLACEMENT = "DISPLAY";

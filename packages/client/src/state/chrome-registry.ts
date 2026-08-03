@@ -10,9 +10,9 @@
 
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
-import type { MobileCuration, SectionGroup } from "./section-registry";
-import { RAIL_ZONES } from "./section-registry";
-import type { ModalSlotId, SectionId } from "./shell-store";
+import type { MobileCuration, SectionGroup } from "./section-registry.ts";
+import { RAIL_ZONES } from "./section-registry.ts";
+import type { ModalSlotId, SectionId } from "./shell-store.ts";
 
 // The rail's own zones DERIVE from `RAIL_ZONES` (its one home, beside `RailEntry.zone` in
 // section-registry.ts) — re-spelling them here would be the parallel map the lockdown kills.
@@ -21,7 +21,7 @@ export type ChromeZone = (typeof CHROME_ZONES)[number];
 
 /** A rail entry's mobile fate (`MobileCuration`) is homed in `section-registry.ts` beside the rail's
  *  other vocabulary — re-exported here so a chrome consumer imports the whole zone vocab from one place. */
-export type { MobileCuration } from "./section-registry";
+export type { MobileCuration } from "./section-registry.ts";
 /** Which lens renders a widget: the always-mounted bar DOM, or the You-sheet projection. Only `"bar"`
  *  has a consumer this wave; the sheet lens lands §E-5. */
 export type ChromePresentation = "bar" | "sheet";

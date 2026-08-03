@@ -14,11 +14,11 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { dropFiles } from "../../../../support/ct/drop-files";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { CharacterLibrarySurfaceStory } from "../_ct-stories";
-import { makeCharacterSummary, makeTagFixture } from "../fixtures";
+import { dropFiles } from "../../../../support/ct/drop-files.ts";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { CharacterLibrarySurfaceStory } from "../_ct-stories.tsx";
+import { makeCharacterSummary, makeTagFixture } from "../fixtures.ts";
 
 const ARIA = makeCharacterSummary({
   id: "char_aria",

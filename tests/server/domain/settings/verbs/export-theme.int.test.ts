@@ -7,7 +7,7 @@ import { createExportTheme, createSettingsContext } from "@orb/server/domain/set
 import { parseThemeBackup } from "@orb/server/kit/serde/theme";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 /** The parse outcome's value — the portable serdes return a typed refusal reason, never null. */

@@ -4,12 +4,12 @@
 // `@orb/contracts/role-clients` — callers import those from contracts, not through this door.
 
 // The entry root wires these; transport/tests reference them directly.
-export type { EmbeddingsContext } from "./context";
-export { EmbedFailedError, SpaceMismatchError } from "./contract/errors";
-export type { EmbeddingsHandoffRestampContext, HandoffRestampPair, HandoffRestampStatements } from "./contract/handoff-restamp";
+export type { EmbeddingsContext } from "./context.ts";
+export { EmbedFailedError, SpaceMismatchError } from "./contract/errors.ts";
+export type { EmbeddingsHandoffRestampContext, HandoffRestampPair, HandoffRestampStatements } from "./contract/handoff-restamp.ts";
 // Consumed by `discovery` + `search` + tests, not just this domain.
-export type { VectorTable } from "./contract/params";
-export { VECTOR_TABLES } from "./contract/params";
+export type { VectorTable } from "./contract/params.ts";
+export { VECTOR_TABLES } from "./contract/params.ts";
 export type {
   EmbeddingsIndexer,
   EmbeddingsIndexerContext,
@@ -19,8 +19,8 @@ export type {
   ListImageAssetIds,
   LoadAssetBytes,
   LoadCardText,
-} from "./contract/service";
-export { createEmbeddingsIndexer } from "./indexer";
-export { createHandoffRestampStatements } from "./persistence/handoff-restamp";
-export { createEmbeddingsService } from "./service";
-export { createEmbeddingsWorkloadContributions } from "./workload-contributions";
+} from "./contract/service.ts";
+export { createEmbeddingsIndexer } from "./indexer/index.ts";
+export { createHandoffRestampStatements } from "./persistence/handoff-restamp.ts";
+export { createEmbeddingsService } from "./service.ts";
+export { createEmbeddingsWorkloadContributions } from "./workload-contributions.ts";

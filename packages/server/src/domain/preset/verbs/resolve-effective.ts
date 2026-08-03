@@ -16,10 +16,10 @@ import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_MAX_OUTPUT_TOKENS, parsePromptConfig, QUALITY_EFFORT, QUALITY_SAMPLING } from "@orb/contracts/preset";
 import type { ResolvedChatKnobs } from "#infra/providers";
 import { resolveChat } from "#infra/providers";
-import type { PresetContext } from "../context";
-import { PresetNotFoundError } from "../contract/errors";
-import type { ResolveEffectiveParams } from "../contract/params";
-import type { PresetService } from "../contract/service";
+import type { PresetContext } from "../context.ts";
+import { PresetNotFoundError } from "../contract/errors.ts";
+import type { ResolveEffectiveParams } from "../contract/params.ts";
+import type { PresetService } from "../contract/service.ts";
 import type {
   EffectiveKnob,
   EffectiveKnobReading,
@@ -28,9 +28,9 @@ import type {
   QualityMapping,
   QualityMappingEntry,
   StaleKnob,
-} from "../contract/views";
-import { EFFECTIVE_KNOBS } from "../contract/views";
-import { readablePreset } from "../persistence/queries";
+} from "../contract/views.ts";
+import { EFFECTIVE_KNOBS } from "../contract/views.ts";
+import { readablePreset } from "../persistence/queries.ts";
 
 /** The user-intent effort value that means "reasoning off" — the one string the funnel treats as a disable
  *  rather than a level (`resolve-chat`'s `EFFORT_OFF`). */

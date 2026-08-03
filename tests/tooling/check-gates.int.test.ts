@@ -23,7 +23,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll } from "vitest";
-import { expect, test } from "../support/fixtures";
+import { expect, test } from "../support/fixtures.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 // Gate names are kebab-case; `bus-onData-no-store-write` is the ONE documented camelCase name

@@ -4,7 +4,7 @@
 
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("pins additionalProperties:false on every object node, nested objects + array items included", () => {
   const projected = projectJsonSchema(

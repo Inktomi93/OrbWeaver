@@ -12,9 +12,9 @@
 
 import { execFileSync } from "node:child_process";
 import path from "node:path";
-import type { EngineLaunchConfig } from "./build-argv";
-import { buildEngineArgv, engineCudaVisibleDevices } from "./build-argv";
-import type { VLLM_ENGINES } from "./engines";
+import type { EngineLaunchConfig } from "./build-argv.ts";
+import { buildEngineArgv, engineCudaVisibleDevices } from "./build-argv.ts";
+import type { VLLM_ENGINES } from "./engines.ts";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 

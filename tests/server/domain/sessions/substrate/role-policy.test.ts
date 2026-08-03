@@ -7,8 +7,8 @@ import {
   groupRoleGovernanceActive,
   ownerHandles,
   reDeriveRoleOnLogin,
-} from "../../../../../packages/server/src/domain/sessions/substrate/role-policy";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/server/src/domain/sessions/substrate/role-policy.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 // The group→role governance matrix (D17; owner-confirmed). The vars are read at CALL time from process.env
 // (the sanctioned exception), so `vi.stubEnv` drives every case. The model, mapped onto orb's owner|admin|

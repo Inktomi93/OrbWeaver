@@ -2,7 +2,7 @@ import type { ReactElement } from "react";
 import { cn } from "#lib";
 import { Checkbox } from "#primitives/checkbox";
 import { Icon, Minus, Plus } from "#primitives/icons";
-import { compareBlocksVariants } from "./variants";
+import { compareBlocksVariants } from "./variants.ts";
 
 export interface CompareBlock {
   /** Optional field name, shown above the pair — omitted for a single full-text pair. */

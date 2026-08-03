@@ -3,7 +3,7 @@
 
 import { withContextCompressionPlugin } from "@orb/server/infra/providers/backends/openrouter";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../../../support/fixtures";
+import { expect, test } from "../../../../../../../support/fixtures.ts";
 
 describe("withContextCompressionPlugin", () => {
   test("disables middle-out by default (an explicit enabled:false — transforms:[] does NOT disable it)", () => {

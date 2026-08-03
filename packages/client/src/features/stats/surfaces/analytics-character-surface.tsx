@@ -15,7 +15,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId, timeLib, useFocusOnMount } from "#lib";
-import { formatCompact, formatMs, formatPercent } from "../lib/analytics-view-model";
+import { formatCompact, formatMs, formatPercent } from "../lib/analytics-view-model.ts";
 
 export interface AnalyticsCharacterSurfaceProps {
   readonly characterId: CharacterId;

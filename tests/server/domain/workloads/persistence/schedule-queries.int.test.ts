@@ -15,7 +15,7 @@ import {
   updateScheduleFields,
 } from "../../../../../packages/server/src/domain/workloads/persistence/schedule-queries.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser, T0 } from "../_support.ts";
 
 const SCHEDULE_ID = castId<WorkloadScheduleId>("workload_schedule_1");

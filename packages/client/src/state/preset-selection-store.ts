@@ -5,7 +5,7 @@
 // dual-writes (not persisted — landing back on the section welcome after a hard reload is fine).
 
 import type { PresetId } from "@orb/kit/ids";
-import { createDrillSelectionStore } from "./create-drill-selection-store";
+import { createDrillSelectionStore } from "./create-drill-selection-store.ts";
 
 // The rack section id is a preset-config-local string (not a `@orb/kit/ids` entity id).
 const presetSelection = createDrillSelectionStore<PresetId, string>("preset-selection", { secondary: true });

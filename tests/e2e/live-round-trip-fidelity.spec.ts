@@ -19,7 +19,7 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import type { ChatRoute } from "./support/trpc";
+import type { ChatRoute } from "./support/trpc.ts";
 import {
   fetchWireCaptures,
   getActivePreset,
@@ -32,7 +32,7 @@ import {
   setChatRoute,
   startChat,
   updatePresetConfig,
-} from "./support/trpc";
+} from "./support/trpc.ts";
 
 const STATELESS_ROUTE: ChatRoute = { api: "chat-completions", source: "vllm" };
 const LOCAL_MODEL_LEAF = "Qwen3-VL-8B-Instruct";

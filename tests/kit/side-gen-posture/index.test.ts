@@ -4,7 +4,7 @@
 // never `undefined`-valued keys — the backend default stands).
 
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("floor-only: a floor with no higher rung passes through verbatim", () => {
   expect(resolveSideGenSampling({ temperature: 0.2, maxOutputTokens: 24 })).toEqual({ temperature: 0.2, maxOutputTokens: 24 });

@@ -9,8 +9,8 @@
 // crash-mirror would duplicate synced truth for a field set this light).
 
 import { createAutosaveEntityForm } from "#forms";
-import type { PersonaFormValues } from "../lib/persona-editor-model";
-import { DEFAULT_PERSONA_FORM } from "../lib/persona-editor-model";
+import type { PersonaFormValues } from "../lib/persona-editor-model.ts";
+import { DEFAULT_PERSONA_FORM } from "../lib/persona-editor-model.ts";
 
 export const PersonaForm = createAutosaveEntityForm<PersonaFormValues>({
   defaultValues: DEFAULT_PERSONA_FORM,

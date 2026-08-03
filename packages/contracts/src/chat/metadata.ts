@@ -12,7 +12,7 @@ import type { ChatDocumentVisibility } from "#databank";
 import { GUIDED_IMPERSONATE_PERSONS, guidedActionKindSchema } from "#preset";
 import type { ChatRpgPointer } from "#rpg";
 import type { ThemeBackground } from "#theme";
-import { messageRoleSchema } from "./participants";
+import { messageRoleSchema } from "./participants.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // MISFILED-FROM-SETTINGS CHAT SHAPES (shared-dissolution §7 #4) — chatMetadata sub-blobs / start-chat

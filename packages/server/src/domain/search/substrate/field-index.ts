@@ -4,7 +4,7 @@
 
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import MiniSearch from "minisearch";
-import type { FieldSearchHit, SearchSuggestion } from "../contract/results";
+import type { FieldSearchHit, SearchSuggestion } from "../contract/results.ts";
 
 export const FIELD_INDEX_TTL_MS = 300_000;
 const FIELD_INDEX_MAX_OWNERS = 32;

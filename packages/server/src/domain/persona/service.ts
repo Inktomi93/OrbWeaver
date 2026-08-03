@@ -5,19 +5,19 @@
 //
 // See Audits-and-Debt.md PD-19.
 
-import type { PersonaContext } from "./context";
-import type { PersonaService } from "./contract/service";
-import { createConnect, createDisconnect, createListConnected } from "./verbs/connection";
-import { createCreate } from "./verbs/create";
-import { createCreateFromCharacter } from "./verbs/create-from-character";
-import { createDuplicate } from "./verbs/duplicate";
-import { createExport } from "./verbs/export";
-import { createGet } from "./verbs/get";
-import { createImport } from "./verbs/import";
-import { createList } from "./verbs/list";
-import { createRemove } from "./verbs/remove";
-import { createSetActive } from "./verbs/set-active";
-import { createUpdate } from "./verbs/update";
+import type { PersonaContext } from "./context.ts";
+import type { PersonaService } from "./contract/service.ts";
+import { createConnect, createDisconnect, createListConnected } from "./verbs/connection/index.ts";
+import { createCreate } from "./verbs/create.ts";
+import { createCreateFromCharacter } from "./verbs/create-from-character.ts";
+import { createDuplicate } from "./verbs/duplicate.ts";
+import { createExport } from "./verbs/export.ts";
+import { createGet } from "./verbs/get.ts";
+import { createImport } from "./verbs/import.ts";
+import { createList } from "./verbs/list.ts";
+import { createRemove } from "./verbs/remove.ts";
+import { createSetActive } from "./verbs/set-active.ts";
+import { createUpdate } from "./verbs/update.ts";
 
 export function createPersonaService(ctx: PersonaContext): PersonaService {
   return {

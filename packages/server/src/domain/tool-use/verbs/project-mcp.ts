@@ -9,8 +9,8 @@
 // projection synthesizes a stable per-server ordinal id; nothing downstream reads it beyond the record.
 
 import type { AgentToolResult, AgentToolServer, AgentToolSpec } from "#infra/providers";
-import type { CreateAgentToolServer, ToolCallBatch, ToolCallInput, ToolExecutionContext } from "../contract/params";
-import type { ResolvedToolSet, ToolCallRecord } from "../contract/results";
+import type { CreateAgentToolServer, ToolCallBatch, ToolCallInput, ToolExecutionContext } from "../contract/params.ts";
+import type { ResolvedToolSet, ToolCallRecord } from "../contract/results.ts";
 
 type ExecuteToolCalls = (set: ResolvedToolSet, calls: ToolCallBatch, exec: ToolExecutionContext) => Promise<readonly ToolCallRecord[]>;
 

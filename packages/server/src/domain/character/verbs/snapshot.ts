@@ -5,12 +5,12 @@
 // it fires the user-bus `charactersChanged` AFTER the durable write (like `restore`), so a second device's
 // History refetches. Throws `CharacterNotFoundError` when not owned/found.
 
-import type { CharacterContext } from "../context";
-import { CharacterNotFoundError } from "../contract/errors";
-import type { SnapshotParams } from "../contract/params";
-import type { CharacterService } from "../contract/service";
-import { appendSnapshot } from "../persistence/card";
-import { cardOf, loadOwnedCharacterRow } from "../persistence/queries";
+import type { CharacterContext } from "../context.ts";
+import { CharacterNotFoundError } from "../contract/errors.ts";
+import type { SnapshotParams } from "../contract/params.ts";
+import type { CharacterService } from "../contract/service.ts";
+import { appendSnapshot } from "../persistence/card.ts";
+import { cardOf, loadOwnedCharacterRow } from "../persistence/queries.ts";
 
 export function createSnapshot(ctx: CharacterContext): CharacterService["snapshot"] {
   return async ({ principal, characterId, label }: SnapshotParams) => {

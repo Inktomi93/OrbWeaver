@@ -59,9 +59,16 @@ import {
   STAR_FILL,
   STAR_POSITIONS,
   WIND_FILL,
-} from "./waystone-geometry";
-import type { WaystoneBandLayer, WaystoneCelestial, WaystoneCloudLayer, WaystoneParticleLayer, WaystonePhase, WaystoneTreatment } from "./waystone-treatment";
-import { WAYSTONE_PHASE_SPANS } from "./waystone-treatment";
+} from "./waystone-geometry.ts";
+import type {
+  WaystoneBandLayer,
+  WaystoneCelestial,
+  WaystoneCloudLayer,
+  WaystoneParticleLayer,
+  WaystonePhase,
+  WaystoneTreatment,
+} from "./waystone-treatment.ts";
+import { WAYSTONE_PHASE_SPANS } from "./waystone-treatment.ts";
 
 const NOON_HOUR = 12;
 

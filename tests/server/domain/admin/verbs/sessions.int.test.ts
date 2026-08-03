@@ -7,7 +7,7 @@ import { castId } from "@orb/kit/ids";
 import { createAdminService } from "@orb/server/domain/admin";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedAdminCaller, seedUser } from "../_support.ts";
 
 describe("admin session verbs", () => {

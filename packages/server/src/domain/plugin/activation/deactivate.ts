@@ -4,7 +4,7 @@
 // Idempotent: deactivating a plugin with no resident instance is a no-op (a disabled plugin, a double-disable).
 
 import type { PluginId } from "@orb/kit/ids";
-import type { PluginContext, PluginRegistry } from "../contract/service";
+import type { PluginContext, PluginRegistry } from "../contract/service.ts";
 
 export function createDeactivate(ctx: PluginContext, registry: PluginRegistry): (pluginId: PluginId) => void {
   return (pluginId: PluginId): void => {

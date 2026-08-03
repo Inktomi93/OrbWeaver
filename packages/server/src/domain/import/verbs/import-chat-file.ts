@@ -11,10 +11,10 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sha256Hex } from "#kit/content-hash";
 import { parseChatJsonl } from "#kit/serde/chat";
-import type { ImportContext } from "../context";
-import type { ImportChatFileOutcome } from "../contract/results";
-import type { ImportService } from "../contract/service";
-import type { ImportChatFileInput } from "../contract/views";
+import type { ImportContext } from "../context.ts";
+import type { ImportChatFileOutcome } from "../contract/results.ts";
+import type { ImportService } from "../contract/service.ts";
+import type { ImportChatFileInput } from "../contract/views.ts";
 
 const DEC = new TextDecoder();
 

@@ -9,7 +9,7 @@ import { createEntityMutation, useInvalidation, useTRPC } from "@orb/client/data
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import { CtDataProviders } from "../../support/ct/ct-data-providers";
+import { CtDataProviders } from "../../support/ct/ct-data-providers.tsx";
 
 const CHARACTER_ID = castId<CharacterId>("character_ct");
 

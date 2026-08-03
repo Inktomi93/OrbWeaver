@@ -22,8 +22,14 @@ import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import { errorMessage } from "@orb/kit/error-message";
 import { scrubWireSchema } from "@orb/kit/json-schema";
-import type { ChatCompletionStreamChunk, ChatToolCallDelta, ProviderSamplingDrop, ReasoningRequest } from "../../../../backends/kit";
-import { cacheControlBlock, chatHistoryText, effectiveProviderRouting, extractHttpErrorDiagnostic, logProviderSampling } from "../../../../backends/kit";
+import type { ChatCompletionStreamChunk, ChatToolCallDelta, ProviderSamplingDrop, ReasoningRequest } from "../../../../backends/kit/index.ts";
+import {
+  cacheControlBlock,
+  chatHistoryText,
+  effectiveProviderRouting,
+  extractHttpErrorDiagnostic,
+  logProviderSampling,
+} from "../../../../backends/kit/index.ts";
 import type {
   ChatEvent,
   ChatHistoryMessage,
@@ -35,7 +41,7 @@ import type {
   ToolChoice,
   WireCaptureSink,
   WireTool,
-} from "../../../../contract";
+} from "../../../../contract/index.ts";
 
 export interface OpenRouterChatDeps {
   readonly now: () => number;

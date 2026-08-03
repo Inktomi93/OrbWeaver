@@ -21,8 +21,8 @@
 // write-schema assembly) derives from it rather than re-deciding who carries what.
 
 import { z } from "zod";
-import type { RpgTrackerCarrierClass } from "./enums";
-import { RPG_TRACKER_CARRIER_CLASSES, RPG_TRACKER_SHAPES, RPG_TRACKER_SUBJECTS, RPG_TRACKER_WRITES } from "./enums";
+import type { RpgTrackerCarrierClass } from "./enums.ts";
+import { RPG_TRACKER_CARRIER_CLASSES, RPG_TRACKER_SHAPES, RPG_TRACKER_SUBJECTS, RPG_TRACKER_WRITES } from "./enums.ts";
 
 /** The steering-HINT cap — a short prose gloss. ONE home for every host-authored gloss in the game (the
  *  tracker `hint`, the M1 custom-relationship hints, the R4c custom-journal-type hints); homed HERE because

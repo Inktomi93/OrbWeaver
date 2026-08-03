@@ -1,4 +1,4 @@
-export type { DialogDescriptionProps, DialogPopupProps, DialogTitleProps } from "./dialog";
+export type { DialogDescriptionProps, DialogPopupProps, DialogTitleProps } from "./dialog.tsx";
 export {
   Dialog,
   DialogClose,
@@ -6,6 +6,6 @@ export {
   DialogPopup,
   DialogTitle,
   DialogTrigger,
-} from "./dialog";
-export type { DialogHandle } from "./handle";
-export { createDialogHandle } from "./handle";
+} from "./dialog.tsx";
+export type { DialogHandle } from "./handle.ts";
+export { createDialogHandle } from "./handle.ts";

@@ -9,9 +9,9 @@ import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/cont
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ImportCardScripts } from "#domain/regex";
-import type { ImportCharacterInput } from "./params";
-import type { ImportCharacterResult, ImportChatFileOutcome, ImportChatsResult, ImportedCharacterRef, ImportPersonasResult } from "./results";
-import type { ImportChatFileInput, ImportChatsInput, ImportPersonaInput } from "./views";
+import type { ImportCharacterInput } from "./params.ts";
+import type { ImportCharacterResult, ImportChatFileOutcome, ImportChatsResult, ImportedCharacterRef, ImportPersonasResult } from "./results.ts";
+import type { ImportChatFileInput, ImportChatsInput, ImportPersonaInput } from "./views.ts";
 
 export type CreateImportedCharacter = (args: {
   readonly ownerId: UserId;

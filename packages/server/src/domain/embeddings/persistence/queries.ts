@@ -20,7 +20,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, inArray, sql } from "drizzle-orm";
-import type { HubScoreUpdate, VectorTable } from "../contract/params";
+import type { HubScoreUpdate, VectorTable } from "../contract/params.ts";
 
 const LIMIT_ONE = 1;
 

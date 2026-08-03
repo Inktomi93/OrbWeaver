@@ -7,8 +7,8 @@ import { auditLogs, users } from "@orb/db";
 import type { AuditLogId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../support/db";
-import { expect, test } from "../../support/fixtures";
+import { freshDb } from "../../support/db.ts";
+import { expect, test } from "../../support/fixtures.ts";
 
 // epoch-ms literal — createdAt is a plain integer NUMBER (audit has no default; the writer supplies it).
 const CREATED_AT = 1_900_000_000_000;

@@ -11,7 +11,7 @@
 
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { useQuery } from "@tanstack/react-query";
-import { useTRPC } from "./trpc";
+import { useTRPC } from "./trpc.ts";
 
 /** ST quote-color parity for non-row prose: tint `"…"` runs with the scope's `--color-dialogue`. Default ON. */
 export function useColorQuotedSpeech(): boolean {

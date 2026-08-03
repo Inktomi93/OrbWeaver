@@ -4,11 +4,11 @@
 // avatar reference-check) only if the hash is a co-participant's rostered avatar or active persona, never a
 // bare hash match — on a hit, that asset owner's ownerId is returned so the blob route reads the right CAS partition.
 
-import type { AssetsContext } from "../context";
-import type { GetMetadataParams } from "../contract/params";
-import type { AssetMetadata } from "../contract/results";
-import type { AssetsService } from "../contract/service";
-import { metadataForOwnedHash, metadataForOwnerAndHash } from "../persistence/queries";
+import type { AssetsContext } from "../context.ts";
+import type { GetMetadataParams } from "../contract/params.ts";
+import type { AssetMetadata } from "../contract/results.ts";
+import type { AssetsService } from "../contract/service.ts";
+import { metadataForOwnedHash, metadataForOwnerAndHash } from "../persistence/queries.ts";
 
 export function createGetMetadata(ctx: AssetsContext): AssetsService["getMetadata"] {
   return ({ principal, hash }: GetMetadataParams): Promise<AssetMetadata | undefined> => getMetadata(ctx, principal, hash);

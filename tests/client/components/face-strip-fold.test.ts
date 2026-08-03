@@ -2,8 +2,8 @@
 // sweep); this pins the RULES at the arms a browser sweep can only hit by luck — the leftover-of-one
 // squeeze, the honest count, and the single-face pane that has no slot left to save it with.
 
-import { foldFaces } from "../../../packages/client/src/components/face-strip-fold";
-import { expect, test } from "../../support/fixtures";
+import { foldFaces } from "../../../packages/client/src/components/face-strip-fold.ts";
+import { expect, test } from "../../support/fixtures.ts";
 
 /** A pane's worth of measurements: uniform faces unless a case needs otherwise. */
 function input(widths: readonly number[], available: number, triggerWidth = 40, gap = 6): Parameters<typeof foldFaces>[0] {

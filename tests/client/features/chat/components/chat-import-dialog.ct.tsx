@@ -9,8 +9,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { ChatImportDialogStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { ChatImportDialogStory } from "../_ct-stories.tsx";
 
 const DROPZONE_INPUT = '[data-slot="file-dropzone-input"]';
 const TRANSCRIPT = '{"user_name":"Nate","character_name":"Aria"}\n{"name":"Aria","is_user":false,"mes":"Hello."}\n';

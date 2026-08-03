@@ -4,8 +4,8 @@
 
 import type { GetCreditsResponse } from "@openrouter/sdk/models/operations";
 import { errorMessage } from "@orb/kit/error-message";
-import type { CredentialHealth } from "../../contract";
-import { sanitizeApiError } from "../kit";
+import type { CredentialHealth } from "../../contract/index.ts";
+import { sanitizeApiError } from "../kit/index.ts";
 
 // An auth-class failure (bad/revoked key) vs a reachability failure — the SDK doesn't surface a typed
 // status here, so we match the message (hoisted per useTopLevelRegex).

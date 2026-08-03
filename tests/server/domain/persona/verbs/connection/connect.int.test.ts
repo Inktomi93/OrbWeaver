@@ -10,7 +10,7 @@ import { createPersonaService, PersonaNotFoundError } from "@orb/server/domain/p
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeHarness, principal, seedCharacter, seedUser } from "../../_support.ts";
 
 describe("connectToCharacter", () => {

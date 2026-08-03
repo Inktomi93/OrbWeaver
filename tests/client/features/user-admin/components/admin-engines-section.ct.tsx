@@ -6,10 +6,10 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { setNumber } from "../../../../support/ct/set-number";
-import { AdminEnginesSectionStory } from "../_ct-stories";
+import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { setNumber } from "../../../../support/ct/set-number.ts";
+import { AdminEnginesSectionStory } from "../_ct-stories.tsx";
 
 const ENGINES = {
   embed: { status: "owned", detail: "ok", updatedAt: 1_700_000_000_000, port: 8701, storePath: "/srv/orb/store/models" },

@@ -8,12 +8,12 @@
 
 import type { ChatBusEvent, ChatWarningCode, MessageView } from "@orb/contracts/chat";
 import { batchMany } from "@orb/db/kit";
-import type { ChatContext } from "../context";
-import type { GenerateImageParams } from "../contract/params";
-import type { ChatService } from "../contract/service";
-import { requireParticipant } from "../guard";
-import { buildCommittedMessageView, insertCanonMessageStatements } from "../persistence/canon-write";
-import { loadMaxMessageSeq } from "../persistence/queries";
+import type { ChatContext } from "../context.ts";
+import type { GenerateImageParams } from "../contract/params.ts";
+import type { ChatService } from "../contract/service.ts";
+import { requireParticipant } from "../guard.ts";
+import { buildCommittedMessageView, insertCanonMessageStatements } from "../persistence/canon-write.ts";
+import { loadMaxMessageSeq } from "../persistence/queries.ts";
 
 /** The alt text stamped on each generated-image ref (one home — no scattered magic string). */
 const GENERATED_IMAGE_ALT = "generated image";

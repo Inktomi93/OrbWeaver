@@ -22,10 +22,10 @@ import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
-import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model";
-import { MULTI_USER_SUBCATEGORY, SHARED_ACCESS_SUBCATEGORY } from "../lib/system-config-nav";
-import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSwitch } from "./admin-override-field";
+import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
+import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
+import { MULTI_USER_SUBCATEGORY, SHARED_ACCESS_SUBCATEGORY } from "../lib/system-config-nav.ts";
+import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSwitch } from "./admin-override-field.tsx";
 
 /** Positive-int per-member budget; below this the schema drops the value (the floor would govern silently). */
 const LOCAL_COMPUTE_BUDGET_MIN = 1;

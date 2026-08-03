@@ -23,10 +23,10 @@ import {
   loadSwipeStatRows,
   loadTurnForClassify,
   loadTurnOrigin,
-} from "../../../../../packages/server/src/domain/chat/persistence/queries";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { addVariant, seedCharacter, seedChat, seedChatEvent, seedMessage, seedParticipant, seedStreamEvent, seedUser } from "../_support";
+} from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { addVariant, seedCharacter, seedChat, seedChatEvent, seedMessage, seedParticipant, seedStreamEvent, seedUser } from "../_support.ts";
 
 let db: Db;
 

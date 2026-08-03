@@ -6,12 +6,12 @@
 import { themeOverrideSchema } from "@orb/contracts/theme";
 import { validateThemeCss } from "@orb/kit/css-validate";
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
-import { SETTINGS_OP_CODES } from "../contract/errors";
-import type { CreateThemeParams } from "../contract/params";
-import type { SettingsContext, SettingsService } from "../contract/service";
-import type { ThemeView } from "../contract/views";
-import { insertTheme, isThemeNameConflict } from "../persistence/theme-queries";
-import { toThemeView } from "../substrate/theme-views";
+import { SETTINGS_OP_CODES } from "../contract/errors.ts";
+import type { CreateThemeParams } from "../contract/params.ts";
+import type { SettingsContext, SettingsService } from "../contract/service.ts";
+import type { ThemeView } from "../contract/views.ts";
+import { insertTheme, isThemeNameConflict } from "../persistence/theme-queries.ts";
+import { toThemeView } from "../substrate/theme-views.ts";
 
 const THEME_CREATE = "theme.create";
 const THEME_ENTITY = "theme";

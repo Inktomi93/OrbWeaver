@@ -7,7 +7,7 @@
 // `<svg>` would inject that span inside it (invalid).
 import { Meter as BaseMeter } from "@base-ui/react/meter";
 import type { ReactElement, ReactNode } from "react";
-import { arcMeterVariants, bipolarMeterVariants, linearMeterVariants, meterVariants } from "./variants";
+import { arcMeterVariants, bipolarMeterVariants, linearMeterVariants, meterVariants } from "./variants.ts";
 
 export interface MeterProps {
   /** Presentation of the magnitude — same data, different dress. */

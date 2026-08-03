@@ -4,14 +4,14 @@
 // Categories are pre-grouped by the caller; each takes its color from `useChartTheme().palette` by index
 // (ui owns the palette), so a custom theme retints the whole plot. `onPointClick` gets the point's `id`.
 import type { ReactElement } from "react";
-import type { ChartEvent, OrbEChartsInstance } from "../chart";
-import { Chart } from "../chart";
-import { useChartTheme } from "../chart/use-chart-theme";
-import { LabeledChartFrame } from "../labeled-chart-frame";
-import type { ScatterSeries } from "./option";
-import { buildScatterOption, pointId } from "./option";
+import type { ChartEvent, OrbEChartsInstance } from "../chart/index.ts";
+import { Chart } from "../chart/index.ts";
+import { useChartTheme } from "../chart/use-chart-theme.ts";
+import { LabeledChartFrame } from "../labeled-chart-frame/index.ts";
+import type { ScatterSeries } from "./option.ts";
+import { buildScatterOption, pointId } from "./option.ts";
 
-export type { ScatterPoint, ScatterSeries } from "./option";
+export type { ScatterPoint, ScatterSeries } from "./option.ts";
 
 const DEFAULT_HEIGHT_PX = 320;
 

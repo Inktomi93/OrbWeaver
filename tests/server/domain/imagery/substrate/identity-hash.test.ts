@@ -5,8 +5,8 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { identityHashFor } from "../../../../../packages/server/src/domain/imagery/substrate/identity-hash";
-import { expect, test } from "../../../../support/fixtures";
+import { identityHashFor } from "../../../../../packages/server/src/domain/imagery/substrate/identity-hash.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const HEX_64 = /^[0-9a-f]{64}$/;
 

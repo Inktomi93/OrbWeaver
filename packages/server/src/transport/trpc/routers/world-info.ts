@@ -9,7 +9,7 @@ import type { CharacterId, ChatId, PersonaId, WorldBookId, WorldEntryId } from "
 import { brandedId } from "@orb/kit/ids";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { authedProcedure, t } from "../trpc";
+import { authedProcedure, t } from "../trpc.ts";
 
 // A lorebook is the biggest orb-native JSON artifact people share; the cap only fences a hostile upload.
 const MAX_BOOK_FILE_CHARS = 8_000_000;

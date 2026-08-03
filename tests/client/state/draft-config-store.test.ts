@@ -19,7 +19,7 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const KEY_A = "draft-cfg-a";
 const KEY_B = "draft-cfg-b";

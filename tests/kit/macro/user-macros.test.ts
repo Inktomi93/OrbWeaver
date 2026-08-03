@@ -8,7 +8,7 @@
 import type { MacroDiagnostic, MacroRegistry, ProcessMacroOptions, UserMacroDef, UserMacroInputDef, VarOp } from "@orb/kit/macro";
 import { createDefaultRegistry, processMacros, registerUserMacros, resolveUserMacroInputs, ZWSP } from "@orb/kit/macro";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const SOURCE = { kind: "preset", id: "preset_test" } as const;
 

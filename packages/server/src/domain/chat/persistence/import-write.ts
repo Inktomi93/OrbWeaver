@@ -16,8 +16,8 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
-import type { BulkImportChats, ChatImportContext } from "../contract/import";
-import { parseChatMetadata } from "../contract/metadata";
+import type { BulkImportChats, ChatImportContext } from "../contract/import.ts";
+import { parseChatMetadata } from "../contract/metadata.ts";
 
 /** The distinct inline `asset:<id>` refs in a message's content, across all its variants. */
 function assetRefsInMessage(message: BulkImportChatInput["messages"][number]): AssetId[] {

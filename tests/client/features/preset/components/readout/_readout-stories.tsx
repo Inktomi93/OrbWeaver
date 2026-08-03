@@ -28,8 +28,8 @@ import type { ChatId, PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
-import { PromptReadout } from "../../../../../../packages/client/src/features/preset/components/readout/prompt-readout";
-import { CtDataProviders } from "../../../../../support/ct/ct-data-providers";
+import { PromptReadout } from "../../../../../../packages/client/src/features/preset/components/readout/prompt-readout.tsx";
+import { CtDataProviders } from "../../../../../support/ct/ct-data-providers.tsx";
 
 const STORY_PRESET = castId<PresetId>("preset_ct_readoutbind");
 const STORY_CHAT = castId<ChatId>("chat_ct_readoutbind");

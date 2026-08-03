@@ -13,7 +13,7 @@ import {
   hashAssetBytes,
   parsePortableAssetFilename,
 } from "../../../../../packages/server/src/domain/assets/substrate/portable-asset-file.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const assetId = (): AssetId => mintTypeId(ID_PREFIX.asset);
 const HASH_A = "a".repeat(64); // a well-formed (if synthetic) sha-256 hex address.

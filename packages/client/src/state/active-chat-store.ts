@@ -11,10 +11,10 @@
 
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { withViewTransition } from "#lib";
-import type { ChatHandle } from "./chat-handle";
-import { committedChat, draftChat, isCommitted, landingChat } from "./chat-handle";
-import { createGatedStore } from "./create-gated-store";
-import { openModal, setOpenOverlayPanel } from "./shell-store";
+import type { ChatHandle } from "./chat-handle.ts";
+import { committedChat, draftChat, isCommitted, landingChat } from "./chat-handle.ts";
+import { createGatedStore } from "./create-gated-store.ts";
+import { openModal, setOpenOverlayPanel } from "./shell-store.ts";
 
 /** The founding-roster seed a draft chat carries until its first send calls `chat.startChat`. All
  *  fields optional — an empty seed is a legal narrator-only room. */

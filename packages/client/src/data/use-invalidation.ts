@@ -6,9 +6,9 @@
 // harmless — the subscription/mutation wiring keys off ids, not the deps object identity.
 
 import { useQueryClient } from "@tanstack/react-query";
-import type { Invalidation } from "./invalidation";
-import { createInvalidation } from "./invalidation";
-import { useTRPC } from "./trpc";
+import type { Invalidation } from "./invalidation.ts";
+import { createInvalidation } from "./invalidation.ts";
+import { useTRPC } from "./trpc.ts";
 
 export function useInvalidation(): Invalidation {
   const trpc = useTRPC();

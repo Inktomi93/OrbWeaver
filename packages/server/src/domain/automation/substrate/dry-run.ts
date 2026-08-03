@@ -7,8 +7,8 @@ import type { AutomationAction, AutomationCelEnv, AutomationTrigger, TriggerFact
 import type { CelBindings } from "@orb/kit/cel";
 import { CelEvalError, evalCel, isCelParseError, parseCel } from "@orb/kit/cel";
 import type { ChatId } from "@orb/kit/ids";
-import type { ArmPreview } from "../contract/results";
-import { renderArmTemplate } from "./macro-render";
+import type { ArmPreview } from "../contract/results.ts";
+import { renderArmTemplate } from "./macro-render.ts";
 
 /** The `now` projection CEL binds (02 §1) — UTC hour + day-of-week off the injected epoch (deterministic). */
 export function nowFields(epochMs: number): AutomationCelEnv["now"] {

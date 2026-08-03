@@ -2,7 +2,7 @@ import type { Db } from "@orb/db";
 import { beforeEach, describe } from "vitest";
 import { createStatsService } from "../../../../../packages/server/src/domain/stats/service.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedCharacterStats, seedOwnerStats, seedUser } from "../_support.ts";
 
 /** A fixed instant for the service's injected clock (only `reconcile` reads it). */

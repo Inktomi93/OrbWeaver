@@ -18,7 +18,7 @@ import type { Db } from "@orb/db";
 import { characterRegexScripts, characters, chatRegexScripts, globalRegexScripts, presetRegexScripts, presets, regexScripts } from "@orb/db";
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import type { ScriptRecord } from "../contract/rows";
+import type { ScriptRecord } from "../contract/rows.ts";
 
 const LIMIT_ONE = 1;
 

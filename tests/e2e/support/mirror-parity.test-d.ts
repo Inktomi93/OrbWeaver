@@ -84,7 +84,7 @@ import type {
   TrackerActor,
   TrackerView,
   UserSettings,
-} from "./trpc";
+} from "./trpc.ts";
 
 /** The two drift axes of one hand-mirrored shape against its contract source, pinned as ONE object so a
  *  failure's diff names both the fields the contract grew and the keys the mirror invented. */

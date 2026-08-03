@@ -6,16 +6,16 @@
 
 import type { ModelCapability } from "@orb/contracts/connection";
 import type { CharacterId } from "@orb/kit/ids";
-import { ImageryNotConfiguredError } from "../contract/errors";
-import type { GeneratePictureParams } from "../contract/params";
-import type { GeneratedPicture, ImageryWarning, ReuseRow } from "../contract/results";
-import type { ImageGenerateRequest, ImageryContext, ImageryService, ResolvedGenerateImage, ResolvePrompt } from "../contract/service";
-import { findReusableGeneration } from "../persistence/queries";
-import { buildBlock, runGeneration, sumCost } from "../substrate/generate-core";
-import { identityHashFor } from "../substrate/identity-hash";
-import { isMultimodalMode, isPortraitMode } from "../substrate/mode";
-import { defaultSizeFor, SIZE_PRESETS } from "../substrate/size";
-import { composeNegative, ensurePrefix } from "../substrate/templates";
+import { ImageryNotConfiguredError } from "../contract/errors.ts";
+import type { GeneratePictureParams } from "../contract/params.ts";
+import type { GeneratedPicture, ImageryWarning, ReuseRow } from "../contract/results.ts";
+import type { ImageGenerateRequest, ImageryContext, ImageryService, ResolvedGenerateImage, ResolvePrompt } from "../contract/service.ts";
+import { findReusableGeneration } from "../persistence/queries.ts";
+import { buildBlock, runGeneration, sumCost } from "../substrate/generate-core.ts";
+import { identityHashFor } from "../substrate/identity-hash.ts";
+import { isMultimodalMode, isPortraitMode } from "../substrate/mode.ts";
+import { defaultSizeFor, SIZE_PRESETS } from "../substrate/size.ts";
+import { composeNegative, ensurePrefix } from "../substrate/templates.ts";
 
 /** Default fan-out when the caller omits `n` (the wire clamps to 1..4). */
 const DEFAULT_IMAGE_COUNT = 1;

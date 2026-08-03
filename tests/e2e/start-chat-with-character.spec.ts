@@ -17,7 +17,7 @@
 // a real speaker in the room) streams a reply back.
 
 import { expect, test } from "@playwright/test";
-import { charactersRailButton, typeAndSend } from "./support/chat-room";
+import { charactersRailButton, typeAndSend } from "./support/chat-room.ts";
 
 const CHARACTER_ROW_CHAT_CTA = /^Chat with /u;
 const NON_WHITESPACE = /\S/u;

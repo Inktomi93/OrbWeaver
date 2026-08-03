@@ -2,7 +2,7 @@
 // Inputs are key-scrubbed before they ever reach the console. NOT dev-only: loggerLink fires this in
 // prod for errors too, so this module (+ log-clock) ships.
 
-import { logClock } from "./log-clock";
+import { logClock } from "./log-clock.ts";
 
 /**
  * The structural slice of tRPC's `LoggerLinkFnOptions` this formatter reads — declared locally

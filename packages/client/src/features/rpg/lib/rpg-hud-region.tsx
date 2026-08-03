@@ -13,9 +13,9 @@
 
 import type { ChatContextState, ContextRegionDef } from "#lib";
 import { defineContextRegion } from "#lib";
-import { RpgHud } from "../components/rpg-hud";
-import type { RpgContextTabsDeps } from "./rpg-game-chat";
-import { makeIsGameChat } from "./rpg-game-chat";
+import { RpgHud } from "../components/rpg-hud.tsx";
+import type { RpgContextTabsDeps } from "./rpg-game-chat.ts";
+import { makeIsGameChat } from "./rpg-game-chat.ts";
 
 export function makeRpgHudRegion(deps: RpgContextTabsDeps): ContextRegionDef<ChatContextState> {
   const isGameChat = makeIsGameChat(deps);

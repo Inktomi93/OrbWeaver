@@ -4,8 +4,8 @@
 // so the panel reads as a titled analytics surface (and carries the zone-scoped ember top edge).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { CorpusContextHeaderStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { CorpusContextHeaderStory } from "../_ct-stories.tsx";
 
 test("the CONTEXT band names the corpus and shows the distilled count", async ({ mount, page }) => {
   await routeTrpc(page, { "discovery.catalog": { genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled: 7 } });

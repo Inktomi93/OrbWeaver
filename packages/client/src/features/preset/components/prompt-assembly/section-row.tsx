@@ -27,10 +27,10 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { AppFormInstance } from "#forms";
 import { useFocusOnSwap } from "#lib";
-import { isTemplatedMarker, sectionGlyphIcon, triggersPillLabel } from "../../lib/assembly-model";
-import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "../../lib/format-count";
-import { estimateSectionTokens } from "./estimate-tokens";
-import { MARKER_COPY } from "./marker-copy";
+import { isTemplatedMarker, sectionGlyphIcon, triggersPillLabel } from "../../lib/assembly-model.ts";
+import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "../../lib/format-count.ts";
+import { estimateSectionTokens } from "./estimate-tokens.ts";
+import { MARKER_COPY } from "./marker-copy.ts";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;
 

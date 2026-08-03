@@ -4,11 +4,11 @@
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { RpgCheckpointId } from "@orb/kit/ids";
-import type { CreateCheckpointParams } from "../../contract/params";
-import type { RpgContext, RpgService } from "../../contract/service";
-import { resolveHost } from "../../guard";
-import { insertCheckpoint } from "../../persistence/checkpoints";
-import { resolveSnapshotForTurn } from "../../persistence/snapshots";
+import type { CreateCheckpointParams } from "../../contract/params.ts";
+import type { RpgContext, RpgService } from "../../contract/service.ts";
+import { resolveHost } from "../../guard.ts";
+import { insertCheckpoint } from "../../persistence/checkpoints.ts";
+import { resolveSnapshotForTurn } from "../../persistence/snapshots.ts";
 
 export function createCreateCheckpoint(ctx: RpgContext): Pick<RpgService, "createCheckpoint"> {
   async function createCheckpoint(params: CreateCheckpointParams): Promise<RpgCheckpointId> {

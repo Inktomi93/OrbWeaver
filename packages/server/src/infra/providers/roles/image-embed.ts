@@ -4,9 +4,9 @@
 // boundary.
 
 import type { ImageEmbedResult } from "@orb/contracts/providers";
-import type { ImageEmbedRequest, ProviderDeps } from "../contract";
-import { backendForSource, requireBackend, runRole } from "./dispatch";
-import { assertCredentialAllowed } from "./firewall";
+import type { ImageEmbedRequest, ProviderDeps } from "../contract/index.ts";
+import { backendForSource, requireBackend, runRole } from "./dispatch.ts";
+import { assertCredentialAllowed } from "./firewall.ts";
 
 const ROLE = "imageEmbed";
 

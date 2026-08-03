@@ -11,10 +11,10 @@
 // it is narrowed to the scripts that would actually fire — `enabled` ∩ DISPLAY placement. Handing over a
 // disabled or prompt-side script would leak the host's library shape for no render benefit.
 
-import type { RegexContext } from "../../context";
-import type { ListRoomDisplayScriptsParams } from "../../contract/params";
-import type { RegexService } from "../../contract/service";
-import { listOwnedScripts, toRow } from "../../persistence/queries";
+import type { RegexContext } from "../../context.ts";
+import type { ListRoomDisplayScriptsParams } from "../../contract/params.ts";
+import type { RegexService } from "../../contract/service.ts";
+import { listOwnedScripts, toRow } from "../../persistence/queries.ts";
 
 const DISPLAY_PLACEMENT = "DISPLAY";
 

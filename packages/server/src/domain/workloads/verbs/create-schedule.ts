@@ -10,11 +10,11 @@
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { WorkloadScheduleId } from "@orb/kit/ids";
-import type { CreateScheduleParams } from "../contract/schedule";
-import type { WorkloadService, WorkloadServiceContext } from "../contract/service";
-import { insertSchedule } from "../persistence/schedule-queries";
-import { assertKindSupportsMode } from "../substrate/authorize";
-import { parseWorkloadInput } from "../substrate/params";
+import type { CreateScheduleParams } from "../contract/schedule.ts";
+import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
+import { insertSchedule } from "../persistence/schedule-queries.ts";
+import { assertKindSupportsMode } from "../substrate/authorize.ts";
+import { parseWorkloadInput } from "../substrate/params.ts";
 
 export function createCreateSchedule(ctx: WorkloadServiceContext): Pick<WorkloadService, "createSchedule"> {
   async function createSchedule(params: CreateScheduleParams): Promise<{ id: WorkloadScheduleId }> {

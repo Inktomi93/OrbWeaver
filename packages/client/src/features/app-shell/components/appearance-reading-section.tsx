@@ -21,7 +21,7 @@ import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, 
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import { APPEARANCE_READING_KEYS, APPEARANCE_READING_SUBCATEGORY } from "../lib/appearance-reading-model";
+import { APPEARANCE_READING_KEYS, APPEARANCE_READING_SUBCATEGORY } from "../lib/appearance-reading-model.ts";
 
 const READING_LINE_HEIGHT_MIN = 1.2;
 const READING_LINE_HEIGHT_MAX = 2.2;

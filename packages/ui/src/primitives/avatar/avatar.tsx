@@ -2,8 +2,8 @@ import type { AvatarFallbackProps as BaseFallbackProps, AvatarImageProps as Base
 import { Avatar as BaseAvatar } from "@base-ui/react/avatar";
 import type { ReactElement, ReactNode } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { avatarFallbackHue } from "./hue";
-import { avatarVariants } from "./variants";
+import { avatarFallbackHue } from "./hue.ts";
+import { avatarVariants } from "./variants.ts";
 
 export interface AvatarProps extends Omit<BaseRootProps, "className">, Omit<VariantProps<typeof avatarVariants>, "hue"> {
   className?: string;

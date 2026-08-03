@@ -23,7 +23,7 @@ import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC } from "#
 import { testId } from "#lib";
 import type { ChatHandle } from "#state";
 import { isCommitted, useTurnPhase } from "#state";
-import { filterCharacters } from "../lib/roster";
+import { filterCharacters } from "../lib/roster.ts";
 
 /** `chat.generate` vars — an on-demand turn, optionally forced to a specific speaker (null ⇒ arbitrate). */
 interface SpeakAsGenerateVars {

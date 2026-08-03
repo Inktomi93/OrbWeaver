@@ -1,6 +1,6 @@
 import { messageRoleSchema } from "@orb/contracts/chat";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // ═══ messageRoleSchema — THE canonical role wire (D32) ══════════════════════════
 

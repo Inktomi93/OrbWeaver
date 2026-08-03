@@ -4,11 +4,11 @@
 // filter (omitted = the whole gallery). Returns a plain `GalleryItemView[]` — same no-envelope keyset
 // contract as `listOwned`. Each row carries the stored `animated` fact (G2, joined from `assets`).
 
-import type { AssetsContext } from "../context";
-import type { GalleryListParams } from "../contract/params";
-import type { AssetsService } from "../contract/service";
-import type { GalleryItemView } from "../contract/views";
-import { listGalleryViewRows } from "../persistence/queries";
+import type { AssetsContext } from "../context.ts";
+import type { GalleryListParams } from "../contract/params.ts";
+import type { AssetsService } from "../contract/service.ts";
+import type { GalleryItemView } from "../contract/views.ts";
+import { listGalleryViewRows } from "../persistence/queries.ts";
 
 export function createListGallery(ctx: AssetsContext): AssetsService["listGallery"] {
   return ({ principal, subjectCharacterId, limit, cursor, cursorId }: GalleryListParams): Promise<GalleryItemView[]> =>

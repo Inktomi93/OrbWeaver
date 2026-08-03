@@ -3,8 +3,8 @@
 
 import { chatDocuments } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import type { ChatAttachParams } from "../../contract/params";
-import type { DatabankContext, DatabankService } from "../../contract/service";
+import type { ChatAttachParams } from "../../contract/params.ts";
+import type { DatabankContext, DatabankService } from "../../contract/service.ts";
 
 export function createDetachFromChat(ctx: DatabankContext): DatabankService["detachFromChat"] {
   return async ({ principal, documentId, chatId }: ChatAttachParams): Promise<void> => {

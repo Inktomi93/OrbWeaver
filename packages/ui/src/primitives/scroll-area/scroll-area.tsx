@@ -2,7 +2,7 @@ import type { ScrollAreaRootProps as BaseRootProps, ScrollAreaViewportProps as B
 import { ScrollArea as BaseScrollArea } from "@base-ui/react/scroll-area";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
-import { scrollAreaVariants } from "./variants";
+import { scrollAreaVariants } from "./variants.ts";
 
 const slots = scrollAreaVariants();
 

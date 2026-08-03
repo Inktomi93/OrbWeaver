@@ -6,7 +6,7 @@ import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { ManifestInvalidError, PluginDowngradeRefusedError, PluginNotFoundError } from "@orb/server/domain/plugin";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
 
 test("upgrades the bundle: version bump, new bytes stored, old bundle reaped", async () => {

@@ -5,7 +5,7 @@
 import { DomainConflictError } from "@orb/kit/errors";
 import { describe, vi } from "vitest";
 import { runCatalogCheck, startCatalogRefreshScheduler } from "../../../../packages/server/src/transport/jobs/catalog-refresh-scheduler.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { makeRow, makeSchedulerDeps, T0 } from "./_support.ts";
 
 const MS_PER_HOUR = 3_600_000;

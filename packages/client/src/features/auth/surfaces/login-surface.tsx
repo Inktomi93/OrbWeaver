@@ -14,7 +14,7 @@ import { useRef } from "react";
 import type { AuthConfig } from "#data";
 import { useAuthConfig } from "#data";
 import { testId, useFocusOnMount } from "#lib";
-import { LoginLocalForm } from "../components/login-local-form";
+import { LoginLocalForm } from "../components/login-local-form.tsx";
 
 /** The per-mode login card content (mounted inside `LoginShellAnchor` by the /login route). */
 export function LoginSurface(): ReactElement {

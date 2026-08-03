@@ -2,10 +2,10 @@
 // and a seed's `ownerId IS NULL` can never match a caller's id, so this 404s on a seed BY CONSTRUCTION
 // (themes-design.md §2.1 — no special-cased "cannot remove a seed" guard to forget).
 
-import { ThemeNotFoundError } from "../contract/errors";
-import type { RemoveThemeParams } from "../contract/params";
-import type { SettingsContext, SettingsService } from "../contract/service";
-import { deleteOwnedTheme } from "../persistence/theme-queries";
+import { ThemeNotFoundError } from "../contract/errors.ts";
+import type { RemoveThemeParams } from "../contract/params.ts";
+import type { SettingsContext, SettingsService } from "../contract/service.ts";
+import { deleteOwnedTheme } from "../persistence/theme-queries.ts";
 
 const THEME_REMOVE = "theme.remove";
 const THEME_ENTITY = "theme";

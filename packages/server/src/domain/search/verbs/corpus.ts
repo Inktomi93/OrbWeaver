@@ -6,16 +6,16 @@
 // verbatim is dropped. FLAG[PD-35]: a segment-only block (no digest yet) is not surfaced by corpus.
 
 import type { BlockKey } from "@orb/contracts/search";
-import type { SearchContext } from "../context";
-import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors";
-import type { CorpusParams } from "../contract/params";
-import type { CorpusHit } from "../contract/results";
-import type { SearchService } from "../contract/service";
-import { nearestDigests, nearestSegments } from "../persistence/digest-rows";
-import { SCOPED_POOL_K } from "../substrate/constants";
-import { compareCslsBy, cslsAdjust } from "../substrate/csls";
-import { blockKeyStr, collapseByContentHash, dedupeRankedBlocks } from "../substrate/dedupe";
-import { applyRerank } from "../substrate/rerank";
+import type { SearchContext } from "../context.ts";
+import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
+import type { CorpusParams } from "../contract/params.ts";
+import type { CorpusHit } from "../contract/results.ts";
+import type { SearchService } from "../contract/service.ts";
+import { nearestDigests, nearestSegments } from "../persistence/digest-rows.ts";
+import { SCOPED_POOL_K } from "../substrate/constants.ts";
+import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
+import { blockKeyStr, collapseByContentHash, dedupeRankedBlocks } from "../substrate/dedupe.ts";
+import { applyRerank } from "../substrate/rerank.ts";
 
 interface CorpusCandidate {
   readonly id: string;

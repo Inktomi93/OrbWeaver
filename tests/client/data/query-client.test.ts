@@ -12,7 +12,7 @@ import type { Notify } from "@orb/client/lib";
 import { bindNotify } from "@orb/client/lib";
 import { MutationObserver } from "@tanstack/react-query";
 import { afterEach, describe, vi } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 /** A spy Notify bound via the real `bindNotify` composition seam — never `vi.mock()` of the module. */
 function spyNotify(): Notify & { readonly errorCalls: string[] } {

@@ -6,11 +6,11 @@ import type { Db } from "@orb/db";
 import { chatEvents } from "@orb/db";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { appendChatEvent } from "../../../../../packages/server/src/domain/chat/persistence/events";
-import { loadChatEventReplay } from "../../../../../packages/server/src/domain/chat/persistence/queries";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedChat } from "../_support";
+import { appendChatEvent } from "../../../../../packages/server/src/domain/chat/persistence/events.ts";
+import { loadChatEventReplay } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeChatContext, seedChat } from "../_support.ts";
 
 let db: Db;
 

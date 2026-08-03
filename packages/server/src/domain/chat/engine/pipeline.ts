@@ -36,9 +36,9 @@ import { applyReceivePostProcess } from "@orb/server/kit/post-process";
 import { parseReasoningTags } from "@orb/server/kit/reasoning";
 import { getLog } from "#foundation/observability";
 import type { ToolCallInput, WireTool } from "#infra/providers";
-import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, ChatToolExecFrame, ChatToolOps, ChatToolSet, RunChatTurnOp } from "../contract/context";
-import type { PromptHistoryRegexEnv } from "../contract/regex";
-import type { HistoryMacroNames, TurnEconomics, TurnKind, TurnMessage, TurnRequest, TurnSpeakerShape } from "../contract/results";
+import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, ChatToolExecFrame, ChatToolOps, ChatToolSet, RunChatTurnOp } from "../contract/context.ts";
+import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
+import type { HistoryMacroNames, TurnEconomics, TurnKind, TurnMessage, TurnRequest, TurnSpeakerShape } from "../contract/results.ts";
 import {
   buildHistoryBudget,
   buildPrompt,
@@ -48,7 +48,7 @@ import {
   shapeContextForSpeaker,
   shapeTurn,
   toShapeCanon,
-} from "../substrate/assembly-access";
+} from "../substrate/assembly-access.ts";
 
 /** What `runTurnPipeline` consumes — the immutable assemble ctx + the loaded canon + the resolved connection
  *  + the turn axes. */
