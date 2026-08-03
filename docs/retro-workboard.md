@@ -57,7 +57,16 @@ dead-ended pair is closed; optimistic reorder write reasoned; focusableWhenDisab
 end-of-list focus answer; **the tag-fork candidate arm is now CONCRETE + liftable**:
 MoveControls+reseat are scope-agnostic — VirtualList >30 keeps per-row move pair; only
 unknown = scroll-to-follow) ·
-FACEFILT (a5a5877336d40ac69 — frequent-N strip + overflow picker) · REGROSTER
+✅ FACEFILT MERGED (`0cc135e3`, torn down) — **the strip FITS instead of scrolling: there
+is NO N** (folds on MEASURED per-face widths, pre-paint layout effect + ResizeObserver;
+recentFaces uncapped — curation answers who/order, the strip answers how-many-fit); +K/More
+opens the house CharacterPicker over the WHOLE library (reaches never-chatted characters —
+scrolling never could); picked faces HOIST to slot 1 (never filtered by an invisible face);
+the tile never says +1 (the squeezed-slot rule, width-sweep CT across 12 pane widths);
+library favorites strip byte-identical (overflow opt-in). MICRO queued: add-member-popover
+wants the same autoFocusSearch one-liner (suspense-eats-initial-focus class). LESSON banked:
+a NUL byte in a template literal turns the FILE binary to git while every gate stays green —
+read git show --stat on your own commit; Bin on a source file = corrupt write. · REGROSTER
 (aedfcb0bab7f636e3 — attached-by rosters verb, 3rd with-usage instance) · SM7 (dispatched
 below — CUSTOMBYO strict arm · BRAND gate · the handoff-heal single-file biome ticket).**
 ✅ **SNAPX MERGED (`73f78c81`, torn down) — the snap debt is PAID:** the fixture is a
