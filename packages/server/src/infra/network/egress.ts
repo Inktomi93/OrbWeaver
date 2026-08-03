@@ -318,6 +318,9 @@ export async function safeFetch(url: string | URL, options: SafeFetchOptions): P
     contentType = enforceContentType(response, options.allowedContentTypes);
   } catch (err) {
     clearTimeout(timer);
+    // @swallowed-ok(cancel): draining an ABANDONED response body back to the pool on an already-failing hop —
+    // there is no work to trace and no caller left to inform (the `throw err` below is the signal). Ends if
+    // stream teardown ever does traceable work of its own.
     void response.body?.cancel().catch(() => undefined);
     closeAgent(agent);
     throw err;
@@ -357,6 +360,8 @@ export async function safeFetch(url: string | URL, options: SafeFetchOptions): P
         return;
       }
       settled = true;
+      // @swallowed-ok(cancel): the caller DISPOSED this stream — draining what is left back to the pool has
+      // no work to trace and nobody to inform. Ends if teardown ever does traceable work of its own.
       void response.body?.cancel().catch(() => undefined);
       releaseAgent();
     },
@@ -367,6 +372,9 @@ export async function safeFetch(url: string | URL, options: SafeFetchOptions): P
  *  owner-configured-endpoint class (no per-request agent; the global dispatcher is shared). */
 function closeAgent(agent: Agent | undefined): void {
   if (agent !== undefined) {
+    // @swallowed-ok(destroy): force-closing a per-request dispatcher whose hop is over — a socket that
+    // refuses to close has no consequence for any live caller and nothing worth a trace bucket. Ends if
+    // agent teardown ever gains a failure mode that matters.
     void agent.destroy().catch(() => undefined);
   }
 }
@@ -583,6 +591,8 @@ async function followRedirects(start: URL, maxRedirects: number, options: SafeFe
       return { response: res, agent };
     }
     // A redirect hop is done — drain its body back to the pool and CLOSE its pinned agent (spec D).
+    // @swallowed-ok(cancel): the hop's body is discarded by definition (we follow the Location instead) —
+    // no work to trace, no caller to inform. Ends if teardown ever does traceable work of its own.
     void res.body?.cancel().catch(() => undefined);
     closeAgent(agent);
     if (hop >= maxRedirects) {
@@ -611,6 +621,8 @@ async function readCapped(reader: ReadableStreamDefaultReader<Uint8Array>, maxBy
   while (!chunk.done) {
     total += chunk.value.byteLength;
     if (total > maxBytes) {
+      // @swallowed-ok(cancel): abandoning an over-cap stream — the `throw` below IS the report, and the
+      // cancel's own outcome changes nothing. Ends if teardown ever does traceable work of its own.
       void reader.cancel().catch(() => undefined);
       throw new EgressBlockedError("too-large", `safeFetch: response exceeded maxBytes=${maxBytes}`);
     }
