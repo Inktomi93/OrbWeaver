@@ -442,6 +442,10 @@ Items this audit could not prove either way from the tree. **None were dropped.*
   fleet-killer. Engines: `pnpm engines:{wake,sleep,status}`; truth = `GET /is_sleeping` (`/health` AND
   `/v1/models` both LIE while asleep); the hold marker refuses auto-wake. Wake-on-demand is built into
   the server's vllm request seam (single-flight, fail-loud). No stack restart mid-battery.
+- **⚠️ BASELINE SQUASHED 2026-08-03 (DBFIX, `e9e76f35`)** — `workloads.source` → `admission_key` + the
+  two index keys + the dropped CHECK. **The dev db DROPS on next boot**; back it up first if anything
+  in it matters, then let the latch re-migrate + reseed. The owner's hand-entered regex scripts are the
+  usual casualty ([[backrest-recovery-and-cited-reports]]).
 - **DB:** pre-launch, schema changes SQUASH into `0000_baseline.sql` — a baseline regen DROPS the dev db
   on next boot (backup + re-migrate, reseeds via the latch). Announce it when squashing. **NEVER bare
   `sqlite3` on the live db** — probe COPIES or `/api/_debug/*`. Wire capture:
@@ -547,8 +551,37 @@ The audit wrote SCHEMA / DBANK2 / SWEEP as *dispatched*. Since then:
   **Declared limit to carry when it lands:** a gate can prove a span is OPENED and that errors REACH
   it; it cannot prove the span is meaningful, named right, or correlated to the work. Floor, not
   ceiling.
+- ✅ **DBFIX MERGED (`e9e76f35`) — the D117 contradiction is RESOLVED, and the mechanism was arm (a).**
+  D117's lane machinery was INNOCENT and proven so: `databank-ingest` already declared
+  `lane:"interactive"`, `workloads.lane` is stamped, the worker really does run one poll loop per lane.
+  **The refusal was ADMISSION, not execution** — the `workloads_mode_active_singular` partial unique
+  index over `(kind, owner_id, source)`, where `source` was a fixed enum and every databank row carried
+  the `none` sentinel, so the lock read "one user, one databank-ingest at a time". SQL receipt from the
+  red-first run: `UNIQUE constraint failed: workloads.kind, workloads.owner_id, workloads.source`.
+  **Both symptoms were ONE root cause:** the producers insert the `documents` row and THEN enqueue
+  (the enqueue crosses a domain boundary through an injected op, so it structurally cannot join the
+  batch) — the CONFLICT rejected the mutation AFTER the document existed, leaving a chunk-less row with
+  no workload that derives to `indexing` → "Queued" forever. The 3-of-7 parked documents were the same
+  refusal seen from the other end. **No claim/reap/heartbeat bug exists.**
+  **The fix:** `workloads.source` → **`admission_key`** (free TEXT) and the owning domain declares its
+  own concurrency unit via `WorkloadContribution.admissionKey` — ingest keys on `documentId`, reindex on
+  scope, index on its embed source. That also deleted the queue's LAST piece of domain knowledge
+  (`resolveWorkloadSource`'s `kind === "index"` switch), which is D117's own inversion finally landing.
+  Plus: one guarded `queue-ingest` seam for all four producers (errors-as-data — canon survives, the
+  audit row records which arm ran), `stalled` as a rendered LIST phase clocked off the query's
+  `dataUpdatedAt` (a mount snapshot would freeze), and actionable CONFLICT copy.
+  **⚠️ DB BASELINE WAS SQUASHED** (pre-launch rule) — see the STACK note in STANDING FACTS.
+  **Its flags:** (1) my "zero buttons" premise was STALE and named the wrong file — that was the
+  *databank* `add-document-dialog`, already fixed by the 08-03 sweep and CT-asserted; the undecided
+  component was chat's `add-chat-document-dialog` picker, which now has a real 5-test CT (no waiver).
+  (2) `pnpm test:ct` is a WHOLE-TREE run that collides with the lane ban — **doctrine corrected** to
+  `rm -rf playwright/.cache && npx playwright test -c … <paths>`.
+  **Follow-up `b99357e7`:** the merged tree went RED on `types:packages` — three unbranded `DocumentId`
+  literals in the new CT. The lane's floor ran `typecheck:graph` + `tests-dom` but NOT the per-package
+  `pnpm typecheck`, which is the only stage that sees `tests/client/**` from `packages/client`'s
+  tsconfig. Fixed with `castId<DocumentId>`; **lane floors should name `pnpm typecheck` explicitly.**
 - **LIVE NOW (cap 5):** DBFIX (`a423c577e9d55294a` — databank ingest concurrency, the D117
-  contradiction; ALSO now owns the `add-chat-document-dialog` presence-ledger red) · **SPANGATE**
+  contradiction — MERGED, see above) · **SPANGATE**
   (`a40e2b5d8df6e2282` — the untraced/swallowed span gates, above) · **BRAND-F** (`a9c87d67eac1b22a2` — **the WHOLE I-5 burn-down on Fable**, briefed to read
   `codemod-kit.ts` + `ast.ts` IN FULL; the kit already carries `retypeIdAnnotations` +
   `castStringLiteralsByDiagnostic` from a prior id campaign).

@@ -32,9 +32,11 @@ Brief scope boundaries are COLLISION-avoidance, not territory ownership — the 
 Final message: outcome first (what now works, verified how — the command + real result), then notable decisions and why, then anything deferred or flagged for the orchestrator (including durable lessons worth saving to memory).
 
 ## CT + type-layer gotchas (accreted 2026-08-03 night — each cost a lane an iteration)
-- **CT caches lie**: run CTs via `pnpm test:ct` (it clears playwright/.cache + the transform cache);
-  raw `npx playwright test` can report errors that stopped existing ("Identifier already declared").
-  Scope a single file with `npx playwright test -c playwright-ct.config.ts <file>` AFTER a cache clear.
+- **CT caches lie**, but `pnpm test:ct` is a WHOLE-TREE run — in a lane that is a load bomb and collides
+  with the whole-tree ban. In a lane, get the cache-clear without the tree:
+  `rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts <paths>`. A raw
+  `npx playwright test` with NO cache clear can report errors that stopped existing ("Identifier already
+  declared"). `pnpm test:ct` is the ORCHESTRATOR's instrument on a quiesced tree.
 - **A `_ct-stories` module may export ONLY components to its CT** — playwright-ct rewrites named
   imports into generated component consts; a mixed import (component + constant) fails to parse.
 - **CT stories import through the SAME aliases the providers use** (`@orb/client/*`) — a relative
