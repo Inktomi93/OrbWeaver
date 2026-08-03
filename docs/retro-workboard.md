@@ -56,7 +56,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 ## ═══ STATE (2026-08-03, at the audit) ═══
 
 - **main @ HEAD**, tree clean, **121+ commits past origin `865405d6`** (the 199-commit era was
-  pushed 08-03 on the owner word). Gates: **180 registered** (GATES3 +3, SPANGATE +1). D-ledger:
+  pushed 08-03 on the owner word). Gates: **180 registered**. I-5 CLOSED (brand ratchet retired). D-ledger:
   through **D126**, next free **D127**.
 - **PUSH-READY IS STALE.** It was declared at 85 commits (`7d91d01a`); ~36 have landed since (SCHEMA,
   DBANK2, SWEEP, HISTLEG, OBSCLOSE, GATES3, D125, board/doc edits) → **a fresh `pnpm verify --push` on
@@ -734,9 +734,60 @@ The audit wrote SCHEMA / DBANK2 / SWEEP as *dispatched*. Since then:
   re-spelling, `no-inline-union-redecl` is unions, `brand-in-name-position` declares alias-typed positions
   out of reach — **none inspect an alias's RHS for `string`**, and `ast.ts`'s existing `aliases` lens is
   IMPORT aliasing, a different concept.
-- **LIVE NOW (cap 5):** **BRAND-F** (`a9c87d67eac1b22a2` — **the WHOLE I-5 burn-down on Fable**, briefed to read
-  `codemod-kit.ts` + `ast.ts` IN FULL; the kit already carries `retypeIdAnnotations` +
-  `castStringLiteralsByDiagnostic` from a prior id campaign).
+- ✅ **I-5 BRAND BURN-DOWN — CLOSED (`93eb9537` + fix `8f0c458a`).** 169 files/374 sites → **`{}`**;
+  baseline AND generator DELETED; the ratchet machinery removed; live bite re-proven with no budget left
+  to hide behind (plant `chatId: string` → RED; `rm` → green). 9 checkpoint commits, 549 files, 738 vitest
+  + 285 CT. `retypeIdAnnotations` closed 359 retypes; a lane-written MULTI-BRAND single-diagnostics-pass
+  variant closed **2,538 fixture casts in one typecheck each** (the stock helper is O(brands × whole-project
+  typechecks)). ~140 sites hand-judged. **`CharacterHandle` minted** — `characters.handle` branded
+  type-only, `0000_baseline.sql` UNTOUCHED (no squash after all). Misnomers renamed OUT of the vocabulary
+  rather than falsely branded (`stagedHandle`, `busInvalidate: ChatId | "user"`, form drafts as
+  `Handle | ""` after `no-fake-disabled-id` correctly refused `castId<Handle>("")` sentinels).
+  **⚠️ THE ZERO'S MEASURED LIMITS (do not read it as "no stringy ids remain"):** the **suffix class = 66
+  live bare-string positions** the EXACT matcher can never see (`hostUserId`, `targetUserId`,
+  `parentChatId`, `avatarAssetId`, `defaultPresetId`, `anchorPersonaId`, `ownerHandle`, `gmHandle`) — ~10
+  spellings cover most, so a curated compound-name arm is a plausible follow-up. **Alias class = 0.**
+  Variables/returns out of scope by design.
+  **The red it shipped, and the rule it bought:** the merged tree failed `types:tests-dom` with **170
+  errors in 20 e2e specs** — the lane branded the e2e SUPPORT signatures but ran only `typecheck` +
+  `typecheck:graph`. **`tsconfig.json`'s program does not include `tests/e2e/*.spec.ts` AT ALL**, so the
+  graph program is structurally incapable of seeing a spec. Fixed at the PRODUCER SEAMS (branding
+  `startChat`/`ensureCharacter` returns + the wire mirrors, type-only so the e2e carve-out holds) rather
+  than 170 casts. **Doctrine now requires naming all THREE typecheck programs** (there is no
+  `typecheck:testd` — the `.test-d` lane runs through vitest; name the file).
+- ✅ **ASTLENS MERGED (`5f764a7b`) — `pnpm ast stringy` ships, and it argued AGAINST its own gate.**
+  The cut is ONE checker call (`decl.getType().isString()`) and needs **no allowlist** — template
+  literals, `string & {brand}`, literal unions, `string | null`, `T extends string` and containers all
+  fall out of the compiler's own flags, probe-measured before building. **Corpus: 1 hit in `packages/`
+  (`RestartVllmEngineResult`) + 1 in `scripts/` (`LocKey`, dev-tooling, leave). ZERO transitive chains** —
+  credible only because a planted 3-hop cross-package chain (through a RENAMING re-export) was reported
+  with its full resolution chain while brand/template/union probes beside it stayed silent.
+  **RECOMMENDATION TAKEN — NO GATE**, and the reason is load-bearing: **`scripts/check/pass.ts` builds
+  the PURE-AST workspace** (`getWorkspace({root})` — no tsconfig, no `@orb/*` resolution), so a gate
+  calling `ctx.checker()` there gets a checker over an UNRESOLVED project and would report the one direct
+  hit while silently missing every chain it exists to find. Green, confident, blind. If ever wanted:
+  push tier beside `deps:orphan-ratchet`, folded into that typed pass. **Corollary:**
+  `brand-in-name-position` is syntactic BY NECESSITY, not laziness. `RestartVllmEngineResult` deleted on
+  main (`01139227`). Known limit: the CLI's `resolveScope` only accepts `packages/*`, so the `scripts/`
+  finding is unreachable from the verb — a cross-lens change, not taken.
+- ✅ **STALEARM MERGED (`d67868da`) — it WAS a class: 5 gates, 18 dead rows.** The anti-pattern is one
+  line: `if (!fileLoaded(ctx, rel) …) continue` — **the row's own presence gating its own staleness
+  check**, so a DELETED file's row is never examined and can never red. Fixed uniformly by gating the
+  sweep on a separate permanent ANCHOR and making every per-row check an unconditional `!seen.has(rel)`,
+  which unifies mode (A) *no longer violates* and mode (B) *file is gone* into one test.
+  **Fixed + rows deleted:** `ui-size-via-variant` (1 — `tag-settings-row.tsx`), `dialog-via-composite`
+  (3 — party→roster rework), `empty-state-has-action` (**14** — the rpg-client flattening),
+  `no-arbitrary-tw-values` + `motion-token-purity` (mechanism fixed pre-emptively, rows still live).
+  11 gates were ALREADY correct (unconditional `seen` / explicit `sf === undefined` / separate anchor);
+  ~165 carry no path-keyed table. Each fix ships a `mustFlag` reproducing a deleted survivor.
+  **`GATE-AUTHORING.md` gains §4a** naming both modes — the gap that let a careful author implement half
+  the contract and believe they were done.
+- **LIVE NOW: ONE lane** — the TAGUX side-eye (`a7c895dddb90ded5f` is torn down; the review agent is
+  `a56651b299a85551c`). All build lanes have landed and their worktrees are gone.
+  **Also present and NOT MINE:** `wt/memo-ban-investigation` — the owner's SECOND session. Do not touch.
+  **NEXT, in order:** side-eye findings fixed (ALL of them, standing law) → quiesce → full `pnpm test`
+  battery (the CT proof — `verify --push` runs none) → fresh `pnpm verify --push` → board PUSH-READY and
+  ASK FOR THE WORD. ~150 commits past origin; last PUSH-READY was declared at 85.
 - **KILLED (owner word):** the first brand lane (mech-executor tier) — zero commits, one untracked
   codemod script, nothing lost. Replaced by BRAND-F above.
 - **LIVE RED ON MAIN (routed to DBFIX):** `tests/tooling/chat-component-presence.test.ts` —
