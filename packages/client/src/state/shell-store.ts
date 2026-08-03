@@ -32,7 +32,10 @@ import { withViewTransition } from "#lib";
 import { createPersistedStore } from "./create-persisted-store";
 
 /** The rail's navigable sections. `home` leads: it is the landing section (its rail affordance is the
- *  brand glyph, `rail.brand` — home-section-spec §4.1), and the tuple order IS the rail/mobile-bar order. */
+ *  brand glyph, `rail.brand` — home-section-spec §4.1), and the tuple order IS the rail/mobile-bar order.
+ *  EDITING THIS TUPLE: walk the ten coupled sites in client-architecture-lockdown.md §6a (the SECTION_IDS
+ *  playbook) — tsc carries only the door Record; the sanitizers, agent-nav vocabulary, CT mirror, mobile
+ *  curation and placeholder copy are each a separate hand edit. */
 export const SECTION_IDS = ["home", "chats", "characters", "corpus", "worldInfo", "presets", "refinery", "analytics"] as const;
 export type SectionId = (typeof SECTION_IDS)[number];
 
