@@ -3,8 +3,7 @@
 // notification; an unknown handle renders its refusal inline, never silently degraded to a share link).
 // Below the mint form: the outstanding-invites list, host-only, with per-row Revoke on pending.
 
-import type { ChatId, ChatInviteId, Handle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { ChatId, ChatInviteId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Dialog, DialogClose, DialogDescription, DialogPopup, DialogTitle } from "@orb/ui/dialog";
@@ -76,7 +75,7 @@ function InviteMintForm({ chatId }: { readonly chatId: ChatId }): ReactElement {
       const { token } = await createInvite.mutateAsync({ chatId, input });
       if (values.mode === "handle") {
         notify.success(`Invited ${values.handle.trim()} — they'll see it in their notifications.`);
-        return { ...values, handle: castId<Handle>("") };
+        return { ...values, handle: "" };
       }
       const link = `${globalThis.location.origin}/join/${encodeURIComponent(token)}`;
       setMintedLink(link);

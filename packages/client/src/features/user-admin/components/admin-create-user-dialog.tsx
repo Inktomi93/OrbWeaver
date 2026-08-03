@@ -6,6 +6,8 @@
 // while closed, so every open mounts a FRESH form — a reopened dialog never shows the previous
 // attempt's values.
 
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -46,7 +48,7 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
 
   const save = async (values: CreateUserFormValues): Promise<CreateUserFormValues> => {
     await createUser.mutateAsync({
-      handle: values.handle.trim(),
+      handle: castId<Handle>(values.handle.trim()),
       password: values.password,
       ...(values.role === "admin" ? { role: "admin" as const } : {}),
     });
