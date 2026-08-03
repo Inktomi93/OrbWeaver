@@ -49,8 +49,13 @@ comment; no suppression).
    tint in situ (Second Opinion) · home-tile skeleton verdict · the persona row anatomy ·
    FACEFILT's folded strip + picker · the add-member autoFocusSearch micro (it may just FIX
    that one-liner if trivial — sanctioned).
-2. **FULL `pnpm test` RUNNING in background** (the CT battery verify --push doesn't cover —
-   task id in /tasks; read its verdict, fix same-day debris per tonight's pattern).
+2. ✅ **FULL BATTERY RAN: 9,792 passed / 2 failed — both triaged + CLOSED (`eb3c76ad`)**:
+   (a) cross-tenant sweep demanded REGROSTER's new `regex.listScriptUsage` row (its lane floor
+   didn't run the whole suite — the completeness guard doing its job) → PROBE row added, suite
+   2/2; (b) seed-demo-chats timeout = the DOCUMENTED load flake — passes 7/7 isolated. Same
+   commit swept SIX files of FORMAT DRIFT accumulated by the night's --no-verify merges
+   (scoped --write on named files, the sanctioned shape; lint:biome was red on main until
+   here). **CT battery = the night's ~20 merges are proven together.**
 AFTER BOTH: `pnpm verify --push` (background) → 14/14 = **board PUSH-READY, await the word** →
 then **DATABANK S1 (owner-ruled: start if the board empties — it has)**: spec
 docs/design/databank-surface-spec.md + published mocks; own rail section; S1-S3 staged;
