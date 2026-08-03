@@ -7,6 +7,13 @@ import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 import { fileLoaded } from "../pass.ts";
 
+/** Real-tree anchor (GATE-AUTHORING.md §4.5): `ctx.scope.kind === "project"` is TRUE inside conformance's
+ *  synthetic mini-projects too, so scope alone cannot gate the stale arm. Deliberately NOT any ALLOWLIST
+ *  row's own path — gating a row's staleness on THAT row's own file being loaded is the mode-(B) blind
+ *  spot: a deleted/renamed survivor is never loaded, so a self-referential guard would skip it forever
+ *  instead of flagging it. */
+const STALE_ARM_ANCHOR = "packages/ui/src/tokens/index.ts";
+
 /** Current legit arbitrary-value files → reason (no token exists). See no-raw-interactive-intrinsics.ts
  *  for the ratchet contract (both arms). */
 const ALLOWLIST: Record<string, string> = {
@@ -110,15 +117,14 @@ export const gate: GateDescriptor = {
     }
   },
   finalize: (ctx) => {
-    if (ctx.scope.kind !== "project") {
-      return;
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
+      return; // the stale arm is a whole-tree claim — never fire it below project scope or off the anchor (§4.5)
     }
     for (const rel of Object.keys(ALLOWLIST)) {
-      // Only judge an allowlisted file that is actually LOADED (a synthetic conformance/parity tree omits
-      // the real ones); on the real full-tree run every allowlisted file IS loaded, so the ratchet holds.
-      if (!fileLoaded(ctx, rel)) {
-        continue;
-      }
+      // NOT gated on the row's own file being loaded — that is precisely the mode-(B) blind spot (a
+      // deleted/renamed file is never loaded, so it would never be judged stale). `passSeenAllowlisted`
+      // is only ever set by a live `visit` hit, so "never seen" already covers both a fixed file (A) and
+      // a gone one (B).
       if (!passSeenAllowlisted.has(rel)) {
         ctx.report({
           file: GATE_SELF,
@@ -129,9 +135,6 @@ export const gate: GateDescriptor = {
       }
     }
   },
-  // NOTE: the ALLOWLIST ratchet/stale arms are `fileLoaded`-guarded to the real full tree (a synthetic
-  // conformance project omits the real allowlisted files) — their coverage moves to the live
-  // `pnpm check:structure` run. Only the pure FLAG/PASS branches port as examples below.
   mustFlag: [
     {
       files: 'export const G = <div className="w-[137px] p-[7px]" />;\n',
@@ -139,6 +142,15 @@ export const gate: GateDescriptor = {
       // PER-TOKEN: two banned arbitraries (w-[137px] + p-[7px]) → two findings, not one.
       expect: { count: 2 },
       why: "scoped-utility value arbitraries — off-token brackets that bypass the design scale",
+    },
+    {
+      // Mode-(B) proof (GATE-AUTHORING.md §4.3b): a project that loads the real-tree anchor but NONE of
+      // the ALLOWLIST paths — exactly what a deleted/renamed survivor looks like from this gate's
+      // vantage. Before the fix this arm was gated on the row's OWN file being loaded, so a project like
+      // this one (which never loads any ALLOWLIST path) silently reported nothing.
+      files: { [STALE_ARM_ANCHOR]: "export const x = 1;\n" },
+      expect: { messageIncludes: "ALLOWLIST entry has NO scoped arbitrary-value class" },
+      why: "the real-tree anchor loads but no ALLOWLIST row's file does (the mode-B shape: gone from the tree) — every row must RED, not silently pass",
     },
     {
       files: 'export const G = <div className="hover:w-[137px]" />;\n',
