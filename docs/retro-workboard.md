@@ -164,6 +164,21 @@ one constant (a runtime toggle = its own lane: config field + versioned lift + s
 enforced structured output on OR means moving that role BACK to response_format (the forced
 tool can never enforce — `WireTool` has no `strict`); `populateFromCharacter` would take the
 same ~40-line tool-round treatment but was deliberately NOT scope-crept.
+✅ **DBANK2 MERGED (`2b4c2d24`) — DATABANK S2 IS BUILT: the per-chat rack ships and the D85
+VISIBILITY TOGGLE IS FINALLY LIVE** (the oldest unbuilt item on the board). D-2 sources
+threaded (scope.ts keeps the junction answer it used to discard; the union now DERIVES);
+rack+picker+nextHiddenSet mounted after Injections (D-4); hide writes the FULL hidden set not
+a patch (the CT asserts the payload, so an already-hidden row can't be silently unhidden);
+freshness via listActiveForChat on chatUpdated serving both drivers. 559 CT + 1,688 unit
+green. Rendered at 320px caught a real a11y defect (chips concatenated with no separator in
+the description). `formatBytes` promoted to @orb/kit/strings (3rd consumer, the placement
+rule). 3 gate finds fixed AT SOURCE, zero suppressions. It also swept NIGHTFIX's 2 stale
+aria CTs per my ruling. **OWNER ITEM: the mock's "via Azarael" chip is NOT buildable on D-2's
+ruled shape** — D-2 gives the junction KIND, not a character id, so the chip reads "From a
+character"; naming it needs a wire change D-2 didn't authorize (your call: S6-adjacent
+follow-up or leave). **DATABANK REMAINING: D-3 arm (a)** (workloadId push arm; the poll is the
+shipped fallback) · **S6 the character rack** (CHARACTER_DETAIL_ANCHORS is assembled
+empty-but-typed) · **D-7's real Home tile**.
 **GATES3 QUEUED (owner asked "anything that should be a gate?"):** (1) **`ne()`/`notInArray`
 on a NULLABLE column** without an `or(isNull(...))` — the D124 reshape's one live defect
 class, invisible to tsc/tests, structurally derivable from the schema; (2) **NUL bytes in
