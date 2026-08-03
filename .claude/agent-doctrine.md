@@ -157,6 +157,14 @@ don't write memory yourself.
   you added/moved a FILE or changed any import path (layer/subsystem-mediation rules are whole-graph —
   a scoped floor missed a verbs→named-subsystem edge once, 08-03) PLUS `pnpm typecheck:graph` when
   you touched anything under tests/.
+- **NAME ALL FOUR TYPECHECK PROGRAMS in your floor — `pnpm typecheck` · `typecheck:graph` ·
+  `typecheck:tests-dom` · `typecheck:testd`.** They compile DIFFERENT tsconfig programs and each sees
+  files the others cannot. Three separate lanes shipped a red past a partial floor in ONE day (08-03):
+  a graph-only floor missed three unbranded `DocumentId` literals in a new client CT; `pnpm typecheck`
+  (per-package) caught 18 `tests/client` errors the graph program could not see; and a floor naming
+  `typecheck` + `typecheck:graph` shipped **170 errors** in 20 e2e `.spec` files, because only
+  `typecheck:tests-dom` compiles `tsconfig.tests-dom.json`. **A floor that names only some of them is a
+  floor with holes** — and the hole is invisible until the orchestrator's consolidated check finds it.
 - **Your floor NAMES its playwright CT files, by path.** `pnpm verify --push` runs NO CTs (tests:node +
   e2e only) and `check:structure` never executes one, so a CT file nobody named is a file nobody ran —
   a lane shipped a fix without its own brand-new proving CT this way, and another left 19 CT reds on
