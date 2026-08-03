@@ -1,13 +1,9 @@
-// The regex collection's pure view-model — the collection KIND and the one-string row-name derivation.
-
-import type { RegexScriptRow } from "@orb/contracts/regex";
+// The regex collection's pure view-model — the collection KIND.
+//
+// `regexScriptTitle` used to live here; it moved to `lib/regex-placement-labels.ts` (beside the scent it
+// pairs with) when `components/regex-scope-order.tsx` became a caller — `components/` sits below features
+// and cannot import a feature's `lib/`.
 
 /** The collection KIND — registry key, React key, selection kind axis. ONE home (the definition and the
  *  create verb that selects what it just made both read it). */
 export const REGEX_COLLECTION_ID = "regex";
-
-/** A row's name, with the empty-name arm spelled ONCE, so the list, the editor heading and the delete
- *  confirm can never announce a nameless script three different ways. */
-export function regexScriptTitle(script: RegexScriptRow): string {
-  return script.name === "" ? "Unnamed script" : script.name;
-}

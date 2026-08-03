@@ -21,7 +21,8 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { REGEX_PLACEMENT_LABELS, regexScriptScent } from "#lib";
+import { REGEX_PLACEMENT_LABELS, regexScriptScent, regexScriptTitle } from "#lib";
+import { RegexScopeOrder } from "./regex-scope-order";
 
 // Every regex verb is `busDriven` (`regexChanged` path-invalidates the whole router), so no call site
 // hand-invalidates its own attached-list read. The six factories live at the BOTTOM of this file, next to
@@ -88,6 +89,13 @@ function ChatScopePicker(props: RegexScriptPickerProps & { readonly scope: { kin
 
 /** The scope-blind body: the owner's whole library with a switch per row (on = attached to this scope).
  *
+ *  THE LIST SPLITS ONCE SOMETHING IS ATTACHED (REGORDER). Per-scope execution ORDER is real data
+ *  (`applyScopeOrder`) and had no author, so the attached slice is now an ordered, reorderable group and
+ *  the rest of the library follows it. Split IN PLACE — one row per script, never a second list beside
+ *  this one: an "execution order" panel above the picker would print every attached script's name twice on
+ *  one deck, which is the exact redundancy X-7 ruled against in this very component. The two slices are
+ *  real `Section`s so the boundary is an `h3` a screen reader hears, not a visual gap.
+ *
  *  KICKER, NOT `heading` (side-eye F-8 REGRESSED → R-4, 2026-08-03). This component landed after the
  *  fix-round that moved `EntryListEditor` to the kicker voice, and rebuilt the same defect: on the preset's
  *  Transforms deck its 16px sentence-case white `Regex` heading sat among four 10.5px muted caps kickers
@@ -104,15 +112,33 @@ function PickerBody({
   const trpc = useTRPC();
   const library = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
   const attachedIds = new Set(attached.map((row) => row.id));
+  const loose = library.data.filter((script) => !attachedIds.has(script.id));
+
+  const looseRows = (
+    <Stack gap="field">
+      {loose.map((script) => (
+        <PickerRow attached={false} key={script.id} scope={scope} script={script} />
+      ))}
+    </Stack>
+  );
 
   const body = (
     <Stack gap="field">
       <Text voice="gloss">{helperText}</Text>
-      {library.data.length === 0 ? (
-        <EmptyLibrary onOpenLibrary={onOpenLibrary} />
-      ) : (
-        library.data.map((script) => <PickerRow key={script.id} scope={scope} script={script} attached={attachedIds.has(script.id)} />)
+      {library.data.length === 0 ? <EmptyLibrary onOpenLibrary={onOpenLibrary} /> : null}
+      {/* Nothing attached ⇒ NO split: two group headings over one undifferentiated library is noise, and
+          the ordered slice would be empty. This is the pre-REGORDER rendering, unchanged. */}
+      {library.data.length > 0 && attached.length === 0 ? looseRows : null}
+      {attached.length === 0 ? null : (
+        <Section kicker={attached.length > 1 ? "Runs here, in order" : "Runs here"}>
+          <RegexScopeOrder
+            renderItem={(script): ReactElement => <PickerRow attached={true} scope={scope} script={script} />}
+            scope={scope}
+            scripts={attached}
+          />
+        </Section>
       )}
+      {attached.length === 0 || loose.length === 0 ? null : <Section kicker="Not attached">{looseRows}</Section>}
     </Stack>
   );
   // No `heading` ⇒ no group frame at all: the picker is the whole body of something already named, and a
@@ -160,7 +186,7 @@ function PickerRow({
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const toggle = useToggleAttachment({ trpc, invalidation, scope });
-  const name = script.name === "" ? "Unnamed script" : script.name;
+  const name = regexScriptTitle(script);
   const stages = script.placement.map((placement) => REGEX_PLACEMENT_LABELS[placement].toLowerCase()).join(" · ");
 
   return (
