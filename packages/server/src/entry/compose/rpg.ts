@@ -32,9 +32,10 @@
 // `extractionToStateDelta` path. Two model calls per exchange become one.
 
 import { randomInt } from "node:crypto";
-import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
+import type { ChatApi, ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import { coEmitsProseWithTools } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
+import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ExtractionRefs, RpgActorRef, RpgExtraction, RpgGameConfig, RpgSheet, RpgSnapshotState, RpgToolCall, RpgTrackerCarrier } from "@orb/contracts/rpg";
 import {
   actorRefKey,
@@ -62,7 +63,7 @@ import { chats } from "@orb/db";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, newId } from "@orb/kit/ids";
-import { projectJsonSchema } from "@orb/kit/json-schema";
+import { projectJsonSchema, scrubWireSchema } from "@orb/kit/json-schema";
 import { eq } from "drizzle-orm";
 import { can } from "#domain/admin";
 import type { CharacterService } from "#domain/character";
@@ -70,7 +71,16 @@ import type { ChatService, RpgCardCorpus, RpgTurnTranscriptMessage } from "#doma
 import { parseChatMetadata } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import { AgentModelHealError, ConnectionRoutingError } from "#domain/connection";
-import type { RosterRefIndex, RpgContext, RpgCopyPresetToUser, RpgResolvePresetOwned, RpgRunExtraction, RpgRunToolRound, RpgService } from "#domain/rpg";
+import type {
+  RosterRefIndex,
+  RpgContext,
+  RpgCopyPresetToUser,
+  RpgResolvePresetOwned,
+  RpgRunExtraction,
+  RpgRunToolRound,
+  RpgService,
+  RpgStateDelta,
+} from "#domain/rpg";
 import {
   actorCarrier,
   buildRosterRefIndex,
@@ -83,6 +93,7 @@ import {
   findGameByChat,
   ghostTargetRefs,
   hasStructuredWriter,
+  hasToolWriter,
   listSheets,
   publishRpgEvent,
   reachableActorRefs,
@@ -97,6 +108,26 @@ import { minter } from "./minter";
 /** The structured-output schema NAME the structured extraction passes as `responseFormat.name` (OpenAI
  *  `json_schema.name`; Anthropic tool name). One home — no scattered magic string. */
 const EXTRACTION_SCHEMA_NAME = "rpg_state_extraction";
+
+/** THE STRICT-SHAPE A/B LEVER (owner ruling 2026-08-03) — **OFF**. Flipping this to `true` sends the extraction
+ *  schema in the OpenAI-strict shape (`strict-compatible`: every property `required`, every optional emitted as
+ *  `anyOf:[T,{"type":"null"}]`) and asks for `strict: true`. Nothing about the CONTRACT changes — `null ≡ absent`
+ *  is imposed at the salvage boundary (`dropNullValues`), so omit-means-keep survives verbatim.
+ *
+ *  Why it is a lever and not the default: the reshape is the documented route past BOTH hosted walls (OpenAI
+ *  strict's "all fields must be required"; Anthropic's undocumented optional-count ceiling), but it costs ~46
+ *  explicit `null`s of output per extraction and reads materially worse to a small local model — which is the
+ *  wire our populate lever depends on. It wants a live A/B (hosted Claude/GPT vs the local 8B) before it becomes
+ *  the shape, and that A/B is the owner's to run. Typed `boolean` so both arms stay live code. */
+const EXTRACTION_STRICT_WIRE: boolean = false;
+
+/** The extraction call's `ResponseFormat`, in whichever wire shape the lever above selects. ONE home, so the
+ *  two arms (`extractViaChat` / `extractViaStructured`) can never disagree about what was sent. */
+function extractionResponseFormat(schema: Record<string, unknown>): ResponseFormat {
+  return EXTRACTION_STRICT_WIRE
+    ? { name: EXTRACTION_SCHEMA_NAME, schema: scrubWireSchema(schema, "strict-compatible").schema, strict: true }
+    : { name: EXTRACTION_SCHEMA_NAME, schema };
+}
 
 /** What the rpg seam needs from the composition root: db + the sibling front doors rpg's injected ops route
  *  through (chat's rpg-facing ops, the connection resolve, the executor, the host-principal bridge, the tool
@@ -373,7 +404,7 @@ async function extractViaChat(deps: RpgComposeDeps, ctx: ExtractCtx): Promise<st
     // ENFORCED verdict (`resolveOwnerConsented`, engine.ts), inherited — NOT a force-stamped `true`: a
     // member-triggered turn on a non-consented sub already refused before commit, so no round ever fires.
     ownerConsented: ctx.ownerConsented,
-    responseFormat: { name: EXTRACTION_SCHEMA_NAME, schema: ctx.schema },
+    responseFormat: extractionResponseFormat(ctx.schema),
   });
   return result.reply;
 }
@@ -387,7 +418,7 @@ async function extractViaStructured(deps: RpgComposeDeps, ctx: ExtractCtx): Prom
     credential: ctx.conn.credential,
     model: ctx.conn.model,
     inputs: [{ systemPrompt: ctx.systemPrompt, userPrompt: ctx.userPrompt }],
-    responseFormat: { name: EXTRACTION_SCHEMA_NAME, schema: ctx.schema },
+    responseFormat: extractionResponseFormat(ctx.schema),
   });
   return result.items.at(0)?.text ?? "";
 }
@@ -696,15 +727,20 @@ function logToolCallLosses(args: {
   readonly api: string;
   readonly calls: readonly RpgToolCall[];
   readonly vehicle: string;
+  /** The caller's event namespace, mirroring `logStrippedKeys`. Omitted ⇒ the IN-TURN namespace, which is what
+   *  both turn vehicles have always emitted (their call sites are byte-unchanged); the host resync passes its
+   *  own `rpg.resync.*` pair so a catch-up round's losses stay on the resync's trail. */
+  readonly events?: { readonly unparseable: string; readonly stripped: string } | undefined;
 }): void {
+  const events = args.events ?? { unparseable: "rpg.extraction.unparseable", stripped: "rpg.extraction.stripped" };
   const dropped = malformedToolCalls(args.calls);
   if (dropped.length > 0) {
     logger.warn(
-      { event: "rpg.extraction.unparseable", chatId: args.chatId, model: args.model, api: args.api, droppedTools: dropped },
+      { event: events.unparseable, chatId: args.chatId, model: args.model, api: args.api, droppedTools: dropped },
       `rpg ${args.vehicle}: tool call(s) with unusable args — DROPPED (every other call this turn still applies)`,
     );
   }
-  logStrippedKeys({ ...args, event: "rpg.extraction.stripped", stripped: strippedToolCallKeys(args.calls) });
+  logStrippedKeys({ ...args, event: events.stripped, stripped: strippedToolCallKeys(args.calls) });
 }
 
 /** The STRIP log, one home for all four emitters (cheap round · folded turn · structured extraction · resync)
@@ -1016,8 +1052,81 @@ function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolC
 // prose, not log vocabulary: the person reading them clicked a button and is owed what to do next. Each pairs
 // with the `rpg.resync.*` warn the same branch already emitted — the log is for us, the reason is for them.
 const RESYNC_UNRESOLVABLE_REASON = "this room's connection didn't resolve, so the rebuild never ran — check the chat's model/connection.";
-const RESYNC_READONLY_REASON = "this room's model can't write structured state, so there's nothing to rebuild with — switch to a connection that can.";
+const RESYNC_READONLY_REASON = "this room's model can't write game state, so there's nothing to rebuild with — switch to a connection that can.";
 const RESYNC_FAILED_REASON = "the model call failed, so nothing was rebuilt:";
+
+// ── THE CATCH-UP ROUND IS A MULTI-CALL TOOL ROUND (owner ruling 2026-08-03) ───────────────────────────
+// The resync used to send the extraction schema as ONE monolithic structured payload, which is precisely the
+// shape both hosted grammar walls are made of (46 optional properties; four keyword classes outside the
+// documented subsets). A catch-up is a HOST-INITIATED, non-latency-sensitive action, so it can afford several
+// calls — and the per-plane tool schemas are SMALL by construction, so the walls mostly stop existing on this
+// path. The vehicle is already proven live on every array wire (the cheap round + the folded turn drive it).
+//
+// WHAT THIS DOES **NOT** TOUCH: the folded turn. Nothing here edits `buildFoldedTurnBuilder`,
+// `buildFoldTurnToolCalls` or `buildRunToolRound` — the resync is its OWN caller over the SAME tool
+// DEFINITIONS (`buildToolRoundWireTools`) and the SAME fold tail (`toolCallsToExtraction` →
+// `extractionToStateDelta`). Sharing the definitions is safe; mutating the in-turn round to serve a host
+// button is not, and was ruled out explicitly.
+//
+// The STRUCTURED arm survives as the degrade, unchanged: an agent-sdk host connection carries no wire
+// `tools[]` (the terminal-tools channel is a CHAT-pipeline mount, not a state-round vehicle), so it still
+// rides `extractViaChat` with the projected schema. Same delta either way — the shared-plane proof.
+
+/** The resync's TOOL-ROUND arm: one state-only turn, the 7 per-plane tools, `tool_choice:"required"`. Errors
+ *  are DATA (the RESYNC-OR grammar): a throw becomes the host's sentence, never a silent empty rebuild. */
+async function resyncViaToolRound(
+  deps: RpgComposeDeps,
+  args: {
+    readonly chatId: ChatId;
+    readonly conn: ResolvedConnection;
+    /** The resolved connection's api, NARROWED to the array wires — an agent-sdk connection carries no wire
+     *  `tools[]` and never reaches this arm (it takes the structured degrade instead). */
+    readonly api: Exclude<ChatApi, "agent-sdk">;
+    readonly baseState: RpgSnapshotState;
+    readonly refs: ExtractionRefs;
+    readonly playerDisplayName: string | null;
+    readonly config: RpgGameConfig;
+    readonly userPrompt: string;
+  },
+): Promise<{ readonly ok: true; readonly delta: RpgStateDelta } | { readonly ok: false; readonly reason: string }> {
+  const { chatId, conn, api, baseState, refs, playerDisplayName, config, userPrompt } = args;
+  let calls: readonly RpgToolCall[];
+  try {
+    const result = await deps.executor.runChatTurn({
+      api,
+      model: conn.model,
+      credential: conn.credential,
+      capability: conn.capability,
+      params: {},
+      systemPrompt: { static: toolRoundSystem(config, refs, playerDisplayName, true), dynamic: "" },
+      history: [{ role: "user", content: [{ type: "text", text: userPrompt }] }],
+      tools: buildToolRoundWireTools(refs, config),
+      toolChoice: { mode: "required" },
+      // The host funds + authorizes this call (the consenting human clicked the button) — never an inherited
+      // turn verdict, because no turn is running.
+      ownerConsented: true,
+    });
+    logToolRoundUsage({ chatId, api: conn.api, result });
+    calls = result.toolCalls ?? [];
+  } catch (err) {
+    logger.warn({ event: "rpg.resync.failed", chatId, model: conn.model, api: conn.api, err }, "rpg resync tool round failed");
+    return { ok: false, reason: `${RESYNC_FAILED_REASON} ${errorMessage(err)}` };
+  }
+  // The SAME loss log both in-turn tool vehicles run, in the resync's own event namespace.
+  logToolCallLosses({
+    chatId,
+    model: conn.model,
+    api: conn.api,
+    calls,
+    vehicle: "resync tool round",
+    events: { unparseable: "rpg.resync.unparseable", stripped: "rpg.resync.stripped" },
+  });
+  const extraction = toolCallsToExtraction(calls);
+  const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
+  const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
+  logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
+  return { ok: true, delta };
+}
 
 /** Build the host `resyncFromStory` model call. Resolves the room connection AS THE HOST, gates readonly
  *  (capability-absent ⇒ a legible refusal), runs the establish-EVERYTHING extraction over the deep window. */
@@ -1039,54 +1148,76 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
       }
       throw err;
     }
-    // No structured-output writer capability ⇒ no rebuild (the resync's OWN capability gate — it is not a
-    // per-turn delivery mode, so it keys on the capability directly, mirroring the flush's F2 posture: a resync
-    // on a manual-steering connection would predictably fail and, on hosted creds, cost real spend).
-    if (!hasStructuredWriter(conn.capability)) {
-      logger.warn({ event: "rpg.resync.readonly", chatId, model: conn.model, api: conn.api }, "rpg resync: connection has no structured writer — no rebuild");
+    // NO WRITE PATH AT ALL ⇒ no rebuild (the resync's OWN capability gate — it is not a per-turn delivery mode,
+    // so it keys on the capability directly, mirroring the flush's F2 posture: a resync on a manual-steering
+    // connection would predictably fail and, on hosted creds, cost real spend). TWO vehicles satisfy it now:
+    // wire tools (the catch-up round) or the structured writer (the agent-sdk degrade).
+    const toolWire = conn.api !== "agent-sdk" && hasToolWriter(conn.capability) ? conn.api : null;
+    if (toolWire === null && !hasStructuredWriter(conn.capability)) {
+      logger.warn({ event: "rpg.resync.readonly", chatId, model: conn.model, api: conn.api }, "rpg resync: connection has no state writer — no rebuild");
       return { ok: false, reason: RESYNC_READONLY_REASON };
     }
     // Establish-EVERYTHING (`reconcile: true`) over the WHOLE window (`extractionContext: "full"`, forced — the
     // resync deliberately re-reads the deepest story, regardless of the game's per-turn context knob).
     const { refs, playerDisplayName, config } = await resolveExtractionRefs(deps, chatId, baseState, true);
     const resyncConfig: RpgGameConfig = { ...config, extractionContext: "full" };
-    const ctx: ExtractCtx = {
-      conn,
-      // The host funds + authorizes this call: consent is the HOST's own (the consenting human initiated it),
-      // never a force-stamped inheritance from an unrelated turn. A max-pro-sub firewall still applies — a host
-      // whose own consent belt refuses a metered sub simply refuses the resync.
-      ownerConsented: true,
-      systemPrompt: extractionSystem(resyncConfig, refs, playerDisplayName, true),
-      userPrompt: buildExtractionUserPrompt(transcript, baseState, resyncConfig),
-      schema: constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs),
-    };
-    let text: string;
-    try {
-      text = conn.api === "agent-sdk" ? await extractViaChat(deps, ctx) : await extractViaStructured(deps, ctx);
-    } catch (err) {
-      logger.warn({ event: "rpg.resync.failed", chatId, model: conn.model, api: conn.api, err }, "rpg resync extraction failed");
-      // THE HOST HEARS IT. This catch used to return an empty delta, which the verb reported as "nothing to
-      // resync" — so a provider that refused every single call (live, on the DEFAULT hosted backend) looked
-      // exactly like a story with no drift. The provider's own sentence rides out to the toast.
-      return { ok: false, reason: `${RESYNC_FAILED_REASON} ${errorMessage(err)}` };
-    }
-    // EXT-4a — the resync reads the SAME structured emission the in-turn degrade does, so it salvages the same
-    // way: one malformed entry in a deep-window rebuild must not throw away the other five planes' worth of
-    // re-established state (the resync is the expensive call — discarding it whole is the worst place to be
-    // all-or-nothing).
-    const { extraction, dropped, stripped } = salvageExtraction(safeJson(text));
-    if (dropped.length > 0) {
-      logger.warn(
-        { event: "rpg.resync.unparseable", chatId, model: conn.model, api: conn.api, dropped },
-        "rpg resync: plane(s)/entry(ies) did not conform — DROPPED (the rest of the rebuild still applies)",
-      );
-    }
-    logStrippedKeys({ chatId, model: conn.model, api: conn.api, vehicle: "resync", event: "rpg.resync.stripped", stripped });
-    const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
-    const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
-    logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
-    return { ok: true, delta };
+    const userPrompt = buildExtractionUserPrompt(transcript, baseState, resyncConfig);
+    const args = { chatId, conn, baseState, refs, playerDisplayName, config: resyncConfig, userPrompt };
+    return toolWire !== null ? await resyncViaToolRound(deps, { ...args, api: toolWire }) : await resyncViaStructured(deps, args);
   };
+}
+
+/** The resync's STRUCTURED arm — unchanged in every respect except that it is now the DEGRADE (a wire with no
+ *  `tools[]` takes it) rather than the only vehicle. Same schema, same salvage, same RESYNC-OR refusal grammar. */
+async function resyncViaStructured(
+  deps: RpgComposeDeps,
+  args: {
+    readonly chatId: ChatId;
+    readonly conn: ResolvedConnection;
+    readonly baseState: RpgSnapshotState;
+    readonly refs: ExtractionRefs;
+    readonly playerDisplayName: string | null;
+    readonly config: RpgGameConfig;
+    readonly userPrompt: string;
+  },
+): Promise<{ readonly ok: true; readonly delta: RpgStateDelta } | { readonly ok: false; readonly reason: string }> {
+  const { chatId, conn, baseState, refs, playerDisplayName, config, userPrompt } = args;
+  const ctx: ExtractCtx = {
+    conn,
+    // The host funds + authorizes this call: consent is the HOST's own (the consenting human initiated it),
+    // never a force-stamped inheritance from an unrelated turn. A max-pro-sub firewall still applies — a host
+    // whose own consent belt refuses a metered sub simply refuses the resync.
+    ownerConsented: true,
+    systemPrompt: extractionSystem(config, refs, playerDisplayName, true),
+    userPrompt,
+    schema: constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs),
+  };
+  let text: string;
+  try {
+    text = conn.api === "agent-sdk" ? await extractViaChat(deps, ctx) : await extractViaStructured(deps, ctx);
+  } catch (err) {
+    logger.warn({ event: "rpg.resync.failed", chatId, model: conn.model, api: conn.api, err }, "rpg resync extraction failed");
+    // THE HOST HEARS IT. This catch used to return an empty delta, which the verb reported as "nothing to
+    // resync" — so a provider that refused every single call (live, on the DEFAULT hosted backend) looked
+    // exactly like a story with no drift. The provider's own sentence rides out to the toast.
+    return { ok: false, reason: `${RESYNC_FAILED_REASON} ${errorMessage(err)}` };
+  }
+  // EXT-4a — the resync reads the SAME structured emission the in-turn degrade does, so it salvages the same
+  // way: one malformed entry in a deep-window rebuild must not throw away the other five planes' worth of
+  // re-established state (the resync is the expensive call — discarding it whole is the worst place to be
+  // all-or-nothing).
+  const { extraction, dropped, stripped } = salvageExtraction(safeJson(text));
+  if (dropped.length > 0) {
+    logger.warn(
+      { event: "rpg.resync.unparseable", chatId, model: conn.model, api: conn.api, dropped },
+      "rpg resync: plane(s)/entry(ies) did not conform — DROPPED (the rest of the rebuild still applies)",
+    );
+  }
+  logStrippedKeys({ chatId, model: conn.model, api: conn.api, vehicle: "resync", event: "rpg.resync.stripped", stripped });
+  const roster = buildRosterRefIndex(await deps.rpgChatOps.resolveRpgRoster(chatId));
+  const delta = extractionToStateDelta(baseState, extraction, { item: () => newId(), quest: () => newId(), objective: () => newId() }, roster);
+  logExtractionOutcome({ chatId, model: conn.model, api: conn.api, actorRefs: refs.actorRefs.length, base: baseState, roster, parsed: extraction, delta });
+  return { ok: true, delta };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════

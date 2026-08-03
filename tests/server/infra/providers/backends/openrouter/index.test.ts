@@ -195,6 +195,8 @@ describe("createOpenRouterBackend — summarize shaper", () => {
     const sent = tracker.sentRequests[0] as { chatRequest?: { responseFormat?: unknown; tools?: unknown; toolChoice?: unknown } };
     // The schema rides ONE tool named for the format, and the model is FORCED onto it (never `auto` — a
     // structured call that came back as prose is a failed extraction, not a stylistic choice).
+    // …carried in this wire's keyword SUBSET (2026-08-03) — which this schema is already inside, so the payload
+    // is byte-identical to the pre-scrub one (the strip is pinned on its own, below).
     expect(sent.chatRequest?.tools).toEqual([{ type: "function", function: { name: "result", description: expect.any(String), parameters: schema } }]);
     expect(sent.chatRequest?.toolChoice).toEqual({ type: "function", function: { name: "result" } });
     // …and `response_format` is GONE: sending both is what 400s on anthropic.
@@ -227,6 +229,126 @@ describe("createOpenRouterBackend — summarize shaper", () => {
     });
     expect(result?.items[0]?.text).toBe(jsonWithThink); // <think> preserved verbatim
     expect(() => JSON.parse(result?.items[0]?.text ?? "")).not.toThrow(); // JSON intact
+  });
+
+  // ── THE WIRE COPY IS KEYWORD-SCRUBBED (vendor docs read 2026-08-03) ──────────────────────────────────
+  // The projector emits whatever zod produced for a refinement; on the real rpg extraction schema that is
+  // `minLength` ×16 (unsupported by BOTH vendors), `maxLength`, `minimum`/`maximum` ×8 (Anthropic refuses),
+  // plus a `$schema` in neither documented subset. OpenRouter routes per PROVIDER, not per model, so this
+  // request can't know which family serves it — the strictest common subset is the only honest payload.
+  test("the forced tool's parameters carry NO vendor-banned keyword (and keep enum/required/description)", async () => {
+    const { backend, tracker } = backendWith((n) => summarizeReply(`S${n}`));
+    await callStructured(backend, {
+      credential: CRED,
+      model: castId<ModelId>("anthropic/claude-haiku-4-5"),
+      inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
+      responseFormat: {
+        name: "rpg_state",
+        schema: {
+          $schema: "https://json-schema.org/draft/2020-12/schema",
+          type: "object",
+          required: ["targetRef"],
+          properties: {
+            targetRef: { type: "string", minLength: 1, description: "who" },
+            hp: { type: "integer", minimum: -9_007_199_254_740_991, maximum: 9_007_199_254_740_991 },
+            tags: { type: "array", items: { type: "string", maxLength: 40 }, minItems: 1 },
+          },
+        },
+      },
+    });
+    const sent = tracker.sentRequests[0] as { chatRequest?: { tools?: { function: { parameters: Record<string, unknown> } }[] } };
+    const wire = JSON.stringify(sent.chatRequest?.tools?.[0]?.function.parameters);
+    for (const banned of ["minLength", "maxLength", "minimum", "maximum", "minItems", "$schema"]) {
+      expect(wire).not.toContain(banned);
+    }
+    // The steering the model actually reads survives.
+    expect(wire).toContain("targetRef");
+    expect(wire).toContain('"description":"who"');
+    expect(wire).toContain('"required"');
+  });
+
+  // A forced structured call is a SINGLE-RESULT vehicle — the caller's schema describes ONE object, so a
+  // second call's payload has nowhere to land. The vendor knob prevents it (`parallel_tool_calls:false`;
+  // Anthropic spells the same thing `disable_parallel_tool_use`).
+  test("the forced structured call disables parallel tool calls", async () => {
+    const { backend, tracker } = backendWith((n) => summarizeReply(`S${n}`));
+    await callStructured(backend, {
+      credential: CRED,
+      model: castId<ModelId>("anthropic/claude-haiku-4-5"),
+      inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
+      responseFormat: { name: "result", schema: { type: "object" } },
+    });
+    const sent = tracker.sentRequests[0] as { chatRequest?: { parallelToolCalls?: unknown } };
+    expect(sent.chatRequest?.parallelToolCalls).toBe(false);
+    // …and a plain summarize turn (no tools) never carries the knob.
+    await callSummarize(backend, {
+      credential: CRED,
+      model: castId<ModelId>("anthropic/claude-haiku-4-5"),
+      inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
+    });
+    expect((tracker.sentRequests[1] as { chatRequest?: { parallelToolCalls?: unknown } }).chatRequest?.parallelToolCalls).toBeUndefined();
+  });
+
+  // D112 (3), banned-silent-fork: if the endpoint ignores the knob anyway, the extra call must be NAMED. It
+  // used to be dropped by a bare `.find()` — the model's second write vanished into a success record.
+  test("a DUPLICATE forced tool call is reported, never silently dropped", async () => {
+    const spy = vi.spyOn(logger, "warn");
+    const twoCalls = {
+      choices: [
+        {
+          message: {
+            content: null,
+            toolCalls: [
+              { id: "c1", type: "function", function: { name: "result", arguments: '{"a":1}' } },
+              { id: "c2", type: "function", function: { name: "result", arguments: '{"a":2}' } },
+            ],
+          },
+          finishReason: "tool_calls",
+          index: 0,
+        },
+      ],
+      created: 0,
+      id: "g",
+      model: "m",
+      object: "chat.completion",
+      systemFingerprint: null,
+      usage: { promptTokens: 5, completionTokens: 2, totalTokens: 7, cost: 0.001 },
+    };
+    const { backend } = backendWith(() => twoCalls);
+    const result = await callStructured(backend, {
+      credential: CRED,
+      model: castId<ModelId>("anthropic/claude-haiku-4-5"),
+      inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
+      responseFormat: { name: "result", schema: { type: "object" } },
+    });
+    expect(result?.items[0]?.text).toBe('{"a":1}'); // the first still wins — the item is not thrown away
+    const line = spy.mock.calls.find((c) => (c[0] as { event?: string }).event === "provider.structured-extra-call");
+    expect(line).toBeDefined();
+    expect((line?.[0] as { droppedCalls?: unknown }).droppedCalls).toEqual(["result"]);
+  });
+
+  // A REFUSAL is a first-class field on this wire and does NOT follow the caller's schema. Read as a normal
+  // reply it lands as a 200 whose text can only fail the salvage parse — indistinguishable from "the model
+  // wrote garbage". It must reach the caller's errors-as-data refusal arm carrying the vendor's own sentence.
+  test("a model REFUSAL is a loud typed failure carrying the vendor's own sentence", async () => {
+    const refusalReply = {
+      choices: [{ message: { content: null, refusal: "I can't help with that request." }, finishReason: "stop", index: 0 }],
+      created: 0,
+      id: "g",
+      model: "m",
+      object: "chat.completion",
+      systemFingerprint: null,
+      usage: { promptTokens: 5, completionTokens: 2, totalTokens: 7, cost: 0.001 },
+    };
+    const { backend } = backendWith(() => refusalReply);
+    await expect(
+      callStructured(backend, {
+        credential: CRED,
+        model: castId<ModelId>("anthropic/claude-haiku-4-5"),
+        inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
+        responseFormat: { name: "result", schema: { type: "object" } },
+      }),
+    ).rejects.toMatchObject({ kind: "refused", retryable: false, message: expect.stringContaining("I can't help with that request.") });
   });
 
   test("omits response_format entirely when no jsonSchema is supplied (byte-identical to pre-change)", async () => {

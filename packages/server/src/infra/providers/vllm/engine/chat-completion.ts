@@ -3,6 +3,7 @@
 // not import a sibling surface. Vision messages carry `images` as `image_url` data-URI content parts.
 
 import type { ImageInput, RepetitionDetection, ResponseFormat } from "@orb/contracts/role-clients";
+import { scrubWireSchema } from "@orb/kit/json-schema";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { VllmEngineClient } from "./client";
 import { toDataUri } from "./image";
@@ -37,32 +38,13 @@ export interface VllmChatCompletionResult {
   readonly finishReason: string | null;
 }
 
-// JSON-Schema annotation keywords a strict structured-output endpoint chokes on (dropped on clone);
-// enum/minItems/maxItems/required are KEPT — vLLM guided decoding enforces them and we rely on it.
-const SCHEMA_ANNOTATIONS = new Set<string>(["title", "default", "examples", "$schema", "$id"]);
-
-// Pins additionalProperties:false on every object so the model can't emit stray keys.
+/** The GUIDED-DECODING wire copy: drop the annotation keywords a strict structured-output endpoint chokes on
+ *  (title/default/examples/$schema/$id) and pin `additionalProperties:false` on every object so the model
+ *  can't emit stray keys. enum/minItems/maxItems/minimum/required are KEPT — xgrammar compiles them into the
+ *  grammar and the populate lever relies on it (the exact opposite of the hosted wires, which refuse bounds).
+ *  The walk is the ONE shared engine (`scrubWireSchema`, kit); this call site owns only the MODE. */
 export function cleanJsonSchema<T>(schema: T): T {
-  const walk = (node: unknown): unknown => {
-    if (Array.isArray(node)) {
-      return node.map(walk);
-    }
-    if (node === null || typeof node !== "object") {
-      return node;
-    }
-    const obj: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
-      if (!SCHEMA_ANNOTATIONS.has(key)) {
-        obj[key] = walk(value);
-      }
-    }
-    const isObjectType = obj["type"] === "object" && obj["properties"] !== undefined && !("additionalProperties" in obj);
-    if (isObjectType) {
-      obj["additionalProperties"] = false;
-    }
-    return obj;
-  };
-  return walk(schema) as T;
+  return scrubWireSchema(schema as Record<string, unknown>, "guided-decoding").schema as T;
 }
 
 type ContentPart = { readonly type: "text"; readonly text: string } | { readonly type: "image_url"; readonly image_url: { readonly url: string } };

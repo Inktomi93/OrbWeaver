@@ -19,6 +19,11 @@ export const PROVIDER_ERROR_KINDS = [
   // `error.metadata.reasons`) — distinct from `auth_failed` (a bad key) and `forbidden` (OUR firewall).
   // Non-retryable; the UI can say "this content was moderated", never "authentication failed".
   "moderation",
+  // The MODEL itself declined — a 200 carrying the vendor's `refusal` field instead of schema-shaped content
+  // (both hosted families document it as a first-class field that does NOT follow the caller's schema).
+  // Distinct from `moderation` (the provider's own layer blocked the PROMPT, HTTP 403) and from a parse
+  // failure: the model understood and said no, in its own sentence. Non-retryable.
+  "refused",
   // The credential firewall denied this (source/role/consent policy) — fail-closed, not retryable.
   "forbidden",
   // A structurally-invalid request: a wrong source for a role, an unwired backend, an unsupported

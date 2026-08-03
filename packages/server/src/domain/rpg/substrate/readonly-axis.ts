@@ -23,9 +23,17 @@ import type { RpgEffectiveDelivery, RpgExtractionMode } from "@orb/contracts/rpg
  *  without a row is a tsc error (§5.5 string-union dispatch discipline), so the honest-arms verdict can never
  *  silently inherit another mode's answer. */
 const HAS_WRITE_PATH: Readonly<Record<RpgExtractionMode, (capability: ModelCapability) => boolean>> = {
-  cheap: (capability) => capability.tools !== undefined,
-  folded: (capability) => capability.tools !== undefined,
+  cheap: (capability) => hasToolWriter(capability),
+  folded: (capability) => hasToolWriter(capability),
 };
+
+/** Does this connection have the TOOL-CALL write path (wire `tools[]`)? The vehicle both delivery modes ride,
+ *  and — since 2026-08-03 — the host `resyncFromStory` catch-up round's first choice as well: a multi-call tool
+ *  round asks for one SMALL schema per plane instead of one 46-optional monolith, which is what the hosted
+ *  grammar walls are made of. Same fail-closed contract as the rest of this module. */
+export function hasToolWriter(capability: ModelCapability | null): boolean {
+  return capability !== null && capability.tools !== undefined;
+}
 
 /** Derive `trackersReadOnly` (= manual-steering: no model write path) from the resolved mode + capability. A
  *  `null` capability (the host connection couldn't be resolved) is readonly by construction — never assume a

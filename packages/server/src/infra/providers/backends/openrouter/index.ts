@@ -10,6 +10,7 @@ import type { ChatContentItems, ChatUserMessageContent, ChatRequest as SdkChatRe
 import { ChatRequest$outboundSchema } from "@openrouter/sdk/models";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { errorMessage } from "@orb/kit/error-message";
+import { scrubWireSchema } from "@orb/kit/json-schema";
 import type {
   AccountCredits,
   AccountCreditsRequest,
@@ -40,7 +41,7 @@ import type {
 } from "../../contract";
 import { ProviderError } from "../../contract";
 import type { ChatCompletionResult, NormalizeImageBytes } from "../kit";
-import { extractChatReply, logProviderSummarizeItem, parseChatCompletionResult, passthroughImageNormalizer } from "../kit";
+import { extractChatRefusal, extractChatReply, logProviderSummarizeItem, parseChatCompletionResult, passthroughImageNormalizer, providerLog } from "../kit";
 import { getOpenRouterCredits, getOpenRouterGenerationCost } from "./account";
 import { fetchOrCatalog } from "./catalog";
 import type { OrClient } from "./client";
@@ -151,6 +152,13 @@ const OR_BACKEND = "openrouter";
 //     (zod's `z.int()` projects safe-integer bounds); strip those and it 400s again with "Schemas contains too
 //     many optional parameters (46), which would make grammar compilation inefficient". An extraction schema is
 //     optional-by-construction (omit = keep), so that second wall is unclearable — the vehicle is simply wrong.
+//     KEYWORD-SUBSET CORRECTION (docs read 2026-08-03): the integer-bounds 400 above is the SMALLER of four
+//     unsupported keyword classes we were emitting, and the probe simply stopped at the first one. The measured
+//     population on the real extraction schema is `minLength` ×16 (banned by BOTH vendors), `maxLength` ×1,
+//     `minimum`/`maximum` ×8 each (Anthropic bans, OpenAI allows), plus `$schema` (in neither documented
+//     subset). All four now come off the wire copy at the request-build site (`scrubWireSchema`,
+//     "hosted-common") while zod keeps them as the runtime validator. That does NOT reopen the vehicle
+//     question: the optional-count wall is untouched by it, and the forced tool remains the servable shape.
 //   • openai (`gpt-5.4-mini`) — 400 on `strict:true` ("'required' is required to be supplied"); 200 non-strict.
 //   • google (`gemini-3.5-flash`) — 200 on both.
 // The SAME JSON Schema carried as ONE forced tool call is 200 on ALL THREE. It is also the vehicle the in-turn
@@ -163,18 +171,34 @@ const OR_BACKEND = "openrouter";
  *  measurably worse prompt on every family, and the structured role's callers describe the SCHEMA, not the act. */
 const STRUCTURED_TOOL_DESCRIPTION = "Record the result. Call this tool exactly once, with the complete result object.";
 
-/** One `ResponseFormat` → the single wire tool the structured call forces. */
+/** One `ResponseFormat` → the single wire tool the structured call forces. The schema rides in the HOSTED-COMMON
+ *  keyword subset (the ONE scrub engine, `@orb/kit/json-schema`): OpenRouter routes per PROVIDER, not per model,
+ *  so a request cannot know whether it lands on the endpoint that refuses string bounds (both vendors) or
+ *  numeric bounds (Anthropic) — the strictest common subset is the only honest payload. Nothing is lost:
+ *  the caller's zod schema still validates the reply against the FULL bounded shape. */
 function structuredWireTool(format: ResponseFormat): WireTool {
-  return { name: format.name, description: format.description ?? STRUCTURED_TOOL_DESCRIPTION, parameters: { ...format.schema } };
+  return {
+    name: format.name,
+    description: format.description ?? STRUCTURED_TOOL_DESCRIPTION,
+    parameters: scrubWireSchema(format.schema, "hosted-common").schema,
+  };
 }
 
-/** The structured item's TEXT: the forced call's raw `arguments` JSON string. Falls back to the prose reply when
- *  the model answered in content anyway (some wires ignore `tool_choice`) — the caller's salvage parse then gets
- *  the same shot it always had, instead of an empty string it can only read as "the model wrote nothing". */
-function structuredReplyText(view: ChatCompletionResult, toolName: string): string {
+/** The structured item's reply: the forced call's raw `arguments` JSON string, plus the names of any EXTRA calls
+ *  the same turn emitted. Falls back to the prose reply when the model answered in content anyway (some wires
+ *  ignore `tool_choice`) — the caller's salvage parse then gets the same shot it always had, instead of an empty
+ *  string it can only read as "the model wrote nothing".
+ *
+ *  `extra` is never silently discarded (D112 (3), banned-silent-fork): `parallel_tool_calls:false` rides on
+ *  every structured request, so a second call means the endpoint IGNORED the knob — the caller's schema binds
+ *  ONE result object and the second one's content would vanish. It is reported, not dropped in silence. */
+function structuredReply(view: ChatCompletionResult, toolName: string): { readonly text: string; readonly extra: readonly string[] } {
   const calls = view.choices?.[0]?.message?.toolCalls;
-  const call = calls?.find((c) => c.function.name === toolName) ?? calls?.[0];
-  return call === undefined ? extractChatReply(view) : call.function.arguments;
+  // The forced tool's own call, else the first one (some wires answer with a differently-named call).
+  const chosen = Math.max(calls?.findIndex((c) => c.function.name === toolName) ?? -1, 0);
+  const call = calls?.[chosen];
+  const extra = (calls ?? []).filter((_c, i) => i !== chosen).map((c) => c.function.name);
+  return { text: call === undefined ? extractChatReply(view) : call.function.arguments, extra };
 }
 
 // Build ONE item's SDK chat request (system + the possibly-multimodal user content + the sampling knobs + —
@@ -190,7 +214,12 @@ async function buildOrBatchRequest(deps: OrBatchDeps, req: OrBatchReq, input: Su
     ],
     ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
     ...(req.maxTokens !== undefined ? { maxCompletionTokens: req.maxTokens } : {}),
-    ...(tool !== undefined ? { tools: buildWireTools([tool]), toolChoice: buildToolChoice({ mode: "tool", name: tool.name }) } : {}),
+    // The forced structured call is a SINGLE-RESULT vehicle: the caller's schema describes one object, and a
+    // second call's payload has nowhere to go. `parallel_tool_calls:false` is the vendor's own knob for that
+    // (Anthropic spells it `disable_parallel_tool_use`; this wire is OpenAI-dialect and the SDK maps it), so
+    // the duplicate is PREVENTED here rather than merely reported at the read (which is also done — see
+    // `structuredReply`, for the endpoint that ignores the knob).
+    ...(tool !== undefined ? { tools: buildWireTools([tool]), toolChoice: buildToolChoice({ mode: "tool", name: tool.name }), parallelToolCalls: false } : {}),
   };
 }
 
@@ -242,11 +271,33 @@ async function runOrBatchItem(deps: OrBatchDeps, req: OrBatchReq, input: Summari
   try {
     const result = await deps.client.chat.send({ chatRequest }, req.signal !== undefined ? { signal: req.signal } : undefined);
     const view = parseChatCompletionResult(result);
+    // A REFUSAL IS A FIRST-CLASS FIELD ON THIS WIRE, and it is NOT schema-shaped (both vendors document it as
+    // arriving INSTEAD of the schema). Read as a normal reply it lands as a 200 `ok:true` item whose text can
+    // only fail the caller's salvage parse — indistinguishable from "the model wrote garbage", which is exactly
+    // the silent fork D112 (3) bans. Raising it here turns it into the caller's errors-as-data refusal arm
+    // (`{ok:false, reason}` — the RESYNC-OR/POPLOUD grammar) carrying the vendor's OWN sentence.
+    const refusal = extractChatRefusal(view);
+    if (refusal !== "") {
+      throw new ProviderError({ kind: "refused", retryable: false, message: `the model refused: ${refusal}`, model: req.model });
+    }
     // S3 — skip the CoT strip on the STRUCTURED role (constrained output IS pure JSON; a literal `<think>` there
     // is a legitimate JSON string value, e.g. journal content quoting the tag — stripping would corrupt it). The
     // prose (summarize) path still strips loose `<think>…</think>` scaffolding.
-    const text =
-      req.responseFormat === undefined ? extractChatReply(view).replace(THINK_BLOCK_RE, "").trim() : structuredReplyText(view, req.responseFormat.name).trim();
+    let text: string;
+    if (req.responseFormat === undefined) {
+      text = extractChatReply(view).replace(THINK_BLOCK_RE, "").trim();
+    } else {
+      const reply = structuredReply(view, req.responseFormat.name);
+      text = reply.text.trim();
+      if (reply.extra.length > 0) {
+        providerLog(OR_BACKEND, "warn", "provider.structured-extra-call", {
+          role: req.role,
+          model: req.model,
+          index,
+          droppedCalls: reply.extra,
+        });
+      }
+    }
     const tokensIn = view.usage?.promptTokens ?? null;
     const tokensOut = view.usage?.completionTokens ?? null;
     logProviderSummarizeItem(OR_BACKEND, {

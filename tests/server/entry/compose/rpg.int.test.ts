@@ -196,6 +196,29 @@ function buildCannedRpg(app: ServicesResult, db: Db, api: ChatApi, spy: Extracti
   return buildCannedRpgWithText({ app, db, api, spy, cannedText: JSON.stringify(CANNED_EXTRACTION) });
 }
 
+/** Record what ONE fake `runChatTurn` was handed — the spy half of the harness, hoisted out of the arm so the
+ *  arm stays a plain reply builder (both vehicles' pins read these fields). */
+function recordChatTurn(spy: ExtractionSpy, req: Parameters<NonNullable<Parameters<typeof buildRpg>[0]["executor"]["runChatTurn"]>>[0]): void {
+  spy.chatTurns.push({
+    model: req.model,
+    hasResponseFormat: req.responseFormat !== undefined,
+    hasToolServer: "toolServer" in req && req.toolServer !== undefined,
+    // The consent verdict the round threaded onto the request — F1: this is the character turn's ENFORCED
+    // `ownerConsented`, inherited, NOT a force-stamped `true`.
+    ownerConsented: req.ownerConsented === true,
+  });
+  if (req.responseFormat !== undefined) {
+    spy.schemas.push(req.responseFormat.schema);
+  }
+  if ("tools" in req && Array.isArray(req.tools)) {
+    spy.wireTools.push(req.tools as { name: string; description: string; parameters: Record<string, unknown> }[]);
+  }
+  if (req.api === "agent-sdk") {
+    spy.systemPrompts.push(req.systemPrompt.static);
+    spy.userPrompts.push("prompt" in req && typeof req.prompt === "string" ? req.prompt : "");
+  }
+}
+
 // The same harness with a caller-supplied extraction reply text — the R3 pins drive an EMPTY / a
 // phantom-target extraction through the real fold to prove the visibility logs fire.
 function buildCannedRpgWithText(args: {
@@ -210,8 +233,14 @@ function buildCannedRpgWithText(args: {
   /** Make the `structured` role REJECT — the provider-refusal arm (RESYNC-OR: an OpenRouter 400 on the
    *  structured request is what the host actually hit, and the round must report it, not swallow it). */
   readonly structuredThrows?: Error;
+  /** Make the CHAT role REJECT — the same refusal arm on the tool-round vehicle (the resync's catch-up round
+   *  rides `runChatTurn` since 2026-08-03, so this is where a provider refusal now lands for a host click). */
+  readonly chatThrows?: Error;
+  /** Override the resolved connection's capability — e.g. a STRUCTURED-only wire (no `tools`), which is what
+   *  routes the resync down its structured degrade instead of the tool round. */
+  readonly capability?: ReturnType<typeof makeModelCapability>;
 }): ReturnType<typeof buildRpg> {
-  const { app, db, api, spy, cannedText, cannedToolCalls, structuredThrows } = args;
+  const { app, db, api, spy, cannedText, cannedToolCalls, structuredThrows, chatThrows, capability } = args;
   return buildRpg({
     db,
     now: () => FROZEN_AT,
@@ -228,7 +257,7 @@ function buildCannedRpgWithText(args: {
             // Structured AND tools: the READ-side `trackersReadOnly` pill resolves this connection, and a
             // `folded` game keys on `capability.tools` (the fold's vehicle) — a structured-only fake would make
             // every folded test readonly and silently prove nothing.
-            capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
+            capability: capability ?? makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true }, tools: { parallel: true } }),
           }),
         ),
       getOrSkinTierModels: () => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
@@ -251,37 +280,33 @@ function buildCannedRpgWithText(args: {
       },
       // The structured chat arm: the reducer replies with the compact extraction JSON. The spy records that
       // the request carried a responseFormat and NO tool server (extraction is a read-only structured emission).
-      runChatTurn: (req) => {
-        spy.chatTurns.push({
-          model: req.model,
-          hasResponseFormat: req.responseFormat !== undefined,
-          hasToolServer: "toolServer" in req && req.toolServer !== undefined,
-          // The consent verdict the round threaded onto the request — F1: this is the character turn's ENFORCED
-          // `ownerConsented`, inherited, NOT a force-stamped `true`.
-          ownerConsented: req.ownerConsented === true,
-        });
-        if (req.responseFormat !== undefined) {
-          spy.schemas.push(req.responseFormat.schema);
-        }
-        if ("tools" in req && Array.isArray(req.tools)) {
-          spy.wireTools.push(req.tools as { name: string; description: string; parameters: Record<string, unknown> }[]);
-        }
-        if (req.api === "agent-sdk") {
-          spy.systemPrompts.push(req.systemPrompt.static);
-          spy.userPrompts.push("prompt" in req && typeof req.prompt === "string" ? req.prompt : "");
-        }
-        // `reply` (the extraction), `toolCalls` (a cheap tool round) and `usage`/`finishReason`/`durationApiMs`
-        // (the round's §10.1a economics line) are read; the rest of the ~18-field ChatResult is inert, so a
-        // full construction would be noise.
-        // FABRICATION-OK: minimal ChatResult double — only the fields the arms actually read; the others never run.
-        return Promise.resolve({
-          reply: cannedText,
-          ...(cannedToolCalls === undefined ? {} : { toolCalls: cannedToolCalls }),
-          usage: { model: "fake-chat-model", tokensIn: 1200, tokensOut: 90, cacheReadTokens: 800, cacheWriteTokens: 0, reasoningTokens: null, costUsd: 0.0042 },
-          durationApiMs: 310,
-          finishReason: "stop",
-        } as unknown as ChatResult);
-      },
+      // A `chatThrows` harness REPLACES the arm outright (rather than branching inside it) so the recording
+      // arm below stays byte-identical to what every existing pin exercises.
+      runChatTurn:
+        chatThrows !== undefined
+          ? (): Promise<ChatResult> => Promise.reject(chatThrows)
+          : (req) => {
+              recordChatTurn(spy, req);
+              // `reply` (the extraction), `toolCalls` (a cheap tool round) and `usage`/`finishReason`/`durationApiMs`
+              // (the round's §10.1a economics line) are read; the rest of the ~18-field ChatResult is inert, so a
+              // full construction would be noise.
+              // FABRICATION-OK: minimal ChatResult double — only the fields the arms actually read; the others never run.
+              return Promise.resolve({
+                reply: cannedText,
+                ...(cannedToolCalls === undefined ? {} : { toolCalls: cannedToolCalls }),
+                usage: {
+                  model: "fake-chat-model",
+                  tokensIn: 1200,
+                  tokensOut: 90,
+                  cacheReadTokens: 800,
+                  cacheWriteTokens: 0,
+                  reasoningTokens: null,
+                  costUsd: 0.0042,
+                },
+                durationApiMs: 310,
+                finishReason: "stop",
+              } as unknown as ChatResult);
+            },
     },
     resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
     // The fork preset-ownership gate is unreached on the extraction path; a benign stub.
@@ -1607,9 +1632,10 @@ test("VER-1a: resyncFromStory is IDEMPOTENT — two consecutive resyncs leave by
   await compose.chatOps.onTurnCompleted(chatId, slot.messageId, slot.variantId, TURN, tc("chat-completions"));
 
   await compose.service.resyncFromStory({ principal, chatId });
-  // The RESYNC is the one in-turn-independent structured call: on a non-agent-sdk host it rides the `structured`
-  // dispatcher (the per-turn round rode wire tools above, so this is the only thing that could have fired it).
-  expect(spy.summarizeModels).toEqual(["fake-chat-model"]);
+  // THE CATCH-UP ROUND IS A TOOL ROUND (owner ruling 2026-08-03): on a wire that carries `tools[]` the resync
+  // asks for several SMALL per-plane calls instead of one 46-optional structured monolith — the shape both
+  // hosted grammar walls are made of. The `structured` dispatcher is untouched on this wire.
+  expect(spy.summarizeModels).toEqual([]);
   const first = await panelState(compose, hostId, chatId);
   await compose.service.resyncFromStory({ principal, chatId });
   const second = await panelState(compose, hostId, chatId);
@@ -1633,7 +1659,8 @@ test("RESYNC-OR: a provider refusal reaches the HOST as a reason — never a sil
     api: "chat-completions",
     spy: emptySpy(),
     cannedText: "{}",
-    structuredThrows: new Error("openrouter structured item 0 failed: Provider returned error"),
+    // The catch-up round rides the CHAT role now; a provider refusal lands there.
+    chatThrows: new Error("openrouter item 0 failed: Provider returned error"),
   });
   await compose.service.createGame({ principal, chatId, mode: "lite" });
 
@@ -1641,15 +1668,113 @@ test("RESYNC-OR: a provider refusal reaches the HOST as a reason — never a sil
 
   expect(verdict.ok).toBe(false);
   // The provider's own sentence rides out — the host learns the MODEL CALL died, not that their story was clean.
-  expect(verdict).toMatchObject({ ok: false, reason: expect.stringContaining("openrouter structured item 0 failed") });
+  expect(verdict).toMatchObject({ ok: false, reason: expect.stringContaining("openrouter item 0 failed") });
   // …and the failed round still writes nothing (the no-op tail is unchanged; only the silence is gone).
   expect(await panelState(compose, hostId, chatId)).toMatchObject({ beats: [], journal: [] });
+});
+
+// The STRUCTURED degrade survives whole — a wire with no `tools[]` (the agent-sdk host, or a structured-only
+// endpoint) still rebuilds through the projected schema, and its refusal is equally loud. Both arms of the
+// resync's write-path gate are proven: this one, and the tool round above.
+test("RESYNC-OR: the STRUCTURED degrade still runs (and still reports its refusal) on a tools-less wire", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "resync-structured-degrade");
+  const principal = hostPrincipal(hostId);
+  const structuredOnly = makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true } });
+  const compose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: emptySpy(),
+    cannedText: "{}",
+    capability: structuredOnly,
+    structuredThrows: new Error("openrouter structured item 0 failed: Provider returned error"),
+  });
+  await compose.service.createGame({ principal, chatId, mode: "lite" });
+
+  const verdict = await compose.service.resyncFromStory({ principal, chatId });
+  expect(verdict).toMatchObject({ ok: false, reason: expect.stringContaining("openrouter structured item 0 failed") });
+});
+
+// A wire with NEITHER write path refuses BEFORE spending anything — the capability gate, widened to cover both
+// vehicles (it used to key on the structured writer alone, which would now hide the tool round from a
+// tools-only connection).
+test("RESYNC: a connection with no write path at all refuses legibly and calls no model", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "resync-no-writer");
+  const principal = hostPrincipal(hostId);
+  const spy = emptySpy();
+  const compose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy,
+    cannedText: "{}",
+    capability: makeModelCapability({ output: { maxTokens: { min: 1, max: 4096 } } }),
+  });
+  await compose.service.createGame({ principal, chatId, mode: "lite" });
+
+  const verdict = await compose.service.resyncFromStory({ principal, chatId });
+  expect(verdict).toMatchObject({ ok: false, reason: expect.stringContaining("can't write game state") });
+  expect(spy.chatTurns).toEqual([]);
+  expect(spy.summarizeModels).toEqual([]);
+});
+
+// THE CATCH-UP ROUND'S VEHICLE, pinned at the request: the per-plane tool SET (the same definitions the in-turn
+// vehicles mount) + `tool_choice:"required"` + NO response_format, and the host's own consent.
+test("RESYNC: the catch-up round sends the per-plane TOOLS (not a monolithic schema) and folds their calls", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "resync-tool-round");
+  const principal = hostPrincipal(hostId);
+  const spy = emptySpy();
+  const compose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy,
+    cannedText: "{}",
+    cannedToolCalls: [
+      { name: "update_scene", arguments: JSON.stringify({ location: "the obsidian tower", recentEvent: "arrived at the tower" }) },
+      { name: "add_journal_entry", arguments: JSON.stringify({ type: "location", title: "Arrival", content: "They reached the tower." }) },
+    ],
+  });
+  await compose.service.createGame({ principal, chatId, mode: "lite" });
+
+  const verdict = await compose.service.resyncFromStory({ principal, chatId });
+  expect(verdict.ok).toBe(true);
+
+  // ONE chat turn, carrying wire tools and NO responseFormat — the monolithic structured payload is gone from
+  // this path (that payload is what 400'd on the default hosted model).
+  expect(spy.chatTurns).toEqual([{ model: "fake-chat-model", hasResponseFormat: false, hasToolServer: false, ownerConsented: true }]);
+  expect(spy.schemas).toEqual([]);
+  const roundTools = spy.wireTools.at(0) ?? [];
+  expect(roundTools.map((t) => t.name)).toEqual(
+    expect.arrayContaining(["update_party", "update_inventory", "update_scene", "upsert_quest", "add_journal_entry"]),
+  );
+  // Every per-plane schema is SMALL — that is the whole point of the round (the 46-optional monolith is what
+  // Anthropic's grammar compiler refused). None of them is the whole extraction object.
+  for (const tool of roundTools) {
+    expect(Object.keys((tool.parameters["properties"] ?? {}) as Record<string, unknown>)).not.toContain("journal");
+  }
+  // …and the calls folded through the SAME tail the in-turn vehicles use: the state plane landed. (The
+  // JOURNAL stays empty by design — a rebuild re-derives the state window and never appends archive rows,
+  // VER-1a; that is unchanged by the vehicle swap.)
+  expect(await panelState(compose, hostId, chatId)).toEqual({
+    location: "the obsidian tower",
+    beats: ["arrived at the tower"],
+    journal: [],
+  });
 });
 
 test("VER-1a: resyncFromStory COLLAPSES an already-accumulated beat window (the owner's one-click cleanup)", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "ver1a-resync-cleanup");
   const principal = hostPrincipal(hostId);
-  const compose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: rerollExtractionText() });
+  const compose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: emptySpy(),
+    cannedText: rerollExtractionText(),
+    // The resync's catch-up round rides the TOOL vehicle on this wire — same writes, the calls shape.
+    cannedToolCalls: REROLL_CALLS.map((c) => ({ name: c.name, arguments: JSON.stringify(c.args) })),
+  });
   const { gameId } = await compose.service.createGame({ principal, chatId, mode: "lite" });
   await compose.service.updateConfig({ principal, chatId, extractionMode: "cheap" });
 
