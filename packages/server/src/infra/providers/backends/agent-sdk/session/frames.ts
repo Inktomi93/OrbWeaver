@@ -52,6 +52,7 @@ export function toSeedTurns(canon: readonly { role: string; content: string; mod
 interface FrameArgs {
   readonly turn: SeedTurn;
   readonly index: number;
+  // @foreign-id-ok(sessionId): the Claude Agent SDK's OWN chat-session id (its `session_id` wire field) — a NAME COLLISION with our BFF `SessionId = TypeIdOf<"session">`, a different wire's id that merely shares the spelling. Ends if this position ever carries one of our session rows, or if the field is renamed `sdkSessionId` (which would dissolve this marker).
   readonly sessionId: string;
   readonly parentUuid: string | null;
   readonly common: Record<string, unknown>;
@@ -91,6 +92,7 @@ function buildFrame(args: FrameArgs): SessionStoreEntry {
 }
 
 // sessionId must be a valid uuidv4 — the SDK rejects arbitrary resume ids.
+// @foreign-id-ok(sessionId): the Claude Agent SDK's OWN chat-session id (its `session_id` wire field) — a NAME COLLISION with our BFF `SessionId = TypeIdOf<"session">`, a different wire's id that merely shares the spelling. Ends if this position ever carries one of our session rows, or if the field is renamed `sdkSessionId` (which would dissolve this marker).
 export function buildSeedFrames(canon: readonly SeedTurn[], sessionId: string): SessionStoreEntry[] {
   const common = {
     isSidechain: false,

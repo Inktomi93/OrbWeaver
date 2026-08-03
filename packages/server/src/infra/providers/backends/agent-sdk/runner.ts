@@ -213,6 +213,7 @@ export async function runChatTurn(req: AgentSdkChatRequest, deps: AgentSdkDeps, 
     ...(chatId !== undefined ? { chatId } : {}),
     ...(req.onEvent !== undefined ? { onEvent: req.onEvent } : {}),
     ...(req.onDelta !== undefined ? { onDelta: req.onDelta } : {}),
+    // @foreign-id-ok(sessionId): the Claude Agent SDK's OWN chat-session id (its `session_id` wire field) — a NAME COLLISION with our BFF `SessionId = TypeIdOf<"session">`, a different wire's id that merely shares the spelling. Ends if this position ever carries one of our session rows, or if the field is renamed `sdkSessionId` (which would dissolve this marker).
     ...(chatId !== undefined ? { onSessionId: (sessionId: string): void => sessions.record(chatId, sessionId) } : {}),
     configuredMaxOutputTokens: gen.envOverrides.maxOutputTokens ?? null,
     configuredMaxContextTokens: gen.envOverrides.maxContextTokens ?? null,

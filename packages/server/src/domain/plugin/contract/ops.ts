@@ -158,6 +158,7 @@ export interface PluginHostOps {
       readonly authorUserId: UserId;
       readonly chatId: ChatId;
       readonly args: GenerateImageActionArgs;
+      // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
     }) => Promise<{ readonly assetId: string }>;
   };
   /** The installing user's per-user global KV (02 §4) — fetchOwned under the installer, so cross-user reads are

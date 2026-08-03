@@ -20,7 +20,7 @@ import {
   reduceChatCompletionStream,
   turnAbortSignal,
 } from "../../backends/kit";
-import type { ChatHistoryMessage, ChatRequest, ChatResult, HistoryRole, WireCaptureSink } from "../../contract";
+import type { ChatHistoryMessage, ChatRequest, ChatResult, HistoryRole, ResponseFormat, WireCaptureSink } from "../../contract";
 import { ProviderError } from "../../contract";
 import type { VllmEngineClient } from "../engine";
 
@@ -134,8 +134,18 @@ function buildBody(req: VllmChatTurn, presencePenaltyDefault: number): Record<st
     ...sampling,
     ...(req.tools !== undefined ? { tools: rawWireTools(req.tools) } : {}),
     ...(req.toolChoice !== undefined ? { tool_choice: rawToolChoice(req.toolChoice) } : {}),
-    ...(req.responseFormat !== undefined ? { response_format: rawResponseFormat(req.responseFormat) } : {}),
+    ...(req.responseFormat !== undefined ? { response_format: rawResponseFormat(strictByDefault(req.responseFormat)) } : {}),
   };
+}
+
+// STRICTFMT — the vLLM PIN. `rawResponseFormat` (backends/kit) invents nothing: `strict` rides only when the
+// caller set it, because on an arbitrary OpenAI-family endpoint `strict:true` is a 400 (the 2026-08-02 probe
+// matrix in backends/openrouter/index.ts). vLLM is the opposite case: its `response_format` is GUIDED DECODING,
+// an enforcing wire where strict is the whole point — an 8B skips optional fields unless the compiled grammar
+// requires the shape. So this backend internalizes its own quirk (Tier-3b) and defaults the knob HERE, where
+// the enforcement claim is true. An explicit caller value still wins.
+function strictByDefault(format: ResponseFormat): ResponseFormat {
+  return format.strict === undefined ? { ...format, strict: true } : format;
 }
 
 // vLLM speaks raw snake_case; reshapes into the kit reducer's camelCase chunk shape.

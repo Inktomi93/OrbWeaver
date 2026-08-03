@@ -52,6 +52,7 @@ export class PluginCrashedError extends DomainUnavailableError {}
  *  caller's — collapsed leak-free (no foreign-existence oracle; the owner-scoped read returns undefined either
  *  way). Maps to NOT_FOUND. */
 export class PluginNotFoundError extends DomainNotFoundError {
+  // @foreign-id-ok(pluginId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
   constructor(pluginId: string) {
     super("plugin", pluginId);
   }

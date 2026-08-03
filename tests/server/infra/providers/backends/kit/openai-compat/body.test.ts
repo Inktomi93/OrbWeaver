@@ -176,10 +176,12 @@ describe("the D48 raw-wire builders (T2 — custom-byo + vLLM share these)", () 
     });
   });
 
-  test("rawResponseFormat: json_schema dialect, strict defaults true, description only when set", () => {
+  test("rawResponseFormat: json_schema dialect, strict ONLY when the caller set it, description only when set", () => {
+    // STRICTFMT — a translator never defaults a caller's optional wire knob: `strict:true` is a 400 on
+    // OpenAI-family endpoints for our optional-by-construction schemas. vLLM PINS it at its own call site.
     expect(rawResponseFormat({ name: "s", schema: { type: "object" } })).toEqual({
       type: "json_schema",
-      json_schema: { name: "s", schema: { type: "object" }, strict: true },
+      json_schema: { name: "s", schema: { type: "object" } },
     });
     expect(rawResponseFormat({ name: "s", schema: {}, strict: false, description: "d" })).toEqual({
       type: "json_schema",

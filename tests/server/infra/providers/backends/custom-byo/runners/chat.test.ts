@@ -170,6 +170,37 @@ describe("createCustomByoBackend — request mapping", () => {
     expect(capturedBody["nested"]).toEqual({ ok: 1 });
   });
 
+  // STRICTFMT: a BYO endpoint is an ARBITRARY OpenAI-compatible server (an OpenAI-family proxy included), and
+  // OpenAI-family endpoints 400 on `strict:true` for a schema that isn't all-required ("'required' is required
+  // to be supplied" — the 2026-08-02 probe matrix pinned in backends/openrouter/index.ts). Our schemas are
+  // optional-by-construction, so an invented `strict:true` is a 400 landmine. This runner never invents the
+  // value: `strict` rides ONLY when the caller set it.
+  test("response_format carries NO strict when the caller did not set one (no invented policy)", async () => {
+    let capturedBody: Record<string, unknown> = {};
+    vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
+      capturedBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      return sseResponse(['data: {"choices":[{"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}', "data: [DONE]"]);
+    });
+    await runTurn(makeRequest({ responseFormat: { name: "extract", schema: { type: "object" } } }));
+    expect(capturedBody["response_format"]).toEqual({
+      type: "json_schema",
+      json_schema: { name: "extract", schema: { type: "object" } },
+    });
+  });
+
+  test("response_format forwards an EXPLICIT strict verbatim (the caller's word, either way)", async () => {
+    let capturedBody: Record<string, unknown> = {};
+    vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {
+      capturedBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+      return sseResponse(['data: {"choices":[{"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}', "data: [DONE]"]);
+    });
+    await runTurn(makeRequest({ responseFormat: { name: "extract", schema: {}, strict: true, description: "d" } }));
+    expect(capturedBody["response_format"]).toEqual({
+      type: "json_schema",
+      json_schema: { name: "extract", schema: {}, strict: true, description: "d" },
+    });
+  });
+
   test("omits the Authorization header for a keyless (apiKey:null) endpoint", async () => {
     let capturedHeaders = new Headers();
     vi.stubGlobal("fetch", (_url: string | URL, init?: RequestInit): Response => {

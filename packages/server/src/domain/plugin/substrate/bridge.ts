@@ -90,6 +90,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
     imagery: {
       // Forward to the front door and hand the guest ONLY `{assetId}` (cost never crosses the realm boundary;
       // cost VISIBILITY rides the stats domain off the imagery write itself).
+      // @foreign-id-ok(assetId): the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
       generatePicture: (chatId, args): Promise<{ readonly assetId: string }> => ops.imagery.generatePicture({ authorUserId: installerUserId, chatId, args }),
     },
     variables: {
