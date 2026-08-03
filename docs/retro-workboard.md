@@ -40,10 +40,18 @@ the merged result (caught reds twice tonight) · **CTs are NOT in verify --push*
 playwright CT files explicitly (ANCHOR's gap) · semantic conflicts → abort, recreate worktree
 if needed, lane reconciles (REGPAR precedent tonight) · D-numbers allocated at dispatch.
 
-**LIVE LANES (2, resumable by agent id via SendMessage):**
-· **R2WI** (id a433b9150dcd95ba5) — world-info → config workspace (R2 stage): both forks
-  ratified (worldInfo.listBooksWithUsage on the tag precedent [sweep-classify the new proc!]
-  + additive importFile contract field w/ gate-#175 arm). Rail returns to 8 when it lands.
+**LIVE LANES (3, resumable by agent id via SendMessage): SM6 (a2f4878e08572eab4) · REGORDER (a9c03c2e888a68acf) · FACEFILT (dispatched below)**
+· ✅ **R2WI MERGED (`e7a86df1`, consolidated check 14/14, torn down) — WORLD-INFO IS IN THE
+  WORKSPACE, the rail is back to 8.** listBooksWithUsage landed on the tag precedent (global
+  = FLAG not count, reasoned; sweep row added; listGlobal deliberately kept — the context arm
+  consumes it); importFile contract field + gate arm live (Upload beside + in the band).
+  **REAL INHERITED FIX: the shell's CONTENT/LIST regions carry NO overflow** — a contributed
+  editor taller than the viewport shipped amputated (measured 3657/3657 visible → 3657/700
+  auto); fixed at the config host both panes. LESSON (banked ct-hub): a workspace host
+  mounting arbitrary contributed editors must own its scroll; a CT story's own overflow
+  wrapper hides the defect completely. Its "18 pre-existing reds" probe ran at a PRE-CTFIX
+  HEAD — already fixed on current main. Deep link marker-copy manage:{collection} →
+  goToCollection (a bare section switch lands on a collapsed door — the C-12 consequence).
 · **SM6** (id a2f4878e08572eab4) — POPLOUD (populate 3-arm loud) + STRICTFMT (strict:true
   400 landmine on OpenAI chat responseFormat; forced-tool-call fork = report not build) +
   IMGMAC (user macros into extractQuiet + imagery section wiring; owner-ruled YES).
