@@ -522,7 +522,19 @@ doors, same-day class): HandoffOffer @public deleted (ratchet 0-stale) · 21+2 p
 classified w/ REAL foreign-id drives + a post-sweep integrity assert (A's script survives
 the stranger's probes) · host-display-scripts-control CT'd both roles + waiver row ·
 create.int expectation fixed against the contracts shape. **verify --push RE-FIRED
-(background, post-BATFIX tree). LIVE (1): CARCH. 192 commits ahead of origin.**
+(background, post-BATFIX tree). 192 commits ahead of origin.**
+**CARCH = DONE-AWAITING-MERGE (`9dc382ed` on wt/agent-a494d33ecc6e81a3d — HELD for the battery
+verdict; it edits the gate/depcruise suites the battery runs).** All of F-1/3/4/5/6/7 landed:
+README pointer-card rewrite (island-sentence dead) · comp-tier WALLED (new depcruise rule
+#53, probe-receipted) · client-structure RECURSES + rule 8 (bucket-axis re-declaration RED;
+nesting legislated: legal everywhere, contracts recurse) · §15a illustrative-blocks law (the
+6-axis drift was actually 10 — counts-in-prose-rot lesson banked; §9/§13 censuses now say
+read-off-the-tree w/ named anchors) · the 11-row §12 CHANNEL MATRIX landed w/ every symbol
+re-verified (2 report rows demoted to footnote; row 11 cites the new wall) · F-7 decision
+table + 7-step new-feature checklist (one report claim REFUTED against the tree before it
+became law — user-admin does NOT inline bodies). Chat/components now 75 files — grouping
+legal + unblocked. F-8 untouched (the design set). Lane found 1 phantom the report missed
+(agent-bridge taught a never-existed path).
 **PORT = DONE-AWAITING-MERGE (`e386deeb` on wt/agent-a801f968b9fead1c1, ONE commit, 95 files
 +3540/−699; HELD because the push battery is mid-run on `b3317c7d` — merge after the verdict):**
 F1 CLOSED (databank travels — REAL bundle round-trip: fresh db/CAS/owner via the actual
