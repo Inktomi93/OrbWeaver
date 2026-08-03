@@ -7,8 +7,6 @@
 // AND at render (robust to old baked-in labels + any path the persist strip misses). One
 // implementation, two consumers.
 
-import { escapeRegExp } from "#strings";
-
 /** A leading `<speaker ...>` / `<speaker>` open-tag (case-insensitive, optional attrs). */
 export const LEADING_SPEAKER_TAG = /^\s*<\s*speaker\b[^>]*>\s*/i;
 
@@ -90,7 +88,7 @@ export function parseSpeakerSpans(content: string, castNames: readonly string[] 
  *  Names are deduped, blank-dropped and sorted LONGEST-FIRST so an alternation can't let `Anna` shadow
  *  `Anna Lee`. Built per call (the name set is per-room) — the `leadingLabelRe` precedent. */
 function plainLabelRe(castNames: readonly string[]): RegExp | null {
-  const names = [...new Set(castNames.map((n) => n.trim()).filter((n) => n.length > 0))].sort((a, b) => b.length - a.length).map(escapeRegExp);
+  const names = [...new Set(castNames.map((n) => n.trim()).filter((n) => n.length > 0))].sort((a, b) => b.length - a.length).map((n) => RegExp.escape(n));
   if (names.length === 0) {
     return null;
   }
@@ -165,7 +163,7 @@ export function normalizeExampleStart(s: string): string {
  *  space before the colon, and any whitespace after it. Anchored at start; the EXACT escaped name
  *  only — a different speaker's name or ordinary `clause:` prose never matches. */
 function leadingLabelRe(name: string): RegExp {
-  const n = escapeRegExp(name.trim());
+  const n = RegExp.escape(name.trim());
   // Optional markdown emphasis is CAPTURED (\1) and only a CLOSING marker matching the OPENING one is
   // consumed (before OR after the colon: `**X**:` / `**X:**`). The backref is the whole point — without
   // it the trailing matcher ate a content italic (`X: *waves*` → lost the leading `*`). When no opening
@@ -215,7 +213,7 @@ export function stripSelfSpeakerLabel(content: string, speakerName: string): str
  *  + `b`) is removed wherever it landed, so the token-boundary case can't survive into canon. Built per
  *  call so the name is escaped fresh; kept private (only `stripInlineSpeakerLabel` wraps it). */
 function inlineLabelRe(name: string): RegExp {
-  const n = escapeRegExp(name.trim());
+  const n = RegExp.escape(name.trim());
   // NO leading whitespace grab (that would delete a word separator, gluing `one JFC: two` → `onetwo`); the
   // TRAILING whitespace + dash run IS consumed — the model's aborted turn-opener dash (`Name: —`) — so a
   // mid-word `dumJFC: —b` collapses to `dumb`, while a space-separated `one JFC: two` becomes `one two`.
@@ -244,7 +242,7 @@ export function stripInlineSpeakerLabel(content: string, speakerName: string): s
 export function truncateAtForeignLabel(content: string, otherNames: readonly string[]): string {
   let cut: number | null = null;
   for (const raw of otherNames) {
-    const n = escapeRegExp(raw.trim());
+    const n = RegExp.escape(raw.trim());
     if (n.length === 0) {
       continue;
     }

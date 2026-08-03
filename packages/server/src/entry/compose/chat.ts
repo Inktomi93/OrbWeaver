@@ -5,6 +5,7 @@
 // offline, so no request Principal exists). Two bridges: role-irrelevant ops use the cheap synthetic
 // `hostPrincipal`; role-sensitive ops (owner-gates) use the injected `resolveHostPrincipal`.
 
+import { setTimeout as sleep } from "node:timers/promises";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { resolveRenderPolicy } from "@orb/contracts/chat";
 import type { ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
@@ -1040,10 +1041,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     emit: emitChatEvent,
     activeTurns: createActiveTurns(),
     prng: () => Math.random(),
-    delay: (ms) =>
-      new Promise<void>((resolve) => {
-        setTimeout(resolve, ms);
-      }),
+    delay: sleep,
     resolveConnection: async ({ runAsUserId, chatId }) => {
       const rows = await db.select({ metadata: chats.metadata }).from(chats).where(eq(chats.id, chatId)).limit(1);
       const meta = parseChatMetadata(rows.at(0)?.metadata ?? null);
