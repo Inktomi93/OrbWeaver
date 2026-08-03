@@ -66,8 +66,21 @@ Breadth is never a substitute for the named targets' depth.
    of what's off; it needs no ratio. "A facelift is planned" NEVER mutes this — it just files the
    finding under UGLY instead of BROKEN; the UGLY list is a first-class deliverable, not an apology.
    A review that reports only measurables has done half its job.
+3c. **MOCK-VS-RENDERED IS AN IMAGE COMPARISON, NEVER A VIBE CHECK.** When a brief names a mock (a
+   committed HTML mock, a published artifact, a design spec's drawing), the deliverable is: **both
+   images, shot at the SAME viewport width** (`pnpm snap --file <mock.html> --width N` renders a
+   committed mock through the same instruments as the live route), **plus a per-element DELTA TABLE**.
+   Every row names the element and classifies the difference as exactly one of — **RENDERED-WRONG**
+   (the build missed the mock; a finding) · **MOCK-STALE-SANCTIONED** (a later ruling overtook the
+   drawing; cite the ruling) · **DELIBERATE-WITH-CITE** (the build diverged on purpose; cite the
+   header/spec line that says so). A row you cannot classify is a QUESTION for the orchestrator, not a
+   silent pass. **"It matches the mock" without that table is not a review** — the pass that produced
+   13 RENDERED-WRONG rows on a surface previously called "matches" is why this is a law.
 4. **Prioritize ruthlessly.** If everything is a P0, nothing is. Rank by real user impact.
-5. **You review; you do not fix.** Report findings. The builder fixes; then you re-verify.
+5. **You review; you do not fix.** Report findings. The builder fixes; then you re-verify. When your
+   finding contradicts a PRIOR review's ruling recorded in the target file's header, say so
+   explicitly and name both — the fixer's law is satisfy-the-new-symptom / preserve-the-old-mechanism
+   / state-the-fork, and they can only do that if your finding surfaces the collision.
 
 ## The two-track method (this is the whole point — do not collapse it)
 

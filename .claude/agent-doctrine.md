@@ -111,6 +111,17 @@ don't write memory yourself.
   you added/moved a FILE or changed any import path (layer/subsystem-mediation rules are whole-graph —
   a scoped floor missed a verbs→named-subsystem edge once, 08-03) PLUS `pnpm typecheck:graph` when
   you touched anything under tests/.
+- **Your floor NAMES its playwright CT files, by path.** `pnpm verify --push` runs NO CTs (tests:node +
+  e2e only) and `check:structure` never executes one, so a CT file nobody named is a file nobody ran —
+  a lane shipped a fix without its own brand-new proving CT this way, and another left 19 CT reds on
+  main because its scoped floor was vitest-only. List the paths in your report beside their results.
+- **A landed change to a shared READ or a11y ATTRIBUTE must SWEEP every test that asserts the old one.**
+  Three sightings of one class in one night: `aria-current`→`aria-pressed` left two stale CTs green-
+  looking and red-running; a component reading a NEW field of an existing stub shape (`chatDetail.group`)
+  mount-threw 18 CTs into the error boundary; a new query on a SHARED component blanked sibling CTs via
+  a `routeTrpc` null. Before you change an attribute, a stub shape, or a component's read set, grep the
+  OLD spelling across `tests/**` + `**/*.ct.tsx` and sweep the mounts FIRST — a stub that returns
+  `undefined` for a typed verdict hides the very branch you are adding.
 - Red-first proofs compile against the OLD source and assert user-visible affordances (see the executor
   def for the cp/git-show mechanism). Worktree Bash rejects compound commands — script to scratchpad,
   run by absolute path.
@@ -127,6 +138,16 @@ don't write memory yourself.
   comments/strings; battery summaries count runtime skips; three instrument-error retractions 08-03).
 - **Gate-touching work reads `scripts/check/GATE-AUTHORING.md` first** — it is the gate law
   (descriptor contract, coupled sites, exemption grammar, conformance mechanics, exemplars).
+- **Marker-gate laws (paid for by the BRAND gate, 08-03) — a gate whose escape hatch is an in-source
+  marker owes all three:** (1) the marker NAMES ITS POSITION (`@foreign-id-ok(<positionName>):
+  <reason>`) whenever ONE LINE can carry two guarded things — a line-scoped marker over-exempts, and
+  the live `record(chatId: string, sessionId: string)` case is the proof; (2) the resolver that reads
+  STACKED markers is BLOCK-SCOPED (markers accumulate for the next guarded node, then clear — a
+  file-scoped reader silently exempts the rest of the file); (3) ship the SIX-CASE real-tree probe —
+  violation-without-marker RED · marker-with-position GREEN · marker-naming-a-dead-position RED
+  (two-sided) · MALFORMED marker (no name and/or no reason) RED as its own flavour ·
+  derivation-came-back-empty RED (the blindness tripwire) · a mustPass row per declared limit. That
+  shape is reusable — copy it, don't re-derive it.
 - **Gates land on a FIXED tree, not a parked one (owner law, 08-03):** when your new gate finds live
   violations, FIX them in the same lane — allowlists/baselines are reserved for genuinely PERMANENT
   deliberate exemptions (each with a reason string and a stale-arm), never "temp, it's fine" debt
@@ -139,6 +160,12 @@ don't write memory yourself.
   letter, cross-check it against the spec section it summarizes and the tree (a clause named a
   verb that structurally could not carry the payload; the spec + board named the real seam).
   Truth-repair the clause in your commit when it loses.
+- **A brief's cited MECHANISM — and the log line it rests on — can be UNREPRODUCIBLE by the time you
+  read it.** RESYNC-OR's brief named an SDK response-schema validation failure with a log excerpt; the
+  log had ROTATED, the SDK was innocent, and the real wall was a vendor rejecting our `response_format`
+  shape. Re-derive the mechanism from a live drive or from source before you build to it, and say in
+  your report which cited premise died. The brief's SYMPTOM and RULINGS stay law; its explanation of
+  why does not.
 - **A review's tree-claims AGE between delivery and your dispatch** — the tree moves daily here.
   Verify every mechanism claim (file exists, symbol exists, behavior holds) against TODAY'S tree
   before you write law or code from it; report claims that died as findings, don't silently
