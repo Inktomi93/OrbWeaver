@@ -203,24 +203,17 @@ describe("persistence/queries — loadChatParticipantCharacterIds (the FIX-#1 re
 
 // The `ChatSummary` list chrome's aggregates. REGRESSION (owner dogfood 2026-07-31): the chat list read
 // "7 messages" over a 3-message conversation because `resyncFromStory`/`editSnapshot` had appended four rpg
-// state-anchor slots — empty-body assistant rows that exist only to KEY a snapshot. They are canon but not
-// messages: they must neither be counted nor bump "last activity" (the library's recency sort).
+// state-anchor slots — empty-body assistant rows that existed only to KEY a snapshot. D124 made that row
+// class unrepresentable (a hand-written snapshot is a message-less `rpg_snapshots` row and
+// `postNarratorMessage` refuses a blank post), so the surviving predicate is the selected-variant join.
 describe("persistence/queries — loadChatMessageStats (VISIBLE canon only)", () => {
-  test("counts visible rows only and ignores rpg state anchors, which also never bump lastMessageAt", async () => {
+  test("counts every canon row and takes the newest createdAt as lastMessageAt", async () => {
     const chatId = await seedChat(db, "a");
     const other = await seedChat(db, "b");
     const early = 1000;
     const late = 2000;
-    const afterLate = 3000;
     await seedMessage(db, chatId, 1, { role: "user", content: "Ping?", createdAt: early });
     await seedMessage(db, chatId, 2, { role: "assistant", content: "Pong.", createdAt: late });
-    // Three host resyncs + a hand-edit — the live shape. Each posts an EMPTY-body slot, stamped LATER than
-    // every real message, so a raw MAX(created_at) would hand the list a silent state write as "last activity".
-    await seedMessage(db, chatId, 3, { role: "assistant", content: "", createdAt: afterLate });
-    await seedMessage(db, chatId, 4, { role: "assistant", content: "", createdAt: afterLate });
-    await seedMessage(db, chatId, 5, { role: "assistant", content: "", createdAt: afterLate });
-    // A whitespace-only body is the same nothing (the JS discriminator trims; so does this one).
-    await seedMessage(db, chatId, 6, { role: "assistant", content: "   ", createdAt: afterLate });
     await seedMessage(db, other, 1, { role: "user", content: "elsewhere", createdAt: early });
 
     const stats = await loadChatMessageStats(db, [chatId, other]);
@@ -229,10 +222,14 @@ describe("persistence/queries — loadChatMessageStats (VISIBLE canon only)", ()
     expect(stats.get(other)).toStrictEqual({ messageCount: 1, lastMessageAt: early });
   });
 
-  test("a chat with ONLY anchors is absent from the map (it has no messages — never a phantom '4 messages')", async () => {
+  test("a slot whose SELECTED variant is gone is not counted and never sets lastMessageAt", async () => {
     const chatId = await seedChat(db, "a");
-    await seedMessage(db, chatId, 1, { role: "assistant", content: "" });
-    expect(await loadChatMessageStats(db, [chatId])).toStrictEqual(new Map());
+    const early = 1000;
+    const afterLate = 3000;
+    await seedMessage(db, chatId, 1, { role: "user", content: "Ping?", createdAt: early });
+    const orphan = await seedMessage(db, chatId, 2, { role: "assistant", content: "Pong.", createdAt: afterLate });
+    await db.update(messages).set({ selectedVariantId: null }).where(eq(messages.id, orphan.messageId));
+    expect(await loadChatMessageStats(db, [chatId])).toStrictEqual(new Map([[chatId, { messageCount: 1, lastMessageAt: early }]]));
   });
 
   test("an empty id list is a no-op (empty map, no query)", async () => {

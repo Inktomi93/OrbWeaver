@@ -27,6 +27,9 @@ const emit = (event: ChatBusEvent): Promise<void> => {
   return Promise.resolve();
 };
 
+/** The D124 refusal's message — hoisted (a regex literal in a test body is a `useTopLevelRegex` error). */
+const BLANK_POST_RE = /blank post/u;
+
 describe("postNarratorMessage", () => {
   test("commits ONE group-character-authored assistant message + emits messageCommitted + returns both ids", async () => {
     const host = await seedUser(db, "host");
@@ -110,7 +113,13 @@ describe("postNarratorMessage", () => {
     expect(rows[0]?.automationDepth).toBe(1);
   });
 
-  test("a state-anchor mint (empty body) stays prompt-visibility-normal — the shape stage drops the empty row, the ladder still finds it", async () => {
+  // THE D124 WRITE-BOUNDARY ENFORCER. rpg used to mint a content-less assistant slot here to KEY a
+  // hand-written snapshot; that row was durable canon no reader could see, and it leaked into both export
+  // formats (`"mes":""` rows named "Group"), the memory digests, plugin reads, automation `messageCommitted`
+  // facts, the chat-list counts, every fork and every client cache — seven filters chased it and eight planes
+  // never learned. The reshape moved hand state off the message plane entirely; THIS refusal is what makes
+  // the row class unrepresentable instead of policed.
+  test("REFUSES a blank post — a content-less canon row is not a message, and nothing is written", async () => {
     const host = await seedUser(db, "host");
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
@@ -119,18 +128,29 @@ describe("postNarratorMessage", () => {
     const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }) });
     const postNarratorMessage = createPostNarratorMessage(ctx, { emit });
 
-    // The rpg between-turns hand-edit / resync clone-forward mints an anchor with an EMPTY body. It carries NO
-    // `excludedFromPrompt` flag — the empty content is dropped from the wire prompt by the shape-stage empty-row
-    // filter, and the client list hides it by content — while the slot stays visibility-normal so the rpg
-    // snapshot-resolution ladder (which keys on `excludedFromPrompt=false`) still resolves its snapshot as head.
-    // THE VER-1b EXEMPTION, pinned: the engine's empty-generation guard (`assertGeneratedContent`) refuses a
-    // prose-less GENERATION, and this path has none — an anchor is a deliberate, snapshot-keyed slot minted by
-    // this verb. The guard must never be lifted into the canon writer, or every anchor mint dies with it.
-    const { messageId } = await postNarratorMessage(chatId, "");
-    const rows = await db.select().from(messages).where(eq(messages.id, messageId));
-    expect(rows[0]?.excludedFromPrompt).toBe(false);
+    await expect(postNarratorMessage(chatId, "")).rejects.toThrow(BLANK_POST_RE);
+    // Whitespace-only is the same nothing — the old SQL/JS `trim()` divergence has no row class left to split.
+    await expect(postNarratorMessage(chatId, "   \n ")).rejects.toThrow(BLANK_POST_RE);
+    // NOTHING committed: no slot, no variant, and no `messageCommitted` fact for automation to fire on.
+    expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toEqual([]);
+    expect(emitted).toEqual([]);
+  });
+
+  test("a MEDIA-ONLY post is legal — the image refs ARE the body", async () => {
+    const host = await seedUser(db, "host");
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
+    const groupChar = await seedCharacter(db, host, "narrator");
+    const assetId = await seedAsset(db, host, "narrator_media");
+
+    const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }) });
+    const postNarratorMessage = createPostNarratorMessage(ctx, { emit });
+
+    // The refusal reads the ASSEMBLED body, so an illustration post with no prose still lands (D51 embedded
+    // refs). Refusing on the raw `content` argument would have killed this real path.
+    const { messageId } = await postNarratorMessage(chatId, "", [assetId]);
     const variants = await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId));
-    expect(variants[0]?.content).toBe("");
+    expect(variants[0]?.content).toContain(`asset:${assetId}`);
   });
 
   test("a chat with no host cannot mint the narrator identity", async () => {

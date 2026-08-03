@@ -3,7 +3,6 @@
 // chunker, and the JSON read-seam parsers.
 
 export * from "./batch";
-export * from "./canon-visibility";
 export * from "./db-errors";
 export * from "./fetch-owned";
 export * from "./insert-chunk";

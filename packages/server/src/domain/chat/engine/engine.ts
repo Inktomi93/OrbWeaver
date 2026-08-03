@@ -963,8 +963,9 @@ function abortReasonFor(err: unknown, signal: AbortSignal | undefined): TurnAbor
  * (caller cancel / stale lock) never reaches here at all — the pipeline throws and `executeTurn`'s catch
  * commits nothing, whether or not tokens streamed.
  *
- * NOT the rpg state-anchor path: the deliberate empty slots (`RESYNC_ANCHOR_CONTENT`) are minted by the
- * `postNarratorMessage` VERB — no generation, never through this engine — so they are exempt by construction.
+ * There is no longer any exempt empty-slot path to carve out: rpg's deliberate content-less "state anchor"
+ * slots are gone (D124 — hand state is a message-less `rpg_snapshots` row), and `postNarratorMessage` itself
+ * now refuses a blank post. Empty canon content is uniformly a defect, wherever it is written.
  */
 function assertGeneratedContent(content: string): void {
   if (content.trim().length === 0) {

@@ -975,8 +975,8 @@ const PREVIEW_WHITESPACE_RE = /\s+/g;
  * `unknown-directive` spans carry no glanceable prose (a `[card: …]` stub or a raw fence would spend the whole
  * line on chrome). What remains is markdown-FLATTENED — inline emphasis/code markers dropped, links collapsed
  * to their label, leading block markers and code-fence lines removed, every whitespace run collapsed to one
- * space — then trimmed and truncated with a single-char ellipsis. Empty (a body that was all structure, or an
- * empty/state-anchor slot) ⇒ `""`; the caller decides what an empty preview means.
+ * space — then trimmed and truncated with a single-char ellipsis. Empty (a body that was all structure) ⇒
+ * `""`; the caller decides what an empty preview means.
  */
 export function projectBodyForPreview(content: string, maxChars: number = PREVIEW_MAX_CHARS): string {
   // COMMITTED: a preview only ever reads finalized canon, and an EOF-closed card is strictly safer — an

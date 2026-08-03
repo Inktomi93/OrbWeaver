@@ -28,7 +28,7 @@
 // ── WHY TWO OPS AND NOT ONE ─────────────────────────────────────────────────────────────────────────────
 // Everything above is an UPDATE and rides chat's atomic swap batch. The SNAPSHOT-state actor re-key cannot:
 // it is a read-modify-write through the hand door (`writeHandState`), which resolves the true head and may
-// CLONE FORWARD onto a fresh state-anchor slot — a write, not a statement. So it runs AFTER the swap commits,
+// CLONE FORWARD as a fresh HAND ROW (D124) — a write, not a statement. So it runs AFTER the swap commits,
 // the `forkGameOntoFork` posture: degraded-not-broken. A crash between them leaves the room correctly
 // transferred with its tracker rows still keyed to the old ids, and a re-run converges (a re-key whose `from`
 // is already gone refuses per-actor and changes nothing).
@@ -105,8 +105,8 @@ export async function handoffRekeyActors(ctx: RpgContext, chatId: ChatId, pairs:
   }
   // ONE hand-door write that FOLDS every pair, not one write per actor. Two reasons, and both matter: each
   // re-key is a read-modify-write against the true head, so a per-actor loop would have to serialize anyway;
-  // and a committed head CLONES FORWARD onto a fresh state-anchor slot, so N writes would mint N anchor slots
-  // for what is one event. The fold threads each result into the next actor's head, exactly as the sequential
+  // and a committed head CLONES FORWARD as a fresh hand row, so N writes would mint N snapshot rows for what
+  // is one event. The fold threads each result into the next actor's head, exactly as the sequential
   // loop did, and accumulates the lock delta across the whole set.
   await writeHandState(ctx, game, (head) => foldRekeys(head, pairs));
 }

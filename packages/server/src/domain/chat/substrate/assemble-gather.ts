@@ -15,7 +15,6 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { AssembleContext, ChatInjection, MessageView } from "@orb/contracts/chat";
-import { lastVisibleAssistant } from "@orb/contracts/chat";
 import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
@@ -241,10 +240,10 @@ async function gatherMemory(
  *  stamp (a fresh chat, or the last turn dropped nothing → null stamp) — then recall applies no live-window
  *  trim. A stamped boundary id whose target isn't in canon (edited/deleted since) also yields `undefined`. */
 function resolveLiveWindowCutoffSeq(canon: readonly MessageView[]): number | undefined {
-  // `lastVisibleAssistant`: an rpg state anchor (the empty-body snapshot key a host resync/hand-edit
-  // appends) is an assistant ROW but never a generation — it carries no fit-pass stamp, so letting it
-  // answer here silently disabled the recall live-window trim for the rest of the game.
-  const lastAssistant = lastVisibleAssistant(canon);
+  // Every assistant canon row is a real generation carrying a fit-pass stamp (D124 retired the rpg
+  // state-anchor slot, which was an assistant ROW with no stamp — letting it answer here silently disabled
+  // the recall live-window trim for the rest of the game).
+  const lastAssistant = canon.findLast((m) => m.role === "assistant");
   const boundaryId = lastAssistant?.contextBoundaryMessageId ?? null;
   if (boundaryId === null) {
     return;

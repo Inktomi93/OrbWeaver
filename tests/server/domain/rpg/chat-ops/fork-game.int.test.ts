@@ -26,7 +26,7 @@ import { insertCheckpoint, listCheckpoints } from "../../../../../packages/serve
 import { findGameByChat, insertGame, updateGame } from "../../../../../packages/server/src/domain/rpg/persistence/games";
 import { insertJournalEntry, listAllJournal } from "../../../../../packages/server/src/domain/rpg/persistence/journal";
 import { listSheets, upsertSheet } from "../../../../../packages/server/src/domain/rpg/persistence/sheets";
-import { insertSnapshot, listSnapshots } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots";
+import { insertSnapshot, listSnapshots, resolveSnapshotForTurn, writeHandSnapshot } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots";
 import { freshDb } from "../../../../support/db";
 import { emptyState, expect, FROZEN_AT, liteConfig, makeRpgService, seedChat, seedMessage, seedUser, test } from "../_support";
 
@@ -175,6 +175,75 @@ test("a NON-HOST forker's copy carries NO host secrets: steeringNote stripped, f
   const forkModel = forkJournal.find((j) => j.title === "The meeting");
   expect(forkModel?.content).toBe("They met at the ford. ");
   expect(forkJournal.map((j) => j.content).join("")).not.toContain("assassin");
+});
+
+// D124 — the HAND arm through the fork. A hand row is game state, not story: it carries on EVERY lineage
+// (the `rpg_journal` NULL-variant hand-entry rule), and its `asOfMessageId` re-keys through the SAME
+// `slotIdMap` the turn rows use. On a D106 FLOORED fork the as-of slot maps to nothing and degrades to NULL —
+// the row then orders before all visible history, which is exactly the state-as-of-pre-baseline posture.
+test("a HAND row rides the fork on every lineage, with its as-of stamp re-keyed through slotIdMap", async () => {
+  const db = await freshDb();
+  const src = await seedSourceGame(db, "gm");
+  // The host hand-edited between beats: a message-less snapshot stamped at the source's tail slot.
+  await writeHandSnapshot(db, { ...emptyState(), location: "the hand-fixed hall" }, null, {
+    id: castId<RpgSnapshotId>("rpg_snapshot_hand_src"),
+    gameId: src.gameId,
+    chatId: src.chatId,
+    now: FROZEN_AT,
+  });
+  const { forkChatId, slotIdMap, variantIdMap } = await seedForkTarget(db, "hand", src);
+
+  const h = makeRpgService(db);
+  const result = await h.chatOps.forkGame({
+    sourceChatId: src.chatId,
+    newChatId: forkChatId,
+    slotIdMap,
+    variantIdMap,
+    forker: { userId: castId<UserId>("user_gm"), readsHidden: true },
+  });
+  expect(result.cloned).toBe(true);
+
+  const forkGame = await findGameByChat(db, forkChatId);
+  const forkSnaps = await listSnapshots(db, forkGame?.id as RpgGameId);
+  const hand = forkSnaps.find((row) => row.variantId === null);
+  expect(hand?.location).toBe("the hand-fixed hall");
+  expect(hand?.messageId).toBeNull();
+  // The as-of stamp points at the FORK's copy of the source tail slot, never at the source id.
+  expect(hand?.asOfMessageId).toBe(slotIdMap.get(src.messageId));
+  // …and the turn row still keys the fork's copied variant (the two arms re-key independently).
+  expect(forkSnaps.find((row) => row.variantId !== null)?.variantId).toBe(variantIdMap.get(src.variantId));
+});
+
+test("a FLOORED fork keeps the hand row and SET-NULLs its as-of (state survives, only the order degrades)", async () => {
+  const db = await freshDb();
+  const src = await seedSourceGame(db, "gm");
+  await writeHandSnapshot(db, { ...emptyState(), location: "the hand-fixed hall" }, null, {
+    id: castId<RpgSnapshotId>("rpg_snapshot_hand_floored"),
+    gameId: src.gameId,
+    chatId: src.chatId,
+    now: FROZEN_AT,
+  });
+  // A D106 FLOORED fork: the source's early slots collapsed below the floor, so NEITHER map carries them.
+  const forkChatId = await seedChat(db, "fork_floored");
+  const h = makeRpgService(db);
+  const result = await h.chatOps.forkGame({
+    sourceChatId: src.chatId,
+    newChatId: forkChatId,
+    slotIdMap: new Map<MessageId, MessageId>(),
+    variantIdMap: new Map<MessageVariantId, MessageVariantId>(),
+    forker: { userId: castId<UserId>("user_gm"), readsHidden: true },
+  });
+  expect(result.cloned).toBe(true);
+
+  const forkGame = await findGameByChat(db, forkChatId);
+  const forkSnaps = await listSnapshots(db, forkGame?.id as RpgGameId);
+  // The TURN row is dropped (its variant is past the horizon); the HAND row survives with a NULL as-of.
+  expect(forkSnaps).toHaveLength(1);
+  expect(forkSnaps[0]?.variantId).toBeNull();
+  expect(forkSnaps[0]?.asOfMessageId).toBeNull();
+  expect(forkSnaps[0]?.location).toBe("the hand-fixed hall");
+  // It still resolves as the fork's head — pre-baseline state IS the baseline posture, never lost state.
+  expect((await resolveSnapshotForTurn(db, { id: forkGame?.id as RpgGameId, chatId: forkChatId }))?.location).toBe("the hand-fixed hall");
 });
 
 test("cross-tenant: EVERY fork row keys the new game/chat/variant — never a source id (no dangling FK)", async () => {

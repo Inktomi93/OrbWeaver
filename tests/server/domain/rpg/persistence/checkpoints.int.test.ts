@@ -11,7 +11,7 @@ import { beforeEach, describe } from "vitest";
 import { findCheckpoint, insertCheckpoint, listCheckpoints } from "../../../../../packages/server/src/domain/rpg/persistence/checkpoints";
 import { insertSnapshot, writeRestoredSnapshot } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots";
 import { freshDb } from "../../../../support/db";
-import { expect, FROZEN_AT, seedChat, seedGame, seedMessage, snapshotId, target, test } from "../_support";
+import { expect, FROZEN_AT, handTarget, seedChat, seedGame, seedMessage, snapshotId, test } from "../_support";
 
 let db: Db;
 beforeEach(async () => {
@@ -59,7 +59,8 @@ describe("restore", () => {
     const cpId = castId<RpgCheckpointId>("rpg_checkpoint_1");
     const cp = await insertCheckpoint(db, { id: cpId, gameId, snapshotId: base.id, label: "camp", trigger: "manual", createdAt: FROZEN_AT });
 
-    // Restore onto a fresh narrator message: read the checkpoint's snapshot, clone-forward it committed.
+    // Restore as a HAND ROW (D124 fork 4): read the checkpoint's snapshot, clone it forward committed. No
+    // message is keyed to it — the visible "— scene restored —" notice is pure prose the verb posts separately.
     const found = await findCheckpoint(db, cp.id);
     const snapRows = await db
       .select()
@@ -70,10 +71,14 @@ describe("restore", () => {
     if (!checkpointed) {
       throw new Error("checkpointed snapshot vanished");
     }
-    const restoreTarget = await seedMessage(db, chatId, 2, { role: "assistant" });
-    const restored = await writeRestoredSnapshot(db, checkpointed, target({ gameId, chatId, seq: 2, variantId: restoreTarget.variantId, key: "restored" }));
+    const notice = await seedMessage(db, chatId, 2, { role: "assistant", content: "— scene restored —" });
+    const restored = await writeRestoredSnapshot(db, checkpointed, handTarget({ gameId, chatId, key: "restored" }));
     expect(restored.location).toBe("camp");
     expect(restored.committed).toBe(1); // the restored scene is truth immediately
+    // The hand arm: no variant to swipe, no slot to delete — ordered by the notice it followed.
+    expect(restored.variantId).toBeNull();
+    expect(restored.messageId).toBeNull();
+    expect(restored.asOfMessageId).toBe(notice.messageId);
   });
 });
 

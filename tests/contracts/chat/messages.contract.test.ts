@@ -1,14 +1,6 @@
 import type { MessageSlot, MessageView, UserMacroDraws } from "@orb/contracts/chat";
-import {
-  isStateAnchorSlot,
-  lastVisibleAssistant,
-  lastVisibleRow,
-  messageSlotSchema,
-  reattributeScopeSchema,
-  toolCallRecordSchema,
-  userMacroDrawsSchema,
-} from "@orb/contracts/chat";
-import type { MessageId, UserId } from "@orb/kit/ids";
+import { messageSlotSchema, reattributeScopeSchema, toolCallRecordSchema, userMacroDrawsSchema } from "@orb/contracts/chat";
+import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures";
 
@@ -126,90 +118,6 @@ test("MessageView is the slot joined with its selected variant (content + econom
   };
   expect(view.content).toBe("hello there");
   expect(view.selectedVariantId).toBe(SAMPLE_VARIANT_ID);
-});
-
-// ═══ STATE-ANCHOR SLOTS — the empty-body canon rows that KEY an rpg snapshot ═══
-// Regression: the rpg host `resyncFromStory` / `editSnapshot` clone-forward mints `postNarratorMessage("")`
-// — a durable EMPTY assistant slot no reader sees. Every "the tail" / "the last assistant" question must
-// skip it: an anchor answering it makes a swipe/continue/rewrite target an INVISIBLE slot (appending a
-// prose variant onto the snapshot's own message, moving the ladder head), and strips the swipe controls
-// off the last visible reply. Observed live 2026-07-31 (chat_01kyw9dexbecrtvwvejswtxstk, 4 anchors).
-
-function makeView(overrides: Partial<MessageView> & Pick<MessageView, "id" | "role" | "content">): MessageView {
-  return {
-    chatId: SAMPLE_CHAT_ID,
-    seq: 0,
-    authorUserId: null,
-    characterId: null,
-    personaId: null,
-    excludedFromPrompt: false,
-    createdAt: 1,
-    editedAt: null,
-    selectedVariantId: SAMPLE_VARIANT_ID,
-    selectedVariantIdx: 0,
-    variantCount: 1,
-    hasContinuation: false,
-    reasoning: null,
-    model: null,
-    provider: null,
-    finishReason: null,
-    stopReason: null,
-    terminalReason: null,
-    tokensIn: null,
-    tokensOut: null,
-    cacheReadTokens: null,
-    cacheWriteTokens: null,
-    contextWindow: null,
-    costUsd: null,
-    ttftMs: null,
-    genStartedAt: null,
-    genFinishedAt: null,
-    generationId: null,
-    contextBoundaryMessageId: null,
-    toolCalls: [],
-    ...overrides,
-  };
-}
-
-const REPLY = makeView({ id: castId<MessageId>("msg_reply"), role: "assistant", content: "the visible reply" });
-const ANCHOR = makeView({ id: castId<MessageId>("msg_anchor"), role: "assistant", content: "" });
-const PROMPT = makeView({ id: castId<MessageId>("msg_prompt"), role: "user", content: "what happens next?" });
-
-test("isStateAnchorSlot discriminates the empty-body snapshot slot from a real row", () => {
-  expect(isStateAnchorSlot({ content: "" })).toBe(true);
-  // Whitespace-only is the same nothing (the shape stage's empty-row filter trims too).
-  expect(isStateAnchorSlot({ content: "   \n " })).toBe(true);
-  expect(isStateAnchorSlot(REPLY)).toBe(false);
-  // The checkpoint-RESTORE narrator slot carries real prose — a message, never an anchor.
-  expect(isStateAnchorSlot({ content: "Restored to a checkpoint." })).toBe(false);
-});
-
-test("lastVisibleRow skips a trailing state anchor — the tail is the last row a reader SEES", () => {
-  expect(lastVisibleRow([PROMPT, REPLY, ANCHOR])?.id).toBe(REPLY.id);
-  // The live shape: three resyncs in a row stack three anchors on the tail.
-  expect(lastVisibleRow([PROMPT, REPLY, ANCHOR, ANCHOR, ANCHOR])?.id).toBe(REPLY.id);
-  expect(lastVisibleRow([])).toBeUndefined();
-  expect(lastVisibleRow([ANCHOR])).toBeUndefined();
-  expect(lastVisibleRow([REPLY, PROMPT])?.id).toBe(PROMPT.id);
-});
-
-test("lastVisibleAssistant skips anchors — an anchor is a snapshot key, never a generation", () => {
-  expect(lastVisibleAssistant([PROMPT, REPLY, ANCHOR])?.id).toBe(REPLY.id);
-  // A trailing user turn doesn't hide the generation; an anchor above it doesn't become one.
-  expect(lastVisibleAssistant([REPLY, ANCHOR, PROMPT])?.id).toBe(REPLY.id);
-  expect(lastVisibleAssistant([PROMPT, ANCHOR])).toBeUndefined();
-  expect(lastVisibleAssistant([])).toBeUndefined();
-});
-
-test("an anchor's unstamped boundary never masks the real last generation's stamp", () => {
-  const stamped = makeView({
-    id: castId<MessageId>("msg_stamped"),
-    role: "assistant",
-    content: "trimmed history reply",
-    contextBoundaryMessageId: castId<MessageId>("msg_prompt"),
-  });
-  // Reading the ANCHOR's null here is what suppressed the boundary divider after a resync.
-  expect(lastVisibleAssistant([PROMPT, stamped, ANCHOR])?.contextBoundaryMessageId).toBe(castId<MessageId>("msg_prompt"));
 });
 
 // ── toolCallRecordSchema (D48/PD-54 T1) — the db read-seam parse for `message_variants.toolCalls` ────
