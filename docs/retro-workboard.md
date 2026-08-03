@@ -590,6 +590,18 @@ rebuild-the-board door SILENTLY NO-OPS (returns null) on the default hosted back
 suspects). (2) Seeded demo replay auto-locked every written datum → received examples FROZEN
 against the user's own play (4 extraction rounds no-op'd live) — FIXED in-lane red-first
 (autoLock:false; the receiving-user-can-play property pinned).
+✅ **CR0 MERGED (--no-verify on receipts, torn down)** — gate #174
+`section-factory-contribution-bundle` live (§12 row 5 has its WALL; the founding violation
+was LIVE — makeChatsSection's 4 registries red'd pre-refactor, bundle now, byte-identity
+proven by 120 unedited CTs); §6a playbook cites SYMBOLS not line numbers (the report's own
+line refs had already drifted — lesson); lockdown §16 G-table deliberately not grown (defers
+to the live count; flagged). **R1 (config rail) UNBLOCKED — dispatches MOCK-FIRST on next
+build-lane drain.**
+**OWNER RULINGS #3 (08-03 late, question tool):** MACRO PLANE = EVERYWHERE (all
+MacroTextarea consumers gain the user plane — small MACU-2 queued) · INVENTORY
+description/location = RENDER THEM (RV-11 build-the-readers precedent — small INV-READ
+queued) · X-11 focus-hue = CLOSED leave-it (one hue one system). FYI standing: Claude Max
+OAuth expired (owner re-auth when wanted; agent-sdk backend dead until then).
 **STICKLER DISPATCHED (owner order, 08-03): STATE-ANCHOR ROW redesign** — the 8 blank
 "Group" rows in the flagship demo are the SYMPTOM (hand-door writes anchor snapshots to
 content-less message rows; consumers filter the artifact one-by-one — seeder drop-patch,
