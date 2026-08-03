@@ -23,6 +23,52 @@ Global **KISS/YAGNI are SUSPENDED here** — build the maximal, most-provable ve
 sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 `docs/architecture/core/AGENTS.md` IN FULL before any work.
 
+## ═══ ▶▶▶ COMPACT-SAFETY SNAPSHOT #4 (08-03 pre-dawn — THE current block; supersedes #3 and
+## everything between. Resuming orchestrator: read THIS → the WHOLE board → git log -60.) ═══
+
+**THE BUILD QUEUE IS EMPTY.** Every boarded program and small through the entire burn-down is
+MERGED. Main = SM7's merge + the BRAND-gate era (gates = 176); tree clean but for this board
+edit; ~90 local commits past origin `865405d6` (the 199-commit era pushed earlier tonight;
+NEXT push needs a fresh owner word). OWNER ASLEEP — overnight full-auto, ladder-not-questions,
+NO pushes, persona-sacred blocked.
+
+**✅ SM7 MERGED (`35014699`, the LAST build lane):** CUSTOMBYO strict fixed at the kit
+(translator-invents-policy; vLLM pins strict at ITS call site — the enforcing wire; flagged:
+engine/chat-completion.ts:116 = a SECOND response_format builder, never emitted strict, noted
+not touched) · **BRAND gate #176 live, arm-A baseline ratchet** (374 sites/169 files committed
+shrinking debt; 28 permanent foreign-wire markers planted; marker = @foreign-id-ok(<position>):
+reason — position-NAMED because one line can carry ours+theirs; stacked-marker resolver
+block-scoped; the six-case real-tree probe = the reusable marker-gate shape) · handoff-heal
+biome overflow ROOT-FIXED (self-referential loop assignment; restructured, do-not-restore
+comment; no suppression).
+
+**ENDGAME IN FLIGHT (fired at this snapshot):**
+1. **COMBINED SIDE-EYE dispatched** — one pass over the night's surfaces: the config workspace
+   (roster at 400 tags LIVE, member editors, welcome, mobile) · world-info in the workspace ·
+   the regex tester + scope-order + rosters · the theme cluster 3-action header · narrator
+   tint in situ (Second Opinion) · home-tile skeleton verdict · the persona row anatomy ·
+   FACEFILT's folded strip + picker · the add-member autoFocusSearch micro (it may just FIX
+   that one-liner if trivial — sanctioned).
+2. **FULL `pnpm test` RUNNING in background** (the CT battery verify --push doesn't cover —
+   task id in /tasks; read its verdict, fix same-day debris per tonight's pattern).
+AFTER BOTH: `pnpm verify --push` (background) → 14/14 = **board PUSH-READY, await the word** →
+then **DATABANK S1 (owner-ruled: start if the board empties — it has)**: spec
+docs/design/databank-surface-spec.md + published mocks; own rail section; S1-S3 staged;
+RowToggleAction exists; the workspace-scroll lesson (ct-hub) applies to its host; mock-first
+NOT needed (mocks exist + were owner-ruled 08-01).
+
+**MORNING OWABLES (unchanged + tonight's additions):** the push word · the 3 nudge texts
+(NARCOLOR report, verbatim) · tag drag-reorder fork (CONCRETE liftable arm exists — REGORDER's
+MoveControls) · REGPAR F1 prompt-ephemerality (REC accept-and-rename) + F3/F4/F5 menu ·
+v3-transcripts-new-installs-only note · the BRAND burn-down (374 sites, named lanes when
+wanted) · countByBook twins (2-instance dup, flagged) · "Untitled chat" in regex rosters
+(REGROSTER's naming question) · anything the ladder logged.
+
+**D-LEDGER through D124; next free D125 (HCOPY's handoff-copy text UNMINTED in its report —
+mint at the next ceremony batch).** Gates 176. The push battery does NOT run CTs (lane floors
+must name playwright files). Merges --no-verify on receipts + consolidated check when a branch
+predates sibling merges. ONE commit per lane. Cap THREE.
+
 ## ═══ ▶▶▶ COMPACT-SAFETY SNAPSHOT #3 (08-03 OVERNIGHT — THE current block; supersedes
 ## snapshot #2 and everything between here and it. Resuming orchestrator: read THIS, then the
 ## WHOLE board, then git log -60.) ═══
