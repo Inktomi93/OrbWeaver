@@ -10,12 +10,15 @@
 //     head INSIDE the write's own resolve, so an op-shaped verb never carries a client image that can go
 //     stale (the stale-image clobber class, `substrate/actor-ops.ts`). `applyHandEdit` is now a thin arm of it.
 // TWO write targets by head state:
-//   • UNcommitted head (this turn's draft) ⇒ write IN PLACE on the live variant (swipe-consistent).
-//   • COMMITTED head, OR a turnless game (no snapshot rows — the no-born-seed ruling) ⇒ CLONE FORWARD onto a
-//     fresh narrator slot (`postNarratorMessage`), born committed. An in-place write on a committed snapshot
-//     would corrupt a locked-in past (a checkpoint's frozen state, a past swipe) — so a committed head is
-//     never mutated; play continues on the new variant. The turnless case is the same forward-write, off the
-//     synthesized default state.
+//   • UNcommitted TURN head (this turn's draft) ⇒ write IN PLACE on the live variant (swipe-consistent).
+//   • COMMITTED head, a HAND-row head, OR a turnless game (no snapshot rows — the no-born-seed ruling) ⇒
+//     CLONE FORWARD as a new HAND ROW (D124: no message, no variant, stamped `asOfMessageId` = the chat's
+//     tail slot). An in-place write on a committed snapshot would corrupt a locked-in past (a checkpoint's
+//     frozen state, a past swipe) — so a committed head is never mutated; play continues on the new row. The
+//     turnless case is the same forward-write, off the synthesized default state. This write posts NOTHING to
+//     the message plane: the old empty-body "state anchor" slot it used to mint was a non-message that every
+//     canon reader had to filter (render, export, digest, plugin, automation, counts), and the row class is
+//     now unspellable — `postNarratorMessage` refuses blank content.
 // It also homes the two STATE READERS every other surface projects from — `currentSnapshotState` (the head) and
 // `snapshotStateBeforeSlot` (the state before a slot: the flush's write base + a regen turn's read base) — so
 // "which snapshot am I reasoning from, and what does a game with no rows read?" is answered in ONE place.
@@ -25,29 +28,31 @@ import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import type { MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
 import type { HandEditLocks, HandEditResult, HandStateHead, HandStateWrite, RpgContext, RpgGameRow } from "./contract/service";
 import { snapshotRowToState } from "./contract/service";
-import { insertSnapshot, resolveSnapshotBeforeSlot, resolveSnapshotForTurn, updateSnapshotState } from "./persistence/snapshots";
+import { resolveSnapshotBeforeSlot, resolveSnapshotForTurn, updateSnapshotState, writeHandSnapshot } from "./persistence/snapshots";
 import { defaultSnapshotState } from "./substrate/default-state";
 import { applyLockedPatch } from "./substrate/merge";
 
-/** The current resolved snapshot head: either a real variant-keyed row (write in place if UNcommitted) or the
- *  turnless-game synthesized default (a fresh narrator slot must be minted to write it). `variant` is null iff
- *  turnless; `committed` says whether an in-place write would corrupt a locked-in past (⇒ clone forward). */
+/** The `committed` column's draft value — an UNcommitted TURN row is the only in-place-editable head. */
+const UNCOMMITTED = 0;
+
+/** The current resolved snapshot head, plus the ONE question the write tail asks of it: may this row be
+ *  edited IN PLACE? `inPlace` is non-null ONLY for an UNCOMMITTED TURN row (this turn's own draft) — a
+ *  committed row is a locked-in past, a HAND row is born committed, and a turnless game has no row at all;
+ *  all three clone forward as a new hand row. */
 async function resolveHead(
   ctx: RpgContext,
   game: RpgGameRow,
 ): Promise<{
-  variant: { snapshotId: RpgSnapshotId; messageId: MessageId; variantId: MessageVariantId } | null;
-  committed: boolean;
+  inPlace: { snapshotId: RpgSnapshotId; variantId: MessageVariantId } | null;
   state: RpgSnapshotState;
   locks: RpgFieldLocks | null;
 }> {
   const row = await resolveSnapshotForTurn(ctx.db, { id: game.id, chatId: game.chatId });
   if (row === undefined) {
-    return { variant: null, committed: false, state: defaultSnapshotState(), locks: null };
+    return { inPlace: null, state: defaultSnapshotState(), locks: null };
   }
   return {
-    variant: { snapshotId: row.id, messageId: row.messageId, variantId: row.variantId },
-    committed: row.committed === 1,
+    inPlace: row.variantId !== null && row.committed === UNCOMMITTED ? { snapshotId: row.id, variantId: row.variantId } : null,
     state: snapshotRowToState(row),
     locks: row.fieldLocks,
   };
@@ -118,7 +123,7 @@ export async function writeHandState(ctx: RpgContext, game: RpgGameRow, derive: 
   const locks = derived.locks ?? {};
   const parsed = rpgSnapshotStateSchema.safeParse(nextState);
   if (!parsed.success) {
-    // Refused BEFORE the clone-forward's `postNarratorMessage` — a rejected edit leaves no blank anchor slot.
+    // Refused BEFORE any durable write — a rejected edit leaves no row behind.
     return { ok: false, reason: parsed.error.message };
   }
   const nextLocks: RpgFieldLocks = { ...(head.locks ?? {}) };
@@ -128,28 +133,16 @@ export async function writeHandState(ctx: RpgContext, game: RpgGameRow, derive: 
   for (const path of locks.clear ?? []) {
     delete nextLocks[path];
   }
-  if (head.variant !== null && !head.committed) {
+  if (head.inPlace !== null) {
     // In-place on the live UNcommitted variant (this turn's draft head — swipe-consistent).
-    await updateSnapshotState(ctx.db, head.variant.variantId, { ...toColumns(nextState), fieldLocks: nextLocks });
-    return { ok: true, snapshotId: head.variant.snapshotId };
+    await updateSnapshotState(ctx.db, head.inPlace.variantId, { ...toColumns(nextState), fieldLocks: nextLocks });
+    return { ok: true, snapshotId: head.inPlace.snapshotId };
   }
-  // A COMMITTED head (or a turnless game) must NOT be edited in place — that would corrupt a locked-in past
-  // (a checkpoint's frozen state, a past swipe). CLONE FORWARD onto a fresh narrator slot, born committed.
-  // The slot is a silent STATE ANCHOR: its EMPTY body is dropped from the assembled prompt (the shape-stage
-  // empty-row filter) and hidden by the client message list — so a hand edit never mints a blank "Group"
-  // bubble that also pollutes the prompt, while the slot stays ladder-visible so its snapshot resolves.
-  const posted = await ctx.postNarratorMessage(game.chatId, "");
+  // A COMMITTED head, a HAND-row head, or a turnless game must NOT be edited in place — that would corrupt a
+  // locked-in past (a checkpoint's frozen state, a past swipe). CLONE FORWARD as a new HAND ROW (D124): no
+  // message posted, no variant, ordered by the chat's tail slot. Nothing lands on the message plane at all.
   const snapshotId = ctx.ids.snapshot();
-  await insertSnapshot(ctx.db, {
-    id: snapshotId,
-    gameId: game.id,
-    messageId: posted.messageId,
-    variantId: posted.variantId,
-    ...toColumns(nextState),
-    fieldLocks: nextLocks,
-    committed: 1,
-    createdAt: ctx.now(),
-  });
+  await writeHandSnapshot(ctx.db, nextState, nextLocks, { id: snapshotId, gameId: game.id, chatId: game.chatId, now: ctx.now() });
   return { ok: true, snapshotId };
 }
 

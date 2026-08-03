@@ -1,7 +1,8 @@
 // domain/rpg/verbs/checkpoint/restore-checkpoint — restoreCheckpoint (rpg-design/05 §4.4). Clones the
-// checkpointed snapshot FORWARD, born committed, onto a FRESH narrator slot (the injected `postNarratorMessage`
-// mints the message+variant; W1a's `writeRestoredSnapshot` keys the clone to it). Host-gated, game-scoped (a
-// foreign game's checkpoint id → leak-free NOT-FOUND).
+// checkpointed snapshot FORWARD, born committed, as a HAND ROW (D124 fork 4: variant-keyed IFF turn flush —
+// a restore is not a turn). The visible "— scene restored —" notice is posted as REAL PROSE and is now purely
+// a notice: nothing is keyed to it, so swiping or deleting it can never orphan the restored state. Host-gated,
+// game-scoped (a foreign game's checkpoint id → leak-free NOT-FOUND).
 
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { RestoreCheckpointParams } from "../../contract/params";
@@ -24,16 +25,11 @@ export function createRestoreCheckpoint(ctx: RpgContext): Pick<RpgService, "rest
     if (base === undefined) {
       throw new DomainNotFoundError("snapshot", checkpoint.snapshotId);
     }
-    // Mint a fresh narrator slot; clone the checkpointed snapshot forward onto it, BORN COMMITTED.
-    const posted = await ctx.postNarratorMessage(game.chatId, RESTORE_MESSAGE);
+    // Post the visible notice FIRST so the restored hand row's as-of stamp lands on it (the state is "as of"
+    // the restore line the reader sees), then clone the checkpointed snapshot forward, BORN COMMITTED.
+    await ctx.postNarratorMessage(game.chatId, RESTORE_MESSAGE);
     const snapshotId = ctx.ids.snapshot();
-    await writeRestoredSnapshot(ctx.db, base, {
-      id: snapshotId,
-      gameId: game.id,
-      messageId: posted.messageId,
-      variantId: posted.variantId,
-      now: ctx.now(),
-    });
+    await writeRestoredSnapshot(ctx.db, base, { id: snapshotId, gameId: game.id, chatId: game.chatId, now: ctx.now() });
     // The restored snapshot is the new resolved-current head → the whole panel re-resolves (§4.9).
     ctx.emitBus({ type: "snapshotPatched", chatId: params.chatId, snapshotId });
   }

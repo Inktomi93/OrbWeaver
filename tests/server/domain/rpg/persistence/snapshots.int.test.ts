@@ -1,11 +1,14 @@
-// persistence/snapshots — the 4-rung resolution ladder + clone-forward + committed lifecycle (rpg-design/05
-// §2.4). .int: real libSQL, real FK enforcement over messages/message_variants/rpg_snapshots. The ladder is
-// the swipe-rewind mechanism's core — each rung is exercised in isolation and in fall-through order.
+// persistence/snapshots — the resolution ladder + clone-forward + committed lifecycle (rpg-design/05 §2.4)
+// AND the D124 TWO-ARM law: a snapshot is variant-keyed IFF a turn flush produced it; every other write is a
+// message-less HAND row ordered by `asOfMessageId`. .int: real libSQL, real FK + CHECK enforcement over
+// messages/message_variants/rpg_snapshots. The ladder is the swipe-rewind mechanism's core — each rung is
+// exercised in isolation, in fall-through order, and with the two arms INTERLEAVED (the case that did not
+// exist before D124 and is the whole risk surface of the reshape).
 
 import type { Db } from "@orb/db";
 import { messages, rpgSnapshots } from "@orb/db";
 import type { MessageVariantId } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { snapshotRowToState } from "../../../../../packages/server/src/domain/rpg/contract/service";
 import {
@@ -14,10 +17,12 @@ import {
   insertSnapshot,
   resolveSnapshotBeforeSlot,
   resolveSnapshotForTurn,
+  resolveTurnSnapshotPair,
+  writeHandSnapshot,
   writeStagedSnapshot,
 } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots";
 import { freshDb } from "../../../../support/db";
-import { addVariant, emptyState, expect, FROZEN_AT, seedChat, seedGame, seedMessage, snapshotId, target, test } from "../_support";
+import { addVariant, emptyState, expect, FROZEN_AT, handTarget, seedChat, seedGame, seedMessage, snapshotId, target, test } from "../_support";
 
 const CORRUPT_TABLE_RE = /rpg_snapshots/;
 const POOLS_MAX_RE = /pools|max/i;
@@ -280,5 +285,209 @@ describe("write-boundary structural backstop (stickler F1)", () => {
 
     const written = await writeStagedSnapshot(db, valid, target({ gameId, chatId, seq: 1, variantId, key: "ok" }));
     expect(written.ok ? written.row.actorState?.[0]?.volatile.trackerValues : undefined).toEqual({ mana: { value: 0, items: null, max: null } });
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// D124 — THE HAND ARM: message-less snapshots, and the interleaved ladder order
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// A hand write (the 7 hand doors, resync, populate, checkpoint restore) used to BUY its ladder position by
+// posting an empty-body assistant slot. Those rows were durable canon no reader saw, and they leaked onto
+// every plane that consumes messages. The hand row replaces them: no message, no variant, an `asOfMessageId`
+// order stamp. These tests pin the order the ladder now decides, in both walks.
+
+/** Write a hand row carrying a marker location; `now` drives the createdAt tie-break inside one as-of slot. */
+async function seedHandRow(opts: { gameId: string; chatId: string; key: string; location: string; now?: number }): Promise<void> {
+  await writeHandSnapshot(
+    db,
+    { ...emptyState(), location: opts.location },
+    null,
+    handTarget({ gameId: opts.gameId as never, chatId: opts.chatId as never, key: opts.key, now: opts.now ?? FROZEN_AT }),
+  );
+}
+
+describe("the hand arm — a snapshot with no message", () => {
+  test("a hand write posts NOTHING and stamps the chat's TAIL slot as its as-of position", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: beat.variantId, key: "s1", location: "the ford" });
+    const messagesBefore = await db.select().from(messages).where(eq(messages.chatId, chatId));
+
+    await seedHandRow({ gameId, chatId, key: "h1", location: "the hand-edited hall" });
+
+    // ZERO message rows minted (the whole point — the leaking row class is unspellable).
+    expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(messagesBefore.length);
+    const hand = (await db.select().from(rpgSnapshots).where(isNull(rpgSnapshots.variantId)))[0];
+    expect(hand?.messageId).toBeNull();
+    expect(hand?.variantId).toBeNull();
+    expect(hand?.asOfMessageId).toBe(beat.messageId);
+    expect(hand?.committed).toBe(1); // a hand write is the truth immediately
+  });
+
+  test("a hand row at the same as-of slot BEATS that slot's turn row (you edited on top of that beat)", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: beat.variantId, key: "s1", location: "the ford" });
+
+    await seedHandRow({ gameId, chatId, key: "h1", location: "the hall" });
+
+    expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.location).toBe("the hall");
+  });
+
+  test("a LATER turn row beats an older hand row (play moves on past a hand edit)", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const first = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: first.variantId, key: "s1", location: "the ford" });
+    await seedHandRow({ gameId, chatId, key: "h1", location: "the hall" });
+
+    const second = await seedMessage(db, chatId, 2, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 2, variantId: second.variantId, key: "s2", location: "the tower" });
+
+    expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.location).toBe("the tower");
+  });
+
+  test("an 8-WRITE BURST mints 8 hand rows, ZERO messages, and the head is the LAST", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: beat.variantId, key: "s1", location: "the ford" });
+
+    // The flagship demo's authored setup: N consecutive hand writes on a committed head. Pre-D124 this was
+    // N blank "Group" bubbles in the transcript and N `"mes":""` rows in every export.
+    for (let i = 0; i < 8; i++) {
+      // biome-ignore lint/performance/noAwaitInLoops: the burst MUST be sequential — each write clone-forwards off the previous head, which is the property under test.
+      await seedHandRow({ gameId, chatId, key: `burst_${i}`, location: `hand-${i}`, now: FROZEN_AT + i });
+    }
+
+    // THE EXPORT PROOF, stated at its source: `export-chat.ts::loadParsedMessages` is exactly this query
+    // (`select().from(messages).where(chatId)`) and maps `mes: selected.content`. One real beat in canon ⇒
+    // one row in both export formats and ZERO `"mes":""` rows named after the synthetic Group card — clean by
+    // construction, with no anchor predicate anywhere in the export path (there is nothing left to filter).
+    expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(1);
+    expect(await db.select().from(rpgSnapshots).where(isNull(rpgSnapshots.variantId))).toHaveLength(8);
+    expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.location).toBe("hand-7");
+  });
+
+  test("a TURNLESS hand write stamps a NULL as-of and orders before all history", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    await seedHandRow({ gameId, chatId, key: "h0", location: "the born hall" });
+
+    const head = await resolveSnapshotForTurn(db, { id: gameId, chatId });
+    expect(head?.asOfMessageId).toBeNull();
+    expect(head?.location).toBe("the born hall");
+
+    // The story then starts; the first real beat's turn row takes the head over the pre-history hand row.
+    const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: beat.variantId, key: "s1", location: "the ford" });
+    expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.location).toBe("the ford");
+  });
+
+  test("VER-1a: the write base for a reroll INCLUDES a hand edit made below the slot, EXCLUDES one made on it", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const first = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: first.variantId, key: "s1", location: "the ford" });
+    // The host hand-edits between beats — as-of slot 1, so it is strictly BELOW slot 2.
+    await seedHandRow({ gameId, chatId, key: "h_below", location: "the hand-fixed ford" });
+
+    const slot = await seedMessage(db, chatId, 2, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 2, variantId: slot.variantId, key: "s2", location: "the tower" });
+    // …and again AFTER slot 2 landed (as-of slot 2). That edit is downstream of the slot being rerolled and
+    // must NOT become its base, or the reroll re-applies its own consequences (the duplicate-beat class).
+    await seedHandRow({ gameId, chatId, key: "h_at", location: "the downstream hall" });
+
+    expect((await resolveSnapshotBeforeSlot(db, { id: gameId, chatId }, slot.messageId))?.location).toBe("the hand-fixed ford");
+  });
+
+  test("the delta PAIR walks one rung back through a hand-edit burst", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: beat.variantId, key: "s1", location: "the ford" });
+    await seedHandRow({ gameId, chatId, key: "h1", location: "hand-1", now: FROZEN_AT + 1 });
+    await seedHandRow({ gameId, chatId, key: "h2", location: "hand-2", now: FROZEN_AT + 2 });
+
+    // cur = the newest hand row; prev = the one immediately before it (NOT the turn row two rungs back).
+    const pair = await resolveTurnSnapshotPair(db, { id: gameId, chatId });
+    expect(pair.cur?.location).toBe("hand-2");
+    expect(pair.prev?.location).toBe("hand-1");
+  });
+
+  test("a hand row SURVIVES a swipe of the tail slot (today's semantics, pinned)", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const { messageId, variantId: variantA } = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: variantA, key: "sA", location: "take A" });
+    await seedHandRow({ gameId, chatId, key: "h1", location: "the host's correction" });
+
+    // The host swipes that slot to a fresh variant with its own snapshot. The hand row is not keyed to any
+    // variant, so it is not rewound — the host's between-turns correction is not a take.
+    const variantB = await addVariant(db, messageId, 1, "swipe B body");
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: variantB, key: "sB", location: "take B" });
+    await db.update(messages).set({ selectedVariantId: variantB }).where(eq(messages.id, messageId));
+
+    expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.location).toBe("the host's correction");
+  });
+
+  test("a FLOORED as-of (SET NULL) degrades the ORDER, never the state", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: beat.variantId, key: "s1", location: "the ford" });
+    await seedHandRow({ gameId, chatId, key: "h1", location: "the hall" });
+    expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.location).toBe("the hall");
+
+    // The as-of slot is deleted (a D106 floor collapse / a message delete). SET NULL, never CASCADE: the old
+    // anchor slot's CASCADE would have taken the STATE with it — the "never delete an anchor" footgun.
+    await db.delete(messages).where(eq(messages.id, beat.messageId));
+    const surviving = await db.select().from(rpgSnapshots).where(isNull(rpgSnapshots.variantId));
+    expect(surviving).toHaveLength(1);
+    expect(surviving[0]?.location).toBe("the hall");
+    expect(surviving[0]?.asOfMessageId).toBeNull(); // orders before all history — the baseline posture
+    expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.location).toBe("the hall");
+  });
+});
+
+describe("the two-arm CHECK", () => {
+  test("a half-shaped row (a message with no variant) is refused by the DB, not just by the writers", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await expect(insertSnapshot(db, { id: snapshotId("bad"), gameId, messageId: beat.messageId, variantId: null, createdAt: FROZEN_AT })).rejects.toThrow();
+  });
+
+  test("a TURN row carrying an as-of stamp is refused (a turn row IS its own position)", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await expect(
+      insertSnapshot(db, {
+        id: snapshotId("bad2"),
+        gameId,
+        messageId: beat.messageId,
+        variantId: beat.variantId,
+        asOfMessageId: beat.messageId,
+        createdAt: FROZEN_AT,
+      }),
+    ).rejects.toThrow();
+  });
+
+  test("the variant unique is PARTIAL — many hand rows coexist, one snapshot per variant still holds", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
+    await seedSnapshot({ gameId, chatId, seq: 1, variantId: beat.variantId, key: "s1", location: "the ford" });
+    await seedHandRow({ gameId, chatId, key: "h1", location: "a" });
+    await seedHandRow({ gameId, chatId, key: "h2", location: "b" });
+    expect(await db.select().from(rpgSnapshots).where(isNull(rpgSnapshots.variantId))).toHaveLength(2);
+
+    // The turn arm's UNIQUE is untouched: a second snapshot on the SAME variant is still refused.
+    await expect(
+      insertSnapshot(db, { id: snapshotId("dup"), gameId, messageId: beat.messageId, variantId: beat.variantId, createdAt: FROZEN_AT }),
+    ).rejects.toThrow();
   });
 });

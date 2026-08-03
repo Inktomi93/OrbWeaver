@@ -106,9 +106,6 @@ export type {
   UserMacroDraws,
 } from "./messages";
 export {
-  isStateAnchorSlot,
-  lastVisibleAssistant,
-  lastVisibleRow,
   messageSlotSchema,
   reattributeScopeSchema,
   standaloneVariableDeltaSchema,

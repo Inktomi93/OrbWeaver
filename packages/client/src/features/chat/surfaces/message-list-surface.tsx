@@ -6,7 +6,7 @@
 // founding character's greeting as a normal, editable `MessageRow` instead of an empty state.
 
 import type { CharacterAvatarEntry, ChatMacroNameProducer, ContextFitPreview, PersonaAvatarEntry } from "@orb/contracts/chat";
-import { buildCharacterAvatarMap, buildCharacterNameMap, buildPersonaAvatarMap, buildPersonaNameMap, lastVisibleAssistant } from "@orb/contracts/chat";
+import { buildCharacterAvatarMap, buildCharacterNameMap, buildPersonaAvatarMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
@@ -193,10 +193,10 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
     pinnedPromptIdRef.current = promptId;
     listHandleRef.current?.pinToIndex(idx);
   }, [pinMode, items]);
-  // Which row carries the swipe controls: the newest real GENERATION. An rpg state anchor (the empty-body
-  // snapshot key a host resync/hand-edit appends) is filtered out of the rendered list, so letting it answer
-  // this stripped the arrows off the last visible reply entirely.
-  const lastAssistantId = live ? undefined : lastVisibleAssistant(messages)?.id;
+  // Which row carries the swipe controls: the newest assistant row. Every one of them is a real GENERATION
+  // now — D124 retired the rpg state-anchor slot, an empty-body assistant row that was filtered out of the
+  // rendered list yet still answered this question, stripping the arrows off the last visible reply.
+  const lastAssistantId = live ? undefined : messages.findLast((row) => row.role === "assistant")?.id;
   // The transcript divider's PRESENT-TENSE source (PD-#7): previewContextFit runs the same fit the next real
   // turn would, so the line tracks preset/settings knob changes live (it's invalidated on canon-terminal bus
   // events + settings/preset changes via the central seam). Non-suspense so it never blocks the transcript;

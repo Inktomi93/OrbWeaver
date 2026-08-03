@@ -46,18 +46,22 @@ async function seedGame(): Promise<Seeded> {
 }
 
 describe("editSnapshot on a turnless game", () => {
-  test("mints a narrator slot + writes the first committed snapshot with an auto-lock", async () => {
+  test("writes the first committed snapshot as a message-less HAND row with an auto-lock — and posts NOTHING", async () => {
     const { chatId, game, service, fakes } = await seedGame();
     // No snapshot exists yet (no born seed).
     expect(await resolveSnapshotForTurn(db, { id: game.id, chatId })).toBeUndefined();
 
     await service.editSnapshot({ principal: principal("host"), chatId, patch: { location: "The Crypt" } });
 
-    // A narrator slot was minted (the turnless-game arm).
-    expect(fakes.narratorPosts).toHaveLength(1);
+    // D124: a hand write posts NO message at all — the row class that leaked onto every canon plane is gone.
+    expect(fakes.narratorPosts).toEqual([]);
     const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
     expect(snap?.location).toBe("The Crypt");
     expect(snap?.committed).toBe(1);
+    // The HAND arm: no message, no variant. Turnless ⇒ no as-of slot either (it orders before all history).
+    expect(snap?.messageId).toBeNull();
+    expect(snap?.variantId).toBeNull();
+    expect(snap?.asOfMessageId).toBeNull();
     // The touched field is auto-locked (manual-edit-wins).
     expect(snap?.fieldLocks?.["location"]).toBe(true);
   });
@@ -96,7 +100,7 @@ describe("editSnapshot on a turnless game", () => {
 
   // R1 — the `actorState` IMAGE left this door. The plane is op-shaped now, and the refusal has to NAME the
   // verb that owns it: a hand caller (a host at a keyboard, a console, a seed script) told only "no" just
-  // moves the guess. Nothing is written and no anchor slot is minted.
+  // moves the guess. Nothing is written and no snapshot row is minted.
   test("an `actorState` image is REFUSED as data, naming rpg.patchActor — no write, no slot, no bus event", async () => {
     const { chatId, game, service, fakes } = await seedGame();
     await service.editSnapshot({ principal: principal("host"), chatId, patch: { location: "The Crypt" } });

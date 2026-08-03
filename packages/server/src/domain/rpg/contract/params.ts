@@ -32,14 +32,28 @@ export interface SnapshotGameRef {
   readonly chatId: ChatId;
 }
 
-/** The forward-write target — the committed variant a staged/restored snapshot is keyed to (rpg-design/05
- *  §2.4). `now` is injected (no ambient clock in persistence). */
-export interface ForwardSnapshotTarget {
+/** What EVERY snapshot write carries regardless of arm: the minted id, the owning game, the injected clock
+ *  (no ambient clock in persistence). */
+interface SnapshotWriteBase {
   readonly id: RpgSnapshotId;
   readonly gameId: RpgGameId;
+  readonly now: number;
+}
+
+/** The TURN-arm write target (D124): the committed assistant slot + variant a turn FLUSH is keyed to
+ *  (rpg-design/05 §2.4). A snapshot is variant-keyed IFF it was produced by that variant's own turn flush —
+ *  this target is the only shape that can express it. */
+export interface TurnSnapshotTarget extends SnapshotWriteBase {
   readonly messageId: MessageId;
   readonly variantId: MessageVariantId;
-  readonly now: number;
+}
+
+/** The HAND-arm write target (D124): a MESSAGE-LESS snapshot — the 7 hand doors' clone-forward, resync,
+ *  populate, checkpoint restore. It names the CHAT, never a message: the row's `asOfMessageId` order stamp is
+ *  the chat's TAIL slot resolved INSIDE the write, so a caller can never hand in a stale tail (and no caller
+ *  can post a blank message to carry the row — the leak class is unspellable). */
+export interface HandSnapshotTarget extends SnapshotWriteBase {
+  readonly chatId: ChatId;
 }
 
 /** What the accumulator flushes for a completed turn: the effective composed state (base overlaid by every

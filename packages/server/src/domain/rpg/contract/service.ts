@@ -230,7 +230,7 @@ interface RpgPromoteToRosterInput {
 }
 
 /** The durable half's verdict. `ok:false` is DATA (a handle the owner's library cannot free), raised BEFORE
- *  the snapshot re-key so a refused promotion leaves neither a card, a seat, nor a state-anchor slot.
+ *  the snapshot re-key so a refused promotion leaves neither a card, a seat, nor a snapshot row.
  *  Non-exported: reachable only through `RpgPromoteToRoster`'s signature — no consumer names it (knip). */
 type RpgPromoteToRosterResult = { readonly ok: true; readonly characterId: CharacterId } | { readonly ok: false; readonly reason: string };
 
@@ -362,8 +362,8 @@ type RpgFoldTurnToolCalls = (input: RpgStateRoundInput & { readonly toolCalls: r
  *  verb resolves the host authority + reads the window (via the injected `resolveCanonWindow`) then hands the
  *  resolved inputs to THIS op; the op resolves the ROOM connection AS THE HOST (fresh, at the verb — the one
  *  sanctioned non-inherited rpg model call, because the consenting human initiates it) and drives ONE
- *  structured-output call. Returns the delta the verb applies through the normal staging → write tail onto a
- *  fresh state-anchor slot. A connection with no structured-output writer capability yields an EMPTY delta (the
+ *  structured-output call. Returns the delta the verb applies through the normal staging → write tail as a
+ *  fresh HAND row (D124). A connection with no structured-output writer capability yields an EMPTY delta (the
  *  resync is a no-op — never a corrupt write); the verb surfaces that as an unchanged state.
  *  Non-exported: reachable only through `RpgContext.runResyncExtraction`'s signature — no consumer names it (knip). */
 type RpgRunResyncExtraction = (input: RpgResyncInput) => Promise<RpgStateDelta>;
@@ -585,7 +585,9 @@ interface StateRoundPathInfo {
 interface FlushDropInfo {
   readonly chatId: ChatId;
   readonly gameId: RpgGameId;
-  readonly variantId: MessageVariantId;
+  /** The variant the refused state would have been keyed to — `null` on a HAND write (D124: a hand row has
+   *  no variant, so the drop names the game and the reason only). */
+  readonly variantId: MessageVariantId | null;
   /** The `rpgSnapshotStateSchema` parse failure — the field path(s) + reason the state was refused. */
   readonly reason: string;
 }
@@ -711,7 +713,7 @@ export interface RpgService {
    *  read of the canon): the verb resolves host authority FIRST (`resolveHost` — a member gets leak-free
    *  NOT_FOUND, a non-host member FORBIDDEN, so a member can NEVER trigger a host-principal model call), then
    *  resolves the room connection AS THE HOST and drives the rebuild with establish-EVERYTHING forcing. The delta
-   *  applies through the normal staging → write-boundary tail onto a fresh state-anchor slot; locks are honored
+   *  applies through the normal staging → write-boundary tail as a fresh HAND row (D124); locks are honored
    *  (a resync repairs the model plane, never the host's pins). A capability-absent connection / empty rebuild is
    *  a no-op (no write). Deception-active games stay surface-only by construction (the §1.6 registry clause — the
    *  tracker never carries hidden `<lie>`/`<ofilter>` truth). */

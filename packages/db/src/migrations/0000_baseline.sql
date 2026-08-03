@@ -887,8 +887,9 @@ CREATE INDEX `rpg_sheets_user_idx` ON `rpg_sheets` (`user_id`);--> statement-bre
 CREATE TABLE `rpg_snapshots` (
 	`id` text PRIMARY KEY NOT NULL,
 	`game_id` text NOT NULL,
-	`message_id` text NOT NULL,
-	`variant_id` text NOT NULL,
+	`message_id` text,
+	`variant_id` text,
+	`as_of_message_id` text,
 	`clock` text,
 	`calendar_date` text,
 	`location` text DEFAULT '' NOT NULL,
@@ -904,12 +905,15 @@ CREATE TABLE `rpg_snapshots` (
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`game_id`) REFERENCES `rpg_games`(`id`) ON UPDATE no action ON DELETE cascade,
 	FOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade,
-	FOREIGN KEY (`variant_id`) REFERENCES `message_variants`(`id`) ON UPDATE no action ON DELETE cascade
+	FOREIGN KEY (`variant_id`) REFERENCES `message_variants`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`as_of_message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE set null,
+	CONSTRAINT "rpg_snapshots_arm_check" CHECK((message_id is null) = (variant_id is null) and (message_id is null or as_of_message_id is null))
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `rpg_snapshots_variant_unique` ON `rpg_snapshots` (`variant_id`);--> statement-breakpoint
+CREATE UNIQUE INDEX `rpg_snapshots_variant_unique` ON `rpg_snapshots` (`variant_id`) WHERE variant_id is not null;--> statement-breakpoint
 CREATE INDEX `rpg_snapshots_game_idx` ON `rpg_snapshots` (`game_id`);--> statement-breakpoint
 CREATE INDEX `rpg_snapshots_message_idx` ON `rpg_snapshots` (`message_id`);--> statement-breakpoint
+CREATE INDEX `rpg_snapshots_as_of_message_idx` ON `rpg_snapshots` (`as_of_message_id`);--> statement-breakpoint
 CREATE TABLE `session_entries` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,
