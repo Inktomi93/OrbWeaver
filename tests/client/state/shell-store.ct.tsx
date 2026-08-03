@@ -62,9 +62,9 @@ test("openSettingsTo opens the settings modal AND targets the deep-link category
   await expect(state).toContainText("modal=none");
   await expect(state).toContainText("settingsTarget=none");
 
-  await probe.getByRole("button", { name: "open settings to tags" }).click();
+  await probe.getByRole("button", { name: "open settings to personas" }).click();
   await expect(state).toContainText("modal=settings");
-  await expect(state).toContainText("settingsTarget=tags");
+  await expect(state).toContainText("settingsTarget=personas");
 
   // closeModal clears BOTH the modal and the deep-link target (no stale category on reopen).
   await probe.getByRole("button", { name: "close modal" }).click();

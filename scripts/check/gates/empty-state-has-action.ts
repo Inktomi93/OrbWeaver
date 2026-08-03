@@ -24,6 +24,17 @@ const ALLOWLIST: Record<string, string> = {
     "the World Info CONTENT teaching state — the exact twin of preset-library-welcome.tsx above: the " +
     "sibling LIST (on screen whenever this is) carries both the band's New primary and its own empty-state " +
     "CTA, so a third create button in the middle of CONTENT was the third simultaneous home for one verb.",
+  "packages/client/src/features/config/components/config-context-body.tsx":
+    "the Configuration CONTEXT pane's two no-next-step arms: the no-selection state (the next step is picking a row in the " +
+    "sibling LIST, which is on screen whenever this is — the preset-section-inspector precedent) and a collection that " +
+    'declares `context: {kind:"none"}` ("Nothing to attach" — a tag applies wherever you put it; there is genuinely ' +
+    "nothing to manage here, and the copy is the COLLECTION's own, not a host generic).",
+  "packages/client/src/features/tag/surfaces/tag-member-surface.tsx":
+    "the GONE arm — the open tag was deleted on another device (the tag verbs are bus-driven, so the list refetches " +
+    "under the editor). The next step is picking another row in the sibling roster, which is on screen; the " +
+    "member-card-viewer NOT_FOUND precedent, same species.",
+  "packages/client/src/features/regex/surfaces/regex-member-surface.tsx": "the regex twin of the tag member editor's GONE arm above — same species, same reasoning.",
+  "packages/client/src/features/regex/components/regex-context-body.tsx": "the regex CONTEXT pane's GONE arm (the script was deleted while its context was open) — the member-editor twin above.",
   "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx":
     'the "Nothing left to add" state (every owned image is already in the gallery) has no next step — genuinely nothing to do.',
   "packages/client/src/features/chat/components/member-card-viewer.tsx":

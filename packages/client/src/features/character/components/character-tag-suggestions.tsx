@@ -24,10 +24,10 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
-import { openSettingsTo } from "#state";
+import { goToCollection } from "#state";
 import { useAcceptSuggestion, useRejectSuggestion, useSuggestCharacterTags } from "../hooks/use-tag-suggestion-mutations";
 
-const TAGS_SETTINGS_CATEGORY = "tags";
+const TAGS_COLLECTION = "tags";
 
 export interface CharacterTagSuggestionsProps {
   readonly characterId: CharacterId;
@@ -77,7 +77,7 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
         <Icon icon={Sparkles} size="sm" />
         {suggest.isPending ? "Suggesting…" : "Suggest tags"}
       </Button>
-      <Button type="button" size="sm" intent="ghost" onClick={(): void => openSettingsTo(TAGS_SETTINGS_CATEGORY)}>
+      <Button type="button" size="sm" intent="ghost" onClick={(): void => goToCollection(TAGS_COLLECTION)}>
         <Icon icon={Settings} size="sm" />
         Manage tags
       </Button>

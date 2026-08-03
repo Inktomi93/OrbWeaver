@@ -248,6 +248,12 @@ function writeFixtures(): void {
   // home-tile-registry-completeness: a `HomeTileContribution`-typed var in a file that is NOT a `*-tile`
   // def file — the co-location arm.
   fx("packages/client/src/features/__g_ghometile/lib/stray.ts", "export const strayTile: HomeTileContribution = { id: 'x', body: () => null };\n");
+  // collection-registry-completeness: a `CollectionContribution`-typed var in a file that is NOT a
+  // `*-collection` def file — the co-location arm.
+  fx(
+    "packages/client/src/features/__g_gcollection/lib/stray.ts",
+    "export const strayCollection: CollectionContribution = { id: 'x', create: { label: 'New x', useRun: () => () => undefined } };\n",
+  );
   // modal-body-not-placeholder: a `*-modal.tsx` def whose function body renders <SectionPlaceholder>.
   fx(
     "packages/client/src/features/__g_gmodalbody/lib/__g_gmodalbody-modal.tsx",
