@@ -198,6 +198,10 @@ function writeAllFixtures(): void {
   fx("packages/client/src/features/__dc_cfeat/uproute.ts", `import "../../routes/__dc_rt.ts";\n`);
   // client-nothing-imports-main: anything importing the composition root (the real main.tsx).
   fx("packages/client/src/routes/__dc_main.ts", `import "../main.tsx";\n`);
+  // client-composition-tier-door-only: the agent-nav/agent-seed dir modules are main.tsx's own glue —
+  // a FEATURE reaching one of them is the backdoor to another feature's front door (F-3).
+  fx("packages/client/src/agent-nav/__dc_t.ts", VAL);
+  fx("packages/client/src/features/__dc_cfeat/comptier.ts", `import "../../agent-nav/__dc_t.ts";\n`);
 
   // client-components-tier (G5): components/ never imports UP into features/routes/main.tsx.
   fx("packages/client/src/components/__dc_t/i.ts", VAL);

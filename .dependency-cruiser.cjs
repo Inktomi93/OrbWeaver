@@ -134,7 +134,7 @@ module.exports = {
     {
       name: "client-features-no-cross",
       comment:
-        "Client features stay independent: a module in features/<a>/ must not import another feature's internals at RUNTIME. Cross-feature reads go through trpc.* (the server is the only cross-feature channel — UI-Arch §11.0/§5.1); there is NO features/_shared drawer (dissolved — generics → @orb/ui, the form toolkit → forms/). TYPE-ONLY imports across features ARE allowed (a shape wired at the composition root).",
+        "Client features stay independent: a module in features/<a>/ must not import another feature's internals at RUNTIME. There is NO features/_shared drawer (dissolved — generics → @orb/ui, the form toolkit → forms/). TYPE-ONLY imports across features ARE allowed (a shape wired at the composition root). What replaces the import is CHANNEL-SPECIFIC — the blanket 'cross-feature reads → trpc.*' is WRONG for client-ephemeral state (there is no row to fetch): the eleven-row decision table is client-architecture-lockdown.md §12 (server-persisted entity → cache-first trpc; ephemeral pointer/selection → the #state commons; EXTENDING a host surface → a contributor registry assembled at the door).",
       severity: "error",
       from: { path: `${CLIENT}features/([^/]+)/` },
       to: {
@@ -305,6 +305,14 @@ module.exports = {
       severity: "error",
       from: { path: CLIENT, pathNot: `${CLIENT}main\\.tsx$` },
       to: { path: `${CLIENT}main\\.tsx$` },
+    },
+    {
+      name: "client-composition-tier-door-only",
+      comment:
+        "The composition-tier DIRECTORY MODULES (client/src/agent-nav/, client/src/agent-seed/) are main.tsx's OWN glue: dev-only bridge implementations that must compose feature FRONT DOORS plus #state module actions — a privilege no tier below the door has (the lib/ floor that homes agent-bridge.ts may not import #state/#features/#data, which is why the impls live here and not there). Only main.tsx imports them — the client-nothing-imports-main mirror. Without this wall a feature could reach another feature's front door THROUGH one of them (features/x → agent-nav → features/chat) with every individual hop passing client-feature-front-door AND client-features-no-cross. A sibling composition-tier module may compose another (they are all door glue); nothing else may. (client-architecture-lockdown.md §3/§7.)",
+      severity: "error",
+      from: { path: CLIENT, pathNot: [`${CLIENT}main\\.tsx$`, `${CLIENT}(agent-nav|agent-seed)/`] },
+      to: { path: `${CLIENT}(agent-nav|agent-seed)/` },
     },
     {
       name: "client-components-tier",
