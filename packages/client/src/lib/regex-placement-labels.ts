@@ -26,6 +26,10 @@ import { REGEX_PLACEMENTS } from "@orb/kit/regex";
 export const REGEX_PLACEMENT_LABELS: Record<RegexPlacement, string> = {
   ["USER_INPUT"]: "Your message",
   ["WORLD_INFO"]: "World info",
+  // The EPHEMERAL leg, named for the copy it rewrites. "Chat history" alone would have read as the
+  // transcript — the thing this leg is defined by NOT touching — so the label carries the destination:
+  // it rewrites the history ON ITS WAY to the model and the stored messages keep their own words.
+  ["PROMPT_HISTORY"]: "History sent to the model",
   ["REASONING"]: "Reasoning channel",
   ["AI_OUTPUT"]: "Model output",
   ["DISPLAY"]: "Rendered transcript",

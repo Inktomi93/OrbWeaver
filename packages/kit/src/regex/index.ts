@@ -13,10 +13,38 @@ import { processMacros } from "#macro";
  *  prompt-side legs. EVERY member has an execution leg (D121-E order table) — a placement the pipeline
  *  cannot run is a dead switch (D107), which is why ST's `SLASH_COMMAND` is NOT here: orbweaver has no
  *  server slash pipeline (the client palette is a command launcher, never a text leg). A card carrying it
- *  accepts-and-drops the value at the contracts lift seam. */
-export const REGEX_PLACEMENTS = ["USER_INPUT", "AI_OUTPUT", "WORLD_INFO", "REASONING", "DISPLAY"] as const;
+ *  accepts-and-drops the value at the contracts lift seam.
+ *
+ *  `PROMPT_HISTORY` IS THE EPHEMERAL LEG, and it is the only one that transforms text WITHOUT that text
+ *  ever being persisted: every other prompt-side placement runs at PERSIST time (`USER_INPUT` on the
+ *  composer draft before the row is written, `AI_OUTPUT`/`REASONING` on the reply before it is committed),
+ *  so what they produce IS canon. `PROMPT_HISTORY` runs at prompt-BUILD time over the already-assembled
+ *  history, so it rewrites the copy the model reads and leaves the stored row byte-identical — ST's
+ *  "strip it from the prompt, keep it in the log". It is also the ONLY placement `historyDepth` can scope
+ *  ({@link RegexScriptInput.historyDepth}): depth is a position in the assembled history, which no
+ *  persist-time leg possesses. */
+export const REGEX_PLACEMENTS = ["USER_INPUT", "AI_OUTPUT", "WORLD_INFO", "PROMPT_HISTORY", "REASONING", "DISPLAY"] as const;
 
 export type RegexPlacement = (typeof REGEX_PLACEMENTS)[number];
+
+/** The one placement `historyDepth` scopes — named once so the executor, the contracts check and the
+ *  client's derive boundary all cite the same member rather than three string literals. */
+export const HISTORY_DEPTH_PLACEMENT = "PROMPT_HISTORY" satisfies RegexPlacement;
+
+/** How deep in the assembled history a `PROMPT_HISTORY` script applies. DEPTH 0 IS THE NEWEST MESSAGE and
+ *  counts BACKWARDS (ST `script.js:4478` — `depth = coreChat.length - index - 1`), so `{min: 0, max: 0}`
+ *  means "the latest message only" and `{min: 3, max: null}` means "everything older than the last three".
+ *
+ *  The gate is ST's, minus its dead arms: it skips when `depth < minDepth` or `depth > maxDepth`
+ *  (`extensions/regex/engine.js:361-372`). ST's sentinel values (`null`/`NaN`/`minDepth < -1` = "no
+ *  bound") collapse here into a floor of 0 and an explicit `max: null`, so there is exactly ONE spelling
+ *  of "unbounded" instead of four. */
+export interface RegexHistoryDepth {
+  /** Inclusive floor — the script skips any message NEWER than this depth. `0` ⇒ no floor. */
+  readonly min: number;
+  /** Inclusive ceiling — the script skips any message OLDER than this depth. `null` ⇒ no ceiling. */
+  readonly max: number | null;
+}
 
 /** Whether (and how) macros run on the FIND pattern before it is compiled: `none` = verbatim; `raw` =
  *  macros substituted as-is; `escaped` = substituted output regex-escaped (so `a.b` matches literally).
@@ -52,6 +80,19 @@ export interface RegexScriptInput {
   readonly promptOnly?: boolean | undefined;
   /** Substrings stripped from each spliced capture before it is inserted (macros run on each). */
   readonly trimStrings?: readonly string[] | undefined;
+  /** History-position scoping for the `PROMPT_HISTORY` leg ({@link RegexHistoryDepth}). Absent ⇒ the whole
+   *  assembled history. Meaningful ONLY on that leg — the contracts schema refuses it beside any other
+   *  placement set, and a caller that supplies no `depth` (every persist-time leg) ignores it. */
+  readonly historyDepth?: RegexHistoryDepth | undefined;
+}
+
+/** Whether a script's depth scope admits a message at `depth`. Unscoped scripts and depth-less legs both
+ *  pass — the gate can only ever SUBTRACT from what `placement` already selected. */
+function withinHistoryDepth(scope: RegexHistoryDepth | undefined, depth: number | undefined): boolean {
+  if (scope === undefined || depth === undefined) {
+    return true;
+  }
+  return depth >= scope.min && (scope.max === null || depth <= scope.max);
 }
 
 // ReDoS pre-compile heuristic (defense-in-depth, not a guarantee): counts quantifier-stack
@@ -239,13 +280,36 @@ export interface ExecuteRegexScriptsArgs extends RegexExecuteOptions {
   placement: RegexPlacement;
   /** Macro context for the find/replace template passes (the same shape `processMacros` consumes). */
   ctx: ProcessMacroOptions;
+  /** The running text's position in the assembled history — 0 = newest, counting backwards. Supplied ONLY
+   *  by the `PROMPT_HISTORY` leg (which runs once per history row); absent everywhere else, which is what
+   *  makes `historyDepth` inert on every persist-time leg rather than silently half-applied. */
+  depth?: number | undefined;
+}
+
+/** EVERY reason a script sits out this call, in one place and in gate order: switched off · not on this
+ *  leg · the two tier masks (`markdownOnly` is display-only, `promptOnly` skips DISPLAY) · out of depth
+ *  scope. Extracted from the loop so the gates read as one list rather than five interleaved `continue`s —
+ *  they are a single decision, and each new gate would otherwise deepen the executor by one branch. */
+function skipsScript(script: RegexScriptInput, placement: RegexPlacement, depth: number | undefined): boolean {
+  if (!(script.enabled && script.placement.includes(placement))) {
+    return true;
+  }
+  if (script.markdownOnly === true && placement !== "DISPLAY") {
+    return true;
+  }
+  if (script.promptOnly === true && placement === "DISPLAY") {
+    return true;
+  }
+  // Depth scoping (`PROMPT_HISTORY` only — the caller supplies `depth` there and nowhere else).
+  return !withinHistoryDepth(script.historyDepth, depth);
 }
 
 /**
- * Apply every enabled script whose `placement` includes the given placement, in order. Returns the
- * processed text. A script that throws (bad regex, too complex, or a timeout from a sandboxed
- * `applyReplace`) is caught + reported via `onScriptFailure` so one bad regex can't poison the whole
- * list; the next script runs on the text as-is.
+ * Apply every enabled script whose `placement` includes the given placement — and, when the caller
+ * supplies `depth`, whose `historyDepth` admits that position — in order. Returns the processed text. A
+ * script that throws (bad regex, too complex, or a timeout from a sandboxed `applyReplace`) is caught +
+ * reported via `onScriptFailure` so one bad regex can't poison the whole list; the next script runs on the
+ * text as-is.
  */
 export function executeRegexScripts(args: ExecuteRegexScriptsArgs): string {
   const { scripts, placement, ctx } = args;
@@ -254,17 +318,7 @@ export function executeRegexScripts(args: ExecuteRegexScriptsArgs): string {
   let result = args.text;
 
   for (const script of scripts) {
-    if (!script.enabled) {
-      continue;
-    }
-    if (!script.placement.includes(placement)) {
-      continue;
-    }
-    // markdownOnly is display-only (skip non-DISPLAY); promptOnly skips DISPLAY.
-    if (script.markdownOnly === true && placement !== "DISPLAY") {
-      continue;
-    }
-    if (script.promptOnly === true && placement === "DISPLAY") {
+    if (skipsScript(script, placement, args.depth)) {
       continue;
     }
 

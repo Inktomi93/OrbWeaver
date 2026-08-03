@@ -50,6 +50,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
+import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context";
 import { ChatNotFoundError } from "../contract/errors";
 import type { ForeignInputs, ResolveForeignInputsOp } from "../contract/foreign";
@@ -77,6 +78,7 @@ import type {
   ReplayStreamEventsParams,
   StreamEventBoundsParams,
 } from "../contract/params";
+import type { PromptHistoryRegexEnv } from "../contract/regex";
 import type { HistoryBudgetInput, HistoryMacroNames } from "../contract/results";
 import type { ChatService } from "../contract/service";
 import type {
@@ -123,6 +125,7 @@ import {
   buildPrompt,
   buildPromptWithSlices,
   buildShapeTrace,
+  buildTurnMacroContext,
   buildTurnUserMacros,
   fitHistory,
   loadCharacterCardLore,
@@ -780,6 +783,28 @@ function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["
  *  `getShapeTrace` and `previewContextFit` share (no user input, no group nudge, primary speaker / merged):
  *  the same `toShapeCanon` → `shapeTurn` the pipeline runs, minus the per-speaker round machinery. Returns
  *  the loaded canon beside the shaped result (the fit's boundary resolution needs both). */
+/** The EPHEMERAL `PROMPT_HISTORY` leg's env for a PREVIEW build — the same seams a real turn supplies
+ *  (`engine/pipeline::promptHistoryEnv`), so what the host reads in `previewAssembly`/`getShapeTrace`/
+ *  `previewContextFit` is what the wire would carry. A preview that skipped the leg would show the host a
+ *  history the model will never see, which is precisely the lie these reads exist to prevent. `null` when
+ *  the host tier resolved no scripts (byte-identical, zero cost). */
+function previewPromptHistoryEnv(ctx: ChatContext, assembleContext: AssembleContext, inputs: PreviewInputs): PromptHistoryRegexEnv | null {
+  const scripts = assembleContext.hostTierRegexScripts ?? [];
+  if (scripts.length === 0) {
+    return null;
+  }
+  return {
+    scripts,
+    macroCtx: buildTurnMacroContext({ assembleCtx: assembleContext, model: inputs.model, chatId: inputs.chatId }),
+    applyReplace: ctx.applyRegexReplace,
+    onScriptFailure: (err, script) =>
+      getLog().warn(
+        { err, placement: "PROMPT_HISTORY", findRegex: script.findRegex },
+        "chat: prompt-history regex script failed in a preview build (D53 watchdog)",
+      ),
+  };
+}
+
 async function shapeNextTurn(
   ctx: ChatContext,
   args: {
@@ -801,7 +826,7 @@ async function shapeNextTurn(
   const inChatInjections: ChatInjection[] = [...(assembleContext.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];
   const turns = inputs.capability?.turns;
   const shaped = shapeTurn({
-    canon: assembled.sendHistory ? toShapeCanon(canon, assembleContext, historyMacroNames) : [],
+    canon: assembled.sendHistory ? toShapeCanon(canon, assembleContext, historyMacroNames, previewPromptHistoryEnv(ctx, assembleContext, inputs)) : [],
     appendUserTurn: null,
     injections: inChatInjections,
     output: "per-speaker",

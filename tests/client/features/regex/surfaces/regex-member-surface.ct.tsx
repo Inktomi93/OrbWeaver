@@ -74,6 +74,48 @@ test("editing a field autosaves through updateScript with the tier flags DERIVED
   expect({ markdownOnly: input.input.markdownOnly, promptOnly: input.input.promptOnly }).toEqual(deriveRegexTierFlags(["AI_OUTPUT"]));
 });
 
+// ── THE EPHEMERAL LEG'S DEPTH SCOPE ─────────────────────────────────────────────────────────────────────
+// `historyDepth` exists IFF the script runs on `PROMPT_HISTORY` — the contract refuses either half alone.
+// The editor keeps that true on SCREEN: the two bounds are mounted by the chip and unmounted with it, so
+// there is no state in which a user can set a depth that governs nothing. These pin both directions plus
+// the save the derivation writes.
+
+const HISTORY_CHIP = "History sent to the model";
+const DEPTH_FROM = "From (messages back)";
+const DEPTH_TO = "To (messages back)";
+
+/** The `historyDepth` the last autosave carried (undefined = the key was absent, which is the point). */
+function savedDepth(trpc: TrpcRecorder): unknown {
+  const call = trpc.lastInput("regex.updateScript") as { readonly input?: Record<string, unknown> } | undefined;
+  return call?.input?.["historyDepth"];
+}
+
+test("the depth bounds do not exist until the script runs on the history leg", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  const editor = await mount(<RegexMemberStory />);
+  // The fixture runs on AI_OUTPUT only: a persist-time leg, which HAS no depth.
+  await expect(editor.getByRole("textbox", { name: DEPTH_FROM })).toHaveCount(0);
+  await expect(editor.getByRole("textbox", { name: DEPTH_TO })).toHaveCount(0);
+
+  await editor.getByRole("button", { name: HISTORY_CHIP }).click();
+  await expect(editor.getByRole("textbox", { name: DEPTH_FROM })).toBeVisible();
+  await expect(editor.getByRole("textbox", { name: DEPTH_TO })).toBeVisible();
+  // Adding the leg mints the whole-history scope at the one save boundary.
+  await expect.poll(() => savedDepth(trpc), { intervals: [50, 100, 250, 500], timeout: 5000 }).toEqual({ min: 0, max: null });
+});
+
+test("a narrowed bound rides the save; dropping the chip drops the controls AND the stored scope", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  const editor = await mount(<RegexMemberStory />);
+  await editor.getByRole("button", { name: HISTORY_CHIP }).click();
+  await editor.getByRole("textbox", { name: DEPTH_FROM }).fill("3");
+  await expect.poll(() => savedDepth(trpc), { intervals: [50, 100, 250, 500], timeout: 5000 }).toEqual({ min: 3, max: null });
+
+  await editor.getByRole("button", { name: HISTORY_CHIP }).click();
+  await expect(editor.getByRole("textbox", { name: DEPTH_FROM })).toHaveCount(0);
+  await expect.poll(() => savedDepth(trpc), { intervals: [50, 100, 250, 500], timeout: 5000 }).toBeUndefined();
+});
+
 test("delete confirms, then fires removeScript", async ({ mount, page }) => {
   const trpc = await stub(page);
   const editor = await mount(<RegexMemberStory />);

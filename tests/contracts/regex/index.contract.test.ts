@@ -1,8 +1,8 @@
 import type { RegexScriptCard, RegexScriptRow } from "@orb/contracts/regex";
-import { regexScriptCardSchema, regexScriptSchema, toRegexScriptCardWire } from "@orb/contracts/regex";
+import { regexScriptBehaviorSchema, regexScriptCardSchema, regexScriptSchema, toRegexScriptCardWire, updateRegexScriptSchema } from "@orb/contracts/regex";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RegexScriptInput } from "@orb/kit/regex";
-import { MAX_FIND_REGEX_LENGTH, REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
+import { HISTORY_DEPTH_PLACEMENT, MAX_FIND_REGEX_LENGTH, REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
 import { expect, test } from "../../support/fixtures";
 
 const ROW_ID = mintTypeId(ID_PREFIX.regexScript);
@@ -113,6 +113,48 @@ test("the emitted card wire carries BOTH keys, agreeing with each other", () => 
 
 test("the CARD wire keeps a foreign client-minted id where the ROW demands a TypeID", () => {
   expect(regexScriptCardSchema.safeParse({ ...FULL_ROW, id: "1a2b3c-not-a-typeid" }).success).toBe(true);
+});
+
+// ── The DEPTH-SCOPE PAIRING (the `PROMPT_HISTORY` leg) ──────────────────────────────────────────────────
+// `placement` is a SET, so no discriminated union can say "these fields exist only on this placement". The
+// contract says it as a TOTAL, TWO-DIRECTIONAL check instead: a depth scope without the leg is a knob that
+// governs nothing (D107), and the leg without a scope leaves "the whole history" spelled by ABSENCE.
+
+const HISTORY_ROW: RegexScriptRow = {
+  ...FULL_ROW,
+  placement: [HISTORY_DEPTH_PLACEMENT],
+  historyDepth: { min: 0, max: null },
+};
+
+test("a PROMPT_HISTORY script carries its depth scope, and round-trips it", () => {
+  expect(regexScriptSchema.parse(HISTORY_ROW)).toEqual(HISTORY_ROW);
+  expect(regexScriptSchema.parse({ ...HISTORY_ROW, historyDepth: { min: 2, max: 8 } }).historyDepth).toEqual({ min: 2, max: 8 });
+  // The scope survives beside other legs — a script may run on send AND on the assembled history.
+  expect(regexScriptSchema.safeParse({ ...HISTORY_ROW, placement: ["USER_INPUT", HISTORY_DEPTH_PLACEMENT] }).success).toBe(true);
+});
+
+test("a depth scope on a leg that cannot execute it is REFUSED", () => {
+  expect(regexScriptSchema.safeParse({ ...FULL_ROW, historyDepth: { min: 0, max: null } }).success).toBe(false);
+  expect(regexScriptSchema.safeParse({ ...FULL_ROW, placement: ["USER_INPUT", "AI_OUTPUT"], historyDepth: { min: 3, max: null } }).success).toBe(false);
+});
+
+test("the depth-scoped leg WITHOUT a scope is equally refused — 'everything' is written, never omitted", () => {
+  const { historyDepth: _dropped, ...noScope } = HISTORY_ROW;
+  expect(regexScriptSchema.safeParse(noScope).success).toBe(false);
+});
+
+test("the scope's own bounds are checked: a ceiling shallower than the floor is refused, and the defaults are the whole history", () => {
+  expect(regexScriptSchema.safeParse({ ...HISTORY_ROW, historyDepth: { min: 5, max: 2 } }).success).toBe(false);
+  expect(regexScriptSchema.safeParse({ ...HISTORY_ROW, historyDepth: { min: -1, max: null } }).success).toBe(false);
+  expect(regexScriptSchema.parse({ ...HISTORY_ROW, historyDepth: {} }).historyDepth).toEqual({ min: 0, max: null });
+});
+
+test("the depth scope is patchable through the update wire, and the PAIRING is checked on the MERGED body", () => {
+  // A patch is not a behavior — it may legitimately name `historyDepth` alone (the placement is unchanged
+  // and lives on the stored row), so the wire schema accepts it and `updateScript` re-parses the merge.
+  expect(updateRegexScriptSchema.safeParse({ historyDepth: { min: 1, max: 4 } }).success).toBe(true);
+  const merged = { findRegex: "a", replaceString: "b", placement: ["USER_INPUT"], historyDepth: { min: 1, max: 4 } };
+  expect(regexScriptBehaviorSchema.safeParse(merged).success).toBe(false);
 });
 
 // ── The kit↔contracts satisfies-seam (Legacy-Migration-and-Gaps.md §6) ───────────────

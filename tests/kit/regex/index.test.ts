@@ -1,6 +1,6 @@
 import type { ProcessMacroOptions } from "@orb/kit/macro";
 import type { RegexScriptInput } from "@orb/kit/regex";
-import { executeRegexScripts, MAX_FIND_REGEX_LENGTH, REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
+import { executeRegexScripts, HISTORY_DEPTH_PLACEMENT, MAX_FIND_REGEX_LENGTH, REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
 import { vi } from "vitest";
 import { expect, test } from "../../support/fixtures";
 
@@ -258,4 +258,61 @@ test("the applyReplace seam is used in place of native replace", () => {
 test("REGEX_PLACEMENTS is the canonical placement set", () => {
   expect(REGEX_PLACEMENTS).toContain("DISPLAY");
   expect(REGEX_PLACEMENTS).toContain("AI_OUTPUT");
+  // The ephemeral prompt-build leg — the only placement `historyDepth` can scope.
+  expect(REGEX_PLACEMENTS).toContain(HISTORY_DEPTH_PLACEMENT);
+});
+
+// ── The DEPTH GATE (`PROMPT_HISTORY` only) ───────────────────────────────────────────────────────────
+// Semantics read off the ST source (`public/scripts/extensions/regex/engine.js:361-372` for the gate,
+// `public/script.js:4478` for the frame — `depth = coreChat.length - index - 1`, so DEPTH 0 IS THE NEWEST
+// MESSAGE and counts backwards). These pin the gate as SUBTRACTIVE: it can only ever remove a script from a
+// leg `placement` already selected, and it is inert wherever the caller supplies no depth.
+
+const historyScript = (historyDepth: RegexScriptInput["historyDepth"]): RegexScriptInput =>
+  script({ placement: [HISTORY_DEPTH_PLACEMENT], findRegex: "secret", replaceString: "[redacted]", ...(historyDepth === undefined ? {} : { historyDepth }) });
+
+function atDepth(depth: number, historyDepth: RegexScriptInput["historyDepth"]): string {
+  return executeRegexScripts({
+    text: "a secret",
+    scripts: [historyScript(historyDepth)],
+    placement: HISTORY_DEPTH_PLACEMENT,
+    depth,
+    ctx: macroOpts(),
+  });
+}
+
+test("depth 0 is the NEWEST message: a {min:0,max:0} scope bites there and nowhere else (ST engine.js:361-372)", () => {
+  expect(atDepth(0, { min: 0, max: 0 })).toBe("a [redacted]");
+  expect(atDepth(1, { min: 0, max: 0 })).toBe("a secret");
+  expect(atDepth(9, { min: 0, max: 0 })).toBe("a secret");
+});
+
+test("a floor skips everything NEWER than it; a null ceiling reaches the whole history", () => {
+  expect(atDepth(2, { min: 3, max: null })).toBe("a secret");
+  expect(atDepth(3, { min: 3, max: null })).toBe("a [redacted]");
+  expect(atDepth(300, { min: 3, max: null })).toBe("a [redacted]");
+});
+
+test("an absent scope reaches every depth, and a scope is inert on a leg that supplies no depth", () => {
+  expect(atDepth(0, undefined)).toBe("a [redacted]");
+  expect(atDepth(7, undefined)).toBe("a [redacted]");
+  // No `depth` argument: every persist-time leg. The gate cannot half-apply — it simply does not run.
+  const out = executeRegexScripts({
+    text: "a secret",
+    scripts: [{ ...historyScript({ min: 5, max: 5 }), placement: ["AI_OUTPUT", HISTORY_DEPTH_PLACEMENT] }],
+    placement: "AI_OUTPUT",
+    ctx: macroOpts(),
+  });
+  expect(out).toBe("a [redacted]");
+});
+
+test("the depth gate only SUBTRACTS — it can never run a script the placement set excluded", () => {
+  const out = executeRegexScripts({
+    text: "a secret",
+    scripts: [{ ...historyScript({ min: 0, max: null }), placement: ["USER_INPUT"] }],
+    placement: HISTORY_DEPTH_PLACEMENT,
+    depth: 0,
+    ctx: macroOpts(),
+  });
+  expect(out).toBe("a secret");
 });
