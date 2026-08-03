@@ -177,6 +177,36 @@ export type RegexPickerScope =
   | { readonly kind: "preset"; readonly presetId: PresetId }
   | { readonly kind: "chat"; readonly chatId: ChatId };
 
+// ── The REVERSE rosters ("who attaches this script") ──────────────────────────────────────────────────
+// The forward reads (`listForPreset`/`listForCharacter`/`listForChat`) answer "what does THIS carrier
+// attach". The library's context pane asks the OTHER direction — "where does this script already run" — and
+// no amount of layout can derive that from the forward lists without an N-query fan-out over every preset
+// and character the owner has. `listScriptUsage` is that read.
+//
+// NAMES, NOT COUNTS — the difference from the `BookWithUsage`/`TagWithUsage` rollups one domain over. Those
+// answer "attached ×3" for EVERY owned row (a library-list decoration); this answers "which three" for ONE
+// row (a context-pane roster). "Attached by presets · 2" over two names is a statement a reader can act on;
+// "2" alone sends them opening presets until they find it.
+
+/** One carrier that attaches a script, as the roster prints it: the id it is keyed by and the name it shows.
+ *  Generic in the id so each scope's array keeps its own brand — a `PresetId` can never land in the
+ *  characters roster (the `VersionedConfigDef<T>` precedent for a one-shape/many-instantiations contract). */
+export interface RegexAttachmentRef<TId extends PresetId | CharacterId | ChatId> {
+  readonly id: TId;
+  readonly name: string;
+}
+
+/** Where one script already runs, read from the SCRIPT's side — the three roster scopes, each in name order.
+ *  GLOBAL is absent on purpose: it is a property of the script itself (`global_regex_scripts` PKs on the
+ *  script id), so the context pane reads it off `listGlobal` and renders it as a switch, not a roster.
+ *  ROOMS are membership-scoped (D18 — chats carry no ownerId): a room the caller cannot see is not listed,
+ *  even when the script it attaches is the caller's own. */
+export interface RegexScriptUsage {
+  readonly presets: readonly RegexAttachmentRef<PresetId>[];
+  readonly characters: readonly RegexAttachmentRef<CharacterId>[];
+  readonly rooms: readonly RegexAttachmentRef<ChatId>[];
+}
+
 /** The PORTABLE file shape — one script per `regex/*.json` in a backup bundle. `global` is the only
  *  attachment carried: it is a property of the script itself (the `global_regex_scripts` PK-is-the-script
  *  junction), where character/preset/chat attachments point at rows the bundle does not guarantee. */
