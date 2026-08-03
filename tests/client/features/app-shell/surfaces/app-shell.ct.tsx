@@ -29,6 +29,21 @@ const FOCUS_TOGGLE_RE = /focus mode$/u;
 // Below the shell's `@media (max-width: 48rem)` breakpoint (768px) — the bottom-bar layout (L6/J12).
 const MOBILE = { width: 390, height: 844 };
 
+/** The one persona the You-sheet lens projects — it must exist for the roster to have a CURRENT row, which
+ *  is where "Playing as" lives (side-eye 2026-08-03 P2). Shaped as `persona.list` returns it. */
+const SHEET_PERSONA = {
+  id: "persona_ct_you",
+  name: "Nova",
+  title: null,
+  description: "",
+  starred: false,
+  avatarAssetId: null,
+  avatarHash: null,
+  metadata: null,
+  createdAt: 1,
+  updatedAt: 1,
+};
+
 test("default renders the chats content pane inside the frame", async ({ mount }) => {
   const shell = await mount(<AppShellStory />);
   await expect(shell.getByText("chats content pane")).toBeVisible();
@@ -329,9 +344,18 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
   await page.setViewportSize(MOBILE);
   // The sheet PROJECTS the persona identity widget's `body("sheet")` lens (§E-5) — stub its two reads so
   // the mobile persona switcher (Playing-as + Account strip) renders, closing the §B ruling-1 gap.
+  // The list is NON-EMPTY on purpose: since the side-eye 2026-08-03 P2 ruling there is ONE home for the
+  // playing-as identity and it is the CURRENT persona's ROW (persona-panel-row.tsx) — the band above the
+  // roster no longer says it. An empty roster therefore renders the "No personas yet" empty state and the
+  // words never appear, which is what an unswept `persona.list: []` stub was asserting against.
   await routeTrpc(page, {
-    "persona.list": () => [],
-    "settings.getUserSettings": () => ({ userId: "user_ct_you", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    "persona.list": () => [SHEET_PERSONA],
+    "settings.getUserSettings": () => ({
+      userId: "user_ct_you",
+      schemaVersion: 1,
+      config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, currentPersonaId: SHEET_PERSONA.id } },
+      updatedAt: 0,
+    }),
   });
   const shell = await mount(<AppShellStory />);
   await shell.getByRole("button", { name: "You", exact: true }).click();
@@ -342,12 +366,18 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Switch theme" })).toBeVisible();
   await expect(page.getByText("Playing as")).toBeVisible();
+  // …and it is the CURRENT persona's row that says it (the row is the identity's ONE home, P2).
+  await expect(page.getByRole("button", { name: `Switch to ${SHEET_PERSONA.name}` })).toHaveAttribute("aria-current", "true");
   await expect(page.getByRole("button", { name: "Account" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Refinery" })).toBeVisible();
+  // The sheet's own container is RENDERED (the close assertion below is then about a real disappearance).
+  await expect(page.getByRole("dialog")).toBeVisible();
 
   // Tapping an overflow section switches the active section AND closes the sheet (setActiveSection +
   // closeModal), landing on that section's distinct placeholder copy.
   await page.getByRole("button", { name: "Analytics" }).click();
+  // GONE, not merely restyled: the sheet container leaves the tree and its rows go with it.
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Settings" })).toHaveCount(0);
   await expect(page.getByText("Charts over your corpus land here", { exact: false })).toBeVisible();
 });
