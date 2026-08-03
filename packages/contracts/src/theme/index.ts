@@ -20,18 +20,26 @@ export type {
 } from "./materialize";
 export { BACKGROUND_MATERIALIZE_FAILURES, backgroundMaterializeMessage } from "./materialize";
 export type {
+  CardEmbeddableTheme,
+  CardEmbeddableThemeKey,
   ThemeChatStyle,
   ThemeDensity,
   ThemeFont,
+  ThemeKeyReach,
   ThemeOverride,
   ThemeRadius,
+  ViewerSacredThemeKey,
 } from "./override";
 export {
+  CARD_EMBEDDABLE_THEME_KEYS,
+  cardEmbeddableSubset,
   THEME_CHAT_STYLES,
   THEME_DENSITIES,
   THEME_FONT_ALLOWLIST,
+  THEME_KEY_REACHES,
   THEME_RADII,
   themeOverrideSchema,
+  VIEWER_SACRED_THEME_KEYS,
 } from "./override";
 export type { SeededBackground } from "./seeded-backgrounds";
 export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "./seeded-backgrounds";
@@ -62,3 +70,16 @@ export type CreateThemeInput = z.infer<typeof createThemeInputSchema>;
 
 export const updateThemeInputSchema = createThemeInputSchema.partial();
 export type UpdateThemeInput = z.infer<typeof updateThemeInputSchema>;
+
+/** PROMOTE a character card's authored look into the picker library (TD door 1). Values are COPIED, never
+ *  referenced: the card's override IS values (no FK to `themes` exists), the roster wire threads those
+ *  values to every member, and a ref would dangle when the theme is deleted. The verb projects the payload
+ *  through `cardEmbeddableSubset` (a promoted theme must not smuggle a viewer-force the card itself could
+ *  not exert) and DE-COLLIDES the name at the mint — this door supplies a default the user never typed
+ *  (the character's name), so "Aria 2" is the honest outcome where `createTheme`'s explicit-name editor
+ *  path correctly throws a typed conflict instead. No `css`: cards have no CSS tier. */
+export const promoteThemeInputSchema = z.object({
+  name: z.string().trim().min(1).max(THEME_NAME_MAX),
+  override: themeOverrideSchema,
+});
+export type PromoteThemeInput = z.infer<typeof promoteThemeInputSchema>;

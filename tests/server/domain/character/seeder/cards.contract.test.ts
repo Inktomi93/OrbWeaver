@@ -7,12 +7,32 @@
 // seeded background slug EXISTS in the one seeded-background catalog (the card ↔ catalog coupling).
 
 import { createCharacterSchema } from "@orb/contracts/character";
-import { listSeededBackgrounds, themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
+import { CARD_EMBEDDABLE_THEME_KEYS, listSeededBackgrounds, themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
 import { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
 
 const CATALOG_IDS = new Set(listSeededBackgrounds().map((b) => b.id));
+const EMBEDDABLE = new Set<string>(CARD_EMBEDDABLE_THEME_KEYS);
+
+// Every palette field a card is expected to author. The pack's palettes used to be pinned byte-equal to the
+// `@orb/ui` value-sets of the same name (seed-theme-pairing's "third copy"); those value-sets were retired
+// with the picker curation (TD/O-9), so the CARD is now the only copy and there is nothing to pair against.
+// What survives as a real invariant is COMPLETENESS: a palette missing a field is a hole the room takeover
+// fills from the viewer's theme, which reads as a half-dressed character rather than an authored look.
+const REQUIRED_PALETTE_FIELDS = [
+  "accent",
+  "speaker",
+  "dialogueColor",
+  "narrationColor",
+  "bodyColor",
+  "background",
+  "userBubble",
+  "aiBubble",
+  "systemBubble",
+  "font",
+  "radius",
+] as const;
 
 describe("DEFAULT_CHARACTER_CARDS — the authored pack parses at the write boundary", () => {
   for (const card of DEFAULT_CHARACTER_CARDS) {
@@ -45,6 +65,18 @@ describe("DEFAULT_CHARACTER_CARDS — the authored pack parses at the write boun
       const slug = background.success ? background.data.seededId : "";
       expect(slug, `${handle} background slug`).toBe(`${handle}-bg`);
       expect(CATALOG_IDS.has(slug), `${slug} exists in listSeededBackgrounds()`).toBe(true);
+    });
+
+    test(`${handle}: authors a COMPLETE palette, and only card-embeddable keys`, () => {
+      const override = card.presentation.themeOverride ?? {};
+      for (const field of REQUIRED_PALETTE_FIELDS) {
+        expect(override[field], `${handle} palette carries ${field}`).toBeDefined();
+      }
+      // A card may not author a viewer-sacred key (TD §3): every consumption seam strips it, so a value
+      // here would be a dead value the pack claims to set. The partition is the authority, not a list.
+      for (const key of Object.keys(override)) {
+        expect(EMBEDDABLE.has(key), `${handle} palette key ${key} is card-embeddable`).toBe(true);
+      }
     });
 
     test(`${handle}: ships author tags + the pack's fixed provenance`, () => {

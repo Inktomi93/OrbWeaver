@@ -18,7 +18,6 @@ describe("themeOverrideSchema (the wire clamp)", () => {
       font: "Georgia",
       radius: "card",
       background: "oklch(0.175 0.012 65)",
-      chatStyle: "flat",
       density: "compact",
     };
     expect(themeOverrideSchema.parse(full)).toEqual(full);
@@ -28,12 +27,12 @@ describe("themeOverrideSchema (the wire clamp)", () => {
     const parsed = themeOverrideSchema.parse({
       accent: "url(https://evil.example/x)", // → drops
       font: "Comic Sans MS", // off-allowlist → drops
-      chatStyle: "hologram", // off-enum → drops
+      density: "roomy", // off-enum → drops
       bodyColor: "red", // safe → survives
     });
     expect(parsed.accent).toBeUndefined();
     expect(parsed.font).toBeUndefined();
-    expect(parsed.chatStyle).toBeUndefined();
+    expect(parsed.density).toBeUndefined();
     expect(parsed.bodyColor).toBe("red");
   });
 

@@ -1,13 +1,16 @@
 // All db access for the `themes` table. Reads resolve the two-armed "owned ∪ seed" union (`ownerId = caller
 // OR ownerId IS NULL`); all mutations scope on `ownerId = caller`, so a seed row can never match — seeds are
 // un-mutable by construction. Timestamps arrive as params.
+// ONE exception touches `user_settings`: `clearSelectedThemeIds`, the seed-retirement heal. It is keyed by
+// THEME ids and exists only to keep a retired row from leaving a dangling pointer, so it homes with the
+// retirement it serves rather than in the general settings-blob queries.
 
 import type { Db } from "@orb/db";
-import { themes } from "@orb/db";
+import { themes, userSettings } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { ThemeId, UserId } from "@orb/kit/ids";
-import { and, asc, eq, isNull, or } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
 type ThemeRow = typeof themes.$inferSelect;
 
@@ -121,6 +124,38 @@ export async function deleteOwnedTheme(db: Db, id: ThemeId, ownerId: UserId): Pr
 /** `true` iff `err` is the `(ownerId, name)` unique-constraint violation. */
 export function isThemeNameConflict(err: unknown): boolean {
   return isConstraintViolation(err)?.kind === "unique";
+}
+
+/** Drop RETIRED seed rows by their fixed sentinel ids — the converge-seeder's delete arm (TD/O-9). Bounded
+ *  to `ownerId IS NULL` twice over (the id list is sentinel-only AND the predicate is explicit), so a user's
+ *  own row — including a duplicate they made of a retired palette — can never be caught by it. Returns how
+ *  many rows this install actually had. */
+export async function deleteSeedThemes(db: Db, ids: readonly ThemeId[]): Promise<number> {
+  if (ids.length === 0) {
+    return 0;
+  }
+  const removed = await db
+    .delete(themes)
+    .where(and(inArray(themes.id, [...ids]), isNull(themes.ownerId)))
+    .returning({ id: themes.id });
+  return removed.length;
+}
+
+/** ONLY-IF-SET heal: any user whose `theme.selectedThemeId` names one of `ids` falls back to `null` (the
+ *  Hearth default). A JSON write, not a column write — `selectedThemeId` is a field inside the settings
+ *  blob, so the WHERE is a `json_extract` probe (the `asset-refs` precedent) and the SET is a `json_set`.
+ *  A blob that names nothing, or names something else, is not touched at all. Returns the healed count. */
+export async function clearSelectedThemeIds(db: Db, ids: readonly ThemeId[], at: number): Promise<number> {
+  if (ids.length === 0) {
+    return 0;
+  }
+  const selected = sql`json_extract(${userSettings.config}, '$.theme.selectedThemeId')`;
+  const healed = await db
+    .update(userSettings)
+    .set({ config: sql`json_set(${userSettings.config}, '$.theme.selectedThemeId', json('null'))`, updatedAt: at })
+    .where(inArray(selected, [...ids]))
+    .returning({ userId: userSettings.userId });
+  return healed.length;
 }
 
 /** Overwrite (or first-insert) one seed row by its fixed sentinel id — the boot-reseed write. Idempotent in

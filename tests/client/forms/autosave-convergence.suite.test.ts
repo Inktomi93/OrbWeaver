@@ -118,7 +118,7 @@ describe("convergence: appearance", () => {
 describe("convergence: character theme", () => {
   const overrides: readonly (ThemeOverride | null)[] = [
     null,
-    { accent: "#ff8800", font: "Georgia", chatStyle: "flat", density: "compact" },
+    { accent: "#ff8800", font: "Georgia", radius: "full", density: "compact" },
     { background: "#101014", userBubble: { bg: "#222", fg: "#eee" }, radius: "card" },
   ];
   const echo = (form: CharacterThemeFormValues): CharacterThemeFormValues => {

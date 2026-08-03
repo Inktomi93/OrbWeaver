@@ -87,6 +87,75 @@ test("a seed offers Customize; an owned theme offers Edit + Delete", async ({ mo
   await expect(page.getByRole("menuitem", { name: "Delete" })).toBeVisible();
 });
 
+// ── The deferred mint (O-8): Customize opens the editor on a DRAFT; the row is minted by the first real
+//    edit, never by the click. Before this, "pick a built-in → Customize → change nothing → Back" left a
+//    copy behind forever — a row the owner never asked for and has to find and delete.
+
+test("Customize + zero edits + Back mints NOTHING — no row ever existed", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "settings.listThemes": () => THEMES,
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "settings.duplicateTheme": () => OWNED,
+  });
+  const component = await mount(<ThemePickerStory />);
+
+  await component.getByRole("button", { name: "Mocha actions" }).click();
+  await page.getByRole("menuitem", { name: "Customize" }).click();
+  await expect(component.getByRole("textbox", { name: "Theme name" })).toBeVisible();
+  await component.getByRole("button", { name: "← Back to themes" }).click();
+  // Barrier on the SETTLED list arm before the zero-count read.
+  await expect(component.getByText("My Theme", { exact: true })).toBeVisible();
+
+  // ONESHOT-OK: read after the list re-rendered; a mint could only have fired during the editor session
+  // that has already been torn down.
+  expect(trpc.count("settings.duplicateTheme")).toBe(0);
+  // ONESHOT-OK: same settled barrier — the create arm is asserted here too because either mint landing
+  // would be the same defect (a row the owner never asked for).
+  expect(trpc.count("settings.createTheme")).toBe(0);
+});
+
+test("the first real edit mints the copy — and the Save that follows patches THAT row, not the seed", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "settings.listThemes": () => THEMES,
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "settings.duplicateTheme": () => OWNED,
+    "settings.updateTheme": () => OWNED,
+  });
+  const component = await mount(<ThemePickerStory />);
+
+  await component.getByRole("button", { name: "Mocha actions" }).click();
+  await page.getByRole("menuitem", { name: "Customize" }).click();
+  await component.getByRole("textbox", { name: "Theme name" }).fill("Mocha but mine");
+
+  await expect.poll(() => trpc.lastInput("settings.duplicateTheme"), { intervals: [20, 50, 100] }).toEqual({ id: "theme_00000000000000000000000002" });
+
+  await component.getByRole("button", { name: "Save theme" }).click();
+  await expect
+    .poll(() => trpc.lastInput("settings.updateTheme"), { intervals: [20, 50, 100] })
+    .toMatchObject({ id: OWNED.id, input: { name: "Mocha but mine" } });
+  // The mint happened exactly once across the whole session (the edit, not each keystroke or the save).
+  // ONESHOT-OK: reads AFTER the awaited updateTheme poll settled — the save is the LAST write the session
+  // can make, so no further mint can arrive.
+  expect(trpc.count("settings.duplicateTheme")).toBe(1);
+});
+
+test("New theme + zero edits + Back mints NOTHING (the same deferred mint, the create arm)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "settings.listThemes": () => THEMES,
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "settings.createTheme": () => OWNED,
+  });
+  const component = await mount(<ThemePickerStory />);
+
+  await component.getByRole("button", { name: "New theme" }).click();
+  await expect(component.getByRole("textbox", { name: "Theme name" })).toBeVisible();
+  await component.getByRole("button", { name: "← Back to themes" }).click();
+  await expect(component.getByText("My Theme", { exact: true })).toBeVisible();
+
+  // ONESHOT-OK: see the sibling test above.
+  expect(trpc.count("settings.createTheme")).toBe(0);
+});
+
 test("Delete does not destroy immediately — it opens an AlertDialog confirm (F4)", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "settings.listThemes": () => THEMES,

@@ -19,13 +19,7 @@ export function ThemeScope({ tokens, children, className }: ThemeScopeProps): Re
   const style: CSSProperties =
     clamped.colorScheme === undefined ? (clamped.vars as CSSProperties) : { ...(clamped.vars as CSSProperties), colorScheme: clamped.colorScheme };
   return (
-    <div
-      className={className}
-      style={style}
-      data-slot="theme-scope"
-      {...(clamped.chatStyle === undefined ? {} : { "data-chat-style": clamped.chatStyle })}
-      {...(clamped.density === undefined ? {} : { "data-density": clamped.density })}
-    >
+    <div className={className} style={style} data-slot="theme-scope" {...(clamped.density === undefined ? {} : { "data-density": clamped.density })}>
       {children}
     </div>
   );

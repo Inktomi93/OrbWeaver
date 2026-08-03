@@ -5,7 +5,7 @@
 // `@orb/kit/json`.
 
 import { appSettingsSchema, USER_SETTINGS_SECTIONS } from "@orb/contracts/settings";
-import { createThemeInputSchema, updateThemeInputSchema } from "@orb/contracts/theme";
+import { createThemeInputSchema, promoteThemeInputSchema, updateThemeInputSchema } from "@orb/contracts/theme";
 import type { ThemeId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -73,6 +73,10 @@ export const settingsRouter = t.router({
     .query(({ ctx, input }) => ctx.services.settings.getTheme({ principal: ctx.auth, id: input.id })),
 
   createTheme: authedProcedure.input(createThemeInputSchema).mutation(({ ctx, input }) => ctx.services.settings.createTheme({ principal: ctx.auth, input })),
+
+  // TD door 1 — promote a character card's look into the library. Owner-scoped (`principal.userId`); the
+  // input is VALUES only (no foreign id to reach through), so there is no cross-tenant surface here.
+  promoteTheme: authedProcedure.input(promoteThemeInputSchema).mutation(({ ctx, input }) => ctx.services.settings.promoteTheme({ principal: ctx.auth, input })),
 
   duplicateTheme: authedProcedure.input(z.object({ id: brandedId<ThemeId>(), name: z.string().trim().min(1).optional() })).mutation(({ ctx, input }) =>
     ctx.services.settings.duplicateTheme({

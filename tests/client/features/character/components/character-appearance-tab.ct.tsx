@@ -75,6 +75,76 @@ test("§8.1 a colour edit debounces into one write carrying the picked colour", 
   await expect.poll(() => lastThemeOverride(trpc), { intervals: [20, 50, 100] }).toEqual({ accent: "#00ff00" });
 });
 
+// ── The card-embeddable partition: a card carries IDENTITY, never the viewer's ERGONOMICS (TD §3) ─────
+// `chatStyle` and `density` are VIEWER-SACRED: the row skin reads `appearance.chatStyle` only and the
+// single `[data-density]` selector is the shell grid's (a nested scope's attribute matches nothing), so a
+// card control for either governed NOTHING — the D107 dead-switch class. The controls are struck; the
+// partition (`CARD_EMBEDDABLE_THEME_KEYS`) is what keeps them from coming back.
+
+test("the card cannot force viewer ergonomics — no Message style / Density control (D107)", async ({ mount, page }) => {
+  await route(page, { radius: "card" });
+  await mount(<CharacterAppearanceTabStory />);
+  // The sibling Type & shape controls still render — proof the cluster mounted and the absence is real.
+  await expect(page.getByRole("combobox", { name: "Corner radius" })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Message style" })).toHaveCount(0);
+  await expect(page.getByRole("combobox", { name: "Density" })).toHaveCount(0);
+});
+
+// ── The two theme DOORS (TD §2) — promote the card's look into the picker, and seed it from a theme ───
+
+const THEME_LIST = [
+  {
+    id: "theme_00000000000000000000000002",
+    name: "Mocha",
+    override: { background: "oklch(0.15 0.015 250)", accent: "oklch(0.7 0.14 250)", density: "compact" },
+    css: null,
+    isSeed: true,
+    createdAt: 0,
+    updatedAt: 0,
+  },
+];
+
+test("Save as theme… promotes the LIVE override, defaulted to the character's name", async ({ mount, page }) => {
+  const card = makeCharacterDetail({ themeOverride: { accent: "#00ff00" } });
+  const trpc = await routeTrpc(page, {
+    "character.get": () => card,
+    "character.update": () => card,
+    "settings.listThemes": () => THEME_LIST,
+    "settings.promoteTheme": () => ({ id: "theme_new", name: "Aria", override: { accent: "#00ff00" }, css: null, isSeed: false, createdAt: 0, updatedAt: 0 }),
+  });
+  await mount(<CharacterAppearanceTabStory />);
+
+  await page.getByRole("button", { name: "Save as theme…" }).click();
+  await expect.poll(() => trpc.lastInput("settings.promoteTheme"), { intervals: [20, 50, 100] }).toEqual({ name: "Aria", override: { accent: "#00ff00" } });
+});
+
+test("Save as theme… is disabled while the card has nothing of its own to promote", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.get": () => makeCharacterDetail({ themeOverride: null }),
+    "character.update": () => makeCharacterDetail({ themeOverride: null }),
+    "settings.listThemes": () => THEME_LIST,
+  });
+  await mount(<CharacterAppearanceTabStory />);
+  await expect(page.getByRole("button", { name: "Save as theme…" })).toBeDisabled();
+});
+
+test("Start from a theme… seeds the card from the theme's CARD-EMBEDDABLE subset (density never rides)", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "character.get": () => makeCharacterDetail({ themeOverride: null }),
+    "character.update": () => makeCharacterDetail({ themeOverride: null }),
+    "settings.listThemes": () => THEME_LIST,
+  });
+  await mount(<CharacterAppearanceTabStory />);
+
+  await page.getByRole("combobox", { name: "Start from a theme" }).click();
+  await page.getByRole("option", { name: "Mocha", exact: true }).click();
+
+  // The theme's colours land as ordinary card values (no linkage); its `density` — viewer-sacred — does not.
+  await expect
+    .poll(() => lastThemeOverride(trpc), { intervals: [20, 50, 100] })
+    .toEqual({ background: "oklch(0.15 0.015 250)", accent: "oklch(0.7 0.14 250)" });
+});
+
 // ── Trust: the external-media control must not LIE (owner ruling 2026-08-01) ──────────────────────────
 // The deployment "Block external media" setting is the ABSOLUTE ceiling: the server-side render-policy
 // resolver is tighten-only and the document CSP is built from the deployment value alone, so while it is
