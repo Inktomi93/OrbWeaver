@@ -302,7 +302,8 @@ function bootStage(paths: StagePaths, ports: StagePorts): void {
     // manager fighting the primary). The stage runs no supervisor management; exactly one auto-sleep
     // timer exists (the dev/prod server's) — the single-manager assumption made true by construction.
     ENGINES_POSTURE: "adopt-only",
-    // A stray .env in the worktree must never clobber these explicit stage knobs (dotenv override:true).
+    // A stray .env in the worktree must never clobber these explicit stage knobs (foundation/env's .env
+    // loader runs override:true).
     ORB_ENV_NO_OVERRIDE: "1",
   };
   const stackSh = join(paths.dir, "scripts", "dev", "stack.sh");
