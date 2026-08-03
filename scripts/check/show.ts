@@ -134,6 +134,25 @@ function printGate(g: GateReport, violations: readonly Violation[], f: Filter): 
   print("");
 }
 
+/** The failure header + the thrown-gate rows. A thrown gate is a broken CHECKER, not a violation —
+ *  rendered before the gate list so an otherwise-empty failing report explains itself. */
+function printVerdictAndToolErrors(report: StructureReport): void {
+  const toolErrors = report.toolErrors ?? [];
+  print(
+    report.ok
+      ? ANSI.green("✓ check:structure passed (filter view)\n")
+      : ANSI.red(
+          `✗ check:structure FAILED — ${report.total} violation(s)${toolErrors.length > 0 ? ` + ${toolErrors.length} TOOL ERROR(S)` : ""} across its gates\n`,
+        ),
+  );
+  for (const e of toolErrors) {
+    print(`${ANSI.red("✗ TOOL ERROR")} ${ANSI.bold(e.gate)} [${e.phase}]  ${e.message}`);
+  }
+  if (toolErrors.length > 0) {
+    print("");
+  }
+}
+
 function main(): void {
   const filter = parseArgs(process.argv.slice(2));
   const report = readReport();
@@ -144,23 +163,7 @@ function main(): void {
     process.exit(0);
   }
 
-  const toolErrors = report.toolErrors ?? [];
-  print(
-    report.ok
-      ? ANSI.green("✓ check:structure passed (filter view)\n")
-      : ANSI.red(
-          `✗ check:structure FAILED — ${report.total} violation(s)${toolErrors.length > 0 ? ` + ${toolErrors.length} TOOL ERROR(S)` : ""} across its gates\n`,
-        ),
-  );
-
-  // A thrown gate is a broken CHECKER, not a violation — render before the gate list so an
-  // otherwise-empty failing report explains itself.
-  for (const e of toolErrors) {
-    print(`${ANSI.red("✗ TOOL ERROR")} ${ANSI.bold(e.gate)} [${e.phase}]  ${e.message}`);
-  }
-  if (toolErrors.length > 0) {
-    print("");
-  }
+  printVerdictAndToolErrors(report);
 
   for (const g of report.gates) {
     if (!matchesGate(g, filter)) {
