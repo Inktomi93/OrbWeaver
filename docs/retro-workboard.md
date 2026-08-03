@@ -176,6 +176,35 @@ That is not a bug and the cliff was a deliberate owner-flagged fork — but it i
 now that the numbers are on the table.
 **Audit limits (stated):** packages outside server/client not exhaustively enumerated (none found);
 non-TS consumers (raw SQL/seed outside `db/src/schema`) not searched.
+✅ **TAGDIG — the full tag-experience audit vs ST + neo (2026-08-03).** Report:
+`docs/reviews/misc/2026-08-03-tag-experience-audit.md` (gap register by theme, every `-l ts`/`-l tsx`
+sweep run in PAIRS with scanned-file counts; neo read via `git archive legacy-main` into scratchpad,
+never checked out; a false-negative self-corrected mid-audit — a bare-identifier pattern returned 0/0
+and looked like absence until `$X.folderType` found the real site).
+**Sort-by-most-used CONFIRMED CHEAP (S, zero server cost):** `listOwnedTagsWithUsage`
+(`domain/tag/persistence/queries.ts:288`) already returns `usage.total` in every payload the client
+renders — it is a client comparator + a mode `Select`, mirroring ST's `tag_sort_mode`.
+**RANKED WANTS:** (1) sort mode Alphabetical/Most-Used, default Most-Used — S · (2) **autocomplete on
+the tag-attach input** (`components/tag-picker-dialog.tsx` is a bare `Input` with NO suggestion list on
+BOTH neo and main) — S–M, the highest value-per-effort row: at ~400 tags it is what prevents
+duplicate-tag rot, and the data is already cached client-side · (3) tag EXCLUSION / three-state filter
+(ST has `toggleTagThreeState`/`FILTER_STATES.EXCLUDED`; **neither lineage ever built it**) — M, needs a
+new axis threaded through `LibraryFilters`/`filterByChips`. Past #3 is L and changes the browsing MODEL
+— separate owner decision, not a queued build.
+**WE ARE AHEAD OF ST in one place:** the pending-suggestion Accept/Reject review queue
+(`character-tag-suggestions.tsx` + `tag/verbs/list-pending-suggestions.ts`) plus the LLM auto-distill
+producer (`discovery/verbs/distill.ts`) — ST has no equivalent.
+**DELIBERATELY NOT COPIED (with reasons):** ST's DUAL tag lists (local organizing tags vs a separately
+authored "tags to embed" export field — a known confusion source in ST itself; our WYSIWYG
+accepted-tags-are-what-exports model is better) · a user-facing AND/OR toggle (ST hardcodes
+`const TAG_LOGIC_AND = true; // switch to false…` — config-via-source-edit; AND is the right default and
+per-tag exclusion covers the real "not this one" need).
+**⚑ OWNER TASTE CALLS:** standalone tag-only backup/restore button (REC skip) · import-time
+Ask/All/Existing/None vs our always-queue model (REC keep ours, it is strictly more capable — record as a
+deliberate divergence) · **whether Manual/`sortOrder` retires once Alphabetical/Most-Used ship**, given the
+≤30 cap already makes it near-unreachable at ~400 tags · folder OPEN (collapsible, cheap) vs CLOSED
+drilldown (navigation-model change) — REC build OPEN, defer CLOSED.
+**Not covered (stated):** anti-troll import cap, non-English locale completeness, mobile/touch behaviour.
 **OPEN smalls:** "Untitled chat" in the regex rosters (REGROSTER's naming question) · X-16 edited-ago
 needs a `RegexScriptRow` timestamp (contracts + db — verified absent) · REGPAR's F6 residual (REASONING
 prints slot 4 but executes post-postProcess — unobservable; strict-fidelity is an owner nit).
