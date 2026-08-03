@@ -77,9 +77,13 @@ export function staticPrograms(rel: string): readonly string[] {
     const own = `packages/${pkg}/tsconfig.json`;
     return BROWSER_PACKAGES.has(pkg) ? [own] : [own, GRAPH];
   }
-  // 2. package-level config files named in a package include (only client's vite.config.ts today).
+  // 2. package-level config files named in a package include (client's vite.config.ts; db's
+  //    drizzle.config.ts joined 2026-08-03 — the drizzle-kit audit's no-program-hole close).
   if (rel === "packages/client/vite.config.ts") {
     return [CLIENT_TSCONFIG];
+  }
+  if (rel === "packages/db/drizzle.config.ts") {
+    return ["packages/db/tsconfig.json"];
   }
   // 3. the browser reach-back trees (owned by NON-ancestor configs — the editor blind spot §2.1).
   if (TESTS_CLIENT_TSX_RE.test(rel) || rel === CT_CLIENT_OWNED) {
