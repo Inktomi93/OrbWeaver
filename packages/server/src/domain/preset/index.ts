@@ -5,6 +5,7 @@ export { SYSTEM_DEFAULT_PRESET_ID } from "./constants";
 export type { PresetContext } from "./context";
 export type { PresetOpCode } from "./contract/errors";
 export { PRESET_OP_CODES, PresetNotFoundError, PresetOperationError } from "./contract/errors";
+export type { CopyPresetToUser, PresetHandoffCopyContext } from "./contract/handoff-copy";
 export type { PackagedPresetKey } from "./contract/packaged";
 export type {
   CreatePresetParams,
@@ -25,6 +26,7 @@ export type {
 export type { PresetService, ResolveChatCapabilityOp } from "./contract/service";
 export type { EffectiveKnob, EffectiveKnobReading, EffectivePreset, EffectiveProvenance, PresetDetail, PresetSummary, StaleKnob } from "./contract/views";
 export { EFFECTIVE_KNOBS, EFFECTIVE_PROVENANCES } from "./contract/views";
+export { createCopyPresetToUser } from "./persistence/handoff-copy-write";
 export { ensurePackagedPresets, ensureSystemDefaultPreset } from "./seed";
 export { createPresetService } from "./service";
 export { createExport as createExportPresets } from "./verbs/export";

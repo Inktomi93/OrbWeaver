@@ -981,13 +981,13 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    const asked: { chatId: string; newHostUserId: string }[] = [];
+    const asked: { chatId: string; newHostUserId: string; copyGmPreset: boolean; cardCopies: number }[] = [];
     // The returned statement stands in for the rpg write (chat commits it blind); `chats.title` is the observable.
     // FABRICATION-OK: minimal ChatRpgOps stub — the accept reaches ONLY `handoffHealStatements`.
     const rpg = {
-      handoffHealStatements: (id: ChatId, newHostUserId: UserId): Promise<unknown[]> => {
-        asked.push({ chatId: id, newHostUserId });
-        return Promise.resolve([db.update(chats).set({ title: "healed" }).where(eq(chats.id, id))]);
+      handoffHealStatements: (args: { chatId: ChatId; newHostUserId: UserId; copyGmPreset: boolean; cardCopies: readonly unknown[] }): Promise<unknown[]> => {
+        asked.push({ chatId: args.chatId, newHostUserId: args.newHostUserId, copyGmPreset: args.copyGmPreset, cardCopies: args.cardCopies.length });
+        return Promise.resolve([db.update(chats).set({ title: "healed" }).where(eq(chats.id, args.chatId))]);
       },
     } as unknown as NonNullable<NonNullable<Parameters<typeof makeChatContext>[1]>["rpg"]>;
     const notes: NotificationEvent[] = [];
@@ -996,7 +996,8 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
 
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
 
-    expect(asked).toEqual([{ chatId, newHostUserId: member }]);
+    // The no-offer accept passes the offer arms OFF — the byte-identity pin for the pre-offer heal.
+    expect(asked).toEqual([{ chatId, newHostUserId: member, copyGmPreset: false, cardCopies: 0 }]);
     const [chatRow] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(chatRow?.title).toBe("healed");
     expect(chatRow?.pendingHostUserId).toBeNull();
@@ -1139,9 +1140,18 @@ describe("audit wiring — the membership/config mutations write best-effort aud
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
 
     expect(rows.map((r) => r.entry.action)).toEqual(["chat.nominateHostHandoff", "chat.acceptHostHandoff"]);
-    expect(rows.at(0)?.entry.metadata).toEqual({ nomineeUserId: member });
-    // The heal FLAGS ride the accept row (F1/F2) — an un-anchored, non-game room heals nothing.
-    expect(rows.at(1)?.entry.metadata).toEqual({ previousHostUserId: host, healedAnchorPersona: false, healedGmPreset: false });
+    // The OFFER flags ride the nominate row: a no-offer nomination records give-nothing, in the log, at the
+    // moment consent was (not) given — the one place a later dispute can read it.
+    expect(rows.at(0)?.entry.metadata).toEqual({ nomineeUserId: member, offerCast: false, offerGmPreset: false });
+    // The heal + copy FLAGS/COUNTS ride the accept row (F1/F2 + the copy) — an un-anchored, non-game room with
+    // no offer heals nothing and copies nothing.
+    expect(rows.at(1)?.entry.metadata).toEqual({
+      previousHostUserId: host,
+      healedAnchorPersona: false,
+      healedGmPreset: false,
+      copiedCards: 0,
+      droppedSeats: 0,
+    });
     expect(rows.at(1)?.entry.actorUserId).toBe(member);
   });
 

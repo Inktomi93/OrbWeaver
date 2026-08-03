@@ -23,7 +23,7 @@ import { commitSnapshotForVariant, findLastAssistantSelectedVariant, findMessage
 import { flushTurn } from "./flush";
 import { forkGame } from "./fork-game";
 import { gatherTurnContext } from "./gather";
-import { handoffHealStatements } from "./handoff-heal";
+import { handoffHealStatements, handoffRekeyActors } from "./handoff-heal";
 
 /** Build the `ChatRpgOps` runtime over the rpg ctx (rpg-design/05 §3.2). Handed to chat's compose (W1c); NOT
  *  wired here. The gather + flush hold the extractionMode branch; the rest are thin ctx reads/writes. */
@@ -144,10 +144,15 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
     // inherits its disengaged pointer (see `fork-game.ts`), preserving the source's front-door state, never
     // silently re-engaging it.
     forkGame: (args): ReturnType<ChatRpgOps["forkGame"]> => forkGame(ctx, args),
-    // HOST HANDOFF (F1): the unexecuted `gmPresetId` heal chat folds into its role-swap batch — the fork
-    // carry-gate's twin on the OTHER member→host transition. Reads the game row directly (a DISENGAGED game
-    // still carries the knob); `[]` for a non-game chat ⇒ a plain-room handoff is byte-identical.
-    handoffHealStatements: (chatId, newHostUserId): ReturnType<ChatRpgOps["handoffHealStatements"]> => handoffHealStatements(ctx, chatId, newHostUserId),
+    // HOST HANDOFF (F1 + the 2026-08-03 copy offer): the unexecuted `gmPresetId` heal/gift + the `rpg_sheets`
+    // re-key, folded into chat's role-swap batch — the fork carry-gate's twin on the OTHER member→host
+    // transition. Reads the game row directly (a DISENGAGED game still carries the knob); `[]` for a non-game
+    // chat ⇒ a plain-room handoff is byte-identical, and an offer-less accept is byte-identical to the
+    // pre-offer heal.
+    handoffHealStatements: (args): ReturnType<ChatRpgOps["handoffHealStatements"]> => handoffHealStatements(ctx, args),
+    // HOST HANDOFF, POST-SWAP: the copied cast's tracker rows/presence/pins move onto the copy ids. Not a
+    // statement (a hand-door read-modify-write that may clone forward), so it runs after the swap commits.
+    handoffRekeyActors: (chatId, cardCopies): Promise<void> => handoffRekeyActors(ctx, chatId, cardCopies),
   };
 }
 

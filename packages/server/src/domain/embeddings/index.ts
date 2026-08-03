@@ -6,6 +6,7 @@
 // The entry root wires these; transport/tests reference them directly.
 export type { EmbeddingsContext } from "./context";
 export { EmbedFailedError, SpaceMismatchError } from "./contract/errors";
+export type { EmbeddingsHandoffRestampContext, HandoffRestampPair, HandoffRestampStatements } from "./contract/handoff-restamp";
 // Consumed by `discovery` + `search` + tests, not just this domain.
 export type { VectorTable } from "./contract/params";
 export { VECTOR_TABLES } from "./contract/params";
@@ -19,7 +20,7 @@ export type {
   LoadAssetBytes,
   LoadCardText,
 } from "./contract/service";
-
 export { createEmbeddingsIndexer } from "./indexer";
+export { createHandoffRestampStatements } from "./persistence/handoff-restamp";
 export { createEmbeddingsService } from "./service";
 export { createEmbeddingsWorkloadContributions } from "./workload-contributions";

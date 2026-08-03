@@ -8,7 +8,7 @@
 // handoff. `joinSeq`/`leftSeq` are stamped against messages.seq (the join/leave horizon), not the stream
 // cursor.
 
-import type { ParticipantKind } from "@orb/contracts/chat";
+import type { HandoffOffer, ParticipantKind } from "@orb/contracts/chat";
 import { isUserBacked } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
@@ -153,16 +153,37 @@ export function markParticipantLeftStatement(
     .returning();
 }
 
-/** Set the pending host-handoff nominee, unexecuted — `nominateHostHandoff` hands it to the
- *  notifications emit op so the nomination + the `handoff-nominated` INSERT commit in one batch. A
- *  re-nominate overwrites the prior nominee. */
-export function setPendingHostStatement(db: Db, chatId: ChatId, nomineeUserId: UserId, now: number): AwaitableBatchStmt<unknown> {
-  return db.update(chats).set({ pendingHostUserId: nomineeUserId, updatedAt: now }).where(eq(chats.id, chatId));
+/** Set the pending host-handoff nominee AND the property offer that qualifies them, unexecuted —
+ *  `nominateHostHandoff` hands it to the notifications emit op so the nomination + the `handoff-nominated`
+ *  INSERT commit in one batch. A re-nominate overwrites BOTH (the offer is a property OF this nomination, so
+ *  it can never survive the nominee it was made to — re-nominating without an offer must not silently hand
+ *  the new nominee the previous one's library). */
+export function setPendingHostStatement(
+  db: Db,
+  params: { readonly chatId: ChatId; readonly nomineeUserId: UserId; readonly offer: HandoffOffer; readonly now: number },
+): AwaitableBatchStmt<unknown> {
+  return db
+    .update(chats)
+    .set({ pendingHostUserId: params.nomineeUserId, pendingHandoffOffer: params.offer, updatedAt: params.now })
+    .where(eq(chats.id, params.chatId));
+}
+
+/** Re-point ONE present character seat at a different card, unexecuted — the handoff COPY's replacement for
+ *  the D64 drop. IN PLACE, deliberately: the seat row keeps its `joinSeq` era, its `talkativeness`/`disabled`
+ *  knobs and its identity, so the copied cast occupies exactly the history the originals did. Present-only
+ *  (`leftSeq IS NULL`) — a seat that left mid-accept is not resurrected. */
+export function repointCharacterSeatStatement(db: Db, participantId: ChatParticipantId, characterId: CharacterId): BatchStmt {
+  return db
+    .update(chatParticipants)
+    .set({ characterId })
+    .where(and(eq(chatParticipants.id, participantId), isNull(chatParticipants.leftSeq)));
 }
 
 /** The atomic host-handoff accept statements, unexecuted: demotes the present host → `member`, promotes
- *  the nominee → `host`, and clears the chat's pending nomination. Order is load-bearing: demote →
- *  promote → clear. The caller must verify the caller IS the pending nominee before calling.
+ *  the nominee → `host`, and clears the chat's pending nomination (nominee AND offer together — an executed
+ *  offer must never be re-executable, and a cleared nominee with a live offer would be a consent with nobody
+ *  attached to it). Order is load-bearing: demote → promote → clear. The caller must verify the caller IS
+ *  the pending nominee before calling.
  *
  *  `clearAnchorPersona` rides the SAME `chats` UPDATE as the nomination clear (one statement, not two): the
  *  D51 `{{user}}` anchor is resolved under the HOST's principal, so an anchor the incoming host cannot read is
@@ -184,7 +205,12 @@ export function acceptHostHandoffSwapStatements(
       .where(and(eq(chatParticipants.chatId, params.chatId), eq(chatParticipants.userId, params.nomineeUserId), isNull(chatParticipants.leftSeq))),
     db
       .update(chats)
-      .set({ pendingHostUserId: null, updatedAt: params.now, ...(params.clearAnchorPersona ? { anchorPersonaId: null } : {}) })
+      .set({
+        pendingHostUserId: null,
+        pendingHandoffOffer: null,
+        updatedAt: params.now,
+        ...(params.clearAnchorPersona ? { anchorPersonaId: null } : {}),
+      })
       .where(eq(chats.id, params.chatId)),
   ];
 }

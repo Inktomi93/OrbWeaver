@@ -13,6 +13,8 @@ import type { RpgSheet } from "@orb/contracts/rpg";
 import { rpgSheetSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { rpgSheets } from "@orb/db";
+import type { BatchStmt } from "@orb/db/kit";
+import { batchStmt } from "@orb/db/kit";
 import type { CharacterId, RpgGameId, RpgSheetId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import { RpgStateCorruptError } from "../contract/errors";
@@ -85,4 +87,18 @@ export async function upsertSheet(
     throw new Error("upsertSheet: no row returned");
   }
   return parseSheetRow(row);
+}
+
+/** Move ONE actor's sheet from a source card onto its host-handoff COPY, UNEXECUTED — chat folds it into the
+ *  role-swap batch so the sheet and the seat change hands together (the `clearGmPresetStatement`
+ *  co-statement seam). Scoped to `gameId` AND the source id: the same card playing in another table keeps its
+ *  own sheet. The `(gameId, characterId)` unique cannot bite — a handoff copy id is freshly minted, so no row
+ *  in this game can already carry it. */
+export function rekeySheetCharacterStatement(db: Db, gameId: RpgGameId, from: CharacterId, to: CharacterId): BatchStmt {
+  return batchStmt(
+    db
+      .update(rpgSheets)
+      .set({ characterId: to })
+      .where(and(eq(rpgSheets.gameId, gameId), eq(rpgSheets.characterId, from))),
+  );
 }

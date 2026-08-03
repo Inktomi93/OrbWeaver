@@ -24,6 +24,7 @@ import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
 import { and, eq, isNull } from "drizzle-orm";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
+import { createCopyHandoffCards } from "#domain/character";
 import type {
   ChatContext,
   ChatService,
@@ -66,6 +67,7 @@ import {
 import type { ConnectionService } from "#domain/connection";
 import type { CredentialsService } from "#domain/credentials";
 import type { EmbeddingsService } from "#domain/embeddings";
+import { createHandoffRestampStatements } from "#domain/embeddings";
 import type { ImageryService } from "#domain/imagery";
 import type { NotificationsService } from "#domain/notifications";
 import type { PersonaService, ResolvePersonasForRoster } from "#domain/persona";
@@ -76,6 +78,7 @@ import { createTokenHasher } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
 import { applyStatsDelta } from "#domain/stats";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
+import { createCopyHandoffBooks } from "#domain/world-info";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { recordMemoryLog } from "#foundation/observability";
@@ -725,6 +728,45 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       }
     },
     getCard: ({ ownerId, characterId }) => input.character.getCard({ principal: hostPrincipal(ownerId), characterId }),
+    // ── HOST-HANDOFF COPY (stickler 2026-08-03 §5) — the three OWNING-domain write factories the accepted
+    // property offer executes. Each lives in the domain that owns its tables and is injected here, so chat
+    // never writes a `characters`, `world_books` or `chat_digests` row (`own-tables-only`). All three are
+    // unreachable without a stored offer, so an offer-less handoff never calls any of them.
+    copyHandoffCards: createCopyHandoffCards({
+      db: input.db,
+      now: input.now,
+      newCharacterId: minter(ID_PREFIX.character),
+      // The avatar RE-OWN: `assets` is per-owner with an `(owner_id, hash)` dedup (D21), so the copy cannot
+      // carry the source's `avatarAssetId` verbatim — that would be a pointer into a library the nominee
+      // cannot read AND a GC root holding the departed host's blob alive. Content-addressing makes this cheap
+      // and idempotent (`created:false` when the recipient already has those bytes). Ownership is PROVEN here:
+      // an asset that is not the departing host's yields `null` and the copy lands faceless rather than
+      // borrowing a stranger's blob.
+      copyAvatar: async ({ fromOwnerId, toOwnerId, assetId }) => {
+        const ref = await input.assets.assetCasRefById(assetId);
+        if (ref === undefined || ref.ownerId !== fromOwnerId) {
+          return null;
+        }
+        const bytes = await input.assets.loadAssetBytes(assetId);
+        if (bytes === null) {
+          return null;
+        }
+        const stored = await input.assets.store({
+          principal: await input.resolveHostPrincipal(toOwnerId),
+          bytes,
+          kind: "avatar",
+          mime: ref.mime,
+        });
+        return stored.assetId;
+      },
+    }),
+    copyHandoffBooks: createCopyHandoffBooks({
+      db: input.db,
+      now: input.now,
+      newBookId: minter(ID_PREFIX.worldBook),
+      newEntryId: minter(ID_PREFIX.worldEntry),
+    }),
+    restampHandoffDigests: createHandoffRestampStatements({ db: input.db }),
     // D22 member card — the character's ACCEPTED tag NAMES under the host's ownership (chip display). Resolved
     // through the character domain (chat stays character-table-blind, the getCard precedent); a gone card
     // fail-closes to [] rather than throwing into the member-card read.

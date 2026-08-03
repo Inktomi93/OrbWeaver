@@ -385,6 +385,25 @@ export function reattributeMessagesStatement(db: Db, chatId: ChatId, messageIds:
   );
 }
 
+/** Re-stamp EVERY slot in this chat authored by `fromCharacterId` onto `toCharacterId` — the host-handoff
+ *  COPY's canon arm (stickler 2026-08-03 §5.5). Not a re-voicing: the copy IS the same character, and the
+ *  point is that the transferred room's history stops depending on a card the departed host still owns.
+ *  Without it the old host's `characters` DELETE would SET NULL every one of those slots (schema/chat.ts —
+ *  the deliberate all-NULL-tolerant attribution CHECK) and the room's transcript would lose its speakers.
+ *
+ *  Id-set-free by design (the `reattributeMessages` twin takes explicit slot ids because a host is picking
+ *  rows; this takes the WHOLE chat because the identity moved). Scoped to `chatId` — an identical card seated
+ *  in another room is never touched, and the caller has already proven this room's authority. The attribution
+ *  CHECK is unaffected: a `characterId` swap leaves the row's assistant-ness exactly as it was. */
+export function restampChatCharacterStatement(db: Db, chatId: ChatId, fromCharacterId: CharacterId, toCharacterId: CharacterId): BatchStmt {
+  return batchStmt(
+    db
+      .update(messages)
+      .set({ characterId: toCharacterId })
+      .where(and(eq(messages.chatId, chatId), eq(messages.characterId, fromCharacterId))),
+  );
+}
+
 /** Re-stamp a set of slots' `personaId` (the authoring-persona / `{{user}}` axis — `reattributePersona`;
  *  author-or-host per row). Scoped to `chatId` AND `role = 'user'` — an assistant/system row is never
  *  re-stamped even if its id slips into the set. */

@@ -8,6 +8,7 @@ import type {
   CreateInviteInput,
   GroupConfigInput,
   GuidedSteer,
+  HandoffOffer,
   JoinHistoryVisibility,
   MessageContentBlock,
   OpeningPolicy,
@@ -542,6 +543,9 @@ export interface SelfLeaveParams extends ChatScopedParams {}
 /** `nominateHostHandoff` — host-only, step 1 of the two-party handoff: nominates a member as the new host. */
 export interface NominateHostHandoffParams extends ChatScopedParams {
   readonly userId: UserId;
+  /** The departing host's OPT-IN property offer (stickler 2026-08-03 §5), persisted beside the nominee and
+   *  executed at ACCEPT. Absent ⇒ no offer ⇒ the built D64 drop, byte-identical to a pre-offer handoff. */
+  readonly offer?: HandoffOffer | undefined;
 }
 
 /** `acceptHostHandoff` — step 2: the nominee accepts, triggering the atomic role swap. */

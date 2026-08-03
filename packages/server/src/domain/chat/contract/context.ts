@@ -128,6 +128,28 @@ type MaybeRevokeOnAuthFailedOp = (params: { readonly runAsUserId: UserId; readon
  *  treats null as skip, never an error. */
 type GetCardOp = (params: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<CharacterCard | null>;
 
+/** The host-handoff CARD copy (the character domain's `CopyHandoffCards`, declared structurally here so chat
+ *  takes no cross-domain edge). Returns one pairing per source that resolved under `fromOwnerId`. */
+type CopyHandoffCardsOp = (args: {
+  readonly fromOwnerId: UserId;
+  readonly toOwnerId: UserId;
+  readonly chatId: ChatId;
+  readonly characterIds: readonly CharacterId[];
+}) => Promise<readonly HandoffCardCopy[]>;
+
+/** The host-handoff LORE copy (world-info's `CopyHandoffBooks`, declared structurally). Copies the books and
+ *  returns the UNEXECUTED `chat_books` detach-original/attach-copy statements for the swap batch. */
+type CopyHandoffBooksOp = (args: {
+  readonly fromOwnerId: UserId;
+  readonly toOwnerId: UserId;
+  readonly chatId: ChatId;
+  readonly cardCopies: readonly HandoffCardCopy[];
+}) => Promise<readonly BatchStmt[]>;
+
+/** The host-handoff DIGEST re-key (embeddings' `HandoffRestampStatements`, declared structurally). Returns
+ *  UNEXECUTED statements scoped to this chat; empty for an empty pair list. */
+type RestampHandoffDigestsOp = (args: { readonly chatId: ChatId; readonly pairs: readonly HandoffCardCopy[] }) => Promise<readonly BatchStmt[]>;
+
 /** A character's ACCEPTED canonical tag NAMES under the host's ownership — the `sheet`-tier slice of the D22
  *  member card (`clampMemberCard` clamps it). Names only (the member card shows chips, not the full `TagView`),
  *  resolved through the character domain so chat stays character-table-blind (the {@link GetCardOp} precedent).
@@ -654,8 +676,61 @@ export interface ChatRpgOps {
    *  alone (conditional, never a blanket clear). Returns UNEXECUTED statements rather than writing, so the heal
    *  and the role swap commit atomically — the co-statement seam `markUserLeftStatement`/`setPendingHostStatement`
    *  already ride. Empty for a non-game chat / an unset knob ⇒ a handoff in a plain room is byte-identical. Chat
-   *  stays rpg-table-blind: it folds the statements into its batch and reads nothing inside them. */
-  readonly handoffHealStatements: (chatId: ChatId, newHostUserId: UserId) => Promise<readonly BatchStmt[]>;
+   *  stays rpg-table-blind: it folds the statements into its batch and reads nothing inside them.
+   *
+   *  `args.copyGmPreset`/`args.cardCopies` are the ACCEPTED OFFER's rpg arms (2026-08-03): with the preset
+   *  offered, an unreadable knob is COPIED into the new host's library and re-pointed instead of nulled (the
+   *  room keeps the voice it had); `cardCopies` re-keys `rpg_sheets` off the departing host's cards onto the
+   *  nominee's copies, so the transferred cast's durable identity data stops depending on a library the old
+   *  host can empty. An offer-less accept passes `false` + `[]` and produces the IDENTICAL statement list the
+   *  pre-offer heal produced. */
+  readonly handoffHealStatements: (args: HandoffHealArgs) => Promise<readonly BatchStmt[]>;
+  /** HOST HANDOFF, POST-SWAP: move each copied character's tracker row, scene presence and hand PINS from the
+   *  source card's key onto the copy's (`rekeyActor` — the `promoteActor` mechanism). NOT statement-shaped and
+   *  therefore NOT in the swap batch: it is a read-modify-write through rpg's hand door, which resolves the
+   *  true head and may clone forward onto a fresh state-anchor slot. So it runs after the swap COMMITS — the
+   *  `forkGame` post-batch posture, degraded-not-broken: a crash between them leaves the room correctly
+   *  transferred with its tracker rows still on the old keys, and a re-run converges (an already-moved actor
+   *  refuses per-actor and changes nothing). Never throws into the accept. `[]`/a non-game chat writes nothing. */
+  readonly handoffRekeyActors: (chatId: ChatId, cardCopies: readonly HandoffCardCopy[]) => Promise<void>;
+}
+
+/** One source→copy card pairing an accepted handoff offer minted: `sourceCharacterId` is the DEPARTING host's
+ *  card (the id this room's seats, canon stamps and rpg rows pointed at), `characterId` is the incoming host's
+ *  point-in-time copy. Chat OWNS this shape — every consumer of the copy plan (rpg's re-key, the digest
+ *  re-stamp, world-info's lore copy) satisfies it structurally rather than importing a sibling's type. */
+export interface HandoffCardCopy {
+  readonly sourceCharacterId: CharacterId;
+  readonly characterId: CharacterId;
+}
+
+/** One present character seat the accepted offer considered — the participant row and the card it seats. */
+export interface OfferedSeat {
+  readonly participantId: ChatParticipantId;
+  readonly characterId: CharacterId;
+}
+
+/** What an accepted offer actually landed — the copy plan the swap batch re-points the room onto. Empty in
+ *  every no-offer accept, which is what keeps that path byte-identical to the pre-offer handoff. */
+export interface HandoffCopyPlan {
+  /** The seat re-points: one per copied card. */
+  readonly seats: readonly { readonly participantId: ChatParticipantId; readonly copy: HandoffCardCopy }[];
+  /** The source→copy pairings the canon/digest/rpg re-stamps key off. */
+  readonly cardCopies: readonly HandoffCardCopy[];
+  /** The UNEXECUTED `chat_books` detach-original/attach-copy statements world-info minted. */
+  readonly bookRepoint: readonly BatchStmt[];
+}
+
+/** The `handoffHealStatements` call args. Chat OWNS this shape (rpg satisfies it — the {@link ForkGameArgs}
+ *  front-door type-import precedent). `oldHostUserId` is the resolved DEPARTING host — the ownership axis any
+ *  copy reads from, `null` when they already left the room (in which case nothing can be copied and the heal's
+ *  clear arm stands, which is the correct answer: there is no one left to give anything). */
+export interface HandoffHealArgs {
+  readonly chatId: ChatId;
+  readonly newHostUserId: UserId;
+  readonly oldHostUserId: UserId | null;
+  readonly copyGmPreset: boolean;
+  readonly cardCopies: readonly HandoffCardCopy[];
 }
 
 /** {@link ChatRpgOps.gatherTurnContext}'s call args. Chat OWNS this shape (rpg satisfies it, the same
@@ -847,6 +922,20 @@ export interface ChatContext {
   readonly resolveCredential: ResolveCredentialOp;
   readonly maybeRevokeOnAuthFailed: MaybeRevokeOnAuthFailedOp;
   readonly getCard: GetCardOp;
+  /** HOST HANDOFF, the accepted offer's card arm: copy the DEPARTING host's seated cards into the NOMINEE's
+   *  library, point-in-time. Injected because `characters` is the character domain's table; find-before-mint by
+   *  provenance, so a retried accept converges on the copies it already made. A source id that no longer
+   *  resolves under the old host is simply absent from the result and its seat takes the built D64 drop. */
+  readonly copyHandoffCards: CopyHandoffCardsOp;
+  /** HOST HANDOFF, the accepted offer's lore arm: copy the seated cards' attached books AND the departing
+   *  host's chat-attached books into the nominee's library, returning the UNEXECUTED `chat_books` re-point the
+   *  swap batch commits. Injected because the world-info tables are world-info's; a reference-carry would lose
+   *  the lore silently (the character-book pool is owner-filtered). */
+  readonly copyHandoffBooks: CopyHandoffBooksOp;
+  /** HOST HANDOFF, the accepted offer's memory arm: the UNEXECUTED digest re-key (`chat_digests.scopedCharacterId`
+   *  + `chat_digest_speakers.characterId`) for THIS chat. Injected because both tables are the embeddings
+   *  domain's; without it the departed host's card DELETE would cascade the transferred room's memory away. */
+  readonly restampHandoffDigests: RestampHandoffDigestsOp;
   readonly resolveCharacterTags: ResolveCharacterTagsOp;
   readonly resolveSeatDeco: ResolveSeatDecoOp;
   readonly mintSyntheticGroupCharacter: MintSyntheticGroupCharacterOp;

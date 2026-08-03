@@ -20,7 +20,7 @@
 //   • acceptHostHandoff lives in `features/notifications` (its firing surface is the inbox row — features
 //     are islands; each feature owns its own mutations over the shared trpc contract).
 
-import type { JoinHistoryVisibility } from "@orb/contracts/chat";
+import type { HandoffOffer, JoinHistoryVisibility } from "@orb/contracts/chat";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { createEntityMutation } from "#data";
 
@@ -66,10 +66,14 @@ export const useSetMemberHistoryVisibility = createEntityMutation<SetMemberHisto
   errorToast: "Couldn't change what that member can read.",
 });
 
-/** `invites.nominateHostHandoff` vars — host nominates a present member as the new host (step 1 of two). */
+/** `invites.nominateHostHandoff` vars — host nominates a present member as the new host (step 1 of two).
+ *  `offer` is the departing host's OPT-IN point-in-time property gift (the confirm step's checkbox), stored
+ *  with the nomination and executed only if the nominee ACCEPTS. Omitted / all-false = give nothing = the
+ *  built D64 behavior. */
 interface NominateHostHandoffVars {
   readonly chatId: ChatId;
   readonly userId: UserId;
+  readonly offer?: HandoffOffer | undefined;
 }
 
 export const useNominateHostHandoff = createEntityMutation<NominateHostHandoffVars, unknown>({

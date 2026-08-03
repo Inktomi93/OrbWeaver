@@ -379,6 +379,13 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     resolveCredential: notStubbed,
     maybeRevokeOnAuthFailed: notStubbed,
     getCard: () => Promise.resolve(null),
+    // The host-handoff COPY ops (stickler 2026-08-03 §5). Defaults are the NO-OFFER shape — copy nothing, own
+    // no statements — so every pre-offer handoff test stays byte-identical; an offer test overrides them with
+    // the real domain factories (`createCopyHandoffCards`/`createCopyHandoffBooks`/`createHandoffRestampStatements`),
+    // not a fake, since the whole arm is about what actually lands in the other domain's tables.
+    copyHandoffCards: () => Promise.resolve([]),
+    copyHandoffBooks: () => Promise.resolve([]),
+    restampHandoffDigests: () => Promise.resolve([]),
     // D22 member-card tags — default "no accepted tags" (safe floor); a member-card test overrides it.
     resolveCharacterTags: () => Promise.resolve([]),
     // D44 §12.0/§12.1/§12.5 + BG-C — ONE seat-decoration read: default to the safe floor (untrusted; external

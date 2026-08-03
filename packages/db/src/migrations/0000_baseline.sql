@@ -256,6 +256,7 @@ CREATE TABLE `chats` (
 	`archived` integer DEFAULT false NOT NULL,
 	`temporary` integer DEFAULT false NOT NULL,
 	`pending_host_user_id` text,
+	`pending_handoff_offer` text,
 	`anchor_persona_id` text,
 	`parent_chat_id` text,
 	`forked_at` integer,

@@ -8,6 +8,8 @@ export {
   CharacterNotFoundError,
   CharacterOperationError,
 } from "./contract/errors";
+export type { CharacterHandoffCopyContext, CopyAvatarToOwner, CopyHandoffCards, HandoffCardCopy } from "./contract/handoff-copy";
+export { handoffProvenance } from "./contract/handoff-copy";
 export type {
   BulkAddCardTagParams,
   BulkArchiveParams,
@@ -47,6 +49,7 @@ export type {
 } from "./contract/service";
 export type { CharacterDetail, CharacterSummary } from "./contract/views";
 export { createLinkCharacterAvatars } from "./persistence/avatar-link-write";
+export { createCopyHandoffCards } from "./persistence/handoff-copy-write";
 export type { DefaultCharacterSeeder, DefaultCharacterSeederDeps, SeededCardContent } from "./seeder";
 export {
   CARD_PACK_VERSION,

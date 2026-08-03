@@ -5,6 +5,7 @@
 
 import type {
   ChatBusEvent,
+  HandoffOffer,
   JoinHistoryVisibility,
   MessageView,
   StandaloneVariableDelta,
@@ -12,7 +13,15 @@ import type {
   TurnOrigin,
   UserMacroDraws,
 } from "@orb/contracts/chat";
-import { sentPromptSchema, standaloneVariableDeltasSchema, toolCallRecordSchema, userMacroDrawsSchema, variableDeltaSchema } from "@orb/contracts/chat";
+import {
+  handoffOfferSchema,
+  NO_HANDOFF_OFFER,
+  sentPromptSchema,
+  standaloneVariableDeltasSchema,
+  toolCallRecordSchema,
+  userMacroDrawsSchema,
+  variableDeltaSchema,
+} from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { UserMacroValues } from "@orb/contracts/preset";
 import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
@@ -142,11 +151,25 @@ export async function loadChatRow(db: Db, chatId: ChatId): Promise<ChatRow | und
   return r ? toChatRow(r) : undefined;
 }
 
-/** Read the chat's pending host-handoff nominee. `acceptHostHandoff` verifies the caller IS the nominee
- *  before the atomic role swap. */
-export async function loadPendingHostUserId(db: Db, chatId: ChatId): Promise<UserId | null> {
-  const rows = await db.select({ pendingHostUserId: chats.pendingHostUserId }).from(chats).where(eq(chats.id, chatId)).limit(LIMIT_ONE);
-  return rows.at(0)?.pendingHostUserId ?? null;
+/** Read the chat's pending host-handoff NOMINATION — the nominee AND the property offer that qualifies it,
+ *  as ONE value, because they are one nomination: `acceptHostHandoff` must never execute an offer without
+ *  re-proving the nominee, and a second read could observe a re-nominate landing between them.
+ *  `pendingHostUserId: null` ⇒ no pending handoff.
+ *
+ *  The offer blob is PARSED, not cast (the read-seam rule): a corrupt/absent blob degrades to
+ *  {@link NO_HANDOFF_OFFER} — the accept then runs the built D64 drop rather than fabricating consent to
+ *  copy someone's library out of unparseable bytes. */
+export async function loadPendingHandoff(db: Db, chatId: ChatId): Promise<{ pendingHostUserId: UserId | null; offer: HandoffOffer }> {
+  const rows = await db
+    .select({ pendingHostUserId: chats.pendingHostUserId, pendingHandoffOffer: chats.pendingHandoffOffer })
+    .from(chats)
+    .where(eq(chats.id, chatId))
+    .limit(LIMIT_ONE);
+  const row = rows.at(0);
+  return {
+    pendingHostUserId: row?.pendingHostUserId ?? null,
+    offer: handoffOfferSchema.catch(NO_HANDOFF_OFFER).parse(row?.pendingHandoffOffer ?? NO_HANDOFF_OFFER),
+  };
 }
 
 /**

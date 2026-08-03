@@ -26,6 +26,8 @@ export type {
   GeneratePictureOp,
   GetMembership,
   GetPendingUserText,
+  HandoffCardCopy,
+  HandoffHealArgs,
   PostNarratorMessage,
   PostNarratorMessageDeps,
   PresenceReadOp,

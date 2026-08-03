@@ -42,6 +42,7 @@ export function makeChat(overrides: Partial<ChatRow> = {}): ChatRow {
     archived: false,
     temporary: false,
     pendingHostUserId: null,
+    pendingHandoffOffer: null,
     anchorPersonaId: null,
     parentChatId: null,
     forkedAt: null,
