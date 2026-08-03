@@ -516,8 +516,13 @@ pointer-conditional floors · X-17 one cache key (cold read ≠ refetch). DEFERR
 edited-ago needs a RegexScriptRow timestamp (contracts+db — smalls queue). FLAGGED pre-existing:
 code-editor.ct completion flake under contention (documented CM6 75ms window — watch list) ·
 the chat.int dead second suppression = PORT-merge residue, FIXED direct-on-main `2501876a`.
-**LIVE (2): CARCH · BATFIX.** On BATFIX's merge → verify --push RE-RUN (background) →
-PUSH-READY on green.
+✅ **BATFIX MERGED (`a741dfd7`, own hook 14/14, torn down)** — all 4 battery-debris items +
+2 STRAY unclassified procs found beyond the brief (worldInfo.exportBook/importFile — PORT's
+doors, same-day class): HandoffOffer @public deleted (ratchet 0-stale) · 21+2 procs
+classified w/ REAL foreign-id drives + a post-sweep integrity assert (A's script survives
+the stranger's probes) · host-display-scripts-control CT'd both roles + waiver row ·
+create.int expectation fixed against the contracts shape. **verify --push RE-FIRED
+(background, post-BATFIX tree). LIVE (1): CARCH. 192 commits ahead of origin.**
 **PORT = DONE-AWAITING-MERGE (`e386deeb` on wt/agent-a801f968b9fead1c1, ONE commit, 95 files
 +3540/−699; HELD because the push battery is mid-run on `b3317c7d` — merge after the verdict):**
 F1 CLOSED (databank travels — REAL bundle round-trip: fresh db/CAS/owner via the actual
