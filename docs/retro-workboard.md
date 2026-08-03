@@ -416,6 +416,51 @@ identity chrome for ANY row kind.
       REGPAR F3/F4/F5 menu · v3-transcripts-reach-new-installs-only · `countByBook` twins · "Untitled chat"
       in the regex rosters.
 
+### BOARD THESE — the TAIL pass (ARCHIVE2, lines 2130–3515, 100% covered)
+
+Report: **`docs/reviews/misc/2026-08-03-archive-rescue-audit-tail.md`**. It **independently re-confirmed
+all three of the sibling's corrections to me** (the S6 seal block at :3060 confirms the anchors tuple was
+deleted; the icon-seal block at :2469 confirms two real client consumers) — so those corrections stand
+twice over, not once.
+
+- [ ] **SQUARE-GLYPH-BUTTON-SWEEP** (M) — `ui-size-via-variant`'s `DEBT_BASELINE` still carries the full
+      **14-row `!size-N !p-0` icon-Button debt across 9 `rpg/*` files**, unpaid since it was surfaced.
+      Confirmed live in the gate's current source. Needs a Button square-glyph size arm + a sweep with
+      computed-geometry proof; returns that baseline to terminal `{}`.
+- [ ] **TRACKER-GRANT-EDITOR** (M) — `sheet.trackerGrants`/`trackerRevokes` exist and gate NPC tracker
+      applicability, but **no client editor exists**, so the owner's "explicit-list-only" NPC-grants ruling
+      is a DEAD LETTER. (Audit flagged this one as trusting the doc's file:line rather than re-reading —
+      a one-minute grep firms it.)
+- [ ] **ICON-SEAL-DOORWAYS** (M) — the OTHER four named-not-built follow-ups, all **zero-hit confirmed**:
+      `LucideProvider` at the client composition root · vector-effect CSS stroke route · the `iconNode`
+      door for brand glyphs · the `fillRule=evenodd` probe to grow the fillable set.
+- [ ] **AGENT-1-PROGRAM** (L, owner-scoped) — agent-sdk first-class for rpg-lite, 5 named arms explicitly
+      scoped-and-not-dispatched, ruled order 2→3→1→4.
+- [ ] **ZOD-STAGE-D-OWNER-GATE** (S–M) — the zod audit's stage D (stringbool / hostname /
+      strip-observability) was **never posed to the owner**; stages A and B both landed.
+- [ ] **AMBIENT-NONE-AFFORDANCE** (S) — `ambient-strip.tsx`'s weather/timeOfDay CLOSED vocabs carry no
+      "none"/unset member (`RPG_WEATHER_TYPES` / `TIME_OF_DAY`), so they cannot be cleared; location/date
+      are free text and can. This is the UI gap behind the unreachable compact arm.
+- [ ] **DOCLAW-RPG-REFS-FORK** (S, decide-then-mechanical) — `compose/rpg.ts` now carries **41**
+      Documentation-Law §-vocab comment refs (up from the 33 first flagged) with no sweep and no carve-out
+      ruling. Pose it: sweep, or write the rationale.
+- [ ] **MACRO-CAST-GUIDES-FORK** (S) — should user macros bind cast guides (appearance/outfit/thoughts)
+      via `celBindings`? `macro-view.ts`'s cast projection still omits all three. If the answer is no, note
+      the asymmetry in the file.
+- [ ] **EMBER-VOCAB-SWEEP** (S) — "ember" strays as a design-constant name in CT/spec prose; rename to the
+      accent/primary vocabulary.
+- [ ] **WORKLOADS-LABEL-RENAME** (S, trivial) — 3 files still cite the RETIRED
+      "[workloads.subscribe cross-feature]" precedent label (`rpg-choice-echo`, `use-rpg-mutations.ts:101`,
+      `chat-options-menu.ts:37`).
+- [ ] **IMPORT-SETTINGS-WRITE-GUARD** (S, owner-taste) — `import-user-settings` bypasses the write-boundary
+      guard (heals+warns at READ instead of refusing at WRITE); lift on want.
+
+**⚑ ARCHIVE2's own UNVERIFIED tail** (flagged, not asserted — each is one targeted grep from a verdict):
+the six named UNREACHED side-eye items (waystone-compact · impersonate+1 · scene-lightbox · Status
+max-edit · F9-F10 · stats-Recompute) — it did not run a fresh side-eye pass to see whether a later round
+absorbed them · `refEnumerationLines` active-conditions coverage · and the two contradictory `#16 engine
+wake` mentions inside the same range (one says still-open, a later one says 6/6 arms PASS live).
+
 **⚑ TWO ROWS THE AUDIT REFUSED TO GUESS ON (UNVERIFIABLE, each names what would settle it):**
 `SSE-STARVATION-PIN` (the spec §12 live-socket regression pin — could not find it, and it did NOT run a
 two-method absence check, so it will not say "not found") · `SM7-STRICT-RESIDUE` (the "second
