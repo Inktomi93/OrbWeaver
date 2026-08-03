@@ -84,6 +84,50 @@ SIX of its own findings RETRACTED with receipts (virtualized rows DO walk under 
 430 items reachable; the "sub-44 targets" were devtools chrome). Reading-surface contrast
 pixel-sampled over the theme art: ALL PASS (prose 17.4:1). design-audit again 26/26 false
 positives (instrument note stands). **Lane NIGHTFIX dispatched (fix-ALL law).**
+**═══ ▶▶▶ SESSION-RESURRECTION BLOCK (08-03 dawn — the owner's desktop session DIED; both
+lanes' worktrees + commits SURVIVED and were resumed warm, nothing lost) ═══**
+✅ **NIGHTFIX MERGED** — the nightly side-eye fix-all, COMPLETE: config CONTENT region padding
+(the "looks unfinished" verdict killed at the region) · the double empty-state lie ×3 ·
+**actionsReserved boolean→NUMBER** (a row reserves what its LIST declares — regex 1, presets 3;
+the 88px dead strip + 128px title clamp gone) · **narrator rows say "Narrator"** (mechanism
+CORRECTED: the producer id isn't absent — it's the synthetic `__group__<chatId>` character;
+routed to NARRATOR_ATTRIBUTION before the lookup, ghost row threaded so no swap at commit) ·
+dialogue hue de-collision (24° floor, oklch only, id-hash fallback) · Prune confirm ·
+placement:[] made LEGIBLE in 3 places (min(1) REFUSED with receipt — the lenient parse is
+ST-import law) · Find-pattern field affordance + a `for` that actually focuses · FACEFILT
+aria-pressed · theme cluster prints values + ONE vocabulary · Settings›Personas now contains
+personas · persona row says its fact ONCE · context panels named for their job · +N More
+excludes what's shown · 4-affordance ceiling + the bare APPEARANCE dot. THREE arguments with
+receipts (row-pitch parity refused — the scent line IS the discriminator; scent scope refused
+— X-6 moved it to the row switch; listScriptUsage ×3 not reproduced — one key, React Query
+dedupes). LESSON: **a side-eye finding can contradict a PRIOR side-eye ruling in the same
+file's header** — satisfy the new symptom, preserve the old mechanism, state the fork.
+✅ **DBANK S1 MERGED — DATABANK IS A LIVE RAIL SECTION** (own hook PASS; the library, Add
+upload/paste/link, phase chips, bounded ingest poll, owner-wide reindex in the band kebab,
+empty states, auto-appears on Home via the registry; 199 CT + 110 unit). Its rendered check
+caught a real defect (a title-line chip ate document names at 320px → minted
+`ListRow.subtitleLead`). D-1 listGlobal minted (id-set, narrowed off world-info's twin);
+D-2/D-4 = S2's per-chat rack; **the D85 visibility toggle is STILL UNBUILT**; D-7's real tile
+owed. MERGE COLLISION RESOLVED AS THE UNION (library-row: DBANK's props-bag + optionalSlots ×
+NIGHTFIX's numeric slot count; databank declares 2). **Consolidated `pnpm check` on the merged
+result: 14/14 PASS.**
+✅ **STRUCTURED-OUTPUT DOCS RESEARCH DELIVERED** (docs/reviews/misc/2026-08-03-structured-
+output-docs.md — owner-ordered "go read both vendors' docs properly"). **We were wrong in a
+bigger way than the bug showed:** our projector emits FOUR unsupported keyword classes, not
+one — `minLength ×16` (banned by BOTH vendors, the larger population), maxLength, minimum,
+maximum; the probe stopped at integer bounds. Anthropic's "too many optionals" is an
+UNDOCUMENTED runtime wall (optionals themselves are legal there) — the real mechanism is
+GRAMMAR COMPILATION, and **a non-strict tool compiles no grammar: `WireTool` has no `strict`
+field, so the forced-tool vehicle currently has ZERO schema enforcement** (the kit header
+claiming grammar-level prevention describes a tool that cannot exist). **The unlock (REC,
+needs an owner call + live A/B): OpenAI's documented nullable-union pattern** — every prop
+`required`, optionals as `anyOf [T, null]`, `null ≡ absent` — preserves omit-means-keep AND
+clears Anthropic's optional wall in one edit. Blanket-vs-capability: KEEP BLANKET (OR
+documents support per-PROVIDER not per-model; our own capability bit is a hand-floored guess).
+Also on the table: refusal fields (both vendors have one, we read neither — a refusal logs as
+ok:true), the 24h grammar cache vs `constrainExtractionSchema` rewriting per call,
+`disable_parallel_tool_use` missing (a silent duplicate-drop), Anthropic's PHI caveat vs our
+live actor names as enum values. 3 stale comments named.
 **⚠ NEW MORNING FORK — DATABANK: own rail section (ARM A, shipping) vs a 4th CONFIG
 COLLECTION (ARM E, new):** DBANK found D-0's premise DIED tonight — the 08-01 ruling gave
 databank "its own 9th rail section" against a rail where World Info was STILL a section;
