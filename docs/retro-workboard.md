@@ -719,7 +719,17 @@ responseFormat paths — nobody's reported it yet because nobody drives that pat
 rows that are now unrepresentable; ANCHOR's floor ran vitest units, playwright CTs weren't in
 its scoped set (CT-coverage gap in lane floors — onboarding note). **Lane CTFIX dispatched**
 (per-test disposition: rewrite-subject / re-derive-scaffolding / delete-with-ledger).
-LIVE (3): REGPAR · R2WI · CTFIX.
+**REGPAR = RECONCILE-IN-LANE (merge BOUNCED modify/delete: R1B deleted the regex settings
+surface + editor dialog [paneside in config now]; REGPAR built the tester INTO them — the
+semantic-conflict law fired: worktree recreated from the surviving branch, lane resumes warm,
+merges main, re-homes the tester into the config member editor). Its content when it lands:
+the production-engine tester + Trim-out/Macros-in-find authorable + the ST disabled-POLARITY
+card-seam fix + the parity table. MORNING FORKS from it: F1 prompt-ephemerality
+unrepresentable (REC accept-and-rename; the real leg re-opens the D121-E depth drop) · F3
+bulk edit · F4 regex presets · F5 pipeline debugger · per-script JSON door · the compile-LRU
+perf note. QUEUED: REGORDER (applyScopeOrder = shipped proc, ZERO consumers — the dead-ended
+pair; sortable in the picker). **Lane SM6 dispatched** (POPLOUD + STRICTFMT + IMGMAC).
+LIVE (4): R2WI · CTFIX · SM6 · REGPAR-reconcile.
 **═══ OVERNIGHT ENGAGED (owner OFF, 08-03 ~late; full-auto per the posture memory + ladder) ═══**
 LIVE: R1B (config workspace — collapsed-groups ruled, 400-tag fixture) · SM5 (5 smalls; MACU-2
 arm-a ratified) · NARCOLOR (final shape: both produce arms + tolerant parse + forge guard +
