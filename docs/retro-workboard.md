@@ -544,10 +544,20 @@ The audit wrote SCHEMA / DBANK2 / SWEEP as *dispatched*. Since then:
   `tests/support/ct/ct-data-providers.tsx`'s `realSettingsSections`, or every pane CT lies.
 - 🔨 **SPANGATE DISPATCHED (`a40e2b5d8df6e2282`)** — the owner asked whether OBSCLOSE's class should be
   a gate or just discipline. **Gate**: the class recurred FIVE times (SM4 fixed one; OBSCLOSE found
-  four more of the identical shape in the same file). Arm A = untraced fire-and-forget (no detached
-  `root:true` span). **Arm B is the one that matters** = inside a `root:true` span callback, a `catch`
-  that does not rethrow — the shape that seals `status:"ok"` on every failure, i.e. a green dashboard
+  four more of the identical shape in the same file). Arm A = untraced fire-and-forget (work that never
+  opens a DETACHED root span). **Arm B is the one that matters** = inside a detached-root span callback,
+  a `catch` that does not rethrow — the shape that seals `status:"ok"` on every failure, i.e. a green dashboard
   over failing work. Tractable because `withRequestSpan` has only 15 call sites across 5 files.
+  **⚠️ MECHANISM CORRECTED MID-RUN (my brief was wrong):** `root: true` is NOT a call-site argument —
+  it is baked INSIDE `withRequestSpan` (`foundation/observability/tracing.ts:318`) and no call site
+  passes it. I inherited that phrasing from a prior lane's report and repeated it unchecked; the lane
+  applied the doctrine's "a brief's cited mechanism is a HYPOTHESIS" law and re-derived it from source.
+  The gate keys on **an EXPORTED function of `tracing.ts` that calls OTel `startActiveSpan` with
+  `root:true`** — which survives wrapper renames, cannot be defeated by a second wrapper, and gives the
+  §4.6 blindness tripwire a real hook (strip the detach → derivation empty → RED, probed live).
+  **A SIXTH instance found:** `fireRpgUserCommit` in `domain/chat/verbs/turn.ts` — a DB snapshot-commit
+  plus a dice consume, entirely untraced, in a DIFFERENT file. Tally is now SM4 (1) + OBSCLOSE (4) +
+  SPANGATE (1). The class demonstrably survives discipline.
   **Declared limit to carry when it lands:** a gate can prove a span is OPENED and that errors REACH
   it; it cannot prove the span is meaningful, named right, or correlated to the work. Floor, not
   ceiling.
