@@ -42,7 +42,8 @@
   // vite@6, so its ctViteConfig types collide with our vite@8-typed plugins (tailwindcss()) under
   // exactOptionalPropertyTypes — a dual-vite type world no single program can own honestly. Re-add it
   // the day playwright-ct rides the same vite major.
-  "include": ["packages/*/src", "scripts", "tests", "reset.d.ts", "vitest.config.ts", "vitest.stryker.config.ts", "playwright.config.ts", "knip.ts"],
+  // `platform.d.ts` rides beside `reset.d.ts` — the root ambient pair (node-26 adoption program §1.2).
+  "include": ["packages/*/src", "scripts", "tests", "reset.d.ts", "platform.d.ts", "vitest.config.ts", "vitest.stryker.config.ts", "playwright.config.ts", "knip.ts"],
   // Browser tsx under tests/ui, tests/client, and tests/support/ct import `@orb/ui`/`@orb/client` and
   // would drag dom-only source into this node program — exclude the whole browser-tsx SURFACE by
   // DIRECTORY, not by filename suffix. (A mis-named `-fixture.tsx` outlier slipped the old suffix globs

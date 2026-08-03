@@ -32,7 +32,9 @@
     "module": "esnext",
     "moduleResolution": "bundler",
 
-    "lib": ["es2025", "dom", "dom.iterable"],
+    // `esnext.disposable` mirrors tsconfig.base.json's lib (node-26 adoption program §1.1) — this array
+    // OVERRIDES the base's, so the entry must be repeated here or DOM-coupled tests lose `using` typing.
+    "lib": ["es2025", "esnext.disposable", "dom", "dom.iterable"],
     "jsx": "react-jsx",
     "types": ["node"],
     // The escapees import their subjects (and sibling harnesses) with explicit `.ts` extensions (tsx-run
@@ -48,6 +50,8 @@
   // `as unknown as` casts in every spec.
   "include": [
     "reset.d.ts",
+    // The root ambient pair (node-26 adoption program §1.2) — see tsconfig.base.json's include note.
+    "platform.d.ts",
     // The ambient side-effect-CSS declaration @orb/ui's own program picks up via `include: ["src"]`. A
     // test here that reaches a client feature front door pulls `@orb/ui/markdown/math.ts` (a bare
     // `import "katex/…​.css"`) into THIS closure, and a d.ts is not part of an import closure — without

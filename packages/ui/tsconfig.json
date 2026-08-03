@@ -10,7 +10,10 @@
     // and the shared packages (kit/contracts) are checked under nodenext by their own programs.
     "module": "esnext",
     "moduleResolution": "bundler",
-    "lib": ["es2025", "dom", "dom.iterable"],
+    // `esnext.disposable` mirrors tsconfig.base.json's lib (node-26 adoption program §1.1) — this array
+    // OVERRIDES the base's, so the entry must be repeated here. (§5 rules ui/client have zero
+    // disposal-shaped sites today; the lib stays uniform so a program never silently loses the typing.)
+    "lib": ["es2025", "esnext.disposable", "dom", "dom.iterable"],
     "jsx": "react-jsx"
   },
   // Also typecheck the BROWSER tests the root aggregator excludes (it's node-only — dom-BodyInit
@@ -24,6 +27,8 @@
   "include": [
     "src",
     "../../reset.d.ts",
+    // The root ambient pair (node-26 adoption program §1.2) — see tsconfig.base.json's include note.
+    "../../platform.d.ts",
     "../../tests/ui/**/*.tsx",
     "../../tests/support/ct/ct-providers.tsx",
     "../../playwright/**/*.tsx",
