@@ -24,10 +24,33 @@ const CHAT_DETAIL = { id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, ho
 // would silently stop covering it. Empty declarations = the section's teaching empty state.
 const EMPTY_PICKS = { macros: [], values: {} };
 
+// The Documents section's own suspense read (S2, D-4) — this tab is its production mount, so every
+// committed arm must stub it or the section's boundary would swallow the failure and the tab's composition
+// contract would silently stop covering it (the EMPTY_PICKS precedent one line up). One row, so the
+// heading's count chip has something to count; the row's own behavior is chat-documents-section.ct's.
+const ACTIVE_DOCUMENTS = [
+  {
+    id: "document_00000000000000000001",
+    name: "The Crimson Court",
+    mime: "text/markdown",
+    origin: "text",
+    sourceUrl: null,
+    byteSize: 25_088,
+    charCount: 4200,
+    chunkCount: 12,
+    embeddedCount: 12,
+    createdAt: 1_700_000_000_000,
+    updatedAt: 1_700_000_000_000,
+    hidden: false,
+    sources: ["chat"],
+  },
+];
+
 test("committed host + group: BOTH sections render as h3 headings", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
     "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getChat": () => CHAT_DETAIL,
@@ -57,6 +80,7 @@ test("committed host + group: the Group-behavior section shows a skeleton (never
   });
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getChat": () => CHAT_DETAIL,
@@ -78,6 +102,7 @@ test("committed host + group: the Group-behavior section shows a skeleton (never
 test("committed non-host: Group behavior is ABSENT, Field overrides persists (read-only)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
   });
@@ -95,6 +120,7 @@ test("committed non-host: Group behavior is ABSENT, Field overrides persists (re
 test("committed host + SOLO (non-group): Group behavior is ABSENT, Field overrides persists", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getChat": () => CHAT_DETAIL,
@@ -132,6 +158,7 @@ function stubToolUse(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
     "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getChat": () => CHAT_DETAIL,
@@ -154,7 +181,12 @@ test("⑦ host: editing the cap fires chat.setToolRecurseLimit with the new limi
 });
 
 test("⑦ member: the Tool-use section is ABSENT (host-only omit — a member sees no control)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.setRoomOverrides": () => ({}), "chat.listChatInjections": () => [], "chat.getUserMacroPicks": () => EMPTY_PICKS });
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+  });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await expect(component.getByRole("heading", { name: "Tool use", level: 3 })).toHaveCount(0);
   // Role-agnostic on purpose: an ABSENCE assertion keyed to `spinbutton` would go blind the day the control
@@ -170,6 +202,7 @@ function stubHostDisplayScripts(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
     "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getChat": () => CHAT_DETAIL,
@@ -191,7 +224,12 @@ test("host: toggling the switch fires chat.setHostDisplayScripts with the new st
 });
 
 test("member: the display-scripts switch is ABSENT (host-only omit — a member sees no control)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.setRoomOverrides": () => ({}), "chat.listChatInjections": () => [], "chat.getUserMacroPicks": () => EMPTY_PICKS });
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+  });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await expect(component.getByRole("switch", { name: "Show my display scripts to everyone" })).toHaveCount(0);
 });
@@ -201,6 +239,7 @@ test("member: the display-scripts switch is ABSENT (host-only omit — a member 
 test("count chips: Field overrides shows 'N set' and Injections shows its count when non-empty", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [
       { id: "inj_1", position: "in_prompt", role: "system", depth: 0, content: "a" },
       { id: "inj_2", position: "in_chat", role: "system", depth: 3, content: "b" },
@@ -218,6 +257,7 @@ test("count chips: Field overrides shows 'N set' and Injections shows its count 
 test("count chips: no chip when nothing is set (a '0' chip would be noise)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getChat": () => CHAT_DETAIL,
@@ -240,6 +280,7 @@ test("F8: the section names speak the INSTRUMENT tier's kicker voice, not the fo
   // every axis, so the only honest check is what the browser resolved.
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getChat": () => CHAT_DETAIL,
@@ -286,6 +327,7 @@ test("D-1: the host-ops trio sits under a 'Host controls' group — and a member
   await routeTrpc(page, {
     "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
     "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getChat": () => CHAT_DETAIL,
@@ -320,6 +362,7 @@ const SOLO_ROSTER_WITH_CARD_BG = [
 test("BG-C: with no chat-set background, the Background row names the CARD-carried source that is painting", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getChat": () => ({ ...CHAT_DETAIL, participants: SOLO_ROSTER_WITH_CARD_BG }),
@@ -334,6 +377,7 @@ test("BG-C: with no chat-set background, the Background row names the CARD-carri
 test("BG-C: a room with NO carried background gets no provenance gloss (never an invented origin)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
     "chat.listChatInjections": () => [],
     "chat.getUserMacroPicks": () => EMPTY_PICKS,
     "chat.getChat": () => CHAT_DETAIL,
@@ -345,9 +389,61 @@ test("BG-C: a room with NO carried background gets no provenance gloss (never an
 });
 
 test("D-1: a member's tab has no Host controls group at all (PERMISSION-omit, never an empty group)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.setRoomOverrides": () => ({}), "chat.listChatInjections": () => [], "chat.getUserMacroPicks": () => EMPTY_PICKS });
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+  });
   const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
   await expect(component.getByRole("heading", { name: "Macro picks", exact: true, level: 3 })).toBeVisible();
   await expect(component.getByRole("heading", { name: "Host controls", exact: true, level: 3 })).toHaveCount(0);
   await expect(component.getByRole("heading", { name: "Background", exact: true, level: 3 })).toHaveCount(0);
+});
+
+// D-4 (databank-surface-spec §11) — the per-chat DOCUMENTS rack mounts in THIS tab, directly after
+// Injections. Placement is the ruling, so the assertion is ORDER, not mere presence: it is the same family
+// ("extra content entering this room's prompt"), and it sits ABOVE the host-only band because unlike
+// Background/Group/Tool-use it is member-READABLE.
+test("D-4: the Documents section renders directly after Injections, for a host AND for a member", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getChat": () => CHAT_DETAIL,
+  });
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={false} />);
+
+  // The count chip rides the heading's accessible name, exactly as Injections' does.
+  await expect(component.getByRole("heading", { name: "Documents 1", level: 3 })).toBeVisible();
+
+  // `allTextContents`, not `allInnerTexts`: the kicker voice is `text-transform: uppercase`, and innerText
+  // reports the TRANSFORMED text — every label would come back shouting and match nothing.
+  const named = await component.getByRole("heading", { level: 3 }).allTextContents();
+  const at = (label: string): number => named.findIndex((text) => text.trim().startsWith(label));
+  expect(at("Documents")).toBe(at("Injections") + 1);
+  // Above the host-only band — a member sees it, so it cannot live inside Host controls.
+  expect(at("Documents")).toBeLessThan(at("Host controls"));
+});
+
+test("D-4: a MEMBER gets the Documents section too (member-readable), with no add affordance", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.setRoomOverrides": () => ({}),
+    "databank.listActiveForChat": () => ACTIVE_DOCUMENTS,
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+  });
+  const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
+
+  await expect(component.getByRole("heading", { name: "Documents 1", level: 3 })).toBeVisible();
+  await expect(component.getByText("The Crimson Court")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Add from your bank" })).toHaveCount(0);
+});
+
+// A DRAFT has no room — no membership union, no chatId to attach against — so the rack is committed-only
+// (legacy's own `when` said the same). Without this the draft arm would suspend on a read it cannot make.
+test("D-4: the DRAFT arm carries no Documents section", async ({ mount }) => {
+  const draft = await mount(<DraftSettingsTabStory showGroup={false} />);
+  await expect(draft.getByRole("heading", { name: "Documents", level: 3 })).toHaveCount(0);
 });

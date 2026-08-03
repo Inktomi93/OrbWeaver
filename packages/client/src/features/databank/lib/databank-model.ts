@@ -14,25 +14,9 @@
 // chunk/embed counts ARE the truth, so the surface can never show a phase the data does not support.
 
 import type { DocOrigin, DocumentView } from "@orb/contracts/databank";
-
-const BYTES_PER_UNIT = 1024;
-const SIZE_UNITS = ["B", "KB", "MB", "GB"] as const;
-const ONE_DECIMAL = 10;
-
-/** Human byte size (decimal-scale, locale-agnostic): 0 B · 512 B · 24.5 KB · 3.1 MB. */
-export function formatBytes(bytes: number): string {
-  if (bytes < BYTES_PER_UNIT) {
-    return `${bytes} B`;
-  }
-  let value = bytes;
-  let unitIndex = 0;
-  while (value >= BYTES_PER_UNIT && unitIndex < SIZE_UNITS.length - 1) {
-    value /= BYTES_PER_UNIT;
-    unitIndex += 1;
-  }
-  const rounded = Math.round(value * ONE_DECIMAL) / ONE_DECIMAL;
-  return `${rounded} ${SIZE_UNITS[unitIndex] ?? "GB"}`;
-}
+// `formatBytes` moved to `@orb/kit/strings` when the per-chat rack became its THIRD consumer (it was
+// spelled here and, byte-identically, inside `@orb/ui/file-dropzone`). Same function, one home.
+import { formatBytes } from "@orb/kit/strings";
 
 const ORIGIN_LABELS: Record<DocOrigin, string> = {
   upload: "Upload",

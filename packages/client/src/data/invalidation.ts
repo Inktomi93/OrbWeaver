@@ -178,6 +178,17 @@ const BUS_FILTERS: BusFilterMap = {
     // `chats.variableValues`, read through its own proc, and `setVariables`/`clearVariables` emit this
     // catch-all.
     trpc.chat.getVariablePicks.queryFilter({ chatId: e.chatId }),
+    // `databank.listActiveForChat` — the per-chat documents rack, riding this event for TWO drivers:
+    //   • MEMBERSHIP. The D85 union is membership-derived (`databank/persistence/scope.ts`): a human member
+    //     joining/leaving credits or withdraws THEIR global documents, and a roster character
+    //     joining/leaving does the same for theirs. `chatUpdated` is the documented roster/handoff event,
+    //     so it is the correct driver — nothing else covered this, and the rack would have shown the
+    //     pre-roster set until the panel was closed and reopened.
+    //   • THE D85 VISIBILITY WRITE. `chat.setChatDocumentVisibility` emits this event, which is why that
+    //     mutation is `busDriven` rather than carrying its own filter — and it is what repaints a second
+    //     host device instead of only the tab that toggled.
+    // Free when the panel is closed: `invalidateQueries` is a no-op for a key with no cache entry.
+    trpc.databank.listActiveForChat.queryFilter({ chatId: e.chatId }),
   ],
 };
 
