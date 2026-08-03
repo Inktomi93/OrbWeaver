@@ -21,7 +21,7 @@ import { createHash } from "node:crypto";
 import type { AttachedBookRef, CardDepthPrompt, CardSpec, CharacterCard, CharacterCardV3, Greeting } from "@orb/contracts/character";
 import { ATTACHED_BOOKS_WIRE_KEY, CHARA_CARD_V2_SPEC, CHARA_CARD_V3_SPEC, characterCardV3Schema } from "@orb/contracts/character";
 import type { AttachedRegexScriptRef, RegexScriptCard } from "@orb/contracts/regex";
-import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, regexScriptCardSchema } from "@orb/contracts/regex";
+import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, regexScriptCardSchema, toRegexScriptCardWire } from "@orb/contracts/regex";
 import { isPlainObject } from "@orb/kit/guards";
 import { messageRoleFromSt, messageRoleToSt } from "@orb/kit/message-role";
 import { stableStringify } from "@orb/kit/stable-stringify";
@@ -591,7 +591,9 @@ export function buildCardV3(fields: ExportCardFields, entries: ExportWorldEntry[
   const { depth_prompt: _staleDepthPrompt, regex_scripts: _staleRegexScripts, ...baseExtensions } = fields.extensions ?? {};
   const extensions: Record<string, unknown> = {
     ...baseExtensions,
-    regex_scripts: fields.regexScripts,
+    // Emitted through the ST-polarity projector: our `enabled` PLUS ST's `disabled`, so a card exported
+    // from here means the same thing in SillyTavern as it does on re-import (contracts/regex).
+    regex_scripts: fields.regexScripts.map(toRegexScriptCardWire),
     ...(fields.depthPrompt ? { depth_prompt: fields.depthPrompt } : {}),
   };
   const data: Record<string, unknown> = {

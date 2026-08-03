@@ -69,35 +69,33 @@ function RegexMemberEditorBody({ row, session }: { readonly row: RegexScriptRow;
 
   return (
     <Container>
-    <Stack className="max-w-prose outline-none" data-slot="regex-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
-      <Row align="center" gap="field" justify="between">
-        <Heading level={2}>
-          {regexScriptTitle(row)}
-        </Heading>
-        <AutosaveStatus caption="Synced across your devices." onRetry={session.retrySave} state={session.saveState} />
-      </Row>
+      <Stack className="max-w-prose outline-none" data-slot="regex-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
+        <Row align="center" gap="field" justify="between">
+          <Heading level={2}>{regexScriptTitle(row)}</Heading>
+          <AutosaveStatus caption="Synced across your devices." onRetry={session.retrySave} state={session.saveState} />
+        </Row>
 
-      <RegexEditorFields form={session.form} />
+        <RegexEditorFields form={session.form} />
 
-      <Row justify="end">
-        <Button intent="ghost" onClick={(): void => setDeleteOpen(true)} size="sm" type="button">
-          <Icon icon={Trash2} size="sm" />
-          Delete
-        </Button>
-      </Row>
+        <Row justify="end">
+          <Button intent="ghost" onClick={(): void => setDeleteOpen(true)} size="sm" type="button">
+            <Icon icon={Trash2} size="sm" />
+            Delete
+          </Button>
+        </Row>
 
-      <ConfirmDialog
-        confirmLabel="Delete"
-        description="Deleting a script removes it from every preset, character, and room it is attached to. This can't be undone."
-        onConfirm={(): void => {
-          void remove.mutateAsync({ scriptId: row.id });
-          clearCollectionSelection();
-        }}
-        onOpenChange={setDeleteOpen}
-        open={deleteOpen}
-        title={`Delete "${regexScriptTitle(row)}"?`}
-      />
-    </Stack>
+        <ConfirmDialog
+          confirmLabel="Delete"
+          description="Deleting a script removes it from every preset, character, and room it is attached to. This can't be undone."
+          onConfirm={(): void => {
+            void remove.mutateAsync({ scriptId: row.id });
+            clearCollectionSelection();
+          }}
+          onOpenChange={setDeleteOpen}
+          open={deleteOpen}
+          title={`Delete "${regexScriptTitle(row)}"?`}
+        />
+      </Stack>
     </Container>
   );
 }
