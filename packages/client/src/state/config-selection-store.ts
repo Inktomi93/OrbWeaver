@@ -1,0 +1,36 @@
+// The Configuration SELECTION store (the config rail section · UI-Arch §4.2 rule 1: LIST selection drives
+// CONTENT) — which collection MEMBER the workspace has open, as a (kind, member) PAIR.
+//
+// KINDED because the roster is ONE list over N sibling collections (review F-7): a tag row and a regex row
+// are both "the selection", and only the kind says which contribution owns the CONTENT and CONTEXT halves.
+// A `P extends string` primary could only express that by string-packing, which is the stringly state the
+// house style rejects. Not persisted — landing back on the workspace welcome after a reload is fine.
+
+import { openCollectionGroup } from "./config-group-open-store";
+import { createKindedSelectionStore } from "./create-kinded-selection-store";
+import { setActiveSection } from "./shell-store";
+
+const configSelection = createKindedSelectionStore("config-selection");
+
+/** Open a member (kind + id) — CONTENT swaps to that collection's editor. */
+export const selectCollectionMember = configSelection.select;
+/** Open a member from the LIST AND close any open LIST slide-over (no-op when the LIST is docked). */
+export const selectCollectionMemberFromList = configSelection.selectFromList;
+/** Clear the selection — back to the Configuration welcome (also fired after deleting the open member). */
+export const clearCollectionSelection = configSelection.clear;
+/** Reactive: the selected (kind, member) pair, or `null` for the welcome. */
+export const useCollectionSelection = configSelection.useSelection;
+
+/** The cross-section deep-link intent: "take me to this library". Replaces `openSettingsTo("tags"|"regex")`
+ *  at every call site the R1 migration killed — the ids left `SettingsCategoryId`, so tsc enumerated them.
+ *
+ *  It carries the KIND on purpose: with the roster's groups collapsed by default, a bare
+ *  `setActiveSection("config")` would land a caller who asked for the script library on a closed door. So
+ *  the intent expands that group, clears any stale member selection (the workspace opens on its welcome,
+ *  not on whatever was last edited), and switches the rail — all through the SAME store actions the real UI
+ *  calls, never a parallel path. */
+export function goToCollection(kind: string): void {
+  openCollectionGroup(kind);
+  configSelection.clear();
+  setActiveSection("config");
+}
