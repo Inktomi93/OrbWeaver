@@ -1,30 +1,67 @@
 #!/usr/bin/env node
-// PreToolUse guard for Bash — catches command shapes that silently destroy signal.
+// PreToolUse guard for Bash — catches command shapes that destroy signal, and REWRITES the ones with
+// exactly one correct fix so the agent never even loses the turn.
 //
-// WHY THIS EXISTS (measured, not guessed — `docs/reviews/misc/2026-08-03-tool-use-antipattern-census.md`):
-// 87.3% of harness invocations across 133,631 Bash calls were piped into a swallower. `pnpm check` piped
-// runs a median 64.1s vs 2.3s unpiped (28x); `pnpm verify`/`pnpm test` piped cluster at the 120s tool
-// timeout. ~2,743 minutes of EXCESS wall-clock. Two failure modes from one habit:
-//   1. EXIT CODE — a pipeline's status is the LAST stage's, so `pnpm check | tail` reports tail's 0 even
-//      when check failed. A run was reported to the owner as green while it was red.
-//   2. HANG — tail/head/grep read until EOF; our harness spawns descendants (playwright, vite, the stack
-//      daemons, vitest workers) that INHERIT the pipe's write end, so EOF never arrives and the call sits
-//      long after the work finished. Commands that DON'T fork (check:docs, typecheck) show no inflation —
-//      that contrast is the proof of mechanism.
+// WHY THIS EXISTS (measured, not guessed — docs/reviews/misc/2026-08-03-tool-use-antipattern-census.md,
+// mined from 3,138 transcripts / 133,631 Bash calls; 85.7% of them from subagents):
+//   · 87.3% of harness invocations (5,319/6,096) were piped into a swallower. `pnpm check` piped runs a
+//     median 64.1s vs 2.3s unpiped (28×); `pnpm verify`/`pnpm test` piped cluster at the ~120s Bash-tool
+//     timeout ceiling. Excess wall-clock across the corpus: ~2,743 minutes (~45 hours).
+//   · Two failure modes from the one habit:
+//       1. EXIT CODE — a pipeline reports the LAST stage's status, so `pnpm check | tail` returns tail's
+//          0 even when check failed. A red run was reported to the owner as green this way.
+//       2. HANG — tail/head/grep read until EOF; the harness spawns descendants (playwright, vite, the
+//          stack daemons, vitest workers) that INHERIT the pipe's write end, so EOF never arrives.
+//          Commands that don't fork (check:docs, check:structure, typecheck) show NO piped-vs-unpiped
+//          inflation — that contrast is the proof of mechanism.
+//
+// DECISION TIERS (per rule; validated against the full 133,631-command corpus by guard-replay.mjs):
+//   REWRITE (allow + updatedInput)  — the fix is unambiguous: run the harness redirected to a log, then
+//                                     run the agent's own reader chain against the file with the real
+//                                     exit code preserved. Strictly better than deny: no lost turn.
+//   DENY                            — needs intent to fix (compound shapes), or doctrine-banned outright.
+//   WARN (defer + additionalContext)— merely suboptimal, or too many legitimate uses to block.
+//   ASK                             — only the owner can judge (force-push; a lane touching the remote).
 //
 // DESIGN: precision over coverage. A hook that cries wolf gets disabled, and then we have nothing.
-//   · QUOTE-AWARE — quoted spans are blanked before matching, so `git commit -m "fix pnpm check pipe"`
-//     does NOT fire. This is the owner's own false-positive case and it is a test row below.
-//   · PIPELINE-AWARE — only a HARNESS stage feeding a SWALLOWER stage bites. `git log | head` is fine.
-//   · SANCTIONED FORMS PASS — the lane CT recipe (`rm -rf playwright/.cache && npx playwright test -c …`)
-//     is the CORRECT command; flagging it would train agents to ignore the hook.
+//   · QUOTE-AWARE — quoted spans are blanked (same-length) before matching, so
+//     `git commit -m "fix the pnpm check pipe"` can never fire. Structure is found on the blanked text;
+//     rewrites slice the ORIGINAL text by index, so quoted content survives verbatim.
+//   · PIPELINE-AWARE — only a HARNESS stage feeding a later stage bites. `git log | head` is fine.
+//   · THE GUARD NEVER BLOCKS THE SANCTIONED FORM OF A JOB — `rm -rf playwright/.cache && npx playwright
+//     test -c playwright-ct.config.ts <paths>` is the CORRECT lane CT recipe and passes untouched, and a
+//     path-scoped / `--only=`-scoped `biome check --write` is the CORRECT mechanical-migration form
+//     (tsx-shedding spec Stage 1) and is warn-tier, never deny. A rule that catches the right way of
+//     doing something teaches agents to route around the hook, and then it protects nothing.
+//   · FAIL-OPEN — any internal error, unparseable stdin, or stdin stall emits "defer" and exits 0. The
+//     guard breaking must never block work (proven by test).
+//   · SELF-EXEMPT — commands that run this guard, its replay, or the census miner defer immediately, so
+//     the guard's own test/validation tooling can never recurse or deadlock.
 //
-// Usage:
-//   echo '<hook json>' | tool-guard.mjs      real mode (PreToolUse contract on stdin)
-//   tool-guard.mjs --test                    run the corpus, print bite/pass table, exit 1 on mismatch
+// OBSERVABILITY: every decision appends one JSONL line to reports/tool-guard/decisions.jsonl (gitignored
+// via /reports/) with rule, decision, latency and a command prefix — tune from evidence, not vibes.
+//
+// KILL SWITCH (emergencies only, greppable): ORB_TOOL_GUARD=off (also "0"/"false") disables all rules —
+// the hook logs the bypass and defers. `export ORB_TOOL_GUARD=off` in the session env, or prefix the
+// `claude` launch. Re-enable by unsetting.
+//
+// ENTRY POINTS:
+//   echo '<PreToolUse json>' | tool-guard.mjs     real mode (hook contract on stdin, JSON on stdout)
+//   tool-guard.mjs --classify-batch               stdin: JSON array of {command, cwd?, agentId?, timeout?}
+//                                                 stdout: JSON array of decisions (no side effects) —
+//                                                 used by tests/tooling/tool-guard.int.test.ts and
+//                                                 scripts/probes/guard-replay.mjs (corpus validation).
+//
+// TEST SEAMS (env, test-only, self-identifying): ORB_TOOL_GUARD_NOW_FOR_TEST (pins the rewrite-log
+// timestamp), ORB_TOOL_GUARD_CRASH_FOR_TEST (forces an internal throw — proves fail-open).
 
-/** Blank out quoted spans so text INSIDE a string literal can never match a rule. */
-function blankQuoted(cmd) {
+import { appendFileSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
+import process from "node:process";
+
+// ── quote blanking (same length in, same length out — indexes into the blank map into the original) ──
+
+export function blankQuoted(cmd) {
   let out = "";
   let quote = null;
   for (let i = 0; i < cmd.length; i += 1) {
@@ -42,152 +79,705 @@ function blankQuoted(cmd) {
   return out;
 }
 
-/** Split a command line into pipeline stages, ignoring `||`. Returns stages of each pipeline. */
-function pipelines(cmd) {
-  // split on && ; and newlines first — each clause has its own pipeline
-  const clauses = cmd.split(/&&|\|\||;|\n/g);
-  return clauses.map((c) => c.split(/(?<!\|)\|(?!\|)/g).map((s) => s.trim()));
+// ── heredoc blanking: a `<<DELIM` body is TEXT, not commands — without this, a python heredoc whose
+//    body mentions `pnpm check | grep` fires the pipe rule (observed in the real corpus). Blanks the
+//    operator + delimiter + body (newlines kept, so clause indexes stay honest); the terminator line
+//    itself is blanked too. Runs on the already-quote-blanked text, reading delimiters from the raw. ──
+
+// Scanned on the RAW text (a quoted delimiter like <<'EOF' is already spaces in the blanked text, which
+// once made the scanner mistake the first body word for the delimiter — a real corpus commit message
+// then leaked its body into rule matching). An operator that is itself inside a quoted span (blanked
+// at that index) is skipped — that `<<` is string content, not a heredoc.
+const HEREDOC_OPERATOR = /<<-?\s*(['"]?)(\w+)\1/g;
+
+export function blankHeredocs(raw, blank) {
+  let out = blank;
+  HEREDOC_OPERATOR.lastIndex = 0;
+  for (let m = HEREDOC_OPERATOR.exec(raw); m !== null; m = HEREDOC_OPERATOR.exec(raw)) {
+    if (out[m.index] !== "<") {
+      continue; // the operator is inside a quoted span — string content, not a heredoc
+    }
+    const delim = m[2];
+    const bodyStart = raw.indexOf("\n", m.index + m[0].length);
+    if (bodyStart === -1) {
+      break;
+    }
+    // find the terminator line (allowing leading tabs for <<-)
+    let end = raw.length;
+    for (let lineStart = bodyStart + 1; lineStart < raw.length; ) {
+      const lineEnd = raw.indexOf("\n", lineStart);
+      const stop = lineEnd === -1 ? raw.length : lineEnd;
+      if (raw.slice(lineStart, stop).replace(/^\t+/, "") === delim) {
+        end = stop;
+        break;
+      }
+      if (lineEnd === -1) {
+        break;
+      }
+      lineStart = lineEnd + 1;
+    }
+    const blankSpan = (text, from, to) => text.slice(0, from) + text.slice(from, to).replace(/[^\n]/g, " ") + text.slice(to);
+    out = blankSpan(out, m.index, m.index + m[0].length); // the operator + delimiter
+    out = blankSpan(out, bodyStart, end); // the body + terminator line
+    HEREDOC_OPERATOR.lastIndex = end;
+  }
+  return out;
 }
 
-// A harness command whose exit code and artifacts matter, and which spawns forking descendants.
-const HARNESS = /\bpnpm\s+(run\s+)?(check|verify|test|lint|typecheck|e2e|gate|snap|ast)\b|\bpnpm\s+(check|verify|test|e2e|typecheck):/;
-// Readers that terminate a pipeline and replace its exit status.
-const SWALLOWER = /^(tail|head|grep|rg|wc|less|more|sort|uniq|cut|awk|sed)\b/;
+// ── structure scan: clauses (split on && / || / ; / newline) and pipe stages within each clause.
+//    Runs on the BLANKED text; returns index ranges so callers can slice the original. ──
 
-const RULES = [
-  {
-    id: "harness-piped",
-    decision: "deny",
-    test: (clean) =>
-      pipelines(clean).some(
-        (stages) =>
-          stages.length > 1 &&
-          stages.some((s) => HARNESS.test(s)) &&
-          stages.slice(1).some((s) => SWALLOWER.test(s)),
-      ),
-    reason:
-      "A pipeline's exit code is the LAST stage's, so this reports tail/grep's status, not the harness's — a run was reported green while it was red. It also HANGS: the reader waits for an EOF that never comes because playwright/vite/stack descendants inherit the pipe (measured: 64s piped vs 2.3s unpiped). Redirect instead: `<cmd> > reports/run.log 2>&1` then read the log and `reports/verify.json`.",
-  },
-  {
-    id: "harness-status-swallowed",
-    decision: "deny",
-    test: (clean) => /(?:pnpm\s+(?:run\s+)?(?:check|verify|test|lint|typecheck|e2e))[^\n;]*?(\|\|\s*(true|echo|:)|;\s*true\b)/.test(clean),
-    reason:
-      "`|| true` / `; true` after a harness command discards the failure — the run can fail and the tool reports success. Let it exit non-zero and read `reports/verify.json`.",
-  },
-  {
-    id: "cd-into-worktree",
-    decision: "deny",
-    test: (clean) => /\bcd\s+[^\s;&|]*\.claude\/worktrees\//.test(clean),
-    reason:
-      "The Bash cwd PERSISTS across calls, so one `cd` into a worktree silently relocates every LATER command — this landed a main-only commit on a lane branch mid-sweep. Use `git -C <absolute-path>` instead; it needs no cd.",
-  },
-  {
-    id: "destructive-git-restore",
-    decision: "deny",
-    test: (clean) => /\bgit\s+(stash|restore)\b|\bgit\s+checkout\s+(--\s+|\S*\.(ts|tsx|md|json)\b)/.test(clean),
-    reason:
-      "`git stash`/`restore`/`checkout <path>` silently destroy uncommitted work, and this tree usually carries a large uncommitted surface. To read an old version use `git show HEAD:<path>`; to undo a probe, `rm` the throwaway file.",
-  },
-  {
-    id: "biome-write-all",
-    decision: "deny",
-    test: (clean) => /\bbiome\s+(check[^\n;|&]*--(write|fix)|format)\b/.test(clean),
-    reason:
-      "`biome check --write` / `format` applies INFO-level autofixes that have changed behavior and crashed the server (the /u unicode-regex wave took down boot). Fix only ERROR-level diagnostics, scoped to named files.",
-  },
-  {
-    id: "sg-not-ast-grep",
-    decision: "warn",
-    test: (clean) => /(^|[\s;&|(])sg\s+(run|scan|outline|test)\b/.test(clean),
-    reason:
-      "Use `ast-grep`, not `sg`. It resolves here, but `sg` is `newgrp` on most Debian/Ubuntu boxes and the alias is one environment away from silently searching nothing — we standardize on the explicit binary so a command is portable and unambiguous.",
-  },
-  {
-    id: "bare-vitest",
-    decision: "warn",
-    test: (clean) => /\bnpx\s+vitest\b|(?<!pnpm\s)(?<!\.bin\/)\bvitest\s+run\b/.test(clean),
-    reason:
-      "A bare vitest run drops the json reporter, so `reports/test-report.json` is never written and the failure list is lost. Prefer `pnpm test` (or `pnpm vitest run <paths>` for a scoped lane run).",
-  },
-  {
-    id: "grep-r-unscoped",
-    decision: "warn",
-    test: (clean) =>
-      /\bgrep\s+(-[a-zA-Z]*r[a-zA-Z]*\s|\S*\s+-r\b)/.test(clean) &&
-      !/--exclude-dir/.test(clean) &&
-      /\bgrep[^\n;|&]*\s(\.|\.\/|packages\/?|tests\/?|src\/?)\s*$/.test(clean),
-    reason:
-      "`grep -r` does not respect ignore files and every package has its own node_modules — pass `--exclude-dir=node_modules`. (Today it happens to be symlinks the walker won't follow, so a count can be right by ACCIDENT of the store layout.)",
-  },
-];
-
-export function classify(command) {
-  const clean = blankQuoted(command);
-  for (const rule of RULES) {
-    if (rule.test(clean)) {
-      return { decision: rule.decision, rule: rule.id, reason: rule.reason };
+export function parseStructure(blank) {
+  const clauses = [];
+  let clauseStart = 0;
+  let stageStart = 0;
+  let stages = [];
+  const endClause = (end) => {
+    stages.push({ start: stageStart, end });
+    clauses.push({ start: clauseStart, end, stages });
+    stages = [];
+  };
+  let i = 0;
+  while (i < blank.length) {
+    const c = blank[i];
+    const next = blank[i + 1];
+    if ((c === "&" && next === "&") || (c === "|" && next === "|")) {
+      endClause(i);
+      i += 2;
+      clauseStart = i;
+      stageStart = i;
+    } else if (c === ";" || c === "\n") {
+      endClause(i);
+      i += 1;
+      clauseStart = i;
+      stageStart = i;
+    } else if (c === "|") {
+      stages.push({ start: stageStart, end: i });
+      i += 1;
+      stageStart = i;
+    } else {
+      i += 1;
     }
   }
-  return { decision: "defer", rule: null, reason: null };
+  endClause(blank.length);
+  return clauses.filter((cl) => blank.slice(cl.start, cl.end).trim().length > 0);
 }
 
-// ── test corpus ────────────────────────────────────────────────────────────────────────────────────
-// MUST-BITE: the shapes measured in the census. MUST-PASS: legitimate commands, incl. every
-// false-positive trap we could think of. A rule that fails a MUST-PASS is worse than no rule.
-const CASES = [
-  // ---- MUST BITE ----
-  ["deny", "pnpm check | tail -30"],
-  ["deny", "pnpm verify --push 2>&1 | tail -40"],
-  ["deny", "pnpm test | head -20"],
-  ["deny", 'pnpm check 2>&1 | grep -E "✗|FAIL"'],
-  ["deny", "pnpm check | wc -l"],
-  ["deny", "cd /home/x/.claude/worktrees/agent-abc && git status --short"],
-  ["deny", "git stash"],
-  ["deny", "git restore packages/client/src/app.tsx"],
-  ["deny", "git checkout -- packages/server/src/index.ts"],
-  ["deny", "biome check --write ."],
-  ["deny", "pnpm check || true"],
-  ["deny", "pnpm typecheck | tail -5"],
-  ["warn", "npx vitest run tests/client/x.test.ts"],
-  ["warn", "sg run -p 'useMemo($$$A)' -l tsx packages/client/src"],
+// ── vocab ──
 
-  // ---- MUST PASS (legitimate) ----
-  ["defer", 'git commit -m "fix the pnpm check pipe that ate our exit code"'],
-  ["defer", 'git commit -m "docs(board): pnpm verify --push 17/17 green" -- docs'],
-  ["defer", 'echo "never run pnpm check | tail"'],
-  ["defer", "git log --oneline -20 | head -5"],
-  ["defer", "ls packages | grep client"],
-  ["defer", "pnpm check"],
-  ["defer", "pnpm check > reports/run.log 2>&1"],
-  ["defer", "pnpm verify --push > /tmp/push.log 2>&1"],
-  ["defer", "rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx"],
-  ["defer", "git show HEAD:packages/server/src/index.ts"],
-  ["defer", "/usr/bin/grep -rn --exclude-dir=node_modules 'useMemo' packages/client/src"],
-  ["defer", "cat reports/verify.json | python3 -m json.tool"],
-  ["defer", "git worktree remove .claude/worktrees/agent-abc"],
-  ["defer", "pnpm test:ct"],
-  ["defer", "npx tsc -p packages/server --noEmit"],
-  ["defer", "ast-grep run -p 'useMemo($$$A)' -l tsx packages/client/src"],
-  ["defer", 'git commit -m "use sg run for the sweep"'],
-];
+// Harness family with forking descendants (playwright/vite/stack/vitest workers) — the measured hang
+// class. `pnpm ast` is deliberately EXCLUDED: it is a pure static tool with no descendants, and the
+// census shows non-forkers have no piped inflation (only the exit-code nit — not worth firing on).
+// HEAD-anchored: the harness must BE the command at the head of a pipeline stage (env-assignment /
+// timeout / nice wrappers allowed). Anchoring is the structural fix for exposed-quote false positives —
+// text merely mentioning `pnpm check | tail` mid-command can never fire this.
+const WRAP_PREFIX = String.raw`(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*(?:timeout\s+\d+[a-z]?\s+|nice\s+(?:-n\s*\d+\s+)?)*`;
+const HARNESS_HEAD = new RegExp(
+  `^\\s*${WRAP_PREFIX}(?:(?:pnpm|npm|turbo)\\s+(?:run\\s+)?(?:check|verify|test|lint|typecheck|e2e|gate)(?::[\\w-]+)?\\b|pnpm\\s+(?:exec\\s+)?vitest\\b|pnpm\\s+snap\\b)`,
+);
+// Readers we know how to re-target at a file (a rewrite's reader chain must be built from these; the
+// optional path prefix admits the doctrine's own `/usr/bin/grep` spelling).
+const READER = /^\s*(?:\S*\/)?(?:tail|head|grep|egrep|fgrep|rg|wc|cat|tee|sort|uniq|cut|awk|sed|tr|column|less|more|jq)\b/;
+// Long-lived-child commands beyond the harness (census: `git push origin main 2>&1 | tail -8` timed out
+// at exactly 120s — git's credential/network child holds the pipe open after the visible push finishes).
+const LONG_LIVED = /^\s*git\s+(?:push|pull|fetch|clone)\b/;
+const STDERR_MERGE_TAIL = /\s*2>&1\s*$/;
+const REDIRECT_FD_MERGE = /\d?>>?&\d/g;
+const SELF_EXEMPT = /tool-guard\.mjs|guard-replay\.mjs|transcript-census\.mjs/;
+const WORKTREE_PATH = /\.claude\/worktrees\/([^\s/;&|)]+)/;
+const CD_WORKTREE = /\b(?:cd|pushd)\s+[^\s;&|]*\.claude\/worktrees\/([^\s/;&|]+)/;
+// stash: read-only subcommands (list/show) destroy nothing and pass; everything else is the ban.
+const GIT_STASH = /\bgit\s+stash\b(?:\s+(list|show))?/;
+// restore: `--staged` WITHOUT `--worktree`/-W only unstages (index-only) — safe; all else destroys.
+const GIT_RESTORE = /\bgit\s+restore\b([^\n;|&]*)/;
+const RESTORE_WORKTREE_ARM = /--worktree|(^|\s)-W\b|(^|\s)-[a-zA-Z]*W/;
+const RESTORE_STAGED = /--staged|(^|\s)-S\b/;
+const GIT_CHECKOUT = /\bgit\s+checkout\s+(.*)/;
+const CHECKOUT_PATHISH =
+  /(^|\s)(--(\s|$)|\.(\s|$)|\S+\.(ts|tsx|mts|cts|js|jsx|mjs|cjs|json|md|css|html|sql|sh|yml|yaml|txt|svg|png|lock)\b)/;
+const BIOME_WRITE_MODE = /\bbiome\s+(?:check|lint|format)\b[^\n;|&]*--(?:write|fix|apply|unsafe)\b/;
+const BIOME_SUBCOMMAND = /\bbiome\s+(?:check|lint|format)\b/;
+const BIOME_ONLY_SCOPED = /--only=\S/;
+const PNPM_LINT_FIX = /\bpnpm\s+(?:run\s+)?lint:fix\b/;
+const HARNESS_OR_TRUE =
+  /(?:\b(?:pnpm|npm|turbo)\s+(?:run\s+)?(?:check|verify|test|lint|typecheck|e2e|gate)(?::[\w-]+)?\b|\bpnpm\s+(?:exec\s+)?vitest\b)[^\n;]*\|\|\s*(?:true|echo|:)(?:\s|$)/;
+const HARNESS_SEMI_TRUE =
+  /(?:\b(?:pnpm|npm|turbo)\s+(?:run\s+)?(?:check|verify|test|lint|typecheck|e2e|gate)(?::[\w-]+)?\b)[^\n;]*;\s*true\s*$/;
+const PLAYWRIGHT_TEST = /(?:\bnpx\s+|\bpnpm\s+exec\s+|^\s*|&&\s*)playwright\s+test\b/;
+const PLAYWRIGHT_CACHE_CLEAR = /rm\s+-rf\s+(?:\S*\/)?playwright\/\.cache/;
+const CT_CONFIG = /playwright-ct\.config\.ts/;
+const CT_FILE_HINT = /\.ct\.tsx?\b/;
+const SG_AS_AST_GREP = /(?:^|[;&|(]\s*|\s)sg\s+(?:run|scan|outline|test|new|--version|-p\b|--pattern)/;
+const VITEST_HEAD = /^\s*(?:npx\s+vitest|vitest|\S*node_modules\/\.bin\/vitest)\b/;
+const GREP_HEAD = /^\s*(?:\/usr\/bin\/)?grep\s/;
+const GREP_RECURSIVE_FLAG = /\s-[a-zA-Z]*r/i;
+const GREP_EXCLUDE_DIR = /--exclude-dir/;
+const GREP_BROAD_ROOT = /^(\.|\.\/|packages\/?|tests\/?|src\/?|scripts\/?|\*)$/;
+const SQLITE_HEAD = /^\s*sqlite3\b/;
+const SQLITE_SAFE_HINT = /\/tmp\/|scratchpad|:memory:|test|\.bak\b/i;
+const GIT_NO_VERIFY = /\bgit\s+(?:commit|merge)\b[^\n;|&]*--no-verify\b/;
+const GIT_COMMIT_OR_MERGE = /\bgit\s+(?:[^\s;|&]+\s+)*?(?:commit|merge)\b/;
+const PROC_GIT_PUSH = /(^|\0)git\0([^\0]*\0)*push(\0|$)/;
+const GIT_ADD_ALL = /\bgit\s+add\s+(?:-A\b|--all\b|\.(?:\s|$))/;
+const GIT_PUSH = /\bgit\s+(?:[^\s;|&]+\s+)*?push\b/;
+const GIT_PUSH_FORCE = /\bgit\s+push\b[^\n;|]*(?:\s--force(?:-with-lease)?\b|\s-f\b)/;
+const RM_RF_HEAD = /^\s*rm\s+(?:-[a-z]*[rf][a-z]*\s+)+/;
+const RM_SAFE_TARGET = /\/tmp\/|scratchpad|playwright\/\.cache|node_modules|reports\/|\bdist\b|\bcoverage\b|\.cache\b|\.bak\b/;
+// `$VAR` is safe (the rewrite copies text verbatim, the shell expands identically); `$(`/backticks/
+// parens/bare-& are not (subshells, grouping, backgrounding). fd-merges (2>&1) are stripped first.
+const UNSAFE_STAGE0 = /[<>()`&]/;
+const UNSAFE_READER = /[<()`&]/;
+const ENV_KILL = /^(?:off|0|false)$/i;
 
-if (process.argv.includes("--test")) {
-  let fails = 0;
-  const pad = (s, n) => String(s).padEnd(n);
-  console.log(`${pad("EXPECT", 7)} ${pad("GOT", 7)} ${pad("RULE", 26)} COMMAND`);
-  console.log("-".repeat(110));
-  for (const [expected, cmd] of CASES) {
-    const got = classify(cmd);
-    const ok = got.decision === expected;
-    if (!ok) {
-      fails += 1;
+const REWRITE_TIMEOUT_MS = 600_000;
+const CMD_LOG_MAX = 240;
+const STDIN_DEADLINE_MS = 2_500;
+
+// ── teaching text (the entire user-visible surface of this hook — mechanism + number + exact fix) ──
+
+const REASONS = {
+  harnessPipedDeny:
+    "Piping the harness loses its exit code (the pipeline reports tail/grep's status — a red run was reported green this way) AND hangs: playwright/vite/stack/vitest descendants inherit the pipe's write end, so the reader waits for an EOF that never comes (measured: `pnpm check` piped median 64.1s vs 2.3s unpiped, 28×). Run it bare — `pnpm check` — and read the auto-written artifacts: reports/verify.json + reports/verify/<stage>.log.",
+  harnessSwallowed:
+    "`|| true` (or `; true`) after a harness command erases the failure — the tool reports success even when the gate was red. Let it exit non-zero; the failure list is already in reports/verify.json / reports/test-report.json.",
+  gitDestructive:
+    "`git stash` / `git restore` / `git checkout <path>` silently destroy uncommitted work, and this tree usually carries a large uncommitted surface (doctrine ban; near-zero legitimate sightings in 133k calls). Read an old version with `git show HEAD:<path>`; undo a probe by `rm`-ing the throwaway file; protect a risky edit with `cp <f> <f>.bak` first.",
+  biomeWrite:
+    "A whole-tree biome fix-all (`--write` with no explicit paths, or `.`; `pnpm lint:fix`) applies EVERY autofix including INFO-level ones that change behavior — the `/u` unicode-regex wave crashed server boot (doctrine ban). Scope it: name the paths and/or a single rule (`biome check --write --only=<rule> <paths>`), or fix ERROR-level diagnostics by hand.",
+  cdWorktree:
+    "The Bash cwd PERSISTS across calls — one `cd` into a lane worktree silently relocates every later command (this landed a main-session commit on a lane branch; 3,064 sightings in the corpus). Use `git -C /abs/path/to/worktree <cmd>` — no cd needed.",
+  playwrightCt:
+    "CT runs need the sanctioned prefix: `rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts <paths>`. A stale playwright/.cache replays errors that stopped existing ('Identifier already declared'), and a missing `-c playwright-ct.config.ts` runs the wrong project — 85% of historical CT invocations skipped the cache clear.",
+  pushForce:
+    "Force-push rewrites shared history on the integration trunk — that is an owner call (6 sightings in 133,631 calls, none routine). State why, or use a plain push.",
+  lanePush:
+    "Standing law: a lane never pushes. Commit on your branch and report — the orchestrator merges, and each push to origin gets an explicit owner word (pushes are outward-facing and hard to walk back). If this push was explicitly ordered, confirm it here.",
+};
+
+const CONTEXTS = {
+  rewritePiped: (log) =>
+    `tool-guard rewrote this command: piping the harness hangs (forked descendants hold the pipe's write end — measured 28×–55× wall-clock inflation, census 2026-08-03) and swallows its exit code. The harness now writes ${log}, your reader chain ran against that file, and the harness's REAL exit code is preserved. Full artifacts: reports/verify.json + reports/verify/<stage>.log (pnpm check) / reports/test-report.json (pnpm test).`,
+  rewriteLongLived: (log) =>
+    `tool-guard rewrote this command: git spawns credential/network children that hold a pipe open after the visible command finishes (census: \`git push … | tail\` hit the 120s tool timeout). Output went to ${log}, your reader ran against the file, and the real exit code is preserved.`,
+  rewritePlaywright:
+    "tool-guard prepended the sanctioned CT prefix (`rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts …`): a stale CT cache replays errors that no longer exist, and 85% of historical CT runs skipped the clear.",
+  sgDeprecated:
+    "Use `ast-grep`. `sg` is deprecated upstream (the tool itself warns on --version), and /usr/bin/sg on this machine is a symlink to newgrp — it only resolves to ast-grep because ~/.cargo/bin happens to come first in PATH. Same CLI: `ast-grep run -p '<pattern>' -l ts <paths>` (run both -l ts AND -l tsx).",
+  bareVitest:
+    "Prefer `pnpm vitest run <paths>` (the sanctioned scoped lane run) or `pnpm test` (writes reports/test-report.json). A bare/npx vitest bypasses the workspace harness and its artifacts.",
+  grepUnscoped:
+    "`grep -r` from a broad root does NOT respect ignore files and every package has its own node_modules — add `--exclude-dir=node_modules` (and use `/usr/bin/grep -a`; the shell's `grep` is a ugrep wrapper that skips some .ts as binary). Better: the Grep tool, or ast-grep for structure.",
+  sqliteLive:
+    "sqlite3 against a live-looking DB: touching a WAL database while the stack is up can corrupt it (repo memory: sqlite3-wal-danger). Stop the stack first, or read through the /api/_debug endpoints instead.",
+  noVerify:
+    "`--no-verify` is legitimate only immediately after a green gate receipt in THIS session. Lanes: prefer `git -c core.hooksPath=/dev/null …` (the sanctioned spelling) so the skip is visible and scoped.",
+  gitAddAll:
+    "`git add -A` / `git add .` stages everything — including sibling-lane debris and untracked scratch. Repo law is pathspec staging: `git add <paths>` and `git commit -- <paths>`. Check `git status --short` first.",
+  rmRf:
+    "`rm -rf` outside scratch/cache territory — double-check the target: uncommitted work here is unrecoverable, and git-based undo (stash/restore) is banned.",
+  biomeWriteScoped:
+    "Scoped `biome --write` — the sanctioned mechanical-migration form. Read the WHOLE diff before committing (INFO-level autofixes have changed behavior here before), and never widen it to the bare tree.",
+  pushInFlight:
+    "A `git push` is RUNNING on this box right now. The push window is not atomic: with a long pre-push hook, git re-reads the ref at transfer time, so a commit landed mid-window ships silently while the push's own summary line reports the stale range (measured incident, 2026-08-03). Hold this commit until the push returns, or verify afterwards exactly what landed on origin.",
+  longLivedPipe:
+    "A piped `git push/pull/fetch` can hang to the full 120s tool timeout — git's credential/network child holds the pipe open after the visible command finishes (measured in the census). Drop the pipe, or redirect to a file and read it.",
+  playwrightPiped:
+    "Piping a playwright run risks the harness hang (browser/ctViteDev descendants inherit the pipe's write end) — prefer `> file 2>&1` then read the file.",
+  cdWorktreeLaneCtx:
+    "cd pins your cwd to that worktree for every later call, and your cwd can silently reset between calls — prefer absolute paths and `git -C <worktree>` so each command names its own ground.",
+};
+
+// ── helpers ──
+
+function stripFdMerges(text) {
+  return text.replace(REDIRECT_FD_MERGE, "");
+}
+
+function laneName(text) {
+  const m = text?.match(WORKTREE_PATH);
+  return m ? m[1] : null;
+}
+
+/** Best-effort: is a `git push` process live on this box? (Linux /proc scan — a push window is not
+ *  atomic when a pre-push hook runs long, and a commit landed mid-window ships silently. Race-prone by
+ *  nature — a push starting AFTER this check is invisible — so this only ever feeds a WARN, never a
+ *  block. `procRoot` is injectable for tests.) */
+export function pushInFlight(procRoot = "/proc") {
+  try {
+    for (const entry of readdirSync(procRoot)) {
+      if (!/^\d+$/.test(entry) || Number(entry) === process.pid) {
+        continue;
+      }
+      try {
+        const cmdline = readFileSync(path.join(procRoot, entry, "cmdline"), "utf8");
+        if (PROC_GIT_PUSH.test(cmdline)) {
+          return true;
+        }
+      } catch {
+        // process vanished mid-scan — fine
+      }
     }
-    console.log(
-      `${ok ? " " : "✗"}${pad(expected, 6)} ${pad(got.decision, 7)} ${pad(got.rule ?? "-", 26)} ${cmd.slice(0, 60)}`,
-    );
+  } catch {
+    // no /proc (non-Linux) — the warn simply never fires
   }
-  console.log("-".repeat(110));
-  console.log(fails === 0 ? `ALL ${CASES.length} CASES PASS` : `${fails} of ${CASES.length} MISMATCHED`);
-  process.exit(fails === 0 ? 0 : 1);
+  return false;
+}
+
+/** The star move: `…; <harness> [2>&1] | <readers> [; …]`  →  redirect the harness to a log, run the
+ *  agent's own reader chain against the file, preserve the real exit code. Clauses BEFORE and AFTER the
+ *  piped one (the ubiquitous `cd <repo> && …` prefix, a trailing `; echo done`) are kept verbatim with
+ *  their original separators. Returns null when the shape is not unambiguous (callers deny/warn instead):
+ *  `||` chains, more than one piped clause, subshells/backticks/backgrounding in the piped clause, or a
+ *  reader outside the known re-targetable set. */
+function pipeRewrite(command, blank, clauses, headRe, ctx) {
+  // PIPESTATUS anywhere means the command inspects the pipe we are about to remove — bail to deny.
+  if (blank.includes("||") || command.includes("PIPESTATUS")) {
+    return null;
+  }
+  const piped = clauses.filter((cl) => cl.stages.length > 1);
+  if (piped.length !== 1) {
+    return null;
+  }
+  const [clause] = piped;
+  const [stage0, ...readers] = clause.stages;
+  const stage0Blank = blank.slice(stage0.start, stage0.end);
+  if (!headRe.test(stage0Blank) || UNSAFE_STAGE0.test(stripFdMerges(stage0Blank))) {
+    return null;
+  }
+  for (const r of readers) {
+    const rBlank = blank.slice(r.start, r.end);
+    if (!READER.test(rBlank) || UNSAFE_READER.test(stripFdMerges(rBlank))) {
+      return null;
+    }
+  }
+  const log = `${ctx.projectDir}/reports/tool-guard/run-${ctx.now}.log`;
+  const harness = command.slice(stage0.start, stage0.end).replace(STDERR_MERGE_TAIL, "").trim();
+  const readerChain = command.slice(readers[0].start, clause.end).trim();
+  const prefix = command.slice(0, clause.start);
+  const rawSuffix = command.slice(clause.end);
+  const suffix = /^[\s;]*$/.test(rawSuffix) ? "" : rawSuffix; // a bare trailing `;` would yield `; ;` — a bash syntax error
+  return {
+    log,
+    command: `${prefix}${harness} > ${log} 2>&1; __tg_ec=$?; < ${log} ${readerChain}${suffix}; ( exit $__tg_ec )`,
+  };
+}
+
+const PW_CLAUSE_HEAD = /^\s*(timeout\s+\d+[a-z]?\s+)?(?:npx\s+|pnpm\s+exec\s+)?playwright\s+test\b/;
+
+/** Rebuild an unsanctioned CT invocation into the sanctioned recipe (cache clear + explicit CT config,
+ *  absolute paths so a `cd` prefix can't misroute them), or null if too complex. Prefix clauses (a
+ *  `cd <repo>` etc.) are kept verbatim; the playwright clause must be LAST, unpiped, and shaped exactly
+ *  `[timeout N] [npx|pnpm exec] playwright test …` (the timeout wrapper is preserved). */
+function playwrightRewrite(command, blank, clauses, ctx) {
+  if (blank.includes("||") || PLAYWRIGHT_CACHE_CLEAR.test(blank)) {
+    return null;
+  }
+  const clause = clauses.at(-1);
+  if (!clause || clause.stages.length !== 1) {
+    return null;
+  }
+  const text = blank.slice(clause.start, clause.end);
+  const head = text.match(PW_CLAUSE_HEAD);
+  if (!head || UNSAFE_STAGE0.test(stripFdMerges(text))) {
+    return null;
+  }
+  if (clauses.slice(0, -1).some((cl) => cl.stages.length > 1 || PLAYWRIGHT_TEST.test(blank.slice(cl.start, cl.end)))) {
+    return null;
+  }
+  const original = command.slice(clause.start, clause.end);
+  const afterIdx = original.search(/playwright\s+test\b/);
+  const args = original
+    .slice(afterIdx)
+    .replace(/^playwright\s+test\s*/, "")
+    .replace(/(?:^|\s)(?:-c|--config)(?:=\S+|\s+\S+)/g, " ")
+    .trim();
+  const root = ctx.projectDir;
+  const prefix = command.slice(0, clause.start);
+  const wrapper = head[1] ?? "";
+  const joiner = prefix === "" || /\s$/.test(prefix) ? "" : " ";
+  return `rm -rf ${root}/playwright/.cache && ${prefix}${joiner}${wrapper}npx playwright test -c ${root}/playwright-ct.config.ts${args ? ` ${args}` : ""}`;
+}
+
+// ── warn collectors (defer + additionalContext — visible, never blocking) ──
+
+function collectGrepWarn(command, blank, clauses, contexts) {
+  for (const clause of clauses) {
+    for (const stage of clause.stages) {
+      const text = blank.slice(stage.start, stage.end);
+      if (!GREP_HEAD.test(text) || !GREP_RECURSIVE_FLAG.test(text) || GREP_EXCLUDE_DIR.test(text)) {
+        continue;
+      }
+      // tokenize the RAW slice — a quoted pattern must stay a token, or the first path is mistaken for it
+      const tokens = command.slice(stage.start, stage.end).trim().split(/\s+/).slice(1);
+      const positional = tokens.filter((t) => !t.startsWith("-"));
+      // with -e/-f the pattern is a flag argument, so every positional is a path
+      const paths = /(^|\s)-[ef]\b/.test(text) ? positional : positional.slice(1);
+      if (paths.length === 0 || paths.some((p) => GREP_BROAD_ROOT.test(p))) {
+        contexts.push(CONTEXTS.grepUnscoped);
+        return;
+      }
+    }
+  }
+}
+
+function collectStageWarns(command, blank, clauses, contexts) {
+  let vitest = false;
+  let sqlite = false;
+  let rmrf = false;
+  for (const clause of clauses) {
+    for (const stage of clause.stages) {
+      const text = blank.slice(stage.start, stage.end);
+      vitest ||= VITEST_HEAD.test(text);
+      if (SQLITE_HEAD.test(text) && !SQLITE_SAFE_HINT.test(command.slice(stage.start, stage.end))) {
+        sqlite = true;
+      }
+      const rm = text.match(RM_RF_HEAD);
+      if (rm) {
+        const targets = command
+          .slice(stage.start + rm[0].length, stage.end)
+          .split(/\s+/)
+          .filter((t) => t.length > 0 && !t.startsWith("-"));
+        if (targets.some((t) => !RM_SAFE_TARGET.test(t))) {
+          rmrf = true;
+        }
+      }
+    }
+  }
+  if (vitest) {
+    contexts.push(CONTEXTS.bareVitest);
+  }
+  if (sqlite) {
+    contexts.push(CONTEXTS.sqliteLive);
+  }
+  if (rmrf) {
+    contexts.push(CONTEXTS.rmRf);
+  }
+}
+
+// ── the classifier ──
+
+/**
+ * @param {string} command  the raw Bash command
+ * @param {{cwd?: string, agentId?: string|null, projectDir: string, timeout?: number, now: number,
+ *          procRoot?: string}} ctx
+ * @returns {{decision: "deny"|"ask"|"allow"|"defer", rule: string|null, reason?: string,
+ *           rewrite?: {command: string, timeout?: number, log?: string}, contexts: string[]}}
+ */
+export function classify(command, ctx) {
+  if (SELF_EXEMPT.test(command)) {
+    return { decision: "defer", rule: "self-exempt", contexts: [] };
+  }
+  const blank = blankHeredocs(command, blankQuoted(command));
+  const clauses = parseStructure(blank);
+  const contexts = [];
+
+  // 1. destructive git (doctrine ban; near-zero legitimate sightings) — DENY. Read-only forms pass:
+  //    `stash list`/`stash show` destroy nothing, and `restore --staged` (no --worktree) only unstages.
+  const stash = blank.match(GIT_STASH);
+  if (stash && stash[1] === undefined) {
+    return { decision: "deny", rule: "git-destructive", reason: REASONS.gitDestructive, contexts };
+  }
+  const restore = blank.match(GIT_RESTORE);
+  if (restore && !(RESTORE_STAGED.test(restore[1]) && !RESTORE_WORKTREE_ARM.test(restore[1]))) {
+    return { decision: "deny", rule: "git-destructive", reason: REASONS.gitDestructive, contexts };
+  }
+  const checkout = blank.match(GIT_CHECKOUT);
+  if (checkout && CHECKOUT_PATHISH.test(checkout[1])) {
+    return { decision: "deny", rule: "git-destructive", reason: REASONS.gitDestructive, contexts };
+  }
+
+  // 2. biome write-mode — blast radius decides (owner ruling 2026-08-03): a WHOLE-TREE fix-all is the
+  //    doctrine-banned wave (DENY); a path-scoped and/or --only= single-rule rewrite is the sanctioned
+  //    mechanical-migration form (WARN). `pnpm lint:fix` is `biome check --write .` by definition — DENY.
+  if (PNPM_LINT_FIX.test(blank)) {
+    return { decision: "deny", rule: "biome-write", reason: REASONS.biomeWrite, contexts };
+  }
+  if (BIOME_WRITE_MODE.test(blank)) {
+    for (const clause of clauses) {
+      for (const stage of clause.stages) {
+        const stageBlank = blank.slice(stage.start, stage.end);
+        if (!BIOME_WRITE_MODE.test(stageBlank)) {
+          continue;
+        }
+        if (BIOME_ONLY_SCOPED.test(stageBlank)) {
+          contexts.push(CONTEXTS.biomeWriteScoped);
+          continue;
+        }
+        const rawStage = command.slice(stage.start, stage.end);
+        const sub = stageBlank.match(BIOME_SUBCOMMAND);
+        const rest = rawStage.slice((sub?.index ?? 0) + (sub?.[0].length ?? 0));
+        const tokens = rest.trim().split(/\s+/);
+        // not paths: flags, bare numbers (flag values), redirects (2>&1, >log), and the whole-tree dot
+        const paths = tokens.filter((t) => t.length > 0 && !t.startsWith("-") && !/^\d+$/.test(t) && !/[<>&]/.test(t) && t !== "." && t !== "./");
+        if (paths.length === 0) {
+          return { decision: "deny", rule: "biome-write", reason: REASONS.biomeWrite, contexts };
+        }
+        contexts.push(CONTEXTS.biomeWriteScoped);
+      }
+    }
+  }
+
+  // 3. cd into a lane worktree — MAIN SESSION: DENY (the commit-landed-on-a-lane-branch incident class;
+  //    orchestrator law is `git -C`, always). SUBAGENT: WARN — a lane cd-ing into its own worktree is
+  //    routine and legitimate (975 corpus sightings), and own-vs-foreign is undecidable when the lane's
+  //    cwd has been reset to the repo root (which happens constantly). A deny here would cry wolf.
+  const cdTarget = blank.match(CD_WORKTREE);
+  if (cdTarget) {
+    if (!ctx.agentId) {
+      return { decision: "deny", rule: "cd-worktree", reason: REASONS.cdWorktree, contexts };
+    }
+    if (laneName(ctx.cwd ?? "") !== cdTarget[1]) {
+      contexts.push(CONTEXTS.cdWorktreeLaneCtx);
+    }
+  }
+
+  // 4. harness piped — REWRITE the simple shape, DENY the rest (the headline 45-hour class). The harness
+  //    must be at a pipeline HEAD (env/timeout/nice wrappers allowed) — mid-text mentions can never fire.
+  const harnessPiped = clauses.some((cl) => cl.stages.length > 1 && HARNESS_HEAD.test(blank.slice(cl.stages[0].start, cl.stages[0].end)));
+  if (harnessPiped) {
+    const rewrite = pipeRewrite(command, blank, clauses, HARNESS_HEAD, ctx);
+    if (rewrite) {
+      contexts.push(CONTEXTS.rewritePiped(rewrite.log));
+      const timeout = ctx.timeout === undefined ? REWRITE_TIMEOUT_MS : undefined;
+      return { decision: "allow", rule: "harness-piped", rewrite: { command: rewrite.command, timeout, log: rewrite.log }, contexts };
+    }
+    return { decision: "deny", rule: "harness-piped", reason: REASONS.harnessPipedDeny, contexts };
+  }
+
+  // 5. harness failure swallowed (`|| true`) — DENY
+  if (HARNESS_OR_TRUE.test(blank) || HARNESS_SEMI_TRUE.test(blank)) {
+    return { decision: "deny", rule: "harness-swallowed", reason: REASONS.harnessSwallowed, contexts };
+  }
+
+  // 6. playwright CT — the sanctioned prefix (cache clear + explicit CT config) is REQUIRED, and a piped
+  //    CT run hangs exactly like the harness (browser + ctViteDev descendants inherit the pipe). REWRITE
+  //    what is unambiguous: missing prefix → prepend it; piped → redirect + re-read; both → both.
+  //    e2e invocations (no CT hint) are not this rule's business.
+  if (PLAYWRIGHT_TEST.test(blank)) {
+    const sanctioned = PLAYWRIGHT_CACHE_CLEAR.test(blank) && CT_CONFIG.test(blank);
+    const ctIntent = CT_CONFIG.test(command) || CT_FILE_HINT.test(command);
+    const piped = clauses.some((cl) => cl.stages.length > 1 && PW_CLAUSE_HEAD.test(blank.slice(cl.stages[0].start, cl.stages[0].end)));
+    if (ctIntent && (!sanctioned || piped)) {
+      const timeout = ctx.timeout === undefined ? REWRITE_TIMEOUT_MS : undefined;
+      const rewritten = playwrightRewrite(command, blank, clauses, ctx);
+      if (rewritten) {
+        contexts.push(CONTEXTS.rewritePlaywright);
+        return { decision: "allow", rule: "playwright-ct", rewrite: { command: rewritten, timeout }, contexts };
+      }
+      if (CT_CONFIG.test(blank)) {
+        const pr = pipeRewrite(command, blank, clauses, PW_CLAUSE_HEAD, ctx);
+        if (pr) {
+          const cachePrefix = sanctioned ? "" : `rm -rf ${ctx.projectDir}/playwright/.cache && `;
+          if (!sanctioned) {
+            contexts.push(CONTEXTS.rewritePlaywright);
+          }
+          contexts.push(CONTEXTS.rewritePiped(pr.log));
+          return { decision: "allow", rule: "playwright-ct", rewrite: { command: `${cachePrefix}${pr.command}`, timeout, log: pr.log }, contexts };
+        }
+      }
+      if (!sanctioned) {
+        return { decision: "deny", rule: "playwright-ct", reason: REASONS.playwrightCt, contexts };
+      }
+      // sanctioned but piped in a shape we can't safely rewrite — teach without blocking
+      contexts.push(CONTEXTS.playwrightPiped);
+    }
+  }
+
+  // 7. sg-as-ast-grep — static WARN (owner ruling 2026-08-03): `sg` is deprecated upstream (the tool
+  //    itself warns), and the newgrp collision is PRESENT on this box, merely shadowed by PATH order.
+  //    No runtime check — the rule holds regardless of which binary wins.
+  if (SG_AS_AST_GREP.test(blank)) {
+    contexts.push(CONTEXTS.sgDeprecated);
+  }
+
+  // 8. force push — ASK (owner judgment; n=6 in the whole corpus)
+  if (GIT_PUSH_FORCE.test(blank)) {
+    return { decision: "ask", rule: "git-push-force", reason: REASONS.pushForce, contexts };
+  }
+
+  // 9. any push from a LANE — ASK (standing law: lanes never push; orchestrator merges, owner words pushes)
+  if (ctx.agentId && GIT_PUSH.test(blank)) {
+    return { decision: "ask", rule: "lane-git-push", reason: REASONS.lanePush, contexts };
+  }
+
+  // 10. long-lived non-harness command piped — REWRITE simple, WARN otherwise
+  for (const clause of clauses) {
+    if (clause.stages.length < 2) {
+      continue;
+    }
+    if (!LONG_LIVED.test(blank.slice(clause.stages[0].start, clause.stages[0].end))) {
+      continue;
+    }
+    const rewrite = pipeRewrite(command, blank, clauses, LONG_LIVED, ctx);
+    if (rewrite) {
+      contexts.push(CONTEXTS.rewriteLongLived(rewrite.log));
+      return { decision: "allow", rule: "longlived-piped", rewrite: { command: rewrite.command, log: rewrite.log }, contexts };
+    }
+    contexts.push(CONTEXTS.longLivedPipe);
+    break;
+  }
+
+  // 11. advisory tier — never blocks
+  collectStageWarns(command, blank, clauses, contexts);
+  collectGrepWarn(command, blank, clauses, contexts);
+  if (GIT_NO_VERIFY.test(blank)) {
+    contexts.push(CONTEXTS.noVerify);
+  }
+  if (GIT_ADD_ALL.test(blank)) {
+    contexts.push(CONTEXTS.gitAddAll);
+  }
+  if (GIT_COMMIT_OR_MERGE.test(blank) && pushInFlight(ctx.procRoot)) {
+    contexts.push(CONTEXTS.pushInFlight);
+  }
+
+  return { decision: "defer", rule: contexts.length > 0 ? "advisory" : null, contexts };
+}
+
+// ── hook plumbing ──
+
+function emit(output) {
+  process.stdout.write(`${JSON.stringify(output)}\n`);
+}
+
+function hookOutput(fields) {
+  return { hookSpecificOutput: { hookEventName: "PreToolUse", ...fields } };
+}
+
+const DEFER = hookOutput({ permissionDecision: "defer" });
+
+function logDecision(projectDir, record) {
+  try {
+    const dir = path.join(projectDir, "reports", "tool-guard");
+    mkdirSync(dir, { recursive: true });
+    appendFileSync(path.join(dir, "decisions.jsonl"), `${JSON.stringify(record)}\n`);
+  } catch {
+    // observability must never break the guard — fail soft
+  }
+}
+
+function readStdin(deadlineMs) {
+  return new Promise((resolve) => {
+    let data = "";
+    const timer = setTimeout(() => resolve(null), deadlineMs);
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (chunk) => {
+      data += chunk;
+    });
+    process.stdin.on("end", () => {
+      clearTimeout(timer);
+      resolve(data);
+    });
+    process.stdin.on("error", () => {
+      clearTimeout(timer);
+      resolve(null);
+    });
+  });
+}
+
+function toHookOutput(result) {
+  if (result.decision === "deny" || result.decision === "ask") {
+    return hookOutput({ permissionDecision: result.decision, permissionDecisionReason: result.reason });
+  }
+  if (result.decision === "allow" && result.rewrite) {
+    const updatedInput = { command: result.rewrite.command };
+    if (result.rewrite.timeout !== undefined) {
+      updatedInput.timeout = result.rewrite.timeout;
+    }
+    return hookOutput({
+      permissionDecision: "allow",
+      permissionDecisionReason: result.contexts[0] ?? "rewritten by tool-guard",
+      updatedInput,
+      additionalContext: result.contexts.join("\n"),
+    });
+  }
+  if (result.contexts.length > 0) {
+    return hookOutput({ permissionDecision: "defer", additionalContext: result.contexts.join("\n") });
+  }
+  return DEFER;
+}
+
+async function runBatchMode() {
+  const raw = await readStdin(STDIN_DEADLINE_MS);
+  const cases = JSON.parse(raw ?? "[]");
+  const out = cases.map((c) => {
+    const ctx = {
+      cwd: c.cwd,
+      agentId: c.agentId ?? null,
+      projectDir: c.projectDir ?? "/repo",
+      timeout: c.timeout,
+      now: Number(process.env.ORB_TOOL_GUARD_NOW_FOR_TEST ?? Date.now()),
+      procRoot: c.procRoot,
+    };
+    try {
+      return classify(c.command, ctx);
+    } catch (err) {
+      return { decision: "defer", rule: "classifier-error", contexts: [], error: String(err) };
+    }
+  });
+  process.stdout.write(JSON.stringify(out, null, 2));
+}
+
+async function runHookMode() {
+  const started = Date.now();
+  let projectDir = process.cwd();
+  try {
+    const raw = await readStdin(STDIN_DEADLINE_MS);
+    if (raw === null) {
+      emit(DEFER);
+      return;
+    }
+    const input = JSON.parse(raw);
+    const command = input?.tool_input?.command;
+    if (input?.tool_name !== "Bash" || typeof command !== "string") {
+      emit(DEFER);
+      return;
+    }
+    projectDir = process.env.CLAUDE_PROJECT_DIR ?? input.cwd ?? process.cwd();
+    if (ENV_KILL.test(process.env.ORB_TOOL_GUARD ?? "")) {
+      logDecision(projectDir, { t: new Date().toISOString(), decision: "defer", rule: "kill-switch", cmd: command.slice(0, CMD_LOG_MAX) });
+      emit(DEFER);
+      return;
+    }
+    if (process.env.ORB_TOOL_GUARD_CRASH_FOR_TEST) {
+      throw new Error("forced crash (ORB_TOOL_GUARD_CRASH_FOR_TEST)");
+    }
+    const ctx = {
+      cwd: input.cwd,
+      agentId: input.agent_id ?? null,
+      projectDir,
+      timeout: input.tool_input.timeout,
+      now: Number(process.env.ORB_TOOL_GUARD_NOW_FOR_TEST ?? Date.now()),
+    };
+    const result = classify(command, ctx);
+    if (result.rewrite?.log) {
+      mkdirSync(path.dirname(result.rewrite.log), { recursive: true });
+    }
+    logDecision(projectDir, {
+      t: new Date().toISOString(),
+      sid: input.session_id ?? null,
+      agent: input.agent_type ?? "main",
+      cwd: input.cwd ?? null,
+      decision: result.decision,
+      rule: result.rule,
+      ms: Date.now() - started,
+      cmd: command.slice(0, CMD_LOG_MAX),
+      ...(result.rewrite ? { rewrittenTo: result.rewrite.command.slice(0, CMD_LOG_MAX) } : {}),
+    });
+    emit(toHookOutput(result));
+  } catch (err) {
+    // FAIL OPEN — a broken guard must never block work.
+    logDecision(projectDir, { t: new Date().toISOString(), decision: "defer", rule: "guard-error", error: String(err) });
+    emit(DEFER);
+  }
+}
+
+const invokedDirectly = process.argv[1] !== undefined && import.meta.url.endsWith(path.basename(process.argv[1]));
+if (invokedDirectly) {
+  if (process.argv.includes("--classify-batch")) {
+    runBatchMode().catch(() => {
+      process.stdout.write("[]");
+    });
+  } else {
+    runHookMode().catch(() => emit(DEFER));
+  }
 }
