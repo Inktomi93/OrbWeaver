@@ -244,7 +244,12 @@ test("a round the FILL RULE fully absorbed reports populated:false — nothing c
   const { chatId, characterId, h } = await seedCharacterGame(db);
   h.fakes.populateDelta = { statePatch: {}, sheet: { className: "the model's title", level: 9 } };
   // The host already wrote BOTH fields — the fill rule keeps them, so the round changes nothing at all.
-  await h.service.patchSheet({ principal: principal("host"), chatId, actorRef: { kind: "character", characterId }, patch: { className: "Hand-written", level: 1 } });
+  await h.service.patchSheet({
+    principal: principal("host"),
+    chatId,
+    actorRef: { kind: "character", characterId },
+    patch: { className: "Hand-written", level: 1 },
+  });
   h.fakes.busEvents.length = 0;
 
   const result = await h.service.populateFromCharacter({ principal: principal("host"), chatId, actorRef: { kind: "character", characterId } });

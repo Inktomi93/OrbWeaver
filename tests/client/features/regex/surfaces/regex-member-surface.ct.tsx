@@ -8,8 +8,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
 import { deriveRegexTierFlags } from "../../../../../packages/client/src/features/regex/lib/derive-tier-flags";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { RegexMemberStory } from "../_ct-stories";
 
@@ -44,7 +44,9 @@ test("mounts the whole authored field set — no dialog, no lost field", async (
   const editor = await mount(<RegexMemberStory />);
   await expect(editor.getByRole("heading", { name: "strip ooc" })).toBeVisible();
   await expect(editor.getByRole("textbox", { name: "Name" })).toHaveValue("strip ooc");
-  await expect(editor.getByText("Find pattern")).toBeVisible();
+  // `exact` because `getByText` is a case-insensitive SUBSTRING match and the Options group now carries
+  // "Macros in the find pattern" — a second, deliberately explanatory label naming this very field.
+  await expect(editor.getByText("Find pattern", { exact: true })).toBeVisible();
   // The pattern editor is a LAZY CodeMirror mount whose header once called itself "modal-only" — paneside
   // it must still arrive, or the one field whose syntax a user can get wrong has no editor at all.
   await expect(page.locator(".cm-editor")).toBeVisible();
@@ -85,4 +87,116 @@ test("a deleted member says so instead of rendering a dead form", async ({ mount
   await stub(page);
   const editor = await mount(<RegexMemberStory memberId="regex_script_gone" />);
   await expect(editor.getByText("Script not found")).toBeVisible();
+});
+
+// ── THE TESTER (ST `Test Mode` parity) ────────────────────────────────────────────────────────────────
+//
+// Before this, the editor could author a pattern and offered NO way to see it bite: you saved, opened a
+// chat, sent a turn, and read the transcript. These pins are the affordance's proof-of-life, and they
+// assert through what the user sees — the Result field's value and the status line — never through the
+// preview function. That the engine underneath AGREES with production (because it IS production,
+// `@orb/kit/regex`) is pinned separately at tests/client/features/regex/lib/regex-preview.test.ts.
+
+/** The first words of the tester's seeded sample — restated here rather than imported, so the CT pins what
+ *  a user actually finds in the box (and never drags client runtime into the node-side spec). */
+const SAMPLE_LEAD = "The goblin snarls";
+
+/** The result box mirrors the sample box (`rows={3}` each); both auto-grow with content, so the floor is a
+ *  proportion of the input's height rather than equality. */
+const SAME_BOX_FLOOR = 0.9;
+
+/** The two status strings the panel builds at runtime (a compile failure, and the never-fires caveat) —
+ *  matched loosely, since the sentence around them is copy and the fact is what is pinned. */
+const CANNOT_RUN = /This pattern can't run:/;
+const NO_STREAMS = /no streams are selected/;
+
+/** The same stub, on a VARIANT of the fixture row (same id, so the story's default member still resolves). */
+function stubOn(page: Page, over: Record<string, unknown>): Promise<TrpcRecorder> {
+  const script = { ...SCRIPT, ...over };
+  return routeTrpc(page, {
+    "regex.listScripts": () => [script],
+    "regex.listGlobal": () => [],
+    "regex.updateScript": () => script,
+  });
+}
+
+test("the editor mounts a live tester, already carrying a sample to run against", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<RegexMemberStory />);
+
+  // The empty arm of a tester is a tester nobody can use: it ships with a sample, so the panel demonstrates
+  // rather than asking the user to invent a fixture.
+  await expect(page.getByLabel("Sample text")).toHaveValue(new RegExp(SAMPLE_LEAD));
+  // `\(ooc\)` does not appear in that sample, so the honest reading is "nothing happened" — and the result
+  // is the sample UNCHANGED, which is exactly what production does with a non-matching script.
+  await expect(page.getByText("No matches in this sample.")).toBeVisible();
+  await expect(page.getByLabel("Result")).toHaveValue(new RegExp(SAMPLE_LEAD));
+
+  // AND IT IS ACTUALLY READABLE. The result box is a read-only control at the bottom of a scrolling pane —
+  // the shape that collapses to a sliver without anything failing. Asserted as a RELATION to the input it
+  // mirrors (both are `rows={3}`), never a px literal.
+  const inputBox = await page.getByLabel("Sample text").boundingBox();
+  const resultBox = await page.getByLabel("Result").boundingBox();
+  expect(resultBox?.height ?? 0).toBeGreaterThanOrEqual((inputBox?.height ?? 0) * SAME_BOX_FLOOR);
+});
+
+test("the tester runs the real engine over what you type, and says how many times it bit", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<RegexMemberStory />);
+
+  await page.getByLabel("Sample text").fill("hello (ooc) there (ooc)");
+  // `\(ooc\)` → "" (this row's replaceString is empty): the two parenthesised asides are gone.
+  await expect(page.getByLabel("Result")).toHaveValue("hello  there ");
+  // The count comes from the production replacer firing, and the flags are the ones the executor really
+  // compiled with — `gm` for a bare pattern, because `@orb/kit/regex` forces `g` and defaults to multiline.
+  await expect(page.getByText("2 matches · flags gm")).toBeVisible();
+});
+
+test("a pattern that cannot compile says so instead of silently doing nothing", async ({ mount, page }) => {
+  await stubOn(page, { findRegex: "(unclosed" });
+  await mount(<RegexMemberStory />);
+  await expect(page.getByText(CANNOT_RUN)).toBeVisible();
+});
+
+// THE F3 CLASS, CAUGHT AT AUTHORING TIME. The tester's probe deliberately ignores `enabled`/`placement` so
+// a draft still previews — which would be a lie if the panel stopped there, because a script with no
+// streams selected can never fire in a chat no matter how well it tests here.
+test("the tester says when the script it just ran would never run in a chat", async ({ mount, page }) => {
+  await stubOn(page, { placement: [] });
+  await mount(<RegexMemberStory />);
+  await expect(page.getByText(NO_STREAMS)).toBeVisible();
+});
+
+// ── TRIM OUT + MACROS IN THE FIND PATTERN (ST parity for two knobs that had no control) ───────────────
+//
+// Both were in the schema and honoured by the executor since the library landed, and neither had a control
+// anywhere in the app — so they could only ever arrive on an imported ST card, and an in-app author could
+// not see, let alone change, what an imported script was doing.
+
+test("Trim out is authorable, bound to the row, and visibly changes what the engine produces", async ({ mount, page }) => {
+  await stubOn(page, { findRegex: "\\[(.+?)\\]", replaceString: "$1", trimStrings: ["ooc: "] });
+  await mount(<RegexMemberStory />);
+
+  // The row's stored trim list is IN the control (one per line) …
+  await expect(page.getByLabel("Trim out")).toHaveValue("ooc: ");
+  await page.getByLabel("Sample text").fill("[ooc: be brief]");
+  await expect(page.getByLabel("Result")).toHaveValue("be brief");
+
+  // … and editing it moves the result, which is the pin that the tester reads LIVE form state and not the
+  // server row it was opened on.
+  await page.getByLabel("Trim out").fill("");
+  await expect(page.getByLabel("Result")).toHaveValue("ooc: be brief");
+});
+
+test("the macro-substitution mode is authorable and shows the row's stored mode", async ({ mount, page }) => {
+  await stubOn(page, { findRegex: "{{char}}", replaceString: "THEM", substituteRegex: 1 });
+  await mount(<RegexMemberStory />);
+  // By ROLE, not by label: Base UI's Select renders a hidden form input carrying the same accessible name
+  // as the trigger, so a bare `getByLabel` matches two nodes.
+  await expect(page.getByRole("combobox", { name: "Macros in the find pattern" })).toContainText("Resolve macros first");
+
+  // And it is honoured by the tester: `{{char}}` in the PATTERN resolves to the preview's sample character
+  // before compiling, so the sample's literal name matches.
+  await page.getByLabel("Sample text").fill("Aria waves");
+  await expect(page.getByLabel("Result")).toHaveValue("THEM waves");
 });

@@ -1,18 +1,21 @@
-// World Info feature CT stories (core/Spine-Testing.md §7 — a CT mounts ONLY from a non-test module). The
-// library surface comes through the feature front door; the entry editor is deep-imported (an internal
-// component, not front-door). Both wrap in the real client data layer (<CtDataProviders> — Query + real tRPC
-// over the routeTrpc-stubbed network).
+// World Info feature CT stories (core/Spine-Testing.md §7 — a CT mounts ONLY from a non-test module). World
+// Info is a `CollectionContribution` now (R2), so its surfaces are deep-imported the way the regex/tag
+// stories deep-import theirs: the config HOST mounts them in production, and the front door exports only the
+// contribution. Every story wraps the real client data layer (<CtDataProviders> — Query + real tRPC over the
+// routeTrpc-stubbed network).
 
-import { WorldInfoEditorSurface, WorldInfoLibrarySurface } from "@orb/client/features/world-info";
-import { useSectionRegistry } from "@orb/client/state";
+import { QueryBoundary } from "@orb/client/data";
 import type { EntryView } from "@orb/contracts/world-info";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { EntryEditor } from "../../../../packages/client/src/features/world-info/components/entry-editor";
+import { WorldInfoCollectionRows } from "../../../../packages/client/src/features/world-info/components/world-info-collection-rows";
+import { WorldInfoContextBody } from "../../../../packages/client/src/features/world-info/components/world-info-context-body";
 import { WorldInfoSettingsSection } from "../../../../packages/client/src/features/world-info/components/world-info-settings-section";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
+import { WorldInfoMemberSurface } from "../../../../packages/client/src/features/world-info/surfaces/world-info-member-surface";
+import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 
 /** The World-info settings SECTION (Phase B ②) over the real data layer — getUserSettings +
  *  updateUserSettingsSection("worldInfo") stubbed in the `.ct.tsx`. Proves the contributed section's
@@ -27,26 +30,48 @@ export function WorldInfoSettingsSectionStory(): ReactElement {
   );
 }
 
-/** The World Info LIST band + surface over the real data layer (listBooks/listGlobal stubbed in the
- *  `.ct.tsx`). The band comes from the REAL section definition's `listHeader` closure — the title and the
- *  ONE primary (New) live THERE now (list-pane-projection L4), so a surface mounted alone is not the pane. */
-export function WorldInfoLibrarySurfaceStory(): ReactElement {
+/** The world-info collection's ROWS, inside the frame the host gives them (a bounded 330px roster column and
+ *  the `filter` the host owns). `selectedId` stays null: what a row click DOES is the host's kinded
+ *  selection, covered by the config workspace CT; what the ROW SAYS is this story's subject. */
+export function WorldInfoCollectionRowsStory({ filter = "" }: { readonly filter?: string }): ReactElement {
   return (
     <CtDataProviders>
-      <CtRealSectionRegistry>
-        <div style={{ width: 360, height: 640, padding: 16 }}>
-          <WorldInfoListBand />
-          <WorldInfoLibrarySurface />
-        </div>
-      </CtRealSectionRegistry>
+      <div style={{ height: 700, overflow: "auto", width: 330 }}>
+        <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
+          <WorldInfoCollectionRows view={{ selectedId: null, onSelect: (): void => undefined, filter }} />
+        </QueryBoundary>
+      </div>
     </CtDataProviders>
   );
 }
 
-/** The section's own `listHeader` closure, rendered where the shell's PanelChrome renders it. */
-function WorldInfoListBand(): ReactElement {
-  const registry = useSectionRegistry();
-  return <div data-testid="list-band">{registry.get("worldInfo").listHeader?.()}</div>;
+/** The world-info MEMBER EDITOR mounted in CONTENT (config-rail C-7) — the book view, its sortable entry
+ *  list, and the drilled entry editor. The QueryBoundary is production's (the config host wraps
+ *  `detail(view)` in one): the surface reads through `useSuspenseQuery`. */
+export function WorldInfoMemberStory({ memberId = "world_book_reorder001" }: { readonly memberId?: string }): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 700, overflow: "auto", width: 720 }}>
+        <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
+          <WorldInfoMemberSurface memberId={memberId} />
+        </QueryBoundary>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The world-info CONTEXT arm for one open book — the activation panel the collection declares as
+ *  `context: {kind:"body"}`. */
+export function WorldInfoContextStory({ memberId = "world_book_reorder001" }: { readonly memberId?: string }): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 700, overflow: "auto", width: 360 }}>
+        <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
+          <WorldInfoContextBody memberId={memberId} />
+        </QueryBoundary>
+      </div>
+    </CtDataProviders>
+  );
 }
 
 /** A fully-populated entry (keyword scope + `position:after` + an UNKNOWN metadata key to prove the save
@@ -123,14 +148,16 @@ export function EntryEditorSwitchStory(): ReactElement {
   );
 }
 
-/** WorldInfoEditorReorderStory — the book view with its sortable entry LIST (item-8 restoration). Drives the
- *  real editor surface over the stubbed network so a CT can keyboard-drag a grip and assert the completed
- *  drag persists via `worldInfo.applyEntryOrder`. Fixed size so the sortable's nudge math is deterministic. */
+/** WorldInfoEditorReorderStory — the book view with its sortable entry LIST (item-8 restoration), mounted as
+ *  the collection's `detail` the way the config host mounts it. Fixed size so the sortable's nudge math is
+ *  deterministic. */
 export function WorldInfoEditorReorderStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 420, height: 640, padding: 16 }}>
-        <WorldInfoEditorSurface bookId={castId<WorldBookId>("world_book_reorder001")} />
+        <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
+          <WorldInfoMemberSurface memberId="world_book_reorder001" />
+        </QueryBoundary>
       </div>
     </CtDataProviders>
   );

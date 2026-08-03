@@ -9,8 +9,9 @@ import type { Db } from "@orb/db";
 import { characterBooks, chatBooks, globalBooks, personaBooks, worldBooks, worldEntries } from "@orb/db";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { resolveEntryScope } from "@orb/kit/world-info";
-import { and, desc, eq } from "drizzle-orm";
-import type { BookAttachmentView, BookView, EntryView, WorldBookRole } from "../contract/views";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
+import type { BookAttachmentView, BookUsage, BookView, BookWithUsage, EntryView, WorldBookRole } from "../contract/views";
 
 const LIMIT_ONE = 1;
 
@@ -67,6 +68,56 @@ export async function loadOwnedEntry(db: Db, ownerId: UserId, entryId: WorldEntr
 export async function listOwnedBooks(db: Db, ownerId: UserId): Promise<BookRow[]> {
   const rows = await db.select().from(worldBooks).where(eq(worldBooks.ownerId, ownerId)).orderBy(desc(worldBooks.createdAt));
   return rows;
+}
+
+// ── The with-usage rollup (the config-workspace roster read) ────────────────────────────────────────────
+// Independent GROUP BY queries merged in-process, never an N-way LEFT JOIN (that multiplies rows across the
+// junctions and lies about every count but the first) — the `listOwnedTagsWithUsage` shape, one domain over.
+// THIS IS THE SECOND INSTANCE of the with-usage reverse-rollup pattern (tags, now books); the queued
+// REGROSTER small (regex "attached by" rosters) would be the third. At three, a shared substrate may be
+// worth minting — FLAG it there, do not build it here off two.
+
+/** Count junction rows per BOOK for the given book ids, on one junction's `worldBookId` column. */
+async function countByBook(db: Db, table: SQLiteTable, bookCol: SQLiteColumn, ids: readonly WorldBookId[]): Promise<Record<string, number>> {
+  const rows = await db
+    .select({ bookId: bookCol, n: sql<number>`count(*)` })
+    .from(table)
+    .where(inArray(bookCol, [...ids]))
+    .groupBy(bookCol);
+  return Object.fromEntries(rows.map((r) => [r.bookId, r.n]));
+}
+
+/** Every owned book plus its entry count and its four-scope attachment rollup (the Configuration
+ *  workspace's roster read). Owner-scoped through `listOwnedBooks`; the junction counts are then keyed to
+ *  those ids only, so a foreign book can never contribute a count. */
+export async function listOwnedBooksWithUsage(db: Db, ownerId: UserId): Promise<BookWithUsage[]> {
+  const owned = await listOwnedBooks(db, ownerId);
+  if (owned.length === 0) {
+    return [];
+  }
+  const ids = owned.map((b) => b.id);
+  const [entries, characters, personas, chats, globals] = await Promise.all([
+    countByBook(db, worldEntries, worldEntries.worldBookId, ids),
+    countByBook(db, characterBooks, characterBooks.worldBookId, ids),
+    countByBook(db, personaBooks, personaBooks.worldBookId, ids),
+    countByBook(db, chatBooks, chatBooks.worldBookId, ids),
+    countByBook(db, globalBooks, globalBooks.worldBookId, ids),
+  ]);
+  return owned.map((row) => {
+    const global = (globals[row.id] ?? 0) > 0;
+    const usage: BookUsage = {
+      characters: characters[row.id] ?? 0,
+      personas: personas[row.id] ?? 0,
+      chats: chats[row.id] ?? 0,
+      global,
+      total: 0,
+    };
+    return {
+      ...toBookView(row),
+      entryCount: entries[row.id] ?? 0,
+      usage: { ...usage, total: usage.characters + usage.personas + usage.chats + (global ? 1 : 0) },
+    };
+  });
 }
 
 // The caller guards book ownership first (so this can't probe a foreign book's entry set).

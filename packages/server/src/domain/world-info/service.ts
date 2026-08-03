@@ -24,7 +24,15 @@ import {
   createListForPersona,
   createListGlobal,
 } from "./verbs/attachments";
-import { createCreateBook, createDuplicateBook, createGetBook, createListBooks, createRemoveBook, createUpdateBook } from "./verbs/books";
+import {
+  createCreateBook,
+  createDuplicateBook,
+  createGetBook,
+  createListBooks,
+  createListBooksWithUsage,
+  createRemoveBook,
+  createUpdateBook,
+} from "./verbs/books";
 import {
   createBackfillTitles,
   createCreateEntry,
@@ -50,6 +58,7 @@ export function createWorldInfoService(ctx: WorldInfoContext): WorldInfoService 
     exportBook: ({ principal, bookId }) => exportBook({ ownerId: principal.userId, bookId }),
     importFile: ({ principal, fileText }) => importBook({ ownerId: principal.userId, bytes: new TextEncoder().encode(fileText) }),
     listBooks: createListBooks(ctx),
+    listBooksWithUsage: createListBooksWithUsage(ctx),
     getBook: createGetBook(ctx),
     createBook: createCreateBook(ctx),
     updateBook: createUpdateBook(ctx),

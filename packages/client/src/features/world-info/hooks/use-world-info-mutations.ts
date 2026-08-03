@@ -2,32 +2,42 @@
 // (global/character/persona) are the "activation" surface: a book fires in a chat's per-turn pool when
 // attached at one of those scopes. The chat scope is deferred at transport, so only the three
 // owner-scoped surfaces are wired here.
+//
+// THE ROSTER READ IS A THIRD COUPLED SITE (R2): `listBooksWithUsage` backs the Configuration workspace's
+// rows, and its two DERIVED numbers move on writes that touch neither the book list nor a single book —
+// creating or deleting an ENTRY changes the count, and every ATTACH/DETACH changes the scent. Any write
+// below that can move a book's name, its entry count, or its attachment total names `rosterRead`.
 
 import type { EntryView } from "@orb/contracts/world-info";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
-import type { Trpc } from "#data";
+import type { InvalidateFilter, Trpc } from "#data";
 import { createEntityMutation } from "#data";
+
+/** The Configuration roster's read (book row = name · entry count · attachment scent). */
+function rosterRead(trpc: Trpc): InvalidateFilter {
+  return trpc.worldInfo.listBooksWithUsage.pathFilter();
+}
 
 // ── Books ───────────────────────────────────────────────────────────────────
 
 /** Create a book. Refetches the library list; resolves to the created book (its id) so the caller opens it. */
 export const useCreateWorldBook = createEntityMutation<inferInput<Trpc["worldInfo"]["createBook"]>, inferOutput<Trpc["worldInfo"]["createBook"]>>({
   options: (trpc) => trpc.worldInfo.createBook.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listBooks.pathFilter()],
+  invalidates: (trpc) => [trpc.worldInfo.listBooks.pathFilter(), rosterRead(trpc)],
   errorToast: "Couldn't create the book.",
 });
 
 /** Rename / re-describe a book. Refetches the list (name) + the open book. */
 export const useUpdateWorldBook = createEntityMutation<inferInput<Trpc["worldInfo"]["updateBook"]>, unknown>({
   options: (trpc) => trpc.worldInfo.updateBook.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listBooks.pathFilter(), trpc.worldInfo.getBook.pathFilter()],
+  invalidates: (trpc) => [trpc.worldInfo.listBooks.pathFilter(), trpc.worldInfo.getBook.pathFilter(), rosterRead(trpc)],
   errorToast: "Couldn't save the book.",
 });
 
 /** Delete a book (the DB cascade clears its entries + junction rows). Refetches the library list. */
 export const useRemoveWorldBook = createEntityMutation<inferInput<Trpc["worldInfo"]["removeBook"]>, unknown>({
   options: (trpc) => trpc.worldInfo.removeBook.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listBooks.pathFilter()],
+  invalidates: (trpc) => [trpc.worldInfo.listBooks.pathFilter(), rosterRead(trpc)],
   errorToast: "Couldn't delete the book.",
 });
 
@@ -36,7 +46,7 @@ export const useRemoveWorldBook = createEntityMutation<inferInput<Trpc["worldInf
  *  renders (this toast is the last resort). */
 export const useImportWorldBookFile = createEntityMutation<inferInput<Trpc["worldInfo"]["importFile"]>, inferOutput<Trpc["worldInfo"]["importFile"]>>({
   options: (trpc) => trpc.worldInfo.importFile.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listBooks.pathFilter()],
+  invalidates: (trpc) => [trpc.worldInfo.listBooks.pathFilter(), rosterRead(trpc)],
   errorToast: "Couldn't import the book.",
 });
 
@@ -44,7 +54,7 @@ export const useImportWorldBookFile = createEntityMutation<inferInput<Trpc["worl
  *  the new book so the caller can open it. */
 export const useDuplicateWorldBook = createEntityMutation<inferInput<Trpc["worldInfo"]["duplicateBook"]>, inferOutput<Trpc["worldInfo"]["duplicateBook"]>>({
   options: (trpc) => trpc.worldInfo.duplicateBook.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listBooks.pathFilter()],
+  invalidates: (trpc) => [trpc.worldInfo.listBooks.pathFilter(), rosterRead(trpc)],
   errorToast: "Couldn't duplicate the book.",
 });
 
@@ -54,7 +64,7 @@ export const useDuplicateWorldBook = createEntityMutation<inferInput<Trpc["world
  *  can open it in the editor. */
 export const useCreateWorldEntry = createEntityMutation<inferInput<Trpc["worldInfo"]["createEntry"]>, inferOutput<Trpc["worldInfo"]["createEntry"]>>({
   options: (trpc) => trpc.worldInfo.createEntry.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listEntries.pathFilter()],
+  invalidates: (trpc) => [trpc.worldInfo.listEntries.pathFilter(), rosterRead(trpc)],
   errorToast: "Couldn't create the entry.",
 });
 
@@ -101,7 +111,7 @@ export const useApplyEntryOrder = createEntityMutation<
 /** Delete an entry. Refetches the book's entry list. */
 export const useRemoveWorldEntry = createEntityMutation<inferInput<Trpc["worldInfo"]["removeEntry"]>, unknown>({
   options: (trpc) => trpc.worldInfo.removeEntry.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listEntries.pathFilter()],
+  invalidates: (trpc) => [trpc.worldInfo.listEntries.pathFilter(), rosterRead(trpc)],
   errorToast: "Couldn't delete the entry.",
 });
 
@@ -111,13 +121,13 @@ export const useRemoveWorldEntry = createEntityMutation<inferInput<Trpc["worldIn
  *  library row shows the global badge). */
 export const useAttachWorldBookGlobal = createEntityMutation<inferInput<Trpc["worldInfo"]["attachGlobal"]>, unknown>({
   options: (trpc) => trpc.worldInfo.attachGlobal.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listGlobal.pathFilter()],
+  invalidates: (trpc) => [trpc.worldInfo.listGlobal.pathFilter(), rosterRead(trpc)],
   errorToast: "Couldn't make the book global.",
 });
 
 export const useDetachWorldBookGlobal = createEntityMutation<inferInput<Trpc["worldInfo"]["detachGlobal"]>, unknown>({
   options: (trpc) => trpc.worldInfo.detachGlobal.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listGlobal.pathFilter()],
+  invalidates: (trpc) => [trpc.worldInfo.listGlobal.pathFilter(), rosterRead(trpc)],
   errorToast: "Couldn't remove the global attachment.",
 });
 
@@ -125,25 +135,25 @@ export const useDetachWorldBookGlobal = createEntityMutation<inferInput<Trpc["wo
  *  character's attachment list. */
 export const useAttachWorldBookToCharacter = createEntityMutation<inferInput<Trpc["worldInfo"]["attachToCharacter"]>, unknown>({
   options: (trpc) => trpc.worldInfo.attachToCharacter.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listForCharacter.pathFilter()],
+  invalidates: (trpc) => [trpc.worldInfo.listForCharacter.pathFilter(), rosterRead(trpc)],
   errorToast: "Couldn't attach the book to the character.",
 });
 
 export const useDetachWorldBookFromCharacter = createEntityMutation<inferInput<Trpc["worldInfo"]["detachFromCharacter"]>, unknown>({
   options: (trpc) => trpc.worldInfo.detachFromCharacter.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listForCharacter.pathFilter()],
+  invalidates: (trpc) => [trpc.worldInfo.listForCharacter.pathFilter(), rosterRead(trpc)],
   errorToast: "Couldn't detach the book from the character.",
 });
 
 /** Attach / detach a book to a persona. Refetches the persona's attachment list. */
 export const useAttachWorldBookToPersona = createEntityMutation<inferInput<Trpc["worldInfo"]["attachToPersona"]>, unknown>({
   options: (trpc) => trpc.worldInfo.attachToPersona.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listForPersona.pathFilter()],
+  invalidates: (trpc) => [trpc.worldInfo.listForPersona.pathFilter(), rosterRead(trpc)],
   errorToast: "Couldn't attach the book to the persona.",
 });
 
 export const useDetachWorldBookFromPersona = createEntityMutation<inferInput<Trpc["worldInfo"]["detachFromPersona"]>, unknown>({
   options: (trpc) => trpc.worldInfo.detachFromPersona.mutationOptions(),
-  invalidates: (trpc) => [trpc.worldInfo.listForPersona.pathFilter()],
+  invalidates: (trpc) => [trpc.worldInfo.listForPersona.pathFilter(), rosterRead(trpc)],
   errorToast: "Couldn't detach the book from the persona.",
 });

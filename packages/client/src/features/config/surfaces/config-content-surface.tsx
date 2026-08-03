@@ -25,8 +25,13 @@ export function ConfigContentSurface({ collections }: ConfigContentSurfaceProps)
   useFocusOnMount(surfaceRef);
   const selection = useCollectionSelection();
   return (
-    <Container>
-      <Stack className="min-h-0 outline-none" data-slot="config-content" ref={surfaceRef} tabIndex={-1}>
+    // THE CONTENT PANE OWNS THE SCROLL, once, for every collection: the shell's own CONTENT region
+    // (`.shell-content` / `.shell-region-fill`) is a bounded flex box with NO overflow, so a member editor
+    // taller than the viewport — a 60-entry world book is ~3600px — would simply have its tail unreachable.
+    // The retired World Info section carried this on its own surface; here it belongs to the host, or every
+    // contribution has to remember it and the first one that forgets ships an amputated editor.
+    <Container className="h-full min-h-0">
+      <Stack className="h-full min-h-0 overflow-y-auto outline-none" data-slot="config-content" ref={surfaceRef} tabIndex={-1}>
         {selection === null ? (
           <ConfigWelcome collections={collections} />
         ) : (

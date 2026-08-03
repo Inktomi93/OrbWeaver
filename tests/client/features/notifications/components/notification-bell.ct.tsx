@@ -150,7 +150,28 @@ test("a LIVE invite arrival re-renders the badge without a refresh (the SSE-driv
   });
   await routeInboxStream(page, [arrivalFrame(inviteRow())]);
 
+  // Deterministic-race gate (same class as message-list-surface.ct.tsx's canonSettled pattern): hold the
+  // EventSource response until the mount's first `notifications.list` read has rendered. Without this, the
+  // scripted arrival frame can be fully processed (invalidate → second list fetch queued) before that first
+  // fetch settles — TanStack Query then just marks the in-flight query stale instead of issuing a second
+  // fetch, so the refetch silently never happens under heavy parallel CPU contention.
+  let releaseStream: (() => void) | undefined;
+  const initialSettled = new Promise<void>((resolve) => {
+    releaseStream = resolve;
+  });
+  await page.route("**/api/trpc/**", async (route) => {
+    const accept = route.request().headers()["accept"] ?? "";
+    if (accept.includes("text/event-stream")) {
+      await initialSettled;
+    }
+    await route.fallback();
+  });
+
   await mount(<NotificationBellStory />);
+
+  // The initial (empty) inbox has rendered — safe to let the stream through.
+  await expect(page.getByRole("button", { name: "Notifications", exact: true })).toBeVisible();
+  releaseStream?.();
 
   // The scripted stream frame lands → onData invalidates → the refetch surfaces the unread badge.
   await expect(page.getByRole("button", { name: "Notifications (1 unread)" })).toBeVisible();
