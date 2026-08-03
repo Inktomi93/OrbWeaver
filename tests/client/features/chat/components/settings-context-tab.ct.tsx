@@ -17,7 +17,7 @@ import { CommittedSettingsTabStory, DraftSettingsTabStory } from "../_ct-stories
 
 // The getChat stub the host-only Tool-use section suspends on (⑦). `toolRecurseLimit` is the current cap the
 // control displays; `viewerIsHost` mirrors the story's isHost. Minimal — the section only reads the cap.
-const CHAT_DETAIL = { id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, roomOverrides: {}, participants: [] };
+const CHAT_DETAIL = { id: "chat_ct", viewerIsHost: true, toolRecurseLimit: 7, hostDisplayScripts: false, roomOverrides: {}, participants: [] };
 
 // The Macro-picks section's own suspense read (#24) — this tab is its production mount, so every committed
 // arm must stub it or the section's boundary would swallow the failure and the tab's composition contract
@@ -160,6 +160,40 @@ test("⑦ member: the Tool-use section is ABSENT (host-only omit — a member se
   // Role-agnostic on purpose: an ABSENCE assertion keyed to `spinbutton` would go blind the day the control
   // becomes an @orb/ui NumberField (Base UI renders those as a TEXTBOX, never a spinbutton).
   await expect(component.getByLabel("Tool rounds per turn")).toHaveCount(0);
+});
+
+// D121-E — the "share my display scripts" host switch (Host controls group). Host-only (the §8.1
+// permission-OMIT): the host sees + toggles it; a member never sees the control (the Tool-use precedent).
+const UPDATE_HOST_DISPLAY_SCRIPTS = "chat.setHostDisplayScripts";
+
+function stubHostDisplayScripts(page: Page): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "chat.getGroupConfig": () => ({ ...DEFAULT_GROUP_CONFIG }),
+    "chat.setRoomOverrides": () => ({}),
+    "chat.listChatInjections": () => [],
+    "chat.getUserMacroPicks": () => EMPTY_PICKS,
+    "chat.getChat": () => CHAT_DETAIL,
+    [UPDATE_HOST_DISPLAY_SCRIPTS]: () => ({}),
+  });
+}
+
+test("host: the display-scripts switch renders seeded from getChat.hostDisplayScripts (off)", async ({ mount, page }) => {
+  await stubHostDisplayScripts(page);
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await expect(component.getByRole("switch", { name: "Show my display scripts to everyone" })).not.toBeChecked();
+});
+
+test("host: toggling the switch fires chat.setHostDisplayScripts with the new state", async ({ mount, page }) => {
+  const trpc = await stubHostDisplayScripts(page);
+  const component = await mount(<CommittedSettingsTabStory isHost={true} showGroup={true} />);
+  await component.getByRole("switch", { name: "Show my display scripts to everyone" }).click();
+  await expect.poll(() => (trpc.lastInput(UPDATE_HOST_DISPLAY_SCRIPTS) as { enabled?: boolean } | undefined)?.enabled, { intervals: [20, 50, 100] }).toBe(true);
+});
+
+test("member: the display-scripts switch is ABSENT (host-only omit — a member sees no control)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.setRoomOverrides": () => ({}), "chat.listChatInjections": () => [], "chat.getUserMacroPicks": () => EMPTY_PICKS });
+  const component = await mount(<CommittedSettingsTabStory isHost={false} showGroup={false} />);
+  await expect(component.getByRole("switch", { name: "Show my display scripts to everyone" })).toHaveCount(0);
 });
 
 // The at-a-glance kicker-count chips (panel-redesign): a "N set" chip on Field overrides (count of set
