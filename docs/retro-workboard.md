@@ -56,7 +56,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 ## ═══ STATE (2026-08-03, at the audit) ═══
 
 - **main @ HEAD**, tree clean, **121+ commits past origin `865405d6`** (the 199-commit era was
-  pushed 08-03 on the owner word). Gates: **179 registered** (GATES3 minted three). D-ledger:
+  pushed 08-03 on the owner word). Gates: **180 registered** (GATES3 +3, SPANGATE +1). D-ledger:
   through **D126**, next free **D127**.
 - **PUSH-READY IS STALE.** It was declared at 85 commits (`7d91d01a`); ~36 have landed since (SCHEMA,
   DBANK2, SWEEP, HISTLEG, OBSCLOSE, GATES3, D125, board/doc edits) → **a fresh `pnpm verify --push` on
@@ -596,9 +596,35 @@ The audit wrote SCHEMA / DBANK2 / SWEEP as *dispatched*. Since then:
   literals in the new CT. The lane's floor ran `typecheck:graph` + `tests-dom` but NOT the per-package
   `pnpm typecheck`, which is the only stage that sees `tests/client/**` from `packages/client`'s
   tsconfig. Fixed with `castId<DocumentId>`; **lane floors should name `pnpm typecheck` explicitly.**
-- **LIVE NOW (cap 5):** DBFIX (`a423c577e9d55294a` — databank ingest concurrency, the D117
-  contradiction — MERGED, see above) · **SPANGATE**
-  (`a40e2b5d8df6e2282` — the untraced/swallowed span gates, above) · **BRAND-F** (`a9c87d67eac1b22a2` — **the WHOLE I-5 burn-down on Fable**, briefed to read
+- ✅ **SPANGATE MERGED (`898eef25`) — gate #180 `detached-work-traced`.** ONE gate, TWO arms, live-green
+  on a FIXED tree. Arm A = fire-and-forget work under no detached root; **Arm B = a `catch` that does
+  not rethrow INSIDE an opener callback** — the shape that seals `status:"ok"` on failure, i.e. a green
+  dashboard over failing work. One gate not two, argued: same derived opener set, same marker resolver,
+  same stale/malformed arms — **and A2 is reachable BY "fixing" A1 wrongly** (move the discard inside the
+  callback), so one producer must judge both. Consolidated `pnpm check`: 14/14.
+  **A SIXTH instance of the class, in a THIRD file:** `fireRpgUserCommit` (`domain/chat/verbs/turn.ts`)
+  — a DB snapshot-commit plus a queued-dice consume, under no span at all. Tally: SM4 (1) → OBSCLOSE (4)
+  → SPANGATE (1). **The class survived one fix, a four-instance sweep of its own file, AND normal
+  review.** That is the sentence that justifies the gate.
+  **BOTH of my brief's premises died** (recorded so neither propagates): (1) `root:true` is baked INSIDE
+  `withRequestSpan` (`tracing.ts:318`) and no call site passes it — vocabulary derived from the mechanism
+  instead (*an exported fn of tracing.ts calling `startActiveSpan` with `root:true`*), which survives
+  wrapper renames and gives §4.6 a real hook, probed live. (2) "15 call sites across 5 files" was wrong:
+  `pnpm ast callers` → **32 hits in 12 files, 7 production**; the observability index/tracing pair are
+  the declaration + re-export, not call sites.
+  **Fixed, not parked:** `turn.ts` + both `search-discovery.ts` reindex enqueues open their own roots.
+  **Permanently marked** with position + reason + end condition: egress teardowns ×5, local-light
+  eviction dispose, the engine's inner warning-emit catch, and the rate-limit per-request GC — that last
+  one because a detached root per request would push one bucket per request through a **500-entry ring
+  and evict the real traces.**
+  **⚠️ DECLARED LIMITS (the gate's green is a FLOOR, not a ceiling) — verbatim:** *it can prove a root
+  span is OPENED and that errors REACH it; it CANNOT prove the span is MEANINGFUL — that its name,
+  request id, or attributes correlate to the work it wraps. A wrong-but-present span passes.* Also: only
+  DISCARDING handlers count · bare `void work()` is out (an unhandled rejection is loud) · statement
+  position only · an absorbed promise assigned to a variable is out · "traced" is satisfied by ANY opener
+  in the statement (proving it wraps THE work needs types) · Arm B reads only a SYNTACTIC `throw`, so a
+  rethrow routed through a helper is invisible · `scanRoot` is `packages/server/src/**` only.
+- **LIVE NOW (cap 5 — ONE lane):** **BRAND-F** (`a9c87d67eac1b22a2` — **the WHOLE I-5 burn-down on Fable**, briefed to read
   `codemod-kit.ts` + `ast.ts` IN FULL; the kit already carries `retypeIdAnnotations` +
   `castStringLiteralsByDiagnostic` from a prior id campaign).
 - **KILLED (owner word):** the first brand lane (mech-executor tier) — zero commits, one untracked
