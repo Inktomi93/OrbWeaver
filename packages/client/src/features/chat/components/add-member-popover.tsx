@@ -40,6 +40,7 @@ function AddMemberShell({
       </Tooltip>
       <PopoverPopup>
         <CharacterPicker
+          autoFocusSearch={true}
           emptyText="No other characters to add."
           excludeIds={existingCharacterIds}
           label="Add a character"
