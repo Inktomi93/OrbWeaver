@@ -146,6 +146,10 @@
               {
                 "group": ["@dnd-kit/core", "@dnd-kit/core/**", "@dnd-kit/sortable", "@dnd-kit/sortable/**", "@dnd-kit/utilities", "@dnd-kit/utilities/**"],
                 "message": "Dead legacy dnd-kit stack. Use @dnd-kit/react + @dnd-kit/helpers (ui-package-design §3, work-order item 15)."
+              },
+              {
+                "group": ["dotenv", "dotenv/**", "dotenv-expand", "dotenv-expand/**"],
+                "message": "dotenv was killed 2026-08-03 (node-26 adoption program §3) and is no longer installed. node:util's parseEnv IS the platform .env parser; foundation/env/index.ts owns the ONE loader (and the override merge process.loadEnvFile() cannot express). Nothing else reads a .env."
               }
             ]
           }
