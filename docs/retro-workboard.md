@@ -145,6 +145,33 @@ Also on the table: refusal fields (both vendors have one, we read neither — a 
 ok:true), the 24h grammar cache vs `constrainExtractionSchema` rewriting per call,
 `disable_parallel_tool_use` missing (a silent duplicate-drop), Anthropic's PHI caveat vs our
 live actor names as enum values. 3 stale comments named.
+✅ **SCHEMA MERGED (`c92b7aeb`) — the structured-output era is CORRECT, not routed-around:**
+ONE `scrubWireSchema` engine, FOUR per-wire modes (hosted-common · anthropic-format [oneOf →
+typed refusal] · guided-decoding [KEEPS bounds — the xgrammar populate lever] ·
+strict-compatible [all-required + anyOf-null, BUILT and OFF behind
+`EXTRACTION_STRICT_WIRE=false`]). It absorbed THREE hand-rolled walkers that had DRIFTED —
+vLLM's wasn't position-aware, so a field literally NAMED `title`/`default` was being deleted
+from the guided wire (a live bug nobody had seen). `parallel_tool_calls:false` + a LOUD
+`provider.structured-extra-call` if a duplicate still arrives. **Refusals are read** on both
+roles → the host toast now says "the model refused: <vendor sentence>" instead of "nothing
+changed". 3 stale comments truth-repaired. **RESYNC IS A TOOL ROUND** on any wire carrying
+tools (structured survives as the agent-sdk degrade; capability gate widened to
+hasToolWriter). **FOLDED VERIFIED UNTOUCHED** — zero edits to the folded builders; resync is
+its OWN caller over the same tool DEFINITIONS; the one shared fn took an optional param
+defaulting to today's values; 4 named folded pins + all 49 tests in rpg.int pass UNMODIFIED.
+3,255 tests green. **OWNER-CALL ITEMS from it:** flipping `EXTRACTION_STRICT_WIRE` on is
+one constant (a runtime toggle = its own lane: config field + versioned lift + surface);
+enforced structured output on OR means moving that role BACK to response_format (the forced
+tool can never enforce — `WireTool` has no `strict`); `populateFromCharacter` would take the
+same ~40-line tool-round treatment but was deliberately NOT scope-crept.
+**GATES3 QUEUED (owner asked "anything that should be a gate?"):** (1) **`ne()`/`notInArray`
+on a NULLABLE column** without an `or(isNull(...))` — the D124 reshape's one live defect
+class, invisible to tsc/tests, structurally derivable from the schema; (2) **NUL bytes in
+source** — FACEFILT's file went BINARY to git while all gates stayed green; (3) **banned
+JSON-schema keywords on the hosted projection** — locks in what the vendor docs just taught
+(a future `z.string().min(1)` silently re-breaks it). NOT recommended: the a11y-attribute
+staleness check (cross-file, FP-prone) and the translator-invents-policy shape (2 sites, both
+fixed, doctrine covers it).
 **OWNER RULINGS (08-03 dawn, question tool):** (1) **DATABANK KEEPS ITS RAIL SECTION** — the
 fork is CLOSED, Arm A stands (it uses the search box + Add primary + reindex kebab a group
 band has no slot for; demotion stays one file if ever wanted). (2) **TAG REORDER: premise
