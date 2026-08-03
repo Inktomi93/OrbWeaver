@@ -32,7 +32,7 @@
     "trace:tail": "tsx scripts/probes/trace-tail.ts",
     "trace:fire": "tsx scripts/probes/probe-fire.ts",
     "sandbox": "bash scripts/dev/sandbox.sh",
-    "start": "NODE_ENV=production tsx packages/server/src/entry/index.ts",
+    "start": "NODE_ENV=production node packages/server/src/entry/index.ts",
     "engines": "bash scripts/dev/engines.sh",
     "engines:start": "bash scripts/dev/engines.sh start",
     "engines:stop": "bash scripts/dev/engines.sh stop",

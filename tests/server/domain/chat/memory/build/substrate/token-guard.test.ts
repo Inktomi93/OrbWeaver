@@ -2,9 +2,9 @@ import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext, RowPersonaName } from "@orb/kit/macro";
 import { describe } from "vitest";
-import { DEFAULT_OUTPUT_RESERVE_TOKENS, fitBlockToBudget, SUMMARIZER_CONTEXT_FLOOR } from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/token-guard";
-import type { MsgRow } from "../../../../../../../packages/server/src/domain/chat/memory/types";
-import { expect, test } from "../../../../../../support/fixtures";
+import { DEFAULT_OUTPUT_RESERVE_TOKENS, fitBlockToBudget, SUMMARIZER_CONTEXT_FLOOR } from "../../../../../../../packages/server/src/domain/chat/memory/build/substrate/token-guard.ts";
+import type { MsgRow } from "../../../../../../../packages/server/src/domain/chat/memory/types.ts";
+import { expect, test } from "../../../../../../support/fixtures.ts";
 
 const aria = castId<CharacterId>("character_aria");
 const names: RowMacroNameContext = {

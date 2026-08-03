@@ -3,7 +3,7 @@
 // `{{memory}}` format step). PURE — no I/O, no state. Robust to a sloppy model: a missing keywords line → no
 // keywords; a missing anchor → the first non-empty line (or "").
 
-import type { ParsedDigest } from "../../types";
+import type { ParsedDigest } from "../../types.ts";
 
 const KEYWORDS_LINE = /^\s*keywords\s*:/iu;
 

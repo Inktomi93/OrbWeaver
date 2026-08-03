@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ── pnpm dev — ONE command: vLLM engines + the watched server ────────────────
 #
-# The reload-on-save problem: `tsx watch` kills + respawns the SERVER on every
+# The reload-on-save problem: `node --watch` kills + respawns the SERVER on every
 # file save. If the server owned the vLLM engines, each save would cold-respawn
 # the trio (~1-2 min). FLEET MODEL (A.4): the engines are a box-level SINGLETON
 # spawned DETACHED (`engines:start` → setsid + pidfile), owned by NOBODY — so a
@@ -16,7 +16,7 @@
 # the same detached verb.
 #
 # GPU-less box / ENGINES_POSTURE=off: engines.sh no-ops (derive roles → jina
-# local-light, summarize → hosted) and this is just `tsx watch` + pretty.
+# local-light, summarize → hosted) and this is just `node --watch` + pretty.
 #
 # Ctrl-C tears down THIS script + the watched server — the detached fleet SURVIVES
 # (warm for the next orb; `pnpm engines:stop` is the only kill).
@@ -41,19 +41,22 @@ trap cleanup INT TERM HUP EXIT
 # server boots and adopts. ENGINES_POSTURE defaults to adopt-or-start (the manager).
 bash "$REPO/scripts/dev/engines.sh" start || echo "dev: engines:start reported a problem (continuing — server will fail-fast if a role needs vllm)"
 
-# The watched server. tsx restarts re-adopt the warm engines. Process-sub for the
-# pretty pipe so SERVER_PID is tsx ITSELF (killable in cleanup), not pino-pretty;
+# The watched server. Restarts re-adopt the warm engines. Process-sub for the
+# pretty pipe so SERVER_PID is NODE ITSELF (killable in cleanup), not pino-pretty;
 # pino-pretty exits on its own when the pipe closes. Explicit bin paths so this
-# works whether invoked via `pnpm dev` or by hand. We then wait on the server so
+# works whether invoked via `pnpm dev` or by hand — `node` is the platform binary, so no $BIN
+# prefix (and no loader). `--watch-preserve-output` keeps the pino-pretty scrollback across a
+# restart; `--watch-kill-signal` (default SIGTERM) is the escape if a restart ever needs SIGINT.
+# We then wait on the server so
 # its exit (or a signal) drives the trap.
 #
-# ONLY stdout (the pino JSON stream) is piped to pino-pretty — stderr (tsx's
-# watch/compile chatter, Node warnings, uncaught stack traces) stays RAW on the
+# ONLY stdout (the pino JSON stream) is piped to pino-pretty — stderr (node's
+# watch chatter, Node warnings, uncaught stack traces) stays RAW on the
 # terminal instead of being blasted through the pretty parser as junk lines.
 # pino-pretty opts make it usable, not a firehose: drop pid/hostname, local-time
 # stamps, and --singleLine so each log (with its bound requestId/userId) is ONE
 # scannable line instead of an exploded object. Prod (`pnpm start`) stays raw JSON.
-"$BIN/tsx" watch "$REPO/packages/server/src/entry/index.ts" \
+node --watch --watch-preserve-output "$REPO/packages/server/src/entry/index.ts" \
   > >("$BIN/pino-pretty" --config "$REPO/scripts/dev/pino-pretty.json") &
 SERVER_PID=$!
 wait "$SERVER_PID"

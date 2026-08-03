@@ -11,8 +11,8 @@ import type { RowMacroNameContext } from "@orb/kit/macro";
 // 1 token; a local `length/4` undercounts those ~4× and would let a CJK transcript silently overflow the
 // summarizer — the exact truncation this guard exists to prevent. Never re-roll the estimate here.
 import { estimateTokens } from "@orb/kit/tokens";
-import type { MsgRow } from "../../types";
-import { renderTranscript } from "./transcript";
+import type { MsgRow } from "../../types.ts";
+import { renderTranscript } from "./transcript.ts";
 
 /** The baseline tokens reserved for the digest OUTPUT + the prompt scaffold (the system prompt is subtracted
  *  separately). The EFFECTIVE reserve is `AppSettings.memorySummarizer.maxTokens ?? this` — the one home the

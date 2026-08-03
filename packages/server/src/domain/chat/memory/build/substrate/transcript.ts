@@ -17,7 +17,7 @@ import { createHash } from "node:crypto";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { RowCharacterName, RowMacroNameContext, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
-import type { BlockSpan, MsgRow } from "../../types";
+import type { BlockSpan, MsgRow } from "../../types.ts";
 
 const USER_LABEL = "User";
 const NARRATOR_LABEL = "Narrator";
