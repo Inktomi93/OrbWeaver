@@ -133,6 +133,20 @@ test("markers ride the title line and join the description — never the accessi
   await expect(page.locator('[data-slot="list-row-title-row"] [data-slot="list-row-markers"]')).toHaveCount(1);
 });
 
+// The `subtitleLead` slot: a status chip on the SUBTITLE line instead of the title line, for a mark that
+// belongs to the row's scent (databank's ingest phase). It sits INSIDE the subtitle's own span, which is
+// what makes its text ride the same `aria-describedby` entry — no second id, no silent chip.
+test("subtitleLead sits inside the SUBTITLE span and joins that same description entry", async ({ mount, page }) => {
+  await mount(<ListRow clickable={true} subtitle="Wiki · 91.7 KB · 39 chunks" subtitleLead={<span>Indexing</span>} title="Duskwater Barony" />);
+  const row = page.getByRole("button");
+  await expect(row).toHaveAccessibleName("Duskwater Barony");
+  await expect(row).toHaveAccessibleDescription("Indexing Wiki · 91.7 KB · 39 chunks");
+  // Inside the subtitle, NOT the title row: on the title line a variable-width chip steals the name's width
+  // on exactly the rows that carry one (measured at a 320px pane: "Duskwater B…").
+  await expect(page.locator('[data-slot="list-row-title-row"] [data-slot="list-row-subtitle"]')).toHaveCount(0);
+  await expect(page.locator('[data-slot="list-row-subtitle"]')).toContainText("Indexing");
+});
+
 test("no markers ⇒ no marker slot at all (a data-driven zone, never a reserved empty box)", async ({ mount, page }) => {
   await mount(<ListRow clickable={true} meta="18m ago" title="Group UX review" />);
   await expect(page.locator('[data-slot="list-row-markers"]')).toHaveCount(0);

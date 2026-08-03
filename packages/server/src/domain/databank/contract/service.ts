@@ -30,6 +30,7 @@ import type {
   GlobalAttachParams,
   ListActiveForChatParams,
   ListDocumentsParams,
+  ListGlobalParams,
   ReindexParams,
   RemoveDocumentParams,
   RenameDocumentParams,
@@ -150,6 +151,9 @@ export interface DatabankService {
 
   readonly attachGlobal: (params: GlobalAttachParams) => Promise<void>;
   readonly detachGlobal: (params: GlobalAttachParams) => Promise<void>;
+  /** WHICH owned documents are global (D-1) — the id SET, not views: its consumer is a membership test
+   *  against a list the caller already holds (the `worldInfo.listGlobal` twin, narrowed). */
+  readonly listGlobal: (params: ListGlobalParams) => Promise<DocumentId[]>;
   /** Host authority — room-wide prompt content is a one-shot jailbreak surface. */
   readonly attachToChat: (params: ChatAttachParams) => Promise<void>;
   readonly detachFromChat: (params: ChatAttachParams) => Promise<void>;
