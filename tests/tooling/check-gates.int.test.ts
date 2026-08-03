@@ -253,6 +253,12 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_gmodalbody/lib/__g_gmodalbody-modal.tsx",
     "export const gModal: ModalDefinition = { id: 'x', body: () => <SectionPlaceholder /> };\n",
   );
+  // section-factory-contribution-bundle: an exported SectionDefinition-returning factory with TWO
+  // positional `ContributorRegistry` params — the bundle arm (the founding `makeChatsSection` shape).
+  fx(
+    "packages/client/src/features/__g_gbundle/lib/__g_gbundle-section.tsx",
+    "export function makeGBundleSection(a: ContributorRegistry<X>, b: ContributorRegistry<Y>): SectionDefinition {\n  return null as never;\n}\n",
+  );
   // settings-pane-completeness: a `SettingsPaneDefinition`-typed var in a file that is NOT a `*-pane.tsx`
   // def file — the co-location arm.
   fx("packages/client/src/features/__g_gpane/lib/stray.ts", "export const strayPane: SettingsPaneDefinition = { id: 'x' };\n");
