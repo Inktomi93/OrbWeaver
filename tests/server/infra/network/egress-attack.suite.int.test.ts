@@ -7,11 +7,16 @@
 // Offline + deterministic: a private literal resolves to itself and is rejected before any socket dial.
 
 import { __setEgressResolverForTest, ANY_HOST, installEgressFirewall, safeFetch, shouldBlockEgress } from "@orb/server/infra/network";
+import type { Dispatcher } from "undici";
+import { getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { afterAll, beforeAll, describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
-const UNDICI_GLOBAL_DISPATCHER = Symbol.for("undici.globalDispatcher.1");
-const globalSlots = globalThis as typeof globalThis & Record<symbol, unknown>;
+// Capture/restore via undici's PUBLIC accessors — NEVER a hardcoded `Symbol.for("undici.globalDispatcher.N")`.
+// undici 8 moved that slot from `.1` to `.2` and kept `.1` as a legacy alias nothing reads, so the old
+// symbol-poking restore became a silent no-op that leaked the installed firewall into later tests in the
+// same worker. The accessors survive slot renames; the handoff they rest on is guarded by
+// dispatcher-contract.suite.int.test.ts.
 const ABORT_MS = 1500;
 const ERR_CHAIN_DEPTH = 8;
 const SNIPPET = 80;
@@ -81,12 +86,12 @@ const AUTO_ALLOWED_BACKENDS: readonly string[] = [
 ];
 
 describe("egress firewall — adversarial SSRF bypass matrix (task #55)", () => {
-  const original = globalSlots[UNDICI_GLOBAL_DISPATCHER];
+  const original: Dispatcher = getGlobalDispatcher();
   beforeAll(() => {
     installEgressFirewall();
   });
   afterAll(() => {
-    globalSlots[UNDICI_GLOBAL_DISPATCHER] = original;
+    setGlobalDispatcher(original);
   });
 
   test("every private/loopback/link-local/encoded target on a non-configured port is BLOCKED", async () => {

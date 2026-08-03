@@ -91,8 +91,17 @@ catalog:
   "@trpc/server": ^11.18.0
   # undici: the global-dispatcher seam for the SSRF egress firewall (infra/network/egress —
   # setGlobalDispatcher + Agent({connect.lookup})). Node's fetch is undici under the hood, but the
-  # dispatcher swap requires the package; tracks Node 26's bundled undici major.
-  undici: ^7.16.0
+  # dispatcher swap requires the package; tracks Node 26's bundled undici major (node 26.5 bundles
+  # 8.7.0). MAJOR-DRIFT IS A SECURITY BUG, NOT A CHORE: this package and node's bundled copy hand off
+  # through the SHARED symbol `Symbol.for("undici.globalDispatcher.1")` — our copy WRITES it,
+  # node's built-in `fetch` READS it. If that contract ever breaks, the firewall silently stops
+  # governing `fetch` and every gate stays green over an open SSRF surface. The tripwire that makes
+  # the break LOUD is `tests/server/infra/network/dispatcher-contract.int.test.ts` — keep it passing,
+  # and re-run it on every node/undici bump. Mirrored into root devDependencies so that test can
+  # import this exact package (pnpm-strict hides a packages/server dep from tests/).
+  # ^8.9.0 (not 8.10.0 — published <24h ago, minimumReleaseAge-blocked); 8.9.0 is the latest mature 8.x
+  # and the caret floats to 8.10.0 on the next install once it ages past the gate.
+  undici: ^8.9.0
   # foundation/env — the sole process.env reader loads a local .env (override:true) before parsing.
   dotenv: ^16.4.7
   # --- foundation observability (Phase 4a — tiers/foundation.md › Runtime dependencies) ---
