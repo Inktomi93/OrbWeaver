@@ -501,3 +501,15 @@ lane) · **documents can park in `Queued` forever** (3 of 7 in the seed; the 5-m
 fires on DETAIL but the LIST row says nothing) · character-opening inline `<code>` renders
 with UNGENERATED classes (the Streamdown-root-seal class) · listScriptUsage still 3× per batch
 · an inherited app-shell CT red (proven pre-existing at HEAD).
+
+**⚑ MOBILE-ROSTER FORK — OWNER RULED (08-03): NEITHER offered arm; the CONSISTENT rule.**
+Owner: "what would be the cleanest most consistent option? do it properly without making a
+singular exception." The finding was mis-framed as config-vs-shell — the truth is chats and
+characters ALREADY do the right thing on mobile (list is the screen → tap → container-queried
+PUSH-detail with a back row, the SE-A arm), and config + databank are the DEVIATIONS. RULED:
+**one shell rule — on mobile, a list-bearing section with NO selection shows its LIST as the
+screen; selecting pushes to CONTENT with a back row** — applied by the shell to every section
+that declares a list. That REMOVES two exceptions instead of minting a third, and it is what
+`mobile.html` was drawing. Lane MOBILE queued: resolvePanelMode (shell-store.ts:372) + the
+push-detail seam + per-section CTs at the mobile frame (config · databank · chats · characters
+· corpus regression) + the mock frame re-compared.
