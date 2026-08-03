@@ -79,6 +79,13 @@ Do not skim. You are an amnesiac agent; these docs are your memory.
     issue. Don't force ast-grep on a literal, and don't shell out to grep for a plain search.
     ONLY when a Bash pipeline genuinely needs grep in it: use `/usr/bin/grep -a` — the shell's bare
     `grep` is a ugrep wrapper that skips some `.ts` as binary → silent false-negative sweeps.
+    **Always pass `--exclude-dir=node_modules` explicitly.** `grep -r` does NOT respect ignore files,
+    and all six packages have their own `node_modules`. Today those happen to contain SYMLINKS into the
+    pnpm store, which `grep -r` won't follow — so a count can come out right by ACCIDENT of the store
+    layout while the command is wrong. Hoisting, a different installer, or one real directory turns the
+    same command into thousands of `@types` hits with no signal that anything changed. Rely on the flag,
+    never on the layout. (`ast-grep` and the Grep tool respect ignore files and need no flag — this is
+    a raw-`grep`-in-a-pipeline rule.)
   - **`tree`** (v2.1) for directory structure at a glance; **`tokei`** (v12.1, `--output json`) for
     LOC/size stats by language when scoping how big a surface is.
   - **The global `code-recon` SKILL is the standard for any recon claim** — load it with the Skill tool
