@@ -57,8 +57,19 @@ dead-ended pair is closed; optimistic reorder write reasoned; focusableWhenDisab
 end-of-list focus answer; **the tag-fork candidate arm is now CONCRETE + liftable**:
 MoveControls+reseat are scope-agnostic — VirtualList >30 keeps per-row move pair; only
 unknown = scroll-to-follow) ·
-FACEFILT (a5a5877336d40ac69 — frequent-N strip + overflow picker, selected-face-always-
-visible, defensive paths enumerated).**
+FACEFILT (a5a5877336d40ac69 — frequent-N strip + overflow picker) · REGROSTER
+(aedfcb0bab7f636e3 — attached-by rosters verb, 3rd with-usage instance) · SM7 (dispatched
+below — CUSTOMBYO strict arm · BRAND gate · the handoff-heal single-file biome ticket).**
+✅ **SNAPX MERGED (`73f78c81`, torn down) — the snap debt is PAID:** the fixture is a
+SIDECAR now (own offset pair 8790/5175 + own STACK_RUN_DIR — a pidfile-collision hazard the
+lane FOUND: two stacks from one tree shared .cache/stack/stack.pgid, `pnpm stack stop` would
+kill the wrong one; stack.sh gained the env hook) — **--contexts works WITH the dev stack
+up** (live receipts: both stacks up, owner+member contexts render, teardown left dev
+healthy; the D22 tooling gap closed) · --open-chat first|latest (client-bridge arm,
+red-first) · --file mode (mocks render through snap's own instruments — contrast/aria/map
+all work on file://; the R1C scratch-script class dead). Honesty header REWRITTEN to the new
+truth. Snap-contexts board small = SATISFIED (struck here). Not-proven-live: the empty-list
+openChat refusal (guard exists, no empty account to drive it).
 · ✅ **R2WI MERGED (`e7a86df1`, consolidated check 14/14, torn down) — WORLD-INFO IS IN THE
   WORKSPACE, the rail is back to 8.** listBooksWithUsage landed on the tag precedent (global
   = FLAG not count, reasoned; sweep row added; listGlobal deliberately kept — the context arm
