@@ -18,6 +18,7 @@ import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context";
@@ -157,6 +158,10 @@ function buildEngine(turnRunChatTurn: ChatContext["runChatTurn"] = turnWithUsage
 const AGENT_SDK = testConnection("vllm", "agent-sdk");
 const STATELESS = testConnection("vllm", "chat-completions");
 const SMALL_CAP = 200;
+const TRACE_SCAN_LIMIT = 50;
+const OUTER_REQUEST_ID = "i7-compaction-trace-outer-request";
+/** Hoisted: useTopLevelRegex. */
+const COMPACTION_REQUEST_ID_RE = /^compaction-turn:/;
 
 describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)", () => {
   test("agent-sdk + fit dropped rows → the marker is rebuilt via the chat's model over the span above the boundary", async () => {
@@ -173,6 +178,28 @@ describe("fireManagedCompaction — the managed-compaction post-turn hook (#9 A)
     });
     // The marker rode the chat's OWN resolved connection (agent-sdk), never a summarizer rail.
     expect(markerCalls.at(0)?.connection.api).toBe("agent-sdk");
+  });
+
+  // I-7 finding beyond the three named holes: `fireManagedCompaction` shares the exact outlives-the-request
+  // class (fire-and-forget, ran under NO live span) — found alongside them in the same file, fixed in the same
+  // lane. Proved through the TRACE RING, driven from inside an outer request root exactly like production.
+  test("I-7: the managed-compaction marker build opens its OWN request trace", async () => {
+    initTracing();
+    const chatId = await seedChatWithHistory(8);
+    const engine = buildEngine();
+
+    const outcome = await withRequestSpan(OUTER_REQUEST_ID, "http POST /api/trpc/chat.send", {}, () =>
+      engine.runTurn(prepOf(chatId, AGENT_SDK, { intent: { compaction: { mode: "managed" }, maxContextTokens: SMALL_CAP } })),
+    );
+    expect(outcome.aborted).toBe(false);
+
+    await vi.waitFor(() => {
+      const trace = recentTraces(TRACE_SCAN_LIMIT).find((t) => t.rootName === "chat.managedCompaction");
+      expect(trace).toBeDefined();
+      expect(trace?.requestId).toMatch(COMPACTION_REQUEST_ID_RE);
+      expect(trace?.status).toBe("ok");
+      expect(trace?.requestId).not.toBe(OUTER_REQUEST_ID);
+    });
   });
 
   test("ITEM-3 ROOT CAUSE: the ACTIVE PRESET's compaction config + thresholdPct drives the pct-arm fire (NOT a per-send override, NOT a default)", async () => {
