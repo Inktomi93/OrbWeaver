@@ -49,6 +49,25 @@ export function DatabankDetailStory(): ReactElement {
   );
 }
 
+/** The same two panes at the WIDEST real host — the ~1450px CONTENT the shell gives this section on a
+ *  1920px desktop with the context panel collapsed. The 720px story cannot see a MEASURE defect: a
+ *  `justify="between"` readout only reads as broken once the pane is wider than anyone reads across, and
+ *  the LIST rides along because a CONTENT pane needs a selection to have anything to measure. */
+export function DatabankDetailWideStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ display: "flex", height: 700, width: 1760 }}>
+        <div style={{ flex: "none", overflow: "hidden", width: 320 }}>
+          <DatabankLibrarySurface />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <DatabankDetailSurface />
+        </div>
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** The CONTEXT activation body (Everywhere · Active in · the retrieval pointer). */
 export function DatabankContextStory(): ReactElement {
   return (

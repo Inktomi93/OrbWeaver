@@ -98,7 +98,13 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
 
   return (
     <Surface tier="form">
-      <Stack gap="section" padding="section">
+      {/* `max-w-prose` — the MEASURE every sibling member editor in the app keeps (tag / regex member
+          surfaces). Without it a `justify="between"` label/value row spent the whole CONTENT pane: at the
+          1448px desktop pane "Origin" sat at x=496 and "Text" at x=1387, 890px of nothing between a label
+          and its own value, and Reindex flew to the far edge of its sentence. That is the same defect the
+          tag editor's two colour swatches were fixed for (side-eye 2026-08-03: "a two-column grid got
+          stretched across 590px for two 32px squares"), rebuilt in a pane with twice the room. */}
+      <Stack className="max-w-prose" gap="section" padding="section">
         <Row align="start" gap="field" justify="between">
           <Stack className="min-w-0" gap="tight">
             <Heading level={2}>{doc.name}</Heading>
