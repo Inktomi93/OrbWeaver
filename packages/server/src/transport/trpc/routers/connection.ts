@@ -51,7 +51,7 @@ export const connectionRouter = t.router({
   orGenerationCost: authedProcedure
     .input(
       z.object({
-        // @orb-gate-ignore no-raw-id generationId is OpenRouter's UPSTREAM generation handle (their id namespace), not a branded orbweaver entity id.
+        // @orb-gate-ignore no-raw-id: generationId is OpenRouter's UPSTREAM generation handle (their id namespace), not a branded orbweaver entity id.
         generationId: z.string().min(1),
       }),
     )

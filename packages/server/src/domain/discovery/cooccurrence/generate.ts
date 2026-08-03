@@ -189,8 +189,7 @@ export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps,
       count: c.count,
       computedAt: now,
     }));
-    // @orb-gate-ignore no-await-db-in-loop independent per-owner batches, bounded backpressure.
-    // biome-ignore lint/performance/noAwaitInLoops: per-owner atomic replace — folding into one batch would unbound memory on a large corpus.
+    // biome-ignore lint/performance/noAwaitInLoops: independent per-owner atomic replace — folding into one batch would unbound memory on a large corpus.
     await replaceOwner(db, ownerId, coocRows, profileRows);
     pairsWritten += coocRows.length;
     charKeywordsWritten += profileRows.length;

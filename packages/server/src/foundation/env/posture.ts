@@ -10,7 +10,7 @@
 // touches no process.env. `foundation/env` owns the ONE process.env read and calls this with its parsed floor.
 
 export const ENGINES_POSTURES = ["off", "adopt-only", "adopt-or-start"] as const;
-// @orb-gate-ignore no-inline-types the §7.5 keystone: this derived type MUST co-locate with its `as const`
+// @orb-gate-ignore no-inline-types: the §7.5 keystone — this derived type MUST co-locate with its `as const`
 // tuple, and ENGINES_POSTURES is a server-foundation env axis (not a cross-boundary contract) — its one home
 // is here beside the tuple it derives from; hoisting the alias away from its source would violate §7.5.
 export type EnginesPosture = (typeof ENGINES_POSTURES)[number];

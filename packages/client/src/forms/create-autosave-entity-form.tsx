@@ -293,7 +293,7 @@ export function createAutosaveEntityForm<TValues extends object>(
         programmaticWriteRef.current = true;
         try {
           for (const [name, value] of Object.entries(serverValues)) {
-            // @orb-gate-ignore no-loose-id-cast not a branded-id cast — `name`/`value` are a server-row field key + its value erased to `never` at setFieldValue's loose generic boundary (the same idiom as create-saved-entity-form's promote()).
+            // @orb-gate-ignore no-loose-id-cast: not a branded-id cast — `name`/`value` are a server-row field key + its value erased to `never` at setFieldValue's loose generic boundary (the same idiom as create-saved-entity-form's promote()).
             form.setFieldValue(name as never, value as never);
           }
         } finally {

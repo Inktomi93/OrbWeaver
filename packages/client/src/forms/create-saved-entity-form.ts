@@ -109,7 +109,7 @@ export function createSavedEntityForm<TValues extends object>(config: SavedEntit
       draftSeededRef.current = true;
       if (draftSeed !== undefined && draftSeedRef.current !== undefined) {
         for (const [name, value] of Object.entries(draftSeedRef.current)) {
-          // @orb-gate-ignore no-loose-id-cast not a branded-id cast — `name`/`value` are a draft field key + its value erased to `never` at this loose public boundary (see promote()).
+          // @orb-gate-ignore no-loose-id-cast: not a branded-id cast — `name`/`value` are a draft field key + its value erased to `never` at this loose public boundary (see promote()).
           form.setFieldValue(name as never, value as never);
         }
       }
@@ -142,7 +142,7 @@ export function createSavedEntityForm<TValues extends object>(config: SavedEntit
       form,
       mountKey: entityId,
       promote: (name: string, value: unknown): void => {
-        // @orb-gate-ignore no-loose-id-cast not a branded-id cast — `name`/`value` are an arbitrary DeepKeys path + its value, erased to `never` ONLY to satisfy setFieldValue's generic `TField extends DeepKeys<TFormData>` at this loose public boundary (see header).
+        // @orb-gate-ignore no-loose-id-cast: not a branded-id cast — `name`/`value` are an arbitrary DeepKeys path + its value, erased to `never` ONLY to satisfy setFieldValue's generic `TField extends DeepKeys<TFormData>` at this loose public boundary (see header).
         form.setFieldValue(name as never, value as never, {
           dontUpdateMeta: true,
         } satisfies UpdateMetaOptions);

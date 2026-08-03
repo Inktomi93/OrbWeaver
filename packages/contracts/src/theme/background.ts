@@ -33,8 +33,7 @@ export type BackgroundImageKind = (typeof BACKGROUND_IMAGE_KINDS)[number];
  *  `appearance` background fields minus the `background` prefix (`kind`, not `backgroundImageKind`). */
 export const themeBackgroundSchema = z.object({
   kind: z.enum(BACKGROUND_IMAGE_KINDS).catch("none").default("none"),
-  // A seeded-background CATALOG slug (matched against the static `listSeededBackgrounds()` set at render) —
-  // a plain slug, not an entity FK; a stale/empty value degrades to "no image" at resolution.
+  // @orb-gate-ignore no-raw-id: not an entity FK — a seeded-background CATALOG slug (matched against the static `listSeededBackgrounds()` set at render), so it stays a plain slug string; an empty/stale value degrades to "no image" at resolution. The TWIN of settings/index.ts `backgroundSeededId`, which carries the same granted exemption. ENDS WHEN: seeded backgrounds become a real owned entity with minted ids.
   seededId: z
     .string()
     .regex(/^[a-z0-9-]*$/u)
@@ -45,9 +44,7 @@ export const themeBackgroundSchema = z.object({
     .refine((s) => s === "" || z.url().safeParse(s).success)
     .catch("")
     .default(""),
-  // The own-upload background asset id (kind `asset`). A stale/deleted value degrades to "no image" at
-  // resolution; the LIVE value is GC-rooted by the asset-refs JSON live-source for the carried location
-  // (character.background_override / chats.metadata.background), never an FK boundary.
+  // @orb-gate-ignore no-raw-id: the own-upload background asset id (kind `asset`). A stale/deleted value degrades to "no image" at resolution; the LIVE value is GC-rooted by the asset-refs JSON live-source for the carried location (character.background_override / chats.metadata.background), never an FK boundary — and the lenient `""` empty sentinel no branded typeIdSchema can express. The TWIN of settings/index.ts `backgroundAssetId`, which carries the same granted exemption. ENDS WHEN: the carried blob stops using `""` for "unset" and can hold a nullable branded AssetId.
   assetId: z
     .string()
     .regex(/^(asset_[a-z0-9]+)?$/u)
