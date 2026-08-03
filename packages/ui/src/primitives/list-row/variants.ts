@@ -104,10 +104,28 @@ export const listRowVariants = tv({
     // truncates, and the TITLE keeps a `min-w-24` floor — the identifier can shorten but can never reach
     // 0px, whatever the gloss is. Both slots are consumed by `titleRow`'s flex, so this is a layout swap,
     // never a second markup path (`ListRowContent` renders the same span in a different parent).
+    //
+    // `column` IS THE MOCK'S ACTUAL SPEC, and the `inline` arm only approximated it (side-eye R-7 / F-7
+    // half-fixed). `inline` sizes the title to its CONTENT (`flex-none … shrink`), so down a deck of rows
+    // the subtitle starts wherever each name happens to end — measured on the Actions list: five different
+    // left edges across 33px (487…520) in one column, with the description (the only cell that
+    // discriminates the rows) clipped on the five longest. `column` pins the name cell to the shared
+    // `--width-label-col` so every row's gloss starts at ONE x and gets ONE width, which is what
+    // "a fixed name column, then the gloss at 1fr" meant. The name still truncates inside its cell; it can
+    // simply no longer steal the gloss's width. Pinned by computed geometry in
+    // tests/client/features/preset/components/actions-view.ct.tsx.
     subtitlePlacement: {
       block: {},
       inline: {
         title: "flex-none min-w-24 shrink",
+        subtitle: "min-w-0 flex-1 truncate",
+      },
+      // `w-…` is the BASIS and `shrink` is kept deliberately: under a phone-width squeeze every row's name
+      // cell shrinks by the same factor from the same basis, so the shared left edge survives the squeeze
+      // instead of only existing at desk widths — and `min-w-24` keeps the F-01 floor (a name may shorten,
+      // never vanish) that `flex-none` alone would have traded away for a horizontal scrollbar.
+      column: {
+        title: "w-(--width-label-col) flex-none min-w-24 shrink",
         subtitle: "min-w-0 flex-1 truncate",
       },
     },

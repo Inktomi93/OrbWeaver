@@ -37,7 +37,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useId, useRef } from "react";
-import { QueryBoundary, QueryErrorState, SkeletonRows } from "#data";
+import { QueryBoundary, QueryErrorState, SkeletonRows, skeletonRowCountFor } from "#data";
 import type { DormantDoorway, HomeTileContribution } from "#lib";
 import { rememberHomeTileBox, useHomeTileBox } from "#state";
 
@@ -98,11 +98,19 @@ function DormantBody({ tile, doorway }: { readonly tile: HomeTileContribution; r
  *  this device last time (`useHomeTileBox` — localStorage, read synchronously, so the value is already
  *  in the FIRST commit): the tile's box is then the same before and after its read lands, and the tiles
  *  below it in the grid never move. No memory (a first-ever boot) ⇒ the bare skeleton, i.e. exactly the
- *  behaviour that shipped before. */
+ *  behaviour that shipped before.
+ *
+ *  AND THE SKELETON FILLS THE BOX IT IS GIVEN (side-eye R-1). A fixed 3 rows inside a MEASURED box is a
+ *  reservation that is honest about the height and dishonest about the content: the recents tile reserved
+ *  349px and painted 160px of bars, so 189px of blank sat under three lonely lines for the duration of the
+ *  read — the exact 189px the reservation had just stopped SHIFTING, converted into dead space — while the
+ *  temp-chat tile reserved 110.89px and had its third bar clipped to a 2.9px hairline. `skeletonRowCountFor`
+ *  inverts the skeleton's own layout to fit the box, so `overflow: clip` stops being load-bearing. */
 function TileFallback({ reserved }: { readonly reserved: number | null }): ReactElement {
+  const rows = reserved === null ? TILE_SKELETON_ROWS : skeletonRowCountFor(reserved, TILE_SKELETON_ROWS);
   return (
     <Stack data-tile-reserved={reserved === null ? undefined : Math.round(reserved)} style={reserved === null ? undefined : reserveStyle(reserved)}>
-      <SkeletonRows count={TILE_SKELETON_ROWS} />
+      <SkeletonRows count={rows} />
     </Stack>
   );
 }

@@ -375,3 +375,53 @@ test("CLEAR-THEN-BLANK — emptying the twin returns the knob to inherited (blan
   await expect.poll(() => saved(deck).textContent(), SAVE_POLL).toContain("keys=quality");
   await expect(deck.getByText("clamped to 2 — this model's max", { exact: true })).toBeHidden();
 });
+
+// EVERY knob's explainer clears the D62 touch floor, WHATEVER its label is (side-eye R-8).
+//
+// The re-check filed "the info buttons are 12×12, coarse pointer included". Half of that is a measurement
+// of the wrong box: the `Field`-hosted hints ride `Button size="inline"`, whose visible box is deliberately
+// text-height (crunch item 10 — a full control box sheared every hinted label row 16px taller than its
+// unhinted neighbour) and whose HIT AREA is a layout-neutral `::after` pinned to `--spacing-touch-target`.
+// Those measure 12x12 with a 44x44 `::after`, and are correct.
+//
+// The other half was real, and had to be isolated by measuring: `KnobRow`'s own hint is a `size="icon"`
+// button (a 48px box at coarse) sitting as a FLEX ITEM in a fixed-width label cell — so the three longest
+// labels on the deck squeezed their own trigger to 44x48, 43x48 and 42x48, i.e. the floor depended on the
+// copy. This asserts the union: for each trigger, the larger of its own box and its hit-area pseudo clears
+// the floor, with the floor read from the LIVE token rather than written as 44 (it is pointer-conditional).
+test.describe("coarse pointer — every knob explainer clears the touch floor", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 430, height: 932 } });
+
+  test("no label length can shrink a hint trigger under the pointer's floor", async ({ mount, page }) => {
+    const deck = await mount(<ParamsDeckGhostStory />);
+    await expect(deck.getByRole("button", { name: "More info about Temperature" })).toBeVisible();
+
+    const measured = await page.evaluate(() => {
+      const probe = document.createElement("div");
+      probe.style.width = "var(--spacing-touch-target)";
+      document.body.append(probe);
+      const floor = Number.parseFloat(getComputedStyle(probe).width);
+      probe.remove();
+
+      const hits = [...document.querySelectorAll('button[aria-label^="More info about"]')].map((el) => {
+        const box = el.getBoundingClientRect();
+        const after = getComputedStyle(el, "::after");
+        // A `size="inline"` trigger carries its floor in the pseudo; a `size="icon"` one carries it in its
+        // own box. Whichever is larger is the real target.
+        return {
+          label: el.getAttribute("aria-label") ?? "",
+          width: Math.max(box.width, Number.parseFloat(after.width) || 0),
+          height: Math.max(box.height, Number.parseFloat(after.height) || 0),
+        };
+      });
+      return { floor, hits };
+    });
+
+    expect(measured.floor, "the touch-target token must resolve, or this assertion is vacuous").toBeGreaterThan(0);
+    expect(measured.hits.length).toBeGreaterThan(5);
+    for (const hit of measured.hits) {
+      expect(hit.width, `${hit.label}: hit width`).toBeGreaterThanOrEqual(measured.floor);
+      expect(hit.height, `${hit.label}: hit height`).toBeGreaterThanOrEqual(measured.floor);
+    }
+  });
+});

@@ -154,9 +154,16 @@ function TemplateListRow({
                 <Badge intent="neutral" size="sm" tone="ghost">
                   {def.kind}
                 </Badge>
-                <Badge intent={customized ? "success" : "neutral"} size="sm" tone="soft">
-                  {customized ? "Customized" : "Default"}
-                </Badge>
+                {/* THE `Default` CHIP IS GONE (side-eye R-7). A state chip whose job is "you changed this
+                    one" spent ~70px on EVERY row saying you had not — a marker that fires on the majority
+                    is not a marker. Its absence is the default state, spelled the way every changed-marker
+                    in the app spells it, and the width it was holding goes to the description, which is the
+                    cell that actually tells these rows apart. */}
+                {customized ? (
+                  <Badge intent="success" size="sm" tone="soft">
+                    Customized
+                  </Badge>
+                ) : null}
                 {/* THE MONO PREVIEW CELL IS GONE (side-eye F-7, §13 single-homing). It spent 152px of every
                     row on the template text's THIRD home — the drill-in textarea and the readout's RESOLVED
                     block are the other two — and it discriminated nothing: five of six rows clipped to the
@@ -175,10 +182,16 @@ function TemplateListRow({
             onClick={(): void => selectPresetTemplate(def.id)}
             selected={selected}
             // THE P0 (side-eye F-01): the fires gloss is the row's SUBTITLE on the title line, so the
-            // NAME keeps the `inline` arm's width floor and the GLOSS is what truncates. It rode `meta`
-            // — a `shrink-0` slot — which starved three rows' names to 0px and clipped a fourth.
+            // NAME keeps a width floor and the GLOSS is what truncates. It rode `meta` — a `shrink-0`
+            // slot — which starved three rows' names to 0px and clipped a fourth.
+            //
+            // `column`, NOT `inline` (side-eye R-7): the `inline` arm sizes the name to its own text, so
+            // this deck's six gloss cells started at five different x positions and got five different
+            // widths — one column, five left edges, and the longest descriptions clipped hardest. The
+            // `column` arm pins the name cell, which is what the mock ("a fixed name column, then the
+            // fires gloss at 1fr") always specified.
             subtitle={def.fires}
-            subtitlePlacement="inline"
+            subtitlePlacement="column"
             title={def.label}
           />
         );

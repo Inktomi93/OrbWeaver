@@ -68,6 +68,7 @@ test("F-7 — the row carries NO template preview cell; the template text has tw
 // shipped three anonymous rows.
 
 const TITLE = '[data-slot="list-row-title"]';
+const ROW_ROOT = '[data-slot="list-row-root"]';
 
 test("F-01 — EVERY row's name has real width, and it is the GLOSS that shortens", async ({ mount, page }) => {
   const probe = await mount(<ActionsStory />);
@@ -130,11 +131,45 @@ test("the row's DESCRIPTION is what the action does, never its template body", a
   expect(described.join(" ")).not.toContain("{{person}}");
 });
 
-test("the state chip reads Customized only for a real override — empty IS the default", async ({ mount }) => {
+test("the state chip reads Customized only for a real override — and ABSENCE is the default", async ({ mount }) => {
   const probe = await mount(<ActionsStory />);
   // The fixture customizes exactly one template.
   await expect(probe.getByText("Customized", { exact: true })).toHaveCount(1);
-  await expect(probe.getByText("Default", { exact: true }).first()).toBeVisible();
+  // THE `Default` CHIP IS GONE (side-eye R-7): a "you changed this" marker that fired on the majority of
+  // rows was ~70px per row spent saying nothing, taken from the description — the cell that discriminates.
+  await expect(probe.getByText("Default", { exact: true })).toHaveCount(0);
+});
+
+// ONE COLUMN, ONE LEFT EDGE (side-eye R-7 / F-7 half-fixed). Killing the 152px preview cell gave the row
+// its width back, but the `inline` subtitle arm sizes the name to its own TEXT — so down the deck the
+// descriptions started at five different x positions (measured 487…520) and got five different widths,
+// with the longest clipped hardest. The mock always said "a fixed name column, then the gloss at 1fr".
+test("R-7 — every row's description shares ONE left edge, and takes ALL the width the name isn't using", async ({ mount }) => {
+  const probe = await mount(<ActionsStory />);
+  await expect(probe.getByRole("button", { name: "Response nudge", exact: true })).toBeVisible();
+
+  const rows = await probe.locator(ROW_ROOT).evaluateAll((els) =>
+    els.map((el) => {
+      const gloss = el.querySelector('[data-slot="list-row-subtitle"]')?.getBoundingClientRect();
+      const actions = el.querySelector('[data-slot="list-row-actions"]')?.getBoundingClientRect();
+      return {
+        left: Math.round(gloss?.left ?? 0),
+        // The space between where the description ends and the trailing cluster begins.
+        toActions: Math.round((actions?.left ?? 0) - (gloss?.right ?? 0)),
+      };
+    }),
+  );
+  expect(rows.length).toBeGreaterThanOrEqual(11);
+
+  // THE DEFECT, stated exactly: five different left edges (measured 487…520) down one column, because the
+  // `inline` arm sized each name cell to its own text. One column, one edge.
+  expect([...new Set(rows.map((r) => r.left))], "one description column means one left edge").toHaveLength(1);
+  // …and the RIGHT edge is the trailing cluster's, identically on every row — so the description takes all
+  // the width that is left, and what is left is decided by the chips, never by how long a name happens to
+  // be. (The widths themselves are NOT all equal, and should not be: the kind chip's own label length and
+  // the one `Customized` marker legitimately move the cluster's edge. That is the cluster speaking, which
+  // is the thing this column was supposed to be independent of.)
+  expect([...new Set(rows.map((r) => r.toActions))], "the description always runs to the trailing cluster").toHaveLength(1);
 });
 
 test("the list is a FIXED ENUM — no toggle, no grip, no Add anywhere (§16 row 31's absence)", async ({ mount }) => {

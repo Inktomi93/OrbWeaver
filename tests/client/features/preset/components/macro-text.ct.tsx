@@ -71,6 +71,30 @@ test("the quieted chip still draws NO border box (the F-6 in-flow invariant)", a
   }
 });
 
+// THE PREVIEW MUST COPY (side-eye R-5, the regression the F-1/F-6 fix introduced). Chipping macros through
+// `Badge` inherited the base's `select-none`, which is right for a status pill and catastrophic for a token
+// inside quoted wire text: selecting the readout and copying it returned the prose with the `{{input}}`
+// silently MISSING and nothing saying anything had been dropped. This panel's stated job is "the string the
+// model receives / the string you'd search for", so a copy that loses the macros is the one failure it
+// cannot have. Asserted through the SELECTION the user would actually make, not through a class name.
+test("selecting the run copies the BRACED macro with it — the preview is quotable", async ({ mount, page }) => {
+  const run = await mount(<MacroText tokens={RUN} />);
+  const selected = await run.evaluate((el) => {
+    const selection = globalThis.getSelection();
+    selection?.removeAllRanges();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    selection?.addRange(range);
+    return selection?.toString() ?? "";
+  });
+  expect(selected).toContain(CHIP_TEXT);
+  // The prose either side survives too — the fix must not turn the run into a chips-only selection.
+  expect(selected).toContain("You are ");
+  // And the computed property is the mechanism, stated once so a re-inherited `select-none` reds here too.
+  await expect(run.getByText(CHIP_TEXT)).toHaveCSS("user-select", "text");
+  await page.evaluate(() => globalThis.getSelection()?.removeAllRanges());
+});
+
 test("the chip is MONO — it inherits the datum run's own type face, so it reads as part of the wire text", async ({ mount }) => {
   const run = await mount(<MacroText tokens={RUN} />);
   const [chipFace, runFace] = await Promise.all([

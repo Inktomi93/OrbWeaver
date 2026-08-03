@@ -14,13 +14,14 @@
 
 import type { RegexPickerScope, RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PresetId, RegexScriptId } from "@orb/kit/ids";
+import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { REGEX_PLACEMENT_LABELS } from "#lib";
+import { REGEX_PLACEMENT_LABELS, regexScriptScent } from "#lib";
 
 // Every regex verb is `busDriven` (`regexChanged` path-invalidates the whole router), so no call site
 // hand-invalidates its own attached-list read. The six factories live at the BOTTOM of this file, next to
@@ -28,22 +29,36 @@ import { REGEX_PLACEMENT_LABELS } from "#lib";
 
 export interface RegexScriptPickerProps {
   readonly scope: RegexPickerScope;
-  readonly heading: string;
+  /**
+   * The GROUP name, when the picker is one deck among several (the preset's Transforms view). Omit it when
+   * the picker IS the whole body of something already named — the character facet's `Regex scripts` drill
+   * rendered a `Regex scripts` heading inside a `Regex scripts` drill header, beside a `Regex scripts`
+   * inspector panel: four labels, one concept, one screen (side-eye X-7).
+   */
+  readonly heading?: string | undefined;
   readonly helperText: string;
+  /**
+   * Takes the user to the script library. The EMPTY arm's action (side-eye X-19) — a picker with nothing in
+   * it must not read as broken, it must carry the one thing there is to do. It arrives as a callback rather
+   * than being wired here because navigation is a `#state` act and `components/` is below the features that
+   * own it; omit it and the empty arm falls back to naming the destination in prose.
+   */
+  readonly onOpenLibrary?: (() => void) | undefined;
 }
 
 /** The picker. Dispatches to the per-scope READER — three sibling components rather than one component
  *  switching a query, because the three `listFor*` procs have three distinct option types and a hook cannot
  *  be called conditionally: one component per scope keeps each read honestly typed with no cast. The switch
  *  is exhaustive, so a new scope is a compile error rather than a silently empty picker. */
-export function RegexScriptPicker({ scope, heading, helperText }: RegexScriptPickerProps): ReactElement {
+export function RegexScriptPicker(props: RegexScriptPickerProps): ReactElement {
+  const { scope } = props;
   switch (scope.kind) {
     case "character":
-      return <CharacterScopePicker scope={scope} heading={heading} helperText={helperText} />;
+      return <CharacterScopePicker {...props} scope={scope} />;
     case "preset":
-      return <PresetScopePicker scope={scope} heading={heading} helperText={helperText} />;
+      return <PresetScopePicker {...props} scope={scope} />;
     case "chat":
-      return <ChatScopePicker scope={scope} heading={heading} helperText={helperText} />;
+      return <ChatScopePicker {...props} scope={scope} />;
     default:
       return assertNeverScope(scope);
   }
@@ -53,51 +68,86 @@ function assertNeverScope(scope: never): never {
   throw new Error(`unhandled regex picker scope: ${JSON.stringify(scope)}`);
 }
 
-function CharacterScopePicker({
+function CharacterScopePicker(props: RegexScriptPickerProps & { readonly scope: { kind: "character"; characterId: CharacterId } }): ReactElement {
+  const trpc = useTRPC();
+  const attached = useSuspenseQuery(trpc.regex.listForCharacter.queryOptions({ characterId: props.scope.characterId }));
+  return <PickerBody {...props} attached={attached.data} />;
+}
+
+function PresetScopePicker(props: RegexScriptPickerProps & { readonly scope: { kind: "preset"; presetId: PresetId } }): ReactElement {
+  const trpc = useTRPC();
+  const attached = useSuspenseQuery(trpc.regex.listForPreset.queryOptions({ presetId: props.scope.presetId }));
+  return <PickerBody {...props} attached={attached.data} />;
+}
+
+function ChatScopePicker(props: RegexScriptPickerProps & { readonly scope: { kind: "chat"; chatId: ChatId } }): ReactElement {
+  const trpc = useTRPC();
+  const attached = useSuspenseQuery(trpc.regex.listForChat.queryOptions({ chatId: props.scope.chatId }));
+  return <PickerBody {...props} attached={attached.data} />;
+}
+
+/** The scope-blind body: the owner's whole library with a switch per row (on = attached to this scope).
+ *
+ *  KICKER, NOT `heading` (side-eye F-8 REGRESSED → R-4, 2026-08-03). This component landed after the
+ *  fix-round that moved `EntryListEditor` to the kicker voice, and rebuilt the same defect: on the preset's
+ *  Transforms deck its 16px sentence-case white `Regex` heading sat among four 10.5px muted caps kickers
+ *  (Delivery · Collapsing · Post-processing · Inline reasoning parsing), so one deck spoke two group
+ *  grammars. Same ruling, same reasoning as the composite's: a picker in a deck IS a deck group, and this
+ *  is not a per-call-site knob — a knob is how the divergence happened both times. */
+function PickerBody({
   scope,
   heading,
   helperText,
-}: RegexScriptPickerProps & { readonly scope: { kind: "character"; characterId: CharacterId } }): ReactElement {
-  const trpc = useTRPC();
-  const attached = useSuspenseQuery(trpc.regex.listForCharacter.queryOptions({ characterId: scope.characterId }));
-  return <PickerBody scope={scope} heading={heading} helperText={helperText} attached={attached.data} />;
-}
-
-function PresetScopePicker({ scope, heading, helperText }: RegexScriptPickerProps & { readonly scope: { kind: "preset"; presetId: PresetId } }): ReactElement {
-  const trpc = useTRPC();
-  const attached = useSuspenseQuery(trpc.regex.listForPreset.queryOptions({ presetId: scope.presetId }));
-  return <PickerBody scope={scope} heading={heading} helperText={helperText} attached={attached.data} />;
-}
-
-function ChatScopePicker({ scope, heading, helperText }: RegexScriptPickerProps & { readonly scope: { kind: "chat"; chatId: ChatId } }): ReactElement {
-  const trpc = useTRPC();
-  const attached = useSuspenseQuery(trpc.regex.listForChat.queryOptions({ chatId: scope.chatId }));
-  return <PickerBody scope={scope} heading={heading} helperText={helperText} attached={attached.data} />;
-}
-
-/** The scope-blind body: the owner's whole library with a switch per row (on = attached to this scope). */
-function PickerBody({ scope, heading, helperText, attached }: RegexScriptPickerProps & { readonly attached: readonly RegexScriptRow[] }): ReactElement {
+  onOpenLibrary,
+  attached,
+}: RegexScriptPickerProps & { readonly attached: readonly RegexScriptRow[] }): ReactElement {
   const trpc = useTRPC();
   const library = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
   const attachedIds = new Set(attached.map((row) => row.id));
 
+  const body = (
+    <Stack gap="field">
+      <Text voice="gloss">{helperText}</Text>
+      {library.data.length === 0 ? (
+        <EmptyLibrary onOpenLibrary={onOpenLibrary} />
+      ) : (
+        library.data.map((script) => <PickerRow key={script.id} scope={scope} script={script} attached={attachedIds.has(script.id)} />)
+      )}
+    </Stack>
+  );
+  // No `heading` ⇒ no group frame at all: the picker is the whole body of something already named, and a
+  // Section with an absent kicker would still spend the group's block gap on nothing (X-7).
+  return heading === undefined ? body : <Section kicker={heading}>{body}</Section>;
+}
+
+/** The empty arm — WITH ITS ACTION (side-eye X-19). It used to be a bare sentence pointing at "Settings →
+ *  Regex", which is a navigation instruction printed next to a surface that can navigate. An empty state
+ *  carries the thing it is telling you to do. */
+function EmptyLibrary({ onOpenLibrary }: { readonly onOpenLibrary: (() => void) | undefined }): ReactElement {
   return (
-    <Section heading={heading}>
-      <Stack gap="field">
-        <Text voice="gloss">{helperText}</Text>
-        {library.data.length === 0 ? (
-          <Text voice="gloss">You haven't written any regex scripts yet — add one in Settings → Regex, then attach it here.</Text>
-        ) : (
-          library.data.map((script) => <PickerRow key={script.id} scope={scope} script={script} attached={attachedIds.has(script.id)} />)
-        )}
-      </Stack>
-    </Section>
+    <Stack gap="field" align="start">
+      <Text voice="gloss">
+        {onOpenLibrary === undefined
+          ? "You haven't written any regex scripts yet — add one in Settings → Regex, then attach it here."
+          : "You haven't written any regex scripts yet — write one in your library, then attach it here."}
+      </Text>
+      {onOpenLibrary === undefined ? null : (
+        <Button intent="secondary" onClick={onOpenLibrary} size="sm" type="button">
+          Open your script library
+        </Button>
+      )}
+    </Stack>
   );
 }
 
-/** One library row + its attach switch. The subtitle names the pipeline STAGES the script bites at, in the
- *  same words the Transforms readout prints (the F-23 one-vocabulary rule), so a picked row here and a step
- *  row over there are legibly the same thing. */
+/** One library row + its attach switch.
+ *
+ *  THE SUBTITLE LEADS WITH THE PATTERN (side-eye X-15). It printed only the pipeline STAGES, in the
+ *  Transforms readout's own words (the F-23 one-vocabulary rule) — but stages are exactly what every
+ *  default script SHARES, so three freshly-added rows rendered three identical 60-character subtitles and
+ *  the column that should discriminate discriminated nothing. The shared `regexScriptScent` leads with the
+ *  find pattern (the one authored field that tells two scripts apart) and the stages follow it, so the
+ *  F-23 vocabulary survives without being the whole line. */
 function PickerRow({
   scope,
   script,
@@ -115,9 +165,11 @@ function PickerRow({
 
   return (
     <Row gap="field" align="center" justify="between">
-      <Stack gap="tight">
+      <Stack gap="tight" className="min-w-0">
         <Text>{name}</Text>
-        <Text voice="gloss">{script.enabled ? stages : `off · ${stages}`}</Text>
+        <Text voice="gloss">
+          {regexScriptScent(script)} — {stages}
+        </Text>
       </Stack>
       <Switch
         aria-label={`Attach ${name}`}
