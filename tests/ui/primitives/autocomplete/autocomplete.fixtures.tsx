@@ -65,3 +65,22 @@ export function ControlledOpenStory(): ReactElement {
     </div>
   );
 }
+
+/**
+ * The INLINE arm: the suggestions render IN FLOW under the field instead of in an anchored popup, for a
+ * host with no room for an overlay (a prompt dialog). `open` is unconditional per Base UI; an empty
+ * `items` is what collapses the list. The button below stands in for the footer a popup used to cover.
+ */
+export function InlineStory(): ReactElement {
+  const [value, setValue] = useState("");
+  const [clicked, setClicked] = useState(0);
+  const matches = value.trim() === "" ? [] : SOURCE.filter((s) => s.includes(value.trim().toLowerCase()));
+  return (
+    <div>
+      <Autocomplete aria-label="Tag" inline={true} items={matches} mode="none" onValueChange={setValue} open={true} value={value} />
+      <button data-testid="below" onClick={(): void => setClicked((n) => n + 1)} type="button">
+        below {clicked}
+      </button>
+    </div>
+  );
+}

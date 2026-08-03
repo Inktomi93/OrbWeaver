@@ -123,8 +123,19 @@ test("Prune unused fires the library verb once the confirm is accepted", async (
   const trpc = await stub(page);
   const rows = await mount(<TagCollectionRowsStory />);
   await rows.getByRole("button", { name: "Prune unused" }).click();
-  await page.getByRole("button", { name: "Delete them" }).click();
+  // SINGULAR (side-eye 2026-08-03 P3): "Delete them" under "Delete 1 unused tag?" was the confirm
+  // disagreeing with the question it answers.
+  await page.getByRole("button", { name: "Delete it" }).click();
   await expect.poll(() => trpc.count("tag.pruneUnusedTags"), { intervals: [20, 50, 100] }).toBe(1);
+});
+
+test("the prune confirm's LABEL agrees in number with its own title", async ({ mount, page }) => {
+  const second = { ...TAGS[1], id: "tag_orphan2", name: "orphan2" } as unknown;
+  await stub(page, [TAGS[0], TAGS[1], second]);
+  const rows = await mount(<TagCollectionRowsStory />);
+  await rows.getByRole("button", { name: "Prune unused" }).click();
+  await expect(page.getByRole("heading", { name: "Delete 2 unused tags?" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Delete them" })).toBeVisible();
 });
 
 // THE DOUBLE EMPTY STATE (side-eye 2026-08-03 P1): `empty = filtered.length === 0` printed filter copy
@@ -169,4 +180,79 @@ test("the sort control fits the 330px roster band and does not claim it", async 
   expect(box?.width ?? ROSTER_PANE_PX).toBeLessThan(ROSTER_PANE_PX * SORT_MAX_SHARE);
   // It is a real control, not a text-height sliver: the fine-pointer tap floor.
   expect(box?.height ?? 0).toBeGreaterThanOrEqual(32);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// MANUAL ORDER IS NOT A SILENT DEAD MODE (side-eye 2026-08-03 P1). Above COLLECTION_LARGE_GROUP the roster
+// virtualizes and drag handles cannot exist — measured at the owner's 413-tag library as
+// `{mode:"Manual order", handles:0}`, with every `sortOrder` null so the comparator tiebreaks on name and
+// the result is pixel-identical to A–Z. Nothing said so, and the mode persists per device.
+
+/** One more than COLLECTION_LARGE_GROUP — the first library size that windows (and loses drag). */
+const OVER_CAP = 31;
+const OVER_CAP_TAGS = Array.from({ length: OVER_CAP }, (_unused, at) => ({
+  ...(TAGS[0] as Record<string, unknown>),
+  id: `tag_bulk_${String(at)}`,
+  name: `bulk-${String(at).padStart(2, "0")}`,
+  sortOrder: null,
+}));
+
+test("ABOVE the cap: Manual order is unselectable, and the roster says why", async ({ mount, page }) => {
+  await stub(page, OVER_CAP_TAGS);
+  const rows = await mount(<TagCollectionRowsStory />);
+  await expect(rows.getByText("Drag to reorder is off above 30 tags.")).toBeVisible();
+
+  await rows.getByRole("combobox", { name: "Sort tags" }).click();
+  const manual = page.getByRole("option", { name: "Manual order" });
+  await expect(manual).toBeVisible();
+  await expect(manual).toHaveAttribute("data-disabled", "");
+  await expect(page.getByRole("option", { name: "A–Z" })).not.toHaveAttribute("data-disabled", "");
+});
+
+test("BELOW the cap: the roster ADVERTISES the drag capability, then stops once handles are on screen", async ({ mount, page }) => {
+  await stub(page, THREE);
+  const rows = await mount(<TagCollectionRowsStory />);
+  // Landing on Most-used, nothing used to say reordering existed at all.
+  await expect(rows.getByText("Manual order lets you drag rows.")).toBeVisible();
+
+  await rows.getByRole("combobox", { name: "Sort tags" }).click();
+  await page.getByRole("option", { name: "Manual order" }).click();
+  await expect(rows.getByRole("button", { name: REORDER_HANDLE }).first()).toBeVisible();
+  // The hint is spent: a line telling you to drag, over visible drag handles, is noise.
+  await expect(rows.getByText("Manual order lets you drag rows.")).toHaveCount(0);
+});
+
+test("the sort control SHARES its line with the hint instead of sitting alone", async ({ mount, page }) => {
+  await stub(page, THREE);
+  const rows = await mount(<TagCollectionRowsStory />);
+  const hint = rows.getByText("Manual order lets you drag rows.");
+  const sort = rows.getByRole("combobox", { name: "Sort tags" });
+  const hintBox = await hint.boundingBox();
+  const sortBox = await sort.boundingBox();
+  expect(hintBox).not.toBeNull();
+  expect(sortBox).not.toBeNull();
+  // Same line: their vertical spans overlap. And the hint leads, the control trails.
+  expect(hintBox?.y ?? 0).toBeLessThan((sortBox?.y ?? 0) + (sortBox?.height ?? 0));
+  expect(sortBox?.y ?? 0).toBeLessThan((hintBox?.y ?? 0) + (hintBox?.height ?? 0));
+  expect(hintBox?.x ?? 0).toBeLessThan(sortBox?.x ?? 0);
+});
+
+test("the WINDOWED roster paints a scroll cue while there is more below, and drops it at the end", async ({ mount, page }) => {
+  await stub(page, OVER_CAP_TAGS);
+  const rows = await mount(<TagCollectionRowsStory />);
+  const scroller = rows.locator('[data-slot="virtual-list-scroll"]');
+  await expect(scroller).toBeVisible();
+  // RENDERED, not the class string: the bounded window ends mid-row, and with overlay scrollbars that
+  // half-row was the only hint that scrolling was possible (side-eye 2026-08-03 P3).
+  await expect(scroller).toHaveAttribute("data-more", "");
+  const masked = await scroller.evaluate((el: Element): string => globalThis.getComputedStyle(el).maskImage);
+  expect(masked).not.toBe("none");
+
+  await scroller.evaluate((el: Element): void => {
+    el.scrollTop = el.scrollHeight;
+  });
+  // Poll to SETTLED: the scroll handler runs off the browser's own scroll event.
+  await expect(scroller).not.toHaveAttribute("data-more", "");
+  const atEnd = await scroller.evaluate((el: Element): string => globalThis.getComputedStyle(el).maskImage);
+  expect(atEnd).toBe("none");
 });

@@ -294,9 +294,8 @@ test("D2 the bulk Tag action opens a picker and applies a tag to the selection",
   // typed name matched it, so a fill before it lands would read the pre-load arm.
   await expect(page.getByText("Start typing to search your 2 tags.")).toBeVisible();
   await page.getByRole("combobox", { name: "Tag name" }).fill("adventure");
-  // The suggestion popup is an overlay anchored under the field — dismiss it the way a user does before
-  // reaching the footer (picking a suggestion, the other path, is its own test below).
-  await page.keyboard.press("Escape");
+  // NO dismissal step (side-eye 2026-08-03 P0): the suggestions are in flow now, so the footer is never
+  // covered — and typing an EXACT library name ends the suggesting outright.
   await page.getByRole("button", { name: "Apply" }).click();
   // The mutation carries the typed tag + exactly the selected id (assertion-quality audit 2026-07-24:
   // the selection-cleared check alone left the wire payload unpinned).
@@ -501,4 +500,95 @@ test("a PNG with no character data gets a LOUD toast naming why, and the dialog 
   await expect(toast).toHaveAttribute("data-type", "error");
   await expect(page.locator(TOAST_ROOT, { hasText: "Card imported." })).toHaveCount(0);
   await expect(page.getByRole("dialog", { name: IMPORT_DIALOG_TITLE })).toBeVisible();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE FILTER-CHIP ROW (side-eye 2026-08-03 P1/P2). Uncapped it was a WALL — 22 chips built a 298px block
+// in a 290px pane, above the first character row, and it GREW underneath the reader as pages arrived. A
+// 72-character tag name (the server accepts one) blew a single chip to 475px inside a 354px container with
+// no truncation applied at all. And cycling a chip changed the result set silently.
+
+const NARROW_PANE_PX = 290;
+const VISIBLE_CHIPS = 8;
+const LONG_TAG = "a-tag-name-long-enough-to-prove-the-chip-clips-instead-of-overflowing-x";
+/** A chip past the cap, addressed by its name prefix (its state word changes as it cycles). */
+const BEYOND_CAP_CHIP = /^Filter by bulk-11:/u;
+
+/** One character carrying `count` distinct tags — the chip vocabulary IS the loaded rows' tags. */
+function manyTagsPage(count: number, extra: readonly { readonly id: string; readonly name: string }[] = []): unknown {
+  const tags = [
+    ...Array.from({ length: count }, (_unused, at) => makeTagFixture({ id: `tag_bulk_${String(at)}`, name: `bulk-${String(at).padStart(2, "0")}` })),
+    ...extra.map((one) => makeTagFixture(one)),
+  ];
+  return { items: [makeCharacterSummary({ id: "char_tagged", name: "Tagged One", createdAt: 3000, tags })], nextCursor: null };
+}
+
+test("the chip row is CAPPED, and the rest are one disclosure away", async ({ mount, page }) => {
+  await routeTrpc(page, { "character.list": () => manyTagsPage(12) });
+  const component = await mount(<CharacterLibrarySurfaceStory width={NARROW_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  await expect(component.locator("[data-tag-filter-state]")).toHaveCount(VISIBLE_CHIPS);
+  await component.getByRole("button", { name: "+4 more" }).click();
+  await expect(component.locator("[data-tag-filter-state]")).toHaveCount(12);
+  await component.getByRole("button", { name: "Show fewer" }).click();
+  await expect(component.locator("[data-tag-filter-state]")).toHaveCount(VISIBLE_CHIPS);
+});
+
+test("an ACTIVE chip is never hidden by the cap (a filter you cannot see is one you cannot turn off)", async ({ mount, page }) => {
+  await routeTrpc(page, { "character.list": () => manyTagsPage(12) });
+  const component = await mount(<CharacterLibrarySurfaceStory width={NARROW_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  await component.getByRole("button", { name: "+4 more" }).click();
+  await component.getByRole("button", { name: BEYOND_CAP_CHIP }).click();
+  await component.getByRole("button", { name: "Show fewer" }).click();
+  await expect(component.getByRole("button", { name: BEYOND_CAP_CHIP })).toBeVisible();
+  await expect(component.locator("[data-tag-filter-state]")).toHaveCount(VISIBLE_CHIPS + 1);
+});
+
+test("a 72-character tag name TRUNCATES inside the pane instead of overflowing it", async ({ mount, page }) => {
+  await routeTrpc(page, { "character.list": () => manyTagsPage(0, [{ id: "tag_long", name: LONG_TAG }]) });
+  const component = await mount(<CharacterLibrarySurfaceStory width={NARROW_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  const chip = component.locator("[data-tag-filter-state]");
+  const chipBox = await chip.boundingBox();
+  const paneBox = await component.boundingBox();
+  expect(chipBox).not.toBeNull();
+  // RENDERED containment: the chip's right edge stays inside the pane it lives in.
+  expect((chipBox?.x ?? 0) + (chipBox?.width ?? 0)).toBeLessThanOrEqual((paneBox?.x ?? 0) + NARROW_PANE_PX);
+  // …and it is TRUNCATION, not a lucky short name: the label's content is wider than its box.
+  const overflowing = await chip.locator('[data-slot="text"]').evaluate((el: Element): boolean => el.scrollWidth > el.clientWidth);
+  expect(overflowing).toBe(true);
+  // The full name survives for a pointer; the accessible name already carried it whole.
+  await expect(chip).toHaveAttribute("title", LONG_TAG);
+  await expect(chip).toHaveAttribute("aria-label", `Filter by ${LONG_TAG}: off — activate to include`);
+});
+
+test("a chip's accessible name states the ACTION, not just the state, around the whole cycle", async ({ mount, page }) => {
+  await routeTrpc(page, { "character.list": () => manyTagsPage(1) });
+  const component = await mount(<CharacterLibrarySurfaceStory width={NARROW_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  const chip = component.locator("[data-tag-filter-state]");
+  await expect(chip).toHaveAttribute("aria-label", "Filter by bulk-00: off — activate to include");
+  await chip.click();
+  await expect(chip).toHaveAttribute("aria-label", "Filter by bulk-00: included — activate to exclude");
+  await chip.click();
+  await expect(chip).toHaveAttribute("aria-label", "Filter by bulk-00: excluded — activate to clear");
+});
+
+test("cycling a chip SPEAKS the new result count (it changed the list silently before)", async ({ mount, page }) => {
+  await routeTrpc(page, { "character.list": () => manyTagsPage(1) });
+  const component = await mount(<CharacterLibrarySurfaceStory width={NARROW_PANE_PX} />);
+  await expect(component.getByText("Tagged One")).toBeVisible();
+
+  const status = component.getByRole("status");
+  await expect(status).toHaveText("1 character");
+  // Excluding the only tag on the only character empties the list — and says so.
+  const chip = component.locator("[data-tag-filter-state]");
+  await chip.click();
+  await chip.click();
+  await expect(status).toHaveText("0 characters");
 });

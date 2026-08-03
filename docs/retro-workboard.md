@@ -56,7 +56,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 ## ═══ STATE (2026-08-03, at the audit) ═══
 
 - **main @ HEAD**, tree clean, **121+ commits past origin `865405d6`** (the 199-commit era was
-  pushed 08-03 on the owner word). Gates: **180 registered** (GATES3 +3, SPANGATE +1). D-ledger:
+  pushed 08-03 on the owner word). Gates: **180 registered**. I-5 CLOSED (brand ratchet retired). D-ledger:
   through **D126**, next free **D127**.
 - **PUSH-READY IS STALE.** It was declared at 85 commits (`7d91d01a`); ~36 have landed since (SCHEMA,
   DBANK2, SWEEP, HISTLEG, OBSCLOSE, GATES3, D125, board/doc edits) → **a fresh `pnpm verify --push` on
@@ -322,8 +322,10 @@ identity chrome for ANY row kind.
   honest fix is a square-glyph size arm swept with computed-geometry proof; it returns the baseline to
   terminal `{}`.
 - **Per-actor tracker grant/revoke EDITOR** — `sheet.trackerGrants` / `trackerRevokes` exist and gate
-  NPC tracker applicability, but NO client editor exists (verified: zero `.tsx` references). The
-  owner's "keep explicit-list-only" NPC-grants ruling is a DEAD LETTER until hosts can edit the list.
+  NPC tracker applicability, but NO client editor exists. The owner's "keep explicit-list-only"
+  NPC-grants ruling is a DEAD LETTER until hosts can edit the list. **Re-flagged by the archive tail
+  audit (T-11), which trusted the doc's citation rather than re-grepping — a one-minute grep of
+  `trackerGrants|trackerRevokes` in `packages/client/src` firms it before dispatch.**
 - **`readout-parts.tsx` pending-flash** (`packages/client/src/features/preset/components/readout/`) —
   the same F-02 lying-pending-arm class SM4 fixed elsewhere; flagged, not fixed.
 - **CapabilityGate's no-error arm is UNREACHABLE as a settled state** (capability required | error —
@@ -334,8 +336,9 @@ identity chrome for ANY row kind.
   `MemoryBackfillCounts`, is GONE — that half is closed.
 - **`import-user-settings` bypasses the routing write-guard** (whole-blob verb) — imports heal+warn at
   read instead of refusing at write; lift the guard into the import path on want.
-- **`connection.getCatalog` / `getAgentSdkCatalog`** appear in admin `invalidates` with zero literal
-  consumers — aliased reads or dead rows; disposition.
+- ✅ **`connection.getCatalog` / `getAgentSdkCatalog` — ANSWERED, not dead** (archive tail audit): both are
+  called at BOOT to warm caches (`entry/lifecycle.ts:181-191`), and `use-admin-mutations.ts:80` already
+  carries the explanation in a comment. Deliberate boot-only readers. No action.
 - **`field-reachability` suite ignores a `.ok`** (SM5's flag — non-vacuous, honest-fix-same-shape).
 - **L8-inbound:** foreign ST `mes:""` rows at import — declined-by-scope in ANCHOR, a one-liner if
   wanted.
@@ -345,16 +348,137 @@ identity chrome for ANY row kind.
   rebuild-from-canon) — consolidate when next IN the file, no dedicated lane (DRY-not-gospel).
 - **TYPO class-A: 27 as-const tuples** stay untagged manual-lens candidates.
 - **`staging.ensure` residual** — first-write-wins seeded from HEAD; dormant unless rpg tools ever mount
-  as REGISTRY tools again (D112 keeps `tools: []`).
+  as REGISTRY tools again. **Re-verified 08-03:** `chat-ops/gather.ts:194` is still `tools: []`, so the
+  dormancy condition holds — a correctly-cited doorway, not forgotten debt.
 - **R5b(a) verify:** `refEnumerationLines` (the non-enforcing-backend prompt fallback) should enumerate
   active conditions post-R5a — confirm the R6 build carried it; ~2 lines if not.
 - **WAKE-STATUS:** the 3s engine wake is silent (spec accepted the wait); revisit if it feels laggy.
 - **`lockdown` §16 G-table deliberately not grown** (CR0's flag — it defers to the live count).
-- **The F4-CACHE-VOLATILITY probe follow-up:** `buildToolRoundWireTools` re-renders descriptions +
-  ref-constrained schemas from LIVE game state every call (`compose/rpg.ts:407,411`), so each new
-  condition/actor re-bills the whole prefix (~10× that turn). Verify whether that path's system block is
-  already per-turn volatile, then pick between `scripts/probes/openrouter/RESULTS.md`'s two options.
+- ✅ **F4-CACHE-VOLATILITY — BUILT, close it** (archive tail audit): `buildFoldedTurnBuilder` calls
+  `cacheStableExtractionRefs(refs, config.trackers)` before `buildToolRoundWireTools`
+  (`entry/compose/rpg.ts:991-1008`), with a header naming it *"F4 — CACHE-STABLE REFS ON THIS VEHICLE
+  ONLY … option (b)"*. Option (b) was picked and shipped. No action.
 - **`E2E_LIVE=1 pnpm e2e`** is owed on a push window (never re-confirmed since the era's start).
+
+## ═══ ARCHIVE-RESCUED FOLLOW-UPS (owner ruling 2026-08-03: a named follow-up goes ON THE BOARD) ═══
+
+> **Why this section exists.** Lanes ended seal blocks with follow-ups they named but did not build; those
+> blocks then moved to `docs/history/` with the archeology. **A follow-up that lives only in the archive is
+> forgotten.** Owner: *"if it needs follow up it goes on the board, otherwise it gets forgotten."*
+> My first pass used a GREP for one exact phrase and the owner correctly called it fragile — lane ARCHIVE
+> then READ all 25 docs archived since 2026-07-23 line by line and verified ~45 candidates against the tree.
+> Full report + per-document tables: **`docs/reviews/misc/2026-08-03-archive-rescue-audit.md`**.
+> **22 of 25 documents yielded ZERO still-open rows** — recorded there so nobody re-reads them.
+
+**⚠ THREE OF MY FIVE GREP-RESCUED ROWS WERE WRONG. Corrected:**
+- ~~S6 SEAL not done~~ — **DONE.** Both `SETTINGS_SECTION_ANCHORS` hits are comments DOCUMENTING the
+  retirement (`shell-store.ts:79`: *"the old … subset tuple retired with stage 0"*). Zero declarations,
+  zero consumers. My existence-check counted prose as code — the exact failure the audit was ordered to
+  avoid.
+- ~~Icon fill-axis has zero consumers~~ — **STALE.** `FillableIcon` has TWO live consumers:
+  `preset-library-row.tsx` (the O-1 active dot) and `components/row-toggle-action.tsx`. Demoted from debt
+  to taste; the named adoption targets (F-06 bolt · tracker orbs · meter glyphs · `weight=` emphasis) and
+  the unbuilt `iconNode` door for `weave-glyph.tsx` stand as OPPORTUNITIES, not rot.
+- ~~MAC macro-union PREMISE-DIED~~ — right outcome, **wrong label: DONE SINCE**, built by lane MACU
+  (`95f4c00b`); `withUserMacros` has 7 consuming modules.
+- **HELD:** the `PROMPT_MACROS` phantom, and the barrel sweep (measured **56** `export *`, not 60).
+
+### BOARD THESE — still-open, ranked by value-per-effort (paste-ready from the audit)
+
+- [ ] **PRESET-SLIDER-VERIFY** (S) — the preset program CLOSED without the re-verification its own crunch
+      list demanded: *"Re-verify the slider deck on a vLLM/OR connection before closing the program"*
+      (sonnet-5 exposes no sampling knobs, so the deck was never seen rendered).
+- [ ] **CP-DROPPED-WARN** (S) — `custom_parameters_dropped` was never built (zero hits): a BYO-style preset
+      pointed at OpenRouter **silently loses its blob**. New `WARNING_CODES` member + emit in both OR
+      runners — the D41 no-silent-degrade belt the removal blueprint specified.
+- [ ] **REGX2** (M) — an owner BUILD RULING that got archived: regex bulk edit + pipeline debugger +
+      per-script JSON door (NOT regex presets). Ruled 08-03 dawn, queued, never dispatched.
+- [ ] **RPG-ROUND-SIGNAL** (S) — the rpg state round is still UNCANCELABLE: no `AbortSignal` threaded into
+      `runExtraction`/`runToolRound` (`entry/compose/rpg.ts`). The barrier-leak half IS fixed.
+- [ ] **HAND-EDIT-VS-FLUSH** (M) — a hand `editSnapshot` during an in-flight turn can be clobbered by the
+      flush. **Two independent sightings** (the watch list's "seen once, unchased" + the actor-state
+      review's unconfirmed suspicion), nobody chased it. Reproduce and rule.
+- [ ] **CONTRACTS-BARREL** (S) — `packages/contracts/src/index.ts` still promises "re-exports added as
+      modules land" after 41 modules landed with zero importers. Delete the sentence.
+- [ ] **CODEMOD-DOCS** (S) — `pnpm codemod` is cited by codemod-kit docs but absent from package.json.
+- [ ] **CODEMOD-PATHMAP** (S) — the moved-path cache lie survives in `moveFiles`/`deleteFiles`/`copyFile`
+      path VALIDATION (loud refusal today, but the asserts want the exact `getSourceFiles` map).
+- [ ] **EDITSNAP-OK residual** (S) — `field-reachability.suite.ts:358` ignores `HandDoorResult.ok`.
+- [ ] **SSE-SPEC-STATUS** (S) — `docs/history/design/sse-multiplex-spec.md:3-4` has a corrupted status line.
+- [ ] **L8-INBOUND** (S) — foreign ST `mes:""` rows at import: refuse or strip. Named one-liner.
+- [ ] **REGEX-REASONING-FIDELITY** (S, owner-call) — REASONING prints at slot 4 but executes
+      post-postProcess. Unobservable today; flagged as an owner call that was never posed.
+- [ ] **FLAKE-WATCH** (S) — `code-editor.ct` CM6 75ms window + `drawer.ct:162` focus-trap (pre-existing at
+      HEAD) have no durable home beyond a watch list.
+- [ ] **HISTORY-GRADUATION RULE** (S) — `docs/history/README.md` says a doc graduates only when EVERY
+      finding is landed; **four moved docs carried live obligations anyway, and in every case the survivor
+      was a PROSE TAIL** (a "Process notes" bullet, a blueprint step 4, an INFO-rank F10, a corrupted
+      status line) — the graduation check reads findings TABLES, not the paragraphs around them. Add that line.
+- [ ] **PROMPT_MACROS phantom** (S) — `proposed/world-state-clips-trackers-spec.md:267` names the deleted symbol.
+- [ ] **BARREL ROOT-FIX** (M) — 56 `export * from` remain across `packages/*/src`.
+- [ ] **OWNER-OWABLES** — the archived "MORNING OWABLES" list, re-surfaced: the 3 nudge default texts ·
+      REGPAR F3/F4/F5 menu · v3-transcripts-reach-new-installs-only · `countByBook` twins · "Untitled chat"
+      in the regex rosters.
+
+### BOARD THESE — the TAIL pass (ARCHIVE2, lines 2130–3515, 100% covered)
+
+Report: **`docs/reviews/misc/2026-08-03-archive-rescue-audit-tail.md`**. It **independently re-confirmed
+all three of the sibling's corrections to me** (the S6 seal block at :3060 confirms the anchors tuple was
+deleted; the icon-seal block at :2469 confirms two real client consumers) — so those corrections stand
+twice over, not once.
+
+- [ ] **SQUARE-GLYPH-BUTTON-SWEEP** (M) — `ui-size-via-variant`'s `DEBT_BASELINE` still carries the full
+      **14-row `!size-N !p-0` icon-Button debt across 9 `rpg/*` files**, unpaid since it was surfaced.
+      Confirmed live in the gate's current source. Needs a Button square-glyph size arm + a sweep with
+      computed-geometry proof; returns that baseline to terminal `{}`.
+- [ ] **ICON-SEAL-DOORWAYS** (M) — the OTHER four named-not-built follow-ups, all **zero-hit confirmed**:
+      `LucideProvider` at the client composition root · vector-effect CSS stroke route · the `iconNode`
+      door for brand glyphs · the `fillRule=evenodd` probe to grow the fillable set.
+- [ ] **AGENT-1-PROGRAM** (L, owner-scoped) — agent-sdk first-class for rpg-lite, 5 named arms explicitly
+      scoped-and-not-dispatched, ruled order 2→3→1→4.
+- [ ] **ZOD-STAGE-D-OWNER-GATE** (S–M) — the zod audit's stage D (stringbool / hostname /
+      strip-observability) was **never posed to the owner**; stages A and B both landed.
+- [ ] **AMBIENT-NONE-AFFORDANCE** (S) — `ambient-strip.tsx`'s weather/timeOfDay CLOSED vocabs carry no
+      "none"/unset member (`RPG_WEATHER_TYPES` / `TIME_OF_DAY`), so they cannot be cleared; location/date
+      are free text and can. This is the UI gap behind the unreachable compact arm.
+- [ ] **DOCLAW-RPG-REFS-FORK** (S, decide-then-mechanical) — `compose/rpg.ts` now carries **41**
+      Documentation-Law §-vocab comment refs (up from the 33 first flagged) with no sweep and no carve-out
+      ruling. Pose it: sweep, or write the rationale.
+- [ ] **MACRO-CAST-GUIDES-FORK** (S) — should user macros bind cast guides (appearance/outfit/thoughts)
+      via `celBindings`? `macro-view.ts`'s cast projection still omits all three. If the answer is no, note
+      the asymmetry in the file.
+- [ ] **EMBER-VOCAB-SWEEP** (S) — "ember" strays as a design-constant name in CT/spec prose; rename to the
+      accent/primary vocabulary.
+- [ ] **WORKLOADS-LABEL-RENAME** (S, trivial) — 3 files still cite the RETIRED
+      "[workloads.subscribe cross-feature]" precedent label (`rpg-choice-echo`, `use-rpg-mutations.ts:101`,
+      `chat-options-menu.ts:37`).
+- [ ] **IMPORT-SETTINGS-WRITE-GUARD** (S, owner-taste) — `import-user-settings` bypasses the write-boundary
+      guard (heals+warns at READ instead of refusing at WRITE); lift on want.
+
+**⚑ ARCHIVE2's own UNVERIFIED tail** (flagged, not asserted — each is one targeted grep from a verdict):
+the six named UNREACHED side-eye items (waystone-compact · impersonate+1 · scene-lightbox · Status
+max-edit · F9-F10 · stats-Recompute) — it did not run a fresh side-eye pass to see whether a later round
+absorbed them · `refEnumerationLines` active-conditions coverage · and the two contradictory `#16 engine
+wake` mentions inside the same range (one says still-open, a later one says 6/6 arms PASS live).
+
+**⚑ TWO ROWS THE AUDIT REFUSED TO GUESS ON (UNVERIFIABLE, each names what would settle it):**
+`SSE-STARVATION-PIN` (the spec §12 live-socket regression pin — could not find it, and it did NOT run a
+two-method absence check, so it will not say "not found") · `SM7-STRICT-RESIDUE` (the "second
+`response_format` builder" at a path that no longer exists — `backends/vllm/` was restructured away;
+re-locate and re-check).
+
+**⚑ COVERAGE GAP — one cheap lane owed:** the audit read `retro-workboard-2026-08-03.md` **lines 1–2130 of
+3515 (~61%)** and stopped where the budget forced a choice between finishing and VERIFYING what it already
+had; verification won, which was the right call. The remaining **39%** is the 08-02-and-earlier archeology
+(PRESET wave blocks, SSE S0–S5 seals, W-chunk seals, the earliest retro layers) — the same block class that
+produced most of the rows above, so expect a similar residue rate.
+
+- **⚠ LIVE SHELL-TIER CLS FINDING (do NOT re-board the old PERF P1 — it resurfaced):** the archive tail
+  audit traced the archived "CLS 0.24, profile lane owed" row forward and found the defect is ALREADY
+  tracked live as **F-14 — *"CLS is 2–4× the budget on EVERY section — shell-tier, not preset-specific"***
+  (measured **0.26**), in `docs/reviews/side-eye/2026-08-03-preset-shell-reverify.md:249`. A separate
+  side-eye pass today independently measured 0.2542 on the config pane and attributed it to
+  collection-group expansion, pre-existing. **One shell-wide defect, three sightings, no owner yet.**
 
 ## ═══ WATCH LIST (flakes + pre-existing reds; none blocking) ═══
 
@@ -734,9 +858,60 @@ The audit wrote SCHEMA / DBANK2 / SWEEP as *dispatched*. Since then:
   re-spelling, `no-inline-union-redecl` is unions, `brand-in-name-position` declares alias-typed positions
   out of reach — **none inspect an alias's RHS for `string`**, and `ast.ts`'s existing `aliases` lens is
   IMPORT aliasing, a different concept.
-- **LIVE NOW (cap 5):** **BRAND-F** (`a9c87d67eac1b22a2` — **the WHOLE I-5 burn-down on Fable**, briefed to read
-  `codemod-kit.ts` + `ast.ts` IN FULL; the kit already carries `retypeIdAnnotations` +
-  `castStringLiteralsByDiagnostic` from a prior id campaign).
+- ✅ **I-5 BRAND BURN-DOWN — CLOSED (`93eb9537` + fix `8f0c458a`).** 169 files/374 sites → **`{}`**;
+  baseline AND generator DELETED; the ratchet machinery removed; live bite re-proven with no budget left
+  to hide behind (plant `chatId: string` → RED; `rm` → green). 9 checkpoint commits, 549 files, 738 vitest
+  + 285 CT. `retypeIdAnnotations` closed 359 retypes; a lane-written MULTI-BRAND single-diagnostics-pass
+  variant closed **2,538 fixture casts in one typecheck each** (the stock helper is O(brands × whole-project
+  typechecks)). ~140 sites hand-judged. **`CharacterHandle` minted** — `characters.handle` branded
+  type-only, `0000_baseline.sql` UNTOUCHED (no squash after all). Misnomers renamed OUT of the vocabulary
+  rather than falsely branded (`stagedHandle`, `busInvalidate: ChatId | "user"`, form drafts as
+  `Handle | ""` after `no-fake-disabled-id` correctly refused `castId<Handle>("")` sentinels).
+  **⚠️ THE ZERO'S MEASURED LIMITS (do not read it as "no stringy ids remain"):** the **suffix class = 66
+  live bare-string positions** the EXACT matcher can never see (`hostUserId`, `targetUserId`,
+  `parentChatId`, `avatarAssetId`, `defaultPresetId`, `anchorPersonaId`, `ownerHandle`, `gmHandle`) — ~10
+  spellings cover most, so a curated compound-name arm is a plausible follow-up. **Alias class = 0.**
+  Variables/returns out of scope by design.
+  **The red it shipped, and the rule it bought:** the merged tree failed `types:tests-dom` with **170
+  errors in 20 e2e specs** — the lane branded the e2e SUPPORT signatures but ran only `typecheck` +
+  `typecheck:graph`. **`tsconfig.json`'s program does not include `tests/e2e/*.spec.ts` AT ALL**, so the
+  graph program is structurally incapable of seeing a spec. Fixed at the PRODUCER SEAMS (branding
+  `startChat`/`ensureCharacter` returns + the wire mirrors, type-only so the e2e carve-out holds) rather
+  than 170 casts. **Doctrine now requires naming all THREE typecheck programs** (there is no
+  `typecheck:testd` — the `.test-d` lane runs through vitest; name the file).
+- ✅ **ASTLENS MERGED (`5f764a7b`) — `pnpm ast stringy` ships, and it argued AGAINST its own gate.**
+  The cut is ONE checker call (`decl.getType().isString()`) and needs **no allowlist** — template
+  literals, `string & {brand}`, literal unions, `string | null`, `T extends string` and containers all
+  fall out of the compiler's own flags, probe-measured before building. **Corpus: 1 hit in `packages/`
+  (`RestartVllmEngineResult`) + 1 in `scripts/` (`LocKey`, dev-tooling, leave). ZERO transitive chains** —
+  credible only because a planted 3-hop cross-package chain (through a RENAMING re-export) was reported
+  with its full resolution chain while brand/template/union probes beside it stayed silent.
+  **RECOMMENDATION TAKEN — NO GATE**, and the reason is load-bearing: **`scripts/check/pass.ts` builds
+  the PURE-AST workspace** (`getWorkspace({root})` — no tsconfig, no `@orb/*` resolution), so a gate
+  calling `ctx.checker()` there gets a checker over an UNRESOLVED project and would report the one direct
+  hit while silently missing every chain it exists to find. Green, confident, blind. If ever wanted:
+  push tier beside `deps:orphan-ratchet`, folded into that typed pass. **Corollary:**
+  `brand-in-name-position` is syntactic BY NECESSITY, not laziness. `RestartVllmEngineResult` deleted on
+  main (`01139227`). Known limit: the CLI's `resolveScope` only accepts `packages/*`, so the `scripts/`
+  finding is unreachable from the verb — a cross-lens change, not taken.
+- ✅ **STALEARM MERGED (`d67868da`) — it WAS a class: 5 gates, 18 dead rows.** The anti-pattern is one
+  line: `if (!fileLoaded(ctx, rel) …) continue` — **the row's own presence gating its own staleness
+  check**, so a DELETED file's row is never examined and can never red. Fixed uniformly by gating the
+  sweep on a separate permanent ANCHOR and making every per-row check an unconditional `!seen.has(rel)`,
+  which unifies mode (A) *no longer violates* and mode (B) *file is gone* into one test.
+  **Fixed + rows deleted:** `ui-size-via-variant` (1 — `tag-settings-row.tsx`), `dialog-via-composite`
+  (3 — party→roster rework), `empty-state-has-action` (**14** — the rpg-client flattening),
+  `no-arbitrary-tw-values` + `motion-token-purity` (mechanism fixed pre-emptively, rows still live).
+  11 gates were ALREADY correct (unconditional `seen` / explicit `sf === undefined` / separate anchor);
+  ~165 carry no path-keyed table. Each fix ships a `mustFlag` reproducing a deleted survivor.
+  **`GATE-AUTHORING.md` gains §4a** naming both modes — the gap that let a careful author implement half
+  the contract and believe they were done.
+- **LIVE NOW: ONE lane** — the TAGUX side-eye (`a7c895dddb90ded5f` is torn down; the review agent is
+  `a56651b299a85551c`). All build lanes have landed and their worktrees are gone.
+  **Also present and NOT MINE:** `wt/memo-ban-investigation` — the owner's SECOND session. Do not touch.
+  **NEXT, in order:** side-eye findings fixed (ALL of them, standing law) → quiesce → full `pnpm test`
+  battery (the CT proof — `verify --push` runs none) → fresh `pnpm verify --push` → board PUSH-READY and
+  ASK FOR THE WORD. ~150 commits past origin; last PUSH-READY was declared at 85.
 - **KILLED (owner word):** the first brand lane (mech-executor tier) — zero commits, one untracked
   codemod script, nothing lost. Replaced by BRAND-F above.
 - **LIVE RED ON MAIN (routed to DBFIX):** `tests/tooling/chat-component-presence.test.ts` —

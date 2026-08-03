@@ -18,7 +18,8 @@
 //
 // @live: seeds via three real API turns (~10-18s warm). Skipped unless E2E_LIVE=1. Fully self-seeding.
 
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { messageRow, waitForAppReady } from "./support/chat-room";
 import { getUserSettings, listCanon, listCharacters, sendTurn, startChat, trpcMutation, trpcQuery } from "./support/trpc";
@@ -47,7 +48,7 @@ test("the context-boundary divider is present-tense: preview-driven, knob-respon
   test.setTimeout(180_000);
 
   // ── Seed a throwaway chat with history; the FINAL turn's tiny per-send ceiling stamps a canon boundary. ──
-  const characterId = (await listCharacters())[0]?.id ?? "";
+  const characterId = (await listCharacters())[0]?.id ?? castId<CharacterId>("");
   expect(characterId).not.toBe("");
   const chatId = await startChat([characterId]);
   // `mode:"auto"` on every turn ⇒ no managed marker ⇒ the divider is purely fit-driven (this spec's subject).
@@ -105,7 +106,7 @@ test("the context-boundary divider is present-tense: preview-driven, knob-respon
     // immediately-preceding sibling.
     await expect(page.locator('[data-slot="context-boundary-divider"]')).toHaveCount(1, { timeout: 15_000 });
     expect(apiBoundary).not.toBeNull();
-    const boundaryRow = messageRow(page, apiBoundary ?? "");
+    const boundaryRow = messageRow(page, castId<MessageId>(apiBoundary ?? ""));
     await expect(boundaryRow).toHaveCount(1);
     const dividerIsPrecedingSibling = await boundaryRow.evaluate((row) => row.previousElementSibling?.getAttribute("data-slot") === "context-boundary-divider");
     expect(dividerIsPrecedingSibling).toBe(true);
