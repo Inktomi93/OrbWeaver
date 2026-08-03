@@ -602,7 +602,20 @@ MacroTextarea consumers gain the user plane — small MACU-2 queued) · INVENTOR
 description/location = RENDER THEM (RV-11 build-the-readers precedent — small INV-READ
 queued) · X-11 focus-hue = CLOSED leave-it (one hue one system). FYI standing: Claude Max
 OAuth expired (owner re-auth when wanted; agent-sdk backend dead until then).
-**STICKLER DISPATCHED (owner order, 08-03): STATE-ANCHOR ROW redesign** — the 8 blank
+**✅ STATE-ANCHOR REDESIGN DELIVERED + RULED (report `87f87ccd`; owner took both RECs):
+ARM (b) — hand-door/resync/populate/RESTORE snapshots move OFF the message plane** (message-
+less rows, asOfMessageId order carrier, two-arm CHECK; variant-keyed IFF turn-flushed — the
+journal's own nullable-variantId precedent generalized). The fake-row class becomes
+UNREPRESENTABLE: all 7 existing filters DELETE, the 8 unfiltered leak planes (exports ×2,
+digests, plugins, automation content:"" facts, msgMidAt skew, SSE, re-import junk) clean by
+construction; postNarratorMessage refuses blank content (the write-boundary enforcer).
+Baseline squash + D123 (amends D108's FK clause, moots D111 W-A, retires the §2e register
+line + the [[rpg-state-anchor-slots]] memory at R2). Forks 2/3/5 taken on RECs
+(asOfMessageId FK · inline findLast + delete the seam · drop-patch retires at R2).
+**Lane ANCHOR (R0-R3) DISPATCHED** — sequenced to merge AFTER TRANSCRIPTS (fixtures settle
+first; post-ANCHOR the replay mints no anchors so the drop-patch dies naturally; R2 verifies
+whether a flagship regen is even needed). R1-config mock phase takes the NEXT drain.
+(superseded dispatch line:) **STICKLER DISPATCHED (owner order, 08-03): STATE-ANCHOR ROW redesign** — the 8 blank
 "Group" rows in the flagship demo are the SYMPTOM (hand-door writes anchor snapshots to
 content-less message rows; consumers filter the artifact one-by-one — seeder drop-patch,
 notStateAnchor selectors — while exports/counts still see it). Owner: the seeder drop is
