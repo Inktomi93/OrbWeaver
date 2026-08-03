@@ -18,7 +18,14 @@
 // chosen for the security property, not the read/write semantics). The domain stores only the peppered
 // token HASH; these bodies + the `/join/:token` redirect are the token's only transit points.
 
-import { acceptInviteSchema, createInviteSchema, joinHistoryVisibilitySchema, previewInviteSchema, redeemInviteSchema } from "@orb/contracts/chat";
+import {
+  acceptInviteSchema,
+  createInviteSchema,
+  handoffOfferSchema,
+  joinHistoryVisibilitySchema,
+  previewInviteSchema,
+  redeemInviteSchema,
+} from "@orb/contracts/chat";
 import type { ChatId, ChatInviteId, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -43,9 +50,13 @@ const kickSchema = z.object({
 
 const chatScopedSchema = z.object({ chatId: brandedId<ChatId>() });
 
+// The nomination + the departing host's OPTIONAL property offer (stickler 2026-08-03 §5). `offer` absent =
+// no offer = the built D64 drop: the wire's DEFAULT is give-nothing, so a client that never learned about the
+// arm can never accidentally transfer someone's library.
 const nominateSchema = z.object({
   chatId: brandedId<ChatId>(),
   userId: brandedId<UserId>(),
+  offer: handoffOfferSchema.optional(),
 });
 
 // The D16 per-member join-history policy write (host-only INSIDE the verb). Belongs on THIS router, not the

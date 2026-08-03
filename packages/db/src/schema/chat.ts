@@ -41,6 +41,7 @@ import type {
   ChatDeltaEvent,
   ChatInjection as ChatInjectionWire,
   ChatMetadata,
+  HandoffOffer,
   StandaloneVariableDelta,
   ToolCallRecord,
   UserMacroDraws,
@@ -117,6 +118,14 @@ export const chats = sqliteTable(
     pendingHostUserId: text("pending_host_user_id")
       .$type<UserId>()
       .references(() => users.id, { onDelete: "set null" }),
+    // The departing host's OPT-IN property offer, co-located with the nominee it qualifies (stickler
+    // 2026-08-03 §5): `nominateHostHandoff` writes it, `acceptHostHandoff` EXECUTES it and clears it in the
+    // same statement that clears `pendingHostUserId` — the two are one nomination and can never outlive each
+    // other. NULL = no offer = the built D64 drop, byte-identical. Typed JSON parsed at the `@orb/db/kit`
+    // read seam (`handoffOfferSchema`), never cast: a corrupt blob degrades to no-offer rather than
+    // fabricating consent to copy someone's library. Scoping class: INHERITED (D18/D20) — the row is the
+    // chat, whose scope is `chat_participants`; the blob names no id and grants nothing by itself.
+    pendingHandoffOffer: text("pending_handoff_offer", { mode: "json" }).$type<HandoffOffer>(),
     // The stable `{{user}}` POV for card-authored sections (renamed from `pinnedPersonaId`). A persona
     // delete nulls the anchor (SET NULL) — it must NOT delete the chat.
     anchorPersonaId: text("anchor_persona_id")

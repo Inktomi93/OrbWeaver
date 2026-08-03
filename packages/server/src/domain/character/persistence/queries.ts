@@ -238,6 +238,21 @@ export async function loadOwnedCharacterRow(db: Db, ownerId: UserId, characterId
   return rows[0];
 }
 
+/** MANY owned character rows in one round trip — the batched twin of {@link loadOwnedCharacterRow}, for a
+ *  caller holding a SET of ids (the host-handoff card copy). Owner-scoped in the WHERE, so an id that is not
+ *  this owner's is simply absent from the result: the caller learns nothing about it, and the absence IS the
+ *  refusal (the `getCard` "a null is skip, not an error" contract, widened to a list). An empty input reads
+ *  nothing. */
+export function listOwnedCharacterRows(db: Db, ownerId: UserId, characterIds: readonly CharacterId[]): Promise<CharacterRow[]> {
+  if (characterIds.length === 0) {
+    return Promise.resolve([]);
+  }
+  return db
+    .select()
+    .from(characters)
+    .where(and(eq(characters.ownerId, ownerId), inArray(characters.id, [...characterIds])));
+}
+
 /** No owner scope — the embeddings indexer is a trusted system consumer; not a user-facing surface. */
 // @owner-scope-ok: D20 un-principal — the embeddings indexer re-reads ids IT enumerated
 // (`listEmbeddableCharacterIdRows`), never a request-supplied id; the owner-facing fast path is

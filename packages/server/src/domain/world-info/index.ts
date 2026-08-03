@@ -6,6 +6,7 @@ export { WORLD_BOOK_ROLES } from "@orb/contracts/world-info";
 export type { WorldInfoContext } from "./context";
 export { WorldInfoNotFoundError } from "./contract/errors";
 export type { ExportedWorldBook, ExportWorldBook, WorldInfoExportContext } from "./contract/export";
+export type { CopyHandoffBooks, HandoffCardPair, WorldInfoHandoffCopyContext } from "./contract/handoff-copy";
 export type {
   BulkImportLorebook,
   CopyCharacterBooks,
@@ -27,6 +28,7 @@ export type {
 export type { WorldInfoService } from "./contract/service";
 export type { BookAttachmentView, BookView, EntryView, WorldBookRole } from "./contract/views";
 export { createCopyCharacterBooks } from "./persistence/duplicate-carry";
+export { createCopyHandoffBooks } from "./persistence/handoff-copy-write";
 export {
   createBulkImportLorebook,
   createImportStandaloneLorebook,

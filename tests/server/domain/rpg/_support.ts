@@ -215,10 +215,17 @@ export interface RpgFakes {
   /** The preset-ownership fake (§3.2 fork). `${presetId}:${userId}` keys the presets a user may READ (owned or
    *  the shared default); `resolvePresetOwned` returns membership. Empty (default) ⇒ every preset is foreign. */
   ownedPresets: Set<string>;
+  /** The GM-preset GIFT fake (the host-handoff copy offer's preset arm). `copyPresetToUser` mints a
+   *  deterministic `${presetId}__copy_${toUserId}` id and RECORDS the call — so a test proves both that the
+   *  copy was asked for with BOTH owners explicit and that the knob was re-pointed at the copy rather than
+   *  nulled. Set `copyPresetFails` to make the source unresolvable (⇒ the clear arm must stand). */
+  copyPresetFails: boolean;
   /** The ACTIVE-preset user macros the injected `resolvePresetUserMacros` fake returns (WAVE MU — the GM
    *  console's shadow gloss). Default: none declared. */
   presetUserMacros: UserMacroSpec[];
   /** Recorders — the tests assert these fired. */
+  /** Every `copyPresetToUser` call, in order (the caller-gate proof: BOTH owners arrive explicitly). */
+  readonly presetCopies: { fromOwnerId: string; toUserId: string; presetId: string }[];
   readonly pointers: { chatId: string; gameId: string; engaged: boolean }[];
   /** The chatIds a `setPointer(chatId, null)` DETACHED (the §3.3 dangling-pointer heal — assert the null write). */
   readonly detaches: string[];
@@ -291,6 +298,7 @@ export function makeRpgService(
       | "canonWindow"
       | "populateDelta"
       | "presetUserMacros"
+      | "copyPresetFails"
     >
   > = {},
 ): RpgHarness {
@@ -310,6 +318,8 @@ export function makeRpgService(
     cardCorpus: { name: "Mara", card: "DESCRIPTION:\nA warden of a fallen house.", opening: "You meet at the ford." },
     populateDelta: over.populateDelta ?? { statePatch: {}, sheet: {} },
     ownedPresets: new Set(),
+    copyPresetFails: over.copyPresetFails ?? false,
+    presetCopies: [],
     presetUserMacros: over.presetUserMacros ?? [],
     pointers: [],
     detaches: [],
@@ -431,6 +441,10 @@ export function makeRpgService(
     },
     postNarratorMessage,
     resolvePresetOwned: (presetId, userId) => Promise.resolve(fakes.ownedPresets.has(`${presetId}:${userId}`)),
+    copyPresetToUser: ({ fromOwnerId, toUserId, presetId }) => {
+      fakes.presetCopies.push({ fromOwnerId, toUserId, presetId });
+      return Promise.resolve(fakes.copyPresetFails ? null : castId<PresetId>(`${presetId}__copy_${toUserId}`));
+    },
     resolvePresetUserMacros: () => Promise.resolve(fakes.presetUserMacros),
     resolveStateDelivery: () =>
       Promise.resolve({ trackersReadOnly: fakes.trackersReadOnly, foldGuarded: fakes.foldGuarded, canPopulate: !fakes.trackersReadOnly }),
@@ -505,6 +519,7 @@ export async function seedLiteGame(
       | "canonWindow"
       | "populateDelta"
       | "presetUserMacros"
+      | "copyPresetFails"
     >
   > = {},
   key = "a",

@@ -69,7 +69,7 @@ import type { ChatService, RpgCardCorpus, RpgTurnTranscriptMessage } from "#doma
 import { parseChatMetadata } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import { AgentModelHealError, ConnectionRoutingError } from "#domain/connection";
-import type { RosterRefIndex, RpgContext, RpgResolvePresetOwned, RpgRunExtraction, RpgRunToolRound, RpgService } from "#domain/rpg";
+import type { RosterRefIndex, RpgContext, RpgCopyPresetToUser, RpgResolvePresetOwned, RpgRunExtraction, RpgRunToolRound, RpgService } from "#domain/rpg";
 import {
   actorCarrier,
   buildRosterRefIndex,
@@ -125,6 +125,11 @@ export interface RpgComposeDeps {
    *  off the preset front door `get` (the ONLY legal preset import), which throws `PresetNotFoundError` for a
    *  preset the user can't read — the exact "foreign preset" the strip drops. rpg never reads preset tables. */
   readonly resolvePresetOwned: RpgResolvePresetOwned;
+  /** The GM-preset GIFT (the host-handoff copy offer's preset arm) — copy the DEPARTING host's preset into the
+   *  incoming host's library so the room keeps the voice it had instead of degrading to their default. Wired
+   *  off preset's own `createCopyPresetToUser` factory (preset owns the table; rpg writes no preset row), and
+   *  BOTH owners stay explicit params end to end — the injected-op caller-gate class. */
+  readonly copyPresetToUser: RpgCopyPresetToUser;
   /** R4 PROMOTION's durable half. The character front door mints the card (`create`) and resolves whether a
    *  handle is already taken in the owner's library (`findByHandle` — the per-owner handle index is UNIQUE, so
    *  the mint would otherwise throw a raw constraint error at the host instead of a sentence). rpg reads no
@@ -1219,6 +1224,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     promoteToRoster: buildPromoteToRoster(deps),
     postNarratorMessage: deps.rpgChatOps.postNarratorMessage,
     resolvePresetOwned: deps.resolvePresetOwned,
+    copyPresetToUser: deps.copyPresetToUser,
     // The chat's active-preset macros (WAVE MU) — the injected chat op the GM console's shadow gloss reads.
     resolvePresetUserMacros: deps.rpgChatOps.resolvePromptUserMacros,
     resolveStateDelivery: buildResolveStateDelivery(deps),

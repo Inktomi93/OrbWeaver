@@ -11,15 +11,27 @@
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { presets } from "@orb/db";
+import { characters, presets, rpgSheets } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
-import type { ChatId, PresetId, RpgGameId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PresetId, RpgGameId, RpgSheetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import { findGameByChat, insertGame } from "../../../../../packages/server/src/domain/rpg/persistence/games";
 import { freshDb } from "../../../../support/db";
+import type { RpgHarness } from "../_support";
 import { expect, FROZEN_AT, liteConfig, makeRpgService, seedChat, seedUser, test } from "../_support";
 
 const NEW_HOST = castId<UserId>("user_nominee");
+const OLD_HOST = castId<UserId>("user_departing");
+
+/** The NO-OFFER heal args — the shape a handoff with no accepted property offer passes. Every pre-offer
+ *  assertion below rides this, which is the byte-identity claim: the offer arms change nothing when absent. */
+function healArgs(
+  chatId: ChatId,
+  over: Partial<Parameters<RpgHarness["chatOps"]["handoffHealStatements"]>[0]> = {},
+): Parameters<RpgHarness["chatOps"]["handoffHealStatements"]>[0] {
+  return { chatId, newHostUserId: NEW_HOST, oldHostUserId: OLD_HOST, copyGmPreset: false, cardCopies: [], ...over };
+}
 
 /** A game room for `key` whose GM knob points at `gmPresetId`, owned by a freshly seeded host. */
 async function seedGameRoom(
@@ -45,6 +57,23 @@ async function seedGameRoom(
   return { chatId, gameId };
 }
 
+/** A `rpg_sheets` row keyed to a real `characters` row (the FK is CASCADE-on-identity, so the card must
+ *  exist). Returns the seeded character id. */
+async function seedSheetFor(db: Db, gameId: RpgGameId, ownerId: UserId, key: string): Promise<CharacterId> {
+  const characterId = castId<CharacterId>(`character_${key}`);
+  await db.insert(characters).values({ id: characterId, ownerId, handle: key, name: key, contentHash: key, tokenSize: 0, createdAt: FROZEN_AT });
+  await db.insert(rpgSheets).values({
+    id: castId<RpgSheetId>(`rpg_sheet_${key}`),
+    gameId,
+    characterId,
+    userId: null,
+    sheet: { className: "warden", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] },
+    createdAt: FROZEN_AT,
+    updatedAt: FROZEN_AT,
+  });
+  return characterId;
+}
+
 /** A preset row the `gmPresetId` FK can point at (owner irrelevant here — readability is the injected op's). */
 async function seedPresetRow(db: Db, id: string, ownerId: UserId): Promise<PresetId> {
   const presetId = castId<PresetId>(id);
@@ -59,7 +88,7 @@ test("a preset the NEW HOST cannot read yields the clear — and nothing is writ
   const { chatId } = await seedGameRoom(db, "foreign", { gmPresetId: preset });
   const h = makeRpgService(db); // `ownedPresets` empty ⇒ every preset is foreign to the nominee
 
-  const stmts = await h.chatOps.handoffHealStatements(chatId, NEW_HOST);
+  const stmts = await h.chatOps.handoffHealStatements(healArgs(chatId));
 
   expect(stmts).toHaveLength(1);
   // The op is a pure producer: the knob still stands until the caller's batch runs (the atomicity property —
@@ -77,7 +106,7 @@ test("a preset the new host CAN read is left alone (the heal is conditional, not
   const h = makeRpgService(db);
   h.fakes.ownedPresets.add(`${preset}:${NEW_HOST}`);
 
-  expect(await h.chatOps.handoffHealStatements(chatId, NEW_HOST)).toEqual([]);
+  expect(await h.chatOps.handoffHealStatements(healArgs(chatId))).toEqual([]);
   expect((await findGameByChat(db, chatId))?.gmPresetId).toBe(preset);
 });
 
@@ -87,8 +116,8 @@ test("an unset knob and a non-game chat both heal nothing (a plain-room handoff 
   const plainChatId = await seedChat(db, "hoff_plain");
   const h = makeRpgService(db);
 
-  expect(await h.chatOps.handoffHealStatements(chatId, NEW_HOST)).toEqual([]);
-  expect(await h.chatOps.handoffHealStatements(plainChatId, NEW_HOST)).toEqual([]);
+  expect(await h.chatOps.handoffHealStatements(healArgs(chatId))).toEqual([]);
+  expect(await h.chatOps.handoffHealStatements(healArgs(plainChatId))).toEqual([]);
 });
 
 test("a DISENGAGED game still heals — the knob must not survive the toggle back on", async () => {
@@ -98,7 +127,87 @@ test("a DISENGAGED game still heals — the knob must not survive the toggle bac
   const { chatId } = await seedGameRoom(db, "disengaged", { gmPresetId: preset, engaged: false });
   const h = makeRpgService(db);
 
-  const stmts = await h.chatOps.handoffHealStatements(chatId, NEW_HOST);
+  const stmts = await h.chatOps.handoffHealStatements(healArgs(chatId));
   await db.batch(batchMany(stmts));
   expect((await findGameByChat(db, chatId))?.gmPresetId).toBeNull();
+});
+
+// ── THE COPY OFFER's rpg arms (2026-08-03) ──────────────────────────────────────────────────────────────
+// The offer turns the clear into a GIFT. What must hold: the copy is asked for with BOTH owners explicit
+// (the injected-op caller gate — an op that re-derived either end could mint a stranger's config into
+// anyone's library), the knob is RE-POINTED at the copy rather than nulled, and a copy that cannot resolve
+// falls back to the built clear rather than leaving the room pointed at a preset the host can't read.
+
+test("an offered GM preset the new host cannot read is COPIED and the knob re-pointed — not nulled", async () => {
+  const db = await freshDb();
+  const oldHost = await seedUser(db, "oldhost_gift");
+  await seedUser(db, "nominee");
+  const preset = await seedPresetRow(db, "preset_gifted", oldHost);
+  // The fake's deterministic copy id — seeded as a REAL row so the re-point statement's FK is exercised for
+  // real (the whole claim is that the knob ends up pointing at something the new host can actually read).
+  await seedPresetRow(db, `${preset}__copy_${NEW_HOST}`, NEW_HOST);
+  const { chatId } = await seedGameRoom(db, "gift", { gmPresetId: preset });
+  const h = makeRpgService(db);
+
+  const stmts = await h.chatOps.handoffHealStatements(healArgs(chatId, { copyGmPreset: true, oldHostUserId: oldHost }));
+
+  // BOTH owners arrived explicitly — the caller-gate proof.
+  expect(h.fakes.presetCopies).toEqual([{ fromOwnerId: oldHost, toUserId: NEW_HOST, presetId: preset }]);
+  // Still a pure producer: nothing moves until chat's swap batch runs.
+  expect((await findGameByChat(db, chatId))?.gmPresetId).toBe(preset);
+  await db.batch(batchMany(stmts));
+  expect((await findGameByChat(db, chatId))?.gmPresetId).toBe(`${preset}__copy_${NEW_HOST}`);
+});
+
+test("an offered preset that CANNOT be copied falls back to the built clear (never a knob that lies)", async () => {
+  const db = await freshDb();
+  const oldHost = await seedUser(db, "oldhost_nocopy");
+  const preset = await seedPresetRow(db, "preset_nocopy", oldHost);
+  const { chatId } = await seedGameRoom(db, "nocopy", { gmPresetId: preset });
+  const h = makeRpgService(db, { copyPresetFails: true });
+
+  const stmts = await h.chatOps.handoffHealStatements(healArgs(chatId, { copyGmPreset: true, oldHostUserId: oldHost }));
+  await db.batch(batchMany(stmts));
+
+  expect((await findGameByChat(db, chatId))?.gmPresetId).toBeNull();
+});
+
+test("an offered preset the new host ALREADY reads is never copied (the conditional gate runs first)", async () => {
+  const db = await freshDb();
+  await seedUser(db, "nominee");
+  const oldHost = await seedUser(db, "oldhost_owned");
+  const preset = await seedPresetRow(db, "preset_already", NEW_HOST);
+  const { chatId } = await seedGameRoom(db, "already", { gmPresetId: preset });
+  const h = makeRpgService(db);
+  h.fakes.ownedPresets.add(`${preset}:${NEW_HOST}`);
+
+  expect(await h.chatOps.handoffHealStatements(healArgs(chatId, { copyGmPreset: true, oldHostUserId: oldHost }))).toEqual([]);
+  expect(h.fakes.presetCopies).toEqual([]);
+});
+
+test("the copied cast's SHEETS re-key onto the copies in the swap batch (the room's identity data moves with it)", async () => {
+  const db = await freshDb();
+  const oldHost = await seedUser(db, "oldhost_sheets");
+  await seedUser(db, "nominee");
+  const { chatId, gameId } = await seedGameRoom(db, "sheets");
+  const source = await seedSheetFor(db, gameId, oldHost, "mara_src");
+  // The copy card already exists in the nominee's library (chat minted it before the swap batch).
+  const copy = castId<CharacterId>("character_mara_copy");
+  await db.insert(characters).values({
+    id: copy,
+    ownerId: NEW_HOST,
+    handle: "mara_copy",
+    name: "Mara",
+    contentHash: "c",
+    tokenSize: 0,
+    createdAt: FROZEN_AT,
+  });
+  const h = makeRpgService(db);
+
+  const stmts = await h.chatOps.handoffHealStatements(healArgs(chatId, { cardCopies: [{ sourceCharacterId: source, characterId: copy }] }));
+  // Pure producer again: the sheet still names the source until chat commits.
+  expect((await db.select().from(rpgSheets).where(eq(rpgSheets.gameId, gameId)))[0]?.characterId).toBe(source);
+  await db.batch(batchMany(stmts));
+
+  expect((await db.select().from(rpgSheets).where(eq(rpgSheets.gameId, gameId)))[0]?.characterId).toBe(copy);
 });

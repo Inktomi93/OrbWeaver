@@ -104,7 +104,7 @@ export function CommittedMembersTab({ chatId, chat, isHost, multiHumanCapable, c
         cast={cast}
         onInvitePeople={hostMembership ? (): void => setInviteOpen(true) : undefined}
         onKick={hostMembership ? (userId): void => kick.mutate({ chatId, userId }) : undefined}
-        onNominateHost={hostMembership ? (userId): void => nominateHost.mutate({ chatId, userId }) : undefined}
+        onNominateHost={hostMembership ? (userId, offer): void => nominateHost.mutate({ chatId, userId, offer }) : undefined}
         onSetHistoryVisibility={hostMembership ? (userId, visibility): void => setHistoryVisibility.mutate({ chatId, userId, visibility }) : undefined}
         onLeave={multiHumanCapable ? onLeave : undefined}
         leaveArchivesRoom={isHost}

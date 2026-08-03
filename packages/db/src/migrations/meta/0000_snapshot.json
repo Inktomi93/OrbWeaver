@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "8d3e769b-6fe8-469c-ac19-7befced2c859",
+  "id": "fbfa0ab9-2ef3-46c3-8c24-e3e115f16957",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -1654,6 +1654,13 @@
         },
         "pending_host_user_id": {
           "name": "pending_host_user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pending_handoff_offer": {
+          "name": "pending_handoff_offer",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

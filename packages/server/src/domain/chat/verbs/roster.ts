@@ -13,7 +13,16 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, GroupConfig, ParticipantView, RoomOverrides } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, groupConfigSchema, isAiDriven, roomOverridesSchema, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
+import {
+  DEFAULT_GROUP_CONFIG,
+  DEFAULT_ROOM_OVERRIDES,
+  groupConfigSchema,
+  handoffOfferSchema,
+  isAiDriven,
+  NO_HANDOFF_OFFER,
+  roomOverridesSchema,
+  TALKATIVENESS_DEFAULT,
+} from "@orb/contracts/chat";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import { chatDocumentVisibilitySchema } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
@@ -49,6 +58,7 @@ import type {
 } from "../contract/params";
 import type { ChatService } from "../contract/service";
 import { requireHost, requireParticipant } from "../guard";
+import { restampChatCharacterStatement } from "../persistence/canon-write";
 import {
   acceptHostHandoffSwapStatements,
   assertForcedCharacterMember,
@@ -56,10 +66,12 @@ import {
   markParticipantLeftStatement,
   markUserLeft,
   markUserLeftStatement,
+  repointCharacterSeatStatement,
   setPendingHostStatement,
 } from "../persistence/participant";
-import { loadMaxMessageSeq, loadPendingHostUserId } from "../persistence/queries";
+import { loadMaxMessageSeq, loadPendingHandoff } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
+import { resolveHandoffCopyPlan } from "../substrate/handoff-copy";
 import { REMOVED_CHARACTER_LABEL } from "../substrate/participant-name";
 import { hostUserIdOf } from "../substrate/roster-host";
 
@@ -668,14 +680,21 @@ async function resolveDroppedCharacterSeatIds(
  *  the nominee. The nominee must be a present non-host member — otherwise a leak-free NOT_FOUND. No role
  *  swap happens here; only the nominee's accept promotes. */
 function createNominateHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatService["nominateHostHandoff"] {
-  return async ({ principal, chatId, userId }: NominateHostHandoffParams): Promise<void> => {
+  return async ({ principal, chatId, userId, offer }: NominateHostHandoffParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     const roster = await loadRoster(ctx.db, chatId);
     const nominee = roster.find((p) => p.userId === userId);
     if (nominee === undefined || nominee.role === "host") {
       throw new ChatNotFoundError(chatId);
     }
-    await ctx.emitNotification({ type: "handoff-nominated", recipientUserId: userId, chatId }, [setPendingHostStatement(ctx.db, chatId, userId, ctx.now())]);
+    // The offer is parsed at the trust boundary and DEFAULTS TO NOTHING: a malformed blob is no offer, never
+    // a copy nobody asked for. It is stored, not executed — the accept freezes the point in time (§5), so an
+    // edit the host makes between nominate and accept rides into the copy and a nomination that is never
+    // accepted transfers nothing.
+    const parsedOffer = handoffOfferSchema.catch(NO_HANDOFF_OFFER).parse(offer ?? NO_HANDOFF_OFFER);
+    await ctx.emitNotification({ type: "handoff-nominated", recipientUserId: userId, chatId }, [
+      setPendingHostStatement(ctx.db, { chatId, nomineeUserId: userId, offer: parsedOffer, now: ctx.now() }),
+    ]);
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -683,7 +702,7 @@ function createNominateHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatS
         action: "chat.nominateHostHandoff",
         entityType: "chat",
         entityId: chatId,
-        metadata: { nomineeUserId: userId },
+        metadata: { nomineeUserId: userId, offerCast: parsedOffer.copyCast, offerGmPreset: parsedOffer.copyGmPreset },
       },
       ctx.now(),
     );
@@ -710,25 +729,45 @@ function anchorSurvivesHandoff(ctx: ChatContext, newOwnerUserId: UserId, anchorP
  *  silently under the new authority (the D51 anchor persona + — through the injected rpg op — the game's
  *  GM-voice preset), and clears the nomination in one batch; emits chatUpdated and notifies the previous host.
  *
- *  Everything the accept touches rides ONE batch (stickler 2026-08-03 F1/F2): the heals are properties of the
- *  authority move, so a crash must never be able to land the promotion without them. The audit row records
- *  which heals fired — the transfer stays inspectable rather than silent. */
+ *  WITH AN ACCEPTED OFFER (§5/§6(f)) it also executes the departing host's point-in-time gift: their seated
+ *  cards and the lore behind them are copied into the nominee's library, and this room is re-pointed onto the
+ *  copies — seats IN PLACE (era, knobs and identity preserved), canon `messages.characterId`, the derived
+ *  digest keys, and rpg's sheets. Message VARIANTS need no copying: they are this chat's rows and transfer by
+ *  construction. From the swap onward the room references only the new host's property, so the old host
+ *  editing or deleting their originals cannot reach it — which is the whole point of the arm.
+ *
+ *  Everything ROOM-side rides ONE batch (stickler 2026-08-03 F1/F2 + the copy): the heals and the re-points
+ *  are properties of the authority move, so a crash must never be able to land the promotion without them.
+ *  The LIBRARY mints necessarily precede it — see {@link executeHandoffCopy} for the crash contract. The audit
+ *  row records what fired, so the transfer stays inspectable rather than silent. */
 function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatService["acceptHostHandoff"] {
   return async ({ principal, chatId }: AcceptHostHandoffParams): Promise<void> => {
     const { chat } = await requireParticipant(ctx, principal, chatId);
-    const pending = await loadPendingHostUserId(ctx.db, chatId);
-    if (pending === null || pending !== principal.userId) {
+    const { pendingHostUserId, offer } = await loadPendingHandoff(ctx.db, chatId);
+    if (pendingHostUserId === null || pendingHostUserId !== principal.userId) {
       throw new ChatOperationError(CHAT_OP_CODES.notTurnOwner, `chat ${chatId}: only the nominated member may accept the host handoff`);
     }
     // The previous host (for the post-swap notification) may be absent if they left after nominating.
     const roster = await loadRoster(ctx.db, chatId);
     const oldHostUserId = hostUserIdOf(roster);
-    const droppedSeatIds = await resolveDroppedCharacterSeatIds(ctx, principal.userId, roster);
+    const plan = await resolveHandoffCopyPlan(ctx, { chatId, oldHostUserId, nomineeUserId: principal.userId, offer, roster });
+    const repointed = new Set(plan.seats.map((s) => s.participantId));
+    // The D64 drop, minus whatever the offer just rescued: a seat now pointing at the nominee's own copy
+    // resolves under them and must NOT also be stamped as left.
+    const droppedSeatIds = (await resolveDroppedCharacterSeatIds(ctx, principal.userId, roster)).filter((id) => !repointed.has(id));
     const dropSeq = await loadMaxMessageSeq(ctx.db, chatId);
     const clearAnchorPersona = !(await anchorSurvivesHandoff(ctx, principal.userId, chat.anchorPersonaId));
-    // The rpg-side heal (F1) arrives as UNEXECUTED statements so it commits with the swap; `[]` for a
-    // non-game room / an unwired rpg ⇒ byte-identical to a plain handoff.
-    const rpgHeal = (await ctx.rpg?.handoffHealStatements(chatId, principal.userId)) ?? [];
+    // The rpg-side heal (F1) + sheet re-key arrive as UNEXECUTED statements so they commit with the swap; `[]`
+    // for a non-game room / an unwired rpg ⇒ byte-identical to a plain handoff.
+    const rpgHeal =
+      (await ctx.rpg?.handoffHealStatements({
+        chatId,
+        newHostUserId: principal.userId,
+        oldHostUserId,
+        copyGmPreset: offer.copyGmPreset,
+        cardCopies: plan.cardCopies,
+      })) ?? [];
+    const digestRestamp = plan.cardCopies.length === 0 ? [] : await ctx.restampHandoffDigests({ chatId, pairs: plan.cardCopies });
     const swap = [
       ...acceptHostHandoffSwapStatements(ctx.db, {
         chatId,
@@ -736,6 +775,10 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
         now: ctx.now(),
         clearAnchorPersona,
       }),
+      ...plan.seats.map(({ participantId, copy }) => repointCharacterSeatStatement(ctx.db, participantId, copy.characterId)),
+      ...plan.cardCopies.map((c) => restampChatCharacterStatement(ctx.db, chatId, c.sourceCharacterId, c.characterId)),
+      ...digestRestamp,
+      ...plan.bookRepoint,
       ...droppedSeatIds.map((id) => markParticipantLeftStatement(ctx.db, id, dropSeq)),
       ...rpgHeal,
     ];
@@ -752,6 +795,11 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
     } else {
       await ctx.db.batch(batchMany(swap));
     }
+    // POST-SWAP, deliberately (see `ChatRpgOps.handoffRekeyActors`): the tracker-plane re-key is a hand-door
+    // read-modify-write, not a statement. The room has already changed hands correctly by here.
+    if (plan.cardCopies.length > 0) {
+      await ctx.rpg?.handoffRekeyActors(chatId, plan.cardCopies);
+    }
     await emit({ type: "chatUpdated", chatId });
     await ctx.audit(
       {
@@ -759,8 +807,15 @@ function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatSer
         action: "chat.acceptHostHandoff",
         entityType: "chat",
         entityId: chatId,
-        // The heal FLAGS (never the ids): a transfer that re-pointed the room's POV or its GM voice says so.
-        metadata: { previousHostUserId: oldHostUserId, healedAnchorPersona: clearAnchorPersona, healedGmPreset: rpgHeal.length > 0 },
+        // The heal + copy FLAGS and COUNTS (never the ids): a transfer that re-pointed the room's POV, its GM
+        // voice, or its cast says so.
+        metadata: {
+          previousHostUserId: oldHostUserId,
+          healedAnchorPersona: clearAnchorPersona,
+          healedGmPreset: rpgHeal.length > 0,
+          copiedCards: plan.cardCopies.length,
+          droppedSeats: droppedSeatIds.length,
+        },
       },
       ctx.now(),
     );

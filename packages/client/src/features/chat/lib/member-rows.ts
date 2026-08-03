@@ -3,7 +3,7 @@
 // the roving-focus + action-seam prop contracts, and the accessible-name derivation. Pure — no JSX
 // (the row shell is components/member-row.tsx; the canonical action home is member-row-menu.tsx).
 
-import type { JoinHistoryVisibility } from "@orb/contracts/chat";
+import type { HandoffOffer, JoinHistoryVisibility } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 
 /** A PEOPLE (human) row view — projected by the surface from `ParticipantView` (+ `pendingHostUserId`). */
@@ -45,11 +45,20 @@ export interface MemberRowFocusProps {
   readonly onRowFocus: (key: string) => void;
 }
 
+/** Which of a person row's dialogs is open. A TUPLE (not an inline union) because the row shell and the
+ *  menu builder both name the axis — a fourth arm must break both at compile time, not just the one someone
+ *  remembered to edit; each consumer derives its own local alias off this one home. `handoff` is not
+ *  destructive; it is on this axis because it is the other row action whose label ends in "…". */
+export const MEMBER_ROW_CONFIRMS = ["kick", "leave", "handoff"] as const;
+
 /** The action seams a row may carry — all optional (the surface mirrors the server gates: host-only
  *  controls are simply absent for a member; a row with zero actions renders no menu at all, §8.1). */
 export interface MemberRowActions {
   readonly onKick?: ((userId: UserId) => void) | undefined;
-  readonly onNominateHost?: ((userId: UserId) => void) | undefined;
+  /** Hand the room to this member (host-only). `offer` is the departing host's OPT-IN property gift — the
+   *  confirm step's checkbox — and DEFAULTS TO GIVING NOTHING: a `{copyCast:false, copyGmPreset:false}` offer
+   *  is byte-identical to the pre-offer handoff (the new host adds their own cast, D64). */
+  readonly onNominateHost?: ((userId: UserId, offer: HandoffOffer) => void) | undefined;
   readonly onLeave?: (() => void) | undefined;
   /** Set how much room canon a human member may read (host-only; D16). Absent for a non-host — the
    *  action simply doesn't render (§8.1). */
