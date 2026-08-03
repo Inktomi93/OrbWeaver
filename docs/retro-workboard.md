@@ -560,7 +560,20 @@ playbook ¶. Migration order on rail-YES: tags+regex → world-info → presets 
 NOT this primitive — stretch warned against). F-B hardening: orphan-def arm (home-tiles
 lacks it; specced from birth for the new family). 10 owner forks in §10, F-1 (the rail
 itself) deliberately left OPEN — rule by feel, the design composes with both arms.
-**R0 queued next drain.** (First attempt hit the 5-min tool timeout mid-transfer — ref
+**R0 queued next drain.**
+**✅ TD STICKLER DELIVERED (committed `be2ad3b0`: docs/reviews/stickler/2026-08-03-theme-
+doors.md):** themeOverride = VALUES not ref (tree-settled; ref structurally impossible on the
+roster wire). Door 1 `settings.promoteTheme` specced (copy-values, exact fidelity by
+construction, mint-time de-collide, Appearance-tab header home per D121-D — NOT the kebab).
+Door 2 (save-without-theme) = ALREADY BUILT (the D78 autosave IS it); real residue = the
+missing INVERSE door "Start from a theme…" (O-6 REC build). PARTITION: card = identity &
+atmosphere (10 tokens + bg source), viewer-sacred = ergonomics/a11y/cost/treatment; enforce
+via CARD_EMBEDDABLE_THEME_KEYS tuple + two-sided suite (D120 idiom; DB column rejected).
+NO DDL anywhere. FINDINGS: **F-1 dead switches (D107 class)** — card Message-style/Density
+selects + theme-editor Message-style persist fields with ZERO consumers · F-2 one-home drift
+(resolveRoomTheme re-spells true-solo beside the comment banning it) · F-3 board-vs-tree
+recorded. Staging R0-R4; 10 forks w/ RECs (§6); M1 deletes the 10 character value-set jsons +
+seeder delete-arm at sentinel ids (D71-compliant direction). (First attempt hit the 5-min tool timeout mid-transfer — ref
 untouched, verified before retry; background push landed clean, 2,796 deltas.) The entire
 instrument-days era is REMOTE: D121+D122 · truth audit · tenancy family (2 holes closed) ·
 persona multi-human · regex reshape complete · handoff copy · portability/lifecycle ·
