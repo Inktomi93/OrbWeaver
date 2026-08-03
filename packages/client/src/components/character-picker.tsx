@@ -21,8 +21,10 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
+import { useRef } from "react";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { useFocusOnSwap } from "#lib";
 
 const PICKER_PAGE_LIMIT = 100;
 const DEFAULT_SKELETON_ROW_COUNT = 5;
@@ -36,8 +38,10 @@ export interface CharacterPickerProps {
   readonly placeholder: string;
   /** Empty-list copy shown when nothing matches. */
   readonly emptyText: string;
-  /** Fired with the character's branded id on select. */
-  readonly onSelect: (id: CharacterId) => void;
+  /** Fired with the character's branded id on select. The display NAME rides along: a consumer that has to
+   *  echo the choice back (a filter chip, a breadcrumb) would otherwise re-read the library to find out what
+   *  it just picked — and would guess wrong for anyone outside its own page of it. */
+  readonly onSelect: (id: CharacterId, name: string) => void;
   /** Character ids to exclude from the list (e.g. current roster members). */
   readonly excludeIds?: readonly CharacterId[];
   /** Trailing per-row check for multi-select modes; omit for single-select (no adornment). */
@@ -52,6 +56,11 @@ export interface CharacterPickerProps {
   readonly skeletonCount?: number;
   /** Escape handler (modal consumers close on Esc). */
   readonly onEscape?: () => void;
+  /** Put the caret in the search field as soon as the ROWS mount. Opt-in, because the two postures differ:
+   *  an anchored popover whose only job is to search should land you in it (Base UI's own initial-focus
+   *  cannot — at open time this body is still the suspense fallback, which has nothing tabbable in it), while
+   *  a modal consumer runs its own focus-on-mount and the two would fight over the caret. */
+  readonly autoFocusSearch?: boolean;
 }
 
 /** The searchable character picker body — a QueryBoundary + cmdk Command over `character.list`. */
@@ -77,7 +86,13 @@ function CharacterPickerBody({
   rowsHeading,
   listClassName,
   onEscape,
+  autoFocusSearch = false,
 }: CharacterPickerProps): ReactElement {
+  const searchRef = useRef<HTMLInputElement>(null);
+  // The SWAP hook, not the guarded one: this body mounts as the direct result of a user activation, and
+  // the control that opened it is gone (or the popup has already taken focus), so the `<body>` guard would
+  // decline exactly when the caret is wanted.
+  useFocusOnSwap(searchRef, autoFocusSearch);
   const trpc = useTRPC();
   const { data: page } = useSuspenseQuery(trpc.character.list.queryOptions({ limit: PICKER_PAGE_LIMIT }));
   const excluded = new Set<string>(excludeIds ?? []);
@@ -89,7 +104,7 @@ function CharacterPickerBody({
 
   return (
     <Command className="min-h-0" label={label} {...(onEscape === undefined ? {} : { onEscape })}>
-      <CommandInput aria-label={placeholder} placeholder={placeholder} />
+      <CommandInput aria-label={placeholder} placeholder={placeholder} ref={searchRef} />
       <CommandList className={listClassName ?? "max-h-80"}>
         <CommandEmpty>{emptyText}</CommandEmpty>
         {leadingGroup}
@@ -101,7 +116,7 @@ function CharacterPickerBody({
 
 interface CharacterPickerRowProps {
   readonly character: CharacterListItem;
-  readonly onSelect: (id: CharacterId) => void;
+  readonly onSelect: (id: CharacterId, name: string) => void;
   readonly isSelected?: (id: CharacterId) => boolean;
 }
 
@@ -110,7 +125,7 @@ function CharacterPickerRow({ character, onSelect, isSelected }: CharacterPicker
   const id = castId<CharacterId>(character.id);
   const avatarSrc = character.avatarHash === null ? {} : { src: blobUrl(character.avatarHash) };
   return (
-    <CommandItem keywords={[character.name]} onSelect={(): void => onSelect(id)} value={character.id}>
+    <CommandItem keywords={[character.name]} onSelect={(): void => onSelect(id, character.name)} value={character.id}>
       <Row align="center" className="min-w-0 flex-1" gap="row">
         <Avatar fallbackDelay={0} hueSeed={character.id} shape="square" size="sm" {...avatarSrc}>
           {initialsFor(character.name)}
