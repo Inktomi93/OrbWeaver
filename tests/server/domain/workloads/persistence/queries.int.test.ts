@@ -453,7 +453,7 @@ describe("toView (poison tolerance)", () => {
       id: castId<WorkloadId>("workload_rt"),
       kind: "compute-themes",
       mode: "singular",
-      source: "none",
+      admissionKey: "none",
       lane: "sweep",
       params: { k: 7 },
       ownerId: null,

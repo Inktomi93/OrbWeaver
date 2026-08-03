@@ -1,15 +1,14 @@
 import type { WorkloadKind, WorkloadLane, WorkloadModePolicy, WorkloadResumePolicy, WorkloadStatus } from "@orb/contracts/workloads";
 import {
   ACTIVE_WORKLOAD_STATUSES,
+  DEFAULT_ADMISSION_KEY,
   INDEX_SOURCES,
   indexSourceSchema,
-  NON_INDEX_SOURCE,
   WORKLOAD_KIND_MODES,
   WORKLOAD_KINDS,
   WORKLOAD_LANES,
   WORKLOAD_MODES,
   WORKLOAD_RESUME_POLICIES,
-  WORKLOAD_SOURCES,
   WORKLOAD_STATUSES,
   workloadKindSchema,
   workloadModeSchema,
@@ -57,15 +56,14 @@ test("workloadKindSchema round-trips every valid kind and rejects non-members (i
   expect(workloadKindSchema.safeParse("").success).toBe(false);
 });
 
-// ── The `index` SOURCE axis (the WorkloadKind-scoped param + the single-active LOCK sub-dimension) ──────
-test("INDEX_SOURCES is [text, image, all]; WORKLOAD_SOURCES prepends the `none` non-index sentinel", () => {
+// ── The `index` SOURCE axis (the WorkloadKind-scoped param, which is also that kind's ADMISSION KEY) ────
+test("INDEX_SOURCES is [text, image, all] and the sentinel admission key is not one of them", () => {
   expect(INDEX_SOURCES).toEqual(["text", "image", "all"]);
   expect(indexSourceSchema.options).toEqual(INDEX_SOURCES);
-  expect(WORKLOAD_SOURCES).toEqual(["none", "text", "image", "all"]);
-  // The sentinel is a real WORKLOAD_SOURCES member but NOT a selectable index source.
-  expect(NON_INDEX_SOURCE).toBe("none");
-  expect(WORKLOAD_SOURCES).toContain(NON_INDEX_SOURCE);
-  expect(INDEX_SOURCES).not.toContain(NON_INDEX_SOURCE);
+  // The lock partition is a free-form KEY, not an axis: there is no tuple `none` belongs to, only the
+  // sentinel a kind that declares no `admissionKey` carries. It must never collide with a real key.
+  expect(DEFAULT_ADMISSION_KEY).toBe("none");
+  expect(INDEX_SOURCES).not.toContain(DEFAULT_ADMISSION_KEY);
 });
 
 test("WORKLOAD_STATUSES is exactly the 7-member lifecycle tuple", () => {

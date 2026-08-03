@@ -14,6 +14,7 @@ import type { ScrapeName, ScrapeWrite } from "../contract/params";
 import type { UploadResult } from "../contract/results";
 import type { DatabankContext } from "../contract/service";
 import { findByImportHash, toDocumentView } from "../persistence/queries";
+import { queueIngest } from "./queue-ingest";
 
 const NAME_MAX = 500;
 
@@ -62,11 +63,8 @@ export async function finalizeScrape(ctx: DatabankContext, write: ScrapeWrite): 
     updatedAt: at,
   });
 
-  const { workloadId } = await ctx.enqueueIngest({ documentId: id, ownerId });
-  await ctx.audit(
-    { actorUserId: ownerId, action: write.auditAction, entityType: "document", entityId: id, metadata: { url: write.sourceUrl, workloadId } },
-    at,
-  );
+  const queued = await queueIngest(ctx, { documentId: id, ownerId });
+  await ctx.audit({ actorUserId: ownerId, action: write.auditAction, entityType: "document", entityId: id, metadata: { url: write.sourceUrl, ...queued } }, at);
 
   const document = toDocumentView(
     {
@@ -82,5 +80,5 @@ export async function finalizeScrape(ctx: DatabankContext, write: ScrapeWrite): 
     },
     0,
   );
-  return { document, outcome: "created", ingest: "queued", ...(extracted.meta.charCount === 0 ? { warning: "empty-extraction" as const } : {}) };
+  return { document, outcome: "created", ingest: queued.ingest, ...(extracted.meta.charCount === 0 ? { warning: "empty-extraction" as const } : {}) };
 }

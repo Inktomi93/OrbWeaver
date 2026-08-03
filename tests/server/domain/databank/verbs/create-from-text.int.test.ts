@@ -46,6 +46,27 @@ test("a re-paste of identical text dedups (duplicate/skipped, no second enqueue)
   expect(rows).toHaveLength(1);
 });
 
+// DBFIX — THE ORPHAN: the `documents` row is inserted BEFORE the ingest is enqueued and the two are not one
+// transaction, so a rejected enqueue used to reject the whole mutation while LEAVING the document behind:
+// a row with no chunks and no workload, parked at `Queued` on the library forever, under a generic
+// "Couldn't save the document." toast that claimed nothing was saved. The enqueue failure is now DATA — the
+// document is created (the user's text is never destroyed) and the verb reports the un-indexed truth.
+test("a REJECTED ingest enqueue does not reject the create — the document lands, reported as un-indexed", async () => {
+  const db = await freshDb();
+  const h = makeDatabankHarness(db);
+  const owner = await seedUser(db, { handle: "owner" });
+  h.enqueueIngest.mockRejectedValueOnce(new Error('That "databank-ingest" run is already in progress'));
+
+  const result = await h.service.createFromText({ principal: principalFor(owner), name: "note.md", text: TEXT });
+  expect(result.outcome).toBe("created");
+  // The document is REAL and readable — the paste is not lost to a queue refusal.
+  const rows = await db.select().from(documents).where(eq(documents.id, result.document.id));
+  expect(rows).toHaveLength(1);
+  expect(rows[0]?.extractedText).toBe(TEXT);
+  // …and the result says so, rather than the caller inferring "queued" from a mutation that threw.
+  expect(result.ingest).toBe("not-queued");
+});
+
 test("two owners pasting identical text each get their OWN document (dedup is per-owner)", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);

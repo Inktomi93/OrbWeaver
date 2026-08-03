@@ -37,27 +37,54 @@ function doc(over: Partial<DocumentView> = {}): DocumentView {
 
 describe("ingestPhase — the counts ARE the truth (there is no status column)", () => {
   test("every chunk embedded ⇒ ready", () => {
-    expect(ingestPhase(doc())).toBe("ready");
+    expect(ingestPhase(doc(), AT)).toBe("ready");
   });
 
   test("no chunks yet ⇒ indexing (queued): the ingest workload has not landed a chunk", () => {
-    expect(ingestPhase(doc({ chunkCount: 0, embeddedCount: 0 }))).toBe("indexing");
+    expect(ingestPhase(doc({ chunkCount: 0, embeddedCount: 0 }), AT)).toBe("indexing");
   });
 
   test("some chunks embedded, not all ⇒ embedding — a partial ingest a retry resumes", () => {
-    expect(ingestPhase(doc({ chunkCount: 39, embeddedCount: 22 }))).toBe("embedding");
+    expect(ingestPhase(doc({ chunkCount: 39, embeddedCount: 22 }), AT)).toBe("embedding");
   });
 
   test("charCount 0 BEATS everything — an empty extraction is empty even if chunks somehow exist", () => {
     // The precedence matters: a scanned image-only PDF extracts to nothing, and reporting it as `indexing`
     // would promise a completion that can never arrive.
-    expect(ingestPhase(doc({ charCount: 0, chunkCount: 0, embeddedCount: 0 }))).toBe("empty");
-    expect(ingestPhase(doc({ charCount: 0, chunkCount: 5, embeddedCount: 5 }))).toBe("empty");
+    expect(ingestPhase(doc({ charCount: 0, chunkCount: 0, embeddedCount: 0 }), AT)).toBe("empty");
+    expect(ingestPhase(doc({ charCount: 0, chunkCount: 5, embeddedCount: 5 }), AT)).toBe("empty");
   });
 
   test("the LAST chunk landing flips embedding → ready (the boundary, not a range)", () => {
-    expect(ingestPhase(doc({ chunkCount: 12, embeddedCount: 11 }))).toBe("embedding");
-    expect(ingestPhase(doc({ chunkCount: 12, embeddedCount: 12 }))).toBe("ready");
+    expect(ingestPhase(doc({ chunkCount: 12, embeddedCount: 11 }), AT)).toBe("embedding");
+    expect(ingestPhase(doc({ chunkCount: 12, embeddedCount: 12 }), AT)).toBe("ready");
+  });
+});
+
+// DBFIX — THE PARKED-FOREVER ROW. A document whose ingest never got enqueued (or whose worker died) looks
+// EXACTLY like one about to start, so the only signal a status-column-free schema can give is a frozen
+// `updatedAt`. `Queued` forever is the lie this phase exists to stop telling.
+describe("ingestPhase — the STALLED overlay (a frozen in-flight row)", () => {
+  test("an in-flight phase past the threshold reads stalled; a terminal one never does", () => {
+    const queued = doc({ chunkCount: 0, embeddedCount: 0 });
+    expect(ingestPhase(queued, AT + FIVE_MINUTES - 1)).toBe("indexing"); // still fresh — do not cry wolf
+    expect(ingestPhase(queued, AT + FIVE_MINUTES)).toBe("stalled");
+    expect(ingestPhase(doc({ chunkCount: 39, embeddedCount: 22 }), AT + FIVE_MINUTES)).toBe("stalled");
+    // Terminal phases are ageless: a year-old ready document is FINISHED, not wedged.
+    expect(ingestPhase(doc(), AT + FIVE_MINUTES * 100_000)).toBe("ready");
+    expect(ingestPhase(doc({ charCount: 0, chunkCount: 0, embeddedCount: 0 }), AT + FIVE_MINUTES * 100_000)).toBe("empty");
+  });
+
+  test("a LIVE ingest that keeps bumping updatedAt never reads stalled, however long it runs", () => {
+    const stillWorking = doc({ chunkCount: 200, embeddedCount: 130, updatedAt: AT + FIVE_MINUTES * 20 });
+    expect(ingestPhase(stillWorking, AT + FIVE_MINUTES * 20 + 1000)).toBe("embedding");
+  });
+
+  test("Stalled EARNS a row chip, and it is the DANGER one — the list row carries the truth, not just detail", () => {
+    // The whole point: this verdict is reachable from the LIST, where the user actually notices six of seven
+    // documents never finished. `Queued`/`Indexing` are warnings that say "wait"; this one says "act".
+    expect(showsPhaseChip("stalled")).toBe(true);
+    expect(ingestBadge("stalled")).toEqual({ label: "Stalled", intent: "danger" });
   });
 });
 
@@ -80,10 +107,18 @@ describe("showsPhaseChip — Ready is the ABSENCE of a chip (§6.1)", () => {
 
 describe("isIngestInFlight — the bounded poll's driver (D-3 arm b)", () => {
   test("true only while chunks are still expected — a terminal phase never polls", () => {
-    expect(isIngestInFlight(doc({ chunkCount: 0, embeddedCount: 0 }))).toBe(true);
-    expect(isIngestInFlight(doc({ chunkCount: 39, embeddedCount: 22 }))).toBe(true);
-    expect(isIngestInFlight(doc())).toBe(false);
-    expect(isIngestInFlight(doc({ charCount: 0, chunkCount: 0, embeddedCount: 0 }))).toBe(false);
+    expect(isIngestInFlight(doc({ chunkCount: 0, embeddedCount: 0 }), AT)).toBe(true);
+    expect(isIngestInFlight(doc({ chunkCount: 39, embeddedCount: 22 }), AT)).toBe(true);
+    expect(isIngestInFlight(doc(), AT)).toBe(false);
+    expect(isIngestInFlight(doc({ charCount: 0, chunkCount: 0, embeddedCount: 0 }), AT)).toBe(false);
+  });
+
+  // A STALLED row stops the poll. Without this a document that never got enqueued keeps the library
+  // refetching every 4 seconds for the entire life of the tab, forever, for a job with no worker.
+  test("a STALLED document is NOT in flight — the poll stops instead of running forever", () => {
+    const queued = doc({ chunkCount: 0, embeddedCount: 0 });
+    expect(isIngestInFlight(queued, AT + FIVE_MINUTES - 1)).toBe(true);
+    expect(isIngestInFlight(queued, AT + FIVE_MINUTES)).toBe(false);
   });
 });
 

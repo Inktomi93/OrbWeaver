@@ -72,17 +72,15 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const toast = useToastManager();
-  const { data: doc } = useSuspenseQuery(trpc.databank.get.queryOptions({ id: documentId }));
+  // Same clock rule the library row follows: `dataUpdatedAt` is "when this document was true", so the stall
+  // verdict here and the chip on the list row can never disagree about the same document.
+  const { data: doc, dataUpdatedAt: nowMs } = useSuspenseQuery(trpc.databank.get.queryOptions({ id: documentId }));
   const rename = useRenameDocument({ trpc, invalidation });
   const reindex = useReindexDocuments({ trpc, invalidation });
   const [renameOpen, setRenameOpen] = useState(false);
   const [showSource, setShowSource] = useState(false);
 
-  const badge = ingestBadge(ingestPhase(doc));
-  // The stall threshold is coarse (5 min), so a mount-time clock snapshot is enough — no live ticking
-  // (which would churn snapshots). Read off render (purity rule) via a lazy `useState` initializer, off the
-  // injected clock seam (never ambient Date.now — the no-raw-clock gate).
-  const [nowMs] = useState(() => timeLib.now());
+  const badge = ingestBadge(ingestPhase(doc, nowMs));
   const stallHint = ingestStallHint(doc, nowMs);
 
   const onReindex = (): void => {

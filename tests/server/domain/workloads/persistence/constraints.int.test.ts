@@ -18,7 +18,7 @@ describe("isActiveKindUniqueViolation", () => {
     const base = {
       kind: "reconcile-stats" as const,
       mode: "bulk" as const,
-      source: "none" as const,
+      admissionKey: "none",
       lane: "sweep" as const,
       params: {},
       ownerId: null,

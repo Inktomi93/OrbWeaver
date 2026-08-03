@@ -10,8 +10,8 @@ import { z } from "zod";
 /** Every kind of bulk-work the durable queue drives. The one canonical tuple — do NOT invent or
  *  reorder members; several kinds below are STUBS (no real runner yet, v2-reserved). */
 export const WORKLOAD_KINDS = [
-  // `index`'s `source` param (text|image|all) is also a single-active LOCK dimension: a text reindex
-  // and an image reindex run concurrently while same-source runs are single-active.
+  // `index`'s `source` param (text|image|all) is also its ADMISSION KEY: a text reindex and an image
+  // reindex run concurrently while same-source runs are single-active.
   "index",
   "distill-characters",
   "compute-themes",
@@ -37,20 +37,16 @@ export type WorkloadKind = (typeof WORKLOAD_KINDS)[number];
 
 export const workloadKindSchema = z.enum(WORKLOAD_KINDS);
 
-/** Which embed source(s) an `index` run sweeps. Also a single-active LOCK sub-dimension: the db
- *  `workloads.source` column keys the lock on (kind, source, owner), so `text` and `image` runs hold
- *  different slots (concurrent) while two `text` runs collide (single-active). */
+/** Which embed source(s) an `index` run sweeps. Also that kind's ADMISSION KEY (below): `text` and `image`
+ *  runs hold different single-active slots (concurrent) while two `text` runs collide. */
 export const INDEX_SOURCES = ["text", "image", "all"] as const;
 export type IndexSource = (typeof INDEX_SOURCES)[number];
 export const indexSourceSchema = z.enum(INDEX_SOURCES);
 
-/** {@link INDEX_SOURCES} PLUS the `none` sentinel every non-`index` kind carries. Not NULL: SQLite
- *  treats NULLs as DISTINCT in a unique index, which would silently break the single-active lock. */
-export const WORKLOAD_SOURCES = ["none", ...INDEX_SOURCES] as const;
-export type WorkloadSource = (typeof WORKLOAD_SOURCES)[number];
-
-/** The `source` sentinel a non-`index` row carries (its shared lock bucket). */
-export const NON_INDEX_SOURCE = "none" as const satisfies WorkloadSource;
+/** The `workloads.admission_key` a kind that declares NO sub-partition carries — the shared bucket that
+ *  keeps its lock exactly per-(kind, owner) / per-(kind). NOT NULL and never empty: SQLite treats NULLs as
+ *  DISTINCT in a unique index, so a nullable key would silently dissolve the single-active lock. */
+export const DEFAULT_ADMISSION_KEY = "none";
 
 /** How a workload RUN is scoped. `singular` = one authed user's own data. `bulk` = the box-owner-only
  *  global pass (a maintenance sweep across all owners, or — for a create-kind — a mint into a target). */

@@ -13,17 +13,19 @@ import type { EmbeddingsWorkloadDeps } from "./contract/service";
 
 /**
  * `index` — the parameterized embeddings reindex: text (corpus + chat-block memory), image (avatars), or
- * all (both, one atomic result). The single-active lock keys on (kind, source, owner), so a text reindex
- * and an image reindex run concurrently while two same-source runs don't. `force` re-embeds matched rows;
- * without it the pass is resumable-by-skip.
+ * all (both, one atomic result). Its ADMISSION KEY is the embed source, so a text reindex and an image
+ * reindex run concurrently while two same-source runs don't. `force` re-embeds matched rows; without it the
+ * pass is resumable-by-skip.
  */
 export function createEmbeddingsWorkloadContributions(deps: EmbeddingsWorkloadDeps): readonly [WorkloadContribution<"index">] {
   return [
     {
       kind: "index",
-      // The `source` field is the queue's own lock sub-partition, so this schema stays in the workloads
+      // The `source` field is this kind's lock sub-partition, so this schema stays in the workloads
       // contracts module (see its comment there) — the only kind whose params aren't owner-authored.
       params: indexWorkloadParams,
+      // The CONCURRENCY UNIT is one embed space: text and image sweep independently, two text sweeps do not.
+      admissionKey: (params) => params.source,
       // A GPU embed sweep over the whole corpus: minutes, and never latency-sensitive.
       lane: "sweep",
       // Hash/skip-gated end to end — a retry safely re-runs the whole pass.

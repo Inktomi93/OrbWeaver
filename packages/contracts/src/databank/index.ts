@@ -144,6 +144,20 @@ export const reindexScopeSchema = z.discriminatedUnion("kind", [
 
 export type ReindexScope = z.infer<typeof reindexScopeSchema>;
 
+// ── what became of a producer's DERIVED layer (the `UploadResult.ingest` axis) ───────────────────────────
+// `queued` = the `databank-ingest` workload is enqueued (the normal path — the build never blocks the canon
+// write). `skipped` = a `(ownerId, importHash)` dedup hit, whose chunks already exist. `not-queued` = the
+// canon landed but the QUEUE refused the build: the document is real and readable, and un-indexed until a
+// reindex.
+//
+// The third arm is why this is a tuple and not a boolean, and why it is CROSS-BOUNDARY vocabulary: the
+// producer verbs write the `documents` row before enqueuing and the two are not one transaction, so a
+// producer must be able to report a half-success — and the CLIENT is what tells the user which half
+// (`add-document-dialog` renders a different sentence for it, and it must not re-spell the members).
+export const INGEST_OUTCOMES = ["queued", "skipped", "not-queued"] as const;
+
+export type IngestOutcome = (typeof INGEST_OUTCOMES)[number];
+
 /** The `databank-ingest` / `databank-reindex` WORKLOAD result (per document, summed for an owner/bulk scope).
  *  It is the vector-layer accounting a reindex reports back — a cross-boundary shape because the workload row
  *  carries it as its result JSON the client reads. Partial failure is DATA (`failed`), never a throw: one bad

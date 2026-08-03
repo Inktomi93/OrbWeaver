@@ -28,7 +28,7 @@ import type { ReactElement } from "react";
 import { useDeferredValue, useRef, useState } from "react";
 import { LibraryListLayout, LibrarySurfaceShell } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { useFocusOnMount } from "#lib";
+import { timeLib, useFocusOnMount } from "#lib";
 import { clearDocumentSelection, selectDocumentFromList, useSelectedDocumentId } from "#state";
 import { AddDocumentDialog } from "../components/add-document-dialog";
 import { DatabankLibraryRow } from "../components/databank-library-row";
@@ -57,11 +57,18 @@ function DatabankList(): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const selectedId = useSelectedDocumentId();
-  const { data: documents } = useSuspenseQuery({
+  // THE CLOCK THE STALL THRESHOLD READS is the query's own `dataUpdatedAt` — "when these rows were true" —
+  // not a mount-time snapshot and not an ambient read off render. It is pure (render-safe), and it ADVANCES:
+  // every poll tick moves it, so a document that wedges while the pane is open flips to `Stalled` on the tick
+  // that crosses the threshold. A `useState(() => now())` snapshot would freeze at mount and leave that
+  // document reading `Queued` for as long as the tab stays open — the very hole this lane closes.
+  const { data: documents, dataUpdatedAt: nowMs } = useSuspenseQuery({
     ...trpc.databank.list.queryOptions({}),
     // The predicate reads the LIVE cached rows, so the poll starts itself when an add lands an in-flight
-    // row and stops itself on the tick that finds none.
-    refetchInterval: (listQuery): number | false => ((listQuery.state.data ?? []).some(isIngestInFlight) ? INGEST_POLL_MS : false),
+    // row and stops itself on the tick that finds none — INCLUDING the tick that finds a row has stalled
+    // (a wedged document is not in flight, and polling it forever is a request every 4s for a job that is
+    // never coming back). The clock here is per-tick, since a callback is not a render path.
+    refetchInterval: (listQuery): number | false => ((listQuery.state.data ?? []).some((doc) => isIngestInFlight(doc, timeLib.now())) ? INGEST_POLL_MS : false),
   });
   const { data: globalIds } = useSuspenseQuery(trpc.databank.listGlobal.queryOptions());
 
@@ -131,6 +138,7 @@ function DatabankList(): ReactElement {
             document={doc}
             global={globals.has(doc.id)}
             key={doc.id}
+            nowMs={nowMs}
             onDelete={onDelete}
             onReindex={(id): void => reindex.mutate({ scope: { kind: "document", documentId: id } })}
             onRename={(id): void => setRenameId(id)}
