@@ -7,8 +7,10 @@
 // is the PER-TURN one that `buildTurnUserMacros` composes — `createDefaultRegistry()` plus the active
 // preset's `userMacros` plus the game's. So `{{house_rule}}` typed into a character's description really
 // does resolve at turn time, and a popover that only knew the builtins was advertising half the vocabulary.
-// (The MacroTextarea surfaces that do NOT qualify are cited where they live: the imagery mode-templates run
-// `processMacros` with no registry at all, and every user-tier prose slot is `macros:"none"`.)
+// (The imagery mode-templates USED to be the counter-example here — `extractQuiet` ran `processMacros` with no
+// registry — and IMGMAC closed that: the shaper now builds a per-call registry from both authoring homes, so
+// that section reads this hook too, taking only its `category === "user"` rows. The MacroTextarea surfaces
+// that still do NOT qualify are cited where they live: every user-tier prose slot is `macros:"none"`.)
 //
 // WHY THE ACTIVE PRESET IS THE HONEST PLANE. These editors have no chat and no preset in scope — a card is
 // authored once and played in many rooms, and a room can override the preset — so the exact set that will

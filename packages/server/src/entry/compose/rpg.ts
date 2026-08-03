@@ -1094,7 +1094,8 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Same host-principal seam as the resync (a host-INITIATED interactive action: resolve the ROOM connection AS
 // THE HOST fresh at the verb, consent is the host's OWN, `input.hostUserId` is the room host by ROLE — never a
-// caller-supplied id), same structured-writer gate, same errors-as-data empty-delta degrade. Two differences,
+// caller-supplied id), same structured-writer gate, same errors-as-data REFUSAL grammar (POPLOUD — a round
+// that could not run reports `{ok:false, reason}`, never an empty delta). Two differences,
 // both deliberate:
 //   • the CORPUS is the character CARD + the room's OPENING line, not the story window — a born-state round
 //     establishes what the character walked in with, and re-deriving from play is the resync's job.
@@ -1124,10 +1125,23 @@ function populateUserPrompt(corpus: RpgCardCorpus, targetRef: string): string {
   return blocks.join("\n\n");
 }
 
+// The three sentences a populate REFUSAL can carry (`PopulateResult.reason` → the host's toast) — the resync's
+// `RESYNC_*_REASON` trio in the born-state vocabulary. Written as host prose, not log vocabulary: the person
+// reading them clicked a button and is owed what to do next. Each pairs with the `rpg.populate.*` warn the same
+// branch already emitted — the log is for us, the reason is for them.
+const POPULATE_UNRESOLVABLE_REASON = "this room's connection didn't resolve, so the card was never read — check the chat's model/connection.";
+const POPULATE_READONLY_REASON = "this room's model can't write structured state, so there's nothing to fill with — switch to a connection that can.";
+const POPULATE_FAILED_REASON = "the model call failed, so nothing was filled:";
+
 /** Resolve the ROOM connection AS THE HOST for the populate round, gated on the STRUCTURED writer that round
- *  drives. `null` = do not run (an unresolvable/incoherent backend, or a wire with no structured writer) —
- *  both are LOGGED, never silent. Hoisted out of the round so it stays under the complexity ceiling. */
-async function resolveHostRoundConnection(deps: RpgComposeDeps, chatId: ChatId, hostUserId: UserId): Promise<ResolvedConnection | null> {
+ *  drives. ERRORS-AS-DATA (POPLOUD): a refusal carries the sentence the host reads, so an unresolvable backend
+ *  and a writer-less wire are DISTINCT from a card that established nothing (they used to collapse to the same
+ *  empty delta). Both are LOGGED too. Hoisted out of the round so it stays under the complexity ceiling. */
+async function resolveHostRoundConnection(
+  deps: RpgComposeDeps,
+  chatId: ChatId,
+  hostUserId: UserId,
+): Promise<{ readonly ok: true; readonly conn: ResolvedConnection } | { readonly ok: false; readonly reason: string }> {
   const host = await deps.resolveHostPrincipal(hostUserId);
   const routableChat = await readRoutableChat(deps.db, chatId);
   let conn: ResolvedConnection;
@@ -1136,15 +1150,15 @@ async function resolveHostRoundConnection(deps: RpgComposeDeps, chatId: ChatId, 
   } catch (err) {
     if (err instanceof ConnectionRoutingError || err instanceof AgentModelHealError) {
       logger.warn({ event: "rpg.populate.unresolvable", chatId }, "rpg populate: room connection did not resolve — no round");
-      return null;
+      return { ok: false, reason: POPULATE_UNRESOLVABLE_REASON };
     }
     throw err;
   }
   if (!hasStructuredWriter(conn.capability)) {
     logger.warn({ event: "rpg.populate.readonly", chatId, model: conn.model, api: conn.api }, "rpg populate: connection has no structured writer — no round");
-    return null;
+    return { ok: false, reason: POPULATE_READONLY_REASON };
   }
-  return conn;
+  return { ok: true, conn };
 }
 
 /** The populate round's REF surface: the ONE target actor and nothing else. Every other axis is empty because
@@ -1165,11 +1179,11 @@ function populateRefs(targetRef: string): ExtractionRefs {
  *  opening, and folds the two state planes through the SAME `extractionToStateDelta` path a turn round uses. */
 function buildRunPopulateExtraction(deps: RpgComposeDeps): RpgContext["runPopulateExtraction"] {
   return async ({ chatId, hostUserId, targetRef, baseState, corpus }) => {
-    const empty = { statePatch: {}, sheet: {} };
-    const conn = await resolveHostRoundConnection(deps, chatId, hostUserId);
-    if (conn === null) {
-      return empty;
+    const resolved = await resolveHostRoundConnection(deps, chatId, hostUserId);
+    if (!resolved.ok) {
+      return resolved;
     }
+    const conn = resolved.conn;
     // The teaching reads the game's own config (the deception clause + the two plane fragments), with the ONE
     // target as the whole ref surface.
     const game = await findGameByChat(deps.db, chatId);
@@ -1187,7 +1201,10 @@ function buildRunPopulateExtraction(deps: RpgComposeDeps): RpgContext["runPopula
       text = conn.api === "agent-sdk" ? await extractViaChat(deps, ctx) : await extractViaStructured(deps, ctx);
     } catch (err) {
       logger.warn({ event: "rpg.populate.failed", chatId, model: conn.model, api: conn.api, err }, "rpg populate round failed");
-      return empty;
+      // THE HOST HEARS IT (POPLOUD — the resync's catch verbatim). This used to return an empty delta, which
+      // the verb reported as "this card had nothing to fill" — so a provider that refused every structured
+      // request looked exactly like an empty card. The provider's own sentence rides out to the toast.
+      return { ok: false, reason: `${POPULATE_FAILED_REASON} ${errorMessage(err)}` };
     }
     // EXT-4a salvage, per plane / per entry — a malformed item costs that item, never the quests beside it.
     const { sheet, extraction, dropped } = salvagePopulate(safeJson(text));
@@ -1203,8 +1220,11 @@ function buildRunPopulateExtraction(deps: RpgComposeDeps): RpgContext["runPopula
     // The wire says `title`; the sheet stores `className` (the takeover has rendered it as the title since the
     // tracked-field unification). ONE mapping, here at the parse seam — the domain never learns two names.
     return {
-      statePatch: delta.statePatch,
-      sheet: { ...(sheet?.title === undefined ? {} : { className: sheet.title }), ...(sheet?.level === undefined ? {} : { level: sheet.level }) },
+      ok: true,
+      delta: {
+        statePatch: delta.statePatch,
+        sheet: { ...(sheet?.title === undefined ? {} : { className: sheet.title }), ...(sheet?.level === undefined ? {} : { level: sheet.level }) },
+      },
     };
   };
 }

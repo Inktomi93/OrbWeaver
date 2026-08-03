@@ -15,6 +15,7 @@ export type {
   ChatToolExecFrame,
   ChatToolOps,
   ChatToolSet,
+  ChatUserMacroDefs,
   EmitChatChanged,
   ExtractQuiet,
   ExtractQuietDeps,

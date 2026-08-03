@@ -45,6 +45,21 @@ export type HandDoorResult = { readonly ok: true } | { readonly ok: false; reado
  *      the sentence the host reads — it names which, so a provider outage never masquerades as "no drift". */
 export type ResyncResult = { readonly ok: true; readonly rebuilt: boolean } | { readonly ok: false; readonly reason: string };
 
+/** THE POPULATE VERDICT (`populateFromCharacter`, owner ruling 2026-08-01) — the RESYNC grammar on the OTHER
+ *  host verb that spends real money on a model call. It returned `void`, which is the same silent fork
+ *  RESYNC-OR closed on its sibling: a card round that never RAN (the room connection didn't resolve, the wire
+ *  has no structured writer, the provider refused the structured request — the live 400 on the default hosted
+ *  backend) rendered byte-identically to a card that established nothing. The button settled, the panel did not
+ *  move, and the host was told it worked. The three endings are now distinct DATA:
+ *    • `{ok:true, populated:true}`  — at least one plane landed (a sheet field, or the snapshot half);
+ *    • `{ok:true, populated:false}` — the round RAN and filled nothing: an empty card, or a sheet the fill rule
+ *      fully absorbed because the host already wrote both fields (the idempotent second click);
+ *    • `{ok:false, reason}`         — the round could NOT run, or the F1 write boundary refused the state half.
+ *      `reason` is the sentence the host reads, and it names WHICH — so a provider outage never masquerades as
+ *      "this card had nothing to fill". The client toasts it through the `refusal` seam; the `populated:false`
+ *      arm is an INFO line (a round that honestly found nothing is not an error). */
+export type PopulateResult = { readonly ok: true; readonly populated: boolean } | { readonly ok: false; readonly reason: string };
+
 /** What the PURE actor-op applier returns (`substrate/actor-ops.ts`): the next row + the FINE lock paths its
  *  ops earned, or an errors-as-data refusal (an op naming an item/condition the actor does not carry). Homed
  *  here because a domain type has no home in the substrate that produces it (substrate-not-a-type-home). */

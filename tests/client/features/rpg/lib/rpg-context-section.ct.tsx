@@ -10,7 +10,7 @@
 
 import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import { expect, test } from "@playwright/experimental-ct-react";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
 import { RpgTakeoverFloorStory, RpgTakeoverNotifyStory, RpgTakeoverReferenceStory, RpgTakeoverStory } from "../_ct-stories";
 
@@ -255,6 +255,8 @@ function stubTakeover(
     readonly handDoorRefusal?: { readonly ok: false; readonly reason: string };
     /** RESYNC-OR — the resync's verdict (`ResyncResult`). Default: a rebuild that landed. */
     readonly resyncVerdict?: { readonly ok: true; readonly rebuilt: boolean } | { readonly ok: false; readonly reason: string };
+    /** POPLOUD — the born-state round's verdict (`PopulateResult`). Default: a fill that landed. */
+    readonly populateVerdict?: { readonly ok: true; readonly populated: boolean } | { readonly ok: false; readonly reason: string };
   } = {},
 ): ReturnType<typeof routeTrpc> {
   const readOnly = opts.readOnly ?? false;
@@ -276,7 +278,11 @@ function stubTakeover(
     "rpg.dismissActor": () => opts.handDoorRefusal ?? { ok: true },
     "rpg.promoteActor": () => opts.handDoorRefusal ?? { ok: true },
     "rpg.patchSheet": () => undefined,
-    "rpg.populateFromCharacter": () => undefined,
+    // POPLOUD — the born-state round answers with a `PopulateResult` VERDICT, never a bare `undefined`: like
+    // the resync it is a model call that can fail at the PROVIDER, and the client reads the verdict to tell
+    // "filled" from "the round never ran". A stub returning `undefined` would test a contract the server no
+    // longer has.
+    "rpg.populateFromCharacter": () => opts.populateVerdict ?? { ok: true, populated: true },
     "rpg.updateConfig": () => undefined,
     "rpg.upsertQuest": () => undefined,
     "rpg.deleteQuest": () => undefined,
@@ -1726,6 +1732,51 @@ test("Status takeover: a connection with no structured writer DISABLES the born-
   await expect(populate).toBeDisabled();
   await expect(populate).toHaveAttribute("title", NO_WRITER_REASON);
   await expect.poll(() => trpc.count("rpg.populateFromCharacter"), { intervals: [20, 50] }).toBe(0);
+});
+
+// POPLOUD — THE BORN-STATE DOOR IS LOUD. `populateFromCharacter` returned `void`, so a card round that never
+// RAN (the provider refused the structured request — live on the default hosted backend) was byte-identical to
+// a card that established nothing: the button settled, the panel didn't move, the host was told success. The
+// same silent fork RESYNC-OR closed on the sibling verb. These pin the two endings with no other observable;
+// the third (a real fill) announces itself by repainting the panel.
+
+/** Open the Status takeover's born-state control on the NOTIFY story (the `rpg-notified` sink) and fire it. */
+async function firePopulate(component: Locator): Promise<void> {
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("button", { name: "Open Mara" }).click();
+  await component.locator('[data-slot="rpg-populate-control"]').getByRole("button", { name: "Fill from card" }).click();
+}
+
+test("POPLOUD: a provider refusal is TOLD to the host, with the server's own reason (it used to vanish)", async ({ mount, page }) => {
+  const reason = "the model call failed, so nothing was filled: openrouter structured item 0 failed";
+  const trpc = await stubTakeover(page, { game: d20Game(), tracker: richTracker(), populateVerdict: { ok: false, reason } });
+  const component = await mount(<RpgTakeoverNotifyStory />);
+
+  await firePopulate(component);
+
+  await expect.poll(() => trpc.count("rpg.populateFromCharacter"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(component.getByTestId("rpg-notified")).toContainText(reason);
+});
+
+test("POPLOUD: a round that filled NOTHING says so — not silence, and not an error either", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page, { game: d20Game(), tracker: richTracker(), populateVerdict: { ok: true, populated: false } });
+  const component = await mount(<RpgTakeoverNotifyStory />);
+
+  await firePopulate(component);
+
+  await expect.poll(() => trpc.count("rpg.populateFromCharacter"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(component.getByTestId("rpg-notified")).toContainText("Nothing to fill");
+});
+
+test("POPLOUD: a fill that LANDED stays quiet — the repainted panel is the feedback", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page, { game: d20Game(), tracker: richTracker(), populateVerdict: { ok: true, populated: true } });
+  const component = await mount(<RpgTakeoverNotifyStory />);
+
+  await firePopulate(component);
+
+  await expect.poll(() => trpc.count("rpg.populateFromCharacter"), { intervals: [20, 50, 100] }).toBe(1);
+  await expect(component.locator('[data-slot="rpg-populate-control"]').getByRole("button", { name: "Fill from card" })).toBeEnabled(); // settled
+  await expect(component.getByTestId("rpg-notified")).toHaveText("");
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────

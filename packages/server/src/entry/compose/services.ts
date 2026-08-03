@@ -30,7 +30,7 @@ import { can, requireAdmin, requireOwner } from "#domain/admin";
 import type { AssetsService } from "#domain/assets";
 import type { AutomationService } from "#domain/automation";
 import type { DefaultCharacterSeeder } from "#domain/character";
-import type { ChatContext, DemoChatSeeder } from "#domain/chat";
+import type { ChatContext, ChatUserMacroDefs, DemoChatSeeder } from "#domain/chat";
 import { createDemoChatSeeder, createResolveViewerVisibility, loadSeededChatDressing } from "#domain/chat";
 import type { LocalEngineReachability } from "#domain/connection";
 import { createConnectionService } from "#domain/connection";
@@ -499,6 +499,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     resolveViewerVisibility: (chatId, userId) => resolveViewerVisibility(chatId, userId),
     resolveUserPresetParams,
     resolveChatPresetParams,
+    // IMGMAC — the imagery mode templates' user-macro plane, from BOTH authoring homes. Late-bound for the
+    // same reason `resolveViewerVisibility` is: chat and rpg both compose below, and this arrow is only
+    // called at request time. Handed UNMERGED — the shadow policy is chat's law (`buildTurnUserMacros`).
+    resolveUserMacroDefs: (chatId) => resolveChatUserMacroDefs(chatId),
     // ⑫ — the FOREIGN-inputs seam for the per-mode imagery prompt-template/caption overrides.
     loadUserSettings: settings.loadUserSettings,
     toolUse,
@@ -628,6 +632,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // the automation plugin fan-out's delivery gate, and the plugin membrane's canon read. There is exactly ONE
   // clamp home (chat's `resolveHistoryFloorSeq`, reached only through this op).
   const resolveViewerVisibility = createResolveViewerVisibility({ db });
+  // IMGMAC — the chat's authored user-macro DEFS from BOTH homes, for imagery's mode-template extraction (the
+  // late-bound thunk threaded into `buildImagery` above). Pure wiring: it reads the two existing front doors
+  // (chat's active-preset macro declaration + rpg's game macros) and hands them over UNMERGED, because the
+  // preset↔game shadow is chat's ruled policy and has exactly one home (`shadowPresetUserMacros`).
+  const resolveChatUserMacroDefs = async (chatId: ChatId): Promise<ChatUserMacroDefs> => {
+    const [preset, game] = await Promise.all([chatCompose.rpgChatOps.resolvePromptUserMacros(chatId), rpgOpsDelegate.resolveUserMacros(chatId)]);
+    return { preset, game };
+  };
 
   // ── world-info + the import ports + the bulk importers + the OWNER-principal resolver (the world-info seam).
   const worldInfoCompose = buildWorldInfo({

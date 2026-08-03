@@ -25,7 +25,7 @@ import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import type { AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
-import type { ResolveViewerVisibility } from "#domain/chat";
+import type { ChatUserMacroDefs, ResolveViewerVisibility } from "#domain/chat";
 import { createExtractQuiet } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import type { ImageryService, ImageryWarning } from "#domain/imagery";
@@ -59,6 +59,10 @@ export interface ImageryComposeDeps {
   readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
   /** The chat host's default-preset params (the side-gen ladder's middle rung — extract-quiet is chat-scoped). */
   readonly resolveChatPresetParams: (chatId: ChatId) => Promise<SideGenSampling>;
+  /** IMGMAC — late-bound (chat + rpg both compose after imagery): the chat's authored user-macro defs from
+   *  BOTH homes, so an imagery mode template resolves `{{house_style}}` the way a turn does. Deref'd only at
+   *  request time inside `extractQuiet`, exactly like `resolveViewerVisibility` below. */
+  readonly resolveUserMacroDefs: (chatId: ChatId) => Promise<ChatUserMacroDefs>;
   /** ⑫ — the caller's UserSettings read (the FOREIGN-inputs seam) for the per-mode prompt-template/caption
    *  overrides. Imagery resolves `override ?? shipped-catalog-default` off this. */
   readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
@@ -115,6 +119,9 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
         summarize: roleClients.summarize,
         getCard: ({ ownerId, characterId }) => character.getCard({ principal: imageryCardPrincipal(ownerId), characterId }),
         resolveChatPresetParams: deps.resolveChatPresetParams,
+        // IMGMAC — the user-macro plane the mode templates resolve against (late-bound: chat + rpg compose
+        // after imagery, and this is only ever deref'd at request time).
+        resolveUserMacroDefs: deps.resolveUserMacroDefs,
       });
       return async ({ caller, ...rest }) => {
         // MEMBERSHIP *AND* THE FLOOR — one op, one answer. The old gate was `loadPresentRole !== null`
