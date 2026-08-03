@@ -105,6 +105,7 @@ async function runPosture(
     speakers: [{ ref: { kind: "character", characterId: ARIA }, name: "Aria" }],
     groupCharacterId: null,
     castName: "Aria",
+    narratorMemberNames: [],
   });
   expect(outcome.aborted).toBe(false);
   expect(requests).toHaveLength(1);

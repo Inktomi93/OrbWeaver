@@ -112,7 +112,7 @@ function resolveAssistantAttribution(input: ResolveRowAttributionInput): RowAttr
     return NO_ATTRIBUTION;
   }
   const participant = input.participants?.get(input.characterId);
-  const tokens = participant?.themeOverride ?? colorForCharacter(input.characterId);
+  const tokens = characterTint(input.characterId, participant?.themeOverride, false);
   // The live participant wins (it can carry a per-chat avatar override); once removed it's absent, so the
   // portrait falls back to the character-level producer — never straight to the initials fallback.
   const avatarHash = participant?.avatarHash ?? input.characterAvatarsById?.get(input.characterId) ?? null;
@@ -154,23 +154,35 @@ export function resolveRoomTheme(participants: readonly ParticipantView[] | unde
   return override === null || override === undefined ? undefined : cardEmbeddableSubset(override);
 }
 
-/** For the merged-narrator `<speaker>`-split path: name -\> the character's authored themeOverride, through
- *  the SAME card-embeddable projection the room takeover runs. Only characters whose override carries at
- *  least one embeddable value are included (others fall through to the hash tint). */
+/** THE ONE per-character tint resolution — the authored `themeOverride` when it carries anything, else the
+ *  deterministic hash. The hash is ALWAYS seeded by the CHARACTER ID, never the display name: a name-seeded
+ *  hash forked one character into TWO colors (their own per-speaker row hashed the id, their span inside a
+ *  merged-narrator row hashed the name), which is exactly the "coloring is wrong" a reader sees. Both the
+ *  row-level attribution above and the narrator-span map below resolve through here, so that class of fork
+ *  cannot come back. `projected` runs the override through the CARD-EMBEDDABLE subset — true for a span
+ *  INSIDE a bubble (a card supplies look, never the viewer's ergonomics, TD §3), false for the row itself. */
+function characterTint(characterId: CharacterId, override: ThemeScopeTokens | null | undefined, projected: boolean): ThemeScopeTokens {
+  if (override === null || override === undefined) {
+    return colorForCharacter(characterId);
+  }
+  const carried = projected ? cardEmbeddableSubset(override) : override;
+  return Object.keys(carried).length > 0 ? carried : colorForCharacter(characterId);
+}
+
+/** For the merged-narrator speaker-split path: display NAME -\> that character's tint, resolved through the
+ *  ONE {@link characterTint} home. EVERY seated character is included (an override-less member resolves to
+ *  its id-seeded hash) — the map is therefore also the room's PRESENT CAST-NAME set, which is what the
+ *  plain-`Name:` half of the span parse keys on. */
 export function speakerThemesByName(participants: ReadonlyMap<CharacterId, ParticipantView> | undefined): ReadonlyMap<string, ThemeScopeTokens> {
   const byName = new Map<string, ThemeScopeTokens>();
   if (participants === undefined) {
     return byName;
   }
   for (const participant of participants.values()) {
-    const override = participant.themeOverride;
-    if (participant.kind !== "character" || override === null || override === undefined) {
+    if (participant.kind !== "character" || participant.characterId === null) {
       continue;
     }
-    const carried = cardEmbeddableSubset(override);
-    if (Object.keys(carried).length > 0) {
-      byName.set(participant.displayName, carried);
-    }
+    byName.set(participant.displayName, characterTint(participant.characterId, participant.themeOverride, true));
   }
   return byName;
 }

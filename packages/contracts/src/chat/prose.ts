@@ -165,15 +165,60 @@ export const CHAT_PROSE_SLOTS = {
   "chat.group.roundNudge": {
     id: "chat.group.roundNudge",
     home: "user",
-    version: 1,
+    version: 2,
     // The per-speaker fence on a MULTI-speaker round — the one line that stops the model voicing the whole
     // cast in one reply. Delivered as the round's trailing user row.
-    text: "[Write the next reply only as {{name}}.]",
+    // v2 spells out the two failure modes the RECEIVE side otherwise has to clean up after
+    // (`cleanPerSpeakerReply`): the echoed `Name:` self-label, and drifting on into another character's
+    // lines. Saying them here is cheaper than repairing them, and a small local model needs them said.
+    text:
+      "[Write the next reply only as {{name}}. Stay in {{name}}'s voice — their dialogue, actions and " +
+      "thoughts only. Do not write lines for the other characters or for the user, and do not open the " +
+      "reply with a name label.]",
     macros: "none",
     requiredMacros: ["{{name}}"],
     requiredTokens: [],
     title: "Group round speaker nudge",
     fires: "Every speaker of a MULTI-speaker group round (a solo/one-speaker round sends no nudge).",
+  },
+  "chat.group.narratorNudge": {
+    id: "chat.group.narratorNudge",
+    home: "user",
+    version: 1,
+    // The NARRATOR twin of `roundNudge`. A narrator round is ONE generation voicing the whole cast, so the
+    // per-speaker fence would be exactly wrong here — this line names the cast instead. Delivered as the
+    // round's trailing user row, joined with the speaker-tag instruction below when both toggles are on.
+    text:
+      "[Continue the scene, voicing the present characters ({{names}}) as the moment calls for. This is ONE " +
+      "reply covering the whole scene — voice as many or as few of them as it needs, in any order, with " +
+      "narration in between. Never write lines or actions for the user.]",
+    macros: "none",
+    requiredMacros: ["{{names}}"],
+    requiredTokens: [],
+    title: "Narrator round nudge",
+    fires: "Every MULTI-member narrator round with the group nudge on (a cast-of-one round sends no nudge).",
+  },
+  "chat.group.speakerTags": {
+    id: "chat.group.speakerTags",
+    home: "user",
+    version: 1,
+    // The PRODUCE half of per-speaker color in a merged bubble: the renderer splits a narrator body on
+    // `<speaker>NAME</speaker>` markers and tints each span with that character's theme, so the markers
+    // have to be ASKED FOR. The `<speaker>`/`</speaker>` literals are the renderer's parse contract, hence
+    // requiredTokens — an override that drops them silently costs the room its per-speaker coloring
+    // (the display side still tolerates the plain `Name:` form models emit unprompted; this slot is what
+    // makes the exact, unambiguous form available). Host-facing name for the toggle: "Label each speaker".
+    text:
+      "[Wrap each character's spoken lines and actions in <speaker>Name</speaker> tags: put the character's " +
+      "exact name between the tags, then what they say and do. Open a new tag every time the speaker " +
+      "changes. Use the name exactly as it is spelled in the cast — never a nickname, a pronoun or a title. " +
+      "Leave narration, scene description and anything not attributable to one character OUTSIDE the tags. " +
+      "Never write lines for the user.]",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: ["<speaker>", "</speaker>"],
+    title: "Narrator speaker-tag instruction",
+    fires: 'Every MULTI-member narrator round with "Label each speaker" on (`GroupConfig.speakerTags`, on by default in narrator mode).',
   },
   "chat.injection.systemNote": {
     id: "chat.injection.systemNote",

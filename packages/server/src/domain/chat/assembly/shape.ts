@@ -8,6 +8,7 @@ import type { RoleHandling } from "@orb/contracts/connection";
 import type { NamesBehavior } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { CharacterId, MessageId, PersonaId } from "@orb/kit/ids";
+import { speakerTagsToPlain } from "@orb/kit/speaker-label";
 import type { HistoryMacroNames } from "../contract/results";
 import { spliceInChatInjections } from "./injections";
 import { renderHistoryMacros } from "./macros";
@@ -282,7 +283,12 @@ export function toShapeCanon(canon: readonly MessageView[], ctx: AssembleContext
       const authorName = m.characterId !== null ? (nameById.get(m.characterId) ?? null) : null;
       rows.push({
         role: "assistant",
-        content: renderHistoryMacros(m.content, stamps, ctx, {
+        // A narrator row's inline `<speaker>NAME</speaker>` markers are kept in STORED canon (the renderer
+        // colors by them) but must not ride into the prompt as raw XML: it wastes tokens AND trains the
+        // model to parrot the syntax. They convert to the plain `NAME: ` attribution the transcript already
+        // speaks — the SAME form the name-stamp uses. A body with no markers (every per-speaker / solo row)
+        // is returned unchanged, so this is a byte-identical no-op everywhere else.
+        content: renderHistoryMacros(speakerTagsToPlain(m.content), stamps, ctx, {
           producer: macroNames,
           speakerCharName: authorName ?? undefined,
         }),

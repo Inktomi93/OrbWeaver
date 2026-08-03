@@ -21,6 +21,10 @@ const SPEAKER_TAG_PAIR = /<\s*speaker\b[^>]*>([^<>]{0,200})<\s*\/\s*speaker\s*>\
  *  per-call regex isn't recompiled (and so it satisfies the no-regex-in-function gate). */
 const START_SENTINEL = /^\s*<START>/i;
 
+/** A markdown code fence. Counted (not parsed) so a label INSIDE a fenced block can't split a span and
+ *  tear the block in half — an odd count before a position means that position is inside a fence. */
+const CODE_FENCE = "```";
+
 export interface SpeakerSpan {
   /** `null` = no attributed speaker for this span (narrator / plain text). */
   readonly speaker: string | null;
@@ -37,12 +41,29 @@ export interface SpeakerSpan {
  *  Torn/mid-stream tags are already held back UPSTREAM by the streaming lane's `holdTornSpeaker`
  *  (`#fix-markdown`, the streaming-ghost path only) before content ever settles into canon — so by the
  *  time a body reaches this parser it is assumed well-formed; a stray unterminated tag (one that never
- *  got a matching close) is simply left as plain, un-matched text (no crash, no data loss). */
-export function parseSpeakerSpans(content: string): readonly SpeakerSpan[] {
+ *  got a matching close) is simply left as plain, un-matched text (no crash, no data loss).
+ *
+ *  THE SECOND MARKER ALPHABET (`castNames`, the TOLERANCE + RETROACTIVE layer). The `<speaker>` wire
+ *  format is INSTRUCTED (the narrator round's `chat.group.speakerTags` prose slot), and an instruction is
+ *  not a guarantee: this module's own header records what models actually emit — a plain `Name:`, a
+ *  markdown-wrapped `**Name:**`, sometimes doubled — and every narrator row committed BEFORE the
+ *  instruction existed carries the plain form only. So when the caller passes the room's PRESENT cast
+ *  names, a tagless body ALSO splits on a line-start `Name:` label for an EXACT cast name. The grammar is
+ *  deliberately timid — fail plain, never wrong (`ui/markdown/dialogue.ts`'s posture):
+ *    · the name must match a passed cast name EXACTLY (longest-first, so `Anna Lee` wins over `Anna`);
+ *    · the label must start a LINE (a mid-sentence "…told Bob: run" never splits);
+ *    · markdown emphasis around the name and/or the colon is tolerated (`**Bob:**`, `*Bob*:`);
+ *    · a label inside a fenced code block is skipped — splitting there would tear the block in half;
+ *    · the label TEXT STAYS in its span. It is real prose the reader already sees (unlike a `<speaker>`
+ *      tag, which is invisible markup and IS consumed) — deleting it would drop the only non-color
+ *      attribution a low-vision reader has, and would make the body change at stream-settle.
+ *  A body with no tags and no matched label yields the byte-identical single `{speaker: null}` span. */
+export function parseSpeakerSpans(content: string, castNames: readonly string[] = []): readonly SpeakerSpan[] {
   const matches = [...content.matchAll(SPEAKER_TAG_PAIR)];
   if (matches.length === 0) {
-    // The byte-identical no-op: `text` is `content`, untouched.
-    return [{ speaker: null, text: content }];
+    // No markers: the PLAIN-label grammar gets its turn (empty `castNames` ⇒ the byte-identical no-op,
+    // `text` === `content`, untouched).
+    return splitOnPlainLabels(content, castNames);
   }
 
   const spans: SpeakerSpan[] = [];
@@ -61,6 +82,57 @@ export function parseSpeakerSpans(content: string): readonly SpeakerSpan[] {
       text: content.slice(textStart, nextMatchIndex),
     });
     cursor = nextMatchIndex;
+  }
+  return spans;
+}
+
+/** The line-start plain-label matcher for an EXACT cast name, or null when there is nothing to match.
+ *  Names are deduped, blank-dropped and sorted LONGEST-FIRST so an alternation can't let `Anna` shadow
+ *  `Anna Lee`. Built per call (the name set is per-room) — the `leadingLabelRe` precedent. */
+function plainLabelRe(castNames: readonly string[]): RegExp | null {
+  const names = [...new Set(castNames.map((n) => n.trim()).filter((n) => n.length > 0))].sort((a, b) => b.length - a.length).map(escapeRegExp);
+  if (names.length === 0) {
+    return null;
+  }
+  // `(?:^|\n)` — a LINE start only (no `m` flag: `^` then means position 0, which is what we want).
+  return new RegExp(`(?:^|\\n)[ \\t]*(?:\\*\\*|\\*|__|_)?(${names.join("|")})(?:\\*\\*|\\*|__|_)?[ \\t]*:`, "g");
+}
+
+// True when `index` sits inside a fenced code block — an ODD number of ``` fences opened before it.
+function insideCodeFence(text: string, index: number): boolean {
+  let fences = 0;
+  let at = text.indexOf(CODE_FENCE);
+  while (at >= 0 && at < index) {
+    fences += 1;
+    at = text.indexOf(CODE_FENCE, at + CODE_FENCE.length);
+  }
+  return fences % 2 === 1;
+}
+
+/** Split a TAGLESS body on plain `Name:` labels (the grammar is documented on {@link parseSpeakerSpans}).
+ *  No cast names / no match ⇒ the byte-identical single `{speaker: null, text: content}` span. */
+function splitOnPlainLabels(content: string, castNames: readonly string[]): readonly SpeakerSpan[] {
+  const re = plainLabelRe(castNames);
+  const cuts: { readonly at: number; readonly speaker: string }[] = [];
+  for (const match of re === null ? [] : content.matchAll(re)) {
+    // The match starts ON the newline (or at 0); the span begins at the LINE, so the separator stays
+    // with the preceding span and the label itself opens this one.
+    const at = content[match.index] === "\n" ? match.index + 1 : match.index;
+    const speaker = match[1];
+    if (speaker !== undefined && !insideCodeFence(content, at)) {
+      cuts.push({ at, speaker });
+    }
+  }
+  const [first] = cuts;
+  if (first === undefined) {
+    return [{ speaker: null, text: content }];
+  }
+  const spans: SpeakerSpan[] = [];
+  if (first.at > 0) {
+    spans.push({ speaker: null, text: content.slice(0, first.at) });
+  }
+  for (const [i, cut] of cuts.entries()) {
+    spans.push({ speaker: cut.speaker, text: content.slice(cut.at, cuts[i + 1]?.at ?? content.length) });
   }
   return spans;
 }

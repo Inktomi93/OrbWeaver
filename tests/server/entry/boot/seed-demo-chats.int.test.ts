@@ -17,7 +17,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { DEMO_CHAT_PACK_VERSION, DEMO_CHATS } from "@orb/server/domain/chat";
+import { DEMO_CHAT_NARRATOR_NAME, DEMO_CHAT_PACK_VERSION, DEMO_CHATS } from "@orb/server/domain/chat";
 import { seedDefaultCharacters, seedDefaultPersona } from "@orb/server/entry/boot";
 import { describe } from "vitest";
 import { seedUser } from "../../../support/factories/user";
@@ -113,6 +113,45 @@ describe("the EXAMPLE pack reseeds whole, from bytes, with no model", () => {
     // a regeneration on a persona-less stack would put "You" back here, in the header AND on every user row.
     expect(identities.map((i) => `${i.slug}:${String(i.header)}`)).toEqual(DEMO_CHATS.map((d) => `${d.slug}:Traveler`));
     expect(identities.map((i) => `${i.slug}:${i.rows.join("|")}`)).toEqual(DEMO_CHATS.map((d) => `${d.slug}:Traveler`));
+  });
+
+  // ── The shipped NARRATOR transcript actually attributes its speakers (§12.4) ──────────────────────
+  // Second Opinion is the pack's `output:"narrator"` example, and it was generated BEFORE the narrator
+  // turn ever asked for `<speaker>` markers — so its bytes carry the plain `JFC:` / `Charlotte:` labels a
+  // model emits unprompted, and zero markers. That is precisely why the display grammar tolerates the plain
+  // form: without it these shipped rows render as one flat uncolored block forever (no prompt change can
+  // reach bytes that already exist). This runs the REAL renderer parse over the REAL fixture.
+  test("the shipped NARRATOR example resolves per-speaker spans from its own bytes", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const { fileURLToPath } = await import("node:url");
+    const { parseSpeakerSpans } = await import("@orb/kit/speaker-label");
+    const dir = fileURLToPath(new URL("../../../../packages/server/src/entry/boot/seed-assets/demo-chats/", import.meta.url));
+
+    const rows = (await readFile(`${dir}second-opinion.jsonl`, "utf8"))
+      .split("\n")
+      .filter((l) => l.trim() !== "")
+      .map((l) => JSON.parse(l) as Record<string, unknown>);
+    // The room's cast = every non-user, non-narrator author in the transcript (the same names the client's
+    // roster-derived cast-name set carries).
+    const cast = [...new Set(rows.filter((m) => m["is_user"] === false && m["name"] !== DEMO_CHAT_NARRATOR_NAME).map((m) => String(m["name"] ?? "")))].filter(
+      (n) => n.length > 0,
+    );
+    expect(cast).toEqual(["Charlotte", "JFC"]);
+
+    const narratorBodies = rows.filter((m) => m["name"] === DEMO_CHAT_NARRATOR_NAME).map((m) => String(m["mes"] ?? ""));
+    expect(narratorBodies.length).toBeGreaterThan(0);
+    // No markers anywhere — the produce half did not exist when these were generated.
+    expect(narratorBodies.some((b) => b.includes("<speaker"))).toBe(false);
+
+    const attributed = narratorBodies.flatMap((body) =>
+      parseSpeakerSpans(body, cast)
+        .filter((span) => span.speaker !== null)
+        .map((span) => span.speaker),
+    );
+    // Both experts are attributed somewhere in the shipped narration — so both get their own tint.
+    expect([...new Set(attributed)].sort()).toEqual(["Charlotte", "JFC"]);
+    // And the SAME bytes with no cast names stay one flat span (the grammar is roster-anchored, not greedy).
+    expect(narratorBodies.every((body) => parseSpeakerSpans(body).length === 1)).toBe(true);
   });
 
   test("no BLANK row lands inside a seeded conversation (the transcript's exported state-anchor slots)", async ({ db, app, services }) => {
