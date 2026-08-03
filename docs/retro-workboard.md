@@ -56,7 +56,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 ## ═══ STATE (2026-08-03, at the audit) ═══
 
 - **main @ HEAD**, tree clean, **121+ commits past origin `865405d6`** (the 199-commit era was
-  pushed 08-03 on the owner word). Gates: **180 registered**. I-5 CLOSED (brand ratchet retired). D-ledger:
+  pushed 08-03 on the owner word). Gates: **183 registered** (the React-modernization trio landed with the MEMOBAN merge). I-5 CLOSED (brand ratchet retired). D-ledger:
   through **D126**, next free **D127**.
 - ✅ **PUSH-READY — VERIFIED, AWAITING THE OWNER'S WORD.** `pnpm verify --push` on `48b40f8d`:
   **exitCode 0, 0 of 17 stages failed** — 9,920 vitest passed / 0 failed, **CT 2,384 passed / 0 failed /
@@ -974,3 +974,36 @@ that declares a list. That REMOVES two exceptions instead of minting a third, an
 `mobile.html` was drawing. Lane MOBILE queued: resolvePanelMode (shell-store.ts:372) + the
 push-detail seam + per-section CTs at the mobile frame (config · databank · chats · characters
 · corpus regression) + the mock frame re-compared.
+
+**▶ MEMOBAN SESSION — MERGED (08-03, `wt/memo-ban-investigation`; worktree KEPT on owner's word).**
+Merged by the orchestrator on the owner's say-so; consolidated `pnpm check` on the merged tree **14/14**,
+full `pnpm test` battery running (static cannot see the CT class this work exists to expose).
+Gate count is now **183** — correct the STATE block's 180 when the battery lands.
+Four waves + audits, all hook-green: useContext→use() ×10 · web-api + YMNNAE eslint families
+(3 rejected rules carry the 25/25-LEGIT-SEAM triage receipt in the config header) · 52-site
+manual-memo burn-down (3 exemptions: the 2 denylist-skipped seals + fuzzy-search value-keying;
+exposed + FIXED the autosave takeDiscard save-loop — CT caught it BECAUSE CT is uncompiled) ·
+the React-modernization gate trio no-manual-memo/no-use-context/no-legacy-react-api (180→183,
+§4a stale arms, the compiler-denylist tripwire at the REAL pnpm path) · installed-surface audits
+(tsconfig/vite/vitest/depcruise/stryker) that killed two dead Vitest-4 keys, closed the
+root-configs-in-no-program hole (+ selection.ts routing), landed detectProcessBuiltinModuleCalls,
+and put gate TOOL ERRORS into check-structure.json + check:show.
+
+**D127 DRAFT — for the owner to mint (or strike):** THE COMPILER OWNS MEMOIZATION + THE UNCOMPILED
+CT LANE. (a) Manual useMemo/useCallback/React.memo is BANNED from the react import (gate
+no-manual-memo); exemptions are typed rows with end conditions — the two compiler-denylist seals
+(message-list, media-grid; the gate's tripwire reds when @tanstack/react-virtual is delisted) and
+fuzzy-search's value-keyed deps. (b) CT runs NO compiler pass BY RULING — correctness must hold
+without the compiler; a CT red the compiler would mask is a REAL DEFECT (the takeDiscard loop is
+the founding receipt). DECLARED LIMIT: compiler-only defects (bail-out behavior shifts, altered
+effect timing) are caught only by e2e/dev-stack; remedy if it ever bites = a targeted compiled-CT
+project ALONGSIDE, never a swap.
+
+**BOARDED (new, each own-lane):** (1) pass.ts `@orb-gate-ignore` requires NO reason — the house
+marker is one-sided for all 183 gates; tighten hasGateIgnore + sweep the tree (Wave-3 receipt:
+six-case probe case 4 fails by §4.3's letter). (2) CT-on-our-vite spike: pnpm override
+`@playwright/experimental-ct-core>vite: ^8.1.2` + CT battery; green = one vite + ct-config joins
+the type program; red = revert (also rehearses the ct-react-culled contingency — vitest browser
+mode is OFF the table, owner: chromium bug). (3) tsx-shedding migration (quiet window): biome
+useImportExtensions --write (fixes to .ts + index expansion, probe-verified) → node runs server →
+nodenext on the node-side programs; ui/client stay bundler (vite is their resolver — settled).
