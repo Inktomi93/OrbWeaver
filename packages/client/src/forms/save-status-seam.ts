@@ -11,7 +11,7 @@
 // inline status for one paint. `false` by default: a section mounted with no host (a pane not yet migrated,
 // a CT story) renders its own inline status in every state, exactly as before the seam existed.
 
-import { createContext, useContext, useEffect } from "react";
+import { createContext, use, useEffect } from "react";
 import type { SaveLifecycleState } from "#state";
 import { clearSectionSaveStatus, reportSectionSaveStatus } from "#state";
 
@@ -19,7 +19,7 @@ export const SaveStatusHostContext = createContext<boolean>(false);
 
 /** Is an aggregate save-status host mounted above this section? */
 export function useSaveStatusHosted(): boolean {
-  return useContext(SaveStatusHostContext);
+  return use(SaveStatusHostContext);
 }
 
 /** Report one settings section's save lifecycle to the aggregate host. Reporting is an EFFECT (a store

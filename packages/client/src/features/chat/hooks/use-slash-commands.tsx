@@ -13,7 +13,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import type { ReactNode } from "react";
-import { useContext, useMemo, useRef } from "react";
+import { use, useMemo, useRef } from "react";
 import type { SlashCommandContext, SlashCommandContribution, SlashCommandRunner } from "#lib";
 import { SlashCommandRegistryContext } from "#state";
 import { commandNotReadyNotice, parseSlashDraft, unknownCommandNotice } from "../lib/slash-command";
@@ -32,7 +32,7 @@ export function useSlashCommands(chatId: ChatId | null): {
   readonly dispatch: (value: string) => SlashDispatch;
   readonly run: (id: string) => void;
 } {
-  const registry = useContext(SlashCommandRegistryContext);
+  const registry = use(SlashCommandRegistryContext);
   const commands = useMemo(() => registry?.list() ?? [], [registry]);
   const context = useMemo<SlashCommandContext>(() => ({ chatId }), [chatId]);
   const runnersRef = useRef<Map<string, SlashCommandRunner>>(new Map());
