@@ -59,7 +59,46 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   SERVER-VERIFIED via `git ls-remote`, not the console summary). Gates **183**. D-ledger through
   **D126**; **D127 DRAFTED, UNMINTED** (compiler-owns-memoization + uncompiled-CT; text in the MEMOBAN
   block below). **NO LANES LIVE, no second session.**
-- **LANE ROSTER — TWO LIVE** (relaunched after the guard fix; all dead-lane worktrees cleared):
+- ✅ **NODE-26 W1 + W2 BOTH MERGED, consolidated `pnpm check` 14/14 on the merged tree, worktrees torn
+  down.** W1 `7b283c874` (§1 — `esnext.disposable` across all four programs, `platform.d.ts` proven in
+  **all 8** TS programs by `--listFilesOnly`, `engines` in the six packages). W2 `725f0ba85` (§2 —
+  undici 8, the dispatcher tripwire). **Each lane's real value was a defect it found on the way:**
+  - **W1: `.npmrc engine-strict=true` is INERT on pnpm 11** — four probe arms with a control; pnpm 10.6+
+    moved settings into `pnpm-workspace.yaml` (`engineStrict: true`). The wave whose whole point is
+    "the floor is declarative-only, make it bite" would have shipped a SECOND no-op. Doc truth-repaired.
+  - **W1: `scripts/verify/selection.ts` routed root ambient `.d.ts` to the GRAPH program only** — so
+    `types:packages` was SKIPPED entirely on an ambient edit, and the graph carries `@types/node`, which
+    independently declares `Disposable`/`getOrInsert`/`isError`. Measured: the probe showed **1** error
+    under the graph vs **6** per-package. A graph-only route masks 5 of 6. Both root ambient files now
+    route everywhere (`ROOT_AMBIENT_DTS`) — **this changes `reset.d.ts`'s behavior too, deliberately.**
+    Neither `tsconfig-routing-parity` (filters `.d.ts` out) nor `tests-type-membership` (enumerates
+    `tests/**` only) can catch this class.
+  - **W2: undici 8 MOVED the global slot** `Symbol.for("undici.globalDispatcher.1")` → `.2`, and node's
+    bundled 8.7 still populates `.1` as a legacy alias **nothing reads**. Both egress int suites
+    hardcoded `.1` for teardown, so the bump turned their restore into a **no-op leaking the installed
+    firewall into every later test in the worker** — probe-proven (`getGlobalDispatcher() === firewall`
+    after "restore"). Fixed at landing via the public `get/setGlobalDispatcher`.
+  - **W2 RED proof, the strongest receipt of the night:** it broke the contract the way real skew would
+    (flipped the npm copy's slot in `node_modules`), and the two suites failed **differently** —
+    tripwire names the dispatcher contract, `egress.int` says `expected 'TypeError: fetch failed' to
+    contain 'SSRF_BLOCKED'` while *actually dialing private addresses*. That contrast IS the tripwire's
+    justification (isolating CONTRACT from POLICY), and it replaced the doc's overstated
+    "nothing tests this". Also: `^8.10.0` was refused by `minimumReleaseAge: 1440` — pinned `^8.9.0`
+    rather than weakening the control; the caret floats when it matures.
+- ⚠️ **`biome.json` WAS UNPARSEABLE FOR ~9 HOURS — fixed `8a76894a5`.** Comments between array elements
+  in `files.includes` (added by tsx-shedding stage 2, `896e3d221`) are a hard parse error: **biome.json
+  is strict JSON here, not JSONC.** Biome does not fail loudly — it falls back to **built-in defaults**
+  (tabs, 80 cols, every rule on, `node_modules` walked): **73,518 files / 16,835 errors**, healthy is
+  **4,564**. **Both lanes independently misdiagnosed it as "biome is broken in git worktrees"** — that
+  nested-root error is real but only fires while a worktree exists, and this fired on a clean tree.
+  **It had been hiding 14 real diagnostics**, every one in code touched during the blind window: a
+  trailing comma making `tsconfig.json` unparseable, an import after a statement in `pdf.ts`,
+  method-style signatures in `platform.d.ts`, a bare `process` global in the new dispatcher test.
+  **Probe for next time:** `npx biome check <one-known-clean-file>` — clean config prints `Checked 1
+  file`, broken config prints a `parse` diagnostic naming `biome.json`. Two seconds.
+  **STANDING CONSEQUENCE:** a whole-tree biome run CANNOT pass while any lane worktree exists
+  (nested-root). That inverts the merge law for this stage alone — **teardown before the biome check**.
+- **LANE ROSTER — EMPTY** (both merged and torn down). Historical dispatch record:
   **W2-UNDICI** (security-executor) — node-26 program §2: bump catalog undici 7.28 → ^8.10, mint
   `tests/server/infra/network/dispatcher-contract.int.test.ts` as the cross-copy tripwire. Owns the
   undici catalog entry, `pnpm-lock.yaml`, root `package.json` devDependencies, `egress.ts` if forced.
