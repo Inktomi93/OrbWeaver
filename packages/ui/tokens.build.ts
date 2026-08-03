@@ -30,7 +30,10 @@ const THEME_CSS = join(HERE, "src/styles/theme.css");
 const TOKENS_TS = join(HERE, "src/tokens/index.ts");
 const THEMES_TS = join(HERE, "src/tokens/themes.gen.ts");
 /** The specifier index.ts re-exports the value-sets from (extension-less — the package's TS resolution). */
-const THEMES_MODULE = "./themes.gen";
+// Extension-ful: node's type-stripping does no extensionless resolution, and `nodenext` makes the
+// bare form a compile error (tsx-shedding stages 1/4). The GENERATOR owns this string, so a regen
+// must keep it — that is why it is fixed here and not only in the emitted file.
+const THEMES_MODULE = "./themes.gen.ts";
 
 // The exact token-path coverage every seed value-set must carry: each EMITTED `--color-*` (the
 // themeable surface, from clamp.ts) plus color.scrim (SEED_COVERED). A value-set with a missing or

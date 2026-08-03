@@ -173,4 +173,4 @@ export function cssVar(path: TokenPath): string {
 }
 
 /** The seed [data-theme] value-sets — their own generated module (see tokens.build.ts), re-exported here so `@orb/ui/tokens` stays the ONE import for every token surface. */
-export { SEED_THEME_VALUE_SETS } from "./themes.gen";
+export { SEED_THEME_VALUE_SETS } from "./themes.gen.ts";

@@ -9,7 +9,15 @@
 // ExtractionFailedError. Empty text is truthful (a scanned image-only pdf has no text layer; no OCR, 04 §1).
 
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
-import type { PDFDocumentProxy, TextItem, TextMarkedContent } from "pdfjs-dist/types/src/display/api";
+import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
+
+// DERIVED from the public surface, not reached in through `pdfjs-dist/types/src/display/api` (a private
+// subpath the package's own exports map does not publish — legal under `bundler`, a hard resolution error
+// under `nodenext`, tsx-shedding stage 4). `getTextContent().items` IS the union we care about, so taking
+// it from the return type keeps us honest to the version actually installed.
+type TextContentItem = Awaited<ReturnType<PDFPageProxy["getTextContent"]>>["items"][number];
+type TextItem = Extract<TextContentItem, { readonly str: string }>;
+type TextMarkedContent = Exclude<TextContentItem, TextItem>;
 import type { RawExtraction } from "../loader.ts";
 
 const PAGE_SEPARATOR = "\n\n";
