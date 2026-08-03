@@ -20,13 +20,12 @@ import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { AutosaveStatus } from "#forms";
-import { useFocusOnMount } from "#lib";
+import { regexScriptTitle, useFocusOnMount } from "#lib";
 import { clearCollectionSelection } from "#state";
 import { RegexEditorFields } from "../components/regex-editor-fields";
 import { useRemoveRegexScript, useUpdateRegexScript } from "../hooks/use-regex-library";
 import { RegexScriptForm } from "../hooks/use-regex-script-form";
 import { withDerivedTierFlags } from "../lib/derive-tier-flags";
-import { regexScriptTitle } from "../lib/regex-model";
 
 /** Strip a row down to the authored fields the editor binds (id is identity, not content). */
 function toFormValues(row: RegexScriptRow): CreateRegexScriptInput {

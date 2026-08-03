@@ -10,6 +10,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { RegexContextBody } from "../../../../packages/client/src/features/regex/components/regex-context-body";
 import { RegexMemberSurface } from "../../../../packages/client/src/features/regex/surfaces/regex-member-surface";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 
@@ -23,6 +24,21 @@ export function RegexMemberStory({ memberId = "regex_script_stripooc" }: { reado
       <div style={{ height: 700, overflow: "auto", width: 720 }}>
         <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
           <RegexMemberSurface memberId={memberId} />
+        </QueryBoundary>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The collection's CONTEXT arm — "Where it runs" for the selected script: the global switch and, once the
+ *  global tier holds more than one script, its RUN ORDER. Narrow on purpose (320px): this pane is the
+ *  config rail's context column, and a reorder affordance that only fits at story width is not shipped. */
+export function RegexContextStory({ memberId = "regex_script_000000000000000a" }: { readonly memberId?: string }): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 320 }}>
+        <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
+          <RegexContextBody memberId={memberId} />
         </QueryBoundary>
       </div>
     </CtDataProviders>

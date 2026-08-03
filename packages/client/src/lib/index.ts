@@ -75,7 +75,7 @@ export { bindNotify, notify } from "./notify";
 export { perfMark, perfMeasure } from "./perf-marks";
 export { isProbeMode } from "./probe-mode";
 export { withUserMacros } from "./prompt-macros";
-export { REGEX_PLACEMENT_ITEMS, REGEX_PLACEMENT_LABELS, regexPlacementStep, regexScriptScent } from "./regex-placement-labels";
+export { REGEX_PLACEMENT_ITEMS, REGEX_PLACEMENT_LABELS, regexPlacementStep, regexScriptScent, regexScriptTitle } from "./regex-placement-labels";
 export type { ContributorRegistry, Registry } from "./registry";
 export { createContributorRegistry, createRegistry } from "./registry";
 export * from "./registry-contracts";
