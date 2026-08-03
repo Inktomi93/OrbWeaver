@@ -14,6 +14,12 @@
 // per-speaker×merged, per-speaker×scoped, and narrator — so the pack demonstrates the axis rather than one
 // point on it.
 //
+// WHICH example wears WHICH grammar changed at v3 (owner ruling, 2026-08-03): "one game needs to legitimately
+// be an actual rpg turn by turn with multiple characters NOT in narrator mode." The rpg flagship is the one
+// example that has to be a REAL session — separate seats acting on their own turns while the board moves — so
+// the Ashen Spire took `per-speaker`, and the NARRATOR grammar moved to Second Opinion (a chaired two-expert
+// round-table is exactly a merged-voice scene). All three grammars still ship; only their hosts swapped.
+//
 // THE CURATED ROOM BACKGROUNDS (v2). A SOLO example needs none: its one card's `backgroundOverride` paints
 // through the BG-C card arm. A GROUP example has two or three cards and therefore no non-arbitrary card to
 // pick from, so the card arm stays true-solo-only by ruling and the room paints only what its HOST chose —
@@ -38,8 +44,17 @@ export const DEMO_CHAT_TITLE_PREFIX = "Example — ";
  *  v2 (2026-08-03): the three group examples gained a curated room background (the BG-C takeover reaches a
  *  single-human GROUP room as of the same day's widening — before it, a group example could paint nothing at
  *  all and read as "no character background"), every example seats the receiving user's own persona, and the
- *  flagship carries a real authored game state instead of a born-empty panel. */
-export const DEMO_CHAT_PACK_VERSION = 2;
+ *  flagship carries a real authored game state instead of a born-empty panel.
+ *
+ *  v3 (2026-08-03): ALL SIX TRANSCRIPTS RE-GENERATED on a persona'd stack. The shipped set was produced before
+ *  the Traveler persona existed, so every user row and the export header read `"You"` — the exact no-persona
+ *  display fallback the Traveler rename was minted to kill — and the model, shown that identity, wrote it into
+ *  the prose as a vocative ("You don't volunteer your weaknesses in a lie, You"). That is baked into transcript
+ *  BYTES, so the owner's own re-generate-never-edit law is the only fix (stickler 2026-08-03 §Q1, FORK Q1-A★).
+ *  Riding with it: the grammar swap above (rpg flagship → per-speaker, narrator → Second Opinion) and the
+ *  flagship's authored board, which is no longer hand-written but CAPTURED from the real session the new
+ *  transcript is the prose of. */
+export const DEMO_CHAT_PACK_VERSION = 3;
 
 /** A bundled seeded-plate background source. Built through the CONTRACT schema (which defaults the six
  *  non-seeded fields), never a hand-spelled seven-key literal. */
@@ -47,22 +62,26 @@ function seededBackground(seededId: string): ThemeBackground {
   return themeBackgroundSchema.parse({ kind: "seeded", seededId });
 }
 
-/** THE FLAGSHIP'S AUTHORED GAME STATE — the Ashen Spire's board as it stands at the transcript's last beat.
+/** THE FLAGSHIP'S BOARD — the Ashen Spire's game state as the session ACTUALLY ENDED, captured off the live
+ *  game the shipped transcript is the prose of (`rpg.getTrackerView` + `rpg.listJournal`, translated back into
+ *  the hand-door op vocabulary that writes it).
  *
- *  WHY IT IS HAND-AUTHORED. The transcript is a real playthrough, but its game state was never extracted
- *  (the examples are seeded from an EXPORT, and an export carries the prose, not the snapshot), so the
- *  flagship's panel opened empty — a showcase of a system with nothing in it. Every line below is written
- *  through a REAL hand door (`updateConfig` · `patchSheet` · `patchActor` · `upsertQuest` ·
- *  `addJournalEntry` · `editSnapshot`), which is precisely the workflow of a host who plays a session and
- *  then tidies the board afterwards — owner-sanctioned, and the only arm that does not require re-running a
- *  paid multi-model conversation to change a number.
+ *  WHY IT IS DATA AND NOT A REPLAY OF THE SESSION. An export carries prose, not snapshots, so a seeded example
+ *  cannot recover its board from its own transcript — and re-deriving it would mean re-running a paid
+ *  multi-model conversation on every install. So the board ships as the manifest's own data and replays through
+ *  rpg's REAL hand doors (`updateConfig` → `patchSheet`/`patchActor` → `upsertQuest` → `addJournalEntry` →
+ *  `editSnapshot`) at seed time: a virgin boot reproduces the flagship's panels EXACTLY, with zero model calls.
  *
- *  It is authored to be TRUE to the transcript: the stairs, the Keening Ward, the tin behind the throne,
- *  Corin, and the four seats the story actually put in the room. Nothing here invents an event the
- *  conversation does not contain. */
+ *  v3 CHANGED HOW IT IS OBTAINED. The v2 board was hand-written prose about a playthrough. This one was PLAYED:
+ *  the session ran turn by turn with rpg-lite on, the model's own extraction moved meters, ticked objectives,
+ *  minted Corvain and wrote journal beats as the story went, and the host closed the session by tidying what
+ *  the extraction under-filled (the ward-burn, the spent stamina, the last of the rations) — the same two
+ *  gestures any host has. What is below is the readback of that board, so every number in it is a thing that
+ *  happened in the transcript beside it.
+ *
+ *  The `player` seat is the indirection that matters: it resolves to the RECEIVING user at seed, so no install
+ *  ever inherits the generating account's identity. */
 const ASHEN_SPIRE_SETUP: DemoChatGameSetup = {
-  // Two defs ON TOP of the profile's seeded `hp` — one per SUBJECT, so the panel demonstrates both halves of
-  // the tracked-field axis (a per-actor meter you spend, and a game-wide gauge you observe).
   trackers: [
     {
       key: "stamina",
@@ -94,180 +113,522 @@ const ASHEN_SPIRE_SETUP: DemoChatGameSetup = {
       pinned: true,
       locked: false,
     },
+    {
+      key: "supplies",
+      label: "Supplies",
+      shape: "meter",
+      write: "delta",
+      subject: "game",
+      appliesTo: "everyone",
+      max: 10,
+      hint: "rations, lamp oil and bandage linen the party still carries up the mountain",
+      color: "#5a8f6b",
+      icon: null,
+      sort: 3,
+      pinned: true,
+      locked: false,
+    },
   ],
   snapshot: {
-    location: "The Ashen Spire — the throne hall, at the top of the black glass stairs",
-    calendarDate: "the third evening on the mountain",
-    clock: { day: 3, hour: 21, minute: 40 },
-    weather: { type: "ash", label: "ash falling past the window slits" },
+    location: "The Ashen Spire — the throne hall, a fire built off the draft-line and the last of the rations on it",
+    calendarDate: "the second night on the mountain",
+    clock: {
+      day: 2,
+      hour: 21,
+      minute: 40,
+    },
+    weather: {
+      type: "ash",
+      label: "ash turning in windless air",
+    },
     recentEvents: [
-      "Morgatha made the invitation properly, on the record, with Sabine watching her commit to terms.",
-      "Two hundred stairs of black glass; the eighth landing's Keening Ward let the party read it instead of breaking it.",
-      "The tin behind the throne came open, and a hall that had not heard Ista's real voice in nine hundred years heard it.",
+      "Terms were said out loud at the fire with a quartermaster listening, and sealed with a handshake.",
+      "Two hundred stairs of black glass; the eighth landing's Keening Ward was read whole instead of broken, at the cost of two burned palms and a nosebleed.",
+      "The throne-room doors were knocked on. Someone lifted the bar from the other side.",
+      "The man holding the seal shut is Corvain — Morgatha's elder brother, who stayed and kept singing.",
+      "The tin behind the throne, sealed nine hundred years, went into his hands rather than onto the floor.",
     ],
-    trackerValues: { wardsong: { value: 88 } },
+    trackerValues: {
+      wardsong: {
+        value: 88,
+      },
+      supplies: {
+        value: 0,
+      },
+    },
     plot: {
       act: 3,
       title: "The Ashen Spire",
       acts: [
-        { title: "Terms at the Fire", summary: "A sellsword, a talking sword and the Dark Lady of the Spire agree to travel together — on the record." },
-        { title: "Two Hundred Stairs", summary: "The climb, the Keening Ward, and the first honest count of what holds the seal shut." },
-        { title: "The Knock", summary: "The throne-room door is knocked on rather than broken, and the thing behind it turns out to be a brother." },
+        {
+          title: "Terms at the Fire",
+          summary: "An arrangement gets made, on the record.",
+        },
+        {
+          title: "Two Hundred Stairs",
+          summary: "The climb, and the ward-stone set into the eighth landing.",
+        },
+        {
+          title: "The Knock",
+          summary: "The throne-room door is knocked on rather than broken, and the thing behind it turns out to be a brother.",
+        },
       ],
     },
   },
   actors: [
     {
-      seat: { kind: "player" },
+      seat: {
+        kind: "player",
+      },
       present: true,
       sheet: {
         className: "Envoy",
         level: 2,
-        attributes: { str: 9, dex: 12, con: 11, int: 14, wis: 15, cha: 16 },
-        flavor: "Climbs two hundred stairs to a door everyone says to break — and knocks on it instead.",
+        flavor: "Talks first, and has yet to be wrong about it in a way that got anyone killed.",
+        attributes: {
+          str: 9,
+          dex: 12,
+          con: 11,
+          int: 14,
+          wis: 15,
+          cha: 16,
+        },
       },
       ops: [
-        { op: "setTracker", key: "hp", value: { value: 17, max: 20 } },
-        { op: "setTracker", key: "stamina", value: { value: 2, max: 6 } },
-        { op: "setStatus", status: "Ward-touched — the seal's note is still ringing behind the teeth." },
-        { op: "addCondition", condition: { name: "Ward-touched", stat: null, modifier: 0, turnsLeft: null } },
+        {
+          op: "setTracker",
+          key: "hp",
+          value: {
+            value: 17,
+            max: 20,
+          },
+        },
+        {
+          op: "setTracker",
+          key: "stamina",
+          value: {
+            value: 2,
+            max: 6,
+          },
+        },
+        {
+          op: "setStatus",
+          status: "Palms bandaged, nose stopped, sitting on the floor of a throne room with the whole braided pattern still in his teeth.",
+        },
+        {
+          op: "addCondition",
+          condition: {
+            name: "Ward-Burned",
+            stat: null,
+            modifier: 0,
+            turnsLeft: null,
+          },
+        },
         {
           op: "addItem",
           item: {
-            name: "Ista's tin",
+            name: "Envoy's letter-case",
+            quantity: 1,
+            type: "gear",
+            location: "carried",
+            description: "Sealing wax, three blank sheets, and a nib that has outlived two employers.",
+          },
+        },
+        {
+          op: "addItem",
+          item: {
+            name: "Waterskin",
+            quantity: 2,
+            type: "consumable",
+            location: "pack",
+            description: "Full. For now.",
+          },
+        },
+        {
+          op: "addItem",
+          item: {
+            name: "The braided pattern",
             quantity: 1,
             type: "relic",
             location: "carried",
-            description: "Wax-sealed for nine hundred years. Open. The only recording of a voice before the wall thinned it.",
+            description: "Read whole off the eighth-landing stone and not let go of — the Ward's low line, and the second thread that catches.",
           },
         },
         {
-          op: "addItem",
-          item: {
-            name: "Morgatha's terms, countersigned",
-            quantity: 1,
-            type: "document",
-            location: "pack",
-            description: "Made properly, on the record, because someone asked her to commit.",
-          },
+          op: "setWalletAmount",
+          name: "silver marks",
+          amount: 22,
         },
-        { op: "setWalletAmount", name: "silver marks", amount: 14 },
       ],
     },
     {
-      seat: { kind: "handle", handle: "sabine" },
+      seat: {
+        kind: "handle",
+        handle: "sabine",
+      },
       present: true,
       sheet: {
         className: "Sellsword-Captain",
         level: 4,
-        attributes: { str: 15, dex: 14, con: 14, int: 12, wis: 13, cha: 11 },
         flavor: "The only person present who has ever filed a quartermaster's report, which as of now makes her the adult.",
+        attributes: {
+          str: 15,
+          dex: 14,
+          con: 14,
+          int: 12,
+          wis: 13,
+          cha: 11,
+        },
       },
       ops: [
-        { op: "setTracker", key: "hp", value: { value: 20, max: 20 } },
-        { op: "setTracker", key: "stamina", value: { value: 4, max: 6 } },
-        { op: "setStatus", status: "Left of you and unarmed, hands open and visible — a choice, and she wants it legible." },
-        { op: "addItem", item: { name: "Quartermaster's pack", quantity: 1, type: "gear", location: "carried", description: "Rule one: nobody touches it." } },
-        { op: "setWalletAmount", name: "silver marks", amount: 61 },
+        {
+          op: "setTracker",
+          key: "hp",
+          value: {
+            value: 20,
+            max: 20,
+          },
+        },
+        {
+          op: "setTracker",
+          key: "stamina",
+          value: {
+            value: 3,
+            max: 6,
+          },
+        },
+        {
+          op: "setStatus",
+          status: "Fire built off the draft-line, the last of the rations on it, holding the room exactly as ordered.",
+        },
+        {
+          op: "addItem",
+          item: {
+            name: "Quartermaster's pack",
+            quantity: 1,
+            type: "gear",
+            location: "carried",
+            description: "Rule one: nobody touches it.",
+          },
+        },
+        {
+          op: "addItem",
+          item: {
+            name: "Arming sword",
+            quantity: 1,
+            type: "weapon",
+            location: "carried",
+            description: "Plain, well-kept, re-hilted twice.",
+          },
+        },
+        {
+          op: "addItem",
+          item: {
+            name: "Bandage linen",
+            quantity: 2,
+            type: "",
+            location: "",
+            description: "",
+          },
+        },
+        {
+          op: "setWalletAmount",
+          name: "silver marks",
+          amount: 61,
+        },
       ],
     },
     {
-      seat: { kind: "handle", handle: "calamity" },
+      seat: {
+        kind: "handle",
+        handle: "calamity",
+      },
       present: true,
       sheet: {
         className: "Doomblade of the Ninth Epoch",
         level: 9,
-        attributes: { str: 18, dex: 6, con: 20, int: 13, wis: 8, cha: 17 },
-        flavor: "Forged to end things. Currently strapped to a back, watching its wielder ask a door for its name.",
-        // The applicability model, shown rather than described: a sword has no health track and does not tire.
+        flavor: "Forged to end things. Currently strapped to a back, being carried up two hundred stairs.",
+        attributes: {
+          str: 18,
+          dex: 6,
+          con: 20,
+          int: 13,
+          wis: 8,
+          cha: 17,
+        },
         trackerRevokes: ["hp", "stamina"],
       },
-      ops: [{ op: "setStatus", status: "Sheathed. Uncharacteristically quiet, and no cathedral in it at all." }],
+      ops: [
+        {
+          op: "setStatus",
+          status: "Sheathed, gold-banked and steady, holding a room for the first time in six thousand years without anything ending.",
+        },
+        {
+          op: "addItem",
+          item: {
+            name: "The Ninth Epoch's edge",
+            quantity: 1,
+            type: "weapon",
+            location: "carried",
+            description: "Itself. It insists this counts as inventory.",
+          },
+        },
+      ],
     },
     {
-      seat: { kind: "handle", handle: "morgatha" },
+      seat: {
+        kind: "handle",
+        handle: "morgatha",
+      },
       present: true,
       sheet: {
         className: "The Undying Dark",
         level: 12,
-        attributes: { str: 10, dex: 11, con: 20, int: 18, wis: 17, cha: 16 },
-        flavor: "Nine hundred years, two hundred and twelve after-action reports, and one tin she could not open until tonight.",
+        flavor: "Nine hundred years, two hundred and twelve after-action reports, and one tin she cannot open.",
+        attributes: {
+          str: 10,
+          dex: 11,
+          con: 20,
+          int: 18,
+          wis: 17,
+          cha: 16,
+        },
       },
       ops: [
-        { op: "setTracker", key: "hp", value: { value: 20, max: 20 } },
-        { op: "setStatus", status: "Standing where she stood the night she let a sixteen-year-old sing herself into a wall." },
-        { op: "addItem", item: { name: "The Spire's keys", quantity: 1, type: "gear", location: "carried", description: "Hers. Nine hundred years of them." } },
+        {
+          op: "setTracker",
+          key: "hp",
+          value: {
+            value: 20,
+            max: 20,
+          },
+        },
+        {
+          op: "setTracker",
+          key: "stamina",
+          value: {
+            value: 4,
+            max: 6,
+          },
+        },
+        {
+          op: "setStatus",
+          status: "Sitting on the floor rather than the throne, nine hundred years of arithmetic arriving late.",
+        },
+        {
+          op: "addCondition",
+          condition: {
+            name: "Unperforming",
+            stat: null,
+            modifier: 0,
+            turnsLeft: null,
+          },
+        },
+        {
+          op: "addItem",
+          item: {
+            name: "The Spire's keys",
+            quantity: 1,
+            type: "gear",
+            location: "carried",
+            description: "Hers. Nine hundred years of them.",
+          },
+        },
+        {
+          op: "addItem",
+          item: {
+            name: "Ledger of after-action reports",
+            quantity: 1,
+            type: "document",
+            location: "pack",
+            description: "Two hundred and twelve entries. She has read them all more than once.",
+          },
+        },
+        {
+          op: "setWalletAmount",
+          name: "silver marks",
+          amount: 0,
+        },
       ],
     },
     {
-      // The scene NPC the story introduced — minted here by his first hand op (`patchActor` mints an absent
-      // target), which is exactly how a host writes an NPC the extraction round never got to.
-      seat: { kind: "cast", slug: "corin" },
+      seat: {
+        kind: "cast",
+        slug: "corvain",
+      },
       present: true,
       ops: [
-        { op: "setIdentityText", field: "name", text: "Corin" },
-        { op: "setIdentityText", field: "mood", text: "wrung out; unclenched for the first time in nine hundred years" },
-        { op: "setIdentityText", field: "appearance", text: "A face too young for this, tears frozen on it in the cold coming off the seal." },
-        { op: "setIdentityText", field: "outfit", text: "A warden's grey, worn thin at the knees from kneeling at the wall." },
-        { op: "setIdentityText", field: "thoughts", text: "If he lets go of the seal, he thinks, he loses the last of his sister's voice." },
-        { op: "setRelationship", relationship: { kind: "ally", label: "" } },
-        { op: "setTracker", key: "hp", value: { value: 11, max: 20 } },
-        { op: "setStatus", status: "Both hands still flat on the seal — but listening now." },
-        { op: "addCondition", condition: { name: "Grief-frozen", stat: null, modifier: 0, turnsLeft: null } },
+        {
+          op: "setIdentityText",
+          field: "name",
+          text: "Corvain",
+        },
+        {
+          op: "setIdentityText",
+          field: "emoji",
+          text: "🕯️",
+        },
+        {
+          op: "setIdentityText",
+          field: "mood",
+          text: "rusted open; holding a tin instead of a note for the first time in nine hundred years",
+        },
+        {
+          op: "setIdentityText",
+          field: "appearance",
+          text: "Ash-grey robes gone the colour of the floor from long sitting, and Morgatha's own violet in his eyes.",
+        },
+        {
+          op: "setIdentityText",
+          field: "outfit",
+          text: "A warden's grey, worn through at the knees.",
+        },
+        {
+          op: "setIdentityText",
+          field: "thoughts",
+          text: "That the note was never the promise. That someone finally knocked.",
+        },
+        {
+          op: "setRelationship",
+          relationship: {
+            kind: "ally",
+            label: "",
+          },
+        },
+        {
+          op: "setTracker",
+          key: "hp",
+          value: {
+            value: 12,
+            max: 20,
+          },
+        },
+        {
+          op: "setStatus",
+          status: "Both hands still flat on the seal — but one of them is closing around a tin now.",
+        },
+        {
+          op: "addCondition",
+          condition: {
+            name: "Nine-Hundred-Year Ache",
+            stat: null,
+            modifier: 0,
+            turnsLeft: null,
+          },
+        },
+        {
+          op: "addItem",
+          item: {
+            name: "Morgatha's sealed tin",
+            quantity: 1,
+            type: "relic",
+            location: "carried",
+            description: "Wax unbroken since the year he stopped answering when she called down the stair. Put into his hands, not onto the floor.",
+          },
+        },
       ],
     },
   ],
   quests: [
     {
-      name: "The Seal at the Spire's Heart",
-      status: "active",
-      description: "Morgatha's door is failing, and the thing that holds it shut is not a spell.",
-      objectives: [
-        { text: "Take the Dark Lady's invitation — properly, on the record", completed: true },
-        { text: "Climb to the throne hall", completed: true },
-        { text: "Read the Keening Ward without breaking it", completed: true },
-        { text: "Find out who is holding the seal shut", completed: true },
-        { text: "Decide what happens to Ista's note", completed: false },
-      ],
-    },
-    {
-      name: "Ista's Voice",
-      status: "active",
-      description: "A tin behind the throne, sealed since the night the wall took her.",
-      objectives: [
-        { text: "Learn about the tin", completed: true },
-        { text: "Open it", completed: true },
-        { text: "Give Corin his sister back", completed: false },
-      ],
-    },
-    {
       name: "Terms with the Dark Lady",
       status: "completed",
       description: "Get the arrangement said out loud, with a quartermaster listening.",
       objectives: [
-        { text: "Hear Sabine's read before agreeing", completed: true },
-        { text: "Make her commit to terms on the record", completed: true },
+        {
+          text: "Hear Sabine's read before agreeing",
+          completed: true,
+        },
+        {
+          text: "Make her commit to terms on the record",
+          completed: true,
+        },
+      ],
+    },
+    {
+      name: "The Seal at the Spire's Heart",
+      status: "active",
+      description: "Morgatha's door is failing, and the thing that holds it shut is not a spell.",
+      objectives: [
+        {
+          text: "Take the Dark Lady's invitation — properly, on the record",
+          completed: true,
+        },
+        {
+          text: "Climb to the throne hall",
+          completed: true,
+        },
+        {
+          text: "Read the Keening Ward without breaking it",
+          completed: true,
+        },
+        {
+          text: "Find out who is holding the seal shut",
+          completed: true,
+        },
+        {
+          text: "Decide what happens to the note Corvain has held for nine hundred years",
+          completed: false,
+        },
+      ],
+    },
+    {
+      name: "The Tin Behind the Throne",
+      status: "completed",
+      description: "Sealed the year Corvain stopped answering, and reserved — she said — for the first challenger to surprise her.",
+      objectives: [
+        {
+          text: "Ask about the tin instead of the seal",
+          completed: true,
+        },
+        {
+          text: "Put it in his hands, not on the floor",
+          completed: true,
+        },
       ],
     },
   ],
   journal: [
     {
-      type: "location",
-      title: "The Ashen Spire",
+      type: "event",
+      title: "Nobody knocked, in nine hundred years",
       content:
-        "Black glass, two hundred-odd treads, and a Keening Ward set into the eighth landing. It does not repel what comes through the door — it sings the door shut, and it has held that one note for nine hundred years.",
+        "Two hundred and twelve heroes broke the doors, blasted them, or asked them a riddle. The party knocked, and a hand on the other side lifted the bar.",
     },
     {
       type: "npc",
-      title: "Corin, the Griever",
+      title: "Corvain, who stayed",
       content:
-        "Kneeling at the seal with both hands flat on it. His sister Ista was the last warden before Morgatha; she gave her voice to the wall at sixteen and Morgatha let her. He has been holding on ever since.",
+        "Found seated at the base of the throne with both hands flat on the seal, in robes gone the colour of the floor. Morgatha's elder brother — the one who stayed and kept singing while she left and built a spire, a catalogue and a reputation on top of the note he was holding.",
+    },
+    {
+      type: "location",
+      title: "The Keening Ward",
+      content:
+        "Set into the eighth landing of the black glass stair. It does not repel what comes through the door — it sings the door shut, and it has held that note for nine hundred years. Read with both hands flat: the low line is the Ward itself, patient and still true; the second thread, higher and thinner, catches.",
+    },
+    {
+      type: "npc",
+      title: "Corvain, Keeper of the Note",
+      content:
+        "Behind the throne hall doors: not a monster, but Corvain — Morgatha's brother, unlisted in nine hundred years of her ledger. He has held the Keening Ward's note since before Morgatha built her spire or her catalogue, keeping a promise she no longer remembers making. The Ward is failing because the man holding it has been forgotten by the very person he swore it to.",
     },
     {
       type: "event",
-      title: "The tin behind the throne",
+      title: "Terms at the Fire",
       content:
-        "Sealed with her own sigil the night she closed it, and unopenable by her since. It came open tonight, and Ista's real voice — whole, laughing at something off-recording — filled a hall that had not heard it in nine hundred years.",
+        "Morgatha laid out her terms plainly under Sabine's questioning: the Keening Ward is failing not like a broken spell but like a note going flat, and she wants it read honestly, not fought over. She swore no trap, no oath-trick on the climb. Calamity, dropping its bravado, compared the failing Ward to an old bell gone hoarse from habit instead of belief — and volunteered, unprompted, to listen for whoever has stopped truly ringing it. Sabine is recording all of it for the record.",
+    },
+    {
+      type: "npc",
+      title: "Morgatha, the Undying Dark",
+      content:
+        "Walked into our firelight unarmed and sat down on a log like it was a throne. Claims the mess we are walking into is centred on her tower, which makes it her business.",
+    },
+    {
+      type: "location",
+      title: "The Ashen Spire",
+      content: "A black glass tower on a mountain that has been shedding ash for nine hundred years. Nobody local will name it after dark.",
     },
   ],
 };
@@ -290,13 +651,26 @@ export const DEMO_CHATS: readonly DemoChat[] = [
     handles: ["birdie"],
   },
 
-  // ── GROUP: per-speaker × merged, `list` arbitration (Charlotte chairs a fixed rotation) ───────────
+  // ── GROUP: NARRATOR output, `list` arbitration (Charlotte chairs a fixed rotation) — the merged-voice
+  //    grammar, where one synthetic room identity writes both experts' lines in a single scene block.
   {
     slug: "second-opinion",
     title: `${DEMO_CHAT_TITLE_PREFIX}Second Opinion`,
     handles: ["assistant", "jfc-coder"],
     metadata: {
-      group: { ...DEFAULT_GROUP_CONFIG, output: "per-speaker", policy: "list", cardScope: "merged" },
+      group: {
+        // The narrator arm is `z.strictObject` and OMITS `cardScope` by construction (narrator ⇒ merged is
+        // made unrepresentable), so it cannot spread the per-speaker default — it is spelled whole.
+        output: "narrator",
+        policy: "list",
+        speakerTags: true,
+        groupNudge: DEFAULT_GROUP_CONFIG.groupNudge,
+        autoMode: DEFAULT_GROUP_CONFIG.autoMode,
+        autoModeMaxTurns: DEFAULT_GROUP_CONFIG.autoModeMaxTurns,
+        autoModeDelayMs: DEFAULT_GROUP_CONFIG.autoModeDelayMs,
+        allowSelfResponses: DEFAULT_GROUP_CONFIG.allowSelfResponses,
+        memberCardVisibility: DEFAULT_GROUP_CONFIG.memberCardVisibility,
+      },
       opening: "greet-all",
       background: seededBackground("assistant-bg"),
     },
@@ -314,27 +688,15 @@ export const DEMO_CHATS: readonly DemoChat[] = [
     },
   },
 
-  // ── GROUP: NARRATOR output + rpg-lite ON — the flagship. Every AI slot in this transcript is voiced by
-  //    the room's synthetic group identity (the `narrator` arm of the bulk write), which is exactly how a
-  //    live narrator round commits.
+  // ── GROUP: per-speaker × merged, `natural` arbitration + rpg-lite ON — THE FLAGSHIP, and the pack's one
+  //    real tabletop session: three separate seats answer on their own turns (a round commonly commits two or
+  //    three of them), the party sheet is filled for every actor, and the board moves as the story does.
   {
     slug: "ashen-spire",
     title: `${DEMO_CHAT_TITLE_PREFIX}The Ashen Spire`,
     handles: ["sabine", "calamity", "morgatha"],
     metadata: {
-      group: {
-        // The narrator arm is `z.strictObject` and OMITS `cardScope` by construction (narrator ⇒ merged is
-        // made unrepresentable), so this one cannot spread the per-speaker default — it is spelled whole.
-        output: "narrator",
-        policy: "natural",
-        speakerTags: true,
-        groupNudge: true,
-        autoMode: DEFAULT_GROUP_CONFIG.autoMode,
-        autoModeMaxTurns: DEFAULT_GROUP_CONFIG.autoModeMaxTurns,
-        autoModeDelayMs: DEFAULT_GROUP_CONFIG.autoModeDelayMs,
-        allowSelfResponses: DEFAULT_GROUP_CONFIG.allowSelfResponses,
-        memberCardVisibility: DEFAULT_GROUP_CONFIG.memberCardVisibility,
-      },
+      group: { ...DEFAULT_GROUP_CONFIG, output: "per-speaker", policy: "natural", cardScope: "merged" },
       opening: "greet-all",
       background: seededBackground("morgatha-bg"),
     },

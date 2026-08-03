@@ -85,6 +85,21 @@ function toMessageInput(m: ParsedChatMessage, seatsByName: ReadonlyMap<string, C
   return characterId === undefined ? base : { ...base, characterId };
 }
 
+/** Is this parsed row an rpg STATE-ANCHOR slot rather than a line of the conversation?
+ *
+ *  Every rpg hand write clone-forwards a snapshot, and a snapshot is FK'd to a message variant — so the game
+ *  door posts a CONTENT-LESS narrator row to anchor it (the state-anchor law: an empty slot is a snapshot FK,
+ *  never a lost completion). Live, those rows render as the delta line their state produces. In an ST-flavoured
+ *  transcript there is nowhere for that state to go, so they export as `"mes": ""` — and the rpg flagship,
+ *  whose session is set up through those very doors, exported EIGHT of them ahead of its first user turn.
+ *  Seeded verbatim they are eight blank bubbles opening the pack's showcase example. The seeded copy takes its
+ *  game state from the manifest replay, not from these, so dropping them loses nothing and is the ONLY place
+ *  that can decide it: the transcript is immutable by law, and `parseChatJsonl` is the shared import parser
+ *  (a real user's import keeps their empty rows — that is their history, not our fixture). */
+function isStateAnchorSlot(m: ParsedChatMessage): boolean {
+  return m.role === "assistant" && m.content.trim() === "";
+}
+
 /** The whole bulk-write input for one example: the parsed transcript + the manifest's roster/metadata.
  *
  *  `anchorPersonaId` is the RECEIVING USER'S persona (never a shipped constant): the bulk write seats it on
@@ -100,7 +115,8 @@ function toChatInput(args: {
 }): BulkImportChatInput {
   const { demo, parsed, seats, anchorPersonaId, now } = args;
   const seatsByName = new Map(seats.map((s) => [s.name, s.characterId]));
-  const sendDates = parsed.messages.flatMap((m) => (m.sendDate !== null ? [m.sendDate] : []));
+  const spoken = parsed.messages.filter((m) => !isStateAnchorSlot(m));
+  const sendDates = spoken.flatMap((m) => (m.sendDate !== null ? [m.sendDate] : []));
   const createdAt = parsed.createDate ?? sendDates[0] ?? now;
   return {
     title: demo.title,
@@ -116,7 +132,7 @@ function toChatInput(args: {
     isRealConversation: false,
     roster: seats.slice(1).map((s) => s.characterId),
     ...(demo.metadata === undefined ? {} : { metadata: demo.metadata }),
-    messages: parsed.messages.map((m) => toMessageInput(m, seatsByName, m.sendDate ?? createdAt)),
+    messages: spoken.map((m) => toMessageInput(m, seatsByName, m.sendDate ?? createdAt)),
   };
 }
 
