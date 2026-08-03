@@ -2,7 +2,7 @@
 
 > **THIS IS THE WORKING DOC** (owner-stated). Not law, not a deliverable — the durable state an
 > orchestrator resumes from cold. Authority for LAW = `docs/architecture/core/**`; the D-ledger
-> (`Core-Path-Registry.md` / `Core-Laws-and-Precedents.md`, current through **D125**) wins on ANY
+> (`Core-Path-Registry.md` / `Core-Laws-and-Precedents.md`, current through **D126**) wins on ANY
 > conflict. `docs/architecture/proposed/**` is pre-rollback REBUILD REFERENCE — never cite its status
 > as current.
 >
@@ -57,7 +57,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 
 - **main @ HEAD**, tree clean, **121+ commits past origin `865405d6`** (the 199-commit era was
   pushed 08-03 on the owner word). Gates: **179 registered** (GATES3 minted three). D-ledger:
-  through **D125**, next free **D126** (allocated to STRUCTOUT).
+  through **D126**, next free **D127**.
 - **PUSH-READY IS STALE.** It was declared at 85 commits (`7d91d01a`); ~36 have landed since (SCHEMA,
   DBANK2, SWEEP, HISTLEG, OBSCLOSE, GATES3, D125, board/doc edits) → **a fresh `pnpm verify --push` on
   the quiesced tree is owed before the word is asked for again.** There is also a known RED to clear
@@ -69,7 +69,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 
 ## ═══ INITIATIVES ═══
 
-### I-1 · STRUCTURED OUTPUT — the projector is wrong in four ways (LANE SCHEMA LIVE)
+### I-1 · STRUCTURED OUTPUT — ✅ the four projector defects are CLOSED; one owner item remains
 
 **Landed under it:** RESYNC-OR (`d432ed51` — the structured role sends ONE FORCED TOOL CALL, the D112
 vehicle; both rpg write paths now speak one dialect; probe matrix receipted) · STRICTFMT + CUSTOMBYO
@@ -77,28 +77,26 @@ vehicle; both rpg write paths now speak one dialect; probe matrix receipted) · 
 its own call site, the xgrammar lever) · the vendor-docs research (`docs/reviews/misc/2026-08-03-
 structured-output-docs.md`).
 
-**OPEN (the lane's scope):** our projector emits FOUR unsupported keyword classes, not one — `minLength`
-(×16, banned by BOTH vendors), `maxLength`, `minimum`, `maximum`; strip them per-wire-subset ·
-`disable_parallel_tool_use` is absent tree-wide (a silent duplicate-drop) · **both vendors return a
-refusal field and we read NEITHER — a refusal currently logs `ok:true`** · truth-repair 3 stale
-comments.
-**Receipt of not-done:** `WireTool` (`packages/server/src/infra/providers/contract/chat.ts:34`) has
-`name`/`description`/`parameters` and NO `strict` field — so the forced-tool vehicle compiles no
-grammar and has ZERO schema enforcement today; the kit header claiming grammar-level prevention
-describes a tool that cannot exist.
+✅ **CLOSED by SCHEMA (`c92b7aeb`):** all four unsupported keyword classes now stripped per-wire-subset
+by one `scrubWireSchema` engine (four modes); `parallel_tool_calls:false` + a loud extra-call warn;
+**refusals READ on both roles** (a refusal used to log `ok:true`). Absorbing three drifted hand-rolled
+walkers found a live bug on the way: vLLM's wasn't position-aware, so a field NAMED `title`/`default`
+was being deleted from the guided wire.
+**Still true, deliberately:** `WireTool` (`infra/providers/contract/chat.ts`) has no `strict` field, so
+the forced-tool vehicle carries no grammar-level enforcement — the D112 vehicle is a SHAPE contract,
+not a compiled grammar. Say it that way; do not claim otherwise.
 **Rides it:** `engine/chat-completion.ts` holds a SECOND `response_format` builder that never emitted
 strict (SM7 flagged, deliberately not touched).
-**⚑ OWNER RULED (08-03) — IT IS A CONFIG OPTION, NOT AN A/B FLIP.** Owner: *"i kinda wanted it to be
-somethign we could swap to if we wanted or like a config thing etc. I dont want it to be seen as dead
-its a config option for us to use maybe put in settings or find a home for it."* The nullable-union arm
-(every prop `required`, optionals as `anyOf [T, null]`, `null ≡ absent` — preserves omit-means-keep AND
-clears Anthropic's undocumented "too many optionals" wall) is BUILT but reachable only by editing
-`EXTRACTION_STRICT_WIRE` and restarting, which is functionally dead. **Lane STRUCTOUT** gives it a real
-home (default ruling: the AppSettings tier — env floor, DB override wins — surfaced in settings, per
-[[settings-section-seam-body-only]]); the DEFAULT behaviour does not change, only the reachability.
-D126 allocated if it mints. Blanket-vs-capability already ruled: KEEP BLANKET.
+✅ **OWNER FORK CLOSED + SHIPPED (D126, lane STRUCTOUT `ffd3b4b4`).** Owner: *"i kinda wanted it to be
+somethign we could swap to if we wanted or like a config thing etc. I dont want it to be seen as dead."*
+The nullable-union arm is now **Settings › Admin › Structured output → "JSON-Schema shape"**, an
+AppSettings-tier knob (DB override wins) reaching `scrubWireSchema` on the real request. **Default
+unchanged.** Full receipts in the RECONCILIATION block at the foot of this file.
+**⚑ THE ONE OWNER ITEM LEFT ON I-1:** whether to make `strict-compatible` the DEFAULT. It is now a
+switch he can flip and live with for a while first — which is the point. Blanket-vs-capability already
+ruled: KEEP BLANKET.
 
-### I-2 · DATABANK — S1 shipped, S2 in flight, S3 unstarted (LANE DBANK2 LIVE)
+### I-2 · DATABANK — S1 + S2 shipped; S3 unstarted (lane DBFIX live on ingest concurrency)
 
 **Landed:** DATABANK IS A LIVE RAIL SECTION (`b377ed8c` + merge `17f83015`) — the library, Add
 upload/paste/link, phase chips, bounded ingest poll, owner-wide reindex in the band kebab, empty
@@ -117,7 +115,7 @@ scrape · upload — and NO visibility/hidden setter, while `packages/contracts/
 already specs the D85 override.
 **OPEN — S3:** unbuilt. D-7's real home tile still owed. Spec: `docs/design/databank-surface-spec.md`.
 
-### I-3 · CONFIG WORKSPACE — the rail is live, the polish tail is not (LANE SWEEP LIVE)
+### I-3 · CONFIG WORKSPACE — the rail is live; MOBILE is the ruled tail
 
 **Landed:** R1 the Configuration workspace + the `CollectionContribution` seam, tags + regex OFF
 settings (`3769d4f9`, gate #175 collection-registry-completeness) · R2 world-info into the workspace,
@@ -517,10 +515,41 @@ The audit wrote SCHEMA / DBANK2 / SWEEP as *dispatched*. Since then:
   markers, §4.3b block-scoped stacked-marker resolver, §5 the six-case real-tree probe. (3) `default`
   rides the hosted wire and neither vendor doc lists it — allowlisted rather than relitigate an
   owner-landed call; probe it if a hosted 400 ever names it.
+- ✅ **STRUCTOUT MERGED (`ffd3b4b4`) — I-1's owner fork is CLOSED, and D126 is MINTED.** The
+  nullable-union arm is now a runtime-switchable capability: **Settings › Admin › Structured output →
+  "JSON-Schema shape" (As projected / Strict-compatible)** → `AppSettings.structuredOutputShape` →
+  `EffectiveAppConfig` → a thunk on `RpgComposeDeps` → `scrubWireSchema(schema, "strict-compatible")`
+  + `strict:true` on the real request. **The default is UNCHANGED — the switch was built, not thrown.**
+  A string union (`STRUCTURED_OUTPUT_SHAPES`) dispatched through a mapped `Record`, so a third shape
+  fails tsc rather than falling through. Consolidated `pnpm check` on the merged result: 14/14.
+  **The per-connection fork was REJECTED with a reason, not a preference:** the per-wire keyword subset
+  is already decided per backend at the request-build site (D93), and `runner`/`family` are sealed
+  inside infra — a per-vendor shape knob in `domain/connection` would put wire vocabulary in a domain
+  forbidden to know it.
+  **Premise correction:** the brief (and this board) called it an env flag. It was NOT env — a
+  hardcoded `const EXTRACTION_STRICT_WIRE: boolean = false` in `entry/compose/rpg.ts`. Deader than
+  described: a redeploy, not a restart.
+  **It minted D126 itself, correctly** — the `d-citation-integrity` gate REDs on any `D126` citation
+  without an anchor (11 violations), so "cite now, mint later" could not ship gate-green. Merge
+  conflict with my D125 mint resolved as a union; ranges now read D106–D126, next free **D127**.
+  **Its rendered check caught a real defect:** the `Select` trigger is a fixed 200px and the first
+  labels rendered `"As projected — opti…"` — the selected value unreadable. Labels shortened, the
+  teaching moved to always-visible copy (`SettingRow.hint` is a HOVER-ONLY tooltip — a keyboard or
+  touch admin would never have seen it), and a `scrollWidth ≤ clientWidth` assertion added so it
+  cannot regress. **Fourth coupled site discovered:** a settings-section addition also needs
+  `tests/support/ct/ct-data-providers.tsx`'s `realSettingsSections`, or every pane CT lies.
+- 🔨 **SPANGATE DISPATCHED (`a40e2b5d8df6e2282`)** — the owner asked whether OBSCLOSE's class should be
+  a gate or just discipline. **Gate**: the class recurred FIVE times (SM4 fixed one; OBSCLOSE found
+  four more of the identical shape in the same file). Arm A = untraced fire-and-forget (no detached
+  `root:true` span). **Arm B is the one that matters** = inside a `root:true` span callback, a `catch`
+  that does not rethrow — the shape that seals `status:"ok"` on every failure, i.e. a green dashboard
+  over failing work. Tractable because `withRequestSpan` has only 15 call sites across 5 files.
+  **Declared limit to carry when it lands:** a gate can prove a span is OPENED and that errors REACH
+  it; it cannot prove the span is meaningful, named right, or correlated to the work. Floor, not
+  ceiling.
 - **LIVE NOW (cap 5):** DBFIX (`a423c577e9d55294a` — databank ingest concurrency, the D117
-  contradiction; ALSO now owns the `add-chat-document-dialog` presence-ledger red) · STRUCTOUT
-  (`a8be7d2d06f5157b0` — the nullable-union wire mode gets a real config home; **D126 allocated**) ·
-  **BRAND-F** (`a9c87d67eac1b22a2` — **the WHOLE I-5 burn-down on Fable**, briefed to read
+  contradiction; ALSO now owns the `add-chat-document-dialog` presence-ledger red) · **SPANGATE**
+  (`a40e2b5d8df6e2282` — the untraced/swallowed span gates, above) · **BRAND-F** (`a9c87d67eac1b22a2` — **the WHOLE I-5 burn-down on Fable**, briefed to read
   `codemod-kit.ts` + `ast.ts` IN FULL; the kit already carries `retypeIdAnnotations` +
   `castStringLiteralsByDiagnostic` from a prior id campaign).
 - **KILLED (owner word):** the first brand lane (mech-executor tier) — zero commits, one untracked
