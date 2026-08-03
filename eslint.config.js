@@ -28,6 +28,15 @@
 //
 //   6. Custom no-restricted-syntax — zustand escape-hatch guard (client only; dormant until state/ lands).
 //
+//   7. eslint-plugin-react-web-api — eslint-react's LEAK family: a Web-API subscription created in a
+//      component that outlives it (listener/interval/timeout/fetch/IntersectionObserver/ResizeObserver
+//      with no cleanup). Nothing else in the stack can see this: Biome is syntactic, react-hooks checks
+//      deps not disposal, tsc has no notion of a lifetime. All six rules ON (shipped source only).
+//
+//   8. eslint-plugin-react-you-might-not-need-an-effect — SEMANTIC unnecessary-effect analysis (state
+//      derived in an effect, effect chains, prop-change state adjustment, …). 6 of its 9 rules ON; the
+//      other 3 are deliberately OFF with a measured receipt — see the block for the triage.
+//
 // What we INTENTIONALLY DROP (Biome owns them, or ergonomic-only):
 //   • query/{infinite-query-property-order, mutation-property-order} — property ordering → Biome.
 //   • query/no-rest-destructuring — destructure style → ergonomic.
@@ -44,6 +53,8 @@ import pluginRouter from "@tanstack/eslint-plugin-router";
 import betterTailwindcss from "eslint-plugin-better-tailwindcss";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import reactHooks from "eslint-plugin-react-hooks";
+import reactWebApi from "eslint-plugin-react-web-api";
+import reactNoEffect from "eslint-plugin-react-you-might-not-need-an-effect";
 import tsdoc from "eslint-plugin-tsdoc";
 import tseslint from "typescript-eslint";
 
@@ -243,6 +254,56 @@ export default tseslint.config(
     ],
     plugins: { "react-hooks": reactHooks },
     rules: { "react-hooks/incompatible-library": "off" },
+  },
+  {
+    // react-web-api — the LEAK family. A Web-API subscription created inside a component that is never
+    // torn down (no removeEventListener / clearInterval / clearTimeout / observer.disconnect / fetch
+    // abort) outlives its component: a stale handler firing against an unmounted tree, or N listeners
+    // after N remounts. This is the genuine eslint-only category alongside async-safety — Biome is
+    // syntactic, react-hooks checks DEPS not DISPOSAL, and tsc has no notion of a lifetime. All six ON.
+    // Measured 2026-08-03 on the live tree: ZERO hits across ui + client — these are pure guard-rails
+    // (forward protection against a future component that subscribes and forgets), not a cleanup wave.
+    // SHIPPED_SRC only, deliberately NOT the CT surface: harness glue legitimately opens listeners it
+    // never removes (the page tears down instead), which would be false-positive noise.
+    files: SHIPPED_SRC,
+    plugins: { "react-web-api": reactWebApi },
+    rules: {
+      "react-web-api/no-leaked-event-listener": "error",
+      "react-web-api/no-leaked-fetch": "error",
+      "react-web-api/no-leaked-intersection-observer": "error",
+      "react-web-api/no-leaked-interval": "error",
+      "react-web-api/no-leaked-resize-observer": "error",
+      "react-web-api/no-leaked-timeout": "error",
+    },
+  },
+  {
+    // react-you-might-not-need-an-effect — SEMANTIC unnecessary-effect analysis. An effect that only
+    // computes state from props/state is a render-phase expression wearing an effect costume: it costs
+    // an extra commit, can tear (one render shows the stale value), and hides the real data flow. Six
+    // rules ON — each flags a shape with a mechanical render-phase rewrite (derive in render / lift the
+    // computation / useSyncExternalStore).
+    //
+    // THREE ARE DELIBERATELY OFF, with a receipt. A full 25-site triage of this tree (2026-08-03) over
+    // `no-event-handler`, `no-pass-live-state-to-parent` and `no-pass-data-to-parent` found 25/25 sites
+    // LEGITIMATE and 0 real antipatterns: imperative DOM work (focus/scroll/measure) that cannot happen
+    // in render, registration-with-host mount effects, TanStack Form's reset-after-submit constraint
+    // (the reset must follow the submit commit), and external-system sync. These three rules cannot
+    // distinguish "notify the parent as a side effect of state" from "run the imperative sink React has
+    // no render-phase seam for", so enabling them buys nothing but suppression rot: ~25 permanent
+    // `eslint-disable` comments smeared across documented load-bearing patterns, each of which then rots
+    // silently. Re-triage before turning any of them on; a receipt, not a preference.
+    //
+    // SHIPPED_SRC only — same reason as the leak block: CT harness glue lands state in effects by design.
+    files: SHIPPED_SRC,
+    plugins: { "react-you-might-not-need-an-effect": reactNoEffect },
+    rules: {
+      "react-you-might-not-need-an-effect/no-derived-state": "error",
+      "react-you-might-not-need-an-effect/no-chain-state-updates": "error",
+      "react-you-might-not-need-an-effect/no-adjust-state-on-prop-change": "error",
+      "react-you-might-not-need-an-effect/no-reset-all-state-on-prop-change": "error",
+      "react-you-might-not-need-an-effect/no-initialize-state": "error",
+      "react-you-might-not-need-an-effect/no-external-store-subscription": "error",
+    },
   },
   {
     // jsx-a11y: enforcing accessibility constraints that Biome does not natively cover yet

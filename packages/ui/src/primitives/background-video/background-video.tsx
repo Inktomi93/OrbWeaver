@@ -1,7 +1,18 @@
 import type { ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 import { cn, usePrefersReducedMotion } from "#lib";
 import { backgroundVideoVariants } from "./variants";
+
+/** Page Visibility as an external store (the Waystone precedent) — the tab's hidden state is not React
+ *  state, so it is SUBSCRIBED, never mirrored into useState from an effect. Module-scope callbacks: the
+ *  React Compiler stabilizes what it compiles, and manual memo hooks are banned here. */
+function subscribeVisibility(onChange: () => void): () => void {
+  document.addEventListener("visibilitychange", onChange);
+  return (): void => document.removeEventListener("visibilitychange", onChange);
+}
+const getDocumentHidden = (): boolean => document.hidden;
+/** SSR/prerender: nothing is hidden until a document says so. */
+const getDocumentHiddenServer = (): boolean => false;
 
 export interface BackgroundVideoProps {
   /** The video source URL (an owned same-origin blob for the background use). */
@@ -33,34 +44,26 @@ export interface BackgroundVideoProps {
 export function BackgroundVideo({ src, paused = false, className }: BackgroundVideoProps): ReactElement {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const osReducedMotion = usePrefersReducedMotion();
+  const hidden = useSyncExternalStore(subscribeVisibility, getDocumentHidden, getDocumentHiddenServer);
   const still = osReducedMotion || paused;
-  const [animating, setAnimating] = useState(false);
+  // The resolved motion state is DERIVED IN RENDER from the two inputs (motion policy + tab visibility) —
+  // no effect mirrors it into state, so the element and `data-motion` can never disagree for a commit.
+  const animating = !(still || hidden);
 
-  // Play/pause is driven imperatively off the element ref inside the effect (never read/written in render —
-  // the react-hooks/refs render ban). Re-runs on the motion state + source, and on every `visibilitychange`.
+  // Play/pause is the imperative sink: driven off the element ref inside an effect keyed on the derived
+  // state (never read/written in render — the react-hooks/refs render ban).
   useEffect(() => {
     const video = videoRef.current;
     if (video === null || src.length === 0) {
       return;
     }
-    const sync = (): void => {
-      const current = videoRef.current;
-      if (current === null) {
-        return;
-      }
-      const stillNow = still || document.hidden;
-      setAnimating(!stillNow);
-      if (stillNow) {
-        current.pause();
-        return;
-      }
-      // A rejected play() (an autoplay-policy edge) is a no-op — muted playback is unconditionally allowed.
-      void current.play().catch(() => undefined);
-    };
-    sync();
-    document.addEventListener("visibilitychange", sync);
-    return (): void => document.removeEventListener("visibilitychange", sync);
-  }, [still, src]);
+    if (!animating) {
+      video.pause();
+      return;
+    }
+    // A rejected play() (an autoplay-policy edge) is a no-op — muted playback is unconditionally allowed.
+    void video.play().catch(() => undefined);
+  }, [animating, src]);
 
   return (
     <video

@@ -10,9 +10,11 @@
   "packages/client/src/features/character/components/character-appearance-tab.tsx": 1,
   "packages/client/src/features/character/components/character-facet-editor.tsx": 1,
   "packages/client/src/features/character/components/character-greeting-preview.tsx": 1,
+  "packages/client/src/features/character/surfaces/character-library-surface.tsx": 1,
   "packages/client/src/features/chat/components/assembly-preview-diagnostics.tsx": 1,
   "packages/client/src/features/chat/components/draft-context-tabs.tsx": 1,
   "packages/client/src/features/chat/components/ghost-message-row.tsx": 2,
+  "packages/client/src/features/chat/components/members-panel.tsx": 1,
   "packages/client/src/features/chat/components/message-content.tsx": 4,
   "packages/client/src/features/chat/components/message-row-parts.tsx": 1,
   "packages/client/src/features/chat/lib/imagery-templates-model.ts": 2,
@@ -177,5 +179,6 @@
   "packages/ui/src/primitives/radio-group/radio-group.tsx": 1,
   "packages/ui/src/primitives/slider/slider.tsx": 1,
   "packages/ui/src/primitives/virtual-list/virtual-list.tsx": 2,
-  "packages/ui/src/stream/snap.ts": 2
+  "packages/ui/src/stream/snap.ts": 2,
+  "packages/ui/src/stream/use-smooth-text.ts": 1
 }

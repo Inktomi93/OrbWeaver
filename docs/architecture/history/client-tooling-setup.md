@@ -14,7 +14,7 @@ updated: 2026-07-11
 
 ## 1. The doctrine — ESLint is the NARROW supplement to Biome
 
-Biome owns formatting + 400+ correctness rules (`biome.json` + the grit plugins). ESLint exists ONLY for the rules Biome can't do: React-hooks + React-Compiler Rules-of-React diagnostics, TanStack Query/Router discipline, Tailwind compiled-class validation, `@typescript-eslint/no-deprecated`, `tsdoc/syntax`. **Explicit-rules-only** (never a `...recommended` bundle — one reasoned exception, §2). Config at repo root; `lint:eslint` is a `pnpm check` stage. Rule-by-rule verdicts + drop reasons: the `eslint.config.js` header.
+Biome owns formatting + 400+ correctness rules (`biome.json` + the grit plugins). ESLint exists ONLY for the rules Biome can't do: React-hooks + React-Compiler Rules-of-React diagnostics, TanStack Query/Router discipline, Tailwind compiled-class validation, `@typescript-eslint/no-deprecated`, `tsdoc/syntax`, Web-API LEAK analysis (`react-web-api` — a listener/timer/observer/fetch created in a component and never torn down), and unnecessary-EFFECT analysis (`react-you-might-not-need-an-effect` — state derived or chained in an effect that belongs in render; 6 of 9 rules, the other 3 rejected on a measured 25-site triage). **Explicit-rules-only** (never a `...recommended` bundle — one reasoned exception, §2). Config at repo root; `lint:eslint` is a `pnpm check` stage. Rule-by-rule verdicts + drop reasons: the `eslint.config.js` header.
 
 ## 2. eslint-plugin-react-hooks v7 (the React Compiler diagnostics)
 
