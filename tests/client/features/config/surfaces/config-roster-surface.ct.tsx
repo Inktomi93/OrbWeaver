@@ -1,4 +1,4 @@
-// CT: the Configuration workspace — the host frame over the REAL tag + regex collections.
+// CT: the Configuration workspace — the host frame over the REAL tag + regex + world-info collections.
 //
 // This is the seam's acceptance test: the host draws bands, disclosure, counts, create and the filter; the
 // contributions draw rows, editors and context bodies; and the ONE kinded selection routes between them.
@@ -17,6 +17,9 @@ import { ConfigWorkspaceStory } from "../_ct-stories";
  *  name carries the count and only a pattern can address it. */
 const TAGS_BAND = /Tags/;
 const REGEX_BAND = /Regex scripts/;
+const WORLD_INFO_BAND = /World Info/;
+/** Any group-band IMPORT trigger — the D121-D band half, drawn only where a collection declares one. */
+const ANY_IMPORT_TRIGGER = /^Import/;
 
 const TAG_COUNT = 400;
 
@@ -58,6 +61,16 @@ const SCRIPTS = [
   },
 ];
 
+const BOOK = {
+  id: "world_book_reach000001",
+  name: "The Ninefold Reach",
+  description: null,
+  createdAt: 1,
+  entryCount: 42,
+  usage: { characters: 2, personas: 0, chats: 0, global: true, total: 3 },
+};
+const BOOKS = [BOOK];
+
 function stub(page: Page, tags: readonly unknown[] = MANY_TAGS): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "tag.listTagsWithUsage": () => tags,
@@ -65,6 +78,13 @@ function stub(page: Page, tags: readonly unknown[] = MANY_TAGS): Promise<TrpcRec
     "regex.listScripts": () => SCRIPTS,
     "regex.listGlobal": () => [],
     "regex.createScript": () => SCRIPTS[0],
+    "worldInfo.listBooksWithUsage": () => BOOKS,
+    "worldInfo.getBook": () => ({ id: BOOK.id, name: "The Ninefold Reach", description: null, createdAt: 1 }),
+    "worldInfo.listEntries": () => [],
+    "worldInfo.listGlobal": () => [],
+    "persona.list": () => [],
+    "character.list": () => ({ items: [], nextCursor: null }),
+    "worldInfo.importFile": () => ({ created: true }),
   });
 }
 
@@ -73,12 +93,18 @@ test("every group starts COLLAPSED, showing its band, count and create verb — 
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
-  // The roster is the MAP: both libraries are named, counted, and creatable at rest.
+  // The roster is the MAP: all three libraries are named, counted, and creatable at rest, in DOOR ORDER.
   const roster = workspace.locator(ROSTER);
   await expect(roster.getByRole("button", { name: TAGS_BAND })).toBeVisible();
   await expect(roster.getByText(String(TAG_COUNT))).toBeVisible();
   await expect(roster.getByRole("button", { name: "New tag" })).toBeVisible();
   await expect(roster.getByRole("button", { name: "New script" })).toBeVisible();
+  await expect(roster.getByRole("button", { name: "New book" })).toBeVisible();
+  // DOOR ORDER IS ROSTER ORDER (C-1, extended by R2): tags · regex scripts · world info, top-down.
+  await expect
+    .poll(() => roster.locator('[data-slot="collection-group"]').evaluateAll((groups) => groups.map((g) => g.getAttribute("data-collection"))))
+    .toEqual(["tags", "regex", "worldInfo"]);
+  await expect(roster.getByRole("button", { name: WORLD_INFO_BAND })).toHaveAttribute("aria-expanded", "false");
   // …and not one of the 400 rows is mounted.
   await expect(roster.getByRole("button", { name: TAGS_BAND })).toHaveAttribute("aria-expanded", "false");
   await expect(workspace.getByText("tag-000")).toHaveCount(0);
@@ -124,6 +150,21 @@ test("no selection renders the host WELCOME with a launcher card per collection"
   // Each card is drawn from the CONTRACT (label · icon · count · blurb · create), never a host string table.
   await expect(welcome.getByText("Colour-coded labels for characters, chats, books, personas and presets.")).toBeVisible();
   await expect(welcome.getByText("Find/replace that runs on input, output, or both — everywhere, or only where you attach it.")).toBeVisible();
+  await expect(welcome.getByText("Keyword-triggered lore your characters draw on — a book fires where you attach it.")).toBeVisible();
+});
+
+// D121-D's lifecycle anatomy, landed on the group band: IMPORT is host chrome driven by the contribution's
+// `importFile` DATA, so it appears for exactly the collections that declare one. Tags and regex scripts do
+// not (their portable unit is the bundle / the card that carries them — lifecycle-portability.ts's `ruled`
+// cells), and the roster must not grow a dead trigger for them.
+test("the group band draws IMPORT only for a collection that declares one", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+
+  const roster = workspace.locator(ROSTER);
+  await expect(roster.getByRole("button", { name: "Import a world-info book" })).toBeVisible();
+  await expect(roster.getByRole("button", { name: ANY_IMPORT_TRIGGER })).toHaveCount(1);
 });
 
 test("selecting a member routes CONTENT to its owner's editor and CONTEXT to its owner's arm", async ({ mount, page }) => {
@@ -143,6 +184,13 @@ test("selecting a member routes CONTENT to its owner's editor and CONTEXT to its
   await workspace.getByText("strip ooc").click();
   await expect(workspace.getByRole("textbox", { name: "Name" })).toBeVisible();
   await expect(workspace.getByText("Runs in every chat")).toBeVisible();
+
+  // A BOOK (R2): the book editor mounts in CONTENT and the activation panel fills CONTEXT — the surfaces the
+  // retired rail section owned, framed by the same host as its two siblings.
+  await workspace.locator(ROSTER).getByRole("button", { name: WORLD_INFO_BAND }).click();
+  await workspace.getByText("42 entries · attached ×3").click();
+  await expect(workspace.getByRole("heading", { name: "The Ninefold Reach" })).toBeVisible();
+  await expect(workspace.getByRole("switch", { name: "Attach globally" })).toBeVisible();
 });
 
 test("the group create verb fires the OWNER's create mutation", async ({ mount, page }) => {

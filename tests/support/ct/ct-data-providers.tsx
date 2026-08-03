@@ -73,7 +73,7 @@ import {
   systemTuningSection,
 } from "@orb/client/features/user-admin";
 import { backupPane, workloadsJobsSection, workloadsPane, workloadsSchedulesSection, workloadsTuningSection } from "@orb/client/features/workloads";
-import { worldInfoSection, worldInfoSettingsSection } from "@orb/client/features/world-info";
+import { worldInfoCollection, worldInfoSettingsSection } from "@orb/client/features/world-info";
 import type {
   CharacterDetailContribution,
   ChatContextState,
@@ -173,8 +173,8 @@ const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", 
 ]);
 
 // The COLLECTION seam, assembled as at the real door — so a shell CT landing on `config` renders the REAL
-// roster (tags + regex scripts), not a stand-in.
-const configCollections = createContributorRegistry<CollectionContribution>("config-collections", [tagCollection, regexCollection]);
+// roster (tags + regex scripts + world books), not a stand-in.
+const configCollections = createContributorRegistry<CollectionContribution>("config-collections", [tagCollection, regexCollection, worldInfoCollection]);
 
 const REAL: Record<SectionId, SectionDefinition> = {
   home: makeHomeSection(homeTiles),
@@ -187,7 +187,6 @@ const REAL: Record<SectionId, SectionDefinition> = {
   characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
   corpus: corpusSection,
   config: makeConfigSection(configCollections),
-  worldInfo: worldInfoSection,
   presets: presetsSection,
   refinery: refinerySection,
   analytics: analyticsSection,

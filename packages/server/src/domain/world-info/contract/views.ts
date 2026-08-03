@@ -3,7 +3,9 @@
 
 export type {
   BookAttachmentView,
+  BookUsage,
   BookView,
+  BookWithUsage,
   EntryView,
   WorldBookRole,
 } from "@orb/contracts/world-info";

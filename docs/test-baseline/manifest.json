@@ -238,9 +238,10 @@
     "tests/client/features/workloads/lib/workloads-schedule-model.test.ts",
     "tests/client/features/workloads/surfaces/backup-settings-surface.ct.tsx",
     "tests/client/features/world-info/components/entry-editor.ct.tsx",
+    "tests/client/features/world-info/components/world-info-collection-rows.ct.tsx",
+    "tests/client/features/world-info/components/world-info-context-body.ct.tsx",
     "tests/client/features/world-info/components/world-info-settings-section.ct.tsx",
-    "tests/client/features/world-info/surfaces/world-info-editor-surface.ct.tsx",
-    "tests/client/features/world-info/surfaces/world-info-library-surface.ct.tsx",
+    "tests/client/features/world-info/surfaces/world-info-member-surface.ct.tsx",
     "tests/client/forms/autosave-convergence.suite.test.ts",
     "tests/client/forms/autosave-status.ct.tsx",
     "tests/client/forms/create-autosave-entity-form.ct.tsx",
@@ -299,7 +300,7 @@
     "tests/client/state/settings-section-registry-context.ct.tsx",
     "tests/client/state/shell-store.ct.tsx",
     "tests/client/state/steer-recovery-store.test.ts",
-    "tests/client/state/world-info-selection-store.ct.tsx",
+    "tests/client/state/world-entry-selection-store.ct.tsx",
     "tests/contracts/assets/index.contract.test.ts",
     "tests/contracts/automation/index.contract.test.ts",
     "tests/contracts/character/index.contract.test.ts",
@@ -1049,6 +1050,7 @@
     "tests/server/domain/world-info/verbs/books/create.int.test.ts",
     "tests/server/domain/world-info/verbs/books/duplicate.int.test.ts",
     "tests/server/domain/world-info/verbs/books/get.int.test.ts",
+    "tests/server/domain/world-info/verbs/books/list-with-usage.int.test.ts",
     "tests/server/domain/world-info/verbs/books/list.int.test.ts",
     "tests/server/domain/world-info/verbs/books/remove.int.test.ts",
     "tests/server/domain/world-info/verbs/books/update.int.test.ts",
@@ -1449,6 +1451,15 @@
     "tests/ui/touch-target-floor.suite.ct.tsx"
   ],
   "deletions": {
+    "tests/client/features/world-info/surfaces/world-info-library-surface.ct.tsx": {
+      "why": "the World Info RAIL SECTION retired with the config rail's R2 (2026-08-02): the library is a CollectionContribution in the Configuration workspace, so there is no list SURFACE or LIST band to mount. Its coverage moved wholesale — rows/scent/Global marker/kebab+Export to tests/client/features/world-info/components/world-info-collection-rows.ct.tsx, and the band's count + create + import to the config host's roster CT (tests/client/features/config/surfaces/config-roster-surface.ct.tsx), which mounts the real door array."
+    },
+    "tests/client/features/world-info/surfaces/world-info-editor-surface.ct.tsx": {
+      "why": "renamed, not deleted: the same editor is the collection's `detail` now, and every assertion it carried (the sortable entry list's keyboard drag → worldInfo.applyEntryOrder) moved verbatim into tests/client/features/world-info/surfaces/world-info-member-surface.ct.tsx, which additionally pins the GONE arm and the entry drill."
+    },
+    "tests/client/state/world-info-selection-store.ct.tsx": {
+      "why": "renamed to tests/client/state/world-entry-selection-store.ct.tsx with its store (R2): the BOOK half of the drill became the config workspace's kinded member selection, already covered by tests/client/state/config-selection-store.ct.tsx (select/switch-kind/clear + the goToCollection deep link) and by the roster CT's routing test. The ENTRY half's select/clear coverage moved verbatim."
+    },
     "tests/client/features/preset/components/regex-tab.ct.tsx": {
       "why": "superseded by the D121-E R5 library takeover (2026-08-03, REGEX lane): the preset regex tab's settings-blob pane died with the embed carriers; its coverage moved to regex-settings-surface.ct.tsx + regex-script-picker.ct.tsx + transforms-readout coverage"
     },

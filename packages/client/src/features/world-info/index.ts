@@ -1,18 +1,8 @@
 // world-info/ front door (UI-Arch §2.1) — the ONLY entry into the world-info slice (dep-cruiser
-// client-feature-front-door). The World Info authoring rail section (§4.1 authoring group) is ONE
-// co-located `SectionDefinition` (`lib/world-info-section.tsx`, client-architecture-lockdown.md §6a),
-// assembled into the section registry at the composition root (main.tsx) — the LIST slot mounts
-// `<WorldInfoLibraryAnchor><WorldInfoLibrarySurface/></…>`, CONTENT mounts `<WorldInfoContent>`, and
-// CONTEXT mounts `<WorldInfoContextBody>` (the global/character/persona activation panel).
+// client-feature-front-door). World Info is a `CollectionContribution` in the Configuration workspace
+// (`lib/world-info-collection.tsx`, R2) — it LEFT the rail: the door array in main.tsx registers the
+// collection, and `features/config` mounts its rows, its book editor and its attachment panel blind. The
+// activation knobs (scan depth / token budget) stay a contributed SETTINGS section, unchanged.
 
-export type { WorldInfoLibraryAnchorProps } from "./anchors/world-info-library-anchor";
-export { WorldInfoLibraryAnchor } from "./anchors/world-info-library-anchor";
-export type { BookAttachmentsProps } from "./components/book-attachments";
-export { BookAttachments } from "./components/book-attachments";
-export { WorldInfoWelcome } from "./components/world-info-welcome";
-export { worldInfoSection } from "./lib/world-info-section";
+export { worldInfoCollection } from "./lib/world-info-collection";
 export { worldInfoSettingsSection } from "./lib/world-info-settings-section";
-export type { WorldInfoEditorSurfaceProps } from "./surfaces/world-info-editor-surface";
-export { WorldInfoEditorSurface } from "./surfaces/world-info-editor-surface";
-export type { WorldInfoLibrarySurfaceProps } from "./surfaces/world-info-library-surface";
-export { WorldInfoLibrarySurface } from "./surfaces/world-info-library-surface";

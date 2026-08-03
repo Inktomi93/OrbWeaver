@@ -1,27 +1,23 @@
-// The World Info CONTEXT body (`ContextDefinition` `kind:"single"` — client-architecture-lockdown.md
-// §6b) — the book activation panel, shown only once a book is open. Reads its OWN selection so the
-// `single` arm's `body` stays a zero-arg render (S=void: worldInfo shares no context-state projection).
+// The world-info collection's CONTEXT arm — "where this book fires" for the selected book: the activation
+// panel (global toggle + persona/character attachment), unchanged from the rail section's CONTEXT.
+//
+// It is a `{kind:"body"}` arm, so the NO-SELECTION state is gone by construction: the host only calls this
+// with a member selected, and its own `context.empty` covers the nothing-selected case. What remains is the
+// GONE arm — the book was deleted on another device while its context was open.
 
 import { EmptyState } from "@orb/ui/empty-state";
 import { BookOpen, Icon } from "@orb/ui/icons";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useSelectedWorldBookId } from "#state";
+import { useTRPC } from "#data";
 import { BookAttachments } from "./book-attachments";
 
-export function WorldInfoContextBody(): ReactElement {
-  const selectedWorldBookId = useSelectedWorldBookId();
-  if (selectedWorldBookId === null) {
-    // THE NO-SELECTION ARM (side-eye F-12). This returned `null`, so a DOCKED World Info context pane
-    // rendered its band's bare "Details" over an empty box — the whole pane's `innerText` was the word
-    // "Details" — which reads as a surface nobody finished. It is a real arm now, naming what the pane
-    // WILL show, per `ContextEmptyArm`'s contract and the section's own `context.empty` declaration.
-    return (
-      <EmptyState
-        description="Open a world book and this pane shows where it attaches — the characters, chats and personas its entries can fire in."
-        icon={<Icon icon={BookOpen} size="lg" />}
-        title="No book open"
-      />
-    );
+export function WorldInfoContextBody({ memberId }: { readonly memberId: string }): ReactElement {
+  const trpc = useTRPC();
+  const { data: books } = useSuspenseQuery(trpc.worldInfo.listBooksWithUsage.queryOptions());
+  const book = books.find((row) => row.id === memberId);
+  if (book === undefined) {
+    return <EmptyState description="This book was deleted. Pick another on the left." icon={<Icon icon={BookOpen} size="lg" />} title="Book not found" />;
   }
-  return <BookAttachments bookId={selectedWorldBookId} />;
+  return <BookAttachments bookId={book.id} />;
 }

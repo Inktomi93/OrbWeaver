@@ -104,6 +104,50 @@ function checkCreateIsData(def: CollectionDef, out: Violation[]): void {
   }
 }
 
+/** The IMPORT-IS-DATA arm (R2WI) — the same wall as `create`, on D121-D's other lifecycle half. `importFile`
+ *  is OPTIONAL (a library with no portable single-entity file has nothing to import), but a collection that
+ *  declares one declares it as `{label, accept, useRun}`: the HOST draws the ghost Upload in the group band,
+ *  so a rendered node here would be a second import grammar inside the row area. */
+function checkImportIsData(def: CollectionDef, out: Violation[]): void {
+  const door = objProp(def.init, "importFile");
+  if (door === undefined) {
+    return;
+  }
+  const unwrapped = unwrapExpression(door);
+  if (!Node.isObjectLiteralExpression(unwrapped)) {
+    out.push({
+      file: rel(def.path),
+      line: def.line,
+      message: `collection "${def.name}"'s \`importFile\` is not a data literal — the HOST draws the import affordance in the group band (D121-D band=Import); a contribution declares \`{label, accept, useRun}\` — docs/design/config-rail-spec.md §3.`,
+    });
+    return;
+  }
+  const labelNode = objProp(unwrapped, "label");
+  const label = labelNode === undefined ? undefined : readStringValue(labelNode);
+  if (label === undefined || label.length === 0) {
+    out.push({
+      file: rel(def.path),
+      line: def.line,
+      message: `collection "${def.name}"'s \`importFile.label\` is not a non-empty string literal — it IS the trigger's accessible name AND its tooltip, so it cannot be computed at the host — docs/design/config-rail-spec.md §3.`,
+    });
+  }
+  const acceptNode = objProp(unwrapped, "accept");
+  if (acceptNode === undefined || readStringValue(acceptNode) === undefined) {
+    out.push({
+      file: rel(def.path),
+      line: def.line,
+      message: `collection "${def.name}"'s \`importFile.accept\` is not a string literal — the file-picker filter is the contribution's own fact and the host cannot guess it — docs/design/config-rail-spec.md §3.`,
+    });
+  }
+  if (objProp(unwrapped, "useRun") === undefined) {
+    out.push({
+      file: rel(def.path),
+      line: def.line,
+      message: `collection "${def.name}"'s \`importFile\` has no \`useRun\` — the runner is a HOOK, exactly like \`create.useRun\` (a definition is a module value) — docs/design/config-rail-spec.md §3.`,
+    });
+  }
+}
+
 function checkCollectionDefs(sf: SourceFile, out: Violation[], seenIds: Map<string, Seen>, defSites: Map<string, DefSite>): void {
   const path = sf.getFilePath();
   const coLocated = COLLECTION_FILE_RE.test(path);
@@ -131,6 +175,7 @@ function checkCollectionDefs(sf: SourceFile, out: Violation[], seenIds: Map<stri
     defSites.set(def.name, { file: rel(path), line });
     checkUniqueId(def, out, seenIds);
     checkCreateIsData(def, out);
+    checkImportIsData(def, out);
   }
 }
 
@@ -213,7 +258,7 @@ export const gate: GateDescriptor = {
   scopeSafety: "whole-project",
   message:
     "a config collection is dishonest: a CollectionContribution not co-located in its feature's lib collection file, a duplicate collection kind, a `create` that is not `{label, useRun}` data, a second `config-collections` assembly outside the door, or a co-located collection nobody registers — docs/design/config-rail-spec.md §3.",
-  fix: "co-locate the collection at features/<owner>/lib/<name>-collection.tsx; declare `create: { label: \"New …\", useRun }`; assemble collections ONCE at main.tsx and register the def there (an unregistered collection is dead wire).",
+  fix: 'co-locate the collection at features/<owner>/lib/<name>-collection.tsx; declare `create: { label: "New …", useRun }`; assemble collections ONCE at main.tsx and register the def there (an unregistered collection is dead wire).',
   run: (ctx) => {
     const out: Violation[] = [];
     const seenIds = new Map<string, Seen>();
@@ -238,8 +283,10 @@ export const gate: GateDescriptor = {
     },
     {
       files: {
-        "packages/client/src/features/a/lib/a-collection.tsx": "export const aCollection: CollectionContribution = { id: 'dup', create: { label: 'New a', useRun: () => () => undefined } };\n",
-        "packages/client/src/features/b/lib/b-collection.tsx": "export const bCollection: CollectionContribution = { id: 'dup', create: { label: 'New b', useRun: () => () => undefined } };\n",
+        "packages/client/src/features/a/lib/a-collection.tsx":
+          "export const aCollection: CollectionContribution = { id: 'dup', create: { label: 'New a', useRun: () => () => undefined } };\n",
+        "packages/client/src/features/b/lib/b-collection.tsx":
+          "export const bCollection: CollectionContribution = { id: 'dup', create: { label: 'New b', useRun: () => () => undefined } };\n",
       },
       expect: { messageIncludes: "already claimed by" },
       why: "two co-located collections claiming one KIND — the shadow-contribution arm",
@@ -274,6 +321,34 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "second" },
       why: "a config-collections assembly outside the composition root — the anti-god-map arm",
     },
+    {
+      files:
+        "export const xCollection: CollectionContribution = { id: 'x', create: { label: 'New x', useRun: () => () => undefined }, importFile: <ImportXButton /> };\n",
+      at: "packages/client/src/features/x/lib/x-collection.tsx",
+      expect: { messageIncludes: "`importFile` is not a data literal" },
+      why: "an import affordance RENDERED by the contribution — the host owns the band's chrome (D121-D band=Import)",
+    },
+    {
+      files:
+        "export const xCollection: CollectionContribution = { id: 'x', create: { label: 'New x', useRun: () => () => undefined }, importFile: { label: 'Import an x', useRun: () => () => undefined } };\n",
+      at: "packages/client/src/features/x/lib/x-collection.tsx",
+      expect: { messageIncludes: "importFile.accept" },
+      why: "an import door with no file-picker filter — the host cannot guess what bytes the collection reads",
+    },
+    {
+      files:
+        "export const xCollection: CollectionContribution = { id: 'x', create: { label: 'New x', useRun: () => () => undefined }, importFile: { label: '', accept: 'application/json', useRun: () => () => undefined } };\n",
+      at: "packages/client/src/features/x/lib/x-collection.tsx",
+      expect: { messageIncludes: "importFile.label" },
+      why: "an empty accessible name for the import trigger",
+    },
+    {
+      files:
+        "export const xCollection: CollectionContribution = { id: 'x', create: { label: 'New x', useRun: () => () => undefined }, importFile: { label: 'Import an x', accept: 'application/json', run: () => undefined } };\n",
+      at: "packages/client/src/features/x/lib/x-collection.tsx",
+      expect: { messageIncludes: "`importFile` has no `useRun`" },
+      why: "a bare `run` on the import door — the hook-runner arm, same reason as create's",
+    },
   ],
   mustPass: [
     {
@@ -285,6 +360,12 @@ export const gate: GateDescriptor = {
       files: "export const collections = createContributorRegistry('config-collections', [tagCollection]);\n",
       at: "packages/client/src/main.tsx",
       why: "the ONE assembly, at the composition root — passes",
+    },
+    {
+      files:
+        "export const worldInfoCollection: CollectionContribution = { id: 'worldInfo', create: { label: 'New book', useRun: useCreateWorldInfoMember }, importFile: { label: 'Import a world-info book', accept: 'application/json', useRun: useImportWorldInfoMember } };\n",
+      at: "packages/client/src/features/world-info/lib/world-info-collection.tsx",
+      why: "a collection with BOTH lifecycle halves declared as data (D121-D band=Import) — the shape R2's world-info migration ships",
     },
   ],
 };

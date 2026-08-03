@@ -7,12 +7,15 @@
 // sibling collection below its scroll and the roster would stop being the map of what EXISTS. The band is
 // the map; expanding is one click, and the expanded set is remembered per device.
 //
-// THE BAND IS TWO SIBLING CONTROLS, never one nested pair: the disclosure is a button spanning the
-// identity cluster, and the create `+` sits BESIDE it — a create button inside the disclosure button would
-// be unclickable-by-spec (nested interactives) and unreadable to a screen reader.
+// THE BAND'S CONTROLS ARE SIBLINGS, never nested: the disclosure is a button spanning the identity cluster,
+// and the trailing verbs (the optional IMPORT trigger, then the create `+`) sit BESIDE it — a button inside
+// the disclosure button would be unclickable-by-spec (nested interactives) and unreadable to a screen
+// reader. IMPORT leads CREATE because create is the primary and a primary sits last, hard against the
+// trailing edge (the world-info list band's landed order, re-homed).
 
 import { Button } from "@orb/ui/button";
-import { ChevronDown, ChevronRight, Icon, Plus, Search } from "@orb/ui/icons";
+import { FileTrigger } from "@orb/ui/file-trigger";
+import { ChevronDown, ChevronRight, Icon, Plus, Search, Upload } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
@@ -68,6 +71,7 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
             </Text>
           )}
         </Button>
+        <CollectionImportTrigger collection={collection} />
         <Button aria-label={collection.create.label} intent="ghost" onClick={create} size="icon" title={collection.create.label} type="button">
           <Icon icon={Plus} size="sm" />
         </Button>
@@ -92,6 +96,41 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
           once expanded would read as a library the user has to open to learn is empty. */}
       {isEmpty ? <CollectionGroupEmpty collection={collection} onCreate={create} /> : null}
     </Stack>
+  );
+}
+
+/** The group band's IMPORT door (D121-D `band=Import`) — rendered only for a collection that declares one.
+ *  Split into its own component so the runner hook is called UNCONDITIONALLY inside it: whether a
+ *  collection has an import door is a module-level BUILD fact (the definition is a static value), so the
+ *  branch above the hook cannot change across renders — the same discipline the optional `useCount` call
+ *  already relies on. */
+function CollectionImportTrigger({ collection }: CollectionGroupProps): ReactNode {
+  const door = collection.importFile;
+  if (door === undefined) {
+    return null;
+  }
+  return <CollectionImportDoor door={door} />;
+}
+
+function CollectionImportDoor({ door }: { readonly door: NonNullable<CollectionContribution["importFile"]> }): ReactElement {
+  const run = door.useRun();
+  return (
+    <FileTrigger
+      accept={door.accept}
+      onFilesSelected={([file]): void => {
+        if (file !== undefined) {
+          run(file);
+        }
+      }}
+    >
+      {({ open }): ReactElement => (
+        // `size="icon"` (not `sm`): an icon-only trigger in an `sm` box measures under the 44px coarse
+        // floor — `size="icon"` is `size-control-md`, 34px fine / 48px coarse BY TOKEN (D62 P1).
+        <Button aria-label={door.label} intent="ghost" onClick={open} size="icon" title={door.label} type="button">
+          <Icon icon={Upload} size="sm" />
+        </Button>
+      )}
+    </FileTrigger>
   );
 }
 

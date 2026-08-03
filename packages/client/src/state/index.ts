@@ -261,12 +261,4 @@ export {
   STEER_RECOVERY_CAP,
   useRecentSteers,
 } from "./steer-recovery-store";
-export {
-  clearWorldBookSelection,
-  clearWorldEntrySelection,
-  selectWorldBook,
-  selectWorldBookFromList,
-  selectWorldEntry,
-  useSelectedWorldBookId,
-  useSelectedWorldEntryId,
-} from "./world-info-selection-store";
+export { clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId } from "./world-entry-selection-store";
