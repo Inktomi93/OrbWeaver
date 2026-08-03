@@ -16,8 +16,8 @@ import {
   chatParticipants,
   chats as chatsTable,
   documents as documentsTable,
-  globalDocuments,
   galleryItems,
+  globalDocuments,
   messageAssets,
   messages as messagesTable,
   messageVariants,
@@ -385,7 +385,10 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
         .where(eq(documentsTable.ownerId, targetId));
       expect(freshDocs).toHaveLength(1);
       expect(freshDocs[0]?.text).toBe("The kingdom's dusk lasts nine hours.");
-      const freshGlobalDocs = await freshDatabase.select({ documentId: globalDocuments.documentId }).from(globalDocuments).where(eq(globalDocuments.ownerId, targetId));
+      const freshGlobalDocs = await freshDatabase
+        .select({ documentId: globalDocuments.documentId })
+        .from(globalDocuments)
+        .where(eq(globalDocuments.ownerId, targetId));
       expect(freshGlobalDocs.map((r) => r.documentId)).toEqual([freshDocs[0]?.id]);
 
       // The chat re-seated its host + character (handle-layout resolved on import).

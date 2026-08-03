@@ -87,7 +87,15 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
 }
 
 /** One tag row: the colour swatch, the name, and the usage census — what you SCAN a library by. */
-function TagCollectionRow({ tag, selected, onSelect }: { readonly tag: TagWithUsage; readonly selected: boolean; readonly onSelect: () => void }): ReactElement {
+function TagCollectionRow({
+  tag,
+  selected,
+  onSelect,
+}: {
+  readonly tag: TagWithUsage;
+  readonly selected: boolean;
+  readonly onSelect: () => void;
+}): ReactElement {
   return (
     <LibraryRow
       leading={
@@ -100,7 +108,11 @@ function TagCollectionRow({ tag, selected, onSelect }: { readonly tag: TagWithUs
           {...(tag.color === null ? {} : { style: { backgroundColor: tag.color } })}
         />
       }
-      markers={<Text as="span" voice="datum">{usageTotalLabel(tag.usage.total)}</Text>}
+      markers={
+        <Text as="span" voice="datum">
+          {usageTotalLabel(tag.usage.total)}
+        </Text>
+      }
       onSelect={onSelect}
       selected={selected}
       title={tag.name}
