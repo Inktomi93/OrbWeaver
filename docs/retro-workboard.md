@@ -647,8 +647,16 @@ completeness+membership; CARD_PACK_VERSION deliberately NOT bumped — the drop 
 every read). **OWED: mint TD's D-entry as D123 (text in its report) — ANCHOR's becomes D124
 (lane notified); UI-Theming §12.1 amended in its commit (sibling-lane flag). Side-eye
 polish item: the 3-action Theme cluster's visual weight (Select beside two ghosts).**
-**Scout dispatched (owner question): imagery + plugin dormancy census** (the two
-suspiciously-small-relative-to-ambition domains; hub + agent-plane = the honest zeros).
+✅ **SCOUT DELIVERED (imagery+plugin dormancy census) + RULED:** imagery = HONEST dormancy
+(generate LIVE free-mode; editImage/extractPrompt/readProvenance/portrait machinery all
+PD-93-cited parked; captionAvatar unreachable behind the parked modes; the D61
+sprite→expressions consumer = ABSENT domain, reference-only in proposed/). **plugin =
+DEAD-WIRE AT DOMAIN SCALE** — real service/sandbox/7 procs, ZERO client callers, no arrival
+door (raw-base64 install nobody can produce), no dormancy citation ANYWHERE (build-order gap,
+not a deliberate hold — violates wired-or-cited in spirit). **OWNER RULED: CITE IT DORMANT
+NOW** → PLUGCITE joins SM5 (the PD-93-style marker at the domain front door + router naming
+the wave that wakes it: the install/list pane). The build stays queued for if/when plugins
+matter.
 **OWNER NIT (08-03 late) → SM5 queue: the per-message WIRE-TRACE trigger is in the wrong
 home** — RAWVIEW grafted it onto MessageMetadataRow; it belongs in the MESSAGE KEBAB with the
 other message actions (host-gated menu item; the kebab is the ruled action home, D62 §12
