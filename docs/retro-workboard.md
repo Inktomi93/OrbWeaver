@@ -388,9 +388,15 @@ Items this audit could not prove either way from the tree. **None were dropped.*
   failure and teardown ran on a failed merge; a red hook left staged-no-commit and the chained `rm -rf`
   deleted a lane worktree that then needed resurrection). merge → SEPARATE verify call → THEN teardown.
   A staged-failed merge is `git merge --abort`, never `reset --hard` with uncommitted work.
-- **The orchestrator's own shell cwd can silently sit in (or die with) a worktree** — a bare `git
-  log`/`git merge` then acts on the WRONG repo and even the verification lies. `git -C <ABSOLUTE-main>`
-  always.
+- **NEVER `cd` INTO A WORKTREE AT ALL — not even as a throwaway prefix.** The Bash tool's cwd PERSISTS
+  across calls, so one `cd <wt> 2>/dev/null; git -C <wt> status` silently relocates every LATER command:
+  a board edit + `git add -A docs` + commit then landed a main-only doc commit on a LANE'S BRANCH, on top
+  of that lane's checkpoint, while it was mid-sweep (2026-08-03, BRAND-F). `git -C <ABSOLUTE-path>` is
+  sufficient for every worktree read — the `cd` buys nothing and costs this.
+  **The repair, when it happens:** cherry-pick the commit to main FIRST (bank the work), then in the lane
+  `reset --soft HEAD~1`, rewrite the stray file from `git show HEAD:<path>`, and `git reset -- <path>` to
+  unstage. NEVER `git restore`/`checkout <path>` in a lane's tree — it carries live uncommitted work.
+  Verify the lane's modified-file count is unchanged afterward and TELL the lane.
 - **HOLD merges while a `verify --push` runs** (merging mid-battery muddies what got certified).
 - Merge-hook format-drift reds: fix IN the staged merge (scoped biome on the named files, inspect the
   diff, `git add`, `commit --no-edit`).
