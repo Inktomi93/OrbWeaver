@@ -491,8 +491,21 @@ banked below (zero-suppression budget forces better shapes · biome-ignore must 
 · no-inline-types client rules). **HCOPY's CATCH fixed direct-on-main (`d8a67e94`):
 SERVICE_KEYS missing `regex`** — the 7th check-invisible new-domain site struck AGAIN (REGEX
 lane miss; services.test 20/20 green now).
-**LIVE (2): PORT · RFIX. CARCH dispatches on next drain** (slot open — held for whichever
-finishes first to keep merge attention available).
+**LIVE (2): RFIX · CARCH (dispatched — F-1..F-7 doc/gate batch; F-8 stays the design set).**
+**PORT = DONE-AWAITING-MERGE (`e386deeb` on wt/agent-a801f968b9fead1c1, ONE commit, 95 files
++3540/−699; HELD because the push battery is mid-run on `b3317c7d` — merge after the verdict):**
+F1 CLOSED (databank travels — REAL bundle round-trip: fresh db/CAS/owner via the actual
+202-workload; re-import = zero new rows) · lifecycle-portability gate live (#173, caught
+globalDocuments unclassified WHILE BEING WRITTEN) · R3 serde spine (8 families, envelope/
+decode/version-gate/emit exist ONCE) · world-info doors + O-5 ?format=png|json · persona
+chrome re-homed (row cluster now Fav·Default·kebab — side-eye look owed) · O-3 merge-in-place
+flip (theme+tag restore-wins — USER-VISIBLE, owner note) · PortableParse reasons
+(not-json|foreign-kind|newer-version|malformed; reason RENDERS via notify.error — cited not
+CT-pinned, rides the next side-eye) · R6/F9 scoped out HONESTLY, machine-tracked
+(ACCEPTED-LOSSY/DEFERRED rows w/ "ends when R6 lands"); O-6 characterless-import rides R6.
+It also independently fixed the same SERVICE_KEYS red (expect trivial auto-merge vs
+`d8a67e94`) + a card-serde test id. Lesson banked: zod pass-through toWire is NOT byte-stable
+(schema key order) — every serde toWire spells its keys.
 (Superseded pause block:) NO new spawns AND the
 5 live lanes ORDERED TO SLEEP (checkpoint-commit coherent work [--no-verify sanctioned for
 the checkpoint], reply resume-state, stop; worktrees + branches STAY — teardown forbidden).
