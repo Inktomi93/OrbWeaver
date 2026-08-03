@@ -16,10 +16,12 @@
 // Round-trip drift guard: buildUserSettingsBackup(parseUserSettingsBackup(buildUserSettingsBackup(x)))
 // deep-equals buildUserSettingsBackup(x).
 
+import type { PortableParse } from "@orb/contracts/portability";
 import type { UserSettings, UserSettingsSection } from "@orb/contracts/settings";
 import { parseUserSettings, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
 import { isPlainObject } from "@orb/kit/guards";
 import { z } from "zod";
+import { defineJsonObjectSerde } from "#kit/serde/lib";
 
 // The file-format version, distinct from the payload's USER_SETTINGS_SCHEMA_VERSION (which governs the
 // namespace shapes and is handled inside parseUserSettings).
@@ -61,53 +63,15 @@ function copyNamespace<K extends ShareSafeSettingsNamespace>(dst: Partial<Portab
   dst[key] = src[key];
 }
 
-/** Serialize a share-safe settings projection to the orb-native user-settings-backup JSON bytes (the
- *  inverse of `parseUserSettingsBackup`). Emits only the present allowlisted namespaces, in allowlist
- *  order. */
-export function buildUserSettingsBackup(safe: Partial<PortableUserSettings>): Uint8Array {
-  const settings: Record<string, unknown> = {};
-  for (const ns of SHARE_SAFE_SETTINGS_NAMESPACES) {
-    const value = safe[ns];
-    if (value !== undefined) {
-      settings[ns] = value;
-    }
-  }
-  const wire = {
-    schemaKind: USER_SETTINGS_SCHEMA_KIND,
-    schemaVersion: USER_SETTINGS_BACKUP_SCHEMA_VERSION,
-    settings,
-  };
-  return new TextEncoder().encode(JSON.stringify(wire, null, 2));
-}
-
-const wireBackupSchema = z.object({
-  schemaKind: z.literal(USER_SETTINGS_SCHEMA_KIND),
-  schemaVersion: z.number().int().positive(),
-  settings: z.unknown(),
-});
-
-function decodeJson(bytes: Uint8Array): unknown {
-  try {
-    return JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
-    return null;
-  }
-}
-
 /** Type-safe single-namespace copy into the parse output (same reason as `copyNamespace`). */
 function takeNamespace<K extends ShareSafeSettingsNamespace>(dst: Partial<PortableUserSettings>, healed: UserSettings, key: K): void {
   dst[key] = healed[key];
 }
 
-/** Parse orb-native user-settings-backup JSON bytes to a `Partial<PortableUserSettings>`, or null when
- *  the bytes are not a user-settings-backup file. Returns only the allowlisted namespaces the file
- *  actually carried; any non-allowlisted key (e.g. a crafted `routing`/`credential`) is ignored. */
-export function parseUserSettingsBackup(bytes: Uint8Array): Partial<PortableUserSettings> | null {
-  const envelope = wireBackupSchema.safeParse(decodeJson(bytes));
-  if (!envelope.success) {
-    return null;
-  }
-  const rawObj = isPlainObject(envelope.data.settings) ? envelope.data.settings : {};
+/** The fence, applied at the wire boundary: only the allowlisted namespaces the file actually carried
+ *  survive; any non-allowlisted key (a crafted `routing`/`credential`) is never read. */
+function takeShareSafe(raw: unknown): Partial<PortableUserSettings> {
+  const rawObj = isPlainObject(raw) ? raw : {};
   const healed = parseUserSettings(rawObj, USER_SETTINGS_SCHEMA_VERSION);
   const out: Partial<PortableUserSettings> = {};
   for (const ns of SHARE_SAFE_SETTINGS_NAMESPACES) {
@@ -116,4 +80,36 @@ export function parseUserSettingsBackup(bytes: Uint8Array): Partial<PortableUser
     }
   }
   return out;
+}
+
+// The fence PROJECTION stays outside the spine (it is this family's security property, not a serde
+// mechanic); the spine owns only the envelope, decode, and version gate.
+const userSettingsSerde = defineJsonObjectSerde<Partial<PortableUserSettings>, { readonly settings?: unknown }>({
+  schemaKind: USER_SETTINGS_SCHEMA_KIND,
+  schemaVersion: USER_SETTINGS_BACKUP_SCHEMA_VERSION,
+  bodySchema: z.object({ settings: z.unknown() }),
+  toWire: (safe) => {
+    const settings: Record<string, unknown> = {};
+    for (const ns of SHARE_SAFE_SETTINGS_NAMESPACES) {
+      const value = safe[ns];
+      if (value !== undefined) {
+        settings[ns] = value;
+      }
+    }
+    return { settings };
+  },
+  fromWire: (body) => takeShareSafe(body.settings),
+});
+
+/** Serialize a share-safe settings projection to the orb-native user-settings-backup JSON bytes (the
+ *  inverse of `parseUserSettingsBackup`). Emits only the present allowlisted namespaces, in allowlist
+ *  order. */
+export function buildUserSettingsBackup(safe: Partial<PortableUserSettings>): Uint8Array {
+  return userSettingsSerde.build(safe);
+}
+
+/** Parse orb-native user-settings-backup JSON bytes to a `Partial<PortableUserSettings>`, or the typed
+ *  reason they were refused. */
+export function parseUserSettingsBackup(bytes: Uint8Array): PortableParse<Partial<PortableUserSettings>> {
+  return userSettingsSerde.parse(bytes);
 }

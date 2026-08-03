@@ -69,7 +69,11 @@ describe("createExport", () => {
     }
     expect(result.filename).toBe("aria-s-world.json");
 
-    const canonical = parseWorldBookFile(new TextDecoder().decode(result.bytes));
+    const parsed = parseWorldBookFile(result.bytes);
+    if (!parsed.ok) {
+      throw new Error(`export bytes did not re-parse: ${parsed.reason}`);
+    }
+    const canonical = parsed.value;
     const expected: BulkImportLorebookInput = {
       name: "Aria's World",
       description: "the lore",

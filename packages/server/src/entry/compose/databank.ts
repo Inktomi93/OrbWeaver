@@ -8,7 +8,7 @@
 import type { Db } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { can } from "#domain/admin";
-import type { DatabankContext, DatabankIngest, DatabankService } from "#domain/databank";
+import type { DatabankContext, DatabankIngest, DatabankPortabilityContext, DatabankService } from "#domain/databank";
 import { createDatabankIngest, createDatabankService } from "#domain/databank";
 import type { EmbeddingsService } from "#domain/embeddings";
 import type { SearchService } from "#domain/search";
@@ -44,6 +44,9 @@ export interface DatabankComposeDeps {
 export interface DatabankComposeResult {
   readonly databank: DatabankService;
   readonly databankIngest: DatabankIngest;
+  /** The PRINCIPAL-LESS slice the bundle descriptors close over (the delivery core knows only `ownerId`).
+   *  It IS the same `DatabankContext` — narrowed here so the portability seam can't reach the rest of it. */
+  readonly databankPortability: DatabankPortabilityContext;
 }
 
 /** The bound `getDatabankSettings(ownerId)` op — reads the owner's REAL `UserSettings.databank` and projects
@@ -93,5 +96,5 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
   };
   const databank = createDatabankService(databankCtx);
   const databankIngest: DatabankIngest = createDatabankIngest(databankCtx);
-  return { databank, databankIngest };
+  return { databank, databankIngest, databankPortability: databankCtx };
 }

@@ -3,10 +3,19 @@
 // schemaKind → null, non-JSON → null, a malformed row dropped not fatal, the D44 override clamp on hostile
 // tokens), and the build -> parse -> build ROUND-TRIP identity (the drift guard against the two halves diverging).
 
+import type { PortableParse } from "@orb/contracts/portability";
 import type { CanonicalTheme, ThemeBackup } from "@orb/server/kit/serde/theme";
 import { buildThemeBackup, parseThemeBackup, THEME_SCHEMA_KIND, THEME_SCHEMA_VERSION } from "@orb/server/kit/serde/theme";
 import { describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures";
+
+/** The parse outcome's value — the spine returns a typed refusal reason, never null. */
+function must<T>(result: PortableParse<T>): T {
+  if (!result.ok) {
+    throw new Error(`portable parse refused: ${result.reason}`);
+  }
+  return result.value;
+}
 
 function ctheme(over: Partial<CanonicalTheme> = {}): CanonicalTheme {
   return { name: "Midnight", override: {}, css: null, ...over };
@@ -43,14 +52,14 @@ describe("buildThemeBackup", () => {
 
 describe("parseThemeBackup", () => {
   test("null for non-JSON bytes / empty bytes", () => {
-    expect(parseThemeBackup(new TextEncoder().encode("{not json"))).toBeNull();
-    expect(parseThemeBackup(new Uint8Array())).toBeNull();
+    expect(parseThemeBackup(new TextEncoder().encode("{not json"))).toEqual({ ok: false, reason: "not-json" });
+    expect(parseThemeBackup(new Uint8Array())).toEqual({ ok: false, reason: "not-json" });
   });
 
   test("null for a foreign / absent schemaKind (a different portable file)", () => {
     const foreign = new TextEncoder().encode(JSON.stringify({ schemaKind: "orb.tag-library", schemaVersion: 1, themes: [] }));
-    expect(parseThemeBackup(foreign)).toBeNull();
-    expect(parseThemeBackup(new TextEncoder().encode(JSON.stringify({ themes: [] })))).toBeNull();
+    expect(parseThemeBackup(foreign)).toEqual({ ok: false, reason: "foreign-kind" });
+    expect(parseThemeBackup(new TextEncoder().encode(JSON.stringify({ themes: [] })))).toEqual({ ok: false, reason: "foreign-kind" });
   });
 
   test("a malformed theme row is dropped, not fatal (blank name / non-object)", () => {
@@ -61,9 +70,9 @@ describe("parseThemeBackup", () => {
         themes: [{ name: "keep", override: {} }, { name: "  " }, 7, { override: {} }],
       }),
     );
-    const backup = parseThemeBackup(bytes);
-    expect(backup?.themes).toHaveLength(1);
-    expect(backup?.themes[0]?.name).toBe("keep");
+    const backup = must(parseThemeBackup(bytes));
+    expect(backup.themes).toHaveLength(1);
+    expect(backup.themes[0]?.name).toBe("keep");
   });
 
   test("a hostile override token degrades per-field through the clamp (row still parses)", () => {
@@ -74,7 +83,7 @@ describe("parseThemeBackup", () => {
         themes: [{ name: "risky", override: { accent: "url(x)", font: "Comic" } }],
       }),
     );
-    const row = parseThemeBackup(bytes)?.themes[0];
+    const row = must(parseThemeBackup(bytes)).themes[0];
     expect(row?.name).toBe("risky");
     // Unsafe color + non-allowlisted font both drop; the override survives as an empty (safe) set.
     expect(row?.override).toEqual({});
@@ -94,11 +103,7 @@ describe("build -> parse -> build identity", () => {
       ],
     };
     const bytes1 = buildThemeBackup(source);
-    const reparsed = parseThemeBackup(bytes1);
-    if (reparsed === null) {
-      throw new Error("reparse failed");
-    }
-    const bytes2 = buildThemeBackup(reparsed);
+    const bytes2 = buildThemeBackup(must(parseThemeBackup(bytes1)));
     expect(new TextDecoder().decode(bytes2)).toBe(new TextDecoder().decode(bytes1));
   });
 });

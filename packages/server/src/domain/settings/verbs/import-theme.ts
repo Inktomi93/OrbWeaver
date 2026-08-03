@@ -1,15 +1,17 @@
 // verb: importTheme — restore a theme-backup file into the owner's OWN theme library.
-// Idempotent: dedupes by (ownerId, name), existing names untouched, intra-file duplicates collapse to first.
-// Security: css re-runs the same validateThemeCss guard as createTheme — a failing css degrades to null
-// rather than aborting the import.
+// Idempotent: dedupes by (ownerId, name); a same-named theme is MERGED IN PLACE (O-3 restore-wins — the
+// user's mental model of "restore my backup" is the backup's palette, not the edited one), intra-file
+// duplicates collapse to first. Security: css re-runs the same validateThemeCss guard as createTheme — a
+// failing css degrades to null rather than aborting the import.
 
 import type { themes } from "@orb/db";
 import { validateThemeCss } from "@orb/kit/css-validate";
 import type { UserId } from "@orb/kit/ids";
-import { parseThemeBackup } from "#kit/serde/theme";
+import { portableParseError } from "#kit/serde/lib";
+import { parseThemeBackup, THEME_SCHEMA_KIND } from "#kit/serde/theme";
 import type { SettingsImportOutcome } from "../contract/portability";
 import type { SettingsContext } from "../contract/service";
-import { insertOwnedThemesIfAbsent } from "../persistence/theme-queries";
+import { restoreOwnedThemes } from "../persistence/theme-queries";
 
 const THEME_IMPORT_BACKUP = "theme.importBackup";
 const THEME_ENTITY = "theme";
@@ -17,10 +19,11 @@ const THEME_ENTITY = "theme";
 /** Parse theme-backup bytes and merge them into the owner's theme library (idempotent, dedup by name). */
 export function createImportTheme(ctx: SettingsContext): (ownerId: UserId, bytes: Uint8Array) => Promise<SettingsImportOutcome> {
   return async (ownerId: UserId, bytes: Uint8Array): Promise<SettingsImportOutcome> => {
-    const backup = parseThemeBackup(bytes);
-    if (backup === null) {
-      return { ok: false, error: "the file is not a valid orb theme-backup export" };
+    const parsed = parseThemeBackup(bytes);
+    if (!parsed.ok) {
+      return { ok: false, error: portableParseError(THEME_SCHEMA_KIND, parsed.reason) };
     }
+    const backup = parsed.value;
 
     const at = ctx.now();
     const seen = new Set<string>();
@@ -42,9 +45,9 @@ export function createImportTheme(ctx: SettingsContext): (ownerId: UserId, bytes
       });
     }
 
-    const created = await insertOwnedThemesIfAbsent(ctx.db, values);
+    const created = await restoreOwnedThemes(ctx.db, ownerId, values);
 
-    if (created > 0) {
+    if (backup.themes.length > 0) {
       await ctx.audit(
         {
           actorUserId: ownerId,

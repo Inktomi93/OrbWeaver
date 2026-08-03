@@ -2,11 +2,17 @@
 // (ownership IS the gate). Thin: validate → `ctx.services.persona.<verb>` → map errors. Input shapes
 // derive from `@orb/contracts/persona`.
 
-import { createPersonaSchema, personaBackupSchema, updatePersonaSchema } from "@orb/contracts/persona";
+import { createPersonaSchema, updatePersonaSchema } from "@orb/contracts/persona";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc";
+
+// A persona backup is prose-sized; the cap only fences a hostile upload (the preset door's shape).
+const MAX_PERSONA_FILE_CHARS = 2_000_000;
+const ENC = new TextEncoder();
+const DEC = new TextDecoder();
 
 export const personaRouter = t.router({
   create: authedProcedure
@@ -90,11 +96,23 @@ export const personaRouter = t.router({
     .input(z.object({ personaId: brandedId<PersonaId>() }))
     .mutation(({ ctx, input }) => ctx.services.persona.duplicate({ principal: ctx.auth, personaId: input.personaId })),
 
+  // The two single-entity doors, both THIN ARMS over the bundle descriptor's verbs (the ratified thin-arm
+  // law): the FILE is the unit on the wire, so a persona shared one-at-a-time is byte-identical to the one
+  // inside a backup zip and the merge semantics can never fork.
   export: authedProcedure
     .input(z.object({ personaId: brandedId<PersonaId>() }))
-    .query(({ ctx, input }) => ctx.services.persona.export({ principal: ctx.auth, personaId: input.personaId })),
+    .query(async ({ ctx, input }) => {
+      const file = await ctx.services.persona.export({ principal: ctx.auth, personaId: input.personaId });
+      return { filename: file.filename, fileText: DEC.decode(file.bytes) };
+    }),
 
-  import: authedProcedure
-    .input(z.object({ input: personaBackupSchema }))
-    .mutation(({ ctx, input }) => ctx.services.persona.import({ principal: ctx.auth, input: input.input })),
+  import: authedProcedure.input(z.object({ fileText: z.string().max(MAX_PERSONA_FILE_CHARS) })).mutation(async ({ ctx, input }) => {
+    const outcome = await ctx.services.persona.import({ principal: ctx.auth, bytes: ENC.encode(input.fileText) });
+    if (!outcome.ok) {
+      // The refusal REASON reaches the user as words (a newer-orbweaver backup no longer reads as
+      // "not a valid file") — the import door renders this message.
+      throw new TRPCError({ code: "BAD_REQUEST", message: outcome.error });
+    }
+    return outcome.persona;
+  }),
 });

@@ -4,6 +4,7 @@
 // (null handle), and deterministic ordering. The id -> handle op is wired as the REAL characters read (mirrors
 // compose) so the resolution is exercised, not stubbed.
 
+import type { PortableParse } from "@orb/contracts/portability";
 import { characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { createAssetsService, createExportGallery } from "@orb/server/domain/assets";
@@ -14,6 +15,14 @@ import type { AssetsContext } from "../../../../../packages/server/src/domain/as
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { makeHarness, pngBytes, principal, seedCharacter, seedUser } from "../_support.ts";
+
+/** The parse outcome's value — the portable serdes return a typed refusal reason, never null. */
+function must<T>(result: PortableParse<T>): T {
+  if (!result.ok) {
+    throw new Error(`portable parse refused: ${result.reason}`);
+  }
+  return result.value;
+}
 
 const PNG = "image/png";
 
@@ -65,7 +74,7 @@ describe("exportGallery", () => {
 
     const file = await createExportGallery(ctx)(owner);
     expect(file.filename).toBe("gallery.json");
-    const parsed = parseGallery(file.bytes);
+    const parsed = must(parseGallery(file.bytes));
     expect(parsed?.items).toHaveLength(2);
     const byAsset = new Map(parsed?.items.map((i) => [i.assetId, i.subjectCharacterHandle]));
     expect(byAsset.get(assetA.assetId)).toBe("hero");
@@ -96,7 +105,7 @@ describe("exportGallery", () => {
     await svc.addToGallery({ principal: principal(b), assetId: assetB.assetId });
 
     const file = await createExportGallery(ctx)(a);
-    const parsed = parseGallery(file.bytes);
+    const parsed = must(parseGallery(file.bytes));
     expect(parsed?.items.map((i) => i.assetId)).toEqual([assetA.assetId]);
   });
 
@@ -123,7 +132,7 @@ describe("exportGallery", () => {
     // Deleting the character SET NULLs the subject; the row survives and exports with no handle.
     await db.delete(characters).where(eq(characters.id, hero));
 
-    const parsed = parseGallery((await createExportGallery(ctx)(owner)).bytes);
+    const parsed = must(parseGallery((await createExportGallery(ctx)(owner)).bytes));
     expect(parsed?.items).toHaveLength(1);
     expect(parsed?.items[0]?.subjectCharacterHandle).toBeNull();
   });

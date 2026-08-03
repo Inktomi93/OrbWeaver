@@ -8,12 +8,14 @@
 // before failing to attach them would leave the library with orphan scripts and the card with none.
 
 import type { PortableRegexScript } from "@orb/contracts/regex";
-import { portableRegexScriptSchema } from "@orb/contracts/regex";
 import { characterRegexScripts, globalRegexScripts, regexScripts } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
+import { DomainOperationError } from "@orb/kit/errors";
 import { slugifyHandle } from "@orb/kit/slug";
 import { and, asc, eq } from "drizzle-orm";
+import { portableParseError } from "#kit/serde/lib";
+import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND } from "#kit/serde/regex";
 import type {
   ExportCardScripts,
   ExportedRegexScriptFile,
@@ -25,9 +27,6 @@ import type {
 } from "../contract/portability";
 import { findDuplicate, planCardLift, splitScript } from "../substrate/dedup";
 import { listOwnedScripts, loadOwnedScriptsByIds, toRow } from "./queries";
-
-const ENC = new TextEncoder();
-const DEC = new TextDecoder();
 
 /**
  * The card LIFT (the `importLorebook` twin). Reads the owner's library + the carried references THIS owner
@@ -95,7 +94,7 @@ export function createExportRegexScripts(ctx: Pick<RegexPortabilityContext, "db"
     return records.map((record): ExportedRegexScriptFile => {
       const { id, name, enabled, ...behavior } = toRow(record);
       const payload: PortableRegexScript = { name, enabled, ...behavior, global: globalIds.includes(id) };
-      return { filename: `${slugifyHandle(name)}-${id}.json`, bytes: ENC.encode(JSON.stringify(payload)) };
+      return { filename: `${slugifyHandle(name)}-${id}.json`, bytes: buildRegexScriptFile(payload) };
     });
   };
 }
@@ -105,7 +104,11 @@ export function createExportRegexScripts(ctx: Pick<RegexPortabilityContext, "db"
  *  GLOBAL attachment. */
 export function createImportRegexScript(ctx: RegexPortabilityContext): ImportRegexScript {
   return async ({ ownerId, bytes }): Promise<{ readonly created: boolean }> => {
-    const payload = portableRegexScriptSchema.parse(JSON.parse(DEC.decode(bytes)));
+    const parsed = parseRegexScriptFile(bytes);
+    if (!parsed.ok) {
+      throw new DomainOperationError("regex_script_unparseable", portableParseError(REGEX_SCRIPT_SCHEMA_KIND, parsed.reason));
+    }
+    const payload = parsed.value;
     const candidate = splitScript(payload);
     const existing = await listOwnedScripts(ctx.db, ownerId);
     const match = findDuplicate(existing.map(toRow), candidate);
