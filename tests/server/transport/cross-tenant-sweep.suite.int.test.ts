@@ -54,6 +54,7 @@ const MARK = {
   rpgQuest: "AlphaSecretQuest",
   rpgJournal: "AlphaSecretJournal",
   rpgCheckpoint: "AlphaSecretCheckpoint",
+  regexScript: "AlphaSecretRegexScript",
 } as const;
 const MARKERS = Object.values(MARK);
 
@@ -79,6 +80,7 @@ interface OwnerIds {
   rpgQuestId: string;
   rpgJournalId: string;
   rpgCheckpointId: string;
+  regexScriptId: string;
 }
 
 /** tRPC's cross-realm error duck-type (matchers.ts precedent): an Error named "TRPCError" with a code. */
@@ -243,6 +245,7 @@ const PROBES: readonly Probe[] = [
     path: "worldInfo.duplicateBook",
     call: (c, i) => c.worldInfo.duplicateBook({ bookId: i.bookId }),
   },
+  { path: "worldInfo.exportBook", call: (c, i) => c.worldInfo.exportBook({ bookId: i.bookId }) },
   { path: "worldInfo.listEntries", call: (c, i) => c.worldInfo.listEntries({ bookId: i.bookId }) },
   {
     path: "worldInfo.createEntry",
@@ -561,6 +564,12 @@ const PROBES: readonly Probe[] = [
     // is a leak-free NOT_FOUND (the setRoomOverrides shape) BEFORE any metadata write.
     path: "chat.setToolRecurseLimit",
     call: (c, i) => c.chat.setToolRecurseLimit({ chatId: i.chatId, limit: 5 }),
+  },
+  {
+    // D121-E display-tier room option — `requireHost` → `requireParticipant` miss on a stranger's chatId is
+    // a leak-free NOT_FOUND (the setRoomOverrides shape) BEFORE any metadata write.
+    path: "chat.setHostDisplayScripts",
+    call: (c, i) => c.chat.setHostDisplayScripts({ chatId: i.chatId, enabled: true }),
   },
   {
     // WAVE MU: the per-chat user-macro INPUT picks flush — `requireParticipant` miss on a stranger's chatId is
@@ -887,6 +896,58 @@ const PROBES: readonly Probe[] = [
   // §3.6 host-reveal read — a foreign chatId must collapse to leak-free NOT_FOUND (host gate inside the verb).
   { path: "rpg.revealHidden", call: (c, i) => c.rpg.revealHidden({ chatId: i.chatId }) },
   { path: "rpg.listCheckpoints", call: (c, i) => c.rpg.listCheckpoints({ chatId: i.chatId }) },
+  // ── regex (owner-scoped script library, D121-E) — id-taking verbs owner-belted via `RegexNotFoundError`
+  //    → NOT_FOUND (see the router's own classification header). The chat scope has no ownerId (D18) so
+  //    attach/detach/listForChat/listRoomDisplayScripts are gated via chat's own host/member guards instead. ──
+  { path: "regex.getScript", call: (c, i) => c.regex.getScript({ scriptId: i.regexScriptId }) },
+  {
+    path: "regex.updateScript",
+    call: (c, i) => c.regex.updateScript({ scriptId: i.regexScriptId, input: { name: "hacked" } }),
+  },
+  { path: "regex.removeScript", call: (c, i) => c.regex.removeScript({ scriptId: i.regexScriptId }) },
+  { path: "regex.duplicateScript", call: (c, i) => c.regex.duplicateScript({ scriptId: i.regexScriptId }) },
+  { path: "regex.attachGlobal", call: (c, i) => c.regex.attachGlobal({ scriptId: i.regexScriptId }) },
+  { path: "regex.detachGlobal", call: (c, i) => c.regex.detachGlobal({ scriptId: i.regexScriptId }) },
+  {
+    path: "regex.attachToCharacter",
+    call: (c, i) => c.regex.attachToCharacter({ characterId: i.characterId, scriptId: i.regexScriptId }),
+  },
+  {
+    path: "regex.detachFromCharacter",
+    call: (c, i) => c.regex.detachFromCharacter({ characterId: i.characterId, scriptId: i.regexScriptId }),
+  },
+  { path: "regex.listForCharacter", call: (c, i) => c.regex.listForCharacter({ characterId: i.characterId }) },
+  {
+    path: "regex.attachToPreset",
+    call: (c, i) => c.regex.attachToPreset({ presetId: i.presetId, scriptId: i.regexScriptId }),
+  },
+  {
+    path: "regex.detachFromPreset",
+    call: (c, i) => c.regex.detachFromPreset({ presetId: i.presetId, scriptId: i.regexScriptId }),
+  },
+  { path: "regex.listForPreset", call: (c, i) => c.regex.listForPreset({ presetId: i.presetId }) },
+  {
+    // HOST-gated (D18) — a stranger's chatId collapses to NOT_FOUND via `requireHost` before the scriptId
+    // ownership check even runs.
+    path: "regex.attachToChat",
+    call: (c, i) => c.regex.attachToChat({ chatId: i.chatId, scriptId: i.regexScriptId }),
+  },
+  {
+    path: "regex.detachFromChat",
+    call: (c, i) => c.regex.detachFromChat({ chatId: i.chatId, scriptId: i.regexScriptId }),
+  },
+  { path: "regex.listForChat", call: (c, i) => c.regex.listForChat({ chatId: i.chatId }) },
+  // D121-E MEMBER-gated broadcast read — the membership rung IS the probe: a non-member stranger passing
+  // A's chatId collapses to a leak-free NOT_FOUND before the host-opt-in flag is even read (per-verb
+  // ownership/opt-in behavior for an actual member is proven in the regex domain suites, not here).
+  {
+    path: "regex.listRoomDisplayScripts",
+    call: (c, i) => c.regex.listRoomDisplayScripts({ chatId: i.chatId }),
+  },
+  {
+    path: "regex.applyScopeOrder",
+    call: (c, i) => c.regex.applyScopeOrder({ scope: { kind: "character", characterId: i.characterId }, orderedScriptIds: [i.regexScriptId] }),
+  },
 ];
 
 // Every remaining procedure, with WHY it is not a cross-tenant IDOR probe. A new procedure that lands in
@@ -907,8 +968,12 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "preset.list": "self-scoped",
   "preset.importFile": "self-scoped: takes file TEXT and no id — it writes only the caller's own library",
   "worldInfo.createBook": "self-scoped",
+  "worldInfo.importFile": "self-scoped: takes file TEXT and no id — it writes only the caller's own library",
   "worldInfo.listBooks": "self-scoped",
   "worldInfo.listGlobal": "self-scoped: the caller's globally-attached books",
+  "regex.createScript": "self-scoped: mints the caller's own row, no foreign id",
+  "regex.listScripts": "self-scoped",
+  "regex.listGlobal": "self-scoped: the caller's globally-attached scripts",
   "tag.createTag": "self-scoped",
   "tag.listTags": "self-scoped",
   "tag.listTagsWithUsage": "self-scoped",
@@ -1218,6 +1283,13 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     const rpgJournalId = await owner.rpg.addJournalEntry({ chatId, type: "note", title: MARK.rpgJournal, content: `${MARK.rpgJournal} — owned by A` });
     const rpgCheckpointId = await owner.rpg.createCheckpoint({ chatId, label: MARK.rpgCheckpoint });
 
+    // A regex library script owned by A — its `name` is the leak marker, so a broken owner belt on any
+    // scriptId-taking verb (get/update/remove/duplicate/attach-global) leaks it back to the stranger.
+    const regexScript = await owner.regex.createScript({
+      input: { name: MARK.regexScript, findRegex: "a", replaceString: "b", placement: ["AI_OUTPUT"] },
+    });
+    const regexScriptId = regexScript.id;
+
     // A theme row seeded directly (the front-door createTheme needs a full color-token override — the
     // lenient read seam accepts a partial blob, so this is representative for the ownership probe).
     const themeId = castId<ThemeId>("theme_alpha");
@@ -1252,6 +1324,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       rpgQuestId,
       rpgJournalId,
       rpgCheckpointId,
+      regexScriptId,
     };
   }
 
@@ -1297,5 +1370,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(rpgJournalStill.map((j) => j.title)).toContain(MARK.rpgJournal); // entry survived deleteJournalEntry
     const rpgCheckpointsStill = await ownerCaller.rpg.listCheckpoints({ chatId: ids.chatId });
     expect(rpgCheckpointsStill.map((cp) => cp.label)).toContain(MARK.rpgCheckpoint); // checkpoint survived (stranger never reached it)
+    const regexScriptStill = await ownerCaller.regex.getScript({ scriptId: ids.regexScriptId });
+    expect(regexScriptStill.name).toBe(MARK.regexScript); // untouched by the stranger's update/remove/attach probes
   });
 });

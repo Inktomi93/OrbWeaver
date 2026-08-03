@@ -29,7 +29,6 @@ describe("create", () => {
     expect(detail.avatarHash).toBeNull();
     expect(detail.synthetic).toBe(false);
     expect(detail.greetings).toEqual([]);
-    expect(detail.regexScripts).toEqual([]);
 
     expect(h.events).toEqual([{ type: "character.updated", characterId: detail.id, contentChanged: true }]);
     expect(h.audits.map((a) => a.entry.action)).toContain("character.create");
