@@ -1,8 +1,1 @@
-{
-  "packages/server/src/foundation/observability/debug/inspect/list.ts": 1,
-  "packages/server/src/foundation/observability/debug/routes.ts": 2,
-  "packages/server/src/foundation/observability/debug/wire-capture.ts": 2,
-  "packages/server/src/foundation/observability/logger.ts": 4,
-  "tests/server/foundation/observability/debug/wire-capture.test.ts": 1,
-  "tests/server/foundation/observability/middleware.test.ts": 2
-}
+{}

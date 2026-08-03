@@ -8,7 +8,7 @@ import { timingSafeEqual } from "node:crypto";
 import process from "node:process";
 import { DEFAULT_CHAT_MODEL_ID, DEFAULT_OR_CHAT_MODEL_ID } from "@orb/contracts/connection";
 import type { Db } from "@orb/db";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Context, Hono, MiddlewareHandler, Next } from "hono";
 import { APP_VERSION } from "#foundation/config";
@@ -126,7 +126,7 @@ export interface AdminAuthChecker {
  *  recorder without importing it (the `AssetInspector` precedent). Returns `object[]` so no rpg type crosses the
  *  boundary; the records serialize straight to JSON. Host-only via the debug gate; read-only (D75). */
 export interface RpgTraceInspector {
-  recent: (filter: { chatId?: string; turnId?: string; limit?: number }) => readonly object[];
+  recent: (filter: { chatId?: ChatId; turnId?: string; limit?: number }) => readonly object[];
 }
 
 /** The multiplexed-socket read port (SSE-1 §12) — structural-injection so foundation accepts transport's
@@ -135,7 +135,7 @@ export interface RpgTraceInspector {
  *  whole point of the multiplex is "one socket per tab, and opening a game chat adds ZERO", which is a claim
  *  about a COUNT that nothing outside the process can otherwise observe. */
 export interface SocketInspector {
-  liveSocketCount: (userId?: string) => number;
+  liveSocketCount: (userId?: UserId) => number;
 }
 
 /** Gate config. Tests construct the middleware directly; production wires it via `registerDebugRoutes`. */
@@ -216,7 +216,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
   if (sockets !== undefined) {
     app.get("/api/_debug/stream/sockets", (c) => {
       const userId = c.req.query("userId");
-      return c.json({ liveSockets: sockets.liveSocketCount(userId) });
+      return c.json({ liveSockets: sockets.liveSocketCount(userId === undefined ? undefined : castId<UserId>(userId)) });
     });
   }
 
@@ -229,7 +229,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
     const chatId = c.req.query("chatId");
     const backend = c.req.query("backend");
     const captures = recentWireCaptures({
-      ...(chatId !== undefined ? { chatId } : {}),
+      ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
       ...(backend !== undefined ? { backend } : {}),
       limit: toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
     });
@@ -286,7 +286,7 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
       const chatId = c.req.query("chatId");
       const turnId = c.req.query("turnId");
       const events = rpgTrace.recent({
-        ...(chatId !== undefined ? { chatId } : {}),
+        ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
         ...(turnId !== undefined ? { turnId } : {}),
         limit: toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
       });
