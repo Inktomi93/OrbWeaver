@@ -31,9 +31,18 @@ test("an unresolvable seat is dropped — a face with no name is a shortcut to a
   expect(faces.map((face) => face.id)).toEqual(["char_sera"]);
 });
 
-test("the cap bounds the strip to one glanceable row", () => {
+test("the cap bounds the run when a caller has one", () => {
   const faces = recentFaces([chat("char_azarael", "char_sera", "char_niko")], SEATS, 2);
   expect(faces.map((face) => face.id)).toEqual(["char_azarael", "char_sera"]);
+});
+
+// FACEFILT: the curation used to cap at 8 "to stay one glanceable row" — a count that knew nothing about
+// the pane, and produced a sideways-scrolling strip on a six-character library. The STRIP measures its own
+// width now, so the curation hands over everyone and lets the fold decide.
+test("uncapped by default — every chatted character is offered, and the strip's own fold picks what shows", () => {
+  const seats = new Map(Array.from({ length: 20 }, (_unused, index) => [`char_${index}`, { name: `Face ${index}`, hash: null }] as const));
+  const chats = Array.from({ length: 20 }, (_unused, index) => chat(`char_${index}`));
+  expect(recentFaces(chats, seats)).toHaveLength(20);
 });
 
 test("each face carries what the strip draws it with (the FaceStrip item shape, no adapter)", () => {

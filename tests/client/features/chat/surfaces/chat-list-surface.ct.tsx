@@ -479,3 +479,148 @@ test("an empty chats list shows the 'no chats yet' empty state", async ({ mount,
 
   await expect(component.getByText("No chats yet")).toBeVisible();
 });
+
+// ── FACEFILT: the strip FOLDS to one row, and the roster lives behind a picker ──────────────────────
+// The owner's report: nine faces already scrolled sideways on a six-character library, so the shortcut
+// row had become a second thing to navigate. The strip fits the PANE now — as many faces as its measured
+// width holds, everyone else behind one picker tile — and the character it is filtering by is always one
+// of the faces you can see (a pane cannot be scoped by an invisible control).
+
+/** The narrowest REAL list pane: `--dimension-panel` clamps at 17rem (272px) and `.shell-panel-body`
+ *  spends `--spacing-row` (8px) of inline padding on each side. The fold is only observable at one. */
+const NARROW_PANE_WIDTH = 256;
+const ROSTER_SIZE = 30;
+const FACE_ROW = '[aria-label="Recent characters"]';
+const FACE_ITEM = "[data-face-key]";
+const OVERFLOW_TILE = "Filter by another character";
+/** The one roster member the strip could never reach by scrolling — the picker's proof. */
+const FOLDED_NAME = "Zoltan the Unfathomable";
+
+function rosterName(index: number): string {
+  return index === ROSTER_SIZE - 1 ? FOLDED_NAME : `Face ${index}`;
+}
+
+/** A library big enough to overflow any pane — the owner's 6 characters were already too many. */
+function rosterCharacters(): { readonly items: readonly { id: string; name: string; avatarHash: null }[] } {
+  return { items: Array.from({ length: ROSTER_SIZE }, (_unused, index) => ({ id: `char_f${index}`, name: rosterName(index), avatarHash: null })) };
+}
+
+/** One chat per roster member, newest-first — so the curation hands the strip all 30 faces. */
+function rosterChats(): readonly ReturnType<typeof makeChatSummary>[] {
+  return Array.from({ length: ROSTER_SIZE }, (_unused, index) =>
+    makeChatSummary({
+      id: `chat_f${index}`,
+      title: `Thread ${index}`,
+      participantNames: [rosterName(index)],
+      participantCharacterIds: [`char_f${index}`],
+    }),
+  );
+}
+
+test("FACEFILT: 30 recent faces fit ONE unscrolled row at the narrowest real pane; the rest fold behind the picker tile", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": rosterChats(), "character.list": rosterCharacters() });
+
+  const component = await mount(<ChatListSurfaceStory width={NARROW_PANE_WIDTH} />);
+  // Barrier on the SETTLED folded arm — the tile only exists once the strip has measured itself.
+  const tile = component.getByRole("button", { name: OVERFLOW_TILE, exact: true });
+  await expect(tile).toBeVisible();
+
+  const geometry = await component.locator(FACE_ROW).evaluate((row) => {
+    const box = row.getBoundingClientRect();
+    return {
+      scrollWidth: Math.round(row.scrollWidth),
+      clientWidth: Math.round(row.clientWidth),
+      overflowX: getComputedStyle(row).overflowX,
+      overhang: [...row.querySelectorAll("[data-face-key]")].map((face) => face.getBoundingClientRect().right - box.right),
+    };
+  });
+  // The scrollbar is DEAD: nothing to scroll, and no scroller to scroll it with.
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
+  expect(geometry.overflowX).toBe("hidden");
+  // …and every rendered face is inside the pane, not merely un-scrollable (clipping is not fitting).
+  expect(geometry.overhang.length).toBeGreaterThan(0);
+  expect(geometry.overhang.length).toBeLessThan(ROSTER_SIZE);
+  expect(Math.max(...geometry.overhang)).toBeLessThanOrEqual(0);
+
+  // The count is HONEST — the tile prints exactly the number of faces it is standing in for.
+  await expect(tile.getByText(`+${ROSTER_SIZE - geometry.overhang.length}`, { exact: true })).toBeVisible();
+});
+
+test("FACEFILT: a folded character picked from the roster scopes the pane AND takes a visible slot in the strip", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": rosterChats(), "character.list": rosterCharacters() });
+
+  const component = await mount(<ChatListSurfaceStory width={NARROW_PANE_WIDTH} />);
+  const tile = component.getByRole("button", { name: OVERFLOW_TILE, exact: true });
+  await expect(tile).toBeVisible();
+  // She is genuinely unreachable in the strip before the pick — that is what the tile is FOR.
+  await expect(component.getByRole("button", { name: `Show chats with ${FOLDED_NAME}`, exact: true })).toHaveCount(0);
+
+  await tile.click();
+  await page.getByPlaceholder("Search characters…").fill("Zoltan");
+  await page.getByRole("option", { name: FOLDED_NAME }).click();
+
+  // The pane is scoped to her…
+  await expect(component.getByText("Filtered:")).toBeVisible();
+  await expect(component.getByRole("button", { name: `Thread ${ROSTER_SIZE - 1}`, exact: true })).toBeVisible();
+  // …and she is a FACE now, current and inside the row's box — never a filter you can't see or re-tap.
+  const face = component.getByRole("button", { name: `Show chats with ${FOLDED_NAME}`, exact: true });
+  await expect(face).toHaveAttribute("aria-current", "true");
+  const inside = await component.locator(FACE_ROW).evaluate((row) => {
+    const box = row.getBoundingClientRect();
+    const current = row.querySelector('[aria-current="true"]');
+    const rect = current?.getBoundingClientRect();
+    return rect === undefined ? null : { left: rect.left - box.left, right: rect.right - box.right };
+  });
+  expect(inside).not.toBeNull();
+  expect(inside?.left).toBeGreaterThanOrEqual(0);
+  expect(inside?.right).toBeLessThanOrEqual(0);
+  // The picker got out of the way once it did its job.
+  await expect(page.getByPlaceholder("Search characters…")).toHaveCount(0);
+});
+
+test("FACEFILT: the picker tile is KEYBOARD reachable and lands focus in its search field", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": rosterChats(), "character.list": rosterCharacters() });
+
+  const component = await mount(<ChatListSurfaceStory width={NARROW_PANE_WIDTH} />);
+  const tile = component.getByRole("button", { name: OVERFLOW_TILE, exact: true });
+  await expect(tile).toBeVisible();
+
+  // Tab from the last visible face reaches the tile — it is the strip's own trailing stop, not a
+  // pointer-only affordance parked outside the tab order.
+  await component.locator(`${FACE_ROW} ${FACE_ITEM}`).last().focus();
+  await page.keyboard.press("Tab");
+  await expect(tile).toBeFocused();
+  await page.keyboard.press("Enter");
+
+  const search = page.getByPlaceholder("Search characters…");
+  await expect(search).toBeFocused();
+  await page.keyboard.type("Zoltan");
+  await expect(page.getByRole("option", { name: FOLDED_NAME })).toBeVisible();
+});
+
+test("FACEFILT: a cast that already fits keeps every face and grows NO picker tile (the ≤N pane is today, minus the scrollbar)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [GROUP, ADVENTURE], "character.list": CHARACTERS });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Show chats with Sera", exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Show chats with Niko", exact: true })).toBeVisible();
+
+  await expect(component.getByRole("button", { name: OVERFLOW_TILE, exact: true })).toHaveCount(0);
+  const geometry = await component.locator(FACE_ROW).evaluate((row) => ({
+    scrollWidth: Math.round(row.scrollWidth),
+    clientWidth: Math.round(row.clientWidth),
+  }));
+  expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth);
+});
+
+test("FACEFILT: no chats means NO strip at all — the picker tile never becomes a lone shell", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [], "character.list": rosterCharacters() });
+
+  const component = await mount(<ChatListSurfaceStory width={NARROW_PANE_WIDTH} />);
+  await expect(component.getByText("No chats yet")).toBeVisible();
+
+  await expect(component.locator(FACE_ROW)).toHaveCount(0);
+  await expect(component.getByRole("button", { name: OVERFLOW_TILE, exact: true })).toHaveCount(0);
+  await expect(component.getByText("Filter by character", { exact: true })).toHaveCount(0);
+});

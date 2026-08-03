@@ -7,11 +7,14 @@
 //
 // Seats the character page doesn't carry are dropped rather than guessed: a face with no name is a shortcut
 // to an unknown. Pure + structural, so it unit-tests without a data layer.
+//
+// UNCAPPED by default (FACEFILT): the curation answers "who, in what order", and the STRIP answers "how many
+// fit" by measuring the pane it lives in — a count here was a second, blinder answer to the same question,
+// and the one that produced a sideways-scrolling row on a six-character library. Everyone past the fold is
+// still reachable through the strip's picker, so nothing this returns is wasted. `cap` survives for a caller
+// that genuinely has one.
 
 import type { ChatRowPortrait } from "./chat-summary-row";
-
-/** The default strip cap — enough to cover a working cast, short enough to stay one glanceable row. */
-const RECENT_FACES_CAP = 8;
 
 /** The chat shape the curation reads (a structural subset of `ChatSummary`), already in recency order. */
 export interface FaceSourceChat {
@@ -26,12 +29,8 @@ export interface RecentFace {
   readonly avatarHash: string | null;
 }
 
-/** Distinct character seats in first-appearance order across `chats`, capped at `cap`. */
-export function recentFaces(
-  chats: readonly FaceSourceChat[],
-  characterById: ReadonlyMap<string, ChatRowPortrait>,
-  cap: number = RECENT_FACES_CAP,
-): readonly RecentFace[] {
+/** Distinct character seats in first-appearance order across `chats`; `cap` bounds the run when given. */
+export function recentFaces(chats: readonly FaceSourceChat[], characterById: ReadonlyMap<string, ChatRowPortrait>, cap?: number): readonly RecentFace[] {
   const faces: RecentFace[] = [];
   const seen = new Set<string>();
   for (const chat of chats) {
@@ -43,7 +42,7 @@ export function recentFaces(
       const seat = characterById.get(characterId);
       if (seat !== undefined) {
         faces.push({ id: characterId, name: seat.name, avatarHash: seat.hash });
-        if (faces.length >= cap) {
+        if (cap !== undefined && faces.length >= cap) {
           return faces;
         }
       }

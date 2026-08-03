@@ -1,7 +1,7 @@
 // FaceStrip — the client-shared horizontal strip of clickable FACES (list-pane-projection §11.2, D12): a
-// dense, scrolling row of character portraits pinned at a LIST pane's top, where tapping a face scopes the
-// pane below it. Two features render this anatomy and change together (the character library's favorites
-// strip and the chats pane's Arm B faces strip), which is the R2 bar for a tier-2 composite.
+// dense row of character portraits pinned at a LIST pane's top, where tapping a face scopes the pane below
+// it. Two features render this anatomy and change together (the character library's favorites strip and the
+// chats pane's Arm B faces strip), which is the R2 bar for a tier-2 composite.
 //
 // NOT `@orb/ui/avatar-stack` — that primitive is display-only overlapping avatars with no per-item click.
 // These are real `Avatar`-in-`Button` controls, each with its own accessible name and `aria-current`.
@@ -17,20 +17,49 @@
 //
 // Data-driven: an empty `items` renders NOTHING, never an empty shell (the strip is a shortcut, and a
 // shortcut to nowhere is chrome).
+//
+// THE FOLD (FACEFILT — owner report: nine faces already scrolling on a six-character library). A strip
+// that scrolls sideways is a second thing to navigate, and the shortcut it was supposed to be is gone. A
+// caller that supplies `overflow` gets the FOLDED posture instead: the strip measures its own row and
+// renders as many faces as the pane actually holds, with everyone else behind ONE picker tile. There is no
+// N to configure — a captioned face costs its NAME's width, so any fixed count is wrong at some pane width
+// (`face-strip-fold.ts` holds the rules; this file only measures and renders).
+//
+// Two invariants the fold owes its caller:
+//  · the SELECTED face is never folded away — it is hoisted to the front of the row rather than hidden,
+//    because a pane scoped by a face you cannot see is a filter you cannot clear;
+//  · the leftover-of-one squeezes into the tile's slot instead of hiding behind it (`squeezed`), so the
+//    tile never stands in for exactly one face. Its caption clips; the full name stays the accessible name.
+//
+// The tile sits INSIDE the strip's `role="list"` row, beside the faces: it is where the rest of the list
+// went, and it has to share the row's measuring box for the fold to be about the pane at all.
 
 import { blobUrl } from "@orb/contracts/assets";
 import { initialsFor } from "@orb/kit/initials";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
+import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
+import type { FaceFold } from "./face-strip-fold";
+import { foldFaces } from "./face-strip-fold";
 
 export interface FaceStripItem {
   readonly id: string;
   readonly name: string;
   /** CAS key — null falls back to the hue-seeded initials blob. */
   readonly avatarHash: string | null;
+}
+
+/** Not exported: every consumer writes the object inline at the `<FaceStrip>` call, so an exported name
+ *  would be a second spelling with no reader (knip). Re-export it the day a consumer builds one elsewhere. */
+interface FaceStripOverflow {
+  /** The tile's accessible name — it opens a picker, so it names that verb ("Filter by another character"). */
+  readonly label: string;
+  /** The picker body, rendered in the tile's popover. `close` dismisses it once a choice is made. */
+  readonly render: (close: () => void) => ReactNode;
 }
 
 export interface FaceStripProps {
@@ -50,55 +79,225 @@ export interface FaceStripProps {
    *  "start a chat" everywhere else in the app, so a strip that FILTERS has to say so in the one line a
    *  sighted user actually reads. Omit for a strip whose surrounding copy already names it. */
   readonly kicker?: string;
+  /** Opt into the FOLDED posture: the strip fits ONE row and hands everything it could not fit to this
+   *  picker. Omitted, the strip keeps its original scrolling row (the favorites strip's posture). */
+  readonly overflow?: FaceStripOverflow;
 }
 
-/** A scrolling row of clickable faces; renders nothing when there are none. */
-export function FaceStrip({ items, selectedId, onSelect, label, verb = "Open", caption = false, kicker }: FaceStripProps): ReactElement | null {
+/** What the fold decided, plus whether the selected face had to be hoisted to survive it. */
+interface FoldState extends FaceFold {
+  readonly hoisted: boolean;
+}
+
+const FACE_KEY_ATTR = "data-face-key";
+const OVERFLOW_ATTR = "data-face-overflow";
+/** A squeezed face is rendered NARROWER than it wants to be — measuring it would poison the cache with the
+ *  width the fold itself imposed, and the next fold would then "discover" that it fits unaided. */
+const SQUEEZED_ATTR = "data-face-squeezed";
+
+/** Cache key: a face's width is its portrait AND its caption, so a rename must re-measure. */
+function faceKey(item: FaceStripItem): string {
+  return `${item.id} ${item.name}`;
+}
+
+/** The selected face first, everything else in its own order — the hoist that keeps a scoping face visible. */
+function hoistSelected(items: readonly FaceStripItem[], selectedId: string | null): readonly FaceStripItem[] {
+  const selected = items.find((item) => item.id === selectedId);
+  return selected === undefined ? items : [selected, ...items.filter((item) => item.id !== selectedId)];
+}
+
+/** Cache the width of every face the row is currently rendering (a squeezed one lies — see `SQUEEZED_ATTR`). */
+function readFaceWidths(row: HTMLElement, cache: Map<string, number>): void {
+  for (const face of row.querySelectorAll<HTMLElement>(`[${FACE_KEY_ATTR}]:not([${SQUEEZED_ATTR}])`)) {
+    const key = face.getAttribute(FACE_KEY_ATTR);
+    if (key !== null) {
+      cache.set(key, face.getBoundingClientRect().width);
+    }
+  }
+}
+
+interface FoldMeasurement {
+  readonly row: HTMLElement;
+  readonly items: readonly FaceStripItem[];
+  readonly selectedId: string | null;
+  readonly cache: ReadonlyMap<string, number>;
+  readonly tileWidth: number;
+}
+
+/** The fold for a fully-measured row, or `null` when a face has never been measured (it needs a pass). */
+function computeFold({ row, items, selectedId, cache, tileWidth }: FoldMeasurement): FoldState | null {
+  const widths: number[] = [];
+  for (const item of items) {
+    const width = cache.get(faceKey(item));
+    if (width === undefined) {
+      return null;
+    }
+    widths.push(width);
+  }
+  const geometry = { available: row.clientWidth, gap: Number.parseFloat(getComputedStyle(row).columnGap) || 0, triggerWidth: tileWidth };
+  const natural = foldFaces({ ...geometry, widths });
+  const selectedIndex = items.findIndex((item) => item.id === selectedId);
+  if (selectedIndex < natural.visible) {
+    return { ...natural, hoisted: false };
+  }
+  // The scoping face fell past the fold: re-fold with it in FRONT, which is the one position no fold can
+  // hide (a strip that filters by a face you cannot see is a filter you cannot clear).
+  const reordered = [widths[selectedIndex] ?? 0, ...widths.filter((_unused, index) => index !== selectedIndex)];
+  return { ...foldFaces({ ...geometry, widths: reordered }), hoisted: true };
+}
+
+function sameFold(previous: FoldState | null, next: FoldState): boolean {
+  return (
+    previous !== null &&
+    previous.visible === next.visible &&
+    previous.hidden === next.hidden &&
+    previous.squeezed === next.squeezed &&
+    previous.hoisted === next.hoisted
+  );
+}
+
+interface FaceButtonProps {
+  readonly item: FaceStripItem;
+  readonly selected: boolean;
+  readonly verb: string;
+  readonly caption: boolean;
+  /** Rendered in the overflow tile's narrow slot (the leftover-of-one rule) — the caption pays for it. */
+  readonly squeezed: boolean;
+  readonly onSelect: (id: string) => void;
+}
+
+function FaceButton({ item, selected, verb, caption, squeezed, onSelect }: FaceButtonProps): ReactElement {
+  return (
+    <Button
+      aria-current={selected ? "true" : undefined}
+      aria-label={`${verb} ${item.name}`}
+      // The squeezed face takes the tile's slot, which is the control-token box by construction — so it
+      // always fits where the tile fit, and only its caption pays for it.
+      className={`min-h-control-md min-w-control-md shrink-0${squeezed ? " max-w-control-md" : ""}`}
+      data-face-key={faceKey(item)}
+      data-face-squeezed={squeezed ? "" : undefined}
+      intent="ghost"
+      onClick={(): void => onSelect(item.id)}
+      size="media"
+    >
+      <Stack align="center" className="min-w-0" gap="tight">
+        <Avatar
+          hueSeed={item.id}
+          ring={selected ? "accent" : "none"}
+          shape="square"
+          size="md"
+          {...(item.avatarHash === null ? {} : { src: blobUrl(item.avatarHash) })}
+        >
+          {initialsFor(item.name)}
+        </Avatar>
+        {caption ? (
+          // NATURAL width up to a generous ceiling (side-eye P2a): the mock prints full names, and the old
+          // fixed `w-avatar-lg` clipped nearly every one of them to ~6 characters ("Aria Ni…"). The ceiling
+          // is a max, not a width, so short names take exactly their own space and only a long one
+          // truncates — with the FULL name still the button's accessible name.
+          //
+          // The selected face tints its caption too (the mock's `.f.on{color:primary}`), not just its avatar
+          // ring: a ring alone reads as "the one you last touched", while name-and-portrait together reading
+          // accent is a STATE you are in — the same primary this strip's "Filtered: X" chip repeats below
+          // it. That is what separates a face that FILTERS from a face that LAUNCHES. The `gloss` VOICE
+          // (density-pass §2.3) — the caption is the quiet second line under the datum (the face). The
+          // SELECTED face's accent tint is a state, not a type axis, so it stays a className on the voice.
+          <Text className={`${squeezed ? "max-w-full" : "max-w-avatar-hero"} truncate text-center${selected ? " text-primary" : ""}`} voice="gloss">
+            {item.name}
+          </Text>
+        ) : null}
+      </Stack>
+    </Button>
+  );
+}
+
+/** A scrolling (or, with `overflow`, a self-folding) row of clickable faces; renders nothing when empty. */
+export function FaceStrip({ items, selectedId, onSelect, label, verb = "Open", caption = false, kicker, overflow }: FaceStripProps): ReactElement | null {
+  const rowRef = useRef<HTMLDivElement>(null);
+  const widthsRef = useRef<Map<string, number>>(new Map());
+  const tileWidthRef = useRef<number | null>(null);
+  const [fold, setFold] = useState<FoldState | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const folding = overflow !== undefined;
+  // `null` is the MEASURING pass: every face renders (clipped, pre-paint) so the DOM can be read once.
+  const measuring = fold === null;
+
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    if (!folding || row === null) {
+      return;
+    }
+    const apply = (): void => {
+      readFaceWidths(row, widthsRef.current);
+      const tile = row.querySelector<HTMLElement>(`[${OVERFLOW_ATTR}]`);
+      if (tile !== null) {
+        tileWidthRef.current = tile.getBoundingClientRect().width;
+      }
+      const tileWidth = tileWidthRef.current;
+      const next = tileWidth === null ? null : computeFold({ cache: widthsRef.current, items, row, selectedId, tileWidth });
+      if (next === null) {
+        // A folded strip cannot measure what it is not rendering, so a face it has never seen (a new
+        // arrival, a rename) sends it back through the measuring pass. During that pass every item IS
+        // mounted, so a gap here would mean the DOM lied — never re-arm it, that is the infinite loop.
+        if (!measuring) {
+          setFold(null);
+        }
+        return;
+      }
+      setFold((previous) => (sameFold(previous, next) ? previous : next));
+    };
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(row);
+    return (): void => observer.disconnect();
+  }, [folding, items, measuring, selectedId]);
+
   if (items.length === 0) {
     return null;
   }
+
+  const ordered = fold?.hoisted === true ? hoistSelected(items, selectedId) : items;
+  const shown = fold === null ? ordered : ordered.slice(0, fold.visible);
+  const last = shown.at(-1);
+  const squeezedKey = fold?.squeezed === true && last !== undefined ? faceKey(last) : null;
+  // During the measuring pass the tile renders too — it is one of the widths the fold spends.
+  const showTile = folding && (fold === null || fold.hidden > 0);
+
   const faces = (
-    <Row aria-label={label} className="overflow-x-auto" gap="field" role="list">
-      {items.map((item) => (
-        <Button
-          aria-current={selectedId === item.id ? "true" : undefined}
-          aria-label={`${verb} ${item.name}`}
-          className="min-h-control-md min-w-control-md shrink-0"
-          intent="ghost"
+    <Row aria-label={label} className={folding ? "overflow-hidden" : "overflow-x-auto"} gap="field" ref={rowRef} role="list">
+      {shown.map((item) => (
+        <FaceButton
+          caption={caption}
+          item={item}
           key={item.id}
-          onClick={(): void => onSelect(item.id)}
-          size="media"
-        >
-          <Stack align="center" gap="tight">
-            <Avatar
-              hueSeed={item.id}
-              ring={selectedId === item.id ? "accent" : "none"}
-              shape="square"
-              size="md"
-              {...(item.avatarHash === null ? {} : { src: blobUrl(item.avatarHash) })}
-            >
-              {initialsFor(item.name)}
-            </Avatar>
-            {caption ? (
-              // NATURAL width up to a generous ceiling (side-eye P2a): the mock prints full names, and the
-              // old fixed `w-avatar-lg` clipped nearly every one of them to ~6 characters ("Aria Ni…"). The
-              // ceiling is a max, not a width, so short names take exactly their own space and only a long
-              // one truncates — with the FULL name still the button's accessible name.
-              //
-              // The selected face tints its caption too (the mock's `.f.on{color:primary}`), not just its
-              // avatar ring: a ring alone reads as "the one you last touched", while name-and-portrait
-              // together reading accent is a STATE you are in — the same primary this strip's "Filtered: X"
-              // chip repeats below it. That is what separates a face that FILTERS from a face that LAUNCHES.
-              // The `gloss` VOICE (density-pass §2.3) — the caption is the quiet second line under the
-              // datum (the face). The SELECTED face's accent tint is a state, not a type axis, so it stays
-              // a className on top of the voice.
-              <Text className={`max-w-avatar-hero truncate text-center${selectedId === item.id ? " text-primary" : ""}`} voice="gloss">
-                {item.name}
-              </Text>
-            ) : null}
-          </Stack>
-        </Button>
+          onSelect={onSelect}
+          selected={selectedId === item.id}
+          squeezed={faceKey(item) === squeezedKey}
+          verb={verb}
+        />
       ))}
+      {showTile ? (
+        <Popover onOpenChange={setPickerOpen} open={pickerOpen}>
+          <PopoverTrigger
+            render={
+              <Button aria-label={overflow.label} className="min-h-control-md min-w-control-md shrink-0" data-face-overflow="" intent="ghost" size="media">
+                <Stack align="center" gap="tight">
+                  {/* The tile is FACE-SHAPED (the avatar token square) so the row keeps one rhythm — and it
+                      prints the count, because "there are more" without a number is just a shrug. During the
+                      measuring pass the number is provisional; it is never painted (the fold lands in a
+                      layout effect, before the browser paints). */}
+                  <Row align="center" className="size-avatar-md rounded-control bg-muted" justify="center">
+                    <Text voice="gloss">{`+${fold === null ? items.length : fold.hidden}`}</Text>
+                  </Row>
+                  {caption ? <Text voice="gloss">More</Text> : null}
+                </Stack>
+              </Button>
+            }
+          />
+          <PopoverPopup>{overflow.render((): void => setPickerOpen(false))}</PopoverPopup>
+        </Popover>
+      ) : null}
     </Row>
   );
   if (kicker === undefined) {

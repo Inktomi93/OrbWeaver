@@ -23,7 +23,7 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useDeferredValue, useRef, useState } from "react";
-import { FaceStrip } from "#components";
+import { CharacterPicker, FaceStrip } from "#components";
 import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { chatsWithCharacter, useFocusOnMount } from "#lib";
@@ -95,12 +95,23 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
  *  "filtered by" (a chip you can clear) rather than a second list that owns her chats.
  *
  *  A plain `useQuery` on the chats key the body suspends on: a shortcut row must not gate the pane's chrome
- *  on a fetch, and an unresolved read renders NOTHING (the strip's own data-driven empty posture). */
+ *  on a fetch, and an unresolved read renders NOTHING (the strip's own data-driven empty posture).
+ *
+ *  The curation hands over EVERY character you have chatted with, in recency order — the strip's own fold
+ *  (FACEFILT) decides how many of them the pane can hold, so a cap here would only be a second, blinder
+ *  answer to the same question. What the curation cannot know is the character you scoped the pane to from
+ *  the picker: she may have no chats at all yet (that is the "No chats with X yet" arm), so she is prepended
+ *  as a face — the strip must never be filtering by someone who is not in it. */
 function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCharacterFilter | null }): ReactElement | null {
   const trpc = useTRPC();
   const { data: chats } = useQuery(trpc.chat.listChats.queryOptions({}));
   const characterById = useChatPortraitMap();
-  const faces = recentFaces(chats ?? [], characterById);
+  const recent = recentFaces(chats ?? [], characterById);
+  const scopedFace =
+    characterFilter !== null && !recent.some((face) => face.id === characterFilter.id)
+      ? [{ avatarHash: characterById.get(characterFilter.id)?.hash ?? null, id: characterFilter.id, name: characterFilter.name }]
+      : [];
+  const faces = [...scopedFace, ...recent];
   const scopeToFace = (id: string): void => {
     const face = faces.find((candidate) => candidate.id === id);
     if (face === undefined) {
@@ -123,6 +134,11 @@ function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCha
   // everywhere else in the app — on home, one rail click away — so a bare "Faces" left the same picture
   // carrying opposite verbs. "Filter by character" is the line that disambiguates before the click (owner: name the thing, not the cuteness), and the
   // selected face's accent caption + the "Filtered: X" chip below confirm it after.
+  //
+  // The strip FOLDS to the pane (FACEFILT — the owner's nine scrolling faces on a six-character library):
+  // the faces that fit stay a one-tap shortcut, and the rest of the cast lives behind the tile, which opens
+  // the house character picker over the WHOLE library — so it also reaches someone you have never opened a
+  // chat with, which no amount of scrolling ever could.
   return (
     <FaceStrip
       caption={true}
@@ -130,6 +146,21 @@ function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCha
       kicker="Filter by character"
       label="Recent characters"
       onSelect={scopeToFace}
+      overflow={{
+        label: "Filter by another character",
+        render: (close): ReactElement => (
+          <CharacterPicker
+            autoFocusSearch={true}
+            emptyText="No characters to filter by."
+            label="Filter by another character"
+            onSelect={(id, name): void => {
+              setChatListCharacterFilter({ id, name });
+              close();
+            }}
+            placeholder="Search characters…"
+          />
+        ),
+      }}
       selectedId={characterFilter?.id ?? null}
       verb="Show chats with"
     />
