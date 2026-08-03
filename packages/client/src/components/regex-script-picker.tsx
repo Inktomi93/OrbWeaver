@@ -132,7 +132,12 @@ function PickerBody({
       {attached.length === 0 ? null : (
         <Section kicker={attached.length > 1 ? "Runs here, in order" : "Runs here"}>
           <RegexScopeOrder
-            renderItem={(script): ReactElement => <PickerRow attached={true} scope={scope} script={script} />}
+            // The ordinal is the kicker's own claim, made checkable (side-eye sweep 2026-08-03). "Runs here,
+            // in order" over 34 undifferentiated rows asks the reader to count them by eye to know where the
+            // one they just moved landed — the config rail's global readout already answers that with a
+            // leading position, and this is the same concept in its other home. Only the ORDERED slice gets
+            // one: an unordered "Not attached" row numbered 1..n would be a rank that means nothing.
+            renderItem={(script, index): ReactElement => <PickerRow attached={true} position={index + 1} scope={scope} script={script} />}
             scope={scope}
             scripts={attached}
           />
@@ -177,10 +182,13 @@ function PickerRow({
   scope,
   script,
   attached,
+  position,
 }: {
   readonly scope: RegexPickerScope;
   readonly script: RegexScriptRow;
   readonly attached: boolean;
+  /** 1-based execution rank, present ONLY inside the ordered slice (see the `renderItem` note above). */
+  readonly position?: number;
 }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -189,10 +197,19 @@ function PickerRow({
 
   return (
     <Row gap="field" align="center" justify="between">
-      <Stack gap="tight" className="min-w-0">
-        <Text>{name}</Text>
-        <Text voice="gloss">{regexScriptScent(script)}</Text>
-      </Stack>
+      {/* The rank rides INSIDE the identity cluster (the `GlobalOrderRow` anatomy), not as a third
+          `justify-between` child — a bare sibling would push the name to the row's centre. */}
+      <Row align="center" className="min-w-0" gap="field">
+        {position === undefined ? null : (
+          <Text as="span" voice="datum">
+            {position}
+          </Text>
+        )}
+        <Stack gap="tight" className="min-w-0">
+          <Text>{name}</Text>
+          <Text voice="gloss">{regexScriptScent(script)}</Text>
+        </Stack>
+      </Row>
       <Switch
         aria-label={`Attach ${name}`}
         checked={attached}
