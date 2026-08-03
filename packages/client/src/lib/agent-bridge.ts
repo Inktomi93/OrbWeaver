@@ -88,8 +88,8 @@ export interface OrbSeedHandle {
 /** Dev-only SPA-navigation bridge: drive the app's client-state navigation (rail section, modals,
  *  settings category, context tab, open chat) through the SAME store actions the real UI calls — the app
  *  has only `/` + `/login` as URL routes, so this is how a harness reaches every surface without a click
- *  chain. Built at the composition root (routes/agent-nav.ts, which may legally compose #state/#features/
- *  #data — the lib/ floor may not) and injected into `installAgentDebugHandle`. */
+ *  chain. Built at the composition tier (`client/src/agent-nav/`, a door-owned dir module that may legally
+ *  compose #state/#features/#data — the lib/ floor may not) and injected into `installAgentDebugHandle`. */
 export interface OrbNavHandle {
   /** Switch the active rail section (validated against SECTION_IDS). */
   readonly section: (id: string) => NavResult;

@@ -3,6 +3,8 @@
 // only a .gitkeep is skipped. Rules: (1) front-door index.ts, (2) name is reserved-UI-only or mirrors a
 // real server domain, (3) no stray root files, (4) known buckets only, (5) surfaces/*.tsx end
 // -surface.tsx, (6) hooks/anchors naming, (7) a surface must not render its own outer Dialog/Drawer.
+// Rules 5/6/7 RECURSE: a bucket may hold group dirs, and a grouped file keeps its bucket's contract;
+// (8) a group dir may not be NAMED after a bucket (one slice = one set of buckets, at its root).
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { GateDescriptor } from "../contract.ts";
@@ -70,13 +72,67 @@ function hasCode(dir: string): boolean {
   return false;
 }
 
+// Bucket-relative paths at ANY DEPTH. A bucket may GROUP its modules into sub-dirs (the preset
+// precedent: features/preset/components/{prompt-assembly,readout}/) — grouping is legal in every bucket
+// and it changes nothing about a file's ROLE, so the per-file naming + purity contracts (rules 5/6/7)
+// recurse with it. A top-level-only scan let `surfaces/nested/foo.tsx` escape both, which is how the
+// containment law would have rotted invisibly the first time a big feature grouped its surfaces.
+function walkBucket(base: string, rel: string, files: string[], dirs: string[]): void {
+  for (const e of readdirSync(rel === "" ? base : join(base, rel), { withFileTypes: true })) {
+    const next = rel === "" ? e.name : `${rel}/${e.name}`;
+    if (e.isDirectory()) {
+      dirs.push(next);
+      walkBucket(base, next, files, dirs);
+    } else {
+      files.push(next);
+    }
+  }
+}
+
+/** Every bucket-relative FILE path, at any depth. */
 function filesIn(dir: string, bucket: string): string[] {
-  try {
-    return readdirSync(join(dir, bucket), { withFileTypes: true })
-      .filter((e) => e.isFile())
-      .map((e) => e.name);
-  } catch {
+  const base = join(dir, bucket);
+  if (!existsSync(base)) {
     return [];
+  }
+  const files: string[] = [];
+  walkBucket(base, "", files, []);
+  return files;
+}
+
+/** Every bucket-relative GROUP-DIR path, at any depth. */
+function dirsIn(dir: string, bucket: string): string[] {
+  const base = join(dir, bucket);
+  if (!existsSync(base)) {
+    return [];
+  }
+  const dirs: string[] = [];
+  walkBucket(base, "", [], dirs);
+  return dirs;
+}
+
+/** The file's own name, for the naming contracts — `f` is bucket-relative and may carry group dirs. */
+function baseName(f: string): string {
+  return f.slice(f.lastIndexOf("/") + 1);
+}
+
+// Rule 8 — a GROUP dir may not re-declare the bucket axis. Nesting is legal (rules 5/6/7 recurse into
+// it), but `components/hooks/` or `surfaces/anchors/` is a second slice shape growing inside the first,
+// and the file contracts key on the OUTER bucket — so the inner name is a lie about what lives there.
+function checkGroupDirs(dir: string, name: string, out: Violation[]): void {
+  const rel = `${FEATURES}/${name}`;
+  const reserved = new Set([...BUCKETS, ...SHELL_EXTRA]);
+  const axis = [...reserved].sort().join(", ");
+  for (const bucket of reserved) {
+    for (const group of dirsIn(dir, bucket)) {
+      if (reserved.has(baseName(group))) {
+        out.push({
+          file: `${rel}/${bucket}/${group}/`,
+          line: 0,
+          message: `group dir '${group}' inside bucket '${bucket}' re-declares the bucket axis {${axis}} — bucket nesting is GROUPING only (client-architecture-lockdown.md §3, F-4); a slice has exactly one set of buckets, at its root. Rename the group after what it groups.`,
+        });
+      }
+    }
   }
 }
 
@@ -89,11 +145,11 @@ function checkSurfaces(dir: string, name: string, out: Violation[]): void {
     if (!f.endsWith(".tsx")) {
       continue;
     }
-    if (!(namingExempt || f.endsWith("-surface.tsx"))) {
+    if (!(namingExempt || baseName(f).endsWith("-surface.tsx"))) {
       out.push({
         file: `${rel}/surfaces/${f}`,
         line: 0,
-        message: `surface files end in -surface.tsx (got '${f}') — the surfaces/ bucket is the containment CONSUMER tier (UI-Architecture-and-Layout.md §2.1).`,
+        message: `surface files end in -surface.tsx (got '${f}') — the surfaces/ bucket is the containment CONSUMER tier (UI-Architecture-and-Layout.md §2.1). Group dirs inside a bucket are legal, but the file contracts apply at every depth.`,
       });
     }
     if (OUTER_CONTAINER.test(readFileSync(join(dir, "surfaces", f), "utf8"))) {
@@ -122,11 +178,11 @@ function checkHooksAndAnchors(dir: string, name: string, out: Violation[]): void
     if (!CODE_RE.test(f)) {
       continue;
     }
-    if (!hookNameOk(f)) {
+    if (!hookNameOk(baseName(f))) {
       out.push({
         file: `${rel}/hooks/${f}`,
         line: 0,
-        message: `hooks/ files are use-*.ts (pure hooks) or *-context.tsx / *-provider.tsx (co-located providers); got '${f}' (UI-Architecture-and-Layout.md §2.1).`,
+        message: `hooks/ files are use-*.ts (pure hooks) or *-context.tsx / *-provider.tsx (co-located providers); got '${f}' (UI-Architecture-and-Layout.md §2.1). Group dirs inside a bucket are legal, but the file contracts apply at every depth.`,
       });
     }
   }
@@ -134,13 +190,13 @@ function checkHooksAndAnchors(dir: string, name: string, out: Violation[]): void
     if (!f.endsWith(".tsx")) {
       continue;
     }
-    const base = f.replace(TSX_RE, "");
+    const base = baseName(f).replace(TSX_RE, "");
     const suffix = base.slice(base.lastIndexOf("-") + 1);
     if (!ANCHOR_SUFFIXES.includes(suffix)) {
       out.push({
         file: `${rel}/anchors/${f}`,
         line: 0,
-        message: `anchor files end in a container-type suffix {${ANCHOR_SUFFIXES.join(", ")}} (got '${f}') — an anchor names the containment it PROVIDES (UI-Architecture-and-Layout.md §4). Add to ANCHOR_SUFFIXES in scripts/check/gates/client-structure.ts if it's a real new container type.`,
+        message: `anchor files end in a container-type suffix {${ANCHOR_SUFFIXES.join(", ")}} (got '${f}') — an anchor names the containment it PROVIDES (UI-Architecture-and-Layout.md §4). Add to ANCHOR_SUFFIXES in scripts/check/gates/client-structure.ts if it's a real new container type. Group dirs inside a bucket are legal, but the file contracts apply at every depth.`,
       });
     }
   }
@@ -189,9 +245,10 @@ function checkFeature(dir: string, name: string, domains: Set<string>): Violatio
       });
     }
   }
-  // 5 + 6 + 7 — per-bucket file naming + surface purity.
+  // 5 + 6 + 7 — per-bucket file naming + surface purity (at any depth). 8 — group dirs stay groups.
   checkSurfaces(dir, name, out);
   checkHooksAndAnchors(dir, name, out);
+  checkGroupDirs(dir, name, out);
   return out;
 }
 
@@ -216,8 +273,8 @@ export const gate: GateDescriptor = {
   scopeSafety: "whole-project",
   fsBacked: true,
   message:
-    "a BUILT @orb/client feature slice violates the feature-slice layout — a missing index.ts front door, a name that is neither reserved nor a real server-domain mirror, a stray root file, an unknown bucket, or a mis-named surface/hook/anchor / a surface rendering its own outer container (UI-Architecture-and-Layout.md §2.1 + §4).",
-  fix: "add the index.ts front door, move loose modules into a bucket (surfaces/anchors/components/hooks/lib), rename to the served domain (or add to RESERVED), and name surfaces `-surface.tsx` / hooks `use-*` / anchors by container suffix.",
+    "a BUILT @orb/client feature slice violates the feature-slice layout — a missing index.ts front door, a name that is neither reserved nor a real server-domain mirror, a stray root file, an unknown bucket, a mis-named surface/hook/anchor AT ANY DEPTH / a surface rendering its own outer container, or a group dir named after a bucket (UI-Architecture-and-Layout.md §2.1 + §4; client-architecture-lockdown.md §3).",
+  fix: "add the index.ts front door, move loose modules into a bucket (surfaces/anchors/components/hooks/lib), rename to the served domain (or add to RESERVED), and name surfaces `-surface.tsx` / hooks `use-*` / anchors by container suffix — grouping a bucket into sub-dirs is legal, but the file contracts follow the file down and a group is never named after a bucket.",
   run: (ctx) => {
     for (const v of scanClientStructure(ctx.root)) {
       ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
@@ -279,6 +336,36 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "must not render its own outer Dialog" },
       why: "rule 7: a surface rendering its own outer Dialog root — the containment box is the anchor's job",
     },
+    {
+      // RECURSION: a surface inside a bucket GROUP dir escaped rules 5 + 7 entirely before F-4.
+      files: {
+        "packages/server/src/domain/character/index.ts": "export const d = 1;\n",
+        "packages/client/src/features/character/index.ts": "export const x = 1;\n",
+        "packages/client/src/features/character/surfaces/gallery/card.tsx": "export const C = () => <Drawer>x</Drawer>;\n",
+      },
+      expect: { count: 2 },
+      why: "the F-4 recursion arm: a GROUPED surface breaks both its naming contract and surface purity — a top-level-only scan reported neither",
+    },
+    {
+      // RECURSION: the hooks/ naming contract applies inside a group dir too.
+      files: {
+        "packages/server/src/domain/character/index.ts": "export const d = 1;\n",
+        "packages/client/src/features/character/index.ts": "export const x = 1;\n",
+        "packages/client/src/features/character/hooks/editor/helpers.ts": "export const h = 1;\n",
+      },
+      expect: { messageIncludes: "hooks/ files are use-*" },
+      why: "the F-4 recursion arm: a grouped hooks/ file keeps the use-* contract (the predicate reads the BASENAME, not the group-prefixed path)",
+    },
+    {
+      // Rule 8: a group dir NAMED after a bucket — a second slice shape growing inside the first.
+      files: {
+        "packages/server/src/domain/character/index.ts": "export const d = 1;\n",
+        "packages/client/src/features/character/index.ts": "export const x = 1;\n",
+        "packages/client/src/features/character/components/hooks/use-card.ts": "export const useCard = () => 1;\n",
+      },
+      expect: { messageIncludes: "re-declares the bucket axis" },
+      why: "rule 8: nesting is GROUPING — a group dir may not re-declare the bucket axis (components/hooks/ is a slice inside a slice)",
+    },
   ],
   mustPass: [
     {
@@ -332,6 +419,19 @@ export const gate: GateDescriptor = {
         "packages/client/src/features/character/anchors/edit-dialog.tsx": "export const E = () => null;\n",
       },
       why: "rule 6: a -dialog anchor carries a known container-type suffix and passes",
+    },
+    {
+      // RECURSION, the legal side: grouping is legal in EVERY bucket — a group dir whose files still
+      // honour their bucket's contract is clean (components/ carries no per-file rule at all: the
+      // features/preset/components/{prompt-assembly,readout}/ precedent).
+      files: {
+        "packages/server/src/domain/character/index.ts": "export const d = 1;\n",
+        "packages/client/src/features/character/index.ts": "export const x = 1;\n",
+        "packages/client/src/features/character/components/card/header.tsx": "export const H = () => null;\n",
+        "packages/client/src/features/character/surfaces/gallery/browse-surface.tsx": "export const B = () => null;\n",
+        "packages/client/src/features/character/hooks/editor/use-card.ts": "export const useCard = () => 1;\n",
+      },
+      why: "the F-4 nesting ruling: bucket-internal GROUP dirs are legal everywhere; what recursion adds is that the contracts follow the file down",
     },
   ],
 };
