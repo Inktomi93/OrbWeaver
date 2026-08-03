@@ -523,8 +523,14 @@ classified w/ REAL foreign-id drives + a post-sweep integrity assert (A's script
 the stranger's probes) · host-display-scripts-control CT'd both roles + waiver row ·
 create.int expectation fixed against the contracts shape. **verify --push RE-FIRED
 (background, post-BATFIX tree). 192 commits ahead of origin.**
-**CARCH = DONE-AWAITING-MERGE (`9dc382ed` on wt/agent-a494d33ecc6e81a3d — HELD for the battery
-verdict; it edits the gate/depcruise suites the battery runs).** All of F-1/3/4/5/6/7 landed:
+✅ **CARCH MERGED (`294f82e7`, torn down; the gates-doc conflict resolved as the TRUE UNION —
+CARCH's content + PORT's lifecycle-portability row + count 173, re-applied by hand + format;
+docs + structure clean on the merged result).**
+**BATTERY RUN 2 (post-BATFIX): 13/14 — tests:node GREEN (the whole battery!) + e2e GREEN;
+sole red = orphan-ratchet's NEW catch `PersonaBackupInput`** (z.infer twin orphaned by PORT's
+serde re-home — the serde defines its own concrete interface; twin DELETED `2c12437a`,
+ratchet re-run 0/0, hook-green). **RUN 3 FIRED (background) on the fully-merged quiesced
+tree — ALL LANES DRAINED, ZERO worktrees. Green = PUSH-READY, ~196 commits.** All of F-1/3/4/5/6/7 landed:
 README pointer-card rewrite (island-sentence dead) · comp-tier WALLED (new depcruise rule
 #53, probe-receipted) · client-structure RECURSES + rule 8 (bucket-axis re-declaration RED;
 nesting legislated: legal everywhere, contracts recurse) · §15a illustrative-blocks law (the
