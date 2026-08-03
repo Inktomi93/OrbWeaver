@@ -7,12 +7,20 @@
 // allowlisted file that STOPS importing Dialog (migrated onto the composite) REDs as a stale entry so the
 // allowlist can't rot. Keys on the `Dialog` root import only — a file using DialogClose/DialogTitle INSIDE a
 // FormDialog (the composite renders the root) is legal and never trips this.
-import { join } from "node:path";
 import type { Node, SourceFile } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
+import { fileLoaded } from "../pass.ts";
 
 const DIALOG_MODULE = "@orb/ui/dialog";
 const DIALOG_ROOT = "Dialog";
+
+/** Real-tree anchor (GATE-AUTHORING.md §4.5): `ctx.scope.kind === "project"` is TRUE inside conformance's
+ *  synthetic mini-projects too, so scope alone cannot gate the stale arm. Deliberately NOT any ALLOWLIST
+ *  row's own path — gating a row's staleness on THAT row's own file being loaded is the mode-(B) blind
+ *  spot (a deleted/renamed survivor is never loaded, so a self-referential guard skips it forever instead
+ *  of flagging it — the defect class three ALLOWLIST rows here carried silently: add-party-dialog.tsx,
+ *  save-as-party-dialog.tsx, readable-overlay.tsx, all gone from the tree). */
+const STALE_ARM_ANCHOR = "packages/ui/src/tokens/index.ts";
 
 /** Sanctioned NON-form (or genuinely-divergent) Dialog species → the cited reason it stays raw. A stale
  *  entry (the file no longer imports Dialog — it migrated onto FormDialog/ConfirmDialog) REDs via
@@ -30,14 +38,8 @@ const ALLOWLIST: Record<string, string> = {
     "the D22 read-only, level-clamped member card VIEWER (getMemberCard) — a content-display species like character-gallery-dialog/readable-overlay: no bound fields, a single Close, owns its Dialog root.",
   "packages/client/src/features/chat/components/variant-wire-viewer.tsx":
     "the RAWVIEW per-variant wire INSPECTOR (getVariantWire) — the member-card-viewer content-display species exactly: a host-only read-only readout of the prompt a past turn sent, no bound fields, a single Close, owns its Dialog root.",
-  "packages/client/src/features/chat/components/add-party-dialog.tsx":
-    "a saved-party PICKER surface (cmdk RosterPresetPicker owns search/keyboard-nav) — a picker species like character-gallery-dialog, not a form (RP2, saved-rosters §6).",
-  "packages/client/src/features/chat/components/save-as-party-dialog.tsx":
-    "a name PROMPT with a live RP-D1 drop-surfacing readout over the room snapshot — a §13.4 single-control prompt species (the rename-chat-dialog precedent), not a bound-field form; chat lane (RP2).",
   "packages/client/src/features/preset/components/variable-editor-dialog.tsx":
     "a bound-field form with a PINNED title above an internally-scrolled body (7 fields + a dynamic option list); FormDialog's single-Stack shell can't preserve the pinned-title scroll — divergent, kept raw with this citation.",
-  "packages/client/src/features/rpg/components/journal/readable-overlay.tsx":
-    "a read-only READING viewer (the C11 §12.2 parchment overlay for a journal item/note) — a content-display species like character-gallery-dialog, not a form/prompt; owns its Dialog root, no bound fields, a single Close.",
   "packages/client/src/features/rpg/components/rpg-scene-cards.tsx":
     "the P4 card-archive VIEWER (parity-plus §4.7): opens an archived ImmersiveCard in a lightbox-style dialog — the readable-overlay content-display species, not a form/prompt; no bound fields.",
 };
@@ -86,14 +88,15 @@ export const gate: GateDescriptor = {
     ctx.report(named, { token: DIALOG_ROOT, offset: 0 });
   },
   finalize: (ctx) => {
-    if (ctx.scope.kind !== "project") {
-      return;
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
+      return; // the stale arm is a whole-tree claim — never fire it below project scope or off the anchor (§4.5)
     }
     for (const path of Object.keys(ALLOWLIST)) {
-      // Only judge an allowlisted file that EXISTS in this run's project — a synthetic conformance tree
-      // lacking the real allowlisted files must not misfire the stale arm (on the real run they all exist,
-      // so the ratchet holds; the motion-token-purity existsSync precedent).
-      if (ctx.project.getSourceFile(join(ctx.root, path)) !== undefined && !seenAllowlistEntries.has(path)) {
+      // NOT gated on the row's own file being loaded — that is precisely the mode-(B) blind spot (a
+      // deleted/renamed file is never loaded, so it would never be judged stale). `seenAllowlistEntries`
+      // is only ever set by a live `visitFile` hit, so "never seen" already covers both a migrated file
+      // (A) and a gone one (B).
+      if (!seenAllowlistEntries.has(path)) {
         ctx.report({
           file: GATE_SELF,
           line: 1,
@@ -116,6 +119,16 @@ export const gate: GateDescriptor = {
         ");\n",
       at: "packages/client/src/features/demo/components/demo-dialog.tsx",
       why: "a feature file hand-assembling Dialog+DialogPopup+DialogTitle — not on the allowlist, flags",
+    },
+    {
+      // Mode-(B) proof (GATE-AUTHORING.md §4.3b): a project that loads the real-tree anchor but NONE of
+      // the ALLOWLIST paths — exactly what a deleted/renamed survivor file looks like from this gate's
+      // vantage. Before the fix this arm was gated on the row's OWN file being loaded, so a project like
+      // this one (which never loads any ALLOWLIST path) silently reported nothing; three real rows
+      // (add-party-dialog.tsx, save-as-party-dialog.tsx, readable-overlay.tsx) rotted this way.
+      files: { [STALE_ARM_ANCHOR]: "export const x = 1;\n" },
+      expect: { messageIncludes: "stale ALLOWLIST entry" },
+      why: "the real-tree anchor loads but no ALLOWLIST row's file does (the mode-B shape: gone from the tree) — every row must RED, not silently pass",
     },
   ],
   mustPass: [

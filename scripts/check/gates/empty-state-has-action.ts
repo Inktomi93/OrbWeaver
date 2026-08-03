@@ -10,6 +10,13 @@ import { fileLoaded } from "../pass.ts";
 
 const TAG_NAME = "EmptyState";
 
+/** Real-tree anchor (GATE-AUTHORING.md §4.5): `ctx.scope.kind === "project"` is TRUE inside conformance's
+ *  synthetic mini-projects too, so scope alone cannot gate the stale arm. Deliberately NOT any ALLOWLIST
+ *  row's own path — gating a row's staleness on THAT row's own file being loaded is the mode-(B) blind
+ *  spot (a deleted/renamed survivor is never loaded, so a self-referential guard skips it forever instead
+ *  of flagging it — 14 rpg/preset ALLOWLIST rows here rotted this way after the rpg client flattening). */
+const STALE_ARM_ANCHOR = "packages/ui/src/tokens/index.ts";
+
 /** Current dead-end files → reason. See no-interactive-role-in-features.ts for the ratchet contract. */
 const ALLOWLIST: Record<string, string> = {
   "packages/client/src/features/app-shell/components/section-placeholder.tsx":
@@ -47,14 +54,6 @@ const ALLOWLIST: Record<string, string> = {
     "the RAWVIEW inspector's two statements of FACT — a variant that captured no prompt (an authored/imported/seeded row never ran " +
     "one) and the NOT_FOUND gone-arm (the message was deleted). Neither has a next step the host could take; the dialog's own Close " +
     "is the only affordance (the member-card-viewer precedent, same species).",
-  "packages/client/src/features/preset/components/preset-section-inspector.tsx":
-    'the "Select a section to inspect it" prompt shown when no rack row is selected — the next step (pick ' +
-    "a row) lives in the sibling rack, not here, so this state legitimately has no action of its own; same " +
-    "reasoning as preset-library-welcome.tsx.",
-  // ── rpg game panel (rpg-design/11 §6) — the game surfaces are model/director-authored (pillar P1: the client
-  // creates NOTHING), sibling-carried (a visible create form beside the list), or a DESIRED empty state. Each row
-  // names its class so the next auditor can re-derive it. (C11 polish pass; allowlist WITH reasoning, not a bolted-on
-  // decorative button — the confidence-theater ban.)
   "packages/client/src/features/world-info/components/world-info-context-body.tsx":
     "the GONE arm of the world-info CONTEXT pane — the open book was deleted while its attachments were on " +
     "screen. (Its predecessor, the rail section's 'No book open' arm, retired with the section at R2: a " +
@@ -72,39 +71,6 @@ const ALLOWLIST: Record<string, string> = {
     "the library list, which itself carries BOTH create doors (the band's Add primary and the empty bank's " +
     "own CTA). The next step lives in the sibling list, so this state legitimately has no action of its own: " +
     "the preset-library-welcome.tsx precedent, same species, same reasoning.",
-  "packages/client/src/features/rpg/components/cast/cast-tab.tsx":
-    "read-only-by-pillar: the NPC roster is model-authored via `upsert_npc` (P1 — the client derives/creates nothing); " +
-    "the cast fills as the story introduces characters, so there is no client action to offer.",
-  "packages/client/src/features/rpg/components/quests/quests-tab.tsx":
-    "read-only-by-pillar: quests are model-authored via `upsert_quest` (P1); the log fills as the story reveals them, " +
-    "so there is no client action to offer.",
-  "packages/client/src/features/rpg/components/gm/gm-eyes-tab.tsx":
-    "read-only-by-pillar: the twist bank is director-authored (06 §3); the GM-eyes panel is a WINDOW into it, not an " +
-    "editor, so the empty twist bank has no action of its own.",
-  "packages/client/src/features/rpg/components/party/party-tab.tsx":
-    "sibling-carries-CTA / read-only: this state renders ONLY for a non-host (the host branch carries the AddParty CTA); " +
-    "a member's party fills as characters join the game, so the member has no create action here.",
-  "packages/client/src/features/rpg/components/journal/journal-tab.tsx":
-    "sibling-carries-CTA: the JournalNoteComposer sits directly above this empty state (the copy points at it — 'jot the " +
-    "first note in the box above'), so the next step lives in the sibling composer, not a redundant button here.",
-  "packages/client/src/features/rpg/components/gm/checkpoints-section.tsx":
-    "sibling-carries-CTA: the Save-a-bookmark input + button is an always-visible sibling directly above this empty list.",
-  "packages/client/src/features/rpg/components/gm/clocks-section.tsx":
-    "sibling-carries-CTA: the clock create form is an always-visible sibling directly above this empty list.",
-  "packages/client/src/features/rpg/components/gm/widgets-section.tsx":
-    "sibling-carries-CTA: the widget create form is an always-visible sibling directly above this empty list.",
-  "packages/client/src/features/rpg/components/gm/session-section.tsx":
-    "sibling-carries-CTA: this is the CONCLUDED-session recap list (past sessions, informational); the host's 'Start " +
-    "session' control is an always-visible sibling above it — starting a session is a distinct act from the recap history.",
-  "packages/client/src/features/rpg/components/gm/death-section.tsx":
-    'desired-empty: "Everyone\'s standing" — no party member is down. An empty Fallen list is the WANTED state; an action ' +
-    "prompting the host to kill someone would be absurd.",
-  "packages/client/src/features/rpg/components/scene/scene-view-tab.tsx":
-    "read-only-by-pillar: scene art is model-generated via `request_illustration` (P1 — the client creates nothing); the " +
-    "C11 scene-view tab is a WINDOW into the latest illustration, so the 'no art yet' state has no client action to offer.",
-  "packages/client/src/features/rpg/components/lite/pool-defs-editor.tsx":
-    "elsewhere-carried: meters attach to party MEMBERS, and a member is seated from the Party tab (its own add-to-party CTA), " +
-    "not this L2 settings pane; the 'no party yet' state's next step lives in that sibling tab, so it has no action of its own.",
 };
 
 const MESSAGE =
@@ -161,16 +127,14 @@ export const gate: GateDescriptor = {
     ctx.report(node, { token: `<${TAG_NAME}>`, offset: 0 });
   },
   finalize: (ctx) => {
-    if (ctx.scope.kind !== "project") {
-      return;
+    if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
+      return; // the stale arm is a whole-tree claim — never fire it below project scope or off the anchor (§4.5)
     }
     for (const rel of Object.keys(ALLOWLIST)) {
-      // The "went clean" ratchet only judges a file that is actually LOADED in this run — a synthetic
-      // conformance/parity tree (which omits the real allowlisted files) must not falsely flag them
-      // stale. On the real full-tree run every allowlisted file IS loaded, so the ratchet is preserved.
-      if (!fileLoaded(ctx, rel)) {
-        continue;
-      }
+      // NOT gated on the row's own file being loaded — that is precisely the mode-(B) blind spot (a
+      // deleted/renamed file is never loaded, so it would never be judged stale). `passSeenAllowlisted`
+      // is only ever set by a live `visit` hit, so "never seen" already covers both a fixed file (A) and
+      // a gone one (B).
       if (!passSeenAllowlisted.has(rel)) {
         ctx.report({
           file: GATE_SELF,
@@ -181,16 +145,21 @@ export const gate: GateDescriptor = {
       }
     }
   },
-  // NOTE: the ALLOWLIST ratchet/stale arms (suppress-allowlisted, gone-clean-is-RED, absent-is-stale)
-  // are barrel/`fileLoaded`-guarded to the REAL full tree — a synthetic conformance project omits the
-  // real allowlisted files, so those branches cannot run as an in-memory example. Their coverage moves
-  // to the live `pnpm check:structure` run (this gate's finalize on the real tree). Only the pure
-  // FLAG/PASS branches port as examples below.
   mustFlag: [
     {
       files: 'export const G = <EmptyState title="Nothing here" />;\n',
       at: "packages/client/src/features/demo/thing.tsx",
       why: "an <EmptyState> with no action CTA — a dead end that strands the user (§3.2)",
+    },
+    {
+      // Mode-(B) proof (GATE-AUTHORING.md §4.3b): a project that loads the real-tree anchor but NONE of
+      // the ALLOWLIST paths — exactly what a deleted/renamed survivor looks like from this gate's
+      // vantage. Before the fix this arm was gated on the row's OWN file being loaded, so a project like
+      // this one (which never loads any ALLOWLIST path) silently reported nothing; 14 rpg/preset rows
+      // rotted this way after the rpg client flattening.
+      files: { [STALE_ARM_ANCHOR]: "export const x = 1;\n" },
+      expect: { messageIncludes: "ALLOWLIST entry has NO dead-end" },
+      why: "the real-tree anchor loads but no ALLOWLIST row's file does (the mode-B shape: gone from the tree) — every row must RED, not silently pass",
     },
   ],
   mustPass: [
