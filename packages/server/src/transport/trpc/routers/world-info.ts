@@ -18,6 +18,9 @@ const DEC = new TextDecoder();
 export const worldInfoRouter = t.router({
   listBooks: authedProcedure.query(({ ctx }) => ctx.services.worldInfo.listBooks({ principal: ctx.auth })),
 
+  /** The Configuration roster read — the same owned books plus entry count + attachment rollup. */
+  listBooksWithUsage: authedProcedure.query(({ ctx }) => ctx.services.worldInfo.listBooksWithUsage({ principal: ctx.auth })),
+
   getBook: authedProcedure
     .input(z.object({ bookId: brandedId<WorldBookId>() }))
     .query(({ ctx, input }) => ctx.services.worldInfo.getBook({ principal: ctx.auth, bookId: input.bookId })),
