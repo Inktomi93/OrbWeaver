@@ -15,6 +15,7 @@
 // Chunk-boundary visualization is deliberately NOT designed — no server read exposes chunk text.
 
 import type { DocumentId } from "@orb/kit/ids";
+import { formatBytes } from "@orb/kit/strings";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -31,7 +32,7 @@ import { timeLib, useFocusOnMount } from "#lib";
 import { useSelectedDocumentId } from "#state";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog";
 import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations";
-import { documentSubtitle, formatBytes, ingestBadge, ingestPhase, ingestStallHint, originLabel } from "../lib/databank-model";
+import { documentSubtitle, ingestBadge, ingestPhase, ingestStallHint, originLabel } from "../lib/databank-model";
 
 export function DatabankDetailSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);

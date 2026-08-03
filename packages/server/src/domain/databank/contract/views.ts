@@ -3,7 +3,7 @@
 // `@orb/contracts/databank`; re-exported type-only here so verb signatures reference one name. The detail +
 // attachments views are domain-local (the panel's source view + the "attached where" chips).
 
-import type { DocumentView } from "@orb/contracts/databank";
+import type { DocumentScopeSource, DocumentView } from "@orb/contracts/databank";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 
 export type { DocumentView } from "@orb/contracts/databank";
@@ -29,4 +29,10 @@ export interface DocumentAttachmentsView {
  *  never learns a host-hidden document's name (`hidden` is always `false` in a member's payload). */
 export interface ActiveChatDocumentView extends DocumentView {
   readonly hidden: boolean;
+  /** WHY this document is active (D-2): the scope junction(s) crediting it — `global` (a present member's
+   *  global attachment) · `chat` (attached to THIS chat) · `character` (on a present roster character). A
+   *  document can be credited by several at once. Never empty: a row exists only because a junction put it
+   *  there. It is also the DETACHABILITY datum — only `chat` is a junction this room's host owns, so a row
+   *  without it can be HIDDEN but never detached from here. */
+  readonly sources: readonly DocumentScopeSource[];
 }

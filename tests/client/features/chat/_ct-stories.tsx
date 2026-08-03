@@ -95,6 +95,7 @@ import { AssemblyPreviewPanel } from "../../../../packages/client/src/features/c
 import { ChatMessageHandlingSection } from "../../../../packages/client/src/features/chat/components/chat-behavior-message-handling-section";
 import { ChatStreamingSection } from "../../../../packages/client/src/features/chat/components/chat-behavior-streaming-section";
 import { ChatCastBar } from "../../../../packages/client/src/features/chat/components/chat-cast-bar";
+import { ChatDocumentsSection } from "../../../../packages/client/src/features/chat/components/chat-documents-section";
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header";
 import { ChatImportDialog } from "../../../../packages/client/src/features/chat/components/chat-import-dialog";
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu";
@@ -2100,6 +2101,26 @@ export function InjectionsManagerStory({ isHost = true }: { readonly isHost?: bo
           renderError={(_error, retry): ReactElement => <QueryErrorState label="injections" onRetry={retry} />}
         >
           <InjectionsManager chatId={CHAT_ID} isHost={isHost} />
+        </QueryBoundary>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The per-chat DOCUMENTS rack (chat-documents-section.tsx, S2) at the REAL context-panel width — 320px is
+ *  the pane floor the row grammar is stated at, and it is exactly where S1's own chip defect only became
+ *  visible. Wrapped in the same `QueryBoundary` its production mount ("This chat" → Documents) gives it.
+ *  The `.ct.tsx` stubs `databank.listActiveForChat` (+ `databank.list` for the picker) and asserts the
+ *  MUTATION payload of the D85 visibility write, never a UI reaction. */
+export function ChatDocumentsSectionStory({ isHost = true }: { readonly isHost?: boolean }): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 320 }}>
+        <QueryBoundary
+          fallback={<Text tone="muted">Loading documents…</Text>}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="this chat's documents" onRetry={retry} />}
+        >
+          <ChatDocumentsSection chatId={CHAT_ID} isHost={isHost} />
         </QueryBoundary>
       </div>
     </CtDataProviders>

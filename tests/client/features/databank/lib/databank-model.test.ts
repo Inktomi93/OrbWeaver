@@ -7,7 +7,6 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import {
   documentSubtitle,
-  formatBytes,
   ingestBadge,
   ingestPhase,
   ingestStallHint,
@@ -120,12 +119,5 @@ describe("the row subtitle + byte format", () => {
 
   test("a not-yet-chunked document reads 0 chunks — the chip carries the in-flight signal, not the subtitle", () => {
     expect(documentSubtitle(doc({ chunkCount: 0, embeddedCount: 0 }))).toBe("Upload · 24.5 KB · 0 chunks");
-  });
-
-  test("byte sizes step through the units and stay at one decimal", () => {
-    expect(formatBytes(0)).toBe("0 B");
-    expect(formatBytes(1023)).toBe("1023 B");
-    expect(formatBytes(1024)).toBe("1 KB");
-    expect(formatBytes(4_404_019)).toBe("4.2 MB");
   });
 });

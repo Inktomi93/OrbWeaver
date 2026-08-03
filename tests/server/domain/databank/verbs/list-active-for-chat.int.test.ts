@@ -8,7 +8,7 @@ import type { ChatId, DocumentId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
-import { makeDatabankHarness, principalFor, seedChat, seedChatHost, seedUser } from "../_support.ts";
+import { makeDatabankHarness, principalFor, seedCharacter, seedChat, seedChatHost, seedRosterCharacter, seedUser } from "../_support.ts";
 
 async function hideDocuments(db: Awaited<ReturnType<typeof freshDb>>, chatId: ChatId, hidden: DocumentId[]): Promise<void> {
   await db
@@ -65,6 +65,38 @@ test("D85: the host sees a hidden document FLAGGED; a member never receives it (
   expect(memberView.map((d) => d.id)).not.toContain(memberGlobal.document.id);
   expect(memberView.map((d) => d.id)).toContain(hostGlobal.document.id);
   expect(memberView.every((d) => d.hidden === false)).toBe(true);
+});
+
+// D-2 — the per-row PROVENANCE the rack renders as its source chips, and the datum that tells a
+// detachable row (chat-attached: the host owns that junction) from one the host may only HIDE. The three
+// junction reads already existed; this pins that their answer survives to the panel instead of collapsing.
+test("D-2: each row carries the junction(s) crediting it — global · chat · character, several at once", async () => {
+  const db = await freshDb();
+  const h = makeDatabankHarness(db);
+  const host = await seedUser(db, { handle: "host" });
+  const chatId = await seedChat(db, "chat_room");
+  await seedChatHost(db, chatId, host, "host");
+  const characterId = await seedCharacter(db, host, { id: "character_azarael", name: "Azarael" });
+  await seedRosterCharacter(db, chatId, characterId);
+
+  const globalDoc = await h.service.createFromText({ principal: principalFor(host), name: "g.md", text: "global canon" });
+  const chatDoc = await h.service.createFromText({ principal: principalFor(host), name: "c.md", text: "chat canon" });
+  const charDoc = await h.service.createFromText({ principal: principalFor(host), name: "ch.md", text: "character canon" });
+  const bothDoc = await h.service.createFromText({ principal: principalFor(host), name: "b.md", text: "both canon" });
+  await h.service.attachGlobal({ principal: principalFor(host), documentId: globalDoc.document.id });
+  await h.service.attachToChat({ principal: principalFor(host), documentId: chatDoc.document.id, chatId });
+  await h.service.attachToCharacter({ principal: principalFor(host), documentId: charDoc.document.id, characterId });
+  // Credited TWICE — a global document the host also pinned to this room. The chip row must say both, and
+  // the host must still be offered the detach (the `chat` junction is theirs to cut).
+  await h.service.attachGlobal({ principal: principalFor(host), documentId: bothDoc.document.id });
+  await h.service.attachToChat({ principal: principalFor(host), documentId: bothDoc.document.id, chatId });
+
+  const active = await h.service.listActiveForChat({ principal: principalFor(host), chatId });
+  const sourcesOf = (id: DocumentId): readonly string[] => active.find((d) => d.id === id)?.sources ?? [];
+  expect(sourcesOf(globalDoc.document.id)).toEqual(["global"]);
+  expect(sourcesOf(chatDoc.document.id)).toEqual(["chat"]);
+  expect(sourcesOf(charDoc.document.id)).toEqual(["character"]);
+  expect(sourcesOf(bothDoc.document.id)).toEqual(["global", "chat"]);
 });
 
 test("a non-member is rejected by the injected member guard", async () => {
