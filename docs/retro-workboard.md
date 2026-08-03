@@ -40,8 +40,19 @@ the merged result (caught reds twice tonight) · **CTs are NOT in verify --push*
 playwright CT files explicitly (ANCHOR's gap) · semantic conflicts → abort, recreate worktree
 if needed, lane reconciles (REGPAR precedent tonight) · D-numbers allocated at dispatch.
 
-**LIVE LANES (3, resumable by agent id via SendMessage): SM6 (a2f4878e08572eab4 — imagery
-CT files confirmed FREE, told to merge main) · REGORDER (a9c03c2e888a68acf — scope RATIFIED:
+✅ **SM6 MERGED (torn down)** — POPLOUD (populate loud, RESYNC-OR mirror; the partial-land
+arm reports {ok:false} — a half-thrown fill is not success) · STRICTFMT (OR stops INVENTING
+strict — rides only when the caller sets it, both runners; arm-b proven impossible [strict
+required-arrays destroy omit-means-keep]; vLLM keeps strict — the xgrammar lever; contract
+truth-repaired; NO live-key re-probe — the matrix is source-pinned, re-probing spends money
+on a recorded fact) · IMGMAC (user macros resolve in imagery templates; the section offers
+category==="user" rows ONLY — the builtin half would advertise fields extraction leaves
+empty, the MACU-2 lie class). **QUEUED: CUSTOMBYO small** (same strict landmine in
+custom-byo's shared rawResponseFormat — needs its own arm or a kit-default flip w/ vLLM
+pinning explicitly). D79 structured-chat stays unreachable-documented (a future consumer on
+anthropic-OR needs the forced-tool vehicle — recorded). LESSON banked below: a translator
+that DEFAULTS a caller's optional wire knob is inventing policy.
+**LIVE LANES (2, resumable by agent id via SendMessage):** REGORDER (a9c03c2e888a68acf — scope RATIFIED:
 both homes via one shared regex-scope-order component [config context arm = global; the
 picker SPLITS IN PLACE "Runs here, in order" + unattached — one row per script, X-7-safe];
 threshold arms = drag ≤30 / move-up-down above — NO capability cliff, mechanism-only switch;
