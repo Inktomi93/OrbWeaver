@@ -653,6 +653,38 @@ fixture = the repro). (4) **REGPAR queued next drain**: ST regex-extension parit
 owner names DISPLAY-EPHEMERAL semantics + the REGEX TESTER as missing; audit the local ST
 source checkout feature-for-feature, spec-then-build (with IMGMAC + RESYNC-OR in the bug
 queue).
+✅ **SM5 MERGED (+ landing fix `612e0d3f` — phantom worldBookIds in the new persona story,
+cross-branch class) — all five smalls:** WIREBTN (wire trace = host-gated kebab item;
+metadata row data-only; trigger file DELETED — Base UI MenuItem+dialog can't share a
+component, the destructive-arm split is the sanctioned shape; waiver removed, coverage
+UPGRADED to a real CT) · MACU-2 arm-a (use-prompt-macro-suggestions at #data; curated lists
+deleted; imagery/prose cited-exempt w/ the door named) · INV-READ (premise half-stale — list
+row already rendered both since RV-5; the REAL gap was tile description living in hover
+title = not a reader; now text) · **EDITSNAP-OK found the mechanism SYSTEMIC**: all four
+hand doors typed unknown through createEntityMutation — refusals were invisible to
+errorToast at the FACTORY; fixed at the one home (refusal arm; every caller swept incl.
+demo-chat-game + agent-seed via assertHandWrote; stub wire-shape lies fixed) · PLUGCITE
+(markers landed, claims re-verified). FLAG: field-reachability.suite:358 ignores .ok
+(non-vacuous, honest-fix-same-shape — smalls tail).
+✅ **NARCOLOR MERGED (`136139fc`; stories conflict union-resolved [viewerIsHost +
+narratorRoom]; union CTs 34/34; consolidated 14/14) — NARRATOR COLORING WORKS, first time
+ever:** never-worked verdict source-pinned (render half existed; the produce instruction
+NEVER did — §12.4's "BUILT" was half-true, truth-repaired w/ the D67-class note; the tell
+was reading the GENERATED fixture not the code — lesson). Landed: narratorNudge +
+speakerTags PROSE-1 slots (neo's proven instruction as owner-editable data; roundNudge
+v1→v2 strengthened) · speakerTagsToPlain into toShapeCanon · the tolerant line-start
+Name: parse (narrator assistant rows only — a user row's "Alice:" stays a forge, gated) ·
+ONE tint producer (characterTint, id-seeded — the two-colors defect dead) · label
+suppression NOT built (reversal note at site). Rendered before/after receipts. NOTES:
+GroupConfig.speakerTags was a DEAD KNOB until now (per-speaker arm still consumer-less BY
+DESIGN — noted) · the tint plane paints quoted speech + italics only, plain prose spans get
+scope-no-color (pre-existing; the likely next "still not colored" report → rides the
+combined side-eye) · GhostMessageRow has NO identity chrome for ANY row kind (fact,
+recorded) · neo's L10 forge-guard deliberately not ported (SHAPE-stamp makes it moot,
+cited). **MORNING VETO ITEMS: the three nudge default texts VERBATIM in NARCOLOR's report**
+(speakerTags v1 · narratorNudge v1 · roundNudge v2; {{user}} deliberately absent —
+macros:"none" slots; a {{names}}-style pre-sub token is small plumbing on the word).
+**DISPATCHED into the freed slots: REGPAR + RESYNC-OR (live = R1B + both = 3 at cap).**
 **═══ OVERNIGHT ENGAGED (owner OFF, 08-03 ~late; full-auto per the posture memory + ladder) ═══**
 LIVE: R1B (config workspace — collapsed-groups ruled, 400-tag fixture) · SM5 (5 smalls; MACU-2
 arm-a ratified) · NARCOLOR (final shape: both produce arms + tolerant parse + forge guard +
