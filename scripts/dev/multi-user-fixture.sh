@@ -17,18 +17,34 @@
 #   owner  : owner  / owner-dev-pass      (box owner; seeded from LOCAL_INITIAL_PASSWORD on first boot)
 #   member : member / member-dev-pass     (regular user; minted via admin.createUser during seed)
 #
-# PORTS: the same 8788 (server) / 5173 (vite) stack.sh owns — so run this INSTEAD of the normal
-# `pnpm stack` (stop that first; stack.sh refuses to fight ports it doesn't own). The isolation that
-# matters is the DB: this fixture's data lives in .cache/multi-user-fixture/, the normal stack's in
-# ./orbweaver.db — they never collide.
+# PORTS — an OFFSET PAIR (8790 server / 5175 vite), not stack.sh's 8788/5173 (changed 2026-08-03).
+# The fixture is now a SIDECAR: it runs ALONGSIDE the owner's dev stack instead of instead-of it, the
+# same recipe every e2e mode uses (tests/e2e/support/modes.ts: own ports + own DB + own assets). Three
+# things are isolated, and all three are required for coexistence:
+#   • ports    — PORT/VITE_PORT/VITE_API_TARGET (this file is the ONE source of truth; the snap side
+#                mirrors them by hand in scripts/probes/_kit/fixture.ts, same as the credentials).
+#   • data     — DB + assets under .cache/multi-user-fixture/ (never the dev ./data/orbweaver.db).
+#   • pidfile  — STACK_RUN_DIR (stack.sh's env hook): the fixture's pgid/logs live under its own dir, so
+#                `pnpm stack stop` can never kill the fixture, nor this script the dev stack.
+# Override the pair with FIXTURE_PORT / FIXTURE_VITE_PORT if something else already owns 8790/5175
+# (pass the SAME values to snap via --fixture-server/--fixture-base or SNAP_FIXTURE_*_URL).
 #
-# VERIFY it's live:  curl -s http://127.0.0.1:8788/api/auth/config   → "multiHumanCapable":true
-# Log in as either credential at http://localhost:5173 to exercise invite → notification → accept.
+# VERIFY it's live:  curl -s http://127.0.0.1:8790/api/auth/config   → "multiHumanCapable":true
+# Log in as either credential at http://localhost:5175 to exercise invite → notification → accept.
+# Snap it with two authenticated humans:  pnpm snap / --contexts 2 --text
 
 set -u
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 STACK="$REPO/scripts/dev/stack.sh"
 FIXTURE_DIR="$REPO/.cache/multi-user-fixture"
+
+# ── the offset port pair (see PORTS above) — exported so stack.sh + its vite child bind THESE ────────
+export PORT="${FIXTURE_PORT:-8790}"
+export VITE_PORT="${FIXTURE_VITE_PORT:-5175}"
+export VITE_API_TARGET="http://127.0.0.1:$PORT"
+# stack.sh's pidfile/log dir (its STACK_RUN_DIR hook) — the fixture owns its own, so the two stacks'
+# stop/status verbs never target each other's process group.
+export STACK_RUN_DIR="$FIXTURE_DIR/stack"
 
 # ── the fixture's env contract — the ONE source of truth the seed script inherits ────────────────────
 export AUTH_MODE=local
@@ -45,7 +61,7 @@ export LOCAL_INITIAL_PASSWORD="owner-dev-pass"
 export ORB_ENV_NO_OVERRIDE=1
 
 # The seed's contract (base URL + the four credentials) — passed through so the two files never drift.
-export SEED_BASE_URL="http://127.0.0.1:8788"
+export SEED_BASE_URL="http://127.0.0.1:$PORT"
 export FIXTURE_OWNER_HANDLE=owner
 export FIXTURE_OWNER_PASSWORD="$LOCAL_INITIAL_PASSWORD"
 export FIXTURE_MEMBER_HANDLE=member
@@ -54,10 +70,10 @@ export FIXTURE_MEMBER_PASSWORD="member-dev-pass"
 exec_seed() { "$REPO/node_modules/.bin/tsx" "$REPO/scripts/dev/multi-user-seed.ts"; }
 
 do_up() {
-  mkdir -p "$FIXTURE_DIR/assets"
-  echo "fixture: booting the two-human stack (DB $DATABASE_URL)…"
+  mkdir -p "$FIXTURE_DIR/assets" "$STACK_RUN_DIR"
+  echo "fixture: booting the two-human stack on :$PORT/:$VITE_PORT (DB $DATABASE_URL)…"
   if ! bash "$STACK" start; then
-    echo "fixture: stack failed to start — see the RESULT line above (stop the normal 'pnpm stack' first if ports are busy)."
+    echo "fixture: stack failed to start — see the RESULT line above (something else owns :$PORT/:$VITE_PORT? set FIXTURE_PORT/FIXTURE_VITE_PORT)."
     return 1
   fi
   echo "fixture: stack healthy — seeding LOCAL_MULTI_USER + the member account…"

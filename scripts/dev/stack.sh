@@ -50,11 +50,20 @@
 # Run dir + logs live in .cache/stack/ (gitignored, never /tmp). Output
 # contract (probe convention): the LAST line is a stable `RESULT stack …`
 # machine line — `tail -1` lands the verdict.
+#
+# STACK_RUN_DIR: the pidfile+log dir, env-overridable so a SECOND stack booted
+# from the SAME tree (the multi-user fixture on its offset port pair) owns its
+# OWN pidfile instead of clobbering the dev stack's — `stop`/`status` read the
+# pidfile, so one shared file would have `pnpm stack stop` killing the wrong
+# stack. The `--isolated` snap-stage doesn't need it (it boots stack.sh from a
+# SEPARATE worktree, so $REPO — and the run dir under it — already differ).
+# Engines keep their own .cache/stack run dir (engines.sh); a second stack is
+# engines-off by construction (VLLM_DISABLED=true), so they never collide.
 
 set -u
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 SELF="$REPO/scripts/dev/stack.sh"
-RUN_DIR="$REPO/.cache/stack"
+RUN_DIR="${STACK_RUN_DIR:-$REPO/.cache/stack}"
 PIDFILE="$RUN_DIR/stack.pgid"
 LOG="$RUN_DIR/stack.log"
 SERVER_LOG="$RUN_DIR/server.log"

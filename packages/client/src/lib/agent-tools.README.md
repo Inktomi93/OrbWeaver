@@ -41,7 +41,7 @@ refusal, never a silent no-op. ids validate against the canonical tuples (`SECTI
 | `__orb.nav.openModal(slot)` | open a rail modal (`MODAL_SLOT_IDS`) |
 | `__orb.nav.openSettings(category)` | open Settings at a category (`SETTINGS_CATEGORY_IDS`) |
 | `__orb.nav.contextTab(name)` | ask the active surface's context panel to open a named tab |
-| `__orb.nav.openChat(idOrTitle)` | *(async)* switch to the Chats section + make a chat active by chat id OR exact display title — resolves against the chat-list query cache, fetching it if cold. REFUSES (`ok:false`) on an AMBIGUOUS title matching >1 chat — pass the id |
+| `__orb.nav.openChat(idOrTitle)` | *(async)* switch to the Chats section + make a chat active by chat id OR exact display title OR the positional sentinels `"first"`/`"latest"` (the list's top row = the most-recently-updated chat; a chat literally titled that is reachable by id) — resolves against the chat-list query cache, fetching it if cold. REFUSES (`ok:false`) on an AMBIGUOUS title matching >1 chat (pass the id) or an empty list |
 | `__orb.nav.openCharacter(idOrName)` | *(async)* switch to the Characters section + select a character by id OR name — resolves against `character.list`, same store action a library-row click calls (`selectCharacter`). Same ambiguity refusal on a name matching >1 character |
 | `__orb.nav.closeModal()` | close any open modal |
 

@@ -178,6 +178,11 @@
  *                                          # cold). REFUSES loudly (NAV FAILED, exit 1) on an AMBIGUOUS title
  *                                          # matching >1 chat — pass the chat id to disambiguate.
  *                                          # --goto target ∈ section id | settings:<cat> | modal:<slot>.
+ *   pnpm snap / --open-chat latest --text   # POSITIONAL: "latest" (or "first") opens the chat list's TOP
+ *                                          # row — newest-updated-first, i.e. the most recent chat — so a
+ *                                          # caller stops needing an id/title to reach "the chat I was just
+ *                                          # in". Reserved words: a chat literally titled "latest" is
+ *                                          # reachable by its id. Refuses on an empty chat list.
  *   pnpm snap / --open-character Rev --aria # switch to Characters + select a character by id OR name
  *                                          # (resolves against character.list). Same ambiguity refusal:
  *                                          # a name matching >1 character is rejected — pass the id.
@@ -205,11 +210,14 @@
  *   shared :5173/:8788 dev stack (which is always AUTH_MODE=single-user — one user, no login form,
  *   nothing to authenticate AS). The auth door is the real one a browser uses: `POST /api/auth/login`
  *   (handle+password → the session cookie), seeded into each context BEFORE its first navigation — never
- *   a bypass. HONESTY (2026-08-03): --contexts is UNUSABLE while the shared dev stack is up — the
- *   fixture reuses stack.sh's OWN 8788/5173 (only the DB is isolated), so it must run INSTEAD of the
- *   stack, never alongside; and SNAP_FIXTURE_SERVER_URL is read by NEITHER fixtureStatus() nor
- *   opts.base. Until the boarded port-override/offset-pair small lands, two-human pixels on a live
- *   stack ride tests/e2e/support/browser-actors.ts instead. The fixture's roster is fixed at 2 dev
+ *   a bypass. THE FIXTURE IS A SIDECAR (2026-08-03, replacing the old honesty note): it boots on its OWN
+ *   OFFSET PAIR — server :8790 / vite :5175 — with its own db, assets and stack pidfile, so it runs
+ *   ALONGSIDE the owner's dev stack instead of instead-of it. --contexts is therefore usable with the dev
+ *   stack up; snap probes the fixture's health AND navigates its vite origin through ONE resolved target
+ *   (scripts/probes/_kit/fixture.ts), so an override reaches both halves — the old bug was
+ *   SNAP_FIXTURE_SERVER_URL being read by neither. Override with `--fixture-server <origin>` /
+ *   `--fixture-base <origin>` (or env SNAP_FIXTURE_SERVER_URL / SNAP_FIXTURE_BASE_URL) when the fixture was
+ *   booted on a different pair (FIXTURE_PORT/FIXTURE_VITE_PORT). The fixture's roster is fixed at 2 dev
  *   users today (owner, member — its own header
  *   docstring); `--contexts N` assigns them in that order. Target a context with the SAME `@<idx>` suffix
  *   --pages uses (unsuffixed = context 0); shots suffix `-u<idx>` (distinct from --pages' `-p<idx>`, so
@@ -232,6 +240,19 @@
  *   Bringing the fixture up/down is a HUMAN/orchestrator call (`bash scripts/dev/multi-user-fixture.sh
  *   up`) — snap NEVER boots or stops it itself, and never silently restarts the shared stack under a
  *   different AUTH_MODE. Full detection/credential logic lives in scripts/probes/_kit/fixture.ts.
+ *
+ *   LOCAL FILE — `--file <path>` renders a local HTML file (the committed design mocks) over file://
+ *   instead of a dev-stack route: the SAME instruments (--shot/--shot-of/--aria/--map/--contrast/--eval/
+ *   the dead-CSS scan/--viewport/--mobile/--dark) with no stack, no server, no route. This is how a mock
+ *   gets measured with the same ruler as the built surface (a hand-rolled playwright scratch script used
+ *   to be the only way).
+ *   pnpm snap --file docs/design/mocks/config-rail/workspace.html          # → reports/snaps/workspace.png
+ *   pnpm snap --file docs/design/mocks/config-rail/workspace.html --wide --contrast 'h1' --text
+ *   The PNG defaults to the file's basename (reports/snaps/workspace.png); --out overrides. A relative
+ *   path resolves against the CWD. The app-readiness wait is skipped (a static file never sets
+ *   data-app-ready), and --file REFUSES loudly rather than half-working when combined with a stack mode:
+ *   a missing file · --isolated/--dirty/--ref · --contexts/--as · any __orb nav flag (a static file has
+ *   no bridge). --click/--fill/--hover/--press still work — mocks with real controls are drivable.
  *
  *   ISOLATED STAGE — serve snaps from a FROZEN HEAD worktree, never the live dev stack. The one-flag
  *   recovery for the crash-loop story: a visual pass against the dev stack fights concurrent lanes' HMR
@@ -267,8 +288,9 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { copyFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, extname, isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 import { errorMessage } from "@orb/kit/error-message";
 import type { Locator, Page } from "@playwright/test";
 import sharp from "sharp";
@@ -276,15 +298,8 @@ import { artifactDir, routeSlug } from "./_kit/artifacts.ts";
 import type { CapturedRequest, LocalStorageSeed, ProbeSession } from "./_kit/browser.ts";
 import { buildUrl, DEFAULT_BASE, DEFAULT_DEBUG_TOKEN, launchProbeSession, settle } from "./_kit/browser.ts";
 import { resolveFfmpeg } from "./_kit/ffmpeg.ts";
-import {
-  defaultFixtureUsers,
-  FIXTURE_BASE_URL,
-  FIXTURE_SERVER_URL,
-  fixtureRefusalLine,
-  fixtureStatus,
-  loginFixtureUser,
-  resolveFixtureUsers,
-} from "./_kit/fixture.ts";
+import type { FixtureTarget } from "./_kit/fixture.ts";
+import { defaultFixtureUsers, fixtureRefusalLine, fixtureStatus, loginFixtureUser, resolveFixtureTarget, resolveFixtureUsers } from "./_kit/fixture.ts";
 import type { Viewport } from "./_kit/flags.ts";
 import { parseGotoTarget, parseViewport, splitFirstEq, splitLastEq, splitPageSuffix } from "./_kit/flags.ts";
 import type { ResultPair } from "./_kit/result.ts";
@@ -429,6 +444,16 @@ type Args = {
    *  authenticates as, instead of the roster default (context 0 = "owner"). Ignored/refused combined with
    *  `--contexts N>1` (that already assigns N distinct handles in roster order) — pass N contexts instead. */
   as: string | null;
+  /** `--fixture-server <origin>` — where the multi-user fixture's SERVER answers (health probe + the login
+   *  door). Defaults to env SNAP_FIXTURE_SERVER_URL, then the fixture's offset pair (:8790). */
+  fixtureServer: string | null;
+  /** `--fixture-base <origin>` — the fixture's VITE origin (what the browser navigates). Defaults to env
+   *  SNAP_FIXTURE_BASE_URL, then :5175. Pair it with --fixture-server; both flow through ONE resolve. */
+  fixtureBase: string | null;
+  /** `--file <path>` — render a LOCAL HTML file (a committed mock) over file:// instead of a dev-stack
+   *  route. Every instrument (shot/aria/map/contrast/eval/deadcss) is unchanged; the app-readiness wait and
+   *  the __orb nav bridge are skipped (a static file has neither). Refused with --isolated/--contexts. */
+  file: string | null;
   /** Timed observation series after nav+steps settle: total window (ms). 0 = disabled (single-shot).
    *  Every tick screenshots (`<out>-t<elapsed>.png`) and re-runs --eval exprs, labeled by elapsed ms. */
   watchMs: number;
@@ -639,6 +664,16 @@ const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--as": (a, rest) => {
     a.as = rest.shift() ?? null;
   },
+  "--fixture-server": (a, rest) => {
+    a.fixtureServer = rest.shift() ?? null;
+  },
+  "--fixture-base": (a, rest) => {
+    a.fixtureBase = rest.shift() ?? null;
+  },
+  // Render a local HTML file (a committed mock) instead of a dev-stack route — same instruments over file://.
+  "--file": (a, rest) => {
+    a.file = rest.shift() ?? null;
+  },
   "--watch": (a, rest) => {
     a.watchMs = Math.max(0, Number(rest.shift() ?? "0") || 0);
   },
@@ -775,6 +810,9 @@ function parseArgs(argv: string[]): Args {
     pages: 1,
     contexts: 1,
     as: null,
+    fixtureServer: null,
+    fixtureBase: null,
+    file: null,
     watchMs: 0,
     watchEveryMs: MS_PER_SECOND,
     out: null,
@@ -861,10 +899,14 @@ async function navigate(page: Page, opts: Args, url: string): Promise<string | n
   // not mid-hydration skeletons (the "lists sit on skeletons forever" friction). Graceful: a non-app
   // page or an old build that never sets it just falls through (the app self-sets within ~3s), so this
   // only ever adds real load-wait, never a hang.
-  await page
-    .locator("html[data-app-ready]")
-    .waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS })
-    .catch(() => undefined);
+  // --file (a static mock over file://) has no app and never sets the flag — waiting would burn the full
+  // 10s timeout on EVERY mock snap, so skip it there rather than pay a guaranteed-useless wait.
+  if (opts.file === null) {
+    await page
+      .locator("html[data-app-ready]")
+      .waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS })
+      .catch(() => undefined);
+  }
   // Even a non-OK nav may still render something worth waiting for (SPA error page).
   if (opts.waitSelector !== null) {
     await page.locator(opts.waitSelector).first().waitFor({ state: "visible", timeout: WAIT_SELECTOR_TIMEOUT_MS });
@@ -2025,9 +2067,29 @@ function printPageReport(session: SessionCounts, outcome: CaptureOutcome, opts: 
   printCssFindings(outcome);
 }
 
+// --file: resolve the (possibly relative) path to an absolute one + its file:// URL + the default artifact
+// slug (the file's basename, so `--file …/config-rail/workspace.html` writes reports/snaps/workspace.png).
+// A relative path resolves against the CWD the operator typed it in — `pnpm snap --file docs/design/mocks/…`
+// from the repo root is the documented shape.
+type FileTarget = { readonly path: string; readonly url: string; readonly slug: string };
+function fileTarget(pathArg: string): FileTarget {
+  const abs = isAbsolute(pathArg) ? pathArg : resolve(process.cwd(), pathArg);
+  return { path: abs, url: pathToFileURL(abs).href, slug: routeSlug(basename(abs, extname(abs))) };
+}
+
+// WHERE this run navigates + what its artifacts are called: a local file (--file) or a route on the base
+// URL. Split out of snap() so the file/route fork lives in one named place (and snap() stays under the
+// cognitive-complexity gate).
+function snapDestination(opts: Args): { readonly url: string; readonly name: string } {
+  if (opts.file !== null) {
+    const target = fileTarget(opts.file);
+    return { url: target.url, name: opts.out ?? target.slug };
+  }
+  return { url: buildUrl(opts.base, opts.route), name: opts.out ?? routeSlug(opts.route) };
+}
+
 async function snap(opts: Args): Promise<number> {
-  const url = buildUrl(opts.base, opts.route);
-  const name = opts.out ?? routeSlug(opts.route);
+  const { url, name } = snapDestination(opts);
   const out = join(await artifactDir("snaps"), `${name}.png`);
   // Whether we write a PNG. --no-shot/--text suppress it, but --baseline/--diff
   // need pixels to compare, and --shot-of is itself a shot — so those force it on.
@@ -2113,11 +2175,11 @@ type FixtureUser = { readonly handle: string; readonly password: string };
 // session cookie is then seeded into its matching context (buildContext in _kit/browser.ts), so the very
 // first navigation is already authenticated as that user, no in-page login-form drive needed. Returns
 // null (having already printed the failing line) on the first login that doesn't mint a cookie.
-async function loginAllFixtureUsers(users: readonly FixtureUser[]): Promise<(string | null)[] | null> {
+async function loginAllFixtureUsers(users: readonly FixtureUser[], target: FixtureTarget): Promise<(string | null)[] | null> {
   const cookies: (string | null)[] = [];
   for (const u of users) {
     // biome-ignore lint/performance/noAwaitInLoops: N logins (≤4) against the fixture's per-IP throttle — sequential is deliberate, not a bottleneck worth parallelizing.
-    const login = await loginFixtureUser(FIXTURE_SERVER_URL, u.handle, u.password);
+    const login = await loginFixtureUser(target.serverUrl, u.handle, u.password);
     if ("error" in login) {
       print(`LOGIN FAILED  ${u.handle}: ${login.error}`);
       return null;
@@ -2152,14 +2214,14 @@ function reportOneContext(args: ContextReportArgs, i: number): { readonly failed
   return { failedReq: failed.length, pageErrors: ctxSession.pageErrors.length };
 }
 
-async function snapContexts(opts: Args, users: readonly FixtureUser[]): Promise<number> {
+async function snapContexts(opts: Args, users: readonly FixtureUser[], target: FixtureTarget): Promise<number> {
   const url = buildUrl(opts.base, opts.route);
   const name = opts.out ?? routeSlug(opts.route);
   const out = join(await artifactDir("snaps"), `${name}.png`);
   const produceShot = opts.shotOf !== null || opts.shot || opts.baseline || opts.diff;
   const totalContexts = users.length;
 
-  const cookies = await loginAllFixtureUsers(users);
+  const cookies = await loginAllFixtureUsers(users, target);
   if (cookies === null) {
     return 1;
   }
@@ -2233,7 +2295,7 @@ async function snapContexts(opts: Args, users: readonly FixtureUser[]): Promise<
 // resolves its users + repoints opts.base at its client port, or returns a loud refusal line (the
 // fixture down/mismatched, or N exceeding its seeded roster) — never a silent fallback to the shared
 // stack. `null` return = proceed on the ordinary (single-context) path; `{ users }` = drive snapContexts.
-function resolveContextsMode(opts: Args): { readonly users: readonly FixtureUser[] } | { readonly refuse: string } | null {
+function resolveContextsMode(opts: Args, target: FixtureTarget): { readonly users: readonly FixtureUser[] } | { readonly refuse: string } | null {
   if (opts.contexts <= 1 && opts.as === null) {
     return null;
   }
@@ -2245,7 +2307,7 @@ function resolveContextsMode(opts: Args): { readonly users: readonly FixtureUser
   if (opts.pages > 1) {
     return { refuse: "--contexts + --pages together is an unexercised combination — drive one at a time" };
   }
-  const status = fixtureStatus();
+  const status = fixtureStatus(target);
   if (!status.up) {
     return { refuse: fixtureRefusalLine(status.reason) };
   }
@@ -2253,11 +2315,40 @@ function resolveContextsMode(opts: Args): { readonly users: readonly FixtureUser
   if ("error" in resolved) {
     return { refuse: fixtureRefusalLine(resolved.error) };
   }
-  opts.base = FIXTURE_BASE_URL;
+  // The SAME resolved target drives both halves — the health probe above and the browser's origin here.
+  // (The old shape hard-coded them separately, so an override reached neither.)
+  opts.base = target.baseUrl;
   return { users: resolved.users };
 }
 
+// `--file` is a static-mock mode: it cannot mean anything alongside a stack-serving mode (an isolated stage
+// or the fixture's authenticated contexts), and a static file has no `__orb` bridge for the nav flags. Refuse
+// with the reason + the remedy rather than snapping something the caller didn't ask for.
+function refuseFileMode(opts: Args): string | null {
+  if (opts.file === null) {
+    return null;
+  }
+  if (!existsSync(fileTarget(opts.file).path)) {
+    return `FILE REFUSED  no such file: ${fileTarget(opts.file).path} — pass a path relative to the CWD or an absolute one`;
+  }
+  if (opts.isolated) {
+    return "FILE REFUSED  --file renders a local file over file://; --isolated/--dirty/--ref boot a stack to serve a ROUTE — drive one at a time";
+  }
+  if (opts.contexts > 1 || opts.as !== null) {
+    return "FILE REFUSED  --file has no server to authenticate against — drop --contexts/--as (a static mock has no users)";
+  }
+  if (opts.navActions.length > 0) {
+    return "FILE REFUSED  --goto/--open-chat/--open-character/--context-tab drive the app's __orb nav bridge; a static file has none — drop them (--click/--fill still work)";
+  }
+  return null;
+}
+
 async function main(opts: Args): Promise<number> {
+  const fileRefusal = refuseFileMode(opts);
+  if (fileRefusal !== null) {
+    print(fileRefusal);
+    return 1;
+  }
   if (opts.stageStatus) {
     print(stageStatus());
     return 0;
@@ -2277,13 +2368,16 @@ async function main(opts: Args): Promise<number> {
       return 1;
     }
   }
-  const contextsMode = resolveContextsMode(opts);
+  // ONE resolve of the fixture's origins (flag > env > the offset-pair defaults), threaded into BOTH the
+  // health probe and the login door / browser base — see _kit/fixture.ts's PORTS note.
+  const fixtureTarget = resolveFixtureTarget({ serverUrl: opts.fixtureServer, baseUrl: opts.fixtureBase });
+  const contextsMode = resolveContextsMode(opts, fixtureTarget);
   if (contextsMode !== null) {
     if ("refuse" in contextsMode) {
       print(contextsMode.refuse);
       return 1;
     }
-    return await snapContexts(opts, contextsMode.users);
+    return await snapContexts(opts, contextsMode.users, fixtureTarget);
   }
   return await snap(opts);
 }
