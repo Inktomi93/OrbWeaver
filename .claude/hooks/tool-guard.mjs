@@ -2,6 +2,28 @@
 // PreToolUse guard for Bash — catches command shapes that destroy signal, and REWRITES the ones with
 // exactly one correct fix so the agent never even loses the turn.
 //
+// ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
+// │ READ THIS FIRST IF A SUBAGENT/LANE JUST DIED SILENTLY.  "It definitely isn't the hook" was    │
+// │ WRONG once already (2026-08-03) and cost seven lanes.                                         │
+// │                                                                                               │
+// │ SYMPTOM: a lane "completes" after a one-line preamble, 1-4 tool calls, at a suspiciously      │
+// │ CONSISTENT token count (~42k). Looks like a transient API failure or a context ceiling.       │
+// │ THE REAL MESSAGE, if you can see the raw tool output:  `settings deferred Bash`               │
+// │                                                                                               │
+// │ CAUSE: the command was not covered by .claude/settings.json permissions.allow, so the normal  │
+// │ permission flow asked for approval — and A SUBAGENT HAS NOBODY TO ASK. It stops.              │
+// │                                                                                               │
+// │ THIS GUARD IS IMPLICATED EVEN WHEN IT DENIES NOTHING.  `defer` means "no hook decision, fall  │
+// │ through to the normal permission flow" — it is NOT `allow`. A decisions.jsonl full of `defer`  │
+// │ with ZERO denies exonerates the guard's RULES while still being the trigger. Do not read       │
+// │ "0 denies" as "not the hook", which is exactly the mistake that was made twice.               │
+// │                                                                                               │
+// │ FIX: add the command shape to .claude/settings.json permissions.allow (NOT `git push`/`reset`/ │
+// │ `stash`/`restore`/`checkout` — those stay behind a prompt on purpose).                        │
+// │ TRIAGE: node -e "const r=require('fs').readFileSync('reports/tool-guard/decisions.jsonl','utf8')\
+// │   .trim().split('\n').map(JSON.parse); console.log(r.filter(x=>x.agent&&x.agent!=='main').slice(-10))"│
+// └──────────────────────────────────────────────────────────────────────────────────────────────┘
+//
 // WHY THIS EXISTS (measured, not guessed — docs/reviews/misc/2026-08-03-tool-use-antipattern-census.md,
 // mined from 3,138 transcripts / 133,631 Bash calls; 85.7% of them from subagents):
 //   · 87.3% of harness invocations (5,319/6,096) were piped into a swallower. `pnpm check` piped runs a

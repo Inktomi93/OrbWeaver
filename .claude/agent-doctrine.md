@@ -132,6 +132,15 @@ Do not skim. You are an amnesiac agent; these docs are your memory.
   events), never the console summary — the same discipline as reading `reports/verify.json` instead of
   console output. Two instances of that one lesson in a single day.
 
+- **A LANE THAT DIES SILENTLY IS USUALLY A PERMISSION DEFER, NOT A TRANSIENT.** Symptom: "completed"
+  after a one-line preamble, 1-4 tool calls, at a suspiciously CONSISTENT token count. The real message
+  is `settings deferred Bash` — the command was not in `.claude/settings.json` `permissions.allow`, the
+  permission flow asked, and **a subagent has nobody to ask**. Consistency across lanes is the tell; a
+  genuine transient is ragged. **The PreToolUse guard is implicated even when it denies nothing:**
+  `defer` means "fall through to the normal permission flow", which is NOT `allow` — a decisions log full
+  of `defer` with zero denies exonerates the RULES while still being the trigger. Fix the allowlist, not
+  the guard. (Cost seven lanes on 2026-08-03 because "0 denies" was read as "not the hook", twice.)
+
 ## Boundaries
 - **You are a leaf agent — never spawn other agents.** No nested delegation: no Agent tool, and no
   launching agents from Bash (`claude -p` / headless CLI runs / anything that starts another agent).
