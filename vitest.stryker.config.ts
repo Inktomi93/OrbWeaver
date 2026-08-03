@@ -30,7 +30,11 @@ const TOOLING_GLOB = "tests/tooling/**";
 const FRESHNESS_GLOBS = ["tests/ui/tokens/**"];
 
 const cfg = base as unknown as {
-  test: { projects: Array<{ test: { name?: string; exclude?: readonly string[] } }> };
+  test: {
+    projects: Array<{ test: { name?: string; exclude?: readonly string[] } }>;
+    fileParallelism?: boolean;
+    maxWorkers?: number;
+  };
 };
 
 cfg.test.projects = cfg.test.projects
@@ -42,9 +46,12 @@ cfg.test.projects = cfg.test.projects
 
 // CRITICAL FIX: Stryker spins up 16 concurrent worker processes. If Vitest is allowed
 // to parallelize internally (via fileParallelism / maxWorkers), you get NxM core explosion.
-// Force Vitest to run serially within each Stryker worker.
+// Force Vitest to run serially within each Stryker worker. BOTH knobs are the live v4 surface:
+// fileParallelism:false forces one file at a time, maxWorkers:1 caps the fork pool. (The former
+// `poolOptions = { forks: …, threads: … }` spelling here was DEAD config — Vitest 4 removed
+// `poolOptions` from InlineConfig entirely; caught by the 2026-08-03 installed-surface audit.)
 cfg.test.fileParallelism = false;
-cfg.test.poolOptions = { forks: { minWorkers: 1, maxWorkers: 1 }, threads: { minThreads: 1, maxThreads: 1 } };
+cfg.test.maxWorkers = 1;
 
 // Export the (mutated-in-place) local binding, not the raw import — `cfg` aliases the same object, so the
 // lane edits above are applied. (Re-exporting the import directly trips biome's noExportedImports.)

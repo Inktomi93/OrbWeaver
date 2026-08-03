@@ -21,11 +21,11 @@ import { DEV_TARGET_ALLOWED, MODE_PROJECTS, SINGLE_USER } from "./tests/e2e/supp
 // source of truth), foreground so Playwright owns + reaps the child tree. Boot order inside it is server →
 // healthz-gated → vite, so vite answering (the baseURL origin) == everything-ready.
 
-const inCI = process.env.CI !== undefined;
+const inCI = process.env["CI"] !== undefined;
 
 // Opt-in gate for the real-model-turn specs (tagged `@live`): routine runs EXCLUDE `@live` so `pnpm e2e`
 // never spends live model credits. Run them with `E2E_LIVE=1 pnpm e2e`. `grepInvert` drops matching tags.
-const e2eLive = process.env.E2E_LIVE === "1";
+const e2eLive = process.env["E2E_LIVE"] === "1";
 
 // One Playwright project per mode. Every project shares the browser/use defaults; each pins its own baseURL
 // (its vite origin) + `E2E_BASE_URL` (via the webServer env) so the support tRPC + actor clients hit THAT
