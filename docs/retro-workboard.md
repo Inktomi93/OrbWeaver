@@ -48,6 +48,12 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   ([[side-eye-fix-all-findings]]).
 - **Gates land on a FIXED tree**: a new gate's live violations get FIXED in the same lane; allowlists
   are for permanent deliberate exemptions with a reason + stale arm, never debt parking.
+- **A PLAN RUNS IN ONE SITTING, ALONE (owner law, 2026-08-03).** A staged plan — especially one whose
+  stages leave the tree in a worse state between them — is executed START TO FINISH in a single sitting,
+  from the MAIN orchestrator session, with **nothing else running**: no sibling lanes, no concurrent
+  session, no "stages 1–3 now, the capstone later". The window between stages is the risky state, not the
+  safe one. Applies to the tsx-shedding migration (`docs/design/tsx-shedding-migration-spec.md`) and any
+  future multi-stage plan of that shape.
 - Board commits are `--no-verify` (owner word); code merges keep the hook. D-numbers are allocated at
   DISPATCH when two live lanes both mint.
 - Lane floors MUST name their playwright CT files explicitly — `pnpm verify --push` runs NO CTs
