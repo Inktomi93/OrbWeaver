@@ -27,13 +27,23 @@
 //     FILLS ONLY WHAT IS UNSET (`className === ""` / `level === null`). The snapshot planes have `fieldLocks`
 //     to express "the host owns this"; the sheet has no lock plane, so "already written" IS the pin. A host who
 //     dislikes the result edits it — and a second click can never undo that edit.
-// An empty round (no writer capability / a card that established nothing) writes NOTHING: no snapshot, no
-// sheet row, no emit — the byte-identical non-acting verb.
+// An empty round (a card that established nothing) writes NOTHING: no snapshot, no sheet row, no emit — the
+// byte-identical non-acting verb.
+//
+// THE DOOR IS LOUD (`PopulateResult`, `contract/results.ts`). This verb returned `void`, which made a provider
+// REFUSAL and a card with nothing to establish render identically to the host: the button settled, the panel
+// did not move, and the client toasted nothing. That is the SAME silent fork RESYNC-OR closed on the sibling
+// host round — same host-principal model call, same default hosted backend that 400s the structured request.
+// All three endings are now DATA: `{ok:true,populated:true}` (a plane landed) · `{ok:true,populated:false}`
+// (the round ran and filled nothing — an empty card, or a sheet the fill rule fully absorbed because the host
+// already wrote both fields) · `{ok:false,reason}` (the round could not run, or the F1 boundary refused the
+// state half). The client reads it through the `refusal` seam and toasts; `populated:false` is an INFO line.
 
 import type { RpgSheet, RpgSnapshotState } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, RpgGameId } from "@orb/kit/ids";
 import type { PopulateFromCharacterParams } from "../../contract/params";
+import type { PopulateResult } from "../../contract/results";
 import type { RpgContext, RpgPopulateDelta, RpgService } from "../../contract/service";
 import { snapshotRowToState } from "../../contract/service";
 import { resolveHost } from "../../guard";
@@ -70,7 +80,7 @@ function characterIdOf(params: PopulateFromCharacterParams): CharacterId {
 }
 
 export function createPopulateFromCharacter(ctx: RpgContext): Pick<RpgService, "populateFromCharacter"> {
-  async function populateFromCharacter(params: PopulateFromCharacterParams): Promise<void> {
+  async function populateFromCharacter(params: PopulateFromCharacterParams): Promise<PopulateResult> {
     // HOST GATE at the model-call boundary — a member can never reach the host-principal model call.
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
     const characterId = characterIdOf(params);
@@ -90,27 +100,42 @@ export function createPopulateFromCharacter(ctx: RpgContext): Pick<RpgService, "
     const baseState = baseRow === undefined ? defaultSnapshotState() : snapshotRowToState(baseRow);
 
     // The host-principal model call: resolves the room connection AS THE HOST, one structured round over the
-    // card + opening. A capability-absent connection returns an empty delta (a no-op populate).
-    const delta = await ctx.runPopulateExtraction({ chatId: game.chatId, hostUserId, targetRef: corpus.name, baseState, corpus });
+    // card + opening. The op is ERRORS-AS-DATA — a round that could not RUN (unresolvable connection / no
+    // structured writer / a failed model call) comes back `{ok:false, reason}` and is handed STRAIGHT to the
+    // host. It used to come back as an empty delta, indistinguishable from a card that established nothing.
+    const round = await ctx.runPopulateExtraction({ chatId: game.chatId, hostUserId, targetRef: corpus.name, baseState, corpus });
+    if (!round.ok) {
+      return round;
+    }
 
-    await writeSheetHalf(ctx, { gameId: game.id, chatId: game.chatId, characterId, sheet: delta.sheet });
-    await writeStateHalf(ctx, { gameId: game.id, chatId: game.chatId, baseState, statePatch: delta.statePatch });
+    const sheetFilled = await writeSheetHalf(ctx, { gameId: game.id, chatId: game.chatId, characterId, sheet: round.delta.sheet });
+    const state = await writeStateHalf(ctx, { gameId: game.id, chatId: game.chatId, baseState, statePatch: round.delta.statePatch });
+    if (!state.ok) {
+      // The F1 backstop refused the state half. Reported as a REFUSAL even when the sheet half already landed:
+      // the host asked for one fill and part of it was thrown away, and "success" would hide exactly that.
+      // The reason is the write boundary's own (the same sentence the observability channel got).
+      return state;
+    }
+    // EITHER plane landing IS a fill. Both empty ⇒ the round ran and filled nothing — the honest
+    // "this card had nothing to add", never conflated with a round that never ran.
+    return { ok: true, populated: sheetFilled || state.wrote };
   }
   return { populateFromCharacter };
 }
 
-/** The SHEET half: fill-only, row-on-first-write, and silent when the round established nothing new. */
+/** The SHEET half: fill-only, row-on-first-write, and silent when the round established nothing new. Returns
+ *  whether a row was actually WRITTEN — half of the verb's `populated` verdict. */
 async function writeSheetHalf(
   ctx: RpgContext,
   args: { readonly gameId: RpgGameId; readonly chatId: ChatId; readonly characterId: CharacterId; readonly sheet: RpgPopulateDelta["sheet"] },
-): Promise<void> {
+): Promise<boolean> {
   if (args.sheet.className === undefined && args.sheet.level === undefined) {
-    return; // the card established no identity — no row, no emit
+    return false; // the card established no identity — no row, no emit
   }
   const current = (await findSheet(ctx.db, args.gameId, { characterId: args.characterId }))?.sheet ?? defaultSheet();
   const next = fillSheet(current, args.sheet);
   if (next === null) {
-    return; // both fields were already the host's — the fill rule kept them (never a clobber)
+    return false; // both fields were already the host's — the fill rule kept them (never a clobber)
   }
   const row = await upsertSheet(ctx.db, {
     id: ctx.ids.sheet(),
@@ -122,15 +147,18 @@ async function writeSheetHalf(
   });
   // The Status roster + the takeover refetch (§4.9).
   ctx.emitBus({ type: "sheetChanged", chatId: args.chatId, sheetId: row.id });
+  return true;
 }
 
-/** The SNAPSHOT half: the resync's tail verbatim — locks honored, born committed as a HAND ROW (D124). */
+/** The SNAPSHOT half: the resync's tail verbatim — locks honored, born committed as a HAND ROW (D124). `wrote`
+ *  is the other half of the verb's `populated` verdict; an F1 refusal comes back as the verb's own refusal
+ *  reason (the resync's posture — a write the backstop threw away is never reported as a fill). */
 async function writeStateHalf(
   ctx: RpgContext,
   args: { readonly gameId: RpgGameId; readonly chatId: ChatId; readonly baseState: RpgSnapshotState; readonly statePatch: Record<string, unknown> },
-): Promise<void> {
+): Promise<{ readonly ok: true; readonly wrote: boolean } | { readonly ok: false; readonly reason: string }> {
   if (Object.keys(args.statePatch).length === 0) {
-    return; // nothing established (readonly / model no-op) — no row, no write
+    return { ok: true, wrote: false }; // nothing established (a model no-op) — no row, no write
   }
   // Merge onto the base — locks HONORED (a populate fills the model plane, never a hand-pin).
   const nextState = applyLockedPatch(
@@ -145,8 +173,9 @@ async function writeStateHalf(
     // vanish; the same observability contract the flush's and the resync's drop honor). A hand write has no
     // variant to name, so the drop reports `variantId: null`.
     ctx.onFlushDropped({ chatId: args.chatId, gameId: args.gameId, variantId: null, reason: written.reason });
-    return;
+    return { ok: false, reason: written.reason };
   }
   // The populated snapshot is the new resolved-current head → the whole panel re-resolves (§4.9).
   ctx.emitBus({ type: "snapshotPatched", chatId: args.chatId, snapshotId });
+  return { ok: true, wrote: true };
 }

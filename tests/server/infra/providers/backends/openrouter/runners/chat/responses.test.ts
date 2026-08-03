@@ -138,6 +138,15 @@ describe("runResponsesTurn — wire shaping", () => {
     const text = captured.body?.["text"] as Record<string, unknown>;
     expect(text["verbosity"]).toBe("low");
     expect(text["format"]).toMatchObject({ type: "json_schema", name: "out" });
+    // STRICTFMT — the responses wire is the chat-completions wire's sibling and carries the SAME
+    // OpenAI-family `strict` landmine: a caller that didn't ask for strict does not get it invented.
+    expect(text["format"]).not.toHaveProperty("strict");
+  });
+
+  test("STRICTFMT: a caller that ASKS for strict gets it on the responses text.format", async () => {
+    const { client, captured } = streamingClient(OK_EVENTS);
+    await runResponsesTurn(client, makeRequest({ responseFormat: { name: "out", schema: { type: "object" }, strict: true } }), DEPS);
+    expect((captured.body?.["text"] as Record<string, unknown>)["format"]).toMatchObject({ strict: true });
   });
 
   test("no text block when neither verbosity nor format is set (byte-stable)", async () => {

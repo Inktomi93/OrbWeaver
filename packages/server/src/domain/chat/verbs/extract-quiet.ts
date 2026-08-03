@@ -5,20 +5,59 @@
 // context, and runs the summarize side-LLM (low temp, a small keyword budget). Returns the raw reply text +
 // that call's spend; imagery normalizes it (processReply) and decides empty-is-error. Never persisted, never
 // streamed — the spend is attributed by imagery to the initiating principal.
+//
+// IMGMAC (owner ruling: YES) — THE USER-MACRO PLANE REACHES HERE. This shaper called `processMacros` with the
+// process default registry and NOTHING else, so an imagery mode template could resolve `{{char}}`/`{{user}}`
+// and nothing a host ever authored: `{{house_style}}` survived into the image prompt as literal braces, and
+// the settings surface had to carry a written exemption saying so. The template now renders against a PER-CALL
+// registry built from the SAME two authoring homes and the SAME shadow policy a turn uses
+// (`buildTurnUserMacros` — preset defs + game defs, game wins on a name clash), over the chat's persisted picks
+// bag. It is NOT a turn: the prng is stable and no draw record is persisted (the preview posture), so two
+// extractions of one scene resolve identically. A chat that declared no macros takes the null fast path and is
+// byte-identical to before.
 
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { projectBodyForSummary } from "@orb/kit/content";
-import type { ProcessMacroOptions } from "@orb/kit/macro";
+import type { ChatId } from "@orb/kit/ids";
+import type { MacroRegistry, ProcessMacroOptions } from "@orb/kit/macro";
 import { processMacros } from "@orb/kit/macro";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import type { ExtractQuiet, ExtractQuietDeps, ExtractQuietParams, ExtractQuietResult } from "../contract/context";
-import { loadCanonHistory } from "../persistence/queries";
+import { loadCanonHistory, loadStoredUserMacroValues } from "../persistence/queries";
 import { loadRoster } from "../persistence/roster";
+import { buildTurnUserMacros } from "../substrate/assembly-access";
 import { hostUserIdOf } from "../substrate/roster-host";
 
 /** How many recent canon rows the extractor reads as scene context (the same window `smart` arbitration uses). */
 const RECENT_WINDOW = 10;
+
+/** The `MacroSourceRef.id` the preset group carries here. Extract-quiet never SURFACES a source ref (there is
+ *  no picks pane and no refusal channel on this path — a rejected def just doesn't render), so the group id is
+ *  a label, and re-resolving the host's preset id for it would buy a db read for a log field. The preview
+ *  builder's `presetId ?? "default"` fallback is the same literal. */
+const PRESET_GROUP_ID = "default";
+
+/** IMGMAC — the PER-CALL user-macro render registry for one imagery mode template. Builds over BOTH authoring
+ *  homes with the ruled shadow (`buildTurnUserMacros` owns the policy), the chat's persisted picks bag, and a
+ *  STABLE prng (`() => 0`): an extraction is not a turn — it persists no draw record, so a random-pick input
+ *  must not consume a turn's entropy or vary between two extractions of the same scene (the preview builder's
+ *  posture, `verbs/read.ts::buildPreviewRegistry`). `undefined` ⇒ neither home declared anything ⇒ the caller
+ *  falls back to the process singleton, byte-identically to before this plane existed. */
+async function resolveUserMacroRegistry(deps: ExtractQuietDeps, chatId: ChatId): Promise<MacroRegistry | undefined> {
+  const defs = await deps.resolveUserMacroDefs(chatId);
+  if (defs.preset.length === 0 && defs.game.length === 0) {
+    return; // the null fast path — no values read, no registry allocated
+  }
+  const built = buildTurnUserMacros({
+    preset: { id: PRESET_GROUP_ID, defs: defs.preset },
+    // The game group's `MacroSourceRef.id` is the game's CHAT id (the turn build's convention).
+    ...(defs.game.length > 0 ? { game: { id: chatId, defs: defs.game } } : {}),
+    values: await loadStoredUserMacroValues(deps.db, chatId),
+    prng: () => 0,
+  });
+  return built?.registry;
+}
 
 export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
   return async (p: ExtractQuietParams): Promise<ExtractQuietResult> => {
@@ -58,7 +97,7 @@ export function createExtractQuiet(deps: ExtractQuietDeps): ExtractQuiet {
       cast: charName.length > 0 ? [charName] : [],
       env: {},
     };
-    const instruction = processMacros(p.instruction, macroOptions);
+    const instruction = processMacros(p.instruction, macroOptions, await resolveUserMacroRegistry(deps, p.chatId));
 
     const scene = recent.length > 0 ? recent : "(the conversation is just starting)";
     // The side-gen sampling ladder: the `extract_quiet` floor (temp 0.4, 320 out — near-deterministic keyword

@@ -113,10 +113,28 @@ describe("the D48 request-field builders (chat-completions dialect)", () => {
     });
   });
 
-  test("buildChatResponseFormat: json_schema dialect, strict defaults true", () => {
+  // STRICTFMT — `strict` is the CALLER's field, never a translator constant (the `buildToolChoice` law two
+  // tests up, applied to the other knob). The translator used to default it to `true`, which is a 400 on
+  // OpenAI-family models through this wire ("'required' is required to be supplied" — the live probe matrix
+  // pinned in `backends/openrouter/index.ts`): our projected schemas are optional-by-construction, so a
+  // strict OpenAI request can never be satisfiable. No caller in the tree sets `strict`, so that default was
+  // pure translator invention — and it made the D79 structured-chat path a landmine for the family that
+  // otherwise serves it fine non-strict.
+  test("buildChatResponseFormat: json_schema dialect, and `strict` is OMITTED unless the caller set it", () => {
     expect(buildChatResponseFormat({ name: "s", schema: { type: "object" } })).toEqual({
       type: "json_schema",
-      jsonSchema: { name: "s", schema: { type: "object" }, strict: true },
+      jsonSchema: { name: "s", schema: { type: "object" } },
+    });
+  });
+
+  test("buildChatResponseFormat: a caller that ASKS for strict still gets it (both arms ride verbatim)", () => {
+    expect(buildChatResponseFormat({ name: "s", schema: {}, strict: true, description: "d" })).toEqual({
+      type: "json_schema",
+      jsonSchema: { name: "s", schema: {}, strict: true, description: "d" },
+    });
+    expect(buildChatResponseFormat({ name: "s", schema: {}, strict: false })).toEqual({
+      type: "json_schema",
+      jsonSchema: { name: "s", schema: {}, strict: false },
     });
   });
 });

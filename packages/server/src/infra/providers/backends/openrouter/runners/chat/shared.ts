@@ -156,13 +156,24 @@ export function buildToolChoice(choice: ToolChoice): ChatToolChoice {
   return choice.mode;
 }
 
+// STRICTFMT — `strict` rides ONLY when the CALLER set it (the `buildToolChoice` law above, on the other knob).
+// It used to default to `true` here, which is a 400 landmine on this wire: the live probe matrix pinned in
+// `backends/openrouter/index.ts` (2026-08-02) measured OpenAI-family models 400ing on `strict:true`
+// ("'required' is required to be supplied") and serving 200 non-strict, on the SAME `response_format`
+// json_schema field this builds. That is unclearable by "just emit `required`": our schemas are projected by
+// the ONE rule (`@orb/kit/json-schema`) from zod payloads that are OPTIONAL-BY-CONSTRUCTION (omit = keep), and
+// OpenAI strict demands every property be required — satisfying it would destroy the caller's omit semantics.
+// So the honest fix is the Tier-3b one ("each backend internalizes ALL its own quirks"): THIS backend stops
+// inventing a value no caller in the tree asks for. A caller who genuinely wants a strict grammar still sets
+// it and gets it verbatim. The vLLM/custom-byo `rawResponseFormat` (backends/kit) keeps its own default —
+// guided decoding is an ENFORCING wire where strict is the point (the xgrammar populate lever).
 export function buildChatResponseFormat(format: ResponseFormat): ChatFormatJsonSchemaConfig {
   return {
     type: "json_schema",
     jsonSchema: {
       name: format.name,
       schema: { ...format.schema },
-      strict: format.strict ?? true,
+      ...(format.strict !== undefined ? { strict: format.strict } : {}),
       ...(format.description !== undefined ? { description: format.description } : {}),
     },
   };

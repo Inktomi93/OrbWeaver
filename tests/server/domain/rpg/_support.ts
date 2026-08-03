@@ -219,6 +219,11 @@ export interface RpgFakes {
   cardCorpus: RpgCardCorpus | null;
   /** The `populateFromCharacter` model-call fake return. Default: the empty delta = a no-op round. */
   populateDelta: RpgPopulateDelta;
+  /** The populate round's REFUSAL arm (the round could not RUN: unresolvable connection / no structured writer
+   *  / a failed model call). ASSIGNED after construction, not an `over` default — the refusal is the exception
+   *  a single test drives, and every other test wants the delta arm. When set it wins over `populateDelta`
+   *  (the `resyncRefusal` precedent). */
+  populateRefusal?: { readonly ok: false; readonly reason: string };
   /** OPTIONAL gate the fake post-commit round awaits before resolving — the flush-barrier race test sets it to
    *  a deferred promise to HOLD a flush in-flight (simulating the real 0.8-2.9s state round). Unset ⇒ immediate. */
   stateRoundGate?: Promise<void>;
@@ -479,7 +484,7 @@ export function makeRpgService(
       // The host userId the round resolved UNDER + the target + the corpus it was handed — the same
       // host-principal seam assertion the resync recorder makes (never a caller-injected foreign id).
       fakes.populateCalls.push({ chatId: input.chatId, hostUserId: input.hostUserId, targetRef: input.targetRef, corpus: input.corpus });
-      return Promise.resolve(fakes.populateDelta);
+      return Promise.resolve(fakes.populateRefusal ?? { ok: true, delta: fakes.populateDelta });
     },
     runResyncExtraction: (input) => {
       // Record the host userId the resync resolved UNDER + the window budget it read — the test asserts the

@@ -1,8 +1,9 @@
 // The Image-prompts settings SECTION (Phase B ⑫) — the per-user, per-mode prompt-building overrides the
 // `/imagine` + auto-illustrate paths resolve. Each mode's card carries a MacroField that GHOSTS the shipped
 // `@orb/contracts/imagery` catalog default via `placeholder`: an empty field = "use the shipped default"
-// (byte-identical), a typed value = your override. The extraction cards resolve `{{char}}`/`{{user}}` through
-// the ONE macro engine at extraction time; the caption cards are macro-free (the image is the subject).
+// (byte-identical), a typed value = your override. The extraction cards resolve `{{char}}`/`{{user}}` AND the
+// author's own USER MACROS (IMGMAC) through the ONE macro engine at extraction time; the caption cards are
+// macro-free (the image is the subject).
 //
 // A settings-SECTION CONTRIBUTION (client-architecture-lockdown.md §6c) at the chat-behavior anchor: chat OWNS
 // imagery consumption (the quiet-extraction shaper is chat's op; `/imagine` is chat's composer), so it
@@ -17,7 +18,7 @@ import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
+import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, usePromptMacroSuggestions, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
@@ -36,25 +37,32 @@ const useUpdateImagery = createEntityMutation<UpdateImageryVars, unknown>({
   errorToast: "Couldn't save your image-prompt templates.",
 });
 
-/** The macros the EXTRACTION templates resolve (chat's extraction MacroContext — char/user only). Caption
- *  cards get no suggestions (the image is the subject; no macros resolve).
- *
- *  MACU-2 EXEMPTION (owner ruling 2026-08-03: the macro plane goes everywhere macros WORK — nowhere else).
- *  This list stays hand-curated and does NOT gain the user-macro plane, because a user macro provably does
- *  not resolve here. The one consumer path is `domain/imagery/verbs/extract-prompt.ts` →
- *  `ChatOps.extractQuiet` → `domain/chat/verbs/extract-quiet.ts`, which calls
- *  `processMacros(p.instruction, macroOptions)` with a bare `ProcessMacroOptions` (char/user/persona/
- *  scenario/cast/env) and NO registry — the process default registry only, with no `registerUserMacros`
- *  anywhere on that path. Offering `{{house_rule}}` here would promise a substitution that never runs.
- *
- *  QUEUED OWNER QUESTION (not a permanent verdict): "should the imagery mode-templates resolve the
- *  user-macro plane at extract time?" That is a product call with a real server change behind it — threading
- *  the chat's preset + game defs into `extractQuiet` and building the per-turn registry there. If it is
- *  answered YES, this exemption comes out and the plane lands. Do not read it as forever. */
+/** The IDENTITY macros an extraction template resolves — the two `ProcessMacroOptions` fields the shaper
+ *  actually fills (`domain/chat/verbs/extract-quiet.ts`). Still hand-curated rather than the app-wide builtin
+ *  catalog, because most builtins read card/turn fields the extraction context leaves empty: offering
+ *  `{{description}}` here would promise a substitution that renders "". Caption cards get NO suggestions at
+ *  all — their instruction is never macro-processed (the image is the subject). */
 const IMAGERY_TEMPLATE_MACROS: readonly MacroSuggestion[] = [
   { name: "char", category: "character", description: "The subject character's name" },
   { name: "user", category: "persona", description: "Your persona's name" },
 ];
+
+/** IMGMAC (owner ruling: YES) — the identity pair UNION the author's USER-MACRO plane. The queued question
+ *  this file used to carry ("should the imagery mode-templates resolve the user-macro plane at extract
+ *  time?") was answered yes, and the server half landed: `extractQuiet` now builds a per-call registry from
+ *  both authoring homes (`buildTurnUserMacros` — preset defs + game defs, game shadows preset) and renders
+ *  the template against it, so `{{house_rule}}` typed here genuinely substitutes.
+ *
+ *  WHY THE ACTIVE PRESET IS THE HONEST PLANE (the `usePromptMacroSuggestions` argument verbatim): this is a
+ *  per-USER settings section with no chat and no game in scope, so the exact set that will resolve at extract
+ *  time — which depends on the room's host preset and its game — is unknowable here. The user's active preset
+ *  is the closest true answer; a game macro still resolves, it just cannot be advertised from here.
+ *
+ *  Only the plane ROWS are taken from the hook (`category === "user"`); its builtin half is the app-wide
+ *  catalog, which over-promises on this surface for the reason above. */
+function extractionSuggestions(plane: readonly MacroSuggestion[]): readonly MacroSuggestion[] {
+  return [...IMAGERY_TEMPLATE_MACROS, ...plane.filter((s) => s.category === "user")];
+}
 
 /** One card descriptor: the form field, its human title, the "fires on" copy, whether it resolves macros, and
  *  the shipped default it ghosts as a placeholder. */
@@ -122,6 +130,8 @@ function ImageryTemplatesFormBody({ sectionId }: { readonly sectionId: string })
 
 function ImageryTemplatesBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<ImageryTemplatesForm> }): ReactElement {
   const { form, saveState, retrySave } = session;
+  // IMGMAC — the author's user-macro plane, unioned onto the two identity macros for the EXTRACTION cards.
+  const suggestions = extractionSuggestions(usePromptMacroSuggestions());
   return (
     <Section divider={true} heading={IMAGERY_TEMPLATES_SUBCATEGORY.label} id={settingsAnchorId("chat-behavior", IMAGERY_TEMPLATES_SUBCATEGORY.id)}>
       <Stack gap="block">
@@ -137,7 +147,7 @@ function ImageryTemplatesBody({ sectionId, session }: { readonly sectionId: stri
                   <field.MacroField
                     label={card.title}
                     description={card.fires}
-                    suggestions={card.macros ? IMAGERY_TEMPLATE_MACROS : []}
+                    suggestions={card.macros ? suggestions : []}
                     placeholder={card.shippedDefault}
                     rows={4}
                   />
