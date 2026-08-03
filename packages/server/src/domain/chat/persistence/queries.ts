@@ -27,7 +27,6 @@ import type { UserMacroValues } from "@orb/contracts/preset";
 import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messages, messageVariants } from "@orb/db";
-import { notStateAnchor } from "@orb/db/kit";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -272,11 +271,11 @@ export async function loadForkChildren(db: Db, parentChatId: ChatId): Promise<Ch
 /** Per-chat canon aggregates for the `ChatSummary` list chrome: message count + newest timestamp. Batched
  *  over a set of ids (one GROUP BY, no N+1); a chat with no messages is absent from the map.
  *
- *  VISIBLE rows only. The join to the selected variant + `notStateAnchor` excludes rpg state-anchor slots —
- *  the empty-body snapshot keys `resyncFromStory`/`editSnapshot` post. They are not messages, so they must
- *  neither be counted (the owner's dogfood chat read "7 messages" over 3 real ones, 2026-07-31) nor bump
- *  `lastMessageAt` (a silent state write is not a beat, and this field is the library's recency sort). The
- *  join is the SAME `innerJoin` every canon read does, so it drops nothing a reader could see. */
+ *  VISIBLE rows only: the `innerJoin` to the SELECTED variant is the visibility predicate (a slot whose
+ *  selected variant was deleted has nothing to count or preview) — the same join every canon read does.
+ *  D124 retired the second half of this predicate: rpg no longer mints content-less "state anchor" slots, so
+ *  there is no non-message canon row left to exclude (the count inflation the owner hit on 2026-07-31 —
+ *  "7 messages" over 3 real ones — is unrepresentable now, not filtered). */
 export async function loadChatMessageStats(db: Db, chatIds: readonly ChatId[]): Promise<Map<ChatId, { messageCount: number; lastMessageAt: number | null }>> {
   // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for chat message stats
   const out = new Map<ChatId, { messageCount: number; lastMessageAt: number | null }>();
@@ -291,7 +290,7 @@ export async function loadChatMessageStats(db: Db, chatIds: readonly ChatId[]): 
     })
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(and(inArray(messages.chatId, [...chatIds]), notStateAnchor()))
+    .where(inArray(messages.chatId, [...chatIds]))
     .groupBy(messages.chatId);
   for (const r of rows) {
     out.set(r.chatId, { messageCount: r.messageCount, lastMessageAt: r.lastMessageAt ?? null });
@@ -303,7 +302,7 @@ export async function loadChatMessageStats(db: Db, chatIds: readonly ChatId[]): 
  *  selected variant's raw body, for the `ChatSummary.lastMessagePreview` scent line. Batched over a set of
  *  ids in ONE read (a `row_number()` window partitioned by chat, `rn = 1`) — never a per-chat query, so the
  *  library list stays one page = a fixed number of reads. Same VISIBILITY predicate as
- *  {@link loadChatMessageStats} (selected variant ⋈ `notStateAnchor`), so the row that sets `lastMessageAt`
+ *  {@link loadChatMessageStats} (the selected-variant join), so the row that sets `lastMessageAt`
  *  is the row that supplies the preview. A chat with no visible message is absent from the map. */
 export async function loadChatLastMessages(db: Db, chatIds: readonly ChatId[]): Promise<Map<ChatId, { seq: number; content: string }>> {
   // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for the per-chat last message
@@ -320,7 +319,7 @@ export async function loadChatLastMessages(db: Db, chatIds: readonly ChatId[]): 
     })
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(and(inArray(messages.chatId, [...chatIds]), notStateAnchor()))
+    .where(inArray(messages.chatId, [...chatIds]))
     .as("ranked");
   const rows = await db.select({ chatId: ranked.chatId, seq: ranked.seq, content: ranked.content }).from(ranked).where(eq(ranked.rn, 1));
   for (const r of rows) {

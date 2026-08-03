@@ -59,19 +59,11 @@ test("skips a trailing user row and reads the newest assistant stamp", () => {
 // boundary) but the NEWEST assistant generation's history fit entirely (null = "everything fit this
 // turn", authoritative). The newest assistant null must win — no divider — never resurrect the stale
 // older stamp.
-// Regression (rpg state anchors, live 2026-07-31): a host `resyncFromStory` / `editSnapshot` appends an
-// EMPTY-body assistant slot that only KEYS a snapshot. It is not a generation, so its unstamped null is
-// NOT the truthful "everything fit this turn" — reading it suppressed the divider on every chat with an
-// rpg panel the moment the host resynced. Walk past anchors to the real last generation.
-test("a trailing rpg state-anchor slot does not mask the real last generation's boundary", () => {
-  const messages = [
-    makeMessageView({ id: castId<MessageId>("msg_1"), content: "a reply", contextBoundaryMessageId: castId<MessageId>("msg_0") }),
-    // The anchor: empty body, no stamps — three of these stack up after three resyncs.
-    makeMessageView({ id: castId<MessageId>("msg_anchor_1"), content: "", contextBoundaryMessageId: null }),
-    makeMessageView({ id: castId<MessageId>("msg_anchor_2"), content: "", contextBoundaryMessageId: null }),
-  ];
-  expect(resolveContextBoundaryMessageId(messages)).toBe(castId<MessageId>("msg_0"));
-});
+// D124 retired the rpg state-anchor slot — an EMPTY-body assistant row a host `resyncFromStory`/`editSnapshot`
+// appended, which was not a generation and carried no fit-pass stamp. Reading its null as the truthful
+// "everything fit this turn" suppressed the divider on every chat with an rpg panel the moment the host
+// resynced (live 2026-07-31). The row class no longer exists, so this resolver is a plain last-assistant walk
+// and there is nothing to walk past.
 
 test("newest assistant null beats a stale older stamp — no divider (stale-resurrection)", () => {
   const messages = [

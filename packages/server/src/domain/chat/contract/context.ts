@@ -319,13 +319,11 @@ export interface QuietGenerateDeps {
  *  `messageCommitted` fact resolves at depth ≥ 1 and `runGates` cascade-suppresses a non-opted re-fire (closes
  *  the F1 self-loop; the F5 mechanism on this write path).
  *
- *  STATE-ANCHOR slots (rpg between-turns hand-edit / resync clone-forward) are posted with EMPTY `content` —
- *  they exist only to key a snapshot (`rpg_snapshots.variantId` UNIQUE needs a real committed variant). No
- *  flag is needed: an empty-content assistant row is ALREADY dropped from the assembled prompt by the SHAPE
- *  stage's empty-row filter (`assembly/shape.ts` `runSquash`/`squashSameRole`), and the client message list
- *  hides an empty-content committed slot — so a hand edit never renders a blank bubble nor pollutes the prompt.
- *  Critically, the slot stays prompt-VISIBILITY-normal (`excludedFromPrompt` false) so the rpg snapshot-
- *  resolution ladder still finds its snapshot as a state head (the ladder keys on `excludedFromPrompt=false`). */
+ *  IT REFUSES A BLANK POST (D124), checked on the ASSEMBLED body so a media-only illustration is still legal.
+ *  rpg used to post EMPTY `content` here to mint a "state anchor" slot keying a hand-written snapshot; that
+ *  row was durable canon no reader could see and it leaked onto every plane that consumes messages. Hand
+ *  state is now a message-less `rpg_snapshots` row (`variantId IS NULL`), so every caller left posts real
+ *  content and the leaking row class is unrepresentable at this boundary rather than filtered downstream. */
 export type PostNarratorMessage = (
   chatId: ChatId,
   content: string,
@@ -688,7 +686,7 @@ export interface ChatRpgOps {
   /** HOST HANDOFF, POST-SWAP: move each copied character's tracker row, scene presence and hand PINS from the
    *  source card's key onto the copy's (`rekeyActor` — the `promoteActor` mechanism). NOT statement-shaped and
    *  therefore NOT in the swap batch: it is a read-modify-write through rpg's hand door, which resolves the
-   *  true head and may clone forward onto a fresh state-anchor slot. So it runs after the swap COMMITS — the
+   *  true head and may clone forward as a fresh HAND row (D124). So it runs after the swap COMMITS — the
    *  `forkGame` post-batch posture, degraded-not-broken: a crash between them leaves the room correctly
    *  transferred with its tracker rows still on the old keys, and a re-run converges (an already-moved actor
    *  refuses per-actor and changes nothing). Never throws into the accept. `[]`/a non-game chat writes nothing. */

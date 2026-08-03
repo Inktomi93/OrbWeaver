@@ -9,10 +9,12 @@
 // enum column derives its `@orb/contracts/rpg` tuple with a tuple-built CHECK (no re-spell); every JSON
 // column is `$type<>`d and parse-on-read at the `@orb/db/kit` seam.
 //
-// THE SWIPE-VOLATILE PLANE (§2.4-2.5): `rpg_snapshots` is one row per assistant `message_variants` row
-// that carried game-state writes (UNIQUE `variantId`, CASCADE) — a swipe rewinds BY CONSTRUCTION (each
-// variant's snapshot is its own truth; `selectVariant` needs zero rpg code). Quests fold INTO the snapshot
-// (a `quests` JSON array — clone-forward like inventory/cast). `rpg_journal` is the VARIANT-AWARE ARCHIVE:
+// THE SWIPE-VOLATILE PLANE (§2.4-2.5, D124): `rpg_snapshots` is VARIANT-KEYED IFF the row was produced by
+// that variant's own TURN FLUSH (UNIQUE `variantId`, CASCADE) — a swipe rewinds BY CONSTRUCTION (each
+// variant's snapshot is its own truth; `selectVariant` needs zero rpg code). Every OTHER write (the hand
+// doors, resync, populate, checkpoint restore) is a HAND ROW: no message, no variant, ordered by
+// `asOfMessageId` — the `rpg_journal.variantId IS NULL` precedent one plane over. Quests fold INTO the
+// snapshot (a `quests` JSON array — clone-forward like inventory/cast). `rpg_journal` is the VARIANT-AWARE ARCHIVE:
 // model entries stamp their producing `variantId` (CASCADE — a deleted swipe deletes its entries), hand
 // entries stamp NULL (every lineage); the READ projects the selected-variant chain (D46 derive-don't-stamp).
 
@@ -95,10 +97,20 @@ export const rpgGames = sqliteTable(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// rpg_snapshots — the swipe-volatile plane (§2.4-2.5). One row per assistant variant that carried
-// game-state writes (variantId UNIQUE, CASCADE): a swipe rewinds by construction. Born WHOLE — full grafts
-// ZERO columns here. `quests` folds INTO the snapshot (§2.5). `committed` births 0 at flush; the NEXT
-// user send's `onUserCommit` locks it to 1. Ambient `clock`/`weather`/`calendarDate` are born nullable (§2.7).
+// rpg_snapshots — the swipe-volatile plane (§2.4-2.5, D124). TWO ARMS, pinned by a CHECK:
+//   • TURN row — `message_id` + `variant_id` NOT NULL, `as_of_message_id` NULL. Written ONLY by the turn
+//     flush, keyed to the variant that produced it (variantId UNIQUE among non-null: a swipe rewinds by
+//     construction, each variant's snapshot is its own truth).
+//   • HAND row — `message_id` + `variant_id` NULL, ordered by the nullable `as_of_message_id`. Written by
+//     every non-turn write (the 7 hand doors' clone-forward, resyncFromStory, populateFromCharacter,
+//     checkpoint restore). It posts NO message: a hand write is GAME-plane data and was never a message —
+//     the empty-body "state anchor" slot it used to mint leaked onto every plane that reads canon (render,
+//     export, digest, plugin, automation, fork, seed, SSE, counts) and had to be filtered seven times over.
+//     The row class is now unspellable, and the shape is the `rpg_journal.variantId IS NULL` hand-entry
+//     precedent applied one plane over.
+// Born WHOLE — full grafts ZERO columns here. `quests` folds INTO the snapshot (§2.5). `committed` births 0
+// at a turn flush; the NEXT user send's `onUserCommit` locks it to 1 (a hand row is born committed=1).
+// Ambient `clock`/`weather`/`calendarDate` are born nullable (§2.7).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const rpgSnapshots = sqliteTable(
@@ -109,16 +121,24 @@ export const rpgSnapshots = sqliteTable(
       .$type<RpgGameId>()
       .notNull()
       .references(() => rpgGames.id, { onDelete: "cascade" }),
+    // The assistant SLOT a TURN row flushed onto — NULL on a hand row (D124). CASCADE with its slot.
     messageId: text("message_id")
       .$type<MessageId>()
-      .notNull()
       .references(() => messages.id, { onDelete: "cascade" }),
-    // The assistant variant this snapshot is keyed to — UNIQUE (one snapshot per variant), CASCADE (a
-    // deleted swipe deletes its snapshot). The swipe-rewind mechanism: each variant's snapshot is its truth.
+    // The assistant variant a TURN row is keyed to — UNIQUE among non-null (one snapshot per variant),
+    // CASCADE (a deleted swipe deletes its snapshot). The swipe-rewind mechanism: each variant's snapshot
+    // is its truth. NULL on a hand row: a hand write has no variant to rewind with.
     variantId: text("variant_id")
       .$type<MessageVariantId>()
-      .notNull()
       .references(() => messageVariants.id, { onDelete: "cascade" }),
+    // A HAND row's ORDER STAMP: the chat's tail slot at write time (NULL = the game was turnless, so the
+    // row orders before all history — exactly "state as of before the story started"). SET NULL, never
+    // CASCADE: a deleted as-of slot degrades this row's ORDERING, it must never delete durable game state
+    // (the old anchor slot's CASCADE was the "NEVER delete an anchor" footgun). NULL on a turn row, which
+    // carries its own `message_id` instead.
+    asOfMessageId: text("as_of_message_id")
+      .$type<MessageId>()
+      .references(() => messages.id, { onDelete: "set null" }),
     // Ambient (§2.7) — engine-shaped storage, born nullable. Lite writes clock via the TIME_OF_DAY label.
     clock: text("clock", { mode: "json" }).$type<RpgClockTime>(),
     calendarDate: text("calendar_date"),
@@ -146,11 +166,18 @@ export const rpgSnapshots = sqliteTable(
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    uniqueIndex("rpg_snapshots_variant_unique").on(t.variantId),
+    // PARTIAL unique: one snapshot per variant on the TURN arm; hand rows (variant NULL) are unconstrained.
+    uniqueIndex("rpg_snapshots_variant_unique").on(t.variantId).where(sql`variant_id is not null`),
     index("rpg_snapshots_game_idx").on(t.gameId),
     // The message CASCADE parent — deleting a message must find its snapshots, and nothing here leads with
     // `messageId` (`fk-columns-indexed` gate).
     index("rpg_snapshots_message_idx").on(t.messageId),
+    // The as-of SET NULL parent — a message delete must find the hand rows stamped at it, and this column
+    // leads nothing else (`fk-columns-indexed` gate). Also the ladder's ordering join.
+    index("rpg_snapshots_as_of_message_idx").on(t.asOfMessageId),
+    // THE TWO-ARM SHAPE (D124), the `rpg_sheets` actor-XOR idiom: message and variant are present together
+    // or absent together (turn vs hand), and a TURN row never carries an as-of stamp (it IS its position).
+    check("rpg_snapshots_arm_check", sql.raw("(message_id is null) = (variant_id is null) and (message_id is null or as_of_message_id is null)")),
   ],
 );
 

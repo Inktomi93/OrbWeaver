@@ -22,7 +22,3 @@ test("returns -1 when there is no user row (greeting-only thread)", () => {
 test("returns -1 for an empty list", () => {
   expect(lastUserRowIndex([])).toBe(-1);
 });
-
-// `isStateAnchorSlot` (the rpg state-anchor discriminator the list filters on) now lives in
-// `@orb/contracts/chat` beside the other "which canon row does a reader/actor mean" selectors — every
-// consumer shares one home. Its cases live in `tests/contracts/chat/messages.contract.test.ts`.

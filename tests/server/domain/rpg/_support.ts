@@ -15,7 +15,7 @@ import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
 import type { WireTool } from "@orb/server/infra/providers";
 import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat";
-import type { ForwardSnapshotTarget } from "../../../../packages/server/src/domain/rpg/contract/params";
+import type { HandSnapshotTarget, TurnSnapshotTarget } from "../../../../packages/server/src/domain/rpg/contract/params";
 import type {
   RpgContext,
   RpgPopulateDelta,
@@ -99,7 +99,7 @@ export async function seedGame(db: Db, chatId: ChatId, key = "g1", over: { confi
   return id;
 }
 
-/** Mint a stable snapshot id from a key (for the ForwardSnapshotTarget). */
+/** Mint a stable snapshot id from a key (for the snapshot write targets). */
 export function snapshotId(key: string): RpgSnapshotId {
   return castId<RpgSnapshotId>(`rpg_snapshot_${key}`);
 }
@@ -129,9 +129,9 @@ export function actorWithWallet(castKey: string, walletAmount: number, poolValue
   };
 }
 
-/** A ForwardSnapshotTarget for a committed variant. `seedMessage(db, chatId, seq)` mints the message id as
- *  `message_${chatId}_${seq}` — this mirrors it so the target FKs the seeded row. */
-export function target(opts: { gameId: RpgGameId; chatId: ChatId; seq: number; variantId: MessageVariantId; key: string }): ForwardSnapshotTarget {
+/** A TURN-arm write target (D124) for a committed variant. `seedMessage(db, chatId, seq)` mints the message
+ *  id as `message_${chatId}_${seq}` — this mirrors it so the target FKs the seeded row. */
+export function target(opts: { gameId: RpgGameId; chatId: ChatId; seq: number; variantId: MessageVariantId; key: string }): TurnSnapshotTarget {
   return {
     id: snapshotId(opts.key),
     gameId: opts.gameId,
@@ -139,6 +139,12 @@ export function target(opts: { gameId: RpgGameId; chatId: ChatId; seq: number; v
     variantId: opts.variantId,
     now: FROZEN_AT,
   };
+}
+
+/** A HAND-arm write target (D124) — message-less; the as-of stamp is resolved inside the write off the
+ *  chat's tail slot, so a caller names only the chat. */
+export function handTarget(opts: { gameId: RpgGameId; chatId: ChatId; key: string; now?: number }): HandSnapshotTarget {
+  return { id: snapshotId(opts.key), gameId: opts.gameId, chatId: opts.chatId, now: opts.now ?? FROZEN_AT };
 }
 
 // ── the verb-service harness (W1b) ───────────────────────────────────────────────────────────────────────
@@ -229,7 +235,10 @@ export interface RpgFakes {
   readonly pointers: { chatId: string; gameId: string; engaged: boolean }[];
   /** The chatIds a `setPointer(chatId, null)` DETACHED (the §3.3 dangling-pointer heal — assert the null write). */
   readonly detaches: string[];
-  readonly narratorPosts: { chatId: string; content: string; anchor: boolean }[];
+  /** Every narrator post a verb made. D124 killed the blank "state anchor" post, and the fake enforces the
+   *  same write-boundary refusal the real op does — so `narratorPosts` is now a list of REAL content, and a
+   *  test that expects zero posts for a hand write is asserting the row class is gone, not filtered. */
+  readonly narratorPosts: { chatId: string; content: string }[];
   readonly toolRoundCalls: { chatId: string; messageId: string; variantId: string; reconcile: boolean }[];
   /** R1 — the FOLD fires (`foldTurnToolCalls`): the calls it folded + the beat it folded them onto. A fold
    *  entry with an EMPTY `toolRoundCalls` IS the proof that no second model call was paid. */
@@ -263,7 +272,7 @@ export interface RpgFakes {
   readonly busEvents: RpgBusEvent[];
   /** The write-boundary DROPS the flush surfaced (the `onFlushDropped` recorder — assert the drop was OBSERVED,
    *  never silent, when the F1 backstop refuses a contract-invalid extracted state). */
-  readonly flushDrops: { chatId: string; gameId: string; variantId: string; reason: string }[];
+  readonly flushDrops: { chatId: string; gameId: string; variantId: string | null; reason: string }[];
   /** The flush-barrier TIMEOUTS (the `onTimeout` recorder — assert the barrier released + logged a hung flush
    *  rather than deadlocking the turn). */
   readonly barrierTimeouts: { chatId: string }[];
@@ -341,10 +350,13 @@ export function makeRpgService(
 
   let narratorSeq = 1000;
   const postNarratorMessage: RpgPostNarratorMessage = async (chatId, content) => {
-    // A state-anchor mint (the hand-edit / resync clone-forward) posts an EMPTY body; it carries no flag and
-    // stays prompt-visibility-normal (`excludedFromPrompt` false) so the snapshot-resolution ladder still finds
-    // it — the empty content alone is what the shape stage + the client list drop. Record it for assertions.
-    fakes.narratorPosts.push({ chatId, content, anchor: content === "" });
+    // MIRRORS the real op's D124 write-boundary refusal: a content-less canon row is not a message. A verb
+    // that reaches here with "" is the exact defect this reshape made unspellable, so the fake must not
+    // quietly accept what production throws on.
+    if (content.trim() === "") {
+      throw new Error(`postNarratorMessage: refused a blank post to chat ${chatId} (D124)`);
+    }
+    fakes.narratorPosts.push({ chatId, content });
     // Mint a REAL message + variant so the forward-write FKs resolve (the narrator slot the snapshot keys to).
     const { messageId, variantId } = await seedMessage(db, chatId, narratorSeq++, { role: "assistant", content });
     return { messageId, variantId };

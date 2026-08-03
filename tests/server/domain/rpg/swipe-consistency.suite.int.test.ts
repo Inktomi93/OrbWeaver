@@ -15,10 +15,15 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { snapshotRowToState } from "../../../../packages/server/src/domain/rpg/contract/service";
 import { insertJournalEntry, listActiveJournal } from "../../../../packages/server/src/domain/rpg/persistence/journal";
-import { findSnapshotByVariant, writeStagedSnapshot } from "../../../../packages/server/src/domain/rpg/persistence/snapshots";
+import {
+  findSnapshotByVariant,
+  resolveSnapshotForTurn,
+  writeHandSnapshot,
+  writeStagedSnapshot,
+} from "../../../../packages/server/src/domain/rpg/persistence/snapshots";
 import { createRpgStagingStore } from "../../../../packages/server/src/domain/rpg/staging";
 import { freshDb } from "../../../support/db";
-import { actorWithWallet, addVariant, emptyState, expect, FROZEN_AT, quest, seedChat, seedGame, seedMessage, target, test } from "./_support";
+import { actorWithWallet, addVariant, emptyState, expect, FROZEN_AT, handTarget, quest, seedChat, seedGame, seedMessage, target, test } from "./_support";
 
 let db: Db;
 beforeEach(async () => {
@@ -140,5 +145,57 @@ describe("the ratification pin — journal lineage rides the same swipe", () => 
 
     await selectVariant(messageId, variantA);
     expect((await listActiveJournal(db, gameId, { limit: 50 })).map((r) => r.title).sort()).toEqual(["beat-A", "room-note"]);
+  });
+});
+
+describe("the ratification pin — the HAND plane rides ALONGSIDE the swipe, never on it (D124)", () => {
+  test("a host's between-turns correction survives a swipe of the tail slot, while the takes still rewind", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const { messageId, variantId: variantA } = await seedMessage(db, chatId, 1, { role: "assistant" });
+    const variantB = await addVariant(db, messageId, 1, "swipe B body");
+
+    // Two takes on one slot, each with its own model-flushed state (the pin above, in miniature).
+    const storeA = createRpgStagingStore();
+    const turnA = castId<ChatTurnId>("chat_turn_hand_a");
+    storeA.ensure(turnA, emptyState());
+    storeA.stage(turnA, { actorState: [actorWithWallet("gorak", 100, 30)], quests: [quest("main")] });
+    const flushA = storeA.take(turnA);
+    if (!flushA) {
+      throw new Error("no flush A");
+    }
+    await writeStagedSnapshot(db, flushA.state, target({ gameId, chatId, seq: 1, variantId: variantA, key: "handOnA" }));
+
+    const storeB = createRpgStagingStore();
+    const turnB = castId<ChatTurnId>("chat_turn_hand_b");
+    storeB.ensure(turnB, emptyState());
+    storeB.stage(turnB, { actorState: [actorWithWallet("gorak", 0, 5)], quests: [quest("main", { status: "failed" })] });
+    const flushB = storeB.take(turnB);
+    if (!flushB) {
+      throw new Error("no flush B");
+    }
+    await writeStagedSnapshot(db, flushB.state, target({ gameId, chatId, seq: 1, variantId: variantB, key: "handOnB" }));
+
+    await selectVariant(messageId, variantA);
+    // The host then hand-corrects the location. PRE-D124 this minted a blank assistant slot to key the
+    // correction; now it is a message-less hand row stamped as-of the tail slot.
+    await writeHandSnapshot(
+      db,
+      { ...snapshotRowToState((await findSnapshotByVariant(db, variantA)) as never), location: "the host's corrected hall" },
+      null,
+      handTarget({ gameId, chatId, key: "hand_correction", now: FROZEN_AT + 1 }),
+    );
+    expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.location).toBe("the host's corrected hall");
+
+    // Swiping the slot re-selects take B — the TAKES rewind (each variant's snapshot is its truth), but the
+    // host's correction is not a take: it has no variant, so it is not rewound and stays the head.
+    await selectVariant(messageId, variantB);
+    expect(await panelForVariant(variantB)).toEqual({ pool: 5, gold: 0, quests: 0 });
+    expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.location).toBe("the host's corrected hall");
+
+    // Swiping back returns take A's panel; the correction is still the head, exactly once.
+    await selectVariant(messageId, variantA);
+    expect(await panelForVariant(variantA)).toEqual({ pool: 30, gold: 100, quests: 1 });
+    expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.location).toBe("the host's corrected hall");
   });
 });

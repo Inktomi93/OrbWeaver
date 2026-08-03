@@ -79,20 +79,24 @@ function cloneSheets(cc: CloneCtx, sheets: readonly RpgSheetRow[]): BatchStmt[] 
   );
 }
 
-/** rpg_snapshots — copy rows whose variant AND message were copied (the fork horizon + D106 floor are respected
- *  BY CONSTRUCTION: the maps only contain copied rows, so a row past the horizon has no entry and is dropped).
- *  Re-key id/gameId/messageId/variantId; state columns verbatim (locks carry — pins are room truth; `committed`
- *  carries as-is — an uncommitted head stays uncommitted). The belt strips `recentEvents` for a non-host forker.
- *  Returns the inserts AND the source→fork snapshot-id map (the checkpoint re-key reads it). */
+/** rpg_snapshots — the D124 two arms, each with its own horizon rule:
+ *  • TURN rows (variant-keyed) copy iff their variant AND message were copied (the fork horizon + D106 floor
+ *    are respected BY CONSTRUCTION: the maps only contain copied rows, so a row past the horizon is dropped).
+ *  • HAND rows (message-less) ALWAYS copy — they are game state, not story, and the fork inherits the host's
+ *    hand edits on every lineage (the `rpg_journal` NULL-variant hand-entry rule, one plane over). Their
+ *    `asOfMessageId` re-keys through the SAME `slotIdMap`; an as-of slot that fell below a D106 FLOOR maps to
+ *    nothing and degrades to NULL — the row then orders before all visible history, which is exactly right
+ *    (state as of pre-baseline IS the baseline posture).
+ *  Re-key id/gameId; state columns verbatim (locks carry — pins are room truth; `committed` carries as-is —
+ *  an uncommitted head stays uncommitted). The belt strips `recentEvents` for a non-host forker. Returns the
+ *  inserts AND the source→fork snapshot-id map (the checkpoint re-key reads it). */
 function cloneSnapshots(cc: CloneCtx, snapshots: readonly RpgSnapshotRow[]): { stmts: BatchStmt[]; snapshotIdMap: Map<RpgSnapshotId, RpgSnapshotId> } {
   const stmts: BatchStmt[] = [];
   const snapshotIdMap = new Map<RpgSnapshotId, RpgSnapshotId>();
   for (const snap of snapshots) {
-    const newVariantId = cc.variantIdMap.get(snap.variantId);
-    const newMessageId = cc.slotIdMap.get(snap.messageId);
-    // A snapshot's variant OR its message not in the fork ⇒ past the horizon (or below the floor) → drop it.
-    if (newVariantId === undefined || newMessageId === undefined) {
-      continue;
+    const keys = forkSnapshotKeys(cc, snap);
+    if (keys === null) {
+      continue; // a TURN row past the horizon (or below the floor) — its slot/variant is not in the fork.
     }
     const newSnapshotId = cc.ctx.ids.snapshot();
     snapshotIdMap.set(snap.id, newSnapshotId);
@@ -100,10 +104,9 @@ function cloneSnapshots(cc: CloneCtx, snapshots: readonly RpgSnapshotRow[]): { s
       batchStmt(
         cc.ctx.db.insert(rpgSnapshots).values({
           ...snap,
+          ...keys,
           id: newSnapshotId,
           gameId: cc.newGameId,
-          messageId: newMessageId,
-          variantId: newVariantId,
           recentEvents: stripBeatsForForker(snap.recentEvents, cc.readsHidden),
           createdAt: cc.now,
         }),
@@ -111,6 +114,20 @@ function cloneSnapshots(cc: CloneCtx, snapshots: readonly RpgSnapshotRow[]): { s
     );
   }
   return { stmts, snapshotIdMap };
+}
+
+/** The re-keyed ARM columns for one cloned snapshot, or `null` when the row does not survive the fork. The
+ *  arm is read off the source row (`variantId === null` ⇒ hand), so the CHECK-pinned shape carries verbatim. */
+function forkSnapshotKeys(cc: CloneCtx, snap: RpgSnapshotRow): Pick<RpgSnapshotRow, "messageId" | "variantId" | "asOfMessageId"> | null {
+  if (snap.variantId === null || snap.messageId === null) {
+    return { messageId: null, variantId: null, asOfMessageId: snap.asOfMessageId === null ? null : (cc.slotIdMap.get(snap.asOfMessageId) ?? null) };
+  }
+  const newVariantId = cc.variantIdMap.get(snap.variantId);
+  const newMessageId = cc.slotIdMap.get(snap.messageId);
+  if (newVariantId === undefined || newMessageId === undefined) {
+    return null;
+  }
+  return { messageId: newMessageId, variantId: newVariantId, asOfMessageId: null };
 }
 
 /** rpg_journal — model entries (variantId ≠ null): copy iff the variant was copied (re-key variantId +

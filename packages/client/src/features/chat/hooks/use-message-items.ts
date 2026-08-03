@@ -7,7 +7,6 @@
 // throughout, the new variant streaming in place, never a transient second row beside the old one.
 
 import type { MessageView } from "@orb/contracts/chat";
-import { isStateAnchorSlot } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { useEffect, useState } from "react";
 import { isLiveTurnPhase, useSwipeTargetMessageId, useTurnPhase } from "#state";
@@ -41,9 +40,9 @@ export function useMessageItems(messages: readonly MessageView[], chatId: ChatId
   // `swipe` intent (continue/send/generate append or extend, never replace) — a lifecycle-only selector, so
   // reading it never re-renders the list on a delta.
   const swipeTargetId = useSwipeTargetMessageId(chatId);
-  // rpg state anchors are snapshot keys, not messages — hidden here so a hand-edit/resync never renders a
-  // blank bubble (the discriminator + every other "which row does a reader mean" answer live in contracts).
-  const base: ChatRowItem[] = messages.filter((view) => !isStateAnchorSlot(view)).map((view) => ({ kind: "message", view }));
+  // Every canon row is a message the reader sees — D124 killed the content-less rpg "state anchor" slot this
+  // list used to filter out, so there is nothing to hide.
+  const base: ChatRowItem[] = messages.map((view) => ({ kind: "message", view }));
 
   const live = isLiveTurnPhase(phase);
   if (!live) {

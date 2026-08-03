@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "fbfa0ab9-2ef3-46c3-8c24-e3e115f16957",
+  "id": "e4e7faa1-6c61-4a02-b31f-33fe30f223cc",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -5713,14 +5713,21 @@
           "name": "message_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "variant_id": {
           "name": "variant_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "as_of_message_id": {
+          "name": "as_of_message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         },
         "clock": {
@@ -5823,7 +5830,8 @@
         "rpg_snapshots_variant_unique": {
           "name": "rpg_snapshots_variant_unique",
           "columns": ["variant_id"],
-          "isUnique": true
+          "isUnique": true,
+          "where": "variant_id is not null"
         },
         "rpg_snapshots_game_idx": {
           "name": "rpg_snapshots_game_idx",
@@ -5833,6 +5841,11 @@
         "rpg_snapshots_message_idx": {
           "name": "rpg_snapshots_message_idx",
           "columns": ["message_id"],
+          "isUnique": false
+        },
+        "rpg_snapshots_as_of_message_idx": {
+          "name": "rpg_snapshots_as_of_message_idx",
+          "columns": ["as_of_message_id"],
           "isUnique": false
         }
       },
@@ -5863,11 +5876,25 @@
           "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
+        },
+        "rpg_snapshots_as_of_message_id_messages_id_fk": {
+          "name": "rpg_snapshots_as_of_message_id_messages_id_fk",
+          "tableFrom": "rpg_snapshots",
+          "tableTo": "messages",
+          "columnsFrom": ["as_of_message_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
-      "checkConstraints": {}
+      "checkConstraints": {
+        "rpg_snapshots_arm_check": {
+          "name": "rpg_snapshots_arm_check",
+          "value": "(message_id is null) = (variant_id is null) and (message_id is null or as_of_message_id is null)"
+        }
+      }
     },
     "session_entries": {
       "name": "session_entries",
