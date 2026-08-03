@@ -12,6 +12,8 @@ import {
   stripHiddenSpans,
   tokenizeContent,
 } from "@orb/kit/content";
+import type { AssetId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures";
 
@@ -27,7 +29,7 @@ describe("tokenizeContent", () => {
   test("an embedded asset ref → text / image / text spans", () => {
     expect(tokenizeContent("before ![a cat](asset:ast_123) after")).toEqual<ContentSpan[]>([
       { kind: "text", text: "before " },
-      { kind: "image", ref: { kind: "asset", assetId: "ast_123" }, alt: "a cat" },
+      { kind: "image", ref: { kind: "asset", assetId: castId<AssetId>("ast_123") }, alt: "a cat" },
       { kind: "text", text: " after" },
     ]);
   });
@@ -40,8 +42,8 @@ describe("tokenizeContent", () => {
 
   test("adjacent images yield adjacent image spans (no empty text between)", () => {
     expect(tokenizeContent("![](asset:a)![](asset:b)")).toEqual<ContentSpan[]>([
-      { kind: "image", ref: { kind: "asset", assetId: "a" }, alt: "" },
-      { kind: "image", ref: { kind: "asset", assetId: "b" }, alt: "" },
+      { kind: "image", ref: { kind: "asset", assetId: castId<AssetId>("a") }, alt: "" },
+      { kind: "image", ref: { kind: "asset", assetId: castId<AssetId>("b") }, alt: "" },
     ]);
   });
 

@@ -317,7 +317,7 @@ describe("consumeTurnStream", () => {
       event: { type: "content_block_delta", delta: { type: "text_delta", text: "Hello" } },
     };
     const onDelta = vi.fn();
-    const result = await consumeTurnStream(streamOf([initMsg, textDelta, assistantMsg, successResult]), { ...baseCtx, chatId: "c1", onDelta });
+    const result = await consumeTurnStream(streamOf([initMsg, textDelta, assistantMsg, successResult]), { ...baseCtx, chatId: castId<ChatId>("c1"), onDelta });
     expect(onDelta).toHaveBeenCalledExactlyOnceWith({ chatId: "c1", kind: "text", text: "Hello" });
     // The assistant frame's text is "Hello"; the delta text is NOT concatenated on top of it.
     expect(result.reply).toBe("Hello");
@@ -346,7 +346,11 @@ describe("consumeTurnStream", () => {
       },
     };
     const onDelta = vi.fn();
-    const result = await consumeTurnStream(streamOf([initMsg, thinkingDelta, thinkingAssistant, successResult]), { ...baseCtx, chatId: "c1", onDelta });
+    const result = await consumeTurnStream(streamOf([initMsg, thinkingDelta, thinkingAssistant, successResult]), {
+      ...baseCtx,
+      chatId: castId<ChatId>("c1"),
+      onDelta,
+    });
     expect(onDelta).toHaveBeenCalledExactlyOnceWith({
       chatId: "c1",
       kind: "reasoning",
@@ -364,7 +368,7 @@ describe("consumeTurnStream", () => {
       event: { type: "content_block_delta", delta: { type: "signature_delta", signature: "SIG" } },
     };
     const onDelta = vi.fn();
-    const result = await consumeTurnStream(streamOf([initMsg, sigDelta, assistantMsg, successResult]), { ...baseCtx, chatId: "c1", onDelta });
+    const result = await consumeTurnStream(streamOf([initMsg, sigDelta, assistantMsg, successResult]), { ...baseCtx, chatId: castId<ChatId>("c1"), onDelta });
     // No crash, empty reasoning, and the signature never surfaced as a reasoning delta.
     expect(result.reply).toBe("Hello");
     expect(result.reasoning).toBe("");
@@ -591,7 +595,7 @@ describe("createAgentSdkBackend", () => {
     ];
     // Turn 1 is a COLD cache (no recorded session) → resumes the deterministic seed-derived id.
     await run({ ...buildReq(castId<ChatId>("chat-seeded")), seed, prompt: "next question" });
-    expect(fakeQuery.mock.calls[0]?.[0]?.options?.resume).toBe(seedSessionId("chat-seeded", seed));
+    expect(fakeQuery.mock.calls[0]?.[0]?.options?.resume).toBe(seedSessionId(castId<ChatId>("chat-seeded"), seed));
 
     // Turn 1's stream reported session_id=SESSION_ID → recorded. Turn 2's canon DIVERGES (swipe), and
     // the store is replace-capable → reseed IN PLACE under the RECORDED id (keeps the conv cache
@@ -806,7 +810,7 @@ describe("provider.* observability taxonomy", () => {
     const info = vi.spyOn(logger, "info");
     await consumeTurnStream(streamOf([initMsg, assistantMsg, successResult]), {
       ...baseCtx,
-      chatId: "chat-1",
+      chatId: castId<ChatId>("chat-1"),
       disposition: "seeded",
     });
     const turns = providerLines(info, "provider.turn");

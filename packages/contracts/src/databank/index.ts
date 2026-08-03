@@ -9,6 +9,7 @@
 // haul megabytes — a dedicated `get` with `includeText` returns it, databank-design/02 §4).
 
 import type { ChunkParams } from "@orb/kit/chunk";
+import type { DocumentId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
@@ -171,5 +172,5 @@ export interface IngestRunResult {
   readonly chunksPruned: number;
   /** `mode:'re-extract'` only — documents whose canon was re-derived from the CAS bytes. */
   readonly reExtracted: number;
-  readonly failed: readonly { readonly documentId: string; readonly error: string }[];
+  readonly failed: readonly { readonly documentId: DocumentId; readonly error: string }[];
 }

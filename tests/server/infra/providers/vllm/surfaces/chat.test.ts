@@ -243,7 +243,7 @@ describe("createVllmChat", () => {
     const chat = createVllmChat({ client, now: clock() });
     await chat(
       chatReq({
-        chatId: "chat_123",
+        chatId: castId<ChatId>("chat_123"),
         onDelta: (d) => seen.push(d.chatId),
       }),
     );

@@ -9,6 +9,7 @@
 
 import type { PromptConfig, UserMacroSpec } from "@orb/contracts/preset";
 import { userMacroSchema } from "@orb/contracts/preset";
+import type { PresetId } from "@orb/kit/ids";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -25,7 +26,7 @@ type AppForm = AppFormInstance<PromptConfig>;
 export interface UserMacrosTabProps {
   readonly form: AppForm;
   /** The owning preset id — the browser's source attribution (`preset:<id>`). */
-  readonly presetId: string;
+  readonly presetId: PresetId;
 }
 
 /** The Macros tab — the user-macro list + editor Dialog, and the macro browser disclosure. */

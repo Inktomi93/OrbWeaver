@@ -12,7 +12,7 @@ import { asBundleCounts } from "../lib/portability-model";
 import type { WorkloadProgressView } from "../lib/workloads-model";
 
 export interface BundleWorkloadTrackerProps {
-  readonly workloadId: string;
+  readonly workloadId: WorkloadId;
   readonly onProgress: (progress: WorkloadProgressView) => void;
   readonly onSucceeded: (counts: BundleCounts) => void;
   readonly onFailed: (message: string) => void;

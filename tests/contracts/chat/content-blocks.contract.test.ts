@@ -1,4 +1,6 @@
 import { contentSpansToBlocks, messageContentBlockSchema } from "@orb/contracts/chat";
+import type { AssetId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures";
 
 test("messageContentBlockSchema — round-trips its three kinds (D44)", () => {
@@ -18,7 +20,7 @@ test("contentSpansToBlocks — joins text runs, converts D51 image refs, brands 
     { kind: "text", text: "two panels.\n" },
     {
       kind: "image",
-      ref: { kind: "asset", assetId },
+      ref: { kind: "asset", assetId: castId<AssetId>(assetId) },
       alt: "a map",
     },
     { kind: "image", ref: { kind: "external", url: "https://example.test/x.png" }, alt: "" },
@@ -47,7 +49,7 @@ test("contentSpansToBlocks — a text-only body is ONE markdown block; a bad ass
   // ref would otherwise crash every render of the row with no per-row boundary — a permanent chat DoS.
   // It falls back to the raw image markdown as a text block; the projection returns a schema-valid,
   // renderable block set instead of throwing a ZodError inside React render.
-  const degraded = contentSpansToBlocks([{ kind: "image", ref: { kind: "asset", assetId: "not-a-typeid" }, alt: "a map" }]);
+  const degraded = contentSpansToBlocks([{ kind: "image", ref: { kind: "asset", assetId: castId<AssetId>("not-a-typeid") }, alt: "a map" }]);
   expect(degraded).toEqual([{ kind: "markdown", md: "![a map](asset:not-a-typeid)" }]);
   for (const b of degraded) {
     expect(messageContentBlockSchema.parse(b)).toEqual(b);

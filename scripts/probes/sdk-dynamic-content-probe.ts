@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+
 /**
  * pnpm sdk:dynamic-probe [--spot A,B,C] [--nonce <str>] [--mode sub|or] [--model <id>]
  *                        [--verbose] [--dry-run]
@@ -46,6 +47,8 @@ import process from "node:process";
 import type { SDKMessage, SessionStore } from "@anthropic-ai/claude-agent-sdk";
 import { query } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatInjection } from "@orb/contracts/chat";
+import type { ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { ChatResult } from "@orb/server/infra/providers";
 import { buildClaudeOpenRouterEnv, buildClaudeSdkEnv, consumeTurnStream, dynamicContextOptions } from "@orb/server/infra/providers/backends/agent-sdk";
 import type { SeedTurn } from "@orb/server/infra/providers/backends/agent-sdk/session";
@@ -405,7 +408,7 @@ function record(spot: string, turnNo: number, t: TurnResult, disposition: string
 // ── The battery driver — one spot, 3 resumed turns ───────────────────────────────────────────────────────
 async function runSpot(spot: Spot): Promise<void> {
   console.log(`\n── spot ${spot.id}: ${spot.label} ──`);
-  const chatId = `probe-dyn-${spot.id}-${NONCE}`;
+  const chatId = castId<ChatId>(`probe-dyn-${spot.id}-${NONCE}`);
   const cache = new SessionCache(new InMemorySessionStore());
   const reads: TurnRead[] = [];
   for (const turnNo of TURN_SEQUENCE) {

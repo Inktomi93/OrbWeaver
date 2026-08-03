@@ -15,6 +15,8 @@ import { makeRpgContextTabs, makeRpgHudRegion } from "@orb/client/features/rpg";
 import type { ChatContextState, ContextRegionDef, ContextTabDef } from "@orb/client/lib";
 import { bindNotify, createContributorRegistry } from "@orb/client/lib";
 import { selectChat, useSectionRegistry } from "@orb/client/state";
+import type { MessageId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -193,7 +195,7 @@ const NOOP = (): void => undefined;
 export function RpgCardLightboxStory({ allowExternalMedia }: { readonly allowExternalMedia: boolean }): ReactElement {
   const card: ArchivedCard = {
     key: LIGHTBOX_CARD_KEY,
-    messageId: "msg_1",
+    messageId: castId<MessageId>("msg_1"),
     title: "A sealed letter",
     html: '<p>Read me</p><img src="https://evil.test/tracker.png" alt="">',
     origin: "fence",

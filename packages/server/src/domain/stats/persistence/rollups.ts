@@ -242,7 +242,7 @@ export async function readFreshness(db: Db, ownerId: UserId): Promise<StatsFresh
  *  usage sources are union-deduped to a (persona, chat) set so messages join once. */
 export async function readPersonaUsage(db: Db, ownerId: UserId): Promise<PersonaUsageRow[]> {
   const rows = await db.all<{
-    personaId: string;
+    personaId: PersonaId;
     name: string;
     chatCount: number;
     messageCount: number;

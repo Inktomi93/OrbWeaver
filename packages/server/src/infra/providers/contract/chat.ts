@@ -7,7 +7,7 @@ import type { ModelCapability, OpenRouterProviderRouting } from "@orb/contracts/
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { CustomParameters, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import type { ModelId } from "@orb/kit/ids";
+import type { ChatId, ModelId } from "@orb/kit/ids";
 import type { ChatDeltaEvent, ChatEvent, RateLimitSnapshot } from "./events";
 
 // The structured-output request vocabulary lives at its cross-boundary home (D79); re-exported here so the
@@ -77,7 +77,7 @@ interface ChatRequestCommon {
   readonly params: UserIntent;
   /** Split system prompt: a stable static prefix + a volatile dynamic tail (cache placement). */
   readonly systemPrompt: { readonly static: string; readonly dynamic: string };
-  readonly chatId?: string | undefined;
+  readonly chatId?: ChatId | undefined;
   /** Owner-consent for a max-pro-sub-funded turn driven by someone other than the owner (default OFF). */
   readonly ownerConsented?: boolean | undefined;
   readonly signal?: AbortSignal | undefined;

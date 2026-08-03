@@ -5,6 +5,7 @@
 // workloads.subscribe machinery. A non-OK response (whole-batch rejection) throws with the server's message.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import type { WorkloadId } from "@orb/kit/ids";
 import { throwHttpError } from "./http-error";
 
 const TREE_URL = "/api/import/tree";
@@ -12,7 +13,7 @@ const TREE_FIELD = "file";
 
 /** The `202` accept body: the id of the enqueued import workload to subscribe for progress + the result. */
 export interface TreeImportStarted {
-  readonly workloadId: string;
+  readonly workloadId: WorkloadId;
 }
 
 /** `webkitRelativePath` is present on a directory-picked File in a real browser, but it's a non-standard

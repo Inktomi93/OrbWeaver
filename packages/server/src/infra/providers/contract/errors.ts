@@ -60,6 +60,7 @@ export interface ProviderErrorInit {
   /** The backend-internal session this failure occurred on (agent-sdk resume-cache id). Provenance ONLY —
    *  never surfaced on the SDK-free `ChatResult` (the session is backend-internal), but carried on the
    *  error so `toLog()` can correlate a failure to its session in the log stream. */
+  // @foreign-id-ok(sessionId): the Claude Agent SDK's OWN chat-session id (its `session_id` wire field) — a NAME COLLISION with our BFF `SessionId = TypeIdOf<"session">`, a different wire's id that merely shares the spelling. Ends if this position ever carries one of our session rows, or if the field is renamed `sdkSessionId` (which would dissolve this marker).
   readonly sessionId?: string;
   /** The upstream request/generation id, when an HTTP backend's response exposes one — correlates a
    *  failure to the provider's own trace (e.g. OpenRouter's generation id). */
@@ -81,6 +82,7 @@ export class ProviderError extends Error {
   readonly model: string | undefined;
   readonly terminalReason: string | undefined;
   readonly detail: string | undefined;
+  // @foreign-id-ok(sessionId): the Claude Agent SDK's OWN chat-session id (its `session_id` wire field) — a NAME COLLISION with our BFF `SessionId = TypeIdOf<"session">`, a different wire's id that merely shares the spelling. Ends if this position ever carries one of our session rows, or if the field is renamed `sdkSessionId` (which would dissolve this marker).
   readonly sessionId: string | undefined;
   readonly requestId: string | undefined;
 
