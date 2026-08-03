@@ -479,3 +479,25 @@ The audit wrote SCHEMA / DBANK2 / SWEEP as *dispatched*. Since then:
   per-script JSON door, **NOT presets** ("we made regex part of presets kinda").
 - **PUSH-READY IS STALE** (declared at 85; HEAD is 101+ past origin) — a fresh `verify --push`
   is owed at quiesce before asking for the word.
+
+### SWEEP SEALED (`d2b73def`) — 6 defects found-and-fixed + the REAL mock-vs-rendered pass
+Fixed: the config CONTEXT pane said one fact TWICE (NIGHTFIX's new header re-printed the body's
+title — it REBUILT the F-12 defect registry-contracts.ts names verbatim) · both CONTEXT bands
+painted a different voice than the LIST band on the same 48px horizon · databank's band said
+generic "Details" colliding with CONTENT's own group · a databank readout row spread 1392px in
+a 1440px pane · the picker's ordered slice carried NO RANK numbers · **the Add-a-document
+upload arm had ZERO buttons — Esc/backdrop was the only exit**. All red-first, 150 CT green.
+MOCK-VS-RENDERED done properly: 18 frame pairs (`reports/snaps/mvr-*`) with per-element delta
+tables classified rendered-wrong / mock-stale-sanctioned / deliberate-with-cite.
+**⚑ NEW OWNER FORK — mobile config lands on the WELCOME, not the roster** (the mock says "the
+roster IS the screen"): `resolvePanelMode` makes mobile never dock a LIST *shell-wide*, so the
+fix is either a shell-law change (every section) or config rendering its roster into CONTENT
+on mobile (two homes for one roster). Lane did NOT improvise. REC: config-local.
+**FLAGGED, not fixed:** SwitchField anatomy differs CONTENT vs CONTEXT (shared forms-tier
+component — own lane) · COLLECTION_WINDOW_MAX_HEIGHT is a fixed cap where a pane-relative one
+belongs (~485px dead at 1080) · **`databank.createFromText` CONFLICTs while another ingest
+runs** (a second document is refused server-side; client shows a generic toast — workloads
+lane) · **documents can park in `Queued` forever** (3 of 7 in the seed; the 5-min stall hint
+fires on DETAIL but the LIST row says nothing) · character-opening inline `<code>` renders
+with UNGENERATED classes (the Streamdown-root-seal class) · listScriptUsage still 3× per batch
+· an inherited app-shell CT red (proven pre-existing at HEAD).
