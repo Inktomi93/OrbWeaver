@@ -260,6 +260,16 @@ function primaryCharacterId(room: Room): CharacterId | null {
   return first !== undefined ? first.characterId : null;
 }
 
+/** The present, NON-MUTED character names a NARRATOR turn actually voices — the narrator nudge's `{{names}}`
+ *  and its cast-of-one guard. Muted seats are excluded on the same `disabled` axis arbitration reads: a muted
+ *  member's card still informs the merged turn, but the nudge must not name them as a voice. */
+function narratorMemberNamesOf(room: Room): readonly string[] {
+  return room.castNames
+    .filter((c) => !room.mutedSpeakerKeys.has(speakerKey(c.ref)))
+    .map((c) => c.name)
+    .filter((n) => n.length > 0);
+}
+
 /** The joined present-cast name (narrator `{{char}}`-as-cast); collapses to the single name at cast=1. */
 function joinedCastName(castNames: readonly CastName[]): string {
   return castNames
@@ -812,6 +822,7 @@ async function runChain(
         speakers: [speaker],
         groupCharacterId: args.groupCharacterId,
         castName: args.castName,
+        narratorMemberNames: narratorMemberNamesOf(args.room),
       }),
   });
 }
@@ -900,6 +911,7 @@ async function runAiRound(
     speakers,
     groupCharacterId,
     castName,
+    narratorMemberNames: narratorMemberNamesOf(args.room),
   });
   const committed: MessageView[] = [...round.messages];
   if (round.aborted && round.abortReason !== undefined) {
@@ -1445,6 +1457,9 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
         speakers: [target],
         groupCharacterId: null,
         castName: target.name,
+        // A FORCED single speaker rides the `asPerSpeaker`-coerced config — never the narrator arm, so
+        // there is no cast to name.
+        narratorMemberNames: [],
       });
       return {
         messages: round.messages,

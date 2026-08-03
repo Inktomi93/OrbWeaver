@@ -246,6 +246,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
         autoFixMarkdown={messageAppearance.autoFixMarkdown}
         displayScripts={displayScripts}
         colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
+        narratorRoom={chatDetail.group.output === "narrator"}
         showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
         metadataVisibility={messageAppearance.metadataVisibility}
         viewerIsHost={chatDetail.viewerIsHost === true}

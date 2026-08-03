@@ -57,6 +57,64 @@ test("parseSpeakerSpans: a trailing marker with no following text yields an empt
   expect(parseSpeakerSpans("<speaker>Alice</speaker>")).toEqual([{ speaker: "Alice", text: "" }]);
 });
 
+// ── The SECOND marker alphabet: plain `Name:` labels for the PRESENT cast (the tolerance layer) ─────
+// The `<speaker>` format is instructed, not guaranteed — the shipped demo transcripts (generated live
+// against a real model) attribute with plain line-start labels and carry zero markers, and every narrator
+// row committed before the instruction existed has only the plain form. The grammar is timid by design.
+
+const CAST = ["Charlotte", "JFC"];
+
+test("parseSpeakerSpans: with no castNames the plain-label grammar never fires (byte-identical no-op)", () => {
+  const content = "JFC: Ship the boring version.";
+  expect(parseSpeakerSpans(content)).toEqual([{ speaker: null, text: content }]);
+});
+
+test("parseSpeakerSpans: line-start cast labels split into ordered spans, LABEL TEXT KEPT", () => {
+  const content = "*a foreleg taps*\n\nJFC: Ship it.\n\nCharlotte: With one nuance.";
+  expect(parseSpeakerSpans(content, CAST)).toEqual([
+    { speaker: null, text: "*a foreleg taps*\n\n" },
+    { speaker: "JFC", text: "JFC: Ship it.\n\n" },
+    { speaker: "Charlotte", text: "Charlotte: With one nuance." },
+  ]);
+});
+
+test("parseSpeakerSpans: a label at position 0 opens the first span (no empty preamble span)", () => {
+  expect(parseSpeakerSpans("JFC: Ship it.", CAST)).toEqual([{ speaker: "JFC", text: "JFC: Ship it." }]);
+});
+
+test("parseSpeakerSpans: markdown emphasis around the name and/or colon is tolerated", () => {
+  expect(parseSpeakerSpans("**JFC:** Ship it.", CAST)).toEqual([{ speaker: "JFC", text: "**JFC:** Ship it." }]);
+  expect(parseSpeakerSpans("*Charlotte*: Hm.", CAST)).toEqual([{ speaker: "Charlotte", text: "*Charlotte*: Hm." }]);
+});
+
+test("parseSpeakerSpans: a MID-SENTENCE cast name never splits — the label must open a line", () => {
+  const content = "She turned to JFC: the man was gone.";
+  expect(parseSpeakerSpans(content, CAST)).toEqual([{ speaker: null, text: content }]);
+});
+
+test("parseSpeakerSpans: a name outside the cast never attributes", () => {
+  const content = "Mallory: trust me.";
+  expect(parseSpeakerSpans(content, CAST)).toEqual([{ speaker: null, text: content }]);
+});
+
+test("parseSpeakerSpans: a cast label INSIDE a fenced code block is skipped (the fence stays whole)", () => {
+  const content = "JFC: here.\n\n```python\n# JFC: a comment\nprint(1)\n```";
+  expect(parseSpeakerSpans(content, CAST)).toEqual([{ speaker: "JFC", text: content }]);
+});
+
+test("parseSpeakerSpans: the LONGEST matching cast name wins (no prefix shadowing)", () => {
+  expect(parseSpeakerSpans("Anna Lee: hi", ["Anna", "Anna Lee"])).toEqual([{ speaker: "Anna Lee", text: "Anna Lee: hi" }]);
+});
+
+test("parseSpeakerSpans: blank cast names are dropped (an empty roster is the no-op)", () => {
+  const content = "JFC: Ship it.";
+  expect(parseSpeakerSpans(content, ["", "   "])).toEqual([{ speaker: null, text: content }]);
+});
+
+test("parseSpeakerSpans: a TAGGED body ignores castNames — the marker grammar is authoritative", () => {
+  expect(parseSpeakerSpans("<speaker>Charlotte</speaker>JFC: quoting him.", CAST)).toEqual([{ speaker: "Charlotte", text: "JFC: quoting him." }]);
+});
+
 test("LEADING_SPEAKER_TAG matches a leading <speaker> open-tag case-insensitively", () => {
   expect(LEADING_SPEAKER_TAG.test("<speaker>hi")).toBe(true);
   expect(LEADING_SPEAKER_TAG.test("  <Speaker name='x'> hi")).toBe(true);
