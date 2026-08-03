@@ -12,8 +12,9 @@
  *   pnpm trace:fire 'POST /api/trpc/chat.startChat'  # method-prefixed (default GET)
  *
  * For tRPC subscriptions / streaming you still want a real stack + trace-tail; this is
- * the "did my one verb behave" inspector. Shell env wins over any .env (foundation/env
- * loads dotenv WITHOUT override), so the PORT/DATABASE_URL/DEBUG_TOKEN pins below hold.
+ * the "did my one verb behave" inspector. Shell env wins over any .env (this script sets
+ * ORB_ENV_NO_OVERRIDE, so foundation/env loads the file WITHOUT override), so the
+ * PORT/DATABASE_URL/DEBUG_TOKEN pins below hold.
  *
  * FLAG(wiring): trace capture requires the foundation `observability` middleware (which
  * also echoes X-Request-Id) + `initTracing()` to be wired at entry/ — specced in
@@ -101,6 +102,11 @@ function serverEnv(port: number, dbPath: string, debugToken: string): NodeJS.Pro
     PORT: String(port),
     DEBUG_TOKEN: debugToken,
     DATABASE_URL: `file:${dbPath}`,
+    // The header has always PROMISED these pins beat a repo-root `.env`; nothing made it true (found
+    // 2026-08-03 sweeping the dotenv kill). foundation/env loads `.env` with override:true by default, so
+    // a checked-in PORT/DATABASE_URL/DEBUG_TOKEN would silently clobber the ephemeral ones and the probe
+    // would fire at the dev stack's DB. Same hatch snap-stage + multi-user-fixture.sh already use.
+    ORB_ENV_NO_OVERRIDE: "1",
     // single-user: the probe debugs server behaviour, not auth flows — no IdP ceremony.
     AUTH_MODE: "single-user",
     // Container-safe (and normalizes the pre-rebuild container's invalid `1` spelling —

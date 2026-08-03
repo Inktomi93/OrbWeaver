@@ -104,7 +104,7 @@ function curlJson<T>(url: string): T | null {
 type AuthConfig = { readonly mode?: string; readonly localEnabled?: boolean; readonly multiHumanCapable?: boolean };
 
 /** Env-pin mismatch check ported from stack.sh's `env_pin_report` — reads the LIVE process's actual
- *  AUTH_MODE off /proc, since a dotenv-loaded or since-restarted value can drift from what a caller thinks
+ *  AUTH_MODE off /proc, since a `.env`-loaded or since-restarted value can drift from what a caller thinks
  *  is running. Returns null when unreadable (container without /proc access, wrong OS) — treated as "can't
  *  prove it's the fixture," same as a mismatch. */
 function livePortOwnerIsLocalAuth(serverPort: number): boolean | null {
