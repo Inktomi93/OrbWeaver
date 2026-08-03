@@ -1,12 +1,18 @@
 // The regex collection's CONTEXT arm — "Where it runs" for the selected script.
 //
-// WHAT IT SHOWS AND WHY IT IS NOT THE MOCK'S FULL PANEL: workspace.html draws three attachment rosters
-// ("Attached by presets · 2", "…by characters · 1", "…by rooms · 0"). The regex router has only the
-// FORWARD lists (`listForPreset`/`listForCharacter`/`listForChat` — "what does THIS carrier attach"); the
-// reverse "who attaches this script" is not a verb that exists, and inventing an N-query fan-out over
-// every preset and character to fake it would be worse than saying the true thing. So the pane carries
-// the one scope this library actually owns — the global toggle — plus the sentence that tells the reader
-// where the other three live. The rosters are a SERVER verb away, not a layout away.
+// THE FOUR SCOPES, EACH IN ITS OWN VOICE (workspace.html's context column). The GLOBAL scope is a SWITCH:
+// it is a property of the script (`global_regex_scripts` PKs on the script id) and this library owns it, so
+// this pane decides it. The other three are ROSTERS: a preset, a character and a room each attach from the
+// thing they belong to, so this pane can only REPORT them — "Attached by presets · 2" over the two names.
+// The read behind them is `regex.listScriptUsage` (REGROSTER), the reverse of the forward `listFor*` lists;
+// until it existed the pane shipped an honest sentence pointing at the three carriers instead, because
+// faking the answer would have meant an N-query fan-out over every preset and character the owner has.
+//
+// A ROSTER ROW IS A NAME, NOT A LINK. There is no door from here to a preset/character/room member — the
+// existing `goToCollection` intent only opens a config COLLECTION, and none of these three is one. A row
+// that looked clickable and wasn't would be worse than a row that reads as what it is: a statement of where
+// this script already runs. An EMPTY roster still renders (with its `· 0` and the line saying where to
+// attach one) — omitting it would read as "not built", not as "none yet".
 //
 // AND THE GLOBAL SCOPE'S RUN ORDER (REGORDER). Global is an ORDERED tier, not a set: the resolver hands
 // `executeRegexScripts` the global attachments in junction-`position` order and the executor applies them
@@ -15,9 +21,11 @@
 // where its order is decided. The other three scopes author theirs in the shared picker, beside their own
 // attach switches.
 
-import type { RegexScriptRow } from "@orb/contracts/regex";
+import type { RegexAttachmentRef, RegexScriptRow } from "@orb/contracts/regex";
+import type { CharacterId, ChatId, PresetId } from "@orb/kit/ids";
 import { EmptyState } from "@orb/ui/empty-state";
-import { Code, Icon } from "@orb/ui/icons";
+import type { LucideIcon } from "@orb/ui/icons";
+import { Code, Icon, MessagesSquare, SlidersHorizontal, Users } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
@@ -49,6 +57,10 @@ function RegexScopePanel({
   readonly globals: readonly RegexScriptRow[];
 }): ReactElement {
   const trpc = useTRPC();
+  // Keyed on the RESOLVED script id, so the rosters can never belong to the previously-selected row. Rides
+  // the `regexChanged` bus row (invalidation.ts path-invalidates the whole regex router), so an attach or
+  // detach made anywhere — this device or another — repaints these lists.
+  const { data: usage } = useSuspenseQuery(trpc.regex.listScriptUsage.queryOptions({ scriptId: script.id }));
   const invalidation = useInvalidation();
   const attach = useAttachRegexGlobal({ trpc, invalidation });
   const detach = useDetachRegexGlobal({ trpc, invalidation });
@@ -71,10 +83,7 @@ function RegexScopePanel({
           }}
         />
       </Row>
-      <Text voice="gloss">
-        The one scope this library owns. The other three — a preset, a character, a room — attach this script from the thing it belongs to, so a script can run
-        in one campaign without following you everywhere.
-      </Text>
+      <Text voice="gloss">The one scope this library owns — the other three attach this script from the thing it belongs to.</Text>
       {/* Only once there is an order to author: one global script has no run order, and a non-global
           script's pane has no business editing a tier it is not in. */}
       {isGlobal && globals.length > 1 ? (
@@ -89,7 +98,69 @@ function RegexScopePanel({
           </Stack>
         </Section>
       ) : null}
+      <AttachmentRoster
+        emptyText="No preset attaches this script yet. Open a preset's Regex tab to attach it there."
+        glyph={SlidersHorizontal}
+        noun="presets"
+        rows={usage.presets}
+      />
+      <AttachmentRoster
+        emptyText="No character attaches this script yet. Open a character's Regex field to attach it there."
+        glyph={Users}
+        noun="characters"
+        rows={usage.characters}
+      />
+      <AttachmentRoster
+        emptyText="No room attaches this script yet. Open a chat's This-chat panel to attach it there."
+        glyph={MessagesSquare}
+        noun="rooms"
+        rows={usage.rooms}
+      />
     </Stack>
+  );
+}
+
+/**
+ * ONE reverse roster — "Attached by <noun> · N" over the carrier names, or the honest none-yet line.
+ *
+ * The COUNT rides in the kicker rather than a badge because the count IS part of the section's name here:
+ * "Attached by rooms · 0" is a complete statement, where a bare "Attached by rooms" over an empty box asks
+ * the reader whether the list failed to load. The empty arm keeps the section — an omitted section reads as
+ * a surface that was never built, not as a scope with nothing in it.
+ *
+ * The glyph is `aria-hidden` (Icon's default): the noun is already in the section heading the row sits
+ * under, so announcing it per row would say "presets" three times before each name.
+ */
+function AttachmentRoster({
+  noun,
+  glyph,
+  rows,
+  emptyText,
+}: {
+  readonly noun: string;
+  readonly glyph: LucideIcon;
+  readonly rows: readonly RegexAttachmentRef<PresetId | CharacterId | ChatId>[];
+  readonly emptyText: string;
+}): ReactElement {
+  return (
+    <Section data-slot={`regex-usage-${noun}`} kicker={`Attached by ${noun} · ${rows.length}`}>
+      {rows.length === 0 ? (
+        <Text voice="gloss">{emptyText}</Text>
+      ) : (
+        <Stack gap="tight">
+          {rows.map((row) => (
+            // `min-w-0` + `truncate`: this pane is the config rail's 320px context column, and a long
+            // preset name must clip inside it rather than push the roster past its own edge.
+            <Row align="center" className="min-w-0" gap="field" key={row.id}>
+              <Icon icon={glyph} size="xs" />
+              <Text as="span" className="truncate" title={row.name}>
+                {row.name}
+              </Text>
+            </Row>
+          ))}
+        </Stack>
+      )}
+    </Section>
   );
 }
 

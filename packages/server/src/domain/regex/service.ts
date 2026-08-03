@@ -26,6 +26,7 @@ import {
   createListForPreset,
   createListGlobal,
   createListRoomDisplayScripts,
+  createListScriptUsage,
 } from "./verbs/attachments";
 import { createCreate, createDuplicate, createGet, createList, createRemove, createUpdate } from "./verbs/scripts";
 
@@ -37,6 +38,7 @@ export function createRegexService(ctx: RegexContext): RegexService {
     updateScript: createUpdate(ctx),
     removeScript: createRemove(ctx),
     duplicateScript: createDuplicate(ctx),
+    listScriptUsage: createListScriptUsage(ctx),
     attachGlobal: createAttachGlobal(ctx),
     detachGlobal: createDetachGlobal(ctx),
     listGlobal: createListGlobal(ctx),

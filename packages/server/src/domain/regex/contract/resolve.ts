@@ -10,7 +10,8 @@
 // is not owner-filtered (a room's attached scripts are room-public prompt content, membership is the
 // caller's gate) — the `listChatBooks` precedent.
 
-import type { RegexScriptRow } from "@orb/contracts/regex";
+import type { Principal } from "@orb/contracts/identity";
+import type { RegexAttachmentRef, RegexScriptRow } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, PresetId, UserId } from "@orb/kit/ids";
 
@@ -49,3 +50,18 @@ export interface RoomDisplayPolicy {
   readonly enabled: boolean;
   readonly hostUserId: UserId | null;
 }
+
+/**
+ * The REVERSE-roster room filter (`listScriptUsage`): of these rooms, the ones the caller may SEE, already
+ * NAMED. Injected from chat for the same reason the guards are — rooms carry no `ownerId` (D18), so their
+ * scope is `chat_participants`, and regex reads neither the roster nor the `chats` table.
+ *
+ * It takes CANDIDATES rather than answering "every room this user is in": the candidates are the rooms the
+ * script is already attached to, so the op filters a bounded set instead of enumerating a library. A room
+ * the caller has left, or was never in, is simply absent from the answer — the same leak-free collapse the
+ * guards make, without a throw (a roster of 3 where the owner can see 2 is a roster of 2, not an error).
+ *
+ * NAMING is the op's job, not the verb's: how a room is called (authored title, else the untitled fallback)
+ * is chat's display vocabulary, and regex has no business owning a second copy of it.
+ */
+export type ResolveVisibleRooms = (principal: Principal, chatIds: readonly ChatId[]) => Promise<readonly RegexAttachmentRef<ChatId>[]>;

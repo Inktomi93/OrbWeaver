@@ -7,6 +7,10 @@
 //     updateScript, removeScript, duplicateScript, attachGlobal, detachGlobal, listGlobal,
 //     attachToCharacter, detachFromCharacter, listForCharacter, attachToPreset, detachFromPreset,
 //     listForPreset, applyScopeOrder. A foreign id collapses to `RegexNotFoundError` — never an oracle.
+//   • PROBED, TWICE (the reverse rosters): listScriptUsage gates the SCRIPT on `principal.userId` and then
+//     filters each roster on its own side — `presets.ownerId`/`characters.ownerId` in the join, and the
+//     rooms through chat's injected membership filter. Owning the script does not name a foreign preset,
+//     and it does not name a room the caller has been kicked from (the attachment row outlives the seat).
 //   • PROBED via MEMBERSHIP (D18 — the chat scope has no ownerId to probe): attachToChat/detachFromChat are
 //     HOST-gated and listForChat is MEMBER-gated, all through chat's own injected guards. The scripts named
 //     in attach/detach must still be the caller's, so the room scope cannot launder a foreign script in.
@@ -42,6 +46,13 @@ export const regexRouter = t.router({
   duplicateScript: authedProcedure
     .input(scriptIdInput)
     .mutation(({ ctx, input }) => ctx.services.regex.duplicateScript({ principal: ctx.auth, scriptId: input.scriptId })),
+
+  // The REVERSE rosters (REGROSTER): which presets/characters/rooms attach ONE owned script. Owner-gated on
+  // the script (`getScript`'s gate verbatim) AND filtered again per roster — the preset/character joins
+  // carry `ownerId`, the rooms go through chat's injected membership filter.
+  listScriptUsage: authedProcedure
+    .input(scriptIdInput)
+    .query(({ ctx, input }) => ctx.services.regex.listScriptUsage({ principal: ctx.auth, scriptId: input.scriptId })),
 
   attachGlobal: authedProcedure
     .input(scriptIdInput)
