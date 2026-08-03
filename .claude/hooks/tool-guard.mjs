@@ -3,23 +3,24 @@
 // exactly one correct fix so the agent never even loses the turn.
 //
 // ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
-// │ READ THIS FIRST IF A SUBAGENT/LANE JUST DIED SILENTLY.  "It definitely isn't the hook" was    │
-// │ WRONG once already (2026-08-03) and cost seven lanes.                                         │
+// │ THIS GUARD SHAPES *HOW* A COMMAND RUNS. IT IS NOT THE GATEKEEPER OF *WHAT* AN AGENT MAY RUN.  │
+// │ Owner ruling 2026-08-03: "our issue was never permissions of what an agent can do, we just     │
+// │ want them running the right way." Read every decision below through that sentence.            │
 // │                                                                                               │
-// │ SYMPTOM: a lane "completes" after a one-line preamble, 1-4 tool calls, at a suspiciously      │
-// │ CONSISTENT token count (~42k). Looks like a transient API failure or a context ceiling.       │
-// │ THE REAL MESSAGE, if you can see the raw tool output:  `settings deferred Bash`               │
+// │ THEREFORE: a command this guard does not object to gets `allow` — not `defer`.                │
+// │ `defer` means "no hook decision, fall through to the normal permission flow", and that flow   │
+// │ PROMPTS A HUMAN. A subagent has nobody to prompt, so it stops mid-turn, silently, with no      │
+// │ report. That is not a hypothetical: it killed NINE lanes on 2026-08-03 before it was believed. │
 // │                                                                                               │
-// │ CAUSE: the command was not covered by .claude/settings.json permissions.allow, so the normal  │
-// │ permission flow asked for approval — and A SUBAGENT HAS NOBODY TO ASK. It stops.              │
+// │ THE OLD SYMPTOM, for the record: a lane "completes" after a one-line preamble and 1-4 tool     │
+// │ calls at a suspiciously CONSISTENT token count. It reads exactly like a transient API failure. │
+// │ The raw tool output said `settings deferred Bash`. Consistency across lanes was the tell —     │
+// │ a real transient is ragged. "0 denies, so it isn't the hook" was asserted TWICE and was wrong  │
+// │ both times: the guard denied nothing and was still the cause, because defer ≠ allow.          │
 // │                                                                                               │
-// │ THIS GUARD IS IMPLICATED EVEN WHEN IT DENIES NOTHING.  `defer` means "no hook decision, fall  │
-// │ through to the normal permission flow" — it is NOT `allow`. A decisions.jsonl full of `defer`  │
-// │ with ZERO denies exonerates the guard's RULES while still being the trigger. Do not read       │
-// │ "0 denies" as "not the hook", which is exactly the mistake that was made twice.               │
-// │                                                                                               │
-// │ FIX: add the command shape to .claude/settings.json permissions.allow (NOT `git push`/`reset`/ │
-// │ `stash`/`restore`/`checkout` — those stay behind a prompt on purpose).                        │
+// │ `defer` now survives ONLY where this guard has genuinely not judged the command — the kill     │
+// │ switch, an internal error, unparseable stdin, a non-Bash tool. If you are adding a rule and    │
+// │ reach for `defer`, you almost certainly want `allow` (with a WARN context) or `deny`.          │
 // │ TRIAGE: node -e "const r=require('fs').readFileSync('reports/tool-guard/decisions.jsonl','utf8')\
 // │   .trim().split('\n').map(JSON.parse); console.log(r.filter(x=>x.agent&&x.agent!=='main').slice(-10))"│
 // └──────────────────────────────────────────────────────────────────────────────────────────────┘
@@ -42,8 +43,12 @@
 //                                     run the agent's own reader chain against the file with the real
 //                                     exit code preserved. Strictly better than deny: no lost turn.
 //   DENY                            — needs intent to fix (compound shapes), or doctrine-banned outright.
-//   WARN (defer + additionalContext)— merely suboptimal, or too many legitimate uses to block.
+//   WARN (allow + additionalContext)— merely suboptimal, or too many legitimate uses to block. It RUNS;
+//                                     the agent is told why it was suboptimal and learns for next time.
 //   ASK                             — only the owner can judge (force-push; a lane touching the remote).
+//                                     From a SUBAGENT this is emitted as DENY + the escalation line,
+//                                     because an unanswered ask kills the lane exactly like a defer did.
+//   PASS                            — allow, with a reason. The overwhelming majority. See the box above.
 //
 // DESIGN: precision over coverage. A hook that cries wolf gets disabled, and then we have nothing.
 //   · QUOTE-AWARE — quoted spans are blanked (same-length) before matching, so
@@ -243,6 +248,8 @@ const PROC_GIT_PUSH = /(^|\0)git\0([^\0]*\0)*push(\0|$)/;
 const GIT_ADD_ALL = /\bgit\s+add\s+(?:-A\b|--all\b|\.(?:\s|$))/;
 const GIT_PUSH = /\bgit\s+(?:[^\s;|&]+\s+)*?push\b/;
 const GIT_PUSH_FORCE = /\bgit\s+push\b[^\n;|]*(?:\s--force(?:-with-lease)?\b|\s-f\b)/;
+// `--hard` only: soft/mixed keep the worktree, and `reset --soft HEAD~1` is the documented lane repair.
+const GIT_RESET_HARD = /\bgit\s+(?:[^\s;|&]+\s+)*?reset\b[^\n;|&]*\s--hard\b/;
 const RM_RF_HEAD = /^\s*rm\s+(?:-[a-z]*[rf][a-z]*\s+)+/;
 const RM_SAFE_TARGET = /\/tmp\/|scratchpad|playwright\/\.cache|node_modules|reports\/|\bdist\b|\bcoverage\b|\.cache\b|\.bak\b/;
 // `$VAR` is safe (the rewrite copies text verbatim, the shell expands identically); `$(`/backticks/
@@ -274,6 +281,10 @@ const REASONS = {
     "Force-push rewrites shared history on the integration trunk — that is an owner call (6 sightings in 133,631 calls, none routine). State why, or use a plain push.",
   lanePush:
     "Standing law: a lane never pushes. Commit on your branch and report — the orchestrator merges, and each push to origin gets an explicit owner word (pushes are outward-facing and hard to walk back). If this push was explicitly ordered, confirm it here.",
+  ownerWordPush:
+    "Every push to origin needs a FRESH explicit owner word — not a banked one, not a green battery, not 'it was approved yesterday'. Pushing is outward-facing and hard to walk back. Confirm here only if the owner just gave the word for THIS push.",
+  resetHard:
+    "`git reset --hard` discards uncommitted work irreversibly, and this tree routinely carries a large uncommitted surface. If you are undoing a probe, delete the scratch file instead; if you are reading an old version, use `git show <ref>:<path>`. The sanctioned use (clearing staged-no-MERGE_HEAD debris after a killed merge) is real — confirm here if that is what this is.",
 };
 
 const CONTEXTS = {
@@ -487,7 +498,7 @@ function collectStageWarns(command, blank, clauses, contexts) {
  */
 export function classify(command, ctx) {
   if (SELF_EXEMPT.test(command)) {
-    return { decision: "defer", rule: "self-exempt", contexts: [] };
+    return { decision: "pass", rule: "self-exempt", contexts: [] };
   }
   const blank = blankHeredocs(command, blankQuoted(command));
   const clauses = parseStructure(blank);
@@ -622,6 +633,21 @@ export function classify(command, ctx) {
     return { decision: "ask", rule: "lane-git-push", reason: REASONS.lanePush, contexts };
   }
 
+  // 9b. ANY push, from anywhere — ASK. Load-bearing since pass became `allow`: this used to reach the
+  //     permission flow and prompt, because `git push` is DELIBERATELY absent from settings.json's
+  //     allowlist. With the guard allowing what it does not object to, a silent fall-through here would
+  //     push to origin with no word at all — the one thing the standing law forbids outright.
+  if (GIT_PUSH.test(blank)) {
+    return { decision: "ask", rule: "git-push", reason: REASONS.ownerWordPush, contexts };
+  }
+
+  // NOTE — deliberately NO `git reset` rule. The owner's GLOBAL settings wildcard-allow `git reset *`
+  // and `git checkout *`; adding an ask here would override a call he already made. (An earlier version
+  // of this file, the board, and the doctrine all claimed reset/checkout were "deliberately excluded
+  // from the allowlist" — that was FALSE, corrected 2026-08-03 by reading ~/.claude-b/settings.json.
+  // The ones genuinely absent are `git push`, `git stash`, `git restore` — and stash/restore are DENIED
+  // above on their destructive arms, which is this guard's own doctrine call, not a permissions gap.)
+
   // 10. long-lived non-harness command piped — REWRITE simple, WARN otherwise
   for (const clause of clauses) {
     if (clause.stages.length < 2) {
@@ -652,7 +678,10 @@ export function classify(command, ctx) {
     contexts.push(CONTEXTS.pushInFlight);
   }
 
-  return { decision: "defer", rule: contexts.length > 0 ? "advisory" : null, contexts };
+  // "pass" = the guard LOOKED and has no objection. It becomes `allow` at the hook boundary. It is
+  // deliberately NOT called "defer": deferring hands the decision to a permission flow that prompts a
+  // human, and a subagent has no human — see the box at the top of this file.
+  return { decision: "pass", rule: contexts.length > 0 ? "advisory" : null, contexts };
 }
 
 // ── hook plumbing ──
@@ -671,16 +700,19 @@ const BRIEFING = [
   "· DENIES: `git stash`/`restore`/`checkout <path>` (they destroy uncommitted work — use",
   "  `git show HEAD:<path>` to read an old version), whole-tree `biome check --write` fix-alls, and",
   "  `cd` into a worktree (the Bash cwd PERSISTS across calls — use `git -C <abs-path>`).",
-  "· ASKS on `git push` from a lane: you do not push. Commit on your branch and report; the orchestrator",
+  "· DENIES `git push` from a lane: you do not push. Commit on your branch and report; the orchestrator",
   "  merges and the owner gives an explicit word per push.",
   "· WARNS on bare `npx vitest` (drops the json reporter), `grep -r` without --exclude-dir=node_modules,",
-  "  and `sg` (use `ast-grep` — `sg` is deprecated upstream and is `newgrp` on most boxes).",
-  "If a command is refused, the message names the correct form — use it rather than working around it.",
+  "  and `sg` (use `ast-grep` — `sg` is deprecated upstream and is `newgrp` on most boxes). A warn RUNS.",
+  "· EVERYTHING ELSE RUNS. This guard is about HOW you run a command, never about what you are allowed",
+  "  to do — it does not gate your toolbox, so do not narrow your work in anticipation of it.",
+  "If a command is refused, the message names the correct form — use it rather than working around it,",
+  "and if you believe the refusal is wrong, SendMessage the orchestrator instead of routing around it.",
   "IF A BASH CALL EVER RETURNS `settings deferred Bash`: that is a PERMISSION gap, not this guard and not",
   "your mistake. You cannot answer a prompt, so you CANNOT recover by retrying. Use SendMessage to tell",
-  "the orchestrator the EXACT command that was deferred, then stop cleanly — it adds the shape to",
-  ".claude/settings.json permissions.allow and resumes you. Do not silently give up: a lane that dies",
-  "without reporting looks like a transient failure and costs the orchestrator a re-dispatch.",
+  "the orchestrator the EXACT command that was deferred, then stop cleanly. Do not silently give up: a",
+  "lane that dies without reporting looks like a transient failure and costs the orchestrator a",
+  "re-dispatch — and that misdiagnosis has already cost nine lanes in one day.",
 ].join("\n");
 
 /** True the FIRST time this agent_id is seen; writes a marker so later calls stay quiet. Best-effort:
@@ -711,7 +743,14 @@ function hookOutput(fields) {
   return { hookSpecificOutput: { hookEventName: "PreToolUse", ...fields } };
 }
 
+// Reserved for the paths where the guard has NOT judged the command: the kill switch, an internal
+// error, unparseable stdin, a non-Bash tool. There, "no opinion" is the honest answer and the normal
+// permission flow should decide. Everywhere the guard HAS looked and is content, it says `allow`.
 const DEFER = hookOutput({ permissionDecision: "defer" });
+const PASS_REASON = "tool-guard: no objection";
+const SUBAGENT_ASK_SUFFIX =
+  "You are a subagent and cannot answer a permission prompt, so this is a DENY rather than a stall. " +
+  "SendMessage the orchestrator with the exact command and why you wanted it — that decision is theirs.";
 
 function logDecision(projectDir, record) {
   try {
@@ -743,8 +782,20 @@ function readStdin(deadlineMs) {
 }
 
 function toHookOutput(result, ctx) {
-  if (result.decision === "deny" || result.decision === "ask") {
-    return hookOutput({ permissionDecision: result.decision, permissionDecisionReason: result.reason });
+  if (result.decision === "deny") {
+    return hookOutput({ permissionDecision: "deny", permissionDecisionReason: result.reason });
+  }
+  if (result.decision === "ask") {
+    // A subagent has nobody to ask. An unanswered `ask` kills the lane mid-turn with no report —
+    // the same failure `defer` used to cause. DENY instead: the lane gets the reason, ends cleanly,
+    // and can SendMessage the orchestrator, who CAN decide. The main session still gets the prompt.
+    if (ctx?.agentId) {
+      return hookOutput({
+        permissionDecision: "deny",
+        permissionDecisionReason: `${result.reason}\n${SUBAGENT_ASK_SUFFIX}`,
+      });
+    }
+    return hookOutput({ permissionDecision: "ask", permissionDecisionReason: result.reason });
   }
   if (result.decision === "allow" && result.rewrite) {
     const updatedInput = { command: result.rewrite.command };
@@ -758,12 +809,24 @@ function toHookOutput(result, ctx) {
       additionalContext: result.contexts.join("\n"),
     });
   }
+  // An explicit `defer` from the classifier means it did NOT judge this command (classifier-error).
+  // That must stay a defer — auto-allowing something nobody looked at is not the fix we are making.
+  if (result.decision === "defer") {
+    return DEFER;
+  }
+  // PASS-THROUGH IS `allow`, NEVER `defer`. This guard shapes HOW a command runs; it is not the
+  // gatekeeper of WHAT an agent may run (owner ruling 2026-08-03: "our issue was never permissions of
+  // what an agent can do, we just want them running the right way"). `defer` means "fall through to the
+  // normal permission flow" — and that flow prompts a human, so for a subagent it is a silent death at
+  // the first uncovered command. It killed nine lanes. An `allow` here is the guard saying what it
+  // actually means: I looked at this and I have no objection.
   const brief = ctx !== undefined && firstContact(ctx.projectDir, ctx.agentId) ? [BRIEFING] : [];
   const contexts = [...brief, ...result.contexts];
-  if (contexts.length > 0) {
-    return hookOutput({ permissionDecision: "defer", additionalContext: contexts.join("\n") });
-  }
-  return DEFER;
+  return hookOutput({
+    permissionDecision: "allow",
+    permissionDecisionReason: PASS_REASON,
+    ...(contexts.length > 0 ? { additionalContext: contexts.join("\n") } : {}),
+  });
 }
 
 async function runBatchMode() {
