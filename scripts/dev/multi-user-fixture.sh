@@ -56,8 +56,8 @@ export VLLM_DISABLED=true
 export SESSION_SECRET="orbweaver-multi-user-fixture-session-secret-insecure"
 export CREDENTIALS_KEY="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 export LOCAL_INITIAL_PASSWORD="owner-dev-pass"
-# Make our exports win over any future checked-in .env (foundation/env loads dotenv with override:true;
-# this escape hatch flips it to override:false so the shell recipe stands). Harmless today (no .env exists).
+# Make our exports win over any future checked-in .env (foundation/env's .env loader runs with
+# override:true; this escape hatch flips it to override:false so the shell recipe stands).
 export ORB_ENV_NO_OVERRIDE=1
 
 # The seed's contract (base URL + the four credentials) — passed through so the two files never drift.
