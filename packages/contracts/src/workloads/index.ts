@@ -1,7 +1,8 @@
 // `@orb/contracts/workloads` — the front door for the workload wire contracts. Split by concern (D15's
 // directory-module law: internals flat, this index re-exports, consumer-invisible):
-//   • axes.ts         — the canonical KIND/SOURCE/MODE/STATUS/CADENCE tuples `@orb/db` derives its enum
-//                       columns + CHECKs from (D34), plus the per-kind mode policy
+//   • axes.ts         — the canonical KIND/MODE/STATUS/CADENCE tuples `@orb/db` derives its enum
+//                       columns + CHECKs from (D34), the per-kind mode policy, and the admission-key
+//                       sentinel (the lock partition is a free-form KEY, not an axis — see below)
 //   • events.ts       — the lifecycle EVENT union + its failure shape: what the `workloads` room delivers on
 //                       the multiplexed socket (SSE-1 S5), which is why it is a wire contract and not a
 //                       domain-internal one
@@ -13,19 +14,18 @@
 //
 // `axes.ts` is the root of the directory-module: its siblings import it, it imports none of them.
 
-export type { IndexSource, ScheduleCadence, WorkloadKind, WorkloadMode, WorkloadModePolicy, WorkloadSource, WorkloadStatus } from "./axes";
+export type { IndexSource, ScheduleCadence, WorkloadKind, WorkloadMode, WorkloadModePolicy, WorkloadStatus } from "./axes";
 export {
   ACTIVE_WORKLOAD_STATUSES,
   CADENCE_INTERVAL_MS,
+  DEFAULT_ADMISSION_KEY,
   INDEX_SOURCES,
   indexSourceSchema,
-  NON_INDEX_SOURCE,
   SCHEDULE_CADENCES,
   scheduleCadenceSchema,
   WORKLOAD_KIND_MODES,
   WORKLOAD_KINDS,
   WORKLOAD_MODES,
-  WORKLOAD_SOURCES,
   WORKLOAD_STATUSES,
   workloadKindSchema,
   workloadModeSchema,

@@ -1201,7 +1201,7 @@ CREATE TABLE `workloads` (
 	`kind` text NOT NULL,
 	`status` text DEFAULT 'queued' NOT NULL,
 	`mode` text DEFAULT 'singular' NOT NULL,
-	`source` text DEFAULT 'none' NOT NULL,
+	`admission_key` text DEFAULT 'none' NOT NULL,
 	`lane` text DEFAULT 'sweep' NOT NULL,
 	`params` text DEFAULT '{}' NOT NULL,
 	`result` text,
@@ -1216,12 +1216,11 @@ CREATE TABLE `workloads` (
 	CONSTRAINT "workloads_kind_check" CHECK(kind in ('index', 'distill-characters', 'compute-themes', 'memory-backfill', 'group-character-backfill', 'compute-cooccurrence', 'find-duplicates', 'csls', 'assets-backfill', 'assets-gc', 'assets-fsck', 'import-st', 'import-bundle', 'reconcile-stats', 'refresh-model-catalog', 'reconcile-world-state', 'databank-ingest', 'databank-reindex')),
 	CONSTRAINT "workloads_status_check" CHECK(status in ('queued', 'running', 'succeeded', 'failed', 'cancelling', 'cancelled', 'worker_died')),
 	CONSTRAINT "workloads_mode_check" CHECK(mode in ('singular', 'bulk')),
-	CONSTRAINT "workloads_source_check" CHECK(source in ('none', 'text', 'image', 'all')),
 	CONSTRAINT "workloads_lane_check" CHECK(lane in ('interactive', 'sweep'))
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `workloads_mode_active_singular` ON `workloads` (`kind`,`owner_id`,`source`) WHERE status in ('queued', 'running', 'cancelling') and mode = 'singular';--> statement-breakpoint
-CREATE UNIQUE INDEX `workloads_mode_active_bulk` ON `workloads` (`kind`,`source`) WHERE status in ('queued', 'running', 'cancelling') and mode = 'bulk';--> statement-breakpoint
+CREATE UNIQUE INDEX `workloads_mode_active_singular` ON `workloads` (`kind`,`owner_id`,`admission_key`) WHERE status in ('queued', 'running', 'cancelling') and mode = 'singular';--> statement-breakpoint
+CREATE UNIQUE INDEX `workloads_mode_active_bulk` ON `workloads` (`kind`,`admission_key`) WHERE status in ('queued', 'running', 'cancelling') and mode = 'bulk';--> statement-breakpoint
 CREATE INDEX `workloads_owner_idx` ON `workloads` (`owner_id`);--> statement-breakpoint
 CREATE TABLE `character_books` (
 	`character_id` text NOT NULL,

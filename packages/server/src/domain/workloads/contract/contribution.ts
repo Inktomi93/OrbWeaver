@@ -35,6 +35,19 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
   /** The kind's params schema — the ONE validator (`start` parses it; the row read path re-parses it). */
   readonly params: z.ZodType<WorkloadParamsByKind[K]>;
   readonly lane: WorkloadLane;
+  /**
+   * The ADMISSION sub-partition: what this kind's CONCURRENCY UNIT is, derived from the row's own params and
+   * stamped into `workloads.admission_key` at the enqueue door. Two active rows of one kind collide only when
+   * their keys match, so `index` returns its embed source (text + image reindex at once) and `databank-ingest`
+   * returns its documentId (a whole bank ingests at once; ONE document twice is still refused).
+   *
+   * OMIT IT when the kind IS its own unit — the row then carries the shared `DEFAULT_ADMISSION_KEY` bucket
+   * and the lock stays per-(kind, owner) for a singular run / per-(kind) for a bulk one. This lives on the
+   * CONTRIBUTION and not in the queue because only the owning domain knows what "the same work" means
+   * (the queue spells no domain's vocabulary — D117). LANES are execution, keys are admission; the two never
+   * interact: a lane decides WHEN a row runs, a key decides WHETHER it may be enqueued at all.
+   */
+  readonly admissionKey?: (params: WorkloadParamsByKind[K]) => string;
   readonly resume: WorkloadResumePolicy;
   /** The run body — a compose-built closure over the OWNING domain's own verbs. No shared env hub. */
   readonly run: (ctx: WorkloadRunContext, params: WorkloadParamsByKind[K], report: ReportProgress, signal: AbortSignal) => Promise<WorkloadResultByKind[K]>;

@@ -1,19 +1,13 @@
 // .int test for schema/workloads: the test-mirror (db enum === contracts tuple, D34), a JSON round-trip,
 // the nullable ownerId FK, and the load-bearing single-active partial unique indexes (the MODE model: a BULK
-// run locks GLOBAL on `workloads_mode_active_bulk` (kind); a SINGULAR run locks PER-OWNER on
-// `workloads_mode_active_singular` (kind, owner_id) so two users each run their own instance — the WHERE
-// status list derives from ACTIVE_WORKLOAD_STATUSES; the partition is the `mode` column). Real libSQL
-// :memory: via freshDb (FK ON).
+// run locks GLOBAL on `workloads_mode_active_bulk` (kind, admission_key); a SINGULAR run locks PER-OWNER on
+// `workloads_mode_active_singular` (kind, owner_id, admission_key) so two users each run their own instance
+// — the WHERE status list derives from ACTIVE_WORKLOAD_STATUSES; the partition is the `mode` column). The
+// ADMISSION KEY is the owning domain's declared concurrency unit (`WorkloadContribution.admissionKey`); this
+// file drives it at the SQL level with the two shapes that exist — an axis member (`index`'s embed source)
+// and an entity id (`databank-ingest`'s document). Real libSQL :memory: via freshDb (FK ON).
 
-import {
-  ACTIVE_WORKLOAD_STATUSES,
-  SCHEDULE_CADENCES,
-  WORKLOAD_KINDS,
-  WORKLOAD_LANES,
-  WORKLOAD_MODES,
-  WORKLOAD_SOURCES,
-  WORKLOAD_STATUSES,
-} from "@orb/contracts/workloads";
+import { ACTIVE_WORKLOAD_STATUSES, SCHEDULE_CADENCES, WORKLOAD_KINDS, WORKLOAD_LANES, WORKLOAD_MODES, WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import { users, workloadSchedules, workloads } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
@@ -35,8 +29,17 @@ test("workloads.mode enum mirrors WORKLOAD_MODES (db derives the contracts tuple
   expect(workloads.mode.enumValues).toEqual([...WORKLOAD_MODES]);
 });
 
-test("workloads.source enum mirrors WORKLOAD_SOURCES (db derives the contracts tuple)", () => {
-  expect(workloads.source.enumValues).toEqual([...WORKLOAD_SOURCES]);
+// The admission key is deliberately NOT an enum column: a kind's concurrency unit is an entity id
+// (`databank-ingest` keys on its documentId) as often as it is an axis member, so there is no tuple to
+// mirror — the type-side guarantee is `WorkloadContribution.admissionKey`'s signature. Pin the ABSENCE, so
+// re-narrowing it to a tuple (which would make a per-document key unrepresentable) is a red test.
+test("workloads.admissionKey is free TEXT (no enum) and accepts an entity id as its key", async () => {
+  expect(workloads.admissionKey.enumValues).toBeUndefined();
+  const db = await freshDb();
+  const id = castId<WorkloadId>("workload_admission_key");
+  await db.insert(workloads).values({ id, kind: "databank-ingest", admissionKey: "document_01kz3vwne4fzrskkzhba0xbhzs" });
+  const rows = await db.select().from(workloads).where(eq(workloads.id, id));
+  expect(rows[0]?.admissionKey).toBe("document_01kz3vwne4fzrskkzhba0xbhzs");
 });
 
 test("workloads.lane enum mirrors WORKLOAD_LANES (db derives the contracts tuple)", () => {
@@ -127,7 +130,7 @@ test("ACTIVE_WORKLOAD_STATUSES is the [queued, running, cancelling] slot-holder 
 });
 
 // ── Round-trip: branded id, kind, default status + mode, JSON params/result ────────────────────────────
-test("workloads insert→select round-trips (defaults status=queued + mode=singular + source=none, JSON params)", async () => {
+test("workloads insert→select round-trips (defaults status=queued + mode=singular + admissionKey=none, JSON params)", async () => {
   const db = await freshDb();
   const id = castId<WorkloadId>("workload_roundtrip");
   await db.insert(workloads).values({
@@ -142,7 +145,7 @@ test("workloads insert→select round-trips (defaults status=queued + mode=singu
   expect(rows[0]?.kind).toBe("reconcile-stats");
   expect(rows[0]?.status).toBe("queued"); // the column default
   expect(rows[0]?.mode).toBe("singular"); // the column default
-  expect(rows[0]?.source).toBe("none"); // the column default — the non-index lock sentinel
+  expect(rows[0]?.admissionKey).toBe("none"); // the column default — the shared bucket a keyless kind carries
   expect(rows[0]?.params).toEqual({ characterId: "character_x" });
   expect(rows[0]?.result).toBeNull();
   expect(rows[0]?.ownerId).toBeNull(); // nullable — a system/scheduler row has no owner
@@ -206,15 +209,15 @@ test("a second ACTIVE BULK row of a kind collides globally (reconcile-stats, que
   expect(violation?.kind).toBe("unique");
 });
 
-// A SINGULAR run locks PER-(OWNER, SOURCE) — the SAME owner can't hold two active slots of one (kind, source).
-test("a second ACTIVE SINGULAR row + SAME owner + SAME source collides (index{text} per (kind, owner, source))", async () => {
+// A SINGULAR run locks PER-(OWNER, ADMISSION KEY) — the SAME owner can't hold two active slots of one (kind, admissionKey).
+test("a second ACTIVE SINGULAR row + SAME owner + SAME admission key collides (index{text} per (kind, owner, admissionKey))", async () => {
   const db = await freshDb();
   const owner = castId<UserId>("user_a");
   await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), role: "user" });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_a1"),
     kind: "index",
-    source: "text",
+    admissionKey: "text",
     mode: "singular",
     ownerId: owner,
   });
@@ -224,7 +227,7 @@ test("a second ACTIVE SINGULAR row + SAME owner + SAME source collides (index{te
     await db.insert(workloads).values({
       id: castId<WorkloadId>("workload_a2"),
       kind: "index",
-      source: "text",
+      admissionKey: "text",
       mode: "singular",
       ownerId: owner,
     });
@@ -235,23 +238,23 @@ test("a second ACTIVE SINGULAR row + SAME owner + SAME source collides (index{te
 });
 
 // THE CRUX of the flexible collapse: one owner runs index{text} + index{image} CONCURRENTLY — different
-// source, different lock slot. (What the two former embed-corpus/embed-assets kinds gave, preserved.)
-test("one owner runs index{text} + index{image} concurrently (per-(kind, owner, source) — different slots)", async () => {
+// admission key, different lock slot. (What the two former embed-corpus/embed-assets kinds gave, preserved.)
+test("one owner runs index{text} + index{image} concurrently (per-(kind, owner, admissionKey) — different slots)", async () => {
   const db = await freshDb();
   const owner = castId<UserId>("user_a");
   await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), role: "user" });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_text"),
     kind: "index",
-    source: "text",
+    admissionKey: "text",
     mode: "singular",
     ownerId: owner,
   });
-  // The same owner's concurrent image reindex is ALLOWED — a different source, a different singular slot.
+  // The same owner's concurrent image reindex is ALLOWED — a different admission key, a different singular slot.
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_image"),
     kind: "index",
-    source: "image",
+    admissionKey: "image",
     mode: "singular",
     ownerId: owner,
   });
@@ -259,15 +262,15 @@ test("one owner runs index{text} + index{image} concurrently (per-(kind, owner, 
   expect(all).toHaveLength(2);
 });
 
-// The `all` reindex-everything pass is its OWN lock slot (distinct source), single-active against another all.
-test("a second ACTIVE index{all} collides (same source single-active), but coexists with a distinct source", async () => {
+// The `all` reindex-everything pass is its OWN lock slot (distinct admission key), single-active against another all.
+test("a second ACTIVE index{all} collides (same admission key single-active), but coexists with a distinct one", async () => {
   const db = await freshDb();
   const owner = castId<UserId>("user_a");
   await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), role: "user" });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_all1"),
     kind: "index",
-    source: "all",
+    admissionKey: "all",
     mode: "singular",
     ownerId: owner,
   });
@@ -276,7 +279,7 @@ test("a second ACTIVE index{all} collides (same source single-active), but coexi
     await db.insert(workloads).values({
       id: castId<WorkloadId>("workload_all2"),
       kind: "index",
-      source: "all",
+      admissionKey: "all",
       mode: "singular",
       ownerId: owner,
     });
@@ -286,7 +289,34 @@ test("a second ACTIVE index{all} collides (same source single-active), but coexi
   expect(isConstraintViolation(caught)?.kind).toBe("unique");
 });
 
-// A SINGULAR run is NOT global — two DIFFERENT owners each hold their OWN active slot of one (kind, source).
+// THE DBFIX PIN, at the SQL level: an admission key that is an ENTITY ID, not an axis member. One owner
+// ingests two DIFFERENT documents at once (two slots) while the SAME document twice still collides — which
+// is the whole difference between "the bank is busy" (the old per-(kind, owner) lock) and "this document is
+// already being ingested".
+test("one owner ingests two DIFFERENT documents concurrently, and the SAME document twice collides", async () => {
+  const db = await freshDb();
+  const owner = castId<UserId>("user_a");
+  await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), role: "user" });
+  await db
+    .insert(workloads)
+    .values({ id: castId<WorkloadId>("workload_doc_a"), kind: "databank-ingest", admissionKey: "document_a", mode: "singular", ownerId: owner });
+  await db
+    .insert(workloads)
+    .values({ id: castId<WorkloadId>("workload_doc_b"), kind: "databank-ingest", admissionKey: "document_b", mode: "singular", ownerId: owner });
+  expect(await db.select().from(workloads).where(eq(workloads.kind, "databank-ingest"))).toHaveLength(2);
+
+  let caught: unknown;
+  try {
+    await db
+      .insert(workloads)
+      .values({ id: castId<WorkloadId>("workload_doc_a2"), kind: "databank-ingest", admissionKey: "document_a", mode: "singular", ownerId: owner });
+  } catch (err) {
+    caught = err;
+  }
+  expect(isConstraintViolation(caught)?.kind).toBe("unique");
+});
+
+// A SINGULAR run is NOT global — two DIFFERENT owners each hold their OWN active slot of one (kind, admissionKey).
 test("two DIFFERENT owners each run their own active SINGULAR index{text} (per-owner, not global)", async () => {
   const db = await freshDb();
   const a = castId<UserId>("user_a");
@@ -296,7 +326,7 @@ test("two DIFFERENT owners each run their own active SINGULAR index{text} (per-o
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_a"),
     kind: "index",
-    source: "text",
+    admissionKey: "text",
     mode: "singular",
     ownerId: a,
   });
@@ -304,7 +334,7 @@ test("two DIFFERENT owners each run their own active SINGULAR index{text} (per-o
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_b"),
     kind: "index",
-    source: "text",
+    admissionKey: "text",
     mode: "singular",
     ownerId: b,
   });
@@ -314,40 +344,40 @@ test("two DIFFERENT owners each run their own active SINGULAR index{text} (per-o
 
 // A SINGULAR run and a BULK run of one kind DON'T collide (different lock partitions) — an owner's dev bulk
 // sweep can run alongside a user's own singular pass.
-test("a SINGULAR row and a BULK row of one (kind, source) coexist (disjoint mode partitions)", async () => {
+test("a SINGULAR row and a BULK row of one (kind, admissionKey) coexist (disjoint mode partitions)", async () => {
   const db = await freshDb();
   const owner = castId<UserId>("user_a");
   await db.insert(users).values({ id: owner, handle: castId<Handle>("a"), role: "user" });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_singular"),
     kind: "index",
-    source: "text",
+    admissionKey: "text",
     mode: "singular",
     ownerId: owner,
   });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_bulk"),
     kind: "index",
-    source: "text",
+    admissionKey: "text",
     mode: "bulk",
   });
   const all = await db.select().from(workloads).where(eq(workloads.kind, "index"));
   expect(all).toHaveLength(2);
 });
 
-// BULK also keys on source — an index{text} bulk sweep and an index{image} bulk sweep run concurrently.
-test("a BULK index{text} and a BULK index{image} coexist (per-(kind, source) bulk lock)", async () => {
+// BULK also keys on the admission key — an index{text} bulk sweep and an index{image} bulk sweep run concurrently.
+test("a BULK index{text} and a BULK index{image} coexist (per-(kind, admissionKey) bulk lock)", async () => {
   const db = await freshDb();
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_bulk_text"),
     kind: "index",
-    source: "text",
+    admissionKey: "text",
     mode: "bulk",
   });
   await db.insert(workloads).values({
     id: castId<WorkloadId>("workload_bulk_image"),
     kind: "index",
-    source: "image",
+    admissionKey: "image",
     mode: "bulk",
   });
   const all = await db.select().from(workloads).where(eq(workloads.kind, "index"));

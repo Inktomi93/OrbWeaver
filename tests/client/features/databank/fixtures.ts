@@ -3,12 +3,29 @@
 // per-file copy is how the list's "12 chunks" and the detail's "12 / 12 embedded" drift into disagreeing
 // about one document), and so a contract change to `DocumentView` lands in one place.
 //
-// The three rows are the three phases the surface must tell apart: READY (the steady state), INDEXING (a
-// partial embed) and EMPTY (a scanned file that extracted to nothing).
+// The four rows are the four phases the surface must tell apart: READY (the steady state), INDEXING (a
+// partial embed), EMPTY (a scanned file that extracted to nothing) and STALLED (an in-flight row whose
+// `updatedAt` froze — the one the DBFIX lane added, because that is what a document whose ingest was
+// refused or whose worker died looks like, and it used to read `Queued` on this list forever).
+//
+// THE BROWSER CLOCK IS FROZEN at the suite-wide `FROZEN_AT_MS`, and the timestamps below are offsets from
+// it. The stall verdict is `now - updatedAt >= 5 min` where `now` is the query's own `dataUpdatedAt` — i.e.
+// the PAGE's clock. Against a live wall clock these fixtures would drift out from under the states they are
+// named for (every in-flight row reading `Stalled` once real time passed the literals), and reading the
+// ambient clock here to compensate is exactly the nondeterminism `test-determinism` forbids. So
+// `stubDatabank` pins the page clock with `page.clock.setFixedTime` — the date reader ONLY, no timer faking,
+// so the surface's own 4s ingest poll and playwright's auto-waiting still run for real.
 
 import type { Page } from "@playwright/test";
+import { FROZEN_AT_MS } from "../../../support/clock";
 import type { TrpcRecorder, TrpcRoutes } from "../../../support/ct/route-trpc";
 import { routeTrpc } from "../../../support/ct/route-trpc";
+
+/** Comfortably past the model's 5-minute stall threshold — a frozen row, not a slow one. */
+const WEDGED_AGO_MS = 3_600_000;
+
+/** The instant every databank CT's page believes it is — the SAME instant the server suites freeze at. */
+const NOW = FROZEN_AT_MS;
 
 export const READY_DOC = {
   id: "document_00000000000000000001",
@@ -20,8 +37,8 @@ export const READY_DOC = {
   charCount: 4200,
   chunkCount: 12,
   embeddedCount: 12,
-  createdAt: 1_700_000_000_000,
-  updatedAt: 1_700_000_000_000,
+  createdAt: NOW,
+  updatedAt: NOW,
 };
 
 export const INDEXING_DOC = {
@@ -32,7 +49,6 @@ export const INDEXING_DOC = {
   byteSize: 93_901,
   chunkCount: 39,
   embeddedCount: 22,
-  updatedAt: 1_699_999_999_000,
 };
 
 const EMPTY_DOC = {
@@ -43,22 +59,38 @@ const EMPTY_DOC = {
   charCount: 0,
   chunkCount: 0,
   embeddedCount: 0,
-  updatedAt: 1_699_999_998_000,
+};
+
+// The parked-forever row: real text, ZERO chunks, and an `updatedAt` that stopped moving an hour ago. Not
+// exported — like EMPTY_DOC, no CT needs its id, only the state it puts on the list.
+const STALLED_DOC = {
+  ...READY_DOC,
+  id: "document_00000000000000000004",
+  name: "Treaty of Ashfen",
+  origin: "text",
+  byteSize: 8192,
+  chunkCount: 0,
+  embeddedCount: 0,
+  createdAt: NOW - WEDGED_AGO_MS,
+  updatedAt: NOW - WEDGED_AGO_MS,
 };
 
 export const SOURCE_TEXT = "HOUSE VALEROTH — the elder line, seated at Duskwater since the Compact.";
 
-/** The bank as the surfaces read it: three documents, with the READY one globally attached. `over` replaces
+/** The bank as the surfaces read it: four documents, with the READY one globally attached. `over` replaces
  *  any route (an empty bank, a failing write) without re-spelling the rest. */
-export function stubDatabank(page: Page, over: TrpcRoutes = {}): Promise<TrpcRecorder> {
+export async function stubDatabank(page: Page, over: TrpcRoutes = {}): Promise<TrpcRecorder> {
+  // Pin the page's `Date.now` so `dataUpdatedAt` — the clock the stall verdict reads — is the same instant
+  // the rows below are dated against, on every run and every machine.
+  await page.clock.setFixedTime(NOW);
   return routeTrpc(page, {
-    "databank.list": () => [READY_DOC, INDEXING_DOC, EMPTY_DOC],
+    "databank.list": () => [READY_DOC, INDEXING_DOC, EMPTY_DOC, STALLED_DOC],
     "databank.listGlobal": () => [READY_DOC.id],
     // Resolve the REQUESTED document, so "the row you clicked is the document you got" is a real assertion
     // rather than a stub that would answer the same either way.
     "databank.get": (input: unknown) => {
       const { id, includeText } = input as { id: string; includeText?: boolean };
-      const row = [READY_DOC, INDEXING_DOC, EMPTY_DOC].find((d) => d.id === id) ?? READY_DOC;
+      const row = [READY_DOC, INDEXING_DOC, EMPTY_DOC, STALLED_DOC].find((d) => d.id === id) ?? READY_DOC;
       return { ...row, ...(includeText === true ? { extractedText: SOURCE_TEXT } : {}) };
     },
     "databank.listAttachments": () => ({ global: true, chatIds: ["chat_00000000000000000001"], characterIds: [] }),

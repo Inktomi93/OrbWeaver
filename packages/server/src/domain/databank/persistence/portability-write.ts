@@ -24,6 +24,7 @@ import type {
   ImportDocument,
   ListOwnedDocumentIds,
 } from "../contract/portability";
+import { queueIngest } from "../substrate/queue-ingest";
 import { findByImportHash, loadOwnedDocument } from "./queries";
 
 const LIMIT_ONE = 1;
@@ -164,8 +165,10 @@ export function createImportDocument(ctx: DatabankPortabilityContext): ImportDoc
     ];
     await ctx.db.batch(batchMany(stmts));
 
-    // Nothing DERIVED travels: without this the restored document is invisible to retrieval.
-    await ctx.enqueueIngest({ documentId, ownerId });
+    // Nothing DERIVED travels: without this the restored document is invisible to retrieval. Guarded like
+    // every other producer — a queue refusal must not fail a restore that already wrote the canon, and a
+    // bundle of N documents must not lose the rest of the bundle to one refusal.
+    await queueIngest(ctx, { documentId, ownerId });
     return { ok: true, created: true };
   };
 }

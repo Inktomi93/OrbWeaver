@@ -65,6 +65,24 @@ test("re-upload of identical bytes dedups without re-extracting", async () => {
   expect(h.enqueueIngest).toHaveBeenCalledTimes(1);
 });
 
+// DBFIX — THE ORPHAN, on the path the bank-seeding user actually walks. The CAS blob + the `documents` row
+// are already written when the enqueue runs, and they are not one transaction, so a refused enqueue used to
+// reject the upload while leaving a chunk-less document parked at `Queued` forever. The upload succeeds and
+// reports the un-indexed truth instead.
+test("a REJECTED ingest enqueue does not reject the upload — the document lands, reported as un-indexed", async () => {
+  const db = await freshDb();
+  const h = makeDatabankHarness(db);
+  const owner = await seedUser(db, { handle: "owner" });
+  h.enqueueIngest.mockRejectedValueOnce(new Error("the queue is down"));
+
+  const result = await h.service.upload({ principal: principalFor(owner), bytes: BYTES, mime: MIME, name: "a.md" });
+  expect(result.outcome).toBe("created");
+  expect(result.ingest).toBe("not-queued");
+  const rows = await db.select().from(documents).where(eq(documents.id, result.document.id));
+  expect(rows).toHaveLength(1);
+  expect(rows[0]?.sourceAssetId).not.toBeNull(); // the CAS provenance survives too — Reindex can re-extract
+});
+
 test("an empty extraction surfaces the empty-extraction warning (data, not a throw)", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);

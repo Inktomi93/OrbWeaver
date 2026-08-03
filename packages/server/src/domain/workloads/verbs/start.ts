@@ -13,7 +13,7 @@ import type { StartWorkloadParams } from "../contract/params";
 import type { WorkloadService, WorkloadServiceContext } from "../contract/service";
 import { isActiveKindUniqueViolation, isOwnerForeignKeyViolation } from "../persistence/constraints";
 import { insertWorkload } from "../persistence/queries";
-import { parseWorkloadInput, resolveWorkloadSource } from "../substrate/params";
+import { activeConflictMessage, parseWorkloadInput, resolveAdmissionKey } from "../substrate/params";
 
 /**
  * The MODE gate + the ROW OWNER (= runner enumeration scope) resolution, server-authoritative:
@@ -56,7 +56,9 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
         id,
         kind: input.kind,
         mode: params.mode,
-        source: resolveWorkloadSource(input.kind, input.params),
+        // The ADMISSION sub-partition — the owning domain's declared concurrency unit (a lane decides WHEN a
+        // row runs; this decides WHETHER an identical unit may be enqueued at all).
+        admissionKey: resolveAdmissionKey(contributions, input.kind, input.params),
         // The execution lane is the OWNING domain's declaration, stamped here so it survives a restart.
         lane: contributions[input.kind].lane,
         params: input.params as Record<string, unknown>,
@@ -67,7 +69,7 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
       });
     } catch (err) {
       if (isActiveKindUniqueViolation(err)) {
-        const conflict = new DomainConflictError(`a "${input.kind}" workload is already active`);
+        const conflict = new DomainConflictError(activeConflictMessage(input.kind));
         conflict.cause = err;
         throw conflict;
       }

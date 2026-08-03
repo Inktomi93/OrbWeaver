@@ -4,7 +4,8 @@
 // re-upload dedup (the `(ownerId, importHash)` unique index) — a duplicate returns the EXISTING document and
 // skips ingest (its chunks already exist / are healing). The genuinely slow half — chunk+embed of N chunks =
 // N provider calls — is the `databank-ingest` WORKLOAD enqueued at step 6 (build-never-blocks); the verb
-// returns `ingest:'queued'` immediately.
+// returns immediately with what became of that enqueue (`queued`, or `not-queued` when the queue refused it —
+// the canon still lands, un-indexed until a reindex; `substrate/queue-ingest`).
 
 import { documents } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
@@ -13,6 +14,7 @@ import type { UploadDocumentParams } from "../contract/params";
 import type { UploadResult } from "../contract/results";
 import type { DatabankContext, DatabankService } from "../contract/service";
 import { findByImportHash, toDocumentView } from "../persistence/queries";
+import { queueIngest } from "../substrate/queue-ingest";
 
 export function createUpload(ctx: DatabankContext): DatabankService["upload"] {
   return async ({ principal, bytes, mime, name }: UploadDocumentParams): Promise<UploadResult> => {
@@ -48,13 +50,13 @@ export function createUpload(ctx: DatabankContext): DatabankService["upload"] {
       updatedAt: at,
     });
 
-    const { workloadId } = await ctx.enqueueIngest({ documentId: id, ownerId });
-    await ctx.audit({ actorUserId: ownerId, action: "databank.upload", entityType: "document", entityId: id, metadata: { name, mime, workloadId } }, at);
+    const queued = await queueIngest(ctx, { documentId: id, ownerId });
+    await ctx.audit({ actorUserId: ownerId, action: "databank.upload", entityType: "document", entityId: id, metadata: { name, mime, ...queued } }, at);
 
     const document = toDocumentView(
       { id, name, mime, origin: "upload", sourceUrl: null, byteSize: bytes.length, charCount: extracted.text.length, createdAt: at, updatedAt: at },
       0,
     );
-    return { document, outcome: "created", ingest: "queued", ...(extracted.meta.charCount === 0 ? { warning: "empty-extraction" as const } : {}) };
+    return { document, outcome: "created", ingest: queued.ingest, ...(extracted.meta.charCount === 0 ? { warning: "empty-extraction" as const } : {}) };
   };
 }

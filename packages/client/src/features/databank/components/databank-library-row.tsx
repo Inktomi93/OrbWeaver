@@ -17,8 +17,10 @@
 // LEADING IS EMPTY, AND THE PHASE CHIP IS CONDITIONAL (§6.1's ruling, which came out of drawing it):
 // legacy rendered a phase Badge in the LEADING slot of EVERY row, `Ready` included — at the real 320px pane
 // floor that is chrome on six of seven rows carrying zero information (the steady state IS ready) while
-// eating the title to an ellipsis. `showsPhaseChip` gates it to `Queued`/`Indexing`/`Empty`; Ready is the
-// ABSENCE of a chip. The derived phase itself is legacy's, unchanged.
+// eating the title to an ellipsis. `showsPhaseChip` gates it to `Queued`/`Indexing`/`Empty`/`Stalled`; Ready
+// is the ABSENCE of a chip. The derived phase is legacy's plus the `Stalled` overlay — a document whose
+// ingest wedged (or was never enqueued at all) used to read `Queued` on this row FOREVER, with the stall
+// truth reachable only by opening the detail surface, which is exactly the "is it broken?" hole §2.2 names.
 //
 // The chip rides the HEAD OF THE SUBTITLE LINE, exactly as the mock draws it — through `subtitleLead`, the
 // `ListRow` slot this lane minted for it. The first build put it in `markers` (the TITLE line, the landed
@@ -34,10 +36,13 @@ import { Globe, Icon, RefreshCw } from "@orb/ui/icons";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { LibraryRow, RowToggleAction } from "#components";
-import { documentSubtitle, ingestBadge, ingestPhase, showsPhaseChip } from "../lib/databank-model";
+import { documentSubtitle, ingestBadge, ingestPhase, ingestStallHint, showsPhaseChip } from "../lib/databank-model";
 
 export interface DatabankLibraryRowProps {
   readonly document: DocumentView;
+  /** The list's mount-time clock snapshot — the stall threshold's `now` (client-determinism: the render edge
+   *  passes the wall clock, this component never reads one). */
+  readonly nowMs: number;
   readonly selected: boolean;
   /** Does this document feed EVERY chat (`databank.listGlobal`'s id set, D-1)? */
   readonly global: boolean;
@@ -51,6 +56,7 @@ export interface DatabankLibraryRowProps {
 
 export function DatabankLibraryRow({
   document,
+  nowMs,
   selected,
   global,
   onSelect,
@@ -59,8 +65,9 @@ export function DatabankLibraryRow({
   onDelete,
   onToggleGlobal,
 }: DatabankLibraryRowProps): ReactElement {
-  const phase = ingestPhase(document);
+  const phase = ingestPhase(document, nowMs);
   const badge = ingestBadge(phase);
+  const stallHint = ingestStallHint(document, nowMs);
   // ONE pair of names for both the inline toggle and its kebab mirror, so the two can never drift.
   const everywhereOn = `Stop feeding ${document.name} to every chat`;
   const everywhereOff = `Feed ${document.name} to every chat`;
@@ -119,7 +126,12 @@ export function DatabankLibraryRow({
             // lines apart and eat the scent text it precedes. Inline keeps the tone (the whole point of a
             // chip over a word) at zero line-box cost.
             subtitleLead: (
-              <Badge className="mr-field" intent={badge.intent} size="inline" tone="soft">
+              // A STALLED row carries its remedy on the chip's own `title` rather than in the subtitle text:
+              // at the 320px pane floor "Still queued — Reindex can restart a stuck job." would ellipsis the
+              // provenance/size/chunks scent it precedes, which is the exact defect §6.1's chip ruling
+              // exists to prevent. The chip's danger tone is the rest-visible signal; the sentence is one
+              // hover (and one AT read) away, and Reindex is on this row's own kebab.
+              <Badge className="mr-field" intent={badge.intent} size="inline" tone="soft" {...(stallHint === null ? {} : { title: stallHint })}>
                 {badge.label}
               </Badge>
             ),

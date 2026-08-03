@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "e4e7faa1-6c61-4a02-b31f-33fe30f223cc",
+  "id": "78069502-ad0e-4022-9e8a-7a8f197562f7",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -7800,8 +7800,8 @@
           "autoincrement": false,
           "default": "'singular'"
         },
-        "source": {
-          "name": "source",
+        "admission_key": {
+          "name": "admission_key",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -7887,13 +7887,13 @@
       "indexes": {
         "workloads_mode_active_singular": {
           "name": "workloads_mode_active_singular",
-          "columns": ["kind", "owner_id", "source"],
+          "columns": ["kind", "owner_id", "admission_key"],
           "isUnique": true,
           "where": "status in ('queued', 'running', 'cancelling') and mode = 'singular'"
         },
         "workloads_mode_active_bulk": {
           "name": "workloads_mode_active_bulk",
-          "columns": ["kind", "source"],
+          "columns": ["kind", "admission_key"],
           "isUnique": true,
           "where": "status in ('queued', 'running', 'cancelling') and mode = 'bulk'"
         },
@@ -7928,10 +7928,6 @@
         "workloads_mode_check": {
           "name": "workloads_mode_check",
           "value": "mode in ('singular', 'bulk')"
-        },
-        "workloads_source_check": {
-          "name": "workloads_source_check",
-          "value": "source in ('none', 'text', 'image', 'all')"
         },
         "workloads_lane_check": {
           "name": "workloads_lane_check",
