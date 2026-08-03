@@ -114,6 +114,16 @@ test("v3→v4 AppSettings lift is a no-op passthrough — the ⑩ admin fields a
   expect(liftedV3.agentSdkConcurrency).toBeUndefined();
 });
 
+test("v4→v5 AppSettings lift is a no-op passthrough — structuredOutputShape is additive (absent ⇒ the resolver floor)", () => {
+  // D126. A v4 blob (no shape field) lifts to v5 untouched; the missing field stays absent and reads back as
+  // its born-in-DB floor. A garbage value self-heals to absent rather than nuking the blob (`.catch`).
+  const liftedV4 = parseAppSettings({ schemaVersion: 4, imageVariantQuality: 60 });
+  expect(liftedV4.imageVariantQuality).toBe(60);
+  expect(liftedV4.structuredOutputShape).toBeUndefined();
+  expect(parseAppSettings({ structuredOutputShape: "strict-compatible" }).structuredOutputShape).toBe("strict-compatible");
+  expect(parseAppSettings({ structuredOutputShape: "nonsense", logLevel: "debug" })).toEqual({ logLevel: "debug" });
+});
+
 // ── Lenient parse: garbage degrades to the default (never throws) ──
 
 test("parseAppSettings degrades a non-object / garbage blob to {} (no overrides)", () => {
@@ -464,8 +474,8 @@ test("a stored prose override round-trips, and a RETIRED slot id is stripped ins
   expect(parsed.prose).toEqual({ "chat.compaction.system": { text: "Summarize like a ship's log.", baseVersion: 1 } });
 });
 
-test("the pinned schema versions: AppSettings v4 (Phase B ⑩), UserSettings v8 (the regex section's DELETION, D121-E)", () => {
-  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V4);
+test("the pinned schema versions: AppSettings v5 (D126 structuredOutputShape), UserSettings v8 (the regex section's DELETION, D121-E)", () => {
+  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V5);
   expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V8);
 });
 

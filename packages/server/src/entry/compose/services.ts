@@ -623,6 +623,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     character,
     chat: chatCompose.service,
     toolUse,
+    // D126 — the deployment's structured-output wire shape, read PER CALL off the resolved AppSettings tier
+    // (Settings › Admin › Structured output). A thunk, so an admin flip reaches the next extraction without a
+    // restart (the `maxImageBytes` / `promptTransformDeadlineMs` precedent).
+    structuredOutputShape: () => effectiveConfig.getEffectiveConfig().structuredOutputShape,
   });
   rpgOpsHolder = rpgCompose.chatOps;
   const rpg = rpgCompose.service;

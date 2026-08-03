@@ -96,7 +96,9 @@ const WIRE_SUBSETS: Readonly<Record<WireSchemaMode, WireSubset>> = {
     pinClosed: false,
     requireAllAsNullable: false,
   },
-  // STRICT-COMPATIBLE (built 2026-08-03, owner ruling — an OPTION, wired nowhere by default). The hosted subset
+  // STRICT-COMPATIBLE (built 2026-08-03, owner ruling — an OPTION, OFF by default but SELECTABLE at runtime:
+  // `AppSettings.structuredOutputShape` picks it per deployment, Settings › Admin › Structured output, D126;
+  // the extraction request builder `entry/compose/rpg.ts` is the caller that passes this mode). The hosted subset
   // PLUS the documented optional-as-null reshape: OpenAI strict demands "All fields or function parameters must
   // be specified as `required`" and names the escape — "Emulate optional parameters using union with null"
   // (`https://developers.openai.com/api/docs/guides/structured-outputs`). Anthropic's grammar compiler refuses a
