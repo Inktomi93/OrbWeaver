@@ -69,6 +69,18 @@ docs/design/databank-surface-spec.md + published mocks; own rail section; S1-S3 
 RowToggleAction exists; the workspace-scroll lesson (ct-hub) applies to its host; mock-first
 NOT needed (mocks exist + were owner-ruled 08-01).
 
+**⚠ NEW MORNING FORK — DATABANK: own rail section (ARM A, shipping) vs a 4th CONFIG
+COLLECTION (ARM E, new):** DBANK found D-0's premise DIED tonight — the 08-01 ruling gave
+databank "its own 9th rail section" against a rail where World Info was STILL a section;
+R2WI demoted world-info with the rationale "a books LIBRARY is workspace anatomy, not a
+top-level destination... two library sections competing with the workspace that exists to
+hold exactly this" — and the databank spec §3.1 asserts world-info and databank are the
+BYTE-IDENTICAL shape. So the demotion rationale applies verbatim to documents. **I ruled
+SHIP ARM A** (his 08-01 ruling stands; rail membership is his reserved taste axis; reversing
+it while he sleeps is not a ladder call) — and the cost of changing his mind is ONE FILE +
+a retire-heal row (R2 proved it). What Arm A genuinely buys: the library's own search box +
+list band + the D-6 `reindex({kind:'owner'})` header kebab, which a collection group band
+has no slot for. Full analysis verbatim in DBANK's report; a comment at the mount cites it.
 **MORNING OWABLES (unchanged + tonight's additions):** the push word · the 3 nudge texts
 (NARCOLOR report, verbatim) · tag drag-reorder fork (CONCRETE liftable arm exists — REGORDER's
 MoveControls) · REGPAR F1 prompt-ephemerality (REC accept-and-rename) + F3/F4/F5 menu ·
