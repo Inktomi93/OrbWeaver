@@ -58,6 +58,7 @@ import {
   strippedToolCallKeys,
   toolCallsToExtraction,
 } from "@orb/contracts/rpg";
+import type { StructuredOutputShape } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import { errorMessage } from "@orb/kit/error-message";
@@ -109,24 +110,31 @@ import { minter } from "./minter";
  *  `json_schema.name`; Anthropic tool name). One home — no scattered magic string. */
 const EXTRACTION_SCHEMA_NAME = "rpg_state_extraction";
 
-/** THE STRICT-SHAPE A/B LEVER (owner ruling 2026-08-03) — **OFF**. Flipping this to `true` sends the extraction
- *  schema in the OpenAI-strict shape (`strict-compatible`: every property `required`, every optional emitted as
- *  `anyOf:[T,{"type":"null"}]`) and asks for `strict: true`. Nothing about the CONTRACT changes — `null ≡ absent`
- *  is imposed at the salvage boundary (`dropNullValues`), so omit-means-keep survives verbatim.
+/** THE STRICT-SHAPE ARMS (D126) — one builder per `StructuredOutputShape`, selected at RUNTIME off the
+ *  AppSettings tier (`EffectiveAppConfig.structuredOutputShape`, admin-editable in Settings › Admin ›
+ *  Structured output; env floor `as-projected`, DB override wins). It was a source-level `boolean` const until
+ *  2026-08-03 — a capability reachable only by editing and redeploying, which is a dead switch (D107).
  *
- *  Why it is a lever and not the default: the reshape is the documented route past BOTH hosted walls (OpenAI
- *  strict's "all fields must be required"; Anthropic's undocumented optional-count ceiling), but it costs ~46
- *  explicit `null`s of output per extraction and reads materially worse to a small local model — which is the
- *  wire our populate lever depends on. It wants a live A/B (hosted Claude/GPT vs the local 8B) before it becomes
- *  the shape, and that A/B is the owner's to run. Typed `boolean` so both arms stay live code. */
-const EXTRACTION_STRICT_WIRE: boolean = false;
+ *  `strict-compatible` sends the schema in the OpenAI-strict shape (every property `required`, every optional
+ *  emitted as `anyOf:[T,{"type":"null"}]`) and asks for `strict: true`. Nothing about the CONTRACT changes —
+ *  `null ≡ absent` is imposed at the salvage boundary (`dropNullValues`), so omit-means-keep survives verbatim.
+ *  It stays OFF by default because it costs ~46 explicit `null`s of output per extraction and reads materially
+ *  worse to a small local model — the wire our populate lever depends on. The reason to switch it on is a
+ *  hosted wall: OpenAI strict's "all fields must be required", or Anthropic's undocumented ceiling on the
+ *  NUMBER of optionals a schema may carry.
+ *
+ *  A mapped Record, not a ternary: a new `StructuredOutputShape` without an arm is a tsc error (§5.5). */
+const EXTRACTION_RESPONSE_FORMATS: Readonly<Record<StructuredOutputShape, (schema: Record<string, unknown>) => ResponseFormat>> = {
+  "as-projected": (schema) => ({ name: EXTRACTION_SCHEMA_NAME, schema }),
+  "strict-compatible": (schema) => ({ name: EXTRACTION_SCHEMA_NAME, schema: scrubWireSchema(schema, "strict-compatible").schema, strict: true }),
+};
 
-/** The extraction call's `ResponseFormat`, in whichever wire shape the lever above selects. ONE home, so the
- *  two arms (`extractViaChat` / `extractViaStructured`) can never disagree about what was sent. */
-function extractionResponseFormat(schema: Record<string, unknown>): ResponseFormat {
-  return EXTRACTION_STRICT_WIRE
-    ? { name: EXTRACTION_SCHEMA_NAME, schema: scrubWireSchema(schema, "strict-compatible").schema, strict: true }
-    : { name: EXTRACTION_SCHEMA_NAME, schema };
+/** The extraction call's `ResponseFormat`, in whichever wire shape the deployment selected. ONE home, so the
+ *  two arms (`extractViaChat` / `extractViaStructured`) can never disagree about what was sent. Resolved
+ *  PER CALL (not captured at compose time) so an admin flip governs the very next extraction — the
+ *  `getEffectiveConfig` cache is rebuilt on every admin write. */
+function extractionResponseFormat(deps: RpgComposeDeps, schema: Record<string, unknown>): ResponseFormat {
+  return EXTRACTION_RESPONSE_FORMATS[deps.structuredOutputShape()](schema);
 }
 
 /** What the rpg seam needs from the composition root: db + the sibling front doors rpg's injected ops route
@@ -172,6 +180,9 @@ export interface RpgComposeDeps {
   readonly chat: Pick<ChatService, "addCharacterToChat">;
   /** The ONE tool-use registry — rpg registers its 7 state tools into it (the imagery precedent). */
   readonly toolUse: Pick<ToolUseService, "register">;
+  /** The deployment's structured-output wire shape (D126), read PER CALL off the resolved AppSettings tier —
+   *  a thunk, never a captured value, so an admin flip governs the next extraction with no restart. */
+  readonly structuredOutputShape: () => StructuredOutputShape;
 }
 
 /** How many handle candidates the promotion mint probes before refusing (`vesna`, `vesna-2`, … `vesna-25`).
@@ -404,7 +415,7 @@ async function extractViaChat(deps: RpgComposeDeps, ctx: ExtractCtx): Promise<st
     // ENFORCED verdict (`resolveOwnerConsented`, engine.ts), inherited — NOT a force-stamped `true`: a
     // member-triggered turn on a non-consented sub already refused before commit, so no round ever fires.
     ownerConsented: ctx.ownerConsented,
-    responseFormat: extractionResponseFormat(ctx.schema),
+    responseFormat: extractionResponseFormat(deps, ctx.schema),
   });
   return result.reply;
 }
@@ -418,7 +429,7 @@ async function extractViaStructured(deps: RpgComposeDeps, ctx: ExtractCtx): Prom
     credential: ctx.conn.credential,
     model: ctx.conn.model,
     inputs: [{ systemPrompt: ctx.systemPrompt, userPrompt: ctx.userPrompt }],
-    responseFormat: extractionResponseFormat(ctx.schema),
+    responseFormat: extractionResponseFormat(deps, ctx.schema),
   });
   return result.items.at(0)?.text ?? "";
 }

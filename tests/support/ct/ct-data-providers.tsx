@@ -71,6 +71,7 @@ import {
   operationsSection,
   rateLimitsSection,
   sharedAccessSection,
+  structuredOutputSection,
   systemTuningSection,
 } from "@orb/client/features/user-admin";
 import { backupPane, workloadsJobsSection, workloadsPane, workloadsSchedulesSection, workloadsTuningSection } from "@orb/client/features/workloads";
@@ -242,6 +243,7 @@ const realSettingsSections: ContributorRegistry<SettingsSectionContribution> = c
   memoryTuningSection,
   rateLimitsSection,
   systemTuningSection,
+  structuredOutputSection,
   // workloads ← the DECOMPOSED pane (SET-SEAMS stage 3), in the door's render order.
   workloadsJobsSection,
   workloadsSchedulesSection,

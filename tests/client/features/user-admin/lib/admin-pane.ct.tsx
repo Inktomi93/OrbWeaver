@@ -52,7 +52,7 @@ const APP_SETTINGS = {
   },
 };
 
-/** The twelve sections at the `admin` anchor, in the door's declared order (main.tsx) — which IS the render
+/** The thirteen sections at the `admin` anchor, in the door's declared order (main.tsx) — which IS the render
  *  order: the five that merged in from the retired SYSTEM pane (SET-SEAMS stage 4 / §10 Q2), then the four
  *  that moved out of the retired admin pane surface, then the AppSettings admin-tier sections. */
 const ANCHOR_ORDER = [
@@ -68,6 +68,7 @@ const ANCHOR_ORDER = [
   "settings-anchor-admin-memory-tuning",
   "settings-anchor-admin-rate-limits",
   "settings-anchor-admin-system-tuning",
+  "settings-anchor-admin-structured-output",
 ];
 
 /** The nav rows the pane DERIVES from its contributions, in door order. */
@@ -84,6 +85,7 @@ const NAV_LABELS = [
   "Memory tuning",
   "Rate limits",
   "System tuning",
+  "Structured output",
 ];
 /** A moved section's surviving search leaf, and the nav label a hidden pane must not surface. */
 const SESSIONS_LEAF = /Sessions/;
@@ -91,7 +93,7 @@ const ENGINES_LEAF = /Engines/;
 /** A leaf that travelled in from the retired SYSTEM pane (stage 4). */
 const LOG_LEVEL_LEAF = /Log level/;
 
-// The resolved slice the EIGHT AppSettings sections read together (each has its own CT pinning its own
+// The resolved slice the NINE AppSettings sections read together (each has its own CT pinning its own
 // knobs; here they all mount at once, so ONE stub must satisfy all of them). Untyped route stubs, so a
 // partial suffices.
 const RESOLVED_APP = {
@@ -117,6 +119,7 @@ const RESOLVED_APP = {
   discreetLogin: false,
   corpusAutoindex: false,
   logLevel: "info",
+  structuredOutputShape: "as-projected",
 };
 
 function stub(page: Page, viewer: typeof OWNER_VIEWER, extra: TrpcRoutes = {}): Promise<TrpcRecorder> {
@@ -132,7 +135,7 @@ function stub(page: Page, viewer: typeof OWNER_VIEWER, extra: TrpcRoutes = {}): 
   });
 }
 
-test("the skimmer renders all twelve admin sections, in the door's declared order", async ({ mount, page }) => {
+test("the skimmer renders all thirteen admin sections, in the door's declared order", async ({ mount, page }) => {
   await stub(page, OWNER_VIEWER);
   await mount(<AdminPaneStory />);
   // Every section resolves its OWN read behind its OWN boundary, so wait on the full set rather than on one
