@@ -54,6 +54,7 @@ export function useSmoothText(target: string, opts: UseSmoothTextOptions): strin
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
     if (document.visibilityState === "hidden") {
+      // eslint-disable-next-line react-you-might-not-need-an-effect/no-external-store-subscription -- the visibility subscription drives an IMPERATIVE flush (jump the reveal cursor to the end of the buffer), not a state mirror; useSyncExternalStore has no imperative sink and would have to snapshot a value nothing renders.
       flushToEnd();
     }
 

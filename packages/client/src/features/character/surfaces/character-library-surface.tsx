@@ -256,6 +256,7 @@ function useRestoreRowFocus(surfaceRef: RefObject<HTMLDivElement | null>, focusC
         raf = globalThis.requestAnimationFrame(attempt);
       }
     };
+    // eslint-disable-next-line react-you-might-not-need-an-effect/no-external-store-subscription -- no render state is derived here: this is a bounded rAF retry loop that IMPERATIVELY focuses a virtualized row once the virtualizer mounts it; the setPendingId(null) is the loop's own stop signal, not a mirror of an external store.
     attempt();
     return (): void => globalThis.cancelAnimationFrame(raf);
   }, [pendingId, items, surfaceRef]);
