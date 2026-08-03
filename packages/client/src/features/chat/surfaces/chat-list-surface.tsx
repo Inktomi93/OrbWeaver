@@ -121,13 +121,13 @@ function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCha
   //
   // It names the VERB, not the contents (home side-eye): a clickable character face LAUNCHES a chat
   // everywhere else in the app — on home, one rail click away — so a bare "Faces" left the same picture
-  // carrying opposite verbs. "Filter by face" is the line that disambiguates before the click, and the
+  // carrying opposite verbs. "Filter by character" is the line that disambiguates before the click (owner: name the thing, not the cuteness), and the
   // selected face's accent caption + the "Filtered: X" chip below confirm it after.
   return (
     <FaceStrip
       caption={true}
       items={faces}
-      kicker="Filter by face"
+      kicker="Filter by character"
       label="Recent characters"
       onSelect={scopeToFace}
       selectedId={characterFilter?.id ?? null}

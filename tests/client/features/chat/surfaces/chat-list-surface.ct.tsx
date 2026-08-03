@@ -440,7 +440,7 @@ test("Arm B: the strip's kicker names the FILTER verb, so a face here can't read
   await routeTrpc(page, { "chat.listChats": [ADVENTURE], "character.list": CHARACTERS });
 
   const component = await mount(<ChatListSurfaceStory />);
-  const kicker = component.getByText("Filter by face", { exact: true });
+  const kicker = component.getByText("Filter by character", { exact: true });
   await expect(kicker).toBeVisible();
   await expect(kicker).toHaveCSS("text-transform", "uppercase");
   // The launcher noun is gone — a face in this pane never says only what it is.
