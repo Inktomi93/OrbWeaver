@@ -31,6 +31,20 @@ export interface CreateGameResult {
  *  `reason` says which and why. `ok:true` means the write COMMITTED — never "the call arrived". */
 export type HandDoorResult = { readonly ok: true } | { readonly ok: false; readonly reason: string };
 
+/** THE RESYNC VERDICT (`resyncFromStory`, crunchy-cluster §1.3) — the HAND-DOOR grammar applied to the ONE
+ *  host verb that spends real money on a model call. It used to return `void`, which made three very different
+ *  endings render identically to the host: the panel rebuilt, the model found nothing to change, and the
+ *  provider refused the call outright. The last one was LIVE on the default hosted backend — every resync 400'd
+ *  inside the provider, the compose op swallowed it to an empty delta, and the client reported success (the
+ *  banned silent fork, on a host door). The three endings are now distinct DATA:
+ *    • `{ok:true, rebuilt:true}`  — a reconciled snapshot was written (the panel moved);
+ *    • `{ok:true, rebuilt:false}` — the round ran and re-derived nothing (an unchanged story: the idempotent
+ *      second click, and the honest "there was nothing to fix");
+ *    • `{ok:false, reason}`       — the round could NOT run: the room connection didn't resolve, the wire has
+ *      no structured writer, the model call failed, or the F1 write boundary refused the rebuild. `reason` is
+ *      the sentence the host reads — it names which, so a provider outage never masquerades as "no drift". */
+export type ResyncResult = { readonly ok: true; readonly rebuilt: boolean } | { readonly ok: false; readonly reason: string };
+
 /** What the PURE actor-op applier returns (`substrate/actor-ops.ts`): the next row + the FINE lock paths its
  *  ops earned, or an errors-as-data refusal (an op naming an item/condition the actor does not carry). Homed
  *  here because a domain type has no home in the substrate that produces it (substrate-not-a-type-home). */
