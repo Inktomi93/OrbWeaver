@@ -6,6 +6,13 @@
 // (the bundle funnel is source-agnostic — 02 §4 rider). `runSnippet` is the inline mode (03 §1): the service
 // gates the caller's chat authority leak-free (foreign chat ⇒ NOT_FOUND). Event delivery / tool invocation are
 // P4b.
+//
+// DORMANT BY BUILD-ORDER (owner-ruled 2026-08-03 — the full citation is `domain/plugin/index.ts`'s header):
+// every procedure below is mounted, authed and PROBED by the cross-tenant sweep, and NONE of them has a
+// client caller — `packages/client` names `trpc.plugin.*` nowhere, and `install` wants raw bundle bytes no
+// shipped affordance produces. That is a missing client WAVE, not a retired feature: read these as awaiting
+// the install/list pane, never as unreachable rows to prune. A sweep reader who finds them caller-less is
+// looking at the right thing and should leave them alone.
 
 import { PLUGIN_CAPABILITIES } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";

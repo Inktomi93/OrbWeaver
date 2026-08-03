@@ -10,6 +10,13 @@
 // values are preserved on the semantically-equivalent elements (rule 0.7), and the row still renders
 // nothing when every gated datum is absent.
 //
+// THIS ROW IS DATA ONLY — it holds no ACTIONS (WIREBTN, owner nit 2026-08-03). RAWVIEW originally grafted
+// the host-only wire-trace trigger here (it was the only per-VARIANT surface that existed), which left a lone
+// button sitting under every message. Its home is the message kebab with the other row actions (D62 §12: the
+// ⋯ menu IS the action home), so `MessageActionsRow` owns the item, the host gate, and the dialog now. If a
+// future datum needs the `viewerIsHost` bit, it comes back as its own prop — the AUTHORITY-vs-appearance
+// distinction that prop encoded was real; it just wasn't an argument for keeping an action in a data row.
+//
 // PD-130 (generation timer): the turn engine writes `message_variants.gen_started_at`/`gen_finished_at`
 // on the real turn path (live since eb5d6b3c) and the read seam surfaces them as `genStartedAt`/
 // `genFinishedAt`. Its readout was already quiet micro-mono text (P5) — untouched here.
@@ -22,7 +29,6 @@ import { Fragment } from "react";
 import { timeLib } from "#lib";
 import { genDurationLabel } from "../lib/gen-duration";
 import { MessageCostReadout } from "./message-cost-readout";
-import { MessageWireTrigger } from "./message-wire-trigger";
 
 /** The metadata-datum subset of the appearance prefs (mirrors `useMessageAppearance`'s row-display
  *  shape) — threaded from the surface, never a per-row query (rows stay prop-driven). */
@@ -38,12 +44,6 @@ export interface MessageMetadataVisibility {
 export interface MessageMetadataRowProps {
   readonly message: MessageView;
   readonly visibility: MessageMetadataVisibility;
-  /** RAWVIEW — the viewer holds the room HOST role (`ChatDetail.viewerIsHost`), the one datum here that is
-   *  an AUTHORITY fact rather than an appearance preference (hence its own prop, not a `visibility` key).
-   *  Gates the per-variant wire trigger: the read is `requireHost` server-side, so a member is never shown
-   *  an affordance that would refuse — and never shown that the plane exists. Absent ⇒ NOT host (fail-closed:
-   *  a caller that forgets to thread it hides the trigger rather than exposing it). */
-  readonly viewerIsHost?: boolean | undefined;
 }
 
 /** The message timestamp as quiet inline micro-mono text (D66 P5) — rendered beside the speaker name in
@@ -81,7 +81,7 @@ function metadatum(slot: string, text: string): ReactElement {
 /** The opt-in per-message metadata row. Renders nothing when every gated datum is absent (a draft
  *  greeting row, or every toggle off) — never an empty `<Row>` shell. Timestamps are handled by
  *  `MessageTimestamp` in the name row, not here. */
-export function MessageMetadataRow({ message, visibility, viewerIsHost = false }: MessageMetadataRowProps): ReactElement | null {
+export function MessageMetadataRow({ message, visibility }: MessageMetadataRowProps): ReactElement | null {
   const tokens = tokenCount(message);
   const items: ReactElement[] = [];
 
@@ -104,17 +104,6 @@ export function MessageMetadataRow({ message, visibility, viewerIsHost = false }
     items.push(
       <Fragment key="gen-cost">
         <MessageCostReadout message={message} />
-      </Fragment>,
-    );
-  }
-
-  // RAWVIEW — the HOST-only per-variant wire inspector. Gated on the host bit ONLY (not on an appearance
-  // toggle): it is a diagnostic the room owner reaches for when a turn goes wrong, not a chip they curate.
-  // Its query fires only on the click (the `MessageCostReadout` gate), so an unopened row costs nothing.
-  if (viewerIsHost) {
-    items.push(
-      <Fragment key="wire">
-        <MessageWireTrigger message={message} />
       </Fragment>,
     );
   }

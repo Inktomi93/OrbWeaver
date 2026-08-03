@@ -8,11 +8,12 @@ import { Button } from "@orb/ui/button";
 import { FieldLayout } from "@orb/ui/field";
 import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
+import type { MacroSuggestion } from "@orb/ui/macro-textarea";
 import { Markdown } from "@orb/ui/markdown";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { useColorQuotedSpeech } from "#data";
+import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
 import type { AppFormInstance } from "#forms";
 import { ASSISTANT_PREFILL_WARNING } from "#lib";
 import { useSpoilerBlur } from "#state";
@@ -20,7 +21,6 @@ import type { CHARACTER_CARD_FACET_IDS } from "../lib/character-card-facets";
 import { facetById } from "../lib/character-card-facets";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model";
 import { isDepthPromptPrefill } from "../lib/character-card-form-model";
-import { CHARACTER_CARD_MACROS } from "../lib/character-card-macros";
 import { parseExampleBlocks } from "../lib/example-messages";
 import type { CharacterProvenanceSectionProps } from "./character-provenance-section";
 import { CharacterProvenanceSection } from "./character-provenance-section";
@@ -85,14 +85,21 @@ interface FacetBodyProps {
   readonly trusted: boolean;
   readonly readOnly: CharacterProvenanceSectionProps;
   readonly spoilerBlur: boolean;
+  /** MACU-2 — the `{{ }}` catalog these fields complete against: the builtins UNION the active preset's user
+   *  macros. Threaded (like `spoilerBlur`) rather than read per field, because the renderer table below is a
+   *  plain dispatch CALL, not a component — a hook inside one of those arrows would run conditionally on the
+   *  selected facet. Card free text is rendered through the per-turn macro registry at assembly
+   *  (`renderMemberField`), so a user macro really does resolve in these fields. */
+  readonly suggestions: readonly MacroSuggestion[];
 }
 
 /** THE CONTENT-BODY DISPATCH — exhaustive `Record<CharacterFacetId, …>` (the house Record-not-switch
  *  dispatch, `template-drill-in.tsx`'s `CAPABILITY_RENDERERS`). A new facet id fails `tsc` HERE until it
  *  has a renderer, instead of silently falling through a switch. */
 const FACET_BODY_RENDERERS: Record<CharacterFacetId, (props: FacetBodyProps) => ReactElement> = {
-  description: ({ form, spoilerBlur }) => (
+  description: ({ form, spoilerBlur, suggestions }) => (
     <SpoilerMacroField
+      suggestions={suggestions}
       form={form}
       name="description"
       label="Description"
@@ -101,22 +108,41 @@ const FACET_BODY_RENDERERS: Record<CharacterFacetId, (props: FacetBodyProps) => 
       rows={16}
     />
   ),
-  personality: ({ form, spoilerBlur }) => (
-    <SpoilerMacroField form={form} name="personality" label="Personality" hint="A summary of traits and temperament." spoilerBlur={spoilerBlur} rows={16} />
+  personality: ({ form, spoilerBlur, suggestions }) => (
+    <SpoilerMacroField
+      suggestions={suggestions}
+      form={form}
+      name="personality"
+      label="Personality"
+      hint="A summary of traits and temperament."
+      spoilerBlur={spoilerBlur}
+      rows={16}
+    />
   ),
-  scenario: ({ form, spoilerBlur }) => (
-    <SpoilerMacroField form={form} name="scenario" label="Scenario" hint="The setting or situation the chat opens in." spoilerBlur={spoilerBlur} rows={16} />
+  scenario: ({ form, spoilerBlur, suggestions }) => (
+    <SpoilerMacroField
+      suggestions={suggestions}
+      form={form}
+      name="scenario"
+      label="Scenario"
+      hint="The setting or situation the chat opens in."
+      spoilerBlur={spoilerBlur}
+      rows={16}
+    />
   ),
-  exampleMessages: ({ form, trusted, spoilerBlur }) => <ExampleMessagesField form={form} trusted={trusted} spoilerBlur={spoilerBlur} />,
-  creatorNotes: ({ form }) => (
+  exampleMessages: ({ form, trusted, spoilerBlur, suggestions }) => (
+    <ExampleMessagesField form={form} trusted={trusted} spoilerBlur={spoilerBlur} suggestions={suggestions} />
+  ),
+  creatorNotes: ({ form, suggestions }) => (
     <form.AppField name="creatorNotes">
       {(field): ReactElement => (
-        <field.MacroField label="Creator notes" hint="Notes for humans — never sent to the model." suggestions={CHARACTER_CARD_MACROS} rows={8} />
+        <field.MacroField label="Creator notes" hint="Notes for humans — never sent to the model." suggestions={suggestions} rows={8} />
       )}
     </form.AppField>
   ),
-  systemPrompt: ({ form }) => (
+  systemPrompt: ({ form, suggestions }) => (
     <SpoilerMacroField
+      suggestions={suggestions}
       form={form}
       name="systemPrompt"
       label="System prompt"
@@ -125,8 +151,9 @@ const FACET_BODY_RENDERERS: Record<CharacterFacetId, (props: FacetBodyProps) => 
       rows={16}
     />
   ),
-  postHistoryInstructions: ({ form }) => (
+  postHistoryInstructions: ({ form, suggestions }) => (
     <SpoilerMacroField
+      suggestions={suggestions}
       form={form}
       name="postHistoryInstructions"
       label="Post-history instructions"
@@ -135,7 +162,7 @@ const FACET_BODY_RENDERERS: Record<CharacterFacetId, (props: FacetBodyProps) => 
       rows={16}
     />
   ),
-  depthPrompt: ({ form }) => <DepthPromptFacet form={form} />,
+  depthPrompt: ({ form, suggestions }) => <DepthPromptFacet form={form} suggestions={suggestions} />,
   regexScripts: ({ characterId }) => <CharacterRegexScriptsField characterId={characterId} />,
   provenance: ({ form, readOnly }) => <ProvenanceFacet form={form} readOnly={readOnly} />,
 };
@@ -154,8 +181,9 @@ function FacetBody({
   readonly readOnly: CharacterProvenanceSectionProps;
 }): ReactElement {
   const spoilerBlur = useSpoilerBlur();
+  const suggestions = usePromptMacroSuggestions();
   const render = FACET_BODY_RENDERERS[facetId];
-  return render({ form, characterId, trusted, readOnly, spoilerBlur });
+  return render({ form, characterId, trusted, readOnly, spoilerBlur, suggestions });
 }
 
 /** One macro-aware field; the whole container blurs at rest when the spoiler eye is on. Per-field token
@@ -167,6 +195,7 @@ function SpoilerMacroField({
   hint,
   spoilerBlur,
   rows,
+  suggestions,
 }: {
   readonly form: CardForm;
   readonly name: "description" | "personality" | "scenario" | "systemPrompt" | "postHistoryInstructions";
@@ -174,18 +203,17 @@ function SpoilerMacroField({
   readonly hint: string;
   readonly spoilerBlur: boolean;
   readonly rows: number;
+  readonly suggestions: readonly MacroSuggestion[];
 }): ReactElement {
   return (
     <Stack gap="field" data-slot="character-spoiler-field" className={spoilerClass(spoilerBlur)}>
-      <form.AppField name={name}>
-        {(field): ReactElement => <field.MacroField label={label} hint={hint} suggestions={CHARACTER_CARD_MACROS} rows={rows} />}
-      </form.AppField>
+      <form.AppField name={name}>{(field): ReactElement => <field.MacroField label={label} hint={hint} suggestions={suggestions} rows={rows} />}</form.AppField>
     </Stack>
   );
 }
 
 /** Note-at-depth: the big note text + its prefill warning only — Depth/Role knobs live in the Field tab. */
-function DepthPromptFacet({ form }: { readonly form: CardForm }): ReactElement {
+function DepthPromptFacet({ form, suggestions }: { readonly form: CardForm; readonly suggestions: readonly MacroSuggestion[] }): ReactElement {
   return (
     <Stack gap="section">
       <form.AppField name="depthPromptText">
@@ -193,7 +221,7 @@ function DepthPromptFacet({ form }: { readonly form: CardForm }): ReactElement {
           <field.MacroField
             label="Note text"
             hint="A recurring note spliced into history at a fixed depth. Set its depth and role in the Field panel."
-            suggestions={CHARACTER_CARD_MACROS}
+            suggestions={suggestions}
             rows={16}
           />
         )}
@@ -232,10 +260,12 @@ function ExampleMessagesField({
   form,
   trusted,
   spoilerBlur,
+  suggestions,
 }: {
   readonly form: CardForm;
   readonly trusted: boolean;
   readonly spoilerBlur: boolean;
+  readonly suggestions: readonly MacroSuggestion[];
 }): ReactElement {
   const [editing, setEditing] = useState(false);
   return (
@@ -247,7 +277,7 @@ function ExampleMessagesField({
               <field.MacroField
                 label="Example messages"
                 hint="Sample exchanges (ST <START> blocks) teaching the model the character's voice."
-                suggestions={CHARACTER_CARD_MACROS}
+                suggestions={suggestions}
                 rows={16}
               />
             )}

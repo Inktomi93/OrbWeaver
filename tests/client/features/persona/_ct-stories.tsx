@@ -13,6 +13,7 @@ import type { ChatId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { PersonaEditor } from "../../../../packages/client/src/features/persona/components/persona-editor";
 import { PersonaThisChatSection } from "../../../../packages/client/src/features/persona/components/persona-this-chat-section";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers";
 
@@ -30,6 +31,27 @@ const PERSONA: PersonaFixture = {
   createdAt: 1,
   updatedAt: 1,
 };
+
+/** The editor's own detail row, spelled at the REAL prop type (never a cast): a field added to
+ *  `persona.get`'s output breaks this story at compile time rather than surviving as a fabricated hole. */
+const EDITOR_PERSONA: Parameters<typeof PersonaEditor>[0]["persona"] = {
+  ...PERSONA,
+  worldBookIds: [],
+};
+
+/** MACU-2 — `<PersonaEditor>` over the data layer, for the macro-plane completion arm. The editor mounts its
+ *  own D78 session boundary, so the story only supplies the detail row + the providers; the `.ct.tsx` stubs
+ *  `settings.getUserSettings` (for `seeds.defaultPresetId`) and `preset.get` (for that preset's
+ *  `userMacros`), which is the plane `usePromptMacroSuggestions` composes. */
+export function PersonaEditorMacroStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 480 }}>
+        <PersonaEditor persona={EDITOR_PERSONA} onRequestDelete={(): void => undefined} />
+      </div>
+    </CtDataProviders>
+  );
+}
 
 // The CT's active-chat id — the `.ct.tsx` stubs `chat.getChat` for this same id (a plain module-const, not
 // an export: a story module exports components ONLY — useComponentExportOnlyModules).
