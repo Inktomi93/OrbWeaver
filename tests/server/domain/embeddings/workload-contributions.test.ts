@@ -66,4 +66,15 @@ describe("index contribution", () => {
     expect(index.lane).toBe("sweep");
     expect(index.resume).toBe("idempotent-restart");
   });
+
+  // The admission unit is ONE embed space: text and image sweep concurrently, two text sweeps do not. This
+  // used to be a `kind === "index"` switch inside the QUEUE; it is the owning domain's declaration now.
+  test("declares the embed SOURCE as its admission key (text ∥ image; two text sweeps collide)", () => {
+    const { index } = build();
+    expect(index.admissionKey?.({ source: "text" })).toBe("text");
+    expect(index.admissionKey?.({ source: "image" })).toBe("image");
+    expect(index.admissionKey?.({ source: "all" })).toBe("all");
+    // `force` is not part of the unit — a forced pass must not slip past a running one.
+    expect(index.admissionKey?.({ source: "text", force: true })).toBe(index.admissionKey?.({ source: "text" }));
+  });
 });

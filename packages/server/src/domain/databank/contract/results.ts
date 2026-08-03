@@ -3,8 +3,15 @@
 // shape owned by `@orb/contracts/databank`; consumers (the workload runner, the ingest subsystem) import it
 // from there directly — one home, no re-export.
 
-import type { DocumentView } from "@orb/contracts/databank";
-import type { DocumentId } from "@orb/kit/ids";
+import type { DocumentView, IngestOutcome } from "@orb/contracts/databank";
+import type { DocumentId, WorkloadId } from "@orb/kit/ids";
+
+/** The enqueue's two arms as `substrate/queue-ingest` reports them, plus the audit metadata each producer
+ *  stamps on its own row. `workloadId` is null exactly when `ingest` is `not-queued`. */
+export interface QueuedIngest {
+  readonly ingest: IngestOutcome;
+  readonly workloadId: WorkloadId | null;
+}
 
 /** The producer verbs' return. `outcome:'duplicate'` = the `(ownerId, importHash)` unique hit (the existing
  *  document is returned, ingest skipped — its chunks already exist / are healing anyway). `warning` surfaces a
@@ -12,7 +19,7 @@ import type { DocumentId } from "@orb/kit/ids";
 export interface UploadResult {
   readonly document: DocumentView;
   readonly outcome: "created" | "duplicate";
-  readonly ingest: "queued" | "skipped";
+  readonly ingest: IngestOutcome;
   readonly warning?: "empty-extraction";
 }
 

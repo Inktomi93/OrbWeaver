@@ -34,14 +34,31 @@ export function originLabel(origin: DocOrigin): string {
 // The derived ingest phase (ONE importable union from a tuple — §5.5). The chunk/embed counts are the ONLY
 // truth (no status column): `indexing` = no chunks yet (queued/in-flight); `embedding` = chunks exist but
 // not all embedded (partial ingest, a retry resumes it); `ready` = every chunk is embedded; `empty` = a
-// document that extracted to nothing (charCount 0 — the `empty-extraction` warning's persistent state).
-// NOT exported: every consumer receives the phase from `ingestPhase(doc)` and hands it straight to
+// document that extracted to nothing (charCount 0 — the `empty-extraction` warning's persistent state);
+// `stalled` = an in-flight phase whose `updatedAt` froze (see {@link STALE_INGEST_MS}).
+// NOT exported: every consumer receives the phase from `ingestPhase(doc, now)` and hands it straight to
 // `ingestBadge`/`showsPhaseChip`, so inference carries it and no surface ever needs to NAME the type
 // (`no-inline-types` — a feature `lib/` is not a type home).
-const INGEST_PHASES = ["empty", "indexing", "embedding", "ready"] as const;
+const INGEST_PHASES = ["empty", "indexing", "embedding", "ready", "stalled"] as const;
 type IngestPhase = (typeof INGEST_PHASES)[number];
 
-export function ingestPhase(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount">): IngestPhase {
+// The COUNT-derived half — the four phases that read off chunk/embed arithmetic alone, with no clock. The
+// stall overlay is applied on top by `ingestPhase`; the hint needs THIS answer (it names the phase the job
+// wedged in), which is why the two live apart.
+type CountedPhase = Exclude<IngestPhase, "stalled">;
+
+// A doc still in an IN-FLIGHT phase this long after its last write reads as a STUCK job (derived from
+// `updatedAt` — no status column; a live ingest bumps `updatedAt` as chunks land, so a frozen timestamp is
+// the stall signal). 5 minutes clears a slow-but-live large-doc embed while flagging a genuinely wedged one.
+const STALE_INGEST_MS = 300_000; // 5 minutes
+
+// The "still {word}" for each COUNT-derived phase — the in-flight phases echo their badge label lowercased;
+// terminal phases are null (a full Record so a new phase must decide, mirroring INGEST_BADGES's
+// exhaustiveness). It is keyed on the counted phase, not the rendered one, precisely because it is what
+// DEFINES `stalled`: a phase that reads null here can never wedge.
+const IN_FLIGHT_WORD: Record<CountedPhase, string | null> = { empty: null, indexing: "queued", embedding: "indexing", ready: null };
+
+function countedPhase(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount">): CountedPhase {
   if (doc.charCount === 0) {
     return "empty";
   }
@@ -54,51 +71,61 @@ export function ingestPhase(doc: Pick<DocumentView, "charCount" | "chunkCount" |
   return "ready";
 }
 
+/**
+ * The phase a surface RENDERS. `stalled` is not a fifth arithmetic outcome — it is an in-flight phase whose
+ * `updatedAt` stopped moving, which is the only signal a schema with no status column can offer that a job
+ * is never coming back (a document whose ingest was never enqueued at all looks exactly like one that is
+ * about to start, for the first five minutes).
+ *
+ * `now` is INJECTED (client-determinism — the render edge passes the wall clock off the `time` seam, never
+ * an ambient `Date.now`).
+ */
+export function ingestPhase(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount" | "updatedAt">, now: number): IngestPhase {
+  const counted = countedPhase(doc);
+  return IN_FLIGHT_WORD[counted] !== null && now - doc.updatedAt >= STALE_INGEST_MS ? "stalled" : counted;
+}
+
 /** The `@orb/ui/badge` intent + label per ingest phase — a mapped-type Record dispatch (a new phase without
  *  a badge fails tsc; §5.5 exhaustiveness). */
-const INGEST_BADGES: Record<IngestPhase, { readonly label: string; readonly intent: "success" | "warning" | "neutral" }> = {
+const INGEST_BADGES: Record<IngestPhase, { readonly label: string; readonly intent: "success" | "warning" | "neutral" | "danger" }> = {
   empty: { label: "Empty", intent: "neutral" },
   indexing: { label: "Queued", intent: "warning" },
   embedding: { label: "Indexing", intent: "warning" },
   ready: { label: "Ready", intent: "success" },
+  // DANGER, not warning: `Queued` and `Indexing` say "wait", and a user who has been waiting deserves the
+  // one chip that says "this will not finish on its own". Reindex is the repair, on the row's own kebab.
+  stalled: { label: "Stalled", intent: "danger" },
 };
 
 /** The badge (intent + label) for an ingest phase (the row chip + the detail header chip). */
-export function ingestBadge(phase: IngestPhase): { readonly label: string; readonly intent: "success" | "warning" | "neutral" } {
+export function ingestBadge(phase: IngestPhase): { readonly label: string; readonly intent: "success" | "warning" | "neutral" | "danger" } {
   return INGEST_BADGES[phase];
 }
 
 // Which phases EARN a chip in a 320px LIST row (§6.1). A full Record, not a `!== "ready"` test, so a new
 // phase must decide — the same exhaustiveness INGEST_BADGES carries. The DETAIL surface is unaffected: it
 // has room, and "Ready" there is the answer to a question the user just asked by opening the document.
-const PHASE_EARNS_A_CHIP: Record<IngestPhase, boolean> = { empty: true, indexing: true, embedding: true, ready: false };
+const PHASE_EARNS_A_CHIP: Record<IngestPhase, boolean> = { empty: true, indexing: true, embedding: true, ready: false, stalled: true };
 
 /** Does this phase render a chip in a list row? Ready is the ABSENCE of a chip (§6.1 / density CD1). */
 export function showsPhaseChip(phase: IngestPhase): boolean {
   return PHASE_EARNS_A_CHIP[phase];
 }
 
-// A doc still in an IN-FLIGHT phase this long after its last write reads as a STUCK job (derived from
-// `updatedAt` — no status column; a live ingest bumps `updatedAt` as chunks land, so a frozen timestamp is
-// the stall signal). 5 minutes clears a slow-but-live large-doc embed while flagging a genuinely wedged one.
-const STALE_INGEST_MS = 300_000; // 5 minutes
-
-// The "still {word}" for each phase — the in-flight phases echo their badge label lowercased; terminal
-// phases are null (a full Record so a new phase must decide, mirroring INGEST_BADGES's exhaustiveness).
-const IN_FLIGHT_WORD: Record<IngestPhase, string | null> = { empty: null, indexing: "queued", embedding: "indexing", ready: null };
-
-/** Is this document's ingest still running? The freshness driver for the library's bounded poll (D-3 arm b)
- *  and the only state in which {@link ingestStallHint} can fire. */
-export function isIngestInFlight(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount">): boolean {
-  return IN_FLIGHT_WORD[ingestPhase(doc)] !== null;
+/** Is this document's ingest still running? The freshness driver for the library's bounded poll (D-3 arm b).
+ *  A STALLED document is NOT in flight: it stopped moving, so polling it forever would be a 4-second request
+ *  every 4 seconds, permanently, for a job that is never coming back. */
+export function isIngestInFlight(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount" | "updatedAt">, now: number): boolean {
+  const phase = ingestPhase(doc, now);
+  return phase !== "stalled" && IN_FLIGHT_WORD[phase] !== null;
 }
 
-/** A quiet stuck-ingest hint for the detail's Reindex affordance, or `null` when the doc is fresh or terminal.
- *  A doc parked in `Queued`/`Indexing` for {@link STALE_INGEST_MS} past its last update has stalled — Reindex
- *  restarts it. `now` is injected (client-determinism — the render edge passes the wall clock). */
+/** A stuck-ingest sentence for the surfaces' Reindex affordance, or `null` when the doc is fresh or terminal.
+ *  Names the phase the job wedged in (which is why it reads the COUNTED phase, not the rendered `stalled`).
+ *  `now` is injected (client-determinism — the render edge passes the wall clock). */
 export function ingestStallHint(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount" | "updatedAt">, now: number): string | null {
-  const word = IN_FLIGHT_WORD[ingestPhase(doc)];
-  if (word === null || now - doc.updatedAt < STALE_INGEST_MS) {
+  const word = IN_FLIGHT_WORD[countedPhase(doc)];
+  if (word === null || ingestPhase(doc, now) !== "stalled") {
     return null;
   }
   return `Still ${word} — Reindex can restart a stuck job.`;

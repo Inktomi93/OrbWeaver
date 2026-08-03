@@ -2,7 +2,8 @@
 // (databank-design/06 §2). `sourceAssetId` is NULL (nothing to re-extract from — its `extractedText` is the
 // only source, which is fine), `extractorVersion` is "none" (excluded from re-extract sweeps), `importHash`
 // is the sha-256 of the UTF-8 text (same `(ownerId, importHash)` re-paste dedup semantics as a re-upload).
-// Then the SAME step 5–7 as upload: documents row → enqueue `databank-ingest` → return `ingest:'queued'`.
+// Then the SAME step 5–7 as upload: documents row → enqueue `databank-ingest` → report the ingest outcome
+// (`queued`, or `not-queued` when the queue refused the build — the canon still lands; `substrate/queue-ingest`).
 
 import { documents } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
@@ -11,6 +12,7 @@ import type { CreateFromTextParams } from "../contract/params";
 import type { UploadResult } from "../contract/results";
 import type { DatabankContext, DatabankService } from "../contract/service";
 import { findByImportHash, toDocumentView } from "../persistence/queries";
+import { queueIngest } from "../substrate/queue-ingest";
 
 const TEXT_MIME = "text/plain";
 const NO_EXTRACTOR = "none";
@@ -45,13 +47,13 @@ export function createCreateFromText(ctx: DatabankContext): DatabankService["cre
       updatedAt: at,
     });
 
-    const { workloadId } = await ctx.enqueueIngest({ documentId: id, ownerId });
-    await ctx.audit({ actorUserId: ownerId, action: "databank.createFromText", entityType: "document", entityId: id, metadata: { name, workloadId } }, at);
+    const queued = await queueIngest(ctx, { documentId: id, ownerId });
+    await ctx.audit({ actorUserId: ownerId, action: "databank.createFromText", entityType: "document", entityId: id, metadata: { name, ...queued } }, at);
 
     const document = toDocumentView(
       { id, name, mime: TEXT_MIME, origin: "text", sourceUrl: null, byteSize, charCount: text.length, createdAt: at, updatedAt: at },
       0,
     );
-    return { document, outcome: "created", ingest: "queued" };
+    return { document, outcome: "created", ingest: queued.ingest };
   };
 }

@@ -17,7 +17,7 @@
 // The dialog owns its overlay (a component, not a surface — surface-purity), and every arm reports the
 // created document to its caller, which opens it in CONTENT and closes the dialog.
 
-import type { ScraperKind } from "@orb/contracts/databank";
+import type { IngestOutcome, ScraperKind } from "@orb/contracts/databank";
 import type { DocumentId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { DialogClose } from "@orb/ui/dialog";
@@ -60,9 +60,17 @@ export function AddDocumentDialog({ open, onOpenChange, onCreated }: AddDocument
   const [mode, setMode] = useState<AddMode>("upload");
   const toast = useToastManager();
 
-  const landed = (id: DocumentId, outcome: "created" | "duplicate", warning?: "empty-extraction"): void => {
+  const landed: OnLanded = ({ id, outcome, ingest, warning }): void => {
     if (outcome === "duplicate") {
       toast.add({ title: "Already in your bank — opened it." });
+    } else if (ingest === "not-queued") {
+      // The half-success, said plainly: the document IS saved (the old behaviour threw here and rendered
+      // "Couldn't save the document." over a document that had in fact been saved), but nothing indexed it,
+      // so it will not reach a chat until the user runs the repair the sentence names.
+      toast.add({
+        title: "Saved, but not indexed yet",
+        description: "The indexer wouldn't take the job. The document is safe — use Reindex on it to try the index again.",
+      });
     } else if (warning === "empty-extraction") {
       toast.add({ title: "Nothing to index in that file", description: "No text could be extracted — a scanned image PDF, most likely." });
     }
@@ -99,8 +107,15 @@ export function AddDocumentDialog({ open, onOpenChange, onCreated }: AddDocument
   );
 }
 
-/** What every arm reports back: the landed document + how it landed. */
-type OnLanded = (id: DocumentId, outcome: "created" | "duplicate", warning?: "empty-extraction") => void;
+/** What every arm reports back: the landed document + how it landed. `ingest` is the DERIVED layer's own
+ *  outcome — `not-queued` means the canon was written but its index build was refused, which the user must
+ *  hear about (the document is real, and searchable only after a Reindex). */
+type OnLanded = (landing: {
+  readonly id: DocumentId;
+  readonly outcome: "created" | "duplicate";
+  readonly ingest: IngestOutcome;
+  readonly warning?: "empty-extraction";
+}) => void;
 
 function UploadBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement {
   const trpc = useTRPC();
@@ -124,7 +139,12 @@ function UploadBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement
         // through the SAME sanctioned seam by hand (never a bare `invalidateQueries`).
         invalidation.invalidateFilters([trpc.databank.list.pathFilter()]);
         setSuccess(true);
-        onLanded(result.document.id, result.outcome, result.warning);
+        onLanded({
+          id: result.document.id,
+          outcome: result.outcome,
+          ingest: result.ingest,
+          ...(result.warning === undefined ? {} : { warning: result.warning }),
+        });
       } catch {
         setError("Upload failed — check the file type and size, then try again.");
       } finally {
@@ -167,7 +187,12 @@ function PasteBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement 
       return;
     }
     void create.mutateAsync({ name: trimmedName, text: trimmedText }).then((result) => {
-      onLanded(result.document.id, result.outcome, result.warning);
+      onLanded({
+        id: result.document.id,
+        outcome: result.outcome,
+        ingest: result.ingest,
+        ...(result.warning === undefined ? {} : { warning: result.warning }),
+      });
     });
   };
 
@@ -206,13 +231,20 @@ function LinkBody({ onLanded }: { readonly onLanded: OnLanded }): ReactElement {
     const url = values.url.trim();
     const lang = values.lang.trim() === "" ? DEFAULT_CAPTION_LANG : values.lang.trim();
     // A Record over the scraper axis — a new `ScraperKind` fails tsc rather than silently having no runner.
-    const runners: Record<ScraperKind, () => Promise<{ readonly document: { readonly id: DocumentId }; readonly outcome: "created" | "duplicate" }>> = {
+    const runners: Record<
+      ScraperKind,
+      () => Promise<{
+        readonly document: { readonly id: DocumentId };
+        readonly outcome: "created" | "duplicate";
+        readonly ingest: IngestOutcome;
+      }>
+    > = {
       web: () => scrapeWeb.mutateAsync({ url }),
       youtube: () => scrapeYoutube.mutateAsync({ url, lang }),
       wiki: () => scrapeWiki.mutateAsync({ url }),
     };
     const result = await runners[values.source]();
-    onLanded(result.document.id, result.outcome);
+    onLanded({ id: result.document.id, outcome: result.outcome, ingest: result.ingest });
     return values;
   };
 
