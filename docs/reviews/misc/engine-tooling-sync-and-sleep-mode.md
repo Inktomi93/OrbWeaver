@@ -267,7 +267,7 @@ knobs) lives in the same `foundation/env` schema but is deliberately not this ta
 | `PORT` / `VITE_PORT` / `VITE_API_TARGET` | Backend port (8788) / vite port + proxy target — the offset seam snap-stage rides (8888/5273) | server env · stack.sh · vite.config · snap-stage | survive |
 | `DATABASE_URL` | libSQL file URL; default `file:./data/orbweaver.db`; stage points it INTO the stage dir | env → db; snap-stage · e2e | survive |
 | `ASSETS_DIR` | Blob-store dir override; stage points at its symlink | env → infra/storage; snap-stage | survive |
-| `ORB_ENV_NO_OVERRIDE` | `1` = dotenv loads with `override:false` so explicit process env beats a stray `.env` (stage + multi-user fixture guard) | `foundation/env` (dotenv call) · snap-stage · multi-user-fixture.sh | survive |
+| `ORB_ENV_NO_OVERRIDE` | `1` = the `.env` load runs with `override:false` so explicit process env beats a stray `.env` (stage + multi-user fixture + probe-fire guard) | `foundation/env` (the parseEnv loader) · snap-stage · multi-user-fixture.sh · probe-fire | survive |
 | `AUTH_MODE` · `SESSION_SECRET` · `CREDENTIALS_KEY` · `LOCAL_INITIAL_PASSWORD` | The stack.sh/e2e determinism pins (dev-only literals, insecure by design; single-user ignores the secrets) | env schema; pinned by stack.sh + stackEnv | survive (auth scope, not engine scope) |
 | `E2E_LIVE` | `1` un-excludes the `@live` real-model specs (`grepInvert` on the tag) — a PLAYWRIGHT-process var, never reaches the server | playwright.config · verify registry/membership | survive |
 | `WIRE_CAPTURE` | `on` wires the provider wire-body ring sink (`/api/_debug/wire/captures`); off = ring never written. e2e pins `on` | env → observability wire-capture | survive |

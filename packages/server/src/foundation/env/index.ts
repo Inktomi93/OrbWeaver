@@ -1,14 +1,16 @@
-// The one `process.env` reader: the dotenv load, the zod envSchema parse, the AUTH_MODE superRefine
+// The one `process.env` reader: the `.env` load, the zod envSchema parse, the AUTH_MODE superRefine
 // boot-fatality, the frozen `env`, and the raw processEnvSnapshot() baseline the agent-sdk credential
 // firewall spreads into its child.
 //
 // Every other tier imports `env` and dot-accesses a typed key. This file is the sole place that touches
 // process.env; never written, parsed once, frozen, read down as the floor.
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import process from "node:process";
+import { parseEnv } from "node:util";
 import { AUTH_MODES } from "@orb/contracts/identity";
 import { LOG_LEVELS } from "@orb/contracts/settings";
-import { config as loadDotenv } from "dotenv";
 import { z } from "zod";
 import type { EnginesPosture } from "./posture.ts";
 import { ENGINES_POSTURES } from "./posture.ts";
@@ -77,11 +79,52 @@ const RATE_LIMIT_PUBLIC_IP_DEFAULT = 60;
 const RATE_LIMIT_AUTHED_DEFAULT = 600;
 const RATE_LIMIT_LOGIN_DEFAULT = 10;
 
+// The `.env` file the loader below reads, cwd-relative — exactly the path dotenv resolved
+// (`path.resolve(process.cwd(), ".env")`), so `pnpm start` from the repo root keeps finding it.
+const ENV_FILE = ".env";
+// A leading UTF-8 byte-order mark. parseEnv does NOT strip it (dotenv did) — see loadEnvFileWithOverride.
+const UTF8_BOM = "﻿";
+
+/** Load a local `.env` into `process.env`. `override` = a checked-in dev `.env` WINS over an already-set
+ *  (stale shell) export; otherwise the file only fills keys that are unset.
+ *
+ *  dotenv died here 2026-08-03 (node-26 adoption program §3) — `node:util`'s `parseEnv` IS the platform
+ *  .env parser. `process.loadEnvFile()` is deliberately NOT used: it can only ever fill UNSET keys, and
+ *  the override direction is load-bearing (the dev stack pins model/port/posture in the checked-in
+ *  `.env`; a silent flip to "a stale shell export wins" reads as a config bug for hours). The merge is
+ *  therefore OURS and stays explicit here.
+ *
+ *  Parity with dotenv 16.6.1 was MEASURED case-by-case (30 inputs, 2026-08-03), not assumed: identical on
+ *  comments, blank + junk lines, `export ` prefixes, single/double/backtick quotes, `\n` escapes inside
+ *  double quotes, literal multiline quoted values, inline `#` comments, CRLF, duplicate keys, unterminated
+ *  quotes and the empty file. Exactly two deltas:
+ *    1. a UTF-8 BOM — dotenv stripped it, `parseEnv` keeps it IN THE KEY, silently renaming the first key
+ *       to `﻿KEY`. That is precisely the silent-misconfiguration class this loader must not ship, so
+ *       the BOM is stripped below.
+ *    2. dotenv also accepted a non-standard `KEY: value` separator; `parseEnv` ignores such a line. No
+ *       `.env` in this repo or on this box uses it, and re-implementing a vendor dialect would defeat
+ *       adopting the platform parser. Accepted, and pinned by test so the delta stays deliberate.
+ *
+ *  A missing or unreadable file is a silent no-op — the same tolerance dotenv's `quiet: true` gave. */
+function loadEnvFileWithOverride(override: boolean): void {
+  let raw: string;
+  try {
+    raw = readFileSync(resolve(process.cwd(), ENV_FILE), "utf8");
+  } catch {
+    return;
+  }
+  for (const [key, value] of Object.entries(parseEnv(raw.startsWith(UTF8_BOM) ? raw.slice(UTF8_BOM.length) : raw))) {
+    if (value !== undefined && (override || process.env[key] === undefined)) {
+      process.env[key] = value;
+    }
+  }
+}
+
 // Load a local .env before parsing. override:true so a checked-in dev .env wins over a stale shell
 // export. Two escape hatches (VITEST, ORB_ENV_NO_OVERRIDE=1) keep the override from fighting a one-off
 // invocation that wants its own shell vars honored.
 const skipOverride = process.env["VITEST"] !== undefined || process.env["ORB_ENV_NO_OVERRIDE"] !== undefined;
-loadDotenv({ override: !skipOverride, quiet: true });
+loadEnvFileWithOverride(!skipOverride);
 
 /** A boolean knob's env codec — ONE home for the posture, so no site can drift.
  *

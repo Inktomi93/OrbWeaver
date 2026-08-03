@@ -138,7 +138,7 @@ healthz_ok() { curl -sf -m 2 "$HEALTHZ" >/dev/null 2>&1; }
 # `localhost`, NOT 127.0.0.1 — vite v8 binds [::1] only; the IPv4 loopback never answers.
 vite_ok() { curl -sf -m 2 "http://localhost:$VITE_PORT/" >/dev/null 2>&1; }
 
-backend_env_var() { # pid name → value (from /proc environ; dotenv-loaded keys won't show)
+backend_env_var() { # pid name → value (from /proc environ; keys loaded from .env at boot won't show)
   tr '\0' '\n' <"/proc/$1/environ" 2>/dev/null | grep "^$2=" | cut -d= -f2-
 }
 
