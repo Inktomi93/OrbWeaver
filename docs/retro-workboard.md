@@ -91,8 +91,16 @@ ok:true] · truth-repair the 3 stale comments; the nullable-union reshape stays 
 at the schema header = the owner's A/B call) · DBANK2 (a75555728b3673edc — S2's per-chat rack:
 D-2 sources threaded [scope.ts already runs the 3 junction queries and DISCARDS the answer],
 the rack after Injections per D-4, **the D85 visibility toggle — the original workboard item,
-finally**, + the listActiveForChat freshness row).** Third slot HELD for the fresh push
-battery (98 commits since the last green run — quiesce + verify --push when these two drain).
+finally**, + the listActiveForChat freshness row).** · SWEEP (ac9ffb2bcce6316a7 — the side-eye's NOT-REACHED tail [tag context arm · the regex
+picker's order split w/ drag+keyboard+>30 arm · the mobile & rail mock diffs] PLUS a
+fresh-eyes hunt-and-FIX over config/databank/regex at 320px + mobile; owner: "any bugs found
+can be fixed").** The fresh push battery runs at quiesce (98+ commits since the last green).
+**OWNER CONSTRAINT ON THE RESYNC ARM (verbatim): "i just don't want to bork our folded stuff
+because we worked really hard to get folded working" — FOLDED IS UNTOUCHABLE.** Relayed as
+absolute: zero behavior change to the in-turn folded path; reuse the tool DEFINITIONS, never
+a mutated round (if reuse would change the round's shape → resync gets its own caller over
+the same defs); folded's suites must pass UNMODIFIED + a pin that its tool set/mount posture
+is unchanged; bigger-than-clean-reuse = STOP and spec it.
 **═══ ▶▶▶ SESSION-RESURRECTION BLOCK (08-03 dawn — the owner's desktop session DIED; both
 lanes' worktrees + commits SURVIVED and were resumed warm, nothing lost) ═══**
 ✅ **NIGHTFIX MERGED** — the nightly side-eye fix-all, COMPLETE: config CONTENT region padding
