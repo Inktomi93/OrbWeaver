@@ -80,6 +80,10 @@ const WAIVERS: Readonly<Record<string, Waiver>> = {
     coveredBy: "settings-context-tab",
     why: "the host-only Tool-use cap control renders inside CommittedSettingsTab; settings-context-tab.ct drives it end-to-end (host sees + edits → setToolRecurseLimit fires; member sees no section).",
   },
+  "host-display-scripts-control": {
+    coveredBy: "settings-context-tab",
+    why: "the host-only 'share my display scripts' switch (D121-E) renders inside CommittedSettingsTab's Host controls group; settings-context-tab.ct drives it end-to-end (host sees + toggles → setHostDisplayScripts fires; member sees no control), the tool-recurse-control precedent.",
+  },
   "chat-list-header": { coveredBy: "chat-list-surface", why: "the list header renders inside the list surface; chat-list-surface.ct covers it." },
   "chat-list-row-menu": { coveredBy: "chat-list-surface", why: "the per-row menu is driven through the real list rows in chat-list-surface.ct." },
 
