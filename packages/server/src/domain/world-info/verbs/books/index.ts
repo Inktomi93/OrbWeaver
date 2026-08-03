@@ -6,5 +6,6 @@ export { createCreate as createCreateBook } from "./create";
 export { createDuplicate as createDuplicateBook } from "./duplicate";
 export { createGet as createGetBook } from "./get";
 export { createList as createListBooks } from "./list";
+export { createListWithUsage as createListBooksWithUsage } from "./list-with-usage";
 export { createRemove as createRemoveBook } from "./remove";
 export { createUpdate as createUpdateBook } from "./update";

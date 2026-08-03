@@ -80,7 +80,7 @@ import {
   systemTuningSection,
 } from "#features/user-admin";
 import { backupPane, workloadsJobsSection, workloadsPane, workloadsSchedulesSection, workloadsTuningSection } from "#features/workloads";
-import { worldInfoSection, worldInfoSettingsSection } from "#features/world-info";
+import { worldInfoCollection, worldInfoSettingsSection } from "#features/world-info";
 import type {
   CharacterDetailContribution,
   ChatContextState,
@@ -211,7 +211,7 @@ const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", 
 // the Configuration workspace's whole content: the DOOR ARRAY IS THE ROSTER, in group order. Moving a
 // library between the rail and this workspace is one line HERE and zero edits to the library itself; the
 // host (`features/config`) imports none of them.
-const configCollections = createContributorRegistry<CollectionContribution>("config-collections", [tagCollection, regexCollection]);
+const configCollections = createContributorRegistry<CollectionContribution>("config-collections", [tagCollection, regexCollection, worldInfoCollection]);
 
 // The ONE section assembly (G1/G8): total over SECTION_IDS by tsc; delivered as a context value so
 // app-shell reads it (incl. the use-shell-layout hook) without a #features import.
@@ -224,7 +224,6 @@ const sections = createRegistry("sections", SECTION_IDS, {
   characters: makeCharactersSection(characterDetailContributors, (view) => <ChatsWithCharacterPane {...view} />),
   corpus: corpusSection,
   config: makeConfigSection(configCollections),
-  worldInfo: worldInfoSection,
   presets: presetsSection,
   refinery: refinerySection,
   analytics: analyticsSection,

@@ -25,7 +25,7 @@ import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
-import { setActiveSection } from "#state";
+import { goToCollection } from "#state";
 import { isTemplatedMarker } from "../../lib/assembly-model";
 import { PresetMacroSuggestions } from "../preset-macro-suggestions";
 import { CARRIER_ATTRIBUTION, MARKER_COPY } from "./marker-copy";
@@ -101,8 +101,10 @@ function TemplatedMarkerBody({ form, section, index }: SectionBodyProps): ReactE
 }
 
 /** A PLAIN marker: the source-attribution panel (never editable, never blank) + world-info's shared
- *  entry wrapper. The nav link is the sanctioned cross-SECTION navigation echo (§16 row 30) riding the
- *  standing rail store writer — never a route fork. */
+ *  entry wrapper. The nav link is the sanctioned cross-SURFACE navigation echo (§16 row 30) riding the
+ *  standing `goToCollection` intent — never a route fork. It carries the collection KIND, not just the
+ *  section, because the Configuration roster's groups start collapsed: a bare section switch would land a
+ *  reader who asked for world info on a closed door. */
 function CarrierBody({ form, section }: { readonly form: AssemblyForm; readonly section: PromptSection }): ReactElement | null {
   if (section.type !== "marker" || isTemplatedMarker(section.marker)) {
     return null;
@@ -117,7 +119,7 @@ function CarrierBody({ form, section }: { readonly form: AssemblyForm; readonly 
         <Stack className="min-w-0" gap="tight">
           <Text voice="label">{attribution.sentence}</Text>
           {manage === undefined ? null : (
-            <Button className="self-start" intent="ghost" onClick={(): void => setActiveSection(manage.sectionId)} size="sm" type="button">
+            <Button className="self-start" intent="ghost" onClick={(): void => goToCollection(manage.collection)} size="sm" type="button">
               {manage.label}
               <Icon icon={ExternalLink} size="xs" />
             </Button>

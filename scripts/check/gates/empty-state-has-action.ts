@@ -20,10 +20,11 @@ const ALLOWLIST: Record<string, string> = {
     'the Presets CONTENT teaching state — a "pick a preset on the left, or create one" nudge shown ' +
     "alongside the library list, which itself carries the create CTA; the next step lives in the sibling " +
     "list, so this state legitimately has no action of its own (same reasoning as preset-section-inspector.tsx).",
-  "packages/client/src/features/world-info/components/world-info-welcome.tsx":
-    "the World Info CONTENT teaching state — the exact twin of preset-library-welcome.tsx above: the " +
-    "sibling LIST (on screen whenever this is) carries both the band's New primary and its own empty-state " +
-    "CTA, so a third create button in the middle of CONTENT was the third simultaneous home for one verb.",
+  "packages/client/src/features/world-info/surfaces/world-info-member-surface.tsx":
+    "the GONE arm — the open book was deleted on another device (the world-info verbs are bus-driven, so the " +
+    "roster refetches under the editor). The next step is picking another row in the sibling roster, which is " +
+    "on screen; the tag/regex member-editor twins above, same species. (The retired World Info CONTENT " +
+    "welcome's row died with the rail section at R2 — the workspace's own welcome is the config host's now.)",
   "packages/client/src/features/config/components/config-context-body.tsx":
     "the Configuration CONTEXT pane's two no-next-step arms: the no-selection state (the next step is picking a row in the " +
     "sibling LIST, which is on screen whenever this is — the preset-section-inspector precedent) and a collection that " +
@@ -53,12 +54,11 @@ const ALLOWLIST: Record<string, string> = {
   // names its class so the next auditor can re-derive it. (C11 polish pass; allowlist WITH reasoning, not a bolted-on
   // decorative button — the confidence-theater ban.)
   "packages/client/src/features/world-info/components/world-info-context-body.tsx":
-    'the "No book open" arm of the World Info CONTEXT pane (side-eye F-12, 2026-08-03) — the pane is a ' +
-    "READOUT of an open book's attachments, and the next step (open a book) lives in the sibling LIST pane " +
-    "with its own New primary, so this state legitimately carries no action of its own. Same class, and the " +
-    "same reasoning, as preset-section-inspector.tsx / preset-library-welcome.tsx above; the alternative " +
-    "this gate names as wrong — a bolted-on decorative button — would be a second home for the list's own " +
-    "create verb.",
+    "the GONE arm of the world-info CONTEXT pane — the open book was deleted while its attachments were on " +
+    "screen. (Its predecessor, the rail section's 'No book open' arm, retired with the section at R2: a " +
+    "`{kind:\"body\"}` collection arm is only ever called WITH a member, and the no-selection copy is the " +
+    "config host's own `context.empty`.) The next step is picking another row in the sibling roster, which is " +
+    "on screen; the regex-context-body twin above, same species.",
   "packages/client/src/features/rpg/components/cast/cast-tab.tsx":
     "read-only-by-pillar: the NPC roster is model-authored via `upsert_npc` (P1 — the client derives/creates nothing); " +
     "the cast fills as the story introduces characters, so there is no client action to offer.",
