@@ -336,7 +336,7 @@ export const handoffOfferSchema = z.object({
    *  nominee cannot read is NULLED rather than left lying about the room's voice. */
   copyGmPreset: z.boolean(),
 });
-/** @public type twin of {@link handoffOfferSchema} — the `chats.pending_handoff_offer` column's `$type<>`,
+/** Type twin of {@link handoffOfferSchema} — the `chats.pending_handoff_offer` column's `$type<>`,
  *  the `nominateHostHandoff` wire field, and the accept-side copy plan's input. */
 export type HandoffOffer = z.infer<typeof handoffOfferSchema>;
 
