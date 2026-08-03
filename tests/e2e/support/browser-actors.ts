@@ -18,6 +18,7 @@
 //
 // Kept in the e2e-support tree, import-free of the app/package trees (the `trpc.ts`/`actors.ts` posture).
 
+import type { ChatId } from "@orb/kit/ids";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 
 /** One human's isolated browser session: their own cookie jar + one page, already on the app. */
@@ -90,7 +91,7 @@ async function nav(page: Page, method: string, arg: string): Promise<void> {
 
 /** Open a chat by id — the same nav-bridge call `snap --open-chat <id>` makes. Module-local: the only
  *  caller is {@link openMembersTab}, and knip reds an export with no importer. */
-async function openChat(page: Page, chatId: string): Promise<void> {
+async function openChat(page: Page, chatId: ChatId): Promise<void> {
   await nav(page, "openChat", chatId);
 }
 
@@ -99,7 +100,7 @@ async function openChat(page: Page, chatId: string): Promise<void> {
  *  request but does NOT dock the context panel, so the panel mounts at zero size and a screenshot of it is a
  *  1.9KB sliver of nothing (measured). The header entry does both (`setContextTab` + `setPanelMode("context",
  *  "docked")`, chat-header.tsx), which is why it is the one doorway a human has. */
-export async function openMembersTab(page: Page, chatId: string): Promise<void> {
+export async function openMembersTab(page: Page, chatId: ChatId): Promise<void> {
   await openChat(page, chatId);
   await page.locator(MEMBERS_ENTRY).first().click({ timeout: READY_TIMEOUT_MS });
 }

@@ -6,6 +6,7 @@
 
 import { createHash } from "node:crypto";
 import { assets, characters } from "@orb/db";
+import type { CharacterId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
@@ -17,7 +18,7 @@ function sha256(bytes: Uint8Array): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-async function avatarOf(db: Awaited<ReturnType<typeof freshDb>>, characterId: string): Promise<string | null | undefined> {
+async function avatarOf(db: Awaited<ReturnType<typeof freshDb>>, characterId: CharacterId): Promise<string | null | undefined> {
   const rows = await db
     .select({ avatarAssetId: characters.avatarAssetId })
     .from(characters)

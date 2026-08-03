@@ -79,7 +79,7 @@ interface Harness {
   events: ChatBusEvent[];
   deltas: StatsDelta[];
   /** The `chatsChanged` member-fan calls (PD user-bus lane) — one per terminal turn, list-only (no `detail`). */
-  chatChangedFans: { chatId: string; options: unknown }[];
+  chatChangedFans: { chatId: ChatId; options: unknown }[];
   debitBudget: ReturnType<typeof vi.fn>;
   engine: ReturnType<typeof createTurnEngine>;
 }
@@ -107,7 +107,7 @@ function harness(
 ): Harness {
   const events: ChatBusEvent[] = [];
   const deltas: StatsDelta[] = [];
-  const chatChangedFans: { chatId: string; options: unknown }[] = [];
+  const chatChangedFans: { chatId: ChatId; options: unknown }[] = [];
   const ctx = makeChatContext(database, {
     runChatTurn: over.runChatTurn ?? OK_TURN,
     ...(over.now !== undefined ? { now: over.now } : {}),

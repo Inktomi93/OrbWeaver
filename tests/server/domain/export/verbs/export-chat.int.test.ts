@@ -7,7 +7,7 @@
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats, messages, messageVariants, personas } from "@orb/db";
-import type { ChatId, ChatParticipantId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatParticipantId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { eq } from "drizzle-orm";
@@ -50,7 +50,7 @@ async function seedChatRow(
 async function seedMember(
   chatId: ChatId,
   key: string,
-  actor: { userId?: UserId; characterId?: string; role?: ParticipantRole; leftSeq?: number },
+  actor: { userId?: UserId; characterId?: CharacterId; role?: ParticipantRole; leftSeq?: number },
 ): Promise<void> {
   await db.insert(chatParticipants).values({
     id: castId<ChatParticipantId>(`chat_participant_${key}`),
@@ -75,7 +75,7 @@ async function seedSlot(args: {
   role: MessageRole;
   variantContents: string[];
   selectedIdx?: number;
-  characterId?: string;
+  characterId?: CharacterId;
   personaId?: PersonaId;
   authorUserId?: UserId;
 }): Promise<void> {

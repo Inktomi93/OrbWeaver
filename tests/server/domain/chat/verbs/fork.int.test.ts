@@ -516,7 +516,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
         .where(eq(chats.id, chatId));
     }
 
-    async function forkRow(chatId: string): Promise<{ runtime: unknown; standalone: unknown }> {
+    async function forkRow(chatId: ChatId): Promise<{ runtime: unknown; standalone: unknown }> {
       const [row] = await db
         .select({ runtime: chats.runtimeVariables, standalone: chats.standaloneVariableDeltas })
         .from(chats)
@@ -783,7 +783,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
 
       /** Seed a source room whose tail assistant variant carries the spill in `reasoning` AND in both
        *  continue-snapshot reasoning twins (the undo/revert restore targets). */
-      async function seedSpilledRoom(key: string, human: UserId, role: ParticipantRole): Promise<string> {
+      async function seedSpilledRoom(key: string, human: UserId, role: ParticipantRole): Promise<ChatId> {
         const charA = await seedCharacter(db, human, `${key}_char`);
         const chatId = await seedChat(db, key);
         await seedParticipant(db, { chatId, key: "h", userId: human, role });
@@ -796,7 +796,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
         return chatId;
       }
 
-      async function forkedReasoning(chatId: string, forker: UserId): Promise<{ reasoning: string | null; pre: string | null; cont: string | null }> {
+      async function forkedReasoning(chatId: ChatId, forker: UserId): Promise<{ reasoning: string | null; pre: string | null; cont: string | null }> {
         const fork = createFork(makeChatContext(db, { getCard: ownedCard(), rpg: deceptionRpg() }), { emit, loadParticipantViews });
         const { chat } = await fork.forkChat({ principal: principal(forker), chatId: castId(chatId) });
         const [row] = await db

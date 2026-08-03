@@ -223,7 +223,7 @@ export function makeConnHarness(db: Db): ConnHarness {
 /** A cookie-resolved Principal for a user id (role defaults to `user` — selection is role-agnostic; the
  *  owner gate lives in credentials, faked here). Delegates to the shared `support/factories/principal` —
  *  connection keeps its existing positional `(id, role)` convention (id is a bare string here). */
-export function principal(userId: string, role: UserRole = "user"): Principal {
+export function principal(userId: UserId, role: UserRole = "user"): Principal {
   const id = castId<UserId>(userId);
   return makePrincipal(id, { role, handle: castId<Handle>(userId) });
 }

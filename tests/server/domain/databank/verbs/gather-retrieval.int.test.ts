@@ -18,7 +18,7 @@ import { makeDatabankHarness } from "../_support.ts";
 const CHAT = castId<ChatId>("chat_gather");
 
 /** A DocumentChunkHit fixture (the score is irrelevant to fit/format — the lens already ranked). */
-function hit(documentId: string, name: string, chunkIdx: number, content: string): DocumentChunkHit {
+function hit(documentId: DocumentId, name: string, chunkIdx: number, content: string): DocumentChunkHit {
   return {
     documentId: castId<DocumentId>(documentId),
     documentName: name,
@@ -33,7 +33,11 @@ function hit(documentId: string, name: string, chunkIdx: number, content: string
 describe("gatherRetrieval", () => {
   test("renders the reading-order hits into the slot format", async () => {
     const db = await freshDb();
-    const hits = [hit("document_a", "Alpha", 0, "a0"), hit("document_a", "Alpha", 1, "a1"), hit("document_b", "Beta", 0, "b0")];
+    const hits = [
+      hit(castId<DocumentId>("document_a"), "Alpha", 0, "a0"),
+      hit(castId<DocumentId>("document_a"), "Alpha", 1, "a1"),
+      hit(castId<DocumentId>("document_b"), "Beta", 0, "b0"),
+    ];
     const { service } = makeDatabankHarness(db, { searchDocuments: () => Promise.resolve(hits) });
 
     const result = await service.gatherRetrieval({ chatId: CHAT, queryText: "q", tokenBudget: 10_000 });
@@ -61,7 +65,7 @@ describe("gatherRetrieval", () => {
     const { service } = makeDatabankHarness(db, {
       searchDocuments: (p) => {
         seen.push({ k: p.k, minScore: p.minScore, rerank: p.rerank });
-        return Promise.resolve([hit("document_a", "Alpha", 0, "a0")]);
+        return Promise.resolve([hit(castId<DocumentId>("document_a"), "Alpha", 0, "a0")]);
       },
     });
 
@@ -76,7 +80,7 @@ describe("gatherRetrieval", () => {
     const { service } = makeDatabankHarness(db, {
       searchDocuments: (p) => {
         seen.push({ k: p.k, minScore: p.minScore, rerank: p.rerank });
-        return Promise.resolve([hit("document_a", "Alpha", 0, "a0")]);
+        return Promise.resolve([hit(castId<DocumentId>("document_a"), "Alpha", 0, "a0")]);
       },
     });
 
@@ -100,7 +104,7 @@ describe("gatherRetrieval", () => {
 
   test("returns null when the budget cannot seat even the best chunk", async () => {
     const db = await freshDb();
-    const hits = [hit("document_a", "Alpha", 0, "a very long chunk that will not fit a tiny budget at all")];
+    const hits = [hit(castId<DocumentId>("document_a"), "Alpha", 0, "a very long chunk that will not fit a tiny budget at all")];
     const { service } = makeDatabankHarness(db, { searchDocuments: () => Promise.resolve(hits) });
 
     const result = await service.gatherRetrieval({ chatId: CHAT, queryText: "q", tokenBudget: 1 });
@@ -112,7 +116,7 @@ describe("gatherRetrieval", () => {
     const db = await freshDb();
     const c0 = "alpha zero content chunk";
     const c1 = "bravo one content chunk";
-    const hits = [hit("document_a", "Alpha", 0, c0), hit("document_a", "Alpha", 1, c1)];
+    const hits = [hit(castId<DocumentId>("document_a"), "Alpha", 0, c0), hit(castId<DocumentId>("document_a"), "Alpha", 1, c1)];
     const { service } = makeDatabankHarness(db, { searchDocuments: () => Promise.resolve(hits) });
 
     // A budget that seats exactly the header + the first chunk — the second would overflow the rendered text.

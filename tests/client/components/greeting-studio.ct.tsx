@@ -7,6 +7,8 @@
 
 import { GREETING_TRANSFORMS } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import { routeTrpc } from "../../support/ct/route-trpc";
@@ -66,9 +68,9 @@ test("the composed steer rides the rewrite input (selected transform fragment + 
 const DIALOGUE_SPAN = '[data-slot="dialogue"]';
 const QUOTED_PREVIEW = "He looks up. “You're late,” he says.";
 
-function settingsStub(colorQuotedSpeech: boolean): { userId: string; schemaVersion: number; config: unknown; updatedAt: number } {
+function settingsStub(colorQuotedSpeech: boolean): { userId: UserId; schemaVersion: number; config: unknown; updatedAt: number } {
   return {
-    userId: "user_ct",
+    userId: castId<UserId>("user_ct"),
     schemaVersion: 1,
     config: { ...DEFAULT_USER_SETTINGS, appearance: { ...DEFAULT_USER_SETTINGS.appearance, colorQuotedSpeech } },
     updatedAt: 0,

@@ -18,7 +18,7 @@ import { makeHarness, principal, seedCharacter, seedUser } from "../_support.ts"
 
 const NOW = 1_700_000_000_000;
 
-async function seedChat(db: Db, chatId: string): Promise<ChatId> {
+async function seedChat(db: Db, chatId: ChatId): Promise<ChatId> {
   const id = castId<ChatId>(chatId);
   await db.insert(chats).values({
     id,
@@ -78,7 +78,7 @@ describe("createListHostChats", () => {
       handle: castId<Handle>("villain"),
       name: "Villain",
     });
-    const chatId = await seedChat(db, "chat_two_seats");
+    const chatId = await seedChat(db, castId<ChatId>("chat_two_seats"));
     await seat(db, { chatId, seatId: "chatpart_host", userId: owner, role: "host", joinSeq: 0 });
     // Villain joined SECOND — the primary is the earlier join, not whichever row the db returns first.
     await seat(db, { chatId, seatId: "chatpart_hero", characterId: hero, role: "member", joinSeq: 1 });
@@ -92,7 +92,7 @@ describe("createListHostChats", () => {
   test("a chat with NO seated character is skipped (there is no handle directory to nest it under)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: "owner" });
-    const chatId = await seedChat(db, "chat_no_character");
+    const chatId = await seedChat(db, castId<ChatId>("chat_no_character"));
     await seat(db, { chatId, seatId: "chatpart_host_only", userId: owner, role: "host", joinSeq: 0 });
 
     expect(await createListHostChats(makeHarness(db).ctx)({ principal: principal(owner) })).toEqual([]);
@@ -103,7 +103,7 @@ describe("createListHostChats", () => {
     const owner = await seedUser(db, { handle: "owner" });
     const stranger = await seedUser(db, { handle: "stranger" });
     const hero = await seedCharacter(db, { ownerId: stranger, handle: castId<Handle>("theirs"), name: "Theirs" });
-    const chatId = await seedChat(db, "chat_theirs");
+    const chatId = await seedChat(db, castId<ChatId>("chat_theirs"));
     await seat(db, { chatId, seatId: "chatpart_their_host", userId: stranger, role: "host", joinSeq: 0 });
     await seat(db, { chatId, seatId: "chatpart_guest", userId: owner, role: "member", joinSeq: 1 });
     await seat(db, { chatId, seatId: "chatpart_char", characterId: hero, role: "member", joinSeq: 2 });
@@ -121,7 +121,7 @@ describe("createListHostChats", () => {
       handle: castId<Handle>("present"),
       name: "Present",
     });
-    const chatId = await seedChat(db, "chat_left_seat");
+    const chatId = await seedChat(db, castId<ChatId>("chat_left_seat"));
     await seat(db, { chatId, seatId: "chatpart_host2", userId: owner, role: "host", joinSeq: 0 });
     await seat(db, { chatId, seatId: "chatpart_gone", characterId: gone, role: "member", joinSeq: 1, leftSeq: 5 });
     await seat(db, { chatId, seatId: "chatpart_present", characterId: present, role: "member", joinSeq: 2 });

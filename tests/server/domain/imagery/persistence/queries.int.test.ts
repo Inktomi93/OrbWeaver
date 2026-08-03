@@ -104,7 +104,7 @@ const PORTRAIT_PROMPT = "full body portrait, red hair";
 interface SeedArgs {
   readonly owner: UserId;
   readonly generationId: string;
-  readonly assetId: string;
+  readonly assetId: AssetId;
   readonly createdAt: number;
   readonly identityHash?: string | null;
   readonly subjectCharacterId?: string | null;
@@ -151,10 +151,10 @@ describe("findReusableGeneration", () => {
   test("matches on (owner, subject, mode, identityHash) — the newest generation, all its images", async () => {
     const owner = await seedUser("owner");
     // An older single-image generation, then a newer 3-image generation (shared createdAt).
-    await seedGeneration({ owner, generationId: "g_old", assetId: "asset_old", createdAt: FROZEN_AT });
+    await seedGeneration({ owner, generationId: "g_old", assetId: castId<AssetId>("asset_old"), createdAt: FROZEN_AT });
     for (let i = 0; i < 3; i += 1) {
       // biome-ignore lint/performance/noAwaitInLoops: sequential seeding in a test.
-      await seedGeneration({ owner, generationId: `g_new_${i}`, assetId: `asset_new_${i}`, createdAt: FROZEN_AT + 1000 });
+      await seedGeneration({ owner, generationId: `g_new_${i}`, assetId: castId<AssetId>(`asset_new_${i}`), createdAt: FROZEN_AT + 1000 });
     }
 
     const hits = await lookup(owner, HASH);
@@ -165,14 +165,14 @@ describe("findReusableGeneration", () => {
 
   test("a changed identity hash misses (no reuse)", async () => {
     const owner = await seedUser("owner");
-    await seedGeneration({ owner, generationId: "g1", assetId: "asset_1", createdAt: FROZEN_AT });
+    await seedGeneration({ owner, generationId: "g1", assetId: castId<AssetId>("asset_1"), createdAt: FROZEN_AT });
     expect(await lookup(owner, "different_hash")).toHaveLength(0);
   });
 
   test("cross-owner isolation — a match under another owner is never returned", async () => {
     const owner = await seedUser("owner");
     const other = await seedUser("other");
-    await seedGeneration({ owner: other, generationId: "g_other", assetId: "asset_other", createdAt: FROZEN_AT });
+    await seedGeneration({ owner: other, generationId: "g_other", assetId: castId<AssetId>("asset_other"), createdAt: FROZEN_AT });
     expect(await lookup(owner, HASH)).toHaveLength(0);
   });
 });
@@ -180,11 +180,11 @@ describe("findReusableGeneration", () => {
 describe("readProvenanceByAsset", () => {
   test("returns the provenance for an owned generated asset", async () => {
     const owner = await seedUser("owner");
-    await seedGeneration({ owner, generationId: "g1", assetId: "asset_1", createdAt: FROZEN_AT });
+    await seedGeneration({ owner, generationId: "g1", assetId: castId<AssetId>("asset_1"), createdAt: FROZEN_AT });
     const prov = await readProvenanceByAsset(db, owner, castId<AssetId>("asset_1"));
     expect(prov).toMatchObject({
       generationId: "g1",
-      assetId: "asset_1",
+      assetId: castId<AssetId>("asset_1"),
       mode: "character",
       prompt: PORTRAIT_PROMPT,
       subjectCharacterId: "character_aria",
@@ -197,7 +197,7 @@ describe("readProvenanceByAsset", () => {
   test("a foreign owner reads null (no cross-owner provenance leak)", async () => {
     const owner = await seedUser("owner");
     const other = await seedUser("other");
-    await seedGeneration({ owner, generationId: "g1", assetId: "asset_1", createdAt: FROZEN_AT });
+    await seedGeneration({ owner, generationId: "g1", assetId: castId<AssetId>("asset_1"), createdAt: FROZEN_AT });
     expect(await readProvenanceByAsset(db, other, castId<AssetId>("asset_1"))).toBeNull();
   });
 

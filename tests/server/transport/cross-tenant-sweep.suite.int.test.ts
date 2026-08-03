@@ -16,7 +16,24 @@
 // security-executor), NOT something the docs/test lane fixes.
 
 import { characterDocuments, documents, themes, userCredentials, workloadSchedules, workloads } from "@orb/db";
-import type { DocumentId, ThemeId, UserCredentialId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
+import type {
+  AutomationRuleId,
+  CharacterId,
+  ChatId,
+  DocumentId,
+  MessageId,
+  PersonaId,
+  PresetId,
+  RegexScriptId,
+  RpgCheckpointId,
+  RpgJournalId,
+  RpgQuestId,
+  TagId,
+  ThemeId,
+  UserCredentialId,
+  WorkloadId,
+  WorkloadScheduleId,
+} from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { appRouter } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
@@ -60,27 +77,27 @@ const MARKERS = Object.values(MARK);
 
 /** Owner A's seeded ids — collected once, fed to every stranger probe. */
 interface OwnerIds {
-  characterId: string;
-  personaId: string;
-  presetId: string;
+  characterId: CharacterId;
+  personaId: PersonaId;
+  presetId: PresetId;
   bookId: string;
   entryId: string;
-  tagId: string;
+  tagId: TagId;
   credentialId: string;
-  themeId: string;
-  workloadId: string;
+  themeId: ThemeId;
+  workloadId: WorkloadId;
   scheduleId: string;
   snapshotId: string;
-  chatId: string;
-  messageId: string;
+  chatId: ChatId;
+  messageId: MessageId;
   documentId: DocumentId;
-  automationRuleId: string;
+  automationRuleId: AutomationRuleId;
   // rpg (W2) — A's real game-scoped ids, fed to the rpg write probes so a dropped `gameId`/membership predicate
   // on a foreign id would touch A's row (the W1b IDOR class this domain already hid once).
-  rpgQuestId: string;
-  rpgJournalId: string;
-  rpgCheckpointId: string;
-  regexScriptId: string;
+  rpgQuestId: RpgQuestId;
+  rpgJournalId: RpgJournalId;
+  rpgCheckpointId: RpgCheckpointId;
+  regexScriptId: RegexScriptId;
 }
 
 /** tRPC's cross-realm error duck-type (matchers.ts precedent): an Error named "TRPCError" with a code. */

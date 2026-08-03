@@ -34,7 +34,7 @@ const MS_PER_SECOND = 1000;
 /** Insert this owner's `user_settings` row with the given `appearance` overrides merged onto defaults —
  *  the JSON blob the PD-131 live-source scan reads. `undefined` `assetId` leaves the pin cleared (kind
  *  `none`), modelling a removed background. */
-async function seedBackgroundPin(db: Awaited<ReturnType<typeof freshDb>>, owner: UserId, assetId?: string, hash?: string): Promise<void> {
+async function seedBackgroundPin(db: Awaited<ReturnType<typeof freshDb>>, owner: UserId, assetId?: AssetId, hash?: string): Promise<void> {
   const appearance =
     assetId === undefined
       ? DEFAULT_USER_SETTINGS.appearance

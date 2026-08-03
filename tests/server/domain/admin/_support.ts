@@ -7,7 +7,7 @@
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
-import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AdminService } from "@orb/server/domain/admin";
 import { createAdminService } from "@orb/server/domain/admin";
@@ -102,7 +102,7 @@ export function makeHarness(db: Db): AdminHarness {
     },
     sessions: {
       listForUser: (_userId: UserId): Promise<readonly SessionAdminView[]> => Promise.resolve(sessionList),
-      revoke: (sessionId: string): Promise<void> => {
+      revoke: (sessionId: SessionId): Promise<void> => {
         revokedSessions.push(sessionId);
         return Promise.resolve();
       },

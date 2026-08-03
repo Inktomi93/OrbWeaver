@@ -2,12 +2,13 @@
 // `document_chunks`). Returns a Map keyed by documentId for the active model; documents with zero chunks are
 // absent (the caller defaults to 0); a different model scopes to zero; empty input → empty map.
 
+import type { DocumentId } from "@orb/kit/ids";
 import { createEmbeddingsService } from "@orb/server/domain/embeddings";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures";
 import { EMBED_DIM, EMBED_MODEL, makeStoreHarness, seedDocument, seedUser } from "../_support.ts";
 
-async function storeChunk(svc: ReturnType<typeof createEmbeddingsService>, documentId: string, chunkIdx: number): Promise<void> {
+async function storeChunk(svc: ReturnType<typeof createEmbeddingsService>, documentId: DocumentId, chunkIdx: number): Promise<void> {
   await svc.store({
     kind: "document",
     lens: "chunk",

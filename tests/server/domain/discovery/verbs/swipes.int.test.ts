@@ -3,6 +3,8 @@
 // chat reads zero rows — no leak). Only slots with >1 variant count; single-take slots are excluded.
 
 import type { Db } from "@orb/db";
+import type { MessageId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -33,8 +35,8 @@ describe("swipeHotspots", () => {
       characterId: hero,
       variant: { content: "The chosen take for m1." },
     });
-    await seedMessageVariant(db, { id: "m1_v1", messageId: "m1", idx: 1, content: "alt a" });
-    await seedMessageVariant(db, { id: "m1_v2", messageId: "m1", idx: 2, content: "alt b" });
+    await seedMessageVariant(db, { id: "m1_v1", messageId: castId<MessageId>("m1"), idx: 1, content: "alt a" });
+    await seedMessageVariant(db, { id: "m1_v2", messageId: castId<MessageId>("m1"), idx: 2, content: "alt b" });
 
     // m2: 2 takes — a hotspot, ranked below m1.
     await seedMessage(db, {
@@ -45,7 +47,7 @@ describe("swipeHotspots", () => {
       characterId: hero,
       variant: { content: "The chosen take for m2." },
     });
-    await seedMessageVariant(db, { id: "m2_v1", messageId: "m2", idx: 1, content: "alt c" });
+    await seedMessageVariant(db, { id: "m2_v1", messageId: castId<MessageId>("m2"), idx: 1, content: "alt c" });
 
     // m3: a single take — NOT a hotspot (variantCount == 1, excluded by HAVING > 1).
     await seedMessage(db, {
@@ -80,7 +82,7 @@ describe("swipeHotspots", () => {
         characterId: hero,
         variant: { content: `take ${n}` },
       });
-      await seedMessageVariant(db, { id: `m${n}_v1`, messageId: `m${n}`, idx: 1, content: "alt" });
+      await seedMessageVariant(db, { id: `m${n}_v1`, messageId: castId<MessageId>(`m${n}`), idx: 1, content: "alt" });
     };
     await Promise.all([seedHotspot(1), seedHotspot(2), seedHotspot(3)]);
     expect(await svcFor(db).swipeHotspots(owner, chat, 2)).toHaveLength(2);
@@ -100,7 +102,7 @@ describe("swipeHotspots", () => {
       characterId: hero,
       variant: { content: "owned take" },
     });
-    await seedMessageVariant(db, { id: "m1_v1", messageId: "m1", idx: 1, content: "alt" });
+    await seedMessageVariant(db, { id: "m1_v1", messageId: castId<MessageId>("m1"), idx: 1, content: "alt" });
 
     // The stranger passing owner A's chatId reads zero rows — the belt joins characters.ownerId = stranger.
     expect(await svcFor(db).swipeHotspots(stranger, chat)).toEqual([]);

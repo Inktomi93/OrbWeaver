@@ -289,7 +289,7 @@ describe("D46 runtime plane — swipe-clobber rewind (ST #3263)", () => {
   const setX = (v: string): VarOp[] => [{ op: "set", key: "hp", value: v }];
 
   /** Read the chat's materialized runtime cache. */
-  async function runtimeCache(chatId: string): Promise<Record<string, string> | null> {
+  async function runtimeCache(chatId: ChatId): Promise<Record<string, string> | null> {
     const [row] = await db
       .select({ runtimeVariables: chats.runtimeVariables })
       .from(chats)

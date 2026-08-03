@@ -21,6 +21,7 @@
 
 import { execFileSync } from "node:child_process";
 import process from "node:process";
+import type { CharacterId } from "@orb/kit/ids";
 import type { ModeProject } from "./modes";
 import { DEV_TARGET_ALLOWED, LOCAL_MEMBER, LOCAL_OWNER, MODE_PROJECTS } from "./modes";
 import { probeTarget, targetRefusal } from "./target-guard";
@@ -82,7 +83,7 @@ async function ensureCharacter(baseUrl: string): Promise<string> {
 }
 
 /** Ensure ≥1 committed chat exists (model-free) so the reuse path in support/chat-room.ts always hits. */
-async function ensureChat(baseUrl: string, characterId: string): Promise<void> {
+async function ensureChat(baseUrl: string, characterId: CharacterId): Promise<void> {
   const chats = await query<readonly unknown[]>(baseUrl, "chat.listChats", {});
   if (chats.length > 0) {
     return;

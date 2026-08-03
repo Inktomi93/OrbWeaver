@@ -4,6 +4,8 @@
 // injected verify diagnostic. The result passes through untouched (connection adds no reshaping).
 
 import { DomainForbiddenError } from "@orb/kit/errors";
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createConnectionService } from "@orb/server/domain/connection";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -16,7 +18,7 @@ describe("testClaudeAuth", () => {
     const h = makeConnHarness(db);
     const svc = createConnectionService(h.ctx);
 
-    const result = await svc.testClaudeAuth({ principal: principal("user_owner") });
+    const result = await svc.testClaudeAuth({ principal: principal(castId<UserId>("user_owner")) });
 
     // Authorization routed through credentials' owner-gated mint (the D17 chokepoint).
     expect(h.credentialCalls).toEqual(["max-pro-sub"]);
@@ -42,7 +44,7 @@ describe("testClaudeAuth", () => {
     };
     const svc = createConnectionService(ctx);
 
-    await expect(svc.testClaudeAuth({ principal: principal("user_member") })).rejects.toBeInstanceOf(DomainForbiddenError);
+    await expect(svc.testClaudeAuth({ principal: principal(castId<UserId>("user_member")) })).rejects.toBeInstanceOf(DomainForbiddenError);
     // The verify diagnostic was never reached — no probe spend on a refused caller.
     expect(h.verifyCalls).toEqual([]);
   });

@@ -28,7 +28,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { messages } from "@orb/db";
-import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -88,7 +88,7 @@ function ctxWithCard(card: CharacterCard): ChatContext {
 }
 
 function inputOf(
-  chatId: string,
+  chatId: ChatId,
   ownerId: UserId,
   castIds: CharacterId[],
   personas: Parameters<typeof buildAssembleContext>[1]["personas"],

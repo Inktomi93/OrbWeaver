@@ -43,7 +43,7 @@ function anon(clientIp: string | null): RateLimitDecision {
   return { path: "chat.send", type: "mutation", principal: null, clientIp };
 }
 
-function principalFor(userId: string): Principal {
+function principalFor(userId: UserId): Principal {
   return {
     userId: castId<UserId>(userId),
     role: "user",
@@ -54,12 +54,12 @@ function principalFor(userId: string): Principal {
 }
 
 // A NON-turn authed request (a plain query) — hits ONLY the general per-user bucket, never the ai-turn one.
-function authed(userId: string, clientIp: string | null = "9.9.9.9"): RateLimitDecision {
+function authed(userId: UserId, clientIp: string | null = "9.9.9.9"): RateLimitDecision {
   return { path: "chat.listChats", type: "query", principal: principalFor(userId), clientIp };
 }
 
 // A $/GPU turn request — hits the STRICTER ai-turn bucket AND the general bucket.
-function turn(userId: string, clientIp: string | null = "9.9.9.9"): RateLimitDecision {
+function turn(userId: UserId, clientIp: string | null = "9.9.9.9"): RateLimitDecision {
   return { path: "chat.send", type: "mutation", principal: principalFor(userId), clientIp };
 }
 
@@ -95,9 +95,9 @@ describe("rate-limit gate — the anonymous → tight-bucket failsafe (never key
     // THE FAILSAFE: an AUTHED caller driven to the SAME count the anon just hit is still under budget —
     // proving the authed budget is the LOOSE bucket and anon never rode it. An inversion (anon → general)
     // would have let the anon caller sail past PUBLIC_CAP above.
-    const authedAllowed = await consumeUntilThrottled(enforce, authed("user_a"), PUBLIC_CAP);
+    const authedAllowed = await consumeUntilThrottled(enforce, authed(castId<UserId>("user_a")), PUBLIC_CAP);
     expect(authedAllowed).toBe(PUBLIC_CAP); // all allowed — the authed cap (600) dwarfs the public (60)
-    await expect(enforce(authed("user_a"))).resolves.toBeUndefined();
+    await expect(enforce(authed(castId<UserId>("user_a")))).resolves.toBeUndefined();
   });
 
   test("a null-IP anonymous caller STILL throttles (the `unknown` sentinel — no un-keyed hole)", async () => {
@@ -115,7 +115,7 @@ describe("rate-limit gate — the anonymous → tight-bucket failsafe (never key
     const { enforce } = gate(db);
 
     await enforce(anon("2.2.2.2"));
-    await enforce(authed("user_b"));
+    await enforce(authed(castId<UserId>("user_b")));
 
     const publicRows = await db.select({ key: rateLimitBuckets.key }).from(rateLimitBuckets).where(like(rateLimitBuckets.key, "public-ip:%"));
     const authedRows = await db.select({ key: rateLimitBuckets.key }).from(rateLimitBuckets).where(like(rateLimitBuckets.key, "general:%"));
@@ -140,22 +140,22 @@ describe("rate-limit gate — the ai-turn ($/GPU) bucket (stricter than the gene
     const { enforce } = gate(await freshDb());
 
     // A stream of `chat.send` (a turn) trips at the ai-turn cap (30), NOT the looser general cap (600).
-    const turnsAllowed = await consumeUntilThrottled(enforce, turn("user_t"), aiTurnCap + 5);
+    const turnsAllowed = await consumeUntilThrottled(enforce, turn(castId<UserId>("user_t")), aiTurnCap + 5);
     expect(turnsAllowed).toBe(aiTurnCap);
-    await expect(enforce(turn("user_t"))).rejects.toBeInstanceOf(DomainRateLimitError);
+    await expect(enforce(turn(castId<UserId>("user_t")))).rejects.toBeInstanceOf(DomainRateLimitError);
 
     // A DIFFERENT user's plain query driven to the same count is still under the general cap — proving the
     // turn was throttled by the ai-turn bucket, not the general one.
-    const queriesAllowed = await consumeUntilThrottled(enforce, authed("user_q"), aiTurnCap);
+    const queriesAllowed = await consumeUntilThrottled(enforce, authed(castId<UserId>("user_q")), aiTurnCap);
     expect(queriesAllowed).toBe(aiTurnCap);
-    await expect(enforce(authed("user_q"))).resolves.toBeUndefined();
+    await expect(enforce(authed(castId<UserId>("user_q")))).resolves.toBeUndefined();
   });
 
   test("a turn debits BOTH buckets — it lands rows in ai-turn: AND general: for the same user", async () => {
     const db = await freshDb();
     const { enforce } = gate(db);
 
-    await enforce(turn("user_both"));
+    await enforce(turn(castId<UserId>("user_both")));
 
     const aiTurnRows = await db.select({ key: rateLimitBuckets.key }).from(rateLimitBuckets).where(like(rateLimitBuckets.key, "ai-turn:%"));
     const generalRows = await db.select({ key: rateLimitBuckets.key }).from(rateLimitBuckets).where(like(rateLimitBuckets.key, "general:%"));
@@ -169,7 +169,7 @@ describe("rate-limit gate — the ai-turn ($/GPU) bucket (stricter than the gene
     const db = await freshDb();
     const { enforce } = gate(db);
 
-    await enforce(authed("user_qonly"));
+    await enforce(authed(castId<UserId>("user_qonly")));
 
     const aiTurnRows = await db.select({ key: rateLimitBuckets.key }).from(rateLimitBuckets).where(like(rateLimitBuckets.key, "ai-turn:%"));
     expect(aiTurnRows).toHaveLength(0);
@@ -193,9 +193,9 @@ describe("rate-limit gate — LIVE admin override (the gate reads the RESOLVED c
     // Admin tightens the ai-turn cap to 2. The next two turns pass; the third trips — proving the new cap
     // was read live, not baked at construction.
     state.override = { rateLimits: { aiTurn: 2 } };
-    await expect(enforce(turn("user_live"))).resolves.toBeUndefined();
-    await expect(enforce(turn("user_live"))).resolves.toBeUndefined();
-    await expect(enforce(turn("user_live"))).rejects.toBeInstanceOf(DomainRateLimitError);
+    await expect(enforce(turn(castId<UserId>("user_live")))).resolves.toBeUndefined();
+    await expect(enforce(turn(castId<UserId>("user_live")))).resolves.toBeUndefined();
+    await expect(enforce(turn(castId<UserId>("user_live")))).rejects.toBeInstanceOf(DomainRateLimitError);
   });
 
   test("at UNSET override the gate's caps are BYTE-IDENTICAL to the env floor (no silent loosen/tighten)", () => {

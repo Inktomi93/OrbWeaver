@@ -22,7 +22,7 @@ import {
   OPENING_AFTER_COMMIT_FAILED_HINT,
   OPENING_AFTER_COMMIT_FAILED_LEAD,
 } from "@orb/client/lib";
-import type { MessageId } from "@orb/kit/ids";
+import type { ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -207,7 +207,7 @@ test("Impersonate on a DRAFT commits WITH the greeting preserved (no opening:non
   await expect(box).toHaveValue("Good evening — ");
   await expect(box).toHaveValue("Good evening — is there a room to spare?");
   // The stream subscribed against the freshly-committed chat id (empty composer ⇒ no steer object).
-  const streamInput = sse.firstInput() as { chatId?: string; guided?: unknown };
+  const streamInput = sse.firstInput() as { chatId?: ChatId; guided?: unknown };
   expect(streamInput.chatId).toBe(COMPOSER_CHAT_ID);
   expect(streamInput.guided).toBeUndefined();
 });

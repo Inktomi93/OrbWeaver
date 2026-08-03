@@ -9,6 +9,8 @@
 //  3. the reaper actually FIRES on mount — assert the mutation reached the wire, not a UI reaction.
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { ChatTempChatTileStory } from "../_ct-stories";
@@ -17,9 +19,9 @@ import { ChatTempChatTileStory } from "../_ct-stories";
 const CREATION_ONLY_TEACHING_RE = /Marked Temporary from the moment it opens/u;
 
 /** A settings blob with a caller-chosen temp-chat TTL. */
-function settingsWithTtl(tempChatTtlHours: number): { userId: string; schemaVersion: number; config: unknown; updatedAt: number } {
+function settingsWithTtl(tempChatTtlHours: number): { userId: UserId; schemaVersion: number; config: unknown; updatedAt: number } {
   return {
-    userId: "user_ct",
+    userId: castId<UserId>("user_ct"),
     schemaVersion: 1,
     config: { ...DEFAULT_USER_SETTINGS, chat: { ...DEFAULT_USER_SETTINGS.chat, tempChatTtlHours } },
     updatedAt: 0,

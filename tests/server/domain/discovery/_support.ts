@@ -126,7 +126,7 @@ interface TagAttachRecorder {
   readonly op: DiscoveryContext["attachCardTagByName"];
   readonly calls: {
     ownerId: string;
-    characterId: string;
+    characterId: CharacterId;
     tagName: string;
     source?: string;
     status?: string;
@@ -462,7 +462,7 @@ export async function seedMessageVariant(
   db: Db,
   overrides: {
     readonly id: string;
-    readonly messageId: string;
+    readonly messageId: MessageId;
     readonly idx: number;
     readonly content?: string;
   },

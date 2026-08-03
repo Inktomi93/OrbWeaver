@@ -22,6 +22,7 @@
 // the `trpc.ts` CanonMessage posture); string-union axes stay `string` (the `no-inline-union-redecl` gate
 // bans re-spelling a homed tuple here, and specs compare to literals).
 
+import type { ChatId } from "@orb/kit/ids";
 import type { CryptoKey } from "jose";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 
@@ -214,7 +215,7 @@ interface CreatedInvite {
  *  MEMBER redeems the raw token (the one atomic participant-insert chokepoint). After this the member is a
  *  present participant and every member-gated read (`listMessages`/`replayChatEvents`) resolves for them.
  *  The `member` client must already be logged in (`loginLocal`). */
-export async function addMemberToChat(host: ActorClient, member: ActorClient, chatId: string, memberHandle: string): Promise<void> {
+export async function addMemberToChat(host: ActorClient, member: ActorClient, chatId: ChatId, memberHandle: string): Promise<void> {
   const invite = await host.mutation<CreatedInvite>("invites.createInvite", { chatId, input: { invitedHandle: memberHandle } });
   await member.mutation("invites.redeemInvite", { token: invite.token });
 }

@@ -33,6 +33,7 @@
 // SEED (owner rule): NEVER seed the "Mara" character in a live-inference seed — she destabilizes the 8B →
 // flaky asserts. Each spec mints its OWN spec-owned chatless probe card (Thornwick) on a fresh chat.
 
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openContextTab, openNewestChat, typeAndSend } from "./support/chat-room";
@@ -95,7 +96,7 @@ async function openGamePanel(page: Page): Promise<void> {
 }
 
 /** The roster actor ref of the seeded character (the write target for the hand-plane backbone). */
-function characterRef(view: TrackerView, characterId: string): ActorRefInput {
+function characterRef(view: TrackerView, characterId: CharacterId): ActorRefInput {
   const found = view.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
   if (found === undefined) {
     throw new Error(`e2e: character ${characterId} absent from the tracker roster`);
@@ -104,7 +105,7 @@ function characterRef(view: TrackerView, characterId: string): ActorRefInput {
 }
 
 /** The seeded character's actor row from a fresh tracker read (the volatile-plane comparand). */
-async function characterActor(chatId: string, characterId: string): Promise<TrackerActor> {
+async function characterActor(chatId: ChatId, characterId: CharacterId): Promise<TrackerActor> {
   const view = await getTrackerView(chatId);
   const found = view.actors.find((a) => a.actorRef.kind === "character" && a.actorRef.characterId === characterId);
   if (found === undefined) {
@@ -125,7 +126,7 @@ const COHERENT_VLLM_ROUTE: ChatRoute = { api: "chat-completions", source: "vllm"
  *  Returns the ids + a cleanup handle that removes the character (its chats/game cascade) AND restores the
  *  prior chat route (the shared single-user settings row). The handle is UNIQUE per spec (a distinct card
  *  handle) so serial specs never collide on the shared DB. */
-async function seedGame(handle: string): Promise<{ readonly chatId: string; readonly characterId: string; readonly cleanup: () => Promise<void> }> {
+async function seedGame(handle: string): Promise<{ readonly chatId: ChatId; readonly characterId: CharacterId; readonly cleanup: () => Promise<void> }> {
   const priorRoute = await getChatRoute();
   await setChatRoute(COHERENT_VLLM_ROUTE);
   const characterId = await mintFreshCharacter(handle, GM_NAME, GM_GREETING);

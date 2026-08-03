@@ -4,6 +4,8 @@
 // passes through untouched.
 
 import { DomainNoCredentialError } from "@orb/kit/errors";
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createConnectionService } from "@orb/server/domain/connection";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -17,7 +19,7 @@ describe("getGenerationCost", () => {
     const svc = createConnectionService(h.ctx);
 
     const result = await svc.getGenerationCost({
-      principal: principal("user_a"),
+      principal: principal(castId<UserId>("user_a")),
       generationId: "gen-123",
     });
 
@@ -35,6 +37,8 @@ describe("getGenerationCost", () => {
     };
     const svc = createConnectionService(ctx);
 
-    await expect(svc.getGenerationCost({ principal: principal("user_a"), generationId: "gen-123" })).rejects.toBeInstanceOf(DomainNoCredentialError);
+    await expect(svc.getGenerationCost({ principal: principal(castId<UserId>("user_a")), generationId: "gen-123" })).rejects.toBeInstanceOf(
+      DomainNoCredentialError,
+    );
   });
 });

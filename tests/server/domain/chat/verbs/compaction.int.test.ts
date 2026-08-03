@@ -10,7 +10,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -245,7 +245,7 @@ describe("runCompaction — the injected core (chained-marker math)", () => {
     const { host, chatId } = await seedRoom();
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "one" });
     // Record every applyStatsDelta the core fires (the spy the injected-op seam allows).
-    const deltas: { ownerId: string; costUsd: number | undefined; characterId: string | null; model: string | null }[] = [];
+    const deltas: { ownerId: string; costUsd: number | undefined; characterId: CharacterId | null; model: string | null }[] = [];
     const ctx = makeChatContext(db, {
       applyStatsDelta: (_batch, _db, delta) => {
         deltas.push({ ownerId: delta.ownerId, costUsd: delta.costUsd, characterId: delta.characterId, model: delta.model });

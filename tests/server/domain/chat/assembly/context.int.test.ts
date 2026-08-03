@@ -12,7 +12,7 @@ import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { chatBooks, worldBooks, worldEntries } from "@orb/db";
 import { ZWSP } from "@orb/kit/guided";
-import type { CharacterId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { assemblePrompt } from "../../../../../packages/server/src/domain/chat/assembly/assemble";
@@ -64,7 +64,7 @@ function ctxWithCard(card: CharacterCard): ChatContext {
  *  else always-scope. */
 async function attachChatEntry(
   owner: UserId,
-  chatId: string,
+  chatId: ChatId,
   key: string,
   entry: { content: string; keys?: string[]; priority?: number; inject?: { depth: number } },
 ): Promise<void> {
@@ -94,7 +94,7 @@ interface InputOver {
   roomOverrides?: RoomOverrides;
   mutedSpeakerKeys?: ReadonlySet<string>;
 }
-function inputOf(chatId: string, ownerId: UserId, castIds: CharacterId[], over: InputOver = {}): Parameters<typeof buildAssembleContext>[1] {
+function inputOf(chatId: ChatId, ownerId: UserId, castIds: CharacterId[], over: InputOver = {}): Parameters<typeof buildAssembleContext>[1] {
   return {
     chatId: castId(chatId),
     ownerId,

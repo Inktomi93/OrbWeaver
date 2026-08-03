@@ -23,6 +23,7 @@
 // proves the HOST side end-to-end (the lie is in host canon + the reveal eye parses it) and the reasoning-strip
 // WIRING (deception-active flips the game verdict) — see the report for the precise boundary.
 
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openContextTab, openNewestChat } from "./support/chat-room";
@@ -58,7 +59,7 @@ const COHERENT_VLLM_ROUTE: ChatRoute = { api: "chat-completions", source: "vllm"
 /** Seed a fresh lite game on a virgin chat with a spec-owned character, on the write-capable route. Returns the
  *  ids + a cleanup handle (removes the character — chats/game cascade — AND restores the prior route). A UNIQUE
  *  card handle per spec keeps serial specs from colliding on the shared dev DB. */
-async function seedGame(handle: string): Promise<{ readonly chatId: string; readonly characterId: string; readonly cleanup: () => Promise<void> }> {
+async function seedGame(handle: string): Promise<{ readonly chatId: ChatId; readonly characterId: CharacterId; readonly cleanup: () => Promise<void> }> {
   const priorRoute = await getChatRoute();
   await setChatRoute(COHERENT_VLLM_ROUTE);
   const characterId = await mintFreshCharacter(handle, GM_NAME, GM_GREETING);
@@ -85,7 +86,7 @@ async function openGamePanel(page: Page): Promise<void> {
 
 /** The greeting assistant row id (the durable row `startChat` seeded) — the deterministic edit target for the
  *  planted P3/P4/P5 content. A lite game's greeting is the first + only assistant row until a live turn runs. */
-async function greetingRowId(chatId: string): Promise<string> {
+async function greetingRowId(chatId: ChatId): Promise<string> {
   const canon = await listCanon(chatId);
   const assistant = canon.find((m) => m.role === "assistant");
   if (assistant === undefined) {

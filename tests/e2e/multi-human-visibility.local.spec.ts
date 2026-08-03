@@ -15,6 +15,7 @@
 //
 // The wire subset shapes are declared LOCALLY (the e2e-support import-free-of-package-trees rule).
 
+import type { ChatId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import type { ActorClient } from "./support/actors";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors";
@@ -90,7 +91,7 @@ async function freshCharacter(host: ActorClient, handle: string, input: Record<s
 
 /** Re-pin the room's D22 level. The group config is a whole-object write, so the two other required knobs
  *  ride along at their defaults — this helper keeps the four tier arms below to one readable line each. */
-async function setCardVisibility(host: ActorClient, chatId: string, level: string): Promise<void> {
+async function setCardVisibility(host: ActorClient, chatId: ChatId, level: string): Promise<void> {
   await host.mutation("chat.setGroupConfig", { chatId, config: { output: "per-speaker", policy: "natural", memberCardVisibility: level } });
 }
 
@@ -401,7 +402,7 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
  *  pincer: biome's `noUselessReturn`/`noUselessUndefined` reject the trailing statement, and dropping it
  *  reds `types:tests-dom` with TS7030 (`noImplicitReturns`, which the root `typecheck:graph` program does
  *  NOT enforce — it only surfaced in the commit hook). One accumulator + one return satisfies both. */
-async function pollForReply(host: ActorClient, chatId: string): Promise<MessagesPage["messages"][number] | undefined> {
+async function pollForReply(host: ActorClient, chatId: ChatId): Promise<MessagesPage["messages"][number] | undefined> {
   const deadline = Date.now() + REPLY_POLL_TIMEOUT_MS;
   let reply: MessagesPage["messages"][number] | undefined;
   while (reply === undefined && Date.now() < deadline) {
