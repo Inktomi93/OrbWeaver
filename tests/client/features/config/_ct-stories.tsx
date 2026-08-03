@@ -12,7 +12,7 @@ import type { CollectionContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import { __resetCollectionGroupOpen, clearCollectionSelection } from "@orb/client/state";
 import type { ReactElement } from "react";
-import { ConfigContextBody } from "../../../../packages/client/src/features/config/components/config-context-body";
+import { ConfigContextBody, ConfigContextHeader } from "../../../../packages/client/src/features/config/components/config-context-body";
 import { ConfigContentSurface } from "../../../../packages/client/src/features/config/surfaces/config-content-surface";
 import { ConfigRosterSurface } from "../../../../packages/client/src/features/config/surfaces/config-roster-surface";
 import { regexCollection } from "../../../../packages/client/src/features/regex";
@@ -42,7 +42,15 @@ export function ConfigWorkspaceStory(): ReactElement {
         <div style={{ flex: 1, overflow: "auto" }}>
           <ConfigContentSurface collections={collections} />
         </div>
-        <div style={{ overflow: "auto", width: 360 }}>
+        {/* The CONTEXT pane as the SHELL assembles it: the definition's `header` in the band, its `body`
+            below. Mounting the body alone hid a defect only the PAIR shows — the band echoing the body's own
+            empty-state title, so one pane stated one fact twice. `header` may decline (render nothing), which
+            in production resolves to the shell's neutral band; the story keeps the slot so the pair is
+            addressable either way. */}
+        <div data-slot="ct-config-context-pane" style={{ overflow: "auto", width: 360 }}>
+          <div data-slot="ct-config-context-band">
+            <ConfigContextHeader collections={collections} />
+          </div>
           <ConfigContextBody collections={collections} />
         </div>
       </div>

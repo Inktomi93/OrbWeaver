@@ -48,6 +48,24 @@ export function DatabankContextBody(): ReactElement {
   );
 }
 
+/** The CONTEXT BAND's identity (`ContextDefinition.header`, the §6b P4 slot) — `library.html`'s "Document",
+ *  unconditionally, because the band names what this PANE is about rather than what happens to be open.
+ *
+ *  Without it the band fell back to the shell's neutral "Details", which named nothing over three blocks
+ *  that answer where a document FEEDS, and collided with the CONTENT pane's own "Details" group heading
+ *  ~950px to its left — the generic-band finding the config workspace was swept for first (side-eye
+ *  2026-08-03 P3). It never doubles the body: the no-selection arm says "Where a document fires" and the
+ *  open arm's blocks are "Everywhere / Active in / Retrieval". */
+export function DatabankContextHeader(): ReactElement {
+  return (
+    // `kicker` — a BAND's name, painted like the LIST band on the same horizon (`ListPaneHeader`'s
+    // micro-caps), not like a datum's label. Same measured mismatch the config workspace was swept for.
+    <Text as="span" voice="kicker">
+      Document
+    </Text>
+  );
+}
+
 function ContextBody({ documentId }: { readonly documentId: DocumentId }): ReactElement {
   const trpc = useTRPC();
   const { data: documents } = useSuspenseQuery(trpc.databank.list.queryOptions({}));
