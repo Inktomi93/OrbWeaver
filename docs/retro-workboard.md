@@ -500,7 +500,24 @@ expectation). e2e-smoke + 12 other stages GREEN. **✅ PORT MERGED post-verdict 
 2 trivial conflicts union-resolved [SERVICE_KEYS comment · world-info index exports],
 conflict-adjacent suites 52/52, torn down).** **Lane BATFIX dispatched (mech)** for the
 remaining 4 items → then verify --push RE-RUN → PUSH-READY on green (182+ commits armed).
-**LIVE (3, at cap): RFIX · CARCH · BATFIX.**
+✅ **RFIX MERGED (`post-87b3c826`, --no-verify on receipts, torn down) — the side-eye fix-all:
+19 FIXED + 5 ARGUED w/ receipts, 14 red-first proofs, 171 CT green.** Headlines: X-1/X-2 via
+the ratified DERIVE arm (all-32-subsets property pin; import-heal sentence at
+derive-tier-flags.ts; useDisplayScripts proven unaffected) · Remove got its ConfirmDialog in
+EntryListEditor (all 4 consumers) · CodeMirror focus ring via FOCUS_RING_HAS w/ real-Tab CT ·
+F-8 regression fixed (Section kicker) · select-text on the inline Badge (Range/Selection CT —
+copied text keeps {{tokens}}) · regex pane single-listed w/ renderRowAction + 16px title ·
+home-tile skeletonRowCountFor DERIVES pitch from the live token (hardcoded 48 would be a
+tablet bug — pointer-conditional spacing; lesson banked) · info-button split verdict (12×12s
+carry 44×44 ::after — report measured the glyph box; 3 REAL squeezes fixed). ARGUED: F-13 was
+already fixed (smooth scrollIntoView is unmeasurable same-tick — BOTH the side-eye and the
+lane filed the identical false negative; lesson) · X-10 group-is-the-box (CD2) · X-13 D62
+pointer-conditional floors · X-17 one cache key (cold read ≠ refetch). DEFERRED: X-16
+edited-ago needs a RegexScriptRow timestamp (contracts+db — smalls queue). FLAGGED pre-existing:
+code-editor.ct completion flake under contention (documented CM6 75ms window — watch list) ·
+the chat.int dead second suppression = PORT-merge residue, FIXED direct-on-main `2501876a`.
+**LIVE (2): CARCH · BATFIX.** On BATFIX's merge → verify --push RE-RUN (background) →
+PUSH-READY on green.
 **PORT = DONE-AWAITING-MERGE (`e386deeb` on wt/agent-a801f968b9fead1c1, ONE commit, 95 files
 +3540/−699; HELD because the push battery is mid-run on `b3317c7d` — merge after the verdict):**
 F1 CLOSED (databank travels — REAL bundle round-trip: fresh db/CAS/owner via the actual
