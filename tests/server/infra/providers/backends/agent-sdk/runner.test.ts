@@ -7,7 +7,7 @@
 // result throws a typed ProviderError; the init shape guard fires; and a second turn RESUMES the cached
 // session (the Max-sub prompt-cache survival) while a non-agent-sdk request fail-closes.
 
-import type { ModelId } from "@orb/kit/ids";
+import type { ChatId, ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
 import type { AgentSdkChatRequest, ChatRequest, ChatResult } from "@orb/server/infra/providers";
@@ -538,7 +538,7 @@ describe("consumeTurnStream", () => {
 describe("createAgentSdkBackend", () => {
   // The narrowed agent-sdk arm (not the ChatRequest union) so tests can spread + override fields
   // without TS collapsing the discriminated union.
-  function buildReq(chatId: string): AgentSdkChatRequest {
+  function buildReq(chatId: ChatId): AgentSdkChatRequest {
     return {
       api: "agent-sdk",
       prompt: "hi",
@@ -568,12 +568,12 @@ describe("createAgentSdkBackend", () => {
     expect(backend.runChatTurn).toBeDefined();
     const run = backend.runChatTurn as ChatTurn;
 
-    const first = await run(buildReq("chat-1"));
+    const first = await run(buildReq(castId<ChatId>("chat-1")));
     expect(first.reply).toBe("Hello");
     // Turn 1 started fresh (no resume); turn 2 resumes the session id the SDK reported.
     expect(fakeQuery.mock.calls[0]?.[0]?.options?.resume).toBeUndefined();
 
-    await run(buildReq("chat-1"));
+    await run(buildReq(castId<ChatId>("chat-1")));
     expect(fakeQuery.mock.calls[1]?.[0]?.options?.resume).toBe(SESSION_ID);
   });
 
@@ -590,14 +590,14 @@ describe("createAgentSdkBackend", () => {
       { role: "assistant" as const, content: "hi there" },
     ];
     // Turn 1 is a COLD cache (no recorded session) → resumes the deterministic seed-derived id.
-    await run({ ...buildReq("chat-seeded"), seed, prompt: "next question" });
+    await run({ ...buildReq(castId<ChatId>("chat-seeded")), seed, prompt: "next question" });
     expect(fakeQuery.mock.calls[0]?.[0]?.options?.resume).toBe(seedSessionId("chat-seeded", seed));
 
     // Turn 1's stream reported session_id=SESSION_ID → recorded. Turn 2's canon DIVERGES (swipe), and
     // the store is replace-capable → reseed IN PLACE under the RECORDED id (keeps the conv cache
     // lineage), NOT a fresh deterministic id.
     const swipeSeed = [...seed, { role: "user" as const, content: "prompt" }];
-    await run({ ...buildReq("chat-seeded"), seed: swipeSeed, prompt: "regenerate" });
+    await run({ ...buildReq(castId<ChatId>("chat-seeded")), seed: swipeSeed, prompt: "regenerate" });
     expect(fakeQuery.mock.calls[1]?.[0]?.options?.resume).toBe(SESSION_ID);
   });
 
@@ -614,7 +614,7 @@ describe("createAgentSdkBackend", () => {
     // CAPABILITY has no `turns` → floors to midConversationSystem:false → the channel resolves to
     // system-block regardless of the knob (the funnel-driven default).
     await run({
-      ...buildReq("chat-sys"),
+      ...buildReq(castId<ChatId>("chat-sys")),
       systemPrompt: { static: "STATIC-HALF", dynamic: "DYNAMIC-HALF" },
     });
     const opts = fakeQuery.mock.calls[0]?.[0]?.options;
@@ -635,7 +635,7 @@ describe("createAgentSdkBackend", () => {
     });
     const run = backend.runChatTurn as ChatTurn;
     await run({
-      ...buildReq("chat-hook"),
+      ...buildReq(castId<ChatId>("chat-hook")),
       capability: MID_CONV_CAPABILITY,
       systemPrompt: { static: "STATIC-HALF", dynamic: "DYNAMIC-HALF" },
       params: { advanced: { dynamicContext: "hook" } },
@@ -659,7 +659,7 @@ describe("createAgentSdkBackend", () => {
     const run = backend.runChatTurn as ChatTurn;
     // CAPABILITY floors mid-conv-system to false → the funnel demotes the tail request to system-block.
     await run({
-      ...buildReq("chat-demote"),
+      ...buildReq(castId<ChatId>("chat-demote")),
       systemPrompt: { static: "STATIC-HALF", dynamic: "DYNAMIC-HALF" },
       params: { advanced: { dynamicContext: "hook" } },
     });
@@ -676,7 +676,7 @@ describe("createAgentSdkBackend", () => {
       query: fakeQuery as never,
       refreshHostSubToken: () => Promise.resolve(false),
     });
-    const result = await (backend.runChatTurn as ChatTurn)(buildReq("chat-ctx"));
+    const result = await (backend.runChatTurn as ChatTurn)(buildReq(castId<ChatId>("chat-ctx")));
     // The SDK response is mapped to the SDK-free contract shape (only the four aggregates).
     expect(result.contextUsage).toEqual({
       totalTokens: 12_000,
@@ -696,7 +696,7 @@ describe("createAgentSdkBackend", () => {
       query: fakeQuery as never,
       refreshHostSubToken: () => Promise.resolve(false),
     });
-    const result = await (backend.runChatTurn as ChatTurn)(buildReq("chat-ctx-throw"));
+    const result = await (backend.runChatTurn as ChatTurn)(buildReq(castId<ChatId>("chat-ctx-throw")));
     // The probe failed — contextUsage absent, but the turn is fully intact.
     expect(result.contextUsage).toBeUndefined();
     expect(result.reply).toBe("Hello");
@@ -713,7 +713,7 @@ describe("createAgentSdkBackend", () => {
         query: fakeQuery as never,
         refreshHostSubToken: () => Promise.resolve(false),
       });
-      const runPromise = (backend.runChatTurn as ChatTurn)(buildReq("chat-ctx-hang"));
+      const runPromise = (backend.runChatTurn as ChatTurn)(buildReq(castId<ChatId>("chat-ctx-hang")));
       // Drain microtasks so the stream completes and the probe's timeout timer is armed, then trip it.
       await vi.advanceTimersByTimeAsync(2000);
       const result = await runPromise;
@@ -732,7 +732,7 @@ describe("createAgentSdkBackend", () => {
       query: fakeQuery as never,
       refreshHostSubToken: () => Promise.resolve(false),
     });
-    const result = await (backend.runChatTurn as ChatTurn)(buildReq("chat-no-ctx"));
+    const result = await (backend.runChatTurn as ChatTurn)(buildReq(castId<ChatId>("chat-no-ctx")));
     expect(result.contextUsage).toBeUndefined();
   });
 
@@ -743,7 +743,7 @@ describe("createAgentSdkBackend", () => {
       query: fakeQuery as never,
       refreshHostSubToken: () => Promise.resolve(false),
     });
-    await (backend.runChatTurn as ChatTurn)(buildReq("chat-titled"));
+    await (backend.runChatTurn as ChatTurn)(buildReq(castId<ChatId>("chat-titled")));
     expect(fakeQuery.mock.calls[0]?.[0]?.options?.title).toBe("orb:chat-titled");
   });
 
@@ -769,7 +769,7 @@ describe("createAgentSdkBackend", () => {
     const run = backend.runChatTurn as ChatTurn;
     const onEvent = vi.fn();
     // CAPABILITY (reasoning none, sampling {}) exposes no temperature range → resolve-chat drops it + warns.
-    const result = await run({ ...buildReq("chat-warn"), params: { temperature: 0.7 }, onEvent });
+    const result = await run({ ...buildReq(castId<ChatId>("chat-warn")), params: { temperature: 0.7 }, onEvent });
     const warnings = result.events.filter((e) => e.kind === "warning");
     expect(warnings).toEqual([
       {
@@ -784,7 +784,7 @@ describe("createAgentSdkBackend", () => {
 });
 
 describe("provider.* observability taxonomy", () => {
-  function buildReq(chatId: string): AgentSdkChatRequest {
+  function buildReq(chatId: ChatId): AgentSdkChatRequest {
     return {
       api: "agent-sdk",
       prompt: "hi",
@@ -831,7 +831,7 @@ describe("provider.* observability taxonomy", () => {
       query: fakeQuery as never,
       refreshHostSubToken: () => Promise.resolve(false),
     });
-    await (backend.runChatTurn as ChatTurn)(buildReq("chat-ctx-log"));
+    await (backend.runChatTurn as ChatTurn)(buildReq(castId<ChatId>("chat-ctx-log")));
     const turns = providerLines(info, "provider.turn");
     expect(turns).toHaveLength(1);
     expect((turns[0] as Record<string, unknown>)["contextUsage"]).toEqual({
@@ -901,7 +901,7 @@ describe("provider.* observability taxonomy", () => {
     });
     const run = backend.runChatTurn as ChatTurn;
     const seed = [{ role: "user" as const, content: "hello" }];
-    await run({ ...buildReq("chat-sess"), seed });
+    await run({ ...buildReq(castId<ChatId>("chat-sess")), seed });
     const sessions = providerLines(debug, "provider.session");
     expect(sessions).toHaveLength(1);
     expect((sessions[0] as Record<string, unknown>)["disposition"]).toBe("seeded");
@@ -917,7 +917,7 @@ describe("provider.* observability taxonomy", () => {
     });
     const run = backend.runChatTurn as ChatTurn;
     // Absent knob + capable model ⇒ the funnel picks the cache-safe message-tail; nothing was demoted.
-    await run({ ...buildReq("chat-chan"), capability: MID_CONV_CAPABILITY });
+    await run({ ...buildReq(castId<ChatId>("chat-chan")), capability: MID_CONV_CAPABILITY });
     const channels = providerLines(debug, "provider.channel");
     expect(channels).toHaveLength(1);
     expect(channels[0]).toMatchObject({
@@ -938,7 +938,7 @@ describe("provider.* observability taxonomy", () => {
     const run = backend.runChatTurn as ChatTurn;
     // CAPABILITY floors mid-conv-system to false → the tail request is demoted to system-block.
     await run({
-      ...buildReq("chat-chan-demote"),
+      ...buildReq(castId<ChatId>("chat-chan-demote")),
       params: { advanced: { dynamicContext: "hook" } },
     });
     const channels = providerLines(debug, "provider.channel");
@@ -969,7 +969,7 @@ describe("provider.* observability taxonomy", () => {
       refreshHostSubToken: () => Promise.resolve(false),
     });
     const run = backend.runChatTurn as ChatTurn;
-    await run(buildReq("chat-death")).catch(() => undefined);
+    await run(buildReq(castId<ChatId>("chat-death"))).catch(() => undefined);
     const errs = providerLines(error, "provider.error");
     expect(errs).toHaveLength(1);
     const tail = (errs[0] as Record<string, unknown>)["stderrTail"];
@@ -989,7 +989,7 @@ describe("provider.* observability taxonomy", () => {
       query: healthyQuery as never,
       refreshHostSubToken: () => Promise.resolve(false),
     });
-    await (healthy.runChatTurn as ChatTurn)(buildReq("chat-ok"));
+    await (healthy.runChatTurn as ChatTurn)(buildReq(castId<ChatId>("chat-ok")));
     expect(providerLines(error, "provider.error")).toHaveLength(0);
   });
 });
@@ -1013,7 +1013,7 @@ describe("the chat runner's stateful tool + structured channels", () => {
   }
   const capture = (): ReturnType<typeof vi.fn> => vi.fn((_args: { options?: CapturedOptions }) => streamOf([initMsg, assistantMsg, successResult]));
 
-  function buildToolReq(chatId: string): AgentSdkChatRequest {
+  function buildToolReq(chatId: ChatId): AgentSdkChatRequest {
     return {
       api: "agent-sdk",
       prompt: "hi",
@@ -1031,7 +1031,7 @@ describe("the chat runner's stateful tool + structured channels", () => {
     const fakeQuery = capture();
     const run = backendWith(fakeQuery);
     const server = { marker: "mcp-server" };
-    await run({ ...buildToolReq("chat-tools"), toolServer: server, toolTurnLimit: 3 });
+    await run({ ...buildToolReq(castId<ChatId>("chat-tools")), toolServer: server, toolTurnLimit: 3 });
     const opts = fakeQuery.mock.calls[0]?.[0]?.options as CapturedOptions | undefined;
     expect(opts?.mcpServers).toEqual({ orbweaver: server });
     expect(opts?.allowedTools).toEqual(["mcp__orbweaver__*"]);
@@ -1043,7 +1043,7 @@ describe("the chat runner's stateful tool + structured channels", () => {
   test("a tool-less turn keeps the firewall base: mcpServers {} + maxTurns 1 (byte-identical pre-tools)", async () => {
     const fakeQuery = capture();
     const run = backendWith(fakeQuery);
-    await run(buildToolReq("chat-plain"));
+    await run(buildToolReq(castId<ChatId>("chat-plain")));
     const opts = fakeQuery.mock.calls[0]?.[0]?.options as CapturedOptions | undefined;
     expect(opts?.mcpServers).toEqual({});
     expect(opts?.allowedTools).toBeUndefined();
@@ -1055,7 +1055,7 @@ describe("the chat runner's stateful tool + structured channels", () => {
     const fakeQuery = capture();
     const run = backendWith(fakeQuery);
     await run({
-      ...buildToolReq("chat-structured"),
+      ...buildToolReq(castId<ChatId>("chat-structured")),
       responseFormat: {
         name: "extraction",
         schema: { type: "object", properties: { hp: { type: "number", minimum: 0 } } },
@@ -1120,7 +1120,7 @@ describe("the chat runner's TERMINAL-tool channel (D112 R1 fold)", () => {
     });
     return backend.runChatTurn as ChatTurn;
   }
-  function terminalReq(chatId: string): AgentSdkChatRequest {
+  function terminalReq(chatId: ChatId): AgentSdkChatRequest {
     return {
       api: "agent-sdk",
       prompt: "hi",
@@ -1139,7 +1139,7 @@ describe("the chat runner's TERMINAL-tool channel (D112 R1 fold)", () => {
 
   test("mounts its OWN MCP namespace, is never allow-listed, and floors maxTurns at the degrade budget", async () => {
     const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
-    await runWith(fakeQuery)(terminalReq("chat-terminal"));
+    await runWith(fakeQuery)(terminalReq(castId<ChatId>("chat-terminal")));
     const opts = optionsOf(fakeQuery);
     expect(Object.keys(opts?.mcpServers ?? {})).toEqual([TERMINAL_NS]);
     // NOT allow-listed, deliberately: an allow-listed tool resolves to `allow` BEFORE the deny hook can end
@@ -1153,7 +1153,7 @@ describe("the chat runner's TERMINAL-tool channel (D112 R1 fold)", () => {
 
   test("the PreToolUse hook DENIES + stops the turn for a terminal call, and waves every other tool through", async () => {
     const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
-    await runWith(fakeQuery)(terminalReq("chat-hook"));
+    await runWith(fakeQuery)(terminalReq(castId<ChatId>("chat-hook")));
     const preToolUse = optionsOf(fakeQuery)?.hooks?.PreToolUse ?? [];
     const hook = preToolUse[0]?.hooks[0];
     expect(hook).toBeDefined();
@@ -1183,7 +1183,7 @@ describe("the chat runner's TERMINAL-tool channel (D112 R1 fold)", () => {
         { ...successResult, stop_reason: "tool_use" },
       ]),
     );
-    const result = await runWith(fakeQuery)(terminalReq("chat-fold"));
+    const result = await runWith(fakeQuery)(terminalReq(castId<ChatId>("chat-fold")));
     // THE assertion: ONE query, one completion, carrying both the prose and the state (the fold's whole win).
     expect(fakeQuery).toHaveBeenCalledOnce();
     expect(result.reply).toBe("She steps into the rain.");
@@ -1197,13 +1197,13 @@ describe("the chat runner's TERMINAL-tool channel (D112 R1 fold)", () => {
 
   test("a mounted channel the model never called reports an EMPTY array — a quiet beat, never a missing channel", async () => {
     const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
-    const result = await runWith(fakeQuery)(terminalReq("chat-quiet"));
+    const result = await runWith(fakeQuery)(terminalReq(castId<ChatId>("chat-quiet")));
     expect(result.toolCalls).toEqual([]);
   });
 
   test("no terminal tools ⇒ a byte-identical tool-less turn AND an ABSENT channel (the fold falls back)", async () => {
     const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
-    const { terminalTools: _dropped, ...plain } = terminalReq("chat-plain-terminal");
+    const { terminalTools: _dropped, ...plain } = terminalReq(castId<ChatId>("chat-plain-terminal"));
     const result = await runWith(fakeQuery)(plain);
     expect(optionsOf(fakeQuery)?.mcpServers).toEqual({});
     expect(optionsOf(fakeQuery)?.maxTurns).toBe(1);
@@ -1214,7 +1214,7 @@ describe("the chat runner's TERMINAL-tool channel (D112 R1 fold)", () => {
     const warn = vi.spyOn(logger, "warn");
     const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
     const result = await runWith(fakeQuery)({
-      ...terminalReq("chat-unliftable"),
+      ...terminalReq(castId<ChatId>("chat-unliftable")),
       // `format` is outside the liftable subset — one bad tool withholds the WHOLE mount (a half-mounted state
       // surface would silently lose a plane the model can no longer write).
       terminalTools: [{ name: "update_scene", description: "d", parameters: { type: "object", properties: { at: { type: "string", format: "date" } } } }],
@@ -1230,7 +1230,7 @@ describe("the chat runner's TERMINAL-tool channel (D112 R1 fold)", () => {
     const fakeQuery = vi.fn(() =>
       streamOf([initMsg, assistantMsg, { ...successResult, permission_denials: [{ tool_name: `${TERMINAL_PREFIX}update_scene`, tool_use_id: "t1" }] }]),
     );
-    const quiet = await runWith(fakeQuery)(terminalReq("chat-denial"));
+    const quiet = await runWith(fakeQuery)(terminalReq(castId<ChatId>("chat-denial")));
     expect(quiet.events.filter((e) => e.kind === "permission_leak")).toEqual([]);
 
     const leaky = vi.fn(() =>
@@ -1246,7 +1246,7 @@ describe("the chat runner's TERMINAL-tool channel (D112 R1 fold)", () => {
         },
       ]),
     );
-    const leaked = await runWith(leaky)(terminalReq("chat-leak"));
+    const leaked = await runWith(leaky)(terminalReq(castId<ChatId>("chat-leak")));
     expect(leaked.events.filter((e) => e.kind === "permission_leak")).toEqual([{ kind: "permission_leak", at: 0, toolNames: ["Bash"] }]);
   });
 
@@ -1256,7 +1256,7 @@ describe("the chat runner's TERMINAL-tool channel (D112 R1 fold)", () => {
     const fakeQuery = vi.fn(() => streamOf([initMsg, assistantMsg, successResult]));
     const registry = { marker: "registry-mcp" };
     await runWith(fakeQuery)({
-      ...terminalReq("chat-both"),
+      ...terminalReq(castId<ChatId>("chat-both")),
       capability: MID_CONV_CAPABILITY,
       systemPrompt: { static: "STATIC-HALF", dynamic: "DYNAMIC-HALF" },
       params: { advanced: { dynamicContext: "hook" } },

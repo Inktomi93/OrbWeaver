@@ -17,7 +17,7 @@ const CHAT_ID = castId<ChatId>("chat_ctinvalidationtest");
 test("invalidate() (via the hook's live context) refetches the mounted getChat query", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "chat.getChat": (input: unknown) => ({
-      title: `room for ${(input as { chatId: string }).chatId}`,
+      title: `room for ${(input as { chatId: ChatId }).chatId}`,
     }),
   });
 
@@ -49,7 +49,7 @@ interface BurstChatRow {
 }
 
 const BURST_ROUTES = {
-  "chat.getChat": (input: unknown): { title: string } => ({ title: `room for ${(input as { chatId: string }).chatId}` }),
+  "chat.getChat": (input: unknown): { title: string } => ({ title: `room for ${(input as { chatId: ChatId }).chatId}` }),
   "chat.listChats": (): readonly BurstChatRow[] => [{ id: CHAT_ID }],
 };
 

@@ -6,7 +6,7 @@
 
 import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe, vi } from "vitest";
 import type { ResolveBackfillMemoryConfig } from "../../../../../packages/server/src/domain/chat/contract/memory.ts";
@@ -205,7 +205,7 @@ describe("backfillMemory — the chat × scope enumeration", () => {
 
     // The synthetic-group mint stands in for ALL per-scope work — a mint call proves the sweep reached the
     // disabled room's scope enumeration. It must fire ONLY for the enabled room.
-    const mint = vi.fn(async (_args: { ownerId: UserId; chatId: string }) => ({
+    const mint = vi.fn(async (_args: { ownerId: UserId; chatId: ChatId }) => ({
       characterId: "character_group" as CharacterId,
     }));
     const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: mint as never });
@@ -256,7 +256,7 @@ describe("backfillGroupCharacters — mint only for group rooms lacking one", ()
   test("a >1-character room without a group character mints ONE under the host; solo/empty skipped", async () => {
     const host = await seedUser(db, "host");
     await seedRooms(host);
-    const mint = vi.fn(async (_args: { ownerId: UserId; chatId: string }) => ({
+    const mint = vi.fn(async (_args: { ownerId: UserId; chatId: ChatId }) => ({
       characterId: "character_group" as CharacterId,
     }));
     const ctx = makeChatContext(db, {

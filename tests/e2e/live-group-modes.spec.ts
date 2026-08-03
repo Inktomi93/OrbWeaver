@@ -30,6 +30,7 @@
 // `opening: "none"` — an empty canon means round 1 has NO last speaker, which is what makes the
 // "everyone speaks" arms deterministic. Characters (and with them their chats) are removed in a finally.
 
+import type { ChatId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import type { ChatRoute, RosterSeat } from "./support/trpc";
 import {
@@ -64,7 +65,7 @@ const CAST = [
 const LIVE_TIMEOUT_MS = 240_000;
 
 interface Room {
-  readonly chatId: string;
+  readonly chatId: ChatId;
   readonly characterIds: readonly string[];
   readonly seats: readonly RosterSeat[];
 }

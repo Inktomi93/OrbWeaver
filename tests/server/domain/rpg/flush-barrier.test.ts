@@ -118,7 +118,7 @@ describe("rpg flush barrier", () => {
   test("a hung flush releases at the bound + fires onTimeout (never a deadlocked turn)", async () => {
     vi.useFakeTimers();
     try {
-      const timeouts: { chatId: string }[] = [];
+      const timeouts: { chatId: ChatId }[] = [];
       const barrier = createRpgFlushBarrier((info) => timeouts.push({ chatId: info.chatId }), 1000);
       const hung = deferred(); // never resolves — a black-holed state round
       barrier.register(CHAT, hung.promise);

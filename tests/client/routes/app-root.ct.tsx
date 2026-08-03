@@ -11,6 +11,8 @@
 // never CANON `chat.listMessages`, since every chat reached here is a DRAFT with no server row).
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { testId } from "../../../packages/client/src/lib/test-ids";
 import { routeTrpc } from "../../support/ct/route-trpc";
@@ -37,8 +39,8 @@ const PERSONAS = [{ id: "persona_home", name: "Nate", description: "", avatarHas
 // this character (none here) and the `seeds.*` pointers off the settings blob.
 const DRAFT_IDENTITY_STUB = {
   "persona.listConnectedToCharacter": (): readonly never[] => [],
-  "settings.getUserSettings": (): { userId: string; schemaVersion: number; config: unknown; updatedAt: number } => ({
-    userId: "user_ct",
+  "settings.getUserSettings": (): { userId: UserId; schemaVersion: number; config: unknown; updatedAt: number } => ({
+    userId: castId<UserId>("user_ct"),
     schemaVersion: 1,
     config: DEFAULT_USER_SETTINGS,
     updatedAt: 0,

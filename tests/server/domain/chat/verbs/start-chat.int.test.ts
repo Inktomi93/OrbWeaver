@@ -15,7 +15,7 @@ import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, personas } from "@orb/db";
 import { DomainNotFoundError, DomainUnavailableError } from "@orb/kit/errors";
-import type { CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
@@ -107,10 +107,10 @@ describe("startChat — #40 draft-time game birth (startAsGame)", () => {
   test("a startAsGame carry calls the injected rpg.startGame for the minted chat, threading the profile blind", async () => {
     const host = await seedUser(db, "host");
     const aria = await seedCharacter(db, host, "aria");
-    const started: { chatId: string; profile: unknown }[] = [];
+    const started: { chatId: ChatId; profile: unknown }[] = [];
     // FABRICATION-OK: minimal ChatRpgOps stub — startChat reaches ONLY `startGame` on this path.
     const rpg = {
-      startGame: (chatId: string, params: { profile?: unknown }): Promise<void> => {
+      startGame: (chatId: ChatId, params: { profile?: unknown }): Promise<void> => {
         started.push({ chatId, profile: params.profile });
         return Promise.resolve();
       },
@@ -129,7 +129,7 @@ describe("startChat — #40 draft-time game birth (startAsGame)", () => {
     const started: string[] = [];
     // FABRICATION-OK: minimal ChatRpgOps stub — asserting the ABSENCE of the call.
     const rpg = {
-      startGame: (chatId: string): Promise<void> => {
+      startGame: (chatId: ChatId): Promise<void> => {
         started.push(chatId);
         return Promise.resolve();
       },

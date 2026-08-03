@@ -1,6 +1,8 @@
 // verb: resolveChat — the chat overlay. The chat row's fields BEAT the UserSettings roleDefaults.chat
 // overlay; an empty row falls through to the settings default. Delegates to resolveRole (one home).
 
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { createConnectionService } from "@orb/server/domain/connection";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -16,7 +18,7 @@ describe("resolveChat — row beats settings", () => {
     const svc = createConnectionService(h.ctx);
 
     const conn = await svc.resolveChat({
-      principal: principal("user_1"),
+      principal: principal(castId<UserId>("user_1")),
       routableChat: { api: "agent-sdk", source: "openrouter", model: "claude-sonnet-5" },
     });
 
@@ -31,7 +33,7 @@ describe("resolveChat — row beats settings", () => {
     h.setRoleDefaults({ chat: { source: "vllm" } });
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveChat({ principal: principal("user_1"), routableChat: {} });
+    const conn = await svc.resolveChat({ principal: principal(castId<UserId>("user_1")), routableChat: {} });
 
     expect(conn.credential.source).toBe("vllm");
   });

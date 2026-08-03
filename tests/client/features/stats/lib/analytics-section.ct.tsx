@@ -5,6 +5,8 @@
 //  · the N1/N2 LIST band — the `listHeader` slot shows the "Analytics" title + the leaderboard census
 //    count, and (A2, read-only) exposes NO New action.
 
+import type { CharacterId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc";
 import { AnalyticsContextHeaderStory, AnalyticsListHeaderStory } from "../_ct-stories";
@@ -18,7 +20,7 @@ const DRILLED_CHARACTER = {
 
 // A minimal leaderboard census — the LIST-band count reads its length; the rows' other fields are inert
 // for the band (the surface below, not the band, renders them).
-function leaderboardRow(characterId: string, name: string): Record<string, unknown> {
+function leaderboardRow(characterId: CharacterId, name: string): Record<string, unknown> {
   return {
     characterId,
     name,
@@ -33,7 +35,7 @@ function leaderboardRow(characterId: string, name: string): Record<string, unkno
     lastActivityAt: 2,
   };
 }
-const LEADERBOARD = [leaderboardRow("char_a", "Aria"), leaderboardRow("char_b", "Bolt")];
+const LEADERBOARD = [leaderboardRow(castId<CharacterId>("char_a"), "Aria"), leaderboardRow(castId<CharacterId>("char_b"), "Bolt")];
 
 test("the CONTEXT band names the drilled leaderboard character (P4)", async ({ mount, page }) => {
   await routeTrpc(page, { "character.get": () => DRILLED_CHARACTER });

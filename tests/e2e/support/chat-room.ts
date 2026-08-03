@@ -17,6 +17,7 @@
 //   • stream-open is observed via the DEV `window.__orb.bus().live` count (agent-bridge.ts) — vite serves
 //     the e2e app in dev mode so the handle exists; orb has no `chat-stream-state` testid.
 
+import type { MessageId } from "@orb/kit/ids";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
@@ -47,7 +48,7 @@ interface OrbBusHandle {
  *  deliberate alternative to a positional `.first()/.last()` pick when the target row's id is known
  *  (from canon or a prior mutation's return value) — strict-mode-safe by construction (exactly one
  *  element can carry a given id). */
-export function messageRow(page: Page, messageId: string): ReturnType<Page["locator"]> {
+export function messageRow(page: Page, messageId: MessageId): ReturnType<Page["locator"]> {
   return page.locator(`[data-message-id="${messageId}"]`);
 }
 

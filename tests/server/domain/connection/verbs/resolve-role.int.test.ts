@@ -2,6 +2,8 @@
 // a role to `local-light`, the in-process tier — NO vllm hard-pin), applies the agent-sdk curated heal, and
 // throws ConnectionRoutingError on an incoherent (api, source) selection.
 
+import type { UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { ConnectionRoutingError, createConnectionService } from "@orb/server/domain/connection";
 import { deriveTrackersReadOnly } from "@orb/server/domain/rpg";
 import { env } from "@orb/server/foundation/env";
@@ -27,7 +29,7 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     h.setRoleDefaults({ embed: { source: "local-light" } });
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "embed", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "embed", principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.credential.source).toBe("local-light");
     expect(h.credentialCalls).toContain("local-light");
@@ -37,7 +39,7 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     const h = makeConnHarness(await freshDb());
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.api).toBe("chat-completions");
     expect(conn.credential.source).toBe("vllm");
@@ -47,7 +49,7 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     const h = makeConnHarness(await freshDb());
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "chat", principal: principal("owner_1", "owner") });
+    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("owner_1"), "owner") });
 
     expect(conn.api).toBe("agent-sdk");
     expect(conn.credential.source).toBe("max-pro-sub");
@@ -60,7 +62,7 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     });
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.api).toBe("agent-sdk");
     expect(conn.model).toBe("claude-sonnet-5");
@@ -74,7 +76,7 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
 
     const conn = await svc.resolveRole({
       role: "summarize",
-      principal: principal("owner_1", "owner"),
+      principal: principal(castId<UserId>("owner_1"), "owner"),
     });
 
     // Even the owner's summarize stays on the local engine — only chat is owner-conditional.
@@ -87,7 +89,7 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     h.setRoleDefaults({ summarize: { source: "max-pro-sub", model: "claude-sonnet-5" } });
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "summarize", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "summarize", principal: principal(castId<UserId>("user_1")) });
 
     // The sub summarize pairs with agent-sdk (the only coherent api for max-pro-sub) and heals its model
     // through the curated agent-sdk heal — like the chat role.
@@ -101,7 +103,7 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     h.setRoleDefaults({ chat: { api: "chat-completions", source: "max-pro-sub" } }); // the sub runs on agent-sdk only
     const svc = createConnectionService(h.ctx);
 
-    await expect(svc.resolveRole({ role: "chat", principal: principal("user_1") })).rejects.toBeInstanceOf(ConnectionRoutingError);
+    await expect(svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) })).rejects.toBeInstanceOf(ConnectionRoutingError);
   });
 
   // agent-sdk × vllm was REMOVED (owner ruling 2026-07-27): the local vLLM loopback agent skin is retired —
@@ -113,7 +115,7 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     h.setRoleDefaults({ chat: { api: "agent-sdk", source: "vllm" } });
     const svc = createConnectionService(h.ctx);
 
-    await expect(svc.resolveRole({ role: "chat", principal: principal("user_1") })).rejects.toBeInstanceOf(ConnectionRoutingError);
+    await expect(svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) })).rejects.toBeInstanceOf(ConnectionRoutingError);
   });
 
   // FRESH-DB DEFAULT-ROUTE REGRESSION (fresh-install rpg-lite born WRITABLE): the E2E global-setup seed used to
@@ -127,7 +129,7 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     h.setRoleDefaults({ chat: { api: "chat-completions", source: "vllm" } });
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.api).toBe("chat-completions");
     expect(conn.credential.source).toBe("vllm");
@@ -145,7 +147,7 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     h.setRoleDefaults({ chat: { api: "agent-sdk", source: "openrouter", model: "claude-sonnet-5" } });
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.api).toBe("agent-sdk");
     expect(conn.model).toBe("claude-sonnet-5");
@@ -161,7 +163,7 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
 
     // The owner's unconfigured chat defaults to agent-sdk × max-pro-sub — a real Claude source, so it heals
     // to the curated Claude default (a `/`-free curated id).
-    const conn = await svc.resolveRole({ role: "chat", principal: principal("owner_1", "owner") });
+    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("owner_1"), "owner") });
 
     expect(conn.credential.source).toBe("max-pro-sub");
     expect(conn.model.startsWith("claude")).toBe(true);
@@ -180,7 +182,7 @@ describe("resolveChatCapability — the end-to-end chat-role descriptor", () => 
     const h = makeConnHarness(await freshDb());
     const svc = createConnectionService(h.ctx);
 
-    const resolved = await svc.resolveChatCapability({ principal: principal("user_1") });
+    const resolved = await svc.resolveChatCapability({ principal: principal(castId<UserId>("user_1")) });
 
     // The vLLM default healed to a concrete selection → a real descriptor: it carries the window + output cap
     // the params panel's Max context / Max output fields bound against (the OLD null key hid these).
@@ -194,7 +196,7 @@ describe("resolveChatCapability — the end-to-end chat-role descriptor", () => 
 
     // Owner unconfigured chat → agent-sdk × max-pro-sub → the curated Claude default descriptor (adaptive
     // reasoning is the curated-Claude tell, matching getModelCapability.int.test.ts).
-    const resolved = await svc.resolveChatCapability({ principal: principal("owner_1", "owner") });
+    const resolved = await svc.resolveChatCapability({ principal: principal(castId<UserId>("owner_1"), "owner") });
 
     expect(resolved.capability.reasoning.mode).toBe("adaptive");
   });
@@ -207,11 +209,11 @@ describe("resolveChatCapability — the end-to-end chat-role descriptor", () => 
     const h = makeConnHarness(await freshDb());
     const svc = createConnectionService(h.ctx);
 
-    const owner = await svc.resolveChatCapability({ principal: principal("owner_1", "owner") });
+    const owner = await svc.resolveChatCapability({ principal: principal(castId<UserId>("owner_1"), "owner") });
     expect({ api: owner.api, source: owner.source }).toEqual({ api: "agent-sdk", source: "max-pro-sub" });
     expect(owner.model.startsWith("claude")).toBe(true);
 
-    const member = await svc.resolveChatCapability({ principal: principal("user_1") });
+    const member = await svc.resolveChatCapability({ principal: principal(castId<UserId>("user_1")) });
     expect({ api: member.api, source: member.source }).toEqual({ api: "chat-completions", source: "vllm" });
     expect(member.model.length).toBeGreaterThan(0);
   });
@@ -221,7 +223,7 @@ describe("resolveChatCapability — the end-to-end chat-role descriptor", () => 
     h.setRoleDefaults({ chat: { api: "agent-sdk", source: "openrouter", model: "claude-sonnet-5" } });
     const svc = createConnectionService(h.ctx);
 
-    const resolved = await svc.resolveChatCapability({ principal: principal("user_1") });
+    const resolved = await svc.resolveChatCapability({ principal: principal(castId<UserId>("user_1")) });
 
     expect({ api: resolved.api, source: resolved.source, model: resolved.model }).toEqual({
       api: "agent-sdk",
@@ -235,7 +237,7 @@ describe("resolveChatCapability — the end-to-end chat-role descriptor", () => 
     h.setRoleDefaults({ chat: { api: "agent-sdk", source: "max-pro-sub", model: "claude-sonnet-5" } });
     const svc = createConnectionService(h.ctx);
 
-    const resolved = await svc.resolveChatCapability({ principal: principal("user_1") });
+    const resolved = await svc.resolveChatCapability({ principal: principal(castId<UserId>("user_1")) });
 
     // The curated Sonnet descriptor (effort reasoning — the same assertion resolveRole's heal test makes).
     expect(resolved.capability.reasoning.mode).toBe("effort");
@@ -265,7 +267,7 @@ describe("resolveChatCapability — the end-to-end chat-role descriptor", () => 
     // Boot-seed (entry/lifecycle calls this on startup) — warms the mirror from the persisted snapshot.
     await svc.getCatalog({});
 
-    const resolved = await svc.resolveChatCapability({ principal: principal("user_1") });
+    const resolved = await svc.resolveChatCapability({ principal: principal(castId<UserId>("user_1")) });
 
     expect(resolved.capability.output.structured).toBe(true);
     expect(resolved.capability.tools).toBeDefined();
@@ -288,7 +290,7 @@ describe("resolveRole — cold-catalog warm (every source reads its own window t
     h.setOrCatalog([makeOrEntry({ id: model, name: "Llama 4 Maverick", contextLength: 1_048_576 })]);
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.capability.context.window).toBe(1_048_576);
     expect(conn.capability.context.windowEstimated).toBeUndefined();
@@ -306,7 +308,7 @@ describe("resolveRole — cold-catalog warm (every source reads its own window t
     __resetOrModelCache(); // a restart: the mirror is cold, the DB still holds yesterday's snapshot
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.capability.context.window).toBe(131_072);
     expect(h.orCatalogFetches()).toBe(0); // the DB answered — no gateway call
@@ -318,8 +320,8 @@ describe("resolveRole — cold-catalog warm (every source reads its own window t
     h.setOrCatalog([makeOrEntry({ id: model, contextLength: 131_072 })]);
     const svc = createConnectionService(h.ctx);
 
-    await svc.resolveRole({ role: "chat", principal: principal("user_1") });
-    await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+    await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) });
+    await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) });
 
     expect(h.orCatalogFetches()).toBe(1);
   });
@@ -331,9 +333,9 @@ describe("resolveRole — cold-catalog warm (every source reads its own window t
     const svc = createConnectionService(h.ctx);
 
     const conns = await Promise.all([
-      svc.resolveRole({ role: "chat", principal: principal("user_1") }),
-      svc.resolveRole({ role: "chat", principal: principal("user_1") }),
-      svc.resolveRole({ role: "chat", principal: principal("user_1") }),
+      svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) }),
+      svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) }),
+      svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) }),
     ]);
 
     expect(h.orCatalogFetches()).toBe(1);
@@ -346,7 +348,7 @@ describe("resolveRole — cold-catalog warm (every source reads its own window t
     h.setCatalogFetchFails(true);
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.model).toBe(model); // the turn still resolves — a catalog outage is not a broken chat
     expect(conn.capability.context.windowEstimated).toBe(true);
@@ -358,7 +360,7 @@ describe("resolveRole — cold-catalog warm (every source reads its own window t
     h.setVllmGenWindow(40_960);
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.capability.context.window).toBe(40_960);
     expect(conn.capability.context.windowEstimated).toBeUndefined();
@@ -370,7 +372,7 @@ describe("resolveRole — cold-catalog warm (every source reads its own window t
     const h = makeConnHarness(await freshDb());
     const svc = createConnectionService(h.ctx);
 
-    await svc.resolveRole({ role: "chat", principal: principal("owner_1", "owner") });
+    await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("owner_1"), "owner") });
 
     expect(h.agentSdkFetches()).toBe(1);
     expect(h.orCatalogFetches()).toBe(0);
@@ -391,7 +393,7 @@ describe("resolveRole — derive-role local-light fallback when vLLM is unavaila
     h.setVllmAvailable(false);
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role, principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role, principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.credential.source).toBe("local-light");
     expect(h.credentialCalls).toContain("local-light");
@@ -405,7 +407,7 @@ describe("resolveRole — derive-role local-light fallback when vLLM is unavaila
     h.setVllmAvailable(false);
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role, principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role, principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.credential.source).not.toBe("local-light");
     // For a NON-owner, chat/summarize default to vllm — neither falls to local-light (generation roles never do).
@@ -417,7 +419,7 @@ describe("resolveRole — derive-role local-light fallback when vLLM is unavaila
     h.setVllmAvailable(true);
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "embed", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "embed", principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.credential.source).toBe("vllm");
   });
@@ -428,7 +430,7 @@ describe("resolveRole — derive-role local-light fallback when vLLM is unavaila
     h.setRoleDefaults({ embed: { source: "openrouter", model: "openai/text-embedding-3-small" } });
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "embed", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "embed", principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.credential.source).toBe("openrouter");
   });
@@ -442,7 +444,7 @@ describe("resolveRole — vllm gen window truth order (engine self-report WINS o
     h.setVllmGenWindow(engineWindow);
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.credential.source).toBe("vllm");
     expect(conn.capability.context.window).toBe(engineWindow);
@@ -453,7 +455,7 @@ describe("resolveRole — vllm gen window truth order (engine self-report WINS o
     h.setVllmGenWindow(null); // engine warming/disabled — nothing to seed the cache
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.credential.source).toBe("vllm");
     expect(conn.capability.context.window).toBe(env.VLLM_GEN_MAX_MODEL_LEN);
@@ -478,7 +480,7 @@ describe("resolveRole — a stored model that cannot belong to a server-configur
     const warn = vi.spyOn(logger, "warn");
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.credential.source).toBe("vllm");
     expect(conn.model).toBe(env.VLLM_GEN_MODEL); // NOT the stale pin — the row heals without a DB touch
@@ -496,7 +498,7 @@ describe("resolveRole — a stored model that cannot belong to a server-configur
     const warn = vi.spyOn(logger, "warn");
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.model).toBe(env.VLLM_GEN_MODEL);
     expect(warn.mock.calls.some(([fields]) => isRecord(fields) && "storedModel" in fields)).toBe(false);
@@ -508,7 +510,7 @@ describe("resolveRole — a stored model that cannot belong to a server-configur
     h.setRoleDefaults({ embed: { source: "vllm", model: "text-embedding-3-large" } });
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "embed", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "embed", principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.model).toBe(env.VLLM_EMBED_MODEL);
   });
@@ -518,7 +520,7 @@ describe("resolveRole — a stored model that cannot belong to a server-configur
     h.setRoleDefaults({ chat: { api: "chat-completions", source: "custom_openai", model: "my-own-server/whatever" } });
     const svc = createConnectionService(h.ctx);
 
-    const conn = await svc.resolveRole({ role: "chat", principal: principal("user_1") });
+    const conn = await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) });
 
     expect(conn.model).toBe("my-own-server/whatever");
   });
@@ -556,7 +558,7 @@ describe("resolveRole — the cold-warm ladder ANNOTATES the request span (addSp
     const svc = createConnectionService(h.ctx);
     const requestId = "obs-or-cold-warm";
 
-    await withRequestSpan(requestId, "test resolveRole", {}, () => svc.resolveRole({ role: "chat", principal: principal("user_1") }));
+    await withRequestSpan(requestId, "test resolveRole", {}, () => svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) }));
 
     const events = eventsForCache(requestId, OR_CACHE);
     expect(events.map((e) => e.name)).toEqual(["cache.miss", "cache.warm"]);
@@ -572,8 +574,8 @@ describe("resolveRole — the cold-warm ladder ANNOTATES the request span (addSp
     const svc = createConnectionService(h.ctx);
     const requestId = "obs-or-warm-hit";
 
-    await svc.resolveRole({ role: "chat", principal: principal("user_1") }); // warms the module-scope mirror
-    await withRequestSpan(requestId, "test resolveRole", {}, () => svc.resolveRole({ role: "chat", principal: principal("user_1") }));
+    await svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) }); // warms the module-scope mirror
+    await withRequestSpan(requestId, "test resolveRole", {}, () => svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) }));
 
     expect(eventsForCache(requestId, OR_CACHE).map((e) => e.name)).toEqual(["cache.hit"]);
   });
@@ -588,7 +590,7 @@ describe("resolveRole — the cold-warm ladder ANNOTATES the request span (addSp
 
     // The resolve SUCCEEDS (a catalog outage never fails a turn) — so without the event the trace is silent
     // about the window being a guess.
-    await withRequestSpan(requestId, "test resolveRole", {}, () => svc.resolveRole({ role: "chat", principal: principal("user_1") }));
+    await withRequestSpan(requestId, "test resolveRole", {}, () => svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) }));
 
     const warm = eventsForCache(requestId, OR_CACHE).find((e) => e.name === "cache.warm");
     expect(warm?.attributes).toMatchObject({ outcome: "failed", reason: "or catalog unreachable" });
@@ -605,9 +607,9 @@ describe("resolveRole — the cold-warm ladder ANNOTATES the request span (addSp
     // Three concurrent cold resolves under ONE root: the first runs the ladder, the other two coalesce.
     await withRequestSpan(requestId, "test resolveRole", {}, () =>
       Promise.all([
-        svc.resolveRole({ role: "chat", principal: principal("user_1") }),
-        svc.resolveRole({ role: "chat", principal: principal("user_1") }),
-        svc.resolveRole({ role: "chat", principal: principal("user_1") }),
+        svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) }),
+        svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) }),
+        svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) }),
       ]),
     );
 
@@ -624,7 +626,7 @@ describe("resolveRole — the cold-warm ladder ANNOTATES the request span (addSp
     const svc = createConnectionService(h.ctx);
     const requestId = "obs-vllm-window-warm";
 
-    await withRequestSpan(requestId, "test resolveRole", {}, () => svc.resolveRole({ role: "chat", principal: principal("user_1") }));
+    await withRequestSpan(requestId, "test resolveRole", {}, () => svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) }));
 
     const events = eventsForCache(requestId, "connection.vllm-window");
     expect(events.map((e) => e.name)).toEqual(["cache.miss", "cache.warm"]);
@@ -639,7 +641,7 @@ describe("resolveRole — the cold-warm ladder ANNOTATES the request span (addSp
     const svc = createConnectionService(h.ctx);
     const requestId = "obs-vllm-window-unavailable";
 
-    await withRequestSpan(requestId, "test resolveRole", {}, () => svc.resolveRole({ role: "chat", principal: principal("user_1") }));
+    await withRequestSpan(requestId, "test resolveRole", {}, () => svc.resolveRole({ role: "chat", principal: principal(castId<UserId>("user_1")) }));
 
     const warm = eventsForCache(requestId, "connection.vllm-window").find((e) => e.name === "cache.warm");
     expect(warm?.attributes).toMatchObject({ outcome: "unavailable", engine: "gen" });

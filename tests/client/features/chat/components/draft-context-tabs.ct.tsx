@@ -74,7 +74,7 @@ const BOLT_DETAIL = makeCharacterDetail({ id: BOLT_ID, handle: BOLT_ID, name: "B
 test("a draft with ≥2 cast shows Members + the This chat Group behavior section (hidden at cast<2) and the add-member popover", async ({ mount, page }) => {
   await routeTrpc(page, {
     "character.list": { items: [ARIA_SUMMARY, BOLT_SUMMARY], nextCursor: null },
-    "character.get": (input: unknown): unknown => ((input as { readonly characterId: string }).characterId === ARIA_ID ? ARIA_DETAIL : BOLT_DETAIL),
+    "character.get": (input: unknown): unknown => ((input as { readonly characterId: CharacterId }).characterId === ARIA_ID ? ARIA_DETAIL : BOLT_DETAIL),
   });
 
   const component = await mount(<DraftContextPanelStory characterIds={[ARIA_ID, BOLT_ID]} />);

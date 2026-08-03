@@ -981,7 +981,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
-    const asked: { chatId: string; newHostUserId: string; copyGmPreset: boolean; cardCopies: number }[] = [];
+    const asked: { chatId: ChatId; newHostUserId: string; copyGmPreset: boolean; cardCopies: number }[] = [];
     // The returned statement stands in for the rpg write (chat commits it blind); `chats.title` is the observable.
     // FABRICATION-OK: minimal ChatRpgOps stub — the accept reaches ONLY `handoffHealStatements`.
     const rpg = {

@@ -17,6 +17,7 @@
 // Self-seeded: spec-owned characters (unique handles + display names) and a uniquely-titled chat, torn
 // down in a finally — never `listChats()[0]` on the shared DB.
 
+import type { ChatId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import {
@@ -45,7 +46,7 @@ const LIVE_TIMEOUT_MS = 180_000;
 const STOP_AFFORDANCE = /^(Stop generating|Stopping…)$/u;
 
 interface Room {
-  readonly chatId: string;
+  readonly chatId: ChatId;
   readonly characterIds: readonly string[];
   readonly title: string;
 }

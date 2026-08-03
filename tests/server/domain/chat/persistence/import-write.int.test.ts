@@ -28,7 +28,7 @@ const JSONL_EXT = /\.jsonl$/i;
 /** Records every `mintSyntheticGroupCharacter` call so a test can pin BOTH the once-per-chat idempotency and
  *  the "a plain ST import never touches the synthetic namespace" byte-identity claim. */
 interface MintSpy {
-  readonly calls: { readonly chatId: string }[];
+  readonly calls: { readonly chatId: ChatId }[];
   /** The synthetic row the stub minted (one per chat), keyed by chatId — find-or-mint, like the real verb. */
   readonly byChat: Map<string, CharacterId>;
 }

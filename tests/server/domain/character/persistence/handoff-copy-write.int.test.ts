@@ -147,7 +147,7 @@ test("the avatar is RE-OWNED through the injected op, never carried by id", asyn
   const hostAvatar = await seedAsset(db, oldHost.id, "host_avatar");
   const reowned = await seedAsset(db, nominee.id, "nominee_avatar");
   const source = await seedCard(db, oldHost.id, "aria", { avatarAssetId: hostAvatar });
-  const asked: { fromOwnerId: string; toOwnerId: string; assetId: string }[] = [];
+  const asked: { fromOwnerId: string; toOwnerId: string; assetId: AssetId }[] = [];
 
   await copier(db, (args) => {
     asked.push(args);

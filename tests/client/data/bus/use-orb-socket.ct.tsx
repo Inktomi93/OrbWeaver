@@ -27,7 +27,7 @@ const DISENGAGED_CHAT = castId<ChatId>("chat_ct_off_01");
 /** `chat.getChat` shaped for the pointer gate's THREE states: a live game, a chat with no pointer at all,
  *  and — the case the old re-spelled null-check got wrong — a chat whose game is present but TOGGLED OFF. */
 const getChat = (input: unknown): unknown => {
-  const chatId = (input as { chatId: string }).chatId;
+  const chatId = (input as { chatId: ChatId }).chatId;
   const rpg = ((): unknown => {
     if (chatId === GAME_CHAT) {
       return { gameId: "rpg_game_ct", engaged: true };

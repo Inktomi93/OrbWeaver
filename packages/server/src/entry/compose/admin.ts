@@ -6,7 +6,6 @@
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { SessionId, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import type { AdminEngineStatus, AdminService } from "#domain/admin";
 import { can, createAdminService } from "#domain/admin";
 import type { CharacterService } from "#domain/character";
@@ -64,7 +63,7 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
         const views = await sessions.listForUser(userId);
         return views.map((view): SessionView & { userId: UserId } => ({ ...view, userId }));
       },
-      revoke: (sessionId: string): Promise<void> => sessions.revoke(castId<SessionId>(sessionId)),
+      revoke: (sessionId: SessionId): Promise<void> => sessions.revoke(sessionId),
       revokeAllForUser: (userId: UserId): Promise<number> => sessions.revokeAllForUser(userId),
     },
     vllm: {

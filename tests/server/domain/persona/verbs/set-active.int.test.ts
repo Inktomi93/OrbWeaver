@@ -1,6 +1,6 @@
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatParticipants } from "@orb/db";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
 import { createPersonaService, PersonaNotFoundError } from "@orb/server/domain/persona";
@@ -16,7 +16,7 @@ describe("setActivePersona", () => {
   test("updates active persona when valid", async () => {
     const db = await freshDb();
     let requireCalled = false;
-    let setCalledWith: { targetUserId: string; personaId: string | null } | null = null;
+    let setCalledWith: { targetUserId: string; personaId: PersonaId | null } | null = null;
 
     const harness = makeHarness(db, {
       requireChatAuthorOrHost: (): Promise<void> => {
@@ -75,7 +75,7 @@ describe("setActivePersona", () => {
 
   test("allows null personaId to clear active persona", async () => {
     const db = await freshDb();
-    let setCalledWith: { targetUserId: string; personaId: string | null } | null = null;
+    let setCalledWith: { targetUserId: string; personaId: PersonaId | null } | null = null;
     const harness = makeHarness(db, {
       setChatActivePersona: (_chatId, targetUserId, pId): Promise<void> => {
         setCalledWith = { targetUserId, personaId: pId };
@@ -100,7 +100,7 @@ describe("setActivePersona", () => {
   test("omitted targetUserId defaults to the caller (self-case)", async () => {
     const db = await freshDb();
     let requireCalledWith: string | null = null;
-    let setCalledWith: { targetUserId: string; personaId: string | null } | null = null;
+    let setCalledWith: { targetUserId: string; personaId: PersonaId | null } | null = null;
     const harness = makeHarness(db, {
       requireChatAuthorOrHost: (_principal, _chatId, targetUserId): Promise<void> => {
         requireCalledWith = targetUserId;
@@ -131,7 +131,7 @@ describe("setActivePersona", () => {
 
   test("host with an explicit targetUserId stamps the TARGET, not the caller", async () => {
     const db = await freshDb();
-    let setCalledWith: { targetUserId: string; personaId: string | null } | null = null;
+    let setCalledWith: { targetUserId: string; personaId: PersonaId | null } | null = null;
     const harness = makeHarness(db, {
       requireChatAuthorOrHost: () => Promise.resolve(),
       setChatActivePersona: (_chatId, targetUserId, pId): Promise<void> => {
