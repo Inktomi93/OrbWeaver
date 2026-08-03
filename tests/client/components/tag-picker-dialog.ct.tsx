@@ -63,6 +63,9 @@ async function topmostAt(page: Page, name: string): Promise<string> {
   }, at);
 }
 
+/** Any non-empty id — the assertion is that a descendant IS highlighted, not which one. */
+const ANY_ACTIVEDESCENDANT = /.+/u;
+
 test("an EMPTY library says so, and still leads somewhere (typing creates the first tag)", async ({ mount, page }) => {
   await stub(page, []);
   const dialog = await mount(<TagPickerDialogHarness />);
@@ -220,7 +223,7 @@ test("ENTER submits the prompt — after the arrow-key pick, and straight from a
 
   // ArrowDown highlights WITHOUT moving focus off the input; the first Enter takes the highlighted item.
   await page.keyboard.press("ArrowDown");
-  await expect(field).toHaveAttribute("aria-activedescendant", /.+/u);
+  await expect(field).toHaveAttribute("aria-activedescendant", ANY_ACTIVEDESCENDANT);
   await page.keyboard.press("Enter");
   await expect(page.getByRole("button", { name: "Apply", exact: true })).toBeVisible();
   await expect(dialog.getByTestId("submitted")).toHaveText("");
