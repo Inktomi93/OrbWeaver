@@ -116,6 +116,47 @@ describe("createVllmChat", () => {
     expect(sentBody).not.toHaveProperty("min_p");
   });
 
+  // STRICTFMT: guided decoding is an ENFORCING wire — `strict:true` is the xgrammar populate lever (an 8B
+  // skips optionals unless the grammar REQUIRES them). The shared kit builder no longer invents a default, so
+  // this surface PINS it; losing the pin silently downgrades every structured vLLM call to unenforced JSON.
+  test("pins strict:true on response_format when the caller is silent (guided decoding is the enforcing wire)", async () => {
+    let sentBody: Record<string, unknown> | undefined;
+    const client: VllmEngineClient = {
+      enginePost: () => Promise.reject(new Error("chat must stream")),
+      engineStream: (_lane, _path, body) => {
+        sentBody = body as Record<string, unknown>;
+        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+      },
+      baseUrl: () => "http://127.0.0.1:0",
+    };
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ responseFormat: { name: "extract", schema: { type: "object" } } }));
+    expect(sentBody?.["response_format"]).toEqual({
+      type: "json_schema",
+      // biome-ignore lint/style/useNamingConvention: the OpenAI-compatible `response_format` wire field name.
+      json_schema: { name: "extract", schema: { type: "object" }, strict: true },
+    });
+  });
+
+  test("an EXPLICIT strict:false from the caller still wins over the vLLM pin", async () => {
+    let sentBody: Record<string, unknown> | undefined;
+    const client: VllmEngineClient = {
+      enginePost: () => Promise.reject(new Error("chat must stream")),
+      engineStream: (_lane, _path, body) => {
+        sentBody = body as Record<string, unknown>;
+        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+      },
+      baseUrl: () => "http://127.0.0.1:0",
+    };
+    const chat = createVllmChat({ client, now: clock() });
+    await chat(chatReq({ responseFormat: { name: "extract", schema: {}, strict: false } }));
+    expect(sentBody?.["response_format"]).toEqual({
+      type: "json_schema",
+      // biome-ignore lint/style/useNamingConvention: the OpenAI-compatible `response_format` wire field name.
+      json_schema: { name: "extract", schema: {}, strict: false },
+    });
+  });
+
   test("wires max_tokens = DEFAULT_MAX_OUTPUT_TOKENS when unset (the response-length default, NOT the window)", async () => {
     // The amnesia coupling: the runner's fallback must be a sane response length, never the window — and it
     // must equal the budget's reserve fallback (both `DEFAULT_MAX_OUTPUT_TOKENS`). A concrete-materialized

@@ -27,6 +27,7 @@ interface FrameShape {
   uuid?: string;
   parentUuid?: string | null;
   timestamp?: string;
+  // @foreign-id-ok(sessionId): the Claude Agent SDK's OWN chat-session id (its `session_id` wire field) — a NAME COLLISION with our BFF `SessionId = TypeIdOf<"session">`, a different wire's id that merely shares the spelling. Ends if this position ever carries one of our session rows, or if the field is renamed `sdkSessionId` (which would dissolve this marker).
   sessionId?: string;
   message: { role: string; content: Array<{ type: string; text: string }> };
 }

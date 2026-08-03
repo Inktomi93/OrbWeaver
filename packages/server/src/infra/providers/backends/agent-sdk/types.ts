@@ -48,6 +48,7 @@ export interface TurnStreamContext {
   readonly chatId?: string | undefined;
   readonly onEvent?: ((event: ChatEvent) => void) | undefined;
   readonly onDelta?: ((event: ChatDeltaEvent) => void) | undefined;
+  // @foreign-id-ok(sessionId): the Claude Agent SDK's OWN chat-session id (its `session_id` wire field) — a NAME COLLISION with our BFF `SessionId = TypeIdOf<"session">`, a different wire's id that merely shares the spelling. Ends if this position ever carries one of our session rows, or if the field is renamed `sdkSessionId` (which would dissolve this marker).
   readonly onSessionId?: ((sessionId: string) => void) | undefined;
   readonly configuredMaxOutputTokens?: number | null | undefined;
   readonly configuredMaxContextTokens?: number | null | undefined;
