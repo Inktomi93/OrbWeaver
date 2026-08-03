@@ -36,6 +36,9 @@ interface GateReport {
 }
 interface StructureReport {
   readonly gates: readonly GateReport[];
+  /** Optional: absent in pre-2026-08-03 artifacts. A gate that THREW (exit 2) — without rendering
+   *  these, an ok:false report with zero violations displayed as inexplicably empty. */
+  readonly toolErrors?: readonly { readonly gate: string; readonly phase: string; readonly message: string }[];
   readonly total: number;
   readonly ok: boolean;
 }
@@ -141,9 +144,23 @@ function main(): void {
     process.exit(0);
   }
 
+  const toolErrors = report.toolErrors ?? [];
   print(
-    report.ok ? ANSI.green("✓ check:structure passed (filter view)\n") : ANSI.red(`✗ check:structure FAILED — ${report.total} violation(s) across its gates\n`),
+    report.ok
+      ? ANSI.green("✓ check:structure passed (filter view)\n")
+      : ANSI.red(
+          `✗ check:structure FAILED — ${report.total} violation(s)${toolErrors.length > 0 ? ` + ${toolErrors.length} TOOL ERROR(S)` : ""} across its gates\n`,
+        ),
   );
+
+  // A thrown gate is a broken CHECKER, not a violation — render before the gate list so an
+  // otherwise-empty failing report explains itself.
+  for (const e of toolErrors) {
+    print(`${ANSI.red("✗ TOOL ERROR")} ${ANSI.bold(e.gate)} [${e.phase}]  ${e.message}`);
+  }
+  if (toolErrors.length > 0) {
+    print("");
+  }
 
   for (const g of report.gates) {
     if (!matchesGate(g, filter)) {
