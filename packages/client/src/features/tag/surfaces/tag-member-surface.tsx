@@ -72,53 +72,51 @@ function TagMemberEditor({ tag, others }: { readonly tag: TagWithUsage; readonly
 
   return (
     <Container>
-    <Stack className="max-w-prose outline-none" data-slot="tag-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
-      <Row align="center" gap="field">
-        <Heading level={2}>
-          {tag.name}
-        </Heading>
-        <Text as="span" voice="datum">
-          {usageTotalLabel(tag.usage.total)}
-        </Text>
-      </Row>
+      <Stack className="max-w-prose outline-none" data-slot="tag-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
+        <Row align="center" gap="field">
+          <Heading level={2}>{tag.name}</Heading>
+          <Text as="span" voice="datum">
+            {usageTotalLabel(tag.usage.total)}
+          </Text>
+        </Row>
 
-      <Field label="Name" name="tag-name">
-        <Input
-          onBlur={commitName}
-          onKeyDown={(event): void => {
-            if (event.key === "Enter") {
-              event.currentTarget.blur();
-            }
+        <Field label="Name" name="tag-name">
+          <Input
+            onBlur={commitName}
+            onKeyDown={(event): void => {
+              if (event.key === "Enter") {
+                event.currentTarget.blur();
+              }
+            }}
+            onValueChange={setName}
+            value={name}
+          />
+        </Field>
+
+        <TagColorControls patchStyle={patchStyle} tag={tag} />
+        <TagBehaviorControls patchStyle={patchStyle} tag={tag} />
+
+        <Row gap="field">
+          <TagMergeControl invalidation={invalidation} others={others} tag={tag} trpc={trpc} />
+          <Button intent="ghost" onClick={(): void => setDeleteOpen(true)} size="sm" type="button">
+            <Icon icon={Trash2} size="sm" />
+            Delete
+          </Button>
+        </Row>
+
+        <ConfirmDialog
+          confirmLabel="Delete"
+          description={`This removes the tag from ${usageBreakdown(tag.usage)} and can't be undone.`}
+          onConfirm={(): void => {
+            remove.mutate({ tagId: tag.id });
+            // The open member just stopped existing — land on the workspace welcome, not on a dead editor.
+            clearCollectionSelection();
           }}
-          onValueChange={setName}
-          value={name}
+          onOpenChange={setDeleteOpen}
+          open={deleteOpen}
+          title={`Delete "${tag.name}"?`}
         />
-      </Field>
-
-      <TagColorControls patchStyle={patchStyle} tag={tag} />
-      <TagBehaviorControls patchStyle={patchStyle} tag={tag} />
-
-      <Row gap="field">
-        <TagMergeControl invalidation={invalidation} others={others} tag={tag} trpc={trpc} />
-        <Button intent="ghost" onClick={(): void => setDeleteOpen(true)} size="sm" type="button">
-          <Icon icon={Trash2} size="sm" />
-          Delete
-        </Button>
-      </Row>
-
-      <ConfirmDialog
-        confirmLabel="Delete"
-        description={`This removes the tag from ${usageBreakdown(tag.usage)} and can't be undone.`}
-        onConfirm={(): void => {
-          remove.mutate({ tagId: tag.id });
-          // The open member just stopped existing — land on the workspace welcome, not on a dead editor.
-          clearCollectionSelection();
-        }}
-        onOpenChange={setDeleteOpen}
-        open={deleteOpen}
-        title={`Delete "${tag.name}"?`}
-      />
-    </Stack>
+      </Stack>
     </Container>
   );
 }
@@ -129,16 +127,10 @@ function TagColorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; rea
   return (
     <Row gap="field">
       <Field label="Background" name="tag-color">
-        <ColorField
-          onValueChange={(value): void => patchStyle({ color: value === "" ? null : value })}
-          value={tag.color ?? ""}
-        />
+        <ColorField onValueChange={(value): void => patchStyle({ color: value === "" ? null : value })} value={tag.color ?? ""} />
       </Field>
       <Field label="Text" name="tag-color2">
-        <ColorField
-          onValueChange={(value): void => patchStyle({ color2: value === "" ? null : value })}
-          value={tag.color2 ?? ""}
-        />
+        <ColorField onValueChange={(value): void => patchStyle({ color2: value === "" ? null : value })} value={tag.color2 ?? ""} />
       </Field>
     </Row>
   );

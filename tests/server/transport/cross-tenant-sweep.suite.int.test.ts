@@ -907,6 +907,10 @@ const PROBES: readonly Probe[] = [
   //    → NOT_FOUND (see the router's own classification header). The chat scope has no ownerId (D18) so
   //    attach/detach/listForChat/listRoomDisplayScripts are gated via chat's own host/member guards instead. ──
   { path: "regex.getScript", call: (c, i) => c.regex.getScript({ scriptId: i.regexScriptId }) },
+  // listScriptUsage takes a SCRIPT id and answers with the carriers attaching it — a stranger naming
+  // A's script must learn nothing (the verb loads the owned script first; rooms ride the injected
+  // present-membership op, so a foreign room never appears either).
+  { path: "regex.listScriptUsage", call: (c, i) => c.regex.listScriptUsage({ scriptId: i.regexScriptId }) },
   {
     path: "regex.updateScript",
     call: (c, i) => c.regex.updateScript({ scriptId: i.regexScriptId, input: { name: "hacked" } }),

@@ -99,12 +99,10 @@ export const personaRouter = t.router({
   // The two single-entity doors, both THIN ARMS over the bundle descriptor's verbs (the ratified thin-arm
   // law): the FILE is the unit on the wire, so a persona shared one-at-a-time is byte-identical to the one
   // inside a backup zip and the merge semantics can never fork.
-  export: authedProcedure
-    .input(z.object({ personaId: brandedId<PersonaId>() }))
-    .query(async ({ ctx, input }) => {
-      const file = await ctx.services.persona.export({ principal: ctx.auth, personaId: input.personaId });
-      return { filename: file.filename, fileText: DEC.decode(file.bytes) };
-    }),
+  export: authedProcedure.input(z.object({ personaId: brandedId<PersonaId>() })).query(async ({ ctx, input }) => {
+    const file = await ctx.services.persona.export({ principal: ctx.auth, personaId: input.personaId });
+    return { filename: file.filename, fileText: DEC.decode(file.bytes) };
+  }),
 
   import: authedProcedure.input(z.object({ fileText: z.string().max(MAX_PERSONA_FILE_CHARS) })).mutation(async ({ ctx, input }) => {
     const outcome = await ctx.services.persona.import({ principal: ctx.auth, bytes: ENC.encode(input.fileText) });

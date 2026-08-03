@@ -34,8 +34,10 @@ const ALLOWLIST: Record<string, string> = {
     "the GONE arm — the open tag was deleted on another device (the tag verbs are bus-driven, so the list refetches " +
     "under the editor). The next step is picking another row in the sibling roster, which is on screen; the " +
     "member-card-viewer NOT_FOUND precedent, same species.",
-  "packages/client/src/features/regex/surfaces/regex-member-surface.tsx": "the regex twin of the tag member editor's GONE arm above — same species, same reasoning.",
-  "packages/client/src/features/regex/components/regex-context-body.tsx": "the regex CONTEXT pane's GONE arm (the script was deleted while its context was open) — the member-editor twin above.",
+  "packages/client/src/features/regex/surfaces/regex-member-surface.tsx":
+    "the regex twin of the tag member editor's GONE arm above — same species, same reasoning.",
+  "packages/client/src/features/regex/components/regex-context-body.tsx":
+    "the regex CONTEXT pane's GONE arm (the script was deleted while its context was open) — the member-editor twin above.",
   "packages/client/src/features/chat/anchors/character-gallery-dialog.tsx":
     'the "Nothing left to add" state (every owned image is already in the gallery) has no next step — genuinely nothing to do.',
   "packages/client/src/features/chat/components/member-card-viewer.tsx":
@@ -56,7 +58,7 @@ const ALLOWLIST: Record<string, string> = {
   "packages/client/src/features/world-info/components/world-info-context-body.tsx":
     "the GONE arm of the world-info CONTEXT pane — the open book was deleted while its attachments were on " +
     "screen. (Its predecessor, the rail section's 'No book open' arm, retired with the section at R2: a " +
-    "`{kind:\"body\"}` collection arm is only ever called WITH a member, and the no-selection copy is the " +
+    '`{kind:"body"}` collection arm is only ever called WITH a member, and the no-selection copy is the ' +
     "config host's own `context.empty`.) The next step is picking another row in the sibling roster, which is " +
     "on screen; the regex-context-body twin above, same species.",
   "packages/client/src/features/rpg/components/cast/cast-tab.tsx":

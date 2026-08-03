@@ -195,11 +195,7 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // dialog is closed (the read is `enabled: open`, so there is no cache entry to refetch).
   // + the regex attached-by rosters: a character RENAME must repaint its name in listScriptUsage
   // (REGROSTER's flagged gap — attach/detach ride regexChanged; renames ride only this event).
-  charactersChanged: (_e, trpc) => [
-    trpc.character.pathFilter(),
-    trpc.chat.getMemberCard.pathFilter(),
-    trpc.regex.listScriptUsage.pathFilter(),
-  ],
+  charactersChanged: (_e, trpc) => [trpc.character.pathFilter(), trpc.chat.getMemberCard.pathFilter(), trpc.regex.listScriptUsage.pathFilter()],
   personasChanged: (_e, trpc) => [trpc.persona.pathFilter()],
   // A preset edit changes the effective params (maxOutput/maxContext) the fit reserves against, so the
   // transcript divider's budget must refetch too (the boundary tracks knob changes live, PD-#7) — and the
