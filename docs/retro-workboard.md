@@ -56,7 +56,12 @@ comment; no suppression).
    commit swept SIX files of FORMAT DRIFT accumulated by the night's --no-verify merges
    (scoped --write on named files, the sanctioned shape; lint:biome was red on main until
    here). **CT battery = the night's ~20 merges are proven together.**
-AFTER BOTH: `pnpm verify --push` (background) → 14/14 = **board PUSH-READY, await the word** →
+3. **PUSH BATTERY run 1: 13/14** — sole red = seed-demo-chats' 5s timeout, the THIRD sighting of
+   the cold-import contention flake (passes 7/7 isolated every time). STRUCTURAL FIX, not a shrug:
+   routed to SERIAL_INT (`aef89ecb`) beside its four same-class siblings (chat.int, rpg.int,
+   persona-multihuman, assets-character — full-composition-root files paying the cold graph import
+   on their first test). **RE-RUN OWED: `pnpm verify --push` → 14/14 = PUSH-READY.**
+AFTER: **board PUSH-READY, await the word** →
 then **DATABANK S1 (owner-ruled: start if the board empties — it has)**: spec
 docs/design/databank-surface-spec.md + published mocks; own rail section; S1-S3 staged;
 RowToggleAction exists; the workspace-scroll lesson (ct-hub) applies to its host; mock-first
