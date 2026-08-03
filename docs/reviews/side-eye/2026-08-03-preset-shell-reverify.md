@@ -2,7 +2,7 @@
 
 **Target:** main @ `f3c0ef20` · **Stage:** `pnpm snap --isolated` (frozen worktree `f3c0ef20f9c8` → :5273/:8888).
 Never touched :5173. **Mode:** FOCUSED (ranked lead list). Ledger verified against
-`docs/reviews/misc/2026-08-02-preset-execution-crunch-list.md`; sanctioned deviations in
+`docs/history/reviews/misc/2026-08-02-preset-execution-crunch-list.md`; sanctioned deviations in
 `reports/snaps/preset-mocks/INDEX.md` were NOT re-litigated.
 
 ## VERDICT: SHIP WITH FIXES

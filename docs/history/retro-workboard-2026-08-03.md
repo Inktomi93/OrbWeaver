@@ -1258,7 +1258,7 @@ swap layout-stable (reserve the space, opacity-swap, never conditional-mount wid
 LIST-VIEW buttons are JANK** (owner verbatim) — the reveal cluster's appearance/hit-targets;
 judge live, not from CTs. The re-verify side-eye STARTS with these two before its normal sweep.
 **→ FULL EXECUTION CRUNCH LIST DELIVERED (08-02 night, orchestrator mock-vs-rendered pass +
-owner's own list merged): `docs/reviews/misc/2026-08-02-preset-execution-crunch-list.md`** —
+owner's own list merged): `docs/history/reviews/misc/2026-08-02-preset-execution-crunch-list.md`** —
 P0 mechanism PINNED from owner console (conditional-mount badge⇄cluster swap, (detached)
 oscillation; synthetic hover can't repro — real-pointer proof required), 17 orchestrator items +
 15 owner items incl. 7 ★rulings (active=filled lucide dot [P4 badge arm OVERRULED] · zone vocab

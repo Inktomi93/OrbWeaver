@@ -18,7 +18,7 @@ the side-eye fix-all, 33 findings closed (`4f91d627`, merged `11ee38d8`; program
 `e1c07cbc`). D8's ruled binding + the Actions RESOLVED preview landed after the core (`6b11ea7a`).
 The post-build CRUNCH WAVE — owner verbatim *"it looks kinda crunchy"* — then ran on top of it
 (`5978fddf`, `45cf001d`, `d294c7c5`, `c4844496`, `ed90cd59`), and its per-row receipt ledger is
-`docs/reviews/misc/2026-08-02-preset-execution-crunch-list.md` (strike pass `5d8ff5ef`): THAT doc, not
+`docs/history/reviews/misc/2026-08-02-preset-execution-crunch-list.md` (strike pass `5d8ff5ef`): THAT doc, not
 this one, is the authoritative row-by-row state of the rendered surface.
 
 **The residue, CLOSED 2026-08-03 (lane D8R).** D121 **clause G** is BUILT: Prompt joined

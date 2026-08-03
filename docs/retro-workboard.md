@@ -222,10 +222,9 @@ identity chrome for ANY row kind.
 - **D125 is UNMINTED.** HCOPY's handoff-copy D-entry text (amends D64) lives only in its final report.
   Next free number confirmed at `Core-Path-Registry.md:11`. Mint it at the next ceremony batch,
   alongside any REGPAR / R2WI ledger deltas.
-- **Graduation move owed:** `docs/reviews/misc/2026-08-02-preset-execution-crunch-list.md` is 36/36
-  ACCOUNTED and declared graduation-ready by POLISH (`634db1b8`) — no re-verify needed, but it is still
-  in `docs/reviews/misc/` and `docs/history/reviews/misc/` is EMPTY. Move it (refs repoint,
-  `dangling-refs` green) per `docs/history/README.md`'s rule.
+- ✅ **Graduation move DONE (08-03):** the 36/36-ACCOUNTED preset-execution crunch list graduated to
+  `docs/history/reviews/misc/`; its three inbound refs repointed. (The board's "that dir is EMPTY"
+  claim was stale — it already held six graduated reviews.)
 
 ### I-10 · LAUNCH-DAY — three things that only matter on the day
 
