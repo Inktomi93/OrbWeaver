@@ -1296,6 +1296,9 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
           getLog().warn({ err: memErr, chatId: prep.chatId }, "memory: post-turn build failed");
           try {
             await deps.emit({ type: "warning", chatId: prep.chatId, code: "memory_build_failed" });
+            // @swallowed-ok(catch): a failed WARNING emit must not mask `memErr` — the build failure the
+            // outer catch rethrows below is what the span must record, and it already reached the log.
+            // Ends if the emit ever becomes retryable (then it owns its own reporting).
           } catch {
             // A failed warning emit must never re-throw out of the fire-and-forget.
           }

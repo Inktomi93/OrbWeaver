@@ -20,7 +20,7 @@ import type { MacroRegistry } from "@orb/kit/macro";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
-import { getLog } from "#foundation/observability";
+import { getLog, withRequestSpan } from "#foundation/observability";
 import type { WireTool } from "#infra/providers";
 import type { ChatContext } from "../context";
 import type { ActiveTurns } from "../contract/active-turns";
@@ -1178,12 +1178,28 @@ async function assembleSendResult(
   return { messages: [args.userView, ...args.round.messages, ...followUps], aborted: false };
 }
 
+/** The rpg send-path commit's own trace root. One name so the debug surface and any future filter agree. */
+const RPG_USER_COMMIT_SPAN = "rpg.userCommit";
+
+/** The trace-ring request id the send-path commit is bucketed under — its OWN id, never the HTTP request's:
+ *  the dispatch instant still has the `trpc.*` span active, but the commit itself runs after that root has
+ *  sealed, so a parented span would be silently dropped as a late orphan. Keyed by the user MESSAGE that
+ *  triggered it (there is no turnId on the send path yet). Mirrors `rpgRoundRequestId` in the engine. */
+function rpgUserCommitRequestId(messageId: MessageId): string {
+  return `rpg-user-commit:${messageId}`;
+}
+
 /** Fire-and-forget the rpg SEND-path COMMIT (rpg-design/05 §0): after the user row lands, lock in the prior
  *  assistant turn's snapshot the user was replying to (+ consume queued dice). Null op = non-rpg chat
- *  (byte-identical no-op); fire-and-forget so a background snapshot-commit never blocks or fails the send. */
+ *  (byte-identical no-op); fire-and-forget so a background snapshot-commit never blocks or fails the send.
+ *  Wrapped in its own DETACHED root (`withRequestSpan`) for the same reason the engine's rpg round is: it
+ *  outlives the request, so without a root of its own its cost and its failures are invisible. */
 function fireRpgUserCommit(ctx: ChatContext, chatId: ChatId, messageId: MessageId): void {
   if (ctx.rpg !== null) {
-    void ctx.rpg.onUserCommit(chatId, messageId).catch(() => undefined);
+    const rpg = ctx.rpg;
+    void withRequestSpan(rpgUserCommitRequestId(messageId), RPG_USER_COMMIT_SPAN, { chatId, messageId }, () => rpg.onUserCommit(chatId, messageId)).catch(
+      () => undefined,
+    );
   }
 }
 
