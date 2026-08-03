@@ -10,6 +10,12 @@
 // APPLICABILITY class): a `user`/`cast` actor has no card to read, and a connection with no structured writer
 // could only no-op. Host-only is the separate PERMISSION-omit — the takeover renders this at all only for the
 // host, mirroring `populateFromCharacter`'s own `resolveHost` gate.
+//
+// POPLOUD — THE OUTCOME IS SPOKEN. The verb answers with a `PopulateResult` and all three endings reach the
+// host: a refusal toasts through the mutation factory's `refusal` seam (`populateRefusal`, the hook file), a
+// fill that landed repaints the panel (its own feedback), and a round that filled NOTHING says so here as an
+// INFO line — the one ending with no other observable. Before this, a provider that refused every structured
+// request looked exactly like an empty card: the button settled and nothing else happened.
 
 import type { RpgActorView } from "@orb/contracts/rpg";
 import type { ChatId } from "@orb/kit/ids";
@@ -19,6 +25,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
+import { notify } from "#lib";
 import { usePopulateFromCharacter } from "../hooks/use-rpg-mutations";
 import { Kicker } from "./rpg-kicker";
 
@@ -43,6 +50,21 @@ export function RpgPopulateControl({ chatId, actor, canPopulate }: RpgPopulateCo
   const invalidation = useInvalidation();
   const populate = usePopulateFromCharacter({ trpc, invalidation });
   const reason = populateRefusal(actor, canPopulate);
+
+  // POPLOUD's THIRD ending: the round RAN and filled nothing (an empty card, or a sheet the fill rule fully
+  // absorbed). The mutation's `refusal` seam owns `{ok:false}` (it toasts an error, which this is not), and a
+  // real fill announces itself by repainting the panel — so this arm is the only one with no signal of its
+  // own. The host paid for a model call; say what it found.
+  const onFill = async (): Promise<void> => {
+    try {
+      const verdict = await populate.mutateAsync({ chatId, actorRef: actor.actorRef });
+      if (verdict.ok && !verdict.populated) {
+        notify.info(`Nothing to fill — ${actor.name}'s card added nothing that isn't already set.`);
+      }
+    } catch {
+      // The failed mutation's own error toast has already spoken.
+    }
+  };
   return (
     <Stack gap="field" data-slot="rpg-populate-control">
       <Kicker>Fill from card</Kicker>
@@ -56,7 +78,9 @@ export function RpgPopulateControl({ chatId, actor, canPopulate }: RpgPopulateCo
           size="sm"
           disabled={populate.isPending || reason !== ""}
           {...(reason === "" ? {} : { title: reason })}
-          onClick={(): void => populate.mutate({ chatId, actorRef: actor.actorRef })}
+          onClick={(): void => {
+            void onFill();
+          }}
         >
           <Icon icon={Sparkles} size="xs" />
           {populate.isPending ? "Filling…" : "Fill from card"}

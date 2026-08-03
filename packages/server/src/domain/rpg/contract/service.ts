@@ -75,7 +75,7 @@ import type {
   UpdateConfigParams,
   UpsertQuestParams,
 } from "./params";
-import type { CreateGameResult, HandDoorResult, ResyncResult, RollDiceResult } from "./results";
+import type { CreateGameResult, HandDoorResult, PopulateResult, ResyncResult, RollDiceResult } from "./results";
 
 export type RpgGameRow = typeof rpgGames.$inferSelect;
 export type NewRpgGame = typeof rpgGames.$inferInsert;
@@ -395,10 +395,22 @@ interface RpgResyncInput {
  *  character's card + the room's opening line and returns the born state they establish: the identity sheet
  *  fields no beat can write, plus the inventory/wallet/quest planes the background implies. Like the resync it
  *  resolves the ROOM connection AS THE HOST fresh at the verb (a host-INITIATED interactive action — the
- *  consenting human is at the keyboard) and it needs a STRUCTURED writer (`hasStructuredWriter`); a
- *  capability-absent connection yields an EMPTY delta (a no-op round, never a corrupt write).
+ *  consenting human is at the keyboard) and it needs a STRUCTURED writer (`hasStructuredWriter`).
+ *
+ *  ERRORS-AS-DATA, TOTAL (POPLOUD — the resync's `RpgRunResyncExtraction` contract verbatim): the op OWNS every
+ *  way the round can fail to RUN (an unresolvable room connection, a wire with no structured writer, a model
+ *  call that threw) and reports each as `{ok:false, reason}` — the sentence the host will read. It previously
+ *  collapsed all three to an EMPTY DELTA, which the verb could only read as "this card established nothing":
+ *  a provider outage and an empty card were byte-identical, and on the default hosted backend that made the
+ *  whole door a no-op that reported success. `{ok:true, delta}` carries the fill; an EMPTY delta there is the
+ *  honest "the card established nothing", which is a different sentence.
  *  Non-exported: reachable only through `RpgContext.runPopulateExtraction`'s signature — no consumer names it. */
-type RpgRunPopulateExtraction = (input: RpgPopulateInput) => Promise<RpgPopulateDelta>;
+type RpgRunPopulateExtraction = (input: RpgPopulateInput) => Promise<RpgPopulateRoundResult>;
+
+/** What one populate round returns — the born-state fill, or the legible reason it could not run (see above).
+ *  Kept beside the op rather than in `contract/results` because it is the op's INTERNAL seam: the verb maps it
+ *  onto the caller-facing `PopulateResult`, and no transport ever sees this shape (the resync's precedent). */
+type RpgPopulateRoundResult = { readonly ok: true; readonly delta: RpgPopulateDelta } | { readonly ok: false; readonly reason: string };
 
 /** The resolved inputs the populate model call consumes. `hostUserId` is the ROOM host (resolved by ROLE at the
  *  verb, D19) the op resolves the connection + creds + consent UNDER — never a caller-supplied principal (the
@@ -739,6 +751,10 @@ export interface RpgService {
    *  FORBIDDEN before any model call); refused for an actor with no card. FILLS, never overwrites: a sheet
    *  field the host already set survives, and the snapshot half merges lock-honored like every other round. It
    *  touches NO live-play plane (scene/party/trackers/journal are absent from its schema). Button-only — nothing
-   *  auto-runs it. */
-  readonly populateFromCharacter: (params: PopulateFromCharacterParams) => Promise<void>;
+   *  auto-runs it.
+   *
+   *  ERRORS-AS-DATA (`PopulateResult`, POPLOUD): the three endings — filled / ran-and-filled-nothing /
+   *  could-not-run — are DISTINCT on the wire. A provider refusal is `{ok:false, reason}`, never a silent
+   *  success (the RESYNC-OR fix applied to the sibling host round). */
+  readonly populateFromCharacter: (params: PopulateFromCharacterParams) => Promise<PopulateResult>;
 }

@@ -139,11 +139,14 @@ function buildResponsesText(format: ResponseFormat | undefined, verbosity: Verbo
   return {
     ...(format !== undefined
       ? {
+          // STRICTFMT — `strict` rides only when the CALLER set it (the chat-completions runner's
+          // `buildChatResponseFormat` carries the reasoning + the probe matrix; this is the same backend's
+          // sibling wire and the same OpenAI-family landmine).
           format: {
             type: "json_schema",
             name: format.name,
             schema: { ...format.schema },
-            strict: format.strict ?? true,
+            ...(format.strict !== undefined ? { strict: format.strict } : {}),
             ...(format.description !== undefined ? { description: format.description } : {}),
           },
         }

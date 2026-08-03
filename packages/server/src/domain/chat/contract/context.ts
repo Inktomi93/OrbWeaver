@@ -259,6 +259,17 @@ export interface ExtractQuietResult {
 }
 export type ExtractQuiet = (p: ExtractQuietParams) => Promise<ExtractQuietResult>;
 
+/** IMGMAC — the chat's authored USER-MACRO defs from BOTH homes (owner ruling #20's two authoring homes): the
+ *  active preset's `promptConfig.userMacros` and the game's `rpg_games.config.userMacros`. Handed to
+ *  `extractQuiet` UNMERGED because the merge policy (the game shadows the preset by name) is chat's law, not
+ *  the wirer's — `shadowPresetUserMacros` inside `buildTurnUserMacros` is its ONE home. A chat with no host /
+ *  no game yields two empty arrays (the byte-identical no-plane path). */
+export interface ChatUserMacroDefs {
+  readonly preset: readonly UserMacroSpec[];
+  readonly game: readonly UserMacroSpec[];
+}
+type ResolveChatUserMacroDefsOp = (chatId: ChatId) => Promise<ChatUserMacroDefs>;
+
 /** The deps `createExtractQuiet` closes over, assembled at the composition root. */
 export interface ExtractQuietDeps {
   readonly db: Db;
@@ -267,6 +278,10 @@ export interface ExtractQuietDeps {
   /** The chat host's default-preset params (the side-gen sampling ladder's middle rung — extract-quiet is
    *  chat-scoped). Wired at compose; a hostless/stale room degrades to the floor. */
   readonly resolveChatPresetParams: ResolveChatPresetParamsOp;
+  /** IMGMAC (owner ruling: YES) — the two authoring homes' user-macro DEFS, so an imagery mode template
+   *  resolves `{{house_style}}` exactly as a turn would. REQUIRED, not optional: an unwired composition root
+   *  would silently re-open the "the settings UI offers a macro that never substitutes" hole this closed. */
+  readonly resolveUserMacroDefs: ResolveChatUserMacroDefsOp;
 }
 
 /** A QUIET, non-canon generation through the chat's OWN resolved connection/model — NOT the summarizer rail

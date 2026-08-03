@@ -183,16 +183,40 @@ export const useReattributePersona = createEntityMutation<inferInput<Trpc["chat"
   errorToast: "Couldn't restamp your messages — the game state was left alone.",
 });
 
+/** The born-state round's verdict read off the wire, never re-spelled (the hand-door precedent). */
+type PopulateVerdict = inferOutput<Trpc["rpg"]["populateFromCharacter"]>;
+
+/**
+ * POPLOUD — the born-state round's REFUSAL arm (`{ok:false, reason}`): the round could NOT run.
+ *
+ * The resync's `resyncRefusal` reasoning, verbatim, on its sibling: the verb used to return `void`, so a
+ * provider that refused the structured request (live, on the default hosted backend) was indistinguishable
+ * from a card that established nothing — the button settled, the panel didn't move, and the host was told
+ * nothing at all. The server's `reason` IS the message: it names whether the room connection didn't resolve,
+ * the model can't write structured state, or the call itself failed, AND what to do about it.
+ *
+ * The `{ok:true, populated:false}` ending is NOT routed here: this seam fires `notify.error`, and a round that
+ * honestly found nothing on the card is not an error. The call site (`RpgPopulateControl`) speaks that one as
+ * an info line. Rides the FACTORY, not the call site — refusing-as-data is a property of the VERB.
+ */
+function populateRefusal(data: PopulateVerdict): string | null {
+  return data.ok ? null : `The card wasn't read — ${data.reason}`;
+}
+
 /** `rpg.populateFromCharacter` — the HOST born-state round (owner ruling 2026-08-01; host-only, the server
  *  gate refuses a member and refuses an actor with no card). ONE host-principal model call reads the
  *  character's card + the room's opening and fills what play cannot: the sheet's title/level, the starting
  *  inventory + purse, background-implied quests. Repaints the tracker view (sheet + actor volatile + quests all
  *  ride it). Like the resync it writes a message-less HAND row (D124), so the chat message list is untouched.
- *  Nothing auto-runs it — the takeover's button is its only caller. */
-export const usePopulateFromCharacter = createEntityMutation<inferInput<Trpc["rpg"]["populateFromCharacter"]>, unknown>({
+ *  Nothing auto-runs it — the takeover's button is its only caller.
+ *
+ *  POPLOUD — the door is LOUD: the verb answers with a `PopulateResult`, and the refusal arm rides the same
+ *  factory seam the resync's does (below). */
+export const usePopulateFromCharacter = createEntityMutation<inferInput<Trpc["rpg"]["populateFromCharacter"]>, PopulateVerdict>({
   options: (trpc) => trpc.rpg.populateFromCharacter.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId })],
   errorToast: "Couldn't fill this character from their card.",
+  refusal: populateRefusal,
 });
 
 /** `chat.send` — the CYOA choice-echo's `send`-behavior arm (Scene "Choice on the table", DESIGN §6 P5).

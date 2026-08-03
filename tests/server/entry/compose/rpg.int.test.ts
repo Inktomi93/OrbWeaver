@@ -1840,8 +1840,10 @@ test("POPULATE (real round): the card's identity + gear land, and the live-play 
   const rpgCompose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: JSON.stringify(CANNED_POPULATE) });
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
 
-  await rpgCompose.service.populateFromCharacter({ principal: hostPrincipal(hostId), chatId, actorRef: { kind: "character", characterId } });
+  const verdict = await rpgCompose.service.populateFromCharacter({ principal: hostPrincipal(hostId), chatId, actorRef: { kind: "character", characterId } });
 
+  // POPLOUD — the REAL round reports its ending as data: this one filled (the client's success signal).
+  expect(verdict).toEqual({ ok: true, populated: true });
   // The round rode the `structured` dispatcher (a non-agent-sdk wire) with the POPULATE grammar: the sheet
   // plane is REQUIRED (the xgrammar lever) and the one target is the whole inventory ref enum.
   expect(spy.summarizeModels).toEqual(["fake-chat-model"]);
@@ -1915,8 +1917,12 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
   });
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
 
-  await rpgCompose.service.populateFromCharacter({ principal: hostPrincipal(hostId), chatId, actorRef: { kind: "character", characterId } });
+  const verdict = await rpgCompose.service.populateFromCharacter({ principal: hostPrincipal(hostId), chatId, actorRef: { kind: "character", characterId } });
 
+  // POPLOUD — the REAL compose op REFUSES legibly instead of degrading to an empty delta the verb could only
+  // read as "this card had nothing to fill". The host reads this sentence; the `rpg.populate.readonly` warn is
+  // the log half of the same branch.
+  expect(verdict).toEqual({ ok: false, reason: expect.stringContaining("can't write structured state") });
   // NO model call was paid on a wire that could only have produced garbage, and nothing was written.
   expect(spy.summarizeModels).toEqual([]);
   expect(spy.chatTurns).toEqual([]);

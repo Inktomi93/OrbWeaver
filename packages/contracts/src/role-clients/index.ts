@@ -26,7 +26,13 @@ export const responseFormatSchema = z.object({
   name: z.string(),
   /** JSON Schema — projected by `projectJsonSchema` (`additionalProperties:false` pinned). */
   schema: z.record(z.string(), z.unknown()),
-  /** Default true. */
+  /** Grammar STRICTNESS, opt-in: absent = the BACKEND's own default, and each backend owns that call
+   *  (Tier-3b — "each backend internalizes ALL its own quirks"). This used to read "Default true", and every
+   *  wire arm honored it by inventing `strict:true` for callers who never asked; on OpenAI-family models
+   *  through OpenRouter that is a hard 400 ("'required' is required to be supplied"), because the ONE
+   *  projection rule emits optional-by-construction schemas and OpenAI strict demands every property be
+   *  required. The OpenRouter chat arms now OMIT it unless set; the enforcing wires (vLLM guided decoding,
+   *  where a strict grammar is the whole point) still default it on. Set it explicitly to pin either. */
   strict: z.boolean().optional(),
   description: z.string().optional(),
 });

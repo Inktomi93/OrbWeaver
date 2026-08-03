@@ -23,6 +23,9 @@ function stub(page: Page, imagery?: (typeof DEFAULT_USER_SETTINGS)["imagery"]): 
   return routeTrpc(page, {
     "settings.getUserSettings": () => settingsView(imagery),
     [UPDATE_PROC]: () => ({}),
+    // IMGMAC — the section now reads the active-preset plane (the built-in default declares none, so the
+    // pre-IMGMAC tests below are unaffected: the hook doesn't even fetch when `defaultPresetId` is null).
+    "preset.get": () => ({ config: { userMacros: [] } }),
   });
 }
 
@@ -67,4 +70,49 @@ test("clearing an existing override sends the leaf null (reset to the shipped de
   await characterField.fill("");
   await characterField.blur();
   await expect.poll(() => templates(trpc)?.["character"], { intervals: [20, 50, 100] }).toBeNull();
+});
+
+// IMGMAC (owner ruling: YES) — the user-macro plane REACHES the imagery mode templates. This file used to
+// carry the opposite: the section's suggestion list was hand-curated to `{{char}}`/`{{user}}` with a written
+// exemption saying a user macro provably does not resolve at extract time (`extractQuiet` ran `processMacros`
+// with no registry). The server half now builds the per-call registry from both authoring homes, so the
+// popover offers the plane — and a caption card, whose instruction resolves NO macros at all, still offers
+// nothing (the exemption that survives, because it is still true).
+
+const USER_MACRO_ROW = "{{sceneTone}}";
+const USER_MACRO_GLOSS = "This game's tonal register.";
+const ACTIVE_PRESET_ID = "preset_ct_active";
+const USER_MACROS = [{ name: "sceneTone", description: USER_MACRO_GLOSS, args: [], body: "hushed", inputs: [], strict: false }];
+
+/** The settings view with a real ACTIVE preset (the plane's source), plus the imagery seed. */
+function stubWithPlane(page: Page): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "settings.getUserSettings": () => ({ ...settingsView(), config: { ...DEFAULT_USER_SETTINGS, seeds: { defaultPresetId: ACTIVE_PRESET_ID } } }),
+    "preset.get": () => ({ config: { userMacros: USER_MACROS } }),
+    [UPDATE_PROC]: () => ({}),
+  });
+}
+
+test("IMGMAC: an EXTRACTION mode template completes against the active preset's user macros, gloss and all", async ({ mount, page }) => {
+  await stubWithPlane(page);
+  const component = await mount(<ImageryTemplatesSectionStory />);
+
+  const characterField = component.getByRole("textbox", { name: CHARACTER_FIELD, exact: true });
+  await characterField.click();
+  await characterField.pressSequentially("{{scen");
+
+  // The ROW is the affordance — and it carries the DEFINITION's own gloss, so it came from the plane.
+  await expect(page.getByRole("option", { name: USER_MACRO_ROW })).toBeVisible();
+  await expect(page.getByText(USER_MACRO_GLOSS)).toBeVisible();
+});
+
+test("IMGMAC: a CAPTION card still offers nothing — the surviving exemption (the image is the subject)", async ({ mount, page }) => {
+  await stubWithPlane(page);
+  const component = await mount(<ImageryTemplatesSectionStory />);
+
+  const captionField = component.getByRole("textbox", { name: "Character portrait (from avatar)", exact: true });
+  await captionField.click();
+  await captionField.pressSequentially("{{scen");
+
+  await expect(page.getByRole("option", { name: USER_MACRO_ROW })).toHaveCount(0);
 });

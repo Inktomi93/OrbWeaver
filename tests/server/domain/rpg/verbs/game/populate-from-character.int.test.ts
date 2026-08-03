@@ -199,9 +199,75 @@ test("a no-op round (no writer capability / a card that established nothing) wri
   const { chatId, characterId, h } = await seedCharacterGame(db);
   h.fakes.busEvents.length = 0;
 
-  await h.service.populateFromCharacter({ principal: principal("host"), chatId, actorRef: { kind: "character", characterId } });
+  const result = await h.service.populateFromCharacter({ principal: principal("host"), chatId, actorRef: { kind: "character", characterId } });
 
   expect(h.fakes.populateCalls).toHaveLength(1); // the call fired (the host resolved it) and produced nothing
   expect(h.fakes.narratorPosts).toEqual([]);
   expect(h.fakes.busEvents).toEqual([]);
+  // …and the DOOR SAYS SO (POPLOUD). A round that filled nothing is `populated:false`, never an
+  // undifferentiated "done" — the host clicked a button that costs money and seconds.
+  expect(result).toEqual({ ok: true, populated: false });
+});
+
+// ── THE DOOR IS LOUD (POPLOUD) ───────────────────────────────────────────────────────────────────────
+// `populateFromCharacter` returned `void`, so a card round that never RAN (the provider refused, the room's
+// connection didn't resolve, the wire has no structured writer) was byte-identical to a card that
+// established nothing: the button settled, the panel didn't move, the host was told success. That is the
+// same silent fork RESYNC-OR fixed on the resync — the sibling verb, the same host-principal model call, the
+// same default hosted backend that 400s the structured request. All three endings are now DATA
+// (`PopulateResult`, the `HandDoorResult` grammar) and the client reads them.
+
+test("a FILL reports ok:true populated:true (the client's success signal)", async () => {
+  const db = await freshDb();
+  const { chatId, characterId, h } = await seedCharacterGame(db);
+  h.fakes.populateDelta = { statePatch: {}, sheet: { className: "Warden of House Vane", level: 3 } };
+
+  expect(await h.service.populateFromCharacter({ principal: principal("host"), chatId, actorRef: { kind: "character", characterId } })).toEqual({
+    ok: true,
+    populated: true,
+  });
+});
+
+test("a STATE-only fill (no sheet half) still reports populated:true — either plane landing IS a fill", async () => {
+  const db = await freshDb();
+  const { chatId, characterId, h } = await seedCharacterGame(db);
+  h.fakes.populateDelta = { statePatch: { quests: [bornQuest("q_born", "A background hook")] }, sheet: {} };
+
+  expect(await h.service.populateFromCharacter({ principal: principal("host"), chatId, actorRef: { kind: "character", characterId } })).toEqual({
+    ok: true,
+    populated: true,
+  });
+});
+
+test("a round the FILL RULE fully absorbed reports populated:false — nothing changed, and the host hears that", async () => {
+  const db = await freshDb();
+  const { chatId, characterId, h } = await seedCharacterGame(db);
+  h.fakes.populateDelta = { statePatch: {}, sheet: { className: "the model's title", level: 9 } };
+  // The host already wrote BOTH fields — the fill rule keeps them, so the round changes nothing at all.
+  await h.service.patchSheet({
+    principal: principal("host"),
+    chatId,
+    actorRef: { kind: "character", characterId },
+    patch: { className: "Hand-written", level: 1 },
+  });
+  h.fakes.busEvents.length = 0;
+
+  const result = await h.service.populateFromCharacter({ principal: principal("host"), chatId, actorRef: { kind: "character", characterId } });
+
+  expect(result).toEqual({ ok: true, populated: false });
+  expect(h.fakes.busEvents).toEqual([]);
+});
+
+test("a round that could NOT RUN is surfaced as data — the provider's reason reaches the caller, never a silent 'nothing to fill'", async () => {
+  const db = await freshDb();
+  const { chatId, characterId, h } = await seedCharacterGame(db);
+  h.fakes.populateRefusal = { ok: false, reason: "the model call failed, so nothing was filled: openrouter structured item 0 failed" };
+  h.fakes.busEvents.length = 0;
+
+  const result = await h.service.populateFromCharacter({ principal: principal("host"), chatId, actorRef: { kind: "character", characterId } });
+
+  expect(result).toEqual({ ok: false, reason: "the model call failed, so nothing was filled: openrouter structured item 0 failed" });
+  // A round that never ran writes NOTHING — the only change is that it SAYS so.
+  expect(h.fakes.busEvents).toEqual([]);
+  expect(h.fakes.narratorPosts).toEqual([]);
 });
