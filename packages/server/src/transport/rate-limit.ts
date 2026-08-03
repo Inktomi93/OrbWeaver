@@ -83,6 +83,10 @@ async function consumeWindow(
   const count = rows[0]?.count ?? 1;
 
   // The just-inserted current row's expires_at is windowStart + windowMs > now, so it always survives.
+  // @swallowed-ok(where): a best-effort expiry GC that runs on EVERY rate-limited request — giving it its own
+  // detached root would push one extra trace bucket per request through a 500-entry ring and evict the real
+  // traces. A failed sweep is self-healing (the next request re-runs it) and cannot affect the verdict above.
+  // Ends if the sweep ever moves off the per-request path (a scheduled job would get its own root).
   void db
     .delete(rateLimitBuckets)
     .where(and(like(rateLimitBuckets.key, `${prefix}%`), lt(rateLimitBuckets.expiresAt, args.now)))
