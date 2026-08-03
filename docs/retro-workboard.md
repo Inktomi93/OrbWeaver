@@ -476,6 +476,23 @@ merge-flip [user-visible, owner-notable]; parse outcomes must RENDER their reaso
 honest scope-out if oversized) · RFIX. **CARCH (client-arch F-1..F-7 doc/gate batch) = next
 on any drain** (owner asked after it — 1/8 findings discharged [F-2 via D121-C]; F-6's
 11-row channel matrix pre-drafted in the report §Q2; F-8 stays the queued design set).
+✅ **HCOPY MERGED (`d4aa40f9`, --no-verify on hand-run-floor receipts, torn down) — THE
+HANDOFF COPY ARM IS BUILT END-TO-END** (56 files +2589): offer checkbox on a NEW confirm step
+(which fixed a pre-existing UX lie — "Hand off host…" had an ellipsis but fired instantly;
+ConfirmDialog gained a body slot) · pendingHandoffOffer {copyCast,copyGmPreset} beside
+pendingHostUserId · COPY-AT-ACCEPT: mints-first-then-ONE-atomic-swap-batch (seats re-point in
+place · messages + BOTH digest columns re-stamp · chat_books · rpg_sheets · gmPreset
+set-or-heal · anchor heal) · rekeyActor folded to ONE hand-door write (N writes = N anchor
+slots — better shape forced by the zero-suppression budget) · avatars RE-OWNED via injected
+assets op (carried id = foreign GC root, refused) · crash-retry CONVERGES (provenance
+find-before-mint, zero duplicates, proven) · no-offer path byte-identical. 2426 tests + 23 CT
+green. D-entry text (amends D64) in its report — rides the next ceremony batch. Lane lessons
+banked below (zero-suppression budget forces better shapes · biome-ignore must be single-line
+· no-inline-types client rules). **HCOPY's CATCH fixed direct-on-main (`d8a67e94`):
+SERVICE_KEYS missing `regex`** — the 7th check-invisible new-domain site struck AGAIN (REGEX
+lane miss; services.test 20/20 green now).
+**LIVE (2): PORT · RFIX. CARCH dispatches on next drain** (slot open — held for whichever
+finishes first to keep merge attention available).
 (Superseded pause block:) NO new spawns AND the
 5 live lanes ORDERED TO SLEEP (checkpoint-commit coherent work [--no-verify sanctioned for
 the checkpoint], reply resume-state, stop; worktrees + branches STAY — teardown forbidden).
