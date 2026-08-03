@@ -315,7 +315,7 @@ function armExemptions(sf: SourceFile, rel: string, ctx: GateRunCtx, { baseline,
   const budgeted = baseline[rel] ?? [];
   for (const c of collections) {
     if (budgeted.includes(c.name)) {
-      seen.add(`${rel} ${c.name}`);
+      seen.add(`${rel}\u0000${c.name}`);
       continue;
     }
     ctx.report({ file: rel, line: c.line, column: 0, message: ONE_SIDED(rel, c.name, c.count) });
@@ -332,7 +332,7 @@ function reportStaleBaseline(ctx: GateRunCtx, files: ReadonlyMap<string, SourceF
       continue;
     }
     for (const name of names) {
-      if (!seen.has(`${rel} ${name}`)) {
+      if (!seen.has(`${rel}\u0000${name}`)) {
         ctx.report({ file: GATE_SELF, line: 1, column: 0, message: STALE_BASELINE_ROW(rel, name) });
       }
     }

@@ -20,6 +20,7 @@ import {
   loadMessageVariantSummaries,
   loadStreamBounds,
   loadStreamReplay,
+  loadSwipeStatRows,
   loadTurnForClassify,
   loadTurnOrigin,
 } from "../../../../../packages/server/src/domain/chat/persistence/queries";
@@ -435,5 +436,30 @@ describe("loadTurnOrigin — the turn origin stamped on a reply slot (automation
     const other = await seedChat(db, "origin-b");
     const { messageId } = await seedMessage(db, other, 1, { content: "x" });
     expect(await loadTurnOrigin(db, chatId, messageId)).toBeNull();
+  });
+});
+
+describe("loadSwipeStatRows — the delete-messages swipe delta", () => {
+  test("returns every NON-selected variant of the slot", async () => {
+    const chatId = await seedChat(db, "swipes");
+    const { messageId } = await seedMessage(db, chatId, 1, { content: "selected" });
+    await addVariant(db, messageId, 1, "swipe-a");
+    await addVariant(db, messageId, 2, "swipe-b");
+
+    const rows = await loadSwipeStatRows(db, chatId, [messageId]);
+    expect(rows.map((r) => r.content).sort()).toStrictEqual(["swipe-a", "swipe-b"]);
+  });
+
+  test("a slot whose selectedVariantId is NULL yields ALL its variants, not none (the three-valued-logic drop)", async () => {
+    // D26: the pointer is nullable — SET NULL fires when the pointed-at variant is deleted. A bare
+    // `ne(variant.id, messages.selectedVariantId)` evaluates to NULL for such a slot, so SQL drops every one
+    // of its variants and the delete-messages delta silently under-counts the whole slot.
+    const chatId = await seedChat(db, "swipes-null");
+    const { messageId } = await seedMessage(db, chatId, 1, { content: "orphaned" });
+    await addVariant(db, messageId, 1, "swipe-a");
+    await db.update(messages).set({ selectedVariantId: null }).where(eq(messages.id, messageId));
+
+    const rows = await loadSwipeStatRows(db, chatId, [messageId]);
+    expect(rows.map((r) => r.content).sort()).toStrictEqual(["orphaned", "swipe-a"]);
   });
 });

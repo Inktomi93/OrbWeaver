@@ -30,7 +30,7 @@ import { chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, 
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
-import { and, asc, count, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, max, min, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, max, min, ne, or, sql } from "drizzle-orm";
 import type { ChatMetadata } from "../contract/metadata";
 import { parseChatMetadata } from "../contract/metadata";
 import type { ChatStreamReplayEvent, StreamEventBounds, VariantWireView } from "../contract/views";
@@ -552,7 +552,12 @@ export async function loadCanonStatRows(db: Db, chatId: ChatId, messageIds: read
 }
 
 /** The non-selected variants (swipes) of a slot set, joined to the slot's attribution — the
- *  delete-messages swipe-delta input. */
+ *  delete-messages swipe-delta input.
+ *
+ *  `selectedVariantId` is NULLABLE (D26 — SET NULL when the pointed-at variant is deleted), and SQL is
+ *  three-valued: a bare `ne(variant.id, messages.selectedVariantId)` evaluates to NULL for a slot with no
+ *  pointer, silently dropping ALL of that slot's variants from the delta. `or(isNull(…), ne(…))` is the
+ *  total reading of "not the selected one": when nothing is selected, every variant is a swipe. */
 export async function loadSwipeStatRows(db: Db, chatId: ChatId, messageIds: readonly MessageId[]): Promise<SwipeStatRow[]> {
   return await db
     .select({
@@ -571,7 +576,13 @@ export async function loadSwipeStatRows(db: Db, chatId: ChatId, messageIds: read
     })
     .from(messageVariants)
     .innerJoin(messages, eq(messages.id, messageVariants.messageId))
-    .where(and(eq(messages.chatId, chatId), inArray(messageVariants.messageId, [...messageIds]), ne(messageVariants.id, messages.selectedVariantId)));
+    .where(
+      and(
+        eq(messages.chatId, chatId),
+        inArray(messageVariants.messageId, [...messageIds]),
+        or(isNull(messages.selectedVariantId), ne(messageVariants.id, messages.selectedVariantId)),
+      ),
+    );
 }
 
 // The append-variant/continue write target — the slot's attribution + seq joined to its selected
