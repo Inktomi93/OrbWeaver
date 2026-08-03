@@ -561,6 +561,23 @@ NOT this primitive — stretch warned against). F-B hardening: orphan-def arm (h
 lacks it; specced from birth for the new family). 10 owner forks in §10, F-1 (the rail
 itself) deliberately left OPEN — rule by feel, the design composes with both arms.
 **R0 queued next drain.**
+✅ **D8R MERGED (`21e4aff3`, own floor green, torn down) — D121 CLAUSE G IS BUILT:** the
+Prompt readout prices its rack against the bound chat (true token costs, materialized rows on
+drill; SETUP/POST sums proven vs the bars; unbound `~—` floor byte-identical; PARAMS
+chip-absent pinned); BINDING_VIEWS = a real total Record (6th view = tsc error); the wire =
+ONE read two projections (AssemblyBudgetPreview.sections keyed by PromptSection.id;
+content-free rows). **THE LANE TRUTH-REPAIRED D121-G ITSELF**: the clause cited
+previewActionTemplates for a payload that verb cannot carry — spec §7.1 + the board both said
+previewAssembly+presetOverride; built there, clause + spec header repaired. LESSON banked: a
+ledger clause's cited SEAM is a hypothesis — cross-check against the spec section it
+summarizes before building to its letter (the D67-adjacent class, caught pre-build this
+time). Freshness verified-not-assumed (previewAssembly already rides promptPreviewReads).
+FLAG: drawer.ct:162 focus-trap failure is PRE-EXISTING at HEAD (watch list).
+**TD RULINGS #2 (owner, post-review):** O-4/O-5 CONFIRMED w/ tree receipts (chatStyle =
+the Chat-display modes incl. VN-flavored; the SETTING stays, the never-consumed OVERRIDE
+field + lying selects die) · O-6 inverse door BUILD · **zero-edit rider OVERRULED: interception
+not auto-delete** — no duplicate mints until the first real change (the preset fork-choice
+mechanism verbatim; TD's R3 builds that shape). TD program fully ruled, dispatches on drain.
 **✅ TD STICKLER DELIVERED (committed `be2ad3b0`: docs/reviews/stickler/2026-08-03-theme-
 doors.md):** themeOverride = VALUES not ref (tree-settled; ref structurally impossible on the
 roster wire). Door 1 `settings.promoteTheme` specced (copy-values, exact fidelity by
