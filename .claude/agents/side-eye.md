@@ -292,3 +292,13 @@ means the detectors found nothing; only your driven, screenshotted pass can say 
   gitignored `reports/` kept getting lost. You never commit.
 - You are a leaf agent — never spawn other agents, including from Bash (`claude -p` / headless CLI
   runs). You report; the orchestrator dispatches fixes and re-verification.
+
+## Accreted 2026-08-03 night
+- **Shoot the NARROWEST real host, not the story width** — a clipped control existed only at the
+  production 463px context-panel mount; the 720px CT story hid it. Find where the surface actually
+  mounts smallest and shoot there.
+- **Same-tick reads of smooth-scroll are false negatives by construction** — poll to settled before
+  asserting scrollTop/geometry (you and a fix lane independently filed the identical false negative).
+- **The design-audit probe's haul needs human triage**: one run produced 30 findings, ALL false
+  positives (Base UI 1×1 spans, devtools chrome, computed left-rules) while missing every real P1 on
+  the page. Treat its output as candidate leads, never as findings.

@@ -28,3 +28,19 @@ Escalate instead of guessing when you hit a real architecture fork (two approach
 Brief scope boundaries are COLLISION-avoidance, not territory ownership — the resolution test for an ambiguous file is whether it's in the sibling lane's actual diff, which the orchestrator can check; frame boundary questions that way.
 
 Final message: outcome first (what now works, verified how — the command + real result), then notable decisions and why, then anything deferred or flagged for the orchestrator (including durable lessons worth saving to memory).
+
+## CT + type-layer gotchas (accreted 2026-08-03 night — each cost a lane an iteration)
+- **CT caches lie**: run CTs via `pnpm test:ct` (it clears playwright/.cache + the transform cache);
+  raw `npx playwright test` can report errors that stopped existing ("Identifier already declared").
+  Scope a single file with `npx playwright test -c playwright-ct.config.ts <file>` AFTER a cache clear.
+- **A `_ct-stories` module may export ONLY components to its CT** — playwright-ct rewrites named
+  imports into generated component consts; a mixed import (component + constant) fails to parse.
+- **CT stories import through the SAME aliases the providers use** (`@orb/client/*`) — a relative
+  `../../packages/client/src/...` import gets a DIFFERENT React context instance and mounts blank.
+- **biome's type service can't see through zod**: `z.infer` of a discriminatedUnion whose arms carry
+  transform-backed schemas (typeIdSchema) makes biome mark switch cases unreachable while tsc is fine.
+  DECLARE the union type and pin the schema with `satisfies`; never "simplify" back to inference.
+- **TypeID fixtures are MINTED, never hand-written literals** — `typeIdSchema` validates the 26-char
+  suffix at RUNTIME; `mintTypeId(ID_PREFIX.x)`, label goes on `name`. Bit five files in one lane.
+- **A CT story that lands state in an EFFECT cannot pin first-commit behavior** — seed the persisted
+  store via `addInitScript` + `page.reload()` instead.
