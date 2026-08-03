@@ -19,7 +19,7 @@ import {
   LIVE_TRIGGERS,
   triggerFactSchema,
 } from "@orb/contracts/automation";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("CHAT_TRIGGER_TYPES is the pinned 15-member chat-bus subset (v1 + reserved, 01 §1)", () => {
   expect(CHAT_TRIGGER_TYPES).toEqual([

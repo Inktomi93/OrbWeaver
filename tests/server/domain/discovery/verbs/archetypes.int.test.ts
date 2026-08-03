@@ -8,7 +8,7 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeDiscoveryHarness, seedCharacter, seedCharacterEmbedding, seedUser, vec } from "../_support.ts";
 
 async function seedSummary(db: Db, characterId: CharacterId, facets: { genre?: string; tone?: string; tags?: string[] }): Promise<void> {

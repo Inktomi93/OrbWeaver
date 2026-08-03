@@ -8,9 +8,9 @@
 // The door's only work is text → bytes: an `orb.preset` file IS UTF-8 JSON text, and the verb's first act is
 // a UTF-8 decode, so this re-encode is a no-op that keeps ONE decode home.
 
-import type { ImportPresetFileParams } from "../contract/params";
-import type { ImportPreset, PresetImportOutcome } from "../contract/portability";
-import type { PresetService } from "../contract/service";
+import type { ImportPresetFileParams } from "../contract/params.ts";
+import type { ImportPreset, PresetImportOutcome } from "../contract/portability.ts";
+import type { PresetService } from "../contract/service.ts";
 
 /** `importPreset` is INJECTED (verb-to-verb value imports are the banned edge — `domain-no-cross-verb`):
  *  service.ts builds `createImport(ctx)` once and hands it here, which is also what makes "the door owns no

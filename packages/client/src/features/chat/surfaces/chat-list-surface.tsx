@@ -29,12 +29,12 @@ import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { chatsWithCharacter, useFocusOnMount } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import { clearChatListCharacterFilter, setChatListCharacterFilter, useActiveChatId, useChatListCharacterFilter } from "#state";
-import { ChatListRow } from "../components/chat-list-row";
-import { useChatPortraitMap } from "../hooks/use-chat-portrait-map";
-import type { ChatRowPortrait } from "../lib/chat-summary-row";
-import { chatPortraits, chatRowQualifiers } from "../lib/chat-summary-row";
-import { filterChats } from "../lib/filter-chats";
-import { recentFaces } from "../lib/recent-faces";
+import { ChatListRow } from "../components/chat-list-row.tsx";
+import { useChatPortraitMap } from "../hooks/use-chat-portrait-map.ts";
+import type { ChatRowPortrait } from "../lib/chat-summary-row.ts";
+import { chatPortraits, chatRowQualifiers } from "../lib/chat-summary-row.ts";
+import { filterChats } from "../lib/filter-chats.ts";
+import { recentFaces } from "../lib/recent-faces.ts";
 
 type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>[number];
 

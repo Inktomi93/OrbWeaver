@@ -2,7 +2,7 @@ import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
 import { Icon, Info } from "#primitives/icons";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "#primitives/tooltip";
-import { settingRowVariants } from "./variants";
+import { settingRowVariants } from "./variants.ts";
 
 export interface SettingRowProps {
   /** The id shared with the caller's control — wires the `<label htmlFor>` to it. */

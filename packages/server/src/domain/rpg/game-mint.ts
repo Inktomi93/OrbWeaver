@@ -10,8 +10,8 @@
 import type { RpgStatProfile } from "@orb/contracts/rpg";
 import { RPG_PROFILE_FREEFORM, rpgGameConfigSchema, rpgSeedTrackers } from "@orb/contracts/rpg";
 import type { ChatId, RpgGameId } from "@orb/kit/ids";
-import type { RpgContext } from "./contract/service";
-import { insertGame } from "./persistence/games";
+import type { RpgContext } from "./contract/service.ts";
+import { insertGame } from "./persistence/games.ts";
 
 /** Mint a lite game for `chatId` (row + pointer mirror + bus emit). The CALLER owns the gates (authority /
  *  one-game-per-chat / mode); this is pure birth mechanics. `profile` omitted ⇒ freeform (the create

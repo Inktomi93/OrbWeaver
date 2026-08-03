@@ -22,8 +22,8 @@ import { useState } from "react";
 import { FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { selectCharacter } from "#state";
-import { useCreateCharacter } from "../hooks/use-character-mutations";
-import { CharacterImportDialog } from "./character-import-dialog";
+import { useCreateCharacter } from "../hooks/use-character-mutations.ts";
+import { CharacterImportDialog } from "./character-import-dialog.tsx";
 
 /** The minimal create: name + one-line description, handle auto-derived from the name. */
 function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; readonly onOpenChange: (open: boolean) => void }): ReactElement {

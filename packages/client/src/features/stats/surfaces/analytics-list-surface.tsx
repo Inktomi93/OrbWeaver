@@ -16,7 +16,7 @@ import { useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { selectAnalyticsCharacter, useSelectedAnalyticsCharacterId } from "#state";
-import { ANALYTICS_DEFAULT_SORT, ANALYTICS_SORT_OPTIONS, formatCompact, formatDurationMs } from "../lib/analytics-view-model";
+import { ANALYTICS_DEFAULT_SORT, ANALYTICS_SORT_OPTIONS, formatCompact, formatDurationMs } from "../lib/analytics-view-model.ts";
 
 // The sort-id union derived from the shared vocabulary (a local, non-exported alias — no-inline-types
 // gates EXPORTED types outside a contract home; this list-only union has no cross-boundary consumer).

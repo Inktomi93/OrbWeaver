@@ -19,7 +19,7 @@ import {
 } from "../../../../../packages/server/src/domain/credentials/persistence/queries.ts";
 import { createSecretBox } from "../../../../../packages/server/src/infra/crypto/secrets.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
 const box = createSecretBox(Buffer.alloc(32, 7));

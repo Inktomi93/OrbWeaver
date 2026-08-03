@@ -3,7 +3,7 @@
 import { describe } from "vitest";
 import { ensureSeedThemes, SEED_THEMES } from "../../../../../packages/server/src/domain/settings/seed-themes.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("listThemes", () => {

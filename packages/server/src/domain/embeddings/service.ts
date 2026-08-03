@@ -5,18 +5,18 @@
 // bound `store` verb + the indexer's caption generator as EXPLICIT deps here (domain-no-cross-verb /
 // domain-substrate-mediates-subsystems — the composition point is this file, never a verb-to-verb import).
 
-import type { EmbeddingsContext } from "./context";
-import type { EmbeddingsService } from "./contract/service";
-import { generateAvatarCaption } from "./indexer/caption";
-import { createClearTable } from "./verbs/clear-table";
-import { createCountDocumentChunks } from "./verbs/count-document-chunks";
-import { createEmbedAssets } from "./verbs/embed-assets";
-import { createEmbedCorpus } from "./verbs/embed-corpus";
-import { createPruneDocumentChunks } from "./verbs/prune-document-chunks";
-import { createPurgeDocumentVectors } from "./verbs/purge-document-vectors";
-import { createPurgeMemoryVectors } from "./verbs/purge-memory-vectors";
-import { createStore } from "./verbs/store";
-import { createWriteHubScores } from "./verbs/write-hub-scores";
+import type { EmbeddingsContext } from "./context.ts";
+import type { EmbeddingsService } from "./contract/service.ts";
+import { generateAvatarCaption } from "./indexer/caption.ts";
+import { createClearTable } from "./verbs/clear-table.ts";
+import { createCountDocumentChunks } from "./verbs/count-document-chunks.ts";
+import { createEmbedAssets } from "./verbs/embed-assets.ts";
+import { createEmbedCorpus } from "./verbs/embed-corpus.ts";
+import { createPruneDocumentChunks } from "./verbs/prune-document-chunks.ts";
+import { createPurgeDocumentVectors } from "./verbs/purge-document-vectors.ts";
+import { createPurgeMemoryVectors } from "./verbs/purge-memory-vectors.ts";
+import { createStore } from "./verbs/store.ts";
+import { createWriteHubScores } from "./verbs/write-hub-scores.ts";
 
 export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsService {
   const store = createStore(ctx);

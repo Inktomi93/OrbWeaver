@@ -3,8 +3,8 @@
 // chat-behavior skimmer pane renders it at its anchor.
 
 import type { SettingsSectionContribution } from "#state";
-import { ChatStreamingSection } from "../components/chat-behavior-streaming-section";
-import { CHAT_STREAMING_KEYS, CHAT_STREAMING_SUBCATEGORY } from "./chat-behavior-streaming-model";
+import { ChatStreamingSection } from "../components/chat-behavior-streaming-section.tsx";
+import { CHAT_STREAMING_KEYS, CHAT_STREAMING_SUBCATEGORY } from "./chat-behavior-streaming-model.ts";
 
 const SECTION_ID = "chat-streaming";
 

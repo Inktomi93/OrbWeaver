@@ -27,7 +27,7 @@ import {
   waystoneStarOpacityAt,
   waystoneWeatherRecipe,
 } from "@orb/ui/meter";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
 /** Every color the matrix emits must be a token or a `color-mix` over tokens (D71). */

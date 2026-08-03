@@ -10,9 +10,9 @@ import type { ChatInjection } from "@orb/contracts/chat";
 import type { ChatInjectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { assertTokenRoundtrip } from "../../../../support/ct/assert-token-roundtrip";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { InjectionsManagerStory } from "../_ct-stories";
+import { assertTokenRoundtrip } from "../../../../support/ct/assert-token-roundtrip.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { InjectionsManagerStory } from "../_ct-stories.tsx";
 
 // `ChatInjectionView` (the persisted row = `ChatInjection` + its id) is a SERVER-domain contract type
 // (packages/server/src/domain/chat/contract/views.ts) — not importable from the client across the cake.

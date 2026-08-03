@@ -9,7 +9,7 @@
 
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
-import type { CanonMessage } from "./trpc";
+import type { CanonMessage } from "./trpc.ts";
 
 const SCROLL_CONTAINER = '[data-slot="message-list-scroll"]';
 const MESSAGE_ROW = "[data-message-id]";

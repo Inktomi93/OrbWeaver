@@ -27,17 +27,17 @@ import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Crown, Drama, Eye, Flag, FlaskConical, Gauge, MessagesSquare, Settings, Users } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { AppearanceBackgroundSection } from "../../../../packages/client/src/features/app-shell/components/appearance-background-section";
-import { AppearanceEffectsSection } from "../../../../packages/client/src/features/app-shell/components/appearance-effects-section";
-import { AppearanceReadingSection } from "../../../../packages/client/src/features/app-shell/components/appearance-reading-section";
-import { AppearanceSizingSection } from "../../../../packages/client/src/features/app-shell/components/appearance-sizing-section";
-import { ContextTabsPanel } from "../../../../packages/client/src/features/app-shell/components/context-tabs-panel";
-import { CustomThemeStyle } from "../../../../packages/client/src/features/app-shell/components/custom-theme-style";
-import { Rail } from "../../../../packages/client/src/features/app-shell/components/rail";
-import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host";
+import { AppearanceBackgroundSection } from "../../../../packages/client/src/features/app-shell/components/appearance-background-section.tsx";
+import { AppearanceEffectsSection } from "../../../../packages/client/src/features/app-shell/components/appearance-effects-section.tsx";
+import { AppearanceReadingSection } from "../../../../packages/client/src/features/app-shell/components/appearance-reading-section.tsx";
+import { AppearanceSizingSection } from "../../../../packages/client/src/features/app-shell/components/appearance-sizing-section.tsx";
+import { ContextTabsPanel } from "../../../../packages/client/src/features/app-shell/components/context-tabs-panel.tsx";
+import { CustomThemeStyle } from "../../../../packages/client/src/features/app-shell/components/custom-theme-style.tsx";
+import { Rail } from "../../../../packages/client/src/features/app-shell/components/rail.tsx";
+import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
-import type { ModalSlotId } from "../../../../packages/client/src/state/shell-store";
-import { openModal, setActiveSection, useActiveSection, useContextTab } from "../../../../packages/client/src/state/shell-store";
+import type { ModalSlotId } from "../../../../packages/client/src/state/shell-store.ts";
+import { openModal, setActiveSection, useActiveSection, useContextTab } from "../../../../packages/client/src/state/shell-store.ts";
 import "../../../../packages/client/src/styles/globals.css";
 import {
   CtDataProviders,
@@ -45,7 +45,7 @@ import {
   CtFakeSectionRegistry,
   CtRealSectionRegistry,
   CtStandInChromeRegistry,
-} from "../../../support/ct/ct-data-providers";
+} from "../../../support/ct/ct-data-providers.tsx";
 
 /** Lands the shell on a section before the assertions run. The BORN default is now `home` (owner
  *  decision H1 = D-1), but most shell CTs are about the FRAME's mechanics over a section that has panes —

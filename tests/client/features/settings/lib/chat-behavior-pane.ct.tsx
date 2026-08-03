@@ -12,10 +12,10 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcResponder } from "../../../../support/ct/route-trpc";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../../support/ct/settings-geometry";
-import { ChatBehaviorPaneStory, SettingsShellDeepLinkStory } from "../_ct-stories";
+import type { TrpcRecorder, TrpcResponder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../../support/ct/settings-geometry.ts";
+import { ChatBehaviorPaneStory, SettingsShellDeepLinkStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_chat_behavior_pane", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";

@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_INPUT, cn, formatResultCount, usePortalContainer } from "#lib";
 import { Icon, X } from "#primitives/icons";
-import { comboboxVariants } from "./variants";
+import { comboboxVariants } from "./variants.ts";
 
 // Breathing room between the input and the popup.
 const POPUP_SIDE_OFFSET = ANCHOR_GAP_INPUT;

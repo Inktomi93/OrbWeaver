@@ -30,12 +30,12 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
-import type { ImpersonateFixture } from "./fixtures";
-import { FIXTURES } from "./fixtures";
-import type { BuiltRequest } from "./prompt";
-import { buildRequest } from "./prompt";
-import type { Scored } from "./score";
-import { applyLegacyClean, applyProductionClean, scoreBleed } from "./score";
+import type { ImpersonateFixture } from "./fixtures.ts";
+import { FIXTURES } from "./fixtures.ts";
+import type { BuiltRequest } from "./prompt.ts";
+import { buildRequest } from "./prompt.ts";
+import type { Scored } from "./score.ts";
+import { applyLegacyClean, applyProductionClean, scoreBleed } from "./score.ts";
 
 // The ONE env read-site. A probe harness IS its env knobs (that is the interface you type at the shell), so
 // they are aliased here once rather than suppressed at thirteen call sites.

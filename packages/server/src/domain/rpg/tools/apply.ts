@@ -32,9 +32,9 @@ import type {
 } from "@orb/contracts/rpg";
 import { actorRefKey, journalTitleFor, journalTypeFor, RPG_TRACKER_VALUE_EMPTY, rpgCastSlug, TIME_OF_DAY_HOURS, trackerNumber } from "@orb/contracts/rpg";
 import type { RpgQuestId } from "@orb/kit/ids";
-import type { StagedJournalEntry } from "../contract/params";
-import type { RpgStateDelta } from "../contract/service";
-import { emptyActorEntry } from "../substrate/actor-ops";
+import type { StagedJournalEntry } from "../contract/params.ts";
+import type { RpgStateDelta } from "../contract/service.ts";
+import { emptyActorEntry } from "../substrate/actor-ops.ts";
 
 /** A name→actor-ref index over the roster (character/user members by their gather-surfaced display name,
  *  lowercased), so a model `targetRef` NAME resolves to the roster member's canonical ref key. Built once per

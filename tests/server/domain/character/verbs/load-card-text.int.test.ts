@@ -10,7 +10,7 @@ import { createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { buildCardEmbedText } from "../../../../../packages/server/src/domain/character/substrate/embed-text.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedRawCharacter, seedUser } from "../_support.ts";
 
 describe("loadCardText", () => {

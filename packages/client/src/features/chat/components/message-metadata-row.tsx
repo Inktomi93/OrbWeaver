@@ -27,8 +27,8 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { Fragment } from "react";
 import { timeLib } from "#lib";
-import { genDurationLabel } from "../lib/gen-duration";
-import { MessageCostReadout } from "./message-cost-readout";
+import { genDurationLabel } from "../lib/gen-duration.ts";
+import { MessageCostReadout } from "./message-cost-readout.tsx";
 
 /** The metadata-datum subset of the appearance prefs (mirrors `useMessageAppearance`'s row-display
  *  shape) — threaded from the surface, never a per-row query (rows stay prop-driven). */

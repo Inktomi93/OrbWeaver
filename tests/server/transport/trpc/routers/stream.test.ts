@@ -25,7 +25,7 @@ import type { WorkloadRowAnyKind } from "@orb/server/domain/workloads";
 import type { Context, PresenceRegistry, SocketRegistry } from "@orb/server/transport/trpc";
 import { createPresenceRegistry, createSocketRegistry, publishUserEvent } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const MEMBER = castId<UserId>("user_member");

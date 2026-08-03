@@ -21,9 +21,9 @@ import type {
   RemovePersonaParams,
   SetActivePersonaParams,
   UpdatePersonaParams,
-} from "./params";
-import type { DisconnectResult, PersonaImportOutcome, PersonaPortableFile, RemovePersonaResult } from "./results";
-import type { PersonaDetail } from "./views";
+} from "./params.ts";
+import type { DisconnectResult, PersonaImportOutcome, PersonaPortableFile, RemovePersonaResult } from "./results.ts";
+import type { PersonaDetail } from "./views.ts";
 
 /** The DI bundle every persona verb closes over, wired at the composition root. */
 export interface PersonaContext {

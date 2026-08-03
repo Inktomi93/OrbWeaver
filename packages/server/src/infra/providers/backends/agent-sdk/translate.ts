@@ -10,12 +10,12 @@ import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { UserIntent } from "@orb/contracts/preset";
 import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
-import type { OrSkinTierModels, ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "../../contract";
-import { ProviderError } from "../../contract";
-import { resolveChat } from "../../resolve-chat";
-import type { ClaudeRuntimeOverrides } from "./env";
-import { buildClaudeOpenRouterEnv, buildClaudeSdkEnv } from "./env";
-import type { DisciplineOptions } from "./types";
+import type { OrSkinTierModels, ResolvedChatKnobs, ResolvedReasoning, ResolvedWarning } from "../../contract/index.ts";
+import { ProviderError } from "../../contract/index.ts";
+import { resolveChat } from "../../resolve-chat.ts";
+import type { ClaudeRuntimeOverrides } from "./env.ts";
+import { buildClaudeOpenRouterEnv, buildClaudeSdkEnv } from "./env.ts";
+import type { DisciplineOptions } from "./types.ts";
 
 // tools:[] alone does NOT remove the cowork bundle (leaks in regardless of env/settingSources); disallowedTools does.
 const COWORK_DENYLIST = ["DesignSync", "Monitor", "PushNotification", "RemoteTrigger"] as const;

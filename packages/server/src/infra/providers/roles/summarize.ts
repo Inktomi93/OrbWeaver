@@ -4,9 +4,9 @@
 // decides parallelism per family.
 
 import type { SummarizeResult } from "@orb/contracts/providers";
-import type { ProviderDeps, SummarizeRequest } from "../contract";
-import { backendForSource, requireBackend, runRole } from "./dispatch";
-import { assertCredentialAllowed } from "./firewall";
+import type { ProviderDeps, SummarizeRequest } from "../contract/index.ts";
+import { backendForSource, requireBackend, runRole } from "./dispatch.ts";
+import { assertCredentialAllowed } from "./firewall.ts";
 
 const ROLE = "summarize";
 

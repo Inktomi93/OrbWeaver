@@ -1,2 +1,2 @@
-export type { NumberFieldProps } from "./number-field";
-export { NumberField } from "./number-field";
+export type { NumberFieldProps } from "./number-field.tsx";
+export { NumberField } from "./number-field.tsx";

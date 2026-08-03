@@ -7,7 +7,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ScheduleCadence, StartWorkloadInput, WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
 import type { Db, workloadSchedules } from "@orb/db";
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
-import type { StartWorkloadParams } from "./params";
+import type { StartWorkloadParams } from "./params.ts";
 
 /** The `workload_schedules` row, DERIVED — never re-spelled (AGENTS §0.2: a DB row shape's one home is `db`,
  *  via `$inferSelect`). It was a hand-written interface listing the same eleven columns; a column added to the

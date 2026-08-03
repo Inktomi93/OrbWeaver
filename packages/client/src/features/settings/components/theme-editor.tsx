@@ -30,11 +30,11 @@ import { useInvalidation, useTRPC } from "#data";
 // `appearance-select-items.ts`; SET-SEAMS stage 1 split that file into its chat- and app-shell-owned halves,
 // so the table three features render homes at the `#lib` shared-vocabulary floor.
 import { DENSITY_ITEMS, messageBubbleClass } from "#lib";
-import { useThemeForm } from "../hooks/use-theme-form";
-import { useUpdateTheme } from "../hooks/use-theme-mutations";
-import { AA_CONTRAST_FLOOR, contrastRatio } from "../lib/theme-contrast";
-import type { ThemeFormValues } from "../lib/theme-editor-model";
-import { themeFormFromEntity, themeInputFromForm, themeOverrideFromForm } from "../lib/theme-editor-model";
+import { useThemeForm } from "../hooks/use-theme-form.ts";
+import { useUpdateTheme } from "../hooks/use-theme-mutations.ts";
+import { AA_CONTRAST_FLOOR, contrastRatio } from "../lib/theme-contrast.ts";
+import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
+import { themeFormFromEntity, themeInputFromForm, themeOverrideFromForm } from "../lib/theme-editor-model.ts";
 
 // Lazy so CodeMirror never lands in the entry chunk for a modal-only editor.
 const CodeEditor = lazy(async () => {

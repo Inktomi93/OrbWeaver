@@ -31,9 +31,9 @@ import type {
   RewriteGreetingParams,
   SnapshotParams,
   UpdateCharacterParams,
-} from "./params";
-import type { CharacterRef, GeneratedGreeting, ImportedFromMatch, ListCharactersResult, SnapshotRef, SnapshotSummary } from "./results";
-import type { CharacterDetail } from "./views";
+} from "./params.ts";
+import type { CharacterRef, GeneratedGreeting, ImportedFromMatch, ListCharactersResult, SnapshotRef, SnapshotSummary } from "./results.ts";
+import type { CharacterDetail } from "./views.ts";
 
 /** Best-effort reap of avatar assets a deleted character may have orphaned (FK is onDelete: set null). */
 export type ReapAssetsOp = (assetIds: readonly AssetId[]) => Promise<void>;

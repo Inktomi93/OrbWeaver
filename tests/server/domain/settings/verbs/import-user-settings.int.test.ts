@@ -8,7 +8,7 @@ import { createImportUserSettings, createSettingsContext } from "@orb/server/dom
 import { buildUserSettingsBackup } from "@orb/server/kit/serde/user-settings";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("importUserSettings", () => {

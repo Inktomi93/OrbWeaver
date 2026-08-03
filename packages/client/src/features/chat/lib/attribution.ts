@@ -19,7 +19,7 @@ import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { hueDistance, oklchHue } from "@orb/kit/safe-color";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
-import { colorForCharacter } from "./speaker-color";
+import { colorForCharacter } from "./speaker-color.ts";
 
 export interface RowAttribution {
   /** `null` = render no attribution chrome. */

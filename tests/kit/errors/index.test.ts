@@ -8,7 +8,7 @@ import {
   DomainRateLimitError,
   DomainUnavailableError,
 } from "@orb/kit/errors";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("DomainNotFoundError carries entity + id in the message and its own name", () => {
   const err = new DomainNotFoundError("Character", "character_123");

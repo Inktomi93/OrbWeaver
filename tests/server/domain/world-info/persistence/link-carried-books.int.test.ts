@@ -13,7 +13,7 @@ import { describe } from "vitest";
 import { createLinkCarriedBooks } from "../../../../../packages/server/src/domain/world-info/persistence/link-carried-books.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedCharacter, seedUser } from "../../../../support/factories/index.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
 

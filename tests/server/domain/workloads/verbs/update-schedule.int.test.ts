@@ -6,7 +6,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorkloadScheduleId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService, principal, seedUser, T0 } from "../_support.ts";
 
 async function seedAliceSchedule(db: Parameters<typeof makeService>[0]): Promise<WorkloadScheduleId> {

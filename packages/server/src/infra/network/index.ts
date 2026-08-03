@@ -20,9 +20,9 @@ export {
   type SafeFetchResult,
   safeFetch,
   shouldBlockEgress,
-} from "./egress";
+} from "./egress.ts";
 
-export { type ImageGuardCaps, ImageRejectedError, isAllowedImageBuffer } from "./image-guard";
+export { type ImageGuardCaps, ImageRejectedError, isAllowedImageBuffer } from "./image-guard.ts";
 export {
   clientIp,
   ipAllowlistMiddleware,
@@ -30,12 +30,12 @@ export {
   parseAllowlist,
   peerIp,
   resolveClientIp,
-} from "./ingress";
+} from "./ingress.ts";
 export {
   DEFAULT_TRUSTED_RANGES,
   isInRanges,
   isPrivateOrLoopback,
   matchesCidr,
   parseIp,
-} from "./ip-ranges";
-export { type FetchOpenAiModelsArgs, fetchOpenAiModels } from "./openai-models";
+} from "./ip-ranges.ts";
+export { type FetchOpenAiModelsArgs, fetchOpenAiModels } from "./openai-models.ts";

@@ -9,10 +9,10 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { assemblePrompt, assemblePromptWithSlices } from "../../../../../packages/server/src/domain/chat/assembly/assemble";
-import { shapeContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card";
-import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros";
-import { expect, test } from "../../../../support/fixtures";
+import { assemblePrompt, assemblePromptWithSlices } from "../../../../../packages/server/src/domain/chat/assembly/assemble.ts";
+import { shapeContextForSpeaker } from "../../../../../packages/server/src/domain/chat/assembly/speaker-card.ts";
+import { buildTurnUserMacros } from "../../../../../packages/server/src/domain/chat/assembly/user-macros.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 let sectionSeq = 0;
 function marker(over: Partial<Extract<PromptSection, { type: "marker" }>>): PromptSection {

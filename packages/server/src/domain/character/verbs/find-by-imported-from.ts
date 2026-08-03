@@ -4,11 +4,11 @@
 // never returned. A read: no audit, no emit. Returns one match per FOUND value (absent values are simply not
 // in the result — the caller builds a value→id map).
 
-import type { CharacterContext } from "../context";
-import type { FindByImportedFromParams } from "../contract/params";
-import type { ImportedFromMatch } from "../contract/results";
-import type { CharacterService } from "../contract/service";
-import { findByOwnerImportedFrom } from "../persistence/queries";
+import type { CharacterContext } from "../context.ts";
+import type { FindByImportedFromParams } from "../contract/params.ts";
+import type { ImportedFromMatch } from "../contract/results.ts";
+import type { CharacterService } from "../contract/service.ts";
+import { findByOwnerImportedFrom } from "../persistence/queries.ts";
 
 export function createFindByImportedFrom(ctx: CharacterContext): CharacterService["findByImportedFrom"] {
   return ({ ownerId, values }: FindByImportedFromParams): Promise<ImportedFromMatch[]> => findByOwnerImportedFrom(ctx.db, ownerId, values);

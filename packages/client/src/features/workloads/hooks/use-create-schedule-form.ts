@@ -6,8 +6,8 @@
 // reopened dialog never carries the previous pick. No cross-field validation — every field has a default.
 
 import { createSavedEntityForm } from "#forms";
-import type { CreateScheduleFormValues } from "../lib/workloads-schedule-model";
-import { CREATE_SCHEDULE_FORM_DEFAULTS } from "../lib/workloads-schedule-model";
+import type { CreateScheduleFormValues } from "../lib/workloads-schedule-model.ts";
+import { CREATE_SCHEDULE_FORM_DEFAULTS } from "../lib/workloads-schedule-model.ts";
 
 export const useCreateScheduleForm = createSavedEntityForm<CreateScheduleFormValues>({
   defaultValues: CREATE_SCHEDULE_FORM_DEFAULTS,

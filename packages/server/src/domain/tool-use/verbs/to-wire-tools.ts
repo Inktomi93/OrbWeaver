@@ -5,7 +5,7 @@
 // verb emits the neutral contract shape.
 
 import type { WireTool } from "#infra/providers";
-import type { ResolvedToolSet } from "../contract/results";
+import type { ResolvedToolSet } from "../contract/results.ts";
 
 export function createToWireTools(): (set: ResolvedToolSet) => readonly WireTool[] {
   return (set: ResolvedToolSet): readonly WireTool[] =>

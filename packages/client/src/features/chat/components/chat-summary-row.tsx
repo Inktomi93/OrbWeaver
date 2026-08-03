@@ -25,8 +25,8 @@ import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement, ReactNode } from "react";
 import { ROW_REVEAL_SWAP, RowToggleAction } from "#components";
 import { cn, timeLib } from "#lib";
-import type { ChatRowPortrait } from "../lib/chat-summary-row";
-import { chatRowActionName, chatSummaryRowView } from "../lib/chat-summary-row";
+import type { ChatRowPortrait } from "../lib/chat-summary-row.ts";
+import { chatRowActionName, chatSummaryRowView } from "../lib/chat-summary-row.ts";
 
 type ChatSummaryItem = Parameters<typeof chatSummaryRowView>[0];
 

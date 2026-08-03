@@ -15,7 +15,7 @@ import { useState } from "react";
 import { ConfirmDialog, FormDialog } from "#components";
 import { QueryInlineStates, useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
-import { useRevokeSession, useRevokeUserSessions } from "../hooks/use-admin-mutations";
+import { useRevokeSession, useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
 
 export interface AdminUserSessionsDialogProps {
   readonly userId: UserId;

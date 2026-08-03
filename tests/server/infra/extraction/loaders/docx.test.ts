@@ -4,7 +4,7 @@
 
 import { zipSync } from "fflate";
 import { loadDocx } from "../../../../../packages/server/src/infra/extraction/loaders/docx.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { buildDocx } from "../_fixtures.ts";
 
 const enc = new TextEncoder();

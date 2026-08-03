@@ -7,7 +7,7 @@
 // (never a dead strip), and the edges disable at 1/first and last.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { GreetingSwipeStripStory } from "../_ct-stories";
+import { GreetingSwipeStripStory } from "../_ct-stories.tsx";
 
 const VARIANTS = ["Hello, traveller.", "Well met, stranger.", "You again?"];
 const CURRENT = '[data-testid="greeting-current"]';

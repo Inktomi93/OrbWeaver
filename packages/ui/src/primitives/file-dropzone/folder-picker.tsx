@@ -1,7 +1,7 @@
 import type { ChangeEvent, ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { Button } from "#primitives/button";
-import type { FileDropzoneResult } from "./file-dropzone";
+import type { FileDropzoneResult } from "./file-dropzone.tsx";
 
 export interface FolderPickerProps {
   /** Fires with the processed batch (split by the `maxSizeBytes` pre-check) when a folder is picked. */

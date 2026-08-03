@@ -2,10 +2,10 @@
 // FORCED to its own `userId` (any supplied `ownerId` is ignored — server-authoritative); an admin (or a
 // `null` system caller) keeps the requested filter (undefined = the deployment-wide view).
 
-import type { ListSchedulesParams, WorkloadScheduleRow } from "../contract/schedule";
-import type { WorkloadService, WorkloadServiceContext } from "../contract/service";
-import { listSchedulesQuery } from "../persistence/schedule-queries";
-import { resolveListOwnerFilter } from "../substrate/authorize";
+import type { ListSchedulesParams, WorkloadScheduleRow } from "../contract/schedule.ts";
+import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
+import { listSchedulesQuery } from "../persistence/schedule-queries.ts";
+import { resolveListOwnerFilter } from "../substrate/authorize.ts";
 
 export function createListSchedules(ctx: WorkloadServiceContext): Pick<WorkloadService, "listSchedules"> {
   async function listSchedules(params: ListSchedulesParams): Promise<readonly WorkloadScheduleRow[]> {

@@ -2,10 +2,10 @@ import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { ProvisionResult } from "../contract/results";
-import type { SessionsContext, SessionsService } from "../contract/service";
-import { insertUser, selectForProvisionByExternalId, selectForProvisionByHandle, selectOwnerUserId, updateUser } from "../persistence/users";
-import { deriveIdentityAccess, reDeriveRoleOnLogin } from "../substrate/role-policy";
+import type { ProvisionResult } from "../contract/results.ts";
+import type { SessionsContext, SessionsService } from "../contract/service.ts";
+import { insertUser, selectForProvisionByExternalId, selectForProvisionByHandle, selectOwnerUserId, updateUser } from "../persistence/users.ts";
+import { deriveIdentityAccess, reDeriveRoleOnLogin } from "../substrate/role-policy.ts";
 
 // The SSO seam upsert. Keys on the stable `externalId` first (a username rename updates `handle` on the
 // same row), falling back to `handle`. The access-gate policy gates login and derives the global role. A

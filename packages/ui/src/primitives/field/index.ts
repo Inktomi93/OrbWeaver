@@ -1,2 +1,2 @@
-export type { FieldOrientation, FieldProps } from "./field";
-export { Field, FieldLayout, FieldValidity } from "./field";
+export type { FieldOrientation, FieldProps } from "./field.tsx";
+export { Field, FieldLayout, FieldValidity } from "./field.tsx";

@@ -12,14 +12,14 @@ import type { AnalyticsContextState } from "#lib";
 import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
 import { useSelectedAnalyticsCharacterId } from "#state";
-import { AnalyticsListAnchor } from "../anchors/analytics-list-anchor";
-import { AnalyticsContent } from "../components/analytics-content";
-import { AnalyticsContextHeader } from "../components/analytics-context-header";
-import { AnalyticsListHeader } from "../components/analytics-list-header";
-import { AnalyticsModelsTab } from "../components/analytics-models-tab";
-import { AnalyticsPersonasTab } from "../components/analytics-personas-tab";
-import { AnalyticsTimeTab } from "../components/analytics-time-tab";
-import { AnalyticsListSurface } from "../surfaces/analytics-list-surface";
+import { AnalyticsListAnchor } from "../anchors/analytics-list-anchor.tsx";
+import { AnalyticsContent } from "../components/analytics-content.tsx";
+import { AnalyticsContextHeader } from "../components/analytics-context-header.tsx";
+import { AnalyticsListHeader } from "../components/analytics-list-header.tsx";
+import { AnalyticsModelsTab } from "../components/analytics-models-tab.tsx";
+import { AnalyticsPersonasTab } from "../components/analytics-personas-tab.tsx";
+import { AnalyticsTimeTab } from "../components/analytics-time-tab.tsx";
+import { AnalyticsListSurface } from "../surfaces/analytics-list-surface.tsx";
 
 /** The Analytics context-state projection: the leaderboard-drilled character (`null` = the overview
  *  dashboard). Always-present so the owner-scoped tabs stay unconditionally available; the `header` slot

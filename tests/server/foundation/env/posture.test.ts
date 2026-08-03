@@ -3,7 +3,7 @@
 
 import { postureManages, postureRegistersBackend, resolveEnginesPosture } from "@orb/server/foundation/env";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 describe("resolveEnginesPosture — explicit knob wins", () => {
   test("ENGINES_POSTURE set → used verbatim, no deprecation log", () => {

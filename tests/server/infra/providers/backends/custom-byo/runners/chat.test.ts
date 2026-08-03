@@ -14,8 +14,8 @@ import type { ChatRequest, ChatResult } from "@orb/server/infra/providers";
 import { ProviderError } from "@orb/server/infra/providers";
 import { createCustomByoBackend, reshapeChunk } from "@orb/server/infra/providers/backends/custom-byo";
 import { afterEach, describe, vi } from "vitest";
-import { makeCustomOpenAiCredential, makeOpenRouterCredential } from "../../../../../../support/factories/resolved-connection";
-import { expect, test } from "../../../../../../support/fixtures";
+import { makeCustomOpenAiCredential, makeOpenRouterCredential } from "../../../../../../support/factories/resolved-connection.ts";
+import { expect, test } from "../../../../../../support/fixtures.ts";
 
 const FIXED_NOW = 1000;
 const BASE_URL = "https://byo.example.com/v1";

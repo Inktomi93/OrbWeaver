@@ -1,6 +1,6 @@
 import { Lightbox } from "@orb/ui/lightbox";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { LightboxHarness } from "./lightbox.fixtures";
+import { LightboxHarness } from "./lightbox.fixtures.tsx";
 
 const noop = (_open: boolean): void => undefined;
 

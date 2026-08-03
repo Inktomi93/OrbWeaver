@@ -35,10 +35,10 @@ import type {
 } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { characters } from "./character";
-import { chats, messages, messageVariants } from "./chat";
-import { presets } from "./preset";
-import { users } from "./users";
+import { characters } from "./character.ts";
+import { chats, messages, messageVariants } from "./chat.ts";
+import { presets } from "./preset.ts";
+import { users } from "./users.ts";
 
 // A CHECK list is a static DDL fragment derived from the canonical tuple (NOT re-spelled). A CHECK cannot
 // carry bound parameters (the users.ts/chat.ts precedent).

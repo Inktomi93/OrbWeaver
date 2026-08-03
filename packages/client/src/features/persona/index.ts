@@ -5,8 +5,8 @@
 
 // `PersonaPanelRow` is front-door-exported so its CT (the side-eye item-13 stretched-overlay rework)
 // drives it directly from a non-test story — the CharacterCardTile precedent.
-export { FirstRunPersonaDialog } from "./anchors/first-run-persona-dialog";
-export type { PersonaPanelRowProps } from "./components/persona-panel-row";
-export { PersonaPanelRow } from "./components/persona-panel-row";
-export { personaChrome } from "./lib/persona-chrome";
-export { personasPane } from "./lib/personas-pane";
+export { FirstRunPersonaDialog } from "./anchors/first-run-persona-dialog.tsx";
+export type { PersonaPanelRowProps } from "./components/persona-panel-row.tsx";
+export { PersonaPanelRow } from "./components/persona-panel-row.tsx";
+export { personaChrome } from "./lib/persona-chrome.tsx";
+export { personasPane } from "./lib/personas-pane.tsx";

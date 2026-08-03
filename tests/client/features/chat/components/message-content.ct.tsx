@@ -7,7 +7,7 @@ import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { MessageContentChoicesStory, MessageContentSpansStory } from "../_ct-stories";
+import { MessageContentChoicesStory, MessageContentSpansStory } from "../_ct-stories.tsx";
 
 const THEME_SCOPE = '[data-slot="theme-scope"]';
 const SPANS_CONTAINER = '[data-slot="message-content-spans"]';

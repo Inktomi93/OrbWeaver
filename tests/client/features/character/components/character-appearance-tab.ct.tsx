@@ -9,10 +9,10 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { CharacterAppearanceTabStory } from "../_ct-stories";
-import { makeCharacterDetail } from "../fixtures";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { CharacterAppearanceTabStory } from "../_ct-stories.tsx";
+import { makeCharacterDetail } from "../fixtures.ts";
 
 /** The `themeOverride` blob carried by the most recent `character.update` (or undefined if none). */
 function lastThemeOverride(trpc: TrpcRecorder): unknown {

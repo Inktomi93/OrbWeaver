@@ -11,7 +11,7 @@ import {
   DEFAULT_RERANK_MODEL,
 } from "@orb/server/infra/providers/backends/local-light";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 describe("createLocalLightBackend", () => {
   test("registers under the local-light key and wires only the three derive roles", () => {

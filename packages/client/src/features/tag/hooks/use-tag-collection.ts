@@ -5,8 +5,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useInvalidation, useTRPC } from "#data";
 import { selectCollectionMember } from "#state";
-import { TAG_COLLECTION_ID } from "../lib/tags-model";
-import { useCreateTag } from "./use-tag-settings-mutations";
+import { TAG_COLLECTION_ID } from "../lib/tags-model.ts";
+import { useCreateTag } from "./use-tag-settings-mutations.ts";
 
 /** The name a created tag lands with — the member editor's Name field is the rename affordance, so create
  *  no longer needs its own name dialog (C-7: the editor is MOUNTED, so create-then-edit is one motion). */

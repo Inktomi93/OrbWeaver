@@ -9,8 +9,8 @@ import type { GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { fromGroupConfigForm, toGroupConfigForm } from "../../../../../packages/client/src/features/chat/lib/group-config-model";
-import { expect, test } from "../../../../support/fixtures";
+import { fromGroupConfigForm, toGroupConfigForm } from "../../../../../packages/client/src/features/chat/lib/group-config-model.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const GROUP_CHAR_ID = castId<CharacterId>("character_grpsynth00000000000");
 

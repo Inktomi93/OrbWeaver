@@ -3,7 +3,7 @@
 // `<title>` extraction (trimmed / absent).
 
 import { loadHtml } from "../../../../../packages/server/src/infra/extraction/loaders/html.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const enc = new TextEncoder();
 

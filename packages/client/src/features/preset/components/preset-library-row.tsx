@@ -37,7 +37,7 @@ import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { LibraryRow, RowToggleAction } from "#components";
 import { timeLib } from "#lib";
-import { presetRowSubtitle } from "../lib/preset-row-view";
+import { presetRowSubtitle } from "../lib/preset-row-view.ts";
 
 /** How many §12.2 cluster slots THIS list reserves on every row — a fork row's state dot + inline Duplicate
  *  + kebab is the widest cluster in the list, so the dot column holds one x on the built-in row too. */

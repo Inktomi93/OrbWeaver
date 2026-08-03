@@ -9,7 +9,7 @@
 // because groups are collapsed by default and a deep link onto a closed door is the defect it would be.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ConfigSelectionProbe } from "./_ct-stories";
+import { ConfigSelectionProbe } from "./_ct-stories.tsx";
 
 test("selection carries its KIND, and switching kinds replaces it", async ({ mount }) => {
   const probe = await mount(<ConfigSelectionProbe />);

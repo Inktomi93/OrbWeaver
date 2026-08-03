@@ -14,7 +14,7 @@
 //     section is the default CONTENT+LIST on `/`, so the list panel is present from first paint.
 
 import { expect, test } from "@playwright/test";
-import { SINGLE_USER } from "./support/modes";
+import { SINGLE_USER } from "./support/modes.ts";
 
 // The backend origin — healthz is server-only (not proxied through vite), so it is hit on the single-user
 // project's OWN backend port (derived from modes.ts, never a literal: this lane moved off the dev :8788, and

@@ -9,8 +9,8 @@
 // The ENGINE is not here and never will be: `@orb/kit/regex` executes, `@orb/server/kit/regex` is the
 // node:vm watchdog. This domain owns the DATA the engine runs on (AGENTS §1 "engine vs data").
 
-import type { RegexContext } from "./context";
-import type { RegexService } from "./contract/service";
+import type { RegexContext } from "./context.ts";
+import type { RegexService } from "./contract/service.ts";
 import {
   createApplyScopeOrder,
   createAttachGlobal,
@@ -27,8 +27,8 @@ import {
   createListGlobal,
   createListRoomDisplayScripts,
   createListScriptUsage,
-} from "./verbs/attachments";
-import { createCreate, createDuplicate, createGet, createList, createRemove, createUpdate } from "./verbs/scripts";
+} from "./verbs/attachments/index.ts";
+import { createCreate, createDuplicate, createGet, createList, createRemove, createUpdate } from "./verbs/scripts/index.ts";
 
 export function createRegexService(ctx: RegexContext): RegexService {
   return {

@@ -8,7 +8,7 @@
 import { constants as fsConstants } from "node:fs";
 import { open, readdir, rm } from "node:fs/promises";
 import { relative, sep } from "node:path";
-import type { StagedArchive, StagedEntry } from "./zip";
+import type { StagedArchive, StagedEntry } from "./zip.ts";
 
 async function readNoFollow(path: string): Promise<Uint8Array> {
   // biome-ignore lint/suspicious/noBitwiseOperators: OR-ing POSIX open() flag bits is the intended API (same exemption zip.ts's staging reader carries).

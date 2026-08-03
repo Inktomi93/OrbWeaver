@@ -11,7 +11,7 @@
 import type { ChatDeltaEvent, TurnAbortReason, TurnIntent } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { perfMark, perfMeasure } from "#lib";
-import { createGatedStore } from "./create-gated-store";
+import { createGatedStore } from "./create-gated-store.ts";
 
 // Mark names are per-chat so concurrent rooms never cross-measure: beginTurn stamps the start, the
 // first delta onto a pending slot measures TTFT, and the terminal events measure end-to-end latency.

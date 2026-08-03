@@ -18,7 +18,7 @@ import {
   upsertImageEmbedding,
 } from "../../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, IMAGE_EMBED_MODEL, seedAsset, seedCharacter, seedChat, seedDocument, seedUser } from "../_support.ts";
 
 const NOW = 1_750_000_000_000;

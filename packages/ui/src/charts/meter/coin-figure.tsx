@@ -6,8 +6,8 @@
 // visible caption). Coin tint rides the track ramp (default the gold step 3) via `color-mix` over tokens.
 import type { ReactElement } from "react";
 import { cn } from "#lib";
-import type { TrackColor } from "./track-bar";
-import { COIN_DISC_FILL, COIN_DISC_RING, COIN_DISC_STROKE, ringGaugeVariants } from "./variants";
+import type { TrackColor } from "./track-bar.tsx";
+import { COIN_DISC_FILL, COIN_DISC_RING, COIN_DISC_STROKE, ringGaugeVariants } from "./variants.ts";
 
 export interface CoinFigureProps {
   /** The amount shown inside the disc (a max-less quantity — never a fraction). */

@@ -17,9 +17,9 @@
 // so the surface's own 4s ingest poll and playwright's auto-waiting still run for real.
 
 import type { Page } from "@playwright/test";
-import { FROZEN_AT_MS } from "../../../support/clock";
-import type { TrpcRecorder, TrpcRoutes } from "../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../support/ct/route-trpc";
+import { FROZEN_AT_MS } from "../../../support/clock.ts";
+import type { TrpcRecorder, TrpcRoutes } from "../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../support/ct/route-trpc.ts";
 
 /** Comfortably past the model's 5-minute stall threshold — a frozen row, not a slow one. */
 const WEDGED_AGO_MS = 3_600_000;

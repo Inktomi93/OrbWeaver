@@ -9,10 +9,10 @@ import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, Handle, RpgJournalId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { findGameByChat } from "../../../../packages/server/src/domain/rpg/persistence/games";
-import { listActiveJournal } from "../../../../packages/server/src/domain/rpg/persistence/journal";
-import { freshDb } from "../../../support/db";
-import { expect, makeRpgService, principal, seedChat, seedUser, test } from "./_support";
+import { findGameByChat } from "../../../../packages/server/src/domain/rpg/persistence/games.ts";
+import { listActiveJournal } from "../../../../packages/server/src/domain/rpg/persistence/journal.ts";
+import { freshDb } from "../../../support/db.ts";
+import { expect, makeRpgService, principal, seedChat, seedUser, test } from "./_support.ts";
 
 let db: Db;
 beforeEach(async () => {

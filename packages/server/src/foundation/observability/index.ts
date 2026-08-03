@@ -8,8 +8,8 @@ export {
   getAuditFailureSnapshot,
   logAudit,
   resetAuditFailureCount,
-} from "./audit";
-export { type ClientErrorReport, recordClientError } from "./client-error";
+} from "./audit.ts";
+export { type ClientErrorReport, recordClientError } from "./client-error.ts";
 export {
   type AdminAuthChecker,
   type AssetInspector,
@@ -29,7 +29,7 @@ export {
   tokenMatches,
   type WireCapture,
   type WireCaptureFilter,
-} from "./debug";
+} from "./debug/index.ts";
 export {
   bindRequestUser,
   getLog,
@@ -41,9 +41,9 @@ export {
   recordRequest,
   runInRequest,
   securityEvent,
-} from "./logger";
-export { type MemoryLogRecord, recordMemoryLog } from "./memory-log";
-export { observability, observabilityErrorHandler } from "./middleware";
+} from "./logger.ts";
+export { type MemoryLogRecord, recordMemoryLog } from "./memory-log.ts";
+export { observability, observabilityErrorHandler } from "./middleware.ts";
 export {
   addSpanEvent,
   getTraceByRequestId,
@@ -59,4 +59,4 @@ export {
   span,
   withRequestSpan,
   wrapLibSqlClient,
-} from "./tracing";
+} from "./tracing.ts";

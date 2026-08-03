@@ -6,7 +6,7 @@
 import { ConfirmDialog } from "@orb/client/components";
 import { Button } from "@orb/ui/button";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ConfirmDialogControlledHarness } from "./confirm-dialog.fixtures";
+import { ConfirmDialogControlledHarness } from "./confirm-dialog.fixtures.tsx";
 
 test("uncontrolled: renders the given trigger, opens on click, confirms and closes", async ({ mount, page }) => {
   let confirmed = 0;

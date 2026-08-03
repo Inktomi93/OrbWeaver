@@ -4,8 +4,8 @@
 // tool patch on a locked path is dropped.
 
 import { describe } from "vitest";
-import { applyLockedPatch } from "../../../../../packages/server/src/domain/rpg/substrate/merge";
-import { actorWithWallet, expect, quest, questId, test } from "../_support";
+import { applyLockedPatch } from "../../../../../packages/server/src/domain/rpg/substrate/merge.ts";
+import { actorWithWallet, expect, quest, questId, test } from "../_support.ts";
 
 describe("the [merge-clear] contract", () => {
   test("undefined at a key = skip (omit preserves)", () => {

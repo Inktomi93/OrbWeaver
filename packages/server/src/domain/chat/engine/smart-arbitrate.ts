@@ -20,10 +20,10 @@ import { speakerKey } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { SummarizeOptions } from "@orb/contracts/role-clients";
-import type { ArbiterCandidate, CastName, SmartArbitrationResult } from "../contract/arbitration";
-import type { SummarizeOp } from "../contract/context";
-import { isArbiterEligible } from "../persistence/participant";
-import { selectSpeakers } from "./select-speakers";
+import type { ArbiterCandidate, CastName, SmartArbitrationResult } from "../contract/arbitration.ts";
+import type { SummarizeOp } from "../contract/context.ts";
+import { isArbiterEligible } from "../persistence/participant.ts";
+import { selectSpeakers } from "./select-speakers.ts";
 
 /** The 7b inputs (file-local — the driver passes a literal). */
 interface SmartArbitrateParams {

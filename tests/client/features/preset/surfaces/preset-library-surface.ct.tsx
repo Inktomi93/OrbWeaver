@@ -21,11 +21,11 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { FROZEN_AT_MS } from "../../../../support/clock";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness";
-import { PresetLibrarySurfaceStory } from "./_ct-stories";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
+import { PresetLibrarySurfaceStory } from "./_ct-stories.tsx";
 
 const BUILT_IN = "preset_00000000000000000000000000";
 const EDITED_ONE = "preset_ct_edited0001";

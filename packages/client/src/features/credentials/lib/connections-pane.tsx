@@ -4,8 +4,8 @@
 
 import { ExternalLink } from "@orb/ui/icons";
 import type { SettingsPaneDefinition } from "#state";
-import { ConnectionsSettingsSurface } from "../surfaces/connections-settings-surface";
-import { CONNECTIONS_SUBCATEGORY_IDS } from "./connections-nav";
+import { ConnectionsSettingsSurface } from "../surfaces/connections-settings-surface.tsx";
+import { CONNECTIONS_SUBCATEGORY_IDS } from "./connections-nav.ts";
 
 export const connectionsPane: SettingsPaneDefinition = {
   id: "connections",

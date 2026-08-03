@@ -3,7 +3,7 @@
 // rendered AND received the full registry (every id), proving the value reached the consumer tree.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { SectionRegistryProbe } from "./_ct-stories";
+import { SectionRegistryProbe } from "./_ct-stories.tsx";
 
 test("SectionRegistryProvider renders children and delivers the registry to a nested consumer", async ({ mount }) => {
   const probe = await mount(<SectionRegistryProbe />);

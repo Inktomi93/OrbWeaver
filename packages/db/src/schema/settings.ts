@@ -28,7 +28,7 @@ import type { ThemeId, UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { users } from "./users";
+import { users } from "./users.ts";
 
 export const settings = sqliteTable("settings", {
   // The natural KV key (e.g. "app", "openrouter-model-catalog"). No brand — a free-form string key.

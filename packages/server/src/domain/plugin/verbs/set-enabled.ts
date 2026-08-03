@@ -4,10 +4,10 @@
 // row lands `errored` (03 §2). Disable ⇒ dispose the instance + deregister its tools/transforms/subs (03 §5) →
 // status `disabled`. Idempotent per target state.
 
-import { PluginCrashedError, PluginNotFoundError } from "../contract/errors";
-import type { SetPluginEnabledParams } from "../contract/params";
-import type { ActivationDeps, PluginContext, PluginService } from "../contract/service";
-import { getById, setStatus } from "../persistence/plugins";
+import { PluginCrashedError, PluginNotFoundError } from "../contract/errors.ts";
+import type { SetPluginEnabledParams } from "../contract/params.ts";
+import type { ActivationDeps, PluginContext, PluginService } from "../contract/service.ts";
+import { getById, setStatus } from "../persistence/plugins.ts";
 
 export function createSetEnabled(ctx: PluginContext, deps: ActivationDeps): PluginService["setEnabled"] {
   return async ({ caller, pluginId, enabled }: SetPluginEnabledParams): Promise<void> => {

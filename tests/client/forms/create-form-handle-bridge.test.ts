@@ -6,7 +6,7 @@
 
 import { createFormHandleBridge } from "@orb/client/forms";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 interface Handle {
   readonly id: string;

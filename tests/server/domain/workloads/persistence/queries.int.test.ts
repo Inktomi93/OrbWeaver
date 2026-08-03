@@ -22,7 +22,7 @@ import {
   toView,
 } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { fakeContributions, seedUser, seedWorkloadRow, T0 } from "../_support.ts";
 
 // The params VALIDATOR the read path narrows rows with (every kind's schema, keyed by kind).

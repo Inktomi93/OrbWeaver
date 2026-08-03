@@ -10,7 +10,7 @@ import {
   RPG_STEERING_NOTE_MAX,
   rpgGameConfigSchema,
 } from "@orb/contracts/rpg";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("an empty config parses to the born-default (freeform profile, empty steeringNote)", () => {
   const config = rpgGameConfigSchema.parse({});

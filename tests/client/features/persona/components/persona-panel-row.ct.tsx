@@ -4,7 +4,7 @@
 // also "set current" (the stopPropagation crutch is gone because the elements no longer nest).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { PersonaPanelRowStory } from "../_ct-stories";
+import { PersonaPanelRowStory } from "../_ct-stories.tsx";
 
 test("the 'set current' target is a real native <button>, not a role=button div", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowStory />);

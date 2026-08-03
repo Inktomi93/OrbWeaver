@@ -15,7 +15,7 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { usePresetEditorView, useSelectedPresetId } from "#state";
-import { PRESET_EDITOR_VIEWS } from "../../lib/preset-nav";
+import { PRESET_EDITOR_VIEWS } from "../../lib/preset-nav.ts";
 
 /** The suffix naming what this pane always is, whatever it is currently projecting. */
 const READOUT_SUFFIX = "readout";

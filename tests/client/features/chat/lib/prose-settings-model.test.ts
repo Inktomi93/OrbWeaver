@@ -11,8 +11,8 @@ import {
   proseFooterState,
   proseSlotPatch,
   toProsePatch,
-} from "../../../../../packages/client/src/features/chat/lib/prose-settings-model";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/client/src/features/chat/lib/prose-settings-model.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 // A user-home slot carrying a required pre-substitution token — the lint's subject.
 const NUDGE = "chat.group.roundNudge";

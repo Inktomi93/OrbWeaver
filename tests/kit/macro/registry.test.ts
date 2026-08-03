@@ -5,7 +5,7 @@
 
 import type { ProcessMacroOptions } from "@orb/kit/macro";
 import { createVolatileOnlyRegistry, processMacros } from "@orb/kit/macro";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // 2021-01-02T03:04:05Z — a fixed epoch so every clock assertion is deterministic (no `Date.now`, per the gate).
 const FIXED_NOW_MS = 1_609_556_645_000;

@@ -1,2 +1,2 @@
-export type { CodeEditorDiagnostic, CodeEditorProps } from "./code-editor";
-export { CodeEditor } from "./code-editor";
+export type { CodeEditorDiagnostic, CodeEditorProps } from "./code-editor.tsx";
+export { CodeEditor } from "./code-editor.tsx";

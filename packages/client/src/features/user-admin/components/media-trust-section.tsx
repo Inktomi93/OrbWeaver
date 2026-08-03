@@ -21,10 +21,10 @@ import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
-import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model";
-import { MEDIA_TRUST_SUBCATEGORY } from "../lib/system-config-nav";
-import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSwitch } from "./admin-override-field";
+import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
+import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
+import { MEDIA_TRUST_SUBCATEGORY } from "../lib/system-config-nav.ts";
+import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSwitch } from "./admin-override-field.tsx";
 
 /** Decimal MB (1 MB = 1e6 B, matching safeFetch's own byte accounting) — the cap is edited in MB and
  *  written in BYTES. */

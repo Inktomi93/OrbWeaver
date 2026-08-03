@@ -34,7 +34,7 @@ import type { ReactElement } from "react";
 import { RegexScopeOrder } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { regexScriptTitle } from "#lib";
-import { useAttachRegexGlobal, useDetachRegexGlobal } from "../hooks/use-regex-library";
+import { useAttachRegexGlobal, useDetachRegexGlobal } from "../hooks/use-regex-library.ts";
 
 export function RegexContextBody({ memberId }: { readonly memberId: string }): ReactElement {
   const trpc = useTRPC();

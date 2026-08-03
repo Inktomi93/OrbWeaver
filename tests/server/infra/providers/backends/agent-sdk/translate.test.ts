@@ -21,7 +21,7 @@ import { describe } from "vitest";
 // `buildSystemPrompt` is likewise not on the agent-sdk barrel (its only consumer is the sibling
 // runner.ts); the test reaches it by the same relative path as `toSdkGeneration`.
 import { buildSystemPrompt, toSdkGeneration } from "../../../../../../packages/server/src/infra/providers/backends/agent-sdk/translate.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const OR_KEY = "sk-or-translate-test";
 const OPENROUTER_BASE = "https://openrouter.ai/api";

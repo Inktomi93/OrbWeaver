@@ -22,11 +22,11 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { CastCard, MeterRow } from "#components";
-import { actorKey } from "../lib/actor-key";
-import { RELATIONSHIP_GLYPHS } from "../lib/glyphs";
-import { resolveTrackerColor, trackColorProps } from "../lib/track-color";
-import { RpgDoorwayLine } from "./rpg-doorway-line";
-import { Kicker } from "./rpg-kicker";
+import { actorKey } from "../lib/actor-key.ts";
+import { RELATIONSHIP_GLYPHS } from "../lib/glyphs.ts";
+import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
+import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
+import { Kicker } from "./rpg-kicker.tsx";
 
 /** The standing guides this actor actually carries (RV-11) — spread onto the card so an UNWRITTEN guide is
  *  simply absent (no line, never a "none" placeholder). The story authors them; the host may correct what is

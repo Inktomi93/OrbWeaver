@@ -30,10 +30,10 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import type { AppFormInstance } from "#forms";
-import type { KnobBinding } from "../lib/capability-panel-model";
-import type { EffectiveKnobRow, KnobGhost } from "../lib/effective-knobs";
-import { clampGloss, knobGhost } from "../lib/effective-knobs";
-import { PRESET_NUMBER_FORMAT } from "../lib/format-count";
+import type { KnobBinding } from "../lib/capability-panel-model.ts";
+import type { EffectiveKnobRow, KnobGhost } from "../lib/effective-knobs.ts";
+import { clampGloss, knobGhost } from "../lib/effective-knobs.ts";
+import { PRESET_NUMBER_FORMAT } from "../lib/format-count.ts";
 
 /** The placeholder for a knob whose funnel reports NO value on this model — the honest empty (§4.3): the
  *  model's own default applies and we do not know the number, so nothing is fabricated. */

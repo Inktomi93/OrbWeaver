@@ -14,7 +14,7 @@ import { spawn } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CHILD_SCRIPT = resolve(HERE, "fixtures/orphan-survival-child.mts");

@@ -16,7 +16,7 @@ import {
   BoundaryReseedStory,
   BoundaryStatusStory,
   BoundaryUnmountFlushStory,
-} from "./_ct-stories";
+} from "./_ct-stories.tsx";
 
 // CT-1 — identity switch renders the NEW entity (the F1 P0: the preset editor showed A under B). The
 // boundary keys its Session by entityId, so flipping entityId is a full teardown/remount seeded from B's

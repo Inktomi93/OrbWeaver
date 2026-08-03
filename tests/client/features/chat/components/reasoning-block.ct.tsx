@@ -5,7 +5,7 @@
 // instead of a real 1000ms wait per tick).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ReasoningBlockStory } from "../_ct-stories";
+import { ReasoningBlockStory } from "../_ct-stories.tsx";
 
 const ONE_SECOND_MS = 1000;
 const THINKING_LABEL = /Thinking/u;

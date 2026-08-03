@@ -2,11 +2,11 @@ import type { ErrorInfo, ReactElement, ReactNode } from "react";
 import { Component } from "react";
 import { Streamdown } from "streamdown";
 import { cn, usePrefersReducedMotion } from "#lib";
-import { DIALOGUE_COMPONENTS } from "./dialogue-paragraph";
-import { MARKDOWN_MATH_PLUGIN } from "./math";
-import { MARKDOWN_MERMAID_OPTIONS } from "./mermaid";
-import { MARKDOWN_REMARK_PLUGINS, TIER_A_UNTRUSTED_ELEMENTS, TRUSTED_ALLOWED_TAGS, TRUSTED_LITERAL_TAG_CONTENT, untrustedUrlTransform } from "./policy";
-import { MARKDOWN_SHIKI_PLUGIN } from "./shiki-plugin";
+import { DIALOGUE_COMPONENTS } from "./dialogue-paragraph.tsx";
+import { MARKDOWN_MATH_PLUGIN } from "./math.ts";
+import { MARKDOWN_MERMAID_OPTIONS } from "./mermaid.tsx";
+import { MARKDOWN_REMARK_PLUGINS, TIER_A_UNTRUSTED_ELEMENTS, TRUSTED_ALLOWED_TAGS, TRUSTED_LITERAL_TAG_CONTENT, untrustedUrlTransform } from "./policy.ts";
+import { MARKDOWN_SHIKI_PLUGIN } from "./shiki-plugin.ts";
 
 const TRUSTS = ["trusted", "untrusted"] as const;
 const MODES = ["static", "streaming"] as const;

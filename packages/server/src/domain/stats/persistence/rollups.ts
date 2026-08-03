@@ -12,7 +12,7 @@ import { characterStats, characters, dailyStats, modelStats, ownerStats } from "
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
-import type { LeaderboardOpts, TimeseriesOpts } from "../contract/params";
+import type { LeaderboardOpts, TimeseriesOpts } from "../contract/params.ts";
 import type {
   CharacterStatsView,
   DailyPoint,
@@ -23,9 +23,9 @@ import type {
   StatsFreshness,
   TemporalStats,
   WrappedSummary,
-} from "../contract/views";
-import { cacheHitRate, deriveExtra, reasoningRate, throughputTps } from "../substrate/rates";
-import { modelLatencyKey, readLatency, readModelLatencies } from "./latency";
+} from "../contract/views.ts";
+import { cacheHitRate, deriveExtra, reasoningRate, throughputTps } from "../substrate/rates.ts";
+import { modelLatencyKey, readLatency, readModelLatencies } from "./latency.ts";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;

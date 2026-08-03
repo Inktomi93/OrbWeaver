@@ -21,7 +21,7 @@ import type { InboxView, NotificationsService } from "@orb/server/domain/notific
 import type { Context } from "@orb/server/transport/trpc";
 import { publishNotification, publishUserEvent } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../../_support.ts";
 
 const RECIPIENT = castId<UserId>("user_recipient");

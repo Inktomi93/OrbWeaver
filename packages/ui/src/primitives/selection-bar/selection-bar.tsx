@@ -2,7 +2,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { Button } from "#primitives/button";
 import { Icon, X } from "#primitives/icons";
-import { selectionBarVariants } from "./variants";
+import { selectionBarVariants } from "./variants.ts";
 
 export interface SelectionBarProps {
   /** Number of currently selected items — rendered as "N selected" in an `aria-live="polite"` region. */

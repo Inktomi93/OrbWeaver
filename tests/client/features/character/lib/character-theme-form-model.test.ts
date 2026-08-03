@@ -10,8 +10,8 @@ import {
   characterThemeFormFromOverride,
   EMPTY_CHARACTER_THEME_FORM,
   overrideFromCharacterThemeForm,
-} from "../../../../../packages/client/src/features/character/lib/character-theme-form-model";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/client/src/features/character/lib/character-theme-form-model.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 // A fully-populated CARD override — every colour scalar, both slots of every bubble, and both enums the
 // card can carry. `density` is deliberately absent: it is viewer-sacred (TD §3), so this form has no field

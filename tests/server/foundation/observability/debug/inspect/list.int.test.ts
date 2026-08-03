@@ -7,8 +7,8 @@ import { characters, chatParticipants, chats, messages, users } from "@orb/db";
 import type { CharacterHandle, CharacterId, ChatId, ChatParticipantId, Handle, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { characterListSummaries, chatListSummaries } from "@orb/server/foundation/observability/debug";
-import { freshDb } from "../../../../../support/db";
-import { expect, test } from "../../../../../support/fixtures";
+import { freshDb } from "../../../../../support/db.ts";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 test("chatListSummaries returns a row per chat with participant + message counts, newest-updated first", async () => {
   const db = await freshDb();

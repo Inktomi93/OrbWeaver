@@ -10,7 +10,7 @@ import type { DomainEvent } from "@orb/contracts/events";
 import type { Can } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId } from "@orb/kit/ids";
-import type { ArmDispatch, AutomationOps, EmitAutomationEvent, EnabledRuleIndex, PromptTransformIndex, ResolveAuthorPrincipal } from "./ops";
+import type { ArmDispatch, AutomationOps, EmitAutomationEvent, EnabledRuleIndex, PromptTransformIndex, ResolveAuthorPrincipal } from "./ops.ts";
 import type {
   CreateRuleParams,
   DeleteGlobalVariableParams,
@@ -27,9 +27,9 @@ import type {
   SetRuleEnabledParams,
   TestRuleParams,
   UpdateRuleParams,
-} from "./params";
-import type { PluginSubscriberRegistry } from "./plugin-subscribers";
-import type { FireView, RuleView, StreamAuthority, TestRunResult } from "./results";
+} from "./params.ts";
+import type { PluginSubscriberRegistry } from "./plugin-subscribers.ts";
+import type { FireView, RuleView, StreamAuthority, TestRunResult } from "./results.ts";
 
 /** The DI bundle the automation verbs close over. Assembled at the entry composition root and handed to
  *  `createAutomationService`. `now` is the injected clock; `prng` is the injected [0,1) source the dry-run

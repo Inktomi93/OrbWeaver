@@ -24,9 +24,9 @@ import { stripHiddenSpans } from "@orb/kit/content";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { AutomationOps, ResolvedTrigger } from "../contract/ops";
-import type { PluginSubscriberRegistry, PluginTriggerSubscriber } from "../contract/plugin-subscribers";
-import { isDomainRowOwnedBy } from "../persistence/canon-reads";
+import type { AutomationOps, ResolvedTrigger } from "../contract/ops.ts";
+import type { PluginSubscriberRegistry, PluginTriggerSubscriber } from "../contract/plugin-subscribers.ts";
+import { isDomainRowOwnedBy } from "../persistence/canon-reads.ts";
 
 /** Build the in-process subscriber registry (`ASSUMES(single-replica)`). One instance is created at compose,
  *  injected into `AutomationContext` (read by the fan-out) and handed to the plugin-host wiring (`register` is

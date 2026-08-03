@@ -4,7 +4,7 @@
 
 import { countGpus, detectGpu } from "@orb/server/infra/providers/vllm/engine";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 describe("detectGpu", () => {
   test("a successful probe (GPU present) → true, and the exec is run exactly once", () => {

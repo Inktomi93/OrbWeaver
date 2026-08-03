@@ -30,7 +30,7 @@ import { emitWorkloadEvent } from "@orb/server/domain/workloads";
 import type { Context } from "@orb/server/transport/trpc";
 import { createSocketRegistry, publishUserEvent } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../../_support.ts";
 
 const OWNER = castId<UserId>("user_workload_owner");

@@ -4,7 +4,7 @@
 // netHosts SSRF regex, caps superset), and the OPTIONAL builtAgainst provenance block. Mirror of manifest.ts.
 
 import { PLUGIN_CAPABILITIES, pluginManifestSchema } from "@orb/contracts/plugin";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const BASE = {
   id: "my-plugin",

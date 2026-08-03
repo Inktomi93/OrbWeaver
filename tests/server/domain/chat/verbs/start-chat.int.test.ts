@@ -19,14 +19,14 @@ import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/id
 import { castId } from "@orb/kit/ids";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
-import type { TurnEngine, TurnOutcome, TurnPrep } from "../../../../../packages/server/src/domain/chat/contract/results";
-import { listMemberChats } from "../../../../../packages/server/src/domain/chat/persistence/queries";
-import { createStartChat } from "../../../../../packages/server/src/domain/chat/verbs/start-chat";
-import { freshDb } from "../../../../support/db";
+import type { TurnEngine, TurnOutcome, TurnPrep } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import { listMemberChats } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { createStartChat } from "../../../../../packages/server/src/domain/chat/verbs/start-chat.ts";
+import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { makeResolvedConnection } from "../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, makeLoadParticipantViews, seedCharacter, seedUser } from "../_support";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeChatContext, makeLoadParticipantViews, seedCharacter, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];

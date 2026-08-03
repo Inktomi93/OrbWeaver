@@ -11,7 +11,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { ReactElement } from "react";
-import { ReadingTypographyFixture } from "../_cascade-fixtures";
+import { ReadingTypographyFixture } from "../_cascade-fixtures.tsx";
 
 // The test's chosen non-default reading values — each clearly distinct from the schema defaults
 // (line-height 1.55, letter-spacing 0em, paragraph-spacing 0.75rem, name-scale 1, body-scale 1) so a

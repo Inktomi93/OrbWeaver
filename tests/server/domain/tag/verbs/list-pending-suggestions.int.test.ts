@@ -6,7 +6,7 @@
 import { createTagService } from "@orb/server/domain/tag";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeTagHarness, principal, seedCharacter, seedUser } from "../_support.ts";
 
 describe("listPendingSuggestions", () => {

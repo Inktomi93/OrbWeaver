@@ -2,7 +2,7 @@ import { createForwardJwtVerifier, jwksCacheSize, jwksFor, resetJwksCache } from
 import type { CryptoKey } from "jose";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 import { beforeEach, describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 // OIDC/JWT claim names are wire-fixed snake_case (preferred_username, sub, aud, iss). Kept as-is in the
 // test payloads — a camelCase rename would mint a JWT the verifier can't read.

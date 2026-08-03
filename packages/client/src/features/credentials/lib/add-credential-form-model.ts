@@ -5,7 +5,7 @@
 
 import type { CustomOpenAiResponseMap } from "@orb/contracts/credentials";
 import type { SelectItems } from "@orb/ui/select";
-import { ADD_KEY_PROVIDERS_ORDERED, PROVIDER_LABELS } from "./connections-model";
+import { ADD_KEY_PROVIDERS_ORDERED, PROVIDER_LABELS } from "./connections-model.ts";
 
 /** The add-a-key form's flat values (client-only view). The three custom-endpoint transforms are edited as
  *  free text (JSON / a key list) and parsed on save; the server re-validates via `providerMetadataSchema`. */

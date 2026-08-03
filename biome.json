@@ -62,6 +62,7 @@
     "rules": {
       "preset": "recommended",
       "correctness": {
+        "useImportExtensions": "error",
         "noUnusedImports": "error",
         "noUnusedVariables": {
           "level": "error",

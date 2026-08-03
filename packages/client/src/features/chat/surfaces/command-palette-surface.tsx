@@ -25,8 +25,8 @@ import type { SlashCommandContribution, SlashCommandGroup } from "#lib";
 import { SLASH_COMMAND_GROUP_LABELS, SLASH_COMMAND_GROUPS, useFocusOnMount } from "#lib";
 import type { SectionId } from "#state";
 import { closeModal, selectChat, setActiveSection, useActiveChatId } from "#state";
-import { useSlashCommands } from "../hooks/use-slash-commands";
-import { chatSummaryRowView } from "../lib/chat-summary-row";
+import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
+import { chatSummaryRowView } from "../lib/chat-summary-row.ts";
 
 type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>[number];
 

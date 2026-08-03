@@ -2,7 +2,7 @@
 // text-color quad can never drift between the seals that layer on top of it. Motion is composed
 // SEPARATELY by each consumer (OVERLAY_MOTION.anchoredPopup / .modalPopup) — these are the resting
 // skin only, so a seal keeps ownership of its own animation timing.
-import { DISABLED_STATE } from "./disabled-state";
+import { DISABLED_STATE } from "./disabled-state.ts";
 
 // The anchored scrollable list popup (select/autocomplete/combobox). The WIDTH class is per-seal
 // (select uses `min-w-(--anchor-width)` so a long option can grow the popup; autocomplete/combobox

@@ -5,8 +5,8 @@
 // (P1, landed); the registry/lifecycle/grants lives in `domain/plugin` (P3). This node imports nothing above
 // contracts (the package cake) and is the ONE home for these shapes — P3/P4 derive, never re-spell.
 
-export type { InvocationChat, PluginBridge } from "./bridge";
-export { HostVersionError, PluginCapabilityError } from "./errors";
+export type { InvocationChat, PluginBridge } from "./bridge.ts";
+export { HostVersionError, PluginCapabilityError } from "./errors.ts";
 export type {
   ChatHandle,
   HostFunctionRef,
@@ -16,16 +16,16 @@ export type {
   PluginMessageView,
   PluginVariableOp,
   PluginWorldEntryUpsert,
-} from "./host-v1";
-export { HOST_FUNCTION_CAPABILITY, PLUGIN_LOG_LEVELS } from "./host-v1";
-export type { PluginOrigin, PluginStatus } from "./lifecycle";
-export { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "./lifecycle";
-export type { PluginBuiltAgainst, PluginCapability, PluginManifest } from "./manifest";
-export { PLUGIN_CAPABILITIES, pluginBuiltAgainstSchema, pluginManifestSchema } from "./manifest";
+} from "./host-v1.ts";
+export { HOST_FUNCTION_CAPABILITY, PLUGIN_LOG_LEVELS } from "./host-v1.ts";
+export type { PluginOrigin, PluginStatus } from "./lifecycle.ts";
+export { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "./lifecycle.ts";
+export type { PluginBuiltAgainst, PluginCapability, PluginManifest } from "./manifest.ts";
+export { PLUGIN_CAPABILITIES, pluginBuiltAgainstSchema, pluginManifestSchema } from "./manifest.ts";
 export type {
   PluginEventSubscription,
   PluginHandlerRef,
   PluginInstance,
   PluginToolRegistration,
   PluginTransformRegistration,
-} from "./registrations";
+} from "./registrations.ts";

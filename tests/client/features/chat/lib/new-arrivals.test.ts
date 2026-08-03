@@ -4,9 +4,9 @@
 // is muted (the ghost→committed zero-pop contract — BOTH the mid-turn commit and the settle render,
 // the live-verified 2026-07-12 failure modes), and the ghost key re-arms between turns.
 
-import type { ArrivalEntry } from "../../../../../packages/client/src/features/chat/lib/new-arrivals";
-import { initialArrivals, NO_ARRIVALS, nextArrivals } from "../../../../../packages/client/src/features/chat/lib/new-arrivals";
-import { expect, test } from "../../../../support/fixtures";
+import type { ArrivalEntry } from "../../../../../packages/client/src/features/chat/lib/new-arrivals.ts";
+import { initialArrivals, NO_ARRIVALS, nextArrivals } from "../../../../../packages/client/src/features/chat/lib/new-arrivals.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const GHOST = "__ghost__";
 

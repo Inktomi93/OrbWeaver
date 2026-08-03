@@ -5,7 +5,7 @@
 import type { HealthzDeps } from "@orb/server/entry/http";
 import { registerHealthz } from "@orb/server/entry/http";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 interface MockBody {
   readonly status: string;

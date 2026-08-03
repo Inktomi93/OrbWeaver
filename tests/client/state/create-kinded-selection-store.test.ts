@@ -6,7 +6,7 @@
 
 import { createKindedSelectionStore } from "@orb/client/state";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const DUPLICATE_NAME_RE = /duplicate store name/u;
 

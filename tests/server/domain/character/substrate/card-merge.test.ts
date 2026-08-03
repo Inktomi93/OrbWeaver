@@ -6,7 +6,7 @@ import type { CharacterCard, UpdateCharacterInput } from "@orb/contracts/charact
 import { describe } from "vitest";
 import { flagEdits, mergeCard } from "../../../../../packages/server/src/domain/character/substrate/card-merge.ts";
 import { buildGroupCard } from "../../../../../packages/server/src/domain/character/substrate/group-character.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 function base(): CharacterCard {
   return {

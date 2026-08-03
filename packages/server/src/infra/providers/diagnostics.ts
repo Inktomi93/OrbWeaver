@@ -29,8 +29,8 @@ import type {
   ProviderDeps,
   ProviderDiagnostics,
   VerifyAuthRequest,
-} from "./contract";
-import { backendForSource, requireBackend, requireRoleImpl } from "./roles/dispatch";
+} from "./contract/index.ts";
+import { backendForSource, requireBackend, requireRoleImpl } from "./roles/dispatch.ts";
 
 // fetchOrCatalog is OpenRouter-fixed (the doc: "connection injects it specifically").
 const OPENROUTER_KEY: BackendKey = "openrouter";

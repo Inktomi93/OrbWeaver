@@ -3,7 +3,7 @@
 
 import { createThemeInputSchema, THEME_NAME_MAX, themeSchema } from "@orb/contracts/theme";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 describe("theme entity/input schemas", () => {
   test("createThemeInput enforces the name cap and trims", () => {

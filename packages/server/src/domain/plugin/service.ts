@@ -5,17 +5,17 @@
 // ops + the `PluginHostPort` runtime + the `PluginHostOps` op bundle) is built at the entry composition root
 // and passed in — plugin sideways-imports nothing.
 
-import { createActivate } from "./activation/activate";
-import { createCrashPolicy } from "./activation/crash-policy";
-import { createDeactivate } from "./activation/deactivate";
-import type { PluginContext, PluginRegistry, PluginService } from "./contract/service";
-import { createGetPluginLog } from "./verbs/get-plugin-log";
-import { createInstall } from "./verbs/install";
-import { createListPlugins } from "./verbs/list-plugins";
-import { createRunSnippet } from "./verbs/run-snippet";
-import { createSetEnabled } from "./verbs/set-enabled";
-import { createUninstall } from "./verbs/uninstall";
-import { createUpgrade } from "./verbs/upgrade";
+import { createActivate } from "./activation/activate.ts";
+import { createCrashPolicy } from "./activation/crash-policy.ts";
+import { createDeactivate } from "./activation/deactivate.ts";
+import type { PluginContext, PluginRegistry, PluginService } from "./contract/service.ts";
+import { createGetPluginLog } from "./verbs/get-plugin-log.ts";
+import { createInstall } from "./verbs/install.ts";
+import { createListPlugins } from "./verbs/list-plugins.ts";
+import { createRunSnippet } from "./verbs/run-snippet.ts";
+import { createSetEnabled } from "./verbs/set-enabled.ts";
+import { createUninstall } from "./verbs/uninstall.ts";
+import { createUpgrade } from "./verbs/upgrade.ts";
 
 export function createPluginService(ctx: PluginContext): PluginService {
   // The ONE resident-instance registry (ASSUMES single-replica — the automation enabled-index precedent). Built

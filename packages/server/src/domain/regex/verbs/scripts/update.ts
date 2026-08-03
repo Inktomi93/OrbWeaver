@@ -6,11 +6,11 @@
 import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
 import { regexScripts } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import type { RegexContext } from "../../context";
-import { RegexNotFoundError } from "../../contract/errors";
-import type { UpdateScriptParams } from "../../contract/params";
-import type { RegexService } from "../../contract/service";
-import { loadOwnedScript, toRow } from "../../persistence/queries";
+import type { RegexContext } from "../../context.ts";
+import { RegexNotFoundError } from "../../contract/errors.ts";
+import type { UpdateScriptParams } from "../../contract/params.ts";
+import type { RegexService } from "../../contract/service.ts";
+import { loadOwnedScript, toRow } from "../../persistence/queries.ts";
 
 export function createUpdate(ctx: RegexContext): RegexService["updateScript"] {
   return async ({ principal, scriptId, input }: UpdateScriptParams) => {

@@ -11,12 +11,12 @@
 import { characterBooks } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import { and, eq, ne } from "drizzle-orm";
-import type { WorldInfoContext } from "../../context";
-import { WorldInfoNotFoundError } from "../../contract/errors";
-import type { AttachToCharacterParams } from "../../contract/params";
-import type { WorldInfoService } from "../../contract/service";
-import { ensureCharacterOwned } from "../../persistence/ownership";
-import { loadOwnedBook } from "../../persistence/queries";
+import type { WorldInfoContext } from "../../context.ts";
+import { WorldInfoNotFoundError } from "../../contract/errors.ts";
+import type { AttachToCharacterParams } from "../../contract/params.ts";
+import type { WorldInfoService } from "../../contract/service.ts";
+import { ensureCharacterOwned } from "../../persistence/ownership.ts";
+import { loadOwnedBook } from "../../persistence/queries.ts";
 
 const PRIMARY_ROLE = "primary";
 

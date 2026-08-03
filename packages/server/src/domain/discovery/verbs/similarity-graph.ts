@@ -6,13 +6,13 @@
 
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import type { DiscoveryContext } from "../context";
-import type { SimilarityGraphOptions } from "../contract/params";
-import type { SimilarityGraph, SimilarityGraphEdge } from "../contract/results";
-import type { DiscoveryService } from "../contract/service";
-import { readOwnedCharacterVectors } from "../persistence/embed-store-reads";
-import { readOwnedCardFacets } from "../persistence/summary-reads";
-import { pairsAboveThreshold } from "../substrate/pair-cosine";
+import type { DiscoveryContext } from "../context.ts";
+import type { SimilarityGraphOptions } from "../contract/params.ts";
+import type { SimilarityGraph, SimilarityGraphEdge } from "../contract/results.ts";
+import type { DiscoveryService } from "../contract/service.ts";
+import { readOwnedCharacterVectors } from "../persistence/embed-store-reads.ts";
+import { readOwnedCardFacets } from "../persistence/summary-reads.ts";
+import { pairsAboveThreshold } from "../substrate/pair-cosine.ts";
 
 const DEFAULT_MIN_SIMILARITY = 0.65;
 const DEFAULT_MAX_NODES = 120;

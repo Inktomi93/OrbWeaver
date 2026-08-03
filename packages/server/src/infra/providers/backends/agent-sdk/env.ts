@@ -9,7 +9,7 @@ import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { processEnvSnapshot } from "#foundation/env";
-import type { OrSkinTierModels } from "../../contract";
+import type { OrSkinTierModels } from "../../contract/index.ts";
 
 // Non-Claude-namespaced app secrets the child has no business seeing (the Claude/Anthropic namespace is stripped wholesale below).
 const HOST_SECRET_ENV_KEYS = [

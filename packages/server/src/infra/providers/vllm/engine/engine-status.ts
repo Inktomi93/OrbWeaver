@@ -3,7 +3,7 @@
 // (esoteric #5, single-replica), deliberately not persisted — multi-replica seam is a future DB table.
 // `updatedAt` is injected by the caller (no-raw-clock); this module never touches a clock.
 
-import type { VLLM_ENGINES } from "./engines";
+import type { VLLM_ENGINES } from "./engines.ts";
 
 /** Every lifecycle state an engine can occupy (the canonical tuple — one home). */
 export const ENGINE_LIFECYCLE_STATUSES = [

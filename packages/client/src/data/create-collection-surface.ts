@@ -5,7 +5,7 @@
 import type { DefaultError, InfiniteData, QueryKey, UseInfiniteQueryOptions } from "@tanstack/react-query";
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import type { Trpc } from "./trpc";
+import type { Trpc } from "./trpc.ts";
 
 /** What the tRPC proxy's `.infiniteQueryOptions(input, opts)` returns — wrapped, never re-spelled.
  *  `TKey`/`TError` are the caller's real key/error types (the proxy's DataTag-keyed return + the

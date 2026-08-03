@@ -8,8 +8,8 @@ import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
 import type { MacroRun } from "@orb/kit/macro";
 import { scanMacroRuns } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
-import { deriveZones } from "./derive-zones";
-import { MARKER_COPY } from "./marker-copy";
+import { deriveZones } from "./derive-zones.ts";
+import { MARKER_COPY } from "./marker-copy.ts";
 
 /** The assembler's default within-depth order (injections.ts:150) — a spliced section with no `order`. */
 const DEFAULT_INJECT_ORDER = 100;

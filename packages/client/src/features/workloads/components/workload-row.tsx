@@ -28,9 +28,9 @@ import { ConfirmDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
 import { timeLib } from "#lib";
-import { useWorkloadStream } from "../hooks/use-workload-stream";
-import { friendlyWorkloadError } from "../lib/workloads-failure-copy";
-import type { WorkloadProgressView } from "../lib/workloads-model";
+import { useWorkloadStream } from "../hooks/use-workload-stream.ts";
+import { friendlyWorkloadError } from "../lib/workloads-failure-copy.ts";
+import type { WorkloadProgressView } from "../lib/workloads-model.ts";
 import {
   isActiveWorkloadStatus,
   isRetryableWorkloadStatus,
@@ -38,9 +38,9 @@ import {
   WORKLOAD_KIND_LABELS,
   WORKLOAD_STATUS_INTENT,
   WORKLOAD_STATUS_LABELS,
-} from "../lib/workloads-model";
-import { workloadResultSummary } from "../lib/workloads-result-copy";
-import { dependencyWaitLabel, isDeferredWorkload, isDependencyFailure, isWaitingOnDependencies } from "../lib/workloads-run-model";
+} from "../lib/workloads-model.ts";
+import { workloadResultSummary } from "../lib/workloads-result-copy.ts";
+import { dependencyWaitLabel, isDeferredWorkload, isDependencyFailure, isWaitingOnDependencies } from "../lib/workloads-run-model.ts";
 
 type WorkloadItem = inferOutput<Trpc["workloads"]["list"]>[number];
 

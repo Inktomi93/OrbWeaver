@@ -4,8 +4,8 @@
 // `getModelsForSource` max-pro-sub arm calls this when the agent-sdk snapshot is cold/empty — the curated
 // `CHAT_MODELS` trio is the cold-cache fallback (CONNECTIONS-BUILD-SPEC §2.3). PURE.
 
-import { CHAT_MODELS } from "../catalog/chat-models";
-import type { SourceModelEntry } from "../contract/results";
+import { CHAT_MODELS } from "../catalog/chat-models.ts";
+import type { SourceModelEntry } from "../contract/results.ts";
 
 /** The curated Claude shortlist as picker entries (`origin: "curated"`) — the max-pro-sub cold-cache
  *  fallback. The single seam the verb uses (no direct `catalog/` reach). */

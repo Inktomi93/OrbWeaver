@@ -20,7 +20,7 @@ import type { ComponentProps, ReactElement } from "react";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_TRIGGER, usePortalContainer } from "#lib";
 import { Check, ChevronRight, Icon } from "#primitives/icons";
-import { menuVariants } from "./variants";
+import { menuVariants } from "./variants.ts";
 
 const slots = menuVariants();
 

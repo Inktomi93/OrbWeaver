@@ -10,5 +10,5 @@ export {
   decode32Bytes,
   loadOrCreateKeyfile,
   resolveAutoKey,
-} from "./key";
-export { createSecretBox, type Sealed, type SecretBox } from "./secrets";
+} from "./key.ts";
+export { createSecretBox, type Sealed, type SecretBox } from "./secrets.ts";

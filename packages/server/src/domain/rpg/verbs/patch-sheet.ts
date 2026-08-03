@@ -7,10 +7,10 @@
 import type { RpgActorRef, RpgSheet } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import type { PatchSheetParams } from "../contract/params";
-import type { RpgContext, RpgGameRow, RpgService } from "../contract/service";
-import { assertOwnUserRef, resolveMember } from "../guard";
-import { findSheet, upsertSheet } from "../persistence/sheets";
+import type { PatchSheetParams } from "../contract/params.ts";
+import type { RpgContext, RpgGameRow, RpgService } from "../contract/service.ts";
+import { assertOwnUserRef, resolveMember } from "../guard.ts";
+import { findSheet, upsertSheet } from "../persistence/sheets.ts";
 
 /** Validate a patched attributes record against the game's profile: every key ∈ the profile's attribute
  *  vocabulary, every value within `[range.min, range.max]` (§2.3). */

@@ -1,7 +1,7 @@
 // domain/settings — front door: the only legal external import. AppSettings/UserSettings/EffectiveAppConfig
 // and every settings zod schema/parser live in @orb/contracts/settings — callers import those directly.
 
-export { createSettingsContext } from "./context";
+export { createSettingsContext } from "./context.ts";
 export type {
   CreateThemeParams,
   DuplicateThemeParams,
@@ -10,17 +10,17 @@ export type {
   RemoveThemeParams,
   UpdateThemeParams,
   UpdateUserSettingsSectionInput,
-} from "./contract/params";
-export type { SettingsImportOutcome, SettingsPortableFile } from "./contract/portability";
+} from "./contract/params.ts";
+export type { SettingsImportOutcome, SettingsPortableFile } from "./contract/portability.ts";
 export type {
   SettingsContext,
   SettingsService,
   SettingsServiceDeps,
-} from "./contract/service";
-export type { GlobalSettingView, ThemeView, UserSettingsView } from "./contract/views";
-export { ensureSeedThemes } from "./seed-themes";
-export { createSettingsService } from "./service";
-export { createExportTheme } from "./verbs/export-theme";
-export { createExportUserSettings } from "./verbs/export-user-settings";
-export { createImportTheme } from "./verbs/import-theme";
-export { createImportUserSettings } from "./verbs/import-user-settings";
+} from "./contract/service.ts";
+export type { GlobalSettingView, ThemeView, UserSettingsView } from "./contract/views.ts";
+export { ensureSeedThemes } from "./seed-themes.ts";
+export { createSettingsService } from "./service.ts";
+export { createExportTheme } from "./verbs/export-theme.ts";
+export { createExportUserSettings } from "./verbs/export-user-settings.ts";
+export { createImportTheme } from "./verbs/import-theme.ts";
+export { createImportUserSettings } from "./verbs/import-user-settings.ts";

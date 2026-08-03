@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/experimental-ct-react";
-import { BoundedList, CustomRangeExtractorList, DerivedItemsList, LanesList, UnboundedList } from "./virtual-list.fixtures";
+import { BoundedList, CustomRangeExtractorList, DerivedItemsList, LanesList, UnboundedList } from "./virtual-list.fixtures.tsx";
 
 const ITEM_COUNT = 1000;
 const ROW_HEIGHT_PX = 40;

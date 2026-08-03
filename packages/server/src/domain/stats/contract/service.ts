@@ -9,8 +9,8 @@
 import type { CharacterEconomics, CharacterModelEconomics } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import type { ByModelOpts, LatencyScope, LeaderboardOpts, TimeseriesOpts } from "./params";
-import type { ReconcileStatsResult } from "./results";
+import type { ByModelOpts, LatencyScope, LeaderboardOpts, TimeseriesOpts } from "./params.ts";
+import type { ReconcileStatsResult } from "./results.ts";
 import type {
   ActivityHeatmap,
   CharacterMomentum,
@@ -24,7 +24,7 @@ import type {
   StatsFreshness,
   TemporalStats,
   WrappedSummary,
-} from "./views";
+} from "./views.ts";
 
 /** The DI bundle every verb closes over: the libSQL handle + the injected clock the rebuild stamps with. */
 export interface StatsContext {

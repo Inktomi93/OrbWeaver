@@ -11,8 +11,8 @@ import { automationRules } from "@orb/db";
 import { batchMany } from "@orb/db/kit";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, sql } from "drizzle-orm";
-import type { RuleRow } from "../contract/ops";
-import type { RuleView } from "../contract/results";
+import type { RuleRow } from "../contract/ops.ts";
+import type { RuleView } from "../contract/results.ts";
 
 const LIMIT_ONE = 1;
 

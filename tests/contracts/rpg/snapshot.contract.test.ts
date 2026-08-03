@@ -18,7 +18,7 @@ import {
 } from "@orb/contracts/rpg";
 import type { UserId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("a quest is a stable-id object with status + n/m objectives (the snapshot-resident shape)", () => {
   const quest = rpgQuestSchema.parse({

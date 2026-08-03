@@ -10,15 +10,15 @@
 
 import type { BlockKey } from "@orb/contracts/search";
 import type { CharacterId } from "@orb/kit/ids";
-import type { ChatContext } from "../../context";
-import { spanWitnessed } from "../build/substrate/witnessing";
-import { resolveCfg } from "../constants";
-import { loadDigestsForScope, loadSegmentSpans } from "../persistence/queries";
-import type { DigestRow, MemoryConfig, MemoryRecallTrace, MemoryScope, MsgRow, WitnessInterval } from "../types";
-import { computeBridge } from "./bridge";
-import { blockKeyStr, formatMemory } from "./format";
-import { buildRecallQuery } from "./query";
-import { inLiveWindow } from "./window";
+import type { ChatContext } from "../../context.ts";
+import { spanWitnessed } from "../build/substrate/witnessing.ts";
+import { resolveCfg } from "../constants.ts";
+import { loadDigestsForScope, loadSegmentSpans } from "../persistence/queries.ts";
+import type { DigestRow, MemoryConfig, MemoryRecallTrace, MemoryScope, MsgRow, WitnessInterval } from "../types.ts";
+import { computeBridge } from "./bridge.ts";
+import { blockKeyStr, formatMemory } from "./format.ts";
+import { buildRecallQuery } from "./query.ts";
+import { inLiveWindow } from "./window.ts";
 
 /** `scope.scopedCharacterId` is the speaker's own bucket; `groupCharacterId` is the shared bucket (equal for
  *  solo/merged, so the union dedupes to one read). `recent` (oldest→newest) is the mixB/mixC query window. */

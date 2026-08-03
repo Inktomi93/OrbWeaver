@@ -20,11 +20,11 @@ import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, 
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import { APPEARANCE_BACKGROUND_KEYS, APPEARANCE_BACKGROUND_SUBCATEGORY } from "../lib/appearance-background-model";
-import { BACKGROUND_BLUR_MAX, BACKGROUND_BLUR_MIN, BACKGROUND_DIM_MAX, BACKGROUND_DIM_MIN, BACKGROUND_DIM_STEP } from "../lib/appearance-bounds";
-import { BACKGROUND_FIT_ITEMS, BACKGROUND_KIND_ITEMS, SEEDED_BACKGROUND_ITEMS } from "../lib/appearance-select-items";
-import { BackgroundUploadField } from "./background-upload-field";
-import { ExternalBackgroundField } from "./external-background-field";
+import { APPEARANCE_BACKGROUND_KEYS, APPEARANCE_BACKGROUND_SUBCATEGORY } from "../lib/appearance-background-model.ts";
+import { BACKGROUND_BLUR_MAX, BACKGROUND_BLUR_MIN, BACKGROUND_DIM_MAX, BACKGROUND_DIM_MIN, BACKGROUND_DIM_STEP } from "../lib/appearance-bounds.ts";
+import { BACKGROUND_FIT_ITEMS, BACKGROUND_KIND_ITEMS, SEEDED_BACKGROUND_ITEMS } from "../lib/appearance-select-items.ts";
+import { BackgroundUploadField } from "./background-upload-field.tsx";
+import { ExternalBackgroundField } from "./external-background-field.tsx";
 
 type BackgroundForm = Pick<AppearanceSettings, (typeof APPEARANCE_BACKGROUND_KEYS)[number]>;
 

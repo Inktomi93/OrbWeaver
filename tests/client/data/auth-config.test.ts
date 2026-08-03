@@ -8,8 +8,8 @@
 
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { afterEach, vi } from "vitest";
-import type { AuthConfig } from "../../../packages/client/src/data/auth-config";
-import { expect, test } from "../../support/fixtures";
+import type { AuthConfig } from "../../../packages/client/src/data/auth-config.ts";
+import { expect, test } from "../../support/fixtures.ts";
 
 const CONFIG: AuthConfig = {
   mode: "local",
@@ -27,7 +27,7 @@ type FetchAuthConfig = typeof import("../../../packages/client/src/data/auth-con
 
 async function freshFetchAuthConfig(): Promise<FetchAuthConfig> {
   vi.resetModules();
-  const mod = await import("../../../packages/client/src/data/auth-config");
+  const mod = await import("../../../packages/client/src/data/auth-config.ts");
   return mod.fetchAuthConfig;
 }
 

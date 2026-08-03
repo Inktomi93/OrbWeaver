@@ -24,9 +24,9 @@
 // is deliberately NOT here — this module is the pure kit half; the server threads a values bag +
 // frozen-draw record through `resolveUserMacroInputs` and hands the bindings to `registerUserMacros`.
 
-import { neutralizeMacros } from "./content";
-import { MACRO_NAME_RE, parseMacros } from "./parser";
-import type { MacroArgDef, MacroContext, MacroHandler, MacroRegistry, MacroSourceRef } from "./types";
+import { neutralizeMacros } from "./content.ts";
+import { MACRO_NAME_RE, parseMacros } from "./parser.ts";
+import type { MacroArgDef, MacroContext, MacroHandler, MacroRegistry, MacroSourceRef } from "./types.ts";
 
 // ── the definition vocabulary ────────────────────────────────────────────────────────────────────
 

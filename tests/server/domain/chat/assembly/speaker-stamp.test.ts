@@ -3,8 +3,8 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { hasMultipleCharacters } from "../../../../../packages/server/src/domain/chat/assembly/speaker-stamp";
-import { expect, test } from "../../../../support/fixtures";
+import { hasMultipleCharacters } from "../../../../../packages/server/src/domain/chat/assembly/speaker-stamp.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const ARIA = castId<CharacterId>("character_aria");
 const KAI = castId<CharacterId>("character_kai");

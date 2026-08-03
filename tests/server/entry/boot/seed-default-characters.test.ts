@@ -7,7 +7,7 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { DefaultCharacterSeeder } from "@orb/server/domain/character";
 import { seedDefaultCharacters } from "@orb/server/entry/boot";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER: Principal = {
   userId: castId<UserId>("usr_owner"),

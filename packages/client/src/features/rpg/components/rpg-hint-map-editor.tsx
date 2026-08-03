@@ -15,8 +15,8 @@ import { Icon, Plus, Trash2 } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";
 import { AddRow, HintEditor } from "#components";
-import { RpgDoorwayLine } from "./rpg-doorway-line";
-import { Kicker } from "./rpg-kicker";
+import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
+import { Kicker } from "./rpg-kicker.tsx";
 
 export interface RpgHintMapEditorProps {
   /** The section's kicker line. */

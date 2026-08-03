@@ -16,8 +16,8 @@
 
 import { generateImageActionArgsSchema } from "@orb/contracts/imagery";
 import type { ToolDefinition, ToolExecutionContext, ToolHandlerResult } from "#domain/tool-use";
-import type { GeneratePictureParams } from "../contract/params";
-import type { ImageryService } from "../contract/service";
+import type { GeneratePictureParams } from "../contract/params.ts";
+import type { ImageryService } from "../contract/service.ts";
 
 /** The model-facing tool args — the projectable subset of the action-arm vocabulary (see the file header). */
 const generateImageToolArgsSchema = generateImageActionArgsSchema.omit({ quiet: true, subjectCharacterId: true, useAvatarReference: true });

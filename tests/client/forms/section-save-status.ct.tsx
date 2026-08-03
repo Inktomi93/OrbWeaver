@@ -5,8 +5,8 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../support/ct/route-trpc";
-import { SettingsShellStory } from "../features/settings/_ct-stories";
+import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
+import { SettingsShellStory } from "../features/settings/_ct-stories.tsx";
 
 const SETTINGS_VIEW = {
   userId: "user_ct_section_status",

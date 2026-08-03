@@ -43,13 +43,13 @@ import {
   reasoningControlFor,
   samplingKnobsFor,
   supportsSeed,
-} from "../lib/capability-panel-model";
-import type { EffectiveProfileRow } from "../lib/effective-knobs";
-import { qualityDeckGloss } from "../lib/effective-knobs";
-import { THINKING_DISPLAY_ITEMS, thinkingDisplayLabel } from "../lib/preset-nav";
-import { CapabilityGate } from "./capability-gate";
-import { KnobRow } from "./knob-row";
-import { ParamsLimits } from "./params-limits";
+} from "../lib/capability-panel-model.ts";
+import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
+import { qualityDeckGloss } from "../lib/effective-knobs.ts";
+import { THINKING_DISPLAY_ITEMS, thinkingDisplayLabel } from "../lib/preset-nav.ts";
+import { CapabilityGate } from "./capability-gate.tsx";
+import { KnobRow } from "./knob-row.tsx";
+import { ParamsLimits } from "./params-limits.tsx";
 
 type AppForm = AppFormInstance<PromptConfig>;
 

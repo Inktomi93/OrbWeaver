@@ -26,7 +26,7 @@ import {
   SMOOTH_STREAM_CPS_MAX,
   SMOOTH_STREAM_CPS_MIN,
   STREAM_SCROLL_MODE_ITEMS,
-} from "../lib/chat-behavior-streaming-model";
+} from "../lib/chat-behavior-streaming-model.ts";
 
 type StreamingForm = Pick<ChatSettings, (typeof CHAT_STREAMING_KEYS)[number]>;
 

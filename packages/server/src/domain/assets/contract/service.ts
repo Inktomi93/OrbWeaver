@@ -8,7 +8,7 @@ import type { Db } from "@orb/db";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, GalleryItemId, UserId } from "@orb/kit/ids";
 import type { ImageInfo, ImageTransformOptions } from "#infra/image";
 import type { Cas, VariantCache } from "#infra/storage";
-import type { BackfillParams, BackfillResult, FsckOptions, FsckResult, GcOptions, GcResult, ReapResult, RebuildOptions, RebuildResult } from "./maintenance";
+import type { BackfillParams, BackfillResult, FsckOptions, FsckResult, GcOptions, GcResult, ReapResult, RebuildOptions, RebuildResult } from "./maintenance.ts";
 import type {
   GalleryAddParams,
   GalleryListParams,
@@ -17,9 +17,9 @@ import type {
   RemoveFromGalleryParams,
   ResolveVariantParams,
   StoreParams,
-} from "./params";
-import type { AssetCasRef, AssetMetadata, OwnedAssetBytes, StoredAsset } from "./results";
-import type { AssetBlobRef, AssetListItem, GalleryItemView } from "./views";
+} from "./params.ts";
+import type { AssetCasRef, AssetMetadata, OwnedAssetBytes, StoredAsset } from "./results.ts";
+import type { AssetBlobRef, AssetListItem, GalleryItemView } from "./views.ts";
 
 /** The DI bundle every assets verb closes over (wired at `service.ts`); explicit interface, not `ReturnType<>`. */
 export interface AssetsContext {

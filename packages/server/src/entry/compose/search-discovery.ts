@@ -45,11 +45,11 @@ import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { withRequestSpan } from "#foundation/observability";
 import type { RoleClientsWithSignal } from "#infra/providers";
-import { requireAuthorOrHost, resolveTier0Range, setParticipantActivePersona } from "../../domain/chat";
-import { publishUserEvent } from "../../transport/trpc";
-import { createCharacterUpdatedChatFan } from "./emit-character-updated";
-import type { DomainEventBus } from "./event-bus";
-import { minter } from "./minter";
+import { requireAuthorOrHost, resolveTier0Range, setParticipantActivePersona } from "../../domain/chat/index.ts";
+import { publishUserEvent } from "../../transport/trpc/index.ts";
+import { createCharacterUpdatedChatFan } from "./emit-character-updated.ts";
+import type { DomainEventBus } from "./event-bus.ts";
+import { minter } from "./minter.ts";
 
 /** The embed-model-change reindex enqueue's own trace root. One name so the debug surface and any future
  *  filter agree; the two enqueues share it and are told apart by the `workloadKind` attribute. */

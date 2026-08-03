@@ -6,7 +6,7 @@
 import type { ChatRequest, ChatResult, ProviderBackend, ResolvedCredential } from "@orb/server/infra/providers";
 import { createChatRole, ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 // Dispatch + firewall read only `credential.source` (+ api/consent); esbuild-only tests, so a cast keeps
 // the fakes terse (the brand is irrelevant at runtime).

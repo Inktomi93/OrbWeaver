@@ -20,10 +20,10 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { AddRow, HintEditor, TrackerValue } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { useUpdateConfig } from "../hooks/use-rpg-mutations";
-import { mintDefKey } from "../lib/mint-key";
-import { RpgDoorwayLine } from "./rpg-doorway-line";
-import { Kicker } from "./rpg-kicker";
+import { useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
+import { mintDefKey } from "../lib/mint-key.ts";
+import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
+import { Kicker } from "./rpg-kicker.tsx";
 
 /** The def-row surface — one bordered instrument row per definition, shared with the tracker rows so the
  *  console reads as ONE list grammar. */

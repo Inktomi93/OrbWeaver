@@ -3,10 +3,10 @@
 // (the recovery path the lineage projection makes safe).
 
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { EditJournalEntryParams } from "../../contract/params";
-import type { RpgContext, RpgService } from "../../contract/service";
-import { resolveHost } from "../../guard";
-import { updateJournalEntry } from "../../persistence/journal";
+import type { EditJournalEntryParams } from "../../contract/params.ts";
+import type { RpgContext, RpgService } from "../../contract/service.ts";
+import { resolveHost } from "../../guard.ts";
+import { updateJournalEntry } from "../../persistence/journal.ts";
 
 export function createEditJournalEntry(ctx: RpgContext): Pick<RpgService, "editJournalEntry"> {
   async function editJournalEntry(params: EditJournalEntryParams): Promise<void> {

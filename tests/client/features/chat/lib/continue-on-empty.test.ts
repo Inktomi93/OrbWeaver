@@ -3,8 +3,8 @@
 // branch dispatches (continue an assistant tail · generate on a committed non-assistant tail · nothing).
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
-import { isContinueEligible, resolveEmptySendAction } from "../../../../../packages/client/src/features/chat/lib/continue-on-empty";
-import { expect, test } from "../../../../support/fixtures";
+import { isContinueEligible, resolveEmptySendAction } from "../../../../../packages/client/src/features/chat/lib/continue-on-empty.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 test("assistant tail → eligible", () => {
   expect(isContinueEligible("assistant")).toBe(true);

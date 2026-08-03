@@ -16,12 +16,12 @@
 // reads, automation facts, counts, forks and every client cache — UNREPRESENTABLE rather than filtered.
 
 import { batchMany } from "@orb/db/kit";
-import type { ChatContext } from "../context";
-import type { PostNarratorMessage, PostNarratorMessageDeps } from "../contract/context";
-import { buildCommittedMessageView, insertCanonMessageStatements, insertMessageAssetStatements } from "../persistence/canon-write";
-import { loadMaxMessageSeq } from "../persistence/queries";
-import { loadRoster } from "../persistence/roster";
-import { hostUserIdOf } from "../substrate/roster-host";
+import type { ChatContext } from "../context.ts";
+import type { PostNarratorMessage, PostNarratorMessageDeps } from "../contract/context.ts";
+import { buildCommittedMessageView, insertCanonMessageStatements, insertMessageAssetStatements } from "../persistence/canon-write.ts";
+import { loadMaxMessageSeq } from "../persistence/queries.ts";
+import { loadRoster } from "../persistence/roster.ts";
+import { hostUserIdOf } from "../substrate/roster-host.ts";
 
 /** The alt text stamped on each embedded narrator-media ref (one home — no scattered magic string). */
 const NARRATOR_MEDIA_ALT = "illustration";

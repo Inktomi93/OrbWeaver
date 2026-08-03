@@ -16,7 +16,7 @@ import { pluginManifestSchema } from "@orb/contracts/plugin";
 import type { UnzipFileInfo } from "fflate";
 import { unzipSync } from "fflate";
 import { z } from "zod";
-import { ManifestInvalidError } from "../contract/errors";
+import { ManifestInvalidError } from "../contract/errors.ts";
 
 /** The stored bundle is the whole zip (re-parsed + re-validated on activation load — 02 §3); the CAS row's
  *  mime records that. install/upgrade store under this; the ONE home so the two verbs don't drift. */

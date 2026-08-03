@@ -7,7 +7,7 @@
 // (the resolved body arrives as its last unnamed arg) — so there is deliberately NO per-macro
 // "block-capable" field; the flag vocabulary the browser documents is `MACRO_FLAG_DEFS` (types.ts).
 
-import type { MacroArgDef, MacroCategory, MacroListSpec, MacroMetadataInput } from "./types";
+import type { MacroArgDef, MacroCategory, MacroListSpec, MacroMetadataInput } from "./types.ts";
 
 // Common arg shapes — the var-op family repeats these; naming them keeps the table's intent legible.
 const KEY_ARG = { name: "key", type: "string", optional: false } as const;

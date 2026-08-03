@@ -14,10 +14,10 @@ import type { SummarizeResult } from "@orb/contracts/providers";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import type { ArbiterCandidate } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
-import type { SummarizeOp } from "../../../../../packages/server/src/domain/chat/contract/context";
-import { smartArbitrate } from "../../../../../packages/server/src/domain/chat/engine/smart-arbitrate";
-import { expect, test } from "../../../../support/fixtures";
+import type { ArbiterCandidate } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
+import type { SummarizeOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
+import { smartArbitrate } from "../../../../../packages/server/src/domain/chat/engine/smart-arbitrate.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
 const charRef = (k: string): SpeakerRef => ({ kind: "character", characterId: cid(k) });

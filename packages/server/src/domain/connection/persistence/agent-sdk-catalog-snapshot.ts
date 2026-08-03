@@ -9,9 +9,9 @@ import { settings } from "@orb/db";
 import type { JsonValue } from "@orb/kit/json";
 import { eq } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
-import type { AgentSdkCatalogSnapshot } from "../contract/results";
-import { agentSdkCatalogSnapshotSchema } from "../contract/results";
-import { seedAgentSdkModelCache } from "../substrate/agent-sdk-model-cache";
+import type { AgentSdkCatalogSnapshot } from "../contract/results.ts";
+import { agentSdkCatalogSnapshotSchema } from "../contract/results.ts";
+import { seedAgentSdkModelCache } from "../substrate/agent-sdk-model-cache.ts";
 
 const SNAPSHOT_KEY = "agent-sdk-model-catalog";
 

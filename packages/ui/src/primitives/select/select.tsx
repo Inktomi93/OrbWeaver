@@ -7,7 +7,7 @@ import type { VariantProps } from "tailwind-variants";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_INPUT, cn, usePortalContainer } from "#lib";
 import { Check, ChevronDown, Icon } from "#primitives/icons";
-import { selectVariants } from "./variants";
+import { selectVariants } from "./variants.ts";
 
 // Breathing room between trigger and popup.
 const POPUP_SIDE_OFFSET = ANCHOR_GAP_INPUT;

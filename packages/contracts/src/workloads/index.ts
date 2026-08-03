@@ -14,7 +14,7 @@
 //
 // `axes.ts` is the root of the directory-module: its siblings import it, it imports none of them.
 
-export type { IndexSource, ScheduleCadence, WorkloadKind, WorkloadMode, WorkloadModePolicy, WorkloadStatus } from "./axes";
+export type { IndexSource, ScheduleCadence, WorkloadKind, WorkloadMode, WorkloadModePolicy, WorkloadStatus } from "./axes.ts";
 export {
   ACTIVE_WORKLOAD_STATUSES,
   CADENCE_INTERVAL_MS,
@@ -30,11 +30,11 @@ export {
   workloadKindSchema,
   workloadModeSchema,
   workloadStatusSchema,
-} from "./axes";
-export type { WorkloadError, WorkloadEvent } from "./events";
-export type { ReportProgress, WorkloadLane, WorkloadProgress, WorkloadResumePolicy, WorkloadRunContext } from "./execution";
-export { WORKLOAD_LANES, WORKLOAD_RESUME_POLICIES } from "./execution";
-export type { NoWorkloadParams, StartWorkloadEnvelope, StartWorkloadInput, WorkloadParamsByKind } from "./params";
+} from "./axes.ts";
+export type { WorkloadError, WorkloadEvent } from "./events.ts";
+export type { ReportProgress, WorkloadLane, WorkloadProgress, WorkloadResumePolicy, WorkloadRunContext } from "./execution.ts";
+export { WORKLOAD_LANES, WORKLOAD_RESUME_POLICIES } from "./execution.ts";
+export type { NoWorkloadParams, StartWorkloadEnvelope, StartWorkloadInput, WorkloadParamsByKind } from "./params.ts";
 export {
   asStartWorkloadInput,
   databankIngestWorkloadParams,
@@ -45,5 +45,5 @@ export {
   indexWorkloadParams,
   maintenanceWorkloadParams,
   startWorkloadEnvelope,
-} from "./params";
-export type { BundleImportWorkloadResult, DeferredResult, MaintenanceResult, WorkloadResultByKind } from "./result";
+} from "./params.ts";
+export type { BundleImportWorkloadResult, DeferredResult, MaintenanceResult, WorkloadResultByKind } from "./result.ts";

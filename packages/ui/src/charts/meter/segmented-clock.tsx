@@ -4,7 +4,7 @@
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { ICON_XS, Icon, Lock } from "#primitives/icons";
-import { segmentedClockVariants } from "./variants";
+import { segmentedClockVariants } from "./variants.ts";
 
 export interface SegmentedClockProps extends Omit<VariantProps<typeof segmentedClockVariants>, "filled" | "hidden"> {
   /** Total segment count — any integer ≥ 2. */

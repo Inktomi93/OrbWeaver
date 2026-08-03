@@ -1,8 +1,8 @@
 // Unit: Tide's per-paragraph splitter (features/chat/lib/split-paragraphs). Pure text transform — the
 // blank-line paragraph split, the single-paragraph no-op, and the messiness-guard cap (§B.2).
 
-import { MAX_TRAIN_BUBBLES, splitIntoTrainParagraphs } from "../../../../../packages/client/src/features/chat/lib/split-paragraphs";
-import { expect, test } from "../../../../support/fixtures";
+import { MAX_TRAIN_BUBBLES, splitIntoTrainParagraphs } from "../../../../../packages/client/src/features/chat/lib/split-paragraphs.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 test("splits on blank-line breaks, trimming each paragraph", () => {
   const content = "First paragraph.\n\nSecond paragraph.\n\n\nThird, with an extra blank line.";

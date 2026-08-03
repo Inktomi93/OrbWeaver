@@ -25,7 +25,7 @@ import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { WorkloadService } from "#domain/workloads";
 import { hasCsrfHeader } from "#infra/auth";
-import { sniffTreeLayout } from "../import";
+import { sniffTreeLayout } from "../import/index.ts";
 
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;

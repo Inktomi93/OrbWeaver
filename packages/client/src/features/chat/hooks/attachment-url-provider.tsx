@@ -12,7 +12,7 @@ import type { AssetId, ChatId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useTRPC } from "#data";
-import { AttachmentUrlContext, assetIdsInContent } from "./attachment-url-context";
+import { AttachmentUrlContext, assetIdsInContent } from "./attachment-url-context.tsx";
 
 export interface AttachmentUrlProviderProps {
   /** The chat the row belongs to — scopes the co-participant render gate (`message.chatId`). */

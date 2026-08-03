@@ -6,7 +6,7 @@
 
 import type { AgentSdkModel, ChatApi, CredentialSource, ModelCapability, ModelCatalogEntry } from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
-import { resolveModelCapability } from "../catalog/resolve-model-capability";
+import { resolveModelCapability } from "../catalog/resolve-model-capability.ts";
 
 /** Resolve the ONE `ModelCapability` for a `(model, source, api)`, threading the matching OR catalog entry
  *  (if any) into the synthesis arm AND the cached agent-sdk daemon rows into the max-pro-sub family→version

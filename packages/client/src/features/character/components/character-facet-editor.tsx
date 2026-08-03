@@ -17,14 +17,14 @@ import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
 import type { AppFormInstance } from "#forms";
 import { ASSISTANT_PREFILL_WARNING } from "#lib";
 import { useSpoilerBlur } from "#state";
-import type { CHARACTER_CARD_FACET_IDS } from "../lib/character-card-facets";
-import { facetById } from "../lib/character-card-facets";
-import type { CharacterCardFormValues } from "../lib/character-card-form-model";
-import { isDepthPromptPrefill } from "../lib/character-card-form-model";
-import { parseExampleBlocks } from "../lib/example-messages";
-import type { CharacterProvenanceSectionProps } from "./character-provenance-section";
-import { CharacterProvenanceSection } from "./character-provenance-section";
-import { CharacterRegexScriptsField } from "./character-regex-scripts-field";
+import type { CHARACTER_CARD_FACET_IDS } from "../lib/character-card-facets.ts";
+import { facetById } from "../lib/character-card-facets.ts";
+import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
+import { isDepthPromptPrefill } from "../lib/character-card-form-model.ts";
+import { parseExampleBlocks } from "../lib/example-messages.ts";
+import type { CharacterProvenanceSectionProps } from "./character-provenance-section.tsx";
+import { CharacterProvenanceSection } from "./character-provenance-section.tsx";
+import { CharacterRegexScriptsField } from "./character-regex-scripts-field.tsx";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
 

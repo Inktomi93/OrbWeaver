@@ -13,7 +13,7 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { ParamSelect } from "./corpus-controls";
+import { ParamSelect } from "./corpus-controls.tsx";
 
 const SCORE_PRECISION = 2;
 const DEFAULT = "";

@@ -35,10 +35,10 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import type { AppFormInstance } from "#forms";
 import { selectPresetTemplate, useSelectedPresetTemplateId } from "#state";
-import { GUIDED_INPUT_TOKEN } from "../lib/assembly-model";
-import type { TemplateRow } from "../lib/template-rows";
-import { isCustomized, TEMPLATE_KIND_LABEL, templateGroups, templateRowById } from "../lib/template-rows";
-import { TemplateDrillIn } from "./template-drill-in";
+import { GUIDED_INPUT_TOKEN } from "../lib/assembly-model.ts";
+import type { TemplateRow } from "../lib/template-rows.ts";
+import { isCustomized, TEMPLATE_KIND_LABEL, templateGroups, templateRowById } from "../lib/template-rows.ts";
+import { TemplateDrillIn } from "./template-drill-in.tsx";
 
 type PresetForm = AppFormInstance<PromptConfig>;
 

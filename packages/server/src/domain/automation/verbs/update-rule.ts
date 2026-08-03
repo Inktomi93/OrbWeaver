@@ -3,12 +3,12 @@
 // disable countdown). The chat/owner/position/enabled state is immutable here (enable is its own verb;
 // reorder is its own verb). Returns the stored view.
 
-import type { UpdateRuleParams } from "../contract/params";
-import type { RuleView } from "../contract/results";
-import type { AutomationContext, AutomationService } from "../contract/service";
-import { requireRuleHost } from "../guard";
-import { applyRuleUpdate, selectRuleRow, toRuleView } from "../persistence/rules";
-import { RULE_MAX_FIRES_DEFAULT, validateRuleInput } from "../substrate/validate";
+import type { UpdateRuleParams } from "../contract/params.ts";
+import type { RuleView } from "../contract/results.ts";
+import type { AutomationContext, AutomationService } from "../contract/service.ts";
+import { requireRuleHost } from "../guard.ts";
+import { applyRuleUpdate, selectRuleRow, toRuleView } from "../persistence/rules.ts";
+import { RULE_MAX_FIRES_DEFAULT, validateRuleInput } from "../substrate/validate.ts";
 
 export function createUpdateRule(ctx: AutomationContext): AutomationService["updateRule"] {
   return async (params: UpdateRuleParams): Promise<RuleView> => {

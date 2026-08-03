@@ -5,4 +5,4 @@
 // `summarize` thunk + the injected `embeddings.writeHubScores` seam) and handed to `createDiscoveryService`;
 // discovery sideways-imports none of those (domain-no-cross-feature — they arrive type-only).
 
-export type { DiscoveryContext } from "./contract/service";
+export type { DiscoveryContext } from "./contract/service.ts";

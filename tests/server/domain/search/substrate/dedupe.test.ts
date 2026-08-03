@@ -8,7 +8,7 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { blockKeyStr, collapseByContentHash, dedupeRankedBlocks } from "../../../../../packages/server/src/domain/search/substrate/dedupe.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_a");
 const CHAR_X = castId<CharacterId>("character_x");

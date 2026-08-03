@@ -18,7 +18,7 @@ import {
 } from "../../../../../packages/server/src/domain/character/persistence/card.ts";
 import { buildGroupCard } from "../../../../../packages/server/src/domain/character/substrate/group-character.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
 function makeRow(ownerId: UserId, id: string, handle: CharacterHandle): typeof characters.$inferInsert {

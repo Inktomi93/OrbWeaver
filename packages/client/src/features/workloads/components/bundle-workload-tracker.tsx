@@ -6,10 +6,10 @@
 
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { useWorkloadSubscription } from "../hooks/use-workload-subscription";
-import type { BundleCounts } from "../lib/portability-model";
-import { asBundleCounts } from "../lib/portability-model";
-import type { WorkloadProgressView } from "../lib/workloads-model";
+import { useWorkloadSubscription } from "../hooks/use-workload-subscription.ts";
+import type { BundleCounts } from "../lib/portability-model.ts";
+import { asBundleCounts } from "../lib/portability-model.ts";
+import type { WorkloadProgressView } from "../lib/workloads-model.ts";
 
 export interface BundleWorkloadTrackerProps {
   readonly workloadId: WorkloadId;

@@ -6,8 +6,8 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { ThemePickerStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { ThemePickerStory } from "../_ct-stories.tsx";
 
 const NOW = 0;
 interface SeedView {

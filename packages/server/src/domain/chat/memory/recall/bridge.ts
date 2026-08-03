@@ -9,8 +9,8 @@
 
 import type { BlockKey } from "@orb/contracts/search";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { resolveCfg } from "../constants";
-import type { DigestRow, MemoryConfig, MemoryScope } from "../types";
+import { resolveCfg } from "../constants.ts";
+import type { DigestRow, MemoryConfig, MemoryScope } from "../types.ts";
 
 /** How many tier-0 blocks one tier-`t` digest covers (`fanOutᵗ`) — the ONE home of the tier-grid span. */
 function tierSpan(fanOut: number, tier: number): number {

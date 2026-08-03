@@ -10,7 +10,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { CARD_EMBEDDABLE_THEME_KEYS, listSeededBackgrounds, themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme";
 import { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const CATALOG_IDS = new Set(listSeededBackgrounds().map((b) => b.id));
 const EMBEDDABLE = new Set<string>(CARD_EMBEDDABLE_THEME_KEYS);

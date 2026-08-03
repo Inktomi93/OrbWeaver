@@ -13,7 +13,7 @@
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
-import { defineBusChannel } from "./bus-channel";
+import { defineBusChannel } from "./bus-channel.ts";
 
 const channelFor = (chatId: ChatId): string => `chat:${chatId}`;
 

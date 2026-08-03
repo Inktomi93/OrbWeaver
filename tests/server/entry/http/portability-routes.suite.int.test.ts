@@ -16,7 +16,7 @@ import { extractZip } from "@orb/server/infra/storage";
 import { and, eq } from "drizzle-orm";
 import { describe, vi } from "vitest";
 import { seedUser } from "../../../support/factories/user.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { loadRunnableWorkload, makeRunnerDeps } from "../../domain/workloads/_support.ts";
 
 // The portability route suite builds the full service graph + drives a real `import-bundle` workload; it

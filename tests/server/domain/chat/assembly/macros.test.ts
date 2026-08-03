@@ -14,9 +14,9 @@ import {
   renderMacros,
   resolveGuidedActionText,
   resolveNudgeText,
-} from "../../../../../packages/server/src/domain/chat/assembly/macros";
-import type { HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/server/src/domain/chat/assembly/macros.ts";
+import type { HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/u;
 

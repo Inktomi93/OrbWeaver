@@ -6,12 +6,12 @@
 // for the detail view (the inserted row alone would lose the joined `assets.hash`).
 
 import { personas } from "@orb/db";
-import type { PersonaContext } from "../context";
-import { PersonaNotFoundError } from "../contract/errors";
-import type { CreatePersonaParams } from "../contract/params";
-import type { PersonaService } from "../contract/service";
-import { detailOf, ensureAssetOwned, loadOwnedPersonaWithAvatar } from "../persistence/queries";
-import { normalizeWriteMetadata } from "../substrate/metadata";
+import type { PersonaContext } from "../context.ts";
+import { PersonaNotFoundError } from "../contract/errors.ts";
+import type { CreatePersonaParams } from "../contract/params.ts";
+import type { PersonaService } from "../contract/service.ts";
+import { detailOf, ensureAssetOwned, loadOwnedPersonaWithAvatar } from "../persistence/queries.ts";
+import { normalizeWriteMetadata } from "../substrate/metadata.ts";
 
 export function createCreate(ctx: PersonaContext): PersonaService["create"] {
   return async ({ principal, input }: CreatePersonaParams) => {

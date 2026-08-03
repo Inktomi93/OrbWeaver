@@ -14,7 +14,7 @@ import {
   FieldWrappedStory,
   GhostDefaultStory,
   MacroTextareaStory,
-} from "./macro-textarea.fixtures";
+} from "./macro-textarea.fixtures.tsx";
 
 const NON_EMPTY = /.+/u;
 /** ANY value — used with `not.toHaveAttribute` to assert an attribute is ABSENT, whatever it holds. */

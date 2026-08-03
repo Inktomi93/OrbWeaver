@@ -28,8 +28,8 @@ import type { StatsService } from "#domain/stats";
 import type { TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { WorldInfoService } from "#domain/world-info";
-import type { PresenceRegistry } from "./presence-registry";
-import type { SocketRegistry } from "./stream/socket-registry";
+import type { PresenceRegistry } from "./presence-registry.ts";
+import type { SocketRegistry } from "./stream/socket-registry.ts";
 
 /**
  * The constructed domain services, wired with their db + cross-feature deps at the entry composition root

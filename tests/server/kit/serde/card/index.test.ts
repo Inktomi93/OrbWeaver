@@ -24,7 +24,7 @@ import {
   selectBestCharacterBook,
 } from "@orb/server/kit/serde/card";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A minimal-but-complete canonical card (the hash tests mutate copies of this). */
 function baseCard(overrides: Partial<CharacterCard> = {}): CharacterCard {

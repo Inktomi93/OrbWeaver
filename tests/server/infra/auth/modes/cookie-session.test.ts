@@ -1,7 +1,7 @@
 import { MODE_RESOLVERS, SESSION_COOKIE_NAME } from "@orb/server/infra/auth";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
-import { makeAuthConfig as cfg, headers } from "../_support";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeAuthConfig as cfg, headers } from "../_support.ts";
 
 // Post-D40 (Route A) infra does NOT read or validate the session cookie — the seam validates it via
 // `sessions.validate` BEFORE calling `resolve` (entry/auth/seam.ts). So at the infra layer the cookie modes

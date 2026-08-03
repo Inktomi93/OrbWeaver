@@ -9,7 +9,7 @@ import { eq, sql } from "drizzle-orm";
 import { describe } from "vitest";
 import { listOwnedScripts, loadOwnedScript, loadOwnedScriptsByIds, toRow } from "../../../../../packages/server/src/domain/regex/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { behavior, seedScript, seedUser } from "../_support.ts";
 
 describe("regex persistence queries", () => {

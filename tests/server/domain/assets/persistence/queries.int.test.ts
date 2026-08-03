@@ -13,7 +13,7 @@ import { eq } from "drizzle-orm";
 import { describe, onTestFinished } from "vitest";
 import { assetIdForHash, metadataForOwnedHash, storeBlob } from "../../../../../packages/server/src/domain/assets/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { pngBytes, seedUser } from "../_support.ts";
 
 const PNG = "image/png";

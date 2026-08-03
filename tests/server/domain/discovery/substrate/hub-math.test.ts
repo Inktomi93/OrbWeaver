@@ -3,7 +3,7 @@
 
 import { describe } from "vitest";
 import { CSLS_K, computeGroupHubs, HUBNESS_DENSE_MAX } from "../../../../../packages/server/src/domain/discovery/substrate/hub-math.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const v = (...xs: number[]): Float32Array => new Float32Array(xs);
 

@@ -12,9 +12,9 @@ import type { StandaloneVariableDelta } from "@orb/contracts/chat";
 import { batchMany } from "@orb/db/kit";
 import type { ChatId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
-import type { ChatContext } from "../context";
-import { loadMaxMessageSeq, loadVariableDeltas } from "../persistence/queries";
-import { foldChain, runtimeVariablesUpdateStatement, standaloneVariableDeltasUpdateStatement } from "./runtime-variables";
+import type { ChatContext } from "../context.ts";
+import { loadMaxMessageSeq, loadVariableDeltas } from "../persistence/queries.ts";
+import { foldChain, runtimeVariablesUpdateStatement, standaloneVariableDeltasUpdateStatement } from "./runtime-variables.ts";
 
 /**
  * Apply `ops` as a standalone (out-of-turn) delta on the chat's runtime variable state: append a seq-stamped

@@ -10,7 +10,7 @@ import { ROUTING_ROLE_KEYS } from "@orb/contracts/connection";
 import type { CredentialProvider } from "@orb/contracts/credentials";
 import { CRED_PROVIDERS } from "@orb/contracts/credentials";
 import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION, userSettingsConfig } from "@orb/contracts/settings";
-import type { RoutingForm } from "../../../../../packages/client/src/features/credentials/lib/connections-model";
+import type { RoutingForm } from "../../../../../packages/client/src/features/credentials/lib/connections-model.ts";
 import {
   CHAT_API_LABELS,
   chatApiForSourceChange,
@@ -27,8 +27,8 @@ import {
   routingFormDrifted,
   SOURCE_LABELS,
   toRoutingSection,
-} from "../../../../../packages/client/src/features/credentials/lib/connections-model";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/client/src/features/credentials/lib/connections-model.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 // --- embedDimensionWarning ---------------------------------------------------
 

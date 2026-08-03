@@ -14,12 +14,12 @@ import type { ChatId, ChatInviteId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
-import { createInvites } from "../../../../../packages/server/src/domain/chat/verbs/invites";
-import { freshDb } from "../../../../support/db";
+import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
+import { createInvites } from "../../../../../packages/server/src/domain/chat/verbs/invites.ts";
+import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures";
-import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, seedChat, seedParticipant, seedUser } from "../_support";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: number;

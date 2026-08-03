@@ -22,9 +22,9 @@
 // have been the only re-spell in the set.
 
 import { z } from "zod";
-import { RPG_WEATHER_TYPES, rpgWeatherLabelSchema, TIME_OF_DAY } from "./ambient";
-import type { RpgJournalType } from "./enums";
-import { RPG_JOURNAL_TYPES, RPG_RELATIONSHIP_KINDS } from "./enums";
+import { RPG_WEATHER_TYPES, rpgWeatherLabelSchema, TIME_OF_DAY } from "./ambient.ts";
+import type { RpgJournalType } from "./enums.ts";
+import { RPG_JOURNAL_TYPES, RPG_RELATIONSHIP_KINDS } from "./enums.ts";
 
 /** The lite tool names — the 7-tuple `MODE_POLICY.lite.tools` withholds on a read-only turn. Full ADDS
  *  its names to its own tuple; these 7 are byte-stable at graft (the ambient/wallet args are already

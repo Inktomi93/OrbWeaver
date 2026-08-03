@@ -30,12 +30,12 @@
 import { actorRefKey, rpgCastSlug, rpgPromotedCardDescription } from "@orb/contracts/rpg";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { PromoteActorParams } from "../contract/params";
-import type { HandDoorResult } from "../contract/results";
-import type { RpgContext, RpgService } from "../contract/service";
-import { assertHostRole, resolveMember } from "../guard";
-import { currentSnapshotState, writeHandState } from "../snapshot-edit";
-import { rekeyActor } from "../substrate/actor-rekey";
+import type { PromoteActorParams } from "../contract/params.ts";
+import type { HandDoorResult } from "../contract/results.ts";
+import type { RpgContext, RpgService } from "../contract/service.ts";
+import { assertHostRole, resolveMember } from "../guard.ts";
+import { currentSnapshotState, writeHandState } from "../snapshot-edit.ts";
+import { rekeyActor } from "../substrate/actor-rekey.ts";
 
 export function createPromoteActor(ctx: RpgContext): Pick<RpgService, "promoteActor"> {
   async function promoteActor(params: PromoteActorParams): Promise<HandDoorResult> {

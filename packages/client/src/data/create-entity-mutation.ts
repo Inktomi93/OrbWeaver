@@ -14,8 +14,8 @@
 import type { DefaultError, MutateOptions, QueryKey, UseMutationOptions } from "@tanstack/react-query";
 import { useMutation } from "@tanstack/react-query";
 import { notify } from "#lib";
-import type { InvalidateFilter, Invalidation } from "./invalidation";
-import type { Trpc } from "./trpc";
+import type { InvalidateFilter, Invalidation } from "./invalidation.ts";
+import type { Trpc } from "./trpc.ts";
 
 /** What the tRPC proxy's `.mutationOptions()` provides — derived off the real `UseMutationOptions`
  *  so a rename/reshape breaks here at compile time, not silently at a consumer. */

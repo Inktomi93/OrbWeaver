@@ -15,12 +15,12 @@
 import type { AssemblePersona, ChatBusEvent } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { describe } from "vitest";
-import type { ResolveForeignInputsOp } from "../../../../packages/server/src/domain/chat/contract/foreign";
-import { createEdit } from "../../../../packages/server/src/domain/chat/verbs/edit";
-import { createFork } from "../../../../packages/server/src/domain/chat/verbs/fork";
-import { scenario } from "../../../support/chat";
-import { tape } from "../../../support/chat/tape";
-import { expect, test } from "../../../support/fixtures";
+import type { ResolveForeignInputsOp } from "../../../../packages/server/src/domain/chat/contract/foreign.ts";
+import { createEdit } from "../../../../packages/server/src/domain/chat/verbs/edit.ts";
+import { createFork } from "../../../../packages/server/src/domain/chat/verbs/fork.ts";
+import { scenario } from "../../../support/chat/index.ts";
+import { tape } from "../../../support/chat/tape.ts";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const PERSONA: AssemblePersona = { name: "Alex", description: "the user" };
 

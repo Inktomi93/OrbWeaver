@@ -7,7 +7,7 @@ import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { authedProcedure, t } from "../trpc";
+import { authedProcedure, t } from "../trpc.ts";
 
 // A persona backup is prose-sized; the cap only fences a hostile upload (the preset door's shape).
 const MAX_PERSONA_FILE_CHARS = 2_000_000;

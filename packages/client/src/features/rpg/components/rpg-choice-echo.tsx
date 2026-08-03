@@ -21,8 +21,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { isLiveTurnPhase, requestComposerFocus, setComposerDraft, useTurnPhase } from "#state";
-import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useSendChoice } from "../hooks/use-rpg-mutations";
+import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
+import { useSendChoice } from "../hooks/use-rpg-mutations.ts";
 
 /** The per-behavior header sub-line — the honest consequence of a pick (the mock's "picks send as your
  *  turn"), keyed by the closed `cyoaChoiceBehavior` vocab. */

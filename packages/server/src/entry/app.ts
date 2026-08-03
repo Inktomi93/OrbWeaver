@@ -23,11 +23,11 @@ import { env } from "#foundation/env";
 import { observability, observabilityErrorHandler, registerDebugRoutes } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
 import { clientIp, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
-import type { PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "../transport/trpc";
-import { appRouter, createContext } from "../transport/trpc";
-import type { AuthSeam } from "./auth";
-import { readSessionCookie } from "./auth";
-import type { AuthSessionsPort, BlobAssetsPort, BlobCasPort, LocalAuthenticator, OidcRoutesDeps, UploadAssetsPort } from "./http";
+import type { PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "../transport/trpc/index.ts";
+import { appRouter, createContext } from "../transport/trpc/index.ts";
+import type { AuthSeam } from "./auth/index.ts";
+import { readSessionCookie } from "./auth/index.ts";
+import type { AuthSessionsPort, BlobAssetsPort, BlobCasPort, LocalAuthenticator, OidcRoutesDeps, UploadAssetsPort } from "./http/index.ts";
 import {
   registerAuthMeta,
   registerAuthRoutes,
@@ -43,8 +43,8 @@ import {
   resolveSpaDistDir,
   securityHeaders,
   serializeSessionCookie,
-} from "./http";
-import type { ImportAssetPort, ImportCharacterPort, ImportWorldInfoPort } from "./import";
+} from "./http/index.ts";
+import type { ImportAssetPort, ImportCharacterPort, ImportWorldInfoPort } from "./import/index.ts";
 
 const MS_PER_SECOND = 1000;
 const TRPC_ENDPOINT = "/api/trpc";

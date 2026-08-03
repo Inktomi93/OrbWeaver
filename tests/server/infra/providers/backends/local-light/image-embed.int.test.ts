@@ -17,7 +17,7 @@ import { createLocalLightBackend, DEFAULT_IMAGE_EMBED_MODEL } from "@orb/server/
 import sharp from "sharp";
 import { describe } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const RUN = process.env["ORB_LOCAL_LIGHT_E2E"] === "1";
 const suite = RUN ? describe : describe.skip;

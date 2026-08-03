@@ -16,8 +16,8 @@ import { documents } from "@orb/db";
 import { chunkText } from "@orb/kit/chunk";
 import type { DocumentId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import type { DatabankContext, DatabankIngest } from "../contract/service";
-import { listAllDocumentIds, listOwnedDocumentIds, loadDocument } from "../persistence/queries";
+import type { DatabankContext, DatabankIngest } from "../contract/service.ts";
+import { listAllDocumentIds, listOwnedDocumentIds, loadDocument } from "../persistence/queries.ts";
 
 /** The loaded canon row — derived from the query's return (the db row type's home is `@orb/db`, never
  *  re-declared here). */

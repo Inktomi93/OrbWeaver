@@ -6,9 +6,9 @@
 // generation over a cosmetic gap punishes the user). A factory (createCaptionAvatar) so resolvePrompt receives
 // it INJECTED at service.ts (verb-to-verb value deps are wired at the composition root — domain-no-cross-verb).
 
-import { PromptExtractionFailedError } from "../contract/errors";
-import type { CaptionAvatar, ImageryContext } from "../contract/service";
-import { processReply } from "../substrate/process-reply";
+import { PromptExtractionFailedError } from "../contract/errors.ts";
+import type { CaptionAvatar, ImageryContext } from "../contract/service.ts";
+import { processReply } from "../substrate/process-reply.ts";
 
 export function createCaptionAvatar(ctx: ImageryContext): CaptionAvatar {
   return async (args) => {

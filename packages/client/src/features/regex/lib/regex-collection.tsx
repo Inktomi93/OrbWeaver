@@ -8,11 +8,11 @@
 
 import { Code } from "@orb/ui/icons";
 import type { CollectionContribution } from "#lib";
-import { RegexCollectionRows } from "../components/regex-collection-rows";
-import { RegexContextBody } from "../components/regex-context-body";
-import { useCreateRegexMember, useRegexCount } from "../hooks/use-regex-collection";
-import { RegexMemberSurface } from "../surfaces/regex-member-surface";
-import { REGEX_COLLECTION_ID } from "./regex-model";
+import { RegexCollectionRows } from "../components/regex-collection-rows.tsx";
+import { RegexContextBody } from "../components/regex-context-body.tsx";
+import { useCreateRegexMember, useRegexCount } from "../hooks/use-regex-collection.ts";
+import { RegexMemberSurface } from "../surfaces/regex-member-surface.tsx";
+import { REGEX_COLLECTION_ID } from "./regex-model.ts";
 
 export const regexCollection: CollectionContribution = {
   id: REGEX_COLLECTION_ID,

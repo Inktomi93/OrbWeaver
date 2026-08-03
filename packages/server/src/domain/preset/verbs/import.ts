@@ -5,9 +5,9 @@
 
 import { parsePresetFile } from "@orb/contracts/preset";
 import { getLog } from "#foundation/observability";
-import type { PresetContext } from "../context";
-import type { ImportPreset, PresetImportOutcome } from "../contract/portability";
-import { findOwnedPresetByName, insertPreset, updatePresetRow } from "../persistence/queries";
+import type { PresetContext } from "../context.ts";
+import type { ImportPreset, PresetImportOutcome } from "../contract/portability.ts";
+import { findOwnedPresetByName, insertPreset, updatePresetRow } from "../persistence/queries.ts";
 
 const PRESET_IMPORT = "preset.import";
 const PRESET_ENTITY = "preset";

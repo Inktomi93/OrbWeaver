@@ -15,8 +15,8 @@ import type {
   VerifyAuthResult,
 } from "@orb/contracts/providers";
 import type { ChatId } from "@orb/kit/ids";
-import type { AgentTurnRequest } from "./agent";
-import type { ChatRequest, ChatResult } from "./chat";
+import type { AgentTurnRequest } from "./agent.ts";
+import type { ChatRequest, ChatResult } from "./chat.ts";
 import type {
   AccountCreditsRequest,
   FetchAgentSdkModelsRequest,
@@ -25,8 +25,16 @@ import type {
   InspectRequest,
   ProbeRequest,
   VerifyAuthRequest,
-} from "./diagnostics";
-import type { EmbedRequest, ImageEmbedRequest, ImageGenerateRequest, ImageGenerateResult, RerankRequest, StructuredRequest, SummarizeRequest } from "./roles";
+} from "./diagnostics.ts";
+import type {
+  EmbedRequest,
+  ImageEmbedRequest,
+  ImageGenerateRequest,
+  ImageGenerateResult,
+  RerankRequest,
+  StructuredRequest,
+  SummarizeRequest,
+} from "./roles.ts";
 
 // --- The sealed backend-key axis (the `runner`) ------------------------------
 /** The sealed backend keys a role dispatches to. `custom-openai` (hyphen) is the runner key; the

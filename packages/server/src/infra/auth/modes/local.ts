@@ -6,7 +6,7 @@
 // route, not here.
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
-import { resolveCookieSession } from "./cookie-session";
+import { resolveCookieSession } from "./cookie-session.ts";
 
 export function resolveLocal(): Promise<ResolvedIdentity | null> {
   return resolveCookieSession();

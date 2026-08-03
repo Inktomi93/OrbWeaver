@@ -1,14 +1,14 @@
 // A distribution chart over pre-binned buckets — binning is the caller's decision, this only renders
 // already-bucketed counts. Bars sit flush (barCategoryGap: "0%"), distinguishing it from an ordinary bar chart.
 import type { ReactElement } from "react";
-import type { OrbEChartsInstance } from "../chart";
-import { Chart } from "../chart";
-import { useChartTheme } from "../chart/use-chart-theme";
-import { LabeledChartFrame } from "../labeled-chart-frame";
-import type { HistogramBucket } from "./option";
-import { buildHistogramOption } from "./option";
+import type { OrbEChartsInstance } from "../chart/index.ts";
+import { Chart } from "../chart/index.ts";
+import { useChartTheme } from "../chart/use-chart-theme.ts";
+import { LabeledChartFrame } from "../labeled-chart-frame/index.ts";
+import type { HistogramBucket } from "./option.ts";
+import { buildHistogramOption } from "./option.ts";
 
-export type { HistogramBucket } from "./option";
+export type { HistogramBucket } from "./option.ts";
 
 export interface HistogramProps {
   /** Pre-binned buckets, in domain order (left to right). */

@@ -22,7 +22,7 @@ import { createRegexScriptSchema, regexAttachScopeSchema, updateRegexScriptSchem
 import type { CharacterId, ChatId, PresetId, RegexScriptId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
-import { authedProcedure, t } from "../trpc";
+import { authedProcedure, t } from "../trpc.ts";
 
 const scriptIdInput = z.object({ scriptId: brandedId<RegexScriptId>() });
 

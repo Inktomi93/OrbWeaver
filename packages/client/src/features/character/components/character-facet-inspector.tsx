@@ -17,13 +17,13 @@ import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import type { AppFormInstance } from "#forms";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
 import { goToCollection, useSelectedCharacterFacetId, useSelectedCharacterId } from "#state";
-import type { CHARACTER_CARD_FACET_IDS } from "../lib/character-card-facets";
-import { facetById } from "../lib/character-card-facets";
-import type { CharacterCardFormValues } from "../lib/character-card-form-model";
-import { resolveCharacterForm, useCharacterForm } from "../lib/character-editor-bridge";
-import { CharacterOverviewCard } from "./character-overview-card";
-import type { CharacterProvenanceSectionProps } from "./character-provenance-section";
-import { CharacterProvenanceSection } from "./character-provenance-section";
+import type { CHARACTER_CARD_FACET_IDS } from "../lib/character-card-facets.ts";
+import { facetById } from "../lib/character-card-facets.ts";
+import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
+import { resolveCharacterForm, useCharacterForm } from "../lib/character-editor-bridge.ts";
+import { CharacterOverviewCard } from "./character-overview-card.tsx";
+import type { CharacterProvenanceSectionProps } from "./character-provenance-section.tsx";
+import { CharacterProvenanceSection } from "./character-provenance-section.tsx";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
 

@@ -8,9 +8,9 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { WorldInfoCollectionRowsStory } from "../_ct-stories";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { WorldInfoCollectionRowsStory } from "../_ct-stories.tsx";
 
 /** Any row STATE-TOGGLE name (§12's toggle arm) — world-info deliberately has none. */
 const ANY_STAR_TOGGLE = /^(Star|Unstar) /;

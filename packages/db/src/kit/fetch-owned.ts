@@ -8,7 +8,7 @@
 import type { UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
-import type { Db } from "../client";
+import type { Db } from "../client/index.ts";
 
 // At most one row matches a PK+owner predicate; the limit is belt-and-suspenders.
 const LIMIT_ONE = 1;

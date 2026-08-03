@@ -9,7 +9,7 @@ import { PluginNotFoundError } from "@orb/server/domain/plugin";
 import { eq } from "drizzle-orm";
 import { upsertKv } from "../../../../../packages/server/src/domain/plugin/persistence/plugin-kv.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, principalFor, seedUser } from "../_support.ts";
 
 test("uninstall leaves zero rows, zero KV, zero bundle bytes; disposes a resident instance", async () => {

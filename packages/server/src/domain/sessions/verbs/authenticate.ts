@@ -1,8 +1,8 @@
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { DUMMY_PASSWORD_HASH } from "#infra/auth";
-import type { SessionsContext, SessionsService } from "../contract/service";
-import { selectAuthByHandle } from "../persistence/users";
+import type { SessionsContext, SessionsService } from "../contract/service.ts";
+import { selectAuthByHandle } from "../persistence/users.ts";
 
 // Local password login resolution: (handle, password) → the row's UserId, or null. Four failure shapes
 // (unknown handle, SSO-only row, wrong password, disabled row) collapse into one leak-free null, and every

@@ -2,5 +2,5 @@
 // home beside macro-textarea). `fuzzySearch` is the DOM-free core; `useFuzzySearch` the memoized
 // hook every library/browse surface composes with its collection surface.
 
-export type { FuzzySearchOptions } from "./fuzzy-search";
-export { fuzzySearch, useFuzzySearch } from "./fuzzy-search";
+export type { FuzzySearchOptions } from "./fuzzy-search.ts";
+export { fuzzySearch, useFuzzySearch } from "./fuzzy-search.ts";

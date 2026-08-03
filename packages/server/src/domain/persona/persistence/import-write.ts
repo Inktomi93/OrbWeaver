@@ -9,7 +9,7 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import type { PersonaId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import type { BulkImportPersonas, PersonaImportContext } from "../contract/import";
+import type { BulkImportPersonas, PersonaImportContext } from "../contract/import.ts";
 
 /** Build the persona-owned bulk-import WRITE op. */
 export function createBulkImportPersonas(ctx: PersonaImportContext): BulkImportPersonas {

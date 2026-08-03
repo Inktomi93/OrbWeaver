@@ -9,7 +9,7 @@ import type { ModelCatalogEntry } from "@orb/contracts/connection";
 import { DEFAULT_OR_CHAT_MODEL_ID } from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { isChatModelId } from "../catalog/chat-models";
+import { isChatModelId } from "../catalog/chat-models.ts";
 
 export function pickOrModel(model: string | null, cached: readonly ModelCatalogEntry[] | null): ModelId {
   if (model === null) {

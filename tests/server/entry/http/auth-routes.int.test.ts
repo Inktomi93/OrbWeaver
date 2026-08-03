@@ -11,7 +11,7 @@ import { registerAuthRoutes } from "@orb/server/entry/http";
 import { Hono } from "hono";
 import { describe } from "vitest";
 import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
 const THIRTY_DAYS_MS = 2_592_000_000;

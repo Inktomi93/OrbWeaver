@@ -7,7 +7,7 @@ import { describe } from "vitest";
 import { insertFire, listFiresForRule } from "../../../../../packages/server/src/domain/automation/persistence/fires.ts";
 import { insertRule } from "../../../../../packages/server/src/domain/automation/persistence/rules.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { FIXED_NOW_MS, seedHostChat, seedUser } from "../_support.ts";
 
 async function seedRule(db: Parameters<typeof insertRule>[0], ownerId: UserId, chatId: ChatId): Promise<AutomationRuleId> {

@@ -10,10 +10,10 @@ import { useChatBusDeps } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { notify } from "#lib";
 import { commitDraft, isLanding, openModal, selectChat, useActiveChatHandle, useActiveDraftSeed, useActiveSessionKey } from "#state";
-import { turnAbortNotice } from "../lib/turn-abort-notice";
-import { warningNotice } from "../lib/warning-notice";
-import { ChatLandingSurface } from "../surfaces/chat-landing-surface";
-import { ChatRoomSurface } from "../surfaces/chat-room-surface";
+import { turnAbortNotice } from "../lib/turn-abort-notice.ts";
+import { warningNotice } from "../lib/warning-notice.ts";
+import { ChatLandingSurface } from "../surfaces/chat-landing-surface.tsx";
+import { ChatRoomSurface } from "../surfaces/chat-room-surface.tsx";
 
 export interface ChatContentProps {
   readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;

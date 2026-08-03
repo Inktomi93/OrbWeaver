@@ -2,7 +2,7 @@
 // Metadata only, never RP content. SDK-decoupled: status/limit fields are plain string/number, never an
 // `@anthropic-ai/claude-agent-sdk` type — the agent-sdk backend maps its SDK events at its boundary.
 
-import type { WarningCode } from "./resolve";
+import type { WarningCode } from "./resolve.ts";
 
 export type { ChatDeltaEvent } from "@orb/contracts/chat";
 

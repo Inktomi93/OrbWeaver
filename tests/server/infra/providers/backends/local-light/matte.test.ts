@@ -7,7 +7,7 @@ import type { LocalLightModelCache } from "@orb/server/infra/providers/backends/
 import { createLocalLightMatte, DEFAULT_MATTE_MODEL } from "@orb/server/infra/providers/backends/local-light";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const PNG_OUT = Uint8Array.of(9, 8, 7);
 

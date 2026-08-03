@@ -6,7 +6,7 @@
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { isSilencedTurnAbort } from "../lib/turn-abort-notice";
+import { isSilencedTurnAbort } from "../lib/turn-abort-notice.ts";
 
 interface CommitMessageVars {
   readonly chatId: ChatId;

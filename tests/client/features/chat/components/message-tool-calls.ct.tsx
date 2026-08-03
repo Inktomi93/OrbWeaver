@@ -6,7 +6,7 @@
 
 import type { ToolCallRecord } from "@orb/contracts/chat";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { MessageToolCallsStory } from "../_ct-stories";
+import { MessageToolCallsStory } from "../_ct-stories.tsx";
 
 const BLOCK = '[data-slot="tool-call-block"]';
 const LIST = '[data-slot="message-tool-calls"]';

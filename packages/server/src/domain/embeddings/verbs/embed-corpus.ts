@@ -10,11 +10,11 @@
 // change is a box-level event, so a singular per-owner catch-up must not delete the global old space. On an
 // abort the purge is skipped — the space stays a strict superset (never a gap); the rerun reclaims it.
 
-import type { EmbeddingsContext } from "../context";
-import type { EmbedPassParams } from "../contract/params";
-import type { BulkEmbedResult } from "../contract/results";
-import type { EmbeddingsService } from "../contract/service";
-import { purgeStaleVectors } from "../persistence/clear";
+import type { EmbeddingsContext } from "../context.ts";
+import type { EmbedPassParams } from "../contract/params.ts";
+import type { BulkEmbedResult } from "../contract/results.ts";
+import type { EmbeddingsService } from "../contract/service.ts";
+import { purgeStaleVectors } from "../persistence/clear.ts";
 
 export function createEmbedCorpus(ctx: EmbeddingsContext, deps: { readonly store: EmbeddingsService["store"] }): EmbeddingsService["embedCorpus"] {
   return async ({ force, signal, ownerId }: EmbedPassParams): Promise<BulkEmbedResult> => {

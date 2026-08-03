@@ -12,10 +12,10 @@ import { createEntityMutation, useGatedQuery, useInvalidation, useTRPC, useTRPCC
 import { GENERATION_FAILED_DETAIL } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";
 import { clearDraftConfig, isCommitted, pushFiredSteer, setComposerDraft } from "#state";
-import type { DraftCarry } from "../lib/draft-commit";
-import { resolveDraftCommit } from "../lib/draft-commit";
-import { notifyImpersonateFailure, notifyOpeningFailure } from "../lib/guided-failure-notices";
-import { isSilencedTurnAbort } from "../lib/turn-abort-notice";
+import type { DraftCarry } from "../lib/draft-commit.ts";
+import { resolveDraftCommit } from "../lib/draft-commit.ts";
+import { notifyImpersonateFailure, notifyOpeningFailure } from "../lib/guided-failure-notices.ts";
+import { isSilencedTurnAbort } from "../lib/turn-abort-notice.ts";
 
 interface GuidedSteerInput {
   readonly action: GuidedActionKind;

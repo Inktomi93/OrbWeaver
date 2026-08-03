@@ -4,11 +4,11 @@ export type {
   AccordionPanelProps,
   AccordionProps,
   AccordionTriggerProps,
-} from "./accordion";
+} from "./accordion.tsx";
 export {
   Accordion,
   AccordionHeader,
   AccordionItem,
   AccordionPanel,
   AccordionTrigger,
-} from "./accordion";
+} from "./accordion.tsx";

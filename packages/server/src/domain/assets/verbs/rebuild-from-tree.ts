@@ -10,10 +10,10 @@
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
-import type { AssetsContext } from "../context";
-import type { AssetsService } from "../contract/service";
-import { loadOwnerAssetRows } from "../persistence/maintenance";
-import { storeBlob } from "../persistence/queries";
+import type { AssetsContext } from "../context.ts";
+import type { AssetsService } from "../contract/service.ts";
+import { loadOwnerAssetRows } from "../persistence/maintenance.ts";
+import { storeBlob } from "../persistence/queries.ts";
 
 export function createRebuildFromTree(ctx: AssetsContext): AssetsService["rebuildFromTree"] {
   return async ({ kind, signal }) => {

@@ -7,9 +7,9 @@
 import type { MessageView } from "@orb/contracts/chat";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { MessageActionsRowStory } from "../_ct-stories";
-import { makeMessageView } from "../fixtures";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { MessageActionsRowStory } from "../_ct-stories.tsx";
+import { makeMessageView } from "../fixtures.ts";
 
 const HIDE_LABEL_RE = /Hide from AI|Unhide from AI/u;
 const COPY_RE = /Copy/u;

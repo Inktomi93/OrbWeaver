@@ -5,7 +5,7 @@
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Users } from "@orb/ui/icons";
 import type { ReactElement } from "react";
-import { CharacterCreateButton } from "./character-create-actions";
+import { CharacterCreateButton } from "./character-create-actions.tsx";
 
 /** The Characters CONTENT teaching hero (§5) — shown when no character is selected. */
 export function CharacterLibraryWelcome(): ReactElement {

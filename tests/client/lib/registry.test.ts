@@ -4,7 +4,7 @@
 
 import { createContributorRegistry, createRegistry } from "@orb/client/lib";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const ID_TUPLE = ["a", "b", "c"] as const;
 type Id = (typeof ID_TUPLE)[number];

@@ -2,7 +2,7 @@
 
 import { SunMoon } from "@orb/ui/icons";
 import type { ModalDefinition } from "#state";
-import { ThemePickerSurface } from "../surfaces/theme-picker-surface";
+import { ThemePickerSurface } from "../surfaces/theme-picker-surface.tsx";
 
 export const themeModal: ModalDefinition = {
   id: "theme",

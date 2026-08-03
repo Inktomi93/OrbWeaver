@@ -14,7 +14,7 @@
 // property the old embed-by-value shape could not have (three copies of a script were three scripts).
 
 import type { RegexScriptRow } from "@orb/contracts/regex";
-import type { HostTierRegexSources } from "../contract/regex";
+import type { HostTierRegexSources } from "../contract/regex.ts";
 
 /** Resolve a chat's effective host-tier regex set: host-global ∪ chat-preset ∪ cast ∪ chat, deduped by row
  *  id (first/earliest-tier wins), deterministically ordered. Returns the full set — `executeRegexScripts`

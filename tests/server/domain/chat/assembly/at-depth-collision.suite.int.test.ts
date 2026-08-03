@@ -14,9 +14,9 @@
 
 import type { ChatInjection } from "@orb/contracts/chat";
 import { describe } from "vitest";
-import { spliceInChatInjections } from "../../../../../packages/server/src/domain/chat/assembly/injections";
-import { shape } from "../../../../../packages/server/src/domain/chat/assembly/shape";
-import { expect, test } from "../../../../support/fixtures";
+import { spliceInChatInjections } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
+import { shape } from "../../../../../packages/server/src/domain/chat/assembly/shape.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The four cross-source markers — each source contributes ONE `in_chat` injection carrying a unique tag. */
 const WI = "MARK_WI";

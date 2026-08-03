@@ -5,7 +5,7 @@
 import { TagPickerDialog } from "@orb/client/components";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CtDataProviders } from "../../support/ct/ct-data-providers";
+import { CtDataProviders } from "../../support/ct/ct-data-providers.tsx";
 
 export interface TagPickerDialogHarnessProps {
   /** Tag names already on the target — the "everything is attached" arm. */

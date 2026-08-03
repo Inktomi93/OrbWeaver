@@ -22,8 +22,8 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { useArchiveChat, useDeleteChat, useStarChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations";
-import { RenameChatDialog } from "./rename-chat-dialog";
+import { useArchiveChat, useDeleteChat, useStarChat, useUpdateChatTitle } from "../hooks/use-chat-row-mutations.ts";
+import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 
 /** The host-gated transcript download route (`GET /api/export/chat/:chatId`), one home for both formats. */
 const EXPORT_CHAT_PATH = "/api/export/chat/";

@@ -12,7 +12,7 @@
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { useGatedQuery, useTRPC } from "#data";
 import { useActiveChatId } from "#state";
-import { resolveChatBackgroundSource } from "../lib/resolve-theme-background";
+import { resolveChatBackgroundSource } from "../lib/resolve-theme-background.ts";
 
 /** The active chat's effective carried background source, or `undefined` when the viewer's own appearance
  *  background should paint (the app-shell cascades this over `appearanceBackgroundSource(appearance)`). */

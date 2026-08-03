@@ -12,8 +12,8 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId } from "#lib";
-import { activityHeatmapMatrix, dailyTokenBuckets, dailyTurnBuckets, formatCompact, formatPeak, weekdayBarItems } from "../lib/analytics-view-model";
-import { RhythmFigures } from "./rhythm-figures";
+import { activityHeatmapMatrix, dailyTokenBuckets, dailyTurnBuckets, formatCompact, formatPeak, weekdayBarItems } from "../lib/analytics-view-model.ts";
+import { RhythmFigures } from "./rhythm-figures.tsx";
 
 export function AnalyticsTimeTab(): ReactElement {
   return (

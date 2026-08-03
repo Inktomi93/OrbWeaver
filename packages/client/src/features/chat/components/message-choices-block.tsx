@@ -14,7 +14,7 @@ import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { CHOICE_NEEDS_LIVE_CHAT, CHOICE_WAIT_FOR_TURN, testId } from "#lib";
-import { useChoiceSend } from "../hooks/choice-send-context";
+import { useChoiceSend } from "../hooks/choice-send-context.tsx";
 
 export interface MessageChoicesBlockProps {
   readonly options: readonly string[];

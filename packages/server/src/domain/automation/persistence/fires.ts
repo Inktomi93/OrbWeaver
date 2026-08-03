@@ -8,7 +8,7 @@ import type { Db } from "@orb/db";
 import { automationFires } from "@orb/db";
 import type { AutomationFireId, AutomationRuleId, ChatId } from "@orb/kit/ids";
 import { and, desc, eq, gt, sql } from "drizzle-orm";
-import type { FireView } from "../contract/results";
+import type { FireView } from "../contract/results.ts";
 
 const DEFAULT_FIRE_LIMIT = 50;
 

@@ -17,7 +17,7 @@ import { useState } from "react";
 import { TagPickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
-import { useBulkAddCardTag, useBulkRemoveCardTag } from "../hooks/use-character-mutations";
+import { useBulkAddCardTag, useBulkRemoveCardTag } from "../hooks/use-character-mutations.ts";
 
 export interface CharacterTagsRowProps {
   readonly characterId: CharacterId;

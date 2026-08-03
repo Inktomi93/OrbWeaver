@@ -13,8 +13,8 @@
 import fs from "node:fs";
 import type { RpgSnapshotState, RpgTrackerDef, RpgTrackerView } from "@orb/contracts/rpg";
 import { RPG_PROFILE_FREEFORM, rpgTrackerDefSchema } from "@orb/contracts/rpg";
-import type { LiteReminderInput } from "../../../packages/server/src/domain/rpg/contract/params";
-import { buildLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder";
+import type { LiteReminderInput } from "../../../packages/server/src/domain/rpg/contract/params.ts";
+import { buildLiteReminder } from "../../../packages/server/src/domain/rpg/substrate/reminder.ts";
 
 const KEY = (() => {
   const line = fs

@@ -3,11 +3,11 @@
 // not rule bodies). The read is lazy-parse fault-isolated per row (a corrupt arm blob degrades that ONE rule
 // to empty arms — never nukes the list).
 
-import type { ListRulesParams } from "../contract/params";
-import type { RuleView } from "../contract/results";
-import type { AutomationContext, AutomationService } from "../contract/service";
-import { requireChatHost } from "../guard";
-import { listRuleRowsForChat, toRuleView } from "../persistence/rules";
+import type { ListRulesParams } from "../contract/params.ts";
+import type { RuleView } from "../contract/results.ts";
+import type { AutomationContext, AutomationService } from "../contract/service.ts";
+import { requireChatHost } from "../guard.ts";
+import { listRuleRowsForChat, toRuleView } from "../persistence/rules.ts";
 
 export function createListRules(ctx: AutomationContext): AutomationService["listRules"] {
   return async ({ principal, chatId }: ListRulesParams): Promise<RuleView[]> => {

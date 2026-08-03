@@ -17,7 +17,7 @@ import {
   loadOwnedPersonaWithAvatar,
 } from "../../../../../packages/server/src/domain/persona/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedCharacter, seedUser } from "../_support.ts";
 
 const FROZEN_AT = 1_750_000_000_000;

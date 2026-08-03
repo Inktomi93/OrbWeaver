@@ -3,5 +3,5 @@
  * corpus-viz set). See bar-list.tsx for the API and the rank-order contract.
  */
 
-export type { BarListItem, BarListProps } from "./bar-list";
-export { BarList } from "./bar-list";
+export type { BarListItem, BarListProps } from "./bar-list.tsx";
+export { BarList } from "./bar-list.tsx";

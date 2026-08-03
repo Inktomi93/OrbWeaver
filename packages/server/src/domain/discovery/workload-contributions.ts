@@ -10,8 +10,8 @@ import type { AnalyticsResult } from "@orb/contracts/discovery";
 import { computeThemesWorkloadParams, findDuplicatesWorkloadParams } from "@orb/contracts/discovery";
 import { emptyWorkloadParams } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
-import type { DistillStats } from "./contract/results";
-import type { DiscoveryWorkloadDeps } from "./contract/service";
+import type { DistillStats } from "./contract/results.ts";
+import type { DiscoveryWorkloadDeps } from "./contract/service.ts";
 
 /** The cluster count when neither the run nor the triggering user's settings supply a `k`. */
 const DEFAULT_THEME_K = 12;

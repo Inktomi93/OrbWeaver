@@ -20,7 +20,7 @@ import { createAutomationService } from "../../../../../packages/server/src/doma
 import { listFiresForRule } from "../../../../../packages/server/src/domain/automation/persistence/fires.ts";
 import { createPostNarratorMessage } from "../../../../../packages/server/src/domain/chat/verbs/post-narrator-message.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, seedAsset, seedCharacter } from "../../chat/_support.ts";
 import type { HarnessOverrides } from "../_support.ts";
 import { makeAutomationHarness, principal, seedHostChat, seedUser } from "../_support.ts";

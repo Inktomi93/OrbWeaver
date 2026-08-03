@@ -9,9 +9,9 @@ import { useState } from "react";
 import { createEntityMutation, useInvalidation, useTRPC, useUploadAsset } from "#data";
 import type { ChatHandle, DraftSeed } from "#state";
 import { clearDraftConfig, isCommitted, subscribeUserMessageCommitted } from "#state";
-import type { DraftCarry } from "../lib/draft-commit";
-import { resolveDraftCommit } from "../lib/draft-commit";
-import { isSilencedTurnAbort } from "../lib/turn-abort-notice";
+import type { DraftCarry } from "../lib/draft-commit.ts";
+import { resolveDraftCommit } from "../lib/draft-commit.ts";
+import { isSilencedTurnAbort } from "../lib/turn-abort-notice.ts";
 
 export type { DraftSeed } from "#state";
 

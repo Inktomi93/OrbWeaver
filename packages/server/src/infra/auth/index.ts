@@ -17,10 +17,10 @@
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { authConfigFromEnv } from "./config";
-import type { IdentityResolution, ResolveDeps } from "./contract";
-import { hasCsrfHeader } from "./csrf";
-import { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch";
+import { authConfigFromEnv } from "./config.ts";
+import type { IdentityResolution, ResolveDeps } from "./contract.ts";
+import { hasCsrfHeader } from "./csrf.ts";
+import { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
 
 /**
  * VERIFICATION: resolve a request's headers → an `IdentityResolution` (the pre-row identity + the seam's
@@ -69,7 +69,7 @@ export async function resolve(headers: Headers, deps: ResolveDeps): Promise<Iden
 export type { ResolvedIdentity } from "@orb/contracts/identity";
 export { CSRF_HEADER } from "@orb/contracts/identity";
 // ── Public surface ───────────────────────────────────────────────────────────────────────────────
-export { authConfigFromEnv } from "./config";
+export { authConfigFromEnv } from "./config.ts";
 export type {
   AuthConfig,
   ForwardJwtClaims,
@@ -79,15 +79,15 @@ export type {
   OidcTransaction,
   OidcTransactionStore,
   ResolveDeps,
-} from "./contract";
-export { hasCsrfHeader } from "./csrf";
-export { isLocalOrigin, MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch";
-export { normalizeHost } from "./host";
-export { createForwardJwtVerifier, jwksCacheSize, jwksFor, resetJwksCache } from "./jwks";
-export { SESSION_COOKIE_NAME } from "./modes/cookie-session";
+} from "./contract.ts";
+export { hasCsrfHeader } from "./csrf.ts";
+export { isLocalOrigin, MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
+export { normalizeHost } from "./host.ts";
+export { createForwardJwtVerifier, jwksCacheSize, jwksFor, resetJwksCache } from "./jwks.ts";
+export { SESSION_COOKIE_NAME } from "./modes/cookie-session.ts";
 export {
   createPasswordHasher,
   DUMMY_PASSWORD_HASH,
   MIN_PASSWORD_LENGTH,
   type PasswordHasher,
-} from "./password";
+} from "./password.ts";

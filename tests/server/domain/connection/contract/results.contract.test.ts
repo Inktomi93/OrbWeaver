@@ -4,7 +4,7 @@
 
 import { describe } from "vitest";
 import { catalogSnapshotSchema } from "../../../../../packages/server/src/domain/connection/contract/results.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const VALID = {
   fetchedAt: 1_750_000_000_000,

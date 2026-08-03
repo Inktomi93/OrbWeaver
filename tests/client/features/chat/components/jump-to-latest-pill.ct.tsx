@@ -8,7 +8,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { JumpToLatestPillStory, JumpToLatestRegressionStory } from "../_jump-to-latest-stories";
+import { JumpToLatestPillStory, JumpToLatestRegressionStory } from "../_jump-to-latest-stories.tsx";
 
 const PILL = '[data-slot="jump-to-latest"]';
 const NEW_MESSAGE = /new message/;

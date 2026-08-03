@@ -12,8 +12,8 @@ import { castId } from "@orb/kit/ids";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import type { MessageMetadataVisibility } from "../../../../../packages/client/src/features/chat/components/message-metadata-row";
-import { MessageRowStory, NarratorTranscriptStory } from "../_ct-stories";
+import type { MessageMetadataVisibility } from "../../../../../packages/client/src/features/chat/components/message-metadata-row.tsx";
+import { MessageRowStory, NarratorTranscriptStory } from "../_ct-stories.tsx";
 
 const AI_BUBBLE = /bg-ai-bubble/u;
 const USER_BUBBLE = /bg-user-bubble/u;

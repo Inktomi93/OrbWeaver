@@ -3,10 +3,10 @@
 // no-op (the toggle is already on), not an error — `onConflictDoNothing` on the composite PK.
 
 import { characterPersonas } from "@orb/db";
-import type { PersonaContext } from "../../context";
-import type { ConnectParams } from "../../contract/params";
-import type { PersonaService } from "../../contract/service";
-import { ensureCharacterOwned, ensurePersonaOwned } from "../../persistence/queries";
+import type { PersonaContext } from "../../context.ts";
+import type { ConnectParams } from "../../contract/params.ts";
+import type { PersonaService } from "../../contract/service.ts";
+import { ensureCharacterOwned, ensurePersonaOwned } from "../../persistence/queries.ts";
 
 export function createConnect(ctx: PersonaContext): PersonaService["connectToCharacter"] {
   return async ({ principal, characterId, personaId }: ConnectParams) => {

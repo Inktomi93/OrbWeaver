@@ -8,7 +8,7 @@ import type { ReadOnlyDb } from "@orb/db";
 import { assets, characters, imageEmbeddings } from "@orb/db";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq, ne, sql } from "drizzle-orm";
-import { toVectorBlob } from "./nearest";
+import { toVectorBlob } from "./nearest.ts";
 
 interface NearestImage {
   readonly assetId: AssetId;

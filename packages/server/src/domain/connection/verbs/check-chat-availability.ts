@@ -23,10 +23,10 @@
 
 import type { ChatSendAvailability } from "@orb/contracts/connection";
 import { DomainForbiddenError, DomainNoCredentialError } from "@orb/kit/errors";
-import type { ConnectionContext } from "../context";
-import { AgentModelHealError, ConnectionRoutingError } from "../contract/errors";
-import type { CheckChatAvailabilityParams } from "../contract/params";
-import type { ConnectionService } from "../contract/service";
+import type { ConnectionContext } from "../context.ts";
+import { AgentModelHealError, ConnectionRoutingError } from "../contract/errors.ts";
+import type { CheckChatAvailabilityParams } from "../contract/params.ts";
+import type { ConnectionService } from "../contract/service.ts";
 
 const UNAVAILABLE_NO_CONNECTION: ChatSendAvailability = { available: false, cause: "no-connection" };
 const UNAVAILABLE_ENGINE_OFF: ChatSendAvailability = { available: false, cause: "engine-off" };

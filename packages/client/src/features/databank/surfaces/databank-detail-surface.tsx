@@ -30,9 +30,9 @@ import { useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { timeLib, useFocusOnMount } from "#lib";
 import { useSelectedDocumentId } from "#state";
-import { DatabankRenameDialog } from "../components/databank-rename-dialog";
-import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations";
-import { documentSubtitle, ingestBadge, ingestPhase, ingestStallHint, originLabel } from "../lib/databank-model";
+import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
+import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations.ts";
+import { documentSubtitle, ingestBadge, ingestPhase, ingestStallHint, originLabel } from "../lib/databank-model.ts";
 
 export function DatabankDetailSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);

@@ -26,10 +26,10 @@ import { revalidateLogic } from "@tanstack/react-form";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { EntityDraftStore, SAVE_LIFECYCLE_STATES } from "#state";
-import { DEFAULT_DEBOUNCE_MS, focusFirstInvalidField, formValuesEqual, hashServerBaseline, mirrorDraft, readDraftSeed } from "./entity-form-base";
-import { createSaveCircuitBreaker, DEFAULT_SAVE_BREAKER } from "./save-circuit-breaker";
-import type { AppFormInstance, AppFormOptions } from "./use-app-form";
-import { useAppForm } from "./use-app-form";
+import { DEFAULT_DEBOUNCE_MS, focusFirstInvalidField, formValuesEqual, hashServerBaseline, mirrorDraft, readDraftSeed } from "./entity-form-base.ts";
+import { createSaveCircuitBreaker, DEFAULT_SAVE_BREAKER } from "./save-circuit-breaker.ts";
+import type { AppFormInstance, AppFormOptions } from "./use-app-form.ts";
+import { useAppForm } from "./use-app-form.ts";
 
 /** The autosave lifecycle the shared `AutosaveStatus` affordance renders (north-star §7 / D66 A4).
  *  DERIVED from the state-tier tuple (`SAVE_LIFECYCLE_STATES`) — the settings save-status store carries the

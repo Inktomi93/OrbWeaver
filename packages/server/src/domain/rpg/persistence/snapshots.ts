@@ -45,10 +45,10 @@ import { messages, rpgSnapshots } from "@orb/db";
 import type { ChatId, MessageId, MessageVariantId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
 import { and, count, desc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { RpgStateCorruptError } from "../contract/errors";
-import type { HandSnapshotTarget, SnapshotGameRef, TurnSnapshotTarget } from "../contract/params";
-import type { NewRpgSnapshot, RpgSnapshotRow, WriteStagedSnapshotResult } from "../contract/service";
-import { snapshotRowToState } from "../contract/service";
+import { RpgStateCorruptError } from "../contract/errors.ts";
+import type { HandSnapshotTarget, SnapshotGameRef, TurnSnapshotTarget } from "../contract/params.ts";
+import type { NewRpgSnapshot, RpgSnapshotRow, WriteStagedSnapshotResult } from "../contract/service.ts";
+import { snapshotRowToState } from "../contract/service.ts";
 
 const LIMIT_ONE = 1;
 const COMMITTED = 1;

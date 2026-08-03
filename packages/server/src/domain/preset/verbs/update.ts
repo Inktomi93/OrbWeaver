@@ -1,15 +1,15 @@
 import type { PromptConfig } from "@orb/contracts/preset";
 import { parsePromptConfig } from "@orb/contracts/preset";
 import { getLog } from "#foundation/observability";
-import { SYSTEM_DEFAULT_PRESET_ID } from "../constants";
-import type { PresetContext } from "../context";
-import { PresetNotFoundError } from "../contract/errors";
-import type { PresetForkIntent, UpdatePresetParams } from "../contract/params";
-import type { PresetService } from "../contract/service";
-import type { PresetDetail } from "../contract/views";
-import { findOwnedForkOf, insertPreset, listOwnedPresetNames, readablePreset, updatePresetRow } from "../persistence/queries";
-import { uniquePresetName } from "../substrate/names";
-import { toPresetDetail } from "../substrate/views";
+import { SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
+import type { PresetContext } from "../context.ts";
+import { PresetNotFoundError } from "../contract/errors.ts";
+import type { PresetForkIntent, UpdatePresetParams } from "../contract/params.ts";
+import type { PresetService } from "../contract/service.ts";
+import type { PresetDetail } from "../contract/views.ts";
+import { findOwnedForkOf, insertPreset, listOwnedPresetNames, readablePreset, updatePresetRow } from "../persistence/queries.ts";
+import { uniquePresetName } from "../substrate/names.ts";
+import { toPresetDetail } from "../substrate/views.ts";
 
 // verb: update — patch an OWNED preset, or copy-on-write the system default. When the target is
 // SYSTEM_DEFAULT_PRESET_ID an owned fork carries the submission and ITS id is returned — the client detects

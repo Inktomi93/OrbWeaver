@@ -7,7 +7,7 @@
 import type { CredentialSource } from "@orb/server/infra/providers";
 import { assertCredentialAllowed, ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const ALL_SOURCES: readonly CredentialSource[] = ["max-pro-sub", "openrouter", "vllm", "local-light", "custom_openai"];
 

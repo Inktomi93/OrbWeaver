@@ -8,7 +8,7 @@ import type { Db } from "@orb/db";
 import type { WorkloadContributions, WorkloadRunnableRow, WorkloadRunnerDeps } from "@orb/server/domain/workloads";
 import { describe, vi } from "vitest";
 import { claimAndRunNext, reapOnce, startWorkloadsWorker } from "../../../../packages/server/src/transport/jobs/workloads-worker.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { makeRow, makeWorkerDeps, T0 } from "./_support.ts";
 
 describe("workloads-worker claim tick", () => {

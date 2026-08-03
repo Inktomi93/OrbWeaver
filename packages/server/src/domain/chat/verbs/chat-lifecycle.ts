@@ -19,9 +19,9 @@ import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import type { MacroSourceRef } from "@orb/kit/macro";
 import { and, eq, exists, isNull, lt } from "drizzle-orm";
-import type { ChatContext } from "../context";
-import type { ActiveTurns } from "../contract/active-turns";
-import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
+import type { ChatContext } from "../context.ts";
+import type { ActiveTurns } from "../contract/active-turns.ts";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type {
   ArchiveChatParams,
   ClearVariablesParams,
@@ -38,16 +38,16 @@ import type {
   SetVariablesParams,
   StarChatParams,
   UpdateTitleParams,
-} from "../contract/params";
-import type { ReapResult, VariablesResult } from "../contract/results";
-import type { ChatService } from "../contract/service";
-import type { ChatInjectionView, UserMacroPicksView, VariablePicksView } from "../contract/views";
-import { requireHost, requireParticipant } from "../guard";
-import { loadChatInjections, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries";
-import { loadRoster } from "../persistence/roster";
-import { presentHumanUserIdsOf } from "../substrate/roster-humans";
-import { shadowPresetUserMacros } from "../substrate/user-macros";
-import { resolveChoiceVariables } from "../substrate/variables";
+} from "../contract/params.ts";
+import type { ReapResult, VariablesResult } from "../contract/results.ts";
+import type { ChatService } from "../contract/service.ts";
+import type { ChatInjectionView, UserMacroPicksView, VariablePicksView } from "../contract/views.ts";
+import { requireHost, requireParticipant } from "../guard.ts";
+import { loadChatInjections, loadStoredUserMacroValues, loadStoredVariables } from "../persistence/queries.ts";
+import { loadRoster } from "../persistence/roster.ts";
+import { presentHumanUserIdsOf } from "../substrate/roster-humans.ts";
+import { shadowPresetUserMacros } from "../substrate/user-macros.ts";
+import { resolveChoiceVariables } from "../substrate/variables.ts";
 
 /** The emit op the lifecycle verbs close over. */
 type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;

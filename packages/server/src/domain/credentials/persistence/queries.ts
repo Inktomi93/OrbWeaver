@@ -9,7 +9,7 @@ import { batchMany, fetchOwned } from "@orb/db/kit";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { and, asc, eq } from "drizzle-orm";
 import type { Sealed } from "#infra/crypto";
-import type { CredentialView } from "../contract/views";
+import type { CredentialView } from "../contract/views.ts";
 
 type CredentialRow = typeof userCredentials.$inferSelect;
 

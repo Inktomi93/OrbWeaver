@@ -29,7 +29,7 @@
 // lock. A multi-replica deploy would need a shared barrier (a doorway, not built).
 
 import type { ChatId } from "@orb/kit/ids";
-import type { FlushBarrierOnTimeout, RpgFlushBarrier } from "./contract/service";
+import type { FlushBarrierOnTimeout, RpgFlushBarrier } from "./contract/service.ts";
 
 /** The bound: a flush that hasn't settled within this window releases the barrier (the turn proceeds on the
  *  last-known state rather than deadlocking on a hung flush). A flush is a single extraction/tool-round call +

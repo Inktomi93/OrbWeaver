@@ -10,7 +10,7 @@ import { projectJsonSchema } from "@orb/kit/json-schema";
 import { ProviderError } from "@orb/server/infra/providers";
 import { sanitizeAnthropicOutputSchema } from "@orb/server/infra/providers/backends/agent-sdk";
 import { z } from "zod";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const MODEL = "claude-sonnet-test";
 

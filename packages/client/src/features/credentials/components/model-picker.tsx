@@ -27,7 +27,7 @@ import { useDeferredValue, useState } from "react";
 import type { Trpc } from "#data";
 import { testId } from "#lib";
 import { pushRecentModel, useRecentModels } from "#state";
-import type { ModelGroup } from "../lib/model-picker-model";
+import type { ModelGroup } from "../lib/model-picker-model.ts";
 import {
   CURATED_FALLBACK_NOTICE,
   filterByChips,
@@ -39,7 +39,7 @@ import {
   hasVision,
   isCuratedFallback,
   resolveRecentEntries,
-} from "../lib/model-picker-model";
+} from "../lib/model-picker-model.ts";
 
 type SourceModelsResult = inferOutput<Trpc["connection"]["getModelsForSource"]>;
 type SourceModelEntry = SourceModelsResult["models"][number];

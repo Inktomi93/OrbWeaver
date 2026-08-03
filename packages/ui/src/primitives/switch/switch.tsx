@@ -4,7 +4,7 @@ import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
 import { Icon, Lock } from "#primitives/icons";
-import { switchVariants } from "./variants";
+import { switchVariants } from "./variants.ts";
 
 export interface SwitchProps extends SwitchRootProps, VariantProps<typeof switchVariants> {
   className?: string;

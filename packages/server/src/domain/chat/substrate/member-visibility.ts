@@ -55,7 +55,7 @@ import type { ChatBusEvent, ChatDeltaEvent, MessageView } from "@orb/contracts/c
 import type { HiddenSpanStreamScrubber } from "@orb/kit/content";
 import { createHiddenSpanStreamScrubber, stripHiddenSpans } from "@orb/kit/content";
 import type { ChatId } from "@orb/kit/ids";
-import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "../contract/views";
+import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "../contract/views.ts";
 
 /** Strip hidden-class spans from one message view's content. Identity when nothing is hidden (the common
  *  case allocates nothing). Only `content` carries body prose; the `reasoning` channel is handled SEPARATELY

@@ -4,7 +4,7 @@
 // (errors.ts). The manifest matrix + the capability axis live in the manifest.ts mirror (manifest.contract.test.ts).
 
 import { HOST_FUNCTION_CAPABILITY, HostVersionError, PLUGIN_CAPABILITIES, PLUGIN_ORIGINS, PluginCapabilityError } from "@orb/contracts/plugin";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("PLUGIN_ORIGINS is the reserved single-arm [upload] (catalog rides an additive member, D86)", () => {
   expect(PLUGIN_ORIGINS).toEqual(["upload"]);

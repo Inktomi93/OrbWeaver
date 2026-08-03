@@ -4,7 +4,7 @@
 
 import { describe } from "vitest";
 import { BANNER_WIDTHS, BLOB_WIDTHS, snapBannerWidth, snapBlobWidth } from "../../../../../packages/server/src/domain/assets/substrate/variant-policy.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("snapBlobWidth", () => {
   test("snaps to the smallest rung >= the request", () => {

@@ -1,7 +1,7 @@
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import type { StatsContext, StatsService } from "../contract/service";
-import type { CharacterStatsView } from "../contract/views";
-import { readCharacter } from "../persistence/rollups";
+import type { StatsContext, StatsService } from "../contract/service.ts";
+import type { CharacterStatsView } from "../contract/views.ts";
+import { readCharacter } from "../persistence/rollups.ts";
 
 // character — a single character's rollup (one row per character, D28) + on-read latency scoped to it.
 // Scoped to the owner's characters (character_stats has no ownerId — D23; the read JOINs characters).

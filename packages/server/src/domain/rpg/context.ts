@@ -5,7 +5,7 @@
 // sideways into chat/connection (§2 one-directional flow). The bundle's TYPE is the explicit `RpgContext`
 // interface in `contract/service.ts` (no `ReturnType<>` — the `no-context-returntype` gate).
 
-import type { RpgContext, RpgContextDeps } from "./contract/service";
+import type { RpgContext, RpgContextDeps } from "./contract/service.ts";
 
 export function createRpgContext(deps: RpgContextDeps): RpgContext {
   return deps;

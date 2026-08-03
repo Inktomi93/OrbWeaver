@@ -9,7 +9,7 @@ import {
   shouldBlockEgress,
 } from "@orb/server/infra/network";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const ranges = DEFAULT_TRUSTED_RANGES;
 const allow = (...hosts: string[]): ReadonlySet<string> => new Set(hosts);

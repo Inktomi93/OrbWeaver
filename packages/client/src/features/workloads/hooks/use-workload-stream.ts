@@ -11,8 +11,8 @@
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Invalidation, Trpc } from "#data";
 import { useTRPC } from "#data";
-import type { WorkloadProgressView } from "../lib/workloads-model";
-import { useWorkloadSubscription } from "./use-workload-subscription";
+import type { WorkloadProgressView } from "../lib/workloads-model.ts";
+import { useWorkloadSubscription } from "./use-workload-subscription.ts";
 
 type WorkloadListItem = inferOutput<Trpc["workloads"]["list"]>[number];
 

@@ -17,7 +17,7 @@ import {
   USER_SETTINGS_SCHEMA_KIND,
 } from "@orb/server/kit/serde/user-settings";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The parse outcome's value — the spine returns a typed refusal reason, never null. */
 function refusalOf<T>(result: PortableParse<T>): string {

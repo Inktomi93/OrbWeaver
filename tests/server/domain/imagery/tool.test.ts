@@ -8,8 +8,8 @@ import type { GeneratedPicture, GeneratePictureParams } from "@orb/server/domain
 import { imageryToolDefinitions } from "@orb/server/domain/imagery";
 import type { ToolExecutionContext } from "@orb/server/domain/tool-use";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
-import { principal } from "./_support";
+import { expect, test } from "../../../support/fixtures.ts";
+import { principal } from "./_support.ts";
 
 const OWNER = castId<UserId>("user_owner");
 const CHAT = castId<ChatId>("chat_room");

@@ -12,11 +12,11 @@ import { castId } from "@orb/kit/ids";
 import { getLog } from "@orb/server/foundation/observability";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
-import { createChatBus } from "../../../../packages/server/src/domain/chat/bus";
-import { appendChatEvent } from "../../../../packages/server/src/domain/chat/persistence/events";
-import { freshDb } from "../../../support/db";
-import { expect, test } from "../../../support/fixtures";
-import { FROZEN_AT, makeChatContext, seedChat } from "./_support";
+import { createChatBus } from "../../../../packages/server/src/domain/chat/bus.ts";
+import { appendChatEvent } from "../../../../packages/server/src/domain/chat/persistence/events.ts";
+import { freshDb } from "../../../support/db.ts";
+import { expect, test } from "../../../support/fixtures.ts";
+import { FROZEN_AT, makeChatContext, seedChat } from "./_support.ts";
 
 let db: Db;
 

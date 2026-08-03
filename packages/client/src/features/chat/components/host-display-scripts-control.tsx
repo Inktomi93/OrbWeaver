@@ -19,7 +19,7 @@ import type { ReactElement } from "react";
 import { useId } from "react";
 import { SettingSwitchRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { useSetHostDisplayScripts } from "../hooks/use-context-panel-mutations";
+import { useSetHostDisplayScripts } from "../hooks/use-context-panel-mutations.ts";
 
 export interface HostDisplayScriptsControlProps {
   readonly chatId: ChatId;

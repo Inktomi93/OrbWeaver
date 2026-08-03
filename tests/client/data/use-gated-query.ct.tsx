@@ -9,8 +9,8 @@
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../support/ct/route-trpc";
-import { GatedQueryStory } from "./_ct-stories";
+import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { GatedQueryStory } from "./_ct-stories.tsx";
 
 const CHAT_ID = castId<ChatId>("chat_gatedquerytest01");
 

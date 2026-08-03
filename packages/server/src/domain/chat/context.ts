@@ -5,4 +5,4 @@
 // ASSEMBLED at the entry composition root and handed to `createChatService`; chat sideways-imports none of the
 // injected ops (`domain-no-cross-feature` — the cross-feature/infra edges are type-only on the contract).
 
-export type { ChatContext, ChatServiceDeps } from "./contract/context";
+export type { ChatContext, ChatServiceDeps } from "./contract/context.ts";

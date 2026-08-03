@@ -33,7 +33,7 @@ import {
 } from "@orb/contracts/rpg";
 import { projectJsonSchema, scrubWireSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // The ref bundle's establishment flags. The enum tests below don't force scene population (both false); the
 // establish-when-unset arm is pinned by its own tests further down.

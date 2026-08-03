@@ -9,7 +9,7 @@ import type { AccountCredits, EndpointInspection, GenerationCost } from "@orb/co
 import type { GenerationCostRequest, InspectRequest, ProviderBackend } from "@orb/server/infra/providers";
 import { createProviderDiagnostics, ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 // The dispatch reads only `credential.source`; the brand is irrelevant at runtime (esbuild, not tsc), so
 // a cast keeps the fakes terse.

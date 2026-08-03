@@ -3,9 +3,9 @@ import type { ChangeEvent, KeyboardEvent, ReactElement, ReactNode } from "react"
 import { useId, useRef, useState } from "react";
 import { cn } from "#lib";
 import { Textarea } from "#primitives/textarea";
-import type { MacroTrigger } from "./macro-textarea-logic";
-import { computeMacroInsertion, detectTrigger } from "./macro-textarea-logic";
-import { macroTextareaVariants } from "./variants";
+import type { MacroTrigger } from "./macro-textarea-logic.ts";
+import { computeMacroInsertion, detectTrigger } from "./macro-textarea-logic.ts";
+import { macroTextareaVariants } from "./variants.ts";
 
 const slots = macroTextareaVariants();
 

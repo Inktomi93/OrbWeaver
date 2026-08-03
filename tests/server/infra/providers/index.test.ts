@@ -15,7 +15,7 @@ import type { AgentTurnRequest, ChatRequest, ChatResult, EmbedRequest, EmbedResu
 import { createBackendRegistry, createProviderExecutor, ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
 import { createFrozenClock } from "../../../support/clock.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 // The dispatch + firewall read only `credential.source`; the brand is irrelevant at runtime (these
 // `.test.ts` files run through esbuild, not tsc), so a cast keeps the fakes terse.

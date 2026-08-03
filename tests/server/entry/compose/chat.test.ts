@@ -9,7 +9,7 @@ import type { TurnMessage } from "@orb/server/domain/chat";
 import { activePersonaIdFor, extractTrailingSystemRows, flattenAgentHistory, splitAgentHistory } from "@orb/server/entry/compose";
 import { AGENT_PROMPT_TAIL_JOINER } from "@orb/server/infra/providers";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 function row(role: TurnMessage["role"], text: string, name?: string): TurnMessage {
   const content: TurnMessage["content"] = [{ type: "text", text }];

@@ -2,9 +2,9 @@
 // Hosted-primary: the firewall permits only `openrouter` today (OpenRouter image models). Switches on
 // `credential.source` for forward-compat with future in-process image families.
 
-import type { ImageGenerateRequest, ImageGenerateResult, ProviderDeps } from "../contract";
-import { backendForSource, requireBackend, runRole } from "./dispatch";
-import { assertCredentialAllowed } from "./firewall";
+import type { ImageGenerateRequest, ImageGenerateResult, ProviderDeps } from "../contract/index.ts";
+import { backendForSource, requireBackend, runRole } from "./dispatch.ts";
+import { assertCredentialAllowed } from "./firewall.ts";
 
 const ROLE = "generateImage";
 

@@ -19,7 +19,7 @@ import { cardFromJson } from "@orb/server/kit/serde/card";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import {
   AVATAR_PNG,
   makeHarness,

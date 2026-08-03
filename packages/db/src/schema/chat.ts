@@ -71,10 +71,10 @@ import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { assets } from "./assets";
-import { characters } from "./character";
-import { personas } from "./persona";
-import { users } from "./users";
+import { assets } from "./assets.ts";
+import { characters } from "./character.ts";
+import { personas } from "./persona.ts";
+import { users } from "./users.ts";
 
 // A CHECK list is a static DDL fragment derived from the canonical tuple (NOT re-spelled): e.g.
 // `role in ('system', 'user', 'assistant')`. A CHECK cannot carry bound parameters (users.ts pattern).

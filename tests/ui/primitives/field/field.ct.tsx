@@ -9,8 +9,8 @@ import { RadioGroup, RadioGroupItem } from "@orb/ui/radio-group";
 import { Switch } from "@orb/ui/switch";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { resolvedTokenColor } from "../../../support/ct/resolved-token-color";
-import { FieldValidityStory } from "./field-validity.fixtures";
+import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
+import { FieldValidityStory } from "./field-validity.fixtures.tsx";
 
 test("wires the label to the composed control", async ({ mount, page }) => {
   await mount(

@@ -13,9 +13,9 @@ import type { ChatId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { PersonaEditor } from "../../../../packages/client/src/features/persona/components/persona-editor";
-import { PersonaThisChatSection } from "../../../../packages/client/src/features/persona/components/persona-this-chat-section";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+import { PersonaEditor } from "../../../../packages/client/src/features/persona/components/persona-editor.tsx";
+import { PersonaThisChatSection } from "../../../../packages/client/src/features/persona/components/persona-this-chat-section.tsx";
+import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
 type PersonaFixture = Parameters<typeof PersonaPanelRow>[0]["persona"];
 

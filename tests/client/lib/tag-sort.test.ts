@@ -6,7 +6,7 @@
 
 import type { SortableTag } from "@orb/client/lib";
 import { sortTagsBy } from "@orb/client/lib";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const tag = (name: string, total: number, sortOrder: number | null): SortableTag => ({ name, sortOrder, usage: { total } });
 

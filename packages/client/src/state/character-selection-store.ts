@@ -6,7 +6,7 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { withViewTransition } from "#lib";
-import { createDrillSelectionStore } from "./create-drill-selection-store";
+import { createDrillSelectionStore } from "./create-drill-selection-store.ts";
 
 // The facet id is a card-content-local string (not a `@orb/kit/ids` entity id).
 const characterSelection = createDrillSelectionStore<CharacterId, string>("character-selection", { secondary: true });

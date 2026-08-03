@@ -6,7 +6,7 @@
 
 import type { AssetsService } from "@orb/server/domain/assets";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 describe("assets router", () => {

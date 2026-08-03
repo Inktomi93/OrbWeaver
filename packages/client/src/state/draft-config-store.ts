@@ -7,7 +7,7 @@
 import type { ChatInjectionInput, GroupConfigInput, RoomOverrides } from "@orb/contracts/chat";
 import type { RpgStatProfile } from "@orb/contracts/rpg";
 import type { CharacterId } from "@orb/kit/ids";
-import { createGatedStore } from "./create-gated-store";
+import { createGatedStore } from "./create-gated-store.ts";
 
 /** One founding character's pre-send roster tuning (deviating fields only — absent ⇒ column default). */
 export interface DraftRosterOverride {

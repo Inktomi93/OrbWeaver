@@ -3,8 +3,8 @@
 // stamp (+ the fork lineage when the source name is known). `formatRelative` is injected, so this is
 // deterministic.
 
-import { presetRowSubtitle } from "../../../../../packages/client/src/features/preset/lib/preset-row-view";
-import { expect, test } from "../../../../support/fixtures";
+import { presetRowSubtitle } from "../../../../../packages/client/src/features/preset/lib/preset-row-view.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const formatRelative = (epochMs: number): string => `T-${epochMs}`;
 

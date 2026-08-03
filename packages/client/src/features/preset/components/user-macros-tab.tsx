@@ -19,7 +19,7 @@ import type { UserMacrosFormValues } from "#components";
 import { EntryListEditor, UserMacroEditorDialog } from "#components";
 import type { AppFormInstance } from "#forms";
 import { withUserMacros } from "#lib";
-import { MacroBrowser } from "./macro-browser";
+import { MacroBrowser } from "./macro-browser.tsx";
 
 type AppForm = AppFormInstance<PromptConfig>;
 

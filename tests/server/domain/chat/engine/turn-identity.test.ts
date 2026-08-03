@@ -4,9 +4,9 @@ import type { CredentialSource } from "@orb/contracts/connection";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
-import { assertMaxProSubConsent, resolveOwnerConsented, resolveTurnIdentity } from "../../../../../packages/server/src/domain/chat/engine/turn-identity";
-import { expect, test } from "../../../../support/fixtures";
+import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
+import { assertMaxProSubConsent, resolveOwnerConsented, resolveTurnIdentity } from "../../../../../packages/server/src/domain/chat/engine/turn-identity.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const CALLER = castId<UserId>("user_caller");
 const HOST = castId<UserId>("user_host");

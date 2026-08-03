@@ -5,7 +5,7 @@
 
 import { CircleUser } from "@orb/ui/icons";
 import type { ModalDefinition } from "#state";
-import { AccountSurface } from "../surfaces/account-surface";
+import { AccountSurface } from "../surfaces/account-surface.tsx";
 
 export const accountModal: ModalDefinition = {
   id: "account",

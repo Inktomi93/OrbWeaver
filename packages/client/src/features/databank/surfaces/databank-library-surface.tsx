@@ -30,11 +30,17 @@ import { LibraryListLayout, LibrarySurfaceShell } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { timeLib, useFocusOnMount } from "#lib";
 import { clearDocumentSelection, selectDocumentFromList, useSelectedDocumentId } from "#state";
-import { AddDocumentDialog } from "../components/add-document-dialog";
-import { DatabankLibraryRow } from "../components/databank-library-row";
-import { DatabankRenameDialog } from "../components/databank-rename-dialog";
-import { useAttachDocumentGlobal, useDetachDocumentGlobal, useReindexDocuments, useRemoveDocument, useRenameDocument } from "../hooks/use-databank-mutations";
-import { isIngestInFlight } from "../lib/databank-model";
+import { AddDocumentDialog } from "../components/add-document-dialog.tsx";
+import { DatabankLibraryRow } from "../components/databank-library-row.tsx";
+import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
+import {
+  useAttachDocumentGlobal,
+  useDetachDocumentGlobal,
+  useReindexDocuments,
+  useRemoveDocument,
+  useRenameDocument,
+} from "../hooks/use-databank-mutations.ts";
+import { isIngestInFlight } from "../lib/databank-model.ts";
 
 /** How often the list re-reads while ANY row is mid-ingest (D-3 arm b). Slow enough to be free at rest,
  *  fast enough that a small document's `Queued → Ready` is seen rather than reported later. */

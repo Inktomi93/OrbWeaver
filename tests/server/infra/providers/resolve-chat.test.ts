@@ -12,7 +12,7 @@ import { VERBOSITY_LEVELS } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import { describe } from "vitest";
 import { resolveChat } from "../../../../packages/server/src/infra/providers/resolve-chat.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 // A fully-capable model: every sampling range present, every flag on, an effort ladder. Tests narrow it
 // down (drop a range / flip a flag / switch the reasoning mode) to exercise each gate in isolation.

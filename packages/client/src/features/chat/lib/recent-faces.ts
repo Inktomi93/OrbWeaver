@@ -14,7 +14,7 @@
 // still reachable through the strip's picker, so nothing this returns is wasted. `cap` survives for a caller
 // that genuinely has one.
 
-import type { ChatRowPortrait } from "./chat-summary-row";
+import type { ChatRowPortrait } from "./chat-summary-row.ts";
 
 /** The chat shape the curation reads (a structural subset of `ChatSummary`), already in recency order. */
 export interface FaceSourceChat {

@@ -3,7 +3,7 @@
 
 import { probeOpenRouterCredential } from "@orb/server/infra/providers/backends/openrouter";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const FIXED_NOW = 5000;
 type ProbeClient = Parameters<typeof probeOpenRouterCredential>[0];

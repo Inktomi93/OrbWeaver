@@ -23,11 +23,11 @@ import { useInvalidation, useUploadAsset } from "#data";
 import type { AppFormInstance } from "#forms";
 import { notify } from "#lib";
 import { toggleSpoilerBlur, useSpoilerBlur } from "#state";
-import { useUpdateCharacter } from "../hooks/use-character-mutations";
-import type { CharacterCardFormValues } from "../lib/character-card-form-model";
-import { CharacterGreetingPreview } from "./character-greeting-preview";
-import { CharacterTagSuggestions } from "./character-tag-suggestions";
-import { CharacterTagsRow } from "./character-tags-row";
+import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
+import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
+import { CharacterGreetingPreview } from "./character-greeting-preview.tsx";
+import { CharacterTagSuggestions } from "./character-tag-suggestions.tsx";
+import { CharacterTagsRow } from "./character-tags-row.tsx";
 
 /** The identity/preview subset of the owner card the hero renders — draft card fields flow through `form`. */
 export interface CharacterHeroDetail {

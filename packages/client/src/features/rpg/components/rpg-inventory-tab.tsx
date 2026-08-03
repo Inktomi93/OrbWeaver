@@ -35,15 +35,15 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { AddRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { useInventoryDiff } from "../hooks/use-inventory-diff";
-import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useEditSnapshot, usePatchActor } from "../hooks/use-rpg-mutations";
-import { actorKey } from "../lib/actor-key";
-import { RpgFieldLock } from "./rpg-field-lock";
-import { Kicker } from "./rpg-kicker";
-import type { PackEdit } from "./rpg-pack-rows";
-import { PackBody } from "./rpg-pack-rows";
-import { RpgSubjectSelect } from "./rpg-subject-select";
+import { useInventoryDiff } from "../hooks/use-inventory-diff.ts";
+import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
+import { useEditSnapshot, usePatchActor } from "../hooks/use-rpg-mutations.ts";
+import { actorKey } from "../lib/actor-key.ts";
+import { RpgFieldLock } from "./rpg-field-lock.tsx";
+import { Kicker } from "./rpg-kicker.tsx";
+import type { PackEdit } from "./rpg-pack-rows.tsx";
+import { PackBody } from "./rpg-pack-rows.tsx";
+import { RpgSubjectSelect } from "./rpg-subject-select.tsx";
 
 /** The viewer's own `user` actor, or the first roster actor as a fallback. */
 function viewerActor(actors: readonly RpgActorView[], viewerUserId: string): RpgActorView | undefined {

@@ -8,7 +8,7 @@
 
 import type { ReactNode } from "react";
 import type { ChromeEntry, ChromePresentation } from "#state";
-import { PersonaPanelSurface } from "../surfaces/persona-panel-surface";
+import { PersonaPanelSurface } from "../surfaces/persona-panel-surface.tsx";
 
 export const personaChrome: ChromeEntry = {
   id: "persona-identity",

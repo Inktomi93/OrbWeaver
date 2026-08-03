@@ -8,8 +8,8 @@ import type { Db } from "@orb/db";
 import type { ExportCardScripts } from "#domain/regex";
 import type { ImageTransformOptions } from "#infra/image";
 import type { Cas } from "#infra/storage";
-import type { ExportCharacterParams, ExportChatParams, ListHostChatsParams } from "./params";
-import type { ExportedCard, ExportedText, HostChatRef } from "./results";
+import type { ExportCharacterParams, ExportChatParams, ListHostChatsParams } from "./params.ts";
+import type { ExportedCard, ExportedText, HostChatRef } from "./results.ts";
 
 /** The DI bundle every export verb closes over, wired at the composition root. */
 export interface ExportContext {
@@ -24,7 +24,7 @@ export interface ExportContext {
 
 // The chat transcript format union's declaration home is params.ts (keeps contract/ acyclic); the
 // canonical import surface stays here + the front door.
-export type { ExportCardFormat, ExportChatFormat } from "./params";
+export type { ExportCardFormat, ExportChatFormat } from "./params.ts";
 
 export interface ExportService {
   /** Read the owner's live character card and emit it in the requested container: `png` (default) welds

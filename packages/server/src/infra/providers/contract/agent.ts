@@ -3,7 +3,7 @@
 
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ModelId } from "@orb/kit/ids";
-import type { OrSkinTierModels, ResponseFormat } from "./chat";
+import type { OrSkinTierModels, ResponseFormat } from "./chat.ts";
 
 // The core treats it as opaque; the agent-sdk backend narrows it to McpSdkServerConfigWithInstance.
 export type AgentToolServer = unknown;

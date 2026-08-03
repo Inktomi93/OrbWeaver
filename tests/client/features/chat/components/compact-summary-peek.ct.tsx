@@ -5,7 +5,7 @@
 // readout. The popup renders through a Base UI Portal, so it's read via the PAGE locator.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { CompactSummaryPeekStory } from "../_ct-stories";
+import { CompactSummaryPeekStory } from "../_ct-stories.tsx";
 
 const SUMMARY = "Aria and the traveller struck a bargain at the crossroads.\nThe map changed hands.";
 

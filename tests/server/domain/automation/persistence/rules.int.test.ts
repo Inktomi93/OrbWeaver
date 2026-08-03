@@ -13,7 +13,7 @@ import {
   toRuleView,
 } from "../../../../../packages/server/src/domain/automation/persistence/rules.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { FIXED_NOW_MS, seedHostChat, seedUser } from "../_support.ts";
 
 const SET_ARM = { type: "set_variable" as const, scope: "chat" as const, key: "k", op: "set" as const, value: "v" };

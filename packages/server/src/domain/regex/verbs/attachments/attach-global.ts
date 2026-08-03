@@ -3,11 +3,11 @@
 // `position` orders the global TIER against itself (the executor applies its input list in order).
 
 import { globalRegexScripts } from "@orb/db";
-import type { RegexContext } from "../../context";
-import { RegexNotFoundError } from "../../contract/errors";
-import type { AttachGlobalParams } from "../../contract/params";
-import type { RegexService } from "../../contract/service";
-import { listGlobalScripts, loadOwnedScript } from "../../persistence/queries";
+import type { RegexContext } from "../../context.ts";
+import { RegexNotFoundError } from "../../contract/errors.ts";
+import type { AttachGlobalParams } from "../../contract/params.ts";
+import type { RegexService } from "../../contract/service.ts";
+import { listGlobalScripts, loadOwnedScript } from "../../persistence/queries.ts";
 
 export function createAttachGlobal(ctx: RegexContext): RegexService["attachGlobal"] {
   return async ({ principal, scriptId }: AttachGlobalParams) => {

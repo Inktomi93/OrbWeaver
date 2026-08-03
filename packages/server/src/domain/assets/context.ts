@@ -7,4 +7,4 @@
 // sideways-imports none of those (domain-no-cross-feature — they arrive type-only). There is NO guard in
 // the bundle: every assets surface is ownership-scoped (the gate is `principal.userId`), not admin-gated.
 
-export type { AssetsContext } from "./contract/service";
+export type { AssetsContext } from "./contract/service.ts";

@@ -4,7 +4,7 @@ import type { ReactElement, ReactNode } from "react";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_INPUT, cn, formatResultCount, usePortalContainer } from "#lib";
 import { Icon, X } from "#primitives/icons";
-import { autocompleteVariants } from "./variants";
+import { autocompleteVariants } from "./variants.ts";
 
 // Breathing room between the input and the popup.
 const POPUP_SIDE_OFFSET = ANCHOR_GAP_INPUT;

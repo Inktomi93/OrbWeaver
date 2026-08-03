@@ -16,10 +16,10 @@ import type { GenerationType, PromptConfig, UserIntent } from "#preset";
 import type { ProseOverrides } from "#prose-slot";
 import type { RegexScriptRow } from "#regex";
 import type { WorldInfoScope } from "#world-info";
-import type { UserMacroDraws } from "./messages";
-import type { RoomOverrides } from "./metadata";
-import type { SpeakerRef } from "./participants";
-import { messageRoleSchema } from "./participants";
+import type { UserMacroDraws } from "./messages.ts";
+import type { RoomOverrides } from "./metadata.ts";
+import type { SpeakerRef } from "./participants.ts";
+import { messageRoleSchema } from "./participants.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE ASSEMBLE FAMILY — slim assembly projections, NOT re-exports of the full card/persona/entry shapes.

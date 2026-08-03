@@ -3,7 +3,7 @@
 
 import { describe } from "vitest";
 import { processReply } from "../../../../../packages/server/src/domain/imagery/substrate/process-reply.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const TRAILING_COMMA = /,\s*$/;
 

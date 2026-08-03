@@ -8,7 +8,7 @@
 // second launcher — no recents finder, no character faces, and no data read at all.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ChatLandingSurfaceStory } from "../_ct-stories";
+import { ChatLandingSurfaceStory } from "../_ct-stories.tsx";
 
 test("renders the slim no-selection state — where you are + the section's own primary", async ({ mount }) => {
   const component = await mount(<ChatLandingSurfaceStory />);

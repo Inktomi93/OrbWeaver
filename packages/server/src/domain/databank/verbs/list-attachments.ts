@@ -2,11 +2,11 @@
 // Owner-gated (`loadOwnedMeta` — you only see your own document's attachments); the reverse `*_document_idx`
 // on each junction serves the three lookups. A read: no audit.
 
-import { DocumentNotFoundError } from "../contract/errors";
-import type { GetDocumentParams } from "../contract/params";
-import type { DatabankContext, DatabankService } from "../contract/service";
-import type { DocumentAttachmentsView } from "../contract/views";
-import { loadAttachments, loadOwnedMeta } from "../persistence/queries";
+import { DocumentNotFoundError } from "../contract/errors.ts";
+import type { GetDocumentParams } from "../contract/params.ts";
+import type { DatabankContext, DatabankService } from "../contract/service.ts";
+import type { DocumentAttachmentsView } from "../contract/views.ts";
+import { loadAttachments, loadOwnedMeta } from "../persistence/queries.ts";
 
 export function createListAttachments(ctx: DatabankContext): DatabankService["listAttachments"] {
   return async ({ principal, id }: GetDocumentParams): Promise<DocumentAttachmentsView> => {

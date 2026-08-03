@@ -1,8 +1,8 @@
 // verb: listTags — the owner's full tag collection (ordered: manual sort first, then name fallback).
 
-import type { ListTagsParams } from "../contract/params";
-import type { TagContext, TagService } from "../contract/service";
-import { listOwnedTags, toTagView } from "../persistence/queries";
+import type { ListTagsParams } from "../contract/params.ts";
+import type { TagContext, TagService } from "../contract/service.ts";
+import { listOwnedTags, toTagView } from "../persistence/queries.ts";
 
 export function createList(ctx: TagContext): TagService["listTags"] {
   return async (params: ListTagsParams) => {

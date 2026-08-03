@@ -6,7 +6,7 @@
 import { logger } from "@orb/server/foundation/observability";
 import { logProviderCache, logProviderCapability, logProviderSampling, providerLog } from "@orb/server/infra/providers/backends/kit";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 function callOf(spy: ReturnType<typeof vi.spyOn>): [Record<string, unknown>, string] {
   const call = spy.mock.calls[0] ?? [];

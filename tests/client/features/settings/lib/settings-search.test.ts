@@ -5,8 +5,8 @@
 
 import type { SettingsPaneDefinition, SettingsPaneRegistry } from "@orb/client/state";
 import { Settings } from "@orb/ui/icons";
-import { buildSettingsSearchEntries } from "../../../../../packages/client/src/features/settings/lib/settings-search";
-import { expect, test } from "../../../../support/fixtures";
+import { buildSettingsSearchEntries } from "../../../../../packages/client/src/features/settings/lib/settings-search.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A pane holding ONE subcategory whose nav label is deliberately NOT a substring of its heading — so a
  *  match on it can only come from the `navLabel` keyword, never incidentally from `label`. */

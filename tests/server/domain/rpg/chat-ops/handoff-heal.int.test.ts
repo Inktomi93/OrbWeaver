@@ -16,10 +16,10 @@ import { batchMany } from "@orb/db/kit";
 import type { CharacterHandle, CharacterId, ChatId, Handle, PresetId, RpgGameId, RpgSheetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { findGameByChat, insertGame } from "../../../../../packages/server/src/domain/rpg/persistence/games";
-import { freshDb } from "../../../../support/db";
-import type { RpgHarness } from "../_support";
-import { expect, FROZEN_AT, liteConfig, makeRpgService, seedChat, seedUser, test } from "../_support";
+import { findGameByChat, insertGame } from "../../../../../packages/server/src/domain/rpg/persistence/games.ts";
+import { freshDb } from "../../../../support/db.ts";
+import type { RpgHarness } from "../_support.ts";
+import { expect, FROZEN_AT, liteConfig, makeRpgService, seedChat, seedUser, test } from "../_support.ts";
 
 const NEW_HOST = castId<UserId>("user_nominee");
 const OLD_HOST = castId<UserId>("user_departing");

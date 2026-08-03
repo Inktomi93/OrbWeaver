@@ -11,9 +11,9 @@
 import { characterRegexScripts, regexScripts } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray } from "drizzle-orm";
-import type { RegexResolveContext, ResolvedRegexSources, ResolveRegexSources } from "../contract/resolve";
-import type { ScriptRecord } from "../contract/rows";
-import { listChatScripts, listGlobalScripts, listPresetScripts, toRow } from "./queries";
+import type { RegexResolveContext, ResolvedRegexSources, ResolveRegexSources } from "../contract/resolve.ts";
+import type { ScriptRecord } from "../contract/rows.ts";
+import { listChatScripts, listGlobalScripts, listPresetScripts, toRow } from "./queries.ts";
 
 /** Every seated character's attached rows, concatenated in ROSTER order (see the header). */
 async function castSlice(ctx: RegexResolveContext, ownerId: UserId, characterIds: readonly CharacterId[]): Promise<ScriptRecord[]> {

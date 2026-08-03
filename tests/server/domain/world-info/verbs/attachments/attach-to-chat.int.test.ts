@@ -9,7 +9,7 @@ import { castId } from "@orb/kit/ids";
 import { createWorldInfoService, WorldInfoNotFoundError } from "@orb/server/domain/world-info";
 import { describe } from "vitest";
 import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeHarness, principal, seedChat, seedUser } from "../../_support.ts";
 
 describe("attachToChat", () => {

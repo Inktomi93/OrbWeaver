@@ -11,8 +11,8 @@ import type { Db } from "@orb/db";
 import { presets } from "@orb/db";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
-import type { CopyPresetToUser, PresetHandoffCopyContext } from "../contract/handoff-copy";
-import { findOwnedForkOf, insertPreset } from "./queries";
+import type { CopyPresetToUser, PresetHandoffCopyContext } from "../contract/handoff-copy.ts";
+import { findOwnedForkOf, insertPreset } from "./queries.ts";
 
 const LIMIT_ONE = 1;
 

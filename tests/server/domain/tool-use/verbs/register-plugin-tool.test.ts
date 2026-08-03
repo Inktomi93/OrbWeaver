@@ -12,7 +12,7 @@ import type { PluginToolSpec, ToolCallRecord } from "../../../../../packages/ser
 import { createToolUseService, ToolNameCollisionError } from "../../../../../packages/server/src/domain/tool-use/index.ts";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { execOf } from "../_support.ts";
 
 type Service = ReturnType<typeof createToolUseService>;

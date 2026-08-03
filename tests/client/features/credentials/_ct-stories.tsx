@@ -8,10 +8,10 @@ import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ComponentProps, ReactElement } from "react";
 import { useState } from "react";
-import { CredentialKeyRow } from "../../../../packages/client/src/features/credentials/components/credential-key-row";
-import { ModelPicker } from "../../../../packages/client/src/features/credentials/components/model-picker";
-import { ConnectionsSettingsSurface } from "../../../../packages/client/src/features/credentials/surfaces/connections-settings-surface";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+import { CredentialKeyRow } from "../../../../packages/client/src/features/credentials/components/credential-key-row.tsx";
+import { ModelPicker } from "../../../../packages/client/src/features/credentials/components/model-picker.tsx";
+import { ConnectionsSettingsSurface } from "../../../../packages/client/src/features/credentials/surfaces/connections-settings-surface.tsx";
+import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
 /** `<CredentialKeyRow>` under the data layer (`trpc`/`invalidation` read inside the provider tree — the
  *  row's own wiring); its mutations are stubbed per-test via routeTrpc. */

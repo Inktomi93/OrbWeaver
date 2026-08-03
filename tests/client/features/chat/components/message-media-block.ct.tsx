@@ -5,7 +5,7 @@
 // just the source).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { AttachmentMediaStory } from "../_ct-stories";
+import { AttachmentMediaStory } from "../_ct-stories.tsx";
 
 const MEDIA_IMG = '[data-slot="message-media"]';
 const PNG_DATA_SRC = /^data:image\/png/u;

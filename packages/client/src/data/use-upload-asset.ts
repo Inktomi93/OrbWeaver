@@ -13,9 +13,9 @@
 // untouched (every caller owns its own failure UI), and nothing was minted, so nothing is stale.
 
 import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
-import { useTRPC } from "./trpc";
-import { uploadAsset } from "./upload-asset";
-import { useInvalidation } from "./use-invalidation";
+import { useTRPC } from "./trpc.ts";
+import { uploadAsset } from "./upload-asset.ts";
+import { useInvalidation } from "./use-invalidation.ts";
 
 /** Upload a picked `File` as a content-addressed asset, then stale the owned-asset list it just grew.
  *  Same signature + same throw behavior as {@link uploadAsset}; the freshness is the whole difference. */

@@ -15,12 +15,12 @@ import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { and, eq } from "drizzle-orm";
 import type { ExportWorldEntry } from "#kit/serde/card";
 import { buildCardV3 } from "#kit/serde/card";
-import type { ExportContext } from "../context";
-import type { ExportCharacterParams } from "../contract/params";
-import type { ExportedCard } from "../contract/results";
-import type { ExportService } from "../contract/service";
-import { slug } from "../substrate/download-slug";
-import { PLACEHOLDER_PNG } from "../substrate/placeholder-png";
+import type { ExportContext } from "../context.ts";
+import type { ExportCharacterParams } from "../contract/params.ts";
+import type { ExportedCard } from "../contract/results.ts";
+import type { ExportService } from "../contract/service.ts";
+import { slug } from "../substrate/download-slug.ts";
+import { PLACEHOLDER_PNG } from "../substrate/placeholder-png.ts";
 
 const PNG_MIME = "image/png";
 // The card's tags are the ACCEPTED junction rows; derived from the canonical schema, not an inline re-spell.

@@ -20,7 +20,7 @@
 
 import type { PluginBridge, PluginMessageView } from "@orb/contracts/plugin";
 import type { PluginId, UserId, WorldBookId } from "@orb/kit/ids";
-import type { PluginHostOps } from "../contract/ops";
+import type { PluginHostOps } from "../contract/ops.ts";
 
 /** Adapt the injected `PluginHostOps` into the membrane's `PluginBridge` for one installing user. `listMessages`
  *  is clamped to the installer's own viewer visibility (see the file header); the other chat ops

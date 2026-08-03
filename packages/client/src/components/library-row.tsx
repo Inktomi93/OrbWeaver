@@ -16,8 +16,8 @@ import type { ListRowProps } from "@orb/ui/list-row";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
-import { RowActionsMenu } from "./row-actions-menu";
-import { ROW_REVEAL } from "./row-reveal";
+import { RowActionsMenu } from "./row-actions-menu.tsx";
+import { ROW_REVEAL } from "./row-reveal.ts";
 
 /** The Rename · Duplicate · Delete actions for a library row (omit for a non-actionable row). */
 export interface LibraryRowActions {

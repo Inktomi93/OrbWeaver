@@ -30,8 +30,8 @@ import type { ChangeEvent, ReactElement } from "react";
 import { lazy, Suspense, useId } from "react";
 import type { AppFormInstance } from "#forms";
 import { REGEX_PLACEMENT_ITEMS } from "#lib";
-import { WHOLE_HISTORY_DEPTH } from "../lib/derive-tier-flags";
-import { RegexTestPanel } from "./regex-test-panel";
+import { WHOLE_HISTORY_DEPTH } from "../lib/derive-tier-flags.ts";
+import { RegexTestPanel } from "./regex-test-panel.tsx";
 
 // Lazy — CodeMirror is heavy and only this editor needs it.
 const CodeEditor = lazy(() => import("@orb/ui/code-editor").then((m) => ({ default: m.CodeEditor })));

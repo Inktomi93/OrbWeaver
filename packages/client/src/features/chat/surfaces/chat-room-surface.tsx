@@ -17,15 +17,15 @@ import type { ChatRoomSurfaceState, ChatSurfaceContribution, ContributorRegistry
 import { useFocusOnMount } from "#lib";
 import type { ActiveChatHandle, ChatHandle } from "#state";
 import { committedChat, isCommitted, migrateComposerDraft } from "#state";
-import { MessageThreadAnchor } from "../anchors/message-thread-anchor";
-import { ChatCastBar } from "../components/chat-cast-bar";
-import { ChoiceSendProvider } from "../components/choice-send-provider";
-import { Composer } from "../components/composer";
-import { MessageSelectionBar } from "../components/message-selection-bar";
-import type { DraftSeed } from "../hooks/use-send-message";
-import { resolveRoomTheme } from "../lib/attribution";
-import { deriveChatTitle } from "../lib/chat-summary-row";
-import { MessageListSurface } from "./message-list-surface";
+import { MessageThreadAnchor } from "../anchors/message-thread-anchor.tsx";
+import { ChatCastBar } from "../components/chat-cast-bar.tsx";
+import { ChoiceSendProvider } from "../components/choice-send-provider.tsx";
+import { Composer } from "../components/composer.tsx";
+import { MessageSelectionBar } from "../components/message-selection-bar.tsx";
+import type { DraftSeed } from "../hooks/use-send-message.ts";
+import { resolveRoomTheme } from "../lib/attribution.ts";
+import { deriveChatTitle } from "../lib/chat-summary-row.ts";
+import { MessageListSurface } from "./message-list-surface.tsx";
 
 export interface ChatRoomSurfaceProps {
   readonly initialHandle: ActiveChatHandle;

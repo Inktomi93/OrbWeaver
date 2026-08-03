@@ -10,7 +10,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ALLOWED_NEAR_PAIRS, assertNoNearDuplicateColors, NEAR_DUPLICATE_EPSILON } from "../../../packages/ui/tokens.near-duplicate.ts";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const TOKENS_JSON = join(import.meta.dirname, "../../../packages/ui/src/tokens/tokens.json");
 const NEAR_DUPLICATE_RED = /near-duplicate colour pair/u;

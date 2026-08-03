@@ -9,8 +9,8 @@
 
 import type { MessageView } from "@orb/contracts/chat";
 import { estimateTokens } from "@orb/kit/tokens";
-import type { RpgTurnTranscriptMessage } from "../contract/context";
-import type { HistoryMacroNames } from "../contract/results";
+import type { RpgTurnTranscriptMessage } from "../contract/context.ts";
+import type { HistoryMacroNames } from "../contract/results.ts";
 
 /** Resolve a canon row's name-stamp: assistant → its stamped character name; user → its stamped persona name;
  *  system → null (no speaker). A null/unresolvable stamp yields null (the consumer renders "You"/an unnamed

@@ -10,9 +10,9 @@ import {
   selectForProvisionByHandle,
   selectIdByHandle,
   updateUser,
-} from "../../../../../packages/server/src/domain/sessions/persistence/users";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/server/src/domain/sessions/persistence/users.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const T0 = 1_750_000_000_000;
 const ALICE = castId<UserId>("user_alice");

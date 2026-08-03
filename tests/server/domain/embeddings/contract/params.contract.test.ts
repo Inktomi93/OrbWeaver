@@ -11,7 +11,7 @@
 import { IMAGE_LENSES } from "@orb/contracts/embeddings";
 import type { SourceKind, SourceLens } from "../../../../../packages/server/src/domain/embeddings/contract/params.ts";
 import { SOURCE_KINDS, SOURCE_LENSES, TEXT_LENSES } from "../../../../../packages/server/src/domain/embeddings/contract/params.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 test("SOURCE_KINDS is exactly [card, avatar, chat-block, document] (the producer-class axis)", () => {
   // `document` is the databank source-document class (databank-design/05 §1) — the 4th producer.

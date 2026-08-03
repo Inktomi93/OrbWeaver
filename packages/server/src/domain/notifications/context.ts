@@ -5,7 +5,7 @@
 // that file for the full D60 belt rationale and the `no-direct-users-read` gate this builder satisfies).
 
 import type { Db } from "@orb/db";
-import type { NotificationsContext } from "./contract/service";
+import type { NotificationsContext } from "./contract/service.ts";
 
 export function createNotificationsContext(db: Db, now: () => number): NotificationsContext {
   return { db, now };

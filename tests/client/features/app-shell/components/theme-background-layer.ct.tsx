@@ -9,7 +9,7 @@
 //   • `url={null}` renders nothing (both slots absent).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ThemeBackgroundLayer } from "../../../../../packages/client/src/features/app-shell/components/theme-background-layer";
+import { ThemeBackgroundLayer } from "../../../../../packages/client/src/features/app-shell/components/theme-background-layer.tsx";
 
 const PHOTO = '[data-slot="theme-background-layer"]';
 const SCRIM = '[data-slot="theme-background-scrim"]';

@@ -47,8 +47,8 @@ import { useInvalidation, useTRPC } from "#data";
 import type { CollectionListView } from "#lib";
 import { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT, sortTagsBy } from "#lib";
 import { setTagSortMode, useTagSortMode } from "#state";
-import { usePruneUnusedTags, useSetTagOrder } from "../hooks/use-tag-settings-mutations";
-import { pruneConfirmLabel, tagOrderHint, tagSortItems, unusedTagsLabel, usageTotalLabel } from "../lib/tags-model";
+import { usePruneUnusedTags, useSetTagOrder } from "../hooks/use-tag-settings-mutations.ts";
+import { pruneConfirmLabel, tagOrderHint, tagSortItems, unusedTagsLabel, usageTotalLabel } from "../lib/tags-model.ts";
 
 /** One compact row's height guess for the windowed arm (swatch + name + usage on one line). */
 const ESTIMATED_ROW_PX = 36;

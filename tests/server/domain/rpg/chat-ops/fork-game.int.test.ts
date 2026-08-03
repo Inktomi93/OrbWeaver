@@ -22,13 +22,18 @@ import type { Db } from "@orb/db";
 import { messageVariants, presets } from "@orb/db";
 import type { ChatId, Handle, MessageId, MessageVariantId, PresetId, RpgGameId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { insertCheckpoint, listCheckpoints } from "../../../../../packages/server/src/domain/rpg/persistence/checkpoints";
-import { findGameByChat, insertGame, updateGame } from "../../../../../packages/server/src/domain/rpg/persistence/games";
-import { insertJournalEntry, listAllJournal } from "../../../../../packages/server/src/domain/rpg/persistence/journal";
-import { listSheets, upsertSheet } from "../../../../../packages/server/src/domain/rpg/persistence/sheets";
-import { insertSnapshot, listSnapshots, resolveSnapshotForTurn, writeHandSnapshot } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots";
-import { freshDb } from "../../../../support/db";
-import { emptyState, expect, FROZEN_AT, liteConfig, makeRpgService, seedChat, seedMessage, seedUser, test } from "../_support";
+import { insertCheckpoint, listCheckpoints } from "../../../../../packages/server/src/domain/rpg/persistence/checkpoints.ts";
+import { findGameByChat, insertGame, updateGame } from "../../../../../packages/server/src/domain/rpg/persistence/games.ts";
+import { insertJournalEntry, listAllJournal } from "../../../../../packages/server/src/domain/rpg/persistence/journal.ts";
+import { listSheets, upsertSheet } from "../../../../../packages/server/src/domain/rpg/persistence/sheets.ts";
+import {
+  insertSnapshot,
+  listSnapshots,
+  resolveSnapshotForTurn,
+  writeHandSnapshot,
+} from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { emptyState, expect, FROZEN_AT, liteConfig, makeRpgService, seedChat, seedMessage, seedUser, test } from "../_support.ts";
 
 /** A hidden-span `<lie …/>` the strip must remove. `stripHiddenSpans` deletes the whole self-closing tag, so
  *  the `truth` attr's secret never survives into a non-host forker's copy. */

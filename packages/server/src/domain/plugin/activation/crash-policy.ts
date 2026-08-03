@@ -10,8 +10,8 @@
 // handler throw bumps the counter, a clean run resets it.
 
 import type { PluginId } from "@orb/kit/ids";
-import type { CrashPolicy, PluginContext } from "../contract/service";
-import { incrementCrashes, resetCrashes, setLastError, setStatus } from "../persistence/plugins";
+import type { CrashPolicy, PluginContext } from "../contract/service.ts";
+import { incrementCrashes, resetCrashes, setLastError, setStatus } from "../persistence/plugins.ts";
 
 /** Consecutive guest-invocation crashes before a resident plugin auto-disables (03 §4). A LEAN — the
  *  resolution criterion is measured abuse or measured legitimate flakiness, whichever arrives first. */

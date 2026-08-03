@@ -7,7 +7,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
-import type { BubbleDecoration } from "../lib/message-row-variants";
+import type { BubbleDecoration } from "../lib/message-row-variants.ts";
 
 // `cn` is configured for the DTCG TYPE-SCALE groups only (lib/class-merge.ts) — custom SPACING tokens
 // stay opaque to tailwind-merge, so it doesn't know px-block/py-row conflict with p-*; a p-0 decoration

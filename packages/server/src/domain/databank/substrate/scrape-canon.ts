@@ -10,11 +10,11 @@
 import { documents } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { sha256Hex } from "#kit/content-hash";
-import type { ScrapeName, ScrapeWrite } from "../contract/params";
-import type { UploadResult } from "../contract/results";
-import type { DatabankContext } from "../contract/service";
-import { findByImportHash, toDocumentView } from "../persistence/queries";
-import { queueIngest } from "./queue-ingest";
+import type { ScrapeName, ScrapeWrite } from "../contract/params.ts";
+import type { UploadResult } from "../contract/results.ts";
+import type { DatabankContext } from "../contract/service.ts";
+import { findByImportHash, toDocumentView } from "../persistence/queries.ts";
+import { queueIngest } from "./queue-ingest.ts";
 
 const NAME_MAX = 500;
 

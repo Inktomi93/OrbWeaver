@@ -44,7 +44,7 @@ export type {
   ShapeBreakpointDecision,
   ShapeTrace,
   VariantWireView,
-} from "./assemble";
+} from "./assemble.ts";
 export {
   ASSEMBLY_SOURCES,
   CHAT_INJECTION_ORIGINS,
@@ -52,16 +52,16 @@ export {
   chatInjectionInputSchema,
   SHAPE_BREAKPOINT_DECISIONS,
   sentPromptSchema,
-} from "./assemble";
+} from "./assemble.ts";
 // The two corpus-sweep workload results chat OWNS (the junk-drawer exit: a workload's result shape is
 // authored by the OWNING domain) — `memory-backfill` + `group-character-backfill`.
-export type { BackfillPassResult, MemoryBackfillResult } from "./backfill";
+export type { BackfillPassResult, MemoryBackfillResult } from "./backfill.ts";
 export type {
   BulkImportChatInput,
   BulkImportChatsResult,
   BulkImportMessageInput,
   BulkImportVariantInput,
-} from "./bulk-import";
+} from "./bulk-import.ts";
 export type {
   ChatBusEvent,
   ChatContentPart,
@@ -75,7 +75,7 @@ export type {
   TurnInitiator,
   TurnIntent,
   TurnOrigin,
-} from "./bus";
+} from "./bus.ts";
 export {
   AUTOMATION_DEPTH_HARD_CAP,
   CHAT_BUS_EVENT_TYPES,
@@ -86,17 +86,17 @@ export {
   TURN_ABORTED_OP_CODE,
   TURN_INITIATORS,
   TURN_INTENTS,
-} from "./bus";
-export type { CardTrust, ContentSpansToBlocksOptions, MessageContentBlock, MessageMediaKind, MessageMediaSrc } from "./content-blocks";
+} from "./bus.ts";
+export type { CardTrust, ContentSpansToBlocksOptions, MessageContentBlock, MessageMediaKind, MessageMediaSrc } from "./content-blocks.ts";
 export {
   cardTrustSchema,
   contentSpansToBlocks,
   messageContentBlockSchema,
   messageMediaKindSchema,
   messageMediaSrcSchema,
-} from "./content-blocks";
-export type { ContentClassPolicy } from "./content-classes";
-export { CONTENT_CLASS_POLICY } from "./content-classes";
+} from "./content-blocks.ts";
+export type { ContentClassPolicy } from "./content-classes.ts";
+export { CONTENT_CLASS_POLICY } from "./content-classes.ts";
 export type {
   MessageSlot,
   MessageView,
@@ -104,7 +104,7 @@ export type {
   StandaloneVariableDelta,
   ToolCallRecord,
   UserMacroDraws,
-} from "./messages";
+} from "./messages.ts";
 export {
   messageSlotSchema,
   reattributeScopeSchema,
@@ -114,7 +114,7 @@ export {
   userMacroDrawsSchema,
   variableDeltaSchema,
   varOpSchema,
-} from "./messages";
+} from "./messages.ts";
 export type {
   ChatMetadata,
   GroupConfig,
@@ -124,7 +124,7 @@ export type {
   MemberCardVisibility,
   OpeningPolicy,
   RoomOverrides,
-} from "./metadata";
+} from "./metadata.ts";
 export {
   DEFAULT_GROUP_CONFIG,
   DEFAULT_ROOM_OVERRIDES,
@@ -137,8 +137,8 @@ export {
   memberCardVisibilitySchema,
   openingPolicySchema,
   roomOverridesSchema,
-} from "./metadata";
-export type { ParticipantKind, SpeakerRef } from "./participants";
+} from "./metadata.ts";
+export type { ParticipantKind, SpeakerRef } from "./participants.ts";
 export {
   AI_DRIVEN_KINDS,
   isAiDriven,
@@ -148,22 +148,22 @@ export {
   participantKindSchema,
   speakerKey,
   USER_BACKED_KINDS,
-} from "./participants";
+} from "./participants.ts";
 export type {
   CharacterAvatarEntry,
   CharacterNameEntry,
   ChatMacroNameProducer,
   PersonaAvatarEntry,
   PersonaNameEntry,
-} from "./producers";
+} from "./producers.ts";
 export {
   buildCharacterAvatarMap,
   buildCharacterNameMap,
   buildPersonaAvatarMap,
   buildPersonaNameMap,
-} from "./producers";
+} from "./producers.ts";
 // The PROSE-1 app-tier slot table (census 74-81) — `#prose` imports it to compose `PROSE_SLOTS`.
-export { CHAT_PROSE_SLOTS } from "./prose";
+export { CHAT_PROSE_SLOTS } from "./prose.ts";
 export type {
   AcceptInviteInput,
   CarriedBackground,
@@ -183,7 +183,7 @@ export type {
   RenderPolicyOverride,
   RosterMemberSpec,
   SeatKnobs,
-} from "./roster";
+} from "./roster.ts";
 export {
   acceptInviteSchema,
   characterMemberSpecSchema,
@@ -206,4 +206,4 @@ export {
   soleTrueSoloCharacter,
   TALKATIVENESS_DEFAULT,
   talkativenessSchema,
-} from "./roster";
+} from "./roster.ts";

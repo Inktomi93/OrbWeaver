@@ -17,8 +17,8 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchStmt } from "@orb/db/kit";
 import type { CharacterId, RpgGameId, RpgSheetId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
-import { RpgStateCorruptError } from "../contract/errors";
-import type { RpgSheetRow } from "../contract/service";
+import { RpgStateCorruptError } from "../contract/errors.ts";
+import type { RpgSheetRow } from "../contract/service.ts";
 
 /** Re-validate a sheet row's `sheet` JSON through its contract schema (parse-on-read). */
 function parseSheetRow(row: RpgSheetRow): RpgSheetRow {

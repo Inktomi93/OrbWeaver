@@ -20,7 +20,7 @@ import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { BeatLine, ConfirmDialog, TrackerValue } from "#components";
-import { journalRowLabel } from "../lib/journal-labels";
+import { journalRowLabel } from "../lib/journal-labels.ts";
 
 /** The host's per-beat write callbacks (absent ⇒ the read-only member arm — PERMISSION-omit). */
 export interface BeatEdit {

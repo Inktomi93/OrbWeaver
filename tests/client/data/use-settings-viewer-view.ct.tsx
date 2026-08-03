@@ -6,8 +6,8 @@
 // never block a pane from painting, and the shell re-applies a deep link once visibility grows.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../support/ct/route-trpc";
-import { SettingsViewerViewStory } from "./_ct-stories";
+import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
+import { SettingsViewerViewStory } from "./_ct-stories.tsx";
 
 test("owner and admin both project isAdmin=true", async ({ mount, page }) => {
   await routeTrpc(page, { "sessions.me": { userId: "u_owner", handle: "owner", globalRole: "owner" } });

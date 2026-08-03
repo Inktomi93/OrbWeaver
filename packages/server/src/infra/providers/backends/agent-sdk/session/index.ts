@@ -14,10 +14,10 @@ export {
   sessionContainsSeedPrefix,
   sessionMatchesSeed,
   toSeedTurns,
-} from "./frames";
+} from "./frames.ts";
 export {
   InMemorySessionStore,
   type ReplaceableSessionStore,
   type SeededSessionDecision,
   SessionCache,
-} from "./store";
+} from "./store.ts";

@@ -7,8 +7,8 @@ import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants, pendingTurns } from "@orb/db";
 import type { ChatId, ChatInviteId, ChatParticipantId, PendingTurnId, UserId } from "@orb/kit/ids";
 import { and, asc, count, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
-import { upsertMemberOnJoin } from "./participant";
-import { loadMaxMessageSeq } from "./queries";
+import { upsertMemberOnJoin } from "./participant.ts";
+import { loadMaxMessageSeq } from "./queries.ts";
 
 /** Lookup an invite by its peppered token hash. The validity gate is the verb's + {@link redeemInviteAtomic}. */
 export async function findInviteByTokenHash(db: Db, tokenHash: string): Promise<typeof chatInvites.$inferSelect | undefined> {

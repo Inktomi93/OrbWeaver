@@ -13,8 +13,8 @@
 import type { AssetId, CharacterId, GalleryItemId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { assets } from "./assets";
-import { characters } from "./character";
+import { assets } from "./assets.ts";
+import { characters } from "./character.ts";
 
 export const galleryItems = sqliteTable(
   "gallery_items",

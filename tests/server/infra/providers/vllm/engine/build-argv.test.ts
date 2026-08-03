@@ -8,7 +8,7 @@
 
 import { buildEngineArgv, engineCudaVisibleDevices, resolveEngineLaunchConfig } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 // A representative env floor (the schema defaults) — the parity test proves it tracks the real env.
 const FLOOR = {

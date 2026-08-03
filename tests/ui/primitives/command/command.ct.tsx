@@ -4,7 +4,7 @@
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@orb/ui/command";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { CommandPaletteStory, DerivedItemsStory } from "./command.fixtures";
+import { CommandPaletteStory, DerivedItemsStory } from "./command.fixtures.tsx";
 
 test("typing filters the item list", async ({ mount, page }) => {
   await mount(<CommandPaletteStory />);

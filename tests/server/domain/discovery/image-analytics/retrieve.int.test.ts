@@ -8,7 +8,7 @@ import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeDiscoveryHarness, seedAsset, seedCharacter, seedImageEmbedding, seedUser, vec } from "../_support.ts";
 
 // Seed a character with its OWN avatar asset + an image-raw embedding at `avatarVec`. Optionally distilled

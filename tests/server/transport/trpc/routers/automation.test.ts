@@ -11,7 +11,7 @@ import { castId } from "@orb/kit/ids";
 import type { AutomationService, RuleView } from "@orb/server/domain/automation";
 import type { Context } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const OWNER = castId<UserId>("user_owner");

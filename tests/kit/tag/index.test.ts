@@ -1,5 +1,5 @@
 import { normalizeTagName } from "@orb/kit/tag";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("normalizeTagName trims leading/trailing whitespace", () => {
   expect(normalizeTagName("  Female  ")).toBe("Female");

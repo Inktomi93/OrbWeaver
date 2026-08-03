@@ -9,9 +9,9 @@
 
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { ChatContextHeaderDraftStory, ChatHeaderStory } from "../_ct-stories";
-import { makeMessagesPage } from "../fixtures";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { ChatContextHeaderDraftStory, ChatHeaderStory } from "../_ct-stories.tsx";
+import { makeMessagesPage } from "../fixtures.ts";
 
 const MEMBERS_CHIP_RE = /Members/;
 

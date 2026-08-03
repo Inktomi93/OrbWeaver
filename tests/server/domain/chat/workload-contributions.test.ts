@@ -9,7 +9,7 @@ import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import type { ChatWorkloadDeps } from "../../../../packages/server/src/domain/chat/contract/workloads.ts";
 import { createChatWorkloadContributions } from "../../../../packages/server/src/domain/chat/workload-contributions.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");
 const T0 = 1_700_000_000_000;

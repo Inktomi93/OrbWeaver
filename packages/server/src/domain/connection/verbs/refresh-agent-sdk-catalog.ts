@@ -6,12 +6,12 @@
 // persisted snapshot if one exists (stale-but-serviceable), else throws `AgentSdkCatalogUnavailableError`
 // (flagged, not a silent empty — best-effort, never fake).
 
-import type { ConnectionContext } from "../context";
-import { AgentSdkCatalogUnavailableError } from "../contract/errors";
-import type { RefreshCatalogParams } from "../contract/params";
-import type { AgentSdkCatalogSnapshot } from "../contract/results";
-import type { ConnectionService } from "../contract/service";
-import { persistAgentSdkCatalogSnapshot, readAgentSdkCatalogSnapshot } from "../persistence/agent-sdk-catalog-snapshot";
+import type { ConnectionContext } from "../context.ts";
+import { AgentSdkCatalogUnavailableError } from "../contract/errors.ts";
+import type { RefreshCatalogParams } from "../contract/params.ts";
+import type { AgentSdkCatalogSnapshot } from "../contract/results.ts";
+import type { ConnectionService } from "../contract/service.ts";
+import { persistAgentSdkCatalogSnapshot, readAgentSdkCatalogSnapshot } from "../persistence/agent-sdk-catalog-snapshot.ts";
 
 export function createRefreshAgentSdkCatalog(ctx: ConnectionContext): ConnectionService["refreshAgentSdkCatalog"] {
   return async (params: RefreshCatalogParams): Promise<AgentSdkCatalogSnapshot> => {

@@ -45,9 +45,9 @@ import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../support/db";
-import { seedPersona } from "../../support/factories/persona";
-import { expect, test } from "../../support/fixtures";
+import { freshDb } from "../../support/db.ts";
+import { seedPersona } from "../../support/factories/persona.ts";
+import { expect, test } from "../../support/fixtures.ts";
 import { seedChat, seedUser } from "./_support.ts";
 
 // A fixed clock value (epoch-ms number) for caller-set timestamps — deterministic, no ambient clock.

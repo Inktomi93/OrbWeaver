@@ -13,8 +13,8 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createExportChat } from "../../../../../packages/server/src/domain/export/verbs/export-chat.ts";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedCharacter, seedUser } from "../_support.ts";
 
 const FROZEN_AT = 1_750_000_000_000;

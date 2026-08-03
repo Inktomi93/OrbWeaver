@@ -2,10 +2,10 @@
 // origin. Owner-scoped in the WHERE (fetchOwned). Canon text is NEVER hauled (charCount is derived in SQL);
 // chunk counts come from ONE grouped read over `document_chunks` for the active model. A read: no audit.
 
-import type { ListDocumentsParams } from "../contract/params";
-import type { DatabankContext, DatabankService } from "../contract/service";
-import type { DocumentView } from "../contract/views";
-import { listOwnedMeta, toDocumentView } from "../persistence/queries";
+import type { ListDocumentsParams } from "../contract/params.ts";
+import type { DatabankContext, DatabankService } from "../contract/service.ts";
+import type { DocumentView } from "../contract/views.ts";
+import { listOwnedMeta, toDocumentView } from "../persistence/queries.ts";
 
 const DEFAULT_LIMIT = 100;
 const DEFAULT_OFFSET = 0;

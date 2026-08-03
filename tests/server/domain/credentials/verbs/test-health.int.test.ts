@@ -7,7 +7,7 @@ import { createCredentialsService } from "@orb/server/domain/credentials";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedCredential, seedUser } from "../_support.ts";
 
 const MINUTE_MS = 61_000;

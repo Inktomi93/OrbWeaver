@@ -12,7 +12,7 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { TrackerValue } from "./tracker-value";
+import { TrackerValue } from "./tracker-value.tsx";
 
 export interface AmbientStripProps {
   readonly location?: string;

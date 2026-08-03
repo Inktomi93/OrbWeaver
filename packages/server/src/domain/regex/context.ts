@@ -5,4 +5,4 @@
 // composition root (db + the injected clock/id determinism seam + `audit` pre-bound to db + the chat
 // membership guards + the user-bus emit) — regex sideways-imports none of those.
 
-export type { RegexContext } from "./contract/service";
+export type { RegexContext } from "./contract/service.ts";

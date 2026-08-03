@@ -7,7 +7,7 @@ import {
   openingPolicySchema,
   roomOverridesSchema,
 } from "@orb/contracts/chat";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // ═══ groupConfigSchema — memberCardVisibility default sheet (D22) ════════════════
 

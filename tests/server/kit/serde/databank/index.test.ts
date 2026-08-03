@@ -12,7 +12,7 @@ import { castId } from "@orb/kit/ids";
 import type { CanonicalDocument } from "@orb/server/kit/serde/databank";
 import { buildDocumentFile, DATABANK_SCHEMA_KIND, parseDocumentFile } from "@orb/server/kit/serde/databank";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();

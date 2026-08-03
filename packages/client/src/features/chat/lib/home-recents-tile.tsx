@@ -6,7 +6,7 @@ import { Button } from "@orb/ui/button";
 import { MessagesSquare } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#lib";
 import { setActiveSection } from "#state";
-import { HomeRecentsTileBody } from "../components/home-recents-tile-body";
+import { HomeRecentsTileBody } from "../components/home-recents-tile-body.tsx";
 
 const RECENTS_TILE_ORDER = 10;
 

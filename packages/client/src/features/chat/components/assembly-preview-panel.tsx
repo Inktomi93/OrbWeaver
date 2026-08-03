@@ -30,7 +30,7 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
-import { AssemblyPreviewDiagnostics } from "./assembly-preview-diagnostics";
+import { AssemblyPreviewDiagnostics } from "./assembly-preview-diagnostics.tsx";
 
 export interface AssemblyPreviewPanelProps {
   readonly chatId: ChatId;

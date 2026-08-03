@@ -12,11 +12,11 @@
 // is play, and re-deriving state from play is `resyncFromStory` — a different verb with a different window.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatContext } from "../context";
-import type { ResolveRpgCardCorpus } from "../contract/context";
-import { loadCanonHistory } from "../persistence/queries";
-import { loadRoster } from "../persistence/roster";
-import { hostUserIdOf } from "../substrate/roster-host";
+import type { ChatContext } from "../context.ts";
+import type { ResolveRpgCardCorpus } from "../contract/context.ts";
+import { loadCanonHistory } from "../persistence/queries.ts";
+import { loadRoster } from "../persistence/roster.ts";
+import { hostUserIdOf } from "../substrate/roster-host.ts";
 
 /** The card sections the round reads, in the order a human reads a card. A section with no prose is OMITTED
  *  (a thin card yields a short corpus, never a scaffold of empty headings that teaches the model to invent). */

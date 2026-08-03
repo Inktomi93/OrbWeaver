@@ -11,10 +11,10 @@ import {
   BACKGROUND_BLUR_MIN,
   BACKGROUND_DIM_MAX,
   BACKGROUND_DIM_MIN,
-} from "../../../../../packages/client/src/features/app-shell/lib/appearance-bounds";
-import type { TrpcRecorder, TrpcResponder } from "../../../../support/ct/route-trpc";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { AppearanceBackgroundSectionStory } from "../_ct-stories";
+} from "../../../../../packages/client/src/features/app-shell/lib/appearance-bounds.ts";
+import type { TrpcRecorder, TrpcResponder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { AppearanceBackgroundSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_background", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";

@@ -1,8 +1,8 @@
 // The shared OpenAI chat-completions stream reducer + view→ChatResult mapper + raw-SSE line parser.
 // Isolation seam: openrouter/custom-byo (and any future OpenAI-compatible backend) import these down.
 
-import type { ChatResult, ChatUsage, ToolCallInput } from "../../../contract";
-import { normalizeFinishReason } from "../../../contract";
+import type { ChatResult, ChatUsage, ToolCallInput } from "../../../contract/index.ts";
+import { normalizeFinishReason } from "../../../contract/index.ts";
 import type {
   ChatCompletionResult,
   ChatCompletionStreamChunk,
@@ -10,8 +10,8 @@ import type {
   ChatCompletionUsage,
   ChatMessageToolCall,
   ChatToolCallDelta,
-} from "../wire-schemas";
-import { collectReasoningDetailsText, extractChatReasoning, extractChatReply } from "../wire-schemas";
+} from "../wire-schemas.ts";
+import { collectReasoningDetailsText, extractChatReasoning, extractChatReply } from "../wire-schemas.ts";
 
 export interface StreamDelta {
   readonly kind: "text" | "reasoning";

@@ -19,7 +19,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { openModal, selectChatFromList, setActiveSection } from "#state";
-import { ChatSummaryRow } from "./chat-summary-row";
+import { ChatSummaryRow } from "./chat-summary-row.tsx";
 
 const RECENTS_LIMIT = 8;
 

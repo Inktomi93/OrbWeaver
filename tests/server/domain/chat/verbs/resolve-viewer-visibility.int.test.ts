@@ -14,9 +14,9 @@ import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { NO_HISTORY_FLOOR } from "../../../../../packages/server/src/domain/chat/substrate/auth/clamp.ts";
 import { createResolveViewerVisibility } from "../../../../../packages/server/src/domain/chat/verbs/resolve-viewer-visibility.ts";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { seedChat, seedParticipant, seedUser } from "../_support";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 

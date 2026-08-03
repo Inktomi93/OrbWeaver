@@ -23,8 +23,8 @@ import {
   useRemoveCredential,
   useSetActiveCredential,
   useTestCredentialHealth,
-} from "../hooks/use-connections-mutations";
-import { EndpointInspectorDialog } from "./endpoint-inspector-dialog";
+} from "../hooks/use-connections-mutations.ts";
+import { EndpointInspectorDialog } from "./endpoint-inspector-dialog.tsx";
 
 type CredentialListItem = inferOutput<Trpc["credentials"]["list"]>[number];
 

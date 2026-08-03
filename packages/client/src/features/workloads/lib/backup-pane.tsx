@@ -5,8 +5,8 @@
 
 import { Archive } from "@orb/ui/icons";
 import type { SettingsPaneDefinition } from "#state";
-import { BackupSettingsSurface } from "../surfaces/backup-settings-surface";
-import { BACKUP_SUBCATEGORY_IDS } from "./backup-nav";
+import { BackupSettingsSurface } from "../surfaces/backup-settings-surface.tsx";
+import { BACKUP_SUBCATEGORY_IDS } from "./backup-nav.ts";
 
 export const backupPane: SettingsPaneDefinition = {
   id: "backup",

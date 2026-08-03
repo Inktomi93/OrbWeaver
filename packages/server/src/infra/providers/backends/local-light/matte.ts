@@ -6,8 +6,8 @@
 // local-light op and passes it to expressions ONLY when local-light is configured. If a SECOND matte backend
 // ever matters, the D39 role-add template applies and `matte` becomes a real role.
 
-import type { LocalLightModelCache } from "./model-cache";
-import { resolveModelId, throwIfAborted } from "./model-cache";
+import type { LocalLightModelCache } from "./model-cache.ts";
+import { resolveModelId, throwIfAborted } from "./model-cache.ts";
 
 /** The canonical transformers.js background-removal ONNX model (image-segmentation; marinara's
  *  `tryRemoveBackgroundWithBackgroundRemover` capability analog). Overridable via `opts.model`. */

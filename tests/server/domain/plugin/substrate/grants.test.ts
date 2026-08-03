@@ -4,7 +4,7 @@
 
 import { describe } from "vitest";
 import { newlyDeclaredCapabilities, normalizeGrant, ungrantableCapabilities } from "../../../../../packages/server/src/domain/plugin/substrate/grants.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("ungrantableCapabilities", () => {
   test("a grant ⊆ declared is valid (empty result)", () => {

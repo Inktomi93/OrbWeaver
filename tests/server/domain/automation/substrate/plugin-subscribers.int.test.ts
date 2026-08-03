@@ -22,7 +22,7 @@ import { createAutomationService, createPluginSubscriberRegistry } from "../../.
 import { createResolveViewerVisibility } from "../../../../../packages/server/src/domain/chat/verbs/resolve-viewer-visibility.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedCharacter } from "../../../../support/factories/character.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedChat, seedMessage, seedParticipant } from "../../chat/_support.ts";
 import { makeAutomationHarness, seedHostChat, seedUser } from "../_support.ts";
 

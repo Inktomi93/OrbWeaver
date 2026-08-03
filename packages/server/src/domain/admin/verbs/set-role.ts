@@ -5,12 +5,12 @@
 import { users } from "@orb/db";
 import { DomainConflictError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { and, eq, ne } from "drizzle-orm";
-import type { AdminContext } from "../context";
-import { ADMIN_OP_CODES } from "../contract/errors";
-import type { SetRoleParams } from "../contract/params";
-import type { AdminService } from "../contract/service";
-import { requireOwner } from "../guard";
-import { loadUser, userCols } from "../persistence/queries";
+import type { AdminContext } from "../context.ts";
+import { ADMIN_OP_CODES } from "../contract/errors.ts";
+import type { SetRoleParams } from "../contract/params.ts";
+import type { AdminService } from "../contract/service.ts";
+import { requireOwner } from "../guard.ts";
+import { loadUser, userCols } from "../persistence/queries.ts";
 
 const OWNER_ROLE = "owner";
 

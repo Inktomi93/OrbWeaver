@@ -8,7 +8,7 @@
 // anchor+keywords facets), blank-line separated, token-bounded.
 
 import type { BlockKey } from "@orb/contracts/search";
-import type { DigestRow } from "../types";
+import type { DigestRow } from "../types.ts";
 
 /** The stable string identity of a {@link BlockKey} (the `byKey` map key). */
 export function blockKeyStr(k: BlockKey): string {

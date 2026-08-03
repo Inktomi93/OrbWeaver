@@ -4,15 +4,15 @@
 // provenance. The dry-run env has the author's own globals (automation owns the plane) + a chat message
 // count; live chat vars/choice are empty in A4 (the dispatch threads them in A5).
 
-import type { TestRuleParams } from "../contract/params";
-import type { TestRunResult } from "../contract/results";
-import type { AutomationContext, AutomationService } from "../contract/service";
-import { requireRuleHost } from "../guard";
-import { countChatMessages } from "../persistence/canon-reads";
-import { insertFire } from "../persistence/fires";
-import { listGlobalVariables } from "../persistence/queries";
-import { toRuleView } from "../persistence/rules";
-import { emptyDryRunEnv, evaluatePredicate, renderArmPreview, synthFact } from "../substrate/dry-run";
+import type { TestRuleParams } from "../contract/params.ts";
+import type { TestRunResult } from "../contract/results.ts";
+import type { AutomationContext, AutomationService } from "../contract/service.ts";
+import { requireRuleHost } from "../guard.ts";
+import { countChatMessages } from "../persistence/canon-reads.ts";
+import { insertFire } from "../persistence/fires.ts";
+import { listGlobalVariables } from "../persistence/queries.ts";
+import { toRuleView } from "../persistence/rules.ts";
+import { emptyDryRunEnv, evaluatePredicate, renderArmPreview, synthFact } from "../substrate/dry-run.ts";
 
 export function createTestRule(ctx: AutomationContext): AutomationService["testRule"] {
   return async ({ principal, ruleId, sampleEvent }: TestRuleParams): Promise<TestRunResult> => {

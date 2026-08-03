@@ -1,7 +1,7 @@
 import { MODE_RESOLVERS } from "@orb/server/infra/auth";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
-import { makeAuthConfig as cfg, headers } from "../_support";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeAuthConfig as cfg, headers } from "../_support.ts";
 
 // `single-user` mode resolver — ALWAYS null: it never gates, never reads a cookie/header, and delegates
 // entirely to the UNCONDITIONAL owner fallback in `resolve`. The load-bearing invariant is that it does

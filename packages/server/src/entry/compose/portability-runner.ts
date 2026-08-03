@@ -28,7 +28,7 @@ import type { TagContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
 import { stageDirectory } from "#infra/storage";
-import type { ImportWorldInfoPort } from "../import";
+import type { ImportWorldInfoPort } from "../import/index.ts";
 import {
   createNodeFsImportPort,
   IMPORT_MAX_DECOMPRESSED_BYTES,
@@ -36,8 +36,8 @@ import {
   importStagedArchive,
   runBundleImport,
   runProfileDirImport,
-} from "../import";
-import { buildPortabilityRegistry } from "./portability";
+} from "../import/index.ts";
+import { buildPortabilityRegistry } from "./portability.ts";
 
 /** Repo-root ST profile snapshot (gitignored) — the `import-st` default when no `stProfileDir` is set. */
 const DEFAULT_ST_PROFILE_DIR = ".st-data";

@@ -18,8 +18,8 @@
 // table of identical rows. A future member is handled by that split with no site to update.
 
 import type { WorkloadId } from "@orb/kit/ids";
-import type { WorkloadKind, WorkloadStatus } from "./axes";
-import type { WorkloadProgress } from "./execution";
+import type { WorkloadKind, WorkloadStatus } from "./axes.ts";
+import type { WorkloadProgress } from "./execution.ts";
 
 /** Each arm has exactly ONE producing site: `runtime` (the engine dispatch catch), `cancelled` (an abort
  *  observed), `worker_died` (the reaper only), `dependency_failed` (the DAG scheduler predicate, which fails

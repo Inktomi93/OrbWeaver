@@ -7,7 +7,7 @@
 
 import { __readHomeTileBoxForTest, __resetHomeTileBoxes, rememberHomeTileBox } from "@orb/client/state";
 import { beforeEach, describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const TILE = "chat.recents";
 

@@ -31,8 +31,8 @@ import {
   openGroupBehaviorSection,
   openMemberRowMenu,
   typeAndSend,
-} from "./support/chat-room";
-import { assistantTurns, characterSeats, deleteChat, getGroupConfig, mintFreshCharacter, removeCharacter, startGroupChat } from "./support/trpc";
+} from "./support/chat-room.ts";
+import { assistantTurns, characterSeats, deleteChat, getGroupConfig, mintFreshCharacter, removeCharacter, startGroupChat } from "./support/trpc.ts";
 
 const CAST = [
   { handle: castId<CharacterHandle>("e2e-hub-alpha"), name: "Hubspec Alpha" },

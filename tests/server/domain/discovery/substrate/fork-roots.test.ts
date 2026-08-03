@@ -3,7 +3,7 @@
 
 import { describe } from "vitest";
 import { forkRoots } from "../../../../../packages/server/src/domain/discovery/substrate/fork-roots.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("forkRoots", () => {
   test("resolves a fork chain to the topmost root", () => {

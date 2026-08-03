@@ -43,12 +43,12 @@ import type { AuditEntry } from "#foundation/observability";
 import type { ImageAdapter } from "#infra/image";
 import type { RoleClientsWithSignal } from "#infra/providers";
 import type { Cas, VariantCache } from "#infra/storage";
-import { publishUserEvent } from "../../transport/trpc";
-import type { DefaultPersonaSeeder } from "../boot";
-import { createDefaultPersonaSeeder } from "../boot";
-import { readSeedAvatar, readSeedGalleryPiece } from "../boot/seed-assets";
-import { createMaterializeBackground } from "./materialize-background";
-import { minter } from "./minter";
+import { publishUserEvent } from "../../transport/trpc/index.ts";
+import type { DefaultPersonaSeeder } from "../boot/index.ts";
+import { createDefaultPersonaSeeder } from "../boot/index.ts";
+import { readSeedAvatar, readSeedGalleryPiece } from "../boot/seed-assets/index.ts";
+import { createMaterializeBackground } from "./materialize-background.ts";
+import { minter } from "./minter.ts";
 
 /** What the assets/character seam needs from the composition root. `getPreset`/`getPersona` are the request-time
  *  forward-ref getters (those services compose later); `materializeBackground` is the keystone's late-bound holder

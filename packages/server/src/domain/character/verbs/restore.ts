@@ -5,13 +5,13 @@
 // leak), as does a non-owned character.
 
 import { cardContentHash } from "#kit/serde/card";
-import type { CharacterContext } from "../context";
-import { CharacterNotFoundError } from "../contract/errors";
-import type { RestoreParams } from "../contract/params";
-import type { CharacterService } from "../contract/service";
-import { appendSnapshot, writeCardInPlace } from "../persistence/card";
-import { canonicalTagsOf, cardOf, detailOf, loadOwnedCharacterRow, loadOwnedCharacterWithAvatar, loadSnapshotContent } from "../persistence/queries";
-import { cardTokenSize } from "../substrate/card-tokens";
+import type { CharacterContext } from "../context.ts";
+import { CharacterNotFoundError } from "../contract/errors.ts";
+import type { RestoreParams } from "../contract/params.ts";
+import type { CharacterService } from "../contract/service.ts";
+import { appendSnapshot, writeCardInPlace } from "../persistence/card.ts";
+import { canonicalTagsOf, cardOf, detailOf, loadOwnedCharacterRow, loadOwnedCharacterWithAvatar, loadSnapshotContent } from "../persistence/queries.ts";
+import { cardTokenSize } from "../substrate/card-tokens.ts";
 
 const PRE_RESTORE_LABEL = "auto: before restore";
 

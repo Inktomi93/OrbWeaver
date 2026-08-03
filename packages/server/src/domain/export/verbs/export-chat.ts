@@ -15,11 +15,11 @@ import type { ChatId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { ParsedChat, ParsedChatMessage, ParsedVariant } from "#kit/serde/chat";
 import { buildChatJsonl, buildChatTxt, classifyChat } from "#kit/serde/chat";
-import type { ExportContext } from "../context";
-import type { ExportChatParams } from "../contract/params";
-import type { ExportedText } from "../contract/results";
-import type { ExportService } from "../contract/service";
-import { slug } from "../substrate/download-slug";
+import type { ExportContext } from "../context.ts";
+import type { ExportChatParams } from "../contract/params.ts";
+import type { ExportedText } from "../contract/results.ts";
+import type { ExportService } from "../contract/service.ts";
+import { slug } from "../substrate/download-slug.ts";
 
 type ChatRow = typeof chats.$inferSelect;
 type VariantRow = typeof messageVariants.$inferSelect;

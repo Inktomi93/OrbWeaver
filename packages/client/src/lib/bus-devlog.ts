@@ -5,8 +5,8 @@
 // and a duplicate-invalidate alarm (the storm signature). IS_DEV-gated; inert in prod.
 
 import type { ChatId } from "@orb/kit/ids";
-import { IS_DEV } from "./dev-flag";
-import { logClock } from "./log-clock";
+import { IS_DEV } from "./dev-flag.ts";
+import { logClock } from "./log-clock.ts";
 
 // %c DevTools console styles (not UI theme tokens — the token gates scope to feature/ui TSX).
 const PREFIX_STYLE = "color:#888;font-weight:bold";

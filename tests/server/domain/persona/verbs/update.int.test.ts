@@ -9,7 +9,7 @@ import { AssetNotFoundError, createPersonaService, PersonaNotFoundError } from "
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedAsset, seedUser } from "../_support.ts";
 
 const ONE_MINUTE = 60_000;

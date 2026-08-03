@@ -6,8 +6,8 @@ import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import type { Principal } from "@orb/contracts/identity";
 import type { ErrorHandler, MiddlewareHandler } from "hono";
-import { bindRequestUser, getLog, getRequestUserId, recordRequest, runInRequest } from "./logger";
-import { recordThrownRequest, withRequestSpan } from "./tracing";
+import { bindRequestUser, getLog, getRequestUserId, recordRequest, runInRequest } from "./logger.ts";
+import { recordThrownRequest, withRequestSpan } from "./tracing.ts";
 
 const DEBUG_PREFIX = "/api/_debug";
 const INTERNAL_ERROR_STATUS = 500;

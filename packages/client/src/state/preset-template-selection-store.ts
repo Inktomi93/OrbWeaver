@@ -14,7 +14,7 @@
 // cake, so the vocabulary stays in `features/preset/lib/template-rows.ts` exactly as the rack section id's
 // does. Device-transient, never persisted.
 
-import { createDrillSelectionStore } from "./create-drill-selection-store";
+import { createDrillSelectionStore } from "./create-drill-selection-store.ts";
 
 const templateSelection = createDrillSelectionStore<string>("preset-template-selection");
 

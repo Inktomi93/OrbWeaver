@@ -19,7 +19,7 @@ import {
 } from "@orb/contracts/rpg";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("actor ref parses all three lite arms (character/user/cast)", () => {
   const characterId = mintTypeId(ID_PREFIX.character);

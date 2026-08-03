@@ -1,7 +1,7 @@
 // domain/stats/substrate/rates — pure read-layer rate math (zero I/O). Rollup columns stay additively
 // mergeable; the ratios a dashboard wants are not additive, so they're derived here on read, never stored.
 
-import type { ExtraStats } from "../contract/views";
+import type { ExtraStats } from "../contract/views.ts";
 
 /** 0 when the denominator is non-positive (avoids NaN/Infinity from an empty rollup). */
 export function div(a: number, b: number): number {

@@ -12,7 +12,7 @@ import {
   NULL_HUB_FALLBACK,
   rerankPoolByScores,
 } from "../../../../../packages/server/src/domain/search/substrate/csls.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("cslsAdjust", () => {
   test("is max(0, distance − 1 + hubScore) — the demote-only clamp", () => {

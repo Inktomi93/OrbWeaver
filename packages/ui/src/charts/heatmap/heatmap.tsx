@@ -3,14 +3,14 @@
 // decomposed into histogram + bar-list because no heatmap primitive existed (north-star §6.4). The
 // gradient rides `useChartTheme` tokens, so a custom theme retints every cell.
 import type { ReactElement } from "react";
-import type { OrbEChartsInstance } from "../chart";
-import { Chart } from "../chart";
-import { useChartTheme } from "../chart/use-chart-theme";
-import { LabeledChartFrame } from "../labeled-chart-frame";
-import type { HeatmapMatrix } from "./option";
-import { buildHeatmapOption } from "./option";
+import type { OrbEChartsInstance } from "../chart/index.ts";
+import { Chart } from "../chart/index.ts";
+import { useChartTheme } from "../chart/use-chart-theme.ts";
+import { LabeledChartFrame } from "../labeled-chart-frame/index.ts";
+import type { HeatmapMatrix } from "./option.ts";
+import { buildHeatmapOption } from "./option.ts";
 
-export type { HeatmapMatrix } from "./option";
+export type { HeatmapMatrix } from "./option.ts";
 
 const DEFAULT_HEIGHT_PX = 260;
 

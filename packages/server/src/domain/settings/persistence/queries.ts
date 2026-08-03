@@ -9,8 +9,8 @@ import type { UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { eq } from "drizzle-orm";
-import { APP_SETTINGS_KEY } from "../contract/keys";
-import type { GlobalSettingView, UserSettingsView } from "../contract/views";
+import { APP_SETTINGS_KEY } from "../contract/keys.ts";
+import type { GlobalSettingView, UserSettingsView } from "../contract/views.ts";
 
 /** Read this user's typed/defaulted UserSettings. A never-touched account returns parsed defaults with no
  *  write (updatedAt: 0) — materializing the row is ensureUserSettings. */

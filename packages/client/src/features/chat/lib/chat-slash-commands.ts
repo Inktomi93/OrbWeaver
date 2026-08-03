@@ -7,7 +7,7 @@
 
 import { Plus } from "@orb/ui/icons";
 import type { SlashCommandContribution } from "#lib";
-import { SlashNewChatMount } from "../components/slash-new-chat-mount";
+import { SlashNewChatMount } from "../components/slash-new-chat-mount.tsx";
 
 /** `/new-chat` — opens the new-chat character picker (the palette's former hardcoded "New chat" row). */
 const newChatCommand: SlashCommandContribution = {

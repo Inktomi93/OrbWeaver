@@ -7,7 +7,7 @@
 
 import { Users } from "@orb/ui/icons";
 import type { SlashCommandContribution } from "#lib";
-import { SlashNewCharacterMount } from "../components/slash-new-character-mount";
+import { SlashNewCharacterMount } from "../components/slash-new-character-mount.tsx";
 
 /** `/new-character` — opens the Characters section (the palette's former hardcoded "New character" row). */
 const newCharacterCommand: SlashCommandContribution = {

@@ -3,7 +3,7 @@
 // the two invariants that keep the text canon (no intra-line trim, no case folding).
 
 import { normalizeText } from "../../../../packages/server/src/infra/extraction/normalize.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const BOM = "\uFEFF";
 

@@ -7,10 +7,10 @@ import type { Db } from "@orb/db";
 import { assets, characters, chatParticipants, digestThemeAssignments, themeClusters } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { and, asc, desc, eq, isNotNull, notExists, sql } from "drizzle-orm";
-import type { DiscoveryContext } from "../context";
-import type { ThemeLevel } from "../contract/params";
-import type { ThemeDriftBucket, ThemeDriftTheme, UnusedCharacter } from "../contract/results";
-import type { DiscoveryService } from "../contract/service";
+import type { DiscoveryContext } from "../context.ts";
+import type { ThemeLevel } from "../contract/params.ts";
+import type { ThemeDriftBucket, ThemeDriftTheme, UnusedCharacter } from "../contract/results.ts";
+import type { DiscoveryService } from "../contract/service.ts";
 
 const THEME_DRIFT_TOP = 6;
 

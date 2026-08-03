@@ -4,8 +4,8 @@
 // (from,to) reproduces the array the user actually sees. We assert on the RESULT array (not the pair),
 // because an adjacent swap is legitimately recoverable from either end.
 
-import { diffMove } from "../../../../../../packages/client/src/features/preset/components/prompt-assembly/reorder-move";
-import { expect, test } from "../../../../../support/fixtures";
+import { diffMove } from "../../../../../../packages/client/src/features/preset/components/prompt-assembly/reorder-move.ts";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 // Faithful arrayMove — the exact splice-out/splice-in both @dnd-kit and TanStack form apply.
 function arrayMove<T>(arr: readonly T[], from: number, to: number): T[] {

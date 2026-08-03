@@ -6,7 +6,7 @@
 // doctrine — `@orb/contracts/role-clients`). The keying is exhaustive over `SearchTarget`: a new target
 // without an entry fails `tsc` (the `satisfies Record<SearchTarget, …>` pin).
 
-import type { SearchTarget } from "../contract/params";
+import type { SearchTarget } from "../contract/params.ts";
 
 interface ScopeInstructions {
   /** The asymmetric-retrieval task hint folded into the embedded query. */

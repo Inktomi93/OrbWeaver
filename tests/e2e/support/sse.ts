@@ -17,7 +17,7 @@
 // consumer receives IS what a member receives, byte for byte.
 
 import type { ChatId } from "@orb/kit/ids";
-import type { ChatBusEventLite } from "./sse-types";
+import type { ChatBusEventLite } from "./sse-types.ts";
 
 /** One collected room value — the durable `seq` cursor carried INSIDE the frame + the yielded event. */
 export interface StreamValue {

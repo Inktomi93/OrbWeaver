@@ -22,8 +22,8 @@
  *       pnpm tsx scripts/codemods/export-rot-cleanup.ts --apply
  */
 
-import type { CodemodContext, ExportDeclaration, Plan, SourceFile, TextReplacement } from "./codemod-kit";
-import { applyTextReplacements, assert, deleteFiles, findExportedDeclaration, Node, renameExportedSymbol, runCodemod, SyntaxKind } from "./codemod-kit";
+import type { CodemodContext, ExportDeclaration, Plan, SourceFile, TextReplacement } from "./codemod-kit.ts";
+import { applyTextReplacements, assert, deleteFiles, findExportedDeclaration, Node, renameExportedSymbol, runCodemod, SyntaxKind } from "./codemod-kit.ts";
 
 // ── The table, as data ───────────────────────────────────────────────────────
 

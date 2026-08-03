@@ -38,7 +38,7 @@ import { describe, vi } from "vitest";
 import { freshDb } from "../../../support/db.ts";
 import { seedCharacter } from "../../../support/factories/character.ts";
 import { seedUser } from "../../../support/factories/user.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { loadRunnableWorkload, makeRunnerDeps } from "../../domain/workloads/_support.ts";
 
 // This suite builds TWO full service graphs (source `app` fixture + a fresh target box) and drives a real

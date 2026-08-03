@@ -7,17 +7,17 @@
 // The empty-allowlist short-circuit is the trigger-discipline mirror: a bankless scope returns [] with ZERO
 // embed calls, so a chat with no attached documents does zero databank work per turn, forever.
 
-import type { SearchContext } from "../context";
-import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors";
-import type { DocumentSearchParams } from "../contract/params";
-import type { DocumentChunkHit } from "../contract/results";
-import type { SearchService } from "../contract/service";
-import { nearestDocumentChunks } from "../persistence/nearest";
-import { DEFAULT_DOCUMENT_K, DEFAULT_DOCUMENT_MIN_SCORE, OWNER_OVERFETCH, SCOPED_POOL_K } from "../substrate/constants";
-import { compareCslsBy, cslsAdjust } from "../substrate/csls";
-import { collapseByContentHash } from "../substrate/dedupe";
-import { SCOPE_INSTRUCTIONS } from "../substrate/instructions";
-import { applyRerank } from "../substrate/rerank";
+import type { SearchContext } from "../context.ts";
+import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
+import type { DocumentSearchParams } from "../contract/params.ts";
+import type { DocumentChunkHit } from "../contract/results.ts";
+import type { SearchService } from "../contract/service.ts";
+import { nearestDocumentChunks } from "../persistence/nearest.ts";
+import { DEFAULT_DOCUMENT_K, DEFAULT_DOCUMENT_MIN_SCORE, OWNER_OVERFETCH, SCOPED_POOL_K } from "../substrate/constants.ts";
+import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
+import { collapseByContentHash } from "../substrate/dedupe.ts";
+import { SCOPE_INSTRUCTIONS } from "../substrate/instructions.ts";
+import { applyRerank } from "../substrate/rerank.ts";
 
 interface DocumentCandidate {
   /** The rerank runner keys on `id`; the chunk id is unique so it doubles as the candidate id. */

@@ -8,8 +8,8 @@
 // never be color-alone meaning here, because every segment has a matching labelled text row beside it.
 import type { ReactElement } from "react";
 import { cn } from "#lib";
-import type { TrackColor } from "./track-bar";
-import { segmentBarVariants, TRACK_FILL } from "./variants";
+import type { TrackColor } from "./track-bar.tsx";
+import { segmentBarVariants, TRACK_FILL } from "./variants.ts";
 
 /** One series' share of the whole. `value` is in the caller's own unit (tokens, bytes, rows) — the widths are
  *  computed as a fraction, so the unit never reaches this component. */

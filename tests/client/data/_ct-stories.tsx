@@ -28,7 +28,7 @@ import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { CtDataProviders } from "../../support/ct/ct-data-providers";
+import { CtDataProviders } from "../../support/ct/ct-data-providers.tsx";
 
 /** SettingsViewerViewStory — the ONE home of the `SettingsViewerView` projection a settings `when`
  *  predicate consumes (SET-SEAMS §5). NON-suspense on purpose: gating must never block a pane from

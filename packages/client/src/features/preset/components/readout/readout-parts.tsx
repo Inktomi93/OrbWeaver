@@ -14,9 +14,9 @@ import type { ModelCapability } from "@orb/contracts/connection";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import type { EffectiveProfileRow } from "../../lib/effective-knobs";
-import { knobLabel, provenanceSuffix, resolvedForLabel } from "../../lib/effective-knobs";
-import { formatCount } from "../../lib/format-count";
+import type { EffectiveProfileRow } from "../../lib/effective-knobs.ts";
+import { knobLabel, provenanceSuffix, resolvedForLabel } from "../../lib/effective-knobs.ts";
+import { formatCount } from "../../lib/format-count.ts";
 
 /** ONE number format across the whole readout (side-eye F-29): a cluster printed `1,500` beside `8192`
  *  because two producers formatted independently. Integers ≥ 10 000 group; a fraction prints as authored

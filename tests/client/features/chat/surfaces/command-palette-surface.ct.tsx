@@ -8,9 +8,9 @@
 // a build with zero registrants degrades to exactly the two navigation groups.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { CommandPaletteSurfaceStory } from "../_ct-stories";
-import { makeChatSummary } from "../fixtures";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { CommandPaletteSurfaceStory } from "../_ct-stories.tsx";
+import { makeChatSummary } from "../fixtures.ts";
 
 const ADVENTURE = makeChatSummary({
   id: "chat_adventure",

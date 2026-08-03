@@ -3,10 +3,10 @@
 // Chat/roster/memory inject this and call it per roster member; a `null` is "skip, not an error" (a throw
 // would break the roster loop). A read: no audit, no emit.
 
-import type { CharacterContext } from "../context";
-import type { GetCardParams } from "../contract/params";
-import type { CharacterService } from "../contract/service";
-import { cardOf, loadOwnedCharacterRow } from "../persistence/queries";
+import type { CharacterContext } from "../context.ts";
+import type { GetCardParams } from "../contract/params.ts";
+import type { CharacterService } from "../contract/service.ts";
+import { cardOf, loadOwnedCharacterRow } from "../persistence/queries.ts";
 
 export function createGetCard(ctx: CharacterContext): CharacterService["getCard"] {
   return async ({ principal, characterId }: GetCardParams) => {

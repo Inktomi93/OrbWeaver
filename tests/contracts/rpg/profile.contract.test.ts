@@ -11,7 +11,7 @@ import {
   RPG_PROFILE_SPECIAL,
   rpgStatProfileSchema,
 } from "@orb/contracts/rpg";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("all three packaged profiles are shipped and parse against the schema", () => {
   expect(RPG_PACKAGED_PROFILES).toEqual(["freeform", "d20", "special"]);

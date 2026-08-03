@@ -8,13 +8,13 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { goToLanding, useTurnSpeakerCharacterId } from "#state";
-import { useKickMember, useNominateHostHandoff, useSelfLeave, useSetMemberHistoryVisibility } from "../hooks/use-membership-mutations";
-import { useForceCharacterTurn, useRemoveCharacterFromChat, useSetSeatKnobs } from "../hooks/use-roster-mutations";
-import type { MemberCastRow, MemberPersonRow } from "../lib/member-rows";
-import { filterCharacters, resolveHumanParticipants } from "../lib/roster";
-import { InviteDialog } from "./invite-dialog";
-import { MemberCardViewer } from "./member-card-viewer";
-import { MembersPanel } from "./members-panel";
+import { useKickMember, useNominateHostHandoff, useSelfLeave, useSetMemberHistoryVisibility } from "../hooks/use-membership-mutations.ts";
+import { useForceCharacterTurn, useRemoveCharacterFromChat, useSetSeatKnobs } from "../hooks/use-roster-mutations.ts";
+import type { MemberCastRow, MemberPersonRow } from "../lib/member-rows.ts";
+import { filterCharacters, resolveHumanParticipants } from "../lib/roster.ts";
+import { InviteDialog } from "./invite-dialog.tsx";
+import { MemberCardViewer } from "./member-card-viewer.tsx";
+import { MembersPanel } from "./members-panel.tsx";
 
 function toPersonRows(participants: readonly ParticipantView[], viewerUserId: UserId | null, pendingHostUserId: UserId | null): MemberPersonRow[] {
   const rows: MemberPersonRow[] = [];

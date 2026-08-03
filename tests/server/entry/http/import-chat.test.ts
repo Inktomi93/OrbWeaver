@@ -14,7 +14,7 @@ import { castId } from "@orb/kit/ids";
 import type { ImportChatDeps } from "@orb/server/entry/http";
 import { registerImportChat } from "@orb/server/entry/http";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER: Principal = {
   userId: castId<UserId>("usr_owner"),

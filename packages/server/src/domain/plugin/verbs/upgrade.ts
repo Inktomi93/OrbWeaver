@@ -9,12 +9,12 @@
 // row `disabled` (the owner re-enables, re-confirming). WITHOUT new caps, a plugin that was ENABLED is
 // re-activated on the NEW bundle (the enabled state is preserved — only a superset forces re-confirmation).
 
-import { ManifestInvalidError, PluginDowngradeRefusedError, PluginNotFoundError } from "../contract/errors";
-import type { UpgradePluginParams } from "../contract/params";
-import type { ActivationDeps, PluginContext, PluginService } from "../contract/service";
-import { applyUpgrade, getById, toPluginView } from "../persistence/plugins";
-import { newlyDeclaredCapabilities, normalizeGrant } from "../substrate/grants";
-import { isVersionDowngrade, PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest";
+import { ManifestInvalidError, PluginDowngradeRefusedError, PluginNotFoundError } from "../contract/errors.ts";
+import type { UpgradePluginParams } from "../contract/params.ts";
+import type { ActivationDeps, PluginContext, PluginService } from "../contract/service.ts";
+import { applyUpgrade, getById, toPluginView } from "../persistence/plugins.ts";
+import { newlyDeclaredCapabilities, normalizeGrant } from "../substrate/grants.ts";
+import { isVersionDowngrade, PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest.ts";
 
 export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginService["upgrade"] {
   return async ({ caller, pluginId, bundle }: UpgradePluginParams) => {

@@ -8,11 +8,11 @@ import { SettingsShell } from "@orb/client/features/settings";
 import { openSettingsTo } from "@orb/client/state";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { SchedulesSection } from "../../../../packages/client/src/features/workloads/components/schedules-section";
-import { WorkloadsJobsSection } from "../../../../packages/client/src/features/workloads/components/workloads-jobs-section";
-import { WorkloadsTuningSection } from "../../../../packages/client/src/features/workloads/components/workloads-tuning-section";
-import { BackupSettingsSurface } from "../../../../packages/client/src/features/workloads/surfaces/backup-settings-surface";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
+import { SchedulesSection } from "../../../../packages/client/src/features/workloads/components/schedules-section.tsx";
+import { WorkloadsJobsSection } from "../../../../packages/client/src/features/workloads/components/workloads-jobs-section.tsx";
+import { WorkloadsTuningSection } from "../../../../packages/client/src/features/workloads/components/workloads-tuning-section.tsx";
+import { BackupSettingsSurface } from "../../../../packages/client/src/features/workloads/surfaces/backup-settings-surface.tsx";
+import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The app-root shape: ONE socket, above every room hook. Since SSE-1 S5 an active workload row has no
  *  subscription of its own — it JOINS a `workloads` ROOM on the tab's one socket, so the socket has to be

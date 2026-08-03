@@ -13,7 +13,7 @@ import { describe } from "vitest";
 import type { PluginHostPort } from "../../../../../packages/server/src/domain/plugin/contract/service.ts";
 import { createRunSnippet } from "../../../../../packages/server/src/domain/plugin/verbs/run-snippet.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makePluginHarness, principalFor, seedUser } from "../_support.ts";
 
 const CHAT = castId<ChatId>("chat_test0000000000000000000");

@@ -9,9 +9,9 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach } from "vitest";
 import { createResolveCanonWindow } from "../../../../../packages/server/src/domain/chat/verbs/resolve-canon-window.ts";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedMessage, seedPersona, seedUser } from "../_support";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeChatContext, seedCharacter, seedChat, seedMessage, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
 

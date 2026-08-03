@@ -7,7 +7,7 @@
 import type { ReactElement } from "react";
 import { useAuthConfig } from "#data";
 import type { ChromeEntry } from "#state";
-import { NotificationBell } from "../components/notification-bell";
+import { NotificationBell } from "../components/notification-bell.tsx";
 
 export const notificationsChrome: ChromeEntry = {
   id: "notifications-bell",

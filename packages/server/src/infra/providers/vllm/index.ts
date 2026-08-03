@@ -6,8 +6,8 @@
 import process from "node:process";
 import type { ResolvedEngineLaunch } from "@orb/contracts/settings";
 import { engineDeploymentEnv, engineLaunchEnvFloor, env } from "#foundation/env";
-import type { ProviderBackend, WireCaptureSink } from "../contract";
-import type { EngineDeploymentEnv, EngineDeploymentFacts, EngineStatusRecord, VLLM_ENGINES, VllmEngineClient } from "./engine";
+import type { ProviderBackend, WireCaptureSink } from "../contract/index.ts";
+import type { EngineDeploymentEnv, EngineDeploymentFacts, EngineStatusRecord, VLLM_ENGINES, VllmEngineClient } from "./engine/index.ts";
 import {
   allEngineStatuses,
   createVllmEngineClient,
@@ -16,24 +16,24 @@ import {
   isHeld,
   resolveEngineDeploymentFacts,
   startVllmEngines,
-} from "./engine";
+} from "./engine/index.ts";
 // Surfaces are imported PER FILE (no surfaces/ barrel — `vllm-surface-isolation` gate forbids one);
 // this root file is not under surfaces/, so aggregating here is the legal seam.
-import { createVllmChat } from "./surfaces/chat";
-import { createVllmEmbed } from "./surfaces/embed";
-import { createVllmImageEmbed } from "./surfaces/image-embed";
-import { createVllmRerank } from "./surfaces/rerank";
-import { createVllmStructured, createVllmSummarize } from "./surfaces/summarize";
+import { createVllmChat } from "./surfaces/chat.ts";
+import { createVllmEmbed } from "./surfaces/embed.ts";
+import { createVllmImageEmbed } from "./surfaces/image-embed.ts";
+import { createVllmRerank } from "./surfaces/rerank.ts";
+import { createVllmStructured, createVllmSummarize } from "./surfaces/summarize.ts";
 
 // Boot GPU-presence probe — re-exported for entry; the supervisor reads the same home (one `nvidia-smi`
 // probe in the codebase). resolveEngineDeploymentFacts is re-exported for the admin-panel wiring seam.
-export type { EngineDeploymentFacts, EngineStatusRecord } from "./engine";
-export { detectGpu, fetchEngineMaxModelLen, fetchGenMaxModelLen, resolveEngineDeploymentFacts } from "./engine";
-export { createVllmChat } from "./surfaces/chat";
-export { createVllmEmbed } from "./surfaces/embed";
-export { createVllmImageEmbed } from "./surfaces/image-embed";
-export { createVllmRerank } from "./surfaces/rerank";
-export { createVllmStructured, createVllmSummarize } from "./surfaces/summarize";
+export type { EngineDeploymentFacts, EngineStatusRecord } from "./engine/index.ts";
+export { detectGpu, fetchEngineMaxModelLen, fetchGenMaxModelLen, resolveEngineDeploymentFacts } from "./engine/index.ts";
+export { createVllmChat } from "./surfaces/chat.ts";
+export { createVllmEmbed } from "./surfaces/embed.ts";
+export { createVllmImageEmbed } from "./surfaces/image-embed.ts";
+export { createVllmRerank } from "./surfaces/rerank.ts";
+export { createVllmStructured, createVllmSummarize } from "./surfaces/summarize.ts";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 

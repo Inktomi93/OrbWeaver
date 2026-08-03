@@ -8,10 +8,10 @@
 // `roleClients.embedModel`, the SAME space tag the chunk embed writes key on. BULK-ONLY + skip-on-abort is the
 // CALLER's guard (the databank-reindex runner), mirroring `purgeMemoryVectors` / the embedCorpus purge exactly.
 
-import type { EmbeddingsContext } from "../context";
-import type { PurgeDocumentVectorsResult } from "../contract/results";
-import type { EmbeddingsService } from "../contract/service";
-import { purgeStaleVectors } from "../persistence/clear";
+import type { EmbeddingsContext } from "../context.ts";
+import type { PurgeDocumentVectorsResult } from "../contract/results.ts";
+import type { EmbeddingsService } from "../contract/service.ts";
+import { purgeStaleVectors } from "../persistence/clear.ts";
 
 export function createPurgeDocumentVectors(ctx: EmbeddingsContext): EmbeddingsService["purgeDocumentVectors"] {
   return async (): Promise<PurgeDocumentVectorsResult> => {

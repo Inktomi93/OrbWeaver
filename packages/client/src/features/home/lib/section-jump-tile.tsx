@@ -4,7 +4,7 @@
 
 import { LayoutGrid } from "@orb/ui/icons";
 import type { HomeTileContribution } from "#lib";
-import { SectionJumpGrid } from "../components/section-jump-grid";
+import { SectionJumpGrid } from "../components/section-jump-grid.tsx";
 
 const JUMP_TILE_ORDER = 40;
 

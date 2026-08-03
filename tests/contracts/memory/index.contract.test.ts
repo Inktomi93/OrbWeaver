@@ -4,7 +4,7 @@
 
 import type { ClipKind, ClipScope, ClipSourceKind } from "@orb/contracts/memory";
 import { CLIP_KINDS, CLIP_SCOPES, CLIP_SOURCE_KINDS, clipKindSchema, clipScopeSchema, clipSourceKindSchema } from "@orb/contracts/memory";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("CLIP_KINDS is exactly [fact, trait, relationship, world-state, plot-thread]", () => {
   expect([...CLIP_KINDS]).toEqual(["fact", "trait", "relationship", "world-state", "plot-thread"]);

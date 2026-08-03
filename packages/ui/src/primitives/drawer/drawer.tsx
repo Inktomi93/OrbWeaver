@@ -16,7 +16,7 @@ import { Drawer as BaseDrawer } from "@base-ui/react/drawer";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { usePortalContainer } from "#lib";
-import { drawerVariants } from "./variants";
+import { drawerVariants } from "./variants.ts";
 
 type DrawerSide = NonNullable<VariantProps<typeof drawerVariants>["side"]>;
 

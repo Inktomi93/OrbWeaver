@@ -11,7 +11,7 @@ import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import type { DiscoveryWorkloadDeps } from "../../../../packages/server/src/domain/discovery/contract/service.ts";
 import { createDiscoveryWorkloadContributions } from "../../../../packages/server/src/domain/discovery/workload-contributions.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");
 const T0 = 1_700_000_000_000;

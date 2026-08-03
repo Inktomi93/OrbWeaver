@@ -16,9 +16,9 @@
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, vi } from "vitest";
-import type { AuthMe } from "../../../../../packages/client/src/data/auth-bootstrap";
-import { redirectIfAuthed, requireAuthed } from "../../../../../packages/client/src/features/auth/lib/route-guards";
-import { expect, test } from "../../../../support/fixtures";
+import type { AuthMe } from "../../../../../packages/client/src/data/auth-bootstrap.ts";
+import { redirectIfAuthed, requireAuthed } from "../../../../../packages/client/src/features/auth/lib/route-guards.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const AUTHED: AuthMe = { authenticated: true, handle: castId<Handle>("alice"), role: "user" };
 const ANON: AuthMe = { authenticated: false, handle: null, role: null };

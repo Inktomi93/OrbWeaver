@@ -20,8 +20,8 @@ import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, 
 import type { AutosaveSession } from "#forms";
 import { SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import { DATABANK_SETTINGS_ENTITY_ID, DatabankSettingsAutosaveForm } from "../hooks/use-databank-settings-form";
-import type { DatabankSettingsForm } from "../lib/databank-settings-model";
+import { DATABANK_SETTINGS_ENTITY_ID, DatabankSettingsAutosaveForm } from "../hooks/use-databank-settings-form.ts";
+import type { DatabankSettingsForm } from "../lib/databank-settings-model.ts";
 import {
   K_MAX,
   K_MIN,
@@ -31,8 +31,8 @@ import {
   SLOT_BUDGET_MAX,
   SLOT_BUDGET_MIN,
   toDatabankSectionPatch,
-} from "../lib/databank-settings-model";
-import { DATABANK_SETTINGS_SUBCATEGORY } from "../lib/databank-settings-section-nav";
+} from "../lib/databank-settings-model.ts";
+import { DATABANK_SETTINGS_SUBCATEGORY } from "../lib/databank-settings-section-nav.ts";
 
 interface UpdateDatabankVars {
   readonly section: "databank";

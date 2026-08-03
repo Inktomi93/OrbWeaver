@@ -7,7 +7,7 @@
 import type { AgentSdkModel } from "@orb/contracts/connection";
 import { describe } from "vitest";
 import { deriveOrSkinTierModels, toOpenRouterSlug } from "../../../../../packages/server/src/domain/connection/catalog/derive-or-skin-tier-models.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A daemon row for a tier alias → its current resolved wire id. */
 function row(alias: string, resolvedModel: string | null): AgentSdkModel {

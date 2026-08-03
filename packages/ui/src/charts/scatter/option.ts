@@ -6,8 +6,8 @@
 // cell straight back to the caller's entity — <Scatter> reads it off `event.data` and hands it to
 // `onPointClick` (that click→id resolution is why this primitive exists: raw SVG scatters can't be made
 // interactive under the feature belt).
-import type { OrbChartOption } from "../chart/echarts-setup";
-import type { ChartColors } from "../chart/use-chart-theme";
+import type { OrbChartOption } from "../chart/echarts-setup.ts";
+import type { ChartColors } from "../chart/use-chart-theme.ts";
 
 export interface ScatterPoint {
   /** Opaque caller id echoed back on click (never rendered). */

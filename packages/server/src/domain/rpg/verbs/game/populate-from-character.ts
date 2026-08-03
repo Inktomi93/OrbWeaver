@@ -42,15 +42,15 @@
 import type { RpgSheet, RpgSnapshotState } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, RpgGameId } from "@orb/kit/ids";
-import type { PopulateFromCharacterParams } from "../../contract/params";
-import type { PopulateResult } from "../../contract/results";
-import type { RpgContext, RpgPopulateDelta, RpgService } from "../../contract/service";
-import { snapshotRowToState } from "../../contract/service";
-import { resolveHost } from "../../guard";
-import { findSheet, upsertSheet } from "../../persistence/sheets";
-import { resolveSnapshotForTurn, writeResyncedSnapshot } from "../../persistence/snapshots";
-import { defaultSnapshotState } from "../../substrate/default-state";
-import { applyLockedPatch } from "../../substrate/merge";
+import type { PopulateFromCharacterParams } from "../../contract/params.ts";
+import type { PopulateResult } from "../../contract/results.ts";
+import type { RpgContext, RpgPopulateDelta, RpgService } from "../../contract/service.ts";
+import { snapshotRowToState } from "../../contract/service.ts";
+import { resolveHost } from "../../guard.ts";
+import { findSheet, upsertSheet } from "../../persistence/sheets.ts";
+import { resolveSnapshotForTurn, writeResyncedSnapshot } from "../../persistence/snapshots.ts";
+import { defaultSnapshotState } from "../../substrate/default-state.ts";
+import { applyLockedPatch } from "../../substrate/merge.ts";
 
 /** The default sheet a first write merges onto (a missing row = the default sheet, §4.3). Mirrors
  *  `patchSheet`'s own default — verb-to-verb VALUE imports are banned, so each verb spells its own. */

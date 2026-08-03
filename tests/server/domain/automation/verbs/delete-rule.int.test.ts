@@ -1,6 +1,6 @@
 // verb: deleteRule — remove a rule (host-only).
 
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { MSG_COMMITTED, principal, ruleFixture, SET_VAR } from "../_support.ts";
 
 test("deleteRule removes the rule from the chat's list", async () => {

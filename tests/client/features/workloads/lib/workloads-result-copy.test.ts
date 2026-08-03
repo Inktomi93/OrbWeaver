@@ -5,8 +5,8 @@
 
 import type { WorkloadKind } from "@orb/contracts/workloads";
 import { WORKLOAD_KINDS } from "@orb/contracts/workloads";
-import { workloadResultSummary } from "../../../../../packages/client/src/features/workloads/lib/workloads-result-copy";
-import { expect, test } from "../../../../support/fixtures";
+import { workloadResultSummary } from "../../../../../packages/client/src/features/workloads/lib/workloads-result-copy.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 test("the catalog refresh reads as counts, not as JSON — and a FAILED lane says so instead of reading as zero", () => {
   expect(workloadResultSummary("refresh-model-catalog", { models: 337, agentSdkModels: 4 })).toBe("337 models · 4 via Agent SDK");

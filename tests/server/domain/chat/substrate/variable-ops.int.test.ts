@@ -11,10 +11,10 @@ import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
 import { beforeEach } from "vitest";
-import { applyStandaloneVariableOps } from "../../../../../packages/server/src/domain/chat/substrate/variable-ops";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { FROZEN_AT, makeChatContext, seedChat } from "../_support";
+import { applyStandaloneVariableOps } from "../../../../../packages/server/src/domain/chat/substrate/variable-ops.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { FROZEN_AT, makeChatContext, seedChat } from "../_support.ts";
 
 let db: Db;
 beforeEach(async () => {

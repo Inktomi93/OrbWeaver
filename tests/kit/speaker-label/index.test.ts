@@ -10,7 +10,7 @@ import {
   stripSelfSpeakerLabel,
   truncateAtForeignLabel,
 } from "@orb/kit/speaker-label";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // parseSpeakerSpans (§12.4): the `<speaker>NAME</speaker>` split feeding the client narrator renderer.
 // Pins the load-bearing byte-identical no-op (zero markers => one null-speaker span carrying `content`

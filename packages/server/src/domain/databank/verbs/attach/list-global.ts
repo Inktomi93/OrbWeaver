@@ -10,8 +10,8 @@
 // Owner-scoped in the WHERE via `global_documents.ownerId`, which IS the scope subject (D23) — the junction
 // carries the owner, so this needs no join back to `documents`. A read: no audit.
 
-import type { DatabankContext, DatabankService } from "../../contract/service";
-import { listGlobalDocumentIds } from "../../persistence/queries";
+import type { DatabankContext, DatabankService } from "../../contract/service.ts";
+import { listGlobalDocumentIds } from "../../persistence/queries.ts";
 
 export function createListGlobal(ctx: DatabankContext): DatabankService["listGlobal"] {
   return ({ principal }) => listGlobalDocumentIds(ctx.db, principal.userId);

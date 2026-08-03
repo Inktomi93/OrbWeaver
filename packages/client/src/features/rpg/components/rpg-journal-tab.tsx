@@ -42,16 +42,16 @@ import { useState } from "react";
 import { AddRow, ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
-import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useAddJournalEntry, useCreateCheckpoint, useDeleteJournalEntry, useEditJournalEntry, useRestoreCheckpoint } from "../hooks/use-rpg-mutations";
-import type { ArchivedCard } from "../lib/archived-cards";
-import { collectArchivedCards } from "../lib/archived-cards";
-import { JOURNAL_TYPE_LABELS } from "../lib/journal-labels";
-import type { BeatEdit } from "./rpg-beat-row";
-import { BeatRow } from "./rpg-beat-row";
-import { RpgCardRow } from "./rpg-card-row";
-import { Kicker } from "./rpg-kicker";
-import { RpgCardLightbox } from "./rpg-scene-cards";
+import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
+import { useAddJournalEntry, useCreateCheckpoint, useDeleteJournalEntry, useEditJournalEntry, useRestoreCheckpoint } from "../hooks/use-rpg-mutations.ts";
+import type { ArchivedCard } from "../lib/archived-cards.ts";
+import { collectArchivedCards } from "../lib/archived-cards.ts";
+import { JOURNAL_TYPE_LABELS } from "../lib/journal-labels.ts";
+import type { BeatEdit } from "./rpg-beat-row.tsx";
+import { BeatRow } from "./rpg-beat-row.tsx";
+import { RpgCardRow } from "./rpg-card-row.tsx";
+import { Kicker } from "./rpg-kicker.tsx";
+import { RpgCardLightbox } from "./rpg-scene-cards.tsx";
 
 /** The chronicle page size — one fetch (the archive tab is a reading surface, not an infinite feed). */
 const JOURNAL_PAGE = 100;

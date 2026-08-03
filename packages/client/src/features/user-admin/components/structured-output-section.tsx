@@ -19,11 +19,11 @@ import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
-import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model";
-import { STRUCTURED_OUTPUT_SHAPE_ITEMS, STRUCTURED_OUTPUT_SHAPE_LABELS } from "../lib/structured-output-items";
-import { STRUCTURED_OUTPUT_SUBCATEGORY } from "../lib/structured-output-nav";
-import { AdminOverrideResetRow, AdminOverrideSelect } from "./admin-override-field";
+import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
+import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
+import { STRUCTURED_OUTPUT_SHAPE_ITEMS, STRUCTURED_OUTPUT_SHAPE_LABELS } from "../lib/structured-output-items.ts";
+import { STRUCTURED_OUTPUT_SUBCATEGORY } from "../lib/structured-output-nav.ts";
+import { AdminOverrideResetRow, AdminOverrideSelect } from "./admin-override-field.tsx";
 
 /** The mechanism, short enough for the row's info tooltip. The WHEN-TO-SWITCH copy is deliberately NOT here:
  *  `SettingRow`'s hint is hover-only chrome, and this knob's whole reason for existing is unreadable without

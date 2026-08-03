@@ -12,7 +12,7 @@ import { buildPluginStorage, PLUGIN_KV_MAX_KEYS } from "../../../../../packages/
 import { getKv } from "../../../../../packages/server/src/domain/plugin/persistence/plugin-kv.ts";
 import { insertPlugin } from "../../../../../packages/server/src/domain/plugin/persistence/plugins.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
 
 const AT = 1000;

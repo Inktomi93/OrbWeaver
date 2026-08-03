@@ -6,8 +6,8 @@ import type { MessageListHandle } from "@orb/ui/message-list";
 import { MessageList } from "@orb/ui/message-list";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { JumpToLatestPill } from "../../../../packages/client/src/features/chat/components/jump-to-latest-pill";
-import { useJumpToLatest } from "../../../../packages/client/src/features/chat/hooks/use-jump-to-latest";
+import { JumpToLatestPill } from "../../../../packages/client/src/features/chat/components/jump-to-latest-pill.tsx";
+import { useJumpToLatest } from "../../../../packages/client/src/features/chat/hooks/use-jump-to-latest.ts";
 
 /** A harness around `<JumpToLatestPill>` alone: buttons drive `visible`/`count`, and `onJump` bumps a
  *  readout so the CT can assert the chrome/a11y — click AND keyboard (Enter/Space on the real

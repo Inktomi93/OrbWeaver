@@ -3,11 +3,11 @@
 // references credential rows by FK (a chat resolves the user's ACTIVE credential at turn time, no per-chat
 // pin). If the removed row was active, the user simply has no active credential afterwards.
 
-import type { CredentialContext } from "../context";
-import type { RemoveCredentialParams } from "../contract/params";
-import type { CredentialsService } from "../contract/service";
-import { deleteOwnedCredential, fetchOwnedCredential } from "../persistence/queries";
-import { requireOwned } from "../substrate/credential-not-found";
+import type { CredentialContext } from "../context.ts";
+import type { RemoveCredentialParams } from "../contract/params.ts";
+import type { CredentialsService } from "../contract/service.ts";
+import { deleteOwnedCredential, fetchOwnedCredential } from "../persistence/queries.ts";
+import { requireOwned } from "../substrate/credential-not-found.ts";
 
 export function createRemove(ctx: CredentialContext): CredentialsService["remove"] {
   return async (params: RemoveCredentialParams): Promise<void> => {

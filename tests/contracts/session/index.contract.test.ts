@@ -1,7 +1,7 @@
 import type { SessionView } from "@orb/contracts/session";
 import type { SessionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // Branded SessionId built at the untyped seam (castId is the sanctioned cast) — no pasted ids (noSecrets).
 const SAMPLE_SESSION_ID = castId<SessionId>("session_sample");

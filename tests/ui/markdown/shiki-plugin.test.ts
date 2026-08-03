@@ -8,7 +8,7 @@
 // plugin's declared themes).
 import { MARKDOWN_SHIKI_PLUGIN } from "../../../packages/ui/src/markdown/shiki-plugin.ts";
 import { TOKENS } from "../../../packages/ui/src/tokens/index.ts";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // Types are DERIVED off the plugin's own public signatures (streamdown's `ThemeInput`/`HighlightOptions`/
 // `HighlightResult` aren't directly importable from this test's aggregator program — see file header) so

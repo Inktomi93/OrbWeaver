@@ -9,8 +9,8 @@
 // be remembered) are the unit test's job; this is the pixels.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { HomeTileReserveStory } from "../_ct-stories";
-import { RESERVED_TILE_PX } from "../_reserve-box";
+import { HomeTileReserveStory } from "../_ct-stories.tsx";
+import { RESERVED_TILE_PX } from "../_reserve-box.ts";
 
 /** Tolerance for a boundingBox against a reserved min-block-size — sub-pixel layout rounding only. */
 const PX_EPSILON = 1;

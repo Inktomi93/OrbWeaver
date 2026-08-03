@@ -6,7 +6,7 @@ import type { EffortLevel, ModelCapability, Range, Verbosity } from "@orb/contra
 import { EFFORT_LEVELS } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import { QUALITY_EFFORT, QUALITY_LEVELS, QUALITY_SAMPLING } from "@orb/contracts/preset";
-import type { DynamicContextChannel, ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling, ResolvedWarning } from "./contract";
+import type { DynamicContextChannel, ResolvedChatKnobs, ResolvedReasoning, ResolvedSampling, ResolvedWarning } from "./contract/index.ts";
 
 const EFFORT_OFF = "none";
 const ADAPTIVE_BUDGET_WARNING = "reasoning budget ignored: adaptive model takes effort only (an explicit budget 400s the model)";

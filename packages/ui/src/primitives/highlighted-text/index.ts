@@ -1,2 +1,2 @@
-export type { HighlightedTextProps, HighlightedTextRange } from "./highlighted-text";
-export { HighlightedText } from "./highlighted-text";
+export type { HighlightedTextProps, HighlightedTextRange } from "./highlighted-text.tsx";
+export { HighlightedText } from "./highlighted-text.tsx";

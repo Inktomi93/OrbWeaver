@@ -8,7 +8,7 @@ import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 // The central user factory replaces the harness's hand-rolled seedUser (support/factories).
 import { seedUser } from "../../../../support/factories/index.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal } from "../_support.ts";
 
 describe("get", () => {

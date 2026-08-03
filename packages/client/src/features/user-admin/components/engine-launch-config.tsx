@@ -19,8 +19,8 @@ import type { ChangeEvent, ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
-import { useUpdateAppSettings } from "../hooks/use-admin-mutations";
-import { ENGINE_LAUNCH_NUMERIC_FIELDS, ENGINE_LAUNCH_TEXT_FIELDS } from "../lib/engine-launch-fields";
+import { useUpdateAppSettings } from "../hooks/use-admin-mutations.ts";
+import { ENGINE_LAUNCH_NUMERIC_FIELDS, ENGINE_LAUNCH_TEXT_FIELDS } from "../lib/engine-launch-fields.ts";
 
 // The field set lives in lib/ (engine-launch-fields.ts) — the Engines contribution def derives its `owns`
 // claim from the same tuples, so the editor and the partition claim can never drift apart.

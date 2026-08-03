@@ -12,8 +12,8 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import type { ChatDigestId, ChatId, UserId } from "@orb/kit/ids";
 import { asc, eq, inArray } from "drizzle-orm";
-import type { Tier0RangeOp } from "../contract/service";
-import { readSegmentBlockSpans, readTier0DigestSpans, readTierKDigestSpans } from "../persistence/embed-store-reads";
+import type { Tier0RangeOp } from "../contract/service.ts";
+import { readSegmentBlockSpans, readTier0DigestSpans, readTierKDigestSpans } from "../persistence/embed-store-reads.ts";
 
 interface SeqSpan {
   readonly seqStart: number;

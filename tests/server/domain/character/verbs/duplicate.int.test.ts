@@ -13,7 +13,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedRawCharacter, seedUser } from "../_support.ts";
 
 /** Seed an owned world book + attach it to a character at `role` (PD-141 carry fixtures). */

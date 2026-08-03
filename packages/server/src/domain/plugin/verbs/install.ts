@@ -5,12 +5,12 @@
 // row (enabling is a second explicit act, like rules). The row lands `origin:"upload"` (the reserved single-arm
 // — a future catalog fetcher feeds the SAME bundle funnel, 02 §4 rider).
 
-import { CapabilityNotGrantedError, PluginAlreadyInstalledError } from "../contract/errors";
-import type { InstallPluginParams } from "../contract/params";
-import type { PluginContext, PluginService } from "../contract/service";
-import { getByOwnerSlug, insertPlugin } from "../persistence/plugins";
-import { normalizeGrant, ungrantableCapabilities } from "../substrate/grants";
-import { PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest";
+import { CapabilityNotGrantedError, PluginAlreadyInstalledError } from "../contract/errors.ts";
+import type { InstallPluginParams } from "../contract/params.ts";
+import type { PluginContext, PluginService } from "../contract/service.ts";
+import { getByOwnerSlug, insertPlugin } from "../persistence/plugins.ts";
+import { normalizeGrant, ungrantableCapabilities } from "../substrate/grants.ts";
+import { PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest.ts";
 
 export function createInstall(ctx: PluginContext): PluginService["install"] {
   return async ({ caller, bundle, grant }: InstallPluginParams) => {

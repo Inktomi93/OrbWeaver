@@ -15,10 +15,10 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { CharacterDetailContributorStory, CharacterEditorSurfaceStory, CharacterFacetInspectorStory } from "../_ct-stories";
-import { makeCharacterDetail, makeTagFixture } from "../fixtures";
+import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { CharacterDetailContributorStory, CharacterEditorSurfaceStory, CharacterFacetInspectorStory } from "../_ct-stories.tsx";
+import { makeCharacterDetail, makeTagFixture } from "../fixtures.ts";
 
 const TOKEN_SPLIT_RE = /\d+ total · \d+ permanent/;
 const BLUR_CLASS_RE = /blur-md/;

@@ -28,9 +28,9 @@ import { useInvalidation, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
 import { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT, downloadTextFile, notify } from "#lib";
 import { clearCollectionSelection } from "#state";
-import { useDuplicateWorldBook, useRemoveWorldBook, useUpdateWorldBook } from "../hooks/use-world-info-mutations";
-import { bookScent } from "../lib/world-info-model";
-import { BookDetailsDialog } from "./book-details-dialog";
+import { useDuplicateWorldBook, useRemoveWorldBook, useUpdateWorldBook } from "../hooks/use-world-info-mutations.ts";
+import { bookScent } from "../lib/world-info-model.ts";
+import { BookDetailsDialog } from "./book-details-dialog.tsx";
 
 /** One compact row's height guess for the windowed arm (name + scent subtitle). */
 const ESTIMATED_ROW_PX = 44;

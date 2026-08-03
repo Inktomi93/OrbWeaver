@@ -9,7 +9,7 @@
 import type { ReactElement } from "react";
 import type { ChromeEntry } from "#state";
 import { isLanding, useActiveChatHandle, useActiveSection } from "#state";
-import { ChatOptionsTopbar } from "../components/chat-options-topbar";
+import { ChatOptionsTopbar } from "../components/chat-options-topbar.tsx";
 
 export const chatOptionsChrome: ChromeEntry = {
   id: "chat-options",

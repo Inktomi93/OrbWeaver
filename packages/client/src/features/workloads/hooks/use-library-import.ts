@@ -11,9 +11,9 @@ import type { WorkloadId } from "@orb/kit/ids";
 import { useState } from "react";
 import { importBundle, importCharacters, importTree, relativePathOf, useInvalidation } from "#data";
 import { notify } from "#lib";
-import type { BundleCounts, ImportSummary } from "../lib/portability-model";
-import { summarizeBundleCounts, summarizeCardImport, summaryCaption } from "../lib/portability-model";
-import type { WorkloadProgressView } from "../lib/workloads-model";
+import type { BundleCounts, ImportSummary } from "../lib/portability-model.ts";
+import { summarizeBundleCounts, summarizeCardImport, summaryCaption } from "../lib/portability-model.ts";
+import type { WorkloadProgressView } from "../lib/workloads-model.ts";
 
 const ZIP_EXTENSION = ".zip";
 

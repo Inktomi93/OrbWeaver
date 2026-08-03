@@ -4,7 +4,7 @@
 import { Field } from "@orb/ui/field";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, ReactNode } from "react";
-import { useBoundField } from "./use-bound-field";
+import { useBoundField } from "./use-bound-field.ts";
 
 export interface TextareaFieldProps {
   readonly label: ReactNode;

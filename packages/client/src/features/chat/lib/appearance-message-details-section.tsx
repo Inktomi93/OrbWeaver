@@ -3,8 +3,8 @@
 // the ONE settings-section registry and the appearance skimmer pane renders it at its anchor.
 
 import type { SettingsSectionContribution } from "#state";
-import { AppearanceMessageDetailsSection } from "../components/appearance-message-details-section";
-import { APPEARANCE_MESSAGE_DETAILS_KEYS, APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY } from "./appearance-message-details-model";
+import { AppearanceMessageDetailsSection } from "../components/appearance-message-details-section.tsx";
+import { APPEARANCE_MESSAGE_DETAILS_KEYS, APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY } from "./appearance-message-details-model.ts";
 
 const SECTION_ID = "appearance-message-details";
 

@@ -8,7 +8,7 @@
 
 import { fetchEngineMaxModelLen, fetchGenMaxModelLen } from "@orb/server/infra/providers/vllm/engine";
 import { afterEach, describe, vi } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 afterEach(() => vi.unstubAllGlobals());
 

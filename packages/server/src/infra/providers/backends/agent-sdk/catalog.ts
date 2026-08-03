@@ -5,10 +5,10 @@
 
 import type { ModelInfo, Query } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentSdkModel } from "@orb/contracts/connection";
-import { ProviderError } from "../../contract";
-import { buildClaudeSdkEnv } from "./env";
-import { firewallBase } from "./translate";
-import type { AgentSdkDeps } from "./types";
+import { ProviderError } from "../../contract/index.ts";
+import { buildClaudeSdkEnv } from "./env.ts";
+import { firewallBase } from "./translate.ts";
+import type { AgentSdkDeps } from "./types.ts";
 
 const DISCOVERY_TIMEOUT_MS = 15_000;
 

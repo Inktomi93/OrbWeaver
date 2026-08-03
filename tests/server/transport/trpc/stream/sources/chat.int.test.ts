@@ -19,13 +19,13 @@ import type { ChatId, Handle, MessageId, SocketId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { publishChatEvent } from "@orb/server/transport/trpc";
 import { beforeEach, describe, vi } from "vitest";
-import { createChatBus } from "../../../../../../packages/server/src/domain/chat/bus";
-import { loadMessageView } from "../../../../../../packages/server/src/domain/chat/persistence/queries";
-import { createRead } from "../../../../../../packages/server/src/domain/chat/verbs/read";
-import { freshDb } from "../../../../../support/db";
-import { expect, test } from "../../../../../support/fixtures";
-import { makeChatContext, seedChat, seedMessage, seedParticipant, seedUser } from "../../../../domain/chat/_support";
-import { caller, principal as callerPrincipal, makeContext } from "../../_support";
+import { createChatBus } from "../../../../../../packages/server/src/domain/chat/bus.ts";
+import { loadMessageView } from "../../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { createRead } from "../../../../../../packages/server/src/domain/chat/verbs/read.ts";
+import { freshDb } from "../../../../../support/db.ts";
+import { expect, test } from "../../../../../support/fixtures.ts";
+import { makeChatContext, seedChat, seedMessage, seedParticipant, seedUser } from "../../../../domain/chat/_support.ts";
+import { caller, principal as callerPrincipal, makeContext } from "../../_support.ts";
 
 let db: Db;
 

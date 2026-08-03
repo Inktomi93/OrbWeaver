@@ -10,7 +10,7 @@ export type {
   MenuRadioItemProps,
   MenuSeparatorProps,
   MenuSubmenuTriggerProps,
-} from "./menu";
+} from "./menu.tsx";
 export {
   Menu,
   MenuArrow,
@@ -27,4 +27,4 @@ export {
   MenuSubmenuRoot,
   MenuSubmenuTrigger,
   MenuTrigger,
-} from "./menu";
+} from "./menu.tsx";

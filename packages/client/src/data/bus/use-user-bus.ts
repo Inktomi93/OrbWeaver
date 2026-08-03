@@ -23,7 +23,7 @@
 import type { StreamRoomRef } from "@orb/contracts/stream";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import { notify } from "#lib";
-import { useBusRoom } from "./use-bus-room";
+import { useBusRoom } from "./use-bus-room.ts";
 
 /** What the hook needs from the central invalidation seam (`data/invalidation.ts`) — the two user-bus
  *  entry points. Passed from `app-root.tsx` (the seam is rebuilt per render; identity churn is harmless —

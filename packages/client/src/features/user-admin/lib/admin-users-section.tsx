@@ -7,8 +7,8 @@
 // pane — a second predicate here would be a parallel truth that can drift.
 
 import type { SettingsSectionContribution } from "#state";
-import { AdminUsersSection } from "../components/admin-users-section";
-import { ADMIN_USERS_SUBCATEGORY } from "./admin-users-nav";
+import { AdminUsersSection } from "../components/admin-users-section.tsx";
+import { ADMIN_USERS_SUBCATEGORY } from "./admin-users-nav.ts";
 
 export const adminUsersSection: SettingsSectionContribution = {
   id: "admin-users",

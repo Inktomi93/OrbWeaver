@@ -7,7 +7,7 @@
 // omits cardScope, and the Advanced disclosure reveals policy / member-visibility / auto-mode.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { GroupConfigFormStory, GroupConfigSwitchStory } from "../_ct-stories";
+import { GroupConfigFormStory, GroupConfigSwitchStory } from "../_ct-stories.tsx";
 
 const SAVED = '[data-testid="group-config-saved"]';
 

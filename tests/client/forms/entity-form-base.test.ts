@@ -8,7 +8,7 @@ import { mirrorDraft, readDraftSeed } from "@orb/client/forms";
 import { createEntityDraftStore } from "@orb/client/state";
 import { describe } from "vitest";
 import type { StateStorage } from "zustand/middleware";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 interface Values {
   readonly text: string;

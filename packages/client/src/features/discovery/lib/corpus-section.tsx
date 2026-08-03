@@ -8,16 +8,16 @@
 import { Library } from "@orb/ui/icons";
 import { defineContextTabs, VOID_STATE } from "#lib";
 import type { SectionDefinition } from "#state";
-import { CorpusListAnchor } from "../anchors/corpus-list-anchor";
-import { CorpusArchetypesTab } from "../components/corpus-archetypes-tab";
-import { CorpusCompareTab } from "../components/corpus-compare-tab";
-import { CorpusContent } from "../components/corpus-content";
-import { CorpusContextHeader } from "../components/corpus-context-header";
-import { CorpusListHeader } from "../components/corpus-list-header";
-import { CorpusMapTab } from "../components/corpus-map-tab";
-import { CorpusSimilarityTab } from "../components/corpus-similarity-tab";
-import { CorpusVisualsTab } from "../components/corpus-visuals-tab";
-import { CorpusListSurface } from "../surfaces/corpus-list-surface";
+import { CorpusListAnchor } from "../anchors/corpus-list-anchor.tsx";
+import { CorpusArchetypesTab } from "../components/corpus-archetypes-tab.tsx";
+import { CorpusCompareTab } from "../components/corpus-compare-tab.tsx";
+import { CorpusContent } from "../components/corpus-content.tsx";
+import { CorpusContextHeader } from "../components/corpus-context-header.tsx";
+import { CorpusListHeader } from "../components/corpus-list-header.tsx";
+import { CorpusMapTab } from "../components/corpus-map-tab.tsx";
+import { CorpusSimilarityTab } from "../components/corpus-similarity-tab.tsx";
+import { CorpusVisualsTab } from "../components/corpus-visuals-tab.tsx";
+import { CorpusListSurface } from "../surfaces/corpus-list-surface.tsx";
 
 export const corpusSection: SectionDefinition = {
   id: "corpus",

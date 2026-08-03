@@ -9,7 +9,7 @@
 import type { DebugAuthOptions } from "@orb/server/foundation/observability/debug";
 import { createDebugAuthMiddleware, tokenMatches } from "@orb/server/foundation/observability/debug";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 interface MockResult {
   readonly body: unknown;

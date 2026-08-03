@@ -5,7 +5,7 @@
 
 import type { ResolvedCredential, SummarizeRequest } from "@orb/server/infra/providers";
 import { createSummarizeRole } from "@orb/server/infra/providers";
-import { runEmbedShapedRoleTests } from "./_support";
+import { runEmbedShapedRoleTests } from "./_support.ts";
 
 runEmbedShapedRoleTests({
   method: "summarize",

@@ -14,9 +14,9 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { toBarItems } from "../lib/corpus-charts";
-import { ParamSelect } from "./corpus-controls";
-import { CorpusDistillEmptyState } from "./corpus-distill-empty-state";
+import { toBarItems } from "../lib/corpus-charts.ts";
+import { ParamSelect } from "./corpus-controls.tsx";
+import { CorpusDistillEmptyState } from "./corpus-distill-empty-state.tsx";
 
 interface ArchetypeCard {
   readonly label: string;

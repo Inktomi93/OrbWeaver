@@ -98,7 +98,7 @@ import type {
   SwipeParams,
   UndoContinueParams,
   UpdateTitleParams,
-} from "./params";
+} from "./params.ts";
 import type {
   CompactResult,
   CreateInviteResult,
@@ -111,7 +111,7 @@ import type {
   StartChatResult,
   TurnOutcome,
   VariablesResult,
-} from "./results";
+} from "./results.ts";
 import type {
   ActionTemplatesPreview,
   AssembledPrompt,
@@ -136,7 +136,7 @@ import type {
   UserMacroPicksView,
   VariablePicksView,
   VariantWireView,
-} from "./views";
+} from "./views.ts";
 
 export interface ChatService {
   // ── reads / lifecycle ───────────────────────────────────────────────────────

@@ -10,7 +10,7 @@
 
 import { describe } from "vitest";
 import { reshapeChatStreamChunk } from "../../../../../../../../packages/server/src/infra/providers/backends/openrouter/runners/chat/shared.ts";
-import { expect, test } from "../../../../../../../support/fixtures";
+import { expect, test } from "../../../../../../../support/fixtures.ts";
 
 /** The reshaper's input IS the SDK `ChatStreamChunk` — bound here via `Parameters` so a fixture is typed by
  *  the SDK shape without importing `@openrouter/sdk` across the test-root dependency boundary. */

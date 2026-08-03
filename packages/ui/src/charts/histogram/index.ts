@@ -3,5 +3,5 @@
  * §9 v1 corpus-viz set). See histogram.tsx for the API and the pre-binned-buckets contract.
  */
 
-export type { HistogramBucket, HistogramProps } from "./histogram";
-export { Histogram } from "./histogram";
+export type { HistogramBucket, HistogramProps } from "./histogram.tsx";
+export { Histogram } from "./histogram.tsx";

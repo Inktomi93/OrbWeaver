@@ -12,13 +12,13 @@ import type { CollectionContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import { __resetCollectionGroupOpen, clearCollectionSelection } from "@orb/client/state";
 import type { ReactElement } from "react";
-import { ConfigContextBody, ConfigContextHeader } from "../../../../packages/client/src/features/config/components/config-context-body";
-import { ConfigContentSurface } from "../../../../packages/client/src/features/config/surfaces/config-content-surface";
-import { ConfigRosterSurface } from "../../../../packages/client/src/features/config/surfaces/config-roster-surface";
-import { regexCollection } from "../../../../packages/client/src/features/regex";
-import { tagCollection } from "../../../../packages/client/src/features/tag";
-import { worldInfoCollection } from "../../../../packages/client/src/features/world-info";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+import { ConfigContextBody, ConfigContextHeader } from "../../../../packages/client/src/features/config/components/config-context-body.tsx";
+import { ConfigContentSurface } from "../../../../packages/client/src/features/config/surfaces/config-content-surface.tsx";
+import { ConfigRosterSurface } from "../../../../packages/client/src/features/config/surfaces/config-roster-surface.tsx";
+import { regexCollection } from "../../../../packages/client/src/features/regex/index.ts";
+import { tagCollection } from "../../../../packages/client/src/features/tag/index.ts";
+import { worldInfoCollection } from "../../../../packages/client/src/features/world-info/index.ts";
+import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
 const collections = createContributorRegistry<CollectionContribution>("config-collections", [tagCollection, regexCollection, worldInfoCollection]);
 

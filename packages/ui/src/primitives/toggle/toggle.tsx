@@ -3,7 +3,7 @@ import { Toggle as BaseToggle } from "@base-ui/react/toggle";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { toggleVariants } from "./variants";
+import { toggleVariants } from "./variants.ts";
 
 export interface ToggleProps extends BaseToggleProps<string>, VariantProps<typeof toggleVariants> {
   className?: string;

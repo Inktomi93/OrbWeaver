@@ -8,10 +8,10 @@
 import type { RpgActorRef } from "@orb/contracts/rpg";
 import type { chatParticipants } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import type { ChatContext } from "../context";
-import type { ResolveRpgRoster, RpgRosterActor } from "../contract/context";
-import { loadRoster } from "../persistence/roster";
-import { hostUserIdOf } from "../substrate/roster-host";
+import type { ChatContext } from "../context.ts";
+import type { ResolveRpgRoster, RpgRosterActor } from "../contract/context.ts";
+import { loadRoster } from "../persistence/roster.ts";
+import { hostUserIdOf } from "../substrate/roster-host.ts";
 
 type RosterRow = typeof chatParticipants.$inferSelect;
 

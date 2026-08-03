@@ -21,7 +21,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
 import { QueryBoundary, QueryErrorState } from "#data";
-import { useRovingRadioGroup } from "./use-roving-radio-group";
+import { useRovingRadioGroup } from "./use-roving-radio-group.ts";
 
 export interface LibrarySurfaceShellProps {
   /** Suspense fallback copy, e.g. "Loading your presets…". */

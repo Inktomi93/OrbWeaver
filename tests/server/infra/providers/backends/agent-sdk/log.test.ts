@@ -23,7 +23,7 @@ import {
   logProviderTurn,
 } from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 /** Read the (fields, message) a spied pino level was called with. Each arg gets its own single cast (the
  *  pino overloads type the first call arg as a broad union; `no-test-fabrication` bans the `as unknown as`

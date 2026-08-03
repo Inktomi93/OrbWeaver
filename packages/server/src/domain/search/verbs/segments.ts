@@ -8,16 +8,16 @@
 // hit is stamped `tier: 0` + the caller's egocentric `scopedCharacterId`. That POV is REQUIRED — absent ⇒ a
 // typed `SearchError(SCOPE_REQUIRED)` (flag-don't-fake; we never mint an empty-string sentinel).
 
-import type { SearchContext } from "../context";
-import { SEARCH_EMPTY_QUERY, SEARCH_SCOPE_REQUIRED, SearchError } from "../contract/errors";
-import type { SegmentsParams } from "../contract/params";
-import type { SegmentSearchHit } from "../contract/results";
-import type { SearchService } from "../contract/service";
-import { nearestSegments } from "../persistence/digest-rows";
-import { SCOPED_POOL_K } from "../substrate/constants";
-import { compareCslsBy, cslsAdjust } from "../substrate/csls";
-import { blockKeyStr } from "../substrate/dedupe";
-import { applyRerank } from "../substrate/rerank";
+import type { SearchContext } from "../context.ts";
+import { SEARCH_EMPTY_QUERY, SEARCH_SCOPE_REQUIRED, SearchError } from "../contract/errors.ts";
+import type { SegmentsParams } from "../contract/params.ts";
+import type { SegmentSearchHit } from "../contract/results.ts";
+import type { SearchService } from "../contract/service.ts";
+import { nearestSegments } from "../persistence/digest-rows.ts";
+import { SCOPED_POOL_K } from "../substrate/constants.ts";
+import { compareCslsBy, cslsAdjust } from "../substrate/csls.ts";
+import { blockKeyStr } from "../substrate/dedupe.ts";
+import { applyRerank } from "../substrate/rerank.ts";
 
 export function createSegments(ctx: SearchContext): SearchService["segments"] {
   return async (params: SegmentsParams): Promise<SegmentSearchHit[]> => {

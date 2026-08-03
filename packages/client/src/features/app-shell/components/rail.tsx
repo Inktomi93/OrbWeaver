@@ -14,7 +14,7 @@ import type { ReactElement, ReactNode } from "react";
 import { WeaveGlyph } from "#lib";
 import type { ChromeEntry, ModalSlotId, SectionId } from "#state";
 import { SECTION_GROUPS, useChromeRegistry, useModalRegistry } from "#state";
-import { RailButton } from "./rail-button";
+import { RailButton } from "./rail-button.tsx";
 
 export interface RailProps {
   readonly activeSection: SectionId;

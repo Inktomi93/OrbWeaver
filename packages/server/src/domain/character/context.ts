@@ -8,4 +8,4 @@
 // NO guard in the bundle: every character surface is ownership-scoped (the gate is `principal.userId`), not
 // admin/owner-gated (the persona precedent).
 
-export type { CharacterContext } from "./contract/service";
+export type { CharacterContext } from "./contract/service.ts";

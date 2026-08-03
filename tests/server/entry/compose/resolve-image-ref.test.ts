@@ -10,7 +10,7 @@ import { castId } from "@orb/kit/ids";
 import type { ImageRefAssets } from "@orb/server/entry/compose";
 import { resolveImageRefToUrl } from "@orb/server/entry/compose";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const HOST = castId<UserId>("u_host");
 const MEMBER = castId<UserId>("u_member");

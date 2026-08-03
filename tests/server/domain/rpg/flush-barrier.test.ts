@@ -7,7 +7,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createRpgFlushBarrier } from "@orb/server/domain/rpg";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT: ChatId = castId<ChatId>("chat_barrier_1");
 

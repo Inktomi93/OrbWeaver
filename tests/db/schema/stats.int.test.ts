@@ -11,8 +11,8 @@ import { isConstraintViolation } from "@orb/db/kit";
 import type { CharacterHandle, CharacterId, CharacterStatId, DailyStatId, Handle, ModelStatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
-import { freshDb } from "../../support/db";
-import { expect, test } from "../../support/fixtures";
+import { freshDb } from "../../support/db.ts";
+import { expect, test } from "../../support/fixtures.ts";
 import { seedUser } from "./_support.ts";
 
 async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<CharacterId> {

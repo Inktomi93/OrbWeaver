@@ -23,9 +23,9 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import type { AppFormInstance, AutosaveSaveState } from "#forms";
-import { useFetchModels } from "../hooks/use-connections-mutations";
-import { useRoleSourceModels } from "../hooks/use-role-source-models";
-import type { RoleSlot, RoutingForm } from "../lib/connections-model";
+import { useFetchModels } from "../hooks/use-connections-mutations.ts";
+import { useRoleSourceModels } from "../hooks/use-role-source-models.ts";
+import type { RoleSlot, RoutingForm } from "../lib/connections-model.ts";
 import {
   CHAT_API_LABELS,
   chatApiForSourceChange,
@@ -34,10 +34,10 @@ import {
   ROLE_ROW_SYNC_LABELS,
   roleRowDrifted,
   SOURCE_LABELS,
-} from "../lib/connections-model";
-import { ModelPicker } from "./model-picker";
-import { RoleStatusDot } from "./role-status-dot";
-import { StaticModelDisplay } from "./static-model-display";
+} from "../lib/connections-model.ts";
+import { ModelPicker } from "./model-picker.tsx";
+import { RoleStatusDot } from "./role-status-dot.tsx";
+import { StaticModelDisplay } from "./static-model-display.tsx";
 
 /** The autosave form instance as the surface hands it down (minus `reset`, per the factory). */
 type ConnectionsForm = Omit<AppFormInstance<RoutingForm>, "reset">;

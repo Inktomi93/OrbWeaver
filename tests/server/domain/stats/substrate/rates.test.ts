@@ -3,7 +3,7 @@
 
 import { describe } from "vitest";
 import { cacheHitRate, deriveExtra, div, reasoningRate, throughputTps } from "../../../../../packages/server/src/domain/stats/substrate/rates.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("rate helpers", () => {
   test("div returns 0 for a non-positive denominator (no NaN/Infinity)", () => {

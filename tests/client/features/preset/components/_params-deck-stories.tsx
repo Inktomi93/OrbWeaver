@@ -14,8 +14,8 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ParamsDeck } from "../../../../../packages/client/src/features/preset/components/params-deck";
-import { makeModelCapability } from "../../../../support/factories/resolved-connection";
+import { ParamsDeck } from "../../../../../packages/client/src/features/preset/components/params-deck.tsx";
+import { makeModelCapability } from "../../../../support/factories/resolved-connection.ts";
 
 const STORY_PRESET = "preset_deckstoryaaaa";
 

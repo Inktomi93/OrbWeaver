@@ -20,7 +20,7 @@ import {
   updatePresetRow,
 } from "../../../../../packages/server/src/domain/preset/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, seedPreset, seedUser } from "../_support.ts";
 
 const OLDER_VERSION = DEFAULT_PROMPT_CONFIG.schemaVersion - 1;

@@ -15,10 +15,10 @@ import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
-import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model";
-import { COMPUTE_SUBCATEGORY } from "../lib/system-config-nav";
-import { AdminOverrideField, AdminOverrideResetRow } from "./admin-override-field";
+import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
+import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
+import { COMPUTE_SUBCATEGORY } from "../lib/system-config-nav.ts";
+import { AdminOverrideField, AdminOverrideResetRow } from "./admin-override-field.tsx";
 
 // Both leaves are positive ints in the schema; a value below this would fail parse and trip
 // `vllmConcurrency`'s `.catch(undefined)`, silently wiping BOTH overrides — so the draft never sends one.

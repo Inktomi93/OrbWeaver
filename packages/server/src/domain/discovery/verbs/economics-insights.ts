@@ -9,11 +9,11 @@
 //     op (`ctx.characterModelEconomics`) supplies which model performed how; grouped to (genre, model).
 
 import type { UserId } from "@orb/kit/ids";
-import type { DiscoveryContext } from "../context";
-import type { ForgottenGem, ModelRoutingRow } from "../contract/results";
-import type { DiscoveryService } from "../contract/service";
-import { readForgottenGemCandidates } from "../persistence/message-reads";
-import { readOwnedCardFacets } from "../persistence/summary-reads";
+import type { DiscoveryContext } from "../context.ts";
+import type { ForgottenGem, ModelRoutingRow } from "../contract/results.ts";
+import type { DiscoveryService } from "../contract/service.ts";
+import { readForgottenGemCandidates } from "../persistence/message-reads.ts";
+import { readOwnedCardFacets } from "../persistence/summary-reads.ts";
 
 // Default cap on the revisit-candidate list (the long tail below the top gems is noise).
 const DEFAULT_FORGOTTEN_GEMS_LIMIT = 20;

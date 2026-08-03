@@ -6,8 +6,8 @@
 // globalSetup's unconditional `pinRouting` rewrote the operator's REAL `routing.roleDefaults`.
 
 import { describe, expect, test } from "vitest";
-import { MODE_PROJECTS, SINGLE_USER } from "./modes";
-import { ALLOW_DEV_TARGET_ENV, DEV_STACK_PORTS, devTargetAllowed, targetRefusal } from "./target-guard";
+import { MODE_PROJECTS, SINGLE_USER } from "./modes.ts";
+import { ALLOW_DEV_TARGET_ENV, DEV_STACK_PORTS, devTargetAllowed, targetRefusal } from "./target-guard.ts";
 
 const HARNESS_TARGET = { name: "single-user", baseUrl: "http://localhost:5181", backendUrl: "http://127.0.0.1:8796" } as const;
 const DEV_TARGET = { name: "single-user", baseUrl: "http://localhost:5173", backendUrl: "http://127.0.0.1:8788" } as const;

@@ -24,7 +24,7 @@ import { castId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
 import { bindGetDatabankSettings } from "../../../../packages/server/src/entry/compose/databank.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { seedUser } from "../../domain/chat/_support.ts";
 import { principal } from "../../domain/settings/_support.ts";
 

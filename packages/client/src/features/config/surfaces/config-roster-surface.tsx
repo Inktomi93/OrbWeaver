@@ -10,8 +10,8 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { CollectionContribution, ContributorRegistry } from "#lib";
 import { useFocusOnMount } from "#lib";
-import { CollectionGroup } from "../components/collection-group";
-import { orderCollections } from "../lib/order-collections";
+import { CollectionGroup } from "../components/collection-group.tsx";
+import { orderCollections } from "../lib/order-collections.ts";
 
 export interface ConfigRosterSurfaceProps {
   readonly collections: ContributorRegistry<CollectionContribution>;

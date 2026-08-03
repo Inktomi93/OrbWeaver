@@ -10,7 +10,7 @@ import type { PluginHandlerRef, PluginHostOps, PluginRegistrationHandle } from "
 import { PluginCrashedError } from "@orb/server/domain/plugin";
 import { getById } from "../../../../../packages/server/src/domain/plugin/persistence/plugins.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeBundle, makeInertOps, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 const HANDLER = castId<PluginHandlerRef>("handler_1");

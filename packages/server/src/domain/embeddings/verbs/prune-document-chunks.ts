@@ -7,11 +7,11 @@
 // never touches `document_chunks` directly (the single-write-path invariant, dep-cruiser-enforced). This
 // mirrors `writeHubScores` as a narrow, named, non-`store` write seam.
 
-import type { EmbeddingsContext } from "../context";
-import type { PruneDocumentChunksParams } from "../contract/params";
-import type { PruneDocumentChunksResult } from "../contract/results";
-import type { EmbeddingsService } from "../contract/service";
-import { pruneDocumentChunks } from "../persistence/clear";
+import type { EmbeddingsContext } from "../context.ts";
+import type { PruneDocumentChunksParams } from "../contract/params.ts";
+import type { PruneDocumentChunksResult } from "../contract/results.ts";
+import type { EmbeddingsService } from "../contract/service.ts";
+import { pruneDocumentChunks } from "../persistence/clear.ts";
 
 export function createPruneDocumentChunks(ctx: EmbeddingsContext): EmbeddingsService["pruneDocumentChunks"] {
   return async (params: PruneDocumentChunksParams): Promise<PruneDocumentChunksResult> => {

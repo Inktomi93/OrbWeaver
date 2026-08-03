@@ -4,8 +4,8 @@
 // this section, so it lands here instead of growing features/settings (pain-point §7).
 
 import type { SettingsSectionContribution } from "#state";
-import { MemorySettingsSection } from "../components/memory-settings-section";
-import { MEMORY_SETTINGS_SUBCATEGORY } from "./memory-settings-section-nav";
+import { MemorySettingsSection } from "../components/memory-settings-section.tsx";
+import { MEMORY_SETTINGS_SUBCATEGORY } from "./memory-settings-section-nav.ts";
 
 // The contribution id has ONE home — this const. It is both the registry key and the id the body REPORTS
 // its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.

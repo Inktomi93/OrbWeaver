@@ -10,7 +10,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { LEADERBOARD_SORTS, latencyScopeSchema } from "#domain/stats";
-import { authedProcedure, t } from "../trpc";
+import { authedProcedure, t } from "../trpc.ts";
 
 export const statsRouter = t.router({
   overview: authedProcedure.query(({ ctx }) => ctx.services.stats.overview(ctx.auth.userId)),

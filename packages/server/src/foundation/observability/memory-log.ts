@@ -2,7 +2,7 @@
 // import the domain's MemoryLogEntry; it takes a foundation-local MemoryLogRecord shape (only `event` is
 // required), and the chat memory `log` op passes its concrete entry in — structurally assignable.
 
-import { getLog } from "./logger";
+import { getLog } from "./logger.ts";
 
 export interface MemoryLogRecord {
   readonly event: string;

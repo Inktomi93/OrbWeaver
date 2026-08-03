@@ -14,9 +14,9 @@ import { castId } from "@orb/kit/ids";
 import type { ChatUserMacroDefs } from "@orb/server/domain/chat";
 import { createExtractQuiet } from "@orb/server/domain/chat";
 import { describe } from "vitest";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 interface SummarizeCall {
   readonly inputs: readonly SummarizeInput[];

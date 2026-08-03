@@ -5,11 +5,11 @@
 // Handles a batch of ANY size (a bulk UPDATE, not a matrix op — the dense-vs-streaming threshold is entirely
 // discovery's concern). The `(id, model)` key lands the score on the right row IN THE RIGHT SPACE.
 
-import type { EmbeddingsContext } from "../context";
-import type { WriteHubScoresParams } from "../contract/params";
-import type { WriteHubScoresResult } from "../contract/results";
-import type { EmbeddingsService } from "../contract/service";
-import { writeHubScoreRows } from "../persistence/queries";
+import type { EmbeddingsContext } from "../context.ts";
+import type { WriteHubScoresParams } from "../contract/params.ts";
+import type { WriteHubScoresResult } from "../contract/results.ts";
+import type { EmbeddingsService } from "../contract/service.ts";
+import { writeHubScoreRows } from "../persistence/queries.ts";
 
 export function createWriteHubScores(ctx: EmbeddingsContext): EmbeddingsService["writeHubScores"] {
   return async (params: WriteHubScoresParams): Promise<WriteHubScoresResult> => {

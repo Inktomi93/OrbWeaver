@@ -32,8 +32,8 @@ export type {
   PluginToolRegistration,
   PluginTransformRegistration,
 } from "@orb/contracts/plugin";
-export { PLUGIN_CRASH_DISABLE_THRESHOLD } from "./activation/crash-policy";
-export type { PluginContext } from "./context";
+export { PLUGIN_CRASH_DISABLE_THRESHOLD } from "./activation/crash-policy.ts";
+export type { PluginContext } from "./context.ts";
 export {
   CapabilityNotGrantedError,
   HostVersionUnservedError,
@@ -42,8 +42,8 @@ export {
   PluginCrashedError,
   PluginDowngradeRefusedError,
   PluginNotFoundError,
-} from "./contract/errors";
-export type { PluginActivationScope, PluginHostOps, PluginInvokeHandler, PluginRegistrationHandle } from "./contract/ops";
+} from "./contract/errors.ts";
+export type { PluginActivationScope, PluginHostOps, PluginInvokeHandler, PluginRegistrationHandle } from "./contract/ops.ts";
 export type {
   GetPluginLogParams,
   InstallPluginParams,
@@ -52,9 +52,9 @@ export type {
   SetPluginEnabledParams,
   UninstallPluginParams,
   UpgradePluginParams,
-} from "./contract/params";
-export type { PluginLogView, PluginView, SnippetResult } from "./contract/results";
-export type { CreateInstanceInput, CreateInstanceOutcome, PluginBudgets, PluginHostPort, PluginService } from "./contract/service";
-export { createPluginService } from "./service";
-export { buildPluginPromptTransform, capFactContent } from "./substrate/registrar";
-export { buildPluginStorage, PLUGIN_KV_MAX_KEYS } from "./substrate/storage";
+} from "./contract/params.ts";
+export type { PluginLogView, PluginView, SnippetResult } from "./contract/results.ts";
+export type { CreateInstanceInput, CreateInstanceOutcome, PluginBudgets, PluginHostPort, PluginService } from "./contract/service.ts";
+export { createPluginService } from "./service.ts";
+export { buildPluginPromptTransform, capFactContent } from "./substrate/registrar.ts";
+export { buildPluginStorage, PLUGIN_KV_MAX_KEYS } from "./substrate/storage.ts";

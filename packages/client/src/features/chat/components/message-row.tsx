@@ -17,15 +17,15 @@ import { Fragment } from "react";
 import type { ChatMessageSurfaceState, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { cn, resolveRowRenderPolicy } from "#lib";
 import { toggleMessageSelected, useIsEditingMessage, useIsMessageSelected, useSelectionActive } from "#state";
-import { AttachmentUrlProvider } from "../hooks/attachment-url-provider";
-import { useEnterMotion } from "../hooks/use-enter-motion";
-import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution";
-import { resolveMessageRenderContext } from "../lib/message-render-context";
-import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
-import { splitIntoTrainParagraphs } from "../lib/split-paragraphs";
-import type { GreetingBinding } from "../lib/synth-greeting-row";
-import type { MessageMetadataVisibility } from "./message-metadata-row";
-import { MessageMetadataRow } from "./message-metadata-row";
+import { AttachmentUrlProvider } from "../hooks/attachment-url-provider.tsx";
+import { useEnterMotion } from "../hooks/use-enter-motion.ts";
+import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";
+import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
+import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
+import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
+import type { GreetingBinding } from "../lib/synth-greeting-row.ts";
+import type { MessageMetadataVisibility } from "./message-metadata-row.tsx";
+import { MessageMetadataRow } from "./message-metadata-row.tsx";
 import {
   renderContextBoundaryDivider,
   renderRowActions,
@@ -35,8 +35,8 @@ import {
   renderRowReasoning,
   renderRowSwipe,
   resolveRowContent,
-} from "./message-row-parts";
-import { MessageToolCalls } from "./message-tool-calls";
+} from "./message-row-parts.tsx";
+import { MessageToolCalls } from "./message-tool-calls.tsx";
 
 export interface MessageRowProps {
   readonly message: MessageView;

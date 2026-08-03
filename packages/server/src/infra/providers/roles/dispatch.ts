@@ -10,8 +10,8 @@ import type { ChatApi } from "@orb/contracts/connection";
 import type { CredentialSource } from "@orb/contracts/credentials";
 import type { SpanAttrs } from "#foundation/observability";
 import { span } from "#foundation/observability";
-import type { BackendKey, BackendRegistry, ProviderBackend } from "../contract";
-import { ProviderError } from "../contract";
+import type { BackendKey, BackendRegistry, ProviderBackend } from "../contract/index.ts";
+import { ProviderError } from "../contract/index.ts";
 
 /** Compile-time exhaustiveness guard — a member the switch doesn't handle makes this argument
  *  non-`never`, a `tsc` error. */

@@ -30,8 +30,16 @@
 import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import { castChipNames, castChips, openChatByTitle, openContextTab, openDetailPanel, openGroupBehaviorSection, openMemberRowMenu } from "./support/chat-room";
-import type { RosterSeat } from "./support/trpc";
+import {
+  castChipNames,
+  castChips,
+  openChatByTitle,
+  openContextTab,
+  openDetailPanel,
+  openGroupBehaviorSection,
+  openMemberRowMenu,
+} from "./support/chat-room.ts";
+import type { RosterSeat } from "./support/trpc.ts";
 import {
   addCharacterToChat,
   characterSeats,
@@ -41,7 +49,7 @@ import {
   mintFreshCharacter,
   removeCharacter,
   startGroupChat,
-} from "./support/trpc";
+} from "./support/trpc.ts";
 
 /** A spec-owned cast: unique handles (idempotent re-mint across crashed runs) + unique DISPLAY names, so a
  *  `getByRole(..., { name })` locator can never collide with a seeded library card. */

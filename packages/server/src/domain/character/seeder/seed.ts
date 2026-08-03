@@ -20,10 +20,10 @@ import type { Principal } from "@orb/contracts/identity";
 import { errorMessage } from "@orb/kit/error-message";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import { CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors";
-import type { DefaultCharacterSeeder, DefaultCharacterSeederDeps, SeedCard } from "../contract/seeder";
-import { CARD_PACK_VERSION, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "./cards";
-import { matchesPriorPack, PRIOR_PACK_CONTENT } from "./pack-v1";
+import { CHARACTER_HANDLE_CONFLICT, CharacterOperationError } from "../contract/errors.ts";
+import type { DefaultCharacterSeeder, DefaultCharacterSeederDeps, SeedCard } from "../contract/seeder.ts";
+import { CARD_PACK_VERSION, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "./cards.ts";
+import { matchesPriorPack, PRIOR_PACK_CONTENT } from "./pack-v1.ts";
 
 interface CardOutcome {
   readonly id: CharacterId | null;

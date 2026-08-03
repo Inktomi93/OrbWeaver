@@ -7,11 +7,11 @@ import type { Principal } from "@orb/contracts/identity";
 import { backgroundMaterializeMessage } from "@orb/contracts/theme";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { cardContentHash } from "#kit/serde/card";
-import type { CharacterContext } from "../context";
-import { CHARACTER_BACKGROUND_UNAVAILABLE, CHARACTER_HANDLE_RESERVED, CharacterNotFoundError, CharacterOperationError } from "../contract/errors";
-import type { UpdateCharacterParams } from "../contract/params";
-import type { CharacterService } from "../contract/service";
-import { writeCardInPlace } from "../persistence/card";
+import type { CharacterContext } from "../context.ts";
+import { CHARACTER_BACKGROUND_UNAVAILABLE, CHARACTER_HANDLE_RESERVED, CharacterNotFoundError, CharacterOperationError } from "../contract/errors.ts";
+import type { UpdateCharacterParams } from "../contract/params.ts";
+import type { CharacterService } from "../contract/service.ts";
+import { writeCardInPlace } from "../persistence/card.ts";
 import {
   canonicalTagsOf,
   cardOf,
@@ -20,10 +20,10 @@ import {
   ensureBackgroundOverrideOwned,
   loadOwnedCharacterRow,
   loadOwnedCharacterWithAvatar,
-} from "../persistence/queries";
-import { changedCardFields, flagEdits, mergeCard } from "../substrate/card-merge";
-import { cardTokenSize } from "../substrate/card-tokens";
-import { isReservedGroupHandle } from "../substrate/group-character";
+} from "../persistence/queries.ts";
+import { changedCardFields, flagEdits, mergeCard } from "../substrate/card-merge.ts";
+import { cardTokenSize } from "../substrate/card-tokens.ts";
+import { isReservedGroupHandle } from "../substrate/group-character.ts";
 
 function changedIdentityFields(input: UpdateCharacterParams["input"], current: Record<string, unknown>, handleChanged: boolean): string[] {
   const flags = Object.entries(flagEdits(input))

@@ -1,5 +1,5 @@
 import { errorMessage } from "@orb/kit/error-message";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("errorMessage returns the message of an Error subclass", () => {
   expect(errorMessage(new Error("boom"))).toBe("boom");

@@ -15,7 +15,7 @@ import { batchMany, batchStmt } from "@orb/db/kit";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
 import { and, desc, eq } from "drizzle-orm";
-import type { BulkImportLorebook, ImportStandaloneLorebook, WorldInfoImportContext } from "../contract/import";
+import type { BulkImportLorebook, ImportStandaloneLorebook, WorldInfoImportContext } from "../contract/import.ts";
 
 /** The FK would fail-closed anyway, but the explicit check gives a typed DomainNotFoundError. */
 async function assertOwnedCharacter(db: Db, ownerId: UserId, characterId: CharacterId): Promise<void> {

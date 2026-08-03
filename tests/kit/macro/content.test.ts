@@ -4,7 +4,7 @@
 
 import { swapIdentityMacros, trimContent } from "@orb/kit/macro";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("trimContent trims both ends of a single-line body", () => {
   expect(trimContent("  hello  ")).toBe("hello");

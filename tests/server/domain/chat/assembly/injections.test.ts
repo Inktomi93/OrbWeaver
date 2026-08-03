@@ -3,8 +3,8 @@
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { describe } from "vitest";
-import { frameInjection, spliceInChatInjections } from "../../../../../packages/server/src/domain/chat/assembly/injections";
-import { expect, test } from "../../../../support/fixtures";
+import { frameInjection, spliceInChatInjections } from "../../../../../packages/server/src/domain/chat/assembly/injections.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const HIST = [
   { role: "assistant" as const, content: "a0" },

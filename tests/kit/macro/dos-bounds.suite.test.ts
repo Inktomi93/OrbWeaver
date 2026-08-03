@@ -7,7 +7,7 @@
 
 import type { MacroRegistry, ProcessMacroOptions } from "@orb/kit/macro";
 import { createDefaultRegistry, processMacros } from "@orb/kit/macro";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const MAX_DEPTH = 64; // mirrors engine.ts (the value is @internal; this test-mirror is the intended pin)
 

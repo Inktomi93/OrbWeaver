@@ -6,10 +6,10 @@
 // query with no text can't be scored and fails loud. Carries `model` provenance. No vector math here.
 
 import type { RerankQuery } from "@orb/contracts/role-clients";
-import type { RerankRequest, RerankResult } from "../../contract";
-import { ProviderError } from "../../contract";
-import type { LocalLightModelCache } from "./model-cache";
-import { resolveModelId, throwIfAborted } from "./model-cache";
+import type { RerankRequest, RerankResult } from "../../contract/index.ts";
+import { ProviderError } from "../../contract/index.ts";
+import type { LocalLightModelCache } from "./model-cache.ts";
+import { resolveModelId, throwIfAborted } from "./model-cache.ts";
 
 /** The "any box" default cross-encoder reranker (MS MARCO MiniLM). Overridable via `req.model`. */
 export const DEFAULT_RERANK_MODEL = "Xenova/ms-marco-MiniLM-L-6-v2";

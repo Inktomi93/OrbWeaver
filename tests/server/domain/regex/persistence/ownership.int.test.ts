@@ -8,7 +8,7 @@ import { RegexNotFoundError } from "@orb/server/domain/regex";
 import { describe } from "vitest";
 import { ensureCharacterOwned, ensurePresetOwned } from "../../../../../packages/server/src/domain/regex/persistence/ownership.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedPreset, seedUser } from "../_support.ts";
 
 describe("regex ownership gates", () => {

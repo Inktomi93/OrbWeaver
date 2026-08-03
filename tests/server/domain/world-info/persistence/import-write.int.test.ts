@@ -16,7 +16,7 @@ import type { WorldInfoImportContext } from "../../../../../packages/server/src/
 import { createBulkImportLorebook } from "../../../../../packages/server/src/domain/world-info/persistence/import-write.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedCharacter, seedUser } from "../../../../support/factories/index.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
 

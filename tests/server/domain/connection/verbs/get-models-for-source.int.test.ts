@@ -16,7 +16,7 @@ import { __resetAgentSdkModelCache } from "../../../../../packages/server/src/do
 import { __resetOrModelCache } from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
 import { env } from "../../../../../packages/server/src/foundation/env/index.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeAgentSdkModel, makeConnHarness, makeOrEntry, principal } from "../_support.ts";
 
 afterEach(() => {

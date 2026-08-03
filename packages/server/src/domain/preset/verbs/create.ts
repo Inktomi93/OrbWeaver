@@ -1,12 +1,12 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { getLog } from "#foundation/observability";
-import type { PresetContext } from "../context";
-import type { CreatePresetParams } from "../contract/params";
-import type { PresetService } from "../contract/service";
-import type { PresetDetail } from "../contract/views";
-import { insertPreset, listOwnedPresetNames } from "../persistence/queries";
-import { uniquePresetName } from "../substrate/names";
-import { toPresetDetail } from "../substrate/views";
+import type { PresetContext } from "../context.ts";
+import type { CreatePresetParams } from "../contract/params.ts";
+import type { PresetService } from "../contract/service.ts";
+import type { PresetDetail } from "../contract/views.ts";
+import { insertPreset, listOwnedPresetNames } from "../persistence/queries.ts";
+import { uniquePresetName } from "../substrate/names.ts";
+import { toPresetDetail } from "../substrate/views.ts";
 
 // verb: create — write a new OWNED preset (ownerId = the resolved caller). The config defaults to
 // DEFAULT_PROMPT_CONFIG when the caller omits one (a fresh "start from default" preset); `schemaVersion`

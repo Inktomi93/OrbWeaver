@@ -21,7 +21,7 @@
 // GPU budget (2-card): GPU0 = embed + gen-half; GPU1 = gen-half + rerank (rerank OFF GPU0 so an
 // embed-then-rerank search doesn't serialize on one card). Single-GPU: everything on GPU0.
 
-import type { VLLM_ENGINES } from "./engines";
+import type { VLLM_ENGINES } from "./engines.ts";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 

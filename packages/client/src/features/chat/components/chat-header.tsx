@@ -26,9 +26,9 @@ import { useAuthConfig, useTRPC } from "#data";
 import type { ChatContextTabId } from "#lib";
 import { testId } from "#lib";
 import { setContextTab, setPanelMode } from "#state";
-import { deriveChatTitle } from "../lib/chat-summary-row";
-import { filterCharacters, membersTabJustified } from "../lib/roster";
-import { AddMemberPopover } from "./add-member-popover";
+import { deriveChatTitle } from "../lib/chat-summary-row.ts";
+import { filterCharacters, membersTabJustified } from "../lib/roster.ts";
+import { AddMemberPopover } from "./add-member-popover.tsx";
 
 export interface ChatHeaderSurfaceProps {
   readonly chatId: ChatId;

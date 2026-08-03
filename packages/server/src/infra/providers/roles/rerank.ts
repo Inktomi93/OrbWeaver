@@ -3,9 +3,9 @@
 // rerank. Local (vLLM / ONNX cross-encoder) stays the default keyless path.
 
 import type { RerankResult } from "@orb/contracts/providers";
-import type { ProviderDeps, RerankRequest } from "../contract";
-import { backendForSource, requireBackend, runRole } from "./dispatch";
-import { assertCredentialAllowed } from "./firewall";
+import type { ProviderDeps, RerankRequest } from "../contract/index.ts";
+import { backendForSource, requireBackend, runRole } from "./dispatch.ts";
+import { assertCredentialAllowed } from "./firewall.ts";
 
 const ROLE = "rerank";
 

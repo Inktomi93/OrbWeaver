@@ -17,8 +17,8 @@ import type { CharacterAvatarEntry, PersonaAvatarEntry } from "@orb/contracts/ch
 import type { Db } from "@orb/db";
 import { assets, characters, personas } from "@orb/db";
 import { eq, inArray } from "drizzle-orm";
-import type { MessageMacroIdSource, ParticipantMacroIdSource } from "../contract/macro-ids";
-import { collectMacroIds } from "./macro-names";
+import type { MessageMacroIdSource, ParticipantMacroIdSource } from "../contract/macro-ids.ts";
+import { collectMacroIds } from "./macro-names.ts";
 
 /** Load the persona-avatar producer for a chat: `assets.hash` joined off `personas.avatarAssetId` for every
  *  persona id `args.participants`/`args.messages` cover. */

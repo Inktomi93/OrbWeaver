@@ -28,7 +28,7 @@ import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms";
-import { FormDialog } from "./form-dialog";
+import { FormDialog } from "./form-dialog.tsx";
 
 /** The minimal form value shape the dialog binds — any editor form carrying a `userMacros` array. */
 export interface UserMacrosFormValues {

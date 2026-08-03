@@ -3,7 +3,7 @@ import { Slider as BaseSlider } from "@base-ui/react/slider";
 import type { ReactElement, ReactNode } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { sliderVariants } from "./variants";
+import { sliderVariants } from "./variants.ts";
 
 // A range slider carries an array value → one thumb per entry; a single slider carries a scalar.
 function thumbCount(value: number | readonly number[] | null | undefined): number {

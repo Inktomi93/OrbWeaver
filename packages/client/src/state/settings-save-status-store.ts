@@ -16,7 +16,7 @@
 // truth on its FIRST render (a store flag published by a host effect would flash the inline status for one
 // paint before the host mounts).
 
-import { createGatedStore } from "./create-gated-store";
+import { createGatedStore } from "./create-gated-store.ts";
 
 /** The save lifecycle a section reports. The tuple homes HERE rather than in `#forms` because the store
  *  that carries it is state-tier and state cannot import forms (`client-state-below-data`, no type-only

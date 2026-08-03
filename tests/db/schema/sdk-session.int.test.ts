@@ -12,8 +12,8 @@ import { isConstraintViolation } from "@orb/db/kit";
 import type { ChatId, SessionEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../support/db";
-import { expect, test } from "../../support/fixtures";
+import { freshDb } from "../../support/db.ts";
+import { expect, test } from "../../support/fixtures.ts";
 import { seedChat } from "./_support.ts";
 
 // Named consts — the canon-coverage horizon + the staleness-gate hash + the lineage ordinals (the head and

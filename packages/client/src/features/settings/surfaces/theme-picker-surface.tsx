@@ -23,11 +23,11 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
-import { ThemeEditor } from "../components/theme-editor";
-import { ThemeRowMenu } from "../components/theme-row-menu";
-import { useCreateTheme, useDuplicateTheme, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations";
-import type { ThemeFormValues } from "../lib/theme-editor-model";
-import { DEFAULT_THEME_FORM, themeInputFromForm } from "../lib/theme-editor-model";
+import { ThemeEditor } from "../components/theme-editor.tsx";
+import { ThemeRowMenu } from "../components/theme-row-menu.tsx";
+import { useCreateTheme, useDuplicateTheme, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations.ts";
+import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
+import { DEFAULT_THEME_FORM, themeInputFromForm } from "../lib/theme-editor-model.ts";
 
 const HEARTH_NAME = "Hearth";
 const COPY_SUFFIX = " copy";

@@ -1,6 +1,6 @@
 // verb: setRuleEnabled — the consent flip (rules are born disabled).
 
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { MSG_COMMITTED, principal, ruleFixture, SET_VAR } from "../_support.ts";
 
 test("setRuleEnabled flips the enabled flag", async () => {

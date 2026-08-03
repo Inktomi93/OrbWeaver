@@ -22,7 +22,7 @@ import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import { selectChat, setActiveSection } from "#state";
-import { usePreviewInvite, useRedeemInvite } from "../hooks/use-invite-mutations";
+import { usePreviewInvite, useRedeemInvite } from "../hooks/use-invite-mutations.ts";
 
 type Preview = inferOutput<Trpc["invites"]["previewInvite"]>;
 

@@ -12,7 +12,7 @@ import { useState } from "react";
 // shell.css (the `.shell-modal-header` chrome) is loaded transitively by globals.css, but import it
 // directly so the modal-chrome story below has the header/divider styles even in isolation.
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
+import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The full-bleed settings shell in a fixed-height box + the real data layer (network stubbed per-test).
  *  SettingsShell reads `useSettingsPaneRegistry()`, so it must mount under the pane-registry provider —

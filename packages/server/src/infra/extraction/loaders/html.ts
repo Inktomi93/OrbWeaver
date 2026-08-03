@@ -6,7 +6,7 @@
 // pass in FRONT of this same loader — deferred until a retrieval-quality complaint traces to it.
 
 import { convert } from "html-to-text";
-import type { RawExtraction } from "../loader";
+import type { RawExtraction } from "../loader.ts";
 
 // html-to-text is byte-agnostic (it wants a string); decode LENIENTLY — real-world html has mixed/mislabeled
 // bytes, and a stray byte should degrade to U+FFFD, not fail the whole document (unlike the strict text family).

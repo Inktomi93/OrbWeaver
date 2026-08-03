@@ -23,7 +23,7 @@
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { SeedCard } from "../contract/seeder";
+import type { SeedCard } from "../contract/seeder.ts";
 
 export const WELCOME_ASSISTANT_HANDLE = castId<CharacterHandle>("assistant");
 

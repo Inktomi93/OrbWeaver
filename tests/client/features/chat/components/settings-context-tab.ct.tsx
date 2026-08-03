@@ -10,10 +10,10 @@
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { setNumber } from "../../../../support/ct/set-number";
-import { CommittedSettingsTabStory, DraftSettingsTabStory } from "../_ct-stories";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { setNumber } from "../../../../support/ct/set-number.ts";
+import { CommittedSettingsTabStory, DraftSettingsTabStory } from "../_ct-stories.tsx";
 
 // The getChat stub the host-only Tool-use section suspends on (⑦). `toolRecurseLimit` is the current cap the
 // control displays; `viewerIsHost` mirrors the story's isHost. Minimal — the section only reads the cap.

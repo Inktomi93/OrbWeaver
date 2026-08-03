@@ -56,10 +56,10 @@ import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import type { ResolveRegexSources } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
 import type { RoleClientsWithSignal, ToolCallInput, WireTool } from "#infra/providers";
-import type { ActiveTurns } from "./active-turns";
-import type { ResolveForeignInputsOp } from "./foreign";
-import type { MemoryLog } from "./memory";
-import type { TurnRequest, TurnStreamChunk } from "./results";
+import type { ActiveTurns } from "./active-turns.ts";
+import type { ResolveForeignInputsOp } from "./foreign.ts";
+import type { MemoryLog } from "./memory.ts";
+import type { TurnRequest, TurnStreamChunk } from "./results.ts";
 
 /** The node:vm ReDoS watchdog wrapping a host-side regex `text.replace` in a per-call timeout, so a
  *  catastrophic-backtracking pattern throws instead of hanging the turn. */

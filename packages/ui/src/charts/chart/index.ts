@@ -4,6 +4,6 @@
  * `OrbChartOption` type is the shared option surface (bar/line series + grid/tooltip/dataset/aria).
  */
 
-export type { ChartEvent, ChartProps } from "./chart";
-export { Chart } from "./chart";
-export type { OrbChartOption, OrbEChartsInstance } from "./echarts-setup";
+export type { ChartEvent, ChartProps } from "./chart.tsx";
+export { Chart } from "./chart.tsx";
+export type { OrbChartOption, OrbEChartsInstance } from "./echarts-setup.ts";

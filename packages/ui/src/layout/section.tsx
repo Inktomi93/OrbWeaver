@@ -4,7 +4,7 @@ import { Icon, Info } from "#primitives/icons";
 import { Separator } from "#primitives/separator";
 import { Heading } from "#primitives/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "#primitives/tooltip";
-import { sectionVariants } from "./variants";
+import { sectionVariants } from "./variants.ts";
 
 export interface SectionProps extends ComponentProps<"section"> {
   heading?: ReactNode;

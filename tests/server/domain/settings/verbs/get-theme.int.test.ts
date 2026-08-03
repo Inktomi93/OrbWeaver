@@ -4,7 +4,7 @@ import { describe } from "vitest";
 import { ThemeNotFoundError } from "../../../../../packages/server/src/domain/settings/contract/errors.ts";
 import { ensureSeedThemes } from "../../../../../packages/server/src/domain/settings/seed-themes.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { findSeedTheme, makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("getTheme", () => {

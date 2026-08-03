@@ -4,4 +4,4 @@
 // composition root (db + injected clock/id seams + the `can()` seam + the CAS ops + the `PluginHostPort` runtime
 // + the `PluginHostOps` op bundle) and handed to `createPluginService`.
 
-export type { PluginContext } from "./contract/service";
+export type { PluginContext } from "./contract/service.ts";

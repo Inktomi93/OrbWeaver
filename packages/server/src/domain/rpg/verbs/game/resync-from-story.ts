@@ -50,14 +50,14 @@
 //     archive itself uses `addJournalEntry`/`editJournalEntry`/`deleteJournalEntry` (built, host-gated).
 
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
-import type { ResyncFromStoryParams } from "../../contract/params";
-import type { ResyncResult } from "../../contract/results";
-import type { RpgContext, RpgService } from "../../contract/service";
-import { snapshotRowToState } from "../../contract/service";
-import { resolveHost } from "../../guard";
-import { resolveSnapshotForTurn, writeResyncedSnapshot } from "../../persistence/snapshots";
-import { defaultSnapshotState } from "../../substrate/default-state";
-import { applyLockedPatch } from "../../substrate/merge";
+import type { ResyncFromStoryParams } from "../../contract/params.ts";
+import type { ResyncResult } from "../../contract/results.ts";
+import type { RpgContext, RpgService } from "../../contract/service.ts";
+import { snapshotRowToState } from "../../contract/service.ts";
+import { resolveHost } from "../../guard.ts";
+import { resolveSnapshotForTurn, writeResyncedSnapshot } from "../../persistence/snapshots.ts";
+import { defaultSnapshotState } from "../../substrate/default-state.ts";
+import { applyLockedPatch } from "../../substrate/merge.ts";
 
 /** The deep-window budget the resync reads (the deepest honest read — a const, NOT a client knob, so a caller
  *  can't inflate the read). Bounded for the sad-path 8B ([[plan-for-small-hardware]]); a resync is a rare

@@ -5,7 +5,7 @@
 
 import type { AssetKind } from "@orb/contracts/assets";
 import type { AssetId } from "@orb/kit/ids";
-import type { AssetsContext } from "./service";
+import type { AssetsContext } from "./service.ts";
 
 /** The lossless identity of one portable blob file — everything the target box needs to rebuild the
  *  `assets` row UNDER ITS ORIGINAL ID and restore the bytes (Option-A re-link). */

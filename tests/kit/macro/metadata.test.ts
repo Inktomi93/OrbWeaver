@@ -4,7 +4,7 @@
 
 import type { MacroDiagnostic, MacroMetadata, ProcessMacroOptions } from "@orb/kit/macro";
 import { checkMacroArgs, createDefaultRegistry, processMacros, queryMacros, validateMacroArgs } from "@orb/kit/macro";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const REGISTRY = createDefaultRegistry();
 

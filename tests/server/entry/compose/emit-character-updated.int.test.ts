@@ -12,7 +12,7 @@ import { castId } from "@orb/kit/ids";
 import { createCharacterUpdatedChatFan } from "@orb/server/entry/compose";
 import { describe } from "vitest";
 import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 describe("emit-character-updated — seated-chat fan + departed/non-seat isolation", () => {

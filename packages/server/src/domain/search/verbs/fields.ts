@@ -3,12 +3,12 @@
 // `substrate/field-index.ts`); a cache miss loads the owner's cards, a hit touches no db. Owner-scope is
 // the corpus itself — the index holds only that owner's cards, so a hit can never cross owners.
 
-import type { SearchContext } from "../context";
-import type { FieldSearchParams, SuggestParams } from "../contract/params";
-import type { FieldSearchHit, SearchSuggestion } from "../contract/results";
-import type { SearchService } from "../contract/service";
-import { loadCardFields } from "../persistence/cards";
-import { getOrBuildFieldIndex, queryFields, suggestFields } from "../substrate/field-index";
+import type { SearchContext } from "../context.ts";
+import type { FieldSearchParams, SuggestParams } from "../contract/params.ts";
+import type { FieldSearchHit, SearchSuggestion } from "../contract/results.ts";
+import type { SearchService } from "../contract/service.ts";
+import { loadCardFields } from "../persistence/cards.ts";
+import { getOrBuildFieldIndex, queryFields, suggestFields } from "../substrate/field-index.ts";
 
 export function createFields(ctx: SearchContext): SearchService["fields"] {
   return async (params: FieldSearchParams): Promise<FieldSearchHit[]> => {

@@ -9,9 +9,9 @@
 // the chunk layout to a tokenizer would spuriously reindex every document on a tokenizer swap (03 §1). The
 // slices are canon-verbatim — the chunker normalizes NOTHING (extraction normalizes newlines first, 04 §2).
 
-import { splitRecursive } from "./split";
+import { splitRecursive } from "./split.ts";
 
-export { CHUNK_SEPARATORS } from "./split";
+export { CHUNK_SEPARATORS } from "./split.ts";
 
 /** Chunking parameters. The zod wire twin (`@orb/contracts/databank` chunkParamsSchema) is pinned to this
  *  shape by a `satisfies` check THERE. */

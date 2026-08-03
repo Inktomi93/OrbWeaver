@@ -7,7 +7,7 @@
 
 import { AutomationChatNotFoundError } from "@orb/server/domain/automation";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedParticipant } from "../../chat/_support.ts";
 import { principal, ruleFixture, seedUser } from "../_support.ts";
 

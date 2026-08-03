@@ -2,7 +2,7 @@ import process from "node:process";
 import type { UserRole } from "@orb/contracts/identity";
 import type { Handle } from "@orb/kit/ids";
 import { env } from "#foundation/env";
-import type { IdentityAccess } from "../contract/results";
+import type { IdentityAccess } from "../contract/results.ts";
 
 // The app's IdP-group → role governance: pure derivation policy + the sanctioned call-time `process.env`
 // reads (OWNER_HANDLES/OWNER_GROUP/OIDC_ADMIN_GROUPS/OIDC_ALLOWED_GROUPS/RE_DERIVE_ROLE_ON_LOGIN), read at

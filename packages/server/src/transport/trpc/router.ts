@@ -4,32 +4,32 @@
 
 import { z } from "zod";
 import { recordClientError } from "#foundation/observability";
-import { adminRouter } from "./routers/admin";
-import { assetsRouter } from "./routers/assets";
-import { automationRouter } from "./routers/automation";
-import { characterRouter } from "./routers/character";
-import { chatRouter } from "./routers/chat";
-import { connectionRouter } from "./routers/connection";
-import { credentialsRouter } from "./routers/credentials";
-import { databankRouter } from "./routers/databank";
-import { discoveryRouter } from "./routers/discovery";
-import { imageryRouter } from "./routers/imagery";
-import { invitesRouter } from "./routers/invites";
-import { notificationsRouter } from "./routers/notifications";
-import { personaRouter } from "./routers/persona";
-import { pluginRouter } from "./routers/plugin";
-import { presetRouter } from "./routers/preset";
-import { regexRouter } from "./routers/regex";
-import { rpgRouter } from "./routers/rpg";
-import { searchRouter } from "./routers/search";
-import { sessionsRouter } from "./routers/sessions";
-import { settingsRouter } from "./routers/settings";
-import { statsRouter } from "./routers/stats";
-import { streamRouter } from "./routers/stream";
-import { tagRouter } from "./routers/tag";
-import { workloadsRouter } from "./routers/workloads";
-import { worldInfoRouter } from "./routers/world-info";
-import { publicProcedure, t } from "./trpc";
+import { adminRouter } from "./routers/admin.ts";
+import { assetsRouter } from "./routers/assets.ts";
+import { automationRouter } from "./routers/automation.ts";
+import { characterRouter } from "./routers/character.ts";
+import { chatRouter } from "./routers/chat.ts";
+import { connectionRouter } from "./routers/connection.ts";
+import { credentialsRouter } from "./routers/credentials.ts";
+import { databankRouter } from "./routers/databank.ts";
+import { discoveryRouter } from "./routers/discovery.ts";
+import { imageryRouter } from "./routers/imagery.ts";
+import { invitesRouter } from "./routers/invites.ts";
+import { notificationsRouter } from "./routers/notifications.ts";
+import { personaRouter } from "./routers/persona.ts";
+import { pluginRouter } from "./routers/plugin.ts";
+import { presetRouter } from "./routers/preset.ts";
+import { regexRouter } from "./routers/regex.ts";
+import { rpgRouter } from "./routers/rpg.ts";
+import { searchRouter } from "./routers/search.ts";
+import { sessionsRouter } from "./routers/sessions.ts";
+import { settingsRouter } from "./routers/settings.ts";
+import { statsRouter } from "./routers/stats.ts";
+import { streamRouter } from "./routers/stream.ts";
+import { tagRouter } from "./routers/tag.ts";
+import { workloadsRouter } from "./routers/workloads.ts";
+import { worldInfoRouter } from "./routers/world-info.ts";
+import { publicProcedure, t } from "./trpc.ts";
 
 // The client→server error-report verb's wire bounds. Generous but finite: rejects a pathologically
 // oversized payload at the transport edge before it's parsed/logged; the sink (recordClientError)

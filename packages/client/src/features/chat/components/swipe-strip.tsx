@@ -12,8 +12,8 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { useSwipeKeyboardNav } from "../hooks/use-swipe-keyboard-nav";
-import { useVariantHistory } from "../hooks/use-variant-history";
+import { useSwipeKeyboardNav } from "../hooks/use-swipe-keyboard-nav.ts";
+import { useVariantHistory } from "../hooks/use-variant-history.ts";
 
 interface SwipeVars {
   readonly chatId: ChatId;

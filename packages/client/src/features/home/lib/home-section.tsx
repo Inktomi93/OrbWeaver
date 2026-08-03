@@ -22,7 +22,7 @@ import { Compass } from "@orb/ui/icons";
 import type { ContributorRegistry, HomeTileContribution } from "#lib";
 import type { SectionDefinition } from "#state";
 import { openModal } from "#state";
-import { HomeSurface } from "../surfaces/home-surface";
+import { HomeSurface } from "../surfaces/home-surface.tsx";
 
 export function makeHomeSection(tiles: ContributorRegistry<HomeTileContribution>): SectionDefinition {
   return {

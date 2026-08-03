@@ -17,9 +17,9 @@ import type { ReactElement } from "react";
 import { useDeferredValue, useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
-import { CorpusBrowseView } from "../components/corpus-browse-view";
-import { CorpusSearchResults } from "../components/corpus-search-results";
-import { CORPUS_SEARCH_TARGETS, CORPUS_SUGGEST_LIMIT, CORPUS_TARGET_REST_HINTS, resolveSearchTarget } from "../lib/corpus-search-targets";
+import { CorpusBrowseView } from "../components/corpus-browse-view.tsx";
+import { CorpusSearchResults } from "../components/corpus-search-results.tsx";
+import { CORPUS_SEARCH_TARGETS, CORPUS_SUGGEST_LIMIT, CORPUS_TARGET_REST_HINTS, resolveSearchTarget } from "../lib/corpus-search-targets.ts";
 
 const DEFAULT_TARGET = CORPUS_SEARCH_TARGETS[0].id;
 const SKELETON_ROW_COUNT = 5;

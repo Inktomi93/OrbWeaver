@@ -21,10 +21,10 @@ import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
-import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model";
-import { SYSTEM_TUNING_SUBCATEGORY } from "../lib/system-tuning-nav";
-import { AdminOverrideField, AdminOverrideResetRow } from "./admin-override-field";
+import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
+import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
+import { SYSTEM_TUNING_SUBCATEGORY } from "../lib/system-tuning-nav.ts";
+import { AdminOverrideField, AdminOverrideResetRow } from "./admin-override-field.tsx";
 
 // One editable scalar knob: how to READ its effective baseline off the resolved config, whether a stored
 // OVERRIDE is active, and how to build the sparse PATCH (nested paths handled per-field). `min` guards the

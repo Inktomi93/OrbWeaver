@@ -22,8 +22,8 @@ import type {
   UpdateAppSettingsParams,
   UpdateThemeParams,
   UpdateUserSettingsSectionParams,
-} from "./params";
-import type { GlobalSettingView, ThemeView, UserSettingsView } from "./views";
+} from "./params.ts";
+import type { GlobalSettingView, ThemeView, UserSettingsView } from "./views.ts";
 
 /** Injected cross-feature op (PD-139a): fired AFTER a user-settings write that CHANGED the box's
  *  `routing.roleDefaults.embed.model` or `.imageEmbed.model`. Wired at the entry root to enqueue a bulk

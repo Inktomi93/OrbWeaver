@@ -20,10 +20,10 @@ import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { VarOp } from "@orb/kit/macro";
-import type { ArmDispatch, ArmExecutorDeps, ArmOutcome, DispatchFrame } from "../contract/ops";
-import { isBookAttachedToChat, listRuleEntryTitles, loadPresentHumanMemberIds } from "../persistence/canon-reads";
-import { deleteGlobalVariable, selectGlobalVariable, upsertGlobalVariable } from "../persistence/queries";
-import { renderArmTemplate } from "../substrate/macro-render";
+import type { ArmDispatch, ArmExecutorDeps, ArmOutcome, DispatchFrame } from "../contract/ops.ts";
+import { isBookAttachedToChat, listRuleEntryTitles, loadPresentHumanMemberIds } from "../persistence/canon-reads.ts";
+import { deleteGlobalVariable, selectGlobalVariable, upsertGlobalVariable } from "../persistence/queries.ts";
+import { renderArmTemplate } from "../substrate/macro-render.ts";
 
 const DECIMAL_RADIX = 10;
 const DEFAULT_INC_DEC_OPERAND = 1;

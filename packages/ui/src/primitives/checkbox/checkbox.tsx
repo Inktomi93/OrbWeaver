@@ -3,7 +3,7 @@ import { Checkbox as BaseCheckbox } from "@base-ui/react/checkbox";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
 import { Check, Icon, Lock, Minus } from "#primitives/icons";
-import { checkboxVariants } from "./variants";
+import { checkboxVariants } from "./variants.ts";
 
 export interface CheckboxProps extends CheckboxRootProps {
   className?: string;

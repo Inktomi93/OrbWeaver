@@ -6,7 +6,7 @@ import type { GenerationType, MarkerType, PromptSection } from "@orb/contracts/p
 import { DEFAULT_MARKER_TEMPLATES, GENERATION_TYPES, MARKER_TYPES } from "@orb/contracts/preset";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Pencil } from "@orb/ui/icons";
-import { MARKER_COPY } from "../components/prompt-assembly/marker-copy";
+import { MARKER_COPY } from "../components/prompt-assembly/marker-copy.ts";
 
 /** The three section kinds the rack + inspector branch on (derived from a section, never stamped). */
 const SECTION_KINDS = ["literal", "templatedMarker", "plainMarker"] as const;

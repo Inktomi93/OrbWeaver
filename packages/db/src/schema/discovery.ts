@@ -62,11 +62,11 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
-import { vector32 } from "../custom-types";
-import { characters } from "./character";
-import { chats } from "./chat";
-import { chatDigests } from "./embeddings";
-import { users } from "./users";
+import { vector32 } from "../custom-types/index.ts";
+import { characters } from "./character.ts";
+import { chats } from "./chat.ts";
+import { chatDigests } from "./embeddings.ts";
+import { users } from "./users.ts";
 
 // The dedup `relation` axis — a near-duplicate look-alike (`duplicate`) vs a shared-fork-root family
 // member (`forked`, via the path-compressed lineage walk). DERIVES `RELATIONS` from

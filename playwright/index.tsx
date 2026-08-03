@@ -3,8 +3,8 @@
 // utilities resolve inside component tests exactly as they will in the client.
 import { beforeMount } from "@playwright/experimental-ct-react/hooks";
 import type { ReactElement } from "react";
-import type { CtProvidersProps } from "../tests/support/ct/ct-providers";
-import { CtProviders } from "../tests/support/ct/ct-providers";
+import type { CtProvidersProps } from "../tests/support/ct/ct-providers.tsx";
+import { CtProviders } from "../tests/support/ct/ct-providers.tsx";
 import "./index.css";
 
 // Inject the global provider chrome (Toast / Tooltip / Direction / ThemeScope) around every mounted

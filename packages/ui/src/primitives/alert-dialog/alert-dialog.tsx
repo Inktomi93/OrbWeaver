@@ -10,7 +10,7 @@ import type {
 import { AlertDialog as BaseAlertDialog } from "@base-ui/react/alert-dialog";
 import type { HTMLAttributes, ReactElement } from "react";
 import { usePortalContainer } from "#lib";
-import { alertDialogVariants } from "./variants";
+import { alertDialogVariants } from "./variants.ts";
 
 const slots = alertDialogVariants();
 

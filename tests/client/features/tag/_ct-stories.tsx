@@ -5,9 +5,9 @@
 
 import { QueryBoundary } from "@orb/client/data";
 import type { ReactElement } from "react";
-import { TagCollectionRows } from "../../../../packages/client/src/features/tag/components/tag-collection-rows";
-import { TagMemberSurface } from "../../../../packages/client/src/features/tag/surfaces/tag-member-surface";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+import { TagCollectionRows } from "../../../../packages/client/src/features/tag/components/tag-collection-rows.tsx";
+import { TagMemberSurface } from "../../../../packages/client/src/features/tag/surfaces/tag-member-surface.tsx";
+import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The tag MEMBER EDITOR (the F-11 split's CONTENT half) in isolation — `tag.listTagsWithUsage` (the read)
  *  plus the tag mutations (`updateTag`/`removeTag`/`mergeTags`) are stubbed per-test via routeTrpc. The

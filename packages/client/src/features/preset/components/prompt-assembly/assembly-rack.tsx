@@ -22,12 +22,12 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { AppFormInstance } from "#forms";
-import { isPivotSection } from "../../lib/assembly-model";
-import { deriveZones } from "./derive-zones";
-import { MARKER_COPY } from "./marker-copy";
-import { PivotBand } from "./pivot-band";
-import { diffMove } from "./reorder-move";
-import { SectionRow } from "./section-row";
+import { isPivotSection } from "../../lib/assembly-model.ts";
+import { deriveZones } from "./derive-zones.ts";
+import { MARKER_COPY } from "./marker-copy.ts";
+import { PivotBand } from "./pivot-band.tsx";
+import { diffMove } from "./reorder-move.ts";
+import { SectionRow } from "./section-row.tsx";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;
 

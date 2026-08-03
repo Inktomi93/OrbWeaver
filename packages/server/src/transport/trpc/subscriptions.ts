@@ -8,7 +8,7 @@
 
 import type { TRPCError, TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
-import { classifyDomainError } from "./error-mapping";
+import { classifyDomainError } from "./error-mapping.ts";
 
 // Never a durable cursor, so a reconnect's lastEventId never resumes "from the error".
 const SUBSCRIPTION_ERROR_ID = "__error__";

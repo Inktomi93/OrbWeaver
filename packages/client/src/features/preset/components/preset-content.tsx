@@ -8,8 +8,8 @@
 
 import type { ReactElement } from "react";
 import { revealContextPanel, useSelectedPresetId } from "#state";
-import { PresetEditorSurface } from "../surfaces/preset-editor-surface";
-import { PresetLibraryWelcome } from "./preset-library-welcome";
+import { PresetEditorSurface } from "../surfaces/preset-editor-surface.tsx";
+import { PresetLibraryWelcome } from "./preset-library-welcome.tsx";
 
 export function PresetContent(): ReactElement {
   const selectedPresetId = useSelectedPresetId();

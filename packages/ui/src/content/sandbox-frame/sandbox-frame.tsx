@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactElement } from "react";
-import { buildSrcDoc, SANDBOX_ATTR } from "./srcdoc";
-import { clampSandboxThemeTokens } from "./theme-tokens";
-import { clampSandboxFontFamily } from "./use-sandbox-theme";
+import { buildSrcDoc, SANDBOX_ATTR } from "./srcdoc.ts";
+import { clampSandboxThemeTokens } from "./theme-tokens.ts";
+import { clampSandboxFontFamily } from "./use-sandbox-theme.ts";
 
 // With scripts OFF the frame cannot postMessage its scrollHeight, so height is caller-controlled, not self-measured.
 const DEFAULT_HEIGHT_PX = 320;

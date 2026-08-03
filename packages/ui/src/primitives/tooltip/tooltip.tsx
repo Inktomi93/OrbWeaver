@@ -11,7 +11,7 @@ import type { ReactElement } from "react";
 import { createContext, use, useId } from "react";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_TRIGGER, usePortalContainer } from "#lib";
-import { tooltipVariants } from "./variants";
+import { tooltipVariants } from "./variants.ts";
 
 const slots = tooltipVariants();
 

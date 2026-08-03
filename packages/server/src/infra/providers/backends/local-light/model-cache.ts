@@ -9,7 +9,7 @@ import { AutoModel, AutoModelForSequenceClassification, AutoProcessor, AutoToken
 import type { ImageInput } from "@orb/contracts/role-clients";
 import { l2Normalize } from "@orb/kit/vector-math";
 import { getLog } from "#foundation/observability";
-import { ProviderError } from "../../contract";
+import { ProviderError } from "../../contract/index.ts";
 
 // Small on purpose — each ONNX session holds native (off-heap) memory; the headroom just absorbs a deliberate model switch.
 const MODEL_CACHE_CAP = 4;

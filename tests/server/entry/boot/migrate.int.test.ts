@@ -11,7 +11,7 @@ import { pid } from "node:process";
 import { checkBaseline, createDb, runMigrations } from "@orb/db";
 import { resolveMigrationsFolder, runBootMigrations } from "@orb/server/entry/boot";
 import { sql } from "drizzle-orm";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const FK_ON = 1;
 const BACKUP_RE = /\.backup-\d+$/;

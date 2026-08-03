@@ -3,8 +3,8 @@
 // other feature — no self-privilege.
 
 import type { ChromeEntry } from "#state";
-import { FullscreenToggle } from "../components/fullscreen-toggle";
-import { useShellLayout } from "../hooks/use-shell-layout";
+import { FullscreenToggle } from "../components/fullscreen-toggle.tsx";
+import { useShellLayout } from "../hooks/use-shell-layout.ts";
 
 export const fullscreenChrome: ChromeEntry = {
   id: "fullscreen-toggle",

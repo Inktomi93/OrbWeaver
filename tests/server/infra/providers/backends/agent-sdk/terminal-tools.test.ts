@@ -10,7 +10,7 @@
 import { logger } from "@orb/server/foundation/observability";
 import { isTerminalToolCall, TERMINAL_MCP_NAMESPACE, terminalToolOptions, toTerminalCall } from "@orb/server/infra/providers/backends/agent-sdk";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const TURN = "turn-1";
 const NS = TERMINAL_MCP_NAMESPACE;

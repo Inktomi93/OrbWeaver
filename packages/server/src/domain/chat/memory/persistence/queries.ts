@@ -9,7 +9,7 @@ import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, chatParticipants, chatSegments, messages, messageVariants } from "@orb/db";
 import type { CharacterId, ChatDigestId, ChatId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, lte, max } from "drizzle-orm";
-import type { DigestRow, MsgRow, WitnessInterval } from "../types";
+import type { DigestRow, MsgRow, WitnessInterval } from "../types.ts";
 
 /** The chat's canon head (`max(messages.seq)`, 0 when empty) — the build cutoff (`maxSeq − verbatimWindow`)
  *  derives from it. The MEMORY meta read (kept minimal; the full chat-row read is the feature persistence's). */

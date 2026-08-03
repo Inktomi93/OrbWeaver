@@ -12,7 +12,7 @@ import { castId } from "@orb/kit/ids";
 import type { AuthMetaDeps } from "@orb/server/entry/http";
 import { registerAuthMeta } from "@orb/server/entry/http";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 interface MockResult {
   readonly body: Record<string, unknown>;

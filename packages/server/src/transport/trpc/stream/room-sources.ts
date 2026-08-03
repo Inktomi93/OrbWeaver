@@ -19,13 +19,13 @@
 // cannot exist for events the wire contract cannot spell.
 
 import type { StreamChannel, StreamRoomRef } from "@orb/contracts/stream";
-import type { RoomSourceDef } from "./room-source";
-import { automationRoomSource } from "./sources/automation";
-import { chatRoomSource } from "./sources/chat";
-import { notificationsRoomSource } from "./sources/notifications";
-import { rpgRoomSource } from "./sources/rpg";
-import { userRoomSource } from "./sources/user";
-import { workloadsRoomSource } from "./sources/workloads";
+import type { RoomSourceDef } from "./room-source.ts";
+import { automationRoomSource } from "./sources/automation.ts";
+import { chatRoomSource } from "./sources/chat.ts";
+import { notificationsRoomSource } from "./sources/notifications.ts";
+import { rpgRoomSource } from "./sources/rpg.ts";
+import { userRoomSource } from "./sources/user.ts";
+import { workloadsRoomSource } from "./sources/workloads.ts";
 
 export const ROOM_SOURCES: { [C in StreamChannel]: RoomSourceDef<C> } = {
   user: userRoomSource,

@@ -23,7 +23,7 @@
 
 import type { EndpointInspection } from "@orb/contracts/providers";
 import { errorMessage } from "@orb/kit/error-message";
-import { applyIncludeExclude, redactHeaders, redactSecretsFromText, secretHeaderValues } from "../kit";
+import { applyIncludeExclude, redactHeaders, redactSecretsFromText, secretHeaderValues } from "../kit/index.ts";
 
 const PING_CONTENT = "ping";
 const PING_MAX_TOKENS = 1;

@@ -10,7 +10,7 @@ import type { AssetId, CharacterId, GalleryItemId, UserId } from "@orb/kit/ids";
 import { isAnimated } from "@orb/kit/image-sniff";
 import { and, asc, desc, eq, inArray, isNull, like, lt, or } from "drizzle-orm";
 import type { Cas } from "#infra/storage";
-import { assertMagicMatches } from "../substrate/mime";
+import { assertMagicMatches } from "../substrate/mime.ts";
 
 const LIMIT_ONE = 1;
 

@@ -9,7 +9,7 @@ import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
 import type { DatabankWorkloadDeps } from "../../../../packages/server/src/domain/databank/contract/service.ts";
 import { createDatabankWorkloadContributions } from "../../../../packages/server/src/domain/databank/workload-contributions.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");
 const DOCUMENT_ID = castId<DocumentId>("document_a");

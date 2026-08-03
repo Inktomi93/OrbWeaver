@@ -10,7 +10,7 @@ import type { BlurSurface } from "@orb/contracts/settings";
 import type { ThemeDensity } from "@orb/contracts/theme";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { ReactElement } from "react";
-import { useAppearanceRootEffects } from "../../../../packages/client/src/features/app-shell/hooks/use-appearance-root-effects";
+import { useAppearanceRootEffects } from "../../../../packages/client/src/features/app-shell/hooks/use-appearance-root-effects.ts";
 import "../../../../packages/client/src/features/app-shell/surfaces/shell.css";
 import "../../../../packages/client/src/styles/globals.css";
 

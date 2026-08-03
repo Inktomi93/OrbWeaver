@@ -5,7 +5,7 @@
 import type { DialogPopupProps } from "@orb/ui/dialog";
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactElement } from "react";
-import type { ModalSlotId } from "./shell-store";
+import type { ModalSlotId } from "./shell-store.ts";
 
 /** WHERE a modal's trigger affordance lives — the rail/topbar/mobile-bar DERIVE from this (no parallel
  *  map). Extend the tuple to add a placement. The `rail.end`/`topbar.trail` names align with the chrome

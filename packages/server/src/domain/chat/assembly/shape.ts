@@ -9,14 +9,14 @@ import type { NamesBehavior } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { CharacterId, MessageId, PersonaId } from "@orb/kit/ids";
 import { speakerTagsToPlain } from "@orb/kit/speaker-label";
-import type { PromptHistoryRegexEnv } from "../contract/regex";
-import type { HistoryMacroNames } from "../contract/results";
-import { applyPromptHistoryRegex } from "./history-regex";
-import { spliceInChatInjections } from "./injections";
-import { renderHistoryMacros } from "./macros";
-import { applyNamesBehavior } from "./names";
-import { clampRoleHandling, squashSameRole } from "./role-squash";
-import { hasMultipleCharacters } from "./speaker-stamp";
+import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
+import type { HistoryMacroNames } from "../contract/results.ts";
+import { applyPromptHistoryRegex } from "./history-regex.ts";
+import { spliceInChatInjections } from "./injections.ts";
+import { renderHistoryMacros } from "./macros.ts";
+import { applyNamesBehavior } from "./names.ts";
+import { clampRoleHandling, squashSameRole } from "./role-squash.ts";
+import { hasMultipleCharacters } from "./speaker-stamp.ts";
 
 /** The CANON wire-history role axis (derive-don't-respell the non-system subset; canon rows are never
  *  system — `toShapeCanon` drops them). */

@@ -5,7 +5,7 @@
 
 import { sanitizeApiError } from "@orb/server/infra/providers/backends/kit";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 // Assemble control chars at runtime (NUL, BS, DEL) rather than embedding raw bytes in the source.
 const CONTROL_CHARS = String.fromCharCode(0, 8, 127);

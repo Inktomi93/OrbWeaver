@@ -38,36 +38,43 @@ import type {
   SummarizeResult,
   WireCaptureSink,
   WireTool,
-} from "../../contract";
-import { ProviderError } from "../../contract";
-import type { ChatCompletionResult, NormalizeImageBytes } from "../kit";
-import { extractChatRefusal, extractChatReply, logProviderSummarizeItem, parseChatCompletionResult, passthroughImageNormalizer, providerLog } from "../kit";
-import { getOpenRouterCredits, getOpenRouterGenerationCost } from "./account";
-import { fetchOrCatalog } from "./catalog";
-import type { OrClient } from "./client";
-import { createClientCache } from "./client";
-import { requireOpenRouterApiKey } from "./credential-guard";
-import { probeOpenRouterCredential } from "./probe";
-import { runChatCompletionTurn } from "./runners/chat/chat-completions";
-import { runResponsesTurn } from "./runners/chat/responses";
-import type { OpenRouterChatDeps } from "./runners/chat/shared";
-import { buildToolChoice, buildWireTools } from "./runners/chat/shared";
-import { runEmbed } from "./runners/embed/runner";
-import { runGenerateImage, runImageEmbed, toImageUrl } from "./runners/image/runner";
-import { runRerank } from "./runners/rerank/runner";
+} from "../../contract/index.ts";
+import { ProviderError } from "../../contract/index.ts";
+import type { ChatCompletionResult, NormalizeImageBytes } from "../kit/index.ts";
+import {
+  extractChatRefusal,
+  extractChatReply,
+  logProviderSummarizeItem,
+  parseChatCompletionResult,
+  passthroughImageNormalizer,
+  providerLog,
+} from "../kit/index.ts";
+import { getOpenRouterCredits, getOpenRouterGenerationCost } from "./account.ts";
+import { fetchOrCatalog } from "./catalog.ts";
+import type { OrClient } from "./client.ts";
+import { createClientCache } from "./client.ts";
+import { requireOpenRouterApiKey } from "./credential-guard.ts";
+import { probeOpenRouterCredential } from "./probe.ts";
+import { runChatCompletionTurn } from "./runners/chat/chat-completions.ts";
+import { runResponsesTurn } from "./runners/chat/responses.ts";
+import type { OpenRouterChatDeps } from "./runners/chat/shared.ts";
+import { buildToolChoice, buildWireTools } from "./runners/chat/shared.ts";
+import { runEmbed } from "./runners/embed/runner.ts";
+import { runGenerateImage, runImageEmbed, toImageUrl } from "./runners/image/runner.ts";
+import { runRerank } from "./runners/rerank/runner.ts";
 
-export { getOpenRouterCredits, getOpenRouterGenerationCost } from "./account";
-export { fetchOrCatalog } from "./catalog";
-export type { OrClient } from "./client";
-export { createClientCache, createOpenRouterClient } from "./client";
-export { requireOpenRouterApiKey } from "./credential-guard";
-export { probeOpenRouterCredential } from "./probe";
+export { getOpenRouterCredits, getOpenRouterGenerationCost } from "./account.ts";
+export { fetchOrCatalog } from "./catalog.ts";
+export type { OrClient } from "./client.ts";
+export { createClientCache, createOpenRouterClient } from "./client.ts";
+export { requireOpenRouterApiKey } from "./credential-guard.ts";
+export { probeOpenRouterCredential } from "./probe.ts";
 export {
   placeHistoryCacheBreakpoint,
   runChatCompletionTurn,
-} from "./runners/chat/chat-completions";
-export { withContextCompressionPlugin } from "./runners/chat/context-compression";
-export { runResponsesTurn } from "./runners/chat/responses";
+} from "./runners/chat/chat-completions.ts";
+export { withContextCompressionPlugin } from "./runners/chat/context-compression.ts";
+export { runResponsesTurn } from "./runners/chat/responses.ts";
 export {
   buildChatResponseFormat,
   buildHistoryMessages,
@@ -80,10 +87,10 @@ export {
   reshapeChatStreamChunk,
   resolveFallbackModels,
   resolveProviderPreferences,
-} from "./runners/chat/shared";
-export { runEmbed } from "./runners/embed/runner";
-export { runGenerateImage, runImageEmbed } from "./runners/image/runner";
-export { runRerank } from "./runners/rerank/runner";
+} from "./runners/chat/shared.ts";
+export { runEmbed } from "./runners/embed/runner.ts";
+export { runGenerateImage, runImageEmbed } from "./runners/image/runner.ts";
+export { runRerank } from "./runners/rerank/runner.ts";
 
 const SYSTEM_ROLE = "system";
 const USER_ROLE = "user";

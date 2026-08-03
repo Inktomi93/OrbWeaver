@@ -6,8 +6,8 @@ import { getTraceByRequestId, initTracing, withRequestSpan } from "@orb/server/f
 import type { BackendKey, BackendRegistry, CredentialSource, EmbedRequest, ProviderBackend } from "@orb/server/infra/providers";
 import { backendForSource, createEmbedRole, deriveRunner, ProviderError, requireBackend, requireRoleImpl } from "@orb/server/infra/providers";
 import { describe } from "vitest";
-import { makeResolvedCredential } from "../../../../support/factories/resolved-connection";
-import { expect, test } from "../../../../support/fixtures";
+import { makeResolvedCredential } from "../../../../support/factories/resolved-connection.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 // The agent-sdk×vllm rejection message (loopback skin retired) — hoisted for the callback-regex lint.
 const VLLM_AGENT_RETIRED_RE = /chat-completions api|retired/i;

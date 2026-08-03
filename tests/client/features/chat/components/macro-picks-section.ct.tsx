@@ -6,8 +6,8 @@
 // "Use default" arms UNSET a stored pick (select item / button); the no-declarations empty state teaches.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { MacroPicksSectionStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { MacroPicksSectionStory } from "../_ct-stories.tsx";
 
 // The wire shape `chat.getUserMacroPicks` returns (the server's least-privilege projection: identity +
 // inputs + the authoring home, never the macro BODY). Spelled locally — `UserMacroPicksView` is a SERVER-domain contract type

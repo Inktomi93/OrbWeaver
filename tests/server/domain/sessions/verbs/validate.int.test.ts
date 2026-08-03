@@ -5,10 +5,10 @@ import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
-import { SESSION_TTL_MS, SLIDE_THROTTLE_MS } from "../../../../../packages/server/src/domain/sessions/tokens/tokens";
-import type { Clock } from "../../../../support/clock";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
+import { SESSION_TTL_MS, SLIDE_THROTTLE_MS } from "../../../../../packages/server/src/domain/sessions/tokens/tokens.ts";
+import type { Clock } from "../../../../support/clock.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService } from "../_support.ts";
 
 const USER_ID = castId<UserId>("user_alice");

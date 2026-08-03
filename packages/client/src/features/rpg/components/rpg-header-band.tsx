@@ -13,8 +13,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { isLiveTurnPhase, revealContextPanel, useTurnPhase } from "#state";
-import { useRpgContextState } from "../hooks/use-rpg-context-state";
-import { RpgTakeoverHeader } from "./rpg-takeover-header";
+import { useRpgContextState } from "../hooks/use-rpg-context-state.ts";
+import { RpgTakeoverHeader } from "./rpg-takeover-header.tsx";
 
 export interface RpgHeaderBandProps {
   readonly chatId: ChatId;

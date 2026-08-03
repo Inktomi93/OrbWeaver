@@ -5,7 +5,7 @@
 // the SDK-based (openrouter) and raw-fetch (custom-byo / vllm) backends consume. The ISOLATION seam: no
 // backend reaches into another's folder; cross-backend wire work goes through here.
 
-export type { OpenAiSamplingInput } from "./body";
+export type { OpenAiSamplingInput } from "./body.ts";
 export {
   applyIncludeExclude,
   buildOpenAiSamplingFields,
@@ -16,10 +16,10 @@ export {
   redactHeaders,
   redactSecretsFromText,
   secretHeaderValues,
-} from "./body";
-export type { MapTurnContext, StreamDelta, StreamReduceOptions } from "./stream";
+} from "./body.ts";
+export type { MapTurnContext, StreamDelta, StreamReduceOptions } from "./stream.ts";
 export {
   mapChatCompletionToTurnResult,
   parseOpenAiSse,
   reduceChatCompletionStream,
-} from "./stream";
+} from "./stream.ts";

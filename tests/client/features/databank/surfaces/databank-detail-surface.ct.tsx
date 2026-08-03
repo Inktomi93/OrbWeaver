@@ -9,8 +9,8 @@
 //     never a `Textarea` (legacy's form control announced the canon as an editable textbox).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DatabankDetailStory, DatabankDetailWideStory, DatabankWorkspaceStory } from "../_ct-stories";
-import { INDEXING_DOC, READY_DOC, SOURCE_TEXT, stubDatabank } from "../fixtures";
+import { DatabankDetailStory, DatabankDetailWideStory, DatabankWorkspaceStory } from "../_ct-stories.tsx";
+import { INDEXING_DOC, READY_DOC, SOURCE_TEXT, stubDatabank } from "../fixtures.ts";
 
 /** The row bodies open a document — matched loosely because the row's accessible name carries its scent
  *  line as well as its title (top-level so the pattern is compiled once). */

@@ -11,7 +11,7 @@ import { createCharacterService } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { cardTokenSize } from "../../../../../packages/server/src/domain/character/substrate/card-tokens.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedCharacterStats, seedRawCharacter, seedUser } from "../_support.ts";
 
 describe("list", () => {

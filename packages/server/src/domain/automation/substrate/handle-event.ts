@@ -12,11 +12,11 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { AutomationContext, AutomationService } from "../contract/service";
-import { runDispatch } from "../engine/dispatch";
-import { loadEnabledChatRules, loadEnabledDomainRules } from "../persistence/rules";
-import { resolveTrigger } from "./fact-resolver";
-import { fanOutToPluginSubscribers } from "./plugin-subscribers";
+import type { AutomationContext, AutomationService } from "../contract/service.ts";
+import { runDispatch } from "../engine/dispatch.ts";
+import { loadEnabledChatRules, loadEnabledDomainRules } from "../persistence/rules.ts";
+import { resolveTrigger } from "./fact-resolver.ts";
+import { fanOutToPluginSubscribers } from "./plugin-subscribers.ts";
 
 type BusEvent = ChatBusEvent | DomainEvent;
 

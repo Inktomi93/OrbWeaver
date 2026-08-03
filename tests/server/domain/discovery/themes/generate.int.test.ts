@@ -7,7 +7,7 @@ import { createDiscoveryService } from "@orb/server/domain/discovery";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeDiscoveryHarness, makeSummarizeRecorder, seedChatDigest, seedHostedChat, seedUser, vec } from "../_support.ts";
 
 describe("computeThemes", () => {

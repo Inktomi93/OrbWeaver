@@ -12,10 +12,10 @@
 // tRPC proxy builds the path structurally, so the CT runs regardless of the transport verb landing.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness";
-import { ChatListSurfaceStory } from "../_ct-stories";
-import { makeChatSummary } from "../fixtures";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
+import { ChatListSurfaceStory } from "../_ct-stories.tsx";
+import { makeChatSummary } from "../fixtures.ts";
 
 const ADVENTURE = makeChatSummary({
   id: "chat_adventure",

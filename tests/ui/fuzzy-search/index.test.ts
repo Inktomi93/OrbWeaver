@@ -3,7 +3,7 @@
 
 import { fuzzySearch } from "@orb/ui/fuzzy-search";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 interface Card {
   readonly id: string;

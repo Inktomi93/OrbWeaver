@@ -6,8 +6,8 @@
 import { rateLimitBuckets } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import { eq, sql } from "drizzle-orm";
-import { freshDb } from "../../support/db";
-import { expect, test } from "../../support/fixtures";
+import { freshDb } from "../../support/db.ts";
+import { expect, test } from "../../support/fixtures.ts";
 
 const WINDOW_MS = 60_000;
 

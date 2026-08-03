@@ -8,7 +8,7 @@
 // wire dialect.
 
 import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
-import { providerLog } from "./provider-log";
+import { providerLog } from "./provider-log.ts";
 
 const EPHEMERAL = "ephemeral";
 

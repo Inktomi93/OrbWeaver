@@ -16,7 +16,7 @@ import type { SettingsService } from "@orb/server/domain/settings";
 import type { Context, PresenceRegistry, Services } from "@orb/server/transport/trpc";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { caller, denyRateLimit, inertPresence, makeContext, principal } from "./_support.ts";
 
 describe("authedProcedure", () => {

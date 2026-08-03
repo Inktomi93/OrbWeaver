@@ -18,8 +18,8 @@ export {
   PLUGIN_INVOCATION_CPU_MS,
   PLUGIN_MEMORY_LIMIT_BYTES,
   SNIPPET_WALL_MS,
-} from "./budgets";
-export { getPluginQuickJS } from "./module";
-export { createPluginHost, type PluginHostSeamDeps } from "./port";
-export { type HostSeams, installRealm, LogRing } from "./realm";
-export { boundHostFn, type EvalOutcome, type GuestError, Sandbox, type SandboxLimits } from "./sandbox";
+} from "./budgets.ts";
+export { getPluginQuickJS } from "./module.ts";
+export { createPluginHost, type PluginHostSeamDeps } from "./port.ts";
+export { type HostSeams, installRealm, LogRing } from "./realm.ts";
+export { boundHostFn, type EvalOutcome, type GuestError, Sandbox, type SandboxLimits } from "./sandbox.ts";

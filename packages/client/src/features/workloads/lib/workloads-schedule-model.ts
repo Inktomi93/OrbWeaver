@@ -4,8 +4,8 @@
 
 import type { IndexSource, ScheduleCadence, WorkloadMode } from "@orb/contracts/workloads";
 import { SCHEDULE_CADENCES, WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
-import type { WorkloadRunValues } from "./workloads-model";
-import { isMaintenanceWorkloadKind, isRunnableWorkloadKind, RUNNABLE_WORKLOAD_KINDS } from "./workloads-model";
+import type { WorkloadRunValues } from "./workloads-model.ts";
+import { isMaintenanceWorkloadKind, isRunnableWorkloadKind, RUNNABLE_WORKLOAD_KINDS } from "./workloads-model.ts";
 
 /** Whether a kind may be scheduled to recur in bulk. A schedule carries no `targetOwnerId`, so a bulk create-kind (bulkRequiresTarget) is not bulk-schedulable. */
 export function workloadKindBulkSchedulable(kind: string): boolean {

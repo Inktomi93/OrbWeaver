@@ -14,12 +14,12 @@
 
 import type { DocFormat, ExtractionResult, ExtractTextOp } from "@orb/contracts/extraction";
 import { ExtractionFailedError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
-import { LOADERS, MIME_TO_FORMAT } from "./formats";
-import type { RawExtraction } from "./loader";
-import { normalizeText } from "./normalize";
-import { EXTRACTOR_VERSION } from "./version";
+import { LOADERS, MIME_TO_FORMAT } from "./formats.ts";
+import type { RawExtraction } from "./loader.ts";
+import { normalizeText } from "./normalize.ts";
+import { EXTRACTOR_VERSION } from "./version.ts";
 
-export { EXTRACTOR_VERSION } from "./version";
+export { EXTRACTOR_VERSION } from "./version.ts";
 
 /** Resolve the declared mime to a `DocFormat`, stripping parameters + lowercasing (`text/html; charset=utf-8`
  *  → `text/html`). An unregistered mime throws `UnsupportedDocTypeError` before any loader runs. */

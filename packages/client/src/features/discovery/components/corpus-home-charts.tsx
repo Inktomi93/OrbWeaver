@@ -14,8 +14,8 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
-import { toBarItems } from "../lib/corpus-charts";
-import { ParamSelect, ParamToggle } from "./corpus-controls";
+import { toBarItems } from "../lib/corpus-charts.ts";
+import { ParamSelect, ParamToggle } from "./corpus-controls.tsx";
 
 type ThemeLevel = "scene" | "arc";
 

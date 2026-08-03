@@ -24,12 +24,12 @@
 // scope): a member gets a FORBIDDEN, not a lie.
 
 import { actorRefKey } from "@orb/contracts/rpg";
-import type { PatchActorParams } from "../contract/params";
-import type { HandDoorResult } from "../contract/results";
-import type { RpgContext, RpgService } from "../contract/service";
-import { assertHostRole, resolveMember } from "../guard";
-import { writeHandState } from "../snapshot-edit";
-import { applyActorOps, emptyActorEntry } from "../substrate/actor-ops";
+import type { PatchActorParams } from "../contract/params.ts";
+import type { HandDoorResult } from "../contract/results.ts";
+import type { RpgContext, RpgService } from "../contract/service.ts";
+import { assertHostRole, resolveMember } from "../guard.ts";
+import { writeHandState } from "../snapshot-edit.ts";
+import { applyActorOps, emptyActorEntry } from "../substrate/actor-ops.ts";
 
 export function createPatchActor(ctx: RpgContext): Pick<RpgService, "patchActor"> {
   async function patchActor(params: PatchActorParams): Promise<HandDoorResult> {

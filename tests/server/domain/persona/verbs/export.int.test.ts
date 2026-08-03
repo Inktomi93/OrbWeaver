@@ -9,7 +9,7 @@ import { createPersonaService, PersonaNotFoundError } from "@orb/server/domain/p
 import { parsePersonaBackup } from "@orb/server/kit/serde/persona";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedAsset, seedUser } from "../_support.ts";
 
 /** The parse outcome's value — the portable serdes return a typed refusal reason, never null. */

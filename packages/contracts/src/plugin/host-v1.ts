@@ -14,7 +14,7 @@ import type { ChatTriggerType, DomainTriggerType, TriggerFact } from "#automatio
 import type { PromptTransformPoint } from "#chat";
 import type { GenerateImageActionArgs } from "#imagery";
 import type { NotificationRecipient } from "#notifications";
-import type { PluginCapability } from "./manifest";
+import type { PluginCapability } from "./manifest.ts";
 
 // ── Opaque handles (branded strings; minted host-side; forged values fail resolution) ──────────────────────
 export type ChatHandle = Branded<"PluginChatHandle">;

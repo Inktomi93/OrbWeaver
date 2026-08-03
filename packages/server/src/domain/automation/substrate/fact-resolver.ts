@@ -13,7 +13,7 @@ import type { ChatTriggerType, DomainTriggerType, TriggerFact } from "@orb/contr
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { ChatId, MessageId } from "@orb/kit/ids";
-import type { AutomationOps, ResolvedTrigger } from "../contract/ops";
+import type { AutomationOps, ResolvedTrigger } from "../contract/ops.ts";
 
 /** How each trigger's fact is shaped (01 §2 table). A homed tuple → derived union (no re-spelled literals). */
 const FACT_SHAPES = ["chatScope", "message", "turn", "worldInfo", "persona", "characterId", "assetId"] as const;

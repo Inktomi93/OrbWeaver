@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { useLayoutEffect, useState } from "react";
 import { Icon, ImageOff } from "#primitives/icons";
-import { crossfadeImageVariants } from "./variants";
+import { crossfadeImageVariants } from "./variants.ts";
 
 export interface CrossfadeImageProps {
   /** The image to display. `null` renders no image but still reserves the aspect box. */

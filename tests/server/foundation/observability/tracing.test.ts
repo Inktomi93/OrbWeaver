@@ -5,7 +5,7 @@
 
 import { getTraceByRequestId, initTracing, recordThrownRequest, withRequestSpan, wrapLibSqlClient } from "@orb/server/foundation/observability";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const PROBE_VALUE = 7;
 

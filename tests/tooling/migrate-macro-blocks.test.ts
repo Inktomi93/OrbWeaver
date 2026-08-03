@@ -9,8 +9,8 @@
 
 import type { ProcessMacroOptions } from "@orb/kit/macro";
 import { processMacros } from "@orb/kit/macro";
-import { migrateMacroBlocks } from "../../scripts/codemods/migrate-macro-blocks";
-import { expect, test } from "../support/fixtures";
+import { migrateMacroBlocks } from "../../scripts/codemods/migrate-macro-blocks.ts";
+import { expect, test } from "../support/fixtures.ts";
 
 function opts(extra: Partial<ProcessMacroOptions> = {}): ProcessMacroOptions {
   return { char: "Aria", user: "Mara", persona: "Hero", scenario: "A quest", env: {}, ...extra };

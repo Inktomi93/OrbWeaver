@@ -12,7 +12,7 @@ import { createEmbeddingsIndexer, createEmbeddingsService } from "@orb/server/do
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_MODEL, IMAGE_EMBED_MODEL, makeIndexerHarness, makeStoreHarness, seedAsset, seedCharacter, seedUser, TEST_CAPTION } from "../_support.ts";
 
 const CARD_TEXT = "Bryn — a lighthouse keeper who collects shipwreck letters.";

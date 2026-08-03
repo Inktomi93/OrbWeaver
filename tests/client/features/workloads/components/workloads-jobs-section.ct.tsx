@@ -18,10 +18,10 @@ import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket";
-import { routeOrbSocket } from "../../../../support/ct/route-orb-socket";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { WorkloadsJobsSectionStory } from "../_ct-stories";
+import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket.ts";
+import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { WorkloadsJobsSectionStory } from "../_ct-stories.tsx";
 
 const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" };
 const OWNER_VIEWER = { userId: "user_ct_root", handle: "root", globalRole: "owner" };

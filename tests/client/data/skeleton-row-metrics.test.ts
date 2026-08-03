@@ -9,7 +9,7 @@
 
 import { skeletonRowCountFor } from "@orb/client/data";
 import { TOKENS } from "@orb/ui/tokens";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const PX_PER_REM = 16;
 const FALLBACK = 3;

@@ -6,12 +6,12 @@
 
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import type { DiscoveryContext } from "../context";
-import type { CorpusPoint } from "../contract/results";
-import type { DiscoveryService } from "../contract/service";
-import { readOwnedCharacterVectors } from "../persistence/embed-store-reads";
-import { readOwnedCardFacets } from "../persistence/summary-reads";
-import { pca2d } from "../substrate/pca";
+import type { DiscoveryContext } from "../context.ts";
+import type { CorpusPoint } from "../contract/results.ts";
+import type { DiscoveryService } from "../contract/service.ts";
+import { readOwnedCharacterVectors } from "../persistence/embed-store-reads.ts";
+import { readOwnedCardFacets } from "../persistence/summary-reads.ts";
+import { pca2d } from "../substrate/pca.ts";
 
 type CardVector = Awaited<ReturnType<typeof readOwnedCharacterVectors>>[number];
 

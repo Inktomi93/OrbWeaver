@@ -14,15 +14,15 @@ import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import type { ChatService } from "../../../../packages/server/src/domain/chat";
-import { createActiveTurns } from "../../../../packages/server/src/domain/chat/active-turns";
-import type { ChatContext, ChatServiceDeps } from "../../../../packages/server/src/domain/chat/context";
-import type { TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results";
-import { createChatService } from "../../../../packages/server/src/domain/chat/service";
-import { freshDb } from "../../../support/db";
+import { createActiveTurns } from "../../../../packages/server/src/domain/chat/active-turns.ts";
+import type { ChatContext, ChatServiceDeps } from "../../../../packages/server/src/domain/chat/context.ts";
+import type { TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results.ts";
+import type { ChatService } from "../../../../packages/server/src/domain/chat/index.ts";
+import { createChatService } from "../../../../packages/server/src/domain/chat/service.ts";
+import { freshDb } from "../../../support/db.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
-import { expect, test } from "../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, testConnection } from "./_support";
+import { expect, test } from "../../../support/fixtures.ts";
+import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, testConnection } from "./_support.ts";
 
 let db: Db;
 

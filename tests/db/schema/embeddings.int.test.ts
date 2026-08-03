@@ -13,8 +13,8 @@ import { isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterEmbeddingId, CharacterHandle, CharacterId, ChatDigestId, ChatSegmentId, Handle, ImageEmbeddingId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
-import { freshDb } from "../../support/db";
-import { expect, test } from "../../support/fixtures";
+import { freshDb } from "../../support/db.ts";
+import { expect, test } from "../../support/fixtures.ts";
 import { seedChat, seedUser } from "./_support.ts";
 
 // The one space's dim (mirrors schema VECTOR_DIM). A deterministic ramp vector (no Math-random) — every

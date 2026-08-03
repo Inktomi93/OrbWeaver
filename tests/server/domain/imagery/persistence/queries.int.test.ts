@@ -8,10 +8,10 @@ import { assets, characters, imageryGenerations, users } from "@orb/db";
 import type { AssetId, CharacterId, Handle, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { findReusableGeneration, insertGeneration, readProvenanceByAsset } from "../../../../../packages/server/src/domain/imagery/persistence/queries";
-import { freshDb } from "../../../../support/db";
-import { makeCharacter } from "../../../../support/factories/character";
-import { expect, test } from "../../../../support/fixtures";
+import { findReusableGeneration, insertGeneration, readProvenanceByAsset } from "../../../../../packages/server/src/domain/imagery/persistence/queries.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { makeCharacter } from "../../../../support/factories/character.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const FROZEN_AT = 1_750_000_000_000;
 

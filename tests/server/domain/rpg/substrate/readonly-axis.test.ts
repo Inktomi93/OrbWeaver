@@ -4,8 +4,8 @@
 // keyed by capability alone (`hasStructuredWriter`). NO silent downgrade.
 
 import type { ModelCapability } from "@orb/contracts/connection";
-import { deriveEffectiveDelivery, deriveTrackersReadOnly, hasStructuredWriter } from "../../../../../packages/server/src/domain/rpg/substrate/readonly-axis";
-import { expect, test } from "../../../../support/fixtures";
+import { deriveEffectiveDelivery, deriveTrackersReadOnly, hasStructuredWriter } from "../../../../../packages/server/src/domain/rpg/substrate/readonly-axis.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A minimal capability with the two write-relevant axes toggleable. */
 function capability(over: { tools?: boolean; structured?: boolean }): ModelCapability {

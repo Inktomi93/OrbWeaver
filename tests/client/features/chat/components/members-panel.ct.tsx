@@ -14,7 +14,7 @@
 //   • authority mirroring: a member view exposes only View character; the draft case drops force-turn.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { MembersKickFocusStory, MembersPanelStory, MembersReseedStory } from "../_ct-stories";
+import { MembersKickFocusStory, MembersPanelStory, MembersReseedStory } from "../_ct-stories.tsx";
 
 const LAST_ACTION = '[data-testid="members-last-action"]';
 const HANDOFF_RE = /Hand off host…/u;

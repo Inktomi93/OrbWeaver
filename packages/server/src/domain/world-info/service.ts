@@ -7,9 +7,9 @@
 // (a book via `worldBooks.ownerId`, an entry via its book, an attachment target via its own owner column);
 // the chat scope is MEMBERSHIP-scoped (D18) through the injected guards (contract/service.ts header).
 
-import type { WorldInfoContext } from "./context";
-import type { WorldInfoService } from "./contract/service";
-import { createImportStandaloneLorebook } from "./persistence/import-write";
+import type { WorldInfoContext } from "./context.ts";
+import type { WorldInfoService } from "./contract/service.ts";
+import { createImportStandaloneLorebook } from "./persistence/import-write.ts";
 import {
   createAttachGlobal,
   createAttachToCharacter,
@@ -23,7 +23,7 @@ import {
   createListForChat,
   createListForPersona,
   createListGlobal,
-} from "./verbs/attachments";
+} from "./verbs/attachments/index.ts";
 import {
   createCreateBook,
   createDuplicateBook,
@@ -32,7 +32,7 @@ import {
   createListBooksWithUsage,
   createRemoveBook,
   createUpdateBook,
-} from "./verbs/books";
+} from "./verbs/books/index.ts";
 import {
   createBackfillTitles,
   createCreateEntry,
@@ -44,9 +44,9 @@ import {
   createReorder,
   createUpdateEntry,
   createUpsertEntries,
-} from "./verbs/entries";
-import { createExport } from "./verbs/export";
-import { createImport } from "./verbs/import";
+} from "./verbs/entries/index.ts";
+import { createExport } from "./verbs/export.ts";
+import { createImport } from "./verbs/import.ts";
 
 export function createWorldInfoService(ctx: WorldInfoContext): WorldInfoService {
   // The two single-book DOORS are thin arms over the SAME two verbs the bundle descriptor composes (the

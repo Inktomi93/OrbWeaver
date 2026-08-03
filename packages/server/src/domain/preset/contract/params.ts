@@ -5,7 +5,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { PresetId, UserId } from "@orb/kit/ids";
-import type { PackagedPresetKey } from "./packaged";
+import type { PackagedPresetKey } from "./packaged.ts";
 
 export interface CreatePresetParams {
   readonly userId: UserId;

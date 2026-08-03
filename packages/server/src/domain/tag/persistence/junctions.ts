@@ -16,7 +16,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
-import type { RequireParticipant } from "../contract/service";
+import type { RequireParticipant } from "../contract/service.ts";
 
 interface TargetGuardArgs {
   readonly db: Db;

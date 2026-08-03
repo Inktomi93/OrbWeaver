@@ -20,8 +20,8 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../support/ct/route-trpc";
-import { SectionEchoStory, SectionRefusalStory, TagCreateColdCacheStory, TagCreateOptimisticStory, TagCreateVariablesStory } from "./_ct-stories";
+import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
+import { SectionEchoStory, SectionRefusalStory, TagCreateColdCacheStory, TagCreateOptimisticStory, TagCreateVariablesStory } from "./_ct-stories.tsx";
 
 interface FixtureTag {
   readonly id: string;

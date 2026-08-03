@@ -1,7 +1,7 @@
 // Pure ECharts option builder behind <BarList> — split out so it's cheaply unit-testable without a
 // mounted ECharts instance. Chrome colors arrive as concrete resolved values, never var() literals.
-import type { OrbChartOption } from "../chart/echarts-setup";
-import type { ChartColors } from "../chart/use-chart-theme";
+import type { OrbChartOption } from "../chart/echarts-setup.ts";
+import type { ChartColors } from "../chart/use-chart-theme.ts";
 
 export interface BarListItem {
   readonly id: string;

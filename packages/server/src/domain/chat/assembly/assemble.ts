@@ -22,10 +22,10 @@ import type { MacroRegistry } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
 import { normalizeExampleStart } from "@orb/kit/speaker-label";
 import { applyAssemblePostProcess } from "@orb/server/kit/post-process";
-import type { AssemblySlice } from "../contract/results";
-import { injectionSource, personaContributorLabel, sectionSource } from "./budget";
-import { BEFORE_HISTORY_DEPTH } from "./injections";
-import { renderMacros } from "./macros";
+import type { AssemblySlice } from "../contract/results.ts";
+import { injectionSource, personaContributorLabel, sectionSource } from "./budget.ts";
+import { BEFORE_HISTORY_DEPTH } from "./injections.ts";
+import { renderMacros } from "./macros.ts";
 
 // A macro whose value changes per render busts the cached static prefix. `/a^/` is unsatisfiable
 // (top-level so it isn't re-compiled per call).

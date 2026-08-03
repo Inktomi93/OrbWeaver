@@ -5,7 +5,7 @@
 import { Field } from "@orb/ui/field";
 import { NumberField as UiNumberField } from "@orb/ui/number-field";
 import type { ReactElement, ReactNode } from "react";
-import { useBoundField } from "./use-bound-field";
+import { useBoundField } from "./use-bound-field.ts";
 
 export interface BoundNumberFieldProps {
   readonly label: ReactNode;

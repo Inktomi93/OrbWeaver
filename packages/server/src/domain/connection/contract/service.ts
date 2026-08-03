@@ -28,8 +28,8 @@ import type {
   ResolveChatParams,
   ResolveRoleParams,
   TestClaudeAuthParams,
-} from "./params";
-import type { AgentSdkCatalogSnapshot, CatalogSnapshot, OrSkinTierModels, SourceModelsResult } from "./results";
+} from "./params.ts";
+import type { AgentSdkCatalogSnapshot, CatalogSnapshot, OrSkinTierModels, SourceModelsResult } from "./results.ts";
 
 /** credentials.resolve — resolve the brand-protected credential for a `{principal, source}`. */
 type ResolveCredentialOp = (params: { readonly principal: Principal; readonly source: CredentialSource }) => Promise<ResolvedCredential>;

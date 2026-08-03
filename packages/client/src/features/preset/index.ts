@@ -3,11 +3,11 @@
 // (or `<PresetLibraryWelcome>`) in CONTENT, and the per-view `<PresetReadout>` in the CONTEXT panel —
 // all three assembled by `presetsSection`, which is what the registry actually consumes.
 
-export type { PresetLibraryAnchorProps } from "./anchors/preset-library-anchor";
-export { PresetLibraryAnchor } from "./anchors/preset-library-anchor";
-export { PresetLibraryWelcome } from "./components/preset-library-welcome";
-export { PresetReadout } from "./components/readout/preset-readout";
-export { presetsSection } from "./lib/presets-section";
-export type { PresetEditorSurfaceProps } from "./surfaces/preset-editor-surface";
-export { PresetEditorSurface } from "./surfaces/preset-editor-surface";
-export { PresetLibrarySurface } from "./surfaces/preset-library-surface";
+export type { PresetLibraryAnchorProps } from "./anchors/preset-library-anchor.tsx";
+export { PresetLibraryAnchor } from "./anchors/preset-library-anchor.tsx";
+export { PresetLibraryWelcome } from "./components/preset-library-welcome.tsx";
+export { PresetReadout } from "./components/readout/preset-readout.tsx";
+export { presetsSection } from "./lib/presets-section.tsx";
+export type { PresetEditorSurfaceProps } from "./surfaces/preset-editor-surface.tsx";
+export { PresetEditorSurface } from "./surfaces/preset-editor-surface.tsx";
+export { PresetLibrarySurface } from "./surfaces/preset-library-surface.tsx";

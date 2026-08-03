@@ -18,7 +18,7 @@
 //   E2E_LIVE=1 npx playwright test -c playwright.config.ts live-composer-instant-type
 
 import { expect, test } from "@playwright/test";
-import { openOrCreateChat, reopenFirstChat, takeTypeAndSendRetries, typeAndSend, waitForAppReady } from "./support/chat-room";
+import { openOrCreateChat, reopenFirstChat, takeTypeAndSendRetries, typeAndSend, waitForAppReady } from "./support/chat-room.ts";
 
 const INSTANT_MESSAGE = "Typing instantly on fast room entry should keep every character.";
 

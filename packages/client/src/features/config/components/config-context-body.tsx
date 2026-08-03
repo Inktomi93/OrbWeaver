@@ -15,7 +15,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { CollectionContribution, ContributorRegistry } from "#lib";
 import { useCollectionSelection } from "#state";
-import { CONFIG_CONTEXT_BAND_NEUTRAL, CONFIG_CONTEXT_EMPTY } from "../lib/config-copy";
+import { CONFIG_CONTEXT_BAND_NEUTRAL, CONFIG_CONTEXT_EMPTY } from "../lib/config-copy.ts";
 
 export interface ConfigContextBodyProps {
   readonly collections: ContributorRegistry<CollectionContribution>;

@@ -5,8 +5,8 @@ import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
-import type { CreateSessionParams } from "./params";
-import type { CreateSessionResult, ProvisionResult, UserPrincipalFields, ValidatedSession } from "./results";
+import type { CreateSessionParams } from "./params.ts";
+import type { CreateSessionResult, ProvisionResult, UserPrincipalFields, ValidatedSession } from "./results.ts";
 
 /** The DI bundle every verb closes over, wired at the composition root. */
 export interface SessionsContext {

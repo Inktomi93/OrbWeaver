@@ -5,7 +5,7 @@ import { RadioGroup as BaseRadioGroup } from "@base-ui/react/radio-group";
 import type { ReactElement, ReactNode } from "react";
 import { cn } from "#lib";
 import { Icon, Lock } from "#primitives/icons";
-import { radioGroupVariants } from "./variants";
+import { radioGroupVariants } from "./variants.ts";
 
 const slots = radioGroupVariants();
 

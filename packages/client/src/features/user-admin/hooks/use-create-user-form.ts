@@ -11,8 +11,8 @@
 // weak_password) as teaching, with the verb remaining the enforcement floor.
 
 import { createSavedEntityForm } from "#forms";
-import type { CreateUserFormValues } from "../lib/admin-model";
-import { ADMIN_MIN_PASSWORD_LENGTH, CREATE_USER_DEFAULTS } from "../lib/admin-model";
+import type { CreateUserFormValues } from "../lib/admin-model.ts";
+import { ADMIN_MIN_PASSWORD_LENGTH, CREATE_USER_DEFAULTS } from "../lib/admin-model.ts";
 
 export const useCreateUserForm = createSavedEntityForm<CreateUserFormValues>({
   defaultValues: CREATE_USER_DEFAULTS,

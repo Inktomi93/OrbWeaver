@@ -4,8 +4,8 @@
 // MARKER_TYPES member has a copy entry and every entry carries all three non-empty strings (BUILD-SPEC §2.1).
 
 import { MARKER_TYPES } from "@orb/contracts/preset";
-import { MARKER_COPY } from "../../../../../../packages/client/src/features/preset/components/prompt-assembly/marker-copy";
-import { expect, test } from "../../../../../support/fixtures";
+import { MARKER_COPY } from "../../../../../../packages/client/src/features/preset/components/prompt-assembly/marker-copy.ts";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 test("every MarkerType has a copy entry with non-empty label/oneLiner/subtitle", () => {
   for (const marker of MARKER_TYPES) {

@@ -1,13 +1,13 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { getLog } from "#foundation/observability";
-import { SYSTEM_DEFAULT_PRESET_ID } from "../constants";
-import type { PresetContext } from "../context";
-import { PresetNotFoundError } from "../contract/errors";
-import type { ResetToDefaultParams } from "../contract/params";
-import type { PresetService } from "../contract/service";
-import type { PresetDetail } from "../contract/views";
-import { readablePreset, updatePresetRow } from "../persistence/queries";
-import { toPresetDetail } from "../substrate/views";
+import { SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
+import type { PresetContext } from "../context.ts";
+import { PresetNotFoundError } from "../contract/errors.ts";
+import type { ResetToDefaultParams } from "../contract/params.ts";
+import type { PresetService } from "../contract/service.ts";
+import type { PresetDetail } from "../contract/views.ts";
+import { readablePreset, updatePresetRow } from "../persistence/queries.ts";
+import { toPresetDetail } from "../substrate/views.ts";
 
 // verb: resetToDefault — replace an OWNED preset's config with DEFAULT_PROMPT_CONFIG (re-stamping the
 // mirrored schemaVersion). Targeting the system default is a NO-OP that returns the row as-is: it already

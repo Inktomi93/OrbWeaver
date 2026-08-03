@@ -7,7 +7,7 @@
 // DTCG tokens live via `useChartTheme` and passes them in, because ECharts' canvas can't resolve `var()`.
 import type { ChartColors } from "../../../../packages/ui/src/charts/chart/use-chart-theme.ts";
 import { buildHeatmapOption } from "../../../../packages/ui/src/charts/heatmap/option.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const COLORS: ChartColors = {
   series: "rgb(1, 2, 3)",

@@ -25,7 +25,7 @@
 // unreachable. KEEP IT THAT WAY: do not batch a SELECT ahead of writes. If a drizzle bump ever surfaces
 // the mode param, "write" is the right value for these batches and this note is the reason.
 
-import type { Db } from "../client";
+import type { Db } from "../client/index.ts";
 
 /** The exact argument `Db.batch` accepts — a non-empty, readonly tuple of sqlite batch statements. */
 export type DbBatchInput = Parameters<Db["batch"]>[0];

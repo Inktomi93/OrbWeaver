@@ -2,7 +2,7 @@
 
 import { describe } from "vitest";
 import { normalizeKeyword } from "../../../../../packages/server/src/domain/discovery/cooccurrence/utils.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("normalizeKeyword", () => {
   test("lowercases and folds a leading article", () => {

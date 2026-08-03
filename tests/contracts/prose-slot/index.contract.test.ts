@@ -9,7 +9,7 @@ import {
   proseOverrideFromLegacy,
   proseOverridesSchema,
 } from "@orb/contracts/prose-slot";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const SOME_ID: ProseSlotId = "preset.format.impersonateNudge";
 

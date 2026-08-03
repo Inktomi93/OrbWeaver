@@ -20,7 +20,7 @@ import { castId } from "@orb/kit/ids";
 import { Toaster, ToastProvider } from "@orb/ui/toast";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { PresetStructureTabs } from "../../../../../../packages/client/src/features/preset/components/preset-structure-tabs";
+import { PresetStructureTabs } from "../../../../../../packages/client/src/features/preset/components/preset-structure-tabs.tsx";
 
 const STORY_PRESET = castId<PresetId>("preset_delundostoryy");
 

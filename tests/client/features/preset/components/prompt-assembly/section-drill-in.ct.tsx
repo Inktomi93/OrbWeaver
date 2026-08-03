@@ -14,7 +14,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { MainPromptStory, RackStory } from "./_rack-stories";
+import { MainPromptStory, RackStory } from "./_rack-stories.tsx";
 
 /** The rendered box, as a rounded integer rect — sub-pixel noise is not a defect, an 8/16px shear is. */
 async function boxOf(locator: Locator): Promise<{ readonly top: number; readonly height: number; readonly width: number }> {

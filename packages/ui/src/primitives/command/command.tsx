@@ -12,7 +12,7 @@ import {
 import type { ComponentProps, KeyboardEvent, ReactElement, ReactNode } from "react";
 import { cn, formatResultCount } from "#lib";
 import { Icon, Search } from "#primitives/icons";
-import { commandVariants } from "./variants";
+import { commandVariants } from "./variants.ts";
 
 const slots = commandVariants();
 

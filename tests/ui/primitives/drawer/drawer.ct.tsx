@@ -13,7 +13,7 @@ import {
 } from "@orb/ui/drawer";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DrawerHandleHarness, DrawerTriggerPayloadHarness } from "./drawer-handle.fixtures";
+import { DrawerHandleHarness, DrawerTriggerPayloadHarness } from "./drawer-handle.fixtures.tsx";
 
 test("opens on trigger click and closes on Escape", async ({ mount, page }) => {
   await mount(

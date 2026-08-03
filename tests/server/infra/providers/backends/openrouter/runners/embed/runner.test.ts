@@ -8,7 +8,7 @@ import { castId } from "@orb/kit/ids";
 import type { EmbedRequest } from "@orb/server/infra/providers";
 import { runEmbed } from "@orb/server/infra/providers/backends/openrouter";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../../../support/fixtures";
+import { expect, test } from "../../../../../../../support/fixtures.ts";
 
 const MODEL = "qwen/qwen3-embedding";
 const CRED = {

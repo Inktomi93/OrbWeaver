@@ -10,7 +10,7 @@ import type { ThemeId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { jsonValueSchema } from "@orb/kit/json";
 import { z } from "zod";
-import { adminProcedure, authedProcedure, t } from "../trpc";
+import { adminProcedure, authedProcedure, t } from "../trpc.ts";
 
 /** Upper bound on a pasted background URL (well past any real image URL; bounds the wire before safeFetch). */
 const MAX_BACKGROUND_URL_LENGTH = 2048;

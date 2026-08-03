@@ -12,9 +12,9 @@
 import type { PluginLogLevel } from "@orb/contracts/plugin";
 import { HostVersionError, PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
 import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
-import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION } from "./budgets";
-import type { MembraneRuntime } from "./membrane";
-import { attachMembrane } from "./membrane";
+import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION } from "./budgets.ts";
+import type { MembraneRuntime } from "./membrane.ts";
+import { attachMembrane } from "./membrane.ts";
 
 /** The deterministic seams the host injects — the guest's ONLY time/entropy/id sources (README law,
  *  `test-determinism` gate). Bound at compose to the SAME injected seams production uses; a frozen test

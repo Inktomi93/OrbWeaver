@@ -45,7 +45,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useId, useState } from "react";
 import { useTRPC } from "#data";
 import { sortTagsBy } from "#lib";
-import { FormDialog } from "./form-dialog";
+import { FormDialog } from "./form-dialog.tsx";
 
 /** How many suggestions the inline list renders at once — a scroll of 400 is not a suggestion list (the
  *  box itself shows ~4 and scrolls, so this is the depth of the scroll, not the height of the box). */

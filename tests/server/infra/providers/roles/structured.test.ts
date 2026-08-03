@@ -6,7 +6,7 @@
 
 import type { ResolvedCredential, StructuredRequest } from "@orb/server/infra/providers";
 import { createStructuredRole } from "@orb/server/infra/providers";
-import { runEmbedShapedRoleTests } from "./_support";
+import { runEmbedShapedRoleTests } from "./_support.ts";
 
 runEmbedShapedRoleTests({
   method: "structured",

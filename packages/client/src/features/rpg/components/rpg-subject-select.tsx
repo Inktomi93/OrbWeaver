@@ -8,7 +8,7 @@
 import type { RpgActorView } from "@orb/contracts/rpg";
 import { Select } from "@orb/ui/select";
 import type { ReactElement } from "react";
-import { actorKey } from "../lib/actor-key";
+import { actorKey } from "../lib/actor-key.ts";
 
 export interface RpgSubjectSelectProps {
   readonly actors: readonly RpgActorView[];

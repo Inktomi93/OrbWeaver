@@ -10,7 +10,7 @@
 
 import type { MacroRegistry, ProcessMacroOptions } from "@orb/kit/macro";
 import { createDefaultRegistry, processMacros } from "@orb/kit/macro";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // ST's fixtures use name1Override "User" / name2Override "Character" — mirror them so the ST-observed
 // outputs ("Hello User!", "Bot: Character") translate byte-for-byte.

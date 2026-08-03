@@ -9,16 +9,16 @@ import type { ModelCatalogEntry, RoutingRoleKey } from "@orb/contracts/connectio
 import { DEFAULT_CHAT_MODEL_ID, DEFAULT_OR_CHAT_MODEL_ID } from "@orb/contracts/connection";
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import { env } from "#foundation/env";
-import type { ConnectionContext } from "../context";
-import type { GetModelsForSourceParams } from "../contract/params";
-import type { SourceModelEntry, SourceModelsResult } from "../contract/results";
-import type { ConnectionService } from "../contract/service";
-import { readAgentSdkCatalogSnapshot } from "../persistence/agent-sdk-catalog-snapshot";
-import { readCatalogSnapshot } from "../persistence/catalog-snapshot";
+import type { ConnectionContext } from "../context.ts";
+import type { GetModelsForSourceParams } from "../contract/params.ts";
+import type { SourceModelEntry, SourceModelsResult } from "../contract/results.ts";
+import type { ConnectionService } from "../contract/service.ts";
+import { readAgentSdkCatalogSnapshot } from "../persistence/agent-sdk-catalog-snapshot.ts";
+import { readCatalogSnapshot } from "../persistence/catalog-snapshot.ts";
 // The config-derived (source, role) → model map is SHARED with resolveRole (substrate/config-model.ts):
 // what this verb displays as the row default IS what a turn resolves. Two copies drifted into a 404 once.
-import { EMBED_ROLES, localLightModelForRole, vllmModelForRole } from "../substrate/config-model";
-import { curatedShortlistEntries } from "../substrate/curated-shortlist";
+import { EMBED_ROLES, localLightModelForRole, vllmModelForRole } from "../substrate/config-model.ts";
+import { curatedShortlistEntries } from "../substrate/curated-shortlist.ts";
 
 function assertNever(value: never): never {
   throw new Error(`getModelsForSource: unhandled source ${String(value)}`);

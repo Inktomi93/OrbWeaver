@@ -5,6 +5,12 @@
   "compilerOptions": {
     // --- emit: tsc is the type ORACLE only. tsx runs TS directly; the bundler builds the client. ---
     "noEmit": true,
+    // EVERY program may import a sibling with its explicit `.ts` extension. Safe under `noEmit` (tsc is
+    // the type ORACLE; nothing here emits). Flipped from root-only 2026-08-03 by the tsx-shedding
+    // migration stage 1: extension-ful relative imports are now the CONVENTION, not a scripts/ exception,
+    // because node's type-stripping does no extensionless resolution. `useImportExtensions` (biome) is the
+    // permanent enforcer.
+    "allowImportingTsExtensions": true,
     "incremental": true,
     // tsc is the type ORACLE — never truncate a deep contracts/db type with `...` in a diagnostic.
     // (Probe-VERIFIED honored by the ts7 oracle — typescript 7.0.2, 2026-08-03: without it a 12-member

@@ -8,7 +8,7 @@ import { castId } from "@orb/kit/ids";
 import type { PersonaService } from "@orb/server/domain/persona";
 import type { Context } from "@orb/server/transport/trpc";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const ACTOR = castId<UserId>("user_actor");

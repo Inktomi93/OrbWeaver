@@ -14,9 +14,9 @@ import {
   insertJournalEntry,
   listActiveJournal,
   listJournalByVariant,
-} from "../../../../../packages/server/src/domain/rpg/persistence/journal";
-import { freshDb } from "../../../../support/db";
-import { addVariant, expect, FROZEN_AT, seedChat, seedGame, seedMessage, test } from "../_support";
+} from "../../../../../packages/server/src/domain/rpg/persistence/journal.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { addVariant, expect, FROZEN_AT, seedChat, seedGame, seedMessage, test } from "../_support.ts";
 
 let db: Db;
 beforeEach(async () => {

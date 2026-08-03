@@ -2,7 +2,7 @@ import type { MessageSlot, MessageView, UserMacroDraws } from "@orb/contracts/ch
 import { messageSlotSchema, reattributeScopeSchema, toolCallRecordSchema, userMacroDrawsSchema } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // ── Sample ids (minted/cast — no pasted random-looking literals; noSecrets) ───
 const SAMPLE_MESSAGE_ID = mintTypeId(ID_PREFIX.message);

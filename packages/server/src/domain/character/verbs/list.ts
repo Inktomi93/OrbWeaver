@@ -2,12 +2,12 @@
 // is sort-discriminated: each sort has its own keyset, so a cursor minted under a different sort is
 // rejected rather than silently mis-applied (would return misordered/duplicated rows).
 
-import type { CharacterContext } from "../context";
-import { CharacterOperationError } from "../contract/errors";
-import type { CharacterListCursor, CharacterListSort, ListCharactersParams } from "../contract/params";
-import type { ListCharactersResult } from "../contract/results";
-import type { CharacterService } from "../contract/service";
-import { canonicalTagsFor, listOwnedCharactersWithAvatar, summaryOf } from "../persistence/queries";
+import type { CharacterContext } from "../context.ts";
+import { CharacterOperationError } from "../contract/errors.ts";
+import type { CharacterListCursor, CharacterListSort, ListCharactersParams } from "../contract/params.ts";
+import type { ListCharactersResult } from "../contract/results.ts";
+import type { CharacterService } from "../contract/service.ts";
+import { canonicalTagsFor, listOwnedCharactersWithAvatar, summaryOf } from "../persistence/queries.ts";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;

@@ -21,7 +21,7 @@ import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 // The REAL orbweaver SHAPE substrate (Phase 5 chunk 7). Relative-imported because SHAPE is an internal
 // assembly file, not a chat front-door surface (the same pattern the chat substrate tests use).
-import { shape } from "../../packages/server/src/domain/chat/assembly/shape";
+import { shape } from "../../packages/server/src/domain/chat/assembly/shape.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PARITY_DIR = join(HERE, "fixtures", "parity");

@@ -37,17 +37,17 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { usePresetEditorView, useSelectedPresetId, useSelectedPresetSectionId } from "#state";
-import { useReadoutBinding } from "../../hooks/use-readout-binding";
-import { qualityMappingGloss } from "../../lib/effective-knobs";
-import type { PresetEditorView } from "../../lib/preset-nav";
-import { PRESET_EDITOR_VIEWS } from "../../lib/preset-nav";
-import { templateStoredText } from "../../lib/template-rows";
-import { ActionsReadout } from "./actions-readout";
-import { DataReadout } from "./data-readout";
-import { PromptReadout } from "./prompt-readout";
-import { ReadoutBindingChip } from "./readout-binding";
-import { CapabilityCard, EffectiveProfile } from "./readout-parts";
-import { TransformsReadout } from "./transforms-readout";
+import { useReadoutBinding } from "../../hooks/use-readout-binding.ts";
+import { qualityMappingGloss } from "../../lib/effective-knobs.ts";
+import type { PresetEditorView } from "../../lib/preset-nav.ts";
+import { PRESET_EDITOR_VIEWS } from "../../lib/preset-nav.ts";
+import { templateStoredText } from "../../lib/template-rows.ts";
+import { ActionsReadout } from "./actions-readout.tsx";
+import { DataReadout } from "./data-readout.tsx";
+import { PromptReadout } from "./prompt-readout.tsx";
+import { ReadoutBindingChip } from "./readout-binding.tsx";
+import { CapabilityCard, EffectiveProfile } from "./readout-parts.tsx";
+import { TransformsReadout } from "./transforms-readout.tsx";
 
 export function PresetReadout(): ReactElement {
   const presetId = useSelectedPresetId();

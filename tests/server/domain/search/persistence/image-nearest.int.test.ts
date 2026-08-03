@@ -9,7 +9,7 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { nearestImages } from "../../../../../packages/server/src/domain/search/persistence/image-nearest.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { IMAGE_EMBED_MODEL, seedAsset, seedImageEmbedding, seedUser, vec } from "../_support.ts";
 
 describe("nearestImages", () => {

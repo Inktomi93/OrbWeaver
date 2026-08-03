@@ -2,7 +2,7 @@
 
 import { describe } from "vitest";
 import { percentiles } from "../../../../../packages/server/src/domain/stats/substrate/percentiles.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("percentiles", () => {
   test("empty input → all null", () => {

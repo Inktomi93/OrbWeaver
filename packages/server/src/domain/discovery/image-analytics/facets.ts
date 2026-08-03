@@ -8,11 +8,11 @@
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { cosineSim } from "@orb/kit/vector-math";
-import type { DiscoveryContext } from "../context";
-import type { ImageFacetKey } from "../contract/params";
-import type { FacetCount, ImageFacetMember, ImageFacets, PortraitAlignment, PortraitAlignmentReport } from "../contract/results";
-import type { DiscoveryService } from "../contract/service";
-import { readCaptionRowsByFacet, readOwnedCaptionRows, readOwnedPortraitPairs } from "../persistence/embed-store-reads";
+import type { DiscoveryContext } from "../context.ts";
+import type { ImageFacetKey } from "../contract/params.ts";
+import type { FacetCount, ImageFacetMember, ImageFacets, PortraitAlignment, PortraitAlignmentReport } from "../contract/results.ts";
+import type { DiscoveryService } from "../contract/service.ts";
+import { readCaptionRowsByFacet, readOwnedCaptionRows, readOwnedPortraitPairs } from "../persistence/embed-store-reads.ts";
 
 const LIST_FACET_PATHS = { tag: "$.tags", exposedPart: "$.exposedParts" } as const;
 type ListFacetKey = keyof typeof LIST_FACET_PATHS;

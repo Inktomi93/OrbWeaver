@@ -5,7 +5,7 @@
 // the CLASS wiring, not the computed animation — the reduced-motion safety rides the global floor.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { WeaveGlyph } from "../../../packages/client/src/lib/weave-glyph";
+import { WeaveGlyph } from "../../../packages/client/src/lib/weave-glyph.tsx";
 
 const SHIMMER_CLASS = /orb-weave-shimmer/u;
 const PRIMARY_CLASS = /text-primary/u;

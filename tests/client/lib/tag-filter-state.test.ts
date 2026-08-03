@@ -7,7 +7,7 @@ import type { TagFilterEntry } from "@orb/client/lib";
 import { cycleTagFilterEntries, tagFilterStateOf } from "@orb/client/lib";
 import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const RPG = castId<TagId>("tag_rpg");
 const NOIR = castId<TagId>("tag_noir");

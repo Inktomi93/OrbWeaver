@@ -6,9 +6,9 @@
 
 import { documents } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import { DocumentNotFoundError } from "../contract/errors";
-import type { RemoveDocumentParams } from "../contract/params";
-import type { DatabankContext, DatabankService } from "../contract/service";
+import { DocumentNotFoundError } from "../contract/errors.ts";
+import type { RemoveDocumentParams } from "../contract/params.ts";
+import type { DatabankContext, DatabankService } from "../contract/service.ts";
 
 export function createRemove(ctx: DatabankContext): DatabankService["remove"] {
   return async ({ principal, id }: RemoveDocumentParams): Promise<void> => {

@@ -10,9 +10,9 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useUploadCaps } from "#data";
 import { testId } from "#lib";
-import { useLibraryImport } from "../hooks/use-library-import";
-import { BundleWorkloadTracker } from "./bundle-workload-tracker";
-import { ImportReportSummary } from "./import-report-summary";
+import { useLibraryImport } from "../hooks/use-library-import.ts";
+import { BundleWorkloadTracker } from "./bundle-workload-tracker.tsx";
+import { ImportReportSummary } from "./import-report-summary.tsx";
 
 /** The import controls: dropzone → busy + live progress → summary (or error) → reset. */
 export function ImportLibrarySection(): ReactElement {

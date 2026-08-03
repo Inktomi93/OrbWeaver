@@ -11,7 +11,7 @@
 // mid-edit in re-opens exactly where you left it, which is the better half of the same behaviour.
 
 import type { WorldEntryId } from "@orb/kit/ids";
-import { createDrillSelectionStore } from "./create-drill-selection-store";
+import { createDrillSelectionStore } from "./create-drill-selection-store.ts";
 
 const worldEntrySelection = createDrillSelectionStore<WorldEntryId>("world-entry-selection");
 

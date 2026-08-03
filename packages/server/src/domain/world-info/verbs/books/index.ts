@@ -2,10 +2,10 @@
 // (verb-naming gate); aliased to a book-scoped name here so the composition root reads unambiguously next
 // to the same-named entry factories.
 
-export { createCreate as createCreateBook } from "./create";
-export { createDuplicate as createDuplicateBook } from "./duplicate";
-export { createGet as createGetBook } from "./get";
-export { createList as createListBooks } from "./list";
-export { createListWithUsage as createListBooksWithUsage } from "./list-with-usage";
-export { createRemove as createRemoveBook } from "./remove";
-export { createUpdate as createUpdateBook } from "./update";
+export { createCreate as createCreateBook } from "./create.ts";
+export { createDuplicate as createDuplicateBook } from "./duplicate.ts";
+export { createGet as createGetBook } from "./get.ts";
+export { createList as createListBooks } from "./list.ts";
+export { createListWithUsage as createListBooksWithUsage } from "./list-with-usage.ts";
+export { createRemove as createRemoveBook } from "./remove.ts";
+export { createUpdate as createUpdateBook } from "./update.ts";

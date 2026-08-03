@@ -4,7 +4,7 @@
 
 import { buildClientErrorPayload } from "@orb/client/lib";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 describe("buildClientErrorPayload", () => {
   test("carries the error's message + stack + the injected url", () => {

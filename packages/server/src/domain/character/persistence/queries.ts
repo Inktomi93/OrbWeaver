@@ -16,9 +16,9 @@ import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
-import { AssetNotFoundError } from "../contract/errors";
-import type { SnapshotSummary } from "../contract/results";
-import type { CharacterDetail, CharacterSummary } from "../contract/views";
+import { AssetNotFoundError } from "../contract/errors.ts";
+import type { SnapshotSummary } from "../contract/results.ts";
+import type { CharacterDetail, CharacterSummary } from "../contract/views.ts";
 
 const LIMIT_ONE = 1;
 

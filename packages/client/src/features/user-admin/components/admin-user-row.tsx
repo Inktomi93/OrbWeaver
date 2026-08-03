@@ -17,7 +17,7 @@ import { useState } from "react";
 import { ConfirmDialog, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { timeLib } from "#lib";
-import { ROLE_BADGE_INTENT, ROLE_ITEMS, ROLE_LABELS } from "../lib/admin-model";
+import { ROLE_BADGE_INTENT, ROLE_ITEMS, ROLE_LABELS } from "../lib/admin-model.ts";
 
 type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 

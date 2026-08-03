@@ -22,7 +22,7 @@ import {
   summaryOf,
 } from "../../../../../packages/server/src/domain/character/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedCharacterStats, seedCharacterSummary, seedRawCharacter, seedUser } from "../_support.ts";
 
 describe("persistence/queries", () => {

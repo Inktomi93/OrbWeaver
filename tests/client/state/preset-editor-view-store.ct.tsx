@@ -11,7 +11,7 @@
 //    silently-stuck value would strand the eye on the wrong hand.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { PresetEditorViewProbe } from "./_ct-stories";
+import { PresetEditorViewProbe } from "./_ct-stories.tsx";
 
 test("unset reads as null; the writer moves it, and every write is observable", async ({ mount }) => {
   const probe = await mount(<PresetEditorViewProbe />);

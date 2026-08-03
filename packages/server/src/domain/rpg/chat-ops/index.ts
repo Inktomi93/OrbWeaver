@@ -15,15 +15,15 @@
 import type { RpgExtractionMode } from "@orb/contracts/rpg";
 import { isDeceptionActive } from "@orb/contracts/rpg";
 import type { ChatId, MessageId, MessageVariantId, PresetId } from "@orb/kit/ids";
-import type { ChatRpgGatherResult, ChatRpgOps, GatherTurnContextArgs, RpgTurnContext } from "../../chat";
-import type { RpgContext } from "../contract/service";
-import { mintLiteGame } from "../game-mint";
-import { findGameByChat } from "../persistence/games";
-import { commitSnapshotForVariant, findLastAssistantSelectedVariant, findMessageSeq } from "../persistence/snapshots";
-import { flushTurn } from "./flush";
-import { forkGame } from "./fork-game";
-import { gatherTurnContext } from "./gather";
-import { handoffHealStatements, handoffRekeyActors } from "./handoff-heal";
+import type { ChatRpgGatherResult, ChatRpgOps, GatherTurnContextArgs, RpgTurnContext } from "../../chat/index.ts";
+import type { RpgContext } from "../contract/service.ts";
+import { mintLiteGame } from "../game-mint.ts";
+import { findGameByChat } from "../persistence/games.ts";
+import { commitSnapshotForVariant, findLastAssistantSelectedVariant, findMessageSeq } from "../persistence/snapshots.ts";
+import { flushTurn } from "./flush.ts";
+import { forkGame } from "./fork-game.ts";
+import { gatherTurnContext } from "./gather.ts";
+import { handoffHealStatements, handoffRekeyActors } from "./handoff-heal.ts";
 
 /** Build the `ChatRpgOps` runtime over the rpg ctx (rpg-design/05 §3.2). Handed to chat's compose (W1c); NOT
  *  wired here. The gather + flush hold the extractionMode branch; the rest are thin ctx reads/writes. */

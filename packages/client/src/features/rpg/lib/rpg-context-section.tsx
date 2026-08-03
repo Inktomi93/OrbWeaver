@@ -20,19 +20,19 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary } from "#data";
 import type { ChatContextState, CommittedChatContext, ContextTabDef } from "#lib";
-import { RpgErrorState } from "../components/rpg-error-state";
-import { RpgGameDoor } from "../components/rpg-game-door";
-import { RpgGameTab } from "../components/rpg-game-tab";
-import { RpgGameTabBody } from "../components/rpg-game-tab-body";
-import { RpgInventoryTab } from "../components/rpg-inventory-tab";
-import { RpgJournalTab } from "../components/rpg-journal-tab";
-import { RpgMapTab } from "../components/rpg-map-tab";
-import { RpgQuestsTab } from "../components/rpg-quests-tab";
-import { RpgSceneTab } from "../components/rpg-scene-tab";
-import { RpgStatusTab } from "../components/rpg-status-tab";
-import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import type { RpgContextTabsDeps } from "./rpg-game-chat";
-import { makeIsGameChat, peekChatDetail } from "./rpg-game-chat";
+import { RpgErrorState } from "../components/rpg-error-state.tsx";
+import { RpgGameDoor } from "../components/rpg-game-door.tsx";
+import { RpgGameTab } from "../components/rpg-game-tab.tsx";
+import { RpgGameTabBody } from "../components/rpg-game-tab-body.tsx";
+import { RpgInventoryTab } from "../components/rpg-inventory-tab.tsx";
+import { RpgJournalTab } from "../components/rpg-journal-tab.tsx";
+import { RpgMapTab } from "../components/rpg-map-tab.tsx";
+import { RpgQuestsTab } from "../components/rpg-quests-tab.tsx";
+import { RpgSceneTab } from "../components/rpg-scene-tab.tsx";
+import { RpgStatusTab } from "../components/rpg-status-tab.tsx";
+import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
+import type { RpgContextTabsDeps } from "./rpg-game-chat.ts";
+import { makeIsGameChat, peekChatDetail } from "./rpg-game-chat.ts";
 
 /** Build the lite game-tab contributions, bound to the door's cross-domain read channel. */
 export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTabDef<ChatContextState>[] {

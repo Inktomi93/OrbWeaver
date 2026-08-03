@@ -6,7 +6,7 @@ import { Combobox } from "@orb/ui/combobox";
 import { Field } from "@orb/ui/field";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DerivedItemsStory } from "./combobox.fixtures";
+import { DerivedItemsStory } from "./combobox.fixtures.tsx";
 
 const TAGS = ["adventure", "mystery", "romance"];
 const CHIP_SELECTOR = '[data-slot="combobox-chip"]';

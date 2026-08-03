@@ -9,7 +9,7 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { can, isAdmin, requireAdmin, requireOwner } from "@orb/server/domain/admin";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { principal } from "./_support.ts";
 
 /** A Principal carrying the given role, with a deterministic per-role userId. */

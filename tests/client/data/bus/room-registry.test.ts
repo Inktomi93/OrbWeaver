@@ -22,7 +22,7 @@ import type { StreamDataFrame, StreamRoomRef } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { afterEach, describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_reg_1");
 const USER_ROOM: StreamRoomRef = { channel: "user" };

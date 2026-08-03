@@ -11,7 +11,7 @@ import type { LocalLightModelCache } from "@orb/server/infra/providers/backends/
 import { createLocalLightBackend, DEFAULT_RERANK_MODEL } from "@orb/server/infra/providers/backends/local-light";
 import { describe } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const CRED = makeResolvedCredential("local-light");
 const MODEL = "Xenova/test-rerank" as ModelId;

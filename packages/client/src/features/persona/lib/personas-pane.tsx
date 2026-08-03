@@ -3,8 +3,8 @@
 
 import { Drama } from "@orb/ui/icons";
 import type { SettingsPaneDefinition } from "#state";
-import { PersonaSettingsSurface } from "../surfaces/persona-settings-surface";
-import { PERSONA_SUBCATEGORY_IDS, PERSONA_SUBCATEGORY_LABEL } from "./personas-nav";
+import { PersonaSettingsSurface } from "../surfaces/persona-settings-surface.tsx";
+import { PERSONA_SUBCATEGORY_IDS, PERSONA_SUBCATEGORY_LABEL } from "./personas-nav.ts";
 
 export const personasPane: SettingsPaneDefinition = {
   id: "personas",

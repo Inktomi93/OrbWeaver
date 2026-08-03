@@ -37,14 +37,14 @@ import { Section, Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { ChatDocumentsSection } from "./chat-documents-section";
-import { DraftGroupConfigTabBody, DraftInjectionsTab, DraftOverridesTabBody } from "./draft-context-tabs";
-import { CommittedGroupConfigTab } from "./group-config-form";
-import { HostDisplayScriptsControl } from "./host-display-scripts-control";
-import { InjectionsManager } from "./injections-manager";
-import { MacroPicksSection } from "./macro-picks-section";
-import { ChatBackgroundSection, RoomOverridesTab } from "./room-overrides-tab";
-import { ToolRecurseControl } from "./tool-recurse-control";
+import { ChatDocumentsSection } from "./chat-documents-section.tsx";
+import { DraftGroupConfigTabBody, DraftInjectionsTab, DraftOverridesTabBody } from "./draft-context-tabs.tsx";
+import { CommittedGroupConfigTab } from "./group-config-form.tsx";
+import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
+import { InjectionsManager } from "./injections-manager.tsx";
+import { MacroPicksSection } from "./macro-picks-section.tsx";
+import { ChatBackgroundSection, RoomOverridesTab } from "./room-overrides-tab.tsx";
+import { ToolRecurseControl } from "./tool-recurse-control.tsx";
 
 // The Group-behavior form's initially-visible control rows (reply-mode + 2 switches + Advanced trigger).
 const GROUP_SECTION_SKELETON_ROWS = 4;

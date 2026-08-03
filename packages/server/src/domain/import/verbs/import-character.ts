@@ -10,12 +10,12 @@ import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { CharacterId, RegexScriptId } from "@orb/kit/ids";
 import { isPng } from "@orb/kit/png-card-chunk";
-import type { ImportContext } from "../context";
-import { ImportCardError } from "../contract/errors";
-import type { ImportCharacterInput } from "../contract/params";
-import type { ImportCharacterResult } from "../contract/results";
-import type { ImportService } from "../contract/service";
-import { cardToCreateInput, importFileHash, parseCardJson, parseCardPng } from "../substrate/card";
+import type { ImportContext } from "../context.ts";
+import { ImportCardError } from "../contract/errors.ts";
+import type { ImportCharacterInput } from "../contract/params.ts";
+import type { ImportCharacterResult } from "../contract/results.ts";
+import type { ImportService } from "../contract/service.ts";
+import { cardToCreateInput, importFileHash, parseCardJson, parseCardPng } from "../substrate/card.ts";
 
 const PNG_MIME = "image/png";
 const DEFAULT_FALLBACK_NAME = "Imported Character";

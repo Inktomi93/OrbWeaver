@@ -4,7 +4,7 @@
 // makes unreachable to author.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { TagLibraryProbe } from "./_ct-stories";
+import { TagLibraryProbe } from "./_ct-stories.tsx";
 
 test("the roster defaults to MOST-USED and each mode is reachable", async ({ mount }) => {
   const probe = await mount(<TagLibraryProbe />);

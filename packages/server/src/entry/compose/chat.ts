@@ -85,10 +85,10 @@ import { recordMemoryLog } from "#foundation/observability";
 import type { AgentSeedTurn, ChatDeltaEvent, ChatRequest, ChatResult, RoleClientsWithSignal } from "#infra/providers";
 import { AGENT_PROMPT_TAIL_JOINER, createAgentToolServer } from "#infra/providers";
 import { createRegexApplyReplace } from "#kit/regex";
-import { createMemberBudget } from "../../transport/rate-limit";
-import { publishNotification } from "../../transport/trpc";
-import { createChatChangedEmitter } from "./emit-chat-changed";
-import { resolveImageRefToUrl } from "./resolve-image-ref";
+import { createMemberBudget } from "../../transport/rate-limit.ts";
+import { publishNotification } from "../../transport/trpc/index.ts";
+import { createChatChangedEmitter } from "./emit-chat-changed.ts";
+import { resolveImageRefToUrl } from "./resolve-image-ref.ts";
 
 /** Per-chat turn-lock TTL (ms) — auto-expires so a crashed holder's lock is takeover-eligible. */
 const CHAT_LOCK_TTL_MS = 120_000;

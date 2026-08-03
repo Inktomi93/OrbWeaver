@@ -23,7 +23,7 @@ import type {
 import { ASSEMBLY_SOURCES } from "@orb/contracts/chat";
 import type { PromptSection } from "@orb/contracts/preset";
 import { estimateTokens } from "@orb/kit/tokens";
-import type { AssemblySlice, HistoryBudgetInput } from "../contract/results";
+import type { AssemblySlice, HistoryBudgetInput } from "../contract/results.ts";
 
 type Marker = Extract<PromptSection, { type: "marker" }>["marker"];
 

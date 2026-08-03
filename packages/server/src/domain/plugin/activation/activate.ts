@@ -8,11 +8,11 @@
 
 import type { PluginInstance } from "@orb/contracts/plugin";
 import { errorMessage } from "@orb/kit/error-message";
-import type { PluginActivationScope, PluginInvokeHandler, PluginRegistrationHandle } from "../contract/ops";
-import type { ActivateInput, ActivateOutcome, CrashPolicy, PluginContext, PluginRegistry } from "../contract/service";
-import { setStatus } from "../persistence/plugins";
-import { buildPluginBridge } from "../substrate/bridge";
-import { parseBundle } from "../substrate/manifest";
+import type { PluginActivationScope, PluginInvokeHandler, PluginRegistrationHandle } from "../contract/ops.ts";
+import type { ActivateInput, ActivateOutcome, CrashPolicy, PluginContext, PluginRegistry } from "../contract/service.ts";
+import { setStatus } from "../persistence/plugins.ts";
+import { buildPluginBridge } from "../substrate/bridge.ts";
+import { parseBundle } from "../substrate/manifest.ts";
 
 /** Hand every collected registration to its registrar op, collecting the deregistration handles. Each carries
  *  the per-activation {@link PluginActivationScope} (the manifest slug for namespacing + the installer for the

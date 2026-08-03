@@ -1,6 +1,6 @@
-import { applyArgDefaults, checkMacroArgs, macroArgDiagnostics } from "./metadata";
-import type { MacroAST, MacroBlockNode, MacroCallNode, MacroContext, MacroEnv, MacroFlags, MacroHandler, MacroMetadata, MacroRegistry } from "./types";
-import { MACRO_FLAG_DEFS } from "./types";
+import { applyArgDefaults, checkMacroArgs, macroArgDiagnostics } from "./metadata.ts";
+import type { MacroAST, MacroBlockNode, MacroCallNode, MacroContext, MacroEnv, MacroFlags, MacroHandler, MacroMetadata, MacroRegistry } from "./types.ts";
+import { MACRO_FLAG_DEFS } from "./types.ts";
 
 /** Resolve an env entry by name, exact-case first then case-insensitively (registry parity).
  *  Returns the stringified value (null/undefined → ""), or `undefined` when no key matches so

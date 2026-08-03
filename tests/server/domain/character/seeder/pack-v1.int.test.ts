@@ -19,7 +19,7 @@ import type { CharacterService, UpdateCharacterParams } from "@orb/server/domain
 import { createCharacterService, createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedAsset, seedUser } from "../_support.ts";
 
 /** The v1 Assistant card's authored content, transcribed from `seeder/cards.ts` at commit dfc32628 (the

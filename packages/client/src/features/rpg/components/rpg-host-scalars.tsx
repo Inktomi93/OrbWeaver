@@ -29,10 +29,10 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { createAutosaveEntityForm } from "#forms";
-import { useUpdateConfig } from "../hooks/use-rpg-mutations";
-import type { HostConsoleFormValues } from "../lib/host-console-form-model";
-import { EMPTY_HOST_CONSOLE_FORM, fromHostConsoleForm, toHostConsoleForm } from "../lib/host-console-form-model";
-import { Kicker } from "./rpg-kicker";
+import { useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
+import type { HostConsoleFormValues } from "../lib/host-console-form-model.ts";
+import { EMPTY_HOST_CONSOLE_FORM, fromHostConsoleForm, toHostConsoleForm } from "../lib/host-console-form-model.ts";
+import { Kicker } from "./rpg-kicker.tsx";
 
 /** The honest one-line consequence per delivery mode (the mock's fact — the same freshness posture the
  *  band cue renders), keyed over the closed mode axis. */

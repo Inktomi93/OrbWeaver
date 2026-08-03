@@ -14,7 +14,7 @@ import { resolveRenderPolicy } from "@orb/contracts/chat";
 import { securityHeaders } from "@orb/server/entry/http";
 import { Hono } from "hono";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 async function headersFor(dev: boolean, allowExternalMedia = false): Promise<Headers> {
   const app = new Hono();

@@ -4,7 +4,7 @@
 // consumer tree.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { SettingsPaneRegistryProbe } from "./_ct-stories";
+import { SettingsPaneRegistryProbe } from "./_ct-stories.tsx";
 
 test("SettingsPaneRegistryProvider renders children and delivers the registry to a nested consumer", async ({ mount }) => {
   const probe = await mount(<SettingsPaneRegistryProbe />);

@@ -5,7 +5,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeDatabankHarness, principalFor, seedChat, seedUser } from "../../_support.ts";
 
 test("host detach removes the chat row; a non-host detach is rejected", async () => {

@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactElement, ReactNode } from "react";
-import type { ThemeScopeTokens } from "./clamp";
-import { clampThemeTokens } from "./clamp";
+import type { ThemeScopeTokens } from "./clamp.ts";
+import { clampThemeTokens } from "./clamp.ts";
 
 export interface ThemeScopeProps {
   /** Raw override tokens (untrusted for a per-character theme). Every value is clamped at the boundary. */

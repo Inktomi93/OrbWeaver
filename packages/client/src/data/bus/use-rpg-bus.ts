@@ -37,9 +37,9 @@ import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { StreamRoomRef } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { notify } from "#lib";
-import { useTRPC } from "../trpc";
-import { useGatedQuery } from "../use-gated-query";
-import { useBusRoom } from "./use-bus-room";
+import { useTRPC } from "../trpc.ts";
+import { useGatedQuery } from "../use-gated-query.ts";
+import { useBusRoom } from "./use-bus-room.ts";
 
 /** What the hook needs from the central invalidation seam (`data/invalidation.ts`) — the rpg-bus entry point
  *  + the (re)connect gap-heal. Passed from `app-root.tsx` (the seam is rebuilt per render; identity churn is

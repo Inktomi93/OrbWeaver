@@ -2,6 +2,6 @@
 // are the write pair; listConnected is the matching read). The composition root (`service.ts`) imports the
 // three verb factories from here.
 
-export { createConnect } from "./connect";
-export { createDisconnect } from "./disconnect";
-export { createListConnected } from "./list-connected";
+export { createConnect } from "./connect.ts";
+export { createDisconnect } from "./disconnect.ts";
+export { createListConnected } from "./list-connected.ts";

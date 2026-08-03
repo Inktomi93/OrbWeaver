@@ -15,10 +15,19 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { secondsToMs } from "@orb/kit/time";
 import { getLog } from "#foundation/observability";
-import type { AgentSdkChatRequest, ChatEvent, ChatResult, ChatUsage, ContextUsage, RateLimitSnapshot, ResolvedWarning, ToolCallInput } from "../../contract";
-import { normalizeFinishReason, ProviderError } from "../../contract";
-import { resolveDynamicContext } from "../../resolve-chat";
-import { refreshHostSubTokenIfMode1 } from "./host-token";
+import type {
+  AgentSdkChatRequest,
+  ChatEvent,
+  ChatResult,
+  ChatUsage,
+  ContextUsage,
+  RateLimitSnapshot,
+  ResolvedWarning,
+  ToolCallInput,
+} from "../../contract/index.ts";
+import { normalizeFinishReason, ProviderError } from "../../contract/index.ts";
+import { resolveDynamicContext } from "../../resolve-chat.ts";
+import { refreshHostSubTokenIfMode1 } from "./host-token.ts";
 import {
   logProviderCapability,
   logProviderChannel,
@@ -31,13 +40,13 @@ import {
   logProviderRetry,
   logProviderSession,
   logProviderTurn,
-} from "./log";
-import { toSdkOutputFormat } from "./output-schema";
-import type { SeededSessionDecision, SessionCache } from "./session";
-import { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools";
-import { buildSystemPrompt, disciplineOptions, dynamicContextOptions, MCP_NAMESPACE, observabilityOptions, toSdkGeneration } from "./translate";
-import type { AgentSdkDeps, TurnStreamContext } from "./types";
-import { assertInitFrameShape, classifyAssistantError, classifyResultSubtype, classifyTerminalReason } from "./verify";
+} from "./log.ts";
+import { toSdkOutputFormat } from "./output-schema.ts";
+import type { SeededSessionDecision, SessionCache } from "./session/index.ts";
+import { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools.ts";
+import { buildSystemPrompt, disciplineOptions, dynamicContextOptions, MCP_NAMESPACE, observabilityOptions, toSdkGeneration } from "./translate.ts";
+import type { AgentSdkDeps, TurnStreamContext } from "./types.ts";
+import { assertInitFrameShape, classifyAssistantError, classifyResultSubtype, classifyTerminalReason } from "./verify.ts";
 
 /** chatId-derived metadata label only — never the user's chat title text (RP content stays out of the SDK's transcript store). */
 function sdkChatTitle(chatId: ChatId | undefined): string {

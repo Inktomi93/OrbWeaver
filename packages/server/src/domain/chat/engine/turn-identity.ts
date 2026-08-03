@@ -11,7 +11,7 @@
 
 import type { CredentialSource } from "@orb/contracts/connection";
 import type { UserId } from "@orb/kit/ids";
-import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors";
+import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
 
 interface TurnIdentity {
   /** The responsible human — budget/abort/attribution (the caller for a send; the chain-starter for auto). */

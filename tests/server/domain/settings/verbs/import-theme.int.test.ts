@@ -6,7 +6,7 @@ import { createImportTheme, createSettingsContext } from "@orb/server/domain/set
 import { buildThemeBackup } from "@orb/server/kit/serde/theme";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("importTheme", () => {

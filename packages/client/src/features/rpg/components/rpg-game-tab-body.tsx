@@ -10,8 +10,8 @@
 import type { ChatId } from "@orb/kit/ids";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useRpgContextState } from "../hooks/use-rpg-context-state";
+import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
+import { useRpgContextState } from "../hooks/use-rpg-context-state.ts";
 
 export interface RpgGameTabBodyProps {
   readonly chatId: ChatId;

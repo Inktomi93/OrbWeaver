@@ -7,7 +7,7 @@
 // the degrade arm) rides tests/client/features/settings/components/settings-save-footer.ct.tsx.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { SettingsSaveStatusProbe } from "./_ct-stories";
+import { SettingsSaveStatusProbe } from "./_ct-stories.tsx";
 
 test("folds the reported states by precedence, and clears back to nothing on unmount", async ({ mount }) => {
   const probe = await mount(<SettingsSaveStatusProbe />);

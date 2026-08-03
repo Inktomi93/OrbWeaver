@@ -11,8 +11,8 @@ import { isConstraintViolation } from "@orb/db/kit";
 import type { ThemeId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../support/db";
-import { expect, test } from "../../support/fixtures";
+import { freshDb } from "../../support/db.ts";
+import { expect, test } from "../../support/fixtures.ts";
 import { seedUser } from "./_support.ts";
 
 test("the global settings KV round-trips a JSON value on its natural key", async () => {

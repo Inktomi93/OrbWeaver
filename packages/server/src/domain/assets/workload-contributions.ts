@@ -14,8 +14,8 @@ import type { MaintenanceResult } from "@orb/contracts/workloads";
 import { emptyWorkloadParams, maintenanceWorkloadParams } from "@orb/contracts/workloads";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { WorkloadContribution } from "#domain/workloads";
-import type { AssetsWorkloadDeps } from "./contract/service";
-import { loadAvatarBackfillCandidates } from "./persistence/maintenance";
+import type { AssetsWorkloadDeps } from "./contract/service.ts";
+import { loadAvatarBackfillCandidates } from "./persistence/maintenance.ts";
 
 type AssetsContributions = readonly [WorkloadContribution<"assets-backfill">, WorkloadContribution<"assets-gc">, WorkloadContribution<"assets-fsck">];
 

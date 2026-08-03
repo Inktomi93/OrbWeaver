@@ -4,7 +4,7 @@
 // db, no clock — the engine builds canon/economics, these just shape the return.
 
 import type { MessageView, TurnAbortReason } from "@orb/contracts/chat";
-import type { TurnOutcome } from "../contract/results";
+import type { TurnOutcome } from "../contract/results.ts";
 
 /** A completed turn — the committed message(s) (≥1; a per-speaker round emits one per speaker — the
  *  arbitration chunk passes several, the single-speaker core exactly one). */

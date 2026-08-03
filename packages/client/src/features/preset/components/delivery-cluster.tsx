@@ -24,7 +24,7 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
-import { PRESET_NUMBER_FORMAT } from "../lib/format-count";
+import { PRESET_NUMBER_FORMAT } from "../lib/format-count.ts";
 
 /** The depth an absent value means — the TAIL (`guidedActionConfigSchema.depth`'s declared default, and
  *  the assembler's own splice floor). Named so the prefill test below reads as the rule it is. */

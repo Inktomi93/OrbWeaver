@@ -1,7 +1,7 @@
 import { MODE_RESOLVERS } from "@orb/server/infra/auth";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
-import { makeAuthConfig as cfg, headers } from "../_support";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeAuthConfig as cfg, headers } from "../_support.ts";
 
 // `local` mode resolver — post-D40 a pure null-returner at the infra layer: the seam validates the cookie
 // via `sessions.validate` BEFORE `resolve`, so infra never reads it (the cookie modes contribute nothing

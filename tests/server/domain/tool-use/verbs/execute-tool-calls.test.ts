@@ -4,9 +4,9 @@
 // in emission order.
 
 import { z } from "zod";
-import { createToolUseService } from "../../../../../packages/server/src/domain/tool-use";
-import { expect, test } from "../../../../support/fixtures";
-import { defOf, execOf, makeHarness } from "../_support";
+import { createToolUseService } from "../../../../../packages/server/src/domain/tool-use/index.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { defOf, execOf, makeHarness } from "../_support.ts";
 
 const NOOP_SCHEMA = z.object({});
 

@@ -5,7 +5,7 @@
 import type { StructuredRetrySummary } from "@orb/server/kit/structured-turn";
 import { runStructuredTurn, StructuredOutputError } from "@orb/server/kit/structured-turn";
 import { z } from "zod";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const SCHEMA = z.object({ genre: z.string(), score: z.number() });
 

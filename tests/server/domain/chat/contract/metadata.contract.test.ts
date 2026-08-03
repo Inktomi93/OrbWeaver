@@ -13,7 +13,7 @@ import { getGroupConfig, getRoomOverrides, parseChatMetadata } from "../../../..
 import type { CreateInviteParams, RedeemInviteParams, SendParams } from "../../../../../packages/server/src/domain/chat/contract/params.ts";
 import type { CreateInviteResult, TurnOutcome } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import type { ChatSummary } from "../../../../../packages/server/src/domain/chat/contract/views.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("parseChatMetadata", () => {
   test("round-trips a full metadata blob (group + roomOverrides + opening + providerRouting)", () => {

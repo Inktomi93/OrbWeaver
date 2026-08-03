@@ -5,7 +5,7 @@ import { afterEach, describe } from "vitest";
 import { writeCatalogSnapshot } from "../../../../../packages/server/src/domain/connection/persistence/catalog-snapshot.ts";
 import { __resetOrModelCache, getCachedOrModels } from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeConnHarness, makeOrEntry } from "../_support.ts";
 
 afterEach(() => {

@@ -19,14 +19,14 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { and, eq, inArray, isNull } from "drizzle-orm";
-import type { ComputeChatDuplicatesOptions, ComputeDuplicatesOptions } from "../contract/params";
-import type { DuplicateChatComputeStats, DuplicateComputeStats } from "../contract/results";
-import type { ComputeChatDuplicatesDeps, ComputeDuplicatesDeps } from "../contract/service";
-import { readOwnedCharacterVectors, readOwnedChatLineage, readOwnedChatSegmentHashes } from "../persistence/embed-store-reads";
-import { collapseByHash } from "../substrate/collapse";
-import { forkRoots } from "../substrate/fork-roots";
-import { computeGroupHubs } from "../substrate/hub-math";
-import { pairsAboveThreshold } from "../substrate/pair-cosine";
+import type { ComputeChatDuplicatesOptions, ComputeDuplicatesOptions } from "../contract/params.ts";
+import type { DuplicateChatComputeStats, DuplicateComputeStats } from "../contract/results.ts";
+import type { ComputeChatDuplicatesDeps, ComputeDuplicatesDeps } from "../contract/service.ts";
+import { readOwnedCharacterVectors, readOwnedChatLineage, readOwnedChatSegmentHashes } from "../persistence/embed-store-reads.ts";
+import { collapseByHash } from "../substrate/collapse.ts";
+import { forkRoots } from "../substrate/fork-roots.ts";
+import { computeGroupHubs } from "../substrate/hub-math.ts";
+import { pairsAboveThreshold } from "../substrate/pair-cosine.ts";
 
 /** The raw-cosine floor a card pair must clear to be recorded as a near-duplicate (a hub-deflated near-dup
  *  must still BE a near-dup, so the gate is on raw cosine; `cslsScore` only ranks). Re-exported from the

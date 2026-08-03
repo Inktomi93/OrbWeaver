@@ -10,11 +10,11 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../../support/ct/settings-geometry";
-import { SettingsShellDeepLinkStory, SettingsShellStory } from "../../settings/_ct-stories";
-import { AdminPaneStory } from "../_ct-stories";
+import type { TrpcRecorder, TrpcRoutes } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { findSettingsColumnViolation, readSettingsPaneGeometry } from "../../../../support/ct/settings-geometry.ts";
+import { SettingsShellDeepLinkStory, SettingsShellStory } from "../../settings/_ct-stories.tsx";
+import { AdminPaneStory } from "../_ct-stories.tsx";
 
 const OWNER_VIEWER = { userId: "user_owner", handle: "root", globalRole: "owner" };
 const PLAIN_VIEWER = { userId: "user_kes", handle: "kes", globalRole: "user" };

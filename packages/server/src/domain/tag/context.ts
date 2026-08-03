@@ -4,4 +4,4 @@
 // bundle by the canonical name. The bundle is ASSEMBLED at the entry composition root (db + the injected
 // `newTagId` seam + chat's `requireParticipant` gate) and handed to `createTagService`.
 
-export type { TagContext } from "./contract/service";
+export type { TagContext } from "./contract/service.ts";

@@ -7,8 +7,8 @@
 // pinned by realm.test); this test exercises the composed lifecycle, not the membrane call surface.
 
 import { describe } from "vitest";
-import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "../../../../support/fixtures";
-import { seedChat, seedParticipant } from "../../../domain/chat/_support";
+import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "../../../../support/fixtures.ts";
+import { seedChat, seedParticipant } from "../../../domain/chat/_support.ts";
 import { makeBundle } from "../../../domain/plugin/_support.ts";
 
 /** base64 the bundle bytes the way the router's input carries them. */

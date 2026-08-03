@@ -5,7 +5,7 @@
 
 import { __readRecentSteersForTest, __resetRecentSteers, pushFiredSteer, STEER_RECOVERY_CAP } from "@orb/client/state";
 import { beforeEach, describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 describe("steer-recovery ring", () => {
   beforeEach(() => {

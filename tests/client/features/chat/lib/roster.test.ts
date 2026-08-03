@@ -12,9 +12,9 @@ import {
   membersTabJustified,
   resolveHumanParticipants,
   resolveViewerActivePersonaId,
-} from "../../../../../packages/client/src/features/chat/lib/roster";
-import { expect, test } from "../../../../support/fixtures";
-import { makeParticipant } from "./_support";
+} from "../../../../../packages/client/src/features/chat/lib/roster.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeParticipant } from "./_support.ts";
 
 const ALICE_ID = castId<CharacterId>("char_alice_roster");
 const BOB_ID = castId<CharacterId>("char_bob_roster");

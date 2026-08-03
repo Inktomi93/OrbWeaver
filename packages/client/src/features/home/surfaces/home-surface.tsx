@@ -20,8 +20,8 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { ContributorRegistry, HomeTileContribution } from "#lib";
 import { useFocusOnMount, WeaveGlyph } from "#lib";
-import { HomeTile } from "../components/home-tile";
-import { orderHomeTiles } from "../lib/order-home-tiles";
+import { HomeTile } from "../components/home-tile.tsx";
+import { orderHomeTiles } from "../lib/order-home-tiles.ts";
 
 export interface HomeSurfaceProps {
   readonly tiles: ContributorRegistry<HomeTileContribution>;

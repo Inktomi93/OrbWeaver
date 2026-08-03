@@ -37,8 +37,8 @@ import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { openContextTab, openNewestChat, typeAndSend } from "./support/chat-room";
-import type { ActorRefInput, ChatRoute, TrackerActor, TrackerView } from "./support/trpc";
+import { openContextTab, openNewestChat, typeAndSend } from "./support/chat-room.ts";
+import type { ActorRefInput, ChatRoute, TrackerActor, TrackerView } from "./support/trpc.ts";
 import {
   abortTurn,
   addJournalEntry,
@@ -67,7 +67,7 @@ import {
   setTrackers,
   startChat,
   upsertQuest,
-} from "./support/trpc";
+} from "./support/trpc.ts";
 
 const NON_WHITESPACE = /\S/u;
 

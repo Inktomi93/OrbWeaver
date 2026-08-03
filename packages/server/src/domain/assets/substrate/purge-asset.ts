@@ -12,7 +12,7 @@
 import type { Db } from "@orb/db";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import type { Cas, VariantCache } from "#infra/storage";
-import { deleteAssetRow } from "../persistence/maintenance";
+import { deleteAssetRow } from "../persistence/maintenance.ts";
 
 export async function purgeAsset(args: {
   readonly db: Db;

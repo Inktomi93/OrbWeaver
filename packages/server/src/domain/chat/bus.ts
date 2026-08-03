@@ -30,10 +30,10 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { ChatContext } from "./context";
-import { appendChatEvent } from "./persistence/events";
-import { loadChatRow } from "./persistence/queries";
-import { createMemberDeltaStamper } from "./substrate/member-visibility";
+import type { ChatContext } from "./context.ts";
+import { appendChatEvent } from "./persistence/events.ts";
+import { loadChatRow } from "./persistence/queries.ts";
+import { createMemberDeltaStamper } from "./substrate/member-visibility.ts";
 
 /** What was durably logged: the assigned per-chat `seq` (the replay cursor) plus the event AS STORED — the
  *  §3.6-stamped copy, so the composition root fans the exact bytes the log holds. */

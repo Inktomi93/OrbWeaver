@@ -7,7 +7,7 @@ import type { PortableParse } from "@orb/contracts/portability";
 import type { CanonicalTag, TagLibrary } from "@orb/server/kit/serde/tag";
 import { buildTagLibrary, parseTagLibrary, TAG_LIBRARY_SCHEMA_KIND, TAG_LIBRARY_SCHEMA_VERSION } from "@orb/server/kit/serde/tag";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The parse outcome's value — the spine returns a typed refusal reason, never null. */
 function refusalOf<T>(result: PortableParse<T>): string {

@@ -4,7 +4,7 @@
 
 import { validateThemeCss } from "@orb/kit/css-validate";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 describe("validateThemeCss", () => {
   test("clean CSS has no errors and no warnings", () => {

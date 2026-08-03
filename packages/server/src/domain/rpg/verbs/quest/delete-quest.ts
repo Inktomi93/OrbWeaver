@@ -3,10 +3,10 @@
 // leaves no ghost lock). Host-gated.
 
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
-import type { DeleteQuestParams } from "../../contract/params";
-import type { RpgContext, RpgService } from "../../contract/service";
-import { resolveHost } from "../../guard";
-import { applyHandEdit, currentSnapshotState } from "../../snapshot-edit";
+import type { DeleteQuestParams } from "../../contract/params.ts";
+import type { RpgContext, RpgService } from "../../contract/service.ts";
+import { resolveHost } from "../../guard.ts";
+import { applyHandEdit, currentSnapshotState } from "../../snapshot-edit.ts";
 
 export function createDeleteQuest(ctx: RpgContext): Pick<RpgService, "deleteQuest"> {
   async function deleteQuest(params: DeleteQuestParams): Promise<void> {

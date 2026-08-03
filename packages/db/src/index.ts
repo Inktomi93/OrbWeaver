@@ -14,8 +14,8 @@
 // tables + the client.
 
 // The client + lifecycle (Db, createDb, the migration/integrity/backup/housekeeping helpers, LibSqlWrap).
-export * from "./client";
+export * from "./client/index.ts";
 // The native vector column codec (consumed by the embeddings + discovery schema files).
-export { vector32 } from "./custom-types";
+export { vector32 } from "./custom-types/index.ts";
 // Every drizzle table + the relations (the db-row producers).
-export * from "./schema";
+export * from "./schema/index.ts";

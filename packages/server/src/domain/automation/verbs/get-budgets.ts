@@ -4,10 +4,10 @@
 // missing row) — never an invented ceiling.
 
 import type { BudgetView } from "@orb/contracts/automation";
-import type { GetBudgetsParams } from "../contract/params";
-import type { AutomationContext, AutomationService } from "../contract/service";
-import { requireChatHost } from "../guard";
-import { selectBudgetView } from "../persistence/budgets";
+import type { GetBudgetsParams } from "../contract/params.ts";
+import type { AutomationContext, AutomationService } from "../contract/service.ts";
+import { requireChatHost } from "../guard.ts";
+import { selectBudgetView } from "../persistence/budgets.ts";
 
 export function createGetBudgets(ctx: AutomationContext): AutomationService["getBudgets"] {
   return async ({ principal, chatId }: GetBudgetsParams): Promise<BudgetView> => {

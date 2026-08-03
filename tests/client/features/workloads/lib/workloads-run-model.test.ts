@@ -9,8 +9,8 @@ import {
   isDependencyFailure,
   isWaitingOnDependencies,
   parseRunAt,
-} from "../../../../../packages/client/src/features/workloads/lib/workloads-run-model";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/client/src/features/workloads/lib/workloads-run-model.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 test("parseRunAt: empty/unparseable → undefined (run now); a valid datetime-local → epoch ms", () => {
   expect(parseRunAt("")).toBeUndefined();

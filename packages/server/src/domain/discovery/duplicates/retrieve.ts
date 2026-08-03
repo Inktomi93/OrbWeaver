@@ -12,8 +12,8 @@ import type { Db } from "@orb/db";
 import { characters, chatParticipants, chats, duplicateCharacterPairs, duplicateChatPairs } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { aliasedTable, and, desc, eq, exists, gte, isNull } from "drizzle-orm";
-import type { DuplicateCharactersOptions, DuplicateChatsOptions } from "../contract/params";
-import type { DuplicateCharacterPair, DuplicateChatPair } from "../contract/results";
+import type { DuplicateCharactersOptions, DuplicateChatsOptions } from "../contract/params.ts";
+import type { DuplicateCharacterPair, DuplicateChatPair } from "../contract/results.ts";
 
 /** The owner's near-duplicate character pairs, CSLS-ranked (highest first), enriched with both card names. */
 export async function readDuplicateCharacters(db: Db, ownerId: UserId, opts: DuplicateCharactersOptions = {}): Promise<DuplicateCharacterPair[]> {

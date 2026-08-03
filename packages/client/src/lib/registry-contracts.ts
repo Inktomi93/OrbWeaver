@@ -25,7 +25,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
-import type { ContributorRegistry } from "./registry";
+import type { ContributorRegistry } from "./registry.ts";
 
 /** RAIL MEMBERSHIP — which of a CLAIMANT's two rails a CONTEXT tab belongs to (HUD-1 §4, owner decision 5).
  *  `"game"` = the STATE rail above the viewport; `"meta"` = the ADMINISTRATION rail below it. Membership is

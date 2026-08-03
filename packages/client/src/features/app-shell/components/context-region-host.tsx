@@ -14,7 +14,7 @@
 
 import type { ReactElement } from "react";
 import type { ResolvedContextTabs } from "#lib";
-import { useContextTabSelection } from "../hooks/use-context-tab-selection";
+import { useContextTabSelection } from "../hooks/use-context-tab-selection.ts";
 
 export interface ContextRegionHostProps {
   /** The claimant's whole-pane renderer, resolved by `resolveContextTabs` (the FIRST claiming region). */

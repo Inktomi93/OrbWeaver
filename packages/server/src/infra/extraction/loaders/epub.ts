@@ -13,8 +13,8 @@
 // plugin-host `unzipHardened` precedent). Empty text is truthful (a spine of empty chapters).
 
 import { strFromU8, unzipSync } from "fflate";
-import type { RawExtraction } from "../loader";
-import { loadHtml } from "./html";
+import type { RawExtraction } from "../loader.ts";
+import { loadHtml } from "./html.ts";
 
 const CONTAINER_PATH = "META-INF/container.xml";
 const CHAPTER_SEPARATOR = "\n\n";

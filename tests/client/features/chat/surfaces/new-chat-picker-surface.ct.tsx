@@ -4,9 +4,9 @@
 // reflects the live selection count (proving the multi-select toggle is wired); the search input filters.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { makeCharacterSummary } from "../../character/fixtures";
-import { NewChatPickerStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { makeCharacterSummary } from "../../character/fixtures.ts";
+import { NewChatPickerStory } from "../_ct-stories.tsx";
 
 const ARIA = makeCharacterSummary({ id: "char_aria", name: "Aria" });
 const BOLT = makeCharacterSummary({ id: "char_bolt", name: "Bolt" });

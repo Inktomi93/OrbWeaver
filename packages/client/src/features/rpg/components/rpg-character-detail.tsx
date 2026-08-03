@@ -27,14 +27,14 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { StatCell, TrackerChip, TrackerValue } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useEditSnapshot, usePatchActor, usePatchSheet } from "../hooks/use-rpg-mutations";
-import type { ActorEdit } from "./rpg-actor-trackers";
-import { ActorMeters, ActorTrackerRows, ConditionChips, StatusLine } from "./rpg-actor-trackers";
-import { RpgDoorwayLine } from "./rpg-doorway-line";
-import { RpgFieldLock } from "./rpg-field-lock";
-import { Kicker } from "./rpg-kicker";
-import { RpgPopulateControl } from "./rpg-populate-control";
+import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
+import { useEditSnapshot, usePatchActor, usePatchSheet } from "../hooks/use-rpg-mutations.ts";
+import type { ActorEdit } from "./rpg-actor-trackers.tsx";
+import { ActorMeters, ActorTrackerRows, ConditionChips, StatusLine } from "./rpg-actor-trackers.tsx";
+import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
+import { RpgFieldLock } from "./rpg-field-lock.tsx";
+import { Kicker } from "./rpg-kicker.tsx";
+import { RpgPopulateControl } from "./rpg-populate-control.tsx";
 
 /** The hand-only progression LEVEL (§2.6) — `Level N`, editable-in-place for the sheet owner/host. A null level
  *  is omitted from a READ-ONLY view (nullable-honesty: no phantom "Level 0"); an editable view shows an empty

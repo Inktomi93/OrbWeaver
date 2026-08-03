@@ -44,13 +44,13 @@ import {
 } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";
 import { isCommitted } from "#state";
-import { useComposerUtilities } from "../hooks/use-composer-utilities";
-import { useGuidedActions } from "../hooks/use-guided-actions";
-import { filterCharacters } from "../lib/roster";
-import type { ComposerImageControls } from "./composer-utility-menu";
-import { UtilityMenu } from "./composer-utility-menu";
-import { RewriteDialog } from "./rewrite-dialog";
-import { useRewriteModal } from "./use-rewrite-modal";
+import { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
+import { useGuidedActions } from "../hooks/use-guided-actions.ts";
+import { filterCharacters } from "../lib/roster.ts";
+import type { ComposerImageControls } from "./composer-utility-menu.tsx";
+import { UtilityMenu } from "./composer-utility-menu.tsx";
+import { RewriteDialog } from "./rewrite-dialog.tsx";
+import { useRewriteModal } from "./use-rewrite-modal.ts";
 
 export interface ComposerGuidedClusterProps {
   readonly handle: ChatHandle;

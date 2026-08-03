@@ -32,7 +32,7 @@
 
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { executeRegexScripts, HISTORY_DEPTH_PLACEMENT } from "@orb/kit/regex";
-import type { PromptHistoryRegexEnv } from "../contract/regex";
+import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 
 /** The minimum a row must expose for the leg to rewrite it — deliberately structural, so `CanonRow` (which
  *  is file-local to `assembly/shape.ts`) does not have to be exported to be transformed here. */

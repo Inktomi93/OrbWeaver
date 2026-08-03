@@ -4,8 +4,8 @@
 // the title alone (no "0"). The count reads the shared `discovery.catalog` cache.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { CorpusListHeaderStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { CorpusListHeaderStory } from "../_ct-stories.tsx";
 
 test("the LIST band names the corpus and shows the distilled count", async ({ mount, page }) => {
   await routeTrpc(page, { "discovery.catalog": { genres: [], tones: [], topTags: [], tagPairs: [], totalDistilled: 12 } });

@@ -22,10 +22,10 @@ import type { Can, Principal } from "@orb/contracts/identity";
 import type { InvocationChat } from "@orb/contracts/plugin";
 import { errorMessage } from "@orb/kit/error-message";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
-import { ToolNameCollisionError } from "../contract/errors";
-import type { PluginToolSpec, ToolExecutionContext } from "../contract/params";
-import { TOOL_NAME_RE } from "../contract/params";
-import type { PluginToolHandle, RegisteredTool, RunOutcome, ToolRegistry } from "../contract/results";
+import { ToolNameCollisionError } from "../contract/errors.ts";
+import type { PluginToolSpec, ToolExecutionContext } from "../contract/params.ts";
+import { TOOL_NAME_RE } from "../contract/params.ts";
+import type { PluginToolHandle, RegisteredTool, RunOutcome, ToolRegistry } from "../contract/results.ts";
 
 const CHAT_READ = "read";
 const CHAT_HOST = "host";

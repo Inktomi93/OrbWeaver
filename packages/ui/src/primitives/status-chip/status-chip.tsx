@@ -11,7 +11,7 @@ import { Button } from "#primitives/button";
 import type { LucideIcon } from "#primitives/icons";
 import { AlertTriangle, Check, Icon } from "#primitives/icons";
 import { Spinner } from "#primitives/spinner";
-import { statusChipVariants } from "./variants";
+import { statusChipVariants } from "./variants.ts";
 
 const STATUS_CHIP_STATUSES = ["idle", "running", "succeeded", "failed"] as const;
 export type StatusChipStatus = (typeof STATUS_CHIP_STATUSES)[number];

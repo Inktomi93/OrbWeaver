@@ -4,12 +4,12 @@
 // via character.update). Leak-free NOT_FOUND for a non-owner — the owner gate (`loadOwnedCharacterRow`) is
 // the chokepoint and fires BEFORE any template read or completion (the cross-tenant sweep's owner-gate probe).
 
-import type { CharacterContext } from "../context";
-import { CharacterNotFoundError } from "../contract/errors";
-import type { RewriteGreetingParams } from "../contract/params";
-import type { CharacterService } from "../contract/service";
-import { cardOf, loadOwnedCharacterRow } from "../persistence/queries";
-import { buildGreetingPrompt } from "../substrate/greeting-studio";
+import type { CharacterContext } from "../context.ts";
+import { CharacterNotFoundError } from "../contract/errors.ts";
+import type { RewriteGreetingParams } from "../contract/params.ts";
+import type { CharacterService } from "../contract/service.ts";
+import { cardOf, loadOwnedCharacterRow } from "../persistence/queries.ts";
+import { buildGreetingPrompt } from "../substrate/greeting-studio.ts";
 
 export function createRewriteGreeting(ctx: CharacterContext): CharacterService["rewriteGreeting"] {
   return async ({ principal, characterId, greeting, steer }: RewriteGreetingParams) => {

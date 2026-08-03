@@ -1,5 +1,5 @@
 import { createTimeLib, epochToMs, humanizeDuration, isoToMs, secondsToMs } from "@orb/kit/time";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const SEC = 1000;
 const MIN = 60 * SEC;

@@ -3,32 +3,32 @@
 // (split out of this barrel so `row-macros.ts` below can import them without an import cycle).
 // The M1 scoped-block body normalizer (trim + indent-dedent; the `#` flag bypasses it in the evaluator)
 // + the ZWSP macro-re-injection defense (re-homed from kit/guided, which re-exports it — one home).
-export { type IdentityMapping, neutralizeMacros, swapIdentityMacros, type TrimContentOptions, trimContent, ZWSP } from "./content";
+export { type IdentityMapping, neutralizeMacros, swapIdentityMacros, type TrimContentOptions, trimContent, ZWSP } from "./content.ts";
 export {
   createMacroContext,
   globalMacroRegistry,
   type ProcessMacroOptions,
   processMacros,
-} from "./engine";
-export { evaluateMacros } from "./evaluator";
+} from "./engine.ts";
+export { evaluateMacros } from "./evaluator.ts";
 // The macro-DX layer (02 §5) + the M3 runtime-enforcement core (§12A.3): typed violations
 // (checkMacroArgs → MacroArgViolation) with validateMacroArgs deriving the positional diagnostics, and
 // the autocomplete query. Types + MACRO_CATEGORIES home in ./types (below) so the registry references
 // them cycle-free.
-export { type CheckMacroArgsOptions, checkMacroArgs, queryMacros, validateMacroArgs } from "./metadata";
+export { type CheckMacroArgsOptions, checkMacroArgs, queryMacros, validateMacroArgs } from "./metadata.ts";
 // MACRO_NAME_RE: the fully-anchored macro-name shape — user-macro registration + the contracts-side
 // authoring schema both validate against it (one vocabulary with the parser's identifier scan).
-export { MACRO_NAME_RE, type MacroRun, parseMacros, scanMacroRuns } from "./parser";
-export { createDefaultRegistry, createNamesOnlyRegistry, createVolatileOnlyRegistry, SimpleMacroRegistry } from "./registry";
+export { MACRO_NAME_RE, type MacroRun, parseMacros, scanMacroRuns } from "./parser.ts";
+export { createDefaultRegistry, createNamesOnlyRegistry, createVolatileOnlyRegistry, SimpleMacroRegistry } from "./registry.ts";
 export type {
   RowCharacterName,
   RowMacroNameContext,
   RowMacroStamps,
   RowPersonaName,
-} from "./row-macros";
+} from "./row-macros.ts";
 // The chat-history row resolver (Chat-Macro-Resolution.md §2) — the ONE atom server ASSEMBLE + client
 // DISPLAY both call so they cannot diverge. Composes `processMacros` (`./engine`).
-export { resolveRowMacros } from "./row-macros";
+export { resolveRowMacros } from "./row-macros.ts";
 export type {
   GlobalVarWrite,
   MacroArgDef,
@@ -57,10 +57,10 @@ export type {
   MacroSpan,
   TextNode,
   VarOp,
-} from "./types";
+} from "./types.ts";
 // MACRO_FLAG_DEFS: the ONE reserved-flags vocabulary (§12A.4) — the parser derives from it, the macro
 // browser documents from it.
-export { MACRO_ARG_TYPES, MACRO_CATEGORIES, MACRO_FLAG_DEFS } from "./types";
+export { MACRO_ARG_TYPES, MACRO_CATEGORIES, MACRO_FLAG_DEFS } from "./types.ts";
 // WAVE MU (M5 + #24): preset/game-authored user macros as first-class registry entries + the typed
 // choice-block input vocabulary and its pure values-bag resolution (random-pick draws freeze-at-commit).
 export {
@@ -80,6 +80,6 @@ export {
   type UserMacroInputValueBag,
   type UserMacroRegistration,
   userMacroToggleDefaultsOn,
-} from "./user-macros";
+} from "./user-macros.ts";
 // D46 runtime variable delta model: the ordered op the mutation handlers record + the shared apply/fold.
-export { applyVarOp, foldVarOps } from "./variables";
+export { applyVarOp, foldVarOps } from "./variables.ts";

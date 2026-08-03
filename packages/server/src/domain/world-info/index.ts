@@ -3,10 +3,10 @@
 // this front door (invariant #8).
 
 export { WORLD_BOOK_ROLES } from "@orb/contracts/world-info";
-export type { WorldInfoContext } from "./context";
-export { WorldInfoNotFoundError } from "./contract/errors";
-export type { ExportedWorldBook, ExportWorldBook, ListOwnedBookIds, WorldInfoExportContext } from "./contract/export";
-export type { CopyHandoffBooks, HandoffCardPair, WorldInfoHandoffCopyContext } from "./contract/handoff-copy";
+export type { WorldInfoContext } from "./context.ts";
+export { WorldInfoNotFoundError } from "./contract/errors.ts";
+export type { ExportedWorldBook, ExportWorldBook, ListOwnedBookIds, WorldInfoExportContext } from "./contract/export.ts";
+export type { CopyHandoffBooks, HandoffCardPair, WorldInfoHandoffCopyContext } from "./contract/handoff-copy.ts";
 export type {
   BulkImportLorebook,
   CopyCharacterBooks,
@@ -18,23 +18,23 @@ export type {
   LinkCarriedBooksResult,
   WorldInfoDuplicateCarryContext,
   WorldInfoImportContext,
-} from "./contract/import";
+} from "./contract/import.ts";
 export type {
   CreateBookInput,
   CreateEntryInput,
   UpdateBookInput,
   UpdateEntryInput,
-} from "./contract/params";
-export type { WorldInfoService } from "./contract/service";
-export type { BookAttachmentView, BookView, EntryView, WorldBookRole } from "./contract/views";
-export { createCopyCharacterBooks } from "./persistence/duplicate-carry";
-export { createCopyHandoffBooks } from "./persistence/handoff-copy-write";
+} from "./contract/params.ts";
+export type { WorldInfoService } from "./contract/service.ts";
+export type { BookAttachmentView, BookView, EntryView, WorldBookRole } from "./contract/views.ts";
+export { createCopyCharacterBooks } from "./persistence/duplicate-carry.ts";
+export { createCopyHandoffBooks } from "./persistence/handoff-copy-write.ts";
 export {
   createBulkImportLorebook,
   createImportStandaloneLorebook,
-} from "./persistence/import-write";
-export { createLinkCarriedBooks } from "./persistence/link-carried-books";
-export { createWorldInfoService } from "./service";
-export { createExport as createExportWorldBook } from "./verbs/export";
-export { createImport as createImportWorldBook } from "./verbs/import";
-export { createListOwnedBookIds } from "./verbs/list-owned-book-ids";
+} from "./persistence/import-write.ts";
+export { createLinkCarriedBooks } from "./persistence/link-carried-books.ts";
+export { createWorldInfoService } from "./service.ts";
+export { createExport as createExportWorldBook } from "./verbs/export.ts";
+export { createImport as createImportWorldBook } from "./verbs/import.ts";
+export { createListOwnedBookIds } from "./verbs/list-owned-book-ids.ts";

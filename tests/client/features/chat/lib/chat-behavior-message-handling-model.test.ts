@@ -4,8 +4,11 @@
 
 import type { ChatSettings } from "@orb/contracts/settings";
 import { DEFAULT_CHAT_SETTINGS } from "@orb/contracts/settings";
-import { projectMessageHandlingForm, toMessageHandlingPatch } from "../../../../../packages/client/src/features/chat/lib/chat-behavior-message-handling-model";
-import { expect, test } from "../../../../support/fixtures";
+import {
+  projectMessageHandlingForm,
+  toMessageHandlingPatch,
+} from "../../../../../packages/client/src/features/chat/lib/chat-behavior-message-handling-model.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const populated: ChatSettings = {
   enterSends: false,

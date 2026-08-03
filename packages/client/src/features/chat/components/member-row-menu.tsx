@@ -11,7 +11,7 @@
 import { CircleUser, Crown, Eye, EyeOff, Icon, LogOut, UserX, Volume2, VolumeX, Zap } from "@orb/ui/icons";
 import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactNode } from "react";
-import type { MEMBER_ROW_CONFIRMS, MemberCastRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows";
+import type { MEMBER_ROW_CONFIRMS, MemberCastRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";
 
 /** Which of a person row's dialogs is open — DERIVED from the one homed tuple, never re-spelled (a fourth
  *  arm must break every consumer at compile time). Local per file: an exported client alias would have to

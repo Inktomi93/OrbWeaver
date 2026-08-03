@@ -25,7 +25,7 @@
 
 import type { RpgSnapshotState, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
 import { rpgWeatherText, timeOfDayAtHour, trackerCeiling, trackerNumber } from "@orb/contracts/rpg";
-import type { DeltaContext, PlaneDiffRenderer, RegisteredPlaneDiff } from "../contract/delta";
+import type { DeltaContext, PlaneDiffRenderer, RegisteredPlaneDiff } from "../contract/delta.ts";
 
 /** The diff heading (§2.7) — a VERSIONED constant like the license, so a copy revision is a legible bump. */
 export const RPG_DELTA_HEADING = "CHANGES SINCE LAST BEAT";

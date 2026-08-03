@@ -11,7 +11,7 @@
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { seriesRowVariants } from "./variants";
+import { seriesRowVariants } from "./variants.ts";
 
 /** Which `--color-track-N` ramp step the swatch shows — the SAME categorical ramp the segmented bar tints its
  *  segments with, so a row and its segment read as one pair. Structurally identical to `@orb/ui/meter`'s

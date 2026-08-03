@@ -3,7 +3,7 @@
 
 import { describe } from "vitest";
 import { defaultSizeFor, SIZE_PRESETS } from "../../../../../packages/server/src/domain/imagery/substrate/size.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("SIZE_PRESETS", () => {
   test("the gpt-image-1 published dimensions", () => {

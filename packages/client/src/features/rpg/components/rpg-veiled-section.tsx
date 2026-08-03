@@ -16,8 +16,8 @@ import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
-import { Kicker } from "./rpg-kicker";
-import { RpgTurnRef } from "./rpg-turn-ref";
+import { Kicker } from "./rpg-kicker.tsx";
+import { RpgTurnRef } from "./rpg-turn-ref.tsx";
 
 /** The reveal read + the crown-gold ledger rows. Suspends on `rpg.revealHidden`; empty ⇒ null. */
 function VeiledLedger({ chatId }: { readonly chatId: ChatId }): ReactElement | null {

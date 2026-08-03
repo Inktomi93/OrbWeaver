@@ -2,9 +2,9 @@
 // gates the remove mutation (cancel fires nothing; confirm fires `credentials.remove` with the row's id).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { testId } from "../../../../../packages/client/src/lib/test-ids";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { CredentialKeyRowStory, RevokedCredentialKeyRowStory } from "../_ct-stories";
+import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { CredentialKeyRowStory, RevokedCredentialKeyRowStory } from "../_ct-stories.tsx";
 
 test("remove is confirm-gated: cancel fires nothing, confirm fires credentials.remove", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {

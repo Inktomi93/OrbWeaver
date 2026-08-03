@@ -8,7 +8,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import type { HostSeams } from "./_support.ts";
 import { makeBundle, makePluginHarness, makeSandboxPort, ownerPrincipalFor, seedUser } from "./_support.ts";
 

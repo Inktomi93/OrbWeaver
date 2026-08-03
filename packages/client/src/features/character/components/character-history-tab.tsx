@@ -14,7 +14,7 @@ import type { ReactElement } from "react";
 import { ConfirmDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
-import { useRestoreCharacter, useSnapshotCharacter } from "../hooks/use-character-context-mutations";
+import { useRestoreCharacter, useSnapshotCharacter } from "../hooks/use-character-context-mutations.ts";
 
 export interface CharacterHistoryTabProps {
   readonly characterId: CharacterId;

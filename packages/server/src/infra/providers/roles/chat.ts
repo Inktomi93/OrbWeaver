@@ -2,9 +2,9 @@
 // turn). Firewall-checks, derives the sealed backend from {api, source}, and runs it. The domain builds
 // the `ChatRequest` once and calls this; it never sees the runner.
 
-import type { ChatRequest, ChatResult, ProviderDeps } from "../contract";
-import { deriveRunner, requireBackend, runRole } from "./dispatch";
-import { assertCredentialAllowed } from "./firewall";
+import type { ChatRequest, ChatResult, ProviderDeps } from "../contract/index.ts";
+import { deriveRunner, requireBackend, runRole } from "./dispatch.ts";
+import { assertCredentialAllowed } from "./firewall.ts";
 
 const ROLE = "chat";
 

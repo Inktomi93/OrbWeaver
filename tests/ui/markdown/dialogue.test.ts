@@ -7,7 +7,7 @@
 import { describe } from "vitest";
 import type { DialoguePart } from "../../../packages/ui/src/markdown/dialogue.ts";
 import { splitDialogue } from "../../../packages/ui/src/markdown/dialogue.ts";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const text = (value: string): DialoguePart => ({ text: value, atomic: false });
 /** An element child that carries text (Streamdown's per-word streaming span) — tinted whole or not at all. */

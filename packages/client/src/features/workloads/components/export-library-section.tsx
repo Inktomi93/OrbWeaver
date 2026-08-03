@@ -12,7 +12,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { SettingCheckboxRow } from "#components";
 import { downloadUrl, testId } from "#lib";
-import { buildLibraryExportHref, EXPORTABLE_KINDS, PORTABLE_KIND_LABELS } from "../lib/portability-model";
+import { buildLibraryExportHref, EXPORTABLE_KINDS, PORTABLE_KIND_LABELS } from "../lib/portability-model.ts";
 
 /** The export controls: per-kind checkboxes + the download button. */
 export function ExportLibrarySection(): ReactElement {

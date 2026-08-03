@@ -4,7 +4,7 @@
 
 import { describe, vi } from "vitest";
 import { runOidcGc, startOidcGcScheduler } from "../../../../packages/server/src/transport/jobs/oidc-gc-scheduler.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { makeOidcGcDeps, T0 } from "./_support.ts";
 
 describe("oidc-gc-scheduler reap", () => {

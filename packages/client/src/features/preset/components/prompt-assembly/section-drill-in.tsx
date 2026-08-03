@@ -60,12 +60,12 @@ import {
   sectionGlyphIcon,
   supportsArrangement,
   ZONE_ITEMS,
-} from "../../lib/assembly-model";
-import { PRESET_NUMBER_FORMAT } from "../../lib/format-count";
-import { DeliveryCluster } from "../delivery-cluster";
-import type { DerivedZones } from "./derive-zones";
-import { deriveZones } from "./derive-zones";
-import { SectionBody } from "./section-body";
+} from "../../lib/assembly-model.ts";
+import { PRESET_NUMBER_FORMAT } from "../../lib/format-count.ts";
+import { DeliveryCluster } from "../delivery-cluster.tsx";
+import type { DerivedZones } from "./derive-zones.ts";
+import { deriveZones } from "./derive-zones.ts";
+import { SectionBody } from "./section-body.tsx";
 
 type AssemblyForm = AppFormInstance<PromptConfig>;
 

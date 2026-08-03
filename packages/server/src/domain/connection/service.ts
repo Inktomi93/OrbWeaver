@@ -3,21 +3,21 @@
 // calls the verb factories and assembles the `ConnectionService`. `resolveChat` delegates to the same
 // `resolveRole` instance (the one home for resolution) — wired here at the root, never sibling-imported.
 
-import type { ConnectionContext } from "./context";
-import type { ConnectionService } from "./contract/service";
-import { createCheckChatAvailability } from "./verbs/check-chat-availability";
-import { createGetAgentSdkCatalog } from "./verbs/get-agent-sdk-catalog";
-import { createGetCatalog } from "./verbs/get-catalog";
-import { createGetGenerationCost } from "./verbs/get-generation-cost";
-import { createGetModelsForSource } from "./verbs/get-models-for-source";
-import { createGetOrCredits } from "./verbs/get-or-credits";
-import { createGetOrSkinTierModels } from "./verbs/get-or-skin-tier-models";
+import type { ConnectionContext } from "./context.ts";
+import type { ConnectionService } from "./contract/service.ts";
+import { createCheckChatAvailability } from "./verbs/check-chat-availability.ts";
+import { createGetAgentSdkCatalog } from "./verbs/get-agent-sdk-catalog.ts";
+import { createGetCatalog } from "./verbs/get-catalog.ts";
+import { createGetGenerationCost } from "./verbs/get-generation-cost.ts";
+import { createGetModelsForSource } from "./verbs/get-models-for-source.ts";
+import { createGetOrCredits } from "./verbs/get-or-credits.ts";
+import { createGetOrSkinTierModels } from "./verbs/get-or-skin-tier-models.ts";
 
-import { createRefreshAgentSdkCatalog } from "./verbs/refresh-agent-sdk-catalog";
-import { createRefreshCatalog } from "./verbs/refresh-catalog";
-import { createResolveChat } from "./verbs/resolve-chat";
-import { createResolveChatCapability, createResolveRole } from "./verbs/resolve-role";
-import { createTestClaudeAuth } from "./verbs/test-claude-auth";
+import { createRefreshAgentSdkCatalog } from "./verbs/refresh-agent-sdk-catalog.ts";
+import { createRefreshCatalog } from "./verbs/refresh-catalog.ts";
+import { createResolveChat } from "./verbs/resolve-chat.ts";
+import { createResolveChatCapability, createResolveRole } from "./verbs/resolve-role.ts";
+import { createTestClaudeAuth } from "./verbs/test-claude-auth.ts";
 
 export function createConnectionService(ctx: ConnectionContext): ConnectionService {
   const resolveRole = createResolveRole(ctx);

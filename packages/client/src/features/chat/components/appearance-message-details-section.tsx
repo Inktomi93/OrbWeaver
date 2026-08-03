@@ -19,8 +19,8 @@ import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, 
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import { APPEARANCE_MESSAGE_DETAILS_KEYS, APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY } from "../lib/appearance-message-details-model";
-import { MESSAGE_ACTIONS_ITEMS } from "../lib/appearance-select-items";
+import { APPEARANCE_MESSAGE_DETAILS_KEYS, APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY } from "../lib/appearance-message-details-model.ts";
+import { MESSAGE_ACTIONS_ITEMS } from "../lib/appearance-select-items.ts";
 
 type MessageDetailsForm = Pick<AppearanceSettings, (typeof APPEARANCE_MESSAGE_DETAILS_KEYS)[number]>;
 

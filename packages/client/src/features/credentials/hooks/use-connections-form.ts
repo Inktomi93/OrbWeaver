@@ -7,8 +7,8 @@
 
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { createAutosaveEntityForm } from "#forms";
-import type { RoutingForm } from "../lib/connections-model";
-import { projectRoutingForm } from "../lib/connections-model";
+import type { RoutingForm } from "../lib/connections-model.ts";
+import { projectRoutingForm } from "../lib/connections-model.ts";
 
 /** The singleton entity id — routing is one row per user, so a fixed key. */
 export const CONNECTIONS_ENTITY_ID = "connections-routing";

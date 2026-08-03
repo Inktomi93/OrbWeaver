@@ -32,9 +32,9 @@ import { useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
 import { MESSAGE_ROLE_ITEMS } from "#lib";
-import { useRemoveWorldEntry, useUpdateWorldEntry } from "../hooks/use-world-info-mutations";
-import type { EntryFormValues } from "../lib/entry-editor-model";
-import { entryFormFromEntity, entryUpdateInputFromForm, NEW_ENTRY_FORM } from "../lib/entry-editor-model";
+import { useRemoveWorldEntry, useUpdateWorldEntry } from "../hooks/use-world-info-mutations.ts";
+import type { EntryFormValues } from "../lib/entry-editor-model.ts";
+import { entryFormFromEntity, entryUpdateInputFromForm, NEW_ENTRY_FORM } from "../lib/entry-editor-model.ts";
 
 // The contract cap on `keys` (contracts/world-info KEYS_MAX) — the chip picker enforces it too.
 const KEYS_MAX = 500;

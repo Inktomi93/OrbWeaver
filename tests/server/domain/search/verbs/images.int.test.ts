@@ -9,7 +9,7 @@ import { castId } from "@orb/kit/ids";
 import { SearchError } from "@orb/server/domain/search";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeSearch, seedAsset, seedImageEmbedding, seedUser, vec } from "../_support.ts";
 
 describe("images", () => {

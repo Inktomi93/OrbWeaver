@@ -30,10 +30,10 @@ import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/
 import { sql } from "drizzle-orm";
 // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { characters } from "./character";
-import { chats } from "./chat";
-import { presets } from "./preset";
-import { users } from "./users";
+import { characters } from "./character.ts";
+import { chats } from "./chat.ts";
+import { presets } from "./preset.ts";
+import { users } from "./users.ts";
 
 /** Junction sort key — attachments render and EXECUTE in ascending `position` within their scope. */
 const DEFAULT_POSITION = 0;

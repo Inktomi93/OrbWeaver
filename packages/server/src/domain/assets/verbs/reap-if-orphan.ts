@@ -4,11 +4,11 @@
 // column (a second character's avatar, a gallery curation) is left alone; an id referenced by NOTHING is
 // purged drop-row-BEFORE-blob. UN-PRINCIPAL (D20 posture): a trusted cleanup port, not a user-facing surface.
 
-import type { AssetsContext } from "../context";
-import type { AssetsService } from "../contract/service";
-import { selectReferencedAmong } from "../persistence/asset-refs";
-import { loadAssetCasRefById } from "../persistence/queries";
-import { purgeAsset } from "../substrate/purge-asset";
+import type { AssetsContext } from "../context.ts";
+import type { AssetsService } from "../contract/service.ts";
+import { selectReferencedAmong } from "../persistence/asset-refs.ts";
+import { loadAssetCasRefById } from "../persistence/queries.ts";
+import { purgeAsset } from "../substrate/purge-asset.ts";
 
 export function createReapIfOrphan(ctx: AssetsContext): AssetsService["reapIfOrphan"] {
   return async (assetIds) => {

@@ -15,7 +15,7 @@
 // vocabulary tuple to be total over, so an unknown persisted kind is simply a kind that no longer
 // registers — it costs one dead array member and is dropped on the next toggle.
 
-import { createPersistedStore } from "./create-persisted-store";
+import { createPersistedStore } from "./create-persisted-store.ts";
 
 interface ConfigGroupOpenState {
   /** The EXPANDED collection kinds. Absent from the list = collapsed (the default for every kind). */

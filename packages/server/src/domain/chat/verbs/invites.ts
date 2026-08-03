@@ -17,8 +17,8 @@ import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ChatContext } from "../context";
-import { ChatNotFoundError } from "../contract/errors";
+import type { ChatContext } from "../context.ts";
+import { ChatNotFoundError } from "../contract/errors.ts";
 import type {
   AcceptInviteParams,
   CreateInviteParams,
@@ -27,9 +27,9 @@ import type {
   PreviewInviteParams,
   RedeemInviteParams,
   RevokeInviteParams,
-} from "../contract/params";
-import type { ChatService } from "../contract/service";
-import { requireHost } from "../guard";
+} from "../contract/params.ts";
+import type { ChatService } from "../contract/service.ts";
+import { requireHost } from "../guard.ts";
 import {
   acceptInviteByIdAtomic,
   countPresentMembers,
@@ -40,13 +40,13 @@ import {
   listInvitesForChat,
   redeemInviteAtomic,
   revokeInviteById,
-} from "../persistence/invites";
-import { loadChatMacroNameProducer } from "../persistence/macro-names";
-import { loadChatRow, loadMemberChat } from "../persistence/queries";
-import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars";
-import { resolveHistoryFloorSeq } from "../substrate/auth";
-import { toChatDetail } from "../substrate/chat-detail";
-import { hostSeatOf } from "../substrate/roster-host";
+} from "../persistence/invites.ts";
+import { loadChatMacroNameProducer } from "../persistence/macro-names.ts";
+import { loadChatRow, loadMemberChat } from "../persistence/queries.ts";
+import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars.ts";
+import { resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
+import { toChatDetail } from "../substrate/chat-detail.ts";
+import { hostSeatOf } from "../substrate/roster-host.ts";
 
 /** The collaborators the invite verbs close over (see the file header). */
 interface InviteDeps {

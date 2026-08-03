@@ -21,19 +21,19 @@ import type {
 import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
 import { chatDeletedFromList, openModal, selectChatFromList } from "#state";
-import { ChatListAnchor } from "../anchors/chat-list-anchor";
-import { DraftAddMemberPopover } from "../components/add-member-popover";
-import { AssemblyPreviewPanel } from "../components/assembly-preview-panel";
-import { ChatContent } from "../components/chat-content";
-import { ChatListHeader } from "../components/chat-list-header";
-import { ChatsTopbarHeader } from "../components/chats-topbar-header";
-import type { CommittedMembersTabProps } from "../components/committed-members-tab";
-import { CommittedMembersTab } from "../components/committed-members-tab";
-import { DraftMembersTabBody } from "../components/draft-context-tabs";
-import { CommittedSettingsTab, DraftSettingsTab } from "../components/settings-context-tab";
-import { useChatContextState } from "../hooks/use-chat-context-state";
-import { ChatListSurface } from "../surfaces/chat-list-surface";
-import { castSectionVisible, membersTabJustified, resolveIsGroupChat } from "./roster";
+import { ChatListAnchor } from "../anchors/chat-list-anchor.tsx";
+import { DraftAddMemberPopover } from "../components/add-member-popover.tsx";
+import { AssemblyPreviewPanel } from "../components/assembly-preview-panel.tsx";
+import { ChatContent } from "../components/chat-content.tsx";
+import { ChatListHeader } from "../components/chat-list-header.tsx";
+import { ChatsTopbarHeader } from "../components/chats-topbar-header.tsx";
+import type { CommittedMembersTabProps } from "../components/committed-members-tab.tsx";
+import { CommittedMembersTab } from "../components/committed-members-tab.tsx";
+import { DraftMembersTabBody } from "../components/draft-context-tabs.tsx";
+import { CommittedSettingsTab, DraftSettingsTab } from "../components/settings-context-tab.tsx";
+import { useChatContextState } from "../hooks/use-chat-context-state.ts";
+import { ChatListSurface } from "../surfaces/chat-list-surface.tsx";
+import { castSectionVisible, membersTabJustified, resolveIsGroupChat } from "./roster.ts";
 
 const GROUP_FLOOR = 2;
 

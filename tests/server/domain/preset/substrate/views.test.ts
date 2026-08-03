@@ -13,7 +13,7 @@ import { castId } from "@orb/kit/ids";
 import { SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
 import { describe } from "vitest";
 import { toPresetDetail, toPresetSummary } from "../../../../../packages/server/src/domain/preset/substrate/views.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT } from "../_support.ts";
 
 type PresetRow = typeof presets.$inferSelect;

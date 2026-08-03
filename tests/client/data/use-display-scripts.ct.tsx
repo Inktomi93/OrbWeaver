@@ -13,8 +13,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../support/ct/route-trpc";
-import { DisplayTierInRoomStory } from "./_ct-stories";
+import { routeTrpc } from "../../support/ct/route-trpc.ts";
+import { DisplayTierInRoomStory } from "./_ct-stories.tsx";
 
 // The story's raw canon, restated here rather than imported: playwright-ct rewrites every named import
 // from a `_ct-stories` module into a generated component `const`, so a story module may only ever export

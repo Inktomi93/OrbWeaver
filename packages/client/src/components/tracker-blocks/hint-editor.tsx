@@ -12,7 +12,7 @@
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { TrackerValue } from "./tracker-value";
+import { TrackerValue } from "./tracker-value.tsx";
 
 /** Show the counter from 80% of the cap (§12.3 — "a quiet counter from 80% full"). */
 const COUNTER_AT = 0.8;

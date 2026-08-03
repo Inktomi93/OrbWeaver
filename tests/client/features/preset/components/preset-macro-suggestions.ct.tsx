@@ -9,7 +9,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { SectionBodyCompletionStory, TemplateCompletionStory, UserMacroBodyCompletionStory } from "./_macro-completion-stories";
+import { SectionBodyCompletionStory, TemplateCompletionStory, UserMacroBodyCompletionStory } from "./_macro-completion-stories.tsx";
 
 const USER_MACRO_ROW = "{{sceneTone}}";
 /** The gloss the popover shows for the user plane — proves the row came from the DEFINITION, not a name. */

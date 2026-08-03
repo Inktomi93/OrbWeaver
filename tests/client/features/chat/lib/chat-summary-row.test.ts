@@ -6,8 +6,8 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { chatPortraits, chatSummaryRowView, deriveChatTitle } from "../../../../../packages/client/src/features/chat/lib/chat-summary-row";
-import { expect, test } from "../../../../support/fixtures";
+import { chatPortraits, chatSummaryRowView, deriveChatTitle } from "../../../../../packages/client/src/features/chat/lib/chat-summary-row.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 type SummaryItem = Parameters<typeof chatSummaryRowView>[0];
 

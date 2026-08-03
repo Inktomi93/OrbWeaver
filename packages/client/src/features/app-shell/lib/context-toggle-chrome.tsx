@@ -4,8 +4,8 @@
 // own redundant collapse button is deleted).
 
 import type { ChromeEntry } from "#state";
-import { ContextToggle } from "../components/context-toggle";
-import { useShellLayout } from "../hooks/use-shell-layout";
+import { ContextToggle } from "../components/context-toggle.tsx";
+import { useShellLayout } from "../hooks/use-shell-layout.ts";
 
 export const contextToggleChrome: ChromeEntry = {
   id: "context-toggle",

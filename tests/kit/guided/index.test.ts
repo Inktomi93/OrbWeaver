@@ -9,7 +9,7 @@ import {
 } from "@orb/kit/guided";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
 import { createDefaultRegistry, processMacros, registerUserMacros } from "@orb/kit/macro";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // Fixed macro context — no Date/random, per the determinism gate.
 function macroOpts(extra: Partial<ProcessMacroOptions> = {}): ProcessMacroOptions {

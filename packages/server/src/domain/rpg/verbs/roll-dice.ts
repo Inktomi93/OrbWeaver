@@ -4,10 +4,10 @@
 // input at all). Zero durable state. Member-gated. Notation is `NdM(+/-K)?` (e.g. `2d6+3`, `d20`, `4d8-1`).
 
 import { DomainOperationError } from "@orb/kit/errors";
-import type { RollDiceParams } from "../contract/params";
-import type { RollDiceResult } from "../contract/results";
-import type { RpgContext, RpgService } from "../contract/service";
-import { resolveMember } from "../guard";
+import type { RollDiceParams } from "../contract/params.ts";
+import type { RollDiceResult } from "../contract/results.ts";
+import type { RpgContext, RpgService } from "../contract/service.ts";
+import { resolveMember } from "../guard.ts";
 
 const NOTATION_RE = /^(\d*)d(\d+)([+-]\d+)?$/i;
 const MAX_DICE = 100;

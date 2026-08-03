@@ -8,8 +8,8 @@
 //   · it states WHERE the document is active, as counts rather than a roster of other people's rooms.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DatabankContextStory, DatabankWorkspaceStory } from "../_ct-stories";
-import { READY_DOC, stubDatabank } from "../fixtures";
+import { DatabankContextStory, DatabankWorkspaceStory } from "../_ct-stories.tsx";
+import { READY_DOC, stubDatabank } from "../fixtures.ts";
 
 /** The row body opens a document — matched loosely because the row's accessible name carries its scent
  *  line as well as its title (top-level so the pattern is compiled once). */

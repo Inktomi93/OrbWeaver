@@ -22,7 +22,7 @@ import {
 import { readableTheme } from "../../../../packages/server/src/domain/settings/persistence/theme-queries.ts";
 import { ensureSeedThemes, SEED_THEMES } from "../../../../packages/server/src/domain/settings/seed-themes.ts";
 import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { FROZEN_AT, makeHarness, principal, seedUser } from "./_support.ts";
 
 describe("ensureSeedThemes", () => {

@@ -5,13 +5,13 @@
 
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import type { DiscoveryContext } from "../context";
-import type { ArchetypeMember, ImageDuplicatePair, VisualArchetype } from "../contract/results";
-import type { DiscoveryService } from "../contract/service";
-import { readOwnedAvatarVectors, readOwnedCaptionRows } from "../persistence/embed-store-reads";
-import { readOwnedCardFacets } from "../persistence/summary-reads";
-import { kmeans } from "../substrate/kmeans";
-import { pairsAboveThreshold } from "../substrate/pair-cosine";
+import type { DiscoveryContext } from "../context.ts";
+import type { ArchetypeMember, ImageDuplicatePair, VisualArchetype } from "../contract/results.ts";
+import type { DiscoveryService } from "../contract/service.ts";
+import { readOwnedAvatarVectors, readOwnedCaptionRows } from "../persistence/embed-store-reads.ts";
+import { readOwnedCardFacets } from "../persistence/summary-reads.ts";
+import { kmeans } from "../substrate/kmeans.ts";
+import { pairsAboveThreshold } from "../substrate/pair-cosine.ts";
 
 const DEFAULT_IMAGE_DUP_THRESHOLD = 0.92;
 const DEFAULT_VISUAL_K = 8;

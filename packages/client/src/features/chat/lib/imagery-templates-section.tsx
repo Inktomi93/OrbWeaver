@@ -5,8 +5,8 @@
 // features/settings (the databank-settings-section precedent).
 
 import type { SettingsSectionContribution } from "#state";
-import { ImageryTemplatesSection } from "../components/imagery-templates-section";
-import { IMAGERY_TEMPLATES_SUBCATEGORY } from "./imagery-templates-section-nav";
+import { ImageryTemplatesSection } from "../components/imagery-templates-section.tsx";
+import { IMAGERY_TEMPLATES_SUBCATEGORY } from "./imagery-templates-section-nav.ts";
 
 // The contribution id has ONE home — this const. It is both the registry key and the id the body REPORTS
 // its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.

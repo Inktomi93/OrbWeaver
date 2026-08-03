@@ -11,7 +11,7 @@ import { MessageMedia } from "@orb/ui/message-media";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { useAttachmentUrl } from "../hooks/attachment-url-context";
+import { useAttachmentUrl } from "../hooks/attachment-url-context.tsx";
 
 type MediaBlock = Extract<MessageContentBlock, { kind: "media" }>;
 

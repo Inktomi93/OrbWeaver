@@ -12,8 +12,8 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchStmt } from "@orb/db/kit";
 import type { ChatId, PresetId, RpgGameId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { RpgStateCorruptError } from "../contract/errors";
-import type { NewRpgGame, RpgGameRow } from "../contract/service";
+import { RpgStateCorruptError } from "../contract/errors.ts";
+import type { NewRpgGame, RpgGameRow } from "../contract/service.ts";
 
 const LIMIT_ONE = 1;
 

@@ -27,8 +27,8 @@ import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, 
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import { APPEARANCE_MESSAGE_STYLE_KEYS, APPEARANCE_MESSAGE_STYLE_SUBCATEGORY } from "../lib/appearance-message-style-model";
-import { CHAT_STYLE_ITEMS } from "../lib/appearance-select-items";
+import { APPEARANCE_MESSAGE_STYLE_KEYS, APPEARANCE_MESSAGE_STYLE_SUBCATEGORY } from "../lib/appearance-message-style-model.ts";
+import { CHAT_STYLE_ITEMS } from "../lib/appearance-select-items.ts";
 
 type MessageStyleForm = Pick<AppearanceSettings, (typeof APPEARANCE_MESSAGE_STYLE_KEYS)[number]>;
 

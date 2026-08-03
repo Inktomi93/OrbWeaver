@@ -8,7 +8,7 @@
 // dialog interactions use `page`, not the component-scoped `mount` handle.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { UserMacrosTabStory } from "./_add-flow-stories";
+import { UserMacrosTabStory } from "./_add-flow-stories.tsx";
 
 const BUILTIN_LINT = /is a built-in macro/;
 /** The row-named Remove trigger (X-3) — the row's stored name depends on whether the collision lint let

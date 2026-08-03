@@ -13,7 +13,7 @@ import { assets, users } from "@orb/db";
 import type { AssetId, Handle, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImageGenerateRequest, ImageryContext } from "@orb/server/domain/imagery";
-import { createSeededIds } from "../../../support/ids";
+import { createSeededIds } from "../../../support/ids.ts";
 
 const FROZEN_AT = 1_750_000_000_000;
 

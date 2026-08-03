@@ -16,7 +16,7 @@ import type {
   ImageEmbeddingId,
   UserId,
 } from "@orb/kit/ids";
-import type { ClearTableParams, CountDocumentChunksParams, EmbedPassParams, PruneDocumentChunksParams, StoreParams, WriteHubScoresParams } from "./params";
+import type { ClearTableParams, CountDocumentChunksParams, EmbedPassParams, PruneDocumentChunksParams, StoreParams, WriteHubScoresParams } from "./params.ts";
 import type {
   BulkEmbedResult,
   PruneDocumentChunksResult,
@@ -24,7 +24,7 @@ import type {
   PurgeMemoryVectorsResult,
   StoreResult,
   WriteHubScoresResult,
-} from "./results";
+} from "./results.ts";
 
 /** Re-read a character card's embeddable text by id. `undefined` when deleted between emit and handler. */
 export type LoadCardText = (characterId: CharacterId) => Promise<string | undefined>;

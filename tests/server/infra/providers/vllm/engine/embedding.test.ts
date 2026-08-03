@@ -2,7 +2,7 @@
 
 import { DOC_INSTRUCTION, normalizeVector, QUERY_INSTRUCTION, toEmbedPrompt, truncateToDim } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const L2 = (v: Float32Array): number => Math.sqrt(v.reduce((a, x) => a + x * x, 0));
 

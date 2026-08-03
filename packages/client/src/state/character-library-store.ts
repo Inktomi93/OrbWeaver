@@ -11,7 +11,7 @@ import type { TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ActiveTagFilterState, TagFilterEntry } from "#lib";
 import { cycleTagFilterEntries } from "#lib";
-import { createPersistedStore } from "./create-persisted-store";
+import { createPersistedStore } from "./create-persisted-store.ts";
 
 /** The §4.3 view axis — a single-home tuple, the union DERIVED (Spine §5.5). */
 export const CHARACTER_VIEW_MODES = ["flat", "categorized"] as const;

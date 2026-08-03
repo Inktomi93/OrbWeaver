@@ -15,9 +15,9 @@ import { passthroughImageNormalizer } from "@orb/server/infra/providers/backends
 import { runGenerateImage } from "@orb/server/infra/providers/backends/openrouter";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { makeHarness, PNG_BYTES, principal, resolutionWith, seedOwner } from "../_support";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeHarness, PNG_BYTES, principal, resolutionWith, seedOwner } from "../_support.ts";
 
 let db: Db;
 

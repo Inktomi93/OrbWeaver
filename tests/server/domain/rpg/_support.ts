@@ -26,8 +26,8 @@ import type {
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { can } from "@orb/server/domain/admin";
 import type { WireTool } from "@orb/server/infra/providers";
-import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat";
-import type { HandSnapshotTarget, TurnSnapshotTarget } from "../../../../packages/server/src/domain/rpg/contract/params";
+import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat/index.ts";
+import type { HandSnapshotTarget, TurnSnapshotTarget } from "../../../../packages/server/src/domain/rpg/contract/params.ts";
 import type {
   RpgContext,
   RpgPopulateDelta,
@@ -36,14 +36,14 @@ import type {
   RpgRosterActor,
   RpgRunToolRound,
   RpgStateDelta,
-} from "../../../../packages/server/src/domain/rpg/index";
-import { createRpgChatOps, createRpgFlushBarrier, createRpgService, createRpgStagingStore } from "../../../../packages/server/src/domain/rpg/index";
-import { buildRosterRefIndex, extractionToStateDelta } from "../../../../packages/server/src/domain/rpg/tools/apply";
-import { makeModelCapability, makeResolvedConnection } from "../../../support/factories/resolved-connection";
-import { FROZEN_AT, seedChat, seedMessage, seedUser } from "../chat/_support";
+} from "../../../../packages/server/src/domain/rpg/index.ts";
+import { createRpgChatOps, createRpgFlushBarrier, createRpgService, createRpgStagingStore } from "../../../../packages/server/src/domain/rpg/index.ts";
+import { buildRosterRefIndex, extractionToStateDelta } from "../../../../packages/server/src/domain/rpg/tools/apply.ts";
+import { makeModelCapability, makeResolvedConnection } from "../../../support/factories/resolved-connection.ts";
+import { FROZEN_AT, seedChat, seedMessage, seedUser } from "../chat/_support.ts";
 
-export { expect, test } from "../../../support/fixtures";
-export { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedUser } from "../chat/_support";
+export { expect, test } from "../../../support/fixtures.ts";
+export { addVariant, FROZEN_AT, seedCharacter, seedChat, seedMessage, seedUser } from "../chat/_support.ts";
 
 /** The empty-born snapshot state (the createGame seed shape — null ambient, empty planes, no locks). */
 export function emptyState(): RpgSnapshotState {

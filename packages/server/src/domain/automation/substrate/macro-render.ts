@@ -7,7 +7,7 @@ import type { AutomationCelEnv } from "@orb/contracts/automation";
 import type { CelBindings } from "@orb/kit/cel";
 import type { MacroDiagnostic, ProcessMacroOptions } from "@orb/kit/macro";
 import { processMacros } from "@orb/kit/macro";
-import type { ArmTemplateRender } from "../contract/ops";
+import type { ArmTemplateRender } from "../contract/ops.ts";
 
 /** The CEL activation an arm template's `{{expr::…}}` reads — SANS `event` (assembly/render has no trigger,
  *  02 §3; the predicate path binds `event` separately). */

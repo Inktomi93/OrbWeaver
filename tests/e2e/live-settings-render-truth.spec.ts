@@ -17,8 +17,8 @@
 // cleared; the finally block restores appearance + theme to defaults via the API (no storage touch).
 
 import { expect, test } from "@playwright/test";
-import { waitForAppReady } from "./support/chat-room";
-import { getAppearanceTheme, listThemes, updateSettingsSection } from "./support/trpc";
+import { waitForAppReady } from "./support/chat-room.ts";
+import { getAppearanceTheme, listThemes, updateSettingsSection } from "./support/trpc.ts";
 
 const SETTINGS_SAVE = "/api/trpc/settings.updateUserSettingsSection";
 const SEED_THEME_NAME = "Mocha"; // a seed theme → paints a `[data-theme="mocha"]` block (app-shell.tsx)

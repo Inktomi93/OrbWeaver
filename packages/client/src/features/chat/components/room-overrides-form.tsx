@@ -37,8 +37,8 @@ import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm } from "#forms";
-import type { RoomOverridesFormValues } from "../lib/room-overrides-form-model";
-import { EMPTY_ROOM_OVERRIDES_FORM, fromRoomOverridesForm, toRoomOverridesForm } from "../lib/room-overrides-form-model";
+import type { RoomOverridesFormValues } from "../lib/room-overrides-form-model.ts";
+import { EMPTY_ROOM_OVERRIDES_FORM, fromRoomOverridesForm, toRoomOverridesForm } from "../lib/room-overrides-form-model.ts";
 
 // The session-boundary autosave form (D78 L3). Built at MODULE scope (stable component identity, §13.1) —
 // the boundary OWNS the entity key: it keys its private Session by `entityId`, so a chat switch with the

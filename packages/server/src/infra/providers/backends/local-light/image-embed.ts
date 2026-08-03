@@ -12,10 +12,10 @@
 // than inventing a fusion the model never learned (providers.md: flag, don't fake).
 
 import type { ImageEmbedInput, ImageInput } from "@orb/contracts/role-clients";
-import type { ImageEmbedRequest, ImageEmbedResult } from "../../contract";
-import { ProviderError } from "../../contract";
-import type { LocalLightModelCache } from "./model-cache";
-import { normalizeVector, resolveModelId, throwIfAborted } from "./model-cache";
+import type { ImageEmbedRequest, ImageEmbedResult } from "../../contract/index.ts";
+import { ProviderError } from "../../contract/index.ts";
+import type { LocalLightModelCache } from "./model-cache.ts";
+import { normalizeVector, resolveModelId, throwIfAborted } from "./model-cache.ts";
 
 /** The "any box" default joint image+text embedder — jina-clip-v2, 1024-dim shared space (the SAME model
  *  the embed role defaults to: one model, both modalities, ONE joint space → text↔image comparable, and

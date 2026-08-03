@@ -1,6 +1,6 @@
 import { DEFAULT_TRUSTED_RANGES, isInRanges, isPrivateOrLoopback, matchesCidr, parseIp } from "@orb/server/infra/network";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 describe("parseIp", () => {
   test("parses an IPv4 dotted-quad (32-bit)", () => {

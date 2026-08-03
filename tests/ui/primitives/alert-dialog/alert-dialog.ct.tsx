@@ -11,7 +11,7 @@ import {
 } from "@orb/ui/alert-dialog";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { AlertDialogHandleHarness } from "./alert-dialog-handle.fixtures";
+import { AlertDialogHandleHarness } from "./alert-dialog-handle.fixtures.tsx";
 
 test("opens on trigger click and closes on Escape", async ({ mount, page }) => {
   await mount(

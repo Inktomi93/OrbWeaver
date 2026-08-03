@@ -9,7 +9,7 @@
 import { engineLaunchEnvFloor, env } from "@orb/server/foundation/env";
 import { buildEngineArgv, resolveEngineLaunchConfig } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
-import { expect, test } from "../support/fixtures";
+import { expect, test } from "../support/fixtures.ts";
 
 /** Read the value that follows `--max-model-len` in an argv. */
 function maxModelLen(argv: readonly string[]): number {

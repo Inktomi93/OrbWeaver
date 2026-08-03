@@ -14,11 +14,11 @@
 // set), and the client derives that set from the rows it rendered — a page of rows would silently write away
 // every hidden document not on it. Adding a limit here is a correctness change at the far end, not a tuning knob.
 
-import type { ListActiveForChatParams } from "../contract/params";
-import type { DatabankContext, DatabankService } from "../contract/service";
-import type { ActiveChatDocumentView } from "../contract/views";
-import { loadMetaByIds, toDocumentView } from "../persistence/queries";
-import { resolveChatDocumentSources, resolveChatHiddenDocumentIds, resolveChatHost } from "../persistence/scope";
+import type { ListActiveForChatParams } from "../contract/params.ts";
+import type { DatabankContext, DatabankService } from "../contract/service.ts";
+import type { ActiveChatDocumentView } from "../contract/views.ts";
+import { loadMetaByIds, toDocumentView } from "../persistence/queries.ts";
+import { resolveChatDocumentSources, resolveChatHiddenDocumentIds, resolveChatHost } from "../persistence/scope.ts";
 
 export function createListActiveForChat(ctx: DatabankContext): DatabankService["listActiveForChat"] {
   return async ({ principal, chatId }: ListActiveForChatParams): Promise<ActiveChatDocumentView[]> => {

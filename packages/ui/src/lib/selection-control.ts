@@ -2,8 +2,8 @@
 // machine (focus ring, disabled, read-only cursor, invalid border + destructive ring) and the
 // touch-target hit-area pseudo. The per-control bits — rounding (`rounded-control` vs `rounded-full`),
 // checkbox's `text-primary-foreground`, and each control's checked/indeterminate fill — layer on top.
-import { DISABLED_STATE } from "./disabled-state";
-import { FOCUS_RING, FOCUS_RING_DESTRUCTIVE } from "./focus-ring";
+import { DISABLED_STATE } from "./disabled-state.ts";
+import { FOCUS_RING, FOCUS_RING_DESTRUCTIVE } from "./focus-ring.ts";
 
 // Lifts the hit area to the full ≥44px touch-target square via a centered `::before`, so the visible
 // control never has to carry the floor (§4b axis 3). Shared by checkbox/radio (via SELECTION_CONTROL)

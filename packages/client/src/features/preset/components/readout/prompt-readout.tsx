@@ -39,14 +39,14 @@ import type { ReactElement } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { useTRPC } from "#data";
 import { selectPresetSection } from "#state";
-import { isTemplatedMarker } from "../../lib/assembly-model";
-import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "../../lib/format-count";
-import { AssemblyPreview } from "../prompt-assembly/assembly-preview";
-import { deriveZones } from "../prompt-assembly/derive-zones";
-import { estimateSectionTokens } from "../prompt-assembly/estimate-tokens";
-import { CARRIER_ATTRIBUTION, MARKER_COPY } from "../prompt-assembly/marker-copy";
-import { assemblePreview } from "../prompt-assembly/preview-model";
-import { DatumRow } from "./readout-parts";
+import { isTemplatedMarker } from "../../lib/assembly-model.ts";
+import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "../../lib/format-count.ts";
+import { AssemblyPreview } from "../prompt-assembly/assembly-preview.tsx";
+import { deriveZones } from "../prompt-assembly/derive-zones.ts";
+import { estimateSectionTokens } from "../prompt-assembly/estimate-tokens.ts";
+import { CARRIER_ATTRIBUTION, MARKER_COPY } from "../prompt-assembly/marker-copy.ts";
+import { assemblePreview } from "../prompt-assembly/preview-model.ts";
+import { DatumRow } from "./readout-parts.tsx";
 
 export interface PromptReadoutProps {
   readonly sections: readonly PromptSection[];

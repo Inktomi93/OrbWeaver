@@ -1,8 +1,8 @@
 import type { UserId } from "@orb/kit/ids";
-import type { LeaderboardOpts } from "../contract/params";
-import type { StatsContext, StatsService } from "../contract/service";
-import type { LeaderboardRow } from "../contract/views";
-import { readLeaderboard } from "../persistence/rollups";
+import type { LeaderboardOpts } from "../contract/params.ts";
+import type { StatsContext, StatsService } from "../contract/service.ts";
+import type { LeaderboardRow } from "../contract/views.ts";
+import { readLeaderboard } from "../persistence/rollups.ts";
 
 // leaderboard — per-character rows for the owner, sortable (assistantTurns | totalGenTimeMs | swipes |
 // lastActivityAt; default assistantTurns desc). limit defaults to 50, capped at 200.

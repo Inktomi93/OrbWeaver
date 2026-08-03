@@ -9,7 +9,7 @@
 // are FLAG[PD-80] (activity needs a management key; not in scope for this slice).
 
 import type { AccountCredits, GenerationCost } from "@orb/contracts/providers";
-import { providerErrorFromHttp } from "../kit";
+import { providerErrorFromHttp } from "../kit/index.ts";
 
 /** The slice of the SDK's `GetCreditsResponse` this port reads — narrowed so the real client satisfies it
  *  structurally and test fakes need no cast. */

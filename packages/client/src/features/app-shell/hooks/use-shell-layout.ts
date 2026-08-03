@@ -25,7 +25,7 @@ import {
   usePanelOverride,
   useSectionRegistry,
 } from "#state";
-import { useIsMobileViewport, useIsShellNarrowViewport } from "./use-is-mobile-viewport";
+import { useIsMobileViewport, useIsShellNarrowViewport } from "./use-is-mobile-viewport.ts";
 
 export interface ShellLayout {
   readonly activeSection: SectionId;

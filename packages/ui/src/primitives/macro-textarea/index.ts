@@ -1,2 +1,2 @@
-export type { MacroSuggestion, MacroTextareaProps } from "./macro-textarea";
-export { MacroTextarea } from "./macro-textarea";
+export type { MacroSuggestion, MacroTextareaProps } from "./macro-textarea.tsx";
+export { MacroTextarea } from "./macro-textarea.tsx";

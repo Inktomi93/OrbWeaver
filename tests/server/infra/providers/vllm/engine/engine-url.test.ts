@@ -6,7 +6,7 @@
 import { env } from "@orb/server/foundation/env";
 import { engineBaseUrl } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 describe("engineBaseUrl", () => {
   test("each engine resolves to its loopback base URL on its own env-resolved port", () => {

@@ -16,7 +16,7 @@
 
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { openContextTab, openDetailPanel, openOrCreateChat, reopenFirstChat, waitForAppReady } from "./support/chat-room";
+import { openContextTab, openDetailPanel, openOrCreateChat, reopenFirstChat, waitForAppReady } from "./support/chat-room.ts";
 
 /** From an open chat, reach the Injections editor. IA UPDATE (panel-redesign consolidation): the ⋯ menu's
  *  "Injections…" jump and the standalone Injections meta-tab are BOTH gone — an option with a context-panel

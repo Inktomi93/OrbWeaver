@@ -6,15 +6,15 @@
 import type { CustomOpenAiCredential, OpenRouterCredential, ResolvedCredential } from "@orb/contracts/credentials";
 import { DomainNoCredentialError, DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
-import type { CredentialContext } from "../context";
-import { CREDENTIALS_OP_CODES } from "../contract/errors";
-import type { ResolveCredentialParams } from "../contract/params";
-import type { CredentialsService } from "../contract/service";
-import { aadFor } from "../persistence/aad";
-import { loadActiveCredential } from "../persistence/queries";
-import { decryptSealed } from "../substrate/decrypt";
-import { mintCustomOpenAi, mintLocalLight, mintMaxProSub, mintOpenRouter, mintVllm } from "../substrate/mint";
-import { parseCustomOpenAiEndpoint } from "../substrate/parse-metadata";
+import type { CredentialContext } from "../context.ts";
+import { CREDENTIALS_OP_CODES } from "../contract/errors.ts";
+import type { ResolveCredentialParams } from "../contract/params.ts";
+import type { CredentialsService } from "../contract/service.ts";
+import { aadFor } from "../persistence/aad.ts";
+import { loadActiveCredential } from "../persistence/queries.ts";
+import { decryptSealed } from "../substrate/decrypt.ts";
+import { mintCustomOpenAi, mintLocalLight, mintMaxProSub, mintOpenRouter, mintVllm } from "../substrate/mint.ts";
+import { parseCustomOpenAiEndpoint } from "../substrate/parse-metadata.ts";
 
 function assertNever(value: never): never {
   throw new Error(`unhandled credential source: ${String(value)}`);

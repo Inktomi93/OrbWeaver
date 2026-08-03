@@ -19,8 +19,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { MessageRowStory } from "../_ct-stories";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { MessageRowStory } from "../_ct-stories.tsx";
 
 const WIRE_PROC = "chat.getVariantWire";
 const WIRE_ITEM = "View wire trace…";

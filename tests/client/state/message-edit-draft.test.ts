@@ -8,7 +8,7 @@ import { __readMessageEditDraftForTest, cancelEditingMessage, setMessageEditDraf
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const MSG_A = castId<MessageId>("msg_testeditdraftaaaa");
 const MSG_B = castId<MessageId>("msg_testeditdraftbbbb");

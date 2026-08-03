@@ -14,7 +14,7 @@ import type { PersonaImportContext } from "../../../../../packages/server/src/do
 import { createBulkImportPersonas } from "../../../../../packages/server/src/domain/persona/persistence/import-write.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { seedUser } from "../../../../support/factories/index.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
 

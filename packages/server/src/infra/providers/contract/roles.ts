@@ -21,7 +21,7 @@ import type {
   SummarizeOptions,
 } from "@orb/contracts/role-clients";
 import type { ModelId, UserId } from "@orb/kit/ids";
-import type { ResolvedWarning } from "./resolve";
+import type { ResolvedWarning } from "./resolve.ts";
 
 interface RoleRequestCommon {
   readonly credential: ResolvedCredential;

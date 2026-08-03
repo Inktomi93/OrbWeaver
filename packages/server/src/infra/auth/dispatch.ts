@@ -10,12 +10,12 @@
 // (NOT `X-Forwarded-Host`) deliberately — a proxy-rewritten Host can only REMOVE trust, never grant it.
 
 import { DEFAULT_TRUSTED_RANGES, isInRanges } from "#infra/network";
-import type { AuthConfig, ModeResolver } from "./contract";
-import { normalizeHost } from "./host";
-import { resolveForwardHeader } from "./modes/forward-header";
-import { resolveLocal } from "./modes/local";
-import { resolveOidc } from "./modes/oidc";
-import { resolveSingleUser } from "./modes/single-user";
+import type { AuthConfig, ModeResolver } from "./contract.ts";
+import { normalizeHost } from "./host.ts";
+import { resolveForwardHeader } from "./modes/forward-header.ts";
+import { resolveLocal } from "./modes/local.ts";
+import { resolveOidc } from "./modes/oidc.ts";
+import { resolveSingleUser } from "./modes/single-user.ts";
 
 const LOCALHOST = "localhost";
 

@@ -4,9 +4,9 @@
 
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
-import type { DismissParams, ListInboxParams, MarkAllReadParams, RecordParams } from "./params";
-import type { ListInboxResult, MarkAllReadResult } from "./results";
-import type { InboxView } from "./views";
+import type { DismissParams, ListInboxParams, MarkAllReadParams, RecordParams } from "./params.ts";
+import type { ListInboxResult, MarkAllReadResult } from "./results.ts";
+import type { InboxView } from "./views.ts";
 
 /** The DI bundle every verb closes over, wired at the composition root. */
 export interface NotificationsContext {

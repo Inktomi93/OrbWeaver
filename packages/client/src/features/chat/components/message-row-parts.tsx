@@ -16,19 +16,19 @@ import type { ReactElement, ReactNode } from "react";
 import type { MessageRenderContext, RowRenderPolicy } from "#lib";
 import { cn, renderMessageForDisplay } from "#lib";
 import { setDraftGreeting } from "#state";
-import type { RowAttribution } from "../lib/attribution";
-import type { BubbleDecoration, RowSkin } from "../lib/message-row-variants";
-import type { GreetingBinding } from "../lib/synth-greeting-row";
-import { CompactSummaryPeek } from "./compact-summary-peek";
-import { GreetingActionsRow } from "./greeting-actions-row";
-import { GreetingSwipeStrip } from "./greeting-swipe-strip";
-import { MessageActionsRow } from "./message-actions-row";
-import { MessageContent } from "./message-content";
-import { MessageEditTextarea } from "./message-edit-textarea";
-import { MessageTimestamp } from "./message-metadata-row";
-import { renderSingleBubble } from "./message-row-bubble";
-import { ReasoningBlock } from "./reasoning-block";
-import { SwipeStrip } from "./swipe-strip";
+import type { RowAttribution } from "../lib/attribution.ts";
+import type { BubbleDecoration, RowSkin } from "../lib/message-row-variants.ts";
+import type { GreetingBinding } from "../lib/synth-greeting-row.ts";
+import { CompactSummaryPeek } from "./compact-summary-peek.tsx";
+import { GreetingActionsRow } from "./greeting-actions-row.tsx";
+import { GreetingSwipeStrip } from "./greeting-swipe-strip.tsx";
+import { MessageActionsRow } from "./message-actions-row.tsx";
+import { MessageContent } from "./message-content.tsx";
+import { MessageEditTextarea } from "./message-edit-textarea.tsx";
+import { MessageTimestamp } from "./message-metadata-row.tsx";
+import { renderSingleBubble } from "./message-row-bubble.tsx";
+import { ReasoningBlock } from "./reasoning-block.tsx";
+import { SwipeStrip } from "./swipe-strip.tsx";
 
 /** The settled disclosure's label. A canon-rehydrated row carries no measured think window (`ttftMs` is
  *  time-to-FIRST-token of any channel, `genFinishedAt − genStartedAt` is the whole generation), so naming a

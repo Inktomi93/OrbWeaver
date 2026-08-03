@@ -8,7 +8,7 @@
 // dialog interactions use `page`, not the component-scoped `mount` handle.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { VariablesTabStory } from "./_add-flow-stories";
+import { VariablesTabStory } from "./_add-flow-stories.tsx";
 
 test("Variables: Add persists one row (no phantom), Remove persists the empty list", async ({ mount, page }) => {
   const probe = await mount(<VariablesTabStory />);

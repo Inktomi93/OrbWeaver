@@ -5,10 +5,10 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { NotificationsService } from "@orb/server/domain/notifications";
 import { beforeEach, describe } from "vitest";
-import { createFrozenClock } from "../../../../support/clock";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { ALICE, BOB, inviteEvent, makeNotificationsService, principal, seedUser } from "../_support";
+import { createFrozenClock } from "../../../../support/clock.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { ALICE, BOB, inviteEvent, makeNotificationsService, principal, seedUser } from "../_support.ts";
 
 let db: Db;
 let svc: NotificationsService;

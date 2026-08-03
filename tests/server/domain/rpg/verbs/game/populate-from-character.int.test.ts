@@ -19,9 +19,9 @@ import type { Db } from "@orb/db";
 import { DomainForbiddenError, DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, Handle, RpgQuestId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { freshDb } from "../../../../../support/db";
-import type { RpgHarness } from "../../_support";
-import { expect, principal, seedCharacter, seedLiteGame, seedUser, test } from "../../_support";
+import { freshDb } from "../../../../../support/db.ts";
+import type { RpgHarness } from "../../_support.ts";
+import { expect, principal, seedCharacter, seedLiteGame, seedUser, test } from "../../_support.ts";
 
 /** A seeded game whose roster carries ONE real character actor — the populate subject. The character id is a
  *  REAL minted TypeID because the snapshot write re-validates the volatile `actorRef` (a fabricated id would

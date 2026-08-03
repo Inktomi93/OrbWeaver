@@ -10,10 +10,10 @@
 import type { GroupConfig } from "@orb/contracts/chat";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { CharacterId } from "@orb/kit/ids";
-import type { CastName } from "../contract/arbitration";
-import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors";
-import type { TurnEngine, TurnOutcome, TurnPrep, TurnSpeakerShape } from "../contract/results";
-import { committedOutcome } from "./result";
+import type { CastName } from "../contract/arbitration.ts";
+import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
+import type { TurnEngine, TurnOutcome, TurnPrep, TurnSpeakerShape } from "../contract/results.ts";
+import { committedOutcome } from "./result.ts";
 
 /** Everything a `TurnPrep` carries except the per-speaker axis the driver fills in. */
 type RoundBase = Omit<TurnPrep, "speakerCharacterId" | "groupNudge" | "shape">;

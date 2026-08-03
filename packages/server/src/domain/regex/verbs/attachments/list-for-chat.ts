@@ -3,10 +3,10 @@
 // against, so a member sees the room's set even when the scripts are the host's property (the `listChatBooks`
 // ruling, D18/D64). A read: no audit.
 
-import type { RegexContext } from "../../context";
-import type { ListForChatParams } from "../../contract/params";
-import type { RegexService } from "../../contract/service";
-import { listChatScripts, toRow } from "../../persistence/queries";
+import type { RegexContext } from "../../context.ts";
+import type { ListForChatParams } from "../../contract/params.ts";
+import type { RegexService } from "../../contract/service.ts";
+import { listChatScripts, toRow } from "../../persistence/queries.ts";
 
 export function createListForChat(ctx: RegexContext): RegexService["listForChat"] {
   return async ({ principal, chatId }: ListForChatParams) => {

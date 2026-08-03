@@ -11,7 +11,7 @@
 
 import type { TagSortMode } from "#lib";
 import { DEFAULT_TAG_SORT_MODE, TAG_SORT_MODES } from "#lib";
-import { createPersistedStore } from "./create-persisted-store";
+import { createPersistedStore } from "./create-persisted-store.ts";
 
 interface TagLibraryState {
   readonly sortMode: TagSortMode;

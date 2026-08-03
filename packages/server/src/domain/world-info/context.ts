@@ -8,4 +8,4 @@
 // and `emitWiEvent` (the chat bus's durable-first emit) — wired at the root, type-only here. See
 // contract/service.ts.
 
-export type { WorldInfoContext } from "./contract/service";
+export type { WorldInfoContext } from "./contract/service.ts";

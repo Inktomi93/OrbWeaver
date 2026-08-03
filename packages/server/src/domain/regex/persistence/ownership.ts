@@ -12,7 +12,7 @@ import type { Db } from "@orb/db";
 import { characters, presets } from "@orb/db";
 import type { CharacterId, PresetId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { RegexNotFoundError } from "../contract/errors";
+import { RegexNotFoundError } from "../contract/errors.ts";
 
 const LIMIT_ONE = 1;
 

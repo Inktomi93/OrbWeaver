@@ -28,7 +28,7 @@ import { isConfigDerivedModelSource } from "@orb/contracts/connection";
 import type { UserSettings } from "@orb/contracts/settings";
 import { DomainOperationError } from "@orb/kit/errors";
 import { isPlainObject } from "@orb/kit/guards";
-import { SETTINGS_OP_CODES } from "../contract/errors";
+import { SETTINGS_OP_CODES } from "../contract/errors.ts";
 
 /** The two leaves this guard reads out of one role's patch object. */
 interface RolePatch {

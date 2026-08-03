@@ -20,7 +20,7 @@ import {
   updateOwnedTag,
 } from "../../../../../packages/server/src/domain/tag/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedTag, seedUser } from "../_support.ts";
 
 describe("tag persistence/queries", () => {

@@ -19,9 +19,9 @@ import type { UserId, WorkloadId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, gte, inArray, isNull, lt, lte } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
-import type { WorkloadContributions } from "../contract/contribution";
-import type { CancelWorkloadResult } from "../contract/params";
-import type { WorkloadRowAnyKind, WorkloadRunnableRow } from "../contract/workload-row";
+import type { WorkloadContributions } from "../contract/contribution.ts";
+import type { CancelWorkloadResult } from "../contract/params.ts";
+import type { WorkloadRowAnyKind, WorkloadRunnableRow } from "../contract/workload-row.ts";
 
 // The terminal states `markTerminal` may stamp (an in-flight → terminal flip).
 const TERMINAL_STATUSES = ["succeeded", "failed", "cancelled", "worker_died"] as const satisfies readonly WorkloadStatus[];

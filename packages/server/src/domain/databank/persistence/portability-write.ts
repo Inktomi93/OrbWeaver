@@ -24,9 +24,9 @@ import type {
   ExportedDocumentFile,
   ImportDocument,
   ListOwnedDocumentIds,
-} from "../contract/portability";
-import { queueIngest } from "../substrate/queue-ingest";
-import { findByImportHash, loadOwnedDocument } from "./queries";
+} from "../contract/portability.ts";
+import { queueIngest } from "../substrate/queue-ingest.ts";
+import { findByImportHash, loadOwnedDocument } from "./queries.ts";
 
 const LIMIT_ONE = 1;
 

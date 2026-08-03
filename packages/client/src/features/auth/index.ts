@@ -3,8 +3,8 @@
 // trpc.sessions.me (data/use-viewer.ts), never this slice.
 
 export { useAuthConfig } from "#data";
-export { LoginShellAnchor } from "./anchors/login-shell-anchor";
-export { accountModal } from "./lib/account-modal";
-export { redirectIfAuthed, requireAuthed } from "./lib/route-guards";
-export { AccountSurface } from "./surfaces/account-surface";
-export { LoginSurface } from "./surfaces/login-surface";
+export { LoginShellAnchor } from "./anchors/login-shell-anchor.tsx";
+export { accountModal } from "./lib/account-modal.tsx";
+export { redirectIfAuthed, requireAuthed } from "./lib/route-guards.ts";
+export { AccountSurface } from "./surfaces/account-surface.tsx";
+export { LoginSurface } from "./surfaces/login-surface.tsx";

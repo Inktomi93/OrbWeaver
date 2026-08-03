@@ -15,10 +15,10 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
-import { useAddCredentialForm } from "../hooks/use-add-credential-form";
-import { useAddCredential, useFetchModels } from "../hooks/use-connections-mutations";
-import type { AddCredentialFormValues } from "../lib/add-credential-form-model";
-import { isCustomProvider, PROVIDER_ITEMS, parseJsonObject, parseKeyList, parseResponseMap } from "../lib/add-credential-form-model";
+import { useAddCredentialForm } from "../hooks/use-add-credential-form.ts";
+import { useAddCredential, useFetchModels } from "../hooks/use-connections-mutations.ts";
+import type { AddCredentialFormValues } from "../lib/add-credential-form-model.ts";
+import { isCustomProvider, PROVIDER_ITEMS, parseJsonObject, parseKeyList, parseResponseMap } from "../lib/add-credential-form-model.ts";
 
 export interface AddCredentialDialogProps {
   readonly open: boolean;

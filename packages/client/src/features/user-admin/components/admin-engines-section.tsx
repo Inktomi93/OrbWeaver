@@ -15,10 +15,10 @@ import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, QueryInlineStates, useInvalidation, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { settingsAnchorId } from "#state";
-import { useRestartEngine } from "../hooks/use-admin-mutations";
-import { ADMIN_ENGINES_SUBCATEGORY } from "../lib/admin-engines-nav";
-import { engineBadgeIntent } from "../lib/admin-model";
-import { EngineLaunchConfig } from "./engine-launch-config";
+import { useRestartEngine } from "../hooks/use-admin-mutations.ts";
+import { ADMIN_ENGINES_SUBCATEGORY } from "../lib/admin-engines-nav.ts";
+import { engineBadgeIntent } from "../lib/admin-model.ts";
+import { EngineLaunchConfig } from "./engine-launch-config.tsx";
 
 const POLL_ACTIVE_MS = 5000;
 const POLL_STEADY_MS = 30_000;

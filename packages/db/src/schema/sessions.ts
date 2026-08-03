@@ -17,7 +17,7 @@
 import type { SessionId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { users } from "./users";
+import { users } from "./users.ts";
 
 export const sessions = sqliteTable(
   "sessions",

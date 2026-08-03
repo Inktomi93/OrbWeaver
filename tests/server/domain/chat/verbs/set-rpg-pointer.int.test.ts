@@ -10,11 +10,11 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { parseChatMetadata } from "../../../../../packages/server/src/domain/chat/contract/metadata";
+import { parseChatMetadata } from "../../../../../packages/server/src/domain/chat/contract/metadata.ts";
 import { createSetRpgPointer } from "../../../../../packages/server/src/domain/chat/verbs/set-rpg-pointer.ts";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { makeChatContext, seedChat } from "../_support";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeChatContext, seedChat } from "../_support.ts";
 
 let db: Db;
 

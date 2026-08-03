@@ -11,9 +11,9 @@
 import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures";
-import { DraftContextPanelStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { makeCharacterDetail, makeCharacterSummary } from "../../character/fixtures.ts";
+import { DraftContextPanelStory } from "../_ct-stories.tsx";
 
 test("a draft's CONTEXT panel renders the editable This chat tab (host — autosaving)", async ({ mount }) => {
   const component = await mount(<DraftContextPanelStory />);

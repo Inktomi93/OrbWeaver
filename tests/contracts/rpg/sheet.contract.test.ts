@@ -5,7 +5,7 @@
 // class the tracked-field unification killed for pools, surviving on the one exempt field.
 
 import { rpgSheetSchema } from "@orb/contracts/rpg";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("an empty sheet parses to the born-default", () => {
   const sheet = rpgSheetSchema.parse({});

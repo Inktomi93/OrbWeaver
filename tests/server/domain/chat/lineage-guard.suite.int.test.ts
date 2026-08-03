@@ -20,10 +20,10 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
-import { loadAncestorChain } from "../../../../packages/server/src/domain/chat/persistence/queries";
-import { freshDb } from "../../../support/db";
-import { expect, test } from "../../../support/fixtures";
-import { seedChat } from "./_support";
+import { loadAncestorChain } from "../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { freshDb } from "../../../support/db.ts";
+import { expect, test } from "../../../support/fixtures.ts";
+import { seedChat } from "./_support.ts";
 
 /** Re-point a chat's `parentChatId` (the only way to weld a cycle the single-insert FK can't express). */
 async function setParent(db: Db, child: ChatId, parent: ChatId | null): Promise<void> {

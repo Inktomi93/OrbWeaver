@@ -15,7 +15,7 @@ import { createExtractText, EXTRACTOR_VERSION } from "@orb/server/infra/extracti
 import { eq } from "drizzle-orm";
 import { ScrapeFailedError } from "../../../../../../packages/server/src/domain/databank/contract/errors.ts";
 import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeDatabankHarness, principalFor, seedUser } from "../../_support.ts";
 
 const ARTICLE_URL = "https://en.wikipedia.org/wiki/Northern_Passes";

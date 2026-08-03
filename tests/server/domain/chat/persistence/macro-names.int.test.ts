@@ -8,10 +8,10 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { resolveRowMacros } from "@orb/kit/macro";
 import { beforeEach, describe } from "vitest";
-import { loadChatMacroNameProducer } from "../../../../../packages/server/src/domain/chat/persistence/macro-names";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { seedCharacter, seedChat, seedPersona, seedUser } from "../_support";
+import { loadChatMacroNameProducer } from "../../../../../packages/server/src/domain/chat/persistence/macro-names.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { seedCharacter, seedChat, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
 

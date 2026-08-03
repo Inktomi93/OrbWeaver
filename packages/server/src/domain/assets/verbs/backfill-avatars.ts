@@ -12,10 +12,10 @@
 // `entry/compose/assets-character.ts`) — the same shape `domain/import` uses for six domains' canon.
 
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
-import type { AssetsContext } from "../context";
-import type { BackfillCard } from "../contract/maintenance";
-import type { AssetsService } from "../contract/service";
-import { storeBlob } from "../persistence/queries";
+import type { AssetsContext } from "../context.ts";
+import type { BackfillCard } from "../contract/maintenance.ts";
+import type { AssetsService } from "../contract/service.ts";
+import { storeBlob } from "../persistence/queries.ts";
 
 /** Bounded store fan-out — 8 concurrent `storeBlob` calls per wave (the CAS write + the index upsert are the
  *  cost; a small pool keeps the DB/FS pressure sane without serializing). */

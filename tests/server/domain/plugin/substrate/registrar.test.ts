@@ -10,7 +10,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { buildPluginPromptTransform, capFactContent } from "../../../../../packages/server/src/domain/plugin/substrate/registrar.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const CHAT = castId<ChatId>("chat_reg000000000000000000000");
 const HANDLER = castId<PluginHandlerRef>("handler_1");

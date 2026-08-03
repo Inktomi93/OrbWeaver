@@ -5,7 +5,7 @@
 // missing `.apiKey`).
 
 import type { ResolvedCredential } from "@orb/contracts/credentials";
-import { ProviderError } from "../../contract";
+import { ProviderError } from "../../contract/index.ts";
 
 /** The credential source this whole family serves — a wire literal, named so a call site states intent. */
 const OPENROUTER_SOURCE = "openrouter";

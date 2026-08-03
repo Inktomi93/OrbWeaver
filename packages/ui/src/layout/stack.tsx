@@ -1,6 +1,6 @@
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { stackVariants } from "./variants";
+import { stackVariants } from "./variants.ts";
 
 export interface StackProps extends ComponentProps<"div">, VariantProps<typeof stackVariants> {}
 

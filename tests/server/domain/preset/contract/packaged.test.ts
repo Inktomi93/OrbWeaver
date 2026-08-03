@@ -6,7 +6,7 @@
 import { createDefaultRegistry, queryMacros } from "@orb/kit/macro";
 import { describe } from "vitest";
 import { PACKAGED_PRESETS } from "../../../../../packages/server/src/domain/preset/contract/packaged.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const RPG_GM_CONFIG = PACKAGED_PRESETS["rpg-gm"].config;
 

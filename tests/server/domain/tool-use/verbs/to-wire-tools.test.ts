@@ -2,9 +2,9 @@
 // `parameters`, order = resolve order.
 
 import { z } from "zod";
-import { createToolUseService } from "../../../../../packages/server/src/domain/tool-use";
-import { expect, test } from "../../../../support/fixtures";
-import { defOf, makeHarness } from "../_support";
+import { createToolUseService } from "../../../../../packages/server/src/domain/tool-use/index.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { defOf, makeHarness } from "../_support.ts";
 
 test("projects name/description + the cached schema, in resolve order", () => {
   const svc = createToolUseService(makeHarness().ctx);

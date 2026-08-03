@@ -28,10 +28,10 @@ import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
 import { ConfirmDialog, ROW_REVEAL, SettingCheckboxRow } from "#components";
 import { cn } from "#lib";
-import type { MEMBER_ROW_CONFIRMS, MemberCastRow, MemberPersonRow, MemberRowActions, MemberRowFocusProps } from "../lib/member-rows";
-import { rowAccessibleName } from "../lib/member-rows";
-import { buildMenuItems } from "./member-row-menu";
-import { TalkativenessPopover } from "./talkativeness-popover";
+import type { MEMBER_ROW_CONFIRMS, MemberCastRow, MemberPersonRow, MemberRowActions, MemberRowFocusProps } from "../lib/member-rows.ts";
+import { rowAccessibleName } from "../lib/member-rows.ts";
+import { buildMenuItems } from "./member-row-menu.tsx";
+import { TalkativenessPopover } from "./talkativeness-popover.tsx";
 
 /** Which of a person row's dialogs is open — DERIVED from the one homed tuple, never re-spelled (a fourth
  *  arm must break every consumer at compile time). Local per file: an exported client alias would have to

@@ -21,7 +21,7 @@ import { useState } from "react";
 import { ConfirmDialog } from "#components";
 import type { Trpc } from "#data";
 import { SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { GALLERY_PAGE_LIMIT, useAddToGallery, useRemoveFromGallery } from "../hooks/use-character-gallery";
+import { GALLERY_PAGE_LIMIT, useAddToGallery, useRemoveFromGallery } from "../hooks/use-character-gallery.ts";
 
 const GALLERY_THUMB_WIDTH = 240;
 

@@ -3,12 +3,12 @@
 // (no audit); restartVllmEngine is privileged (audited).
 
 import { DomainOperationError } from "@orb/kit/errors";
-import type { AdminContext } from "../context";
-import { ADMIN_OP_CODES } from "../contract/errors";
-import type { RestartVllmEngineParams, VllmEnginesParams } from "../contract/params";
-import type { VllmEnginesResult } from "../contract/results";
-import type { AdminService } from "../contract/service";
-import { requireAdmin } from "../guard";
+import type { AdminContext } from "../context.ts";
+import { ADMIN_OP_CODES } from "../contract/errors.ts";
+import type { RestartVllmEngineParams, VllmEnginesParams } from "../contract/params.ts";
+import type { VllmEnginesResult } from "../contract/results.ts";
+import type { AdminService } from "../contract/service.ts";
+import { requireAdmin } from "../guard.ts";
 
 type VllmVerbs = Pick<AdminService, "vllmEngines" | "restartVllmEngine">;
 

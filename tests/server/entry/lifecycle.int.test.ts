@@ -6,7 +6,7 @@
 
 import { rmSync } from "node:fs";
 import { afterAll, vi } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // A fixed high port + temp db (the integration lane runs serially — no INTRA-suite contention; no random
 // ids, the determinism gate bans Math.random). NOT the env-default 8788: a running dev stack holds that,

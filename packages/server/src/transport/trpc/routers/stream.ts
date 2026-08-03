@@ -24,10 +24,10 @@
 
 import { streamAttachInputSchema, streamConnectInputSchema, streamDetachInputSchema } from "@orb/contracts/stream";
 import { getLog } from "#foundation/observability";
-import { roomSourceFor } from "../stream/room-sources";
-import { runSocket } from "../stream/socket";
-import { withSubscriptionErrors } from "../subscriptions";
-import { authedProcedure, t } from "../trpc";
+import { roomSourceFor } from "../stream/room-sources.ts";
+import { runSocket } from "../stream/socket.ts";
+import { withSubscriptionErrors } from "../subscriptions.ts";
+import { authedProcedure, t } from "../trpc.ts";
 
 export const streamRouter = t.router({
   // The ONE socket. `withSubscriptionErrors` wraps it for a genuine SOCKET-level fault; a single room's

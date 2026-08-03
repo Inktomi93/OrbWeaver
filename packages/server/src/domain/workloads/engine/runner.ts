@@ -11,11 +11,11 @@ import type { ReportProgress, WorkloadError, WorkloadKind, WorkloadParamsByKind,
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog, withRequestSpan } from "#foundation/observability";
-import type { WorkloadContribution } from "../contract/contribution";
-import type { WorkloadRunnerDeps } from "../contract/service";
-import type { WorkloadRunnableRow } from "../contract/workload-row";
-import { heartbeat, loadWorkloadStatus, markStarted, markTerminal } from "../persistence/queries";
-import { emitWorkloadEvent } from "./progress-bus";
+import type { WorkloadContribution } from "../contract/contribution.ts";
+import type { WorkloadRunnerDeps } from "../contract/service.ts";
+import type { WorkloadRunnableRow } from "../contract/workload-row.ts";
+import { heartbeat, loadWorkloadStatus, markStarted, markTerminal } from "../persistence/queries.ts";
+import { emitWorkloadEvent } from "./progress-bus.ts";
 
 // Synthetic acting user for a scheduler/system-triggered row (`ownerId === null`); not a real `users` row.
 const SYSTEM_OWNER_ID = castId<UserId>("system");

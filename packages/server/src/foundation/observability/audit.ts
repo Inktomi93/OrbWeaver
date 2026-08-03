@@ -6,7 +6,7 @@ import type { Db } from "@orb/db";
 import { auditLogs } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { getLog } from "./logger";
+import { getLog } from "./logger.ts";
 
 let auditFailureCount = 0;
 let firstFailureAt: number | null = null;

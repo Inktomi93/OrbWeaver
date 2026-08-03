@@ -15,7 +15,7 @@ import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../../support/ct/ct-data-providers";
+import { CtDataProviders, CtRealSectionRegistry } from "../../../../support/ct/ct-data-providers.tsx";
 
 // The three fixed ids (kept module-local — biome forbids non-component exports beside components; the CT
 // mirrors these literals for its save-spy filters). BUILT_IN is the real seeded system-default id.

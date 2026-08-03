@@ -5,7 +5,7 @@
 // `ProviderErrorKind` vocab so the runner builds one `ProviderError` surface for every caller.
 
 import type { SDKAssistantMessageError, SDKResultError, TerminalReason } from "@anthropic-ai/claude-agent-sdk";
-import type { ProviderErrorKind } from "../../contract";
+import type { ProviderErrorKind } from "../../contract/index.ts";
 
 /** A classification result: the normalized kind + whether a retry could plausibly recover the turn. */
 interface Classification {

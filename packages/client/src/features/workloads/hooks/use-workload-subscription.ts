@@ -18,8 +18,8 @@ import type { StreamRoomRef } from "@orb/contracts/stream";
 import type { WorkloadEvent } from "@orb/contracts/workloads";
 import type { WorkloadId } from "@orb/kit/ids";
 import { useBusRoom } from "#data";
-import type { WorkloadProgressView } from "../lib/workloads-model";
-import { toProgressView } from "../lib/workloads-model";
+import type { WorkloadProgressView } from "../lib/workloads-model.ts";
+import { toProgressView } from "../lib/workloads-model.ts";
 
 /** Every NON-progress lifecycle event — the `progress` arm is split off into `onProgress` below. */
 type WorkloadLifecycleEvent = Exclude<WorkloadEvent, { readonly type: "progress" }>;

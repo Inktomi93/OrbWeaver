@@ -15,7 +15,7 @@ import { describe } from "vitest";
 import type { ImportService } from "../../../../../packages/server/src/domain/import/contract/service.ts";
 import { createImportChatFile } from "../../../../../packages/server/src/domain/import/verbs/import-chat-file.ts";
 import { createImportChats } from "../../../../../packages/server/src/domain/import/verbs/import-chats.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import type { ProfileHarness } from "../_support.ts";
 import { makeProfileHarness } from "../_support.ts";
 

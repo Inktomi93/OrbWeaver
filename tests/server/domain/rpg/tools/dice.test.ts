@@ -2,8 +2,8 @@
 // `randomInt` is a scripted queue, so the faces + total pin exactly. Pins: NdM+K parsing, the [0,max)→[1,max]
 // face mapping, the modifier, the default count, and the null on unparseable / out-of-bounds notation.
 
-import { rollNotation } from "../../../../../packages/server/src/domain/rpg/tools/dice";
-import { expect, test } from "../../../../support/fixtures";
+import { rollNotation } from "../../../../../packages/server/src/domain/rpg/tools/dice.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A scripted `randomInt` — returns each queued value in order (the value is a `[0, faces)` roll). */
 function scripted(values: number[]): (max: number) => number {

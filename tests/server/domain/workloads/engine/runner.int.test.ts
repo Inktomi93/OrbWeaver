@@ -16,7 +16,7 @@ import { getRecentWorkloadEvents } from "../../../../../packages/server/src/doma
 import { runWorkload } from "../../../../../packages/server/src/domain/workloads/engine/runner.ts";
 import { loadWorkload, loadWorkloadStatus, markTerminal } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { contributionsWith, fakeContributions, loadRunnableWorkload, makeRunnerDeps, seedWorkloadRow, T0 } from "../_support.ts";
 
 // The row read path narrows params against the contribution registry.

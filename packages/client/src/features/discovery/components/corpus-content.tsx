@@ -4,8 +4,8 @@
 
 import type { ReactElement } from "react";
 import { clearCorpusSelection, useSelectedCorpusCharacterId } from "#state";
-import { CorpusDossierSurface } from "../surfaces/corpus-dossier-surface";
-import { CorpusHomeSurface } from "../surfaces/corpus-home-surface";
+import { CorpusDossierSurface } from "../surfaces/corpus-dossier-surface.tsx";
+import { CorpusHomeSurface } from "../surfaces/corpus-home-surface.tsx";
 
 export function CorpusContent(): ReactElement {
   const selectedCorpusCharacterId = useSelectedCorpusCharacterId();

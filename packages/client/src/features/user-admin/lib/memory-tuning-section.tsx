@@ -4,8 +4,8 @@
 // memorySummarizer (admin-tier config → user-admin owns it).
 
 import type { SettingsSectionContribution } from "#state";
-import { MemoryTuningSection } from "../components/memory-tuning-section";
-import { MEMORY_TUNING_SUBCATEGORY } from "./memory-tuning-nav";
+import { MemoryTuningSection } from "../components/memory-tuning-section.tsx";
+import { MEMORY_TUNING_SUBCATEGORY } from "./memory-tuning-nav.ts";
 
 // The contribution id has ONE home — this const. It is both the registry key and the id the body REPORTS
 // its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.

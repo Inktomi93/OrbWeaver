@@ -39,16 +39,16 @@ import { createOpenRouterBackend } from "@orb/server/infra/providers/backends/op
 import { createVllmChat } from "@orb/server/infra/providers/vllm";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { describe, vi } from "vitest";
-import type { AssembledPrompt } from "../../../../packages/contracts/src/chat/index";
-import type { TurnMessage, TurnRequest, TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results";
-import { createTurnEngine } from "../../../../packages/server/src/domain/chat/engine/engine";
-import { driveRound } from "../../../../packages/server/src/domain/chat/engine/round";
-import { loadWitnessHorizons } from "../../../../packages/server/src/domain/chat/memory/persistence/queries";
-import { recallMemory } from "../../../../packages/server/src/domain/chat/memory/recall/recall";
-import { loadCanonHistory } from "../../../../packages/server/src/domain/chat/persistence/queries";
-import { freshDb } from "../../../support/db";
-import { expect, test } from "../../../support/fixtures";
-import { makeChatContext, seedCharacter, seedChat, seedMessage, seedUser, stubRunCompaction, TEST_CAPABILITY, testConnection } from "./_support";
+import type { AssembledPrompt } from "../../../../packages/contracts/src/chat/index.ts";
+import type { TurnMessage, TurnRequest, TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results.ts";
+import { createTurnEngine } from "../../../../packages/server/src/domain/chat/engine/engine.ts";
+import { driveRound } from "../../../../packages/server/src/domain/chat/engine/round.ts";
+import { loadWitnessHorizons } from "../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
+import { recallMemory } from "../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
+import { loadCanonHistory } from "../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { freshDb } from "../../../support/db.ts";
+import { expect, test } from "../../../support/fixtures.ts";
+import { makeChatContext, seedCharacter, seedChat, seedMessage, seedUser, stubRunCompaction, TEST_CAPABILITY, testConnection } from "./_support.ts";
 
 const HOST = castId<UserId>("user_host");
 const ARIA = castId<CharacterId>("character_aria");

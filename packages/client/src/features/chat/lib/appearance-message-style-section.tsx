@@ -4,8 +4,8 @@
 // at its anchor. Chat OWNS these knobs because chat READS them (§6).
 
 import type { SettingsSectionContribution } from "#state";
-import { AppearanceMessageStyleSection } from "../components/appearance-message-style-section";
-import { APPEARANCE_MESSAGE_STYLE_KEYS, APPEARANCE_MESSAGE_STYLE_SUBCATEGORY } from "./appearance-message-style-model";
+import { AppearanceMessageStyleSection } from "../components/appearance-message-style-section.tsx";
+import { APPEARANCE_MESSAGE_STYLE_KEYS, APPEARANCE_MESSAGE_STYLE_SUBCATEGORY } from "./appearance-message-style-model.ts";
 
 // The contribution id has ONE home — this const. It is both the registry key and the id the body REPORTS
 // its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.

@@ -12,8 +12,8 @@ import { Text } from "@orb/ui/text";
 import type { KeyboardEvent, ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import { testId } from "#lib";
-import type { MemberCastRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows";
-import { MemberRow } from "./member-row";
+import type { MemberCastRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";
+import { MemberRow } from "./member-row.tsx";
 
 export interface MembersPanelProps extends MemberRowActions {
   readonly people: readonly MemberPersonRow[];

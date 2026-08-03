@@ -7,7 +7,7 @@
 //   • `url={null}` renders nothing (both slots absent).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ThemeBackgroundVideoLayer } from "../../../../../packages/client/src/features/app-shell/components/theme-background-video-layer";
+import { ThemeBackgroundVideoLayer } from "../../../../../packages/client/src/features/app-shell/components/theme-background-video-layer.tsx";
 
 const LAYER = '[data-slot="theme-background-video-layer"]';
 const VIDEO = '[data-slot="background-video"]';

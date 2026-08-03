@@ -6,8 +6,8 @@ import { Button } from "#primitives/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "#primitives/collapsible";
 import { Dialog, DialogPopup, DialogTitle } from "#primitives/dialog";
 import { ChevronDown, ChevronUp, Code, Expand, Icon } from "#primitives/icons";
-import { SandboxFrame, useSandboxTheme } from "../sandbox-frame";
-import { immersiveCardVariants } from "./variants";
+import { SandboxFrame, useSandboxTheme } from "../sandbox-frame/index.ts";
+import { immersiveCardVariants } from "./variants.ts";
 
 // The inline render height — mirrors the SandboxFrame default; the expand affordance is the "see it big"
 // path, so the inline card stays a bounded strip in the transcript (and the collapse affordance takes it

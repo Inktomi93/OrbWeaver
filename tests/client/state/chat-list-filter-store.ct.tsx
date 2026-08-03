@@ -4,7 +4,7 @@
 // useSyncExternalStore needs a real browser render (the character-selection-store.ct.tsx posture).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ChatListFilterProbe } from "./_ct-stories";
+import { ChatListFilterProbe } from "./_ct-stories.tsx";
 
 test("set applies the character filter; clear resets to the full list", async ({ mount }) => {
   const probe = await mount(<ChatListFilterProbe />);

@@ -7,7 +7,7 @@ import { castId } from "@orb/kit/ids";
 import { DocumentNotFoundError } from "@orb/server/domain/databank";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeDatabankHarness, principalFor, seedChat, seedUser } from "../_support.ts";
 
 test("removing a document cascades its chunks and junction rows away", async () => {

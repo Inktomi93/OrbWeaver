@@ -15,7 +15,7 @@ import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useEffect, useRef } from "react";
-import type { CharacterCardFacet } from "../lib/character-card-facets";
+import type { CharacterCardFacet } from "../lib/character-card-facets.ts";
 
 export interface CharacterFacetRowProps {
   readonly facet: CharacterCardFacet;

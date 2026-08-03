@@ -20,9 +20,9 @@ import { FormDialog, FormSubmitButton } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
-import { useRunWorkloadForm } from "../hooks/use-run-workload-form";
-import { useStartWorkload } from "../hooks/use-workload-mutations";
-import type { RunWorkloadFormValues } from "../lib/workloads-model";
+import { useRunWorkloadForm } from "../hooks/use-run-workload-form.ts";
+import { useStartWorkload } from "../hooks/use-workload-mutations.ts";
+import type { RunWorkloadFormValues } from "../lib/workloads-model.ts";
 import {
   buildStartInput,
   isMaintenanceWorkloadKind,
@@ -31,10 +31,10 @@ import {
   WORKLOAD_KIND_LABELS,
   workloadKindItems,
   workloadKindNeedsBulkTarget,
-} from "../lib/workloads-model";
-import { parseRunAt } from "../lib/workloads-run-model";
-import { MaintenanceKindNote } from "./maintenance-kind-note";
-import { WorkloadParamFields } from "./workload-kind-fields";
+} from "../lib/workloads-model.ts";
+import { parseRunAt } from "../lib/workloads-run-model.ts";
+import { MaintenanceKindNote } from "./maintenance-kind-note.tsx";
+import { WorkloadParamFields } from "./workload-kind-fields.tsx";
 
 type AdminUser = inferOutput<Trpc["admin"]["listUsers"]>[number];
 

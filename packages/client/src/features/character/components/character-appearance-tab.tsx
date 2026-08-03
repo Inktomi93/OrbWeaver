@@ -29,11 +29,16 @@ import { BackgroundSourceField } from "#components";
 import { QueryBoundary, QueryErrorState, useExternalMediaBlocked, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
 import { notify } from "#lib";
-import { useUpdateCharacter } from "../hooks/use-character-mutations";
-import { CharacterThemeForm } from "../hooks/use-character-theme-form";
-import { usePromoteTheme } from "../hooks/use-promote-theme";
-import type { CharacterThemeFormValues } from "../lib/character-theme-form-model";
-import { characterThemeFormFromOverride, EMPTY_CHARACTER_THEME_FORM, overrideFromCharacterThemeForm, THEME_INHERIT } from "../lib/character-theme-form-model";
+import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
+import { CharacterThemeForm } from "../hooks/use-character-theme-form.ts";
+import { usePromoteTheme } from "../hooks/use-promote-theme.ts";
+import type { CharacterThemeFormValues } from "../lib/character-theme-form-model.ts";
+import {
+  characterThemeFormFromOverride,
+  EMPTY_CHARACTER_THEME_FORM,
+  overrideFromCharacterThemeForm,
+  THEME_INHERIT,
+} from "../lib/character-theme-form-model.ts";
 
 export interface CharacterAppearanceTabProps {
   readonly characterId: CharacterId;

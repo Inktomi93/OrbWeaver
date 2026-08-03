@@ -7,7 +7,7 @@ import { createToolUseService } from "@orb/server/domain/tool-use";
 import { vi } from "vitest";
 import { z } from "zod";
 import { createProjectMcp } from "../../../../../packages/server/src/domain/tool-use/verbs/project-mcp.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { defOf, execOf, makeHarness } from "../_support.ts";
 
 // The fake D47 factory: return the wrapped specs verbatim as the opaque server so the test can invoke a

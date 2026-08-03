@@ -31,7 +31,7 @@ import { useTRPC } from "#data";
 import type { CharacterChatsProjectionView } from "#lib";
 import { chatsWithCharacter, timeLib } from "#lib";
 import { listProjectionOwnsFocus } from "#state";
-import { CHARACTER_CHATS_PROJECTION_SLOT, startChatWithCharacter } from "../lib/character-chat-intents";
+import { CHARACTER_CHATS_PROJECTION_SLOT, startChatWithCharacter } from "../lib/character-chat-intents.ts";
 
 export interface CharacterChatsProjectionShellProps {
   readonly characterId: CharacterId;

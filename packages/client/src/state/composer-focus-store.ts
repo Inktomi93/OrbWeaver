@@ -7,7 +7,7 @@
 // stable per-room SCOPE KEY as the draft store (a committed `ChatId` or a draft `draftKey`); an unseen
 // scope reads 0 (no focus ever requested). Ephemeral, never persisted.
 
-import { createGatedStore } from "./create-gated-store";
+import { createGatedStore } from "./create-gated-store.ts";
 
 interface ComposerFocusState {
   /** Per-room focus nonce (`scopeKey → count`); an absent scope reads 0. Each bump is one focus request. */

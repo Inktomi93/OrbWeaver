@@ -9,7 +9,7 @@ import { describe } from "vitest";
 import { WorldInfoNotFoundError } from "../../../../../packages/server/src/domain/world-info/contract/errors.ts";
 import { ensureCharacterOwned, ensurePersonaOwned } from "../../../../../packages/server/src/domain/world-info/persistence/ownership.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedPersona, seedUser } from "../_support.ts";
 
 describe("ensureCharacterOwned", () => {

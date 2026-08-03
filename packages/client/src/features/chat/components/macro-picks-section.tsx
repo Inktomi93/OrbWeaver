@@ -38,7 +38,7 @@ import type { ReactElement } from "react";
 import { useId } from "react";
 import { SettingCheckboxRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { useSetUserMacroValues, useSetVariables } from "../hooks/use-context-panel-mutations";
+import { useSetUserMacroValues, useSetVariables } from "../hooks/use-context-panel-mutations.ts";
 
 /** ONE stored pick, DERIVED from the wire bag (never re-spelled): string | boolean | string[]. Kit's
  *  `UserMacroInputValue` is the same union with a READONLY array arm — the bag we send is the mutable

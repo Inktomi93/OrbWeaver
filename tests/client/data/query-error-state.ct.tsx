@@ -2,8 +2,8 @@
 // default `renderError` falling back to it.
 import { QueryErrorState } from "@orb/client/data";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../support/ct/route-trpc";
-import { EchoBoundaryWithoutRenderErrorStory } from "./_ct-stories";
+import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
+import { EchoBoundaryWithoutRenderErrorStory } from "./_ct-stories.tsx";
 
 test("renders the label + a Retry that fires onRetry", async ({ mount }) => {
   let retried = 0;

@@ -1,13 +1,13 @@
 import { parsePromptConfig } from "@orb/contracts/preset";
 import { getLog } from "#foundation/observability";
-import type { PresetContext } from "../context";
-import { PresetNotFoundError } from "../contract/errors";
-import { PACKAGED_PRESETS } from "../contract/packaged";
-import type { ClonePackagedParams } from "../contract/params";
-import type { PresetService } from "../contract/service";
-import type { PresetDetail } from "../contract/views";
-import { insertPreset, selectPackagedPreset } from "../persistence/queries";
-import { toPresetDetail } from "../substrate/views";
+import type { PresetContext } from "../context.ts";
+import { PresetNotFoundError } from "../contract/errors.ts";
+import { PACKAGED_PRESETS } from "../contract/packaged.ts";
+import type { ClonePackagedParams } from "../contract/params.ts";
+import type { PresetService } from "../contract/service.ts";
+import type { PresetDetail } from "../contract/views.ts";
+import { insertPreset, selectPackagedPreset } from "../persistence/queries.ts";
+import { toPresetDetail } from "../substrate/views.ts";
 
 // verb: clonePackaged — fork a shipped PACKAGED template preset into the caller's library. The template is an
 // ownerless well-known-id row (seeded at boot, kept OUT of the readable list); this reads it by id (missing →

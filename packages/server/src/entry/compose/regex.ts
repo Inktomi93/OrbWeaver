@@ -34,9 +34,9 @@ import {
   createResolveRegexSources,
 } from "#domain/regex";
 import type { AuditEntry } from "#foundation/observability";
-import { requireHost, requireParticipant } from "../../domain/chat";
-import { publishUserEvent } from "../../transport/trpc";
-import { minter } from "./minter";
+import { requireHost, requireParticipant } from "../../domain/chat/index.ts";
+import { publishUserEvent } from "../../transport/trpc/index.ts";
+import { minter } from "./minter.ts";
 
 const LIMIT_ONE = 1;
 

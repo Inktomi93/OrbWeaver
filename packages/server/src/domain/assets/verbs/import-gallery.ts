@@ -9,9 +9,9 @@ import { castId } from "@orb/kit/ids";
 import type { CanonicalGalleryItem } from "#kit/serde/gallery";
 import { GALLERY_SCHEMA_KIND, parseGallery } from "#kit/serde/gallery";
 import { portableParseError } from "#kit/serde/lib";
-import type { AssetsContext } from "../context";
-import type { GalleryImportOutcome, GalleryPortableFile } from "../contract/results";
-import { importGalleryItem, ownedAssetForGallery } from "../persistence/queries";
+import type { AssetsContext } from "../context.ts";
+import type { GalleryImportOutcome, GalleryPortableFile } from "../contract/results.ts";
+import { importGalleryItem, ownedAssetForGallery } from "../persistence/queries.ts";
 
 /** Restore ONE curation row: gate on asset ownership, re-link the handle, then idempotently write.
  *  Returns true only when a genuinely new row was written. */

@@ -14,7 +14,7 @@ import {
   startWorkloadEnvelope,
 } from "@orb/contracts/workloads";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 describe("workload params schemas", () => {
   test("a tunable-less kind accepts an empty params object", () => {

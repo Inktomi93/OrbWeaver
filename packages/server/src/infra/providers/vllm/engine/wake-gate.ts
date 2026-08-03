@@ -31,13 +31,13 @@
 import process from "node:process";
 import { env } from "#foundation/env";
 import { addSpanEvent, getLog } from "#foundation/observability";
-import { ProviderError } from "../../contract";
-import type { VLLM_ENGINES } from "./engines";
-import { decideWake, fleetRunDir, getIsSleeping, isHeld, postWakeAndAwait } from "./fleet-control";
-import { countGpus } from "./gpu";
-import { reapOrphanedFamily } from "./reaper";
-import type { EngineUtilFractions } from "./wake-budget";
-import { queryGpuVram } from "./wake-budget";
+import { ProviderError } from "../../contract/index.ts";
+import type { VLLM_ENGINES } from "./engines.ts";
+import { decideWake, fleetRunDir, getIsSleeping, isHeld, postWakeAndAwait } from "./fleet-control.ts";
+import { countGpus } from "./gpu.ts";
+import { reapOrphanedFamily } from "./reaper.ts";
+import type { EngineUtilFractions } from "./wake-budget.ts";
+import { queryGpuVram } from "./wake-budget.ts";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 

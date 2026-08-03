@@ -7,11 +7,11 @@
 import { worldBooks } from "@orb/db";
 import { stripUndefined } from "@orb/kit/objects";
 import { and, eq } from "drizzle-orm";
-import type { WorldInfoContext } from "../../context";
-import { WorldInfoNotFoundError } from "../../contract/errors";
-import type { UpdateBookParams } from "../../contract/params";
-import type { WorldInfoService } from "../../contract/service";
-import { loadOwnedBook, toBookView } from "../../persistence/queries";
+import type { WorldInfoContext } from "../../context.ts";
+import { WorldInfoNotFoundError } from "../../contract/errors.ts";
+import type { UpdateBookParams } from "../../contract/params.ts";
+import type { WorldInfoService } from "../../contract/service.ts";
+import { loadOwnedBook, toBookView } from "../../persistence/queries.ts";
 
 export function createUpdate(ctx: WorldInfoContext): WorldInfoService["updateBook"] {
   return async ({ principal, bookId, input }: UpdateBookParams) => {

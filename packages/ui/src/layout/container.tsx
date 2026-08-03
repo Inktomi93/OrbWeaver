@@ -1,6 +1,6 @@
 import type { ComponentProps, CSSProperties, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { containerVariants } from "./variants";
+import { containerVariants } from "./variants.ts";
 
 export interface ContainerProps extends ComponentProps<"div">, VariantProps<typeof containerVariants> {
   /** Optional `container-name` so descendants can target `@container/<name>` queries. */

@@ -15,8 +15,8 @@ import { useState } from "react";
 import { FormDialog, FormSubmitButton } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
-import { useResetPassword } from "../hooks/use-admin-mutations";
-import { ADMIN_MIN_PASSWORD_LENGTH } from "../lib/admin-model";
+import { useResetPassword } from "../hooks/use-admin-mutations.ts";
+import { ADMIN_MIN_PASSWORD_LENGTH } from "../lib/admin-model.ts";
 
 export interface AdminResetPasswordDialogProps {
   readonly userId: UserId;

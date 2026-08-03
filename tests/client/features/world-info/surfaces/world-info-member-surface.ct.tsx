@@ -9,8 +9,8 @@
 // defaults). DEF-14: every assertion is web-first / expect.poll — no bare live-DOM read.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { WorldInfoEditorReorderStory, WorldInfoMemberStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { WorldInfoEditorReorderStory, WorldInfoMemberStory } from "../_ct-stories.tsx";
 
 const BOOK_ID = "world_book_reorder001";
 const ALPHA = "world_entry_reorder0a";

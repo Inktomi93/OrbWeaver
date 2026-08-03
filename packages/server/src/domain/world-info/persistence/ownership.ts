@@ -8,7 +8,7 @@ import type { Db } from "@orb/db";
 import { characters, personas } from "@orb/db";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { WorldInfoNotFoundError } from "../contract/errors";
+import { WorldInfoNotFoundError } from "../contract/errors.ts";
 
 const LIMIT_ONE = 1;
 

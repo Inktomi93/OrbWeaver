@@ -3,8 +3,8 @@
 // registry and the appearance skimmer pane renders it at its anchor.
 
 import type { SettingsSectionContribution } from "#state";
-import { AppearanceEffectsSection } from "../components/appearance-effects-section";
-import { APPEARANCE_EFFECTS_KEYS, APPEARANCE_EFFECTS_SUBCATEGORY } from "./appearance-effects-model";
+import { AppearanceEffectsSection } from "../components/appearance-effects-section.tsx";
+import { APPEARANCE_EFFECTS_KEYS, APPEARANCE_EFFECTS_SUBCATEGORY } from "./appearance-effects-model.ts";
 
 const SECTION_ID = "appearance-effects";
 

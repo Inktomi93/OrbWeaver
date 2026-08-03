@@ -7,8 +7,8 @@ import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { DomainConflictError, DomainError } from "@orb/kit/errors";
 import { getLog } from "#foundation/observability";
-import type { ScheduleTickDeps, WorkloadScheduleRow } from "../contract/schedule";
-import { advanceSchedule, findDueSchedules } from "../persistence/schedule-queries";
+import type { ScheduleTickDeps, WorkloadScheduleRow } from "../contract/schedule.ts";
+import { advanceSchedule, findDueSchedules } from "../persistence/schedule-queries.ts";
 
 const LOG_COMPONENT = "workload-schedule-tick";
 

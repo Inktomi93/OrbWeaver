@@ -4,7 +4,7 @@
 // mutations and the landed-document callback.
 
 import { createSavedEntityForm } from "#forms";
-import type { ScrapeFormValues } from "../lib/scrape-form-model";
-import { SCRAPE_FORM_DEFAULTS } from "../lib/scrape-form-model";
+import type { ScrapeFormValues } from "../lib/scrape-form-model.ts";
+import { SCRAPE_FORM_DEFAULTS } from "../lib/scrape-form-model.ts";
 
 export const useScrapeForm = createSavedEntityForm<ScrapeFormValues>({ defaultValues: SCRAPE_FORM_DEFAULTS });

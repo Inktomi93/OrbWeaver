@@ -7,10 +7,10 @@ import type { VariantKind } from "@orb/contracts/assets";
 import { isAssetHash } from "@orb/kit/assets";
 import type { UserId } from "@orb/kit/ids";
 import { isAnimated } from "@orb/kit/image-sniff";
-import type { AssetsContext } from "../context";
-import type { ResolveVariantParams } from "../contract/params";
-import type { AssetsService } from "../contract/service";
-import { snapBannerWidth, snapBlobWidth, snapPortraitWidth } from "../substrate/variant-policy";
+import type { AssetsContext } from "../context.ts";
+import type { ResolveVariantParams } from "../contract/params.ts";
+import type { AssetsService } from "../contract/service.ts";
+import { snapBannerWidth, snapBlobWidth, snapPortraitWidth } from "../substrate/variant-policy.ts";
 
 const WEBP = "webp";
 // The fallback when a context doesn't inject the live quality getter (tests) — byte-identical to infra/image

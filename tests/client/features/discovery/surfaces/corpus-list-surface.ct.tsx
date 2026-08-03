@@ -6,8 +6,8 @@
 // the rows client-visibly.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { CorpusListSurfaceStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { CorpusListSurfaceStory } from "../_ct-stories.tsx";
 
 const CHARACTER_HIT = {
   characterId: "char_aria",

@@ -11,7 +11,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
-import type { ChatRowPortrait } from "../lib/chat-summary-row";
+import type { ChatRowPortrait } from "../lib/chat-summary-row.ts";
 
 /** One page of the character library — wide enough to cover any list a user can actually scan. */
 const PORTRAIT_MAP_LIMIT = 200;

@@ -14,9 +14,9 @@
 // The preset override is DELIBERATELY NOT policy: it is the `gmPresetId` KNOB (§4.11 #1), mode-blind
 // data with per-mode DEFAULTS. `prompt` shrinks to the prompt-STRATEGY axis only (injection vs gm-preset).
 
-import type { RpgGameMode } from "./enums";
-import type { RpgToolName } from "./tools";
-import { RPG_LITE_TOOL_NAMES } from "./tools";
+import type { RpgGameMode } from "./enums.ts";
+import type { RpgToolName } from "./tools.ts";
+import { RPG_LITE_TOOL_NAMES } from "./tools.ts";
 
 export interface RpgModePolicy {
   /** lite: the 7-tuple (§4.6); full: its superset (grafts as data). */

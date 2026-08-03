@@ -6,7 +6,7 @@
 // selection.
 
 import type { MessageId } from "@orb/kit/ids";
-import { createGatedStore } from "./create-gated-store";
+import { createGatedStore } from "./create-gated-store.ts";
 
 interface MessageSelectionState {
   /** Whether bulk-select mode is active (checkboxes shown, per-row actions suppressed). */

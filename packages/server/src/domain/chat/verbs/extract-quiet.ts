@@ -23,11 +23,11 @@ import type { MacroRegistry, ProcessMacroOptions } from "@orb/kit/macro";
 import { processMacros } from "@orb/kit/macro";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
-import type { ExtractQuiet, ExtractQuietDeps, ExtractQuietParams, ExtractQuietResult } from "../contract/context";
-import { loadCanonHistory, loadStoredUserMacroValues } from "../persistence/queries";
-import { loadRoster } from "../persistence/roster";
-import { buildTurnUserMacros } from "../substrate/assembly-access";
-import { hostUserIdOf } from "../substrate/roster-host";
+import type { ExtractQuiet, ExtractQuietDeps, ExtractQuietParams, ExtractQuietResult } from "../contract/context.ts";
+import { loadCanonHistory, loadStoredUserMacroValues } from "../persistence/queries.ts";
+import { loadRoster } from "../persistence/roster.ts";
+import { buildTurnUserMacros } from "../substrate/assembly-access.ts";
+import { hostUserIdOf } from "../substrate/roster-host.ts";
 
 /** How many recent canon rows the extractor reads as scene context (the same window `smart` arbitration uses). */
 const RECENT_WINDOW = 10;

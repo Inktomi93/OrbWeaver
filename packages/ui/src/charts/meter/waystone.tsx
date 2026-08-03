@@ -44,7 +44,7 @@
 import type { ReactElement } from "react";
 import { useId, useState, useSyncExternalStore } from "react";
 import { cn } from "#lib";
-import { waystoneVariants } from "./variants";
+import { waystoneVariants } from "./variants.ts";
 import {
   C,
   CLIP_R,
@@ -71,10 +71,10 @@ import {
   SKY_WH,
   SKY_XY,
   VIEW,
-} from "./waystone-geometry";
-import { BandLayer, DialArcs, DialCardinals, SkyLayers } from "./waystone-layers";
-import type { WaystoneWeather } from "./waystone-treatment";
-import { resolveWaystoneTreatment, waystonePhaseAtHour } from "./waystone-treatment";
+} from "./waystone-geometry.ts";
+import { BandLayer, DialArcs, DialCardinals, SkyLayers } from "./waystone-layers.tsx";
+import type { WaystoneWeather } from "./waystone-treatment.ts";
+import { resolveWaystoneTreatment, waystonePhaseAtHour } from "./waystone-treatment.ts";
 
 /** The ambient clock as the stone reads it. The HOUR is the whole time axis: it drives the dial angle, the
  *  interpolated sky, the sun/moon's point on its arc, and the star ramp — the six `TIME_OF_DAY` labels stay a

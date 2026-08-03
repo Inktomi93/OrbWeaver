@@ -3,10 +3,10 @@
 // oracle). Schedules are live config, not a retained audit row, so the row is hard-deleted.
 
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { DeleteScheduleParams } from "../contract/schedule";
-import type { WorkloadService, WorkloadServiceContext } from "../contract/service";
-import { deleteScheduleRow, loadSchedule } from "../persistence/schedule-queries";
-import { isVisibleToCaller } from "../substrate/authorize";
+import type { DeleteScheduleParams } from "../contract/schedule.ts";
+import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
+import { deleteScheduleRow, loadSchedule } from "../persistence/schedule-queries.ts";
+import { isVisibleToCaller } from "../substrate/authorize.ts";
 
 const ENTITY = "workload_schedule";
 

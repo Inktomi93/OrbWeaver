@@ -12,7 +12,7 @@ import type { ChatId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { createPluginHost, Sandbox } from "@orb/server/infra/plugin-host";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const FIXED_EPOCH = 1_700_000_000_000;
 const CHAT = "chat_test0000000000000000000" as ChatId;

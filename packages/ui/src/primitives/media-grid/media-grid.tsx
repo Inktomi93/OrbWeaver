@@ -4,7 +4,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { GapToken } from "#lib";
 import { assertBoundedScrollHeight, cn, gapPxFor, prefersReducedMotionNow } from "#lib";
 import { Check, Icon } from "#primitives/icons";
-import { mediaGridVariants } from "./variants";
+import { mediaGridVariants } from "./variants.ts";
 
 const DEFAULT_MIN_CELL_WIDTH_PX = 96;
 const DEFAULT_OVERSCAN = 2;

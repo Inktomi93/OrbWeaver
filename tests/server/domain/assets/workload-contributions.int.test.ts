@@ -14,7 +14,7 @@ import { beforeEach, describe, onTestFinished, vi } from "vitest";
 import type { AssetsWorkloadDeps } from "../../../../packages/server/src/domain/assets/contract/service.ts";
 import { createAssetsWorkloadContributions } from "../../../../packages/server/src/domain/assets/workload-contributions.ts";
 import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { makeHarness, seedCharacter, seedUser } from "./_support.ts";
 
 const T0 = 1_700_000_000_000;

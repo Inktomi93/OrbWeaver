@@ -1,4 +1,4 @@
-import base from "./vitest.config";
+import base from "./vitest.config.ts";
 
 // Vitest config for the Stryker MUTATION lane (stryker.config.json / stryker.gate.config.json point here
 // via `vitest.configFile`). It DERIVES from the real vitest.config.ts so the rigor defaults

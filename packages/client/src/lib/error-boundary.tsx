@@ -3,7 +3,7 @@
 
 import type { ErrorInfo, ReactNode } from "react";
 import { Component, captureOwnerStack } from "react";
-import { IS_DEV } from "./dev-flag";
+import { IS_DEV } from "./dev-flag.ts";
 
 export interface AppErrorBoundaryProps {
   /** Renders the crash fallback for the caught error. */

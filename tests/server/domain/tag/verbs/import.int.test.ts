@@ -7,7 +7,7 @@ import { createTagLibraryImport, createTagService } from "@orb/server/domain/tag
 import { buildTagLibrary } from "@orb/server/kit/serde/tag";
 import { describe } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeTagHarness, principal, seedUser } from "../_support.ts";
 
 function libBytes(names: readonly string[]): Uint8Array {

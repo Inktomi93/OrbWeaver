@@ -1,2 +1,2 @@
-export type { DiffViewProps } from "./diff";
-export { DiffView } from "./diff";
+export type { DiffViewProps } from "./diff.tsx";
+export { DiffView } from "./diff.tsx";

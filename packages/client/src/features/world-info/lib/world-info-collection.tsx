@@ -15,11 +15,11 @@
 
 import { BookOpen } from "@orb/ui/icons";
 import type { CollectionContribution } from "#lib";
-import { WorldInfoCollectionRows } from "../components/world-info-collection-rows";
-import { WorldInfoContextBody } from "../components/world-info-context-body";
-import { useCreateWorldInfoMember, useImportWorldInfoMember, useWorldInfoCount } from "../hooks/use-world-info-collection";
-import { WorldInfoMemberSurface } from "../surfaces/world-info-member-surface";
-import { WORLD_INFO_COLLECTION_ID } from "./world-info-model";
+import { WorldInfoCollectionRows } from "../components/world-info-collection-rows.tsx";
+import { WorldInfoContextBody } from "../components/world-info-context-body.tsx";
+import { useCreateWorldInfoMember, useImportWorldInfoMember, useWorldInfoCount } from "../hooks/use-world-info-collection.ts";
+import { WorldInfoMemberSurface } from "../surfaces/world-info-member-surface.tsx";
+import { WORLD_INFO_COLLECTION_ID } from "./world-info-model.ts";
 
 export const worldInfoCollection: CollectionContribution = {
   id: WORLD_INFO_COLLECTION_ID,

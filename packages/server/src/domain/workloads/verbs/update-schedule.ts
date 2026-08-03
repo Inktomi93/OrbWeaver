@@ -6,11 +6,11 @@
 import type { ScheduleCadence, WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { UpdateScheduleParams, WorkloadScheduleRow } from "../contract/schedule";
-import type { WorkloadService, WorkloadServiceContext } from "../contract/service";
-import { loadSchedule, updateScheduleFields } from "../persistence/schedule-queries";
-import { assertKindSupportsMode, isVisibleToCaller } from "../substrate/authorize";
-import { parseWorkloadInput } from "../substrate/params";
+import type { UpdateScheduleParams, WorkloadScheduleRow } from "../contract/schedule.ts";
+import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
+import { loadSchedule, updateScheduleFields } from "../persistence/schedule-queries.ts";
+import { assertKindSupportsMode, isVisibleToCaller } from "../substrate/authorize.ts";
+import { parseWorkloadInput } from "../substrate/params.ts";
 
 const ENTITY = "workload_schedule";
 

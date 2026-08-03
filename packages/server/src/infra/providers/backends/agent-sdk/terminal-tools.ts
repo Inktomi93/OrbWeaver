@@ -30,9 +30,9 @@ import type { HookInput, HookJSONOutput, McpSdkServerConfigWithInstance, Options
 import { createSdkMcpServer, tool } from "@anthropic-ai/claude-agent-sdk";
 import { JsonSchemaLiftError, liftJsonSchema } from "@orb/kit/json-schema";
 import type { ZodRawShape } from "zod";
-import type { ToolCallInput, WireTool } from "../../contract";
-import { logProviderTerminalTools } from "./log";
-import { TERMINAL_MCP_NAMESPACE } from "./translate";
+import type { ToolCallInput, WireTool } from "../../contract/index.ts";
+import { logProviderTerminalTools } from "./log.ts";
+import { TERMINAL_MCP_NAMESPACE } from "./translate.ts";
 
 /** The model-visible prefix the SDK gives every tool of the terminal mount (`mcp__<ns>__<tool>`). */
 const TERMINAL_TOOL_PREFIX = `mcp__${TERMINAL_MCP_NAMESPACE}__`;

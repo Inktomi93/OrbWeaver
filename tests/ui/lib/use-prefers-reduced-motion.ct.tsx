@@ -4,7 +4,7 @@
 // gating behavior via its own CT `page.emulateMedia`; this file proves the shared hook itself
 // reflects `matchMedia` correctly, including a LIVE flip after mount, not just at mount time.
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ReducedMotionProbe } from "./use-prefers-reduced-motion.fixtures";
+import { ReducedMotionProbe } from "./use-prefers-reduced-motion.fixtures.tsx";
 
 test("defaults to false with no-preference", async ({ mount }) => {
   const component = await mount(<ReducedMotionProbe />);

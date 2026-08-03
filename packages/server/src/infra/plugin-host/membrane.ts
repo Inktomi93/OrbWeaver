@@ -29,10 +29,10 @@ import type {
 import { HOST_FUNCTION_CAPABILITY, PluginCapabilityError } from "@orb/contracts/plugin";
 import type { VarOp } from "@orb/kit/macro";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle } from "quickjs-emscripten-core";
-import type { SafeFetchOptions } from "../network/egress";
-import { safeFetch } from "../network/egress";
-import { HOST_CALLS_IN_FLIGHT_MAX, HOST_FN_DEADLINE_MS, HOST_FN_RESULT_CAP_BYTES, PLUGIN_NET_MAX_BYTES } from "./budgets";
-import { jsToHandle } from "./marshal";
+import type { SafeFetchOptions } from "../network/egress.ts";
+import { safeFetch } from "../network/egress.ts";
+import { HOST_CALLS_IN_FLIGHT_MAX, HOST_FN_DEADLINE_MS, HOST_FN_RESULT_CAP_BYTES, PLUGIN_NET_MAX_BYTES } from "./budgets.ts";
+import { jsToHandle } from "./marshal.ts";
 
 export type { InvocationChat, PluginBridge } from "@orb/contracts/plugin";
 

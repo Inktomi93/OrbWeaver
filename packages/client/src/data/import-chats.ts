@@ -5,7 +5,7 @@
 // THAT, never from the uploaded filenames. A non-200 (whole-batch rejection) throws.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import { throwHttpError } from "./http-error";
+import { throwHttpError } from "./http-error.ts";
 
 const IMPORT_URL = "/api/import/chat";
 const IMPORT_FIELD = "file";

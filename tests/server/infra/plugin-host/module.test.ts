@@ -6,7 +6,7 @@ import { getPluginQuickJS } from "@orb/server/infra/plugin-host";
 import type { QuickJSContext } from "quickjs-emscripten-core";
 import { isFail } from "quickjs-emscripten-core";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 /** Eval a string-returning guest expression, disposing the handle. Throws if the guest errored. */
 function evalString(ctx: QuickJSContext, code: string): string {

@@ -15,7 +15,7 @@ import { slugifyHandle } from "@orb/kit/slug";
 import { z } from "zod";
 import { sha256Hex } from "#kit/content-hash";
 import { cardFromJson, extractLorebook, loreEntryColumns, loreEntryMetadata, selectBestCharacterBook } from "#kit/serde/card";
-import { ImportCardError } from "../contract/errors";
+import { ImportCardError } from "../contract/errors.ts";
 
 // UTF-8 BOM codepoint — Windows exports + some editors prepend one and `JSON.parse` rejects it.
 const UTF8_BOM = 0xfe_ff;

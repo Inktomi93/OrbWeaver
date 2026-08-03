@@ -14,7 +14,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe } from "vitest";
-import { expect, test } from "../support/fixtures";
+import { expect, test } from "../support/fixtures.ts";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 // This ledger lives under tests/tooling (a non-mirror exempt tree — it guards the whole chat feature, not

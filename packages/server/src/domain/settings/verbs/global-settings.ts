@@ -4,10 +4,10 @@
 // a system-level event (no user context → `actorUserId: null`).
 
 import { DomainOperationError } from "@orb/kit/errors";
-import { SETTINGS_OP_CODES } from "../contract/errors";
-import { APP_SETTINGS_KEY } from "../contract/keys";
-import type { SettingsContext, SettingsService } from "../contract/service";
-import { readGlobalSetting, upsertGlobalSetting } from "../persistence/queries";
+import { SETTINGS_OP_CODES } from "../contract/errors.ts";
+import { APP_SETTINGS_KEY } from "../contract/keys.ts";
+import type { SettingsContext, SettingsService } from "../contract/service.ts";
+import { readGlobalSetting, upsertGlobalSetting } from "../persistence/queries.ts";
 
 interface GlobalSettingsVerbs {
   readonly getGlobalSetting: SettingsService["getGlobalSetting"];

@@ -16,10 +16,10 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import type { MessageRenderContext, RowRenderPolicy } from "#lib";
 import { renderMessageForDisplay } from "#lib";
-import { toContentBlocks } from "../lib/content-blocks";
-import { colorForCharacter } from "../lib/speaker-color";
-import { MessageChoicesBlock } from "./message-choices-block";
-import { MessageMediaBlock } from "./message-media-block";
+import { toContentBlocks } from "../lib/content-blocks.ts";
+import { colorForCharacter } from "../lib/speaker-color.ts";
+import { MessageChoicesBlock } from "./message-choices-block.tsx";
+import { MessageMediaBlock } from "./message-media-block.tsx";
 
 /** A stable empty cast list — a fresh `[]` per render would be a new identity for no reason. */
 const NO_CAST_NAMES: readonly string[] = [];

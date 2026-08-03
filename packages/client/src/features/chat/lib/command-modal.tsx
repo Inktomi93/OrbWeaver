@@ -5,8 +5,8 @@
 import { Command } from "@orb/ui/icons";
 import type { ModalDefinition } from "#state";
 import { useSectionRegistry } from "#state";
-import type { GoToSection } from "../surfaces/command-palette-surface";
-import { CommandPaletteSurface } from "../surfaces/command-palette-surface";
+import type { GoToSection } from "../surfaces/command-palette-surface.tsx";
+import { CommandPaletteSurface } from "../surfaces/command-palette-surface.tsx";
 
 function CommandModalBody(): ReturnType<typeof CommandPaletteSurface> {
   const registry = useSectionRegistry();

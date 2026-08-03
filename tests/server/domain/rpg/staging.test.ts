@@ -7,8 +7,8 @@ import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import type { ChatTurnId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { createRpgStagingStore } from "../../../../packages/server/src/domain/rpg/staging";
-import { emptyState, expect, quest, questId, test } from "./_support";
+import { createRpgStagingStore } from "../../../../packages/server/src/domain/rpg/staging.ts";
+import { emptyState, expect, quest, questId, test } from "./_support.ts";
 
 const TURN_A = castId<ChatTurnId>("chat_turn_a");
 const TURN_B = castId<ChatTurnId>("chat_turn_b");

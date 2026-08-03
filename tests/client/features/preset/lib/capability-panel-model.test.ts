@@ -17,8 +17,8 @@ import {
   samplingKnobsFor,
   supportsSeed,
   verbosityLevelsFor,
-} from "../../../../../packages/client/src/features/preset/lib/capability-panel-model";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/client/src/features/preset/lib/capability-panel-model.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const R = (min: number, max: number): Range => ({ min, max });
 

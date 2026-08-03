@@ -17,7 +17,7 @@
 // input. A caller can only ever read its OWN identity; there is no input to widen it.
 
 import type { ViewerView } from "#domain/sessions";
-import { authedProcedure, t } from "../trpc";
+import { authedProcedure, t } from "../trpc.ts";
 
 export const sessionsRouter = t.router({
   // The canonical viewer read — a pure projection of the resolved `Principal` (see file header). No verb,

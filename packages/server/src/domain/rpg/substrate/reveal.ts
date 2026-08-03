@@ -8,7 +8,7 @@
 import type { RpgRevealedMessage, RpgRevealedSpan, RpgRevealView, RpgStandingLie } from "@orb/contracts/rpg";
 import type { ContentSpan } from "@orb/kit/content";
 import { HIDDEN_TAGS, tokenizeContent } from "@orb/kit/content";
-import type { RevealBodyRow } from "../contract/service";
+import type { RevealBodyRow } from "../contract/service.ts";
 
 /** Project ONE hidden span into its labelled fields (registry order — `character/type/truth/reason` for a lie).
  *  A missing attr projects `""` (the model omitted it; the panel still shows the labelled slot). `null` when the

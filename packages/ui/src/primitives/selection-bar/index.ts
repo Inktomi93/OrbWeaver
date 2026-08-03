@@ -1,2 +1,2 @@
-export type { SelectionBarProps } from "./selection-bar";
-export { SelectionBar } from "./selection-bar";
+export type { SelectionBarProps } from "./selection-bar.tsx";
+export { SelectionBar } from "./selection-bar.tsx";

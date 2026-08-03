@@ -6,8 +6,8 @@
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import type { ReactElement, ReactNode } from "react";
-import { useFormContext } from "../contexts";
-import { fieldErrorText } from "./field-error";
+import { useFormContext } from "../contexts.ts";
+import { fieldErrorText } from "./field-error.ts";
 
 export interface SubmitButtonProps {
   readonly children?: ReactNode;

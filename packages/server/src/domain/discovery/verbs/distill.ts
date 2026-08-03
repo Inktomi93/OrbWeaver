@@ -30,13 +30,13 @@ import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { runStructuredTurn } from "@orb/server/kit/structured-turn";
 import type { BatchItem } from "drizzle-orm/batch";
 import { z } from "zod";
-import type { DiscoveryContext } from "../context";
-import { CardNotDistillableError, DistillFailedError } from "../contract/errors";
-import type { DistillCharactersOptions } from "../contract/params";
-import type { CharacterDistillation, DistillStats } from "../contract/results";
-import type { DiscoveryService, DistillCharactersDeps } from "../contract/service";
-import { readCardDistillTargets } from "../persistence/card-reads";
-import { traceStructuredRetry } from "../substrate/structured-retry-trace";
+import type { DiscoveryContext } from "../context.ts";
+import { CardNotDistillableError, DistillFailedError } from "../contract/errors.ts";
+import type { DistillCharactersOptions } from "../contract/params.ts";
+import type { CharacterDistillation, DistillStats } from "../contract/results.ts";
+import type { DiscoveryService, DistillCharactersDeps } from "../contract/service.ts";
+import { readCardDistillTargets } from "../persistence/card-reads.ts";
+import { traceStructuredRetry } from "../substrate/structured-retry-trace.ts";
 
 /** Bind the distill pass over the DI bundle (the verb-naming factory the service composes). Projects the
  *  context's sub-deps onto the standalone {@link distillCharacters} — the workload runner reaches the same

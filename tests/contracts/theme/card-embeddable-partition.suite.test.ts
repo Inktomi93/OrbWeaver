@@ -21,7 +21,7 @@ import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { CARD_EMBEDDABLE_THEME_KEYS, cardEmbeddableSubset, themeBackgroundSchema, themeOverrideSchema, VIEWER_SACRED_THEME_KEYS } from "@orb/contracts/theme";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 /** The two deliberate word-shares between the card-carriable plane and the viewer's own settings blob. */
 const DELIBERATE_VOCABULARY_OVERLAP = ["density"];

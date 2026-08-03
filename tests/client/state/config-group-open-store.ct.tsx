@@ -6,7 +6,7 @@
 // group the user already has open.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ConfigGroupOpenProbe } from "./_ct-stories";
+import { ConfigGroupOpenProbe } from "./_ct-stories.tsx";
 
 test("every group starts collapsed; a toggle flips ONE of them", async ({ mount }) => {
   const probe = await mount(<ConfigGroupOpenProbe />);

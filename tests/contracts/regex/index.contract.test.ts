@@ -3,7 +3,7 @@ import { regexScriptBehaviorSchema, regexScriptCardSchema, regexScriptSchema, to
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { HISTORY_DEPTH_PLACEMENT, MAX_FIND_REGEX_LENGTH, REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const ROW_ID = mintTypeId(ID_PREFIX.regexScript);
 

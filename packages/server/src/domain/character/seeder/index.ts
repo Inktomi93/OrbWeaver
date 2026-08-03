@@ -9,7 +9,7 @@ export type {
   DefaultCharacterSeederDeps,
   SeedCard,
   SeededCardContent,
-} from "../contract/seeder";
-export { CARD_PACK_VERSION, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "./cards";
-export { matchesPriorPack, PRIOR_PACK_CONTENT } from "./pack-v1";
-export { createDefaultCharacterSeeder } from "./seed";
+} from "../contract/seeder.ts";
+export { CARD_PACK_VERSION, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "./cards.ts";
+export { matchesPriorPack, PRIOR_PACK_CONTENT } from "./pack-v1.ts";
+export { createDefaultCharacterSeeder } from "./seed.ts";

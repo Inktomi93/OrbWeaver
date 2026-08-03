@@ -51,10 +51,10 @@ import type { CharacterId, ChatId, PersonaId, PresetId, UserId } from "@orb/kit/
 import type { MacroRegistry } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
-import type { ChatContext } from "../context";
-import { ChatNotFoundError } from "../contract/errors";
-import type { ForeignInputs, ResolveForeignInputsOp } from "../contract/foreign";
-import type { ChatMetadata } from "../contract/metadata";
+import type { ChatContext } from "../context.ts";
+import { ChatNotFoundError } from "../contract/errors.ts";
+import type { ForeignInputs, ResolveForeignInputsOp } from "../contract/foreign.ts";
+import type { ChatMetadata } from "../contract/metadata.ts";
 import type {
   ChatEventBoundsParams,
   GetActivePresetConfigParams,
@@ -77,10 +77,10 @@ import type {
   ReplayChatEventsParams,
   ReplayStreamEventsParams,
   StreamEventBoundsParams,
-} from "../contract/params";
-import type { PromptHistoryRegexEnv } from "../contract/regex";
-import type { HistoryBudgetInput, HistoryMacroNames } from "../contract/results";
-import type { ChatService } from "../contract/service";
+} from "../contract/params.ts";
+import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
+import type { HistoryBudgetInput, HistoryMacroNames } from "../contract/results.ts";
+import type { ChatService } from "../contract/service.ts";
 import type {
   ActionTemplatesPreview,
   AssembledPrompt,
@@ -96,9 +96,9 @@ import type {
   ShapeTrace,
   StreamEventBounds,
   VariantWireView,
-} from "../contract/views";
-import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard";
-import { loadChatMacroNameProducer } from "../persistence/macro-names";
+} from "../contract/views.ts";
+import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard.ts";
+import { loadChatMacroNameProducer } from "../persistence/macro-names.ts";
 import {
   listMemberChats,
   loadAncestorChain,
@@ -115,10 +115,10 @@ import {
   loadStreamBounds,
   loadStreamReplay,
   loadVariantWire,
-} from "../persistence/queries";
-import { loadPresentVisibilityRows, loadRoster } from "../persistence/roster";
-import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars";
-import { gatherAssembleContext } from "../substrate/assemble-gather";
+} from "../persistence/queries.ts";
+import { loadPresentVisibilityRows, loadRoster } from "../persistence/roster.ts";
+import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars.ts";
+import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import {
   buildAssemblyBudget,
   buildHistoryBudget,
@@ -135,13 +135,13 @@ import {
   shapeContextForSpeaker,
   shapeTurn,
   toShapeCanon,
-} from "../substrate/assembly-access";
-import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth";
+} from "../substrate/assembly-access.ts";
+import { clampMemberCard, isBelowHistoryFloor, NO_HISTORY_FLOOR, resolveCardVisibility, resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 
-import { toChatDetail } from "../substrate/chat-detail";
-import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember, viewerReadsHidden } from "../substrate/member-visibility";
-import { hostUserIdOf } from "../substrate/roster-host";
-import { presentHumanUserIdsOf } from "../substrate/roster-humans";
+import { toChatDetail } from "../substrate/chat-detail.ts";
+import { projectViewForMember, scrubChatEventReplayForMember, scrubStreamReplayForMember, viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { hostUserIdOf } from "../substrate/roster-host.ts";
+import { presentHumanUserIdsOf } from "../substrate/roster-humans.ts";
 
 /** The per-chat DECEPTION-active verdict for the member reasoning-strip (§3.6): `true` ⇒ a non-host viewer loses
  *  the whole reasoning channel for this game. Resolved through the injected `ChatRpgOps.resolveReasoningHostOnly`

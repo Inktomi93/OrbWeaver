@@ -8,7 +8,7 @@
 // canvas can't resolve `var()`. This test pins the pass-through contract with a fixture palette.
 import { buildBarListOption } from "../../../../packages/ui/src/charts/bar-list/option.ts";
 import type { ChartColors } from "../../../../packages/ui/src/charts/chart/use-chart-theme.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const ITEMS = [
   { id: "a", label: "Handbook", value: 42 },

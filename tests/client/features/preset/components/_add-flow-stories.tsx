@@ -12,9 +12,9 @@ import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { ParamsDeck } from "../../../../../packages/client/src/features/preset/components/params-deck";
-import { UserMacrosTab } from "../../../../../packages/client/src/features/preset/components/user-macros-tab";
-import { VariablesTab } from "../../../../../packages/client/src/features/preset/components/variables-tab";
+import { ParamsDeck } from "../../../../../packages/client/src/features/preset/components/params-deck.tsx";
+import { UserMacrosTab } from "../../../../../packages/client/src/features/preset/components/user-macros-tab.tsx";
+import { VariablesTab } from "../../../../../packages/client/src/features/preset/components/variables-tab.tsx";
 
 const STORY_PRESET = castId<PresetId>("preset_addflowstoryy");
 

@@ -6,8 +6,8 @@
 // (character-appearance-tab.tsx). No `draft` mirror — a low-stakes tweak, not worth a crash-survival slot.
 
 import { createAutosaveEntityForm } from "#forms";
-import type { CharacterThemeFormValues } from "../lib/character-theme-form-model";
-import { EMPTY_CHARACTER_THEME_FORM } from "../lib/character-theme-form-model";
+import type { CharacterThemeFormValues } from "../lib/character-theme-form-model.ts";
+import { EMPTY_CHARACTER_THEME_FORM } from "../lib/character-theme-form-model.ts";
 
 const THEME_AUTOSAVE_DEBOUNCE_MS = 300;
 

@@ -10,8 +10,8 @@
 import { useOrbSocket } from "@orb/client/data";
 import { NotificationBell } from "@orb/client/features/notifications";
 import type { ReactElement, ReactNode } from "react";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
-import { CtToastSurface } from "../../lib/_ct-stories";
+import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
 /** The app-root shape: ONE socket, above every room hook. */
 function SocketHost({ children }: { readonly children: ReactNode }): ReactElement {

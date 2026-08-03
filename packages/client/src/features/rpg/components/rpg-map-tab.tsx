@@ -11,7 +11,7 @@ import { Icon, MapIcon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { Kicker } from "./rpg-kicker";
+import { Kicker } from "./rpg-kicker.tsx";
 
 /** The locked Map viewport — the promise, stated. */
 export function RpgMapTab(): ReactElement {

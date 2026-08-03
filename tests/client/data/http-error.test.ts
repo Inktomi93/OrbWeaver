@@ -9,7 +9,7 @@
 
 import { throwHttpError } from "@orb/client/data";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // No trailing ` — ` separator on the empty-body path.
 const ENDS_AT_STATUS_TEXT = /Internal Server Error$/u;

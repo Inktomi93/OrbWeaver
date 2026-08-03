@@ -14,7 +14,7 @@ import { useState } from "react";
 import { ConfirmDialog, RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { clearCharacterSelection, selectCharacter } from "#state";
-import { useCreatePersonaFromCharacter, useDuplicateCharacter, useRemoveCharacter, useSetWelcomeGreeter } from "../hooks/use-character-context-mutations";
+import { useCreatePersonaFromCharacter, useDuplicateCharacter, useRemoveCharacter, useSetWelcomeGreeter } from "../hooks/use-character-context-mutations.ts";
 
 export interface CharacterActionsMenuProps {
   readonly characterId: CharacterId;

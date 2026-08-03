@@ -16,7 +16,7 @@ import type { ChatId, PresetId, RpgCheckpointId, RpgJournalId, RpgQuestId } from
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { MAX_USER_MACROS, userMacroSchema } from "#preset";
-import { rpgActorOpSchema, rpgActorRefSchema, rpgCastRefSchema } from "./actor";
+import { rpgActorOpSchema, rpgActorRefSchema, rpgCastRefSchema } from "./actor.ts";
 import {
   RPG_DATE_MODES,
   RPG_EXTRACTION_CONTEXTS,
@@ -25,10 +25,10 @@ import {
   RPG_EXTRACTION_WINDOW_TOKENS_MIN,
   RPG_RECONCILE_EVERY_BEATS_MAX,
   RPG_STEERING_NOTE_MAX,
-} from "./config";
-import { RPG_CYOA_CHOICE_BEHAVIORS, rpgGameModeSchema, rpgJournalTypeSchema, rpgQuestStatusSchema } from "./enums";
-import { rpgStatProfileSchema } from "./profile";
-import { RPG_HINT_MAX, rpgTrackerDefSchema } from "./tracker";
+} from "./config.ts";
+import { RPG_CYOA_CHOICE_BEHAVIORS, rpgGameModeSchema, rpgJournalTypeSchema, rpgQuestStatusSchema } from "./enums.ts";
+import { rpgStatProfileSchema } from "./profile.ts";
+import { RPG_HINT_MAX, rpgTrackerDefSchema } from "./tracker.ts";
 
 /** The shared chatId trust-boundary field — game-ness + authority BOTH resolve through it (no `ownerId`, D23). */
 const chatIdField = brandedId<ChatId>();

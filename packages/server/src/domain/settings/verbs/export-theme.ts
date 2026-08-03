@@ -7,9 +7,9 @@
 import type { UserId } from "@orb/kit/ids";
 import type { CanonicalTheme } from "#kit/serde/theme";
 import { buildThemeBackup } from "#kit/serde/theme";
-import type { SettingsPortableFile } from "../contract/portability";
-import type { SettingsContext } from "../contract/service";
-import { listOwnedThemes } from "../persistence/theme-queries";
+import type { SettingsPortableFile } from "../contract/portability.ts";
+import type { SettingsContext } from "../contract/service.ts";
+import { listOwnedThemes } from "../persistence/theme-queries.ts";
 
 /** The relative filename the owner's whole theme library serializes to (one backup file per owner). */
 const THEME_BACKUP_FILENAME = "themes.json";

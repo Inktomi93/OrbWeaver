@@ -15,7 +15,7 @@ import { DomainConflictError } from "@orb/kit/errors";
 import type { Hono } from "hono";
 import type { WorkloadService } from "#domain/workloads";
 import { hasCsrfHeader } from "#infra/auth";
-import { IMPORT_MAX_TOTAL_BYTES } from "../import";
+import { IMPORT_MAX_TOTAL_BYTES } from "../import/index.ts";
 
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;

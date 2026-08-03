@@ -3,10 +3,10 @@
 // enqueues from it (`findDueSchedules` filters on `enabled`).
 
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { SetScheduleEnabledParams, WorkloadScheduleRow } from "../contract/schedule";
-import type { WorkloadService, WorkloadServiceContext } from "../contract/service";
-import { loadSchedule, setScheduleEnabledQuery } from "../persistence/schedule-queries";
-import { isVisibleToCaller } from "../substrate/authorize";
+import type { SetScheduleEnabledParams, WorkloadScheduleRow } from "../contract/schedule.ts";
+import type { WorkloadService, WorkloadServiceContext } from "../contract/service.ts";
+import { loadSchedule, setScheduleEnabledQuery } from "../persistence/schedule-queries.ts";
+import { isVisibleToCaller } from "../substrate/authorize.ts";
 
 const ENTITY = "workload_schedule";
 

@@ -7,10 +7,10 @@ import { errorMessage } from "@orb/kit/error-message";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { z } from "zod";
-import { ToolNameCollisionError } from "../contract/errors";
-import type { ToolDefinition, ToolExecutionContext } from "../contract/params";
-import { TOOL_NAME_RE } from "../contract/params";
-import type { RegisteredTool, RunOutcome, ToolRegistry } from "../contract/results";
+import { ToolNameCollisionError } from "../contract/errors.ts";
+import type { ToolDefinition, ToolExecutionContext } from "../contract/params.ts";
+import { TOOL_NAME_RE } from "../contract/params.ts";
+import type { RegisteredTool, RunOutcome, ToolRegistry } from "../contract/results.ts";
 
 // Fused so the typed pair never escapes: parse → gate → invoke.
 function eraseDefinition<A>(def: ToolDefinition<A>): RegisteredTool {

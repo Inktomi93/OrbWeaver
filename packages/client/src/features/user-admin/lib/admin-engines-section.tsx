@@ -12,9 +12,9 @@
 // No `when`: the admin pane carries the viewer gate.
 
 import type { SettingsSectionContribution } from "#state";
-import { AdminEnginesSection } from "../components/admin-engines-section";
-import { ADMIN_ENGINES_SUBCATEGORY } from "./admin-engines-nav";
-import { ENGINE_LAUNCH_CLAIM_KEYS } from "./engine-launch-fields";
+import { AdminEnginesSection } from "../components/admin-engines-section.tsx";
+import { ADMIN_ENGINES_SUBCATEGORY } from "./admin-engines-nav.ts";
+import { ENGINE_LAUNCH_CLAIM_KEYS } from "./engine-launch-fields.ts";
 
 export const adminEnginesSection: SettingsSectionContribution = {
   id: "admin-engines",

@@ -36,8 +36,8 @@ import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { can } from "@orb/server/domain/admin";
 import { and, eq, isNull } from "drizzle-orm";
-import type { ChatContext } from "../../../../packages/server/src/domain/chat/context";
-import type { TurnRequest, TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results";
+import type { ChatContext } from "../../../../packages/server/src/domain/chat/context.ts";
+import type { TurnRequest, TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 

@@ -16,8 +16,8 @@ import { SettingSwitchRow } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { settingsAnchorId } from "#state";
-import { PERSONA_SUBCATEGORY_IDS, PERSONA_SUBCATEGORY_LABEL } from "../lib/personas-nav";
-import { PersonaPanelSurface } from "./persona-panel-surface";
+import { PERSONA_SUBCATEGORY_IDS, PERSONA_SUBCATEGORY_LABEL } from "../lib/personas-nav.ts";
+import { PersonaPanelSurface } from "./persona-panel-surface.tsx";
 
 interface PersonaPrefsPatchVars {
   readonly section: "persona";

@@ -6,4 +6,4 @@
 // and handed to `createConnectionService` — connection sideways-imports none of those (domain-no-cross-feature;
 // the cross-feature/infra edges are type-only on the contract).
 
-export type { ConnectionContext } from "./contract/service";
+export type { ConnectionContext } from "./contract/service.ts";

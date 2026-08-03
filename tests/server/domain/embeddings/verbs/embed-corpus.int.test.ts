@@ -13,7 +13,7 @@ import { createEmbeddingsService, EmbedFailedError } from "@orb/server/domain/em
 import { describe } from "vitest";
 import { upsertCharacterEmbedding } from "../../../../../packages/server/src/domain/embeddings/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedCharacter, seedUser } from "../_support.ts";
 
 const STALE_MODEL = "old-embed-model-v0";

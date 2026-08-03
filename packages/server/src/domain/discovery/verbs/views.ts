@@ -7,12 +7,12 @@
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { cosineSim } from "@orb/kit/vector-math";
-import type { DiscoveryContext } from "../context";
-import type { ThemeLevel } from "../contract/params";
-import type { CharacterDossier, HomeView, ThemeDetail } from "../contract/results";
-import type { DiscoveryService, ViewsDeps } from "../contract/service";
-import { readCorpusCoverage, readOwnedPortraitPairs, readThemeClusterMembers, readThemeClusterTimeline } from "../persistence/embed-store-reads";
-import { readOwnedCardFacet } from "../persistence/summary-reads";
+import type { DiscoveryContext } from "../context.ts";
+import type { ThemeLevel } from "../contract/params.ts";
+import type { CharacterDossier, HomeView, ThemeDetail } from "../contract/results.ts";
+import type { DiscoveryService, ViewsDeps } from "../contract/service.ts";
+import { readCorpusCoverage, readOwnedPortraitPairs, readThemeClusterMembers, readThemeClusterTimeline } from "../persistence/embed-store-reads.ts";
+import { readOwnedCardFacet } from "../persistence/summary-reads.ts";
 
 const HOME_TOP_THEMES = 8;
 const THEME_DETAIL_MEMBERS = 15;

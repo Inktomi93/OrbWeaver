@@ -27,10 +27,10 @@ import { useRef, useState } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { selectCorpusCharacter } from "#state";
-import { CharacterAvatar } from "../components/character-avatar";
-import { CorpusDistillEmptyState } from "../components/corpus-distill-empty-state";
-import { characterFacetLine } from "../lib/character-facet";
-import { toBarItems } from "../lib/corpus-charts";
+import { CharacterAvatar } from "../components/character-avatar.tsx";
+import { CorpusDistillEmptyState } from "../components/corpus-distill-empty-state.tsx";
+import { characterFacetLine } from "../lib/character-facet.ts";
+import { toBarItems } from "../lib/corpus-charts.ts";
 
 const ALIGNMENT_PRECISION = 2;
 const KEYWORD_LIMIT = 24;

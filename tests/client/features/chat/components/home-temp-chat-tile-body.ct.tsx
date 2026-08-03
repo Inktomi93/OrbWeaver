@@ -12,8 +12,8 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { ChatTempChatTileStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { ChatTempChatTileStory } from "../_ct-stories.tsx";
 
 /** The creation-only teaching, in the user's own terms — the gloss line that replaced the sample Badge. */
 const CREATION_ONLY_TEACHING_RE = /Marked Temporary from the moment it opens/u;

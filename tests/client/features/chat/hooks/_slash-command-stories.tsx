@@ -15,8 +15,8 @@ import { createContributorRegistry } from "@orb/client/lib";
 import { SlashCommandRegistryProvider } from "@orb/client/state";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { ComposerStory } from "../_ct-stories";
-import { SLASH_LOCKED_REASON } from "../fixtures";
+import { ComposerStory } from "../_ct-stories.tsx";
+import { SLASH_LOCKED_REASON } from "../fixtures.ts";
 
 function SpySlashMount({ context, onRunner, onFire }: SlashCommandMountProps & { readonly onFire: (fired: string) => void }): null {
   useEffect(() => {

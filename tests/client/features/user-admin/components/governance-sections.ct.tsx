@@ -7,10 +7,10 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import type { TrpcRecorder } from "../../../../support/ct/route-trpc";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { clearNumber, setNumber } from "../../../../support/ct/set-number";
-import { GovernanceSectionsStory } from "../_ct-stories";
+import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { clearNumber, setNumber } from "../../../../support/ct/set-number.ts";
+import { GovernanceSectionsStory } from "../_ct-stories.tsx";
 
 const UPDATE_PROC = "settings.updateAppSettings";
 const OWNER = { userId: "user_owner", handle: "owner", globalRole: "owner" };

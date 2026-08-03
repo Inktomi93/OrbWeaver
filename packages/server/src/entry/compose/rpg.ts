@@ -103,8 +103,8 @@ import {
 import type { ToolUseService } from "#domain/tool-use";
 import { logger } from "#foundation/observability";
 import type { ChatResult, ProviderExecutor } from "#infra/providers";
-import type { ChatComposeResult } from "./chat";
-import { minter } from "./minter";
+import type { ChatComposeResult } from "./chat.ts";
+import { minter } from "./minter.ts";
 
 /** The structured-output schema NAME the structured extraction passes as `responseFormat.name` (OpenAI
  *  `json_schema.name`; Anthropic tool name). One home — no scattered magic string. */

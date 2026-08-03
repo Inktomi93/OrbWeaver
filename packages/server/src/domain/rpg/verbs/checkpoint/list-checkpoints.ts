@@ -1,10 +1,10 @@
 // domain/rpg/verbs/checkpoint/list-checkpoints — listCheckpoints (rpg-design/05 §4.4). The game's labeled
 // bookmarks. Member-gated.
 
-import type { ListCheckpointsParams } from "../../contract/params";
-import type { RpgCheckpointRow, RpgContext, RpgService } from "../../contract/service";
-import { resolveMember } from "../../guard";
-import { listCheckpoints as listCheckpointRows } from "../../persistence/checkpoints";
+import type { ListCheckpointsParams } from "../../contract/params.ts";
+import type { RpgCheckpointRow, RpgContext, RpgService } from "../../contract/service.ts";
+import { resolveMember } from "../../guard.ts";
+import { listCheckpoints as listCheckpointRows } from "../../persistence/checkpoints.ts";
 
 export function createListCheckpoints(ctx: RpgContext): Pick<RpgService, "listCheckpoints"> {
   async function listCheckpoints(params: ListCheckpointsParams): Promise<readonly RpgCheckpointRow[]> {

@@ -9,8 +9,8 @@
 // `page` locators address it by accessible name.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { EntryEditorStory, EntryEditorSwitchStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { EntryEditorStory, EntryEditorSwitchStory } from "../_ct-stories.tsx";
 
 test("renders every field, commits a keyword chip, and autosaves the full input", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {

@@ -17,11 +17,17 @@
 // already here, the app tier's claims are now disjoint by construction.
 
 import type { SettingsSectionContribution } from "#state";
-import { ComputeSection } from "../components/compute-section";
-import { MultiUserSection, SharedAccessSection } from "../components/governance-sections";
-import { MediaTrustSection } from "../components/media-trust-section";
-import { OperationsSection } from "../components/operations-section";
-import { COMPUTE_SUBCATEGORY, MEDIA_TRUST_SUBCATEGORY, MULTI_USER_SUBCATEGORY, OPERATIONS_SUBCATEGORY, SHARED_ACCESS_SUBCATEGORY } from "./system-config-nav";
+import { ComputeSection } from "../components/compute-section.tsx";
+import { MultiUserSection, SharedAccessSection } from "../components/governance-sections.tsx";
+import { MediaTrustSection } from "../components/media-trust-section.tsx";
+import { OperationsSection } from "../components/operations-section.tsx";
+import {
+  COMPUTE_SUBCATEGORY,
+  MEDIA_TRUST_SUBCATEGORY,
+  MULTI_USER_SUBCATEGORY,
+  OPERATIONS_SUBCATEGORY,
+  SHARED_ACCESS_SUBCATEGORY,
+} from "./system-config-nav.ts";
 
 // Each contribution id has ONE home — these consts. An id is both the registry key and the id the body
 // REPORTS its save status under (§3), so the body takes it as a prop rather than re-spelling the literal.

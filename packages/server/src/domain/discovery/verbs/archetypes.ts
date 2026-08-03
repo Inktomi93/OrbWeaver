@@ -5,14 +5,14 @@
 
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import type { DiscoveryContext } from "../context";
-import type { ArchetypesOptions } from "../contract/params";
-import type { Archetype, ArchetypeMember } from "../contract/results";
-import type { DiscoveryService } from "../contract/service";
-import { readOwnedCharacterVectors } from "../persistence/embed-store-reads";
-import { readOwnedCardFacets } from "../persistence/summary-reads";
-import { collapseByHash } from "../substrate/collapse";
-import { kmeans } from "../substrate/kmeans";
+import type { DiscoveryContext } from "../context.ts";
+import type { ArchetypesOptions } from "../contract/params.ts";
+import type { Archetype, ArchetypeMember } from "../contract/results.ts";
+import type { DiscoveryService } from "../contract/service.ts";
+import { readOwnedCharacterVectors } from "../persistence/embed-store-reads.ts";
+import { readOwnedCardFacets } from "../persistence/summary-reads.ts";
+import { collapseByHash } from "../substrate/collapse.ts";
+import { kmeans } from "../substrate/kmeans.ts";
 
 /** Bind the archetypes read over the DI bundle (the verb-naming factory the service composes). */
 export function createArchetypes(ctx: DiscoveryContext): Pick<DiscoveryService, "archetypes"> {

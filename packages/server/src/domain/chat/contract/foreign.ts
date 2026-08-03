@@ -18,7 +18,7 @@ import type { DatabankRetrievalSettings } from "@orb/contracts/databank";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { ChatSettings } from "@orb/contracts/settings";
 import type { ChatId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
-import type { MemoryConfig } from "./memory";
+import type { MemoryConfig } from "./memory.ts";
 
 /** The host's turn-behavior knobs the engine honors (PD-146) — the schema-real `UserSettings.chat` arm the
  *  settings domain owns, picked (never re-spelled) to exactly the fields the SERVER turn path consumes:

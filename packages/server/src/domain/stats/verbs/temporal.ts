@@ -1,7 +1,7 @@
 import type { UserId } from "@orb/kit/ids";
-import type { StatsContext, StatsService } from "../contract/service";
-import type { TemporalStats } from "../contract/views";
-import { readTemporal } from "../persistence/rollups";
+import type { StatsContext, StatsService } from "../contract/service.ts";
+import type { TemporalStats } from "../contract/views.ts";
+import { readTemporal } from "../persistence/rollups.ts";
 
 // temporal — streaks / active days / busiest day / day-of-week, derived from daily_stats.
 

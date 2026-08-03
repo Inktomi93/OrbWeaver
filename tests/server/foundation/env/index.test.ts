@@ -3,7 +3,7 @@
 // biome-ignore-all lint/style/noProcessEnv: this test DRIVES the sole env reader by crafting process.env.
 import process from "node:process";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 // Re-import foundation/env under a controlled process.env so the module-level `envSchema.parse()` runs
 // against the crafted input. resetModules invalidates the cache; we wipe process.env first to strip the

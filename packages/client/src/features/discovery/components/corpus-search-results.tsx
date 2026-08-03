@@ -17,9 +17,9 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import { selectCorpusCharacter } from "#state";
-import { characterFacetLine } from "../lib/character-facet";
-import { CORPUS_IMAGE_LENS, CORPUS_SEARCH_TOP_N, resolveSearchTarget } from "../lib/corpus-search-targets";
-import { CharacterAvatar } from "./character-avatar";
+import { characterFacetLine } from "../lib/character-facet.ts";
+import { CORPUS_IMAGE_LENS, CORPUS_SEARCH_TOP_N, resolveSearchTarget } from "../lib/corpus-search-targets.ts";
+import { CharacterAvatar } from "./character-avatar.tsx";
 
 type UnifiedResult = inferOutput<Trpc["search"]["search"]>;
 type DiscoverHit = Extract<UnifiedResult, { over: "discover" }>["hits"][number];

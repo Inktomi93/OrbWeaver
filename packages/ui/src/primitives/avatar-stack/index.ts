@@ -1,2 +1,2 @@
-export type { AvatarStackItem, AvatarStackProps } from "./avatar-stack";
-export { AvatarStack } from "./avatar-stack";
+export type { AvatarStackItem, AvatarStackProps } from "./avatar-stack.tsx";
+export { AvatarStack } from "./avatar-stack.tsx";

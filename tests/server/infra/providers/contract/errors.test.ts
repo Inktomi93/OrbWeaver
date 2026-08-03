@@ -6,7 +6,7 @@
 
 import { PROVIDER_ERROR_KINDS, ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("ProviderError", () => {
   test("is an Error subclass tagged ProviderError, carrying kind + retryable", () => {

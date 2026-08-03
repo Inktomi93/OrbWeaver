@@ -7,7 +7,7 @@ import type { Db } from "@orb/db";
 import { presets } from "@orb/db";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { and, asc, desc, eq, isNull, or } from "drizzle-orm";
-import { SYSTEM_DEFAULT_PRESET_ID } from "../constants";
+import { SYSTEM_DEFAULT_PRESET_ID } from "../constants.ts";
 
 type PresetRow = typeof presets.$inferSelect;
 

@@ -30,12 +30,12 @@
 
 import { Database } from "@orb/ui/icons";
 import type { SectionDefinition } from "#state";
-import { DatabankLibraryAnchor } from "../anchors/databank-library-anchor";
-import { DatabankContextBody, DatabankContextHeader } from "../components/databank-context-body";
-import { DatabankListHeader } from "../components/databank-list-header";
-import { DatabankDetailSurface } from "../surfaces/databank-detail-surface";
-import { DatabankLibrarySurface } from "../surfaces/databank-library-surface";
-import { DATABANK_CONTEXT_EMPTY } from "./databank-copy";
+import { DatabankLibraryAnchor } from "../anchors/databank-library-anchor.tsx";
+import { DatabankContextBody, DatabankContextHeader } from "../components/databank-context-body.tsx";
+import { DatabankListHeader } from "../components/databank-list-header.tsx";
+import { DatabankDetailSurface } from "../surfaces/databank-detail-surface.tsx";
+import { DatabankLibrarySurface } from "../surfaces/databank-library-surface.tsx";
+import { DATABANK_CONTEXT_EMPTY } from "./databank-copy.ts";
 
 export const databankSection: SectionDefinition = {
   id: "databank",

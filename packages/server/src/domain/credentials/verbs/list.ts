@@ -2,11 +2,11 @@
 // Owner-scoped by `principal.userId`. Every row is projected through `toCredentialView`, so no secret
 // field (ciphertext/iv/tag) or plaintext key ever reaches the wire (invariant #4).
 
-import type { CredentialContext } from "../context";
-import type { ListCredentialsParams } from "../contract/params";
-import type { CredentialsService } from "../contract/service";
-import type { CredentialView } from "../contract/views";
-import { listOwnedCredentials, toCredentialView } from "../persistence/queries";
+import type { CredentialContext } from "../context.ts";
+import type { ListCredentialsParams } from "../contract/params.ts";
+import type { CredentialsService } from "../contract/service.ts";
+import type { CredentialView } from "../contract/views.ts";
+import { listOwnedCredentials, toCredentialView } from "../persistence/queries.ts";
 
 export function createList(ctx: CredentialContext): CredentialsService["list"] {
   return async (params: ListCredentialsParams): Promise<CredentialView[]> => {

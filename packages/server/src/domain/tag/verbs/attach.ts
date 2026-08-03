@@ -4,11 +4,11 @@
 // import/corpus distillation pass pending to stage a suggestion.
 
 import type { TagStatus } from "@orb/contracts/tag";
-import { TagNotFoundError } from "../contract/errors";
-import type { AttachTagParams, BulkAttachTagParams, DetachTagParams } from "../contract/params";
-import type { TagContext, TagService } from "../contract/service";
-import { bulkInsertJunctionRows, deleteJunctionRow, ensureTargetAccessible, insertJunctionRow } from "../persistence/junctions";
-import { fetchOwnedTagIds, loadOwnedTag } from "../persistence/queries";
+import { TagNotFoundError } from "../contract/errors.ts";
+import type { AttachTagParams, BulkAttachTagParams, DetachTagParams } from "../contract/params.ts";
+import type { TagContext, TagService } from "../contract/service.ts";
+import { bulkInsertJunctionRows, deleteJunctionRow, ensureTargetAccessible, insertJunctionRow } from "../persistence/junctions.ts";
+import { fetchOwnedTagIds, loadOwnedTag } from "../persistence/queries.ts";
 
 const DEFAULT_ATTACH_STATUS: TagStatus = "accepted";
 

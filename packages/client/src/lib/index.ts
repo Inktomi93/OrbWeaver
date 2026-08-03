@@ -7,14 +7,14 @@
 export type { SeededBackground } from "@orb/contracts/theme";
 export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "@orb/contracts/theme";
 export { cn } from "@orb/ui/lib";
-export { BACKGROUND_KIND_ITEMS, BACKGROUND_KIND_LABELS } from "./background-kind-items";
-export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog";
-export type { ChatWithCharacterSeats } from "./chats-with-character";
-export { chatsWithCharacter } from "./chats-with-character";
-export type { ClientErrorPayload } from "./client-error-report";
-export { buildClientErrorPayload } from "./client-error-report";
-export type { CollectionContext, CollectionContribution, CollectionDetailView, CollectionListView } from "./collection-contracts";
-export { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT } from "./collection-contracts";
+export { BACKGROUND_KIND_ITEMS, BACKGROUND_KIND_LABELS } from "./background-kind-items.ts";
+export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
+export type { ChatWithCharacterSeats } from "./chats-with-character.ts";
+export { chatsWithCharacter } from "./chats-with-character.ts";
+export type { ClientErrorPayload } from "./client-error-report.ts";
+export { buildClientErrorPayload } from "./client-error-report.ts";
+export type { CollectionContext, CollectionContribution, CollectionDetailView, CollectionListView } from "./collection-contracts.ts";
+export { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT } from "./collection-contracts.ts";
 export type {
   CharacterDetailAnchor,
   CharacterDetailContribution,
@@ -30,16 +30,16 @@ export type {
   SlashCommandMountProps,
   SlashCommandRunner,
   ToolRenderer,
-} from "./contribution-contracts";
-export { CHARACTER_DETAIL_ANCHORS, CHAT_SURFACE_ANCHORS, SLASH_COMMAND_GROUP_LABELS, SLASH_COMMAND_GROUPS } from "./contribution-contracts";
-export type { RegistryContext } from "./create-registry-context";
-export { createRegistryContext } from "./create-registry-context";
-export { IS_DEV } from "./dev-flag";
-export { downloadJson, downloadTextFile, downloadUrl, slugifyFilename } from "./download-json";
-export type { AppErrorBoundaryProps } from "./error-boundary";
-export { AppErrorBoundary } from "./error-boundary";
-export type { DormantDoorway, HomeTileContribution, HomeTileSpan } from "./home-tile-contracts";
-export { HOME_TILE_SPANS } from "./home-tile-contracts";
+} from "./contribution-contracts.ts";
+export { CHARACTER_DETAIL_ANCHORS, CHAT_SURFACE_ANCHORS, SLASH_COMMAND_GROUP_LABELS, SLASH_COMMAND_GROUPS } from "./contribution-contracts.ts";
+export type { RegistryContext } from "./create-registry-context.tsx";
+export { createRegistryContext } from "./create-registry-context.tsx";
+export { IS_DEV } from "./dev-flag.ts";
+export { downloadJson, downloadTextFile, downloadUrl, slugifyFilename } from "./download-json.ts";
+export type { AppErrorBoundaryProps } from "./error-boundary.tsx";
+export { AppErrorBoundary } from "./error-boundary.tsx";
+export type { DormantDoorway, HomeTileContribution, HomeTileSpan } from "./home-tile-contracts.ts";
+export { HOME_TILE_SPANS } from "./home-tile-contracts.ts";
 export {
   ASSISTANT_PREFILL_WARNING,
   CHOICE_NEEDS_LIVE_CHAT,
@@ -64,37 +64,37 @@ export {
   STEER_CUE_SWIPE,
   SWIPE_NEEDS_REPLY,
   sendUnavailableReason,
-} from "./injection-copy";
-export { logClock } from "./log-clock";
-export { messageBubbleClass } from "./message-bubble-class";
-export type { MessageRenderContext } from "./message-render";
-export { renderMessageForDisplay } from "./message-render";
-export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels";
-export type { Notify } from "./notify";
-export { bindNotify, notify } from "./notify";
-export { perfMark, perfMeasure } from "./perf-marks";
-export { isProbeMode } from "./probe-mode";
-export { withUserMacros } from "./prompt-macros";
-export { REGEX_PLACEMENT_ITEMS, REGEX_PLACEMENT_LABELS, regexPlacementStep, regexScriptScent, regexScriptTitle } from "./regex-placement-labels";
-export type { ContributorRegistry, Registry } from "./registry";
-export { createContributorRegistry, createRegistry } from "./registry";
-export * from "./registry-contracts";
-export { RenderProfiler } from "./render-profiler";
-export type { ResolveRowRenderPolicyInput, RowRenderPolicy } from "./render-trust";
-export { resolveRowRenderPolicy } from "./render-trust";
-export { rowQualifiers } from "./row-qualifiers";
-export type { ActiveTagFilterState, TagFilterEntry, TagFilterState } from "./tag-filter-state";
-export { cycleTagFilterEntries, NEXT_TAG_FILTER_STATE, TAG_FILTER_STATES, tagFilterStateOf } from "./tag-filter-state";
-export type { SortableTag, TagSortMode } from "./tag-sort";
-export { DEFAULT_TAG_SORT_MODE, sortTagsBy, TAG_SORT_MODES } from "./tag-sort";
-export { TEST_IDS, testId } from "./test-ids";
-export { DENSITY_ITEMS } from "./theme-appearance-items";
-export type { ThemeColorFields } from "./theme-override-form";
-export { assignThemeColorFields } from "./theme-override-form";
-export { timeLib } from "./time";
-export type { TrpcOpLogEntry } from "./trpc-devlog";
-export { formatTrpcOp } from "./trpc-devlog";
-export * from "./use-focus-on-mount";
-export { withViewTransition } from "./view-transition";
-export type { WeaveGlyphProps } from "./weave-glyph";
-export { WeaveGlyph } from "./weave-glyph";
+} from "./injection-copy.ts";
+export { logClock } from "./log-clock.ts";
+export { messageBubbleClass } from "./message-bubble-class.ts";
+export type { MessageRenderContext } from "./message-render.ts";
+export { renderMessageForDisplay } from "./message-render.ts";
+export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels.ts";
+export type { Notify } from "./notify.ts";
+export { bindNotify, notify } from "./notify.ts";
+export { perfMark, perfMeasure } from "./perf-marks.ts";
+export { isProbeMode } from "./probe-mode.ts";
+export { withUserMacros } from "./prompt-macros.ts";
+export { REGEX_PLACEMENT_ITEMS, REGEX_PLACEMENT_LABELS, regexPlacementStep, regexScriptScent, regexScriptTitle } from "./regex-placement-labels.ts";
+export type { ContributorRegistry, Registry } from "./registry.ts";
+export { createContributorRegistry, createRegistry } from "./registry.ts";
+export * from "./registry-contracts.ts";
+export { RenderProfiler } from "./render-profiler.tsx";
+export type { ResolveRowRenderPolicyInput, RowRenderPolicy } from "./render-trust.ts";
+export { resolveRowRenderPolicy } from "./render-trust.ts";
+export { rowQualifiers } from "./row-qualifiers.ts";
+export type { ActiveTagFilterState, TagFilterEntry, TagFilterState } from "./tag-filter-state.ts";
+export { cycleTagFilterEntries, NEXT_TAG_FILTER_STATE, TAG_FILTER_STATES, tagFilterStateOf } from "./tag-filter-state.ts";
+export type { SortableTag, TagSortMode } from "./tag-sort.ts";
+export { DEFAULT_TAG_SORT_MODE, sortTagsBy, TAG_SORT_MODES } from "./tag-sort.ts";
+export { TEST_IDS, testId } from "./test-ids.ts";
+export { DENSITY_ITEMS } from "./theme-appearance-items.ts";
+export type { ThemeColorFields } from "./theme-override-form.ts";
+export { assignThemeColorFields } from "./theme-override-form.ts";
+export { timeLib } from "./time.ts";
+export type { TrpcOpLogEntry } from "./trpc-devlog.ts";
+export { formatTrpcOp } from "./trpc-devlog.ts";
+export * from "./use-focus-on-mount.ts";
+export { withViewTransition } from "./view-transition.ts";
+export type { WeaveGlyphProps } from "./weave-glyph.tsx";
+export { WeaveGlyph } from "./weave-glyph.tsx";

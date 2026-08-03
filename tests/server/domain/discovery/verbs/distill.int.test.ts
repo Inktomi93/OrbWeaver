@@ -21,7 +21,7 @@ import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import type { DiscoveryContext } from "../../../../../packages/server/src/domain/discovery/index.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeTagHarness } from "../../tag/_support.ts";
 import { makeDiscoveryHarness, seedCharacter, seedUser } from "../_support.ts";
 

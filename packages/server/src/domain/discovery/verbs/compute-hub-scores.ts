@@ -6,10 +6,10 @@
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import type { VectorTable } from "#domain/embeddings";
-import type { DiscoveryContext } from "../context";
-import type { ComputeHubScoresOptions } from "../contract/params";
-import type { HubStats } from "../contract/results";
-import type { ComputeHubScoresDeps, DiscoveryService } from "../contract/service";
+import type { DiscoveryContext } from "../context.ts";
+import type { ComputeHubScoresOptions } from "../contract/params.ts";
+import type { HubStats } from "../contract/results.ts";
+import type { ComputeHubScoresDeps, DiscoveryService } from "../contract/service.ts";
 import {
   distinctCharacterHubOwners,
   distinctDigestHubOwners,
@@ -19,9 +19,9 @@ import {
   readDigestHubVectors,
   readImageHubVectors,
   readSegmentHubVectors,
-} from "../persistence/embed-store-reads";
-import { collapseByHash } from "../substrate/collapse";
-import { computeGroupHubs } from "../substrate/hub-math";
+} from "../persistence/embed-store-reads.ts";
+import { collapseByHash } from "../substrate/collapse.ts";
+import { computeGroupHubs } from "../substrate/hub-math.ts";
 
 interface HubRow {
   readonly id: string;

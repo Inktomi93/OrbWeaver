@@ -3,5 +3,5 @@ export type {
   MediaGridKey,
   MediaGridProps,
   MediaGridSelection,
-} from "./media-grid";
-export { MediaGrid } from "./media-grid";
+} from "./media-grid.tsx";
+export { MediaGrid } from "./media-grid.tsx";

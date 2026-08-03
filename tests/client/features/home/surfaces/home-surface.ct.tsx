@@ -7,7 +7,7 @@ import type { HomeTileContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
 import { Clock } from "@orb/ui/icons";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { HomeDormantTileStory, HomeEmptyStory, HomeTileOrderStory, HomeTileVisibilityStory } from "../_ct-stories";
+import { HomeDormantTileStory, HomeEmptyStory, HomeTileOrderStory, HomeTileVisibilityStory } from "../_ct-stories.tsx";
 
 const TEASER_RE = /Your companion/u;
 const REASON_RE = /waiting on: domain\/buddy/u;

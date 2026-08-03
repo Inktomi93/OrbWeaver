@@ -1,11 +1,11 @@
 // Big-number + optional sparkline, or a bare number+delta tile when there's no series to chart.
 import type { ReactElement } from "react";
 import { ChevronDown, ChevronUp, Icon, Minus } from "#primitives/icons";
-import type { OrbEChartsInstance } from "../chart";
-import { Chart } from "../chart";
-import { useChartTheme } from "../chart/use-chart-theme";
-import { buildSparklineOption } from "./option";
-import { statFigureVariants } from "./variants";
+import type { OrbEChartsInstance } from "../chart/index.ts";
+import { Chart } from "../chart/index.ts";
+import { useChartTheme } from "../chart/use-chart-theme.ts";
+import { buildSparklineOption } from "./option.ts";
+import { statFigureVariants } from "./variants.ts";
 
 export interface StatFigureDelta {
   /** Pre-formatted delta text (e.g. "+12% this week") — no Intl/number logic in ui. */

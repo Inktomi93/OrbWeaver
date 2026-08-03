@@ -8,7 +8,7 @@
 
 import { __setEgressResolverForTest, ANY_HOST, installEgressFirewall, safeFetch, shouldBlockEgress } from "@orb/server/infra/network";
 import { afterAll, beforeAll, describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const UNDICI_GLOBAL_DISPATCHER = Symbol.for("undici.globalDispatcher.1");
 const globalSlots = globalThis as typeof globalThis & Record<symbol, unknown>;

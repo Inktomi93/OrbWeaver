@@ -5,7 +5,7 @@
 // line. `clientRequestId` (never bare `requestId`) avoids overwriting this call's own request-scoped
 // binding with the unrelated id of whatever request the client is reporting about.
 
-import { getLog } from "./logger";
+import { getLog } from "./logger.ts";
 
 const FIELD_MAX = 4000;
 

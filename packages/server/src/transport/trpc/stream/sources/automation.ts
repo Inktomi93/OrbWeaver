@@ -29,8 +29,8 @@
 
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { StreamDataFrame } from "@orb/contracts/stream";
-import { subscribeAutomation } from "../../automation-bus";
-import type { RoomSourceDef } from "../room-source";
+import { subscribeAutomation } from "../../automation-bus.ts";
+import type { RoomSourceDef } from "../room-source.ts";
 
 /** The one MEMBER-visible automation-bus event (04 §5) — the transient quick-reply chips. Every OTHER event
  *  (ruleFired/ruleErrored/ruleAutoDisabled/rulesChanged) is the host's hidden hand, filtered out below for a

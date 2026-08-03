@@ -12,11 +12,11 @@ import type { Db } from "@orb/db";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Cas, VariantCache } from "#infra/storage";
-import type { AssetsContext } from "../context";
-import type { AssetsService } from "../contract/service";
-import { selectAllReferencedAssetIds } from "../persistence/asset-refs";
-import { loadOwnerAssetRows } from "../persistence/maintenance";
-import { purgeAsset } from "../substrate/purge-asset";
+import type { AssetsContext } from "../context.ts";
+import type { AssetsService } from "../contract/service.ts";
+import { selectAllReferencedAssetIds } from "../persistence/asset-refs.ts";
+import { loadOwnerAssetRows } from "../persistence/maintenance.ts";
+import { purgeAsset } from "../substrate/purge-asset.ts";
 
 /** The grace-window floor (epoch-ms): a blob touched within this of `now` is skipped even if unreferenced —
  *  it may be a just-stored, not-yet-linked import. One hour generously covers a single import request's

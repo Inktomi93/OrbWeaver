@@ -9,7 +9,7 @@
 
 import { breakerAllows, decideTick, engineBaseUrl, getEngineStatus, startVllmEngines } from "@orb/server/infra/providers/vllm/engine";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 // ── IO-shell harness (hoisted so the vi.mock factories can reach the shared fakes) ──────────────────────
 // OWNERSHIP INVERSION: the supervisor no longer forks in-process children — it invokes an injected

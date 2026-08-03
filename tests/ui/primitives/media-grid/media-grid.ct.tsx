@@ -4,7 +4,7 @@
 
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ActivatableGrid, AnimatedDispatchGrid, BasicGrid, DerivedItemsGrid, MixedContentGrid, SelectableGrid, UnboundedGrid } from "./media-grid.fixtures";
+import { ActivatableGrid, AnimatedDispatchGrid, BasicGrid, DerivedItemsGrid, MixedContentGrid, SelectableGrid, UnboundedGrid } from "./media-grid.fixtures.tsx";
 
 const ITEM_COUNT = 30;
 const MIN_CELL_WIDTH_PX = 100;

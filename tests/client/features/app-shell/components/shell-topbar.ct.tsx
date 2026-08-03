@@ -7,7 +7,7 @@
 // being read, not a hand-fed prop.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { AppShellOnSectionStory } from "../_ct-stories";
+import { AppShellOnSectionStory } from "../_ct-stories.tsx";
 
 const LIST_TOGGLE_RE = /^(?:Show|Hide) list panel$/u;
 

@@ -7,8 +7,8 @@
 
 import type { MessageView } from "@orb/contracts/chat";
 import { describe } from "vitest";
-import { abortedOutcome, committedOutcome } from "../../../../../packages/server/src/domain/chat/engine/result";
-import { expect, test } from "../../../../support/fixtures";
+import { abortedOutcome, committedOutcome } from "../../../../../packages/server/src/domain/chat/engine/result.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("engine/result — the TurnOutcome discriminant contract", () => {
   test("the two builders are the opposite arms of the `aborted` discriminant", () => {

@@ -8,7 +8,7 @@
 import { Field } from "@orb/ui/field";
 import { Slider as UiSlider } from "@orb/ui/slider";
 import type { ReactElement, ReactNode } from "react";
-import { useBoundField } from "./use-bound-field";
+import { useBoundField } from "./use-bound-field.ts";
 
 export interface BoundSliderFieldProps {
   readonly label: ReactNode;

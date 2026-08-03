@@ -6,7 +6,7 @@
 
 import { createGatedStore, STORE_DEVTOOLS_ENABLED } from "@orb/client/state";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const DUPLICATE_NAME_RE = /duplicate store name/u;
 

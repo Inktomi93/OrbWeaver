@@ -15,7 +15,7 @@ import { runBundleImport } from "@orb/server/entry/import";
 import type { ZipEntry } from "@orb/server/infra/storage";
 import { packZip } from "@orb/server/infra/storage";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("usr_owner");
 const enc = new TextEncoder();

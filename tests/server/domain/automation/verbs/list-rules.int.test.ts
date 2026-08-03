@@ -4,7 +4,7 @@
 import { automationRules } from "@orb/db";
 import { mintTypeId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { FIXED_NOW_MS, MSG_COMMITTED, principal, ruleFixture, SET_VAR } from "../_support.ts";
 
 describe("listRules", () => {

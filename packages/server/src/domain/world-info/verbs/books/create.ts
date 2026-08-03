@@ -4,9 +4,9 @@
 // (a book has no joined data, so no re-read is needed).
 
 import { worldBooks } from "@orb/db";
-import type { WorldInfoContext } from "../../context";
-import type { CreateBookParams } from "../../contract/params";
-import type { WorldInfoService } from "../../contract/service";
+import type { WorldInfoContext } from "../../context.ts";
+import type { CreateBookParams } from "../../contract/params.ts";
+import type { WorldInfoService } from "../../contract/service.ts";
 
 export function createCreate(ctx: WorldInfoContext): WorldInfoService["createBook"] {
   return async ({ principal, input }: CreateBookParams) => {

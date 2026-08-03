@@ -12,7 +12,7 @@ import type { QuickJSContext, QuickJSHandle } from "quickjs-emscripten-core";
 import { describe } from "vitest";
 import type { MembraneRuntime } from "../../../../packages/server/src/infra/plugin-host/membrane.ts";
 import { attachMembrane } from "../../../../packages/server/src/infra/plugin-host/membrane.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const CHAT = "chat_test0000000000000000000" as ChatId;
 const TOKEN = "opaque-token-abc";

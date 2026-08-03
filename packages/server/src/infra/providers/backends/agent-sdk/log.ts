@@ -4,8 +4,8 @@
 import type { ChatId } from "@orb/kit/ids";
 import type { ProviderCapabilityLog, ProviderTurnUsage } from "@orb/server/infra/providers/backends/kit";
 import { logProviderCapability as kitLogProviderCapability, providerLog } from "@orb/server/infra/providers/backends/kit";
-import type { ContextUsage, DynamicContextChannel, ProviderError } from "../../contract";
-import type { SeededSessionDecision } from "./session";
+import type { ContextUsage, DynamicContextChannel, ProviderError } from "../../contract/index.ts";
+import type { SeededSessionDecision } from "./session/index.ts";
 
 export type { ProviderTurnUsage } from "@orb/server/infra/providers/backends/kit";
 

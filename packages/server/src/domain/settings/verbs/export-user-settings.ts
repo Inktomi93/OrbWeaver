@@ -5,9 +5,9 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { buildUserSettingsBackup, projectShareSafe } from "#kit/serde/user-settings";
-import type { SettingsPortableFile } from "../contract/portability";
-import type { SettingsContext } from "../contract/service";
-import { readUserSettings } from "../persistence/queries";
+import type { SettingsPortableFile } from "../contract/portability.ts";
+import type { SettingsContext } from "../contract/service.ts";
+import { readUserSettings } from "../persistence/queries.ts";
 
 /** The relative filename the owner's share-safe settings serialize to. */
 const USER_SETTINGS_BACKUP_FILENAME = "user-settings.json";

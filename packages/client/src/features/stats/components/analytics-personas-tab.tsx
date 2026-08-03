@@ -10,7 +10,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
-import { formatCompact, personaBarItems } from "../lib/analytics-view-model";
+import { formatCompact, personaBarItems } from "../lib/analytics-view-model.ts";
 
 export function AnalyticsPersonasTab(): ReactElement {
   return (

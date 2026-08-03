@@ -9,9 +9,9 @@
 // asserted against the shell STORE, never a rendered echo.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { ChatRecentsTileStory } from "../_ct-stories";
-import { makeChatSummary } from "../fixtures";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { ChatRecentsTileStory } from "../_ct-stories.tsx";
+import { makeChatSummary } from "../fixtures.ts";
 
 const RECENT = makeChatSummary({ id: "chat_recent", title: "A grand adventure", participantNames: ["Wren"] });
 const GAME = makeChatSummary({ id: "chat_game", title: "The Ashfell run", participantNames: ["Wren"], isGame: true });

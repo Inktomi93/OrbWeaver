@@ -9,7 +9,7 @@
 // locator (`page.getByRole`), never `component` (the menu.ct.tsx split precedent).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { RewriteDialogStory } from "../_ct-stories";
+import { RewriteDialogStory } from "../_ct-stories.tsx";
 
 test("the modal renders the instruction field + the toggle catalog", async ({ mount, page }) => {
   await mount(<RewriteDialogStory />);

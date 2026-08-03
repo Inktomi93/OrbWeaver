@@ -23,8 +23,8 @@ import type {
   RemoveTagParams,
   SetTagOrderParams,
   UpdateTagParams,
-} from "./params";
-import type { PruneUnusedResult } from "./results";
+} from "./params.ts";
+import type { PruneUnusedResult } from "./results.ts";
 
 /** The chat-tag membership gate injected from `domain/chat`. Throws for a non-member, resolves for a
  *  member. Wired at the composition root with chat's real guard; never sideways-imported. */

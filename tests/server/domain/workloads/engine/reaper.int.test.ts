@@ -8,7 +8,7 @@ import { getRecentWorkloadEvents } from "../../../../../packages/server/src/doma
 import { reapOrphanedWorkloads } from "../../../../../packages/server/src/domain/workloads/engine/reaper.ts";
 import { loadWorkloadStatus } from "../../../../../packages/server/src/domain/workloads/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { fakeContributions, seedWorkloadRow, T0 } from "../_support.ts";
 
 // The row read path narrows params against the contribution registry — the reaper's stale sweep reads rows.

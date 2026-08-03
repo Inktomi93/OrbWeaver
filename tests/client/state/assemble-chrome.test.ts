@@ -7,7 +7,7 @@ import type { ChromeEntry, ChromeZone, ModalDefinition, SectionDefinition } from
 import { assembleChrome } from "@orb/client/state";
 import { Command } from "@orb/ui/icons";
 import { describe } from "vitest";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 function section(id: SectionDefinition["id"], mobile: SectionDefinition["rail"]["mobile"]): SectionDefinition {
   return {

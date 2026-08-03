@@ -36,8 +36,8 @@
 import type { CharacterId, CharacterStatId, DailyStatId, ModelStatId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { characters } from "./character";
-import { users } from "./users";
+import { characters } from "./character.ts";
+import { users } from "./users.ts";
 
 // The `(unknown)` provider sentinel — see header. Mirrors `@orb/kit/stats-tally.modelKey`'s null-coalesce
 // and the read-side model/latency keys; all three MUST stay aligned (invariant #5).

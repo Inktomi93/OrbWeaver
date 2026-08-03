@@ -3,7 +3,7 @@
 // association via Field.Control, and the D44 clamp reuse (rejects url()/expression()).
 import { ColorField, ColorSwatch } from "@orb/ui/color-field";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ColorFieldHarness } from "./color-field.fixtures";
+import { ColorFieldHarness } from "./color-field.fixtures.tsx";
 
 const STYLE_URL_RE = /url/u;
 const NON_EMPTY = /.+/u;

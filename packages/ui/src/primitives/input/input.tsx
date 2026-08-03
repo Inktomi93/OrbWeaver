@@ -3,7 +3,7 @@ import { Input as BaseInput } from "@base-ui/react/input";
 import type { ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { inputVariants } from "./variants";
+import { inputVariants } from "./variants.ts";
 
 export interface InputProps extends Omit<BaseInputProps, "type">, VariantProps<typeof inputVariants> {
   className?: string;

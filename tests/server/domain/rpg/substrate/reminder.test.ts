@@ -17,7 +17,7 @@ import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, rpgTrackerDefSchema } from "@orb
 import { tokenizeContent } from "@orb/kit/content";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { LiteReminderInput } from "../../../../../packages/server/src/domain/rpg/contract/params";
+import type { LiteReminderInput } from "../../../../../packages/server/src/domain/rpg/contract/params.ts";
 import {
   buildLiteReminder,
   RPG_CARD_TEACH,
@@ -26,8 +26,8 @@ import {
   RPG_DECEPTION_TEACH,
   RPG_OFILTER_TEACH,
   RPG_STEERING_LICENSE,
-} from "../../../../../packages/server/src/domain/rpg/substrate/reminder";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/server/src/domain/rpg/substrate/reminder.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A tracker def with the axes a case cares about; everything else takes its schema default. */
 function def(over: Partial<RpgTrackerDef> & Pick<RpgTrackerDef, "key" | "label" | "shape" | "write" | "subject">): RpgTrackerDef {

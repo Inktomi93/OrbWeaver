@@ -20,11 +20,11 @@ import {
   PLUGIN_INVOCATION_CPU_MS,
   PLUGIN_INVOKE_ARGS_MAX_BYTES,
   PLUGIN_MEMORY_LIMIT_BYTES,
-} from "./budgets";
-import type { InFlightCounter, InvocationChat, MembraneRuntime, PluginBridge } from "./membrane";
-import { getPluginQuickJS } from "./module";
-import type { HostSeams } from "./realm";
-import { installRealm, LogRing } from "./realm";
+} from "./budgets.ts";
+import type { InFlightCounter, InvocationChat, MembraneRuntime, PluginBridge } from "./membrane.ts";
+import { getPluginQuickJS } from "./module.ts";
+import type { HostSeams } from "./realm.ts";
+import { installRealm, LogRing } from "./realm.ts";
 
 /** Per-instance DoS limits. Both default to the 03 §3 budget constants; a snippet passes a wider wall. */
 export interface SandboxLimits {

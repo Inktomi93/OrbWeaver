@@ -2,7 +2,7 @@
 // (contract/views.ts) or `void`; only the two delete-ish verbs carry a discriminant the caller acts on
 // (did a row actually go away?). One home for those shapes (§7.4 / types-in-contract).
 
-import type { PersonaDetail } from "./views";
+import type { PersonaDetail } from "./views.ts";
 
 /** `remove` — `deleted` is always `true` on success (a not-owned/missing persona throws instead). */
 export interface RemovePersonaResult {

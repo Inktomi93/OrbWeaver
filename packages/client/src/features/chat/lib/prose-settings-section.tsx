@@ -9,8 +9,8 @@
 
 import { USER_PROSE_SLOT_IDS } from "@orb/contracts/prose";
 import type { SettingsSectionContribution } from "#state";
-import { ProseSettingsSection } from "../components/prose-settings-section";
-import { PROSE_SETTINGS_SUBCATEGORY } from "./prose-settings-model";
+import { ProseSettingsSection } from "../components/prose-settings-section.tsx";
+import { PROSE_SETTINGS_SUBCATEGORY } from "./prose-settings-model.ts";
 
 const SECTION_ID = "chat-prose";
 

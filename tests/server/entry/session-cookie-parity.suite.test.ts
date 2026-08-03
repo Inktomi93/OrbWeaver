@@ -31,7 +31,7 @@ import { describe } from "vitest";
 import { layer } from "../../../packages/server/src/domain/settings/effective-config/layer.ts";
 import type { AppDeps } from "../../../packages/server/src/entry/app.ts";
 import { createApp } from "../../../packages/server/src/entry/app.ts";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const COOKIE_NAME = "__Host-orb_session";
 const FROZEN_NOW = 1_750_000_000_000;

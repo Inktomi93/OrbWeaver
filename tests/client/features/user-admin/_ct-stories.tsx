@@ -7,18 +7,18 @@ import { openSettingsTo } from "@orb/client/state";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { AdminEnginesSection } from "../../../../packages/client/src/features/user-admin/components/admin-engines-section";
-import { AdminCatalogSection, AdminEmbedCardSection } from "../../../../packages/client/src/features/user-admin/components/admin-ops-section";
-import { AdminUsersSection } from "../../../../packages/client/src/features/user-admin/components/admin-users-section";
-import { ComputeSection } from "../../../../packages/client/src/features/user-admin/components/compute-section";
-import { MultiUserSection, SharedAccessSection } from "../../../../packages/client/src/features/user-admin/components/governance-sections";
-import { MediaTrustSection } from "../../../../packages/client/src/features/user-admin/components/media-trust-section";
-import { MemoryTuningSection } from "../../../../packages/client/src/features/user-admin/components/memory-tuning-section";
-import { OperationsSection } from "../../../../packages/client/src/features/user-admin/components/operations-section";
-import { RateLimitsSection } from "../../../../packages/client/src/features/user-admin/components/rate-limits-section";
-import { StructuredOutputSection } from "../../../../packages/client/src/features/user-admin/components/structured-output-section";
-import { SystemTuningSection } from "../../../../packages/client/src/features/user-admin/components/system-tuning-section";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
+import { AdminEnginesSection } from "../../../../packages/client/src/features/user-admin/components/admin-engines-section.tsx";
+import { AdminCatalogSection, AdminEmbedCardSection } from "../../../../packages/client/src/features/user-admin/components/admin-ops-section.tsx";
+import { AdminUsersSection } from "../../../../packages/client/src/features/user-admin/components/admin-users-section.tsx";
+import { ComputeSection } from "../../../../packages/client/src/features/user-admin/components/compute-section.tsx";
+import { MultiUserSection, SharedAccessSection } from "../../../../packages/client/src/features/user-admin/components/governance-sections.tsx";
+import { MediaTrustSection } from "../../../../packages/client/src/features/user-admin/components/media-trust-section.tsx";
+import { MemoryTuningSection } from "../../../../packages/client/src/features/user-admin/components/memory-tuning-section.tsx";
+import { OperationsSection } from "../../../../packages/client/src/features/user-admin/components/operations-section.tsx";
+import { RateLimitsSection } from "../../../../packages/client/src/features/user-admin/components/rate-limits-section.tsx";
+import { StructuredOutputSection } from "../../../../packages/client/src/features/user-admin/components/structured-output-section.tsx";
+import { SystemTuningSection } from "../../../../packages/client/src/features/user-admin/components/system-tuning-section.tsx";
+import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The Users SECTION (SET-SEAMS stage 3) in isolation — `admin.listUsers` + `sessions.me` (the viewer's role
  *  for the owner-only role controls) and the row-verb mutations are stubbed per-test via routeTrpc. The

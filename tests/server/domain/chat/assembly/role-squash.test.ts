@@ -2,8 +2,8 @@
 // clampRoleHandling (D66-C, W6 — the SHAPE floor-clamp: effective = stricter of the model floor + user knob).
 import type { RoleHandling } from "@orb/contracts/connection";
 import { describe } from "vitest";
-import { clampRoleHandling, squashSameRole } from "../../../../../packages/server/src/domain/chat/assembly/role-squash";
-import { expect, test } from "../../../../support/fixtures";
+import { clampRoleHandling, squashSameRole } from "../../../../../packages/server/src/domain/chat/assembly/role-squash.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("squashSameRole", () => {
   test("alternating canon passes through untouched (the common case)", () => {

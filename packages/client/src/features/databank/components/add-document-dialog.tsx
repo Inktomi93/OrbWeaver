@@ -33,10 +33,10 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog, FormSubmitButton } from "#components";
 import { uploadDocument, useInvalidation, useTRPC, useUploadCaps } from "#data";
-import { useCreateDocumentFromText, useScrapeWeb, useScrapeWiki, useScrapeYoutube } from "../hooks/use-databank-mutations";
-import { useScrapeForm } from "../hooks/use-scrape-form";
-import type { ScrapeFormValues } from "../lib/scrape-form-model";
-import { DEFAULT_CAPTION_LANG, SCRAPER_OPTIONS } from "../lib/scrape-form-model";
+import { useCreateDocumentFromText, useScrapeWeb, useScrapeWiki, useScrapeYoutube } from "../hooks/use-databank-mutations.ts";
+import { useScrapeForm } from "../hooks/use-scrape-form.ts";
+import type { ScrapeFormValues } from "../lib/scrape-form-model.ts";
+import { DEFAULT_CAPTION_LANG, SCRAPER_OPTIONS } from "../lib/scrape-form-model.ts";
 
 /** What `infra/extraction` handles — the picker filter, mirroring the server's extractor table. */
 const UPLOAD_ACCEPT = ".txt,.md,.markdown,.pdf,.html,.htm,text/plain,text/markdown,application/pdf,text/html";

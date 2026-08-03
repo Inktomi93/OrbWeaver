@@ -9,7 +9,7 @@
 
 import type { ChartColors } from "../../../../packages/ui/src/charts/chart/use-chart-theme.ts";
 import { buildScatterOption, pointId } from "../../../../packages/ui/src/charts/scatter/option.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 // Sentinel resolved palette — distinct per stop so a mis-indexed series color is caught.
 const COLORS: ChartColors = {

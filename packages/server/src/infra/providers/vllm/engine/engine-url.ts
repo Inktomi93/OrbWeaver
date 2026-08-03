@@ -4,7 +4,7 @@
 // A zero-dependency leaf beside engines.ts (identity) so nothing here reaches back up the subsystem.
 
 import { env } from "#foundation/env";
-import type { VLLM_ENGINES } from "./engines";
+import type { VLLM_ENGINES } from "./engines.ts";
 
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 

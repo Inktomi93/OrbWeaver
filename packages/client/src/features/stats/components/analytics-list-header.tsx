@@ -14,7 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ListPaneHeader } from "#components";
 import { useTRPC } from "#data";
-import { ANALYTICS_DEFAULT_SORT } from "../lib/analytics-view-model";
+import { ANALYTICS_DEFAULT_SORT } from "../lib/analytics-view-model.ts";
 
 export function AnalyticsListHeader(): ReactElement {
   const trpc = useTRPC();

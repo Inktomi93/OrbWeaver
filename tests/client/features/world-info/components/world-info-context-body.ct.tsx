@@ -5,8 +5,8 @@
 // the global toggle writes `worldInfo.attachGlobal` — and that a book deleted under the pane says so.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { WorldInfoContextStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { WorldInfoContextStory } from "../_ct-stories.tsx";
 
 const BOOK_ID = "world_book_reorder001";
 const BOOK_ROW = {

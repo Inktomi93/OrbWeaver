@@ -25,10 +25,10 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { AppFormInstance } from "#forms";
 import { useFocusOnSwap } from "#lib";
-import { GUIDED_INPUT_TOKEN } from "../lib/assembly-model";
-import type { TemplateRow } from "../lib/template-rows";
-import { DeliveryCluster } from "./delivery-cluster";
-import { PresetMacroSuggestions } from "./preset-macro-suggestions";
+import { GUIDED_INPUT_TOKEN } from "../lib/assembly-model.ts";
+import type { TemplateRow } from "../lib/template-rows.ts";
+import { DeliveryCluster } from "./delivery-cluster.tsx";
+import { PresetMacroSuggestions } from "./preset-macro-suggestions.tsx";
 
 type PresetForm = AppFormInstance<PromptConfig>;
 

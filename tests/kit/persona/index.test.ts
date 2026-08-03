@@ -1,6 +1,6 @@
 import type { PersonaDescriptionPosition } from "@orb/kit/persona";
 import { PERSONA_DESCRIPTION_POSITIONS, resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 // ST defaults the at-depth placement applies when `inject` is absent/partial (depth 2, role system).
 const DEFAULT_AT_DEPTH = 2;

@@ -10,11 +10,11 @@
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
-import { ChatNotFoundError } from "../../../packages/server/src/domain/chat/contract/errors";
-import { expect, test } from "../fixtures";
-import { assertEventSequence, assertStaticPrefixStable, assertTokenTotalsConsistent } from "./assertions";
-import { scenario } from "./scenario";
-import { tape } from "./tape";
+import { ChatNotFoundError } from "../../../packages/server/src/domain/chat/contract/errors.ts";
+import { expect, test } from "../fixtures.ts";
+import { assertEventSequence, assertStaticPrefixStable, assertTokenTotalsConsistent } from "./assertions.ts";
+import { scenario } from "./scenario.ts";
+import { tape } from "./tape.ts";
 
 describe("scenario.chat — the converted solo single-turn send (turn.int 'send — the solo path')", () => {
   test("commits the user row + the assistant turn; emits the lifecycle", async () => {

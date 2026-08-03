@@ -4,8 +4,8 @@
 // seed-vector siblings (`similarCharacters`/`similarArt`), and the unified `search()` dispatch (PD-38) over
 // the `SearchScope`/`SearchTarget` axes.
 
-export type { SearchContext } from "./context";
-export { SEARCH_EMPTY_QUERY, SearchError } from "./contract/errors";
+export type { SearchContext } from "./context.ts";
+export { SEARCH_EMPTY_QUERY, SearchError } from "./contract/errors.ts";
 export {
   type CorpusParams,
   type DigestsParams,
@@ -23,7 +23,7 @@ export {
   type SimilarCharactersParams,
   type SuggestParams,
   type UnifiedSearchParams,
-} from "./contract/params";
+} from "./contract/params.ts";
 export type {
   CharacterCardHit,
   CorpusHit,
@@ -38,7 +38,7 @@ export type {
   SegmentSearchHit,
   SimilarArtHit,
   UnifiedSearchResult,
-} from "./contract/results";
-export type { ResolveActiveDocumentIdsOp, SearchService } from "./contract/service";
+} from "./contract/results.ts";
+export type { ResolveActiveDocumentIdsOp, SearchService } from "./contract/service.ts";
 
-export { createSearchService } from "./service";
+export { createSearchService } from "./service.ts";

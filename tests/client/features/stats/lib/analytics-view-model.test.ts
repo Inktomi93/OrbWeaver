@@ -22,8 +22,8 @@ import {
   personaBarItems,
   WEEKDAY_LABELS,
   weekdayBarItems,
-} from "../../../../../packages/client/src/features/stats/lib/analytics-view-model";
-import { expect, test } from "../../../../support/fixtures";
+} from "../../../../../packages/client/src/features/stats/lib/analytics-view-model.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("formatDurationMs", () => {
   test("sub-second renders as rounded ms", () => {

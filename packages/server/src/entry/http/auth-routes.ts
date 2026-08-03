@@ -27,9 +27,9 @@ import { securityEvent } from "#foundation/observability";
 import type { OidcTransaction } from "#infra/auth";
 import { hasCsrfHeader, SESSION_COOKIE_NAME } from "#infra/auth";
 import { clientIp } from "#infra/network";
-import type { RateLimiter } from "../../transport/rate-limit";
-import { createRateLimiter } from "../../transport/rate-limit";
-import { readSessionCookie } from "../auth";
+import type { RateLimiter } from "../../transport/rate-limit.ts";
+import { createRateLimiter } from "../../transport/rate-limit.ts";
+import { readSessionCookie } from "../auth/index.ts";
 
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;

@@ -6,7 +6,7 @@
 // signal, not a no-op — the composer must re-focus on every pick), and the nonce is per-scope.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ComposerFocusProbe } from "./_ct-stories";
+import { ComposerFocusProbe } from "./_ct-stories.tsx";
 
 test("each requestComposerFocus bumps the scope's nonce (a repeat is a fresh signal), and scopes are independent", async ({ mount }) => {
   const probe = await mount(<ComposerFocusProbe />);

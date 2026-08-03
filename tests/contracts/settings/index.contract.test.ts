@@ -19,7 +19,7 @@ import {
   USER_SETTINGS_SECTIONS,
   userSettingsSchema,
 } from "@orb/contracts/settings";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 const SCHEMA_VERSION_V1 = 1;
 const SCHEMA_VERSION_V2 = 2;

@@ -21,11 +21,11 @@
 import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { cardContentHash } from "#kit/serde/card";
-import type { CharacterHandoffCopyContext, CopyHandoffCards, HandoffCardCopy } from "../contract/handoff-copy";
-import { handoffProvenance } from "../contract/handoff-copy";
-import { cardTokenSize } from "../substrate/card-tokens";
-import { insertCharacter } from "./card";
-import { cardOf, findByOwnerImportedFrom, listOwnedCharacterRows, listOwnerHandles } from "./queries";
+import type { CharacterHandoffCopyContext, CopyHandoffCards, HandoffCardCopy } from "../contract/handoff-copy.ts";
+import { handoffProvenance } from "../contract/handoff-copy.ts";
+import { cardTokenSize } from "../substrate/card-tokens.ts";
+import { insertCharacter } from "./card.ts";
+import { cardOf, findByOwnerImportedFrom, listOwnedCharacterRows, listOwnerHandles } from "./queries.ts";
 
 /** How many handle candidates a copy probes before giving up on the card. The handle is a machine label in
  *  the RECIPIENT's own namespace (nothing addresses a character by it — the `promoteToRoster` mint states the

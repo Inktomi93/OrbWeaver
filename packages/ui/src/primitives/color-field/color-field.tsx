@@ -8,7 +8,7 @@ import { Check, Icon } from "#primitives/icons";
 import { Input } from "#primitives/input";
 import { Popover, PopoverPopup, PopoverTrigger } from "#primitives/popover";
 import { Spinner } from "#primitives/spinner";
-import { colorFieldVariants } from "./variants";
+import { colorFieldVariants } from "./variants.ts";
 
 export interface ColorSwatchProps {
   /**

@@ -7,17 +7,17 @@
 // NOT re-declared here — their home is `@orb/contracts/rpg` (§7.4). The staging store + its factory come from
 // the feature-root `staging.ts` (W1a); this door re-exports the store for compose to mint the singleton.
 
-export { publishRpgEvent, subscribeRpgEvents } from "./bus";
-export { createRpgChatOps } from "./chat-ops";
+export { publishRpgEvent, subscribeRpgEvents } from "./bus.ts";
+export { createRpgChatOps } from "./chat-ops/index.ts";
 // THE carrier derivation (the ONE home for "which tracker class is this person, and what are their
 // exceptions") — re-exported because BOTH surfaces must go through it: the tracker view's READ projection and
 // the compose walk that builds the model's WRITE surface. Two spellings of that rule is exactly the §1.4
 // read/write drift the R2 reshape dissolved.
-export { actorCarrier } from "./chat-ops/tracker-view";
+export { actorCarrier } from "./chat-ops/tracker-view.ts";
 // EDITSNAP-OK — the hand doors' errors-as-data VERDICT. Exported because compose CALLS those doors (the
 // demo-chat replay) and a caller that cannot name the refusal shape cannot check it; the type was already
 // the exported `RpgService`'s return type, so this adds a name, not surface.
-export type { HandDoorResult } from "./contract/results";
+export type { HandDoorResult } from "./contract/results.ts";
 export type {
   RpgContext,
   RpgCopyPresetToUser,
@@ -36,25 +36,22 @@ export type {
   RpgSetPointer,
   RpgStagingStore,
   RpgStateDelta,
-} from "./contract/service";
+} from "./contract/service.ts";
 // The per-chat flush barrier (the race fix): the compose mints it as a singleton, the gather awaits it.
-export { createRpgFlushBarrier } from "./flush-barrier";
+export { createRpgFlushBarrier } from "./flush-barrier.ts";
 // The game-row read (by chatId) compose's honest-arms + extraction wiring needs to reach the game's mode/config
 // (the connection-capability resolve keys on `extractionMode`). A thin persistence read exposed for the
 // composition root — the tracker-readonly + runExtraction ops it wires close over it.
-export { findGameByChat } from "./persistence/games";
+export { findGameByChat } from "./persistence/games.ts";
 // R6 — the per-actor write-surface assembly (compose) resolves each roster actor's SHEET exceptions
 // (`trackerGrants`/`trackerRevokes`) to decide which trackers that actor may be offered.
-export { listSheets } from "./persistence/sheets";
-export { createRpgService } from "./service";
-export { createRpgStagingStore } from "./staging";
+export { listSheets } from "./persistence/sheets.ts";
+export { createRpgService } from "./service.ts";
+export { createRpgStagingStore } from "./staging.ts";
 // The pure honest-arms derivation (§4.6) — W1c wires it with the connection resolve + game config into the
 // `RpgResolveStateDelivery` injected op (the mode→axis mapping stays rpg's law).
-export { deriveTrackersReadOnly, hasStructuredWriter, hasToolWriter } from "./substrate/readonly-axis";
-// The 7 cheap-mode state tool defs (§4.5) — a factory closing over `RpgContext`; W1c-b registers them into the
-// ONE `toolUse` registry at compose (the imagery precedent).
-export { rpgToolDefinitions } from "./tools";
-export type { ExtractionMints, RosterRefIndex } from "./tools/apply";
+export { deriveTrackersReadOnly, hasStructuredWriter, hasToolWriter } from "./substrate/readonly-axis.ts";
+export type { ExtractionMints, RosterRefIndex } from "./tools/apply.ts";
 // The extraction fold (§4.6) — converts a parsed `RpgExtraction` (arrays of cheap-mode tool args)
 // into the `RpgStateDelta` the accumulator flushes. Every vehicle's impl consumes it; the SAME appliers
 // the cheap-mode tools use (the shared-plane proof). Deterministic — the caller injects the id mints.
@@ -62,4 +59,7 @@ export type { ExtractionMints, RosterRefIndex } from "./tools/apply";
 // the same list (so a "dropped" warning can never disagree with what actually applied); `reachableActorRefs` is
 // the state-derived half of it — the target MENU, which the R1 fold logs as its write-nothing denominator
 // without re-resolving the whole per-call ref bundle at flush time.
-export { buildRosterRefIndex, extractionToStateDelta, ghostTargetRefs, reachableActorRefs } from "./tools/apply";
+export { buildRosterRefIndex, extractionToStateDelta, ghostTargetRefs, reachableActorRefs } from "./tools/apply.ts";
+// The 7 cheap-mode state tool defs (§4.5) — a factory closing over `RpgContext`; W1c-b registers them into the
+// ONE `toolUse` registry at compose (the imagery precedent).
+export { rpgToolDefinitions } from "./tools/index.ts";

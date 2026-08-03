@@ -17,11 +17,11 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { FROZEN_AT_MS } from "../../../../support/clock";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness";
-import { CharactersListPaneStory, CharactersScreenStory } from "../_ct-stories";
-import { makeCharacterDetail, makeCharacterSummary } from "../fixtures";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
+import { CharactersListPaneStory, CharactersScreenStory } from "../_ct-stories.tsx";
+import { makeCharacterDetail, makeCharacterSummary } from "../fixtures.ts";
 
 const AZARAEL = "char_ct_azarael0001";
 const SERA = "char_ct_sera00000001";

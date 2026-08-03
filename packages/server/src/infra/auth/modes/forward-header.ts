@@ -9,7 +9,7 @@ import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { securityEvent } from "#foundation/observability";
 import { isInRanges } from "#infra/network";
-import type { AuthConfig, ResolveDeps } from "../contract";
+import type { AuthConfig, ResolveDeps } from "../contract.ts";
 
 // authentik joins groups with "|"; tolerate commas too.
 const GROUP_SEPARATOR = /[|,]/u;

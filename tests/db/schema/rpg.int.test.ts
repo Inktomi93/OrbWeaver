@@ -26,8 +26,8 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import { freshDb } from "../../support/db";
-import { expect, test } from "../../support/fixtures";
+import { freshDb } from "../../support/db.ts";
+import { expect, test } from "../../support/fixtures.ts";
 
 // ── Test-mirror (D34): every rpg enum column derives the ONE contracts tuple ────────────────────────────
 test("rpg enum columns mirror their contracts tuples (db derives, never re-spells)", () => {

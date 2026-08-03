@@ -5,7 +5,7 @@
 // reaches the sheet with no second hand-maintained derivation.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { YouSheetProjectionStory } from "../_ct-stories";
+import { YouSheetProjectionStory } from "../_ct-stories.tsx";
 
 test("a rail.end widget renders its body('sheet') lens; an overflow section becomes a More row", async ({ mount }) => {
   const sheet = await mount(<YouSheetProjectionStory />);

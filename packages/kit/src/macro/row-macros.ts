@@ -18,8 +18,8 @@
 // `ctx.characterNamesById`/`ctx.personaNamesById` are that producer's OUTPUT.
 
 import type { CharacterId, PersonaId } from "#ids";
-import { processMacros } from "./engine";
-import { createNamesOnlyRegistry } from "./registry";
+import { processMacros } from "./engine.ts";
+import { createNamesOnlyRegistry } from "./registry.ts";
 
 // Stored-history resolution runs a RESTRICTED registry, NOT the full default one: a row's volatile
 // macros ({{time}}/{{roll}}/{{random}}/var mutations) are not re-derivable from the row, so re-running

@@ -10,32 +10,32 @@ export type {
   ImportContextWiring,
   ImportTagPort,
   ImportWorldInfoPort,
-} from "./build-import-context";
-export { buildImportContext } from "./build-import-context";
+} from "./build-import-context.ts";
+export { buildImportContext } from "./build-import-context.ts";
 export type {
   BundleImportDeps,
   BundleImportFileOutcome,
   BundleImportReport,
   StagedBundleImportDeps,
-} from "./run-bundle-import";
+} from "./run-bundle-import.ts";
 export {
   importStagedArchive,
   runBundleImport,
-} from "./run-bundle-import";
+} from "./run-bundle-import.ts";
 export type {
   ProfileDirImportDeps,
   ProfileDirImportResult,
-} from "./run-profile-dir-import";
+} from "./run-profile-dir-import.ts";
 export {
   createNodeFsImportPort,
   runProfileDirImport,
-} from "./run-profile-dir-import";
+} from "./run-profile-dir-import.ts";
 export type {
   FailedCard,
   ImportedCard,
   ImportFile,
   ProfileImportDeps,
   ProfileImportResult,
-} from "./run-profile-import";
-export { runProfileImport } from "./run-profile-import";
-export { sniffTreeLayout } from "./sniff-tree-layout";
+} from "./run-profile-import.ts";
+export { runProfileImport } from "./run-profile-import.ts";
+export { sniffTreeLayout } from "./sniff-tree-layout.ts";

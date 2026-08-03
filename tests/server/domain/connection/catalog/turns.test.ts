@@ -11,7 +11,7 @@ import type { ModelCapability } from "@orb/contracts/connection";
 import { CACHE_MIN_FLOOR } from "@orb/contracts/connection";
 import { describe } from "vitest";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 type Turns = ModelCapability["turns"];
 

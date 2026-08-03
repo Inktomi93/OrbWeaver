@@ -12,10 +12,10 @@
 // in the WHERE, so a foreign / gone id is simply absent — never a leak, never a hash oracle for another owner.
 
 import type { AssetId, UserId } from "@orb/kit/ids";
-import type { AssetsContext } from "../context";
-import type { AssetsService } from "../contract/service";
-import type { AssetBlobRef } from "../contract/views";
-import { selectOwnedAssetRefs } from "../persistence/queries";
+import type { AssetsContext } from "../context.ts";
+import type { AssetsService } from "../contract/service.ts";
+import type { AssetBlobRef } from "../contract/views.ts";
+import { selectOwnedAssetRefs } from "../persistence/queries.ts";
 
 export function createResolveOwnedAssetRefs(ctx: AssetsContext): AssetsService["resolveOwnedAssetRefs"] {
   return (ownerId: UserId, assetIds: readonly AssetId[]): Promise<readonly AssetBlobRef[]> => selectOwnedAssetRefs(ctx.db, ownerId, assetIds);

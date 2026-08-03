@@ -6,7 +6,7 @@
 
 import { createImageNormalizer, passthroughImageNormalizer } from "@orb/server/infra/providers/backends/kit";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 // GIF89a magic ("GIF8" + "9a") + a stand-in payload — enough for the pure signature sniff.
 const GIF_BYTES = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00]);

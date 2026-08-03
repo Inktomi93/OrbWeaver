@@ -1,6 +1,6 @@
 import { fetchOpenAiModels } from "@orb/server/infra/network";
 import { describe, vi } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 describe("fetchOpenAiModels", () => {
   test("returns the model id list from an OpenAI-shaped /models response", async () => {

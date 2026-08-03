@@ -2,10 +2,10 @@
 // TOTAL reorder: each position update is scoped to the chat, so a foreign id in the list can never touch
 // another chat's row. Order is SEMANTICS — arms mutate the shared variable env in position order (04 §3).
 
-import type { ReorderRulesParams } from "../contract/params";
-import type { AutomationContext, AutomationService } from "../contract/service";
-import { requireChatHost } from "../guard";
-import { applyReorder } from "../persistence/rules";
+import type { ReorderRulesParams } from "../contract/params.ts";
+import type { AutomationContext, AutomationService } from "../contract/service.ts";
+import { requireChatHost } from "../guard.ts";
+import { applyReorder } from "../persistence/rules.ts";
 
 export function createReorderRules(ctx: AutomationContext): AutomationService["reorderRules"] {
   return async ({ principal, chatId, orderedIds }: ReorderRulesParams): Promise<void> => {

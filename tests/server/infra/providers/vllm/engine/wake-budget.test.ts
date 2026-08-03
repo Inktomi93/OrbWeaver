@@ -6,7 +6,7 @@
 import type { EngineUtilFractions, GpuVram, WakeBudgetVerdict } from "@orb/server/infra/providers/vllm/engine";
 import { decideWakeBudget, engineVramNeed, parseComputeAppsCsv, parseGpuVramCsv } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 /** Narrow a verdict to its refusal arm or fail the test — avoids conditional-expect. */
 function refusal(v: WakeBudgetVerdict): Extract<WakeBudgetVerdict, { ok: false }> {

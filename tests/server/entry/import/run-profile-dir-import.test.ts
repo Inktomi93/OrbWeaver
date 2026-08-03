@@ -18,7 +18,7 @@ import type { ImportFsPort } from "@orb/server/domain/import";
 import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ProfileDirImportDeps } from "@orb/server/entry/import";
 import { createNodeFsImportPort, runProfileDirImport } from "@orb/server/entry/import";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER: Principal = {
   userId: castId<UserId>("usr_owner"),

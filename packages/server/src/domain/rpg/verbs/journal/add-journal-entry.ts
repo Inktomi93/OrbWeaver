@@ -3,10 +3,10 @@
 // arm (staged → flushed stamped with the committed variant) is the turn-flush path, W1b-integration.
 
 import type { RpgJournalId } from "@orb/kit/ids";
-import type { AddJournalEntryParams } from "../../contract/params";
-import type { RpgContext, RpgService } from "../../contract/service";
-import { resolveHost } from "../../guard";
-import { insertJournalEntry } from "../../persistence/journal";
+import type { AddJournalEntryParams } from "../../contract/params.ts";
+import type { RpgContext, RpgService } from "../../contract/service.ts";
+import { resolveHost } from "../../guard.ts";
+import { insertJournalEntry } from "../../persistence/journal.ts";
 
 export function createAddJournalEntry(ctx: RpgContext): Pick<RpgService, "addJournalEntry"> {
   async function addJournalEntry(params: AddJournalEntryParams): Promise<RpgJournalId> {

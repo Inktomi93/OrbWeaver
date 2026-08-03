@@ -7,12 +7,12 @@
 // sourceCharacterId + swapMacros provenance so the swap decision is recoverable.
 
 import { personas } from "@orb/db";
-import type { PersonaContext } from "../context";
-import { PersonaNotFoundError } from "../contract/errors";
-import type { CreateFromCharacterParams } from "../contract/params";
-import type { PersonaService } from "../contract/service";
-import { detailOf, loadOwnedCharacterCard, loadOwnedPersonaWithAvatar } from "../persistence/queries";
-import { swapPersonaMacros } from "../substrate/macro-swap";
+import type { PersonaContext } from "../context.ts";
+import { PersonaNotFoundError } from "../contract/errors.ts";
+import type { CreateFromCharacterParams } from "../contract/params.ts";
+import type { PersonaService } from "../contract/service.ts";
+import { detailOf, loadOwnedCharacterCard, loadOwnedPersonaWithAvatar } from "../persistence/queries.ts";
+import { swapPersonaMacros } from "../substrate/macro-swap.ts";
 
 export function createCreateFromCharacter(ctx: PersonaContext): PersonaService["createFromCharacter"] {
   return async ({ principal, characterId, swapMacros }: CreateFromCharacterParams) => {

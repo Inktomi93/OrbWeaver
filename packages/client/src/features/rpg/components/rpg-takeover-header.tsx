@@ -34,8 +34,8 @@ import { Row, Stack } from "@orb/ui/layout";
 import { CoinFigure, RingGauge, Waystone } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { resolveTrackerColor, trackColorProps } from "../lib/track-color";
-import { RpgFreshnessIndicator } from "./rpg-freshness-indicator";
+import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
+import { RpgFreshnessIndicator } from "./rpg-freshness-indicator.tsx";
 
 // The band renders the SERVER-derived orb set (§2 — satellites): the host's PINNED trackers, envelope-capped
 // SERVER-SIDE (`trackerOrbs`, and each orb carries its own host-picked color). The client renders them all — no second cap (a client

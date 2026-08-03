@@ -5,7 +5,7 @@
 import type { ChatCompletionResult, ChatCompletionStreamChunk, ChatToolCallDelta, StreamDelta } from "@orb/server/infra/providers/backends/kit";
 import { mapChatCompletionToTurnResult, parseOpenAiSse, reduceChatCompletionStream } from "@orb/server/infra/providers/backends/kit/openai-compat";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../../support/fixtures";
+import { expect, test } from "../../../../../../support/fixtures.ts";
 
 async function* streamOf(items: readonly ChatCompletionStreamChunk[]): AsyncGenerator<ChatCompletionStreamChunk> {
   await Promise.resolve(); // yields control once so this is a genuine async stream

@@ -3,8 +3,8 @@
 // of `useSmoothText`+`StreamShimmer` for any future plain-text (non-Markdown) streaming surface.
 // Delete this marker (and re-check for consumers) if that plan is ever dropped instead of built.
 import type { ReactElement } from "react";
-import { StreamShimmer } from "./shimmer";
-import { useSmoothText } from "./use-smooth-text";
+import { StreamShimmer } from "./shimmer.tsx";
+import { useSmoothText } from "./use-smooth-text.ts";
 
 const STREAM_STATUSES = ["streaming", "done"] as const;
 export type StreamStatus = (typeof STREAM_STATUSES)[number];

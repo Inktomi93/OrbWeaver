@@ -8,12 +8,12 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { AssetId } from "@orb/kit/ids";
-import { ImageEditUnsupportedError, ImageryNotConfiguredError } from "../contract/errors";
-import type { EditImageParams, EditImageSource } from "../contract/params";
-import type { GeneratedPicture } from "../contract/results";
-import type { ImageryContext, ImageryService, ResolvedGenerateImage } from "../contract/service";
-import { runGeneration, sumCost } from "../substrate/generate-core";
-import { SIZE_PRESETS } from "../substrate/size";
+import { ImageEditUnsupportedError, ImageryNotConfiguredError } from "../contract/errors.ts";
+import type { EditImageParams, EditImageSource } from "../contract/params.ts";
+import type { GeneratedPicture } from "../contract/results.ts";
+import type { ImageryContext, ImageryService, ResolvedGenerateImage } from "../contract/service.ts";
+import { runGeneration, sumCost } from "../substrate/generate-core.ts";
+import { SIZE_PRESETS } from "../substrate/size.ts";
 
 /** Default fan-out when the caller omits `n` (the wire clamps to 1..4). */
 const DEFAULT_IMAGE_COUNT = 1;

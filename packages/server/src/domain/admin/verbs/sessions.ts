@@ -3,10 +3,10 @@
 // guard + delegation mechanics: admin-gate, then delegate to the injected SessionAdminPort (admin owns
 // neither the sessions table nor its revoke machinery — dependency inversion). Each WRITE audits.
 
-import type { AdminContext } from "../context";
-import type { ListSessionsParams, RevokeSessionParams, RevokeUserSessionsParams } from "../contract/params";
-import type { AdminService } from "../contract/service";
-import { requireAdmin } from "../guard";
+import type { AdminContext } from "../context.ts";
+import type { ListSessionsParams, RevokeSessionParams, RevokeUserSessionsParams } from "../contract/params.ts";
+import type { AdminService } from "../contract/service.ts";
+import { requireAdmin } from "../guard.ts";
 
 type SessionVerbs = Pick<AdminService, "listSessions" | "revokeSession" | "revokeUserSessions">;
 

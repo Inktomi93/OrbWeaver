@@ -3,7 +3,7 @@
 // present row projects its column.
 
 import { AUTOMATION_CHAT_BUDGET_DEFAULTS } from "@orb/contracts/automation";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { principal, ruleFixture } from "../_support.ts";
 
 test("getBudgets projects an absent row to the defaulted view (no invented ceiling)", async () => {

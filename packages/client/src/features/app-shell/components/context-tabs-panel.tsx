@@ -28,7 +28,7 @@ import { Tabs, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import type { ResolvedContextTab } from "#lib";
-import { useContextTabSelection } from "../hooks/use-context-tab-selection";
+import { useContextTabSelection } from "../hooks/use-context-tab-selection.ts";
 
 export interface ContextTabsPanelProps {
   readonly tabs: readonly ResolvedContextTab[];

@@ -4,11 +4,11 @@
 // once (COALESCE in persistence).
 
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { DismissParams, MarkAllReadParams } from "../contract/params";
-import type { MarkAllReadResult } from "../contract/results";
-import type { NotificationsContext, NotificationsService } from "../contract/service";
-import type { InboxView } from "../contract/views";
-import { dismissScoped, markAllReadScoped } from "../persistence/queries";
+import type { DismissParams, MarkAllReadParams } from "../contract/params.ts";
+import type { MarkAllReadResult } from "../contract/results.ts";
+import type { NotificationsContext, NotificationsService } from "../contract/service.ts";
+import type { InboxView } from "../contract/views.ts";
+import { dismissScoped, markAllReadScoped } from "../persistence/queries.ts";
 
 const ENTITY = "notification";
 

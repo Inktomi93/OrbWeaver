@@ -6,9 +6,9 @@
 // provider), asserting the captured wire `TurnRequest.history` — "what the AI was told".
 
 import type { AssemblePersona } from "@orb/contracts/chat";
-import { scenario, tape } from "../../../../support/chat";
-import { expect, test } from "../../../../support/fixtures";
-import { seedMessage } from "../_support";
+import { scenario, tape } from "../../../../support/chat/index.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { seedMessage } from "../_support.ts";
 
 /** anchor = Nyx (the pinned card POV); active = Vera (a present human). Ruling A: a greeting/AI `{{user}}`
  *  resolves to the ANCHOR, so the wire must show "Nyx" and NEVER "Vera". */

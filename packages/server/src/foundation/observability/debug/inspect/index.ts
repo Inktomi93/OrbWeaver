@@ -6,7 +6,7 @@ export {
   type InspectedMessage,
   type InspectedParticipant,
   inspectChatState,
-} from "./inspect-chat";
-export { type IntegrityReport, integrityProbe } from "./integrity";
-export { type CharacterListRow, type ChatListRow, characterListSummaries, chatListSummaries } from "./list";
-export { tableCounts } from "./stats";
+} from "./inspect-chat.ts";
+export { type IntegrityReport, integrityProbe } from "./integrity.ts";
+export { type CharacterListRow, type ChatListRow, characterListSummaries, chatListSummaries } from "./list.ts";
+export { tableCounts } from "./stats.ts";

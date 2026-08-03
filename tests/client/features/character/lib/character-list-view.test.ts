@@ -7,9 +7,9 @@ import type { CharacterId, ChatId, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 // Deep import the PURE lib module (NOT the "@orb/client/features/character" barrel): a barrel import drags
 // browser TSX into the dom-less root typecheck:graph program (the theme clamp.ts relative-import precedent).
-import type { FilterableRow, ResumableChat } from "../../../../../packages/client/src/features/character/lib/character-list-view";
-import { filterByChips, groupByTag, resumeTargets } from "../../../../../packages/client/src/features/character/lib/character-list-view";
-import { expect, test } from "../../../../support/fixtures";
+import type { FilterableRow, ResumableChat } from "../../../../../packages/client/src/features/character/lib/character-list-view.ts";
+import { filterByChips, groupByTag, resumeTargets } from "../../../../../packages/client/src/features/character/lib/character-list-view.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const tag = (id: string, name: string, isHiddenOnCard = false): FilterableRow["tags"][number] => ({
   id: castId<TagId>(id),

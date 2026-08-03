@@ -1,6 +1,6 @@
 import { Tooltip, TooltipArrow, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { TooltipHandleHarness } from "./tooltip-handle.fixtures";
+import { TooltipHandleHarness } from "./tooltip-handle.fixtures.tsx";
 
 test("shows on hover and hides when the pointer leaves", async ({ mount, page }) => {
   await mount(

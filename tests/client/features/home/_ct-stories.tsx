@@ -12,8 +12,8 @@ import { BrainCircuit, Clock, MessagesSquare } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { use } from "react";
-import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers";
-import { RESERVED_TILE_PX } from "./_reserve-box";
+import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
+import { RESERVED_TILE_PX } from "./_reserve-box.ts";
 
 /** Deliberately declared OUT of `order` — the grid must re-sort them (order asc, then id). */
 const FAKE_TILES: readonly HomeTileContribution[] = [

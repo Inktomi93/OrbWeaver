@@ -2,7 +2,7 @@
 
 import { describe } from "vitest";
 import { parseThemeName } from "../../../../../packages/server/src/domain/discovery/themes/utils.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 describe("parseThemeName", () => {
   test("strips surrounding quotes and trims", () => {

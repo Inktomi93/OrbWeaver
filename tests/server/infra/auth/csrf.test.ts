@@ -1,6 +1,6 @@
 import { CSRF_HEADER, hasCsrfHeader } from "@orb/server/infra/auth";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 // The CSRF mutation-header SIGNAL infra/auth produces (the 403 GATE itself lives at the seam). The header
 // NAME is a cross-tier constant: the read side here and the write side (entry/http/auth-routes) MUST agree

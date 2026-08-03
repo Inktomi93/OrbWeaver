@@ -13,8 +13,8 @@ import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import type { RoleStatusDotProps } from "./role-status-dot";
-import { RoleStatusDot } from "./role-status-dot";
+import type { RoleStatusDotProps } from "./role-status-dot.tsx";
+import { RoleStatusDot } from "./role-status-dot.tsx";
 
 type FacadeState = RoleStatusDotProps["state"];
 

@@ -10,14 +10,14 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, chunkRows, rowsPerInsert } from "@orb/db/kit";
 import type { ThemeClusterId, UserId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import type { ComputeThemesOptions, ThemeLevel } from "../contract/params";
-import type { ThemeComputeStats } from "../contract/results";
-import type { ComputeThemesDeps, Summarize } from "../contract/service";
-import { readOwnedDigestVectors } from "../persistence/embed-store-reads";
-import { collapseByHash } from "../substrate/collapse";
-import { kmeans } from "../substrate/kmeans";
-import { backfillMsgMidAt } from "./backfill";
-import { parseThemeName } from "./utils";
+import type { ComputeThemesOptions, ThemeLevel } from "../contract/params.ts";
+import type { ThemeComputeStats } from "../contract/results.ts";
+import type { ComputeThemesDeps, Summarize } from "../contract/service.ts";
+import { readOwnedDigestVectors } from "../persistence/embed-store-reads.ts";
+import { collapseByHash } from "../substrate/collapse.ts";
+import { kmeans } from "../substrate/kmeans.ts";
+import { backfillMsgMidAt } from "./backfill.ts";
+import { parseThemeName } from "./utils.ts";
 
 const DEFAULT_SEED = 1;
 // A cluster must have at least this many FULL-space members to be worth naming (else stored with name null).

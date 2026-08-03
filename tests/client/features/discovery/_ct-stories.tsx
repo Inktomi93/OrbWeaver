@@ -6,7 +6,7 @@ import { CorpusCompareTab, CorpusContextHeader, CorpusDossierSurface, CorpusList
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers";
+import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The Corpus LIST navigator (omnibox + browse) over the real data layer. */
 export function CorpusListSurfaceStory(): ReactElement {

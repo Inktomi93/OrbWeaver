@@ -3,8 +3,8 @@
 // settings-section registry and the appearance skimmer pane renders it at its anchor.
 
 import type { SettingsSectionContribution } from "#state";
-import { AppearanceSizingSection } from "../components/appearance-sizing-section";
-import { APPEARANCE_SIZING_KEYS, APPEARANCE_SIZING_SUBCATEGORY } from "./appearance-sizing-model";
+import { AppearanceSizingSection } from "../components/appearance-sizing-section.tsx";
+import { APPEARANCE_SIZING_KEYS, APPEARANCE_SIZING_SUBCATEGORY } from "./appearance-sizing-model.ts";
 
 const SECTION_ID = "appearance-sizing";
 

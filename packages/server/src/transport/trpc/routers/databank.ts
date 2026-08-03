@@ -12,7 +12,7 @@ import { docOriginSchema, reindexModeSchema, reindexScopeSchema } from "@orb/con
 import type { CharacterId, ChatId, DocumentId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
-import { authedProcedure, t } from "../trpc";
+import { authedProcedure, t } from "../trpc.ts";
 
 const NAME_MAX = 500;
 const TEXT_MIN = 1;

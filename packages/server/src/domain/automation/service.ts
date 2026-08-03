@@ -4,23 +4,23 @@
 // calls the factories and assembles the `AutomationService`. The context is built at the entry composition
 // root and passed in; automation sideways-imports nothing. A6 (arms) wires the injected `runArm` dispatcher.
 
-import type { AutomationContext, AutomationService } from "./contract/service";
-import { createHandleEvent } from "./substrate/handle-event";
-import { createCreateRule } from "./verbs/create-rule";
-import { createDeleteGlobalVariable } from "./verbs/delete-global-variable";
-import { createDeleteRule } from "./verbs/delete-rule";
-import { createGetBudgets } from "./verbs/get-budgets";
-import { createGetGlobalVariable } from "./verbs/get-global-variable";
-import { createListFires } from "./verbs/list-fires";
-import { createListGlobalVariables } from "./verbs/list-global-variables";
-import { createListRules } from "./verbs/list-rules";
-import { createReorderRules } from "./verbs/reorder-rules";
-import { createResolveStreamAuthority } from "./verbs/resolve-stream-authority";
-import { createSetBudgets } from "./verbs/set-budgets";
-import { createSetGlobalVariable } from "./verbs/set-global-variable";
-import { createSetRuleEnabled } from "./verbs/set-rule-enabled";
-import { createTestRule } from "./verbs/test-rule";
-import { createUpdateRule } from "./verbs/update-rule";
+import type { AutomationContext, AutomationService } from "./contract/service.ts";
+import { createHandleEvent } from "./substrate/handle-event.ts";
+import { createCreateRule } from "./verbs/create-rule.ts";
+import { createDeleteGlobalVariable } from "./verbs/delete-global-variable.ts";
+import { createDeleteRule } from "./verbs/delete-rule.ts";
+import { createGetBudgets } from "./verbs/get-budgets.ts";
+import { createGetGlobalVariable } from "./verbs/get-global-variable.ts";
+import { createListFires } from "./verbs/list-fires.ts";
+import { createListGlobalVariables } from "./verbs/list-global-variables.ts";
+import { createListRules } from "./verbs/list-rules.ts";
+import { createReorderRules } from "./verbs/reorder-rules.ts";
+import { createResolveStreamAuthority } from "./verbs/resolve-stream-authority.ts";
+import { createSetBudgets } from "./verbs/set-budgets.ts";
+import { createSetGlobalVariable } from "./verbs/set-global-variable.ts";
+import { createSetRuleEnabled } from "./verbs/set-rule-enabled.ts";
+import { createTestRule } from "./verbs/test-rule.ts";
+import { createUpdateRule } from "./verbs/update-rule.ts";
 
 export function createAutomationService(ctx: AutomationContext): AutomationService {
   return {

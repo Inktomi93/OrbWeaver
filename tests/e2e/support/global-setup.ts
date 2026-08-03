@@ -22,9 +22,9 @@
 import { execFileSync } from "node:child_process";
 import process from "node:process";
 import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
-import type { ModeProject } from "./modes";
-import { DEV_TARGET_ALLOWED, LOCAL_MEMBER, LOCAL_OWNER, MODE_PROJECTS } from "./modes";
-import { probeTarget, targetRefusal } from "./target-guard";
+import type { ModeProject } from "./modes.ts";
+import { DEV_TARGET_ALLOWED, LOCAL_MEMBER, LOCAL_OWNER, MODE_PROJECTS } from "./modes.ts";
+import { probeTarget, targetRefusal } from "./target-guard.ts";
 
 // A deterministic anchor card authored only when the library is empty (a wiped-and-latched DB).
 const ANCHOR_HANDLE = "e2e-anchor";

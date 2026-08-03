@@ -4,7 +4,7 @@
 // `KeyboardSensor` + `SortableKeyboardPlugin` defaults, verified against the shipped `@dnd-kit/dom`
 // source), so these tests are the proof, not a hand-wired feature under test.
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DerivedItemsList, ReorderableList } from "./sortable.fixtures";
+import { DerivedItemsList, ReorderableList } from "./sortable.fixtures.tsx";
 
 const NON_EMPTY = /.+/u;
 const PICKED_UP_RE = /picked up/iu;

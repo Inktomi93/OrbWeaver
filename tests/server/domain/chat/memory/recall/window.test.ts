@@ -1,6 +1,6 @@
 import { describe } from "vitest";
-import { inLiveWindow } from "../../../../../../packages/server/src/domain/chat/memory/recall/window";
-import { expect, test } from "../../../../../support/fixtures";
+import { inLiveWindow } from "../../../../../../packages/server/src/domain/chat/memory/recall/window.ts";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 describe("memory/recall/window — inLiveWindow (the §3a recall window-filter boundary)", () => {
   test("a span starting AT the cutoff is still in the live window (dropped)", () => {

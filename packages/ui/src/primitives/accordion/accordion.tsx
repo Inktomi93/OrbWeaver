@@ -8,7 +8,7 @@ import type {
 import { Accordion as BaseAccordion } from "@base-ui/react/accordion";
 import type { ReactElement } from "react";
 import { ChevronDown, Icon } from "#primitives/icons";
-import { accordionVariants } from "./variants";
+import { accordionVariants } from "./variants.ts";
 
 const slots = accordionVariants();
 

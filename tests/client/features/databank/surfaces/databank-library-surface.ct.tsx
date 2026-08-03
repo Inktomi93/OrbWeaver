@@ -13,8 +13,8 @@
 // through the recorded MUTATION INPUT — never through a UI reaction to a stubbed response.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DatabankLibraryStory } from "../_ct-stories";
-import { INDEXING_DOC, READY_DOC, stubDatabank } from "../fixtures";
+import { DatabankLibraryStory } from "../_ct-stories.tsx";
+import { INDEXING_DOC, READY_DOC, stubDatabank } from "../fixtures.ts";
 
 test("a phase chip renders ONLY for a non-ready row — Ready is the absence of a chip (§6.1)", async ({ mount, page }) => {
   await stubDatabank(page);

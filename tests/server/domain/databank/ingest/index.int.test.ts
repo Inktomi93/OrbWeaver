@@ -14,7 +14,7 @@ import { createExtractText, EXTRACTOR_VERSION } from "@orb/server/infra/extracti
 import { asc, eq } from "drizzle-orm";
 import { vi } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import type { DatabankHarness } from "../_support.ts";
 import { EMBED_DIM, EMBED_MODEL, makeDatabankHarness, principalFor, seedUser } from "../_support.ts";
 

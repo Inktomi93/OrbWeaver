@@ -8,10 +8,10 @@
 // space tag the segment/digest embed writes key on (the embedCorpus idiom). BULK-ONLY + skip-on-abort is the
 // CALLER's guard (the memory-backfill runner), mirroring the embedCorpus/embedAssets purge structure exactly.
 
-import type { EmbeddingsContext } from "../context";
-import type { PurgeMemoryVectorsResult } from "../contract/results";
-import type { EmbeddingsService } from "../contract/service";
-import { purgeStaleVectors } from "../persistence/clear";
+import type { EmbeddingsContext } from "../context.ts";
+import type { PurgeMemoryVectorsResult } from "../contract/results.ts";
+import type { EmbeddingsService } from "../contract/service.ts";
+import { purgeStaleVectors } from "../persistence/clear.ts";
 
 export function createPurgeMemoryVectors(ctx: EmbeddingsContext): EmbeddingsService["purgeMemoryVectors"] {
   return async (): Promise<PurgeMemoryVectorsResult> => {

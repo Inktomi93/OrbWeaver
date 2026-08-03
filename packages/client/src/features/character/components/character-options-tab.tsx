@@ -8,8 +8,8 @@ import type { CharacterId } from "@orb/kit/ids";
 import { FieldLayout } from "@orb/ui/field";
 import { Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { CharacterAppearanceTab } from "./character-appearance-tab";
-import { CharacterHistoryTab } from "./character-history-tab";
+import { CharacterAppearanceTab } from "./character-appearance-tab.tsx";
+import { CharacterHistoryTab } from "./character-history-tab.tsx";
 
 export interface CharacterOptionsTabProps {
   readonly characterId: CharacterId;

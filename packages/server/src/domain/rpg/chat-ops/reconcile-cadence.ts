@@ -10,8 +10,8 @@
 // round). The gather and the flush both read it before the flush writes, so they see the same count.
 
 import type { Db } from "@orb/db";
-import type { RpgGameRow } from "../contract/service";
-import { countSnapshots } from "../persistence/snapshots";
+import type { RpgGameRow } from "../contract/service.ts";
+import { countSnapshots } from "../persistence/snapshots.ts";
 
 /** Is THIS beat the `reconcileEveryBeats`-th (so the round/fold re-emits the full refreshable planes and a
  *  drifted panel self-heals)? Locks stay lock-protected at the merge — a reconcile never clobbers a hand-pin. */

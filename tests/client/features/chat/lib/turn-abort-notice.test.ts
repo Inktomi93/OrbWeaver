@@ -4,8 +4,8 @@
 // AND proves the hook-side suppression is `aborted`-NARROW (a real fault still toasts).
 
 import { TURN_ABORT_REASONS, TURN_ABORTED_OP_CODE } from "@orb/contracts/chat";
-import { isSilencedTurnAbort, TURN_STALE_ABORT_COPY, turnAbortNotice } from "../../../../../packages/client/src/features/chat/lib/turn-abort-notice";
-import { expect, test } from "../../../../support/fixtures";
+import { isSilencedTurnAbort, TURN_STALE_ABORT_COPY, turnAbortNotice } from "../../../../../packages/client/src/features/chat/lib/turn-abort-notice.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 // ── turnAbortNotice: reason → user-visible copy (or null) ──────────────────────────────────────────
 

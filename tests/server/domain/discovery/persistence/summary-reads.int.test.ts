@@ -8,7 +8,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { readOwnedCardFacets } from "../../../../../packages/server/src/domain/discovery/persistence/summary-reads.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, seedCharacter, seedUser } from "../_support.ts";
 
 async function seedSummary(

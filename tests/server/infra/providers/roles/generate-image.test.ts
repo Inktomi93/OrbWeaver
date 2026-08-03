@@ -4,7 +4,7 @@
 
 import type { ImageGenerateRequest, ResolvedCredential } from "@orb/server/infra/providers";
 import { createGenerateImageRole } from "@orb/server/infra/providers";
-import { runEmbedShapedRoleTests } from "./_support";
+import { runEmbedShapedRoleTests } from "./_support.ts";
 
 runEmbedShapedRoleTests({
   method: "generateImage",

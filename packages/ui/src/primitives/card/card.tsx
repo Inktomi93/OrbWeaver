@@ -1,7 +1,7 @@
 import type { ComponentProps, KeyboardEvent, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { cardVariants } from "./variants";
+import { cardVariants } from "./variants.ts";
 
 export interface CardProps extends ComponentProps<"div">, VariantProps<typeof cardVariants> {}
 

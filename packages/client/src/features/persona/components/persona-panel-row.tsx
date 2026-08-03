@@ -23,8 +23,8 @@ import { ConfirmDialog, ROW_REVEAL, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC, useTRPCClient, useUploadAsset } from "#data";
 import { cn, downloadTextFile, notify } from "#lib";
-import { useUpdatePersona } from "../hooks/use-persona-mutations";
-import { PersonaEditor } from "./persona-editor";
+import { useUpdatePersona } from "../hooks/use-persona-mutations.ts";
+import { PersonaEditor } from "./persona-editor.tsx";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 

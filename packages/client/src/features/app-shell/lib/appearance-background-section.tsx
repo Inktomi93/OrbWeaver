@@ -3,8 +3,8 @@
 // registry and the appearance skimmer pane renders it at its anchor.
 
 import type { SettingsSectionContribution } from "#state";
-import { AppearanceBackgroundSection } from "../components/appearance-background-section";
-import { APPEARANCE_BACKGROUND_KEYS, APPEARANCE_BACKGROUND_SUBCATEGORY } from "./appearance-background-model";
+import { AppearanceBackgroundSection } from "../components/appearance-background-section.tsx";
+import { APPEARANCE_BACKGROUND_KEYS, APPEARANCE_BACKGROUND_SUBCATEGORY } from "./appearance-background-model.ts";
 
 const SECTION_ID = "appearance-background";
 

@@ -9,13 +9,13 @@ import { rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { ChatTurnId, Handle, RpgSheetId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { buildTrackerView } from "../../../../../packages/server/src/domain/rpg/chat-ops/tracker-view";
-import type { RpgContext, RpgGameRow } from "../../../../../packages/server/src/domain/rpg/contract/service";
-import { findGameByChat, updateGame } from "../../../../../packages/server/src/domain/rpg/persistence/games";
-import { upsertSheet } from "../../../../../packages/server/src/domain/rpg/persistence/sheets";
-import { writeStagedSnapshot } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots";
-import { createRpgStagingStore } from "../../../../../packages/server/src/domain/rpg/staging";
-import { freshDb } from "../../../../support/db";
+import { buildTrackerView } from "../../../../../packages/server/src/domain/rpg/chat-ops/tracker-view.ts";
+import type { RpgContext, RpgGameRow } from "../../../../../packages/server/src/domain/rpg/contract/service.ts";
+import { findGameByChat, updateGame } from "../../../../../packages/server/src/domain/rpg/persistence/games.ts";
+import { upsertSheet } from "../../../../../packages/server/src/domain/rpg/persistence/sheets.ts";
+import { writeStagedSnapshot } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { createRpgStagingStore } from "../../../../../packages/server/src/domain/rpg/staging.ts";
+import { freshDb } from "../../../../support/db.ts";
 import {
   emptyState,
   expect,
@@ -31,7 +31,7 @@ import {
   seedUser,
   target,
   test,
-} from "../_support";
+} from "../_support.ts";
 
 test("projects roster ∪ sheets — a roster actor with no sheet row renders the default sheet", async () => {
   const db = await freshDb();

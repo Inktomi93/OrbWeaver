@@ -6,7 +6,7 @@
 import type { AgentSdkModel } from "@orb/contracts/connection";
 import { describe } from "vitest";
 import { resolveAgentSdkAlias } from "../../../../../packages/server/src/domain/connection/catalog/resolve-agent-sdk-alias.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const SONNET: AgentSdkModel = {
   alias: "sonnet",

@@ -11,7 +11,7 @@
 // ref that stops resolving, a scroll container that stops being an ancestor) reds here.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { PromptReadoutDisclosureStory } from "./_readout-stories";
+import { PromptReadoutDisclosureStory } from "./_readout-stories.tsx";
 
 const SHOW = "Show assembled preview";
 const HIDE = "Hide assembled preview";

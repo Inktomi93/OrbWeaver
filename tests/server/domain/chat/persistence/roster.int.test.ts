@@ -6,10 +6,10 @@ import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
-import { buildInitialRosterRows, loadRoster } from "../../../../../packages/server/src/domain/chat/persistence/roster";
-import { freshDb } from "../../../../support/db";
-import { expect, test } from "../../../../support/fixtures";
-import { FROZEN_AT, seedChat, seedParticipant, seedUser } from "../_support";
+import { buildInitialRosterRows, loadRoster } from "../../../../../packages/server/src/domain/chat/persistence/roster.ts";
+import { freshDb } from "../../../../support/db.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { FROZEN_AT, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 

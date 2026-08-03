@@ -23,7 +23,7 @@ import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, 
 import { useReportSaveStatus } from "#forms";
 import type { SaveLifecycleState } from "#state";
 import { settingsAnchorId } from "#state";
-import { MEMORY_SETTINGS_SUBCATEGORY } from "../lib/memory-settings-section-nav";
+import { MEMORY_SETTINGS_SUBCATEGORY } from "../lib/memory-settings-section-nav.ts";
 
 interface MemoryPatchVars {
   readonly section: "memory";

@@ -3,8 +3,8 @@
 // rule itself; the assembly suite pins what the shadow means for a built registry (which def renders, which
 // never draws) and the lifecycle suite what it means for the pane.
 import { describe } from "vitest";
-import { shadowPresetUserMacros } from "../../../../../packages/server/src/domain/chat/substrate/user-macros";
-import { expect, test } from "../../../../support/fixtures";
+import { shadowPresetUserMacros } from "../../../../../packages/server/src/domain/chat/substrate/user-macros.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const preset = [{ name: "mood", body: "preset" }, { name: "stakes" }];
 

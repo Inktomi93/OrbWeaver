@@ -5,9 +5,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useInvalidation, useTRPC } from "#data";
 import { selectCollectionMember } from "#state";
-import { REGEX_COLLECTION_ID } from "../lib/regex-model";
-import { useCreateRegexScript } from "./use-regex-library";
-import { makeRegexScriptDefaults } from "./use-regex-script-form";
+import { REGEX_COLLECTION_ID } from "../lib/regex-model.ts";
+import { useCreateRegexScript } from "./use-regex-library.ts";
+import { makeRegexScriptDefaults } from "./use-regex-script-form.ts";
 
 /** The group band's live census — a NON-suspending read sharing the rows' cache. */
 export function useRegexCount(): number | undefined {

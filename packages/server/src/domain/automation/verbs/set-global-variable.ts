@@ -3,10 +3,10 @@
 // of the DB CHECK; stamps the injected clock onto `updated_at` (overwriting the DDL default).
 
 import { GLOBAL_VARIABLE_KEY_MAX_CHARS, GLOBAL_VARIABLE_VALUE_MAX_BYTES } from "@orb/contracts/automation";
-import { GlobalVariableInvalidError } from "../contract/errors";
-import type { SetGlobalVariableParams } from "../contract/params";
-import type { AutomationContext, AutomationService } from "../contract/service";
-import { upsertGlobalVariable } from "../persistence/queries";
+import { GlobalVariableInvalidError } from "../contract/errors.ts";
+import type { SetGlobalVariableParams } from "../contract/params.ts";
+import type { AutomationContext, AutomationService } from "../contract/service.ts";
+import { upsertGlobalVariable } from "../persistence/queries.ts";
 
 export function createSetGlobalVariable(ctx: AutomationContext): AutomationService["setGlobalVariable"] {
   return async (params: SetGlobalVariableParams) => {

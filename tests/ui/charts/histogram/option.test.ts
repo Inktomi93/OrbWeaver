@@ -8,7 +8,7 @@
 // ECharts' canvas can't resolve `var()`. This test pins the pass-through with a fixture palette.
 import type { ChartColors } from "../../../../packages/ui/src/charts/chart/use-chart-theme.ts";
 import { buildHistogramOption } from "../../../../packages/ui/src/charts/histogram/option.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const BUCKETS = [
   { label: "0–99", count: 12 },

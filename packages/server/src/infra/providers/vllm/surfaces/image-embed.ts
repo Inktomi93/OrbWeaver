@@ -5,9 +5,9 @@
 // from `concurrency` requests in flight, merged by the engine's continuous batcher.
 
 import type { ImageEmbedInput, ImageEmbedPair, ImageInput } from "@orb/contracts/role-clients";
-import type { ImageEmbedRequest, ImageEmbedResult } from "../../contract";
-import type { VllmEngineClient } from "../engine";
-import { DOC_INSTRUCTION, normalizeVector, QUERY_INSTRUCTION, toDataUri, truncateToDim } from "../engine";
+import type { ImageEmbedRequest, ImageEmbedResult } from "../../contract/index.ts";
+import type { VllmEngineClient } from "../engine/index.ts";
+import { DOC_INSTRUCTION, normalizeVector, QUERY_INSTRUCTION, toDataUri, truncateToDim } from "../engine/index.ts";
 
 // A "server rejected the `dimensions` param" message — the trigger for the full-dim fallback.
 const DIMENSIONS_REJECTED_RE = /dimensions/i;

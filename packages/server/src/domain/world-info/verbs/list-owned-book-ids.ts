@@ -5,7 +5,7 @@
 import { worldBooks } from "@orb/db";
 import type { WorldBookId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
-import type { ListOwnedBookIds, WorldInfoExportContext } from "../contract/export";
+import type { ListOwnedBookIds, WorldInfoExportContext } from "../contract/export.ts";
 
 export function createListOwnedBookIds(ctx: WorldInfoExportContext): ListOwnedBookIds {
   return async ({ ownerId }): Promise<readonly WorldBookId[]> => {

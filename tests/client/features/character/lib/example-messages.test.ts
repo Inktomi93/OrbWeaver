@@ -4,8 +4,8 @@
 
 // Deep import the PURE lib module (NOT the "@orb/client/features/character" barrel): a barrel import drags
 // browser TSX into the dom-less root typecheck:graph program (the character-list-view.test.ts precedent).
-import { parseExampleBlocks } from "../../../../../packages/client/src/features/character/lib/example-messages";
-import { expect, test } from "../../../../support/fixtures";
+import { parseExampleBlocks } from "../../../../../packages/client/src/features/character/lib/example-messages.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const USER = "{{user}}";
 const CHAR = "{{char}}";

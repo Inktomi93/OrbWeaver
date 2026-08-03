@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { Icon, Loader2 } from "#primitives/icons";
-import { spinnerVariants } from "./variants";
+import { spinnerVariants } from "./variants.ts";
 
 export interface SpinnerProps {
   size?: "sm" | "md" | "lg";

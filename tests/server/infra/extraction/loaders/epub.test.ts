@@ -4,7 +4,7 @@
 
 import { zipSync } from "fflate";
 import { loadEpub } from "../../../../../packages/server/src/infra/extraction/loaders/epub.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { buildEpub } from "../_fixtures.ts";
 
 const enc = new TextEncoder();

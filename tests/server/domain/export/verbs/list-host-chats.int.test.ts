@@ -13,7 +13,7 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { createListHostChats } from "../../../../../packages/server/src/domain/export/verbs/list-host-chats.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedCharacter, seedUser } from "../_support.ts";
 
 const NOW = 1_700_000_000_000;

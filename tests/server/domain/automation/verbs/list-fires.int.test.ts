@@ -1,6 +1,6 @@
 // verb: listFires — the host's fire-log debug surface (a testRule writes a test_run row).
 
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { MSG_COMMITTED, principal, ruleFixture, SET_VAR } from "../_support.ts";
 
 test("listFires returns the rule's fire log (the testRule test_run row)", async () => {

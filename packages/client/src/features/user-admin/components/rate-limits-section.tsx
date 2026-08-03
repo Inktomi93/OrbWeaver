@@ -17,10 +17,10 @@ import { useState } from "react";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import { useUpdateAppOverrides } from "../hooks/use-admin-mutations";
-import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model";
-import { RATE_LIMITS_SUBCATEGORY } from "../lib/rate-limits-nav";
-import { AdminOverrideField, AdminOverrideResetRow } from "./admin-override-field";
+import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
+import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
+import { RATE_LIMITS_SUBCATEGORY } from "../lib/rate-limits-nav.ts";
+import { AdminOverrideField, AdminOverrideResetRow } from "./admin-override-field.tsx";
 
 // The four editable caps, in display order — each a ResolvedRateLimits field (numeric, per-minute).
 const FIELDS = [

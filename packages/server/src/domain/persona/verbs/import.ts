@@ -9,12 +9,12 @@ import { personas } from "@orb/db";
 import { and, eq } from "drizzle-orm";
 import { portableParseError } from "#kit/serde/lib";
 import { PERSONA_SCHEMA_KIND, parsePersonaBackup } from "#kit/serde/persona";
-import type { PersonaContext } from "../context";
-import { PersonaNotFoundError } from "../contract/errors";
-import type { ImportPersonaParams } from "../contract/params";
-import type { PersonaImportOutcome } from "../contract/results";
-import type { PersonaService } from "../contract/service";
-import { detailOf, findOwnedPersonaByName, loadOwnedPersonaWithAvatar } from "../persistence/queries";
+import type { PersonaContext } from "../context.ts";
+import { PersonaNotFoundError } from "../contract/errors.ts";
+import type { ImportPersonaParams } from "../contract/params.ts";
+import type { PersonaImportOutcome } from "../contract/results.ts";
+import type { PersonaService } from "../contract/service.ts";
+import { detailOf, findOwnedPersonaByName, loadOwnedPersonaWithAvatar } from "../persistence/queries.ts";
 
 export function createImport(ctx: PersonaContext): PersonaService["import"] {
   return async ({ principal, bytes }: ImportPersonaParams): Promise<PersonaImportOutcome> => {

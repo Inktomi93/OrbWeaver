@@ -22,10 +22,10 @@ import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, 
 import type { AutosaveSession } from "#forms";
 import { SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import { IMAGERY_TEMPLATES_ENTITY_ID, ImageryTemplatesAutosaveForm } from "../hooks/use-imagery-templates-form";
-import type { ImageryTemplatesForm } from "../lib/imagery-templates-model";
-import { projectImageryTemplatesForm, toImageryTemplatesPatch } from "../lib/imagery-templates-model";
-import { IMAGERY_TEMPLATES_SUBCATEGORY } from "../lib/imagery-templates-section-nav";
+import { IMAGERY_TEMPLATES_ENTITY_ID, ImageryTemplatesAutosaveForm } from "../hooks/use-imagery-templates-form.ts";
+import type { ImageryTemplatesForm } from "../lib/imagery-templates-model.ts";
+import { projectImageryTemplatesForm, toImageryTemplatesPatch } from "../lib/imagery-templates-model.ts";
+import { IMAGERY_TEMPLATES_SUBCATEGORY } from "../lib/imagery-templates-section-nav.ts";
 
 interface UpdateImageryVars {
   readonly section: "imagery";

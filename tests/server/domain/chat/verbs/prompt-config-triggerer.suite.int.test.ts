@@ -7,10 +7,10 @@
 import type { AssemblePersona } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PersonaId } from "@orb/kit/ids";
-import type { ResolveForeignInputsOp } from "../../../../../packages/server/src/domain/chat/contract/foreign";
-import { scenario, tape } from "../../../../support/chat";
-import { expect, test } from "../../../../support/fixtures";
-import { seedPersona } from "../_support";
+import type { ResolveForeignInputsOp } from "../../../../../packages/server/src/domain/chat/contract/foreign.ts";
+import { scenario, tape } from "../../../../support/chat/index.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { seedPersona } from "../_support.ts";
 
 const PERSONA: AssemblePersona = { name: "P", description: "" };
 

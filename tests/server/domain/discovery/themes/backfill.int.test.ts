@@ -13,7 +13,7 @@ import { describe } from "vitest";
 import { resolveTier0Range } from "../../../../../packages/server/src/domain/chat/index.ts";
 import { backfillMsgMidAt } from "../../../../../packages/server/src/domain/discovery/themes/backfill.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeDiscoveryHarness, seedChatDigest, seedChatSegment, seedHostedChat, seedMessage, seedUser, vec } from "../_support.ts";
 
 // The same grid the composition root binds — the grounded floor config (fanOut 4).

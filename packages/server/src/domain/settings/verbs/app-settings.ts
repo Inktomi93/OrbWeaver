@@ -7,11 +7,11 @@
 import type { AppSettings, AppSettingsView, EffectiveAppConfig } from "@orb/contracts/settings";
 import { APP_SETTINGS_SCHEMA_VERSION, parseAppSettings } from "@orb/contracts/settings";
 import type { JsonValue } from "@orb/kit/json";
-import { APP_SETTINGS_KEY } from "../contract/keys";
-import type { GetAppSettingsParams, UpdateAppSettingsParams } from "../contract/params";
-import type { SettingsContext } from "../contract/service";
-import { readAppOverrideRaw, writeAppOverride } from "../persistence/queries";
-import { deepMergeAppSettings } from "../substrate/merge";
+import { APP_SETTINGS_KEY } from "../contract/keys.ts";
+import type { GetAppSettingsParams, UpdateAppSettingsParams } from "../contract/params.ts";
+import type { SettingsContext } from "../contract/service.ts";
+import { readAppOverrideRaw, writeAppOverride } from "../persistence/queries.ts";
+import { deepMergeAppSettings } from "../substrate/merge.ts";
 
 interface AppSettingsVerbs {
   readonly getAppSettings: (params: GetAppSettingsParams) => Promise<EffectiveAppConfig>;

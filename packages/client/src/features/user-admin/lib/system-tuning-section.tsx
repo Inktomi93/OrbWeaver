@@ -3,8 +3,8 @@
 // settings-section registry at the `admin` anchor. user-admin owns it (it owns the admin pane).
 
 import type { SettingsSectionContribution } from "#state";
-import { SystemTuningSection } from "../components/system-tuning-section";
-import { SYSTEM_TUNING_SUBCATEGORY } from "./system-tuning-nav";
+import { SystemTuningSection } from "../components/system-tuning-section.tsx";
+import { SYSTEM_TUNING_SUBCATEGORY } from "./system-tuning-nav.ts";
 
 // The contribution id has ONE home — this const. It is both the registry key and the id the body REPORTS
 // its save status under (SET-SEAMS §3), so the body takes it as a prop rather than re-spelling the literal.

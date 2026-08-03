@@ -46,11 +46,11 @@ import type { SocketId } from "@orb/kit/ids";
 import type { TrackedEnvelope } from "@trpc/server";
 import { tracked } from "@trpc/server";
 import { getLog } from "#foundation/observability";
-import type { Services } from "../context";
-import { classifyDomainError } from "../error-mapping";
-import { createFrameQueue } from "./frame-queue";
-import { roomSourceFor } from "./room-sources";
-import type { SocketCell, SocketListener, SocketRegistry, SocketRoom } from "./socket-registry";
+import type { Services } from "../context.ts";
+import { classifyDomainError } from "../error-mapping.ts";
+import { createFrameQueue } from "./frame-queue.ts";
+import { roomSourceFor } from "./room-sources.ts";
+import type { SocketCell, SocketListener, SocketRegistry, SocketRoom } from "./socket-registry.ts";
 
 /** What a room's fault becomes on the wire. A DOMAIN error keeps its classified code + message (the same
  *  typed-terminal-frame contract `withSubscriptionErrors` gives a whole stream today); anything else is a

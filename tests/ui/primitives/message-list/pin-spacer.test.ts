@@ -2,8 +2,8 @@
 // is DOM-free so it keeps the node-only aggregator program honest (the tokens.build.ts / snap.ts precedent).
 // Proves a short reply keeps the spacer (so the pinned prompt can climb to the top) and it collapses once
 // the reply below the pin fills a viewport.
-import { pinSpacerActive } from "../../../../packages/ui/src/primitives/message-list/pin-spacer";
-import { expect, test } from "../../../support/fixtures";
+import { pinSpacerActive } from "../../../../packages/ui/src/primitives/message-list/pin-spacer.ts";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const VIEWPORT = 600;
 

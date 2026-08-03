@@ -17,7 +17,7 @@ import {
   toSeedTurns,
 } from "@orb/server/infra/providers/backends/agent-sdk/session";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../../support/fixtures";
+import { expect, test } from "../../../../../../support/fixtures.ts";
 
 const SESSION_ID = "11111111-1111-4111-8111-111111111111";
 const MISSING_SESSION_ID_RE = /missing session_id/u;

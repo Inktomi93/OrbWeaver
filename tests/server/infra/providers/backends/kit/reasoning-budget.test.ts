@@ -3,7 +3,7 @@
 
 import { effortToOpenAIReasoning, effortToResponsesReasoning, OPENAI_EFFORT_LEVELS } from "@orb/server/infra/providers/backends/kit";
 import { describe } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 describe("OPENAI_EFFORT_LEVELS", () => {
   test("is the OR/OpenAI wire vocab (no `max` — that maps to `xhigh`)", () => {

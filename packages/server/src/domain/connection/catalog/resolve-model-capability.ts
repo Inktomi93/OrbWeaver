@@ -8,13 +8,13 @@ import type { AgentSdkModel, ChatApi, CredentialSource, EffortLevel, ModelCapabi
 import { EFFORT_LEVELS } from "@orb/contracts/connection";
 import type { ModelId } from "@orb/kit/ids";
 import { env } from "#foundation/env";
-import { CLAUDE_CAPABILITY_FLOOR, getChatModel } from "./chat-models";
-import type { MODEL_FAMILIES } from "./model-family";
-import { detectModelFamily } from "./model-family";
-import { resolveAgentSdkAlias } from "./resolve-agent-sdk-alias";
-import { NON_CACHING_TURNS, refineCuratedTurns, synthesizeAnthropicTurns } from "./turns";
-import type { WIRE_SHAPES } from "./wire-shape";
-import { deriveWireShape } from "./wire-shape";
+import { CLAUDE_CAPABILITY_FLOOR, getChatModel } from "./chat-models.ts";
+import type { MODEL_FAMILIES } from "./model-family.ts";
+import { detectModelFamily } from "./model-family.ts";
+import { resolveAgentSdkAlias } from "./resolve-agent-sdk-alias.ts";
+import { NON_CACHING_TURNS, refineCuratedTurns, synthesizeAnthropicTurns } from "./turns.ts";
+import type { WIRE_SHAPES } from "./wire-shape.ts";
+import { deriveWireShape } from "./wire-shape.ts";
 
 /** The resolver-internal wire-shape key (re-derived from the tuple; no-inline-types keeps it file-local). */
 type WireShape = (typeof WIRE_SHAPES)[number];

@@ -19,7 +19,7 @@ import { GreetingStudio } from "#components";
 import { useColorQuotedSpeech, usePromptMacroSuggestions } from "#data";
 import type { AppFormInstance } from "#forms";
 import { cn } from "#lib";
-import type { CharacterCardFormValues } from "../lib/character-card-form-model";
+import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
 
 type CardForm = AppFormInstance<CharacterCardFormValues>;
 

@@ -1,7 +1,7 @@
 import { Field as BaseField } from "@base-ui/react/field";
 import type { ComponentPropsWithRef, ReactElement } from "react";
 import { cn } from "#lib";
-import { textareaVariants } from "./variants";
+import { textareaVariants } from "./variants.ts";
 
 export interface TextareaProps extends ComponentPropsWithRef<"textarea"> {
   className?: string;

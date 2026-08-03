@@ -12,7 +12,7 @@ import { Popover as BasePopover } from "@base-ui/react/popover";
 import type { ReactElement } from "react";
 import type { PortalContainer } from "#lib";
 import { ANCHOR_GAP_TRIGGER, usePortalContainer } from "#lib";
-import { popoverVariants } from "./variants";
+import { popoverVariants } from "./variants.ts";
 
 const slots = popoverVariants();
 

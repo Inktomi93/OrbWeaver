@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { cn, usePrefersReducedMotion } from "#lib";
-import { backgroundVideoVariants } from "./variants";
+import { backgroundVideoVariants } from "./variants.ts";
 
 /** Page Visibility as an external store (the Waystone precedent) — the tab's hidden state is not React
  *  state, so it is SUBSCRIBED, never mirrored into useState from an effect. Module-scope callbacks: the

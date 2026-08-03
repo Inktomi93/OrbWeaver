@@ -10,8 +10,8 @@ import type { Db } from "@orb/db";
 import { isCelParseError, parseCel } from "@orb/kit/cel";
 import type { ChatId } from "@orb/kit/ids";
 import { z } from "zod";
-import { AutomationReservedTriggerError, RuleValidationError } from "../contract/errors";
-import { isBookAttachedToChat } from "../persistence/canon-reads";
+import { AutomationReservedTriggerError, RuleValidationError } from "../contract/errors.ts";
+import { isBookAttachedToChat } from "../persistence/canon-reads.ts";
 
 /** The per-rule cooldown floor (seconds) enforced when a `post_notification` arm is present — inbox spam
  *  trains dismissal (03 §3 / the chat-crew §5 lesson). */

@@ -6,12 +6,12 @@
  * `markdown/`/`diff/`/`content/` — ui-package-design §2's tree).
  */
 
-export type { StreamShimmerProps } from "./shimmer";
-export { StreamShimmer } from "./shimmer";
-export { snapToGraphemeBoundary, snapToWordBoundary } from "./snap";
-export type { StreamStatus, StreamTextProps } from "./stream-text";
-export { StreamText } from "./stream-text";
-export type { TypingDotsProps } from "./typing-dots";
-export { TypingDots } from "./typing-dots";
-export type { UseSmoothTextOptions } from "./use-smooth-text";
-export { useSmoothText } from "./use-smooth-text";
+export type { StreamShimmerProps } from "./shimmer.tsx";
+export { StreamShimmer } from "./shimmer.tsx";
+export { snapToGraphemeBoundary, snapToWordBoundary } from "./snap.ts";
+export type { StreamStatus, StreamTextProps } from "./stream-text.tsx";
+export { StreamText } from "./stream-text.tsx";
+export type { TypingDotsProps } from "./typing-dots.tsx";
+export { TypingDots } from "./typing-dots.tsx";
+export type { UseSmoothTextOptions } from "./use-smooth-text.ts";
+export { useSmoothText } from "./use-smooth-text.ts";

@@ -14,7 +14,7 @@ import { onTestFinished } from "vitest";
 import type { DatabankContext, DatabankService } from "../../../../../packages/server/src/domain/databank/contract/service.ts";
 import { createDatabankService } from "../../../../../packages/server/src/domain/databank/index.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness as makeAssetsHarness } from "../../assets/_support.ts";
 import { makeDatabankHarness, principalFor, seedUser } from "../_support.ts";
 

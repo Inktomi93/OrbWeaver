@@ -7,11 +7,11 @@ import type { MessageView, SpeakerRef } from "@orb/contracts/chat";
 import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe, vi } from "vitest";
-import type { CastName } from "../../../../../packages/server/src/domain/chat/contract/arbitration";
-import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
-import type { TurnOutcome } from "../../../../../packages/server/src/domain/chat/contract/results";
-import { runAutoMode } from "../../../../../packages/server/src/domain/chat/engine/auto-mode";
-import { expect, test } from "../../../../support/fixtures";
+import type { CastName } from "../../../../../packages/server/src/domain/chat/contract/arbitration.ts";
+import { CHAT_OP_CODES, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
+import type { TurnOutcome } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
+import { runAutoMode } from "../../../../../packages/server/src/domain/chat/engine/auto-mode.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const cid = (k: string): CharacterId => castId<CharacterId>(`character_${k}`);
 const charRef = (k: string): SpeakerRef => ({ kind: "character", characterId: cid(k) });

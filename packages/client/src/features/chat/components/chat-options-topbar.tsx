@@ -9,8 +9,8 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { isCommitted, isLanding, useActiveChatHandle, useActiveDraftSeed, useDraftConfig } from "#state";
-import { filterCharacters } from "../lib/roster";
-import { ChatOptionsMenu } from "./chat-options-menu";
+import { filterCharacters } from "../lib/roster.ts";
+import { ChatOptionsMenu } from "./chat-options-menu.tsx";
 
 /** The chrome-body wrapper: renders the ONE options ⋯ menu for the active chat in BOTH phases. A COMMITTED
  *  chat resolves its roster + host gate from `chat.getChat`; a DRAFT resolves them from its seed/config (no

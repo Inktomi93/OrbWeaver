@@ -18,9 +18,9 @@ import type { Trpc } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import { selectCorpusCharacter } from "#state";
-import { toBarItems } from "../lib/corpus-charts";
-import { CharacterAvatar } from "./character-avatar";
-import { ParamSelect } from "./corpus-controls";
+import { toBarItems } from "../lib/corpus-charts.ts";
+import { CharacterAvatar } from "./character-avatar.tsx";
+import { ParamSelect } from "./corpus-controls.tsx";
 
 type ImageFacets = inferOutput<Trpc["discovery"]["imageFacets"]>;
 type FacetKey = inferInput<Trpc["discovery"]["charactersByImageFacet"]>["facet"];

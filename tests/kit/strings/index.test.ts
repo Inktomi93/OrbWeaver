@@ -1,5 +1,5 @@
 import { escapeRegExp, formatBytes } from "@orb/kit/strings";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("escapeRegExp prefixes each regex metacharacter with a backslash", () => {
   const metachars = [".", "*", "+", "?", "^", "$", "{", "}", "(", ")", "|", "[", "]", "\\"];

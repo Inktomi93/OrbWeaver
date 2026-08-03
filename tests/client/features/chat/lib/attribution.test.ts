@@ -10,10 +10,10 @@ import { castId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
-import { resolveRoomTheme, resolveRowAttribution, speakerThemesByName } from "../../../../../packages/client/src/features/chat/lib/attribution";
-import { colorForCharacter } from "../../../../../packages/client/src/features/chat/lib/speaker-color";
-import { expect, test } from "../../../../support/fixtures";
-import { makeParticipant } from "./_support";
+import { resolveRoomTheme, resolveRowAttribution, speakerThemesByName } from "../../../../../packages/client/src/features/chat/lib/attribution.ts";
+import { colorForCharacter } from "../../../../../packages/client/src/features/chat/lib/speaker-color.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
+import { makeParticipant } from "./_support.ts";
 
 const ALICE_ID = castId<CharacterId>("char_alice");
 const BOB_ID = castId<CharacterId>("char_bob");

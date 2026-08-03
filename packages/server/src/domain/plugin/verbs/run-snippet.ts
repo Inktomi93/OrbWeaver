@@ -13,10 +13,10 @@
 
 import type { PluginCapability } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { RunSnippetParams } from "../contract/params";
-import type { SnippetResult } from "../contract/results";
-import type { PluginContext } from "../contract/service";
-import { buildPluginBridge } from "../substrate/bridge";
+import type { RunSnippetParams } from "../contract/params.ts";
+import type { SnippetResult } from "../contract/results.ts";
+import type { PluginContext } from "../contract/service.ts";
+import { buildPluginBridge } from "../substrate/bridge.ts";
 
 export function createRunSnippet(ctx: PluginContext): (params: RunSnippetParams) => Promise<SnippetResult> {
   return async ({ caller, chatId, code }): Promise<SnippetResult> => {

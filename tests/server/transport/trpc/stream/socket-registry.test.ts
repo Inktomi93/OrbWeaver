@@ -15,7 +15,7 @@ import { castId } from "@orb/kit/ids";
 import type { SocketListener } from "@orb/server/transport/trpc";
 import { createSocketRegistry, ROOMS_PER_SOCKET, SOCKET_REAP_MS, SOCKETS_PER_USER } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const ALICE = castId<UserId>("user_alice");
 const MALLORY = castId<UserId>("user_mallory");

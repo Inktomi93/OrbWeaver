@@ -8,7 +8,7 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { SEARCH_TARGETS } from "#domain/search";
-import { authedProcedure, t } from "../trpc";
+import { authedProcedure, t } from "../trpc.ts";
 
 // The unified omnibox: one query + one target surface + one scope. `scope` is the discriminated WHERE axis
 // (owner-wide · one chat · one character across all chats — the membership-widened cross-chat scope). Ids

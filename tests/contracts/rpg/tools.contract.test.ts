@@ -15,7 +15,7 @@ import {
   upsertQuestArgsSchema,
 } from "@orb/contracts/rpg";
 import { z } from "zod";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 test("RPG_LITE_TOOL_NAMES is the committed 7-tuple full will keep", () => {
   expect(RPG_LITE_TOOL_NAMES).toEqual(["update_party", "update_inventory", "update_scene", "set_tracker", "upsert_quest", "add_journal_entry", "roll_dice"]);

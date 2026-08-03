@@ -6,7 +6,7 @@
 import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
 import { storedAssetSchema } from "@orb/contracts/assets";
 import { CSRF_HEADER } from "@orb/contracts/identity";
-import { throwHttpError } from "./http-error";
+import { throwHttpError } from "./http-error.ts";
 
 const UPLOAD_URL = "/api/assets/upload";
 const UPLOAD_FIELD = "file";

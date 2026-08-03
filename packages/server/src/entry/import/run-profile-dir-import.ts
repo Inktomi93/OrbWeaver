@@ -32,8 +32,8 @@ import type { BulkImportChats } from "#domain/chat";
 import type { CollectedCard, CollectedPersona, ImportFsPort, ImportPersonaInput } from "#domain/import";
 import { collectBundlesFromDir, createImportService, importFileHash } from "#domain/import";
 import type { BulkImportPersonas } from "#domain/persona";
-import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "./build-import-context";
-import { buildImportContext } from "./build-import-context";
+import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "./build-import-context.ts";
+import { buildImportContext } from "./build-import-context.ts";
 
 const AVATAR_MIME = "image/png";
 

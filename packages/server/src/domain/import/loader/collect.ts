@@ -9,9 +9,9 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { parseChatJsonl } from "#kit/serde/chat";
-import type { CollectedCard, CollectedChat, CollectedPersona, CollectResult, ImportFsPort } from "../contract/views";
-import { importFileHash, parseCardPng } from "../substrate/card";
-import { parseStPersonas } from "../substrate/persona";
+import type { CollectedCard, CollectedChat, CollectedPersona, CollectResult, ImportFsPort } from "../contract/views.ts";
+import { importFileHash, parseCardPng } from "../substrate/card.ts";
+import { parseStPersonas } from "../substrate/persona.ts";
 
 // Ceiling so a hostile staging dir with a million empty entries can't pin the loop.
 const MAX_DIR_ENTRIES = 100_000;

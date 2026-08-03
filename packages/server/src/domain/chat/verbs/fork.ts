@@ -26,21 +26,28 @@ import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserI
 import type { VarOp } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
-import type { ChatContext } from "../context";
-import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors";
-import type { ForkChatParams } from "../contract/params";
-import type { ForkResult } from "../contract/results";
-import type { ChatService } from "../contract/service";
-import { requireParticipant } from "../guard";
-import { loadChatMacroNameProducer } from "../persistence/macro-names";
-import { loadChatInjections, loadChatRow, loadMessageSlots, loadStoredVariables, loadVariableDeltas, loadVariantsByMessageIds } from "../persistence/queries";
-import { loadRoster } from "../persistence/roster";
-import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars";
-import { NO_HISTORY_FLOOR, permitsHost } from "../substrate/auth";
-import { toChatDetail } from "../substrate/chat-detail";
-import { viewerReadsHidden } from "../substrate/member-visibility";
-import { foldChain } from "../substrate/runtime-variables";
-import { canonMessageDelta, chatCreatedDelta, swipeVariantDelta } from "../substrate/stats-delta";
+import type { ChatContext } from "../context.ts";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
+import type { ForkChatParams } from "../contract/params.ts";
+import type { ForkResult } from "../contract/results.ts";
+import type { ChatService } from "../contract/service.ts";
+import { requireParticipant } from "../guard.ts";
+import { loadChatMacroNameProducer } from "../persistence/macro-names.ts";
+import {
+  loadChatInjections,
+  loadChatRow,
+  loadMessageSlots,
+  loadStoredVariables,
+  loadVariableDeltas,
+  loadVariantsByMessageIds,
+} from "../persistence/queries.ts";
+import { loadRoster } from "../persistence/roster.ts";
+import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars.ts";
+import { NO_HISTORY_FLOOR, permitsHost } from "../substrate/auth/index.ts";
+import { toChatDetail } from "../substrate/chat-detail.ts";
+import { viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { foldChain } from "../substrate/runtime-variables.ts";
+import { canonMessageDelta, chatCreatedDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
  *  roster read-model for the returned `ChatDetail`. */

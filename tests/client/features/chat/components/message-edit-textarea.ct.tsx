@@ -3,9 +3,9 @@
 // patch); a no-op edit (unchanged text) just exits without firing the mutation.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { MessageEditTextareaStory } from "../_ct-stories";
-import { makeMessageView } from "../fixtures";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { MessageEditTextareaStory } from "../_ct-stories.tsx";
+import { makeMessageView } from "../fixtures.ts";
 
 test("mounts pre-focused with the message's current content, caret at the end", async ({ mount }) => {
   const message = makeMessageView({ content: "original text" });

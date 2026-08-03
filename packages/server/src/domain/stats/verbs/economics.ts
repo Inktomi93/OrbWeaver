@@ -6,8 +6,8 @@
 
 import type { CharacterEconomics, CharacterModelEconomics } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
-import type { StatsContext, StatsService } from "../contract/service";
-import { readCharacterEconomics, readCharacterModelEconomics } from "../persistence/messages-economics";
+import type { StatsContext, StatsService } from "../contract/service.ts";
+import { readCharacterEconomics, readCharacterModelEconomics } from "../persistence/messages-economics.ts";
 
 export function createEconomics(ctx: StatsContext): Pick<StatsService, "characterEconomics" | "characterModelEconomics"> {
   return {

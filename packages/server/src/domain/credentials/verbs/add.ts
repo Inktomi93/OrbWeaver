@@ -6,13 +6,13 @@
 import { isConstraintViolation } from "@orb/db/kit";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
-import type { CredentialContext } from "../context";
-import { CREDENTIALS_OP_CODES, CredentialsConflictError } from "../contract/errors";
-import type { AddCredentialParams } from "../contract/params";
-import type { CredentialsService } from "../contract/service";
-import type { CredentialView } from "../contract/views";
-import { aadFor } from "../persistence/aad";
-import { fetchOwnedCredential, findSlotLabelRow, hasAnyInSlot, insertSealed, rotateSealed, toCredentialView } from "../persistence/queries";
+import type { CredentialContext } from "../context.ts";
+import { CREDENTIALS_OP_CODES, CredentialsConflictError } from "../contract/errors.ts";
+import type { AddCredentialParams } from "../contract/params.ts";
+import type { CredentialsService } from "../contract/service.ts";
+import type { CredentialView } from "../contract/views.ts";
+import { aadFor } from "../persistence/aad.ts";
+import { fetchOwnedCredential, findSlotLabelRow, hasAnyInSlot, insertSealed, rotateSealed, toCredentialView } from "../persistence/queries.ts";
 
 const DEFAULT_LABEL = "default";
 

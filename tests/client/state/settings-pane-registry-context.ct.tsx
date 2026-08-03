@@ -4,7 +4,7 @@
 // member's label.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { SettingsPaneRegistryProbe } from "./_ct-stories";
+import { SettingsPaneRegistryProbe } from "./_ct-stories.tsx";
 
 test("useSettingsPaneRegistry resolves the ordered pane list + get(id) inside the provider", async ({ mount }) => {
   const probe = await mount(<SettingsPaneRegistryProbe />);

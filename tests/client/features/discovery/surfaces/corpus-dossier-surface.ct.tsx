@@ -10,8 +10,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { CorpusDossierSurfaceStory } from "../_ct-stories";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { CorpusDossierSurfaceStory } from "../_ct-stories.tsx";
 
 const DOSSIER = {
   characterId: "char_aria",

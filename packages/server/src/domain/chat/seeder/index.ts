@@ -14,6 +14,6 @@ export type {
   DemoChatSeeder,
   DemoChatSeederDeps,
   SeededChatDressing,
-} from "../contract/seeder";
-export { DEMO_CHAT_NARRATOR_NAME, DEMO_CHAT_PACK_VERSION, DEMO_CHAT_TITLE_PREFIX, DEMO_CHATS } from "./demo-chats";
-export { createDemoChatSeeder } from "./seed";
+} from "../contract/seeder.ts";
+export { DEMO_CHAT_NARRATOR_NAME, DEMO_CHAT_PACK_VERSION, DEMO_CHAT_TITLE_PREFIX, DEMO_CHATS } from "./demo-chats.ts";
+export { createDemoChatSeeder } from "./seed.ts";

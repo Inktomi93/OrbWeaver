@@ -21,7 +21,7 @@ import { slugifyHandle } from "@orb/kit/slug";
 import { bodyLimit } from "hono/body-limit";
 import { hasCsrfHeader } from "#infra/auth";
 import { parseChatJsonl } from "#kit/serde/chat";
-import type { registerImportBundle } from "./import";
+import type { registerImportBundle } from "./import.ts";
 
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;

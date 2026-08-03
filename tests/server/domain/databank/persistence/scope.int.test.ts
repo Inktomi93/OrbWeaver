@@ -14,7 +14,7 @@ import { castId } from "@orb/kit/ids";
 import { resolveActiveDocumentIds } from "@orb/server/domain/databank";
 import { and, eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeDatabankHarness, principalFor, seedCharacter, seedChat, seedChatHost, seedRosterCharacter, seedUser } from "../_support.ts";
 
 /** Write the host per-document visibility override directly into chats.metadata (the persistence layer under

@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { badgeVariants } from "./variants";
+import { badgeVariants } from "./variants.ts";
 
 export interface BadgeProps extends ComponentProps<"span">, VariantProps<typeof badgeVariants> {}
 

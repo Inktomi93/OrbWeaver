@@ -14,7 +14,7 @@ import { QueryBoundary, QueryErrorState } from "#data";
 import type { CollectionContribution, ContributorRegistry } from "#lib";
 import { useFocusOnMount } from "#lib";
 import { useCollectionSelection } from "#state";
-import { ConfigWelcome } from "../components/config-welcome";
+import { ConfigWelcome } from "../components/config-welcome.tsx";
 
 export interface ConfigContentSurfaceProps {
   readonly collections: ContributorRegistry<CollectionContribution>;

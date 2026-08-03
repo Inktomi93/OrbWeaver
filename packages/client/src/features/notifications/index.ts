@@ -4,5 +4,5 @@
 // assembled at the main.tsx door) gated on `/api/auth/config.multiHumanCapable`; the hooks stay
 // internal (the bell IS the inbox surface).
 
-export { NotificationBell } from "./components/notification-bell";
-export { notificationsChrome } from "./lib/notifications-chrome";
+export { NotificationBell } from "./components/notification-bell.tsx";
+export { notificationsChrome } from "./lib/notifications-chrome.tsx";

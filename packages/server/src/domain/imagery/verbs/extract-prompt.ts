@@ -8,12 +8,12 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { PromptExtractionFailedError } from "../contract/errors";
-import type { ExtractionMode, ExtractPromptParams } from "../contract/params";
-import type { ExtractedPrompt } from "../contract/results";
-import type { CaptionAvatar, ImageryContext, ImageryService, ResolvePrompt } from "../contract/service";
-import { extractionFallbackFor, isMultimodalMode } from "../substrate/mode";
-import { processReply } from "../substrate/process-reply";
+import { PromptExtractionFailedError } from "../contract/errors.ts";
+import type { ExtractionMode, ExtractPromptParams } from "../contract/params.ts";
+import type { ExtractedPrompt } from "../contract/results.ts";
+import type { CaptionAvatar, ImageryContext, ImageryService, ResolvePrompt } from "../contract/service.ts";
+import { extractionFallbackFor, isMultimodalMode } from "../substrate/mode.ts";
+import { processReply } from "../substrate/process-reply.ts";
 
 /** The text-extraction branch: chat's quiet shaper reads recent canon under the mode's template, then normalize.
  *  The instruction is the caller's per-mode override ⊕ the shipped catalog default (⑫). */

@@ -27,8 +27,8 @@ import type { CharacterHandle, CharacterId, ChatId, MessageId } from "@orb/kit/i
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { openContextTab, openNewestChat } from "./support/chat-room";
-import type { ChatRoute } from "./support/trpc";
+import { openContextTab, openNewestChat } from "./support/chat-room.ts";
+import type { ChatRoute } from "./support/trpc.ts";
 import {
   createLiteGame,
   editMessage,
@@ -47,7 +47,7 @@ import {
   setFeatureKnobs,
   startChat,
   wireMessagesText,
-} from "./support/trpc";
+} from "./support/trpc.ts";
 
 const GM_NAME = "Thornwick";
 const GM_GREETING = "The lantern gutters as you step into the Rusted Gate tavern.";

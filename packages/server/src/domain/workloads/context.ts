@@ -6,7 +6,7 @@
 // pass-through seam. The per-dispatch `WorkloadRunnerContext` is NOT built here — the engine assembles it per
 // claimed row from the `WorkloadRunnerDeps` (db + env hub + roleClients binder + settings reader).
 
-import type { WorkloadServiceContext, WorkloadServiceDeps } from "./contract/service";
+import type { WorkloadServiceContext, WorkloadServiceDeps } from "./contract/service.ts";
 
 export function createWorkloadServiceContext(deps: WorkloadServiceDeps): WorkloadServiceContext {
   return deps;

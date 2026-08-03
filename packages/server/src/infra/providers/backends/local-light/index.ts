@@ -6,19 +6,19 @@
 // three derive roles only). `entry/` wires the returned backend into the BackendRegistry under the
 // "local-light" key.
 
-import type { ProviderBackend } from "../../contract";
-import { createLocalLightEmbed } from "./embed";
-import { createLocalLightImageEmbed } from "./image-embed";
-import type { LocalLightModelCache, ModelCacheConfig } from "./model-cache";
-import { createModelCache } from "./model-cache";
-import { createLocalLightRerank } from "./rerank";
+import type { ProviderBackend } from "../../contract/index.ts";
+import { createLocalLightEmbed } from "./embed.ts";
+import { createLocalLightImageEmbed } from "./image-embed.ts";
+import type { LocalLightModelCache, ModelCacheConfig } from "./model-cache.ts";
+import { createModelCache } from "./model-cache.ts";
+import { createLocalLightRerank } from "./rerank.ts";
 
-export { DEFAULT_EMBED_MODEL } from "./embed";
-export { DEFAULT_IMAGE_EMBED_MODEL } from "./image-embed";
-export { createLocalLightMatte, DEFAULT_MATTE_MODEL } from "./matte";
-export type { LocalLightModelCache, ModelCacheConfig } from "./model-cache";
-export { createModelCache } from "./model-cache";
-export { DEFAULT_RERANK_MODEL } from "./rerank";
+export { DEFAULT_EMBED_MODEL } from "./embed.ts";
+export { DEFAULT_IMAGE_EMBED_MODEL } from "./image-embed.ts";
+export { createLocalLightMatte, DEFAULT_MATTE_MODEL } from "./matte.ts";
+export type { LocalLightModelCache, ModelCacheConfig } from "./model-cache.ts";
+export { createModelCache } from "./model-cache.ts";
+export { DEFAULT_RERANK_MODEL } from "./rerank.ts";
 
 /** Deps for the local-light backend. Extends the model-cache runtime knobs (device/dtype/cacheDir/
  *  allowRemoteModels) and lets a caller inject a prebuilt cache — tests pass a deterministic fake;

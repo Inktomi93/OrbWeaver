@@ -10,7 +10,7 @@ import type { ChatId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { GenerateImageActionArgs } from "#imagery";
 import type { NotificationRecipient } from "#notifications";
-import type { PluginMessageView, PluginWorldEntryUpsert } from "./host-v1";
+import type { PluginMessageView, PluginWorldEntryUpsert } from "./host-v1.ts";
 
 /** The JSON-shaped, authority-agnostic op bridge the membrane calls (01 §2). Chat-scoped fns take an admitted
  *  `ChatId`; global-vars is pre-scoped to the installer by the domain builder. Exposes the composable set:

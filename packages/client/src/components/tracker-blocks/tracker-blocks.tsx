@@ -23,7 +23,7 @@ import { Gauge, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { TrackerValue } from "./tracker-value";
+import { TrackerValue } from "./tracker-value.tsx";
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 // 1. METER ROW — extracted to ./meter-row.tsx (the component-size cap; the ambient-strip precedent). The

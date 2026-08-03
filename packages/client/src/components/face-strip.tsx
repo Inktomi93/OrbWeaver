@@ -43,8 +43,8 @@ import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
-import type { FaceFold } from "./face-strip-fold";
-import { foldFaces } from "./face-strip-fold";
+import type { FaceFold } from "./face-strip-fold.ts";
+import { foldFaces } from "./face-strip-fold.ts";
 
 export interface FaceStripItem {
   readonly id: string;

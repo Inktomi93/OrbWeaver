@@ -19,7 +19,7 @@ import { castId } from "@orb/kit/ids";
 import { afterEach, describe, vi } from "vitest";
 import type { ImportWorkloadDeps } from "../../../../packages/server/src/domain/import/contract/workloads.ts";
 import { createImportWorkloadContributions } from "../../../../packages/server/src/domain/import/workload-contributions.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER_ID = castId<UserId>("user_owner");
 const T0 = 1_700_000_000_000;

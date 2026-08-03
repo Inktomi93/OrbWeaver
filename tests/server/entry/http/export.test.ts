@@ -12,7 +12,7 @@ import type { ExportService } from "@orb/server/domain/export";
 import type { ExportDeps } from "@orb/server/entry/http";
 import { registerExport } from "@orb/server/entry/http";
 import { describe } from "vitest";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER: Principal = {
   userId: castId<UserId>("usr_owner"),

@@ -5,7 +5,7 @@
 import { createHash } from "node:crypto";
 import type { SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatId } from "@orb/kit/ids";
-import { AGENT_PROMPT_TAIL_JOINER } from "../../../contract";
+import { AGENT_PROMPT_TAIL_JOINER } from "../../../contract/index.ts";
 
 export interface SeedTurn {
   readonly role: "user" | "assistant";

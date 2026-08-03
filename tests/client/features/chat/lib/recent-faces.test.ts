@@ -2,8 +2,8 @@
 // mislead: no duplicate face, no face for a character we can't name, and an ORDER that actually means
 // "who you were just with" (first appearance walking the server's newest-first chats), capped.
 
-import { recentFaces } from "../../../../../packages/client/src/features/chat/lib/recent-faces";
-import { expect, test } from "../../../../support/fixtures";
+import { recentFaces } from "../../../../../packages/client/src/features/chat/lib/recent-faces.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const SEATS = new Map([
   ["char_azarael", { name: "Azarael", hash: "hash_azarael" }],

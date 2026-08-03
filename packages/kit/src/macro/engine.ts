@@ -3,11 +3,11 @@
 // re-exported from the barrel — can import `processMacros` without an import CYCLE (index → row-macros →
 // index would trip `noImportCycles`/`no-circular`; index → row-macros → engine does not).
 
-import { trimContent } from "./content";
-import { evaluateMacros } from "./evaluator";
-import { parseMacros } from "./parser";
-import { createDefaultRegistry } from "./registry";
-import type { MacroAST, MacroBudget, MacroContext, MacroRegistry } from "./types";
+import { trimContent } from "./content.ts";
+import { evaluateMacros } from "./evaluator.ts";
+import { parseMacros } from "./parser.ts";
+import { createDefaultRegistry } from "./registry.ts";
+import type { MacroAST, MacroBudget, MacroContext, MacroRegistry } from "./types.ts";
 
 // Defense-in-depth caps. `{{setvar::a::{{a}}}}`-style chains are unbounded in one render pass
 // without these; trivially DoS-able if multi-user is ever turned on. Generous limits — real

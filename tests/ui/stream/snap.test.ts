@@ -13,7 +13,7 @@
 
 import { describe } from "vitest";
 import { snapToGraphemeBoundary, snapToWordBoundary } from "../../../packages/ui/src/stream/snap.ts";
-import { expect, test } from "../../support/fixtures";
+import { expect, test } from "../../support/fixtures.ts";
 
 describe("snapToWordBoundary", () => {
   test("advances to the next whitespace boundary", () => {

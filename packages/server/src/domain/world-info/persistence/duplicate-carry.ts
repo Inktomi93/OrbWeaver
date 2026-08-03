@@ -16,7 +16,7 @@
 
 import { characterBooks, characters } from "@orb/db";
 import { and, eq, inArray } from "drizzle-orm";
-import type { CopyCharacterBooks, WorldInfoDuplicateCarryContext } from "../contract/import";
+import type { CopyCharacterBooks, WorldInfoDuplicateCarryContext } from "../contract/import.ts";
 
 /** Both character ids present in the caller's own library — the owned-source gate, resolved in ONE round
  *  trip (`persona/persistence/queries.ts`'s `ensureCharacterOwned` idiom). A foreign or absent id on either

@@ -14,8 +14,8 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { useAttachWorldBookGlobal, useDetachWorldBookGlobal } from "../hooks/use-world-info-mutations";
-import { CharacterAttachRow, PersonaAttachRow } from "./attachment-rows";
+import { useAttachWorldBookGlobal, useDetachWorldBookGlobal } from "../hooks/use-world-info-mutations.ts";
+import { CharacterAttachRow, PersonaAttachRow } from "./attachment-rows.tsx";
 
 export interface BookAttachmentsProps {
   readonly bookId: WorldBookId;

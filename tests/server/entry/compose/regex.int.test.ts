@@ -16,7 +16,7 @@ import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import { buildRegex } from "../../../../packages/server/src/entry/compose/regex.ts";
 import { freshDb } from "../../../support/db.ts";
-import { expect, test } from "../../../support/fixtures";
+import { expect, test } from "../../../support/fixtures.ts";
 import { seedChat, seedParticipant } from "../../domain/chat/_support.ts";
 import { principal, seedScript, seedUser } from "../../domain/regex/_support.ts";
 

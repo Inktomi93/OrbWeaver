@@ -20,7 +20,7 @@ import {
   useAttachWorldBookToPersona,
   useDetachWorldBookFromCharacter,
   useDetachWorldBookFromPersona,
-} from "../hooks/use-world-info-mutations";
+} from "../hooks/use-world-info-mutations.ts";
 
 const ROLE_ITEMS: SelectItems<string> = WORLD_BOOK_ROLES.map((value) => ({ value, label: value }));
 

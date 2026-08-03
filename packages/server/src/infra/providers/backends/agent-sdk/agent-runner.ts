@@ -14,14 +14,14 @@ import type {
   UserDialogResult,
 } from "@anthropic-ai/claude-agent-sdk";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
-import type { AgentMcpServerHealth, AgentMcpServerSpec, AgentTurnRequest, ChatResult } from "../../contract";
-import { ProviderError } from "../../contract";
-import { refreshHostSubTokenIfMode1 } from "./host-token";
-import { logProviderDialog, logProviderMcp } from "./log";
-import { toSdkOutputFormat } from "./output-schema";
-import { consumeTurnStream } from "./runner";
-import { disciplineOptions, MCP_NAMESPACE, observabilityOptions } from "./translate";
-import type { AgentSdkDeps } from "./types";
+import type { AgentMcpServerHealth, AgentMcpServerSpec, AgentTurnRequest, ChatResult } from "../../contract/index.ts";
+import { ProviderError } from "../../contract/index.ts";
+import { refreshHostSubTokenIfMode1 } from "./host-token.ts";
+import { logProviderDialog, logProviderMcp } from "./log.ts";
+import { toSdkOutputFormat } from "./output-schema.ts";
+import { consumeTurnStream } from "./runner.ts";
+import { disciplineOptions, MCP_NAMESPACE, observabilityOptions } from "./translate.ts";
+import type { AgentSdkDeps } from "./types.ts";
 
 const DEFAULT_AGENT_MAX_TURNS = 8;
 // Aligned to the preset contract's DEFAULT_MAX_OUTPUT_TOKENS (2048) — the exact pattern the vllm chat

@@ -4,7 +4,7 @@
 // rather than on the source. Mounted via the support stories: CT cannot serialize a
 // component-as-prop (`icon={X}`) across the mount boundary.
 import { expect, test } from "@playwright/experimental-ct-react";
-import { CloseIconStory, IconGalleryStory, StarIconStory, TwoPartialStarsStory } from "./icon.fixtures";
+import { CloseIconStory, IconGalleryStory, StarIconStory, TwoPartialStarsStory } from "./icon.fixtures.tsx";
 
 // = ICON_XS / ICON_SM / ICON_MD / ICON_LG (packages/ui/src/primitives/icons/icon.tsx type-scale table).
 const ICON_XS_PX = "12";

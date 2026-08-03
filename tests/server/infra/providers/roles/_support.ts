@@ -20,8 +20,8 @@ import { CRED_SOURCES } from "@orb/contracts/credentials";
 import type { BackendKey, ProviderBackend, ResolvedCredential } from "@orb/server/infra/providers";
 import { backendForSource, ProviderError } from "@orb/server/infra/providers";
 import { describe } from "vitest";
-import { makeCustomOpenAiCredential, makeOpenRouterCredential, makeResolvedCredential } from "../../../../support/factories/resolved-connection";
-import { expect, test } from "../../../../support/fixtures";
+import { makeCustomOpenAiCredential, makeOpenRouterCredential, makeResolvedCredential } from "../../../../support/factories/resolved-connection.ts";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The five roles this runner covers; the method name is BOTH the ProviderBackend impl key and the spy
  *  tag. Single-home tuple + derived union (no inline re-decl, Spine-TypeScript §7.5). */

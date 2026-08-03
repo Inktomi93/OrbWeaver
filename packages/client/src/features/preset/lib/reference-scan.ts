@@ -12,7 +12,7 @@
 // It is a client derivation over the SAVED config: no server read, no new query, no freshness row.
 
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
-import { MARKER_COPY } from "../components/prompt-assembly/marker-copy";
+import { MARKER_COPY } from "../components/prompt-assembly/marker-copy.ts";
 
 /** One place a name is written. `sectionId` is present only for a SECTION consumer — it is the key the
  *  panel's selection echo needs (§16 row 19); a template/nudge consumer has no rack row to select. */

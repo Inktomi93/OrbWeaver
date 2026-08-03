@@ -14,8 +14,8 @@ import { DomainForbiddenError, DomainNotFoundError, DomainOperationError } from 
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach } from "vitest";
-import { freshDb } from "../../../../../support/db";
-import { expect, makeRpgService, principal, seedChat, seedUser, test } from "../../_support";
+import { freshDb } from "../../../../../support/db.ts";
+import { expect, makeRpgService, principal, seedChat, seedUser, test } from "../../_support.ts";
 
 let db: Db;
 beforeEach(async () => {

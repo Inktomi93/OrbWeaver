@@ -5,7 +5,7 @@ import type { ReactElement, ReactNode, Ref } from "react";
 import { useCallback, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import type { GapToken } from "#lib";
 import { assertBoundedScrollHeight, cn, gapPxFor, usePrefersReducedMotion } from "#lib";
-import { pinSpacerActive } from "./pin-spacer";
+import { pinSpacerActive } from "./pin-spacer.ts";
 
 // Chat rows are tall/variable; deeper overscan than virtual-list's default avoids pop-in on scrollback.
 const DEFAULT_OVERSCAN = 10;

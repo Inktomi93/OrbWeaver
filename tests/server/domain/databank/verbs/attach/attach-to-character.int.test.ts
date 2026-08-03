@@ -9,7 +9,7 @@ import { castId } from "@orb/kit/ids";
 import { DatabankCharacterNotFoundError, DocumentNotFoundError } from "@orb/server/domain/databank";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../../support/db.ts";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeDatabankHarness, principalFor, seedCharacter, seedUser } from "../../_support.ts";
 
 test("owner attaches an owned document to an owned character; re-attach idempotent; detach removes it", async () => {

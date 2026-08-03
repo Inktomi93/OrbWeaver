@@ -15,12 +15,12 @@ import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import type { ChatContext, ForkGameArgs } from "../../../../../packages/server/src/domain/chat";
-import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors";
-import { createFork } from "../../../../../packages/server/src/domain/chat/verbs/fork";
-import { freshDb } from "../../../../support/db";
+import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
+import type { ChatContext, ForkGameArgs } from "../../../../../packages/server/src/domain/chat/index.ts";
+import { createFork } from "../../../../../packages/server/src/domain/chat/verbs/fork.ts";
+import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import {
   addVariant,
   makeChatContext,
@@ -31,7 +31,7 @@ import {
   seedParticipant,
   seedPersona,
   seedUser,
-} from "../_support";
+} from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];

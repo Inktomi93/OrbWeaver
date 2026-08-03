@@ -8,7 +8,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { buildClaudeAnthEnv, buildClaudeOpenRouterEnv, buildClaudeSdkEnv, RESERVED_CLAUDE_ENV_KEYS } from "@orb/server/infra/providers/backends/agent-sdk";
 import { afterEach, describe, vi } from "vitest";
-import { expect, test } from "../../../../../support/fixtures";
+import { expect, test } from "../../../../../support/fixtures.ts";
 
 const OR_KEY = "sk-or-test-key";
 const FAKE_SUB_TOKEN = "oauth-sub-token-SECRET";

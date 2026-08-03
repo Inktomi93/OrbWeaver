@@ -6,8 +6,8 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { AnalyticsOverviewSurfaceStory } from "../_ct-stories";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { AnalyticsOverviewSurfaceStory } from "../_ct-stories.tsx";
 
 const COMPUTED_AT = 1_750_000_000_000;
 

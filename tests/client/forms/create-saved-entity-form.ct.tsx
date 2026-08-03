@@ -6,7 +6,7 @@
 // (core/Spine-Testing.md §7).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { SavedDraftMirrorStory, SavedDraftRestoreStory, SavedDraftUnmountFlushStory, SavedEntityPromoteStory } from "./_ct-stories";
+import { SavedDraftMirrorStory, SavedDraftRestoreStory, SavedDraftUnmountFlushStory, SavedEntityPromoteStory } from "./_ct-stories.tsx";
 
 test("promote() with dontUpdateMeta keeps the form's isDirty false", async ({ mount, page }) => {
   await mount(<SavedEntityPromoteStory />);

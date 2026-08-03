@@ -7,12 +7,12 @@
 // not owned/found.
 
 import { getLog } from "#foundation/observability";
-import type { CharacterContext } from "../context";
-import { CharacterNotFoundError } from "../contract/errors";
-import type { RemoveCharacterParams } from "../contract/params";
-import type { CharacterService } from "../contract/service";
-import { deleteOwnedCharacter } from "../persistence/card";
-import { loadOwnedCharacterRow } from "../persistence/queries";
+import type { CharacterContext } from "../context.ts";
+import { CharacterNotFoundError } from "../contract/errors.ts";
+import type { RemoveCharacterParams } from "../contract/params.ts";
+import type { CharacterService } from "../contract/service.ts";
+import { deleteOwnedCharacter } from "../persistence/card.ts";
+import { loadOwnedCharacterRow } from "../persistence/queries.ts";
 
 export function createRemove(ctx: CharacterContext): CharacterService["remove"] {
   return async ({ principal, characterId }: RemoveCharacterParams) => {

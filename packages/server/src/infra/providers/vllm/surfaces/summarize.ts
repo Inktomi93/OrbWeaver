@@ -10,11 +10,11 @@
 // choke point — never a parallel mechanism.
 
 import type { ResponseFormat } from "@orb/contracts/role-clients";
-import { logProviderSummarizeItem } from "../../backends/kit";
-import type { StructuredRequest, SummarizeRequest, SummarizeResult, SummarizeResultItem, WireCaptureSink } from "../../contract";
-import { ProviderError } from "../../contract";
-import type { VllmChatCompletionResult, VllmEngineClient } from "../engine";
-import { runVllmChatCompletion } from "../engine";
+import { logProviderSummarizeItem } from "../../backends/kit/index.ts";
+import type { StructuredRequest, SummarizeRequest, SummarizeResult, SummarizeResultItem, WireCaptureSink } from "../../contract/index.ts";
+import { ProviderError } from "../../contract/index.ts";
+import type { VllmChatCompletionResult, VllmEngineClient } from "../engine/index.ts";
+import { runVllmChatCompletion } from "../engine/index.ts";
 
 const BACKEND = "vllm";
 

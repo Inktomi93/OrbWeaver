@@ -6,7 +6,7 @@
 import { describe } from "vitest";
 import { readCardDistillTargets } from "../../../../../packages/server/src/domain/discovery/persistence/card-reads.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { seedCharacter, seedUser } from "../_support.ts";
 
 describe("readCardDistillTargets", () => {

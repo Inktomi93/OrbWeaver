@@ -8,9 +8,9 @@ import type { Db } from "@orb/db";
 import { characterKeywordProfiles, characters, keywordCooccurrence } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, desc, eq, gte, or, sql } from "drizzle-orm";
-import type { TopKeywordsOptions } from "../contract/params";
-import type { KeywordCount } from "../contract/results";
-import { normalizeKeyword } from "./utils";
+import type { TopKeywordsOptions } from "../contract/params.ts";
+import type { KeywordCount } from "../contract/results.ts";
+import { normalizeKeyword } from "./utils.ts";
 
 const DEFAULT_TOP_LIMIT = 50;
 const DEFAULT_TOP_MIN_COUNT = 2;

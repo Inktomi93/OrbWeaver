@@ -3,7 +3,7 @@
 // per-page `\n\n` join, info-dict title, empty-page truthfulness (no OCR), and the throw on corrupt bytes.
 
 import { loadPdf } from "../../../../../packages/server/src/infra/extraction/loaders/pdf.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { buildPdf } from "../_fixtures.ts";
 
 test("extracts a single page's text and reports pageCount", async () => {

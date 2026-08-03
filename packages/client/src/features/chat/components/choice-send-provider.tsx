@@ -16,9 +16,9 @@ import type { ReactElement, ReactNode } from "react";
 import { useGatedQuery, useTRPC } from "#data";
 import type { ChatHandle } from "#state";
 import { isCommitted, requestComposerFocus, setComposerDraft, useTurnPhase } from "#state";
-import type { ChoiceSend } from "../hooks/choice-send-context";
-import { ChoiceSendContext } from "../hooks/choice-send-context";
-import { useSendMessage } from "../hooks/use-send-message";
+import type { ChoiceSend } from "../hooks/choice-send-context.tsx";
+import { ChoiceSendContext } from "../hooks/choice-send-context.tsx";
+import { useSendMessage } from "../hooks/use-send-message.ts";
 
 export interface ChoiceSendProviderProps {
   readonly handle: ChatHandle;

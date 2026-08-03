@@ -10,8 +10,8 @@ import { z } from "zod";
 import type { ParticipantRole } from "#identity";
 import { PARTICIPANT_ROLES } from "#identity";
 import type { ThemeBackground, ThemeOverride } from "#theme";
-import type { MemberCardVisibility } from "./metadata";
-import type { ParticipantKind } from "./participants";
+import type { MemberCardVisibility } from "./metadata.ts";
+import type { ParticipantKind } from "./participants.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE UNIFIED-ROSTER WIRE (D16) — the participant roster, the membership-gated member card (D22), invites,

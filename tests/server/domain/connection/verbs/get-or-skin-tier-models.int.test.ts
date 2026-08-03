@@ -9,7 +9,7 @@ import { afterEach, describe } from "vitest";
 import { __resetAgentSdkModelCache, seedAgentSdkModelCache } from "../../../../../packages/server/src/domain/connection/substrate/agent-sdk-model-cache.ts";
 import { __resetOrModelCache, seedOrModelCache } from "../../../../../packages/server/src/domain/connection/substrate/or-model-cache.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { makeAgentSdkModel, makeConnHarness, makeOrEntry } from "../_support.ts";
 
 afterEach(() => {

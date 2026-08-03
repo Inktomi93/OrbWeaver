@@ -13,7 +13,7 @@
 // `db.query` for THAT read only — two dialects, split by read SHAPE (tree vs flat), each cited.
 
 import { relations } from "drizzle-orm";
-import { users } from "./users";
+import { users } from "./users.ts";
 
 // The owner root. KEPT deliberately (owner ruling 2026-08-03) — see the header: relations are CONSUMER-DRIVEN
 // runtime metadata handed to drizzle wholesale as `drizzle(client, { schema })`, so no code will ever name it.

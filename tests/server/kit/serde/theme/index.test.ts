@@ -7,7 +7,7 @@ import type { PortableParse } from "@orb/contracts/portability";
 import type { CanonicalTheme, ThemeBackup } from "@orb/server/kit/serde/theme";
 import { buildThemeBackup, parseThemeBackup, THEME_SCHEMA_KIND, THEME_SCHEMA_VERSION } from "@orb/server/kit/serde/theme";
 import { describe } from "vitest";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 /** The parse outcome's value — the spine returns a typed refusal reason, never null. */
 function must<T>(result: PortableParse<T>): T {

@@ -5,7 +5,7 @@
 
 import { messageRoleFromSt } from "@orb/kit/message-role";
 import type { PersonaDescriptionPosition } from "@orb/kit/persona";
-import type { ParsedPersona, ParsedPersonas } from "../contract/views";
+import type { ParsedPersona, ParsedPersonas } from "../contract/views.ts";
 
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";

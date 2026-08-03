@@ -14,7 +14,7 @@
 // `E2E_ALLOW_DEV_TARGET=1` is the ONE deliberate override (an operator-supervised live drive against their
 // own configured stack); it waives BOTH arms, because "I accept a non-harness target" is one decision.
 
-import type { ModeProject } from "./modes";
+import type { ModeProject } from "./modes.ts";
 
 /** The canonical dev-stack ports (`scripts/dev/stack.sh` defaults: server 8788, vite 5173). A harness target
  *  holding either is refused — that stack is the operator's, and its DB is their real data. */

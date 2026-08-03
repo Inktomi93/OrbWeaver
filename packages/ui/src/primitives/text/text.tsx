@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactElement } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { cn } from "#lib";
-import { textVariants } from "./variants";
+import { textVariants } from "./variants.ts";
 
 // <Text> paints body prose, never a heading — heading semantics belong to <Heading>.
 const TEXT_ELEMENTS = { p: "p", span: "span", div: "div" } as const;

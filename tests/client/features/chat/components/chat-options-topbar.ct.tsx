@@ -16,9 +16,9 @@
 
 import type { ParticipantRole } from "@orb/contracts/identity";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../support/ct/route-trpc";
-import { ChatOptionsTopbarStory } from "../_ct-stories";
-import { makeMessagesPage } from "../fixtures";
+import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { ChatOptionsTopbarStory } from "../_ct-stories.tsx";
+import { makeMessagesPage } from "../fixtures.ts";
 
 /** A human seat — `role` seats a host/member (the roster shape). The host gate is the separate
  *  server-resolved `viewerIsHost` field, NOT this seat's role. */

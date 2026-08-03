@@ -5,7 +5,7 @@
 // stable per-room SCOPE KEY (a committed chat's `ChatId`, or a draft's `draftKey`); an unseen scope reads
 // "". Not persisted (an unsent draft is transient; matches the prior local state).
 
-import { createGatedStore } from "./create-gated-store";
+import { createGatedStore } from "./create-gated-store.ts";
 
 interface ComposerDraftState {
   /** Per-room draft text (`scopeKey → text`); an absent scope reads "". */

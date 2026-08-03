@@ -6,7 +6,7 @@
 // one would be API surface no consumer needs).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { CharacterSelectionProbe } from "./_ct-stories";
+import { CharacterSelectionProbe } from "./_ct-stories.tsx";
 
 test("select sets the id; clear resets to none", async ({ mount }) => {
   const probe = await mount(<CharacterSelectionProbe />);

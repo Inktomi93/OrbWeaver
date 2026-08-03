@@ -19,7 +19,7 @@ import { LibraryRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { CollectionListView } from "#lib";
 import { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT, regexScriptScent, regexScriptTitle } from "#lib";
-import { useAttachRegexGlobal, useDetachRegexGlobal } from "../hooks/use-regex-library";
+import { useAttachRegexGlobal, useDetachRegexGlobal } from "../hooks/use-regex-library.ts";
 
 /** One row's height guess for the windowed arm — the MEASURED height at the real 290px roster mount (name +
  *  scent subtitle + the reserved one-slot cluster). The virtualizer re-measures after mount; the guess only

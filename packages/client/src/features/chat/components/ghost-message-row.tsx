@@ -18,12 +18,12 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
 import type { MessageRenderContext } from "#lib";
 import { cn, renderMessageForDisplay } from "#lib";
-import { useEnterMotion } from "../hooks/use-enter-motion";
-import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream";
-import type { RowAttribution } from "../lib/attribution";
-import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants";
-import { renderRowAvatar } from "./message-row-parts";
-import { ReasoningBlock } from "./reasoning-block";
+import { useEnterMotion } from "../hooks/use-enter-motion.ts";
+import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream.ts";
+import type { RowAttribution } from "../lib/attribution.ts";
+import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
+import { renderRowAvatar } from "./message-row-parts.tsx";
+import { ReasoningBlock } from "./reasoning-block.tsx";
 
 // Fallback pace when smooth-streaming is on but the surface passed no explicit cps (matches the contract
 // default). The pref (`UserSettings.chat.smoothStreamCps`) overrides it via the `smoothStreamCps` prop.

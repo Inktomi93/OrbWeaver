@@ -25,7 +25,7 @@ import {
   createImportRegexScript,
 } from "../../../../../packages/server/src/domain/regex/persistence/portability-write.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 import { behavior, makeHarness, principal, seedCharacter, seedScript, seedUser } from "../_support.ts";
 
 const FROZEN = 1_700_000_000_000;

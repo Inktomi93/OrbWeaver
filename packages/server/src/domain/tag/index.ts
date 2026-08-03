@@ -10,11 +10,11 @@ export type {
   TagTargetType,
   UpdateTagInput,
 } from "@orb/contracts/tag";
-export type { TagContext } from "./context";
-export { TagNotFoundError } from "./contract/errors";
-export type { TagLibraryImportResult } from "./contract/results";
-export type { TagService } from "./contract/service";
-export type { TagUsage, TagView, TagWithUsage } from "./contract/views";
-export { createTagService } from "./service";
-export { createExport as createTagLibraryExport } from "./verbs/export";
-export { createImport as createTagLibraryImport } from "./verbs/import";
+export type { TagContext } from "./context.ts";
+export { TagNotFoundError } from "./contract/errors.ts";
+export type { TagLibraryImportResult } from "./contract/results.ts";
+export type { TagService } from "./contract/service.ts";
+export type { TagUsage, TagView, TagWithUsage } from "./contract/views.ts";
+export { createTagService } from "./service.ts";
+export { createExport as createTagLibraryExport } from "./verbs/export.ts";
+export { createImport as createTagLibraryImport } from "./verbs/import.ts";

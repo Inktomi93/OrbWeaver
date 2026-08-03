@@ -7,8 +7,8 @@
 // click" pin goes red — that's the regression this file guards, not "a button renders".
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc";
-import { MessageCostReadoutStory } from "../_ct-stories";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { MessageCostReadoutStory } from "../_ct-stories.tsx";
 
 const COST_PROC = "connection.orGenerationCost";
 const GEN_ID = "gen_ct_1";

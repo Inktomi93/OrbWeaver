@@ -1,7 +1,7 @@
 // The pure option-merge logic behind <Chart> (split out so it's unit-testable without mounting a
 // live ECharts instance — CT can't read a mounted instance's methods back across the Playwright
 // component-test RPC boundary, so the reduced-motion/aria wiring is proven here instead).
-import type { OrbChartOption } from "./echarts-setup";
+import type { OrbChartOption } from "./echarts-setup.ts";
 
 export interface MergeChartOptionParams {
   readonly label: string;

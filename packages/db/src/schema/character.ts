@@ -29,9 +29,9 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
-import { assets } from "./assets";
-import { personas } from "./persona";
-import { users } from "./users";
+import { assets } from "./assets.ts";
+import { personas } from "./persona.ts";
+import { users } from "./users.ts";
 
 export const characters = sqliteTable(
   "characters",

@@ -4,11 +4,11 @@
 
 import { documents } from "@orb/db";
 import { and, eq } from "drizzle-orm";
-import { DocumentNotFoundError } from "../contract/errors";
-import type { RenameDocumentParams } from "../contract/params";
-import type { DatabankContext, DatabankService } from "../contract/service";
-import type { DocumentView } from "../contract/views";
-import { toDocumentView } from "../persistence/queries";
+import { DocumentNotFoundError } from "../contract/errors.ts";
+import type { RenameDocumentParams } from "../contract/params.ts";
+import type { DatabankContext, DatabankService } from "../contract/service.ts";
+import type { DocumentView } from "../contract/views.ts";
+import { toDocumentView } from "../persistence/queries.ts";
 
 export function createRename(ctx: DatabankContext): DatabankService["rename"] {
   return async ({ principal, id, name }: RenameDocumentParams): Promise<DocumentView> => {

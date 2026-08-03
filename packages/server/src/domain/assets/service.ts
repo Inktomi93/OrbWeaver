@@ -4,26 +4,26 @@
 // (persistence/asset-refs.ts — the one list of asset-bearing columns, coverage proven by a schema-
 // introspection test) so a new asset-bearing FK cannot silently become GC-eligible.
 
-import type { AssetsContext } from "./context";
-import type { AssetsService } from "./contract/service";
-import { createAddToGallery } from "./verbs/add-to-gallery";
-import { createAssetCasRefById } from "./verbs/asset-cas-ref-by-id";
-import { createBackfillAvatars } from "./verbs/backfill-avatars";
-import { createCollectGarbage } from "./verbs/collect-garbage";
-import { createFsck } from "./verbs/fsck";
-import { createGetMetadata } from "./verbs/get-metadata";
-import { createListGallery } from "./verbs/list-gallery";
-import { createListImageAssetIds } from "./verbs/list-image-asset-ids";
-import { createListOwned } from "./verbs/list-owned";
-import { createLoadAssetBytes } from "./verbs/load-asset-bytes";
-import { createReadOwnedAssetBytes } from "./verbs/read-owned-asset-bytes";
-import { createReapIfOrphan } from "./verbs/reap-if-orphan";
-import { createRebuildFromTree } from "./verbs/rebuild-from-tree";
-import { createRemoveFromGallery } from "./verbs/remove-from-gallery";
-import { createResolveChatAssetRefs } from "./verbs/resolve-chat-asset-refs";
-import { createResolveOwnedAssetRefs } from "./verbs/resolve-owned-asset-refs";
-import { createResolveVariant } from "./verbs/resolve-variant";
-import { createStore } from "./verbs/store";
+import type { AssetsContext } from "./context.ts";
+import type { AssetsService } from "./contract/service.ts";
+import { createAddToGallery } from "./verbs/add-to-gallery.ts";
+import { createAssetCasRefById } from "./verbs/asset-cas-ref-by-id.ts";
+import { createBackfillAvatars } from "./verbs/backfill-avatars.ts";
+import { createCollectGarbage } from "./verbs/collect-garbage.ts";
+import { createFsck } from "./verbs/fsck.ts";
+import { createGetMetadata } from "./verbs/get-metadata.ts";
+import { createListGallery } from "./verbs/list-gallery.ts";
+import { createListImageAssetIds } from "./verbs/list-image-asset-ids.ts";
+import { createListOwned } from "./verbs/list-owned.ts";
+import { createLoadAssetBytes } from "./verbs/load-asset-bytes.ts";
+import { createReadOwnedAssetBytes } from "./verbs/read-owned-asset-bytes.ts";
+import { createReapIfOrphan } from "./verbs/reap-if-orphan.ts";
+import { createRebuildFromTree } from "./verbs/rebuild-from-tree.ts";
+import { createRemoveFromGallery } from "./verbs/remove-from-gallery.ts";
+import { createResolveChatAssetRefs } from "./verbs/resolve-chat-asset-refs.ts";
+import { createResolveOwnedAssetRefs } from "./verbs/resolve-owned-asset-refs.ts";
+import { createResolveVariant } from "./verbs/resolve-variant.ts";
+import { createStore } from "./verbs/store.ts";
 
 export function createAssetsService(ctx: AssetsContext): AssetsService {
   return {

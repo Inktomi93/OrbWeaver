@@ -31,16 +31,16 @@ import { useId, useState } from "react";
 import { AddRow, HintEditor, SettingCheckboxRow, TrackerValue } from "#components";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
-import type { RpgPanelState } from "../hooks/use-rpg-context-state";
-import { useReattributePersona, useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations";
-import { mintDefKey } from "../lib/mint-key";
-import { resolveTrackerColor, trackColorProps } from "../lib/track-color";
-import { RpgDoorwayLine } from "./rpg-doorway-line";
-import { RpgGameMacros } from "./rpg-game-macros";
-import { RpgHintMapEditor } from "./rpg-hint-map-editor";
-import { HostConsoleScalars } from "./rpg-host-scalars";
-import { Kicker } from "./rpg-kicker";
-import { DEF_ROW_CLASS, RpgStatProfileEditor } from "./rpg-stat-profile-editor";
+import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
+import { useReattributePersona, useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
+import { mintDefKey } from "../lib/mint-key.ts";
+import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
+import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
+import { RpgGameMacros } from "./rpg-game-macros.tsx";
+import { RpgHintMapEditor } from "./rpg-hint-map-editor.tsx";
+import { HostConsoleScalars } from "./rpg-host-scalars.tsx";
+import { Kicker } from "./rpg-kicker.tsx";
+import { DEF_ROW_CLASS, RpgStatProfileEditor } from "./rpg-stat-profile-editor.tsx";
 
 /** The carrier-class label a def's `appliesTo` reads as. An explicit ref LIST reads as "chosen" and is not
  *  cycled here (this pass authors classes; a per-actor exception is the sheet's grants/revokes) — the list is

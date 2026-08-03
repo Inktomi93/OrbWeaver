@@ -19,10 +19,10 @@
 import type { CharacterHandle, CharacterId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import type { ActorClient } from "./support/actors";
-import { addMemberToChat, loginLocal, ownerActor } from "./support/actors";
-import { openBrowserActor, openMembersTab } from "./support/browser-actors";
-import { LOCAL_MEMBER, LOCAL_OWNER } from "./support/modes";
+import type { ActorClient } from "./support/actors.ts";
+import { addMemberToChat, loginLocal, ownerActor } from "./support/actors.ts";
+import { openBrowserActor, openMembersTab } from "./support/browser-actors.ts";
+import { LOCAL_MEMBER, LOCAL_OWNER } from "./support/modes.ts";
 
 const SNAP_DIR = "reports/snaps";
 const MEMBERS_PANEL = "[data-testid=members-panel]";

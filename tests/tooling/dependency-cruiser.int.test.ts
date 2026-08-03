@@ -12,7 +12,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterAll, beforeAll } from "vitest";
-import { expect, test } from "../support/fixtures";
+import { expect, test } from "../support/fixtures.ts";
 
 interface DcRule {
   readonly name: string;

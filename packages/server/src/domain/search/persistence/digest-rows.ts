@@ -8,8 +8,8 @@ import type { ReadOnlyDb } from "@orb/db";
 import { characters, chatDigests, chatSegments } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { and, eq, sql } from "drizzle-orm";
-import { toVectorBlob } from "./nearest";
-import { digestScopeCond, segmentScopeCond } from "./scope";
+import { toVectorBlob } from "./nearest.ts";
+import { digestScopeCond, segmentScopeCond } from "./scope.ts";
 
 interface NearestDigest {
   readonly chatId: ChatId;

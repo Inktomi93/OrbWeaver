@@ -1,17 +1,17 @@
 // domain/import — FRONT DOOR: the only legal external import; re-exports the public surface.
 
 export { cardContentHash } from "#kit/serde/card";
-export type { ImportContext } from "./context";
-export type { ImportCardErrorCode } from "./contract/errors";
-export { ImportCardError } from "./contract/errors";
-export type { ImportCardInput, ImportCharacterInput } from "./contract/params";
-export type { ImportCharacterResult, ImportChatFileOutcome, ImportedCharacterRef } from "./contract/results";
+export type { ImportContext } from "./context.ts";
+export type { ImportCardErrorCode } from "./contract/errors.ts";
+export { ImportCardError } from "./contract/errors.ts";
+export type { ImportCardInput, ImportCharacterInput } from "./contract/params.ts";
+export type { ImportCharacterResult, ImportChatFileOutcome, ImportedCharacterRef } from "./contract/results.ts";
 export type {
   CreateImportedCharacter,
   FindCharacterByImportHash,
   ImportService,
   StoreImportAsset,
-} from "./contract/service";
+} from "./contract/service.ts";
 export type {
   CollectedCard,
   CollectedChat,
@@ -21,9 +21,9 @@ export type {
   ImportChatsInput,
   ImportFsPort,
   ImportPersonaInput,
-} from "./contract/views";
-export type { ImportWorkloadDeps } from "./contract/workloads";
-export { collectBundlesFromDir } from "./loader/collect";
-export { createImportService } from "./service";
-export { importFileHash, parseCardJson, parseCardPng } from "./substrate/card";
-export { createImportWorkloadContributions } from "./workload-contributions";
+} from "./contract/views.ts";
+export type { ImportWorkloadDeps } from "./contract/workloads.ts";
+export { collectBundlesFromDir } from "./loader/collect.ts";
+export { createImportService } from "./service.ts";
+export { importFileHash, parseCardJson, parseCardPng } from "./substrate/card.ts";
+export { createImportWorkloadContributions } from "./workload-contributions.ts";

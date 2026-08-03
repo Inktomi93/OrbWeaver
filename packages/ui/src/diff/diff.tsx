@@ -6,7 +6,7 @@ import type { Change } from "diff";
 import { diffChars, diffLines, diffWords } from "diff";
 import type { ReactElement } from "react";
 import { cn } from "#lib";
-import { diffSegmentVariants } from "./variants";
+import { diffSegmentVariants } from "./variants.ts";
 
 const DIFF_MODES = ["chars", "words", "lines"] as const;
 type DiffMode = (typeof DIFF_MODES)[number];

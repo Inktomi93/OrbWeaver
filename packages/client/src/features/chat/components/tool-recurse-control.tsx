@@ -17,7 +17,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { useSetToolRecurseLimit } from "../hooks/use-context-panel-mutations";
+import { useSetToolRecurseLimit } from "../hooks/use-context-panel-mutations.ts";
 
 // Mirror the server `toolRecurseLimitSchema` bounds (domain-internal, not client-importable) — the verb
 // re-validates, so these are the UX clamp only. The default shown when unset (the turn engine's own floor).

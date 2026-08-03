@@ -3,8 +3,8 @@
 // registry and the appearance skimmer pane renders it at its anchor.
 
 import type { SettingsSectionContribution } from "#state";
-import { AppearanceAvatarsSection } from "../components/appearance-avatars-section";
-import { APPEARANCE_AVATARS_KEYS, APPEARANCE_AVATARS_SUBCATEGORY } from "./appearance-avatars-model";
+import { AppearanceAvatarsSection } from "../components/appearance-avatars-section.tsx";
+import { APPEARANCE_AVATARS_KEYS, APPEARANCE_AVATARS_SUBCATEGORY } from "./appearance-avatars-model.ts";
 
 const SECTION_ID = "appearance-avatars";
 

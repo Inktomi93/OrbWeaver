@@ -11,10 +11,10 @@
 
 import { Hash } from "@orb/ui/icons";
 import type { CollectionContribution } from "#lib";
-import { TagCollectionRows } from "../components/tag-collection-rows";
-import { useCreateTagMember, useTagCount } from "../hooks/use-tag-collection";
-import { TagMemberSurface } from "../surfaces/tag-member-surface";
-import { TAG_COLLECTION_ID } from "./tags-model";
+import { TagCollectionRows } from "../components/tag-collection-rows.tsx";
+import { useCreateTagMember, useTagCount } from "../hooks/use-tag-collection.ts";
+import { TagMemberSurface } from "../surfaces/tag-member-surface.tsx";
+import { TAG_COLLECTION_ID } from "./tags-model.ts";
 
 export const tagCollection: CollectionContribution = {
   id: TAG_COLLECTION_ID,

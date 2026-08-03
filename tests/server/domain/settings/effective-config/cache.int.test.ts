@@ -14,7 +14,7 @@ import {
 } from "../../../../../packages/server/src/domain/settings/effective-config/cache.ts";
 import { writeAppOverride } from "../../../../../packages/server/src/domain/settings/persistence/queries.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { expect, test } from "../../../../support/fixtures";
+import { expect, test } from "../../../../support/fixtures.ts";
 
 const AT = 1_750_000_000_000;
 const originalLevel = logger.level;

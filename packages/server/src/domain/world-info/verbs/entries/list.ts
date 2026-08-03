@@ -2,11 +2,11 @@
 // Guards book ownership first (via `loadOwnedBook`) so a caller can't probe a foreign book's entry set. A
 // read: no audit.
 
-import type { WorldInfoContext } from "../../context";
-import { WorldInfoNotFoundError } from "../../contract/errors";
-import type { ListEntriesParams } from "../../contract/params";
-import type { WorldInfoService } from "../../contract/service";
-import { listBookEntries, loadOwnedBook, toEntryView } from "../../persistence/queries";
+import type { WorldInfoContext } from "../../context.ts";
+import { WorldInfoNotFoundError } from "../../contract/errors.ts";
+import type { ListEntriesParams } from "../../contract/params.ts";
+import type { WorldInfoService } from "../../contract/service.ts";
+import { listBookEntries, loadOwnedBook, toEntryView } from "../../persistence/queries.ts";
 
 export function createList(ctx: WorldInfoContext): WorldInfoService["listEntries"] {
   return async ({ principal, bookId }: ListEntriesParams) => {
