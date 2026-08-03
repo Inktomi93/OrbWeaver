@@ -676,7 +676,55 @@ The audit wrote SCHEMA / DBANK2 / SWEEP as *dispatched*. Since then:
   position only · an absorbed promise assigned to a variable is out · "traced" is satisfied by ANY opener
   in the statement (proving it wraps THE work needs types) · Arm B reads only a SYNTACTIC `throw`, so a
   rethrow routed through a helper is invisible · `scanRoot` is `packages/server/src/**` only.
-- **LIVE NOW (cap 5 — ONE lane):** **BRAND-F** (`a9c87d67eac1b22a2` — **the WHOLE I-5 burn-down on Fable**, briefed to read
+- ✅ **TAGUX MERGED (`fb3cf32a`)** — all THREE audit wants in one lane. Consolidated `pnpm check`: 14/14.
+  **(1) Sort mode** Most-used (default) / A–Z / Manual, pure client comparator over `usage.total` — zero
+  server change. **Manual NOT retired** and is now the ONLY arm offering drag handles (dragging a DERIVED
+  order would write a `sortOrder` the screen never reflects — the right call). **(2) Suggest-existing
+  picker**: `tag-picker-dialog.tsx` is an `@orb/ui/autocomplete` ranked most-used-first; a CASE-ONLY match
+  submits the LIBRARY's spelling so "Fantasy" cannot drift "fantasy"; attached tags never offered; confirm
+  reads `Create "fantsy"` vs `Apply`; three distinct always-visible empty states. **(3) Exclusion**: chips
+  cycle off → include → exclude → off, new axis at `lib/tag-filter-state.ts` (one tuple + `Exclude`-derived
+  active type + THREE total Records, so a fourth member is three tsc errors); `off` stored as ABSENCE;
+  `character-library` persist v2 with a migrate reading the old `string[]` as `include`.
+  6 red-first assertions run against OLD source (6 failed / 23 passed) before the fix. 79 CT + 12 unit.
+  **Sort preference persists device-local** (`state/tag-library-store.ts`, registered in
+  `persistence-boundary`'s `DEVICE_LOCAL_REGISTRY`) — a browse posture, not something that should follow a
+  user to another machine or ride the synced settings blob on every dropdown change. Its OWN store, because
+  `character-library` is the character list's prefs and folding another workspace's pane in would make that
+  store's name and registry rationale a lie.
+  **⚠️ A BRIEF PREMISE DIED:** "already cached client-side, zero new fetches" was FALSE for the
+  character-library callers — `listTagsWithUsage` has exactly two consumers, both inside `features/tag`,
+  and nothing prefetches it app-wide. The picker now does `useQuery({…, enabled: open})` on the SAME key:
+  cache hit when the roster is mounted, one fetch otherwise, shared thereafter. No new endpoint, no new key.
+  **@orb/ui DEFECT FOUND + FIXED IN THE PRIMITIVE:** with nothing to suggest, Base UI opened an EMPTY popup
+  that (a) intercepted the pointer on the very Create button beneath it and (b) removed the whole host
+  dialog — title, description, Cancel, Confirm — from the A11Y TREE while open. Added an `open`/
+  `onOpenChange` passthrough to `packages/ui/src/primitives/autocomplete/autocomplete.tsx`; the picker
+  pre-filters with `mode="none"` and declines to open an empty popup. **Durable:** any autocomplete inside a
+  `FormDialog` needs the controlled-open arm, and any CT asserting a footer button after typing must barrier
+  on the popup being CLOSED.
+  **⚑ OWNER TASTE (open):** the default flip means the ≤30 drag UI is no longer what you land on — you pick
+  "Manual order" to get handles. Honest reading of "default Most-Used", but it puts manual one click further
+  away, which bears on the still-open **"retire `sortOrder`?"** call. Side-eye is judging whether manual
+  reads as REMOVED.
+  **⚑ GATE BUG FOUND (not TAGUX's, left untouched):** `ui-size-via-variant`'s ALLOWLIST still carries
+  `features/tag/components/tag-settings-row.tsx`, a file that NO LONGER EXISTS (F-11 moved it) — and the
+  gate did NOT fire. Its own two-sided contract says a stale row is RED, so **its stale arm appears not to
+  check for a missing file.** That is the exact loaded-gun class the marker laws exist to prevent; worth a
+  small lane.
+- 🔨 **SIDE-EYE DISPATCHED on TAGUX** (`a7c895dddb90ded5f`) — judged at the owner's REAL ~400-tag scale, not
+  fixture scale; re-verifying the autocomplete a11y fix independently.
+- 🔨 **ASTLENS DISPATCHED** (`a56651b299a85551c`) — a RESOLUTION-based `pnpm ast` lens for **aliases that
+  resolve to `string` without narrowing** ("an alias must NARROW or BRAND; if it does neither it is a lie
+  with a nice name"). Template literals and `Branded` are legitimate and OUT of scope; the target is
+  `type X = string` and its TRANSITIVE chains across import/re-export hops, which are invisible to every
+  syntactic tool we own. **Lens first, gate decision after seeing the real corpus** (report-then-decide —
+  a gate built against an imagined corpus is how you get eleven false reds). Sweep confirmed no existing
+  gate covers it: `no-inline-types` is placement, `contract-derives-not-respells` is object-shape
+  re-spelling, `no-inline-union-redecl` is unions, `brand-in-name-position` declares alias-typed positions
+  out of reach — **none inspect an alias's RHS for `string`**, and `ast.ts`'s existing `aliases` lens is
+  IMPORT aliasing, a different concept.
+- **LIVE NOW (cap 5):** **BRAND-F** (`a9c87d67eac1b22a2` — **the WHOLE I-5 burn-down on Fable**, briefed to read
   `codemod-kit.ts` + `ast.ts` IN FULL; the kit already carries `retypeIdAnnotations` +
   `castStringLiteralsByDiagnostic` from a prior id campaign).
 - **KILLED (owner word):** the first brand lane (mech-executor tier) — zero commits, one untracked
