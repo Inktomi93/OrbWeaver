@@ -135,3 +135,25 @@ test("membersTabJustified: false when neither floor is met (solo character, sing
   expect(membersTabJustified([alice], false)).toBe(false);
   expect(membersTabJustified([alice], true)).toBe(false);
 });
+
+// THE DEADLOCK REGRESSION (2026-08-03, found on the first real multi-user test). "Invite people" lives
+// ONLY inside the Members tab, so gating that tab on >=2 humans made multi-human unreachable: you needed
+// a second human to see the tab, and the tab was the only way to invite one. A HOST on a multi-human
+// install must always reach it.
+test("membersTabJustified: a HOST reaches the tab with ONE human — the invite affordance lives there", () => {
+  const solo = [humanParticipant("participant_h1")];
+  // the deadlock: host, multi-human install, one human, no second character
+  expect(membersTabJustified(solo, true, true)).toBe(true);
+  // a lone character alongside the host must not change the verdict (this is the real shape of a fresh chat)
+  expect(membersTabJustified([...solo, makeParticipant({ characterId: ALICE_ID })], true, true)).toBe(true);
+});
+
+test("membersTabJustified: the host arm needs multiHumanCapable, and does NOT leak to non-hosts", () => {
+  const solo = [humanParticipant("participant_h1")];
+  // single-user install: a host has nobody to invite, so the arm must stay shut
+  expect(membersTabJustified(solo, false, true)).toBe(false);
+  // non-host keeps the DISPLAY floor — it cannot invite, so a one-person People list buys it nothing
+  expect(membersTabJustified(solo, true, false)).toBe(false);
+  // and the default (omitted) is non-host, so existing callers are unchanged
+  expect(membersTabJustified(solo, true)).toBe(false);
+});

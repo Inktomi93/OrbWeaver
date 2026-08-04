@@ -58,7 +58,7 @@ const CHAT_CONTEXT_TABS: readonly (ContextTabDef<ChatContextState> & { readonly 
     id: "members",
     label: "Members",
     icon: Users,
-    when: (s) => (s.phase === "committed" ? membersTabJustified(s.participants, s.multiHumanCapable) : s.cast.length >= GROUP_FLOOR),
+    when: (s) => (s.phase === "committed" ? membersTabJustified(s.participants, s.multiHumanCapable, s.isHost) : s.cast.length >= GROUP_FLOOR),
     body: (s) => (s.phase === "committed" ? <CommittedMembersTab {...toMembersTabProps(s)} /> : <DraftMembersTabBody draftKey={s.draftKey} cast={s.cast} />),
   },
   // Overrides + Injections + Group + Background + Tool-use consolidated into ONE "This chat" tab
