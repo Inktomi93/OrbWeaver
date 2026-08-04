@@ -191,10 +191,16 @@ don't write memory yourself.
   `typecheck:tests-dom` compiles `tsconfig.tests-dom.json` — **`tsconfig.json`'s program does not include
   `tests/e2e/*.spec.ts` at all** (only the support tree + `.int.test`/`.test-d`), so the graph program is
   structurally incapable of seeing a spec. **A floor that names only some of them is a floor with holes** — and the hole is invisible until the orchestrator's consolidated check finds it.
-- **Your floor NAMES its playwright CT files, by path.** `pnpm verify --push` runs NO CTs (tests:node +
-  e2e only) and `check:structure` never executes one, so a CT file nobody named is a file nobody ran —
-  a lane shipped a fix without its own brand-new proving CT this way, and another left 19 CT reds on
-  main because its scoped floor was vitest-only. List the paths in your report beside their results.
+- **Your floor NAMES its playwright CT files, by path.** `check:structure` never executes one, and a
+  LANE is banned from running the whole battery — so a CT file nobody named is a file nobody ran. A lane
+  shipped a fix without its own brand-new proving CT this way, and another left 19 CT reds on main
+  because its scoped floor was vitest-only. List the paths in your report beside their results.
+  **CORRECTED 2026-08-03 — the old reason given here was FALSE and had propagated for weeks:** it is not
+  that `pnpm verify --push` skips CTs. It does NOT. `tests:node` (push + full tiers) runs `pnpm test`,
+  which is `vitest run --project …` **`&&` `pnpm test:ct --retries=2`** — ONE behavioral lane since the
+  2026-07-17 merge, stated in `scripts/verify/registry.ts:304`'s own comment. `pnpm check` (static) runs
+  no tests at all; `verify --push` runs all of them and takes ~16-17 min. **Read the registry, not the
+  folklore** — and if a doc tells you which stages a tier runs, verify it against `registry.ts` first.
 - **A landed change to a shared READ or a11y ATTRIBUTE must SWEEP every test that asserts the old one.**
   Three sightings of one class in one night: `aria-current`→`aria-pressed` left two stale CTs green-
   looking and red-running; a component reading a NEW field of an existing stub shape (`chatDetail.group`)

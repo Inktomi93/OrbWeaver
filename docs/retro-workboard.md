@@ -50,8 +50,10 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   are for permanent deliberate exemptions with a reason + stale arm, never debt parking.
 - Board commits are `--no-verify` (owner word); code merges keep the hook. D-numbers are allocated at
   DISPATCH when two live lanes both mint.
-- Lane floors MUST name their playwright CT files explicitly — `pnpm verify --push` runs NO CTs
-  (tests:node + e2e only); the full `pnpm test` battery at quiesce is the CT proof.
+- Lane floors MUST name their playwright CT files explicitly — **not because the push bar skips them**
+  (it does NOT: `tests:node` runs `pnpm test`, which is the vitest projects `&&` `pnpm test:ct
+  --retries=2` — ONE behavioral lane since 2026-07-17, stated in `scripts/verify/registry.ts:304`), but
+  because a LANE is banned from running the whole battery. A CT nobody names is a CT that lane nobody ran.
 
 ## ═══ STATE (2026-08-03, after the tsx migration + the guard fix) ═══
 
@@ -876,7 +878,9 @@ Items this audit could not prove either way from the tree. **None were dropped.*
 **Verification instruments**
 
 - `pnpm check` = STATIC only (~90-220s, in the pre-commit hook). `pnpm test` = the battery (~10 min,
-  vitest ~9,800 + CT). `pnpm verify --push` = check + tests:node + e2e-smoke and **runs NO CTs**. READ
+  vitest ~9,800 + CT). `pnpm verify --push` = check + tests:node + e2e-smoke — and **`tests:node` IS the whole battery,
+  CTs included** (`pnpm test` = vitest projects && `pnpm test:ct --retries=2`; receipt at
+  `scripts/verify/registry.ts:304`). ~16-17 min; BACKGROUND it, never foreground with a timeout. READ
   `reports/` instead of re-running.
 - snap is STUDIED IN FULL in `side-eye.md`: `--eval` takes a BARE arrow (an arrow-IIFE double-invokes);
   `--jsclick` for list rows; `--isolated`/`--dirty` beat dev-stack HMR; `--goto`/`__orb.nav` for SPA
