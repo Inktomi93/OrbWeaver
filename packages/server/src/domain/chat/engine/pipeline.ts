@@ -35,10 +35,10 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { applyReceivePostProcess } from "@orb/server/kit/post-process";
 import { parseReasoningTags } from "@orb/server/kit/reasoning";
 import { getLog } from "#foundation/observability";
-import type { ToolCallInput, WireTool } from "#infra/providers";
+import type { ToolCallInput, WarningCode, WireTool } from "#infra/providers";
 import type { ApplyPromptTransformsOp, ApplyRegexReplaceOp, ChatToolExecFrame, ChatToolOps, ChatToolSet, RunChatTurnOp } from "../contract/context.ts";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
-import type { HistoryMacroNames, TurnEconomics, TurnKind, TurnMessage, TurnRequest, TurnSpeakerShape } from "../contract/results.ts";
+import type { HistoryMacroNames, TurnEconomics, TurnKind, TurnMessage, TurnRequest, TurnSpeakerShape, TurnStreamChunk } from "../contract/results.ts";
 import {
   buildHistoryBudget,
   buildPrompt,
@@ -159,6 +159,11 @@ interface TurnPipelineResult {
   /** True when a `system`-placement guided steer fell back to a depth-0 injection (marker absent/disabled;
    *  §10 addendum / F8) — the engine emits `guided_placed_as_injection` off this. */
   readonly guidedPlacedAsInjection: boolean;
+  /** The INFRA-originated honest-degrade codes this turn's runner raised (resolve/wire drops — D41), deduped
+   *  across recursion depths and still in the INFRA vocabulary — the engine narrows them to chat's own bus
+   *  codes (`toChatWarningCode`) and emits one `warning` event per surfaced code. Distinct from the boolean
+   *  capability-drop flags above: those are the DOMAIN's own gates, these are the runner's. */
+  readonly runnerWarnings: readonly WarningCode[];
   /** The id of the earliest message actually included in the assembled history this turn, or null. */
   readonly contextBoundaryMessageId: MessageId | null;
   /** The turn's TOTAL estimated context consumption (kept history + system prompt + reserved output) — the
@@ -188,31 +193,34 @@ function fitBudget(args: RunTurnPipelineArgs, intent: UserIntent, systemTokens: 
   });
 }
 
-/** Drains the role's stream: text/reasoning deltas accumulate + fan out; the terminal final chunk yields
- *  economics. The runner's final.content/reasoning (when given) are authoritative; accumulated deltas fall back. */
+/** Drains the role's stream: text/reasoning deltas accumulate + fan out; the out-of-band `warning` chunks
+ *  collect for the engine's bus emit (D41 — the runner's honest-degrade codes, still in the infra vocabulary;
+ *  the engine narrows them to chat's own); the terminal final chunk yields economics. The runner's
+ *  final.content/reasoning (when given) are authoritative; accumulated deltas fall back. */
 async function reduceStream(
   stream: AsyncIterable<{ kind: string }>,
   args: RunTurnPipelineArgs,
-): Promise<{ content: string; reasoning: string | null; economics: TurnEconomics | null }> {
+): Promise<{ content: string; reasoning: string | null; economics: TurnEconomics | null; warnings: readonly WarningCode[] }> {
   let text = "";
   let reasoning = "";
   let economics: TurnEconomics | null = null;
-  for await (const chunk of stream as AsyncIterable<
-    { kind: "text"; text: string } | { kind: "reasoning"; text: string } | { kind: "final"; economics: TurnEconomics }
-  >) {
+  const warnings: WarningCode[] = [];
+  for await (const chunk of stream as AsyncIterable<TurnStreamChunk>) {
     if (chunk.kind === "text") {
       text += chunk.text;
       args.onDelta({ chatId: args.chatId, kind: "text", text: chunk.text });
     } else if (chunk.kind === "reasoning") {
       reasoning += chunk.text;
       args.onDelta({ chatId: args.chatId, kind: "reasoning", text: chunk.text });
+    } else if (chunk.kind === "warning") {
+      warnings.push(chunk.code);
     } else {
       economics = chunk.economics;
     }
   }
   const content = economics?.content ?? text;
   const finalReasoning = economics?.reasoning ?? (reasoning.length > 0 ? reasoning : null);
-  return { content, reasoning: finalReasoning, economics };
+  return { content, reasoning: finalReasoning, economics, warnings };
 }
 
 /** Strips a per-speaker canon row down to only its own speaker's content: removes a leaked leading
@@ -509,6 +517,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     structuredOutputUnsupported: structured.unsupported,
     worldInfoEntryIds: (ctx.wiTrace?.activated ?? []).map((e) => e.id),
     guidedPlacedAsInjection: ctx.guidedPlacedAsInjection === true,
+    runnerWarnings: loop.warnings,
   };
 }
 
@@ -633,6 +642,7 @@ async function runRecurseLoop(input: { readonly args: RunTurnPipelineArgs; reado
   reasoning: string | null;
   economics: TurnEconomics | null;
   records: readonly ToolCallRecord[];
+  warnings: readonly WarningCode[];
 }> {
   const { args, set } = input;
   let history = input.request.history;
@@ -640,12 +650,18 @@ async function runRecurseLoop(input: { readonly args: RunTurnPipelineArgs; reado
   let reasoning: string | null = null;
   let economics: TurnEconomics | null = null;
   const records: ToolCallRecord[] = [];
+  // Deduped across depths: the same request-level degrade (a customParameters blob, a dropped knob) re-fires at
+  // every recursion, but it is ONE degrade and the user gets ONE notice (the `image_dropped` "once" precedent).
+  const warnings = new Set<WarningCode>();
   let depth = 0;
   for (;;) {
     // Sequential by design: each recursion depends on the previous depth's executed results.
     // biome-ignore lint/performance/noAwaitInLoops: the recurse loop is inherently sequential (03 §2).
     const reduced = await reduceStream(args.runChatTurn({ ...input.request, history }), args);
     content += reduced.content;
+    for (const code of reduced.warnings) {
+      warnings.add(code);
+    }
     if (reduced.reasoning !== null && reduced.reasoning.length > 0) {
       reasoning = (reasoning ?? "") + reduced.reasoning;
     }
@@ -663,7 +679,7 @@ async function runRecurseLoop(input: { readonly args: RunTurnPipelineArgs; reado
     history = [...history, ...toolExchangeMessages(reduced.content, batch)];
     depth += 1;
   }
-  return { content, reasoning, economics, records };
+  return { content, reasoning, economics, records, warnings: [...warnings] };
 }
 
 /** Recurses only when tools rode this request AND the finish reason says "tool" AND the reducer assembled

@@ -15,7 +15,9 @@ import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, UserId, 
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { applyStatsDelta } from "@orb/server/domain/stats";
+import { createRunChatTurnBridge } from "@orb/server/entry/compose";
 import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
+import type { ChatRequest, ChatResult, OrSkinTierModels } from "@orb/server/infra/providers";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import type { ChatContext } from "../../../../../packages/server/src/domain/chat/context.ts";
@@ -28,6 +30,7 @@ import { recallMemory } from "../../../../../packages/server/src/domain/chat/mem
 import type { WitnessInterval } from "../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { tryAcquireLock } from "../../../../../packages/server/src/domain/chat/persistence/lock.ts";
 import { loadCanonHistory, loadMaxMessageSeq, loadTurnOrigin } from "../../../../../packages/server/src/domain/chat/persistence/queries.ts";
+import { warningEvents, withCustomParametersDrop } from "../../../../../packages/server/src/infra/providers/backends/openrouter/runners/chat/shared.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { FROZEN_AT, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser, stubRunCompaction, testConnection } from "../_support.ts";
@@ -1418,5 +1421,108 @@ describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, nev
     expect(variants).toHaveLength(1);
     expect(await selectedVariantOf(messageId)).toBe(variantId);
     expect(types(h.events)).not.toContain("messageCommitted");
+  });
+});
+
+// ── CP-DROPPED-WARN / INFRA-WARN-DEAF: the infra→chat warning READ end ───────────────────────────────────
+// THE BUG THIS CATCHES (and that every pre-existing test missed): the infra runners produced `ChatResult.events`
+// warnings that NOBODY read. `createRunChatTurnBridge` mapped only reply/economics, so the `custom_parameters_ignored`
+// raised by BOTH OpenRouter chat runners died inside infra — D41 no-silent-degrade satisfied in the logs and
+// violated in the product. The producer side was fully covered (two runner suites assert the event); the READ
+// side had ZERO coverage, which is exactly how a channel ships with a producer and no consumer.
+//
+// This drives the REAL chain with only the HTTP hop faked: a preset `customParameters` blob on the assemble
+// context → the REAL pipeline `TurnRequest` → the REAL compose bridge's `ChatRequest` map → the REAL runner drop
+// belt (`withCustomParametersDrop` + `warningEvents`, imported from the OR runner — never a hand-written code
+// string) → the bridge's warning chunks → the engine → the chat bus event the client toasts.
+describe("createTurnEngine — an infra runner warning reaches the chat bus (D41 read end)", () => {
+  /** FABRICATION-OK: a minimal successful `ChatResult` — the assertion is on `events`, which the leaf below
+   *  builds with the REAL OpenRouter drop belt. */
+  const orLeafResult = {
+    reply: "Hi there",
+    reasoning: "",
+    reasoningRedacted: false,
+    stopReason: null,
+    terminalReason: null,
+    finishReason: null,
+    ttftMs: null,
+    warmSpareClaimed: null,
+    durationApiMs: null,
+    apiErrorStatus: null,
+    numTurns: 1,
+    usage: {
+      model: "test-model",
+      tokensIn: 4,
+      tokensOut: 2,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      cacheCreation5mTokens: null,
+      cacheCreation1hTokens: null,
+      reasoningTokens: null,
+      contextWindow: null,
+      maxOutputTokens: null,
+      webSearchRequests: 0,
+      costUsd: 0,
+      costDetails: null,
+      isByok: null,
+    },
+    rateLimit: null,
+  } as const;
+
+  /** The bridge's leaf: applies the REAL OpenRouter drop belt to whatever `customParameters` the bridge mapped
+   *  onto the `ChatRequest`, exactly as `chat-completions.ts` / `responses.ts` fold it over their warnings.
+   *  (`customParameters` lives on the array-wire arms only — the agent-sdk arm carries none by charter.) */
+  function orLeaf(req: ChatRequest): Promise<ChatResult> {
+    const blob = req.api === "agent-sdk" ? undefined : req.customParameters;
+    return Promise.resolve({ ...orLeafResult, events: warningEvents(withCustomParametersDrop([], blob), FROZEN_AT) });
+  }
+
+  function bridged(): ChatContext["runChatTurn"] {
+    return createRunChatTurnBridge({
+      runChatTurn: orLeaf,
+      getOrSkinTierModels: (): Promise<OrSkinTierModels> => Promise.resolve({ opus: "or/opus", sonnet: "or/sonnet", haiku: "or/haiku" }),
+    });
+  }
+
+  test("a preset customParameters blob on an OpenRouter turn surfaces one custom_parameters_ignored warning", async () => {
+    const chatId = await seedChat(db, "cp-warn");
+    const h = harness(db, { runChatTurn: bridged() });
+
+    await h.engine.runTurn(
+      prepOf(chatId, {
+        assembleContext: { ...ASSEMBLE_CTX, promptConfig: { ...DEFAULT_PROMPT_CONFIG, customParameters: { topK: 40 } } },
+      }),
+    );
+
+    // `String(...)` deliberately: this assertion must COMPILE against the pre-fix source (where the chat
+    // warning vocabulary has no such member) so its RED is a real defect, not a build error.
+    const codes = h.events.filter((e) => e.type === "warning").map((e) => String(e.code));
+    expect(codes).toEqual(["custom_parameters_ignored"]);
+  });
+
+  test("an infra code with no chat twin never reaches the bus (the domain's declared not-yet-surfaced arm)", async () => {
+    // `sampling_knob_dropped` maps to null in `toChatWarningCode` — it awaits its own CHAT_WARNING_CODES member
+    // + owner-authored copy (board row INFRA-WARN-DEAF). It must be DROPPED, never leaked as an unknown code
+    // (the client mapper's `assertNever` would throw on one).
+    const chatId = await seedChat(db, "cp-unmapped");
+    const unmapped = createRunChatTurnBridge({
+      runChatTurn: (): Promise<ChatResult> =>
+        Promise.resolve({ ...orLeafResult, events: [{ kind: "warning", at: FROZEN_AT, code: "sampling_knob_dropped", message: "topK dropped" }] }),
+      getOrSkinTierModels: (): Promise<OrSkinTierModels> => Promise.resolve({ opus: "or/opus", sonnet: "or/sonnet", haiku: "or/haiku" }),
+    });
+    const h = harness(db, { runChatTurn: unmapped });
+
+    await h.engine.runTurn(prepOf(chatId));
+
+    expect(types(h.events)).not.toContain("warning");
+  });
+
+  test("no customParameters blob raises nothing (the belt is conditional, never a per-turn toast)", async () => {
+    const chatId = await seedChat(db, "cp-quiet");
+    const h = harness(db, { runChatTurn: bridged() });
+
+    await h.engine.runTurn(prepOf(chatId));
+
+    expect(types(h.events)).not.toContain("warning");
   });
 });
